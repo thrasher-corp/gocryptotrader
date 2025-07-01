@@ -192,18 +192,18 @@ func (y *Yobit) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := y.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        y.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: y.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Exchange:          y.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: y.ValidateOrderbook,
 	}
 	fPair, err := y.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -216,7 +216,7 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 	for i := range orderbookNew.Bids {
 		book.Bids = append(book.Bids,
-			orderbook.Tranche{
+			orderbook.Level{
 				Price:  orderbookNew.Bids[i][0],
 				Amount: orderbookNew.Bids[i][1],
 			})
@@ -224,7 +224,7 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 	for i := range orderbookNew.Asks {
 		book.Asks = append(book.Asks,
-			orderbook.Tranche{
+			orderbook.Level{
 				Price:  orderbookNew.Asks[i][0],
 				Amount: orderbookNew.Asks[i][1],
 			})
@@ -305,7 +305,6 @@ func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		tradeTS := time.Unix(tradeData[i].Timestamp, 0)
 		side := order.Buy
 		if tradeData[i].Type == "ask" {
 			side = order.Sell
@@ -318,7 +317,7 @@ func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 			Side:         side,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
-			Timestamp:    tradeTS,
+			Timestamp:    tradeData[i].Timestamp.Time(),
 		}
 	}
 
@@ -465,7 +464,7 @@ func (y *Yobit) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pai
 			Amount:   orderInfo.Amount,
 			Price:    orderInfo.Rate,
 			Side:     side,
-			Date:     time.Unix(int64(orderInfo.TimestampCreated), 0),
+			Date:     orderInfo.TimestampCreated.Time(),
 			Pair:     symbol,
 			Exchange: y.Name,
 		}, nil
@@ -572,7 +571,7 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 				Amount:   resp[id].Amount,
 				Price:    resp[id].Rate,
 				Side:     side,
-				Date:     time.Unix(int64(resp[id].TimestampCreated), 0),
+				Date:     resp[id].TimestampCreated.Time(),
 				Pair:     symbol,
 				Exchange: y.Name,
 			})
@@ -626,7 +625,6 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
 		var side order.Side
 		side, err = order.StringToOrderSide(allOrders[i].Type)
 		if err != nil {
@@ -640,7 +638,7 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 			AverageExecutedPrice: allOrders[i].Rate,
 			Side:                 side,
 			Status:               order.Filled,
-			Date:                 orderDate,
+			Date:                 allOrders[i].Timestamp.Time(),
 			Pair:                 pair,
 			Exchange:             y.Name,
 		}
@@ -673,7 +671,7 @@ func (y *Yobit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, err
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.Unix(info.ServerTime, 0), nil
+	return info.ServerTime.Time(), nil
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type

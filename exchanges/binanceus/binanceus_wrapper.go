@@ -311,18 +311,18 @@ func (bi *Binanceus) UpdateTickers(ctx context.Context, a asset.Item) error {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := bi.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        bi.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: bi.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Exchange:          bi.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: bi.ValidateOrderbook,
 	}
 
 	orderbookNew, err := bi.GetOrderBookDepth(ctx, &OrderBookDataRequestParams{
@@ -332,16 +332,16 @@ func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, as
 	if err != nil {
 		return book, err
 	}
-	book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
+	book.Bids = make([]orderbook.Level, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
-	book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
+	book.Asks = make([]orderbook.Level, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -406,10 +406,6 @@ func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code,
 	}
 	resp := make([]exchange.WithdrawalHistory, len(withdrawals))
 	for i := range withdrawals {
-		tm, err := time.Parse(time.DateTime, withdrawals[i].ApplyTime)
-		if err != nil {
-			return nil, err
-		}
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          strconv.FormatInt(withdrawals[i].Status, 10),
 			TransferID:      withdrawals[i].ID,
@@ -419,7 +415,7 @@ func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code,
 			CryptoToAddress: withdrawals[i].Address,
 			CryptoTxID:      withdrawals[i].ID,
 			CryptoChain:     withdrawals[i].Network,
-			Timestamp:       tm,
+			Timestamp:       withdrawals[i].ApplyTime.Time(),
 		}
 	}
 	return resp, nil
@@ -825,12 +821,12 @@ func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
 		timeSeries[x] = kline.Candle{
-			Time:   candles[x].OpenTime,
-			Open:   candles[x].Open,
-			High:   candles[x].High,
-			Low:    candles[x].Low,
-			Close:  candles[x].Close,
-			Volume: candles[x].Volume,
+			Time:   candles[x].OpenTime.Time(),
+			Open:   candles[x].Open.Float64(),
+			High:   candles[x].High.Float64(),
+			Low:    candles[x].Low.Float64(),
+			Close:  candles[x].Close.Float64(),
+			Volume: candles[x].Volume.Float64(),
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -859,12 +855,12 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 
 		for i := range candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].OpenTime,
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
+				Time:   candles[i].OpenTime.Time(),
+				Open:   candles[i].Open.Float64(),
+				High:   candles[i].High.Float64(),
+				Low:    candles[i].Low.Float64(),
+				Close:  candles[i].Close.Float64(),
+				Volume: candles[i].Volume.Float64(),
 			})
 		}
 	}

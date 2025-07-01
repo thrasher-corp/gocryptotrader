@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -26,9 +25,7 @@ func TestAddRun(t *testing.T) {
 	t.Parallel()
 	rm := NewTaskManager()
 	err := rm.AddTask(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	bt := &BackTest{}
 	err = rm.AddTask(bt)
@@ -42,18 +39,15 @@ func TestAddRun(t *testing.T) {
 	}
 
 	err = rm.AddTask(bt)
-	if !errors.Is(err, errTaskAlreadyMonitored) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskAlreadyMonitored)
-	}
+	assert.ErrorIs(t, err, errTaskAlreadyMonitored)
+
 	if len(rm.tasks) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(rm.tasks), 1)
 	}
 
 	rm = nil
 	err = rm.AddTask(bt)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestGetSummary(t *testing.T) {
@@ -63,9 +57,7 @@ func TestGetSummary(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = rm.GetSummary(id)
-	if !errors.Is(err, errTaskNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskNotFound)
-	}
+	assert.ErrorIs(t, err, errTaskNotFound)
 
 	bt := &BackTest{
 		Strategy:  &binancecashandcarry.Strategy{},
@@ -83,9 +75,7 @@ func TestGetSummary(t *testing.T) {
 
 	rm = nil
 	_, err = rm.GetSummary(id)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestList(t *testing.T) {
@@ -114,9 +104,7 @@ func TestList(t *testing.T) {
 
 	rm = nil
 	_, err = rm.List()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestStopRun(t *testing.T) {
@@ -133,9 +121,7 @@ func TestStopRun(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = rm.StopTask(id)
-	if !errors.Is(err, errTaskNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskNotFound)
-	}
+	assert.ErrorIs(t, err, errTaskNotFound)
 
 	bt := &BackTest{
 		Strategy:  &fakeStrat{},
@@ -147,9 +133,7 @@ func TestStopRun(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = rm.StopTask(bt.MetaData.ID)
-	if !errors.Is(err, errTaskHasNotRan) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskHasNotRan)
-	}
+	assert.ErrorIs(t, err, errTaskHasNotRan)
 
 	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Now()
@@ -158,15 +142,11 @@ func TestStopRun(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = rm.StopTask(bt.MetaData.ID)
-	if !errors.Is(err, errAlreadyRan) {
-		t.Errorf("received '%v' expected '%v'", err, errAlreadyRan)
-	}
+	assert.ErrorIs(t, err, errAlreadyRan)
 
 	rm = nil
 	err = rm.StopTask(id)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestStopAllRuns(t *testing.T) {
@@ -200,9 +180,7 @@ func TestStopAllRuns(t *testing.T) {
 
 	rm = nil
 	_, err = rm.StopAllTasks()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestStartRun(t *testing.T) {
@@ -219,9 +197,7 @@ func TestStartRun(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = rm.StartTask(id)
-	if !errors.Is(err, errTaskNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskNotFound)
-	}
+	assert.ErrorIs(t, err, errTaskNotFound)
 
 	bt := &BackTest{
 		Strategy:   &binancecashandcarry.Strategy{},
@@ -237,9 +213,8 @@ func TestStartRun(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = rm.StartTask(bt.MetaData.ID)
-	if !errors.Is(err, errTaskIsRunning) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskIsRunning)
-	}
+	assert.ErrorIs(t, err, errTaskIsRunning)
+
 	bt.m.Lock()
 	bt.MetaData.DateEnded = time.Now()
 	bt.MetaData.Closed = true
@@ -247,15 +222,11 @@ func TestStartRun(t *testing.T) {
 	bt.m.Unlock()
 
 	err = rm.StartTask(bt.MetaData.ID)
-	if !errors.Is(err, errAlreadyRan) {
-		t.Errorf("received '%v' expected '%v'", err, errAlreadyRan)
-	}
+	assert.ErrorIs(t, err, errAlreadyRan)
 
 	rm = nil
 	err = rm.StartTask(id)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestStartAllRuns(t *testing.T) {
@@ -287,9 +258,7 @@ func TestStartAllRuns(t *testing.T) {
 
 	rm = nil
 	_, err = rm.StartAllTasks()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestClearRun(t *testing.T) {
@@ -300,9 +269,7 @@ func TestClearRun(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = rm.ClearTask(id)
-	if !errors.Is(err, errTaskNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskNotFound)
-	}
+	assert.ErrorIs(t, err, errTaskNotFound)
 
 	bt := &BackTest{
 		Strategy:   &binancecashandcarry.Strategy{},
@@ -318,9 +285,7 @@ func TestClearRun(t *testing.T) {
 	bt.MetaData.DateStarted = time.Now()
 	bt.m.Unlock()
 	err = rm.ClearTask(bt.MetaData.ID)
-	if !errors.Is(err, errCannotClear) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotClear)
-	}
+	assert.ErrorIs(t, err, errCannotClear)
 
 	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Time{}
@@ -337,9 +302,7 @@ func TestClearRun(t *testing.T) {
 
 	rm = nil
 	err = rm.ClearTask(id)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestClearAllRuns(t *testing.T) {
@@ -398,7 +361,5 @@ func TestClearAllRuns(t *testing.T) {
 
 	rm = nil
 	_, _, err = rm.ClearAllTasks()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }

@@ -264,7 +264,7 @@ func (b *Bitstamp) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Volume:       tick.Volume,
 		Open:         tick.Open,
 		Pair:         fPair,
-		LastUpdated:  time.Unix(tick.Timestamp, 0),
+		LastUpdated:  tick.Timestamp.Time(),
 		ExchangeName: b.Name,
 		AssetType:    a,
 	})
@@ -288,18 +288,18 @@ func (b *Bitstamp) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        b.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: b.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Exchange:          b.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: b.ValidateOrderbook,
 	}
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -311,9 +311,9 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		}
@@ -321,9 +321,9 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 
 	filterOrderbookZeroBidPrice(book)
 
-	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -386,15 +386,10 @@ func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 	}
 	resp := make([]exchange.WithdrawalHistory, 0, len(withdrawals))
 	for i := range withdrawals {
-		var tm time.Time
-		tm, err = parseTime(withdrawals[i].Date)
-		if err != nil {
-			return nil, fmt.Errorf("getWithdrawalsHistory unable to parse Date field: %w", err)
-		}
 		if c.IsEmpty() || c.Equal(withdrawals[i].Currency) {
 			resp = append(resp, exchange.WithdrawalHistory{
 				Status:          strconv.FormatInt(withdrawals[i].Status, 10),
-				Timestamp:       tm,
+				Timestamp:       withdrawals[i].Date.Time(),
 				Currency:        withdrawals[i].Currency.String(),
 				Amount:          withdrawals[i].Amount,
 				TransferType:    strconv.FormatInt(withdrawals[i].Type, 10),
@@ -432,7 +427,7 @@ func (b *Bitstamp) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			Side:         s,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
-			Timestamp:    time.Unix(tradeData[i].Date, 0),
+			Timestamp:    tradeData[i].Date.Time(),
 		}
 	}
 
@@ -531,10 +526,6 @@ func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			Amount: o.Transactions[i].ToCurrency,
 		}
 	}
-	orderDate, err := time.Parse(time.DateTime, o.DateTime)
-	if err != nil {
-		return nil, err
-	}
 	status, err := order.StringToOrderStatus(o.Status)
 	if err != nil {
 		return nil, err
@@ -542,7 +533,7 @@ func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 	return &order.Detail{
 		RemainingAmount: o.AmountRemaining,
 		OrderID:         o.ID,
-		Date:            orderDate,
+		Date:            o.DateTime.Time(),
 		Trades:          th,
 		Status:          status,
 	}, nil
@@ -677,13 +668,6 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			orderSide = order.Sell
 		}
 
-		var tm time.Time
-		tm, err = parseTime(resp[i].DateTime)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s GetActiveOrders unable to parse time: %s\n", b.Name, err)
-		}
-
 		var p currency.Pair
 		if currPair == "all" {
 			// Currency pairs are returned as format "currency_pair": "BTC/USD"
@@ -702,7 +686,7 @@ func (b *Bitstamp) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			Price:    resp[i].Price,
 			Type:     order.Limit,
 			Side:     orderSide,
-			Date:     tm,
+			Date:     resp[i].DateTime.Time(),
 			Pair:     p,
 			Exchange: b.Name,
 		}
@@ -776,16 +760,9 @@ func (b *Bitstamp) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				format.Delimiter)
 		}
 
-		var tm time.Time
-		tm, err = parseTime(resp[i].Date)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s GetOrderHistory unable to parse time: %s\n", b.Name, err)
-		}
-
 		orders = append(orders, order.Detail{
 			OrderID:  strconv.FormatInt(resp[i].OrderID, 10),
-			Date:     tm,
+			Date:     resp[i].Date.Time(),
 			Exchange: b.Name,
 			Pair:     currPair,
 		})
@@ -819,7 +796,7 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 	timeSeries := make([]kline.Candle, 0, len(candles.Data.OHLCV))
 	for x := range candles.Data.OHLCV {
-		timestamp := time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
+		timestamp := candles.Data.OHLCV[x].Timestamp.Time()
 		if timestamp.Before(req.Start) || timestamp.After(req.End) {
 			continue
 		}
@@ -857,13 +834,13 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 
 		for i := range candles.Data.OHLCV {
-			timestamp := time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
+			timestamp := candles.Data.OHLCV[i].Timestamp.Time()
 			if timestamp.Before(req.RangeHolder.Ranges[x].Start.Time) ||
 				timestamp.After(req.RangeHolder.Ranges[x].End.Time) {
 				continue
 			}
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   time.Unix(candles.Data.OHLCV[i].Timestamp, 0),
+				Time:   timestamp,
 				Open:   candles.Data.OHLCV[i].Open,
 				High:   candles.Data.OHLCV[i].High,
 				Low:    candles.Data.OHLCV[i].Low,

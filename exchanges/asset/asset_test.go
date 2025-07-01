@@ -1,7 +1,6 @@
 package asset
 
 import (
-	"errors"
 	"slices"
 	"testing"
 
@@ -133,9 +132,8 @@ func TestNew(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			returned, err := New(tt.Input)
-			if !errors.Is(err, tt.Error) {
-				t.Fatalf("received: '%v' but expected: '%v'", err, tt.Error)
-			}
+			require.ErrorIs(t, err, tt.Error)
+
 			if returned != tt.Expected {
 				t.Fatalf("received: '%v' but expected: '%v'", returned, tt.Expected)
 			}
@@ -182,9 +180,7 @@ func TestUnmarshalMarshal(t *testing.T) {
 	}
 
 	err = json.Unmarshal([]byte(`"confused"`), &spot)
-	if !errors.Is(err, ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNotSupported)
-	}
+	require.ErrorIs(t, err, ErrNotSupported)
 
 	err = json.Unmarshal([]byte(`""`), &spot)
 	require.NoError(t, err)

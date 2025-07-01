@@ -296,18 +296,18 @@ func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        b.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: b.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Exchange:          b.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: b.ValidateOrderbook,
 	}
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -318,22 +318,22 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Tranches, 0, len(a.BuyQuote))
+	book.Bids = make(orderbook.Levels, 0, len(a.BuyQuote))
 	for x := range a.BuyQuote {
 		if b.orderbookFilter(a.BuyQuote[x].Price, a.BuyQuote[x].Size) {
 			continue
 		}
-		book.Bids = append(book.Bids, orderbook.Tranche{
+		book.Bids = append(book.Bids, orderbook.Level{
 			Price:  a.BuyQuote[x].Price,
 			Amount: a.BuyQuote[x].Size,
 		})
 	}
-	book.Asks = make(orderbook.Tranches, 0, len(a.SellQuote))
+	book.Asks = make(orderbook.Levels, 0, len(a.SellQuote))
 	for x := range a.SellQuote {
 		if b.orderbookFilter(a.SellQuote[x].Price, a.SellQuote[x].Size) {
 			continue
 		}
-		book.Asks = append(book.Asks, orderbook.Tranche{
+		book.Asks = append(book.Asks, orderbook.Level{
 			Price:  a.SellQuote[x].Price,
 			Amount: a.SellQuote[x].Size,
 		})
@@ -420,9 +420,7 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		tradeTimestamp := time.UnixMilli(tradeData[i].Time)
-		var side order.Side
-		side, err = order.StringToOrderSide(tradeData[i].Side)
+		side, err := order.StringToOrderSide(tradeData[i].Side)
 		if err != nil {
 			return nil, err
 		}
@@ -434,7 +432,7 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			Side:         side,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
-			Timestamp:    tradeTimestamp,
+			Timestamp:    tradeData[i].Time.Time(),
 		}
 	}
 	err = b.AddTradesToBuffer(resp...)
@@ -594,7 +592,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair
 		od.Exchange = b.Name
 		od.Amount = o[i].Size
 		od.OrderID = o[i].OrderID
-		od.Date = time.Unix(o[i].Timestamp, 0)
+		od.Date = o[i].Timestamp.Time()
 		od.Side = side
 
 		od.Type = orderIntToType(o[i].OrderType)
@@ -615,18 +613,13 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair
 		}
 
 		for i := range th {
-			createdAt, err := parseOrderTime(th[i].TradeID)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s GetOrderInfo unable to parse time: %s\n", b.Name, err)
-			}
 			var orderSide order.Side
 			orderSide, err = order.StringToOrderSide(th[i].Side)
 			if err != nil {
 				return nil, err
 			}
 			od.Trades = append(od.Trades, order.TradeHistory{
-				Timestamp: createdAt,
+				Timestamp: th[i].Timestamp.Time(),
 				TID:       th[i].TradeID,
 				Price:     th[i].Price,
 				Amount:    th[i].Size,
@@ -762,7 +755,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 				ExecutedAmount:  resp[i].FilledSize,
 				RemainingAmount: resp[i].Size - resp[i].FilledSize,
 				OrderID:         resp[i].OrderID,
-				Date:            time.Unix(resp[i].Timestamp, 0),
+				Date:            resp[i].Timestamp.Time(),
 				Side:            side,
 				Price:           resp[i].Price,
 				Status:          status,
@@ -784,20 +777,13 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 			}
 
 			for i := range fills {
-				createdAt, err := parseOrderTime(fills[i].Timestamp)
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s GetActiveOrders unable to parse time: %s\n",
-						b.Name,
-						err)
-				}
 				var orderSide order.Side
 				orderSide, err = order.StringToOrderSide(fills[i].Side)
 				if err != nil {
 					return nil, err
 				}
 				openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
-					Timestamp: createdAt,
+					Timestamp: fills[i].Timestamp.Time(),
 					TID:       fills[i].TradeID,
 					Price:     fills[i].Price,
 					Amount:    fills[i].Size,
@@ -858,7 +844,6 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mult
 			if err != nil {
 				return nil, err
 			}
-			orderTime := time.UnixMilli(currentOrder[y].Timestamp)
 			tempOrder := order.Detail{
 				OrderID:              currentOrder[y].OrderID,
 				ClientID:             currentOrder[y].ClOrderID,
@@ -868,7 +853,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mult
 				Amount:               currentOrder[y].Size,
 				ExecutedAmount:       currentOrder[y].FilledSize,
 				RemainingAmount:      currentOrder[y].Size - currentOrder[y].FilledSize,
-				Date:                 orderTime,
+				Date:                 currentOrder[y].Timestamp.Time(),
 				Side:                 orderSide,
 				Status:               orderStatus,
 				Pair:                 orderDeref.Pairs[x],
@@ -1113,11 +1098,11 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		settlementCurrencies := make(currency.Currencies, len(marketSummary[i].AvailableSettlement))
 		var s, e time.Time
 		var ct futures.ContractType
-		if marketSummary[i].OpenTime > 0 {
-			s = time.UnixMilli(marketSummary[i].OpenTime)
+		if !marketSummary[i].OpenTime.Time().IsZero() {
+			s = marketSummary[i].OpenTime.Time()
 		}
-		if marketSummary[i].CloseTime > 0 {
-			e = time.UnixMilli(marketSummary[i].CloseTime)
+		if !marketSummary[i].CloseTime.Time().IsZero() {
+			e = marketSummary[i].CloseTime.Time()
 		}
 		if marketSummary[i].TimeBasedContract {
 			if e.Sub(s) > kline.OneMonth.Duration() {

@@ -2,6 +2,7 @@ package hitbtc
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -52,11 +53,12 @@ var defaultSubscriptions = subscription.List{
 
 // WsConnect starts a new connection with the websocket API
 func (h *HitBTC) WsConnect() error {
+	ctx := context.TODO()
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := h.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := h.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -65,7 +67,7 @@ func (h *HitBTC) WsConnect() error {
 	go h.wsReadData()
 
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		err = h.wsLogin(context.TODO())
+		err = h.wsLogin(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
 		}
@@ -315,18 +317,18 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob *WsOrderbook) error {
 		return errors.New("no orderbooks to process")
 	}
 
-	newOrderBook := orderbook.Base{
-		Bids: make(orderbook.Tranches, len(ob.Params.Bid)),
-		Asks: make(orderbook.Tranches, len(ob.Params.Ask)),
+	newOrderBook := orderbook.Book{
+		Bids: make(orderbook.Levels, len(ob.Params.Bid)),
+		Asks: make(orderbook.Levels, len(ob.Params.Ask)),
 	}
 	for i := range ob.Params.Bid {
-		newOrderBook.Bids[i] = orderbook.Tranche{
+		newOrderBook.Bids[i] = orderbook.Level{
 			Amount: ob.Params.Bid[i].Size,
 			Price:  ob.Params.Bid[i].Price,
 		}
 	}
 	for i := range ob.Params.Ask {
-		newOrderBook.Asks[i] = orderbook.Tranche{
+		newOrderBook.Asks[i] = orderbook.Level{
 			Amount: ob.Params.Ask[i].Size,
 			Price:  ob.Params.Ask[i].Price,
 		}
@@ -353,7 +355,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob *WsOrderbook) error {
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Pair = p
 	newOrderBook.Exchange = h.Name
-	newOrderBook.VerifyOrderbook = h.CanVerifyOrderbook
+	newOrderBook.ValidateOrderbook = h.ValidateOrderbook
 	newOrderBook.LastUpdated = ob.Params.Timestamp
 
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
@@ -438,17 +440,17 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 		return nil
 	}
 
-	bids := make(orderbook.Tranches, len(update.Params.Bid))
+	bids := make(orderbook.Levels, len(update.Params.Bid))
 	for i := range update.Params.Bid {
-		bids[i] = orderbook.Tranche{
+		bids[i] = orderbook.Level{
 			Price:  update.Params.Bid[i].Price,
 			Amount: update.Params.Bid[i].Size,
 		}
 	}
 
-	asks := make(orderbook.Tranches, len(update.Params.Ask))
+	asks := make(orderbook.Levels, len(update.Params.Ask))
 	for i := range update.Params.Ask {
-		asks[i] = orderbook.Tranche{
+		asks[i] = orderbook.Level{
 			Price:  update.Params.Ask[i].Price,
 			Amount: update.Params.Ask[i].Size,
 		}
@@ -501,15 +503,17 @@ const (
 
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HitBTC) Subscribe(subs subscription.List) error {
-	return h.ParallelChanOp(subs, func(subs subscription.List) error { return h.manageSubs(subscribeOp, subs) }, 1)
+	ctx := context.TODO()
+	return h.ParallelChanOp(ctx, subs, func(ctx context.Context, subs subscription.List) error { return h.manageSubs(ctx, subscribeOp, subs) }, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HitBTC) Unsubscribe(subs subscription.List) error {
-	return h.ParallelChanOp(subs, func(subs subscription.List) error { return h.manageSubs(unsubscribeOp, subs) }, 1)
+	ctx := context.TODO()
+	return h.ParallelChanOp(ctx, subs, func(ctx context.Context, subs subscription.List) error { return h.manageSubs(ctx, unsubscribeOp, subs) }, 1)
 }
 
-func (h *HitBTC) manageSubs(op string, subs subscription.List) error {
+func (h *HitBTC) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	var errs error
 	subs, errs = subs.ExpandTemplates(h)
 	for _, s := range subs {
@@ -522,7 +526,7 @@ func (h *HitBTC) manageSubs(op string, subs subscription.List) error {
 			continue
 		}
 		r.Method = op + r.Method
-		err := h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r) // v2 api does not return an ID with errors, so we don't use ReturnResponse
+		err := h.Websocket.Conn.SendJSONMessage(ctx, request.Unset, r) // v2 api does not return an ID with errors, so we don't use ReturnResponse
 		if err == nil {
 			if op == subscribeOp {
 				err = h.Websocket.AddSuccessfulSubscriptions(h.Websocket.Conn, s)
@@ -548,9 +552,7 @@ func (h *HitBTC) wsLogin(ctx context.Context) error {
 	}
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	n := strconv.FormatInt(time.Now().Unix(), 10)
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(n),
-		[]byte(creds.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(n), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
@@ -561,12 +563,12 @@ func (h *HitBTC) wsLogin(ctx context.Context) error {
 			Algo:      "HS256",
 			PKey:      creds.Key,
 			Nonce:     n,
-			Signature: crypto.HexEncodeToString(hmac),
+			Signature: hex.EncodeToString(hmac),
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
 
-	err = h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+	err = h.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -576,7 +578,7 @@ func (h *HitBTC) wsLogin(ctx context.Context) error {
 }
 
 // wsPlaceOrder sends a websocket message to submit an order
-func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity float64) (*WsSubmitOrderSuccessResponse, error) {
+func (h *HitBTC) wsPlaceOrder(ctx context.Context, pair currency.Pair, side string, price, quantity float64) (*WsSubmitOrderSuccessResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
@@ -598,7 +600,7 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 		},
 		ID: id,
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, id, req)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, id, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -614,7 +616,7 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 }
 
 // wsCancelOrder sends a websocket message to cancel an order
-func (h *HitBTC) wsCancelOrder(clientOrderID string) (*WsCancelOrderResponse, error) {
+func (h *HitBTC) wsCancelOrder(ctx context.Context, clientOrderID string) (*WsCancelOrderResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
@@ -625,7 +627,7 @@ func (h *HitBTC) wsCancelOrder(clientOrderID string) (*WsCancelOrderResponse, er
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -641,7 +643,7 @@ func (h *HitBTC) wsCancelOrder(clientOrderID string) (*WsCancelOrderResponse, er
 }
 
 // wsReplaceOrder sends a websocket message to replace an order
-func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (*WsReplaceOrderResponse, error) {
+func (h *HitBTC) wsReplaceOrder(ctx context.Context, clientOrderID string, quantity, price float64) (*WsReplaceOrderResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
@@ -655,7 +657,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -671,7 +673,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 }
 
 // wsGetActiveOrders sends a websocket message to get all active orders
-func (h *HitBTC) wsGetActiveOrders() (*wsActiveOrdersResponse, error) {
+func (h *HitBTC) wsGetActiveOrders(ctx context.Context) (*wsActiveOrdersResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot get active orders", h.Name)
 	}
@@ -680,7 +682,7 @@ func (h *HitBTC) wsGetActiveOrders() (*wsActiveOrdersResponse, error) {
 		Params: WsReplaceOrderRequestData{},
 		ID:     h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -696,7 +698,7 @@ func (h *HitBTC) wsGetActiveOrders() (*wsActiveOrdersResponse, error) {
 }
 
 // wsGetTradingBalance sends a websocket message to get trading balance
-func (h *HitBTC) wsGetTradingBalance() (*WsGetTradingBalanceResponse, error) {
+func (h *HitBTC) wsGetTradingBalance(ctx context.Context) (*WsGetTradingBalanceResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
@@ -705,7 +707,7 @@ func (h *HitBTC) wsGetTradingBalance() (*WsGetTradingBalanceResponse, error) {
 		Params: WsReplaceOrderRequestData{},
 		ID:     h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -721,7 +723,7 @@ func (h *HitBTC) wsGetTradingBalance() (*WsGetTradingBalanceResponse, error) {
 }
 
 // wsGetCurrencies sends a websocket message to get trading balance
-func (h *HitBTC) wsGetCurrencies(currencyItem currency.Code) (*WsGetCurrenciesResponse, error) {
+func (h *HitBTC) wsGetCurrencies(ctx context.Context, currencyItem currency.Code) (*WsGetCurrenciesResponse, error) {
 	req := WsGetCurrenciesRequest{
 		Method: "getCurrency",
 		Params: WsGetCurrenciesRequestParameters{
@@ -729,7 +731,7 @@ func (h *HitBTC) wsGetCurrencies(currencyItem currency.Code) (*WsGetCurrenciesRe
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -745,7 +747,7 @@ func (h *HitBTC) wsGetCurrencies(currencyItem currency.Code) (*WsGetCurrenciesRe
 }
 
 // wsGetSymbols sends a websocket message to get trading balance
-func (h *HitBTC) wsGetSymbols(c currency.Pair) (*WsGetSymbolsResponse, error) {
+func (h *HitBTC) wsGetSymbols(ctx context.Context, c currency.Pair) (*WsGetSymbolsResponse, error) {
 	fPair, err := h.FormatExchangeCurrency(c, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -758,7 +760,7 @@ func (h *HitBTC) wsGetSymbols(c currency.Pair) (*WsGetSymbolsResponse, error) {
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -774,7 +776,7 @@ func (h *HitBTC) wsGetSymbols(c currency.Pair) (*WsGetSymbolsResponse, error) {
 }
 
 // wsGetSymbols sends a websocket message to get trading balance
-func (h *HitBTC) wsGetTrades(c currency.Pair, limit int64, sort, by string) (*WsGetTradesResponse, error) {
+func (h *HitBTC) wsGetTrades(ctx context.Context, c currency.Pair, limit int64, sort, by string) (*WsGetTradesResponse, error) {
 	fPair, err := h.FormatExchangeCurrency(c, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -790,7 +792,7 @@ func (h *HitBTC) wsGetTrades(c currency.Pair, limit int64, sort, by string) (*Ws
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}

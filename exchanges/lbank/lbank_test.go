@@ -4,8 +4,10 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/md5" //nolint:gosec // Used for this exchange
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -18,7 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	gctcrypto "github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -44,7 +45,7 @@ var (
 func TestMain(m *testing.M) {
 	l = new(Lbank)
 	if err := testexch.Setup(l); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Lbank Setup error: %s", err)
 	}
 	if apiKey != "" && apiSecret != "" {
 		l.API.AuthenticatedSupport = true
@@ -269,15 +270,11 @@ func TestSign(t *testing.T) {
 	msg, err := l2.sign(targetMessage)
 	require.NoError(t, err, "sign must not error")
 
-	md5hash, err := gctcrypto.GetMD5([]byte(targetMessage))
-	require.NoError(t, err)
-	m := strings.ToUpper(hex.EncodeToString(md5hash))
-	shaHash, err := gctcrypto.GetSHA256([]byte(m))
-	require.NoError(t, err)
-
+	md5sum := md5.Sum([]byte(targetMessage)) //nolint:gosec // Used for this exchange
+	shasum := sha256.Sum256([]byte(strings.ToUpper(hex.EncodeToString(md5sum[:]))))
 	sigBytes, err := base64.StdEncoding.DecodeString(msg)
 	require.NoError(t, err)
-	err = rsa.VerifyPKCS1v15(&l2.privateKey.PublicKey, crypto.SHA256, shaHash, sigBytes)
+	err = rsa.VerifyPKCS1v15(&l2.privateKey.PublicKey, crypto.SHA256, shasum[:], sigBytes)
 	require.NoError(t, err)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
@@ -397,37 +394,31 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name     string
 		interval kline.Interval
 		output   string
 	}{
 		{
-			"OneMin",
 			kline.OneMin,
 			"minute1",
 		},
 		{
-			"OneHour",
 			kline.OneHour,
 			"hour1",
 		},
 		{
-			"OneDay",
 			kline.OneDay,
 			"day1",
 		},
 		{
-			"OneWeek",
 			kline.OneWeek,
 			"week1",
 		},
 		{
-			"AllOther",
 			kline.FifteenDay,
 			"",
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.interval.String(), func(t *testing.T) {
 			t.Parallel()
 			ret := l.FormatExchangeKlineInterval(tc.interval)
 			assert.Equalf(t, tc.output, ret, "FormatExchangeKlineInterval(%s) should return %q", tc.interval, tc.output)

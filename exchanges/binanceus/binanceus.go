@@ -2,6 +2,7 @@ package binanceus
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -124,12 +124,10 @@ var (
 	errInvalidAssetAmount                     = errors.New("invalid asset amount")
 	errIncompleteArguments                    = errors.New("missing required argument")
 	errStartTimeOrFromIDNotSet                = errors.New("please set StartTime or FromId, but not both")
-	errUnexpectedKlineDataLength              = errors.New("unexpected kline data length")
 	errMissingRequiredArgumentCoin            = errors.New("missing required argument,coin")
 	errMissingRequiredArgumentNetwork         = errors.New("missing required argument,network")
 	errAmountValueMustBeGreaterThan0          = errors.New("amount must be greater than 0")
 	errMissingPaymentAccountInfo              = errors.New("error: missing payment account")
-	errUnixMilliSecTypeAssertion              = errors.New("error while asserting unix time integer")
 	errMissingRequiredParameterAddress        = errors.New("missing required parameter \"address\"")
 	errMissingCurrencySymbol                  = errors.New("missing currency symbol")
 	errEitherOrderIDOrClientOrderIDIsRequired = errors.New("either order id or client order id is required")
@@ -335,47 +333,26 @@ func (bi *Binanceus) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRe
 	}
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.FormatInt(arg.Limit, 10))
-	var resp OrderBookData
-	if err := bi.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		common.EncodeURLValues(orderBookDepth, params),
-		orderbookLimit(arg.Limit), &resp); err != nil {
+
+	var resp *OrderBookData
+	if err := bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(arg.Limit), &resp); err != nil {
 		return nil, err
 	}
-	orderbook := OrderBook{
+
+	ob := &OrderBook{
 		Bids:         make([]OrderbookItem, len(resp.Bids)),
 		Asks:         make([]OrderbookItem, len(resp.Asks)),
 		LastUpdateID: resp.LastUpdateID,
 	}
 	for x := range resp.Bids {
-		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		orderbook.Bids[x] = OrderbookItem{
-			Price:    price,
-			Quantity: amount,
-		}
+		ob.Bids[x].Price = resp.Bids[x][0].Float64()
+		ob.Bids[x].Quantity = resp.Bids[x][1].Float64()
 	}
 	for x := range resp.Asks {
-		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		orderbook.Asks[x] = OrderbookItem{
-			Price:    price,
-			Quantity: amount,
-		}
+		ob.Asks[x].Price = resp.Asks[x][0].Float64()
+		ob.Asks[x].Quantity = resp.Asks[x][1].Float64()
 	}
-	return &orderbook, nil
+	return ob, nil
 }
 
 // GetIntervalEnum allowed interval params by Binanceus
@@ -435,70 +412,8 @@ func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams)
 		params.Set("endTime", strconv.FormatInt((arg.EndTime).UnixMilli(), 10))
 	}
 	path := common.EncodeURLValues(candleStick, params)
-	var resp any
-	err = bi.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		path,
-		spotDefaultRate,
-		&resp)
-	if err != nil {
-		return nil, err
-	}
-	responseData, ok := resp.([]any)
-	if !ok {
-		return nil, common.GetTypeAssertError("[]any", resp, "responseData")
-	}
-
-	klineData := make([]CandleStick, len(responseData))
-	for x := range responseData {
-		individualData, ok := responseData[x].([]any)
-		if !ok {
-			return nil, common.GetTypeAssertError("[]any", responseData[x], "individualData")
-		}
-		if len(individualData) != 12 {
-			return nil, errUnexpectedKlineDataLength
-		}
-		var candle CandleStick
-		val, ok := individualData[0].(float64)
-		if !ok {
-			return nil, errUnixMilliSecTypeAssertion
-		}
-		candle.OpenTime = time.UnixMilli(int64(val))
-		if candle.Open, err = convert.FloatFromString(individualData[1]); err != nil {
-			return nil, err
-		}
-		if candle.High, err = convert.FloatFromString(individualData[2]); err != nil {
-			return nil, err
-		}
-		if candle.Low, err = convert.FloatFromString(individualData[3]); err != nil {
-			return nil, err
-		}
-		if candle.Close, err = convert.FloatFromString(individualData[4]); err != nil {
-			return nil, err
-		}
-		if candle.Volume, err = convert.FloatFromString(individualData[5]); err != nil {
-			return nil, err
-		}
-		val, ok = individualData[6].(float64)
-		if !ok {
-			return nil, errUnixMilliSecTypeAssertion
-		}
-		candle.CloseTime = time.UnixMilli(int64(val))
-		if candle.QuoteAssetVolume, err = convert.FloatFromString(individualData[7]); err != nil {
-			return nil, err
-		}
-		if candle.TradeCount, ok = individualData[8].(float64); !ok {
-			return nil, common.GetTypeAssertError("float64", individualData[8], "trade count")
-		}
-		if candle.TakerBuyAssetVolume, err = convert.FloatFromString(individualData[9]); err != nil {
-			return nil, err
-		}
-		if candle.TakerBuyQuoteAssetVolume, err = convert.FloatFromString(individualData[10]); err != nil {
-			return nil, err
-		}
-		klineData[x] = candle
-	}
-	return klineData, nil
+	var resp []CandleStick
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // GetSinglePriceData to get the latest price for a token symbol or symbols.
@@ -1489,10 +1404,10 @@ func (bi *Binanceus) WithdrawalHistory(ctx context.Context, c currency.Code, sta
 		params.Set("status", status)
 	}
 	if !startTime.IsZero() && startTime.Unix() != 0 {
-		params.Set("startTime", strconv.FormatInt(startTime.UTC().Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 	}
 	if !endTime.IsZero() && endTime.Unix() != 0 {
-		params.Set("endTime", strconv.FormatInt(endTime.UTC().Unix(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	if offset != 0 {
 		params.Set("offset", strconv.Itoa(offset))
@@ -1616,11 +1531,11 @@ func (bi *Binanceus) DepositHistory(ctx context.Context, c currency.Code, status
 		}
 	}
 	if !startTime.IsZero() && startTime.Unix() != 0 {
-		params.Set("startTime", strconv.FormatInt(startTime.UTC().Unix(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 	}
 
 	if !endTime.IsZero() && endTime.Unix() != 0 {
-		params.Set("endTime", strconv.FormatInt(endTime.UTC().Unix(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.Unix(), 10))
 	}
 
 	if offset != 0 {
@@ -1804,21 +1719,14 @@ func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 	}
 	interim := json.RawMessage{}
 	err = bi.SendPayload(ctx, f, func() (*request.Item, error) {
-		fullPath := endpointPath + path
 		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-		signature := params.Encode()
-		var hmacSigned []byte
-		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(signature),
-			[]byte(creds.Secret))
+		hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(params.Encode()), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
-		hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
 		headers := make(map[string]string)
 		headers["X-MBX-APIKEY"] = creds.Key
-		fullPath = common.EncodeURLValues(fullPath, params)
-		fullPath += "&signature=" + hmacSignedStr
+		fullPath := common.EncodeURLValues(endpointPath+path, params) + "&signature=" + hex.EncodeToString(hmacSigned)
 		return &request.Item{
 			Method:        method,
 			Path:          fullPath,

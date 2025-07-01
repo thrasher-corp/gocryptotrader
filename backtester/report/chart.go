@@ -26,7 +26,7 @@ func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.Fun
 	for i := range items {
 		usdTotalChartPlot[i] = LinePlot{
 			Value:     items[i].Value.InexactFloat64(),
-			UnixMilli: items[i].Time.UTC().UnixMilli(),
+			UnixMilli: items[i].Time.UnixMilli(),
 		}
 	}
 	response.Data = append(response.Data, ChartLine{
@@ -45,7 +45,7 @@ func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.Fun
 			}
 			plots = append(plots, LinePlot{
 				Value:     stats[i].ReportItem.Snapshots[j].USDValue.InexactFloat64(),
-				UnixMilli: stats[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
+				UnixMilli: stats[i].ReportItem.Snapshots[j].Time.UnixMilli(),
 			})
 		}
 		response.Data = append(response.Data, ChartLine{
@@ -76,7 +76,7 @@ func createHoldingsOverTimeChart(stats []statistics.FundingItemStatistics) (*Cha
 				response.ShowZeroDisclaimer = true
 			}
 			plots = append(plots, LinePlot{
-				UnixMilli: stats[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
+				UnixMilli: stats[i].ReportItem.Snapshots[j].Time.UnixMilli(),
 				Value:     stats[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
 			})
 		}

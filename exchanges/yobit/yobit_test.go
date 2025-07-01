@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -21,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var y = &Yobit{}
+var y *Yobit
 
 // Please supply your own keys for better unit testing
 const (
@@ -30,24 +29,17 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestMain(m *testing.M) {
-	y.SetDefaults()
-	yobitConfig := config.GetConfig()
-	err := yobitConfig.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Yobit load config error", err)
-	}
-	conf, err := yobitConfig.GetExchangeConfig("Yobit")
-	if err != nil {
-		log.Fatal("Yobit init error", err)
-	}
-	conf.API.Credentials.Key = apiKey
-	conf.API.Credentials.Secret = apiSecret
-	conf.API.AuthenticatedSupport = true
+var testPair = currency.NewBTCUSD().Format(currency.PairFormat{Delimiter: "_"})
 
-	err = y.Setup(conf)
-	if err != nil {
-		log.Fatal("Yobit setup error", err)
+func TestMain(m *testing.M) {
+	y = new(Yobit)
+	if err := testexch.Setup(y); err != nil {
+		log.Fatalf("Yobit Setup error: %s", err)
+	}
+
+	if apiKey != "" && apiSecret != "" {
+		y.API.AuthenticatedSupport = true
+		y.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 
 	os.Exit(m.Run())
@@ -71,26 +63,20 @@ func TestGetInfo(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetTicker(t.Context(), "btc_usd")
-	if err != nil {
-		t.Error("GetTicker() error", err)
-	}
+	_, err := y.GetTicker(t.Context(), testPair.String())
+	assert.NoError(t, err, "GetTicker should not error")
 }
 
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetDepth(t.Context(), "btc_usd")
-	if err != nil {
-		t.Error("GetDepth() error", err)
-	}
+	_, err := y.GetDepth(t.Context(), testPair.String())
+	assert.NoError(t, err, "GetDepth should not error")
 }
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetTrades(t.Context(), "btc_usd")
-	if err != nil {
-		t.Error("GetTrades() error", err)
-	}
+	_, err := y.GetTrades(t.Context(), testPair.String())
+	assert.NoError(t, err, "GetTrades should not error")
 }
 
 func TestGetAccountInfo(t *testing.T) {
@@ -507,38 +493,19 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestGetRecentTrades(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("btc_usd")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = y.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := y.GetRecentTrades(t.Context(), testPair, asset.Spot)
+	assert.NoError(t, err, "GetRecentTrades should not error")
 }
 
 func TestGetHistoricTrades(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("btc_usd")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = y.GetHistoricTrades(t.Context(),
-		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	if err != nil && err != common.ErrFunctionNotSupported {
-		t.Error(err)
-	}
+	_, err := y.GetHistoricTrades(t.Context(), testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("ETH_BTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = y.UpdateTicker(t.Context(), cp, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := y.UpdateTicker(t.Context(), testPair, asset.Spot)
+	assert.NoError(t, err, "UpdateTicker should not error")
 }
 
 func TestUpdateTickers(t *testing.T) {

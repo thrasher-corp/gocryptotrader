@@ -297,12 +297,74 @@ func TestTitle(t *testing.T) {
 	require.Equal(t, "Limit", orderType.Title())
 }
 
+func TestOrderIs(t *testing.T) {
+	t.Parallel()
+	orderComparisonList := []struct {
+		Type    Type
+		Targets []Type
+	}{
+		{Type: Limit | TakeProfit, Targets: []Type{TakeProfit, Limit}},
+		{Type: IOS, Targets: []Type{IOS}},
+		{Type: Stop, Targets: []Type{Stop}},
+		{Type: AnyType, Targets: []Type{AnyType}},
+		{Type: StopLimit, Targets: []Type{Stop, Limit}},
+		{Type: TakeProfit, Targets: []Type{TakeProfit}},
+		{Type: StopMarket, Targets: []Type{Stop, Market}},
+		{Type: TrailingStop, Targets: []Type{TrailingStop}},
+		{Type: UnknownType | Limit, Targets: []Type{Limit}},
+		{Type: TakeProfitMarket, Targets: []Type{TakeProfit, Market}},
+	}
+	for _, oType := range orderComparisonList {
+		t.Run(oType.Type.String(), func(t *testing.T) {
+			t.Parallel()
+			for _, target := range oType.Targets {
+				assert.Truef(t, oType.Type.Is(target), "expected %v, got %q", target, oType.Type.String())
+			}
+		})
+	}
+}
+
 func TestOrderTypes(t *testing.T) {
 	t.Parallel()
 	var orderType Type
 	assert.Equal(t, "UNKNOWN", orderType.String())
 	assert.Equal(t, "unknown", orderType.Lower())
 	assert.Equal(t, "Unknown", orderType.Title())
+}
+
+func TestOrderTypeToString(t *testing.T) {
+	t.Parallel()
+	orderToToStringsList := []struct {
+		OrderType Type
+		String    string
+	}{
+		{StopMarket, "STOP MARKET"},
+		{StopLimit, "STOP LIMIT"},
+		{Limit, "LIMIT"},
+		{Market, "MARKET"},
+		{Stop, "STOP"},
+		{ConditionalStop, "CONDITIONAL"},
+		{TWAP, "TWAP"},
+		{Chase, "CHASE"},
+		{TakeProfit, "TAKE PROFIT"},
+		{TakeProfitMarket, "TAKE PROFIT MARKET"},
+		{TrailingStop, "TRAILING_STOP"},
+		{IOS, "IOS"},
+		{Liquidation, "LIQUIDATION"},
+		{Trigger, "TRIGGER"},
+		{OCO, "OCO"},
+		{OptimalLimit, "OPTIMAL_LIMIT"},
+		{MarketMakerProtection, "MMP"},
+		{AnyType, "ANY"},
+		{UnknownType | Limit, "LIMIT"},
+		{StopMarket | ConditionalStop, "UNKNOWN"},
+	}
+	for _, tt := range orderToToStringsList {
+		t.Run(tt.String, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.String, tt.OrderType.String())
+		})
+	}
 }
 
 func TestInferCostsAndTimes(t *testing.T) {
@@ -736,6 +798,7 @@ func BenchmarkStringToOrderSide(b *testing.B) {
 }
 
 func TestStringToOrderType(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		in  string
 		out Type
@@ -766,14 +829,12 @@ func TestStringToOrderType(t *testing.T) {
 		{"conDitiOnal", ConditionalStop, nil},
 		{"oCo", OCO, nil},
 		{"mMp", MarketMakerProtection, nil},
-		{"Mmp_And_Post_oNly", MarketMakerProtectionAndPostOnly, nil},
 		{"tWaP", TWAP, nil},
 		{"TWAP", TWAP, nil},
 		{"woahMan", UnknownType, ErrUnrecognisedOrderType},
 		{"chase", Chase, nil},
 		{"MOVE_ORDER_STOP", TrailingStop, nil},
 		{"mOVe_OrdeR_StoP", TrailingStop, nil},
-		{"optimal_limit_IoC", OptimalLimitIOC, nil},
 		{"Stop_market", StopMarket, nil},
 		{"liquidation", Liquidation, nil},
 		{"LiQuidation", Liquidation, nil},
@@ -783,10 +844,13 @@ func TestStringToOrderType(t *testing.T) {
 		{"TAKE_PROFIT_MARkEt", TakeProfitMarket, nil},
 		{"brAcket", Bracket, nil},
 		{"TRIGGER_bracket", Bracket, nil},
+		{"optimal_limit", OptimalLimit, nil},
+		{"OPTIMAL_LIMIT", OptimalLimit, nil},
 	}
 	for i := range cases {
 		testData := &cases[i]
 		t.Run(testData.in, func(t *testing.T) {
+			t.Parallel()
 			out, err := StringToOrderType(testData.in)
 			require.ErrorIs(t, err, testData.err)
 			assert.Equal(t, testData.out, out)
@@ -881,9 +945,6 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	od := Detail{OrderID: "1"}
 	updated := time.Now()
 
-	pair, err := currency.NewPairFromString("BTCUSD")
-	require.NoError(t, err)
-
 	om := ModifyResponse{
 		TimeInForce:     PostOnly | GoodTillTime,
 		Price:           1,
@@ -896,7 +957,7 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 		Status:          1,
 		AssetType:       1,
 		LastUpdated:     updated,
-		Pair:            pair,
+		Pair:            currency.NewBTCUSD(),
 	}
 
 	od.UpdateOrderFromModifyResponse(&om)
@@ -919,19 +980,16 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 }
 
 func TestUpdateOrderFromDetail(t *testing.T) {
-	leet := "1337"
+	t.Parallel()
 
-	updated := time.Now()
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	require.NoError(t, err)
+	var od *Detail
+	err := od.UpdateOrderFromDetail(nil)
+	require.ErrorIs(t, err, ErrOrderDetailIsNil)
 
 	id, err := uuid.NewV4()
 	require.NoError(t, err)
-
-	var od *Detail
-	err = od.UpdateOrderFromDetail(nil)
-	require.ErrorIs(t, err, ErrOrderDetailIsNil)
+	const leet = "1337"
+	updated := time.Now()
 
 	om := &Detail{
 		TimeInForce:     GoodTillCancel | PostOnly,
@@ -957,7 +1015,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		Status:          1,
 		AssetType:       1,
 		LastUpdated:     updated,
-		Pair:            pair,
+		Pair:            currency.NewBTCUSD(),
 		Trades:          []TradeHistory{},
 	}
 
@@ -1099,10 +1157,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	modifyOrder = new(Modify)
 	require.ErrorIs(t, modifyOrder.Validate(), ErrPairIsEmpty)
 
-	p, err := currency.NewPairFromString("BTC-USD")
-	require.NoError(t, err)
-
-	modifyOrder.Pair = p
+	modifyOrder.Pair = currency.NewBTCUSD()
 	require.ErrorIs(t, modifyOrder.Validate(), ErrAssetNotSet)
 
 	modifyOrder.AssetType = asset.Spot

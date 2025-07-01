@@ -1,10 +1,13 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // Time represents a time.Time object that can be unmarshalled from a float64 or string.
@@ -12,6 +15,8 @@ import (
 // Note: Not all exchanges may support RFC 3339 for outbound requests, so ensure compatibility with each exchange's time
 // format requirements.
 type Time time.Time
+
+var errInvalidTimestampFormat = errors.New("invalid timestamp format")
 
 // UnmarshalJSON deserializes json, and timestamp information.
 func (t *Time) UnmarshalJSON(data []byte) error {
@@ -21,13 +26,16 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		s = s[1 : len(s)-1]
 	}
 
-	switch s {
-	case "null", "0", "":
+	if s == "" || s[0] == 'n' || s == "0" {
 		return nil
 	}
 
 	if target := strings.Index(s, "."); target != -1 {
 		s = s[:target] + s[target+1:]
+
+		if strings.Trim(s, "0") == "" {
+			return nil
+		}
 	}
 
 	// Expects a string of length 10 (seconds), 13 (milliseconds), 16 (microseconds), or 19 (nanoseconds) representing a Unix timestamp
@@ -53,7 +61,7 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 	case 19:
 		*t = Time(time.Unix(0, unixTS))
 	default:
-		return fmt.Errorf("cannot unmarshal %s into Time", data)
+		return fmt.Errorf("%w: %q", errInvalidTimestampFormat, data)
 	}
 	return nil
 }
@@ -69,4 +77,28 @@ func (t Time) String() string {
 // MarshalJSON serializes the time to json.
 func (t Time) MarshalJSON() ([]byte, error) {
 	return t.Time().MarshalJSON()
+}
+
+// DateTime represents a time.Time object that can be unmarshalled from a string in the format "2006-01-02 15:04:05".
+type DateTime time.Time
+
+// UnmarshalJSON unmarshals json data into a DateTime type.
+func (d *DateTime) UnmarshalJSON(data []byte) error {
+	var ts string
+	if err := json.Unmarshal(data, &ts); err != nil {
+		return fmt.Errorf("error unmarshalling %q into string: %w", data, err)
+	}
+
+	tm, err := time.Parse(time.DateTime, ts)
+	if err != nil {
+		return fmt.Errorf("error parsing %q into DateTime: %w", ts, err)
+	}
+
+	*d = DateTime(tm)
+	return nil
+}
+
+// Time converts DateTime to time.Time
+func (d DateTime) Time() time.Time {
+	return time.Time(d)
 }

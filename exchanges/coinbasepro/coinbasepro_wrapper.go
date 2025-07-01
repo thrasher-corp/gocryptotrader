@@ -300,7 +300,10 @@ func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	verified, err := c.verificationCheck(ctx)
 	if err != nil {
 		return nil, err
@@ -313,11 +316,11 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        c.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: c.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Exchange:          c.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: c.ValidateOrderbook,
 	}
 	var orderbookNew *ProductBookResp
 	if verified {
@@ -333,16 +336,16 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 			return book, err
 		}
 	}
-	book.Bids = make(orderbook.Tranches, len(orderbookNew.Pricebook.Bids))
+	book.Bids = make(orderbook.Levels, len(orderbookNew.Pricebook.Bids))
 	for x := range orderbookNew.Pricebook.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Pricebook.Bids[x].Size.Float64(),
 			Price:  orderbookNew.Pricebook.Bids[x].Price.Float64(),
 		}
 	}
-	book.Asks = make(orderbook.Tranches, len(orderbookNew.Pricebook.Asks))
+	book.Asks = make(orderbook.Levels, len(orderbookNew.Pricebook.Asks))
 	for x := range orderbookNew.Pricebook.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Pricebook.Asks[x].Size.Float64(),
 			Price:  orderbookNew.Pricebook.Asks[x].Price.Float64(),
 		}

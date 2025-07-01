@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -202,9 +201,6 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			UpdateEntriesByID: true,
-		},
 	})
 	if err != nil {
 		return err
@@ -332,19 +328,19 @@ func (b *Bitfinex) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	o := &orderbook.Base{
-		Exchange:         b.Name,
-		Pair:             p,
-		Asset:            assetType,
-		PriceDuplication: true,
-		VerifyOrderbook:  b.CanVerifyOrderbook,
+	o := &orderbook.Book{
+		Exchange:          b.Name,
+		Pair:              p,
+		Asset:             assetType,
+		PriceDuplication:  true,
+		ValidateOrderbook: b.ValidateOrderbook,
 	}
 
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
@@ -366,18 +362,18 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	}
 	if assetType == asset.MarginFunding {
 		o.IsFundingRate = true
-		o.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+		o.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks[x] = orderbook.Tranche{
+			o.Asks[x] = orderbook.Level{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Rate,
 				Amount: orderbookNew.Asks[x].Amount,
 				Period: int64(orderbookNew.Asks[x].Period),
 			}
 		}
-		o.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+		o.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids[x] = orderbook.Tranche{
+			o.Bids[x] = orderbook.Level{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Rate,
 				Amount: orderbookNew.Bids[x].Amount,
@@ -385,17 +381,17 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 			}
 		}
 	} else {
-		o.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+		o.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks[x] = orderbook.Tranche{
+			o.Asks[x] = orderbook.Level{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Price,
 				Amount: orderbookNew.Asks[x].Amount,
 			}
 		}
-		o.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+		o.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids[x] = orderbook.Tranche{
+			o.Bids[x] = orderbook.Level{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Price,
 				Amount: orderbookNew.Bids[x].Amount,
@@ -472,14 +468,14 @@ func (b *Bitfinex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          history[i].Status,
 			TransferID:      strconv.FormatInt(history[i].ID, 10),
-			Description:     history[i].Description,
-			Timestamp:       time.UnixMilli(int64(history[i].Timestamp)),
+			Description:     *history[i].TransactionID,
+			Timestamp:       history[i].MTSStarted.Time(),
 			Currency:        history[i].Currency,
-			Amount:          history[i].Amount,
-			Fee:             history[i].Fee,
-			TransferType:    history[i].Type,
-			CryptoToAddress: history[i].Address,
-			CryptoTxID:      history[i].TxID,
+			Amount:          history[i].Amount.Float64(),
+			Fee:             history[i].Fees.Float64(),
+			TransferType:    history[i].TransactionType,
+			CryptoToAddress: history[i].DestinationAddress,
+			CryptoTxID:      history[i].TXID,
 		}
 	}
 	return resp, nil
@@ -498,41 +494,38 @@ func (b *Bitfinex) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
-	var err error
-	p, err = b.FormatExchangeCurrency(p, a)
+	p, err := b.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
-	var currString string
-	currString, err = b.fixCasing(p, a)
+
+	currString, err := b.fixCasing(p, a)
 	if err != nil {
 		return nil, err
 	}
+
 	var resp []trade.Data
 	ts := timestampEnd
-	limit := 10000
+	const limit = 10000
 allTrades:
 	for {
-		var tradeData []Trade
-		tradeData, err = b.GetTrades(ctx,
-			currString, int64(limit), 0, ts.Unix()*1000, false)
+		tradeData, err := b.GetTrades(ctx, currString, limit, time.Time{}, ts, false)
 		if err != nil {
 			return nil, err
 		}
 		for i := range tradeData {
-			tradeTS := time.UnixMilli(tradeData[i].Timestamp)
+			tradeTS := tradeData[i].Timestamp.Time()
 			if tradeTS.Before(timestampStart) && !timestampStart.IsZero() {
 				break allTrades
 			}
-			tID := strconv.FormatInt(tradeData[i].TID, 10)
 			resp = append(resp, trade.Data{
-				TID:          tID,
+				TID:          strconv.FormatInt(tradeData[i].TID, 10),
 				Exchange:     b.Name,
 				CurrencyPair: p,
 				AssetType:    a,
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Amount,
-				Timestamp:    time.UnixMilli(tradeData[i].Timestamp),
+				Timestamp:    tradeData[i].Timestamp.Time(),
 			})
 			if i == len(tradeData)-1 {
 				if ts.Equal(tradeTS) {
@@ -547,8 +540,7 @@ allTrades:
 		}
 	}
 
-	err = b.AddTradesToBuffer(resp...)
-	if err != nil {
+	if err := b.AddTradesToBuffer(resp...); err != nil {
 		return nil, err
 	}
 
@@ -588,7 +580,7 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 			// All v2 apis use negatives for Short side
 			req.Amount *= -1
 		}
-		orderID, err = b.WsNewOrder(req)
+		orderID, err = b.WsNewOrder(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -644,7 +636,7 @@ func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		if action.Side.IsShort() && action.Amount > 0 {
 			wsRequest.Amount *= -1
 		}
-		err = b.WsModifyOrder(&wsRequest)
+		err = b.WsModifyOrder(ctx, &wsRequest)
 		if err != nil {
 			return nil, err
 		}
@@ -669,7 +661,7 @@ func (b *Bitfinex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		err = b.WsCancelOrder(orderIDInt)
+		err = b.WsCancelOrder(ctx, orderIDInt)
 	} else {
 		_, err = b.CancelExistingOrder(ctx, orderIDInt)
 	}
@@ -688,7 +680,7 @@ func (b *Bitfinex) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 func (b *Bitfinex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	var err error
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		err = b.WsCancelAllOrders()
+		err = b.WsCancelAllOrders(ctx)
 	} else {
 		_, err = b.CancelAllExistingOrders(ctx)
 	}
@@ -700,27 +692,16 @@ func (b *Bitfinex) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 	if err != nil {
 		return nil, err
 	}
-	var timestamp float64
-	timestamp, err = strconv.ParseFloat(o.Timestamp, 64)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s Unable to convert timestamp %q, leaving blank", b.Name, o.Timestamp)
-	}
-
-	var pair currency.Pair
-	pair, err = currency.NewPairFromString(o.Symbol)
-	if err != nil {
-		return nil, err
-	}
 
 	orderDetail := &order.Detail{
 		Amount:          o.OriginalAmount,
-		Date:            time.Unix(int64(timestamp), 0),
+		Date:            o.Timestamp.Time(),
 		Exchange:        b.Name,
 		OrderID:         strconv.FormatInt(o.ID, 10),
 		Side:            side,
 		Price:           o.Price,
 		RemainingAmount: o.RemainingAmount,
-		Pair:            pair,
+		Pair:            o.Symbol,
 		ExecutedAmount:  o.ExecutedAmount,
 	}
 
@@ -1067,7 +1048,7 @@ func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if err != nil {
 		return nil, err
 	}
-	candles, err := b.GetCandles(ctx, cf, fInterval, req.Start.UnixMilli(), req.End.UnixMilli(), req.RequestLimit, true)
+	candles, err := b.GetCandles(ctx, cf, fInterval, req.Start, req.End, req.RequestLimit, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1075,12 +1056,12 @@ func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
 		timeSeries[x] = kline.Candle{
-			Time:   candles[x].Timestamp,
-			Open:   candles[x].Open,
-			High:   candles[x].High,
-			Low:    candles[x].Low,
-			Close:  candles[x].Close,
-			Volume: candles[x].Volume,
+			Time:   candles[x].Timestamp.Time(),
+			Open:   candles[x].Open.Float64(),
+			High:   candles[x].High.Float64(),
+			Low:    candles[x].Low.Float64(),
+			Close:  candles[x].Close.Float64(),
+			Volume: candles[x].Volume.Float64(),
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -1104,19 +1085,19 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
 		var candles []Candle
-		candles, err = b.GetCandles(ctx, cf, fInterval, req.RangeHolder.Ranges[x].Start.Time.UnixMilli(), req.RangeHolder.Ranges[x].End.Time.UnixMilli(), req.RequestLimit, true)
+		candles, err = b.GetCandles(ctx, cf, fInterval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, req.RequestLimit, true)
 		if err != nil {
 			return nil, err
 		}
 
 		for i := range candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].Timestamp,
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
+				Time:   candles[i].Timestamp.Time(),
+				Open:   candles[i].Open.Float64(),
+				High:   candles[i].High.Float64(),
+				Low:    candles[i].Low.Float64(),
+				Close:  candles[i].Close.Float64(),
+				Volume: candles[i].Volume.Float64(),
 			})
 		}
 	}

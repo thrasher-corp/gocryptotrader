@@ -3,6 +3,7 @@ package btse
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
@@ -516,7 +517,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 				host += "?" + values.Encode()
 			}
 		}
-		headers["btse-sign"] = crypto.HexEncodeToString(hmac)
+		headers["btse-sign"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
 			Method:        method,
@@ -614,10 +615,6 @@ func (b *BTSE) calculateTradingFee(ctx context.Context, feeBuilder *exchange.Fee
 		return feeTiers[0].MakerFee
 	}
 	return feeTiers[0].TakerFee
-}
-
-func parseOrderTime(timeStr string) (time.Time, error) {
-	return time.Parse(time.DateTime, timeStr)
 }
 
 // HasLiquidity returns if a market pair has a bid or ask != 0

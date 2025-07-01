@@ -2,41 +2,42 @@ package exmo
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Trades holds trade data
 type Trades struct {
-	TradeID  int64   `json:"trade_id"`
-	Type     string  `json:"type"`
-	Quantity float64 `json:"quantity,string"`
-	Price    float64 `json:"price,string"`
-	Amount   float64 `json:"amount,string"`
-	Date     int64   `json:"date"`
-	Pair     string  `json:"pair"`
+	TradeID  int64      `json:"trade_id"`
+	Type     string     `json:"type"`
+	Quantity float64    `json:"quantity,string"`
+	Price    float64    `json:"price,string"`
+	Amount   float64    `json:"amount,string"`
+	Date     types.Time `json:"date"`
+	Pair     string     `json:"pair"`
 }
 
 // Orderbook holds the orderbook data
 type Orderbook struct {
-	AskQuantity float64    `json:"ask_quantity,string"`
-	AskAmount   float64    `json:"ask_amount,string"`
-	AskTop      float64    `json:"ask_top,string"`
-	BidQuantity float64    `json:"bid_quantity,string"`
-	BidTop      float64    `json:"bid_top,string"`
-	Ask         [][]string `json:"ask"`
-	Bid         [][]string `json:"bid"`
+	AskQuantity float64           `json:"ask_quantity,string"`
+	AskAmount   float64           `json:"ask_amount,string"`
+	AskTop      float64           `json:"ask_top,string"`
+	BidQuantity float64           `json:"bid_quantity,string"`
+	BidTop      float64           `json:"bid_top,string"`
+	Asks        [][3]types.Number `json:"ask"`
+	Bids        [][3]types.Number `json:"bid"`
 }
 
 // Ticker holds the ticker data
 type Ticker struct {
-	Buy           float64 `json:"buy_price,string"`
-	Sell          float64 `json:"sell_price,string"`
-	Last          float64 `json:"last_trade,string"`
-	High          float64 `json:"high,string"`
-	Low           float64 `json:"low,string"`
-	Average       float64 `json:"average,string"`
-	Volume        float64 `json:"vol,string"`
-	VolumeCurrent float64 `json:"vol_curr,string"`
-	Updated       int64   `json:"updated"`
+	Buy           float64    `json:"buy_price,string"`
+	Sell          float64    `json:"sell_price,string"`
+	Last          float64    `json:"last_trade,string"`
+	High          float64    `json:"high,string"`
+	Low           float64    `json:"low,string"`
+	Average       float64    `json:"average,string"`
+	Volume        float64    `json:"vol,string"`
+	VolumeCurrent float64    `json:"vol_curr,string"`
+	Updated       types.Time `json:"updated"`
 }
 
 // PairSettings holds the pair settings
@@ -58,33 +59,33 @@ type AuthResponse struct {
 // UserInfo stores the user info
 type UserInfo struct {
 	AuthResponse
-	UID        int               `json:"uid"`
-	ServerDate int               `json:"server_date"`
-	Balances   map[string]string `json:"balances"`
-	Reserved   map[string]string `json:"reserved"`
+	UID        int                     `json:"uid"`
+	ServerDate int                     `json:"server_date"`
+	Balances   map[string]types.Number `json:"balances"`
+	Reserved   map[string]types.Number `json:"reserved"`
 }
 
 // OpenOrders stores the order info
 type OpenOrders struct {
-	OrderID  int64   `json:"order_id,string"`
-	Created  int64   `json:"created,string"`
-	Type     string  `json:"type"`
-	Pair     string  `json:"pair"`
-	Price    float64 `json:"price,string"`
-	Quantity float64 `json:"quantity,string"`
-	Amount   float64 `json:"amount,string"`
+	OrderID  int64      `json:"order_id,string"`
+	Created  types.Time `json:"created"`
+	Type     string     `json:"type"`
+	Pair     string     `json:"pair"`
+	Price    float64    `json:"price,string"`
+	Quantity float64    `json:"quantity,string"`
+	Amount   float64    `json:"amount,string"`
 }
 
 // UserTrades stores the users trade info
 type UserTrades struct {
-	TradeID  int64   `json:"trade_id"`
-	Date     int64   `json:"date"`
-	Type     string  `json:"type"`
-	Pair     string  `json:"pair"`
-	OrderID  int64   `json:"order_id"`
-	Quantity float64 `json:"quantity"`
-	Price    float64 `json:"price"`
-	Amount   float64 `json:"amount"`
+	TradeID  int64      `json:"trade_id"`
+	Date     types.Time `json:"date"`
+	Type     string     `json:"type"`
+	Pair     string     `json:"pair"`
+	OrderID  int64      `json:"order_id"`
+	Quantity float64    `json:"quantity"`
+	Price    float64    `json:"price"`
+	Amount   float64    `json:"amount"`
 }
 
 // CancelledOrder stores cancelled order data
@@ -138,14 +139,14 @@ type WalletHistory struct {
 	Begin   int64 `json:"begin,string"`
 	End     int64 `json:"end,string"`
 	History []struct {
-		Timestamp int64   `json:"dt"`
-		Type      string  `json:"type"`
-		Currency  string  `json:"curr"`
-		Status    string  `json:"status"`
-		Provider  string  `json:"provider"`
-		Amount    float64 `json:"amount,string"`
-		Account   string  `json:"account"`
-		TXID      string  `json:"txid"`
+		Timestamp types.Time `json:"dt"`
+		Type      string     `json:"type"`
+		Currency  string     `json:"curr"`
+		Status    string     `json:"status"`
+		Provider  string     `json:"provider"`
+		Amount    float64    `json:"amount,string"`
+		Account   string     `json:"account"`
+		TXID      string     `json:"txid"`
 	}
 }
 

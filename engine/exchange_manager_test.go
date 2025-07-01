@@ -1,11 +1,11 @@
 package engine
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -34,24 +34,20 @@ func TestExchangeManagerAdd(t *testing.T) {
 	t.Parallel()
 	var m *ExchangeManager
 	err := m.Add(nil)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
-	}
+	require.ErrorIs(t, err, ErrNilSubsystem)
 
 	m = NewExchangeManager()
 	err = m.Add(nil)
-	if !errors.Is(err, errExchangeIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeIsNil)
-	}
+	require.ErrorIs(t, err, errExchangeIsNil)
+
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
 	err = m.Add(b)
 	require.NoError(t, err)
 
 	err = m.Add(b)
-	if !errors.Is(err, ErrExchangeAlreadyLoaded) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeAlreadyLoaded)
-	}
+	require.ErrorIs(t, err, ErrExchangeAlreadyLoaded)
+
 	exchanges, err := m.GetExchanges()
 	if err != nil {
 		t.Error("no exchange manager found")
@@ -65,9 +61,7 @@ func TestExchangeManagerGetExchanges(t *testing.T) {
 	t.Parallel()
 	var m *ExchangeManager
 	_, err := m.GetExchanges()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
-	}
+	require.ErrorIs(t, err, ErrNilSubsystem)
 
 	m = NewExchangeManager()
 	exchanges, err := m.GetExchanges()
@@ -95,21 +89,15 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	t.Parallel()
 	var m *ExchangeManager
 	err := m.RemoveExchange("")
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
-	}
+	require.ErrorIs(t, err, ErrNilSubsystem)
 
 	m = NewExchangeManager()
 
 	err = m.RemoveExchange("")
-	if !errors.Is(err, common.ErrExchangeNameUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrExchangeNameUnset)
-	}
+	require.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	err = m.RemoveExchange("Bitfinex")
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
-	}
+	require.ErrorIs(t, err, ErrExchangeNotFound)
 
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
@@ -117,9 +105,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	require.NoError(t, err)
 
 	err = m.RemoveExchange("Bitstamp")
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received: %v but expected: %v", err, ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 
 	err = m.RemoveExchange("BiTFiNeX")
 	require.NoError(t, err)
@@ -135,23 +121,17 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	require.NoError(t, err)
 
 	err = m.RemoveExchange("BiTFiNeX")
-	if !errors.Is(err, errExpectedTestError) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExpectedTestError)
-	}
+	require.ErrorIs(t, err, errExpectedTestError)
 }
 
 func TestNewExchangeByName(t *testing.T) {
 	var m *ExchangeManager
 	_, err := m.NewExchangeByName("")
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
-	}
+	require.ErrorIs(t, err, ErrNilSubsystem)
 
 	m = NewExchangeManager()
 	_, err = m.NewExchangeByName("")
-	if !errors.Is(err, common.ErrExchangeNameUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrExchangeNameUnset)
-	}
+	require.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	exchanges := exchange.Exchanges
 	exchanges = append(exchanges, "fake")
@@ -176,9 +156,7 @@ func TestNewExchangeByName(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = m.NewExchangeByName("bitfinex")
-	if !errors.Is(err, ErrExchangeAlreadyLoaded) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeAlreadyLoaded)
-	}
+	require.ErrorIs(t, err, ErrExchangeAlreadyLoaded)
 }
 
 type ExchangeBuilder struct{}
@@ -216,9 +194,7 @@ func TestExchangeManagerShutdown(t *testing.T) {
 	t.Parallel()
 	var m *ExchangeManager
 	err := m.Shutdown(-1)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNilSubsystem)
-	}
+	require.ErrorIs(t, err, ErrNilSubsystem)
 
 	m = NewExchangeManager()
 	err = m.Shutdown(-1)

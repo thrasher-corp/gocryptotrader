@@ -175,30 +175,30 @@ func (a *Alphapoint) UpdateTicker(ctx context.Context, p currency.Pair, assetTyp
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := a.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	orderBook := new(orderbook.Base)
+	orderBook := new(orderbook.Book)
 	orderbookNew, err := a.GetOrderbook(ctx, p.String())
 	if err != nil {
 		return orderBook, err
 	}
 
-	orderBook.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+	orderBook.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		orderBook.Bids[x] = orderbook.Tranche{
+		orderBook.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
 
-	orderBook.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+	orderBook.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		orderBook.Asks[x] = orderbook.Tranche{
+		orderBook.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -357,8 +357,7 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.MultiOrderR
 			if resp[x].OpenOrders[y].State != 1 {
 				continue
 			}
-
-			orderDetail := order.Detail{
+			orders = append(orders, order.Detail{
 				Amount:          resp[x].OpenOrders[y].QtyTotal,
 				Exchange:        a.Name,
 				ExecutedAmount:  resp[x].OpenOrders[y].QtyTotal - resp[x].OpenOrders[y].QtyRemaining,
@@ -366,12 +365,10 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.MultiOrderR
 				OrderID:         strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
 				Price:           resp[x].OpenOrders[y].Price,
 				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
-			}
-
-			orderDetail.Side = orderSideMap[resp[x].OpenOrders[y].Side]
-			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
-			orderDetail.Type = orderTypeMap[resp[x].OpenOrders[y].OrderType]
-			orders = append(orders, orderDetail)
+				Side:            orderSideMap[resp[x].OpenOrders[y].Side],
+				Date:            resp[x].OpenOrders[y].ReceiveTime.Time(),
+				Type:            orderTypeMap[resp[x].OpenOrders[y].OrderType],
+			})
 		}
 	}
 	return req.Filter(a.Name, orders), nil
@@ -398,7 +395,7 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.MultiOrderR
 				continue
 			}
 
-			orderDetail := order.Detail{
+			orders = append(orders, order.Detail{
 				Amount:          resp[x].OpenOrders[y].QtyTotal,
 				AccountID:       strconv.FormatInt(int64(resp[x].OpenOrders[y].AccountID), 10),
 				Exchange:        a.Name,
@@ -406,12 +403,10 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.MultiOrderR
 				OrderID:         strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
 				Price:           resp[x].OpenOrders[y].Price,
 				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
-			}
-
-			orderDetail.Side = orderSideMap[resp[x].OpenOrders[y].Side]
-			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
-			orderDetail.Type = orderTypeMap[resp[x].OpenOrders[y].OrderType]
-			orders = append(orders, orderDetail)
+				Side:            orderSideMap[resp[x].OpenOrders[y].Side],
+				Date:            resp[x].OpenOrders[y].ReceiveTime.Time(),
+				Type:            orderTypeMap[resp[x].OpenOrders[y].OrderType],
+			})
 		}
 	}
 	return req.Filter(a.Name, orders), nil

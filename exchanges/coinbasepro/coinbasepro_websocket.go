@@ -2,6 +2,7 @@ package coinbasepro
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"slices"
@@ -13,7 +14,6 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -59,11 +59,12 @@ var defaultSubscriptions = subscription.List{
 
 // WsConnect initiates a websocket connection
 func (c *CoinbasePro) WsConnect() error {
+	ctx := context.TODO()
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -347,14 +348,14 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, ti
 	if err != nil {
 		return err
 	}
-	book := &orderbook.Base{
-		Bids:            bids,
-		Asks:            asks,
-		Exchange:        c.Name,
-		Pair:            snapshot.ProductID,
-		Asset:           asset.Spot,
-		LastUpdated:     timestamp,
-		VerifyOrderbook: c.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Bids:              bids,
+		Asks:              asks,
+		Exchange:          c.Name,
+		Pair:              snapshot.ProductID,
+		Asset:             asset.Spot,
+		LastUpdated:       timestamp,
+		ValidateOrderbook: c.ValidateOrderbook,
 	}
 	for _, a := range c.pairAliases.GetAlias(snapshot.ProductID) {
 		isEnabled, err := c.IsPairEnabled(a, asset.Spot)
@@ -413,12 +414,12 @@ func (c *CoinbasePro) GetSubscriptionTemplate(_ *subscription.Subscription) (*te
 
 // Subscribe sends a websocket message to receive data from a list of channels
 func (c *CoinbasePro) Subscribe(subs subscription.List) error {
-	return c.ParallelChanOp(subs, func(subs subscription.List) error { return c.manageSubs(context.TODO(), "subscribe", subs) }, 1)
+	return c.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error { return c.manageSubs(ctx, "subscribe", subs) }, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from a list of channels
 func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
-	return c.ParallelChanOp(subs, func(subs subscription.List) error { return c.manageSubs(context.TODO(), "unsubscribe", subs) }, 1)
+	return c.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error { return c.manageSubs(ctx, "unsubscribe", subs) }, 1)
 }
 
 // manageSubs subscribes or unsubscribes from a list of websocket channels
@@ -440,7 +441,7 @@ func (c *CoinbasePro) manageSubs(ctx context.Context, op string, subs subscripti
 				return err
 			}
 		}
-		if err = c.Websocket.Conn.SendJSONMessage(context.TODO(), limitType, r); err == nil {
+		if err = c.Websocket.Conn.SendJSONMessage(ctx, limitType, r); err == nil {
 			switch op {
 			case "subscribe":
 				err = c.Websocket.AddSuccessfulSubscriptions(c.Websocket.Conn, s)
@@ -470,11 +471,11 @@ func (c *CoinbasePro) GetWSJWT(ctx context.Context) (string, error) {
 }
 
 // processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays of bids and asks
-func processBidAskArray(data *WebsocketOrderbookDataHolder, snapshot bool) (bids, asks orderbook.Tranches, err error) {
-	bids = make(orderbook.Tranches, 0, len(data.Changes))
-	asks = make(orderbook.Tranches, 0, len(data.Changes))
+func processBidAskArray(data *WebsocketOrderbookDataHolder, snapshot bool) (bids, asks orderbook.Levels, err error) {
+	bids = make(orderbook.Levels, 0, len(data.Changes))
+	asks = make(orderbook.Levels, 0, len(data.Changes))
 	for i := range data.Changes {
-		change := orderbook.Tranche{Price: data.Changes[i].PriceLevel.Float64(), Amount: data.Changes[i].NewQuantity.Float64()}
+		change := orderbook.Level{Price: data.Changes[i].PriceLevel.Float64(), Amount: data.Changes[i].NewQuantity.Float64()}
 		switch data.Changes[i].Side {
 		case "bid":
 			bids = append(bids, change)
@@ -554,7 +555,7 @@ func strategyDecoder(str string) (tif order.TimeInForce, err error) {
 
 // Base64URLEncode is a helper function that does some tweaks to standard Base64 encoding, in a way which JWT requires
 func base64URLEncode(b []byte) string {
-	s := crypto.Base64Encode(b)
+	s := base64.StdEncoding.EncodeToString(b)
 	s = strings.Split(s, "=")[0]
 	s = strings.ReplaceAll(s, "+", "-")
 	s = strings.ReplaceAll(s, "/", "_")

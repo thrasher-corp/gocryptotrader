@@ -15,7 +15,7 @@ type Ticker struct {
 		USD       float64
 		BTC       float64
 		ETH       float64
-		Timestamp int64
+		Timestamp types.Time
 	}
 }
 
@@ -63,13 +63,13 @@ type OrderbookEntry struct {
 
 // Trade holds trade history for a specific currency pair
 type Trade struct {
-	Timestamp   int64   `json:"timestamp"`
-	Timestampms int64   `json:"timestampms"`
-	TID         int64   `json:"tid"`
-	Price       float64 `json:"price,string"`
-	Amount      float64 `json:"amount,string"`
-	Exchange    string  `json:"exchange"`
-	Type        string  `json:"type"`
+	Timestamp   types.Time `json:"timestamp"`
+	TimestampMS types.Time `json:"timestampms"`
+	TID         int64      `json:"tid"`
+	Price       float64    `json:"price,string"`
+	Amount      float64    `json:"amount,string"`
+	Exchange    string     `json:"exchange"`
+	Type        string     `json:"type"`
 }
 
 // Auction is generalized response type
@@ -90,16 +90,16 @@ type Auction struct {
 
 // AuctionHistory holds auction history information
 type AuctionHistory struct {
-	AuctionID       int64   `json:"auction_id"`
-	AuctionPrice    float64 `json:"auction_price,string"`
-	AuctionQuantity float64 `json:"auction_quantity,string"`
-	EID             int64   `json:"eid"`
-	HighestBidPrice float64 `json:"highest_bid_price,string"`
-	LowestAskPrice  float64 `json:"lowest_ask_price,string"`
-	AuctionResult   string  `json:"auction_result"`
-	Timestamp       int64   `json:"timestamp"`
-	TimestampMS     int64   `json:"timestampms"`
-	EventType       string  `json:"event_type"`
+	AuctionID       int64      `json:"auction_id"`
+	AuctionPrice    float64    `json:"auction_price,string"`
+	AuctionQuantity float64    `json:"auction_quantity,string"`
+	EID             int64      `json:"eid"`
+	HighestBidPrice float64    `json:"highest_bid_price,string"`
+	LowestAskPrice  float64    `json:"lowest_ask_price,string"`
+	AuctionResult   string     `json:"auction_result"`
+	Timestamp       types.Time `json:"timestamp"`
+	TimestampMS     types.Time `json:"timestampms"`
+	EventType       string     `json:"event_type"`
 }
 
 // OrderResult holds cancelled order information
@@ -116,7 +116,7 @@ type OrderResult struct {
 type TransferResponse struct {
 	Type                  string        `json:"type"`
 	Status                string        `json:"status"`
-	Timestamp             int64         `json:"timestampms"`
+	Timestamp             types.Time    `json:"timestampms"`
 	EventID               int64         `json:"eid"`
 	DepositAdvanceEventID int64         `json:"advanceEid"`
 	Currency              currency.Code `json:"currency"`
@@ -133,42 +133,42 @@ type TransferResponse struct {
 
 // Order contains order information
 type Order struct {
-	OrderID           int64    `json:"order_id,string"`
-	ID                int64    `json:"id,string"`
-	ClientOrderID     string   `json:"client_order_id"`
-	Symbol            string   `json:"symbol"`
-	Exchange          string   `json:"exchange"`
-	Price             float64  `json:"price,string"`
-	AvgExecutionPrice float64  `json:"avg_execution_price,string"`
-	Side              string   `json:"side"`
-	Type              string   `json:"type"`
-	Timestamp         int64    `json:"timestamp,string"`
-	TimestampMS       int64    `json:"timestampms"`
-	IsLive            bool     `json:"is_live"`
-	IsCancelled       bool     `json:"is_cancelled"`
-	IsHidden          bool     `json:"is_hidden"`
-	Options           []string `json:"options"`
-	WasForced         bool     `json:"was_forced"`
-	ExecutedAmount    float64  `json:"executed_amount,string"`
-	RemainingAmount   float64  `json:"remaining_amount,string"`
-	OriginalAmount    float64  `json:"original_amount,string"`
-	Message           string   `json:"message"`
+	OrderID           int64      `json:"order_id,string"`
+	ID                int64      `json:"id,string"`
+	ClientOrderID     string     `json:"client_order_id"`
+	Symbol            string     `json:"symbol"`
+	Exchange          string     `json:"exchange"`
+	Price             float64    `json:"price,string"`
+	AvgExecutionPrice float64    `json:"avg_execution_price,string"`
+	Side              string     `json:"side"`
+	Type              string     `json:"type"`
+	Timestamp         types.Time `json:"timestamp"`
+	TimestampMS       types.Time `json:"timestampms"`
+	IsLive            bool       `json:"is_live"`
+	IsCancelled       bool       `json:"is_cancelled"`
+	IsHidden          bool       `json:"is_hidden"`
+	Options           []string   `json:"options"`
+	WasForced         bool       `json:"was_forced"`
+	ExecutedAmount    float64    `json:"executed_amount,string"`
+	RemainingAmount   float64    `json:"remaining_amount,string"`
+	OriginalAmount    float64    `json:"original_amount,string"`
+	Message           string     `json:"message"`
 }
 
 // TradeHistory holds trade history information
 type TradeHistory struct {
-	Price           float64 `json:"price,string"`
-	Amount          float64 `json:"amount,string"`
-	Timestamp       int64   `json:"timestamp"`
-	TimestampMS     int64   `json:"timestampms"`
-	Type            string  `json:"type"`
-	FeeCurrency     string  `json:"fee_currency"`
-	FeeAmount       float64 `json:"fee_amount,string"`
-	TID             int64   `json:"tid"`
-	OrderID         int64   `json:"order_id,string"`
-	Exchange        string  `json:"exchange"`
-	IsAuctionFilled bool    `json:"is_auction_fill"`
-	ClientOrderID   string  `json:"client_order_id"`
+	Price           float64    `json:"price,string"`
+	Amount          float64    `json:"amount,string"`
+	Timestamp       types.Time `json:"timestamp"`
+	TimestampMS     types.Time `json:"timestampms"`
+	Type            string     `json:"type"`
+	FeeCurrency     string     `json:"fee_currency"`
+	FeeAmount       float64    `json:"fee_amount,string"`
+	TID             int64      `json:"tid"`
+	OrderID         int64      `json:"order_id,string"`
+	Exchange        string     `json:"exchange"`
+	IsAuctionFilled bool       `json:"is_auction_fill"`
+	ClientOrderID   string     `json:"client_order_id"`
 	// Used to store values
 	BaseCurrency  string
 	QuoteCurrency string
@@ -272,11 +272,11 @@ type WsSubscriptionAcknowledgementResponse struct {
 
 // WsHeartbeatResponse Gemini will send a heartbeat every five seconds so you'll know your WebSocket connection is active.
 type WsHeartbeatResponse struct {
-	Type           string `json:"type"`
-	Timestampms    int64  `json:"timestampms"`
-	Sequence       int64  `json:"sequence"`
-	TraceID        string `json:"trace_id"`
-	SocketSequence int64  `json:"socket_sequence"`
+	Type           string     `json:"type"`
+	TimestampMS    types.Time `json:"timestampms"`
+	Sequence       int64      `json:"sequence"`
+	TraceID        string     `json:"trace_id"`
+	SocketSequence int64      `json:"socket_sequence"`
 }
 
 // WsOrderResponse contains active orders
@@ -285,7 +285,7 @@ type WsOrderResponse struct {
 	IsCancelled       bool              `json:"is_cancelled"`
 	IsHidden          bool              `json:"is_hidden"`
 	SocketSequence    int64             `json:"socket_sequence"`
-	Timestampms       int64             `json:"timestampms"`
+	TimestampMS       types.Time        `json:"timestampms"`
 	AvgExecutionPrice float64           `json:"avg_execution_price,string"`
 	ExecutedAmount    float64           `json:"executed_amount,string"`
 	RemainingAmount   float64           `json:"remaining_amount,string"`
@@ -300,7 +300,7 @@ type WsOrderResponse struct {
 	Symbol            string            `json:"symbol"`
 	Side              string            `json:"side"`
 	OrderType         string            `json:"order_type"`
-	Timestamp         string            `json:"timestamp"`
+	Timestamp         types.Time        `json:"timestamp"`
 	Fill              WsOrderFilledData `json:"fill"`
 }
 
@@ -338,25 +338,25 @@ type wsSubscribeRequest struct {
 }
 
 type wsTrade struct {
-	Type      string  `json:"type"`
-	Symbol    string  `json:"symbol"`
-	EventID   int64   `json:"event_id"`
-	Timestamp int64   `json:"timestamp"`
-	Price     float64 `json:"price,string"`
-	Quantity  float64 `json:"quantity,string"`
-	Side      string  `json:"side"`
+	Type      string     `json:"type"`
+	Symbol    string     `json:"symbol"`
+	EventID   int64      `json:"event_id"`
+	Timestamp types.Time `json:"timestamp"`
+	Price     float64    `json:"price,string"`
+	Quantity  float64    `json:"quantity,string"`
+	Side      string     `json:"side"`
 }
 
 type wsAuctionResult struct {
-	Type             string  `json:"type"`
-	Symbol           string  `json:"symbol"`
-	Result           string  `json:"result"`
-	TimeMilliseconds int64   `json:"time_ms"`
-	HighestBidPrice  float64 `json:"highest_bid_price,string"`
-	LowestBidPrice   float64 `json:"lowest_ask_price,string"`
-	CollarPrice      float64 `json:"collar_price,string"`
-	AuctionPrice     float64 `json:"auction_price,string"`
-	AuctionQuantity  float64 `json:"auction_quantity,string"`
+	Type             string     `json:"type"`
+	Symbol           string     `json:"symbol"`
+	Result           string     `json:"result"`
+	TimeMilliseconds types.Time `json:"time_ms"`
+	HighestBidPrice  float64    `json:"highest_bid_price,string"`
+	LowestBidPrice   float64    `json:"lowest_ask_price,string"`
+	CollarPrice      float64    `json:"collar_price,string"`
+	AuctionPrice     float64    `json:"auction_price,string"`
+	AuctionQuantity  float64    `json:"auction_quantity,string"`
 }
 
 type wsL2MarketData struct {

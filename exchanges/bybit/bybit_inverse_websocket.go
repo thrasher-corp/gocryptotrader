@@ -14,12 +14,13 @@ import (
 
 // WsInverseConnect connects to inverse websocket feed
 func (by *Bybit) WsInverseConnect() error {
+	ctx := context.TODO()
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	by.Websocket.Conn.SetURL(inversePublic)
 	var dialer gws.Dialer
-	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := by.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -30,7 +31,7 @@ func (by *Bybit) WsInverseConnect() error {
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.CoinMarginedFutures, by.Websocket.Conn)
+	go by.wsReadData(ctx, asset.CoinMarginedFutures, by.Websocket.Conn)
 	return nil
 }
 
@@ -57,15 +58,17 @@ func (by *Bybit) GenerateInverseDefaultSubscriptions() (subscription.List, error
 
 // InverseSubscribe sends a subscription message to linear public channels.
 func (by *Bybit) InverseSubscribe(channelSubscriptions subscription.List) error {
-	return by.handleInversePayloadSubscription("subscribe", channelSubscriptions)
+	ctx := context.TODO()
+	return by.handleInversePayloadSubscription(ctx, "subscribe", channelSubscriptions)
 }
 
 // InverseUnsubscribe sends an unsubscription messages through linear public channels.
 func (by *Bybit) InverseUnsubscribe(channelSubscriptions subscription.List) error {
-	return by.handleInversePayloadSubscription("unsubscribe", channelSubscriptions)
+	ctx := context.TODO()
+	return by.handleInversePayloadSubscription(ctx, "unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubscriptions subscription.List) error {
+func (by *Bybit) handleInversePayloadSubscription(ctx context.Context, operation string, channelSubscriptions subscription.List) error {
 	payloads, err := by.handleSubscriptions(operation, channelSubscriptions)
 	if err != nil {
 		return err
@@ -73,7 +76,7 @@ func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubsc
 	for a := range payloads {
 		// The options connection does not send the subscription request id back with the subscription notification payload
 		// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
-		err = by.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, payloads[a])
+		err = by.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payloads[a])
 		if err != nil {
 			return err
 		}

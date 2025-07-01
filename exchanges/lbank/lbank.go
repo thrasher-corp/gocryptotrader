@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/md5" //nolint:gosec // Used for this exchange
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -17,7 +21,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	gctcrypto "github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -534,20 +537,13 @@ func (l *Lbank) sign(data string) (string, error) {
 	if l.privateKey == nil {
 		return "", errPrivateKeyNotLoaded
 	}
-	md5hash, err := gctcrypto.GetMD5([]byte(data))
+	md5sum := md5.Sum([]byte(data)) //nolint:gosec // Used for this exchange
+	shasum := sha256.Sum256([]byte(strings.ToUpper(hex.EncodeToString(md5sum[:]))))
+	r, err := rsa.SignPKCS1v15(rand.Reader, l.privateKey, crypto.SHA256, shasum[:])
 	if err != nil {
 		return "", err
 	}
-	m := strings.ToUpper(gctcrypto.HexEncodeToString(md5hash))
-	s, err := gctcrypto.GetSHA256([]byte(m))
-	if err != nil {
-		return "", err
-	}
-	r, err := rsa.SignPKCS1v15(rand.Reader, l.privateKey, crypto.SHA256, s)
-	if err != nil {
-		return "", err
-	}
-	return gctcrypto.Base64Encode(r), nil
+	return base64.StdEncoding.EncodeToString(r), nil
 }
 
 // SendAuthHTTPRequest sends an authenticated request

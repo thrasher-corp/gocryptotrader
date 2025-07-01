@@ -103,7 +103,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	var dialer gws.Dialer
-	err = c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = c.Websocket.Conn.Dial(context.TODO(), &dialer, http.Header{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1550,7 +1550,7 @@ func TestWsAuth(t *testing.T) {
 		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
 	var dialer gws.Dialer
-	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
 	require.NoError(t, err)
 	c.Websocket.Wg.Add(1)
 	go c.wsReadData()
