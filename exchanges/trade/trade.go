@@ -259,7 +259,7 @@ func groupTradesToInterval(interval kline.Interval, times ...Data) map[int64][]D
 }
 
 func getNearestInterval(t time.Time, interval kline.Interval) int64 {
-	return t.Truncate(interval.Duration()).UTC().Unix()
+	return t.Truncate(interval.Duration()).Unix()
 }
 
 func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {

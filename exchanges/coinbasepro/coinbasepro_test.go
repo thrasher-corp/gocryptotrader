@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -23,10 +23,11 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
-	c        = &CoinbasePro{}
+	c        *CoinbasePro
 	testPair = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-")
 )
 
@@ -74,6 +75,30 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
+func TestHistoryUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	data := []byte(`[[1746649200,96269.22,96307.18,96275.58,96307.18,1.85952049],[1746649140,96256.39,96297.31,96296,96273.29,3.41045323],[1746649080,96256.01,96365.73,96365.73,96299.99,3.56073877]]`)
+	var resp []History
+	err := json.Unmarshal(data, &resp)
+	require.NoError(t, err)
+	require.Len(t, resp, 3)
+	assert.Equal(t, History{
+		Time:   types.Time(time.Unix(1746649200, 0)),
+		Low:    96269.22,
+		High:   96307.18,
+		Open:   96275.58,
+		Close:  96307.18,
+		Volume: 1.85952049,
+	}, resp[0])
+}
+
+func TestGetHistoricRates(t *testing.T) {
+	t.Parallel()
+	result, err := c.GetHistoricRates(t.Context(), "BTC-USD", "", "", 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour * 2)
@@ -84,15 +109,10 @@ func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	}
 }
 
-func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-
-	_, err := c.GetHistoricCandlesExtended(t.Context(),
-		testPair, asset.Spot, kline.OneDay, start, end)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetHistoricCandlesExtended(t.Context(), testPair, asset.Spot, kline.OneDay, time.Unix(1546300800, 0), time.Unix(1577836799, 0))
+	assert.NoError(t, err, "GetHistoricCandlesExtended should not error")
 }
 
 func TestGetStats(t *testing.T) {
@@ -659,9 +679,9 @@ func TestWsAuth(t *testing.T) {
 		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
 	var dialer gws.Dialer
-	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
 	require.NoError(t, err, "Dial must not error")
-	go c.wsReadData()
+	go c.wsReadData(t.Context())
 
 	err = c.Subscribe(subscription.List{{Channel: "user", Pairs: currency.Pairs{testPair}}})
 	require.NoError(t, err, "Subscribe must not error")
@@ -702,7 +722,7 @@ func TestWsSubscribe(t *testing.T) {
 			}
 		]
 	}`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -716,7 +736,7 @@ func TestWsHeartbeat(t *testing.T) {
 		"product_id": "BTC-USD",
 		"time": "2014-11-07T08:19:28.464459Z"
 	}`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -774,7 +794,7 @@ func TestWsStatus(t *testing.T) {
         }
     ]
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -793,7 +813,7 @@ func TestWsTicker(t *testing.T) {
     "best_bid": "4388",
     "best_ask": "4388.01"
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -807,7 +827,7 @@ func TestWsOrderbook(t *testing.T) {
     "asks": [["10102.55", "0.57753524"]],
 	"time":"2023-08-15T06:46:55.376250Z"
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -824,7 +844,7 @@ func TestWsOrderbook(t *testing.T) {
     ]
   ]
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -842,7 +862,7 @@ func TestWsOrders(t *testing.T) {
     "side": "buy",
     "order_type": "limit"
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -857,7 +877,7 @@ func TestWsOrders(t *testing.T) {
     "side": "buy",
     "order_type": "market"
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -872,7 +892,7 @@ func TestWsOrders(t *testing.T) {
     "remaining_size": "1.00",
     "side": "sell"
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -888,7 +908,7 @@ func TestWsOrders(t *testing.T) {
     "side": "sell",
     "remaining_size": "0"
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -905,7 +925,7 @@ func TestWsOrders(t *testing.T) {
     "price": "400.23",
     "side": "sell"
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -921,7 +941,7 @@ func TestWsOrders(t *testing.T) {
     "price": "400.23",
     "side": "sell"
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -936,7 +956,7 @@ func TestWsOrders(t *testing.T) {
     "price": "400.23",
     "side": "sell"
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -955,7 +975,7 @@ func TestWsOrders(t *testing.T) {
   "taker_fee_rate": "0.0025",
   "private": true
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -980,20 +1000,6 @@ func TestStatusToStandardStatus(t *testing.T) {
 		if result != testCases[i].Result {
 			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
 		}
-	}
-}
-
-func TestParseTime(t *testing.T) {
-	// Rest examples use 2014-11-07T22:19:28.578544Z" and can be safely
-	// unmarhsalled into time.Time
-
-	// All events except for activate use the above, in the below test
-	// we'll use their API docs example
-	r := convert.TimeFromUnixTimestampDecimal(1483736448.299000).UTC()
-	if r.Year() != 2017 ||
-		r.Month().String() != "January" ||
-		r.Day() != 6 {
-		t.Error("unexpected result")
 	}
 }
 

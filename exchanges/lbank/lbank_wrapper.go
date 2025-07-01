@@ -196,7 +196,7 @@ func (l *Lbank) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if !l.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
@@ -211,13 +211,13 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		return nil, err
 	}
 
-	book := &orderbook.Base{
-		Exchange:        l.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: l.CanVerifyOrderbook,
-		Asks:            make(orderbook.Tranches, len(d.Data.Asks)),
-		Bids:            make(orderbook.Tranches, len(d.Data.Bids)),
+	book := &orderbook.Book{
+		Exchange:          l.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: l.ValidateOrderbook,
+		Asks:              make(orderbook.Levels, len(d.Data.Asks)),
+		Bids:              make(orderbook.Levels, len(d.Data.Bids)),
 	}
 
 	for i := range d.Data.Asks {
@@ -246,21 +246,14 @@ func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	}
 	acc := account.SubAccount{AssetType: assetType}
 	for key, val := range data.Info.Asset {
-		c := currency.NewCode(key)
 		hold, ok := data.Info.Freeze[key]
 		if !ok {
 			return info, fmt.Errorf("hold data not found with %s", key)
 		}
-		totalVal, parseErr := strconv.ParseFloat(val, 64)
-		if parseErr != nil {
-			return info, parseErr
-		}
-		totalHold, parseErr := strconv.ParseFloat(hold, 64)
-		if parseErr != nil {
-			return info, parseErr
-		}
+		totalVal := val.Float64()
+		totalHold := hold.Float64()
 		acc.Currencies = append(acc.Currencies, account.Balance{
-			Currency: c,
+			Currency: currency.NewCode(key),
 			Total:    totalVal,
 			Hold:     totalHold,
 			Free:     totalVal - totalHold,
@@ -302,7 +295,7 @@ func (l *Lbank) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawalRecords.List[i].Status,
 			TransferID:      id,
-			Timestamp:       time.Unix(withdrawalRecords.List[i].Time, 0),
+			Timestamp:       withdrawalRecords.List[i].Time.Time(),
 			Currency:        withdrawalRecords.List[i].AssetCode,
 			Amount:          withdrawalRecords.List[i].Amount,
 			Fee:             withdrawalRecords.List[i].Fee,
@@ -340,7 +333,7 @@ allTrades:
 			return nil, err
 		}
 		for i := range tradeData {
-			tradeTime := time.UnixMilli(tradeData[i].DateMS)
+			tradeTime := tradeData[i].DateMS.Time()
 			if tradeTime.Before(timestampStart) || tradeTime.After(timestampEnd) {
 				break allTrades
 			}
@@ -617,7 +610,7 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 			resp.Status = l.GetStatus(tempResp.Orders[0].Status)
 			resp.Price = tempResp.Orders[0].Price
 			resp.Amount = tempResp.Orders[0].Amount
-			resp.Date = time.Unix(tempResp.Orders[0].CreateTime, 0)
+			resp.Date = tempResp.Orders[0].CreateTime.Time()
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
 			resp.Fee, err = l.GetFeeByType(ctx,
@@ -701,7 +694,7 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mul
 				resp.Price = tempResp.Orders[x].Price
 				resp.AverageExecutedPrice = tempResp.Orders[x].AvgPrice
 				resp.Amount = tempResp.Orders[x].Amount
-				resp.Date = time.Unix(tempResp.Orders[x].CreateTime, 0)
+				resp.Date = tempResp.Orders[x].CreateTime.Time()
 				resp.ExecutedAmount = tempResp.Orders[x].DealAmount
 				resp.RemainingAmount = tempResp.Orders[x].Amount - tempResp.Orders[x].DealAmount
 				resp.Fee, err = l.GetFeeByType(ctx,

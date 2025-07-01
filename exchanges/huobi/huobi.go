@@ -3,6 +3,7 @@ package huobi
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -365,13 +367,13 @@ func (h *HUOBI) GetCurrenciesIncludingChains(ctx context.Context, curr currency.
 func (h *HUOBI) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 	var result struct {
 		Response
-		Timestamp int64 `json:"data"`
+		Timestamp types.Time `json:"data"`
 	}
 	err := h.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+huobiAPIVersion+"/"+huobiTimestamp, &result)
 	if result.ErrorMessage != "" {
 		return time.Time{}, errors.New(result.ErrorMessage)
 	}
-	return time.UnixMilli(result.Timestamp), err
+	return result.Timestamp.Time(), err
 }
 
 // GetAccounts returns the Huobi user accounts
@@ -949,16 +951,12 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 			headers["Content-Type"] = "application/json"
 		}
 
-		var hmac []byte
-		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(payload),
-			[]byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 
-		values.Set("Signature", crypto.Base64Encode(hmac))
-		urlPath := ePoint + common.EncodeURLValues(endpoint, values)
+		values.Set("Signature", base64.StdEncoding.EncodeToString(hmac))
 
 		var body []byte
 		if data != nil {
@@ -970,7 +968,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 
 		return &request.Item{
 			Method:        method,
-			Path:          urlPath,
+			Path:          ePoint + common.EncodeURLValues(endpoint, values),
 			Headers:       headers,
 			Body:          bytes.NewReader(body),
 			Result:        &interim,

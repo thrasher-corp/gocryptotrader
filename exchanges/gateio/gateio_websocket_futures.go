@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -65,7 +66,7 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn websocket.Connection
 	if err := g.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return err
 	}
-	if err := conn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
@@ -299,7 +300,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn websocket.Conn
 
 func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error {
 	resp := struct {
-		Time    int64            `json:"time"`
+		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
 		Event   string           `json:"event"`
 		Result  []WsFutureTicker `json:"result"`
@@ -319,7 +320,7 @@ func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error 
 			Last:         resp.Result[x].Last.Float64(),
 			AssetType:    assetType,
 			Pair:         resp.Result[x].Contract,
-			LastUpdated:  time.Unix(resp.Time, 0),
+			LastUpdated:  resp.Time.Time(),
 		}
 	}
 	g.Websocket.DataHandler <- tickerPriceDatas
@@ -333,7 +334,7 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 	}
 
 	resp := struct {
-		Time    int64             `json:"time"`
+		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsFuturesTrades `json:"result"`
@@ -360,7 +361,7 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 
 func (g *Gateio) processFuturesCandlesticks(data []byte, assetType asset.Item) error {
 	resp := struct {
-		Time    int64                `json:"time"`
+		Time    types.Time           `json:"time"`
 		Channel string               `json:"channel"`
 		Event   string               `json:"event"`
 		Result  []FuturesCandlestick `json:"result"`
@@ -411,50 +412,50 @@ func (g *Gateio) processFuturesOrderbookUpdate(ctx context.Context, incoming []b
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	asks := make([]orderbook.Tranche, len(data.Asks))
+	asks := make([]orderbook.Level, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x].Price.Float64()
 		asks[x].Amount = data.Asks[x].Size
 	}
-	bids := make([]orderbook.Tranche, len(data.Bids))
+	bids := make([]orderbook.Level, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x].Price.Float64()
 		bids[x].Amount = data.Bids[x].Size
 	}
 
-	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, data.FirstUpdatedID, &orderbook.Update{
-		UpdateID:       data.LastUpdatedID,
-		UpdateTime:     data.Timestamp.Time(),
-		UpdatePushedAt: pushTime,
-		Pair:           data.ContractName,
-		Asset:          a,
-		Asks:           asks,
-		Bids:           bids,
-		AllowEmpty:     true,
+	return g.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, g, data.FirstUpdatedID, &orderbook.Update{
+		UpdateID:   data.LastUpdatedID,
+		UpdateTime: data.Timestamp.Time(),
+		LastPushed: pushTime,
+		Pair:       data.ContractName,
+		Asset:      a,
+		Asks:       asks,
+		Bids:       bids,
+		AllowEmpty: true,
 	})
 }
 
-func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, updatePushedAt time.Time) error {
+func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, lastPushed time.Time) error {
 	if event == "all" {
 		var data WsFuturesOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
 		if err != nil {
 			return err
 		}
-		base := orderbook.Base{
-			Asset:           assetType,
-			Exchange:        g.Name,
-			Pair:            data.Contract,
-			LastUpdated:     data.Timestamp.Time(),
-			UpdatePushedAt:  updatePushedAt,
-			VerifyOrderbook: g.CanVerifyOrderbook,
+		base := orderbook.Book{
+			Asset:             assetType,
+			Exchange:          g.Name,
+			Pair:              data.Contract,
+			LastUpdated:       data.Timestamp.Time(),
+			LastPushed:        lastPushed,
+			ValidateOrderbook: g.ValidateOrderbook,
 		}
-		base.Asks = make([]orderbook.Tranche, len(data.Asks))
+		base.Asks = make([]orderbook.Level, len(data.Asks))
 		for x := range data.Asks {
 			base.Asks[x].Amount = data.Asks[x].Size
 			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
-		base.Bids = make([]orderbook.Tranche, len(data.Bids))
+		base.Bids = make([]orderbook.Level, len(data.Bids))
 		for x := range data.Bids {
 			base.Bids[x].Amount = data.Bids[x].Size
 			base.Bids[x].Price = data.Bids[x].Price.Float64()
@@ -466,19 +467,19 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 	if err != nil {
 		return err
 	}
-	dataMap := map[string][2][]orderbook.Tranche{}
+	dataMap := map[string][2][]orderbook.Level{}
 	for x := range data {
 		ab, ok := dataMap[data[x].CurrencyPair]
 		if !ok {
-			ab = [2][]orderbook.Tranche{}
+			ab = [2][]orderbook.Level{}
 		}
 		if data[x].Amount > 0 {
-			ab[1] = append(ab[1], orderbook.Tranche{
+			ab[1] = append(ab[1], orderbook.Level{
 				Price:  data[x].Price.Float64(),
 				Amount: data[x].Amount,
 			})
 		} else {
-			ab[0] = append(ab[0], orderbook.Tranche{
+			ab[0] = append(ab[0], orderbook.Level{
 				Price:  data[x].Price.Float64(),
 				Amount: -data[x].Amount,
 			})
@@ -495,15 +496,15 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 		if err != nil {
 			return err
 		}
-		err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Asks:            ab[0],
-			Bids:            ab[1],
-			Asset:           assetType,
-			Exchange:        g.Name,
-			Pair:            currencyPair,
-			LastUpdated:     updatePushedAt,
-			UpdatePushedAt:  updatePushedAt,
-			VerifyOrderbook: g.CanVerifyOrderbook,
+		err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Asks:              ab[0],
+			Bids:              ab[1],
+			Asset:             assetType,
+			Exchange:          g.Name,
+			Pair:              currencyPair,
+			LastUpdated:       lastPushed,
+			LastPushed:        lastPushed,
+			ValidateOrderbook: g.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -514,7 +515,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 
 func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
 	resp := struct {
-		Time    int64            `json:"time"`
+		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
 		Event   string           `json:"event"`
 		Result  []WsFuturesOrder `json:"result"`
@@ -567,7 +568,7 @@ func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) erro
 	}
 
 	resp := struct {
-		Time    int64                `json:"time"`
+		Time    types.Time           `json:"time"`
 		Channel string               `json:"channel"`
 		Event   string               `json:"event"`
 		Result  []WsFuturesUserTrade `json:"result"`
@@ -594,7 +595,7 @@ func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) erro
 
 func (g *Gateio) processFuturesLiquidatesNotification(data []byte) error {
 	resp := struct {
-		Time    int64                              `json:"time"`
+		Time    types.Time                         `json:"time"`
 		Channel string                             `json:"channel"`
 		Event   string                             `json:"event"`
 		Result  []WsFuturesLiquidationNotification `json:"result"`
@@ -609,7 +610,7 @@ func (g *Gateio) processFuturesLiquidatesNotification(data []byte) error {
 
 func (g *Gateio) processFuturesAutoDeleveragesNotification(data []byte) error {
 	resp := struct {
-		Time    int64                                  `json:"time"`
+		Time    types.Time                             `json:"time"`
 		Channel string                                 `json:"channel"`
 		Event   string                                 `json:"event"`
 		Result  []WsFuturesAutoDeleveragesNotification `json:"result"`
@@ -624,7 +625,7 @@ func (g *Gateio) processFuturesAutoDeleveragesNotification(data []byte) error {
 
 func (g *Gateio) processPositionCloseData(data []byte) error {
 	resp := struct {
-		Time    int64             `json:"time"`
+		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsPositionClose `json:"result"`
@@ -639,7 +640,7 @@ func (g *Gateio) processPositionCloseData(data []byte) error {
 
 func (g *Gateio) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
 	resp := struct {
-		Time    int64       `json:"time"`
+		Time    types.Time  `json:"time"`
 		Channel string      `json:"channel"`
 		Event   string      `json:"event"`
 		Result  []WsBalance `json:"result"`
@@ -675,7 +676,7 @@ func (g *Gateio) processBalancePushData(ctx context.Context, data []byte, assetT
 
 func (g *Gateio) processFuturesReduceRiskLimitNotification(data []byte) error {
 	resp := struct {
-		Time    int64                                  `json:"time"`
+		Time    types.Time                             `json:"time"`
 		Channel string                                 `json:"channel"`
 		Event   string                                 `json:"event"`
 		Result  []WsFuturesReduceRiskLimitNotification `json:"result"`
@@ -690,7 +691,7 @@ func (g *Gateio) processFuturesReduceRiskLimitNotification(data []byte) error {
 
 func (g *Gateio) processFuturesPositionsNotification(data []byte) error {
 	resp := struct {
-		Time    int64               `json:"time"`
+		Time    types.Time          `json:"time"`
 		Channel string              `json:"channel"`
 		Event   string              `json:"event"`
 		Result  []WsFuturesPosition `json:"result"`
@@ -705,7 +706,7 @@ func (g *Gateio) processFuturesPositionsNotification(data []byte) error {
 
 func (g *Gateio) processFuturesAutoOrderPushData(data []byte) error {
 	resp := struct {
-		Time    int64                `json:"time"`
+		Time    types.Time           `json:"time"`
 		Channel string               `json:"channel"`
 		Event   string               `json:"event"`
 		Result  []WsFuturesAutoOrder `json:"result"`

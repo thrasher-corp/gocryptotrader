@@ -127,19 +127,19 @@ func TestUnmarshalJSON(t *testing.T) {
 		GoodTillCancel | PostOnly | ImmediateOrCancel, GoodTillCancel | PostOnly, GoodTillCancel, UnknownTIF, PostOnly | ImmediateOrCancel,
 		GoodTillCancel, GoodTillCancel, PostOnly, PostOnly, ImmediateOrCancel, GoodTillDay, GoodTillDay, GoodTillTime, FillOrKill, FillOrKill,
 	}
-	data := `{"tifs": ["GTC,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`
+	data := []byte(`{"tifs": ["GTC,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`)
 	target := &struct {
 		TIFs []TimeInForce `json:"tifs"`
 	}{}
-	err := json.Unmarshal([]byte(data), &target)
+	err := json.Unmarshal(data, &target)
 	require.NoError(t, err)
 	require.Equal(t, targets, target.TIFs)
 
-	data = `{"tifs": ["abcd,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`
+	data = []byte(`{"tifs": ["abcd,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`)
 	target = &struct {
 		TIFs []TimeInForce `json:"tifs"`
 	}{}
-	err = json.Unmarshal([]byte(data), &target)
+	err = json.Unmarshal(data, &target)
 	require.ErrorIs(t, err, ErrInvalidTimeInForce)
 }
 

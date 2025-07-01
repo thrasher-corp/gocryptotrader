@@ -1,7 +1,6 @@
 package request
 
 import (
-	"errors"
 	"net/http"
 	"net/url"
 	"slices"
@@ -22,9 +21,7 @@ func (c *clientTracker) contains(check *http.Client) bool {
 func TestCheckAndRegister(t *testing.T) {
 	t.Parallel()
 	err := tracker.checkAndRegister(nil)
-	if !errors.Is(err, errHTTPClientIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errHTTPClientIsNil)
-	}
+	require.ErrorIs(t, err, errHTTPClientIsNil)
 
 	newLovelyClient := new(http.Client)
 	err = tracker.checkAndRegister(newLovelyClient)
@@ -35,23 +32,17 @@ func TestCheckAndRegister(t *testing.T) {
 	}
 
 	err = tracker.checkAndRegister(newLovelyClient)
-	if !errors.Is(err, errCannotReuseHTTPClient) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotReuseHTTPClient)
-	}
+	require.ErrorIs(t, err, errCannotReuseHTTPClient)
 }
 
 func TestDeRegister(t *testing.T) {
 	t.Parallel()
 	err := tracker.deRegister(nil)
-	if !errors.Is(err, errHTTPClientIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errHTTPClientIsNil)
-	}
+	require.ErrorIs(t, err, errHTTPClientIsNil)
 
 	newLovelyClient := new(http.Client)
 	err = tracker.deRegister(newLovelyClient)
-	if !errors.Is(err, errHTTPClientNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errHTTPClientNotFound)
-	}
+	require.ErrorIs(t, err, errHTTPClientNotFound)
 
 	err = tracker.checkAndRegister(newLovelyClient)
 	require.NoError(t, err)
@@ -70,9 +61,8 @@ func TestDeRegister(t *testing.T) {
 
 func TestNewProtectedClient(t *testing.T) {
 	t.Parallel()
-	if _, err := newProtectedClient(nil); !errors.Is(err, errHTTPClientIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errHTTPClientIsNil)
-	}
+	_, err := newProtectedClient(nil)
+	require.ErrorIs(t, err, errHTTPClientIsNil)
 
 	newLovelyClient := new(http.Client)
 	protec, err := newProtectedClient(newLovelyClient)
@@ -86,17 +76,15 @@ func TestNewProtectedClient(t *testing.T) {
 func TestClientSetProxy(t *testing.T) {
 	t.Parallel()
 	err := (&client{}).setProxy(nil)
-	if !errors.Is(err, errNoProxyURLSupplied) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoProxyURLSupplied)
-	}
+	require.ErrorIs(t, err, errNoProxyURLSupplied)
+
 	pp, err := url.Parse("lol.com")
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = (&client{protected: new(http.Client)}).setProxy(pp)
-	if !errors.Is(err, errTransportNotSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errTransportNotSet)
-	}
+	require.ErrorIs(t, err, errTransportNotSet)
+
 	err = (&client{protected: common.NewHTTPClientWithTimeout(0)}).setProxy(pp)
 	require.NoError(t, err)
 }
@@ -104,9 +92,8 @@ func TestClientSetProxy(t *testing.T) {
 func TestClientSetHTTPClientTimeout(t *testing.T) {
 	t.Parallel()
 	err := (&client{protected: new(http.Client)}).setHTTPClientTimeout(time.Second)
-	if !errors.Is(err, errTransportNotSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errTransportNotSet)
-	}
+	require.ErrorIs(t, err, errTransportNotSet)
+
 	err = (&client{protected: common.NewHTTPClientWithTimeout(0)}).setHTTPClientTimeout(time.Second)
 	require.NoError(t, err)
 }

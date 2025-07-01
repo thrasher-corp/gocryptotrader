@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -15,27 +14,27 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestProcessUpdate(t *testing.T) {
+func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 
 	m := newWsOBUpdateManager(0)
-	err := m.ProcessUpdate(t.Context(), g, 1337, &orderbook.Update{})
+	err := m.ProcessOrderbookUpdate(t.Context(), g, 1337, &orderbook.Update{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
-	err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Exchange:       g.Name,
-		Pair:           pair,
-		Asset:          asset.USDTMarginedFutures,
-		Bids:           []orderbook.Tranche{{Price: 1, Amount: 1}},
-		Asks:           []orderbook.Tranche{{Price: 1, Amount: 1}},
-		LastUpdated:    time.Now(),
-		UpdatePushedAt: time.Now(),
-		LastUpdateID:   1336,
+	err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:     g.Name,
+		Pair:         pair,
+		Asset:        asset.USDTMarginedFutures,
+		Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
+		Asks:         []orderbook.Level{{Price: 1, Amount: 1}},
+		LastUpdated:  time.Now(),
+		LastPushed:   time.Now(),
+		LastUpdateID: 1336,
 	})
 	require.NoError(t, err)
 
-	err = m.ProcessUpdate(t.Context(), g, 1337, &orderbook.Update{
+	err = m.ProcessOrderbookUpdate(t.Context(), g, 1337, &orderbook.Update{
 		UpdateID:   1338,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,
@@ -45,7 +44,7 @@ func TestProcessUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test orderbook snapshot is behind update
-	err = m.ProcessUpdate(t.Context(), g, 1340, &orderbook.Update{
+	err = m.ProcessOrderbookUpdate(t.Context(), g, 1340, &orderbook.Update{
 		UpdateID:   1341,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,
@@ -62,7 +61,7 @@ func TestProcessUpdate(t *testing.T) {
 	cache.mtx.Unlock()
 
 	// Test orderbook snapshot is behind update
-	err = m.ProcessUpdate(t.Context(), g, 1342, &orderbook.Update{
+	err = m.ProcessOrderbookUpdate(t.Context(), g, 1342, &orderbook.Update{
 		UpdateID:   1343,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,
@@ -145,15 +144,15 @@ func TestApplyPendingUpdates(t *testing.T) {
 
 	m := newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
 	pair := currency.NewPair(currency.LTC, currency.USDT)
-	err := g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Exchange:       g.Name,
-		Pair:           pair,
-		Asset:          asset.USDTMarginedFutures,
-		Bids:           []orderbook.Tranche{{Price: 1, Amount: 1}},
-		Asks:           []orderbook.Tranche{{Price: 1, Amount: 1}},
-		LastUpdated:    time.Now(),
-		UpdatePushedAt: time.Now(),
-		LastUpdateID:   1335,
+	err := g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:     g.Name,
+		Pair:         pair,
+		Asset:        asset.USDTMarginedFutures,
+		Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
+		Asks:         []orderbook.Level{{Price: 1, Amount: 1}},
+		LastUpdated:  time.Now(),
+		LastPushed:   time.Now(),
+		LastUpdateID: 1335,
 	})
 	require.NoError(t, err)
 
@@ -193,11 +192,11 @@ func TestApplyOrderbookUpdate(t *testing.T) {
 	}
 
 	err := applyOrderbookUpdate(g, update)
-	require.ErrorIs(t, err, buffer.ErrDepthNotFound)
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
 
 	update.Asset = asset.Spot
 	err = applyOrderbookUpdate(g, update)
-	require.ErrorIs(t, err, buffer.ErrDepthNotFound)
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
 
 	update.Pair = currency.NewPair(currency.BABY, currency.BABYDOGE)
 	err = applyOrderbookUpdate(g, update)

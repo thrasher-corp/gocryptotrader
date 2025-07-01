@@ -649,12 +649,12 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	return g.UpdateOrderbookWithLimit(ctx, p, a, 0)
 }
 
 // UpdateOrderbookWithLimit updates and returns the orderbook for a currency pair with a set orderbook size limit
-func (g *Gateio) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Base, error) {
+func (g *Gateio) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Book, error) {
 	p, err := g.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -688,25 +688,26 @@ func (g *Gateio) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, 
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        g.Name,
-		Asset:           a,
-		VerifyOrderbook: g.CanVerifyOrderbook,
-		Pair:            p.Upper(),
-		LastUpdateID:    o.ID,
-		LastUpdated:     o.Update.Time(),
+	book := &orderbook.Book{
+		Exchange:          g.Name,
+		Asset:             a,
+		ValidateOrderbook: g.ValidateOrderbook,
+		Pair:              p.Upper(),
+		LastUpdateID:      o.ID,
+		LastUpdated:       o.Update.Time(),
+		LastPushed:        o.Current.Time(),
 	}
-	book.Bids = make(orderbook.Tranches, len(o.Bids))
+	book.Bids = make(orderbook.Levels, len(o.Bids))
 	for x := range o.Bids {
-		book.Bids[x] = orderbook.Tranche{
-			Amount: o.Bids[x].Amount,
+		book.Bids[x] = orderbook.Level{
+			Amount: o.Bids[x].Amount.Float64(),
 			Price:  o.Bids[x].Price.Float64(),
 		}
 	}
-	book.Asks = make(orderbook.Tranches, len(o.Asks))
+	book.Asks = make(orderbook.Levels, len(o.Asks))
 	for x := range o.Asks {
-		book.Asks[x] = orderbook.Tranche{
-			Amount: o.Asks[x].Amount,
+		book.Asks[x] = orderbook.Level{
+			Amount: o.Asks[x].Amount.Float64(),
 			Price:  o.Asks[x].Price.Float64(),
 		}
 	}
@@ -1691,12 +1692,12 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		listCandlesticks = make([]kline.Candle, len(candles))
 		for i := range candles {
 			listCandlesticks[i] = kline.Candle{
-				Time:   candles[i].Timestamp,
-				Open:   candles[i].OpenPrice,
-				High:   candles[i].HighestPrice,
-				Low:    candles[i].LowestPrice,
-				Close:  candles[i].ClosePrice,
-				Volume: candles[i].QuoteCcyVolume,
+				Time:   candles[i].Timestamp.Time(),
+				Open:   candles[i].OpenPrice.Float64(),
+				High:   candles[i].HighestPrice.Float64(),
+				Low:    candles[i].LowestPrice.Float64(),
+				Close:  candles[i].ClosePrice.Float64(),
+				Volume: candles[i].BaseCcyAmount.Float64(),
 			}
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
@@ -1746,12 +1747,12 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			}
 			for j := range candles {
 				candlestickItems = append(candlestickItems, kline.Candle{
-					Time:   candles[j].Timestamp,
-					Open:   candles[j].OpenPrice,
-					High:   candles[j].HighestPrice,
-					Low:    candles[j].LowestPrice,
-					Close:  candles[j].ClosePrice,
-					Volume: candles[j].QuoteCcyVolume,
+					Time:   candles[j].Timestamp.Time(),
+					Open:   candles[j].OpenPrice.Float64(),
+					High:   candles[j].HighestPrice.Float64(),
+					Low:    candles[j].LowestPrice.Float64(),
+					Close:  candles[j].ClosePrice.Float64(),
+					Volume: candles[j].QuoteCcyVolume.Float64(),
 				})
 			}
 		case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:

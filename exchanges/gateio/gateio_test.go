@@ -3,7 +3,6 @@ package gateio
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -50,7 +49,7 @@ var g *Gateio
 func TestMain(m *testing.M) {
 	g = new(Gateio)
 	if err := testexch.Setup(g); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Gateio Setup error: %s", err)
 	}
 
 	if apiKey != "" && apiSecret != "" {
@@ -191,6 +190,25 @@ func TestGetMarketTrades(t *testing.T) {
 	}
 }
 
+func TestCandlestickUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	data := []byte(`[["1738108800","229534412.73508700","103734.3","104779.9","101336.6","101343.8","2232.94510000","true"],["1738195200","178316032.62306100","104718.6","106467.1","103286.4","103734.4","1695.00787000","true"],["1738281600","231315376.16747100","102431","106042.7","101555.9","104718.6","2228.03609000","true"]]`)
+	var targets []Candlestick
+	err := json.Unmarshal(data, &targets)
+	require.NoError(t, err)
+	require.Len(t, targets, 3)
+	assert.Equal(t, Candlestick{
+		Timestamp:      types.Time(time.Unix(1738108800, 0)),
+		QuoteCcyVolume: 229534412.73508700,
+		ClosePrice:     103734.3,
+		HighestPrice:   104779.9,
+		LowestPrice:    101336.6,
+		OpenPrice:      101343.8,
+		BaseCcyAmount:  2232.94510000,
+		WindowClosed:   true,
+	}, targets[0])
+}
+
 func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
 	if _, err := g.GetCandlesticks(t.Context(), getPair(t, asset.Spot), 0, time.Time{}, time.Time{}, kline.OneDay); err != nil {
@@ -321,15 +339,13 @@ func TestAmendSpotOrder(t *testing.T) {
 	_, err := g.AmendSpotOrder(t.Context(), "", getPair(t, asset.Spot), false, &PriceAndAmount{
 		Price: 1000,
 	})
-	if !errors.Is(err, errInvalidOrderID) {
-		t.Errorf("expecting %v, but found %v", errInvalidOrderID, err)
-	}
+	assert.ErrorIs(t, err, errInvalidOrderID)
+
 	_, err = g.AmendSpotOrder(t.Context(), "123", currency.EMPTYPAIR, false, &PriceAndAmount{
 		Price: 1000,
 	})
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Errorf("expecting %v, but found %v", currency.ErrCurrencyPairEmpty, err)
-	}
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	_, err = g.AmendSpotOrder(t.Context(), "123", getPair(t, asset.Spot), false, &PriceAndAmount{
 		Price: 1000,
@@ -494,13 +510,13 @@ func TestRetriveOneSingleLoanDetail(t *testing.T) {
 
 func TestModifyALoan(t *testing.T) {
 	t.Parallel()
-	if _, err := g.ModifyALoan(t.Context(), "1234", &ModifyLoanRequestParam{
+	_, err := g.ModifyALoan(t.Context(), "1234", &ModifyLoanRequestParam{
 		Currency:  currency.BTC,
 		Side:      "borrow",
 		AutoRenew: false,
-	}); !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Errorf("%s ModifyALoan() error %v", g.Name, err)
-	}
+	})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	if _, err := g.ModifyALoan(t.Context(), "1234", &ModifyLoanRequestParam{
 		Currency:     currency.BTC,
@@ -1457,9 +1473,10 @@ func TestGetAllOptionsUnderlyings(t *testing.T) {
 
 func TestGetExpirationTime(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetExpirationTime(t.Context(), "BTC_USDT"); err != nil {
-		t.Errorf("%s GetExpirationTime() error %v", g.Name, err)
-	}
+	_, err := g.GetExpirationTime(t.Context(), "")
+	assert.ErrorIs(t, err, errInvalidUnderlying)
+	_, err = g.GetExpirationTime(t.Context(), "BTC_USDT")
+	assert.NoError(t, err, "GetExpirationTime should not error")
 }
 
 func TestGetAllContractOfUnderlyingWithinExpiryDate(t *testing.T) {
@@ -1589,15 +1606,13 @@ func TestGetUsersPositionSpecifiedUnderlying(t *testing.T) {
 
 func TestGetSpecifiedContractPosition(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
 	_, err := g.GetSpecifiedContractPosition(t.Context(), currency.EMPTYPAIR)
-	if err != nil && !errors.Is(err, errInvalidOrMissingContractParam) {
-		t.Errorf("%s GetSpecifiedContractPosition() error expecting %v, but found %v", g.Name, errInvalidOrMissingContractParam, err)
-	}
+	assert.ErrorIs(t, err, errInvalidOrMissingContractParam)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
+
 	_, err = g.GetSpecifiedContractPosition(t.Context(), getPair(t, asset.Options))
-	if err != nil {
-		t.Errorf("%s GetSpecifiedContractPosition() error expecting %v, but found %v", g.Name, errInvalidOrMissingContractParam, err)
-	}
+	assert.NoError(t, err, "GetSpecifiedContractPosition should not error")
 }
 
 func TestGetUsersLiquidationHistoryForSpecifiedUnderlying(t *testing.T) {
@@ -1642,13 +1657,13 @@ func TestCancelOptionOpenOrders(t *testing.T) {
 
 func TestGetSingleOptionOrder(t *testing.T) {
 	t.Parallel()
+	_, err := g.GetSingleOptionOrder(t.Context(), "")
+	assert.ErrorIs(t, err, errInvalidOrderID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetSingleOptionOrder(t.Context(), ""); err != nil && !errors.Is(errInvalidOrderID, err) {
-		t.Errorf("%s GetSingleOptionorder() expecting %v, but found %v", g.Name, errInvalidOrderID, err)
-	}
-	if _, err := g.GetSingleOptionOrder(t.Context(), "1234"); err != nil {
-		t.Errorf("%s GetSingleOptionOrder() error %v", g.Name, err)
-	}
+
+	_, err = g.GetSingleOptionOrder(t.Context(), "1234")
+	assert.NoError(t, err, "GetSingleOptionOrder should not error")
 }
 
 func TestCancelSingleOrder(t *testing.T) {
@@ -1669,11 +1684,9 @@ func TestGetMyOptionsTradingHistory(t *testing.T) {
 
 func TestWithdrawCurrency(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	_, err := g.WithdrawCurrency(t.Context(), WithdrawalRequestParam{})
-	if err != nil && !errors.Is(err, errInvalidAmount) {
-		t.Errorf("%s WithdrawCurrency() expecting error %v, but found %v", g.Name, errInvalidAmount, err)
-	}
+	assert.ErrorIs(t, err, errInvalidAmount)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	_, err = g.WithdrawCurrency(t.Context(), WithdrawalRequestParam{
 		Currency: currency.BTC,
 		Amount:   0.00000001,
@@ -1790,8 +1803,16 @@ func TestUpdateTickers(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	for _, a := range g.GetAssetTypes(false) {
-		_, err := g.UpdateOrderbook(t.Context(), getPair(t, a), a)
-		assert.NoErrorf(t, err, "UpdateOrderbook should not error for %s", a)
+		pair := getPair(t, a)
+		t.Run(a.String()+" "+pair.String(), func(t *testing.T) {
+			t.Parallel()
+			o, err := g.UpdateOrderbook(t.Context(), pair, a)
+			require.NoError(t, err)
+			if a != asset.Options { // Options orderbooks can be empty
+				assert.NotEmpty(t, o.Bids)
+				assert.NotEmpty(t, o.Asks)
+			}
+		})
 	}
 }
 
@@ -2069,8 +2090,7 @@ func TestFuturesDataHandler(t *testing.T) {
 	t.Parallel()
 	g := new(Gateio) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(m []byte) error {
-		ctx := t.Context()
+	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, m []byte) error {
 		if strings.Contains(string(m), "futures.balances") {
 			ctx = account.DeployCredentialsToContext(ctx, &account.Credentials{Key: "test", Secret: "test"})
 		}
@@ -2544,14 +2564,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	testexch.UpdatePairsOnce(t, g)
 
 	err := g.UpdateOrderExecutionLimits(t.Context(), 1336)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received %v, expected %v", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = g.UpdateOrderExecutionLimits(t.Context(), asset.Options)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("received %v, expected %v", err, common.ErrNotYetImplemented)
-	}
+	require.ErrorIs(t, err, common.ErrNotYetImplemented)
 
 	err = g.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	if err != nil {

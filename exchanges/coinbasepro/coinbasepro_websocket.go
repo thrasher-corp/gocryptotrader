@@ -2,6 +2,7 @@ package coinbasepro
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -29,22 +29,23 @@ const (
 
 // WsConnect initiates a websocket connection
 func (c *CoinbasePro) WsConnect() error {
+	ctx := context.TODO()
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
 	c.Websocket.Wg.Add(1)
-	go c.wsReadData()
+	go c.wsReadData(ctx)
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (c *CoinbasePro) wsReadData() {
+func (c *CoinbasePro) wsReadData(ctx context.Context) {
 	defer c.Websocket.Wg.Done()
 
 	for {
@@ -52,14 +53,14 @@ func (c *CoinbasePro) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		err := c.wsHandleData(resp.Raw)
+		err := c.wsHandleData(ctx, resp.Raw)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
+func (c *CoinbasePro) wsHandleData(ctx context.Context, respRaw []byte) error {
 	msgType := wsMsgType{}
 	err := json.Unmarshal(respRaw, &msgType)
 	if err != nil {
@@ -119,7 +120,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		err = c.ProcessUpdate(&update)
+		err = c.ProcessOrderbookUpdate(&update)
 		if err != nil {
 			return err
 		}
@@ -161,10 +162,10 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		}
 		ts := wsOrder.Time
 		if wsOrder.Type == "activate" {
-			ts = convert.TimeFromUnixTimestampDecimal(wsOrder.Timestamp)
+			ts = wsOrder.Timestamp.Time()
 		}
 
-		creds, err := c.GetCredentials(context.TODO())
+		creds, err := c.GetCredentials(ctx)
 		if err != nil {
 			c.Websocket.DataHandler <- order.ClassificationError{
 				Exchange: c.Name,
@@ -288,50 +289,29 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 		return err
 	}
 
-	base := orderbook.Base{
-		Pair: pair,
-		Bids: make(orderbook.Tranches, len(snapshot.Bids)),
-		Asks: make(orderbook.Tranches, len(snapshot.Asks)),
+	ob := &orderbook.Book{
+		Pair:              pair,
+		Bids:              make(orderbook.Levels, len(snapshot.Bids)),
+		Asks:              make(orderbook.Levels, len(snapshot.Asks)),
+		Asset:             asset.Spot,
+		Exchange:          c.Name,
+		ValidateOrderbook: c.ValidateOrderbook,
+		LastUpdated:       snapshot.Time,
 	}
 
 	for i := range snapshot.Bids {
-		var price float64
-		price, err = strconv.ParseFloat(snapshot.Bids[i][0], 64)
-		if err != nil {
-			return err
-		}
-		var amount float64
-		amount, err = strconv.ParseFloat(snapshot.Bids[i][1], 64)
-		if err != nil {
-			return err
-		}
-		base.Bids[i] = orderbook.Tranche{Price: price, Amount: amount}
+		ob.Bids[i].Price = snapshot.Bids[i][0].Float64()
+		ob.Bids[i].Amount = snapshot.Bids[i][1].Float64()
 	}
-
 	for i := range snapshot.Asks {
-		var price float64
-		price, err = strconv.ParseFloat(snapshot.Asks[i][0], 64)
-		if err != nil {
-			return err
-		}
-		var amount float64
-		amount, err = strconv.ParseFloat(snapshot.Asks[i][1], 64)
-		if err != nil {
-			return err
-		}
-		base.Asks[i] = orderbook.Tranche{Price: price, Amount: amount}
+		ob.Asks[i].Price = snapshot.Asks[i][0].Float64()
+		ob.Asks[i].Amount = snapshot.Asks[i][1].Float64()
 	}
-
-	base.Asset = asset.Spot
-	base.Pair = pair
-	base.Exchange = c.Name
-	base.VerifyOrderbook = c.CanVerifyOrderbook
-	base.LastUpdated = snapshot.Time
-	return c.Websocket.Orderbook.LoadSnapshot(&base)
+	return c.Websocket.Orderbook.LoadSnapshot(ob)
 }
 
-// ProcessUpdate updates the orderbook local cache
-func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
+// ProcessOrderbookUpdate updates the orderbook local cache
+func (c *CoinbasePro) ProcessOrderbookUpdate(update *WebsocketL2Update) error {
 	if len(update.Changes) == 0 {
 		return errors.New("no data in websocket update")
 	}
@@ -341,8 +321,8 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 		return err
 	}
 
-	asks := make(orderbook.Tranches, 0, len(update.Changes))
-	bids := make(orderbook.Tranches, 0, len(update.Changes))
+	asks := make(orderbook.Levels, 0, len(update.Changes))
+	bids := make(orderbook.Levels, 0, len(update.Changes))
 
 	for i := range update.Changes {
 		price, err := strconv.ParseFloat(update.Changes[i][1], 64)
@@ -354,9 +334,9 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 			return err
 		}
 		if update.Changes[i][0] == order.Buy.Lower() {
-			bids = append(bids, orderbook.Tranche{Price: price, Amount: volume})
+			bids = append(bids, orderbook.Level{Price: price, Amount: volume})
 		} else {
-			asks = append(asks, orderbook.Tranche{Price: price, Amount: volume})
+			asks = append(asks, orderbook.Level{Price: price, Amount: volume})
 		}
 	}
 
@@ -397,6 +377,7 @@ func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *CoinbasePro) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	r := &WebsocketSubscribe{
 		Type:     "subscribe",
 		Channels: make([]any, 0, len(subs)),
@@ -414,7 +395,7 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 	}
 	for _, s := range subs {
 		if s.Authenticated && r.Key == "" && c.IsWebsocketAuthenticationSupported() {
-			if err := c.authWsSubscibeReq(r); err != nil {
+			if err := c.authWsSubscibeReq(ctx, r); err != nil {
 				return err
 			}
 		}
@@ -429,15 +410,15 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 			r.Channels = append(r.Channels, s.Channel)
 		}
 	}
-	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
+	err := c.Websocket.Conn.SendJSONMessage(ctx, request.Unset, r)
 	if err == nil {
 		err = c.Websocket.AddSuccessfulSubscriptions(c.Websocket.Conn, subs...)
 	}
 	return err
 }
 
-func (c *CoinbasePro) authWsSubscibeReq(r *WebsocketSubscribe) error {
-	creds, err := c.GetCredentials(context.TODO())
+func (c *CoinbasePro) authWsSubscibeReq(ctx context.Context, r *WebsocketSubscribe) error {
+	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -447,7 +428,7 @@ func (c *CoinbasePro) authWsSubscibeReq(r *WebsocketSubscribe) error {
 	if err != nil {
 		return err
 	}
-	r.Signature = crypto.Base64Encode(hmac)
+	r.Signature = base64.StdEncoding.EncodeToString(hmac)
 	r.Key = creds.Key
 	r.Passphrase = creds.ClientID
 	return nil
@@ -455,6 +436,7 @@ func (c *CoinbasePro) authWsSubscibeReq(r *WebsocketSubscribe) error {
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	r := &WebsocketSubscribe{
 		Type:     "unsubscribe",
 		Channels: make([]any, 0, len(subs)),
@@ -465,7 +447,7 @@ func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
 			ProductIDs: s.Pairs.Strings(),
 		})
 	}
-	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
+	err := c.Websocket.Conn.SendJSONMessage(ctx, request.Unset, r)
 	if err == nil {
 		err = c.Websocket.RemoveSubscriptions(c.Websocket.Conn, subs...)
 	}

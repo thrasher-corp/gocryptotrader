@@ -128,7 +128,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 	}
 
 	if exch.UseSandbox {
-		err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL)
+		err = g.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), geminiSandboxAPIURL)
 		if err != nil {
 			log.Errorln(log.ExchangeSys, err)
 		}
@@ -287,18 +287,18 @@ func (g *Gemini) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Gemini) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (g *Gemini) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := g.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        g.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: g.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Exchange:          g.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: g.ValidateOrderbook,
 	}
 	fPair, err := g.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -310,17 +310,17 @@ func (g *Gemini) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -344,7 +344,7 @@ func (g *Gemini) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundi
 		resp[i] = exchange.FundingHistory{
 			Status:          transfers[i].Status,
 			TransferID:      transfers[i].WithdrawalID,
-			Timestamp:       time.UnixMilli(transfers[i].Timestamp),
+			Timestamp:       transfers[i].Timestamp.Time(),
 			Currency:        transfers[i].Currency.String(),
 			Amount:          transfers[i].Amount,
 			Fee:             transfers[i].FeeAmount,
@@ -373,7 +373,7 @@ func (g *Gemini) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:          transfers[i].Status,
 			TransferID:      transfers[i].WithdrawalID,
-			Timestamp:       time.UnixMilli(transfers[i].Timestamp),
+			Timestamp:       transfers[i].Timestamp.Time(),
 			Currency:        transfers[i].Currency.String(),
 			Amount:          transfers[i].Amount,
 			Fee:             transfers[i].FeeAmount,
@@ -406,16 +406,12 @@ func (g *Gemini) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTy
 allTrades:
 	for {
 		var tradeData []Trade
-		tradeData, err = g.GetTrades(ctx,
-			p.String(),
-			ts.Unix(),
-			int64(limit),
-			false)
+		tradeData, err = g.GetTrades(ctx, p.String(), ts.Unix(), int64(limit), false)
 		if err != nil {
 			return nil, err
 		}
 		for i := range tradeData {
-			tradeTS := time.Unix(tradeData[i].Timestamp, 0)
+			tradeTS := tradeData[i].Timestamp.Time()
 			if tradeTS.After(timestampEnd) && !timestampEnd.IsZero() {
 				break allTrades
 			}
@@ -569,7 +565,7 @@ func (g *Gemini) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 		Amount:          resp.OriginalAmount,
 		RemainingAmount: resp.RemainingAmount,
 		Pair:            cp,
-		Date:            time.UnixMilli(resp.TimestampMS),
+		Date:            resp.TimestampMS.Time(),
 		Price:           resp.Price,
 		HiddenOrder:     resp.IsHidden,
 		ClientOrderID:   resp.ClientOrderID,
@@ -678,7 +674,6 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(resp[i].Timestamp, 0)
 
 		orders[i] = order.Detail{
 			Amount:          resp[i].OriginalAmount,
@@ -690,7 +685,7 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			Side:            side,
 			Price:           resp[i].Price,
 			Pair:            symbol,
-			Date:            orderDate,
+			Date:            resp[i].Timestamp.Time(),
 		}
 	}
 	return req.Filter(g.Name, orders), nil
@@ -741,14 +736,12 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(trades[i].Timestamp, 0)
-
 		detail := order.Detail{
 			OrderID:              strconv.FormatInt(trades[i].OrderID, 10),
 			Amount:               trades[i].Amount,
 			ExecutedAmount:       trades[i].Amount,
 			Exchange:             g.Name,
-			Date:                 orderDate,
+			Date:                 trades[i].Timestamp.Time(),
 			Side:                 side,
 			Fee:                  trades[i].FeeAmount,
 			Price:                trades[i].Price,

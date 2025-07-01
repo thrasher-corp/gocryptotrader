@@ -204,7 +204,6 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
 				SortBufferByUpdateIDs: true,
-				UpdateIDProgression:   true,
 			},
 			TradeFeed: ku.Features.Enabled.TradeFeed,
 		})
@@ -372,7 +371,7 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
 	if err != nil {
 		return nil, err
@@ -394,13 +393,13 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 		return nil, err
 	}
 
-	book := &orderbook.Base{
-		Exchange:        ku.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: ku.CanVerifyOrderbook,
-		Asks:            ordBook.Asks,
-		Bids:            ordBook.Bids,
+	book := &orderbook.Book{
+		Exchange:          ku.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: ku.ValidateOrderbook,
+		Asks:              ordBook.Asks,
+		Bids:              ordBook.Bids,
 	}
 	err = book.Process()
 	if err != nil {
@@ -1742,7 +1741,7 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		for x := range candles {
 			timeseries = append(
 				timeseries, kline.Candle{
-					Time:   candles[x].StartTime,
+					Time:   candles[x].StartTime.Time(),
 					Open:   candles[x].Open,
 					High:   candles[x].High,
 					Low:    candles[x].Low,
@@ -1763,12 +1762,12 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		for x := range candles {
 			timeseries = append(
 				timeseries, kline.Candle{
-					Time:   candles[x].StartTime,
-					Open:   candles[x].Open,
-					High:   candles[x].High,
-					Low:    candles[x].Low,
-					Close:  candles[x].Close,
-					Volume: candles[x].Volume,
+					Time:   candles[x].StartTime.Time(),
+					Open:   candles[x].Open.Float64(),
+					High:   candles[x].High.Float64(),
+					Low:    candles[x].Low.Float64(),
+					Close:  candles[x].Close.Float64(),
+					Volume: candles[x].Volume.Float64(),
 				})
 		}
 	default:
@@ -1796,7 +1795,7 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			for y := range candles {
 				timeSeries = append(
 					timeSeries, kline.Candle{
-						Time:   candles[y].StartTime,
+						Time:   candles[y].StartTime.Time(),
 						Open:   candles[y].Open,
 						High:   candles[y].High,
 						Low:    candles[y].Low,
@@ -1821,12 +1820,12 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			for x := range candles {
 				timeSeries = append(
 					timeSeries, kline.Candle{
-						Time:   candles[x].StartTime,
-						Open:   candles[x].Open,
-						High:   candles[x].High,
-						Low:    candles[x].Low,
-						Close:  candles[x].Close,
-						Volume: candles[x].Volume,
+						Time:   candles[x].StartTime.Time(),
+						Open:   candles[x].Open.Float64(),
+						High:   candles[x].High.Float64(),
+						Low:    candles[x].Low.Float64(),
+						Close:  candles[x].Close.Float64(),
+						Volume: candles[x].Volume.Float64(),
 					})
 			}
 		}

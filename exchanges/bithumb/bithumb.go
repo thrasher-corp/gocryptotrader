@@ -3,6 +3,8 @@ package bithumb
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -12,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -235,39 +236,21 @@ func (b *Bithumb) GetAccountBalance(ctx context.Context, c string) (FullBalance,
 		}
 
 		c := splitTag[len(splitTag)-1]
-
-		var val float64
-		switch v := datum.(type) {
-		case float64:
-			val = v
-		case string:
-			val, err = strconv.ParseFloat(v, 64)
-			if err != nil {
-				return fullBalance, err
-			}
-		default:
-			return fullBalance, common.GetTypeAssertError("float64|string", datum)
-		}
+		val := datum.Float64()
 
 		switch splitTag[0] {
 		case "available":
 			fullBalance.Available[c] = val
-
 		case "in":
 			fullBalance.InUse[c] = val
-
 		case "total":
 			fullBalance.Total[c] = val
-
 		case "misu":
 			fullBalance.Misu[c] = val
-
 		case "xcoin":
 			fullBalance.Xcoin[c] = val
-
 		default:
-			return fullBalance, fmt.Errorf("getaccountbalance error tag name %s unhandled",
-				splitTag)
+			return fullBalance, fmt.Errorf("getaccountbalance error tag name %s unhandled", splitTag)
 		}
 	}
 
@@ -565,26 +548,21 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 	var intermediary json.RawMessage
 	err = b.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
 		// This is time window sensitive
-		tnMS := time.Now().UnixMilli()
-		n := strconv.FormatInt(tnMS, 10)
+		n := strconv.FormatInt(time.Now().UnixMilli(), 10)
 
 		params.Set("endpoint", path)
 
 		payload := params.Encode()
 		hmacPayload := path + string('\x00') + payload + string('\x00') + n
 
-		var hmac []byte
-		hmac, err = crypto.GetHMAC(crypto.HashSHA512,
-			[]byte(hmacPayload),
-			[]byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512, []byte(hmacPayload), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
-		hmacStr := crypto.HexEncodeToString(hmac)
 
 		headers := make(map[string]string)
 		headers["Api-Key"] = creds.Key
-		headers["Api-Sign"] = crypto.Base64Encode([]byte(hmacStr))
+		headers["Api-Sign"] = base64.StdEncoding.EncodeToString(([]byte(hex.EncodeToString(hmac))))
 		headers["Api-Nonce"] = n
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
@@ -698,7 +676,7 @@ var errCode = map[string]string{
 }
 
 // GetCandleStick returns candle stick data for requested pair
-func (b *Bithumb) GetCandleStick(ctx context.Context, symbol, interval string) (resp OHLCVResponse, err error) {
+func (b *Bithumb) GetCandleStick(ctx context.Context, symbol, interval string) (resp *OHLCVResponse, err error) {
 	path := publicCandleStick + symbol + "/" + interval
 	err = b.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 	return

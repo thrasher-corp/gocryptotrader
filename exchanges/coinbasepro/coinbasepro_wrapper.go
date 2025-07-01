@@ -170,7 +170,6 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		},
 	})
 	if err != nil {
-		fmt.Println("COINBASE ISSUE")
 		return err
 	}
 
@@ -300,18 +299,18 @@ func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := c.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        c.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: c.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Exchange:          c.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: c.ValidateOrderbook,
 	}
 	fPair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -328,17 +327,17 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		return book, common.GetTypeAssertError("OrderbookL1L2", orderbookNew)
 	}
 
-	book.Bids = make(orderbook.Tranches, len(obNew.Bids))
+	book.Bids = make(orderbook.Levels, len(obNew.Bids))
 	for x := range obNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: obNew.Bids[x].Amount,
 			Price:  obNew.Bids[x].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Tranches, len(obNew.Asks))
+	book.Asks = make(orderbook.Levels, len(obNew.Asks))
 	for x := range obNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: obNew.Asks[x].Amount,
 			Price:  obNew.Asks[x].Price,
 		}
@@ -788,7 +787,7 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair
 	timeSeries := make([]kline.Candle, len(history))
 	for x := range history {
 		timeSeries[x] = kline.Candle{
-			Time:   history[x].Time,
+			Time:   history[x].Time.Time(),
 			Low:    history[x].Low,
 			High:   history[x].High,
 			Open:   history[x].Open,
@@ -820,7 +819,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair curre
 
 		for i := range history {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   history[i].Time,
+				Time:   history[i].Time.Time(),
 				Low:    history[i].Low,
 				High:   history[i].High,
 				Open:   history[i].Open,

@@ -11,7 +11,6 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -232,10 +231,10 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 }
 
 // Bootstrap provides initialisation for an exchange
-func (k *Kraken) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+func (k *Kraken) Bootstrap(ctx context.Context) (continueBootstrap bool, err error) {
 	continueBootstrap = true
 
-	if err = k.SeedAssets(context.TODO()); err != nil {
+	if err = k.SeedAssets(ctx); err != nil {
 		err = fmt.Errorf("failed to Seed Assets: %w", err)
 	}
 
@@ -417,11 +416,6 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 		for x := range t.Tickers {
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(t.Tickers[x].Symbol)
-			if err != nil {
-				return err
-			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         t.Tickers[x].Last,
 				Bid:          t.Tickers[x].Bid,
@@ -433,7 +427,7 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 				OpenInterest: t.Tickers[x].OpenInterest,
 				MarkPrice:    t.Tickers[x].MarkPrice,
 				IndexPrice:   t.Tickers[x].IndexPrice,
-				Pair:         cp,
+				Pair:         t.Tickers[x].Symbol,
 				ExchangeName: k.Name,
 				AssetType:    a,
 			})
@@ -456,66 +450,63 @@ func (k *Kraken) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := k.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        k.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: k.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Exchange:          k.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: k.ValidateOrderbook,
 	}
-	var err error
 	switch assetType {
 	case asset.Spot:
-		var orderbookNew *Orderbook
-		orderbookNew, err = k.GetDepth(ctx, p)
+		orderbookNew, err := k.GetDepth(ctx, p)
 		if err != nil {
 			return book, err
 		}
-		book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
+		book.Bids = make([]orderbook.Level, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Tranche{
+			book.Bids[x] = orderbook.Level{
 				Amount: orderbookNew.Bids[x].Amount.Float64(),
 				Price:  orderbookNew.Bids[x].Price.Float64(),
 			}
 		}
-		book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
+		book.Asks = make([]orderbook.Level, len(orderbookNew.Asks))
 		for y := range orderbookNew.Asks {
-			book.Asks[y] = orderbook.Tranche{
+			book.Asks[y] = orderbook.Level{
 				Amount: orderbookNew.Asks[y].Amount.Float64(),
 				Price:  orderbookNew.Asks[y].Price.Float64(),
 			}
 		}
 	case asset.Futures:
-		var futuresOB *FuturesOrderbookData
-		futuresOB, err = k.GetFuturesOrderbook(ctx, p)
+		futuresOB, err := k.GetFuturesOrderbook(ctx, p)
 		if err != nil {
 			return book, err
 		}
-		book.Asks = make([]orderbook.Tranche, len(futuresOB.Orderbook.Asks))
+		book.Asks = make([]orderbook.Level, len(futuresOB.Orderbook.Asks))
 		for x := range futuresOB.Orderbook.Asks {
-			book.Asks[x] = orderbook.Tranche{
+			book.Asks[x] = orderbook.Level{
 				Price:  futuresOB.Orderbook.Asks[x][0],
 				Amount: futuresOB.Orderbook.Asks[x][1],
 			}
 		}
-		book.Bids = make([]orderbook.Tranche, len(futuresOB.Orderbook.Bids))
+		book.Bids = make([]orderbook.Level, len(futuresOB.Orderbook.Bids))
 		for y := range futuresOB.Orderbook.Bids {
-			book.Bids[y] = orderbook.Tranche{
+			book.Bids[y] = orderbook.Level{
 				Price:  futuresOB.Orderbook.Bids[y][0],
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			}
 		}
+		book.Bids.SortBids()
 	default:
 		return book, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	err = book.Process()
-	if err != nil {
+	if err := book.Process(); err != nil {
 		return book, err
 	}
 	return orderbook.Get(k.Name, p, assetType)
@@ -603,7 +594,7 @@ func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawals[i].Status,
 			TransferID:      withdrawals[i].Refid,
-			Timestamp:       time.Unix(int64(withdrawals[i].Time), 0),
+			Timestamp:       withdrawals[i].Time.Time(),
 			Amount:          withdrawals[i].Amount,
 			Fee:             withdrawals[i].Fee,
 			CryptoToAddress: withdrawals[i].Info,
@@ -625,25 +616,28 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	var resp []trade.Data
 	switch assetType {
 	case asset.Spot:
-		var tradeData []RecentTrades
-		tradeData, err = k.GetTrades(ctx, p)
+		tradeData, err := k.GetTrades(ctx, p, time.Time{}, 1000)
 		if err != nil {
 			return nil, err
 		}
-		for i := range tradeData {
+		trades, ok := tradeData.Trades[assetTranslator.LookupCurrency(p.String())]
+		if !ok {
+			return nil, fmt.Errorf("unable to find symbol %s in trade data", p.String())
+		}
+		for i := range trades {
 			side := order.Buy
-			if tradeData[i].BuyOrSell == "s" {
+			if trades[i].BuyOrSell == "s" {
 				side = order.Sell
 			}
 			resp = append(resp, trade.Data{
-				TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
+				TID:          strconv.FormatInt(trades[i].TradeID.Int64(), 10),
 				Exchange:     k.Name,
 				CurrencyPair: p,
 				AssetType:    assetType,
 				Side:         side,
-				Price:        tradeData[i].Price,
-				Amount:       tradeData[i].Volume,
-				Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
+				Price:        trades[i].Price.Float64(),
+				Amount:       trades[i].Volume.Float64(),
+				Timestamp:    trades[i].Time.Time(),
 			})
 		}
 	case asset.Futures:
@@ -665,7 +659,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 				Side:         side,
 				Price:        tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.LimitPrice,
 				Amount:       tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.Quantity,
-				Timestamp:    time.UnixMilli(tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.Timestamp),
+				Timestamp:    tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.Timestamp.Time(),
 			})
 		}
 	default:
@@ -705,7 +699,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			timeInForce = "IOC"
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
+			orderID, err = k.wsAddOrder(ctx, &WsAddOrderRequest{
 				OrderType:   s.Type.Lower(),
 				OrderSide:   s.Side.Lower(),
 				Pair:        s.Pair.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"}).String(), // required pair format: ISO 4217-A3
@@ -786,7 +780,7 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	switch o.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			return k.wsCancelOrders([]string{o.OrderID})
+			return k.wsCancelOrders(ctx, []string{o.OrderID})
 		}
 		_, err := k.CancelExistingOrder(ctx, o.OrderID)
 		return err
@@ -803,7 +797,7 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (k *Kraken) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (k *Kraken) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if !k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -816,7 +810,7 @@ func (k *Kraken) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.
 		ordersList[i] = o[i].OrderID
 	}
 
-	err := k.wsCancelOrders(ordersList)
+	err := k.wsCancelOrders(ctx, ordersList)
 	return nil, err
 }
 
@@ -831,7 +825,7 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 	switch req.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := k.wsCancelAllOrders()
+			resp, err := k.wsCancelAllOrders(ctx)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -848,7 +842,7 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 		for orderID := range openOrders.Open {
 			var err error
 			if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				err = k.wsCancelOrders([]string{orderID})
+				err = k.wsCancelOrders(ctx, []string{orderID})
 			} else {
 				_, err = k.CancelExistingOrder(ctx, orderID)
 			}
@@ -941,8 +935,8 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 			Pair:            p,
 			Side:            side,
 			Type:            oType,
-			Date:            convert.TimeFromUnixTimestampDecimal(orderInfo.OpenTime),
-			CloseTime:       convert.TimeFromUnixTimestampDecimal(orderInfo.CloseTime),
+			Date:            orderInfo.OpenTime.Time(),
+			CloseTime:       orderInfo.CloseTime.Time(),
 			Status:          status,
 			Price:           price,
 			Amount:          orderInfo.Volume,
@@ -974,17 +968,13 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 			if err != nil {
 				return nil, err
 			}
-			timeVar, err := time.Parse(krakenFormat, orderInfo.Fills[y].FillTime)
-			if err != nil {
-				return nil, err
-			}
 			orderDetail = order.Detail{
 				OrderID:   orderID,
 				Price:     orderInfo.Fills[y].Price,
 				Amount:    orderInfo.Fills[y].Size,
 				Side:      oSide,
 				Type:      fillOrderType,
-				Date:      timeVar,
+				Date:      orderInfo.Fills[y].FillTime,
 				Pair:      pair,
 				Exchange:  k.Name,
 				AssetType: asset.Futures,
@@ -1143,7 +1133,7 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				RemainingAmount: resp.Open[i].Volume - resp.Open[i].VolumeExecuted,
 				ExecutedAmount:  resp.Open[i].VolumeExecuted,
 				Exchange:        k.Name,
-				Date:            convert.TimeFromUnixTimestampDecimal(resp.Open[i].OpenTime),
+				Date:            resp.Open[i].OpenTime.Time(),
 				Price:           resp.Open[i].Description.Price,
 				Side:            side,
 				Type:            orderType,
@@ -1184,17 +1174,13 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				if err != nil {
 					return orders, err
 				}
-				timeVar, err := time.Parse(krakenFormat, activeOrders.OpenOrders[a].ReceivedTime)
-				if err != nil {
-					return orders, err
-				}
 				orders = append(orders, order.Detail{
 					OrderID:   activeOrders.OpenOrders[a].OrderID,
 					Price:     activeOrders.OpenOrders[a].LimitPrice,
 					Amount:    activeOrders.OpenOrders[a].FilledSize,
 					Side:      oSide,
 					Type:      oType,
-					Date:      timeVar,
+					Date:      activeOrders.OpenOrders[a].ReceivedTime,
 					Pair:      fPair,
 					Exchange:  k.Name,
 					AssetType: asset.Futures,
@@ -1276,8 +1262,8 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 				Cost:            resp.Closed[i].Cost,
 				CostAsset:       p.Quote,
 				Exchange:        k.Name,
-				Date:            convert.TimeFromUnixTimestampDecimal(resp.Closed[i].OpenTime),
-				CloseTime:       convert.TimeFromUnixTimestampDecimal(resp.Closed[i].CloseTime),
+				Date:            resp.Closed[i].OpenTime.Time(),
+				CloseTime:       resp.Closed[i].CloseTime.Time(),
 				Price:           resp.Closed[i].Description.Price,
 				Side:            side,
 				Status:          status,
@@ -1307,11 +1293,6 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 			for o := range orderHistory.OrderEvents {
 				switch {
 				case orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.UID != "":
-					timeVar, err := time.Parse(krakenFormat,
-						orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Timestamp)
-					if err != nil {
-						return orders, err
-					}
 					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Direction)
 					if err != nil {
 						return orders, err
@@ -1330,17 +1311,12 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						ClientID:  orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.ClientID,
 						AssetType: asset.Futures,
 						Type:      oType,
-						Date:      timeVar,
+						Date:      orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Timestamp,
 						Side:      oDirection,
 						Exchange:  k.Name,
 						Pair:      pairs[p],
 					})
 				case orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID != "":
-					timeVar, err := time.Parse(krakenFormat,
-						orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Timestamp)
-					if err != nil {
-						return orders, err
-					}
 					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Direction)
 					if err != nil {
 						return orders, err
@@ -1359,18 +1335,13 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.AccountID,
 						AssetType: asset.Futures,
 						Type:      oType,
-						Date:      timeVar,
+						Date:      orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Timestamp,
 						Side:      oDirection,
 						Exchange:  k.Name,
 						Pair:      pairs[p],
 						Status:    order.Rejected,
 					})
 				case orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID != "":
-					timeVar, err := time.Parse(krakenFormat,
-						orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Timestamp)
-					if err != nil {
-						return orders, err
-					}
 					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Direction)
 					if err != nil {
 						return orders, err
@@ -1389,18 +1360,13 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.AccountID,
 						AssetType: asset.Futures,
 						Type:      oType,
-						Date:      timeVar,
+						Date:      orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Timestamp,
 						Side:      oDirection,
 						Exchange:  k.Name,
 						Pair:      pairs[p],
 						Status:    order.Cancelled,
 					})
 				case orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID != "":
-					timeVar, err := time.Parse(krakenFormat,
-						orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Timestamp)
-					if err != nil {
-						return orders, err
-					}
 					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Direction)
 					if err != nil {
 						return orders, err
@@ -1419,7 +1385,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.AccountID,
 						AssetType: asset.Futures,
 						Type:      oType,
-						Date:      timeVar,
+						Date:      orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Timestamp,
 						Side:      oDirection,
 						Exchange:  k.Name,
 						Pair:      pairs[p],
@@ -1436,10 +1402,12 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (k *Kraken) AuthenticateWebsocket(ctx context.Context) error {
 	resp, err := k.GetWebsocketToken(ctx)
-	if resp != "" {
-		authToken = resp
+	if err != nil {
+		return err
 	}
-	return err
+
+	k.setWebsocketAuthToken(resp)
+	return nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
@@ -1613,20 +1581,14 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			return nil, err
 		}
 		var s, e time.Time
-		if result.Instruments[i].OpeningDate != "" {
-			s, err = time.Parse(time.RFC3339, result.Instruments[i].OpeningDate)
-			if err != nil {
-				return nil, err
-			}
+		if !result.Instruments[i].OpeningDate.IsZero() {
+			s = result.Instruments[i].OpeningDate
 		}
 		var ct futures.ContractType
-		if result.Instruments[i].LastTradingTime == "" || item == asset.PerpetualSwap {
+		if result.Instruments[i].LastTradingTime.IsZero() || item == asset.PerpetualSwap {
 			ct = futures.Perpetual
 		} else {
-			e, err = time.Parse(time.RFC3339, result.Instruments[i].LastTradingTime)
-			if err != nil {
-				return nil, err
-			}
+			e = result.Instruments[i].LastTradingTime
 			switch {
 			// three day is used for generosity for contract date ranges
 			case e.Sub(s) <= kline.OneMonth.Duration()+kline.ThreeDay.Duration():
@@ -1678,15 +1640,11 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 	}
 	resp := make([]fundingrate.LatestRateResponse, 0, len(t.Tickers))
 	for i := range t.Tickers {
-		pair, err := currency.NewPairFromString(t.Tickers[i].Symbol)
-		if err != nil {
-			return nil, err
-		}
-		if !r.Pair.IsEmpty() && !r.Pair.Equal(pair) {
+		if !r.Pair.IsEmpty() && !r.Pair.Equal(t.Tickers[i].Symbol) {
 			continue
 		}
 		var isPerp bool
-		isPerp, err = k.IsPerpetualFutureCurrency(r.Asset, pair)
+		isPerp, err = k.IsPerpetualFutureCurrency(r.Asset, t.Tickers[i].Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -1696,7 +1654,7 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		rate := fundingrate.LatestRateResponse{
 			Exchange: k.Name,
 			Asset:    r.Asset,
-			Pair:     pair,
+			Pair:     t.Tickers[i].Symbol,
 			LatestRate: fundingrate.Rate{
 				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRate),
 			},
@@ -1733,7 +1691,7 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 	for i := range futuresTickersData.Tickers {
 		var p currency.Pair
 		var isEnabled bool
-		p, isEnabled, err = k.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol, asset.Futures, true)
+		p, isEnabled, err = k.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol.String(), asset.Futures, true)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}

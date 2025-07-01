@@ -1,7 +1,6 @@
 package gemini
 
 import (
-	"errors"
 	"net/url"
 	"strings"
 	"testing"
@@ -553,7 +552,7 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
-	err := g.API.Endpoints.SetRunning(exchange.WebsocketSpot.String(), geminiWebsocketSandboxEndpoint)
+	err := g.API.Endpoints.SetRunningURL(exchange.WebsocketSpot.String(), geminiWebsocketSandboxEndpoint)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1268,14 +1267,10 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = g.UpdateOrderExecutionLimits(t.Context(), asset.Futures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatal(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	availPairs, err := g.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	for x := range availPairs {
 		var limit order.MinMaxLevel
 		limit, err = g.GetOrderExecutionLimits(asset.Spot, availPairs[x])

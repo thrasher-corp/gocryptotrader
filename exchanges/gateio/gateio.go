@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -410,11 +411,10 @@ func (g *Gateio) GetOrderbook(ctx context.Context, pairString, interval string, 
 	}
 	params.Set("with_id", strconv.FormatBool(withOrderbookID))
 	var response *OrderbookData
-	err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicOrderbookSpotEPL, common.EncodeURLValues(gateioSpotOrderbook, params), &response)
-	if err != nil {
+	if err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicOrderbookSpotEPL, common.EncodeURLValues(gateioSpotOrderbook, params), &response); err != nil {
 		return nil, err
 	}
-	return response.MakeOrderbook()
+	return response.MakeOrderbook(), nil
 }
 
 // GetMarketTrades retrieve market trades
@@ -471,55 +471,8 @@ func (g *Gateio) GetCandlesticks(ctx context.Context, currencyPair currency.Pair
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var candles [][7]string
-	err = g.SendHTTPRequest(ctx, exchange.RestSpot, publicCandleStickSpotEPL, common.EncodeURLValues(gateioSpotCandlesticks, params), &candles)
-	if err != nil {
-		return nil, err
-	}
-	if len(candles) == 0 {
-		return nil, fmt.Errorf("no candlesticks available for instrument %v", currencyPair)
-	}
-	candlesticks := make([]Candlestick, len(candles))
-	for x := range candles {
-		timestamp, err := strconv.ParseInt(candles[x][0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		quoteTradingVolume, err := strconv.ParseFloat(candles[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		closePrice, err := strconv.ParseFloat(candles[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		highestPrice, err := strconv.ParseFloat(candles[x][3], 64)
-		if err != nil {
-			return nil, err
-		}
-		lowestPrice, err := strconv.ParseFloat(candles[x][4], 64)
-		if err != nil {
-			return nil, err
-		}
-		openPrice, err := strconv.ParseFloat(candles[x][5], 64)
-		if err != nil {
-			return nil, err
-		}
-		baseCurrencyAmount, err := strconv.ParseFloat(candles[x][6], 64)
-		if err != nil {
-			return nil, err
-		}
-		candlesticks[x] = Candlestick{
-			Timestamp:      time.Unix(timestamp, 0),
-			QuoteCcyVolume: quoteTradingVolume,
-			ClosePrice:     closePrice,
-			HighestPrice:   highestPrice,
-			LowestPrice:    lowestPrice,
-			OpenPrice:      openPrice,
-			BaseCcyAmount:  baseCurrencyAmount,
-		}
-	}
-	return candlesticks, nil
+	var candles []Candlestick
+	return candles, g.SendHTTPRequest(ctx, exchange.RestSpot, publicCandleStickSpotEPL, common.EncodeURLValues(gateioSpotCandlesticks, params), &candles)
 }
 
 // GetTradingFeeRatio retrieves user trading fee rates
@@ -800,14 +753,13 @@ func (g *Gateio) GetMySpotTradingHistory(ctx context.Context, p currency.Pair, o
 
 // GetServerTime retrieves current server time
 func (g *Gateio) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
-	resp := struct {
-		ServerTime int64 `json:"server_time"`
-	}{}
-	err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicGetServerTimeEPL, gateioSpotServerTime, &resp)
-	if err != nil {
+	var resp struct {
+		ServerTime types.Time `json:"server_time"`
+	}
+	if err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicGetServerTimeEPL, gateioSpotServerTime, &resp); err != nil {
 		return time.Time{}, err
 	}
-	return time.Unix(resp.ServerTime, 0), nil
+	return resp.ServerTime.Time(), nil
 }
 
 // CountdownCancelorders Countdown cancel orders
@@ -924,6 +876,11 @@ func (g *Gateio) CancelPriceTriggeredOrder(ctx context.Context, orderID string) 
 
 // GenerateSignature returns hash for authenticated requests
 func (g *Gateio) GenerateSignature(secret, method, path, query string, body any, dtime time.Time) (string, error) {
+	rawQuery, err := url.QueryUnescape(query)
+	if err != nil {
+		return "", err
+	}
+
 	h := sha512.New()
 	if body != nil {
 		val, err := json.Marshal(body)
@@ -934,12 +891,8 @@ func (g *Gateio) GenerateSignature(secret, method, path, query string, body any,
 	}
 	h.Write(nil)
 	hashedPayload := hex.EncodeToString(h.Sum(nil))
-	t := strconv.FormatInt(dtime.Unix(), 10)
-	rawQuery, err := url.QueryUnescape(query)
-	if err != nil {
-		return "", err
-	}
-	msg := method + "\n" + path + "\n" + rawQuery + "\n" + hashedPayload + "\n" + t
+
+	msg := method + "\n" + path + "\n" + rawQuery + "\n" + hashedPayload + "\n" + strconv.FormatInt(dtime.Unix(), 10)
 	mac := hmac.New(sha512.New, []byte(secret))
 	mac.Write([]byte(msg))
 	return hex.EncodeToString(mac.Sum(nil)), nil
@@ -3164,15 +3117,18 @@ func (g *Gateio) GetAllOptionsUnderlyings(ctx context.Context) ([]OptionUnderlyi
 
 // GetExpirationTime return the expiration time for the provided underlying.
 func (g *Gateio) GetExpirationTime(ctx context.Context, underlying string) (time.Time, error) {
-	var timestamp []float64
-	err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicExpirationOptionsEPL, gateioOptionExpiration+"?underlying="+underlying, &timestamp)
+	if underlying == "" {
+		return time.Time{}, errInvalidUnderlying
+	}
+	var timestamps []types.Time
+	err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicExpirationOptionsEPL, gateioOptionExpiration+"?underlying="+underlying, &timestamps)
 	if err != nil {
 		return time.Time{}, err
 	}
-	if len(timestamp) == 0 {
+	if len(timestamps) == 0 {
 		return time.Time{}, errNoValidResponseFromServer
 	}
-	return time.Unix(int64(timestamp[0]), 0), nil
+	return timestamps[0].Time(), nil
 }
 
 // GetAllContractOfUnderlyingWithinExpiryDate retrieves list of contracts of the specified underlying and expiry time.

@@ -3,6 +3,7 @@ package kucoin
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -97,9 +98,9 @@ func (ku *Kucoin) GetMarketList(ctx context.Context) ([]string, error) {
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, marketListEPL, "/v1/markets", &resp)
 }
 
-// processOB constructs an orderbook.Tranche instances from slice of numbers.
-func processOB(ob [][2]types.Number) []orderbook.Tranche {
-	o := make([]orderbook.Tranche, len(ob))
+// processOB constructs an orderbook.Level instances from slice of numbers.
+func processOB(ob [][2]types.Number) []orderbook.Level {
+	o := make([]orderbook.Level, len(ob))
 	for x := range ob {
 		o[x].Amount = ob[x][1].Float64()
 		o[x].Price = ob[x][0].Float64()
@@ -200,22 +201,8 @@ func (ku *Kucoin) GetKlines(ctx context.Context, symbol, period string, start, e
 	if !end.IsZero() {
 		params.Set("endAt", strconv.FormatInt(end.Unix(), 10))
 	}
-	var resp [][7]types.Number
-	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, klinesEPL, common.EncodeURLValues("/v1/market/candles", params), &resp)
-	if err != nil {
-		return nil, err
-	}
-	klines := make([]Kline, len(resp))
-	for i := range resp {
-		klines[i].StartTime = time.Unix(resp[i][0].Int64(), 0)
-		klines[i].Open = resp[i][1].Float64()
-		klines[i].Close = resp[i][2].Float64()
-		klines[i].High = resp[i][3].Float64()
-		klines[i].Low = resp[i][4].Float64()
-		klines[i].Volume = resp[i][5].Float64()
-		klines[i].Amount = resp[i][6].Float64()
-	}
-	return klines, nil
+	var resp []Kline
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, klinesEPL, common.EncodeURLValues("/v1/market/candles", params), &resp)
 }
 
 // GetCurrenciesV3 the V3 of retrieving list of currencies
@@ -2502,21 +2489,20 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 			}
 			body = bytes.NewBuffer(payload)
 		}
-		timeStamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
-		var signHash, passPhraseHash []byte
-		signHash, err = crypto.GetHMAC(crypto.HashSHA256, []byte(timeStamp+method+"/api"+path+string(payload)), []byte(creds.Secret))
+		ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
+		signHash, err := crypto.GetHMAC(crypto.HashSHA256, []byte(ts+method+"/api"+path+string(payload)), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
-		passPhraseHash, err = crypto.GetHMAC(crypto.HashSHA256, []byte(creds.ClientID), []byte(creds.Secret))
+		passPhraseHash, err := crypto.GetHMAC(crypto.HashSHA256, []byte(creds.ClientID), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 		headers := map[string]string{
 			"KC-API-KEY":         creds.Key,
-			"KC-API-SIGN":        crypto.Base64Encode(signHash),
-			"KC-API-TIMESTAMP":   timeStamp,
-			"KC-API-PASSPHRASE":  crypto.Base64Encode(passPhraseHash),
+			"KC-API-SIGN":        base64.StdEncoding.EncodeToString(signHash),
+			"KC-API-TIMESTAMP":   ts,
+			"KC-API-PASSPHRASE":  base64.StdEncoding.EncodeToString(passPhraseHash),
 			"KC-API-KEY-VERSION": "3",
 			"Content-Type":       "application/json",
 		}

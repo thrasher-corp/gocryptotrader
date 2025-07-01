@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -35,28 +34,20 @@ const (
 )
 
 var (
-	b           = &BTSE{}
+	b           *BTSE
 	futuresPair = currency.NewPair(currency.ENJ, currency.PFC)
 	spotPair    = currency.NewPairWithDelimiter("BTC", "USD", "-")
 )
 
 func TestMain(m *testing.M) {
-	b.SetDefaults()
-	cfg := config.GetConfig()
-	if err := cfg.LoadConfig("../../testdata/configtest.json", true); err != nil {
-		log.Fatal(err)
-	}
-	btseConfig, err := cfg.GetExchangeConfig("BTSE")
-	if err != nil {
-		log.Fatal(err)
+	b = new(BTSE)
+	if err := testexch.Setup(b); err != nil {
+		log.Fatalf("BTSE Setup error: %s", err)
 	}
 
-	btseConfig.API.AuthenticatedSupport = true
-	btseConfig.API.Credentials.Key = apiKey
-	btseConfig.API.Credentials.Secret = apiSecret
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	if err = b.Setup(btseConfig); err != nil {
-		log.Fatal(err)
+	if apiKey != "" && apiSecret != "" {
+		b.API.AuthenticatedSupport = true
+		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 
 	os.Exit(m.Run())
@@ -396,12 +387,6 @@ func TestGetFee(t *testing.T) {
 	assert.NoError(t, err, "fee builuder should not error for a fraction of a squillion")
 }
 
-func TestParseOrderTime(t *testing.T) {
-	actual, err := parseOrderTime("2018-08-20 19:20:46")
-	assert.NoError(t, err, "parseOrderTime should not error")
-	assert.EqualValues(t, 1534792846, actual.Unix(), "parseOrderTime should provide correct value")
-}
-
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
@@ -477,7 +462,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestWsOrderbook(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{"topic":"orderBookL2Api:BTC-USD_0","data":{"buyQuote":[{"price":"9272.0","size":"0.077"},{"price":"9271.0","size":"1.122"},{"price":"9270.0","size":"2.548"},{"price":"9267.5","size":"1.015"},{"price":"9265.5","size":"0.930"},{"price":"9265.0","size":"0.475"},{"price":"9264.5","size":"2.216"},{"price":"9264.0","size":"9.709"},{"price":"9263.5","size":"3.667"},{"price":"9263.0","size":"8.481"},{"price":"9262.5","size":"7.660"},{"price":"9262.0","size":"9.689"},{"price":"9261.5","size":"4.213"},{"price":"9261.0","size":"1.491"},{"price":"9260.5","size":"6.264"},{"price":"9260.0","size":"1.690"},{"price":"9259.5","size":"5.718"},{"price":"9259.0","size":"2.706"},{"price":"9258.5","size":"0.192"},{"price":"9258.0","size":"1.592"},{"price":"9257.5","size":"1.749"},{"price":"9257.0","size":"8.104"},{"price":"9256.0","size":"0.161"},{"price":"9252.0","size":"1.544"},{"price":"9249.5","size":"1.462"},{"price":"9247.5","size":"1.833"},{"price":"9247.0","size":"0.168"},{"price":"9245.5","size":"1.941"},{"price":"9244.0","size":"1.423"},{"price":"9243.5","size":"0.175"}],"currency":"USD","sellQuote":[{"price":"9303.5","size":"1.839"},{"price":"9303.0","size":"2.067"},{"price":"9302.0","size":"0.117"},{"price":"9298.5","size":"1.569"},{"price":"9297.0","size":"1.527"},{"price":"9295.0","size":"0.184"},{"price":"9294.0","size":"1.785"},{"price":"9289.0","size":"1.673"},{"price":"9287.5","size":"4.194"},{"price":"9287.0","size":"6.622"},{"price":"9286.5","size":"2.147"},{"price":"9286.0","size":"3.348"},{"price":"9285.5","size":"5.655"},{"price":"9285.0","size":"10.423"},{"price":"9284.5","size":"6.233"},{"price":"9284.0","size":"8.860"},{"price":"9283.5","size":"9.441"},{"price":"9283.0","size":"3.455"},{"price":"9282.5","size":"11.033"},{"price":"9282.0","size":"11.471"},{"price":"9281.5","size":"4.742"},{"price":"9281.0","size":"14.789"},{"price":"9280.5","size":"11.117"},{"price":"9280.0","size":"0.807"},{"price":"9279.5","size":"1.651"},{"price":"9279.0","size":"0.244"},{"price":"9278.5","size":"0.533"},{"price":"9277.0","size":"1.447"},{"price":"9273.0","size":"1.976"},{"price":"9272.5","size":"0.093"}]}}`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsHandleData(t.Context(), pressXToJSON)
 	assert.NoError(t, err, "wsHandleData orderBookL2Api should not error")
 	// TODO: Meaningful test of data parsing
 }
@@ -531,7 +516,7 @@ func TestWsOrderNotification(t *testing.T) {
 	status := []string{"ORDER_INSERTED", "ORDER_CANCELLED", "TRIGGER_INSERTED", "ORDER_FULL_TRANSACTED", "ORDER_PARTIALLY_TRANSACTED", "INSUFFICIENT_BALANCE", "TRIGGER_ACTIVATED", "MARKET_UNAVAILABLE"}
 	for i := range status {
 		pressXToJSON := []byte(`{"topic": "notificationApi","data": [{"symbol": "BTC-USD","orderID": "1234","orderMode": "MODE_BUY","orderType": "TYPE_LIMIT","price": "1","size": "1","status": "` + status[i] + `","timestamp": "1580349090693","type": "STOP","triggerPrice": "1"}]}`)
-		err := b.wsHandleData(pressXToJSON)
+		err := b.wsHandleData(t.Context(), pressXToJSON)
 		assert.NoErrorf(t, err, "wsHandleData notificationApi should not error on %s", status[i])
 		// TODO: Meaningful test of data parsing
 	}
@@ -637,12 +622,12 @@ func TestOrderbookFilter(t *testing.T) {
 func TestWsLogin(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{"event":"login","success":true}`)
-	err := b.wsHandleData(data)
+	err := b.wsHandleData(t.Context(), data)
 	assert.NoError(t, err, "wsHandleData login should not error")
 	assert.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints should be true after login")
 
 	data = []byte(`{"event":"login","success":false}`)
-	err = b.wsHandleData(data)
+	err = b.wsHandleData(t.Context(), data)
 	assert.NoError(t, err, "wsHandleData login should not error")
 	assert.False(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints should be false failed login")
 }
@@ -650,14 +635,14 @@ func TestWsLogin(t *testing.T) {
 func TestWsSubscription(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{"event":"subscribe","channel":["orderBookL2Api:SFI-ETH_0","tradeHistory:SFI-ETH"]}`)
-	err := b.wsHandleData(data)
+	err := b.wsHandleData(t.Context(), data)
 	assert.NoError(t, err, "wsHandleData subscribe should not error")
 }
 
 func TestWsUnexpectedData(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{}`)
-	err := b.wsHandleData(data)
+	err := b.wsHandleData(t.Context(), data)
 	assert.ErrorContains(t, err, websocket.UnhandledMessage, "wsHandleData should error on empty message")
 }
 

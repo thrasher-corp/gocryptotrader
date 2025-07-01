@@ -322,23 +322,8 @@ func (ku *Kucoin) GetFuturesKline(ctx context.Context, granularity int64, symbol
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
-	var resp [][6]float64
-	err := ku.SendHTTPRequest(ctx, exchange.RestFutures, futuresKlineEPL, common.EncodeURLValues("/v1/kline/query", params), &resp)
-	if err != nil {
-		return nil, err
-	}
-	kline := make([]FuturesKline, len(resp))
-	for i := range resp {
-		kline[i] = FuturesKline{
-			StartTime: time.UnixMilli(int64(resp[i][0])),
-			Open:      resp[i][1],
-			High:      resp[i][2],
-			Low:       resp[i][3],
-			Close:     resp[i][4],
-			Volume:    resp[i][5],
-		}
-	}
-	return kline, nil
+	var resp []FuturesKline
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, futuresKlineEPL, common.EncodeURLValues("/v1/kline/query", params), &resp)
 }
 
 // PostFuturesOrder used to place two types of futures orders: limit and market
@@ -839,10 +824,10 @@ func (ku *Kucoin) GetFuturesTransferOutList(ctx context.Context, ccy currency.Co
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresTransferOutListEPL, http.MethodGet, common.EncodeURLValues("/v1/transfer-list", params), nil, &resp)
 }
 
-func processFuturesOB(ob [][2]float64) []orderbook.Tranche {
-	o := make([]orderbook.Tranche, len(ob))
+func processFuturesOB(ob [][2]float64) []orderbook.Level {
+	o := make([]orderbook.Level, len(ob))
 	for x := range ob {
-		o[x] = orderbook.Tranche{
+		o[x] = orderbook.Level{
 			Price:  ob[x][0],
 			Amount: ob[x][1],
 		}
