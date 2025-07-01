@@ -1348,6 +1348,6 @@ func TestWebsocketConnectionRequireMatchWithData(t *testing.T) {
 
 	err = ws.RequireMatchWithData(0, []byte("test"))
 	require.NoError(t, err)
-
+	require.Len(t, ch, 1, "must have one item in channel")
 	require.Equal(t, []byte("test"), <-ch)
 }
