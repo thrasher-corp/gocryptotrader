@@ -291,30 +291,24 @@ func (y *Yobit) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asse
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var err error
-	p, err = y.FormatExchangeCurrency(p, assetType)
+	p, err := y.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	var tradeData []Trade
-	tradeData, err = y.GetTrades(ctx, p.String())
+	tradeData, err := y.GetTrades(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
 
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		side := order.Buy
-		if tradeData[i].Type == "ask" {
-			side = order.Sell
-		}
 		resp[i] = trade.Data{
 			Exchange:     y.Name,
 			TID:          strconv.FormatInt(tradeData[i].TID, 10),
 			CurrencyPair: p,
 			AssetType:    assetType,
-			Side:         side,
+			Side:         tradeData[i].Side,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
 			Timestamp:    tradeData[i].Timestamp.Time(),
@@ -436,10 +430,6 @@ func (y *Yobit) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pai
 	if err != nil {
 		return nil, err
 	}
-	format, err := y.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		return nil, err
-	}
 	resp, err := y.GetOrderInformation(ctx, iOID)
 	if err != nil {
 		return nil, err
@@ -449,23 +439,13 @@ func (y *Yobit) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pai
 		if id != orderID {
 			continue
 		}
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(orderInfo.Pair, format.Delimiter)
-		if err != nil {
-			return nil, err
-		}
-		var side order.Side
-		side, err = order.StringToOrderSide(orderInfo.Type)
-		if err != nil {
-			return nil, err
-		}
 		return &order.Detail{
 			OrderID:  id,
 			Amount:   orderInfo.Amount,
 			Price:    orderInfo.Rate,
-			Side:     side,
+			Side:     orderInfo.Side,
 			Date:     orderInfo.TimestampCreated.Time(),
-			Pair:     symbol,
+			Pair:     orderInfo.Pair,
 			Exchange: y.Name,
 		}, nil
 	}
@@ -532,47 +512,29 @@ func (y *Yobit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 
 // GetActiveOrders retrieves any orders that are active/open
 func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	err := req.Validate()
-	if err != nil {
-		return nil, err
-	}
-
-	format, err := y.GetPairFormat(asset.Spot, false)
-	if err != nil {
+	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 
 	var orders []order.Detail
 	for x := range req.Pairs {
-		var fCurr currency.Pair
-		fCurr, err = y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		fCurr, err := y.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		var resp map[string]ActiveOrders
-		resp, err = y.GetOpenOrders(ctx, fCurr.String())
+		resp, err := y.GetOpenOrders(ctx, fCurr.String())
 		if err != nil {
 			return nil, err
 		}
 
 		for id := range resp {
-			var symbol currency.Pair
-			symbol, err = currency.NewPairDelimiter(resp[id].Pair, format.Delimiter)
-			if err != nil {
-				return nil, err
-			}
-			var side order.Side
-			side, err = order.StringToOrderSide(resp[id].Type)
-			if err != nil {
-				return nil, err
-			}
 			orders = append(orders, order.Detail{
 				OrderID:  id,
 				Amount:   resp[id].Amount,
 				Price:    resp[id].Rate,
-				Side:     side,
+				Side:     resp[id].Side,
 				Date:     resp[id].TimestampCreated.Time(),
-				Pair:     symbol,
+				Pair:     resp[id].Pair,
 				Exchange: y.Name,
 			})
 		}
@@ -613,33 +575,18 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 		}
 	}
 
-	format, err := y.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		return nil, err
-	}
-
 	orders := make([]order.Detail, len(allOrders))
 	for i := range allOrders {
-		var pair currency.Pair
-		pair, err = currency.NewPairDelimiter(allOrders[i].Pair, format.Delimiter)
-		if err != nil {
-			return nil, err
-		}
-		var side order.Side
-		side, err = order.StringToOrderSide(allOrders[i].Type)
-		if err != nil {
-			return nil, err
-		}
 		detail := order.Detail{
 			OrderID:              strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
 			Amount:               allOrders[i].Amount,
 			ExecutedAmount:       allOrders[i].Amount,
 			Price:                allOrders[i].Rate,
 			AverageExecutedPrice: allOrders[i].Rate,
-			Side:                 side,
+			Side:                 allOrders[i].Side,
 			Status:               order.Filled,
 			Date:                 allOrders[i].Timestamp.Time(),
-			Pair:                 pair,
+			Pair:                 allOrders[i].Pair,
 			Exchange:             y.Name,
 		}
 		detail.InferCostsAndTimes()

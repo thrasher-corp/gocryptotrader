@@ -308,7 +308,7 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	acc.AssetType = assetType
 	for x := range data {
 		acc.Currencies = append(acc.Currencies, account.Balance{
-			Currency: currency.NewCode(data[x].AssetName),
+			Currency: data[x].AssetName,
 			Total:    data[x].Balance,
 			Hold:     data[x].Locked,
 			Free:     data[x].Available,
@@ -349,7 +349,7 @@ func (b *BTCMarkets) GetWithdrawalsHistory(ctx context.Context, c currency.Code,
 				TransferID:      withdrawals[i].ID,
 				Description:     withdrawals[i].Description,
 				Timestamp:       withdrawals[i].CreationTime,
-				Currency:        withdrawals[i].AssetName.String(),
+				Currency:        withdrawals[i].AssetName,
 				Amount:          withdrawals[i].Amount,
 				Fee:             withdrawals[i].Fee,
 				TransferType:    withdrawals[i].RequestType,
@@ -376,19 +376,12 @@ func (b *BTCMarkets) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		var side order.Side
-		if tradeData[i].Side != "" {
-			side, err = order.StringToOrderSide(tradeData[i].Side)
-			if err != nil {
-				return nil, err
-			}
-		}
 		resp[i] = trade.Data{
 			Exchange:     b.Name,
 			TID:          tradeData[i].TradeID,
 			CurrencyPair: p,
 			AssetType:    assetType,
-			Side:         side,
+			Side:         tradeData[i].Side,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
 			Timestamp:    tradeData[i].Timestamp,
@@ -492,18 +485,9 @@ func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 		return nil, err
 	}
 	mod.Pair = resp.MarketID
-	mod.Side, err = order.StringToOrderSide(resp.Side)
-	if err != nil {
-		return nil, err
-	}
-	mod.Type, err = order.StringToOrderType(resp.Type)
-	if err != nil {
-		return nil, err
-	}
-	mod.Status, err = order.StringToOrderStatus(resp.Status)
-	if err != nil {
-		return nil, err
-	}
+	mod.Side = resp.Side
+	mod.Type = resp.Type
+	mod.Status = resp.Status
 	mod.OrderID = resp.OrderID
 	mod.LastUpdated = resp.CreationTime
 	mod.Price = resp.Price
@@ -584,56 +568,22 @@ func (b *BTCMarkets) CancelAllOrders(ctx context.Context, _ *order.Cancel) (orde
 
 // GetOrderInfo returns order information based on order ID
 func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
-	var resp order.Detail
 	o, err := b.FetchOrder(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}
 
-	resp.Exchange = b.Name
-	resp.OrderID = orderID
-	resp.Pair = o.MarketID
-	resp.Price = o.Price
-	resp.Date = o.CreationTime
-	resp.ExecutedAmount = o.Amount - o.OpenAmount
-	resp.Side = order.Bid
-	if o.Side == ask {
-		resp.Side = order.Ask
-	}
-	switch o.Type {
-	case limit:
-		resp.Type = order.Limit
-	case market:
-		resp.Type = order.Market
-	case stopLimit:
-		resp.Type = order.Stop
-	case stop:
-		resp.Type = order.Stop
-	case takeProfit:
-		resp.Type = order.TakeProfit
-	default:
-		resp.Type = order.UnknownType
-	}
-	resp.RemainingAmount = o.OpenAmount
-	switch o.Status {
-	case orderAccepted:
-		resp.Status = order.Active
-	case orderPlaced:
-		resp.Status = order.Active
-	case orderPartiallyMatched:
-		resp.Status = order.PartiallyFilled
-	case orderFullyMatched:
-		resp.Status = order.Filled
-	case orderCancelled:
-		resp.Status = order.Cancelled
-	case orderPartiallyCancelled:
-		resp.Status = order.PartiallyCancelled
-	case orderFailed:
-		resp.Status = order.Rejected
-	default:
-		resp.Status = order.UnknownStatus
-	}
-	return &resp, nil
+	return &order.Detail{
+		Exchange:       b.Name,
+		OrderID:        o.OrderID,
+		Pair:           o.MarketID,
+		Price:          o.Price,
+		Date:           o.CreationTime,
+		ExecutedAmount: o.Amount - o.OpenAmount,
+		Side:           o.Side,
+		Type:           o.Type,
+		Status:         o.Status,
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -734,53 +684,24 @@ func (b *BTCMarkets) GetActiveOrders(ctx context.Context, req *order.MultiOrderR
 		if err != nil {
 			return nil, err
 		}
-		tempData, err := b.GetOrders(ctx, fPair.String(), -1, -1, -1, true)
+		orders, err := b.GetOrders(ctx, fPair.String(), -1, -1, -1, true)
 		if err != nil {
 			return resp, err
 		}
-		for y := range tempData {
-			var tempResp order.Detail
-			tempResp.Exchange = b.Name
-			tempResp.Pair = req.Pairs[x]
-			tempResp.OrderID = tempData[y].OrderID
-			tempResp.Side = order.Bid
-			if tempData[y].Side == ask {
-				tempResp.Side = order.Ask
-			}
-			tempResp.Date = tempData[y].CreationTime
-
-			switch tempData[y].Type {
-			case limit:
-				tempResp.Type = order.Limit
-			case market:
-				tempResp.Type = order.Market
-			default:
-				log.Errorf(log.ExchangeSys,
-					"%s unknown order type %s getting order",
-					b.Name,
-					tempData[y].Type)
-				tempResp.Type = order.UnknownType
-			}
-			switch tempData[y].Status {
-			case orderAccepted:
-				tempResp.Status = order.Active
-			case orderPlaced:
-				tempResp.Status = order.Active
-			case orderPartiallyMatched:
-				tempResp.Status = order.PartiallyFilled
-			default:
-				log.Errorf(log.ExchangeSys,
-					"%s unexpected status %s on order %v",
-					b.Name,
-					tempData[y].Status,
-					tempData[y].OrderID)
-				tempResp.Status = order.UnknownStatus
-			}
-			tempResp.Price = tempData[y].Price
-			tempResp.Amount = tempData[y].Amount
-			tempResp.ExecutedAmount = tempData[y].Amount - tempData[y].OpenAmount
-			tempResp.RemainingAmount = tempData[y].OpenAmount
-			resp = append(resp, tempResp)
+		for y := range orders {
+			resp = append(resp, order.Detail{
+				Exchange:        b.Name,
+				Pair:            req.Pairs[x],
+				OrderID:         orders[y].OrderID,
+				Side:            orders[y].Side,
+				Date:            orders[y].CreationTime,
+				Type:            orders[y].Type,
+				Status:          orders[y].Status,
+				Price:           orders[y].Price,
+				Amount:          orders[y].Amount,
+				ExecutedAmount:  orders[y].Amount - orders[y].OpenAmount,
+				RemainingAmount: orders[y].OpenAmount,
+			})
 		}
 	}
 	return req.Filter(b.Name, resp), nil
@@ -826,19 +747,7 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.MultiOrderR
 		}
 		for c := range tempData.Orders {
 			switch tempData.Orders[c].Status {
-			case orderFailed:
-				tempResp.Status = order.Rejected
-			case orderPartiallyCancelled:
-				tempResp.Status = order.PartiallyCancelled
-			case orderCancelled:
-				tempResp.Status = order.Cancelled
-			case orderFullyMatched:
-				tempResp.Status = order.Filled
-			case orderPartiallyMatched:
-				continue
-			case orderPlaced:
-				continue
-			case orderAccepted:
+			case orderPartiallyMatched, orderPlaced, orderAccepted:
 				continue
 			}
 

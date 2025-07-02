@@ -395,22 +395,14 @@ func (ku *Kucoin) processFuturesStopOrderLifecycleEvent(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	oType, err := order.StringToOrderType(resp.OrderType)
-	if err != nil {
-		return err
-	}
-	side, err := order.StringToOrderSide(resp.Side)
-	if err != nil {
-		return err
-	}
 	ku.Websocket.DataHandler <- &order.Detail{
 		Price:        resp.OrderPrice,
 		TriggerPrice: resp.StopPrice,
 		Amount:       resp.Size,
 		Exchange:     ku.Name,
 		OrderID:      resp.OrderID,
-		Type:         oType,
-		Side:         side,
+		Type:         resp.OrderType,
+		Side:         resp.Side,
 		AssetType:    asset.Futures,
 		Date:         resp.CreatedAt.Time(),
 		LastUpdated:  resp.Timestamp.Time(),
@@ -425,16 +417,7 @@ func (ku *Kucoin) processFuturesPrivateTradeOrders(respData []byte) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	oType, err := order.StringToOrderType(resp.OrderType)
-	if err != nil {
-		return err
-	}
-	oStatus, err := ku.StringToOrderStatus(resp.Status)
-	if err != nil {
-		return err
-	}
-	var enabledPairs currency.Pairs
-	enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
+	enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		return err
 	}
@@ -442,15 +425,11 @@ func (ku *Kucoin) processFuturesPrivateTradeOrders(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	side, err := order.StringToOrderSide(resp.Side)
-	if err != nil {
-		return err
-	}
 	ku.Websocket.DataHandler <- &order.Detail{
-		Type:            oType,
-		Status:          oStatus,
+		Type:            resp.OrderType,
+		Status:          resp.Status,
 		Pair:            pair,
-		Side:            side,
+		Side:            resp.Side,
 		Amount:          resp.OrderSize,
 		Price:           resp.OrderPrice,
 		Exchange:        ku.Name,
@@ -643,21 +622,11 @@ func (ku *Kucoin) processFuturesKline(respData []byte, intervalStr string) error
 
 // processStopOrderEvent represents a stop order update event.
 func (ku *Kucoin) processStopOrderEvent(respData []byte) error {
-	resp := WsStopOrder{}
-	err := json.Unmarshal(respData, &resp)
-	if err != nil {
+	var resp WsStopOrder
+	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	var pair currency.Pair
-	pair, err = currency.NewPairFromString(resp.Symbol)
-	if err != nil {
-		return err
-	}
-	oType, err := order.StringToOrderType(resp.OrderType)
-	if err != nil {
-		return err
-	}
-	side, err := order.StringToOrderSide(resp.Side)
+	pair, err := currency.NewPairFromString(resp.Symbol)
 	if err != nil {
 		return err
 	}
@@ -667,8 +636,8 @@ func (ku *Kucoin) processStopOrderEvent(respData []byte) error {
 		Amount:       resp.Size,
 		Exchange:     ku.Name,
 		OrderID:      resp.OrderID,
-		Type:         oType,
-		Side:         side,
+		Type:         resp.OrderType,
+		Side:         resp.Side,
 		AssetType:    asset.Spot,
 		Date:         resp.CreatedAt.Time(),
 		LastUpdated:  resp.Timestamp.Time(),
@@ -716,24 +685,11 @@ func (ku *Kucoin) processAccountBalanceChange(ctx context.Context, respData []by
 
 // processOrderChangeEvent processes order update events.
 func (ku *Kucoin) processOrderChangeEvent(respData []byte, topic string) error {
-	response := WsTradeOrder{}
-	err := json.Unmarshal(respData, &response)
-	if err != nil {
-		return err
-	}
-	oType, err := order.StringToOrderType(response.OrderType)
-	if err != nil {
-		return err
-	}
-	oStatus, err := ku.StringToOrderStatus(response.Status)
-	if err != nil {
+	var response WsTradeOrder
+	if err := json.Unmarshal(respData, &response); err != nil {
 		return err
 	}
 	pair, err := currency.NewPairFromString(response.Symbol)
-	if err != nil {
-		return err
-	}
-	side, err := order.StringToOrderSide(response.Side)
 	if err != nil {
 		return err
 	}
@@ -751,9 +707,9 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte, topic string) error {
 			Exchange:        ku.Name,
 			OrderID:         response.OrderID,
 			ClientOrderID:   response.ClientOid,
-			Type:            oType,
-			Side:            side,
-			Status:          oStatus,
+			Type:            response.OrderType,
+			Side:            response.Side,
+			Status:          response.Status,
 			AssetType:       assets[x],
 			Date:            response.OrderTime.Time(),
 			LastUpdated:     response.Timestamp.Time(),
@@ -779,10 +735,6 @@ func (ku *Kucoin) processTradeData(respData []byte, instrument, topic string) er
 	if err != nil {
 		return err
 	}
-	side, err := order.StringToOrderSide(response.Side)
-	if err != nil {
-		return err
-	}
 	assets, err := ku.CalculateAssets(topic, pair)
 	if err != nil {
 		return err
@@ -793,7 +745,7 @@ func (ku *Kucoin) processTradeData(respData []byte, instrument, topic string) er
 			Timestamp:    response.Time.Time(),
 			Price:        response.Price,
 			Amount:       response.Size,
-			Side:         side,
+			Side:         response.Side,
 			Exchange:     ku.Name,
 			TID:          response.TradeID,
 			AssetType:    assets[x],

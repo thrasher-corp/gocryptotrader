@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -96,13 +97,13 @@ type Ticker struct {
 
 // ExecutedTrade holds past trade information
 type ExecutedTrade struct {
-	ID             int64   `json:"id"`
-	Side           string  `json:"side"`
-	Price          float64 `json:"price"`
-	Size           float64 `json:"size"`
-	ExecDate       Time    `json:"exec_date"`
-	BuyAcceptedID  string  `json:"buy_child_order_acceptance_id"`
-	SellAcceptedID string  `json:"sell_child_order_acceptance_id"`
+	ID             int64      `json:"id"`
+	Side           order.Side `json:"side"`
+	Price          float64    `json:"price"`
+	Size           float64    `json:"size"`
+	ExecDate       Time       `json:"exec_date"`
+	BuyAcceptedID  string     `json:"buy_child_order_acceptance_id"`
+	SellAcceptedID string     `json:"sell_child_order_acceptance_id"`
 }
 
 // ChatLog holds chat log information

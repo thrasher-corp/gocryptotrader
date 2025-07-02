@@ -420,16 +420,12 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		side, err := order.StringToOrderSide(tradeData[i].Side)
-		if err != nil {
-			return nil, err
-		}
 		resp[i] = trade.Data{
 			Exchange:     b.Name,
 			TID:          strconv.FormatInt(tradeData[i].SerialID, 10),
 			CurrencyPair: p,
 			AssetType:    assetType,
-			Side:         side,
+			Side:         tradeData[i].Side,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
 			Timestamp:    tradeData[i].Time.Time(),
@@ -561,70 +557,40 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair
 		return nil, err
 	}
 
-	var od order.Detail
 	if len(o) == 0 {
 		return nil, errors.New("no orders found")
 	}
 
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		return nil, err
-	}
-
+	var od order.Detail
 	for i := range o {
 		if o[i].OrderID != orderID {
 			continue
-		}
-
-		side := order.Buy
-		if strings.EqualFold(o[i].Side, order.Ask.String()) {
-			side = order.Sell
-		}
-
-		od.Pair, err = currency.NewPairDelimiter(o[i].Symbol,
-			format.Delimiter)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s GetOrderInfo unable to parse currency pair: %s\n",
-				b.Name,
-				err)
 		}
 		od.Exchange = b.Name
 		od.Amount = o[i].Size
 		od.OrderID = o[i].OrderID
 		od.Date = o[i].Timestamp.Time()
-		od.Side = side
+		od.Side = o[i].Side
 
 		od.Type = orderIntToType(o[i].OrderType)
+		od.Pair = o[i].Symbol
 
 		od.Price = o[i].Price
-		if od.Status, err = order.StringToOrderStatus(o[i].OrderState); err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-		}
+		od.Status = o[i].OrderState
 
-		th, err := b.TradeHistory(ctx,
-			"",
-			time.Time{}, time.Time{},
-			0, 0, 0,
-			false,
-			"", orderID)
+		th, err := b.TradeHistory(ctx, "", time.Time{}, time.Time{}, 0, 0, 0, false, "", orderID)
 		if err != nil {
 			return nil, fmt.Errorf("unable to get order fills for orderID %s", orderID)
 		}
 
 		for i := range th {
-			var orderSide order.Side
-			orderSide, err = order.StringToOrderSide(th[i].Side)
-			if err != nil {
-				return nil, err
-			}
 			od.Trades = append(od.Trades, order.TradeHistory{
 				Timestamp: th[i].Timestamp.Time(),
 				TID:       th[i].TradeID,
 				Price:     th[i].Price,
 				Amount:    th[i].Size,
 				Exchange:  b.Name,
-				Side:      orderSide,
+				Side:      th[i].Side,
 				Fee:       th[i].FeeAmount,
 			})
 		}
@@ -723,72 +689,35 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 			return nil, err
 		}
 
-		format, err := b.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			return nil, err
-		}
-
 		for i := range resp {
-			side := order.Buy
-			if strings.EqualFold(resp[i].Side, order.Ask.String()) {
-				side = order.Sell
-			}
-
-			status, err := order.StringToOrderStatus(resp[i].OrderState)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-			}
-
-			p, err := currency.NewPairDelimiter(resp[i].Symbol,
-				format.Delimiter)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s GetActiveOrders unable to parse currency pair: %s\n",
-					b.Name,
-					err)
-			}
-
 			openOrder := order.Detail{
-				Pair:            p,
+				Pair:            formattedPair,
 				Exchange:        b.Name,
 				Amount:          resp[i].Size,
 				ExecutedAmount:  resp[i].FilledSize,
 				RemainingAmount: resp[i].Size - resp[i].FilledSize,
 				OrderID:         resp[i].OrderID,
 				Date:            resp[i].Timestamp.Time(),
-				Side:            side,
+				Side:            resp[i].Side,
 				Price:           resp[i].Price,
-				Status:          status,
+				Status:          resp[i].OrderState,
 				Type:            orderIntToType(resp[i].OrderType),
 			}
 
-			fills, err := b.TradeHistory(ctx,
-				"",
-				time.Time{}, time.Time{},
-				0, 0, 0,
-				false,
-				"", resp[i].OrderID)
+			fills, err := b.TradeHistory(ctx, "", time.Time{}, time.Time{}, 0, 0, 0, false, "", resp[i].OrderID)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s: Unable to get order fills for orderID %s",
-					b.Name,
-					resp[i].OrderID)
+				log.Errorf(log.ExchangeSys, "%s: Unable to get order fills for orderID %s", b.Name, resp[i].OrderID)
 				continue
 			}
 
 			for i := range fills {
-				var orderSide order.Side
-				orderSide, err = order.StringToOrderSide(fills[i].Side)
-				if err != nil {
-					return nil, err
-				}
 				openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
 					Timestamp: fills[i].Timestamp.Time(),
 					TID:       fills[i].TradeID,
 					Price:     fills[i].Price,
 					Amount:    fills[i].Size,
 					Exchange:  b.Name,
-					Side:      orderSide,
+					Side:      fills[i].Side,
 					Fee:       fills[i].FeeAmount,
 				})
 			}
@@ -835,15 +764,6 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mult
 			if !matchType(currentOrder[y].OrderType, orderDeref.Type) {
 				continue
 			}
-			orderStatus, err := order.StringToOrderStatus(currentOrder[y].OrderState)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
-			}
-			var orderSide order.Side
-			orderSide, err = order.StringToOrderSide(currentOrder[y].Side)
-			if err != nil {
-				return nil, err
-			}
 			tempOrder := order.Detail{
 				OrderID:              currentOrder[y].OrderID,
 				ClientID:             currentOrder[y].ClOrderID,
@@ -854,8 +774,8 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mult
 				ExecutedAmount:       currentOrder[y].FilledSize,
 				RemainingAmount:      currentOrder[y].Size - currentOrder[y].FilledSize,
 				Date:                 currentOrder[y].Timestamp.Time(),
-				Side:                 orderSide,
-				Status:               orderStatus,
+				Side:                 currentOrder[y].Side,
+				Status:               currentOrder[y].OrderState,
 				Pair:                 orderDeref.Pairs[x],
 			}
 			tempOrder.InferCostsAndTimes()
