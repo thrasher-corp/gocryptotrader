@@ -234,7 +234,7 @@ func (b *BTSE) wsHandleData(_ context.Context, respRaw []byte) error {
 				Side:         oSide,
 				Status:       oStatus,
 				AssetType:    a,
-				Date:         time.UnixMilli(notification.Data[i].Timestamp),
+				Date:         notification.Data[i].Timestamp.Time(),
 				Pair:         p,
 			}
 		}

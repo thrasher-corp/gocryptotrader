@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -373,69 +372,8 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	if !arg.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
-
-	path := candleStick + "?" + params.Encode()
-	var resp any
-
-	err = b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		path,
-		spotDefaultRate,
-		&resp)
-	if err != nil {
-		return nil, err
-	}
-	responseData, ok := resp.([]any)
-	if !ok {
-		return nil, common.GetTypeAssertError("[]any", resp)
-	}
-
-	klineData := make([]CandleStick, len(responseData))
-	for x := range responseData {
-		individualData, ok := responseData[x].([]any)
-		if !ok {
-			return nil, common.GetTypeAssertError("[]any", responseData[x])
-		}
-		if len(individualData) != 12 {
-			return nil, errors.New("unexpected kline data length")
-		}
-		var candle CandleStick
-		if candle.OpenTime, err = convert.TimeFromUnixTimestampFloat(individualData[0]); err != nil {
-			return nil, err
-		}
-		if candle.Open, err = convert.FloatFromString(individualData[1]); err != nil {
-			return nil, err
-		}
-		if candle.High, err = convert.FloatFromString(individualData[2]); err != nil {
-			return nil, err
-		}
-		if candle.Low, err = convert.FloatFromString(individualData[3]); err != nil {
-			return nil, err
-		}
-		if candle.Close, err = convert.FloatFromString(individualData[4]); err != nil {
-			return nil, err
-		}
-		if candle.Volume, err = convert.FloatFromString(individualData[5]); err != nil {
-			return nil, err
-		}
-		if candle.CloseTime, err = convert.TimeFromUnixTimestampFloat(individualData[6]); err != nil {
-			return nil, err
-		}
-		if candle.QuoteAssetVolume, err = convert.FloatFromString(individualData[7]); err != nil {
-			return nil, err
-		}
-		if candle.TradeCount, ok = individualData[8].(float64); !ok {
-			return nil, common.GetTypeAssertError("float64", individualData[8])
-		}
-		if candle.TakerBuyAssetVolume, err = convert.FloatFromString(individualData[9]); err != nil {
-			return nil, err
-		}
-		if candle.TakerBuyQuoteAssetVolume, err = convert.FloatFromString(individualData[10]); err != nil {
-			return nil, err
-		}
-		klineData[x] = candle
-	}
-	return klineData, nil
+	var resp []CandleStick
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(candleStick, params), spotDefaultRate, &resp)
 }
 
 // GetAveragePrice returns current average price for a symbol.
@@ -1013,11 +951,11 @@ func (b *Binance) DepositHistory(ctx context.Context, c currency.Code, status st
 	}
 
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UTC().UnixMilli(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UTC().UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 
 	if offset != 0 {
@@ -1065,11 +1003,11 @@ func (b *Binance) WithdrawHistory(ctx context.Context, c currency.Code, status s
 	}
 
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UTC().UnixMilli(), 10))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UTC().UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 
 	if offset != 0 {
