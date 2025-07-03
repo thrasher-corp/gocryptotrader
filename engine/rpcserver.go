@@ -1205,11 +1205,11 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		AssetType:         a,
 		Price:             r.Price,
 		Leverage:          r.Leverage,
-		ClientOrderID:     r.ClientId,
 		MarginType:        marginType,
 		TimeInForce:       timeInForce,
 		QuoteAmount:       r.QuoteAmount,
 		ClientID:          r.ClientId,
+		ClientOrderID:     r.ClientOrderId,
 		TriggerPrice:      r.TriggerPrice,
 		TriggerLimitPrice: r.TriggerLimitPrice,
 		TriggerPriceType:  order.StringToPriceType(r.TriggerPriceType),
@@ -1228,6 +1228,10 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 			LimitPrice:       r.TakeProfit.LimitPrice,
 			TriggerPriceType: order.StringToPriceType(r.TakeProfit.PriceType),
 		},
+		TrackingMode:     order.StringToTrackingMode(r.TrackingMode),
+		TrackingValue:    r.TrackingValue,
+		RetrieveFees:     r.RetrieveFees,
+		RetrieveFeeDelay: time.Millisecond * time.Duration(r.RetrieveFeeDelayMs),
 	}
 	if r.MarginType != "" {
 		submission.MarginType = marginType

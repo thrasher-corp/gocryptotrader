@@ -6186,10 +6186,10 @@ func TestGetFee(t *testing.T) {
 func TestPriceTypeString(t *testing.T) {
 	t.Parallel()
 	priceTypeToStringMap := map[order.PriceType]string{
-		order.LastPrice:        "last",
-		order.IndexPrice:       "index",
-		order.MarkPrice:        "mark",
-		order.UnknownPriceType: "",
+		order.LastPrice:      "last",
+		order.IndexPrice:     "index",
+		order.MarkPrice:      "mark",
+		order.UnsetPriceType: "",
 	}
 	var priceTString string
 	for x := range priceTypeToStringMap {

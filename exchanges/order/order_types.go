@@ -463,14 +463,11 @@ type FilteredOrders []Detail
 
 // RiskManagement represents a risk management detail information.
 type RiskManagement struct {
-	Enabled          bool
 	TriggerPriceType PriceType
 	Price            float64
 
 	// LimitPrice limit order price when stop-loss or take-profit risk management method is triggered
 	LimitPrice float64
-	// OrderType order type when stop-loss or take-profit risk management method is triggered.
-	OrderType Type
 }
 
 // PriceType enforces a standard for price types used for take-profit and stop-loss trigger types
@@ -478,8 +475,8 @@ type PriceType uint8
 
 // price types
 const (
-	LastPrice  PriceType = 0
-	IndexPrice PriceType = 1 << iota
+	UnsetPriceType PriceType = 0
+	LastPrice      PriceType = 1 << iota
+	IndexPrice
 	MarkPrice
-	UnknownPriceType
 )

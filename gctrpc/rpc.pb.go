@@ -3576,33 +3576,35 @@ func (x *RiskManagement) GetPriceType() string {
 }
 
 type SubmitOrderRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	Exchange          string                 `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
-	Pair              *CurrencyPair          `protobuf:"bytes,2,opt,name=pair,proto3" json:"pair,omitempty"`
-	Side              string                 `protobuf:"bytes,3,opt,name=side,proto3" json:"side,omitempty"`
-	OrderType         string                 `protobuf:"bytes,4,opt,name=order_type,json=orderType,proto3" json:"order_type,omitempty"`
-	Amount            float64                `protobuf:"fixed64,5,opt,name=amount,proto3" json:"amount,omitempty"`
-	AssetType         string                 `protobuf:"bytes,6,opt,name=asset_type,json=assetType,proto3" json:"asset_type,omitempty"`
-	Price             float64                `protobuf:"fixed64,7,opt,name=price,proto3" json:"price,omitempty"`
-	Leverage          float64                `protobuf:"fixed64,8,opt,name=leverage,proto3" json:"leverage,omitempty"`
-	ClientOrderId     string                 `protobuf:"bytes,9,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
-	MarginType        string                 `protobuf:"bytes,10,opt,name=margin_type,json=marginType,proto3" json:"margin_type,omitempty"`
-	TimeInForce       string                 `protobuf:"bytes,11,opt,name=time_in_force,json=timeInForce,proto3" json:"time_in_force,omitempty"`
-	QuoteAmount       float64                `protobuf:"fixed64,12,opt,name=quote_amount,json=quoteAmount,proto3" json:"quote_amount,omitempty"`
-	ClientId          string                 `protobuf:"bytes,13,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
-	TriggerPrice      float64                `protobuf:"fixed64,14,opt,name=trigger_price,json=triggerPrice,proto3" json:"trigger_price,omitempty"`
-	TriggerLimitPrice float64                `protobuf:"fixed64,15,opt,name=trigger_limit_price,json=triggerLimitPrice,proto3" json:"trigger_limit_price,omitempty"`
-	TriggerPriceType  string                 `protobuf:"bytes,16,opt,name=trigger_price_type,json=triggerPriceType,proto3" json:"trigger_price_type,omitempty"`
-	TakeProfit        *RiskManagement        `protobuf:"bytes,17,opt,name=take_profit,json=takeProfit,proto3" json:"take_profit,omitempty"`
-	StopLoss          *RiskManagement        `protobuf:"bytes,18,opt,name=stop_loss,json=stopLoss,proto3" json:"stop_loss,omitempty"`
-	TrackingMode      string                 `protobuf:"bytes,19,opt,name=tracking_mode,json=trackingMode,proto3" json:"tracking_mode,omitempty"`
-	TrackingValue     float64                `protobuf:"fixed64,20,opt,name=tracking_value,json=trackingValue,proto3" json:"tracking_value,omitempty"`
-	Hidden            bool                   `protobuf:"varint,21,opt,name=hidden,proto3" json:"hidden,omitempty"`
-	Iceberg           bool                   `protobuf:"varint,22,opt,name=iceberg,proto3" json:"iceberg,omitempty"`
-	AutoBorrow        bool                   `protobuf:"varint,23,opt,name=auto_borrow,json=autoBorrow,proto3" json:"auto_borrow,omitempty"`
-	ReduceOnly        bool                   `protobuf:"varint,24,opt,name=reduce_only,json=reduceOnly,proto3" json:"reduce_only,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Exchange           string                 `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
+	Pair               *CurrencyPair          `protobuf:"bytes,2,opt,name=pair,proto3" json:"pair,omitempty"`
+	Side               string                 `protobuf:"bytes,3,opt,name=side,proto3" json:"side,omitempty"`
+	OrderType          string                 `protobuf:"bytes,4,opt,name=order_type,json=orderType,proto3" json:"order_type,omitempty"`
+	Amount             float64                `protobuf:"fixed64,5,opt,name=amount,proto3" json:"amount,omitempty"`
+	AssetType          string                 `protobuf:"bytes,6,opt,name=asset_type,json=assetType,proto3" json:"asset_type,omitempty"`
+	Price              float64                `protobuf:"fixed64,7,opt,name=price,proto3" json:"price,omitempty"`
+	Leverage           float64                `protobuf:"fixed64,8,opt,name=leverage,proto3" json:"leverage,omitempty"`
+	ClientOrderId      string                 `protobuf:"bytes,9,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
+	MarginType         string                 `protobuf:"bytes,10,opt,name=margin_type,json=marginType,proto3" json:"margin_type,omitempty"`
+	TimeInForce        string                 `protobuf:"bytes,11,opt,name=time_in_force,json=timeInForce,proto3" json:"time_in_force,omitempty"`
+	QuoteAmount        float64                `protobuf:"fixed64,12,opt,name=quote_amount,json=quoteAmount,proto3" json:"quote_amount,omitempty"`
+	ClientId           string                 `protobuf:"bytes,13,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	TriggerPrice       float64                `protobuf:"fixed64,14,opt,name=trigger_price,json=triggerPrice,proto3" json:"trigger_price,omitempty"`
+	TriggerLimitPrice  float64                `protobuf:"fixed64,15,opt,name=trigger_limit_price,json=triggerLimitPrice,proto3" json:"trigger_limit_price,omitempty"`
+	TriggerPriceType   string                 `protobuf:"bytes,16,opt,name=trigger_price_type,json=triggerPriceType,proto3" json:"trigger_price_type,omitempty"`
+	TakeProfit         *RiskManagement        `protobuf:"bytes,17,opt,name=take_profit,json=takeProfit,proto3" json:"take_profit,omitempty"`
+	StopLoss           *RiskManagement        `protobuf:"bytes,18,opt,name=stop_loss,json=stopLoss,proto3" json:"stop_loss,omitempty"`
+	TrackingMode       string                 `protobuf:"bytes,19,opt,name=tracking_mode,json=trackingMode,proto3" json:"tracking_mode,omitempty"`
+	TrackingValue      float64                `protobuf:"fixed64,20,opt,name=tracking_value,json=trackingValue,proto3" json:"tracking_value,omitempty"`
+	Hidden             bool                   `protobuf:"varint,21,opt,name=hidden,proto3" json:"hidden,omitempty"`
+	Iceberg            bool                   `protobuf:"varint,22,opt,name=iceberg,proto3" json:"iceberg,omitempty"`
+	AutoBorrow         bool                   `protobuf:"varint,23,opt,name=auto_borrow,json=autoBorrow,proto3" json:"auto_borrow,omitempty"`
+	ReduceOnly         bool                   `protobuf:"varint,24,opt,name=reduce_only,json=reduceOnly,proto3" json:"reduce_only,omitempty"`
+	RetrieveFees       bool                   `protobuf:"varint,25,opt,name=retrieve_fees,json=retrieveFees,proto3" json:"retrieve_fees,omitempty"`
+	RetrieveFeeDelayMs int64                  `protobuf:"varint,26,opt,name=retrieve_fee_delay_ms,json=retrieveFeeDelayMs,proto3" json:"retrieve_fee_delay_ms,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *SubmitOrderRequest) Reset() {
@@ -3801,6 +3803,20 @@ func (x *SubmitOrderRequest) GetReduceOnly() bool {
 		return x.ReduceOnly
 	}
 	return false
+}
+
+func (x *SubmitOrderRequest) GetRetrieveFees() bool {
+	if x != nil {
+		return x.RetrieveFees
+	}
+	return false
+}
+
+func (x *SubmitOrderRequest) GetRetrieveFeeDelayMs() int64 {
+	if x != nil {
+		return x.RetrieveFeeDelayMs
+	}
+	return 0
 }
 
 type Trades struct {
@@ -15725,7 +15741,7 @@ const file_rpc_proto_rawDesc = "" +
 	"\vlimit_price\x18\x02 \x01(\x01R\n" +
 	"limitPrice\x12\x1d\n" +
 	"\n" +
-	"price_type\x18\x03 \x01(\tR\tpriceType\"\xd4\x06\n" +
+	"price_type\x18\x03 \x01(\tR\tpriceType\"\xac\a\n" +
 	"\x12SubmitOrderRequest\x12\x1a\n" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12(\n" +
 	"\x04pair\x18\x02 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\x12\x12\n" +
@@ -15757,7 +15773,9 @@ const file_rpc_proto_rawDesc = "" +
 	"\vauto_borrow\x18\x17 \x01(\bR\n" +
 	"autoBorrow\x12\x1f\n" +
 	"\vreduce_only\x18\x18 \x01(\bR\n" +
-	"reduceOnly\"e\n" +
+	"reduceOnly\x12#\n" +
+	"\rretrieve_fees\x18\x19 \x01(\bR\fretrieveFees\x121\n" +
+	"\x15retrieve_fee_delay_ms\x18\x1a \x01(\x03R\x12retrieveFeeDelayMs\"e\n" +
 	"\x06Trades\x12\x16\n" +
 	"\x06amount\x18\x01 \x01(\x01R\x06amount\x12\x14\n" +
 	"\x05price\x18\x02 \x01(\x01R\x05price\x12\x10\n" +

@@ -370,6 +370,8 @@ message SubmitOrderRequest {
   bool iceberg = 22;
   bool auto_borrow = 23;
   bool reduce_only = 24;
+  bool retrieve_fees =25;
+  int64 retrieve_fee_delay_ms =26;
 }
 
 message Trades {

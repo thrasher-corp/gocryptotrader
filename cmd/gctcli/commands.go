@@ -1489,6 +1489,14 @@ var submitOrderCommand = &cli.Command{
 			Name:  "reduce_only",
 			Usage: "the optional reduce-only order",
 		},
+		&cli.BoolFlag{
+			Name:  "retrieve_fees",
+			Usage: "the optional retrieve-fees order",
+		},
+		&cli.Int64Flag{
+			Name:  "retrieve_fee_delay_ms",
+			Usage: "the optional retrieve-fee-delay-ms order",
+		},
 	},
 }
 
@@ -1498,32 +1506,33 @@ func submitOrder(c *cli.Context) error {
 	}
 
 	var (
-		exchangeName      string
-		currencyPair      string
-		orderSide         string
-		orderType         string
-		amount            float64
-		price             float64
-		leverage          float64
-		clientID          string
-		clientOrderID     string
-		assetType         string
-		marginType        string
-		timeInForce       string
-		quoteAmount       float64
-		triggerPrice      float64
-		triggerLimitPrice float64
-		triggerPriceType  string
-		trackingMode      string
-		trackingValue     float64
-		tpPrice           float64
-		tpLimitPrice      float64
-		tpPriceType       string
-		slPrice           float64
-		slLimitPrice      float64
-		slPriceType       string
+		exchangeName       string
+		currencyPair       string
+		orderSide          string
+		orderType          string
+		amount             float64
+		price              float64
+		leverage           float64
+		clientID           string
+		clientOrderID      string
+		assetType          string
+		marginType         string
+		timeInForce        string
+		quoteAmount        float64
+		triggerPrice       float64
+		triggerLimitPrice  float64
+		triggerPriceType   string
+		trackingMode       string
+		trackingValue      float64
+		tpPrice            float64
+		tpLimitPrice       float64
+		tpPriceType        string
+		slPrice            float64
+		slLimitPrice       float64
+		slPriceType        string
+		retrieveFeeDelayMs int64
 
-		hidden, iceberg, autoBorrow, reduceOnly bool
+		hidden, iceberg, autoBorrow, reduceOnly, retrieveFees bool
 	)
 
 	if c.IsSet("exchange") {
@@ -1610,7 +1619,7 @@ func submitOrder(c *cli.Context) error {
 	}
 
 	if c.IsSet("margin_type") {
-		marginType = c.String("margintype")
+		marginType = c.String("margin_type")
 	} else {
 		marginType = c.Args().Get(9)
 	}
@@ -1664,7 +1673,7 @@ func submitOrder(c *cli.Context) error {
 	}
 
 	if c.IsSet("tp_price") {
-		tpPrice = c.Float64("sl_price")
+		tpPrice = c.Float64("tp_price")
 	} else if c.Args().Get(16) != "" {
 		var err error
 		tpPrice, err = strconv.ParseFloat(c.Args().Get(16), 64)
@@ -1771,6 +1780,26 @@ func submitOrder(c *cli.Context) error {
 		}
 	}
 
+	if c.IsSet("retrieve_fees") {
+		retrieveFees = c.Bool("retrieve_fees")
+	} else if c.Args().Get(28) != "" {
+		var err error
+		retrieveFees, err = strconv.ParseBool(c.Args().Get(28))
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("retrieve_fee_delay_ms") {
+		retrieveFeeDelayMs = c.Int64("retrieve_fee_delay_ms")
+	} else if c.Args().Get(29) != "" {
+		var err error
+		retrieveFeeDelayMs, err = strconv.ParseInt(c.Args().Get(29), 10, 64)
+		if err != nil {
+			return err
+		}
+	}
+
 	assetType = strings.ToLower(assetType)
 	if !validAsset(assetType) {
 		return errInvalidAsset
@@ -1824,12 +1853,14 @@ func submitOrder(c *cli.Context) error {
 			LimitPrice: tpLimitPrice,
 			PriceType:  tpPriceType,
 		},
-		Hidden:        hidden,
-		Iceberg:       iceberg,
-		ReduceOnly:    reduceOnly,
-		AutoBorrow:    autoBorrow,
-		TrackingMode:  trackingMode,
-		TrackingValue: trackingValue,
+		Hidden:             hidden,
+		Iceberg:            iceberg,
+		ReduceOnly:         reduceOnly,
+		AutoBorrow:         autoBorrow,
+		RetrieveFees:       retrieveFees,
+		RetrieveFeeDelayMs: retrieveFeeDelayMs,
+		TrackingMode:       trackingMode,
+		TrackingValue:      trackingValue,
 	})
 	if err != nil {
 		return err
@@ -1947,7 +1978,7 @@ func simulateOrder(c *cli.Context) error {
 var cancelOrderCommand = &cli.Command{
 	Name:      "cancelorder",
 	Usage:     "cancel order cancels an exchange order",
-	ArgsUsage: "<exchange> <account_id> <order_id> <pair> <asset> <side>",
+	ArgsUsage: "<exchange> <order_id> <client_order_id> <account_id> <pair> <asset> <side> <type> <client_id> <margin_type> <time_in_force>",
 	Action:    cancelOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -1978,14 +2009,6 @@ var cancelOrderCommand = &cli.Command{
 			Name:  "type",
 			Usage: "the order type (MARKET OR LIMIT)",
 		},
-		&cli.Float64Flag{
-			Name:  "amount",
-			Usage: "the amount for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "price",
-			Usage: "the price for the order",
-		},
 		&cli.StringFlag{
 			Name:  "client_order_id",
 			Usage: "the optional client order ID",
@@ -2013,16 +2036,16 @@ func cancelOrder(c *cli.Context) error {
 
 	var (
 		exchangeName  string
-		accountID     string
 		orderID       string
-		currencyPair  string
-		assetType     string
-		orderSide     string
-		orderType     string
-		timeInForce   string
 		clientOrderID string
+		accountID     string
 		clientID      string
+		orderType     string
+		orderSide     string
+		assetType     string
+		currencyPair  string
 		marginType    string
+		timeInForce   string
 	)
 
 	if c.IsSet("exchange") {
@@ -2031,32 +2054,49 @@ func cancelOrder(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
-	if c.IsSet("account_id") {
-		accountID = c.String("account_id")
-	} else {
-		accountID = c.Args().Get(1)
-	}
-
 	if c.IsSet("order_id") {
 		orderID = c.String("order_id")
 	} else {
-		orderID = c.Args().Get(2)
+		orderID = c.Args().Get(1)
 	}
-
 	if orderID == "" {
 		return errors.New("an order ID must be set")
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
+	if c.IsSet("client_order_id") {
+		clientOrderID = c.String("client_order_id")
 	} else {
-		currencyPair = c.Args().Get(3)
+		clientOrderID = c.Args().Get(2)
+	}
+
+	if c.IsSet("account_id") {
+		accountID = c.String("account_id")
+	} else {
+		accountID = c.Args().Get(3)
+	}
+
+	if c.IsSet("client_id") {
+		clientID = c.String("client_id")
+	} else {
+		clientID = c.Args().Get(4)
+	}
+
+	if c.IsSet("type") {
+		orderType = c.String("type")
+	} else {
+		orderType = c.Args().Get(5)
+	}
+
+	if c.IsSet("side") {
+		orderSide = c.String("side")
+	} else {
+		orderSide = c.Args().Get(6)
 	}
 
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
 	} else {
-		assetType = c.Args().Get(4)
+		assetType = c.Args().Get(7)
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -2064,40 +2104,22 @@ func cancelOrder(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("side") {
-		orderSide = c.String("side")
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
 	} else {
-		orderSide = c.Args().Get(5)
+		currencyPair = c.Args().Get(8)
 	}
 
-	if c.IsSet("type") {
-		orderType = c.String("type")
+	if c.IsSet("margin_type") {
+		marginType = c.String("margin_type")
 	} else {
-		orderType = c.Args().Get(3)
+		marginType = c.Args().Get(9)
 	}
 
 	if c.IsSet("time_in_force") {
 		timeInForce = c.String("time_in_force")
 	} else {
 		timeInForce = c.Args().Get(10)
-	}
-
-	if c.IsSet("client_id") {
-		clientID = c.String("client_id")
-	} else {
-		clientID = c.Args().Get(12)
-	}
-
-	if c.IsSet("client_order_id") {
-		clientOrderID = c.String("client_order_id")
-	} else {
-		clientOrderID = c.Args().Get(8)
-	}
-
-	if c.IsSet("margin_type") {
-		marginType = c.String("margintype")
-	} else {
-		marginType = c.Args().Get(9)
 	}
 
 	// pair is optional, but if it's set, do a validity check

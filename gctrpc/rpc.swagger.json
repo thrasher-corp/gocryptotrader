@@ -7545,6 +7545,13 @@
         },
         "reduceOnly": {
           "type": "boolean"
+        },
+        "retrieveFees": {
+          "type": "boolean"
+        },
+        "retrieveFeeDelayMs": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },

@@ -1346,7 +1346,7 @@ func (t PriceType) StringToPriceType(priceType string) (PriceType, error) {
 	case "markprice":
 		return MarkPrice, nil
 	default:
-		return UnknownPriceType, ErrUnknownPriceType
+		return UnsetPriceType, ErrUnknownPriceType
 	}
 }
 
@@ -1368,7 +1368,7 @@ func StringToTrackingMode(mode string) TrackingMode {
 	switch mode {
 	case "distance":
 		return Distance
-	case "percentage":
+	case "percentage", "percent", "%":
 		return Percentage
 	default:
 		return UnknownTrackingMode
@@ -1386,6 +1386,6 @@ func StringToPriceType(priceType string) PriceType {
 	case "MARK_PRICE", "MARK":
 		return MarkPrice
 	default:
-		return UnknownPriceType
+		return UnsetPriceType
 	}
 }

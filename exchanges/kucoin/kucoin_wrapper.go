@@ -698,12 +698,12 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			var stopType string
 			var stopPrice float64
 			switch {
-			case s.StopLoss.Enabled && s.TakeProfit.Enabled:
+			case s.StopLoss != (order.RiskManagement{}) && s.TakeProfit != (order.RiskManagement{}):
 				return nil, errors.New("can not enable more than one risk management")
-			case s.TakeProfit.Enabled:
+			case s.TakeProfit != (order.RiskManagement{}):
 				stopType = "entry"
 				stopPrice = s.TakeProfit.Price
-			case s.StopLoss.Enabled:
+			case s.StopLoss != (order.RiskManagement{}):
 				stopType = "loss"
 				stopPrice = s.StopLoss.Price
 			}
@@ -741,9 +741,9 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return s.DeriveSubmitResponse(o)
 		case order.OCO:
 			switch {
-			case !s.TakeProfit.Enabled || s.TakeProfit.Price <= 0:
+			case s.TakeProfit != (order.RiskManagement{}) || s.TakeProfit.Price <= 0:
 				return nil, errors.New("take profit price is required")
-			case !s.StopLoss.Enabled || s.StopLoss.Price <= 0:
+			case s.StopLoss != (order.RiskManagement{}) || s.StopLoss.Price <= 0:
 				return nil, errors.New("stop loss price is required")
 			}
 			switch s.Side {

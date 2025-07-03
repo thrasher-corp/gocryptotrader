@@ -2648,7 +2648,6 @@ func TestSubmitOrder(t *testing.T) {
 
 	spotOrderSubmission.Type = order.StopLimit
 	spotOrderSubmission.StopLoss = order.RiskManagement{
-		Enabled:          true,
 		Price:            1234,
 		TriggerPriceType: order.LastPrice,
 	}
@@ -2659,12 +2658,10 @@ func TestSubmitOrder(t *testing.T) {
 	spotOrderSubmission.Type = order.OCO
 	spotOrderSubmission.Side = order.Sell
 	spotOrderSubmission.TakeProfit = order.RiskManagement{
-		Enabled:          true,
 		Price:            1334,
 		TriggerPriceType: order.LastPrice,
 	}
 	spotOrderSubmission.StopLoss = order.RiskManagement{
-		Enabled:          true,
 		Price:            1234,
 		TriggerPriceType: order.LastPrice,
 	}

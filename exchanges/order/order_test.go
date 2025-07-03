@@ -1729,8 +1729,8 @@ func TestStringToPriceType(t *testing.T) {
 		"mark":        MarkPrice,
 		"Mark_Price":  MarkPrice,
 		"MARK_PRICE":  MarkPrice,
-		"abcd":        UnknownPriceType,
-		"":            UnknownPriceType,
+		"abcd":        UnsetPriceType,
+		"":            UnsetPriceType,
 	}
 	for key, val := range priceTypes {
 		result := StringToPriceType(key)

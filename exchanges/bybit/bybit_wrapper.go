@@ -798,14 +798,22 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if s.TakeProfit.Price != 0 {
 			arg.TakeProfitPrice = s.TakeProfit.Price
 			arg.TakeProfitTriggerBy = s.TakeProfit.TriggerPriceType.String()
-			arg.TpOrderType = getOrderTypeString(s.TakeProfit.OrderType)
 			arg.TpLimitPrice = s.TakeProfit.LimitPrice
+			if s.TakeProfit.LimitPrice != 0 {
+				arg.TpOrderType = getOrderTypeString(order.Limit)
+			} else {
+				arg.TpOrderType = getOrderTypeString(order.Market)
+			}
 		}
 		if s.StopLoss.Price != 0 {
 			arg.StopLossPrice = s.StopLoss.Price
 			arg.StopLossTriggerBy = s.StopLoss.TriggerPriceType.String()
-			arg.SlOrderType = getOrderTypeString(s.StopLoss.OrderType)
 			arg.SlLimitPrice = s.StopLoss.LimitPrice
+			if s.StopLoss.LimitPrice != 0 {
+				arg.SlOrderType = getOrderTypeString(order.Limit)
+			} else {
+				arg.SlOrderType = getOrderTypeString(order.Market)
+			}
 		}
 		response, err = by.PlaceOrder(ctx, arg)
 		if err != nil {
@@ -860,11 +868,15 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 			TriggerPrice:         action.TriggerPrice,
 			TriggerPriceType:     action.TriggerPriceType.String(),
 			TakeProfitPrice:      action.TakeProfit.Price,
-			TakeProfitTriggerBy:  getOrderTypeString(action.TakeProfit.OrderType),
 			TakeProfitLimitPrice: action.TakeProfit.LimitPrice,
 			StopLossPrice:        action.StopLoss.Price,
 			StopLossTriggerBy:    action.StopLoss.TriggerPriceType.String(),
 			StopLossLimitPrice:   action.StopLoss.LimitPrice,
+		}
+		if action.TakeProfit.LimitPrice != 0 {
+			arg.TakeProfitTriggerBy = getOrderTypeString(order.Limit)
+		} else {
+			arg.TakeProfitTriggerBy = getOrderTypeString(order.Market)
 		}
 		result, err = by.AmendOrder(ctx, arg)
 		if err != nil {
