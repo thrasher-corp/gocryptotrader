@@ -292,20 +292,14 @@
 					</tr>
 					</thead>
 					<tbody>
-					{{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
-						{{ range $asset, $unused := .}}
-							{{ range $base, $unused := .}}
-								{{ range $quote, $unused := .}}
-									<tr>
-										<td>{{ $exchange}}</td>
-										<td>{{ $asset}}</td>
-										<td>{{ $base}}-{{$quote}}</td>
-										<td>{{ $.Prettify.Decimal8 .MarketMovement}}%</td>
-									</tr>
-								{{end}}
-							{{end}}
-						{{end}}
-					{{end}}
+					{{ range $mapKey, $stats := .Statistics.ExchangeAssetPairStatistics }}
+						<tr>
+							<td>{{ $mapKey.Exchange }}</td>
+							<td>{{ $mapKey.Asset }}</td>
+							<td>{{ $mapKey.Base }}-{{ $mapKey.Quote }}</td>
+							<td>{{ $.Prettify.Decimal8 $stats.MarketMovement }}%</td>
+						</tr>
+					{{ end }}
 					</tbody>
 				</table>
 			{{else}}
