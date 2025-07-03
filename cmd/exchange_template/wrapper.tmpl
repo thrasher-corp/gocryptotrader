@@ -67,12 +67,10 @@ func (e *Exchange) SetDefaults() {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 	}
 
-	err := e.SetAssetPairStore(asset.Spot, fmt1)
-	if err != nil {
+	if err := e.SetAssetPairStore(asset.Spot, fmt1); err != nil {
 		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Spot, err)
 	}
-	err = e.SetAssetPairStore(asset.Margin, fmt2)
-	if err != nil {
+	if err := e.SetAssetPairStore(asset.Margin, fmt2); err != nil {
 		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Margin, err)
 	}
 
@@ -119,6 +117,7 @@ func (e *Exchange) SetDefaults() {
 		{{ if .WS }} Subscriptions: defaultSubscriptions,{{ end }}
 	}
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
+	var err error
 	e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -126,7 +125,7 @@ func (e *Exchange) SetDefaults() {
 
 	// NOTE: SET THE URLs HERE
 	e.API.Endpoints = e.NewEndpoints()
-	if err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	if err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:  apiURL,
 		{{ if .WS }} exchange.WebsocketSpot: wsAPIURL,{{ end }}
 	}); err != nil {
@@ -308,8 +307,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 			}
 		}
 	*/
-	err := book.Process()
-	if err != nil {
+	if err := book.Process(); err != nil {
 		return book, err
 	}
 

@@ -52,6 +52,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Deribit Setup error: %s", err)
 	}
