@@ -298,8 +298,8 @@ func TestGetBlockTrade(t *testing.T) {
 		trade := trades[0]
 		assert.Equal(t, mainPair.String(), trade.InstrumentID, "InstrumentID should have correct value")
 		assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
-		assert.Positive(t, trade.Price, "Price should have a positive value")
-		assert.Positive(t, trade.Size, "Size should have a positive value")
+		assert.Positive(t, trade.Price.Float64(), "Price should have a positive value")
+		assert.Positive(t, trade.Size.Float64(), "Size should have a positive value")
 		assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
 		assert.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*90), time.Now(), "Timestamp should be within last 90 days")
 	}
@@ -327,13 +327,13 @@ LOOP:
 			for _, trade := range trades {
 				assert.Equal(t, p.String(), trade.InstrumentID, "InstrumentID should have correct value")
 				assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
-				assert.Positive(t, trade.Price, "Price should have a positive value")
-				assert.Positive(t, trade.Size, "Size should have a positive value")
+				assert.Positive(t, trade.Price.Float64(), "Price should have a positive value")
+				assert.Positive(t, trade.Size.Float64(), "Size should have a positive value")
 				assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
-				assert.Positive(t, trade.FillVolatility, "FillVolatility should have a positive value")
-				assert.Positive(t, trade.ForwardPrice, "ForwardPrice should have a positive value")
-				assert.Positive(t, trade.IndexPrice, "IndexPrice should have a positive value")
-				assert.Positive(t, trade.MarkPrice, "MarkPrice should have a positive value")
+				assert.Positive(t, trade.FillVolatility.Float64(), "FillVolatility should have a positive value")
+				assert.Positive(t, trade.ForwardPrice.Float64(), "ForwardPrice should have a positive value")
+				assert.Positive(t, trade.IndexPrice.Float64(), "IndexPrice should have a positive value")
+				assert.Positive(t, trade.MarkPrice.Float64(), "MarkPrice should have a positive value")
 				assert.NotEmpty(t, trade.Timestamp, "Timestamp should not be empty")
 				tested = true
 				break LOOP

@@ -3441,7 +3441,7 @@ func TestRequiresUnifiedAccount(t *testing.T) {
 	require.NoError(t, err)
 	b := &Exchange{}
 	b.account.accountType = accountTypeNormal
-	err = ex.RequiresUnifiedAccount(t.Context())
+	err = b.RequiresUnifiedAccount(t.Context())
 	require.ErrorIs(t, err, errAPIKeyIsNotUnified)
 }
 
@@ -3581,7 +3581,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := ex.generateSubscriptions()
+	subs, err := b.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
 	for _, s := range b.Features.Subscriptions {
@@ -3589,7 +3589,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
 			}
-			pairs, err := ex.GetEnabledPairs(a)
+			pairs, err := b.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
 			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: ""})
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow

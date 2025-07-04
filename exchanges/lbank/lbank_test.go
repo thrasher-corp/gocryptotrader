@@ -251,7 +251,7 @@ func TestLoadPrivKey(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	assert.NoError(t, e.loadPrivKey(t.Context()), "loadPrivKey should not error")
+	assert.NoError(t, l2.loadPrivKey(t.Context()), "loadPrivKey should not error")
 }
 
 func TestSign(t *testing.T) {
@@ -279,9 +279,9 @@ func TestSign(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	require.NoError(t, e.loadPrivKey(t.Context()), "loadPrivKey must not error")
+	require.NoError(t, l2.loadPrivKey(t.Context()), "loadPrivKey must not error")
 
-	_, err = e.sign("hello123")
+	_, err = l2.sign("hello123")
 	assert.NoError(t, err, "sign should not error")
 }
 
