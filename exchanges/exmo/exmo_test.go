@@ -27,12 +27,12 @@ const (
 )
 
 var (
-	e        *EXMO
+	e        *Exchange
 	testPair = currency.NewBTCUSD().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})
 )
 
 func TestMain(m *testing.M) {
-	e = new(EXMO)
+	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("EXMO Setup error: %s", err)
 	}

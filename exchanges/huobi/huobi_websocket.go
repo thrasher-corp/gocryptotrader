@@ -75,63 +75,63 @@ var subscriptionNames = map[string]string{
 }
 
 // WsConnect initiates a new websocket connection
-func (h *HUOBI) WsConnect() error {
+func (e *Exchange) WsConnect() error {
 	ctx := context.TODO()
-	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	if err := h.Websocket.Conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 
-	h.Websocket.Wg.Add(1)
-	go h.wsReadMsgs(ctx, h.Websocket.Conn)
+	e.Websocket.Wg.Add(1)
+	go e.wsReadMsgs(ctx, e.Websocket.Conn)
 
-	if h.IsWebsocketAuthenticationSupported() {
-		if err := h.wsAuthConnect(ctx); err != nil {
-			h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	if e.IsWebsocketAuthenticationSupported() {
+		if err := e.wsAuthConnect(ctx); err != nil {
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			return fmt.Errorf("error authenticating websocket: %w", err)
 		}
-		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		h.Websocket.Wg.Add(1)
-		go h.wsReadMsgs(ctx, h.Websocket.AuthConn)
+		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		e.Websocket.Wg.Add(1)
+		go e.wsReadMsgs(ctx, e.Websocket.AuthConn)
 	}
 
 	return nil
 }
 
 // wsReadMsgs reads and processes messages from a websocket connection
-func (h *HUOBI) wsReadMsgs(ctx context.Context, s websocket.Connection) {
-	defer h.Websocket.Wg.Done()
+func (e *Exchange) wsReadMsgs(ctx context.Context, s websocket.Connection) {
+	defer e.Websocket.Wg.Done()
 	for {
 		msg := s.ReadMessage()
 		if msg.Raw == nil {
 			return
 		}
 
-		if err := h.wsHandleData(ctx, msg.Raw); err != nil {
-			h.Websocket.DataHandler <- err
+		if err := e.wsHandleData(ctx, msg.Raw); err != nil {
+			e.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (h *HUOBI) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
-		if h.Websocket.Match.IncomingWithData(id, respRaw) {
+		if e.Websocket.Match.IncomingWithData(id, respRaw) {
 			return nil
 		}
 	}
 
 	if pingValue, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
-		return h.wsHandleV1ping(ctx, int(pingValue))
+		return e.wsHandleV1ping(ctx, int(pingValue))
 	}
 
 	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
 		switch action {
 		case "ping":
-			return h.wsHandleV2ping(ctx, respRaw)
+			return e.wsHandleV2ping(ctx, respRaw)
 		case wsSubOp, wsUnsubOp:
-			return h.wsHandleV2subResp(action, respRaw)
+			return e.wsHandleV2subResp(action, respRaw)
 		}
 	}
 
@@ -140,68 +140,68 @@ func (h *HUOBI) wsHandleData(ctx context.Context, respRaw []byte) error {
 	}
 
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
-		s := h.Websocket.GetSubscription(ch)
+		s := e.Websocket.GetSubscription(ch)
 		if s == nil {
 			return fmt.Errorf("%w: %q", subscription.ErrNotFound, ch)
 		}
-		return h.wsHandleChannelMsgs(s, respRaw)
+		return e.wsHandleChannelMsgs(s, respRaw)
 	}
 
-	h.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
-		Message: h.Name + websocket.UnhandledMessage + string(respRaw),
+	e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		Message: e.Name + websocket.UnhandledMessage + string(respRaw),
 	}
 
 	return nil
 }
 
 // wsHandleV1ping handles v1 style pings, currently only used with public connections
-func (h *HUOBI) wsHandleV1ping(ctx context.Context, pingValue int) error {
-	if err := h.Websocket.Conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(pingValue)+`}`)); err != nil {
+func (e *Exchange) wsHandleV1ping(ctx context.Context, pingValue int) error {
+	if err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(pingValue)+`}`)); err != nil {
 		return fmt.Errorf("error sending pong response: %w", err)
 	}
 	return nil
 }
 
 // wsHandleV2ping handles v2 style pings, currently only used with private connections
-func (h *HUOBI) wsHandleV2ping(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleV2ping(ctx context.Context, respRaw []byte) error {
 	ts, err := jsonparser.GetInt(respRaw, "data", "ts")
 	if err != nil {
 		return fmt.Errorf("error getting ts from auth ping: %w", err)
 	}
-	if err := h.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.Itoa(int(ts))+`}}`)); err != nil {
+	if err := e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.Itoa(int(ts))+`}}`)); err != nil {
 		return fmt.Errorf("error sending auth pong response: %w", err)
 	}
 	return nil
 }
 
-func (h *HUOBI) wsHandleV2subResp(action string, respRaw []byte) error {
+func (e *Exchange) wsHandleV2subResp(action string, respRaw []byte) error {
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
-		return h.Websocket.Match.RequireMatchWithData(action+":"+ch, respRaw)
+		return e.Websocket.Match.RequireMatchWithData(action+":"+ch, respRaw)
 	}
 	return nil
 }
 
-func (h *HUOBI) wsHandleChannelMsgs(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleChannelMsgs(s *subscription.Subscription, respRaw []byte) error {
 	switch s.Channel {
 	case subscription.TickerChannel:
-		return h.wsHandleTickerMsg(s, respRaw)
+		return e.wsHandleTickerMsg(s, respRaw)
 	case subscription.OrderbookChannel:
-		return h.wsHandleOrderbookMsg(s, respRaw)
+		return e.wsHandleOrderbookMsg(s, respRaw)
 	case subscription.CandlesChannel:
-		return h.wsHandleCandleMsg(s, respRaw)
+		return e.wsHandleCandleMsg(s, respRaw)
 	case subscription.AllTradesChannel:
-		return h.wsHandleAllTradesMsg(s, respRaw)
+		return e.wsHandleAllTradesMsg(s, respRaw)
 	case subscription.MyAccountChannel:
-		return h.wsHandleMyAccountMsg(respRaw)
+		return e.wsHandleMyAccountMsg(respRaw)
 	case subscription.MyOrdersChannel:
-		return h.wsHandleMyOrdersMsg(s, respRaw)
+		return e.wsHandleMyOrdersMsg(s, respRaw)
 	case subscription.MyTradesChannel:
-		return h.wsHandleMyTradesMsg(s, respRaw)
+		return e.wsHandleMyTradesMsg(s, respRaw)
 	}
 	return fmt.Errorf("%w: %s", common.ErrNotYetImplemented, s.Channel)
 }
 
-func (h *HUOBI) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) error {
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -209,9 +209,9 @@ func (h *HUOBI) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) 
 	if err := json.Unmarshal(respRaw, &c); err != nil {
 		return err
 	}
-	h.Websocket.DataHandler <- websocket.KlineData{
+	e.Websocket.DataHandler <- websocket.KlineData{
 		Timestamp:  c.Timestamp.Time(),
-		Exchange:   h.Name,
+		Exchange:   e.Name,
 		AssetType:  s.Asset,
 		Pair:       s.Pairs[0],
 		OpenPrice:  c.Tick.Open,
@@ -224,9 +224,9 @@ func (h *HUOBI) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) 
 	return nil
 }
 
-func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byte) error {
-	saveTradeData := h.IsSaveTradeDataEnabled()
-	tradeFeed := h.IsTradeFeedEnabled()
+func (e *Exchange) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byte) error {
+	saveTradeData := e.IsSaveTradeDataEnabled()
+	tradeFeed := e.IsTradeFeedEnabled()
 	if !saveTradeData && !tradeFeed {
 		return nil
 	}
@@ -244,7 +244,7 @@ func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byt
 			side = order.Sell
 		}
 		trades = append(trades, trade.Data{
-			Exchange:     h.Name,
+			Exchange:     e.Name,
 			AssetType:    s.Asset,
 			CurrencyPair: s.Pairs[0],
 			Timestamp:    t.Tick.Data[i].Timestamp.Time().UTC(),
@@ -256,7 +256,7 @@ func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byt
 	}
 	if tradeFeed {
 		for i := range trades {
-			h.Websocket.DataHandler <- trades[i]
+			e.Websocket.DataHandler <- trades[i]
 		}
 	}
 	if saveTradeData {
@@ -265,7 +265,7 @@ func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byt
 	return nil
 }
 
-func (h *HUOBI) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) error {
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -273,8 +273,8 @@ func (h *HUOBI) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) 
 	if err := json.Unmarshal(respRaw, &wsTicker); err != nil {
 		return err
 	}
-	h.Websocket.DataHandler <- &ticker.Price{
-		ExchangeName: h.Name,
+	e.Websocket.DataHandler <- &ticker.Price{
+		ExchangeName: e.Name,
 		Open:         wsTicker.Tick.Open,
 		Close:        wsTicker.Tick.Close,
 		Volume:       wsTicker.Tick.Amount,
@@ -288,7 +288,7 @@ func (h *HUOBI) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) 
 	return nil
 }
 
-func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -333,20 +333,20 @@ func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byt
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = s.Pairs[0]
 	newOrderBook.Asset = asset.Spot
-	newOrderBook.Exchange = h.Name
-	newOrderBook.ValidateOrderbook = h.ValidateOrderbook
+	newOrderBook.Exchange = e.Name
+	newOrderBook.ValidateOrderbook = e.ValidateOrderbook
 	newOrderBook.LastUpdated = update.Timestamp.Time()
 
-	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
-func (h *HUOBI) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte) error {
 	var msg wsOrderUpdateMsg
 	if err := json.Unmarshal(respRaw, &msg); err != nil {
 		return err
 	}
 	o := msg.Data
-	p, err := h.CurrencyPairs.Match(o.Symbol, s.Asset)
+	p, err := e.CurrencyPairs.Match(o.Symbol, s.Asset)
 	if err != nil {
 		return err
 	}
@@ -356,7 +356,7 @@ func (h *HUOBI) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte
 		Amount:          o.Size,
 		ExecutedAmount:  o.ExecutedAmount,
 		RemainingAmount: o.RemainingAmount,
-		Exchange:        h.Name,
+		Exchange:        e.Name,
 		Side:            o.Side,
 		AssetType:       s.Asset,
 		Pair:            p,
@@ -374,7 +374,7 @@ func (h *HUOBI) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte
 	}
 	if d.Status, err = order.StringToOrderStatus(o.OrderStatus); err != nil {
 		return &order.ClassificationError{
-			Exchange: h.Name,
+			Exchange: e.Name,
 			OrderID:  d.OrderID,
 			Err:      err,
 		}
@@ -383,7 +383,7 @@ func (h *HUOBI) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte
 		d.Side, err = stringToOrderSide(o.OrderType)
 		if err != nil {
 			return &order.ClassificationError{
-				Exchange: h.Name,
+				Exchange: e.Name,
 				OrderID:  d.OrderID,
 				Err:      err,
 			}
@@ -393,26 +393,26 @@ func (h *HUOBI) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte
 		d.Type, err = stringToOrderType(o.OrderType)
 		if err != nil {
 			return &order.ClassificationError{
-				Exchange: h.Name,
+				Exchange: e.Name,
 				OrderID:  d.OrderID,
 				Err:      err,
 			}
 		}
 	}
-	h.Websocket.DataHandler <- d
+	e.Websocket.DataHandler <- d
 	if o.ErrCode != 0 {
 		return fmt.Errorf("error with order %q: %s (%v)", o.ClientOrderID, o.ErrMessage, o.ErrCode)
 	}
 	return nil
 }
 
-func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte) error {
 	var msg wsTradeUpdateMsg
 	if err := json.Unmarshal(respRaw, &msg); err != nil {
 		return err
 	}
 	t := msg.Data
-	p, err := h.CurrencyPairs.Match(t.Symbol, s.Asset)
+	p, err := e.CurrencyPairs.Match(t.Symbol, s.Asset)
 	if err != nil {
 		return err
 	}
@@ -420,7 +420,7 @@ func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte
 		ClientOrderID: t.ClientOrderID,
 		Price:         t.OrderPrice,
 		Amount:        t.OrderSize,
-		Exchange:      h.Name,
+		Exchange:      e.Name,
 		Side:          t.Side,
 		AssetType:     s.Asset,
 		Pair:          p,
@@ -430,7 +430,7 @@ func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte
 	}
 	if d.Status, err = order.StringToOrderStatus(t.OrderStatus); err != nil {
 		return &order.ClassificationError{
-			Exchange: h.Name,
+			Exchange: e.Name,
 			OrderID:  d.OrderID,
 			Err:      err,
 		}
@@ -439,7 +439,7 @@ func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte
 		d.Side, err = stringToOrderSide(t.OrderType)
 		if err != nil {
 			return &order.ClassificationError{
-				Exchange: h.Name,
+				Exchange: e.Name,
 				OrderID:  d.OrderID,
 				Err:      err,
 			}
@@ -449,7 +449,7 @@ func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte
 		d.Type, err = stringToOrderType(t.OrderType)
 		if err != nil {
 			return &order.ClassificationError{
-				Exchange: h.Name,
+				Exchange: e.Name,
 				OrderID:  d.OrderID,
 				Err:      err,
 			}
@@ -460,7 +460,7 @@ func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte
 			Price:     t.TradePrice,
 			Amount:    t.TradeVolume,
 			Fee:       t.TransactFee,
-			Exchange:  h.Name,
+			Exchange:  e.Name,
 			TID:       strconv.FormatInt(t.TradeID, 10),
 			Type:      d.Type,
 			Side:      d.Side,
@@ -468,48 +468,48 @@ func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte
 			Timestamp: t.TradeTime.Time(),
 		},
 	}
-	h.Websocket.DataHandler <- d
+	e.Websocket.DataHandler <- d
 	return nil
 }
 
-func (h *HUOBI) wsHandleMyAccountMsg(respRaw []byte) error {
+func (e *Exchange) wsHandleMyAccountMsg(respRaw []byte) error {
 	u := &wsAccountUpdateMsg{}
 	if err := json.Unmarshal(respRaw, u); err != nil {
 		return err
 	}
-	h.Websocket.DataHandler <- u.Data
+	e.Websocket.DataHandler <- u.Data
 	return nil
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (h *HUOBI) generateSubscriptions() (subscription.List, error) {
-	return h.Features.Subscriptions.ExpandTemplates(h)
+func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (h *HUOBI) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
 		"channelName":       channelName,
 		"isWildcardChannel": isWildcardChannel,
-		"interval":          h.FormatExchangeKlineInterval,
+		"interval":          e.FormatExchangeKlineInterval,
 	}).Parse(subTplText)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HUOBI) Subscribe(subs subscription.List) error {
+func (e *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
-	subs, errs := subs.ExpandTemplates(h)
-	return common.AppendError(errs, h.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return h.manageSubs(ctx, wsSubOp, l) }, 1))
+	subs, errs := subs.ExpandTemplates(e)
+	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsSubOp, l) }, 1))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HUOBI) Unsubscribe(subs subscription.List) error {
+func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
-	subs, errs := subs.ExpandTemplates(h)
-	return common.AppendError(errs, h.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return h.manageSubs(ctx, wsUnsubOp, l) }, 1))
+	subs, errs := subs.ExpandTemplates(e)
+	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsUnsubOp, l) }, 1))
 }
 
-func (h *HUOBI) manageSubs(ctx context.Context, op string, subs subscription.List) error {
+func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	if len(subs) != 1 {
 		return subscription.ErrBatchingNotSupported
 	}
@@ -517,10 +517,10 @@ func (h *HUOBI) manageSubs(ctx context.Context, op string, subs subscription.Lis
 	var c websocket.Connection
 	var req any
 	if s.Authenticated {
-		c = h.Websocket.AuthConn
+		c = e.Websocket.AuthConn
 		req = wsReq{Action: op, Channel: s.QualifiedChannel}
 	} else {
-		c = h.Websocket.Conn
+		c = e.Websocket.Conn
 		if op == wsSubOp {
 			// Set the id to the channel so that V1 errors can make it back to us
 			req = wsSubReq{ID: wsSubOp + ":" + s.QualifiedChannel, Sub: s.QualifiedChannel}
@@ -530,7 +530,7 @@ func (h *HUOBI) manageSubs(ctx context.Context, op string, subs subscription.Lis
 	}
 	if op == wsSubOp {
 		s.SetKey(s.QualifiedChannel)
-		if err := h.Websocket.AddSubscriptions(c, s); err != nil {
+		if err := e.Websocket.AddSubscriptions(c, s); err != nil {
 			return fmt.Errorf("%w: %s; error: %w", websocket.ErrSubscriptionFailure, s, err)
 		}
 	}
@@ -540,22 +540,22 @@ func (h *HUOBI) manageSubs(ctx context.Context, op string, subs subscription.Lis
 	}
 	if err != nil {
 		if op == wsSubOp {
-			_ = h.Websocket.RemoveSubscriptions(c, s)
+			_ = e.Websocket.RemoveSubscriptions(c, s)
 		}
 		return fmt.Errorf("%s: %w", s, err)
 	}
 	if op == wsSubOp {
 		err = s.SetState(subscription.SubscribedState)
-		if h.Verbose {
-			log.Debugf(log.ExchangeSys, "%s Subscribed to %s", h.Name, s)
+		if e.Verbose {
+			log.Debugf(log.ExchangeSys, "%s Subscribed to %s", e.Name, s)
 		}
 	} else {
-		err = h.Websocket.RemoveSubscriptions(c, s)
+		err = e.Websocket.RemoveSubscriptions(c, s)
 	}
 	return err
 }
 
-func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string) ([]byte, error) {
+func (e *Exchange) wsGenerateSignature(creds *account.Credentials, timestamp string) ([]byte, error) {
 	values := url.Values{}
 	values.Set("accessKey", creds.Key)
 	values.Set("signatureMethod", signatureMethod)
@@ -565,24 +565,24 @@ func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string
 	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 }
 
-func (h *HUOBI) wsAuthConnect(ctx context.Context) error {
-	if err := h.Websocket.AuthConn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+func (e *Exchange) wsAuthConnect(ctx context.Context) error {
+	if err := e.Websocket.AuthConn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return fmt.Errorf("authenticated dial failed: %w", err)
 	}
-	if err := h.wsLogin(ctx); err != nil {
+	if err := e.wsLogin(ctx); err != nil {
 		return fmt.Errorf("authentication failed: %w", err)
 	}
 	return nil
 }
 
-func (h *HUOBI) wsLogin(ctx context.Context) error {
-	creds, err := h.GetCredentials(ctx)
+func (e *Exchange) wsLogin(ctx context.Context) error {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
 
 	ts := time.Now().UTC().Format(wsDateTimeFormatting)
-	hmac, err := h.wsGenerateSignature(creds, ts)
+	hmac, err := e.wsGenerateSignature(creds, ts)
 	if err != nil {
 		return err
 	}
@@ -598,7 +598,7 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 			Timestamp:        ts,
 		},
 	}
-	c := h.Websocket.AuthConn
+	c := e.Websocket.AuthConn
 	if err := c.SendJSONMessage(ctx, request.Unset, req); err != nil {
 		return err
 	}
