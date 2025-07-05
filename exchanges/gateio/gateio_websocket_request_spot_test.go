@@ -199,23 +199,23 @@ func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
-	g := new(Exchange)
-	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
-	testexch.UpdatePairsOnce(t, g)
-	g.API.AuthenticatedSupport = true
-	g.API.AuthenticatedWebsocketSupport = true
-	g.SetCredentials(apiKey, apiSecret, "", "", "", "")
-	g.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	testexch.UpdatePairsOnce(t, e)
+	e.API.AuthenticatedSupport = true
+	e.API.AuthenticatedWebsocketSupport = true
+	e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	switch a {
 	case asset.Spot:
-		avail, err := g.GetAvailablePairs(a)
+		avail, err := e.GetAvailablePairs(a)
 		require.NoError(t, err)
 		if len(avail) > 1 { // reduce pairs to 1 to speed up tests
 			avail = avail[:1]
 		}
-		require.NoError(t, g.SetPairs(avail, a, true))
+		require.NoError(t, e.SetPairs(avail, a, true))
 	case asset.Futures:
-		avail, err := g.GetAvailablePairs(a)
+		avail, err := e.GetAvailablePairs(a)
 		require.NoError(t, err)
 		usdtPairs, err := avail.GetPairsByQuote(currency.USDT) // Get USDT margin pairs
 		require.NoError(t, err)
@@ -226,11 +226,11 @@ func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 		avail[0] = usdtPairs[0]
 		avail[1] = btcPairs[0]
 		avail = avail[:2]
-		require.NoError(t, g.SetPairs(avail, a, true))
+		require.NoError(t, e.SetPairs(avail, a, true))
 	default:
-		require.NoError(t, g.CurrencyPairs.SetAssetEnabled(a, false))
+		require.NoError(t, e.CurrencyPairs.SetAssetEnabled(a, false))
 	}
 
-	require.NoError(t, g.Websocket.Connect())
-	return g
+	require.NoError(t, e.Websocket.Connect())
+	return e
 }

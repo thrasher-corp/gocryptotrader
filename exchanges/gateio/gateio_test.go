@@ -2088,17 +2088,17 @@ func TestCrossMarginBalanceLoan(t *testing.T) {
 // TestFuturesDataHandler ensures that messages from various futures channels do not error
 func TestFuturesDataHandler(t *testing.T) {
 	t.Parallel()
-	g := new(Exchange)
-	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, m []byte) error {
 		if strings.Contains(string(m), "futures.balances") {
 			ctx = account.DeployCredentialsToContext(ctx, &account.Credentials{Key: "test", Secret: "test"})
 		}
-		return g.WsHandleFuturesData(ctx, m, asset.CoinMarginedFutures)
+		return e.WsHandleFuturesData(ctx, m, asset.CoinMarginedFutures)
 	})
-	close(g.Websocket.DataHandler)
-	assert.Len(t, g.Websocket.DataHandler, 14, "Should see the correct number of messages")
-	for resp := range g.Websocket.DataHandler {
+	close(e.Websocket.DataHandler)
+	assert.Len(t, e.Websocket.DataHandler, 14, "Should see the correct number of messages")
+	for resp := range e.Websocket.DataHandler {
 		if err, isErr := resp.(error); isErr {
 			assert.NoError(t, err, "Should not get any errors down the data handler")
 		}
@@ -2277,20 +2277,20 @@ func TestOptionsPositionPushData(t *testing.T) {
 func TestGenerateSubscriptionsSpot(t *testing.T) {
 	t.Parallel()
 
-	g := new(Exchange)
-	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	g.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := g.generateSubscriptionsSpot()
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := e.generateSubscriptionsSpot()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
-	assets := slices.DeleteFunc(g.GetAssetTypes(true), func(a asset.Item) bool { return !g.IsAssetWebsocketSupported(a) })
-	for _, s := range g.Features.Subscriptions {
+	assets := slices.DeleteFunc(e.GetAssetTypes(true), func(a asset.Item) bool { return !e.IsAssetWebsocketSupported(a) })
+	for _, s := range e.Features.Subscriptions {
 		for _, a := range assets {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
 			}
-			pairs, err := g.GetEnabledPairs(a)
+			pairs, err := e.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
 			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
@@ -2337,16 +2337,16 @@ func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 
 func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	g := new(Exchange)
-	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
-	subs, err := g.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	subs, err := e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
-	subs, err = g.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
+	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
-	require.NoError(t, g.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
-	subs, err = g.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
+	require.NoError(t, e.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
+	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
 	require.NoError(t, err, "Disabled asset must not error")
 	require.Empty(t, subs, "Disabled asset must return no pairs")
 }

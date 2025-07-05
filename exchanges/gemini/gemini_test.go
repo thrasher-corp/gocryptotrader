@@ -1298,12 +1298,12 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	g := new(Exchange)
-	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", ""), currency.NewPairWithDelimiter("ETH", "BTC", "")}
-	require.NoError(t, g.CurrencyPairs.StorePairs(asset.Spot, p, false))
-	require.NoError(t, g.CurrencyPairs.StorePairs(asset.Spot, p, true))
-	subs, err := g.generateSubscriptions()
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, p, false))
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, p, true))
+	subs, err := e.generateSubscriptions()
 	require.NoError(t, err)
 	exp := subscription.List{
 		{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, QualifiedChannel: "candles_1d", Interval: kline.OneDay},
@@ -1312,12 +1312,12 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 
 	for _, i := range []kline.Interval{kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin, kline.OneHour, kline.SixHour} {
-		subs, err = subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: i}}.ExpandTemplates(g)
+		subs, err = subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: i}}.ExpandTemplates(e)
 		assert.NoErrorf(t, err, "ExpandTemplates should not error on interval %s", i)
 		require.NotEmpty(t, subs)
 		assert.Equal(t, "candles_"+i.Short(), subs[0].QualifiedChannel)
 	}
-	_, err = subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: kline.FourHour}}.ExpandTemplates(g)
+	_, err = subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: kline.FourHour}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "ExpandTemplates should error on invalid interval")
 
 	assert.PanicsWithError(t,

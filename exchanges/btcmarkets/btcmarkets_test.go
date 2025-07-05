@@ -480,19 +480,19 @@ func TestWsTicker(t *testing.T) {
 func TestWSTrade(t *testing.T) {
 	t.Parallel()
 
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAllTrades.json", b.wsHandleData)
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAllTrades.json", e.wsHandleData)
 	require.Equal(t, 2, len(fErrs), "Must get correct number of errors from wsHandleData")
 	assert.ErrorIs(t, fErrs[0].Err, order.ErrSideIsInvalid, "Side.UnmarshalJSON errors should propagate correctly")
 	assert.ErrorContains(t, fErrs[0].Err, "WRONG", "Side.UnmarshalJSON errors should propagate correctly")
 	assert.ErrorIs(t, fErrs[1].Err, order.ErrSideIsInvalid, "wsHandleData errors should propagate correctly")
 	assert.ErrorContains(t, fErrs[1].Err, "ANY", "wsHandleData errors should propagate correctly")
-	close(b.Websocket.DataHandler)
+	close(e.Websocket.DataHandler)
 
 	exp := []trade.Data{
 		{
-			Exchange:     b.Name,
+			Exchange:     e.Name,
 			CurrencyPair: currency.NewPairWithDelimiter("BTC", "AUD", currency.DashDelimiter),
 			Timestamp:    time.Date(2025, 3, 13, 8, 27, 55, 691000000, time.UTC),
 			Price:        131200.34,
@@ -502,7 +502,7 @@ func TestWSTrade(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		{
-			Exchange:     b.Name,
+			Exchange:     e.Name,
 			CurrencyPair: currency.NewPairWithDelimiter("BTC", "AUD", currency.DashDelimiter),
 			Timestamp:    time.Date(2025, 3, 13, 8, 28, 2, 273000000, time.UTC),
 			Price:        131065.01,
@@ -512,12 +512,12 @@ func TestWSTrade(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 	}
-	require.Len(t, b.Websocket.DataHandler, 2, "Must see correct number of trades")
+	require.Len(t, e.Websocket.DataHandler, 2, "Must see correct number of trades")
 
-	for resp := range b.Websocket.DataHandler {
+	for resp := range e.Websocket.DataHandler {
 		switch v := resp.(type) {
 		case trade.Data:
-			i := 1 - len(b.Websocket.DataHandler)
+			i := 1 - len(e.Websocket.DataHandler)
 			require.Equalf(t, exp[i], v, "Trade[%d] must be correct", i)
 		case error:
 			t.Error(v)
@@ -965,19 +965,19 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "_"), currency.NewPairWithDelimiter("ETH", "BTC", "_")}
-	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, p, false))
-	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, p, true))
-	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
-	subs, err := b.generateSubscriptions()
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, p, false))
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, p, true))
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
+	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	pairs, err := b.GetEnabledPairs(asset.Spot)
+	pairs, err := e.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
 	exp := subscription.List{}
-	for _, baseSub := range b.Features.Subscriptions {
+	for _, baseSub := range e.Features.Subscriptions {
 		s := baseSub.Clone()
 		if !s.Authenticated && s.Channel != subscription.HeartbeatChannel {
 			s.Pairs = pairs

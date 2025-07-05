@@ -853,46 +853,46 @@ func TestGetSpotKline(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
-	updatePairsOnce(t, h)
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	updatePairsOnce(t, e)
 
 	endTime := time.Now().Add(-time.Hour).Truncate(time.Hour)
-	_, err := h.GetHistoricCandles(t.Context(), btcusdtPair, asset.Spot, kline.OneMin, endTime.Add(-time.Hour), endTime)
+	_, err := e.GetHistoricCandles(t.Context(), btcusdtPair, asset.Spot, kline.OneMin, endTime.Add(-time.Hour), endTime)
 	require.NoError(t, err)
 
-	_, err = h.GetHistoricCandles(t.Context(), btcusdtPair, asset.Spot, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
+	_, err = e.GetHistoricCandles(t.Context(), btcusdtPair, asset.Spot, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
 	require.NoError(t, err)
 
-	_, err = h.GetHistoricCandles(t.Context(), btcFutureDatedPair, asset.Futures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
+	_, err = e.GetHistoricCandles(t.Context(), btcFutureDatedPair, asset.Futures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
 	require.NoError(t, err)
 
-	_, err = h.GetHistoricCandles(t.Context(), btcusdPair, asset.CoinMarginedFutures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
+	_, err = e.GetHistoricCandles(t.Context(), btcusdPair, asset.CoinMarginedFutures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
 	require.NoError(t, err)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
-	updatePairsOnce(t, h)
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	updatePairsOnce(t, e)
 
 	endTime := time.Now().Add(-time.Hour).Truncate(time.Hour)
-	_, err := h.GetHistoricCandlesExtended(t.Context(), btcusdtPair, asset.Spot, kline.OneMin, endTime.Add(-time.Hour), endTime)
+	_, err := e.GetHistoricCandlesExtended(t.Context(), btcusdtPair, asset.Spot, kline.OneMin, endTime.Add(-time.Hour), endTime)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
-	_, err = h.GetHistoricCandlesExtended(t.Context(), btcFutureDatedPair, asset.Futures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
+	_, err = e.GetHistoricCandlesExtended(t.Context(), btcFutureDatedPair, asset.Futures, kline.OneDay, endTime.AddDate(0, 0, -7), endTime)
 	require.NoError(t, err)
 
 	// demonstrate that adjusting time doesn't wreck non-day intervals
-	_, err = h.GetHistoricCandlesExtended(t.Context(), btcFutureDatedPair, asset.Futures, kline.OneHour, endTime.AddDate(0, 0, -1), endTime)
+	_, err = e.GetHistoricCandlesExtended(t.Context(), btcFutureDatedPair, asset.Futures, kline.OneHour, endTime.AddDate(0, 0, -1), endTime)
 	require.NoError(t, err)
 
-	_, err = h.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.CoinMarginedFutures, kline.OneDay, endTime.AddDate(0, 0, -7), time.Now())
+	_, err = e.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.CoinMarginedFutures, kline.OneDay, endTime.AddDate(0, 0, -7), time.Now())
 	require.NoError(t, err)
 
-	_, err = h.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.CoinMarginedFutures, kline.OneHour, endTime.AddDate(0, 0, -1), time.Now())
+	_, err = e.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.CoinMarginedFutures, kline.OneHour, endTime.AddDate(0, 0, -1), time.Now())
 	require.NoError(t, err)
 }
 
@@ -1290,21 +1290,21 @@ func TestQueryWithdrawQuota(t *testing.T) {
 
 func TestWSCandles(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
-	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.kline.1min", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.CandlesChannel})
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.kline.1min", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.CandlesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsCandles.json", h.wsHandleData)
-	close(h.Websocket.DataHandler)
-	require.Len(t, h.Websocket.DataHandler, 1, "Must see correct number of records")
-	cAny := <-h.Websocket.DataHandler
+	testexch.FixtureToDataHandler(t, "testdata/wsCandles.json", e.wsHandleData)
+	close(e.Websocket.DataHandler)
+	require.Len(t, e.Websocket.DataHandler, 1, "Must see correct number of records")
+	cAny := <-e.Websocket.DataHandler
 	c, ok := cAny.(websocket.KlineData)
 	require.True(t, ok, "Must get the correct type from DataHandler")
 	exp := websocket.KlineData{
 		Timestamp:  time.UnixMilli(1489474082831),
 		Pair:       btcusdtPair,
 		AssetType:  asset.Spot,
-		Exchange:   h.Name,
+		Exchange:   e.Name,
 		OpenPrice:  7962.62,
 		ClosePrice: 8014.56,
 		HighPrice:  14962.77,
@@ -1317,14 +1317,14 @@ func TestWSCandles(t *testing.T) {
 
 func TestWSOrderbook(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
-	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.depth.step0", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.OrderbookChannel})
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.depth.step0", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.OrderbookChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsOrderbook.json", h.wsHandleData)
-	close(h.Websocket.DataHandler)
-	require.Len(t, h.Websocket.DataHandler, 1, "Must see correct number of records")
-	dAny := <-h.Websocket.DataHandler
+	testexch.FixtureToDataHandler(t, "testdata/wsOrderbook.json", e.wsHandleData)
+	close(e.Websocket.DataHandler)
+	require.Len(t, e.Websocket.DataHandler, 1, "Must see correct number of records")
+	dAny := <-e.Websocket.DataHandler
 	d, ok := dAny.(*orderbook.Depth)
 	require.True(t, ok, "Must get the correct type from DataHandler")
 	require.NotNil(t, d)
@@ -1345,16 +1345,16 @@ func TestWSOrderbook(t *testing.T) {
 // TestWSHandleAllTradesMsg ensures wsHandleAllTrades sends trade.Data to the ws.DataHandler
 func TestWSHandleAllTradesMsg(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
-	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.trade.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.AllTradesChannel})
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.trade.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.AllTradesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	h.SetSaveTradeDataStatus(true)
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", h.wsHandleData)
-	close(h.Websocket.DataHandler)
+	e.SetSaveTradeDataStatus(true)
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
+	close(e.Websocket.DataHandler)
 	exp := []trade.Data{
 		{
-			Exchange:     h.Name,
+			Exchange:     e.Name,
 			CurrencyPair: btcusdtPair,
 			Timestamp:    time.UnixMilli(1630994963173).UTC(),
 			Price:        52648.62,
@@ -1364,7 +1364,7 @@ func TestWSHandleAllTradesMsg(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		{
-			Exchange:     h.Name,
+			Exchange:     e.Name,
 			CurrencyPair: btcusdtPair,
 			Timestamp:    time.UnixMilli(1630994963184).UTC(),
 			Price:        52648.73,
@@ -1374,11 +1374,11 @@ func TestWSHandleAllTradesMsg(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 	}
-	require.Len(t, h.Websocket.DataHandler, 2, "Must see correct number of trades")
-	for resp := range h.Websocket.DataHandler {
+	require.Len(t, e.Websocket.DataHandler, 2, "Must see correct number of trades")
+	for resp := range e.Websocket.DataHandler {
 		switch v := resp.(type) {
 		case trade.Data:
-			i := 1 - len(h.Websocket.DataHandler)
+			i := 1 - len(e.Websocket.DataHandler)
 			require.Equalf(t, exp[i], v, "Trade [%d] must be correct", i)
 		case error:
 			t.Error(v)
@@ -1386,19 +1386,19 @@ func TestWSHandleAllTradesMsg(t *testing.T) {
 			t.Errorf("Unexpected type in DataHandler: %T(%s)", v, v)
 		}
 	}
-	require.Empty(t, h.Websocket.DataHandler, "Must not see any errors going to datahandler")
+	require.Empty(t, e.Websocket.DataHandler, "Must not see any errors going to datahandler")
 }
 
 func TestWSTicker(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
-	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.TickerChannel})
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.TickerChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", h.wsHandleData)
-	close(h.Websocket.DataHandler)
-	require.Len(t, h.Websocket.DataHandler, 1, "Must see correct number of records")
-	tickAny := <-h.Websocket.DataHandler
+	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", e.wsHandleData)
+	close(e.Websocket.DataHandler)
+	require.Len(t, e.Websocket.DataHandler, 1, "Must see correct number of records")
+	tickAny := <-e.Websocket.DataHandler
 	tick, ok := tickAny.(*ticker.Price)
 	require.True(t, ok, "Must get the correct type from DataHandler")
 	require.NotNil(t, tick)
@@ -1411,7 +1411,7 @@ func TestWSTicker(t *testing.T) {
 		Open:         51823.62,
 		Close:        52379.99,
 		Pair:         btcusdtPair,
-		ExchangeName: h.Name,
+		ExchangeName: e.Name,
 		AssetType:    asset.Spot,
 		LastUpdated:  time.UnixMilli(1630998026649),
 	}
@@ -1420,43 +1420,43 @@ func TestWSTicker(t *testing.T) {
 
 func TestWSAccountUpdate(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
-	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "accounts.update#2", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyAccountChannel})
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "accounts.update#2", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyAccountChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	h.SetSaveTradeDataStatus(true)
-	testexch.FixtureToDataHandler(t, "testdata/wsMyAccount.json", h.wsHandleData)
-	close(h.Websocket.DataHandler)
-	require.Len(t, h.Websocket.DataHandler, 3, "Must see correct number of records")
+	e.SetSaveTradeDataStatus(true)
+	testexch.FixtureToDataHandler(t, "testdata/wsMyAccount.json", e.wsHandleData)
+	close(e.Websocket.DataHandler)
+	require.Len(t, e.Websocket.DataHandler, 3, "Must see correct number of records")
 	exp := []WsAccountUpdate{
 		{Currency: "btc", AccountID: 123456, Balance: 23.111, ChangeType: "transfer", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1568601800000)), SeqNum: 1},
 		{Currency: "btc", AccountID: 33385, Available: 2028.69, ChangeType: "order.match", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1574393385167)), SeqNum: 2},
 		{Currency: "usdt", AccountID: 14884859, Available: 20.29388158, Balance: 20.29388158, AccountType: "trade", SeqNum: 3},
 	}
-	for _, e := range exp {
-		uAny := <-h.Websocket.DataHandler
+	for _, ex := range exp {
+		uAny := <-e.Websocket.DataHandler
 		u, ok := uAny.(WsAccountUpdate)
 		require.True(t, ok, "Must get the correct type from DataHandler")
 		require.NotNil(t, u)
-		assert.Equal(t, e, u)
+		assert.Equal(t, ex, u)
 	}
 }
 
 func TestWSOrderUpdate(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
-	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "orders#*", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyOrdersChannel})
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "orders#*", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyOrdersChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	h.SetSaveTradeDataStatus(true)
-	errs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsMyOrders.json", h.wsHandleData)
-	close(h.Websocket.DataHandler)
+	e.SetSaveTradeDataStatus(true)
+	errs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsMyOrders.json", e.wsHandleData)
+	close(e.Websocket.DataHandler)
 	require.Equal(t, 1, len(errs), "Must receive the correct number of errors back")
 	require.ErrorContains(t, errs[0].Err, "error with order \"test1\": invalid.client.order.id (NT) (2002)")
-	require.Len(t, h.Websocket.DataHandler, 4, "Must see correct number of records")
+	require.Len(t, e.Websocket.DataHandler, 4, "Must see correct number of records")
 	exp := []*order.Detail{
 		{
-			Exchange:      h.Name,
+			Exchange:      e.Name,
 			Pair:          btcusdtPair,
 			Side:          order.Buy,
 			Status:        order.Rejected,
@@ -1465,7 +1465,7 @@ func TestWSOrderUpdate(t *testing.T) {
 			LastUpdated:   time.UnixMicro(1583853365586000),
 		},
 		{
-			Exchange:      h.Name,
+			Exchange:      e.Name,
 			Pair:          btcusdtPair,
 			Side:          order.Buy,
 			Status:        order.Cancelled,
@@ -1474,7 +1474,7 @@ func TestWSOrderUpdate(t *testing.T) {
 			LastUpdated:   time.UnixMicro(1583853365586000),
 		},
 		{
-			Exchange:      h.Name,
+			Exchange:      e.Name,
 			Pair:          btcusdtPair,
 			Side:          order.Sell,
 			Status:        order.New,
@@ -1487,7 +1487,7 @@ func TestWSOrderUpdate(t *testing.T) {
 			LastUpdated:   time.UnixMicro(1583853365586000),
 		},
 		{
-			Exchange:    h.Name,
+			Exchange:    e.Name,
 			Pair:        btcusdtPair,
 			Side:        order.Buy,
 			Status:      order.New,
@@ -1499,28 +1499,28 @@ func TestWSOrderUpdate(t *testing.T) {
 			LastUpdated: time.UnixMicro(1731039387696000),
 		},
 	}
-	for _, e := range exp {
-		m := <-h.Websocket.DataHandler
+	for _, ex := range exp {
+		m := <-e.Websocket.DataHandler
 		require.IsType(t, &order.Detail{}, m, "Must get the correct type from DataHandler")
 		d, _ := m.(*order.Detail)
 		require.NotNil(t, d)
-		assert.Equal(t, e, d, "Order Detail should match")
+		assert.Equal(t, ex, d, "Order Detail should match")
 	}
 }
 
 func TestWSMyTrades(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
-	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "trade.clearing#btcusdt#1", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyTradesChannel})
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "trade.clearing#btcusdt#1", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyTradesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	h.SetSaveTradeDataStatus(true)
-	testexch.FixtureToDataHandler(t, "testdata/wsMyTrades.json", h.wsHandleData)
-	close(h.Websocket.DataHandler)
-	require.Len(t, h.Websocket.DataHandler, 1, "Must see correct number of records")
-	m := <-h.Websocket.DataHandler
+	e.SetSaveTradeDataStatus(true)
+	testexch.FixtureToDataHandler(t, "testdata/wsMyTrades.json", e.wsHandleData)
+	close(e.Websocket.DataHandler)
+	require.Len(t, e.Websocket.DataHandler, 1, "Must see correct number of records")
+	m := <-e.Websocket.DataHandler
 	exp := &order.Detail{
-		Exchange:      h.Name,
+		Exchange:      e.Name,
 		Pair:          btcusdtPair,
 		Side:          order.Buy,
 		Status:        order.PartiallyFilled,
@@ -1536,7 +1536,7 @@ func TestWSMyTrades(t *testing.T) {
 				Price:     9999.99,
 				Amount:    0.96,
 				Fee:       19.88,
-				Exchange:  h.Name,
+				Exchange:  e.Name,
 				TID:       "919219323232",
 				Side:      order.Buy,
 				IsMaker:   false,
@@ -1723,28 +1723,28 @@ func TestGetFuturesContractDetails(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Test Instance Setup must not fail")
-	updatePairsOnce(t, h)
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test Instance Setup must not fail")
+	updatePairsOnce(t, e)
 
-	_, err := h.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
 		Pair:                 currency.NewBTCUSD(),
 		IncludePredictedRate: true,
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = h.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.CoinMarginedFutures,
 		Pair:                 currency.NewBTCUSD(),
 		IncludePredictedRate: true,
 	})
 	require.NoError(t, err)
 
-	err = h.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, currency.NewBTCUSD())
+	err = e.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, currency.NewBTCUSD())
 	require.ErrorIs(t, err, currency.ErrPairAlreadyEnabled)
 
-	_, err = h.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.CoinMarginedFutures,
 		IncludePredictedRate: true,
 	})
@@ -1814,10 +1814,10 @@ var expiryWindows = map[string]uint{
 func TestPairFromContractExpiryCode(t *testing.T) {
 	t.Parallel()
 
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Test Instance Setup must not fail")
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test Instance Setup must not fail")
 
-	_, err := h.FetchTradablePairs(t.Context(), asset.Futures)
+	_, err := e.FetchTradablePairs(t.Context(), asset.Futures)
 	require.NoError(t, err)
 
 	tz, err := time.LoadLocation("Asia/Singapore") // Huobi HQ and apparent local time for when codes become effective
@@ -1827,7 +1827,7 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 	today = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, tz) // Do not use Truncate; https://github.com/golang/go/issues/55921
 
 	for _, cType := range contractExpiryNames {
-		p, err := h.pairFromContractExpiryCode(currency.Pair{
+		p, err := e.pairFromContractExpiryCode(currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.NewCode(cType),
 		})
@@ -1836,9 +1836,9 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 		}
 		require.NoErrorf(t, err, "pairFromContractExpiryCode must not error for %s code", cType)
 		assert.Equal(t, currency.BTC, p.Base, "pair Base should be BTC")
-		h.futureContractCodesMutex.RLock()
-		cachedContract, ok := h.futureContractCodes[cType]
-		h.futureContractCodesMutex.RUnlock()
+		e.futureContractCodesMutex.RLock()
+		cachedContract, ok := e.futureContractCodes[cType]
+		e.futureContractCodesMutex.RUnlock()
 		require.Truef(t, ok, "%s type must be in futureContractCodes", cType)
 		assert.Equal(t, cachedContract, p.Quote, "pair Quote should match contractExpiryNames")
 		exp, err := time.ParseInLocation("060102", p.Quote.String(), tz)
@@ -1929,25 +1929,25 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := h.generateSubscriptions()
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
-	for _, s := range h.Features.Subscriptions {
+	for _, s := range e.Features.Subscriptions {
 		if s.Asset == asset.Empty {
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.QualifiedChannel = channelName(s)
 			exp = append(exp, s)
 			continue
 		}
-		for _, a := range h.GetAssetTypes(true) {
+		for _, a := range e.GetAssetTypes(true) {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
 			}
-			pairs, err := h.GetEnabledPairs(a)
+			pairs, err := e.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
 			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: false, Delimiter: ""})
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
@@ -1996,14 +1996,14 @@ func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 // TestSubscribe exercises live public subscriptions
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
-	subs, err := h.Features.Subscriptions.ExpandTemplates(h)
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	testexch.SetupWs(t, h)
-	err = h.Subscribe(subs)
+	testexch.SetupWs(t, e)
+	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
-	got := h.Websocket.GetSubscriptions()
+	got := e.Websocket.GetSubscriptions()
 	require.Equal(t, 8, len(got), "Must get correct number of subscriptions")
 	for _, s := range got {
 		assert.Equal(t, subscription.SubscribedState, s.State())
@@ -2054,18 +2054,18 @@ func TestGetErrResp(t *testing.T) {
 
 func TestBootstrap(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Test Instance Setup must not fail")
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test Instance Setup must not fail")
 
-	c, err := h.Bootstrap(t.Context())
+	c, err := e.Bootstrap(t.Context())
 	require.NoError(t, err)
 	assert.True(t, c, "Bootstrap should return true to continue")
 
-	h.futureContractCodes = nil
-	h.Features.Enabled.AutoPairUpdates = false
-	_, err = h.Bootstrap(t.Context())
+	e.futureContractCodes = nil
+	e.Features.Enabled.AutoPairUpdates = false
+	_, err = e.Bootstrap(t.Context())
 	require.NoError(t, err)
-	require.NotNil(t, h.futureContractCodes)
+	require.NotNil(t, e.futureContractCodes)
 }
 
 var (

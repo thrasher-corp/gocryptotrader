@@ -139,31 +139,31 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	r := e.Requester
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test exchange Setup must not error")
-	b.Requester = r
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test exchange Setup must not error")
+	e.Requester = r
 	start := time.Now().AddDate(0, 0, -3)
-	_, err := b.GetHistoricCandles(t.Context(), spotPair, asset.Spot, kline.OneHour, start, time.Now())
+	_, err := e.GetHistoricCandles(t.Context(), spotPair, asset.Spot, kline.OneHour, start, time.Now())
 	assert.NoError(t, err, "GetHistoricCandles should not error")
 
-	_, err = b.GetHistoricCandles(t.Context(), spotPair, asset.Spot, kline.OneDay, start, time.Now())
+	_, err = e.GetHistoricCandles(t.Context(), spotPair, asset.Spot, kline.OneDay, start, time.Now())
 	assert.NoError(t, err, "GetHistoricCandles should not error")
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	r := e.Requester
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test exchange Setup must not error")
-	b.Requester = r
-	err := b.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresPair}, true)
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test exchange Setup must not error")
+	e.Requester = r
+	err := e.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresPair}, true)
 	assert.NoError(t, err, "StorePairs should not error")
 
 	start := time.Now().AddDate(0, 0, -1)
-	_, err = b.GetHistoricCandlesExtended(t.Context(), spotPair, asset.Spot, kline.OneHour, start, time.Now())
+	_, err = e.GetHistoricCandlesExtended(t.Context(), spotPair, asset.Spot, kline.OneHour, start, time.Now())
 	assert.NoError(t, err, "GetHistoricCandlesExtended should not error")
 
-	_, err = b.GetHistoricCandlesExtended(t.Context(), futuresPair, asset.Futures, kline.OneHour, start, time.Now())
+	_, err = e.GetHistoricCandlesExtended(t.Context(), futuresPair, asset.Futures, kline.OneHour, start, time.Now())
 	assert.NoError(t, err, "GetHistoricCandlesExtended should not error")
 }
 
@@ -470,14 +470,14 @@ func TestWsOrderbook(t *testing.T) {
 func TestWSTrades(t *testing.T) {
 	t.Parallel()
 
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Setup Instance must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", b.wsHandleData)
-	close(b.Websocket.DataHandler)
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
+	close(e.Websocket.DataHandler)
 
 	exp := []trade.Data{
 		{
-			Exchange:     b.Name,
+			Exchange:     e.Name,
 			CurrencyPair: spotPair,
 			Timestamp:    time.UnixMilli(1741836562893).UTC(),
 			Price:        83894.01,
@@ -487,7 +487,7 @@ func TestWSTrades(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		{
-			Exchange:     b.Name,
+			Exchange:     e.Name,
 			CurrencyPair: spotPair,
 			Timestamp:    time.UnixMilli(1741836562687).UTC(),
 			Price:        83894.87,
@@ -497,11 +497,11 @@ func TestWSTrades(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 	}
-	require.Len(t, b.Websocket.DataHandler, 2, "Must see the correct number of trades")
-	for resp := range b.Websocket.DataHandler {
+	require.Len(t, e.Websocket.DataHandler, 2, "Must see the correct number of trades")
+	for resp := range e.Websocket.DataHandler {
 		switch v := resp.(type) {
 		case trade.Data:
-			i := 1 - len(b.Websocket.DataHandler)
+			i := 1 - len(e.Websocket.DataHandler)
 			require.Equalf(t, exp[i], v, "Trade [%d] must be correct", i)
 		case error:
 			t.Error(v)
@@ -697,15 +697,15 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	r := e.Requester
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test exchange Setup must not error")
-	testexch.UpdatePairsOnce(t, b)
-	b.Requester = r
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test exchange Setup must not error")
+	testexch.UpdatePairsOnce(t, e)
+	e.Requester = r
 	cp1 := currency.NewPair(currency.BTC, currency.PFC)
 	cp2 := currency.NewPair(currency.ETH, currency.PFC)
-	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, b, asset.Futures, futuresPair, cp1, cp2)
+	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, e, asset.Futures, futuresPair, cp1, cp2)
 
-	resp, err := b.GetOpenInterest(t.Context(), key.PairAsset{
+	resp, err := e.GetOpenInterest(t.Context(), key.PairAsset{
 		Base:  cp1.Base.Item,
 		Quote: cp1.Quote.Item,
 		Asset: asset.Futures,
@@ -713,7 +713,7 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 
-	resp, err = b.GetOpenInterest(t.Context(),
+	resp, err = e.GetOpenInterest(t.Context(),
 		key.PairAsset{
 			Base:  cp1.Base.Item,
 			Quote: cp1.Quote.Item,
@@ -727,11 +727,11 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 
-	resp, err = b.GetOpenInterest(t.Context())
+	resp, err = e.GetOpenInterest(t.Context())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 
-	_, err = b.GetOpenInterest(t.Context(), key.PairAsset{
+	_, err = e.GetOpenInterest(t.Context(), key.PairAsset{
 		Base:  currency.BTC.Item,
 		Quote: currency.USDT.Item,
 		Asset: asset.Spot,
@@ -798,19 +798,19 @@ func TestMarketPair(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	exp := subscription.List{
 		{Channel: subscription.AllTradesChannel, QualifiedChannel: "tradeHistoryApi:BTC-USD", Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
 		{Channel: subscription.MyTradesChannel, QualifiedChannel: "notificationApi"},
 	}
 
-	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := b.generateSubscriptions()
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 
-	_, err = subscription.List{{Channel: subscription.OrderbookChannel}}.ExpandTemplates(b)
+	_, err = subscription.List{{Channel: subscription.OrderbookChannel}}.ExpandTemplates(e)
 	assert.ErrorContains(t, err, "Channel not supported", "Sub template should error on unsupported channels")
 }

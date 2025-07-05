@@ -1992,9 +1992,9 @@ func BenchmarkWsHandleData(bb *testing.B) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	channels, err := b.generateSubscriptions() // Note: We grab this before it's overwritten by MockWsInstance below
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	channels, err := e.generateSubscriptions() // Note: We grab this before it's overwritten by MockWsInstance below
 	require.NoError(t, err, "generateSubscriptions must not error")
 	if mockTests {
 		exp := []string{"btcusdt@depth@100ms", "btcusdt@kline_1m", "btcusdt@ticker", "btcusdt@trade", "dogeusdt@depth@100ms", "dogeusdt@kline_1m", "dogeusdt@ticker", "dogeusdt@trade"}
@@ -2005,13 +2005,13 @@ func TestSubscribe(t *testing.T) {
 			require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
 			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%d}`, req.ID))
 		}
-		b = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
+		e = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
-		testexch.SetupWs(t, b)
+		testexch.SetupWs(t, e)
 	}
-	err = b.Subscribe(channels)
+	err = e.Subscribe(channels)
 	require.NoError(t, err, "Subscribe must not error")
-	err = b.Unsubscribe(channels)
+	err = e.Unsubscribe(channels)
 	require.NoError(t, err, "Unsubscribe must not error")
 }
 
@@ -2098,9 +2098,9 @@ func TestWsTradeUpdate(t *testing.T) {
 
 func TestWsDepthUpdate(t *testing.T) {
 	t.Parallel()
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	b.setupOrderbookManager(t.Context())
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.setupOrderbookManager(t.Context())
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
 		Asks: []OrderbookItem{
@@ -2145,17 +2145,17 @@ func TestWsDepthUpdate(t *testing.T) {
 	}}`)
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	if err := b.SeedLocalCacheWithBook(p, &book); err != nil {
+	if err := e.SeedLocalCacheWithBook(p, &book); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := b.wsHandleData(update1); err != nil {
+	if err := e.wsHandleData(update1); err != nil {
 		t.Fatal(err)
 	}
 
-	b.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
+	e.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
 
-	ob, err := b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	ob, err := e.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2185,11 +2185,11 @@ func TestWsDepthUpdate(t *testing.T) {
 	  ]
 	}}`)
 
-	if err = b.wsHandleData(update2); err != nil {
+	if err = e.wsHandleData(update2); err != nil {
 		t.Error(err)
 	}
 
-	ob, err = b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	ob, err = e.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2207,7 +2207,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	}
 
 	// reset order book sync status
-	b.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
+	e.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
 }
 
 func TestWsBalanceUpdate(t *testing.T) {
@@ -2460,9 +2460,9 @@ var websocketDepthUpdate = []byte(`{"E":1608001030784,"U":7145637266,"a":[["1945
 
 func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	b.setupOrderbookManager(t.Context())
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.setupOrderbookManager(t.Context())
 	p := currency.NewBTCUSDT()
 	var depth WebsocketDepthStream
 	err := json.Unmarshal(websocketDepthUpdate, &depth)
@@ -2470,23 +2470,23 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = b.obm.stageWsUpdate(&depth, p, asset.Spot)
+	err = e.obm.stageWsUpdate(&depth, p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = b.obm.fetchBookViaREST(p)
+	err = e.obm.fetchBookViaREST(p)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = b.obm.cleanup(p)
+	err = e.obm.cleanup(p)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// reset order book sync status
-	b.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
+	e.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
 }
 
 func TestUFuturesHistoricalTrades(t *testing.T) {
@@ -2550,8 +2550,8 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 
 func TestWsOrderExecutionReport(t *testing.T) {
 	t.Parallel()
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616627567900,"s":"BTCUSDT","c":"c4wyKsIhoAaittTYlIVLqk","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028400","p":"52789.10000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":5340845958,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":"BTC","T":1616627567900,"t":-1,"I":11388173160,"w":true,"m":false,"M":false,"O":1616627567900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1616627567900}}`)
 	// this is a buy BTC order, normally commission is charged in BTC, vice versa.
 	expectedResult := order.Detail{
@@ -2577,15 +2577,15 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Pair:                 currency.NewBTCUSDT(),
 	}
 	// empty the channel. otherwise mock_test will fail
-	for len(b.Websocket.DataHandler) > 0 {
-		<-b.Websocket.DataHandler
+	for len(e.Websocket.DataHandler) > 0 {
+		<-e.Websocket.DataHandler
 	}
 
-	err := b.wsHandleData(payload)
+	err := e.wsHandleData(payload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	res := <-b.Websocket.DataHandler
+	res := <-e.Websocket.DataHandler
 	switch r := res.(type) {
 	case *order.Detail:
 		if !reflect.DeepEqual(expectedResult, *r) {
@@ -2596,7 +2596,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 	}
 
 	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041556,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Mob","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028600","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783271,"l":"0.00028600","z":"0.00028600","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041555,"t":726946523,"I":11390206312,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"14.99693910","Y":"14.99693910","Q":"0.00000000","W":1616633041555}}`)
-	err = b.wsHandleData(payload)
+	err = e.wsHandleData(payload)
 	if err != nil {
 		t.Fatal(err)
 	}

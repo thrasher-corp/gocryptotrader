@@ -760,15 +760,15 @@ func TestWsOrderbook2(t *testing.T) {
 func TestWsOrderUpdate(t *testing.T) {
 	t.Parallel()
 
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", b.wsHandleData)
-	close(b.Websocket.DataHandler)
-	assert.Len(t, b.Websocket.DataHandler, 8, "Should see 8 orders")
-	for resp := range b.Websocket.DataHandler {
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", e.wsHandleData)
+	close(e.Websocket.DataHandler)
+	assert.Len(t, e.Websocket.DataHandler, 8, "Should see 8 orders")
+	for resp := range e.Websocket.DataHandler {
 		switch v := resp.(type) {
 		case *order.Detail:
-			switch len(b.Websocket.DataHandler) {
+			switch len(e.Websocket.DataHandler) {
 			case 7:
 				assert.Equal(t, "1658864794234880", v.OrderID, "OrderID")
 				assert.Equal(t, time.UnixMicro(1693831262313000), v.Date, "Date")
@@ -1043,18 +1043,18 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	b.Features.Subscriptions = subscription.List{}
-	testexch.SetupWs(t, b)
-	err = b.Subscribe(subs)
+	e.Features.Subscriptions = subscription.List{}
+	testexch.SetupWs(t, e)
+	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
 	for _, s := range subs {
 		assert.Equalf(t, subscription.SubscribedState, s.State(), "Subscription %s should be subscribed", s)
 	}
-	err = b.Unsubscribe(subs)
+	err = e.Unsubscribe(subs)
 	require.NoError(t, err, "UnSubscribe must not error")
 	for _, s := range subs {
 		assert.Equalf(t, subscription.UnsubscribedState, s.State(), "Subscription %s should be subscribed", s)

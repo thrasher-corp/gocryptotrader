@@ -3083,24 +3083,24 @@ func TestPushData(t *testing.T) {
 
 func TestWsTicker(t *testing.T) {
 	t.Parallel()
-	b := new(Exchange)
+	e := new(Exchange)
 	assetRouting := []asset.Item{
 		asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDTMarginedFutures,
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
 	}
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
 		defer slices.Delete(assetRouting, 0, 1)
-		return b.wsHandleData(t.Context(), assetRouting[0], r)
+		return e.wsHandleData(t.Context(), assetRouting[0], r)
 	})
-	close(b.Websocket.DataHandler)
+	close(e.Websocket.DataHandler)
 	expected := 8
-	require.Len(t, b.Websocket.DataHandler, expected, "Should see correct number of tickers")
-	for resp := range b.Websocket.DataHandler {
+	require.Len(t, e.Websocket.DataHandler, expected, "Should see correct number of tickers")
+	for resp := range e.Websocket.DataHandler {
 		switch v := resp.(type) {
 		case *ticker.Price:
-			assert.Equal(t, b.Name, v.ExchangeName, "ExchangeName should be correct")
-			switch expected - len(b.Websocket.DataHandler) {
+			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
+			switch expected - len(e.Websocket.DataHandler) {
 			case 1: // Spot
 				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
 				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
@@ -3577,19 +3577,19 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := b.generateSubscriptions()
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
-	for _, s := range b.Features.Subscriptions {
-		for _, a := range b.GetAssetTypes(true) {
+	for _, s := range e.Features.Subscriptions {
+		for _, a := range e.GetAssetTypes(true) {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
 			}
-			pairs, err := b.GetEnabledPairs(a)
+			pairs, err := e.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
 			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: ""})
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
@@ -3625,24 +3625,24 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	subs, err := ex.Features.Subscriptions.ExpandTemplates(b)
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	subs, err := ex.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	b.Features.Subscriptions = subscription.List{}
-	testexch.SetupWs(t, b)
-	err = b.Subscribe(subs)
+	e.Features.Subscriptions = subscription.List{}
+	testexch.SetupWs(t, e)
+	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
 }
 
 func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	b.Features.Subscriptions = subscription.List{}
+	e.Features.Subscriptions = subscription.List{}
 	success := true
 	mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
 		tb.Helper()
@@ -3658,12 +3658,12 @@ func TestAuthSubscribe(t *testing.T) {
 		require.NoError(tb, err, "Marshal must not error")
 		return w.WriteMessage(gws.TextMessage, msg)
 	}
-	b = testexch.MockWsInstance[Exchange](t, testws.CurryWsMockUpgrader(t, mock))
-	b.Websocket.AuthConn = b.Websocket.Conn
-	err = b.Subscribe(subs)
+	e = testexch.MockWsInstance[Exchange](t, testws.CurryWsMockUpgrader(t, mock))
+	e.Websocket.AuthConn = e.Websocket.Conn
+	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
 	success = false
-	err = b.Subscribe(subs)
+	err = e.Subscribe(subs)
 	assert.ErrorContains(t, err, "Mock Resp Error", "Subscribe should error containing the returned RetMsg")
 }
 

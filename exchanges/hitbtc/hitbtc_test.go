@@ -1022,17 +1022,17 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	require.True(t, h.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
-	subs, err := h.generateSubscriptions()
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
+	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
-	pairs, err := h.GetEnabledPairs(asset.Spot)
+	pairs, err := e.GetEnabledPairs(asset.Spot)
 	require.NoErrorf(t, err, "GetEnabledPairs must not error")
-	for _, s := range h.Features.Subscriptions {
+	for _, s := range e.Features.Subscriptions {
 		for _, p := range pairs.Format(currency.PairFormat{Uppercase: true}) {
 			s = s.Clone()
 			s.Pairs = currency.Pairs{p}

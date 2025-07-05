@@ -94,12 +94,12 @@ func TestSubToReq(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	b := new(Exchange)
-	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "KRW", "_"), currency.NewPairWithDelimiter("ETH", "KRW", "_")}
-	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, p, false))
-	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, p, true))
-	subs, err := b.generateSubscriptions()
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, p, false))
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, p, true))
+	subs, err := e.generateSubscriptions()
 	require.NoError(t, err)
 	exp := subscription.List{
 		{Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: p, QualifiedChannel: `{"type":"transaction","symbols":["BTC_KRW","ETH_KRW"]}`},

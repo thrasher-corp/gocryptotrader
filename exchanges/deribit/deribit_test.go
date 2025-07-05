@@ -729,17 +729,17 @@ func TestWSRetrieveLastTradesByInstrumentAndTime(t *testing.T) {
 func TestWSProcessTrades(t *testing.T) {
 	t.Parallel()
 
-	d := new(Exchange)
-	require.NoError(t, testexch.Setup(d), "Setup instance must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", d.wsHandleData)
-	close(d.Websocket.DataHandler)
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup instance must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
+	close(e.Websocket.DataHandler)
 
-	p, a, err := d.getAssetPairByInstrument("BTC-PERPETUAL")
+	p, a, err := e.getAssetPairByInstrument("BTC-PERPETUAL")
 	require.NoError(t, err, "getAssetPairByInstrument must not error")
 
 	exp := []trade.Data{
 		{
-			Exchange:     d.Name,
+			Exchange:     e.Name,
 			CurrencyPair: p,
 			Timestamp:    time.UnixMilli(1742627465811).UTC(),
 			Price:        84295.5,
@@ -749,7 +749,7 @@ func TestWSProcessTrades(t *testing.T) {
 			AssetType:    a,
 		},
 		{
-			Exchange:     d.Name,
+			Exchange:     e.Name,
 			CurrencyPair: p,
 			Timestamp:    time.UnixMilli(1742627361899).UTC(),
 			Price:        84319.0,
@@ -759,11 +759,11 @@ func TestWSProcessTrades(t *testing.T) {
 			AssetType:    a,
 		},
 	}
-	require.Len(t, d.Websocket.DataHandler, len(exp), "Must see the correct number of trades")
-	for resp := range d.Websocket.DataHandler {
+	require.Len(t, e.Websocket.DataHandler, len(exp), "Must see the correct number of trades")
+	for resp := range e.Websocket.DataHandler {
 		switch v := resp.(type) {
 		case trade.Data:
-			i := 1 - len(d.Websocket.DataHandler)
+			i := 1 - len(e.Websocket.DataHandler)
 			require.Equalf(t, exp[i], v, "Trade [%d] must be correct", i)
 		case error:
 			t.Error(v)
@@ -3344,19 +3344,19 @@ func setupWs() {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	d := new(Exchange)
-	require.NoError(t, testexch.Setup(d), "Test instance Setup must not error")
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	d.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := d.generateSubscriptions()
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := e.generateSubscriptions()
 	require.NoError(t, err)
 	exp := subscription.List{}
-	for _, s := range d.Features.Subscriptions {
-		for _, a := range d.GetAssetTypes(true) {
-			if !d.IsAssetWebsocketSupported(a) {
+	for _, s := range e.Features.Subscriptions {
+		for _, a := range e.GetAssetTypes(true) {
+			if !e.IsAssetWebsocketSupported(a) {
 				continue
 			}
-			pairs, err := d.GetEnabledPairs(a)
+			pairs, err := e.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a

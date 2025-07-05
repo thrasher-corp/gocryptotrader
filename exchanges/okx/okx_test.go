@@ -3913,15 +3913,15 @@ func TestGenerateOrderbookChecksum(t *testing.T) {
 
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
-	ok := new(Exchange)
-	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", ok.WsHandleData)
-	close(ok.Websocket.DataHandler)
-	require.Len(t, ok.Websocket.DataHandler, 4, "Should see 4 orders")
-	for resp := range ok.Websocket.DataHandler {
+	ex := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", ex.WsHandleData)
+	close(ex.Websocket.DataHandler)
+	require.Len(t, ex.Websocket.DataHandler, 4, "Should see 4 orders")
+	for resp := range ex.Websocket.DataHandler {
 		switch v := resp.(type) {
 		case *order.Detail:
-			switch len(ok.Websocket.DataHandler) {
+			switch len(ex.Websocket.DataHandler) {
 			case 3:
 				assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
 				assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
@@ -4016,20 +4016,19 @@ var pushDataMap = map[string]string{
 
 func TestPushData(t *testing.T) {
 	t.Parallel()
-	var err error
-	ok := new(Exchange)
-	require.NoError(t, testexch.Setup(ok), "Setup must not error")
+	ex := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 
 	for x := range pushDataMap {
 		if x == "Balance And Position" {
-			ok.API.AuthenticatedSupport = true
-			ok.API.AuthenticatedWebsocketSupport = true
-			ok.SetCredentials("test", "test", "test", "", "", "")
+			ex.API.AuthenticatedSupport = true
+			ex.API.AuthenticatedWebsocketSupport = true
+			ex.SetCredentials("test", "test", "test", "", "", "")
 		} else {
-			ok.API.AuthenticatedSupport = false
-			ok.API.AuthenticatedWebsocketSupport = false
+			ex.API.AuthenticatedSupport = false
+			ex.API.AuthenticatedWebsocketSupport = false
 		}
-		err = ok.WsHandleData(t.Context(), []byte(pushDataMap[x]))
+		err := ex.WsHandleData(t.Context(), []byte(pushDataMap[x]))
 		require.NoErrorf(t, err, "Okx %s error %s", x, err)
 	}
 }
@@ -4061,15 +4060,15 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestWSProcessTrades(t *testing.T) {
 	t.Parallel()
 
-	ok := new(Exchange)
-	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
-	assets, err := ok.getAssetsFromInstrumentID(mainPair.String())
+	ex := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	assets, err := ex.getAssetsFromInstrumentID(mainPair.String())
 	require.NoError(t, err, "getAssetsFromInstrumentID must not error")
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
 
 	for _, a := range assets {
-		err := ok.Websocket.AddSubscriptions(ok.Websocket.Conn, &subscription.Subscription{
+		err := ex.Websocket.AddSubscriptions(ex.Websocket.Conn, &subscription.Subscription{
 			Asset:   a,
 			Pairs:   currency.Pairs{p},
 			Channel: subscription.AllTradesChannel,
@@ -4077,7 +4076,7 @@ func TestWSProcessTrades(t *testing.T) {
 		})
 		require.NoError(t, err, "AddSubscriptions must not error")
 	}
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", ok.WsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", ex.WsHandleData)
 
 	exp := []trade.Data{
 		{
@@ -4097,12 +4096,12 @@ func TestWSProcessTrades(t *testing.T) {
 	}
 
 	total := len(assets) * len(exp)
-	require.Len(t, ok.Websocket.DataHandler, total, "Must see correct number of trades")
+	require.Len(t, ex.Websocket.DataHandler, total, "Must see correct number of trades")
 
 	trades := make(map[asset.Item][]trade.Data)
 
-	for len(ok.Websocket.DataHandler) > 0 {
-		resp := <-ok.Websocket.DataHandler
+	for len(ex.Websocket.DataHandler) > 0 {
+		resp := <-ex.Websocket.DataHandler
 		switch v := resp.(type) {
 		case trade.Data:
 			trades[v.AssetType] = append(trades[v.AssetType], v)
@@ -4121,7 +4120,7 @@ func TestWSProcessTrades(t *testing.T) {
 		for i, tradeData := range trades[assetType] {
 			expected := exp[i]
 			expected.AssetType = assetType
-			expected.Exchange = ok.Name
+			expected.Exchange = ex.Name
 			expected.CurrencyPair = p
 			require.Equalf(t, expected, tradeData, "Trade %d (TID: %s) for asset %v must match expected data", i, tradeData.TID, assetType)
 		}
@@ -4284,14 +4283,14 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
 
-	ok := new(Exchange)
-	require.NoError(t, testexch.Setup(ok), "Setup must not error")
+	ex := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 
-	_, err := ok.getAssetsFromInstrumentID("")
+	_, err := ex.getAssetsFromInstrumentID("")
 	assert.ErrorIs(t, err, errMissingInstrumentID)
 
 	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
-		assets, err2 := ok.getAssetsFromInstrumentID(ok.CurrencyPairs.Pairs[a].Enabled[0].String())
+		assets, err2 := ex.getAssetsFromInstrumentID(ex.CurrencyPairs.Pairs[a].Enabled[0].String())
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		switch a {
 		case asset.Spot, asset.Margin:
@@ -4303,13 +4302,13 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		assert.Containsf(t, assets, a, "Should contain asset: %s", a)
 	}
 
-	_, err = ok.getAssetsFromInstrumentID("test")
+	_, err = ex.getAssetsFromInstrumentID("test")
 	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
-	_, err = ok.getAssetsFromInstrumentID("test-test")
+	_, err = ex.getAssetsFromInstrumentID("test-test")
 	assert.ErrorIs(t, err, asset.ErrNotEnabled)
 
 	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
-		assets, err2 := ok.getAssetsFromInstrumentID(ok.CurrencyPairs.Pairs[a].Enabled[0].String())
+		assets, err2 := ex.getAssetsFromInstrumentID(ex.CurrencyPairs.Pairs[a].Enabled[0].String())
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		assert.Contains(t, assets, a)
 	}
@@ -6040,21 +6039,21 @@ func (ex *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (s
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	ok := new(Exchange)
-	require.NoError(t, testexch.Setup(ok), "Setup must not error")
-	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := ok.generateSubscriptions()
+	ex := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{
 		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
 	}
 	var pairs currency.Pairs
-	for _, s := range ok.Features.Subscriptions {
-		for _, a := range ok.GetAssetTypes(true) {
+	for _, s := range ex.Features.Subscriptions {
+		for _, a := range ex.GetAssetTypes(true) {
 			if a == asset.Spread || (s.Asset != asset.All && s.Asset != a) {
 				continue
 			}
-			pairs, err = ok.GetEnabledPairs(a)
+			pairs, err = ex.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
 			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: "-"})
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
@@ -6081,14 +6080,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 	testsubs.EqualLists(t, exp, subs)
 
-	ok.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
-	subs, err = ok.generateSubscriptions()
+	ex.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
+	subs, err = ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}, QualifiedChannel: `{"channel":"grid-positions","algoId":"42"}`}}
 	testsubs.EqualLists(t, exp, subs)
 
-	ok.Features.Subscriptions = subscription.List{{Channel: channelGridPositions}}
-	subs, err = ok.generateSubscriptions()
+	ex.Features.Subscriptions = subscription.List{{Channel: channelGridPositions}}
+	subs, err = ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp = subscription.List{{Channel: channelGridPositions, QualifiedChannel: `{"channel":"grid-positions"}`}}
 	testsubs.EqualLists(t, exp, subs)
