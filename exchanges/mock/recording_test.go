@@ -3,39 +3,36 @@ package mock
 import (
 	"net/http"
 	"net/url"
-	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestGetFilteredHeader(t *testing.T) {
+	items, err := GetExcludedItems()
+	require.NoError(t, err)
+	assert.NotNil(t, items)
+
 	resp := http.Response{}
 	resp.Request = &http.Request{}
 	resp.Request.Header = http.Header{}
 	resp.Request.Header.Set("Key", "RiskyVals")
-	fMap, err := GetFilteredHeader(&resp)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if fMap.Get("Key") != "" {
-		t.Error("risky vals where not replaced correctly")
-	}
+	fMap := GetFilteredHeader(&resp, items)
+	assert.Empty(t, fMap.Get("Key"), "risky vals where not replaced correctly")
 }
 
 func TestGetFilteredURLVals(t *testing.T) {
+	items, err := GetExcludedItems()
+	require.NoError(t, err)
+	assert.NotNil(t, items)
+
 	superSecretData := "Dr Seuss"
 	shadyVals := url.Values{}
 	shadyVals.Set("real_name", superSecretData)
-	cleanVals, err := GetFilteredURLVals(shadyVals)
-	if err != nil {
-		t.Error("GetFilteredURLVals error", err)
-	}
-
-	if strings.Contains(cleanVals, superSecretData) {
-		t.Error("Super secret data found")
-	}
+	cleanVals := GetFilteredURLVals(shadyVals, items)
+	assert.NotContains(t, superSecretData, cleanVals, "Super secret data found")
 }
 
 func TestCheckResponsePayload(t *testing.T) {
@@ -46,22 +43,19 @@ func TestCheckResponsePayload(t *testing.T) {
 	}
 
 	payload, err := json.Marshal(testbody)
-	if err != nil {
-		t.Fatal("json marshal error", err)
-	}
+	require.NoErrorf(t, err, "json marshal error %v", err)
 
-	data, err := CheckResponsePayload(payload)
-	if err != nil {
-		t.Error("CheckBody error", err)
-	}
+	items, err := GetExcludedItems()
+	require.NoError(t, err)
+	assert.NotNil(t, items)
+
+	data, err := CheckResponsePayload(payload, items)
+	assert.NoError(t, err)
 
 	expected := `{
  "stuff": "REAAAAHHHHH"
 }`
-
-	if string(data) != expected {
-		t.Error("unexpected returned data")
-	}
+	assert.Equal(t, expected, string(data))
 }
 
 type TestStructLevel0 struct {
@@ -124,87 +118,71 @@ func TestCheckJSON(t *testing.T) {
 		[]any{float64(1586994300000), "6624.74000000"},
 	}
 
-	testVal := TestStructLevel0{
-		StringVal:  "somestringstuff",
-		FloatVal:   3.14,
-		IntVal:     1337,
-		StructVal:  level1,
-		MixedSlice: sliceOfPrimitives,
+	testVal := []TestStructLevel0{
+		{
+			StringVal:  "somestringstuff",
+			FloatVal:   3.14,
+			IntVal:     1337,
+			StructVal:  level1,
+			MixedSlice: sliceOfPrimitives,
+		},
+		{
+			StringVal: "somestringstuff",
+			FloatVal:  3.14,
+		},
+		{
+			StringVal: "somestringstuff",
+			FloatVal:  3.14,
+			IntVal:    1337,
+		},
+		{
+			StringVal: "somestringstuff",
+			FloatVal:  3.14,
+			IntVal:    1337,
+		},
+		{
+			StringVal: "somestringstuff",
+			IntVal:    1337,
+		},
+		{},
+		{},
 	}
 
 	exclusionList, err := GetExcludedItems()
-	if err != nil {
-		t.Error("GetExcludedItems error", err)
-	}
+	assert.NoErrorf(t, err, "GetExcludedItems error: %v", err)
 
-	vals, err := CheckJSON(testVal, &exclusionList)
-	if err != nil {
-		t.Error("Check JSON error", err)
-	}
+	vals, err := CheckJSON(testVal, &exclusionList, 4)
+	assert.NoErrorf(t, err, "Check JSON error: %v", err)
 
 	payload, err := json.Marshal(vals)
-	if err != nil {
-		t.Fatal("json marshal error", err)
-	}
+	require.NoErrorf(t, err, "json marshal error: %v", err)
 
-	newStruct := TestStructLevel0{}
+	newStruct := []TestStructLevel0{}
+	println("Payload: ", string(payload))
 	err = json.Unmarshal(payload, &newStruct)
-	if err != nil {
-		t.Fatal("Umarshal error", err)
-	}
+	require.NoErrorf(t, err, "Umarshal error: %v", err)
+	assert.Len(t, newStruct, 4)
+	assert.Empty(t, newStruct[0].StructVal.BadVal, "Value not wiped correctly")
+	assert.Empty(t, newStruct[0].StructVal.BadVal2, "Value not wiped correctly")
+	assert.Empty(t, newStruct[0].StructVal.OtherData.BadVal, "Value not wiped correctly")
+	assert.Empty(t, newStruct[0].StructVal.OtherData.BadVal2, "Value not wiped correctly")
+	assert.Empty(t, newStruct[0].StructVal.OtherData.OtherData.BadVal, "Value not wiped correctly")
+	assert.Empty(t, newStruct[0].StructVal.OtherData.OtherData.BadVal2, "Value not wiped correctly")
 
-	if newStruct.StructVal.BadVal != "" {
-		t.Error("Value not wiped correctly")
-	}
-
-	if newStruct.StructVal.BadVal2 != 0 {
-		t.Error("Value not wiped correctly")
-	}
-
-	if newStruct.StructVal.OtherData.BadVal != 0 {
-		t.Error("Value not wiped correctly")
-	}
-
-	if newStruct.StructVal.OtherData.BadVal2 != 0 {
-		t.Error("Value not wiped correctly")
-	}
-
-	if newStruct.StructVal.OtherData.OtherData.BadVal != 0 {
-		t.Error("Value not wiped correctly")
-	}
-
-	if newStruct.StructVal.OtherData.OtherData.BadVal2 != "" {
-		t.Error("Value not wiped correctly")
-	}
-
-	vals, err = CheckJSON(sliceOfPrimitives, &exclusionList)
-	if err != nil {
-		t.Error("Check JSON error", err)
-	}
+	vals, err = CheckJSON(sliceOfPrimitives, &exclusionList, 0)
+	assert.NoError(t, err)
 
 	payload, err = json.Marshal(vals)
-	if err != nil {
-		t.Fatal("json marshal error", err)
-	}
+	require.NoError(t, err)
 
 	var newSlice []any
 	err = json.Unmarshal(payload, &newSlice)
-	if err != nil {
-		t.Fatal("Unmarshal error", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetExcludedItems(t *testing.T) {
 	exclusionList, err := GetExcludedItems()
-	if err != nil {
-		t.Error("GetExcludedItems error", err)
-	}
-
-	if len(exclusionList.Headers) == 0 {
-		t.Error("Header exclusion list not popoulated")
-	}
-
-	if len(exclusionList.Variables) == 0 {
-		t.Error("Variable exclusion list not popoulated")
-	}
+	require.NoErrorf(t, err, "GetExcludedItems error: %v", err)
+	assert.NotEmpty(t, exclusionList.Headers)
+	assert.NotEmpty(t, exclusionList.Variables)
 }
