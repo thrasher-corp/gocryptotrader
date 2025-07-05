@@ -76,3 +76,16 @@ func TestTime_MarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `"0001-01-01T00:00:00Z"`, string(data))
 }
+
+func TestDateTimeUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	var (
+		testTime   DateTime
+		jsonError  *json.UnmarshalTypeError
+		parseError *time.ParseError
+	)
+	require.ErrorAs(t, json.Unmarshal([]byte(`69`), &testTime), &jsonError)
+	require.ErrorAs(t, json.Unmarshal([]byte(`"2025"`), &testTime), &parseError)
+	require.NoError(t, json.Unmarshal([]byte(`"2018-08-20 19:20:46"`), &testTime))
+	assert.Equal(t, time.Date(2018, 8, 20, 19, 20, 46, 0, time.UTC), testTime.Time())
+}

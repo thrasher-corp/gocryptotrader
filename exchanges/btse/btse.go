@@ -617,10 +617,6 @@ func (b *BTSE) calculateTradingFee(ctx context.Context, feeBuilder *exchange.Fee
 	return feeTiers[0].TakerFee
 }
 
-func parseOrderTime(timeStr string) (time.Time, error) {
-	return time.Parse(time.DateTime, timeStr)
-}
-
 // HasLiquidity returns if a market pair has a bid or ask != 0
 func (m *MarketPair) HasLiquidity() bool {
 	return m.LowestAsk != 0 || m.HighestBid != 0

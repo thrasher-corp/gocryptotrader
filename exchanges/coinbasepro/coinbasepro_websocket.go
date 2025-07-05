@@ -10,7 +10,6 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -163,7 +162,7 @@ func (c *CoinbasePro) wsHandleData(ctx context.Context, respRaw []byte) error {
 		}
 		ts := wsOrder.Time
 		if wsOrder.Type == "activate" {
-			ts = convert.TimeFromUnixTimestampDecimal(wsOrder.Timestamp)
+			ts = wsOrder.Timestamp.Time()
 		}
 
 		creds, err := c.GetCredentials(ctx)
