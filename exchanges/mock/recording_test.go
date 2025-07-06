@@ -67,11 +67,11 @@ type TestStructLevel0 struct {
 }
 
 type TestStructLevel1 struct {
-	OkayVal   string           `json:"okayVal"`
-	OkayVal2  float64          `json:"okayVal2"`
-	BadVal    string           `json:"user"`
-	BadVal2   int              `json:"bsb"`
-	OtherData TestStructLevel2 `json:"otherVals"`
+	OkayVal   string             `json:"okayVal"`
+	OkayVal2  float64            `json:"okayVal2"`
+	BadVal    string             `json:"user"`
+	BadVal2   int                `json:"bsb"`
+	OtherData []TestStructLevel2 `json:"otherVals"`
 }
 
 type TestStructLevel2 struct {
@@ -97,12 +97,19 @@ func TestCheckJSON(t *testing.T) {
 		BadVal2:  "Super Secret Password",
 	}
 
-	level2 := TestStructLevel2{
-		OkayVal:   "stuff",
-		OkayVal2:  129219,
-		BadVal:    0.222,
-		BadVal2:   1337888888,
-		OtherData: level3,
+	level2 := []TestStructLevel2{
+		{
+			OkayVal:   "stuff",
+			OkayVal2:  129219,
+			BadVal:    0.222,
+			BadVal2:   1337888888,
+			OtherData: level3,
+		},
+		{},
+		{},
+		{},
+		{},
+		{},
 	}
 
 	level1 := TestStructLevel1{
@@ -146,28 +153,38 @@ func TestCheckJSON(t *testing.T) {
 		},
 		{},
 		{},
+		{},
 	}
 
 	exclusionList, err := GetExcludedItems()
 	assert.NoErrorf(t, err, "GetExcludedItems error: %v", err)
 
-	vals, err := CheckJSON(testVal, &exclusionList, 4)
+	data, err := json.Marshal(testVal)
+	require.NoError(t, err)
+	assert.NotNil(t, data)
+
+	var input any
+	err = json.Unmarshal(data, &input)
+	require.NoError(t, err)
+
+	vals, err := CheckJSON(input, &exclusionList, 4)
 	assert.NoErrorf(t, err, "Check JSON error: %v", err)
 
 	payload, err := json.Marshal(vals)
 	require.NoErrorf(t, err, "json marshal error: %v", err)
 
 	newStruct := []TestStructLevel0{}
-	println("Payload: ", string(payload))
 	err = json.Unmarshal(payload, &newStruct)
 	require.NoErrorf(t, err, "Umarshal error: %v", err)
+
 	assert.Len(t, newStruct, 4)
 	assert.Empty(t, newStruct[0].StructVal.BadVal, "Value not wiped correctly")
 	assert.Empty(t, newStruct[0].StructVal.BadVal2, "Value not wiped correctly")
-	assert.Empty(t, newStruct[0].StructVal.OtherData.BadVal, "Value not wiped correctly")
-	assert.Empty(t, newStruct[0].StructVal.OtherData.BadVal2, "Value not wiped correctly")
-	assert.Empty(t, newStruct[0].StructVal.OtherData.OtherData.BadVal, "Value not wiped correctly")
-	assert.Empty(t, newStruct[0].StructVal.OtherData.OtherData.BadVal2, "Value not wiped correctly")
+	assert.Empty(t, newStruct[0].StructVal.OtherData[0].BadVal, "Value not wiped correctly")
+	assert.Empty(t, newStruct[0].StructVal.OtherData[0].BadVal2, "Value not wiped correctly")
+	assert.Empty(t, newStruct[0].StructVal.OtherData[0].OtherData.BadVal, "Value not wiped correctly")
+	assert.Empty(t, newStruct[0].StructVal.OtherData[0].OtherData.BadVal2, "Value not wiped correctly")
+	assert.Len(t, newStruct[0].StructVal.OtherData, 4)
 
 	vals, err = CheckJSON(sliceOfPrimitives, &exclusionList, 0)
 	assert.NoError(t, err)

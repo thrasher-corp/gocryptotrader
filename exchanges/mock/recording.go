@@ -290,25 +290,32 @@ const (
 
 // CheckJSON recursively parses json data to retract keywords, quite intensive.
 func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
-	v := reflect.ValueOf(data)
-	if v.Kind() == reflect.Slice {
+	if value, ok := data.([]any); ok {
 		var sData []any
-		for i := 0; i < v.Len(); i++ {
-			v := v.Index(i).Interface()
-			switch v.(type) {
-			case map[string]any, []any:
-				checkedData, err := CheckJSON(v, excluded, 0)
+		for i := range value {
+			switch subvalues := value[i].(type) {
+			case []any:
+				if len(subvalues) > 0 {
+					if _, ok := subvalues[0].(map[string]any); ok && len(subvalues) > limit {
+						subvalues = subvalues[:limit]
+					}
+				}
+				checkedData, err := CheckJSON(subvalues, excluded, limit)
 				if err != nil {
 					return nil, err
 				}
-
+				sData = append(sData, checkedData)
+			case map[string]any:
+				checkedData, err := CheckJSON(subvalues, excluded, limit)
+				if err != nil {
+					return nil, err
+				}
 				sData = append(sData, checkedData)
 			default:
 				// Primitive value doesn't need exclusions applied, e.g. float64 or string
-				sData = append(sData, v)
+				sData = append(sData, subvalues)
 			}
 			if limit > 0 && len(sData) >= limit {
-				println("sData length: ", len(sData))
 				return sData, nil
 			}
 		}
@@ -355,9 +362,12 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 				context[key] = slice
 			} else {
 				if _, ok := slice[0].(map[string]any); ok {
+					if len(slice) > limit {
+						slice = slice[:limit]
+					}
 					var cleanSlice []any
 					for i := range slice {
-						cleanMap, sErr := CheckJSON(slice[i], excluded, 0)
+						cleanMap, sErr := CheckJSON(slice[i], excluded, limit)
 						if sErr != nil {
 							return nil, sErr
 						}
@@ -372,7 +382,7 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 		case Bool, Invalid: // Skip these bad boys for now
 		default:
 			// Recursively check map data
-			contextValue, err := CheckJSON(val, excluded, 0)
+			contextValue, err := CheckJSON(val, excluded, limit)
 			if err != nil {
 				return nil, err
 			}
