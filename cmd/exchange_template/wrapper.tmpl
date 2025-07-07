@@ -156,7 +156,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return err
 		}
 
-		// If websocket is supported, please fill out the following
+		// If websocket is not supported, remove these websocket sections
 		if err := e.Websocket.Setup(
 			&websocket.ManagerSetup{
 				ExchangeConfig:  exch,
@@ -207,7 +207,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
+	// TODO: Replace this example code with exchange specific implementation
 	/*
 		tick, err := ti.GetTickers()
 		if err != nil {
@@ -242,7 +242,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
+	// TODO: Replace this example code with exchange specific implementation
 	/*
 		tick, err := e.GetTickers()
 		if err != nil {
@@ -351,15 +351,15 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
-	// When an order has been submitted you can use this helpful constructor to
-	// return. Please add any additional order details to the
-	// order.SubmitResponse if you think they are applicable.
-	// resp, err := s.DeriveSubmitResponse( /*newOrderID*/)
-	// if err != nil {
-	// 	return nil, nil
-	// }
-	// resp.Date = exampleTime // e.g. If this is supplied by the exchanges API.
-	// return resp, nil
+	/* TODO: When an order has been submitted you can use this helpful constructor to
+	   return. Please add any additional order details to the
+	   order.SubmitResponse if you think they are applicable.
+	   resp, err := s.DeriveSubmitResponse( /*newOrderID*/)
+	   if err != nil {
+	   	return nil, nil
+	   }
+	   resp.Date = exampleTime // e.g. If this is supplied by the exchanges API.
+	*/ return resp, nil
 	return nil, common.ErrNotYetImplemented
 }
 
