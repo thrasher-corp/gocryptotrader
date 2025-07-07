@@ -132,6 +132,30 @@ func (b *Bithumb) GetOrderBook(ctx context.Context, symbol string) (*Orderbook, 
 		return nil, errors.New(response.Message)
 	}
 
+	filteredBids := make([]struct {
+		Quantity float64 `json:"quantity,string"`
+		Price    float64 `json:"price,string"`
+	}, 0, len(response.Data.Bids))
+
+	for _, bid := range response.Data.Bids {
+		if bid.Quantity > 0 {
+			filteredBids = append(filteredBids, bid)
+		}
+	}
+	response.Data.Bids = filteredBids
+
+	filteredAsks := make([]struct {
+		Quantity float64 `json:"quantity,string"`
+		Price    float64 `json:"price,string"`
+	}, 0, len(response.Data.Asks))
+
+	for _, ask := range response.Data.Asks {
+		if ask.Quantity > 0 {
+			filteredAsks = append(filteredAsks, ask)
+		}
+	}
+	response.Data.Asks = filteredAsks
+
 	return &response, nil
 }
 
