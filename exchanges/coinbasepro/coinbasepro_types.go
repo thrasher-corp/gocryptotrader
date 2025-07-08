@@ -196,12 +196,13 @@ type Product struct {
 	AliasTo                   []currency.Pair          `json:"alias_to"`
 	BaseDisplaySymbol         string                   `json:"base_display_symbol"`
 	QuoteDisplaySymbol        string                   `json:"quote_display_symbol"`
-	ViewOnly                  bool                     `json:"view_only"`
-	PriceIncrement            types.Number             `json:"price_increment"`
-	DisplayName               string                   `json:"display_name"`
-	ProductVenue              string                   `json:"product_venue"`
-	ApproximateQuote24HVolume types.Number             `json:"approximate_quote_24h_volume"`
-	NewAt                     time.Time                `json:"new_at"`
+	// Typically shows whether an FCM product is available for trading. If the request is authenticated, and the "get_tradability_status" bool is set to true, and the product is SPOT, and you're using our GetAllProducts function, this will instead reflect whether the product is available for trading.
+	ViewOnly                  bool         `json:"view_only"`
+	PriceIncrement            types.Number `json:"price_increment"`
+	DisplayName               string       `json:"display_name"`
+	ProductVenue              string       `json:"product_venue"`
+	ApproximateQuote24HVolume types.Number `json:"approximate_quote_24h_volume"`
+	NewAt                     time.Time    `json:"new_at"`
 	// The following field only appears for future products
 	FutureProductDetails FutureProductDetails `json:"future_product_details"`
 }
@@ -993,8 +994,8 @@ type WorldplayParams struct {
 	ShopperSessionID  string `json:"shopper_session_id"`
 }
 
-// FullAddress is a sub-struct, used in CardInfo and UKAccountHolder
-type FullAddress struct {
+// MostlyFullAddress is a sub-struct, used in CardInfo and UKAccountHolder
+type MostlyFullAddress struct {
 	Address1   string `json:"address1"`
 	Address2   string `json:"address2"`
 	City       string `json:"city"`
@@ -1017,24 +1018,24 @@ type SourceID struct {
 
 // CardInfo is a sub-struct, used in AccountStruct
 type CardInfo struct {
-	FirstDataToken              ValueWithStoreID `json:"first_data_token"`
-	ExpiryDate                  MonthYear        `json:"expiry_date"`
-	PostalCode                  string           `json:"postal_code"`
-	Merchant                    MerchantID       `json:"merchant"`
-	VaultToken                  VaultToken       `json:"vault_token"`
-	WorldpayParams              WorldplayParams  `json:"worldpay_params"`
-	PreviousSchemeTransactionID string           `json:"previous_scheme_tx_id"`
-	CustomerName                string           `json:"customer_name"`
-	Address                     FullAddress      `json:"address"`
-	PhoneNumber                 string           `json:"phone_number"`
-	UserID                      string           `json:"user_id"`
-	CustomerFirstName           string           `json:"customer_first_name"`
-	CustomerLastName            string           `json:"customer_last_name"`
-	SixDigitBin                 string           `json:"six_digit_bin"`
-	CustomerDateOfBirth         FullDate         `json:"customer_dob"`
-	Scheme                      string           `json:"scheme"`
-	EightDigitBin               string           `json:"eight_digit_bin"`
-	CheckoutToken               SourceID         `json:"checkout_token"`
+	FirstDataToken              ValueWithStoreID  `json:"first_data_token"`
+	ExpiryDate                  MonthYear         `json:"expiry_date"`
+	PostalCode                  string            `json:"postal_code"`
+	Merchant                    MerchantID        `json:"merchant"`
+	VaultToken                  VaultToken        `json:"vault_token"`
+	WorldpayParams              WorldplayParams   `json:"worldpay_params"`
+	PreviousSchemeTransactionID string            `json:"previous_scheme_tx_id"`
+	CustomerName                string            `json:"customer_name"`
+	Address                     MostlyFullAddress `json:"address"`
+	PhoneNumber                 string            `json:"phone_number"`
+	UserID                      string            `json:"user_id"`
+	CustomerFirstName           string            `json:"customer_first_name"`
+	CustomerLastName            string            `json:"customer_last_name"`
+	SixDigitBin                 string            `json:"six_digit_bin"`
+	CustomerDateOfBirth         FullDate          `json:"customer_dob"`
+	Scheme                      string            `json:"scheme"`
+	EightDigitBin               string            `json:"eight_digit_bin"`
+	CheckoutToken               SourceID          `json:"checkout_token"`
 }
 
 // ZenginAccountHolder is a sub-struct, used in Zengin
@@ -1058,11 +1059,11 @@ type Zengin struct {
 
 // UKAccountHolder is a sub-struct, used in UKAccount
 type UKAccountHolder struct {
-	LegalName     string      `json:"legal_name"`
-	BBAN          string      `json:"bban"`
-	SortCode      string      `json:"sort_code"`
-	AccountNumber string      `json:"account_number"`
-	Address       FullAddress `json:"address"`
+	LegalName     string            `json:"legal_name"`
+	BBAN          string            `json:"bban"`
+	SortCode      string            `json:"sort_code"`
+	AccountNumber string            `json:"account_number"`
+	Address       MostlyFullAddress `json:"address"`
 }
 
 // Name is a sub-struct, used in UKAccount and AccountStruct
@@ -1199,7 +1200,7 @@ type ApplePay struct {
 	UserID         string               `json:"user_id"`
 	PostalCode     string               `json:"postal_code"`
 	CustomerName   string               `json:"customer_name"`
-	Address        FullAddress          `json:"address"`
+	Address        MostlyFullAddress    `json:"address"`
 	SixDigitBin    string               `json:"six_digit_bin"`
 	LastFour       string               `json:"last_four"`
 	IssuingCountry string               `json:"issuing_country"`
@@ -1249,7 +1250,7 @@ type GooglePay struct {
 	UserID         string               `json:"user_id"`
 	PostalCode     string               `json:"postal_code"`
 	CustomerName   string               `json:"customer_name"`
-	Address        FullAddress          `json:"address"`
+	Address        MostlyFullAddress    `json:"address"`
 	SixDigitBin    string               `json:"six_digit_bin"`
 	LastFour       string               `json:"last_four"`
 	IssuingCountry string               `json:"issuing_country"`
@@ -1275,13 +1276,13 @@ type PhoneNumber struct {
 
 // DenebUPI is a sub-struct, used in AccountStruct
 type DenebUPI struct {
-	VPAID             string      `json:"vpa_id"`
-	CustomerFirstName string      `json:"customer_first_name"`
-	CustomerLastName  string      `json:"customer_last_name"`
-	Email             string      `json:"email"`
-	PhoneNumber       PhoneNumber `json:"phone_number"`
-	PAN               string      `json:"pan"`
-	Address           FullAddress `json:"address"`
+	VPAID             string            `json:"vpa_id"`
+	CustomerFirstName string            `json:"customer_first_name"`
+	CustomerLastName  string            `json:"customer_last_name"`
+	Email             string            `json:"email"`
+	PhoneNumber       PhoneNumber       `json:"phone_number"`
+	PAN               string            `json:"pan"`
+	Address           MostlyFullAddress `json:"address"`
 }
 
 // BankAccount is a sub-struct, used in AccountStruct
@@ -1300,14 +1301,14 @@ type NetworkWithAddress struct {
 
 // DenebIMPS is a sub-struct, used in AccountStruct
 type DenebIMPS struct {
-	IFSCCode          string      `json:"ifsc_code"`
-	AccountNumber     string      `json:"account_number"`
-	CustomerFirstName string      `json:"customer_first_name"`
-	CustomerLastName  string      `json:"customer_last_name"`
-	Email             string      `json:"email"`
-	PhoneNumber       PhoneNumber `json:"phone_number"`
-	PAN               string      `json:"pan"`
-	Address           FullAddress `json:"address"`
+	IFSCCode          string            `json:"ifsc_code"`
+	AccountNumber     string            `json:"account_number"`
+	CustomerFirstName string            `json:"customer_first_name"`
+	CustomerLastName  string            `json:"customer_last_name"`
+	Email             string            `json:"email"`
+	PhoneNumber       PhoneNumber       `json:"phone_number"`
+	PAN               string            `json:"pan"`
+	Address           MostlyFullAddress `json:"address"`
 }
 
 // Movements is a sub-struct, used in Legs
@@ -1354,14 +1355,14 @@ type NameAndIBAN struct {
 
 // SEPAV2 is a sub-struct, used in AccountStruct
 type SEPAV2 struct {
-	Account             NameAndIBAN `json:"account"`
-	CustomerFirstName   string      `json:"customer_first_name"`
-	CustomerLastName    string      `json:"customer_last_name"`
-	Email               string      `json:"email"`
-	PhoneNumber         PhoneNumber `json:"phone_number"`
-	CustomerCountry     string      `json:"customer_country"`
-	Address             FullAddress `json:"address"`
-	SupportsOpenBanking bool        `json:"supports_open_banking"`
+	Account             NameAndIBAN       `json:"account"`
+	CustomerFirstName   string            `json:"customer_first_name"`
+	CustomerLastName    string            `json:"customer_last_name"`
+	Email               string            `json:"email"`
+	PhoneNumber         PhoneNumber       `json:"phone_number"`
+	CustomerCountry     string            `json:"customer_country"`
+	Address             MostlyFullAddress `json:"address"`
+	SupportsOpenBanking bool              `json:"supports_open_banking"`
 }
 
 // ZeptoAccount is a sub-struct, used in Zepto
@@ -1819,14 +1820,15 @@ type IDResource struct {
 
 // PaginationResp holds pagination information, used in ListNotificationsResponse, GetAllWalletsResponse, GetAllAddrResponse, ManyTransactionsResp, and ManyDeposWithdrResp
 type PaginationResp struct {
-	EndingBefore         string `json:"ending_before"`
-	StartingAfter        string `json:"starting_after"`
-	PreviousEndingBefore string `json:"previous_ending_before"`
-	NextStartingAfter    string `json:"next_starting_after"`
-	Limit                uint8  `json:"limit"`
-	Order                string `json:"order"`
-	PreviousURI          string `json:"previous_uri"`
-	NextURI              string `json:"next_uri"`
+	EndingBefore  string `json:"ending_before"`
+	StartingAfter string `json:"starting_after"`
+	// PreviousEndingBefore string `json:"previous_ending_before"`
+	NextStartingAfter string `json:"next_starting_after"` // This also seems to be missing
+	Limit             uint8  `json:"limit"`
+	Order             string `json:"order"`
+	// PreviousURI          string `json:"previous_uri"` // These two are probably still here
+	// NextURI              string `json:"next_uri"` // These two are probably still here
+	Page uint8 `json:"page"`
 }
 
 // PaginationInp holds information needed to engage in pagination with Sign in With Coinbase. Used in ListNotifications, GetAllWallets, GetAllAddresses, GetAddressTransactions, GetAllTransactions, GetAllFiatTransfers, ListPaymentMethods, and preparePagination
@@ -2040,28 +2042,18 @@ type InlineWarning struct {
 	Tooltip TitleSubtitle `json:"tooltip"`
 }
 
-// AddressData holds address information, used in GetAllAddrResponse
+// AddressData holds address information, used in GetAllAddrResponse, and returned by CreateAddress and GetAddressByID
 type AddressData struct {
-	ID               string           `json:"id"`
-	Address          string           `json:"address"`
-	AddressInfo      AddressInfo      `json:"address_info"`
-	Name             string           `json:"name"`
-	CreatedAt        time.Time        `json:"created_at"`
-	UpdatedAt        time.Time        `json:"updated_at"`
-	Network          string           `json:"network"`
-	URIScheme        string           `json:"uri_scheme"`
-	Resource         string           `json:"resource"`
-	ResourcePath     string           `json:"resource_path"`
-	Warnings         []Warnings       `json:"warnings"`
-	QRCodeImageURL   string           `json:"qr_code_image_url"`
-	AddressLabel     string           `json:"address_label"`
-	DefaultReceive   bool             `json:"default_receive"`
-	DestinationTag   string           `json:"destination_tag"`
-	DepositURI       string           `json:"deposit_uri"`
-	CallbackURL      string           `json:"callback_url"`
-	ShareAddressCopy ShareAddressCopy `json:"share_address_copy"`
-	ReceiveSubtitle  string           `json:"receive_subtitle"`
-	InlineWarning    InlineWarning    `json:"inline_warning"`
+	ID             string        `json:"id"`
+	Address        string        `json:"address"`
+	Currency       currency.Code `json:"currency"`
+	Name           string        `json:"name"`
+	CreatedAt      time.Time     `json:"created_at"`
+	UpdatedAt      time.Time     `json:"updated_at"`
+	Network        string        `json:"network"`
+	Resource       string        `json:"resource"`
+	ResourcePath   string        `json:"resource_path"`
+	DestinationTag string        `json:"destination_tag"`
 }
 
 // GetAllAddrResponse holds information on many addresses, returned by GetAllAddresses
@@ -2086,7 +2078,28 @@ type Network struct {
 	Name   string `json:"name"`
 }
 
-// TransactionData is a sub-type that holds information on a transaction. Used in ManyTransactionsResp
+// FullAddress is a sub-struct, used in TravelRule
+type FullAddress struct {
+	Address1   string `json:"address1"`
+	Address2   string `json:"address2"`
+	Address3   string `json:"address3"`
+	City       string `json:"city"`
+	State      string `json:"state"`
+	Country    string `json:"country"`
+	PostalCode string `json:"postal_code"`
+}
+
+// TravelRule contains information that may need to be provided to comply with local regulations. Used as a parameter for SendMoney
+type TravelRule struct {
+	BeneficiaryWalletType           string      `json:"beneficiary_wallet_type"`
+	IsSelf                          string      `json:"is_self"`
+	BeneficiaryName                 string      `json:"beneficiary_name"`
+	BeneficiaryAddress              FullAddress `json:"beneficiary_address"`
+	BeneficiaryFinancialInstitution string      `json:"beneficiary_financial_institution"`
+	TransferPurpose                 string      `json:"transfer_purpose"`
+}
+
+// TransactionData is a sub-type that holds information on a transaction. Used in ManyTransactionsResp and returned by SendMoney
 type TransactionData struct {
 	ID           string             `json:"id"`
 	Type         string             `json:"type"`

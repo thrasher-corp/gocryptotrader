@@ -875,33 +875,6 @@ func (c *CoinbasePro) GetProductBookV3(ctx context.Context, productID currency.P
 	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
-// GetAllProducts returns information on all currency pairs that are available for trading
-func (c *CoinbasePro) GetAllProducts(ctx context.Context, limit, offset int32, productType, contractExpiryType, expiringContractStatus string, productIDs []string, authenticated bool) (*AllProducts, error) {
-	vals := url.Values{}
-	vals.Set("limit", strconv.FormatInt(int64(limit), 10))
-	if offset != 0 {
-		vals.Set("offset", strconv.FormatInt(int64(offset), 10))
-	}
-	if productType != "" {
-		vals.Set("product_type", productType)
-	}
-	if contractExpiryType != "" {
-		vals.Set("contract_expiry_type", contractExpiryType)
-	}
-	if expiringContractStatus != "" {
-		vals.Set("expiring_contract_status", expiringContractStatus)
-	}
-	for x := range productIDs {
-		vals.Add("product_ids", productIDs[x])
-	}
-	var resp AllProducts
-	if authenticated {
-		return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProducts, vals, nil, true, &resp)
-	}
-	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts
-	return &resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
-}
-
 // GetHistoricKlines returns historic candles for a product. Candles are returned in grouped buckets based on requested granularity. Requests that return more than 300 data points are rejected
 func (c *CoinbasePro) GetHistoricKlines(ctx context.Context, productID, granularity string, startDate, endDate time.Time, authenticated bool) ([]Klines, error) {
 	if productID == "" {
@@ -925,47 +898,80 @@ func (c *CoinbasePro) GetHistoricKlines(ctx context.Context, productID, granular
 	return resp.Candles, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
+// GetAllProducts returns information on all currency pairs that are available for trading
+// The getTradabilityStatus parameter is only used for authenticated requests, and will return the tradability status of SPOT products in their view_only field
+// The getAllProducts parameter overrides the set productType; with it set to true, it will return both SPOT and Futures products
+func (c *CoinbasePro) GetAllProducts(ctx context.Context, limit, offset int32, productType, contractExpiryType, expiringContractStatus, productsSortOrder string, productIDs []string, getTradabilityStatus, getAllProducts, authenticated bool) (*AllProducts, error) {
+	vals := url.Values{}
+	vals.Set("limit", strconv.FormatInt(int64(limit), 10))
+	if offset != 0 {
+		vals.Set("offset", strconv.FormatInt(int64(offset), 10))
+	}
+	if productType != "" {
+		vals.Set("product_type", productType)
+	}
+	if contractExpiryType != "" {
+		vals.Set("contract_expiry_type", contractExpiryType)
+	}
+	if expiringContractStatus != "" {
+		vals.Set("expiring_contract_status", expiringContractStatus)
+	}
+	if productsSortOrder != "" {
+		vals.Set("products_sort_order", productsSortOrder)
+	}
+	for x := range productIDs {
+		vals.Add("product_ids", productIDs[x])
+	}
+	vals.Set("get_tradability_status", strconv.FormatBool(getTradabilityStatus))
+	vals.Set("get_all_products", strconv.FormatBool(getAllProducts))
+	var resp AllProducts
+	if authenticated {
+		return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProducts, vals, nil, true, &resp)
+	}
+	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts
+	return &resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
+}
+
 // GetV3Time returns the current server time, calling V3 of the API
 func (c *CoinbasePro) GetV3Time(ctx context.Context) (*ServerTimeV3, error) {
 	var resp *ServerTimeV3
 	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV3+coinbaseTime, nil, &resp)
 }
 
-// GetCurrentUser returns information about the user associated with the API key
-func (c *CoinbasePro) GetCurrentUser(ctx context.Context) (*UserResponse, error) {
+// SendMoney can send funds to an email or cryptocurrency address (if "traType" is set to "send"), or to another one of the user's wallets or vaults (if "traType" is set to "transfer"). Coinbase may delay or cancel the transaction at their discretion. The "idem" parameter is an optional string for idempotency; a token with a max length of 100 characters, if a previous transaction included the same token as a parameter, the new transaction won't be processed, and information on the previous transaction will be returned instead
+func (c *CoinbasePro) SendMoney(ctx context.Context, traType, walletID, to, cur, description, idem, destinationTag, network string, amount float64, skipNotifications bool, travelRuleData TravelRule) (*TransactionData, error) {
+	if traType == "" {
+		return nil, errTransactionTypeEmpty
+	}
+	if walletID == "" {
+		return nil, errWalletIDEmpty
+	}
+	if to == "" {
+		return nil, errToEmpty
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountIsInvalid
+	}
+	if cur == "" {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseTransactions
+	req := map[string]any{
+		"type":               traType,
+		"to":                 to,
+		"amount":             strconv.FormatFloat(amount, 'f', -1, 64),
+		"currency":           cur,
+		"description":        description,
+		"skip_notifications": skipNotifications,
+		"idem":               idem,
+		"destination_tag":    destinationTag,
+		"network":            network,
+		"travel_rule_data":   travelRuleData,
+	}
 	resp := struct {
-		Data UserResponse `json:"data"`
+		Data TransactionData `json:"data"`
 	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseUser, nil, nil, false, &resp)
-}
-
-// GetAllWallets lists all accounts associated with the API key
-func (c *CoinbasePro) GetAllWallets(ctx context.Context, pag PaginationInp) (*GetAllWalletsResponse, error) {
-	var resp *GetAllWalletsResponse
-	var params Params
-	params.Values = url.Values{}
-	if err := params.encodePagination(pag); err != nil {
-		return nil, err
-	}
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseAccounts, params.Values, nil, false, &resp)
-}
-
-// GetWalletByID returns information about a single wallet. In lieu of a wallet ID, a currency can be provided to get the primary account for that currency
-func (c *CoinbasePro) GetWalletByID(ctx context.Context, walletID, currency string) (*WalletData, error) {
-	if (walletID == "" && currency == "") || (walletID != "" && currency != "") {
-		return nil, errCurrWalletConflict
-	}
-	var path string
-	if walletID != "" {
-		path = coinbaseV2 + coinbaseAccounts + "/" + walletID
-	}
-	if currency != "" {
-		path = coinbaseV2 + coinbaseAccounts + "/" + currency
-	}
-	resp := struct {
-		Data WalletData `json:"data"`
-	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
+	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, false, &resp)
 }
 
 // CreateAddress generates a crypto address for depositing to the specified wallet
@@ -1011,6 +1017,43 @@ func (c *CoinbasePro) GetAddressByID(ctx context.Context, walletID, addressID st
 	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
 }
 
+// GetCurrentUser returns information about the user associated with the API key
+func (c *CoinbasePro) GetCurrentUser(ctx context.Context) (*UserResponse, error) {
+	resp := struct {
+		Data UserResponse `json:"data"`
+	}{}
+	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseUser, nil, nil, false, &resp)
+}
+
+// GetAllWallets lists all accounts associated with the API key
+func (c *CoinbasePro) GetAllWallets(ctx context.Context, pag PaginationInp) (*GetAllWalletsResponse, error) {
+	var resp *GetAllWalletsResponse
+	var params Params
+	params.Values = url.Values{}
+	if err := params.encodePagination(pag); err != nil {
+		return nil, err
+	}
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseAccounts, params.Values, nil, false, &resp)
+}
+
+// GetWalletByID returns information about a single wallet. In lieu of a wallet ID, a currency can be provided to get the primary account for that currency
+func (c *CoinbasePro) GetWalletByID(ctx context.Context, walletID, currency string) (*WalletData, error) {
+	if (walletID == "" && currency == "") || (walletID != "" && currency != "") {
+		return nil, errCurrWalletConflict
+	}
+	var path string
+	if walletID != "" {
+		path = coinbaseV2 + coinbaseAccounts + "/" + walletID
+	}
+	if currency != "" {
+		path = coinbaseV2 + coinbaseAccounts + "/" + currency
+	}
+	resp := struct {
+		Data WalletData `json:"data"`
+	}{}
+	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
+}
+
 // GetAddressTransactions returns a list of transactions associated with the specified address
 func (c *CoinbasePro) GetAddressTransactions(ctx context.Context, walletID, addressID string, pag PaginationInp) (*ManyTransactionsResp, error) {
 	if walletID == "" {
@@ -1027,42 +1070,6 @@ func (c *CoinbasePro) GetAddressTransactions(ctx context.Context, walletID, addr
 	}
 	var resp *ManyTransactionsResp
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
-}
-
-// SendMoney can send funds to an email or cryptocurrency address (if "traType" is set to "send"), or to another one of the user's wallets or vaults (if "traType" is set to "transfer"). Coinbase may delay or cancel the transaction at their discretion. The "idem" parameter is an optional string for idempotency; a token with a max length of 100 characters, if a previous transaction included the same token as a parameter, the new transaction won't be processed, and information on the previous transaction will be returned instead
-func (c *CoinbasePro) SendMoney(ctx context.Context, traType, walletID, to, cur, description, idem, financialInstitutionWebsite, destinationTag string, amount float64, skipNotifications, toFinancialInstitution bool) (*TransactionData, error) {
-	if traType == "" {
-		return nil, errTransactionTypeEmpty
-	}
-	if walletID == "" {
-		return nil, errWalletIDEmpty
-	}
-	if to == "" {
-		return nil, errToEmpty
-	}
-	if amount <= 0 {
-		return nil, order.ErrAmountIsInvalid
-	}
-	if cur == "" {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseTransactions
-	req := map[string]any{
-		"type":                          traType,
-		"to":                            to,
-		"amount":                        strconv.FormatFloat(amount, 'f', -1, 64),
-		"currency":                      cur,
-		"description":                   description,
-		"skip_notifications":            skipNotifications,
-		"idem":                          idem,
-		"to_financial_institution":      toFinancialInstitution,
-		"financial_institution_website": financialInstitutionWebsite,
-		"destination_tag":               destinationTag,
-	}
-	resp := struct {
-		Data TransactionData `json:"data"`
-	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, false, &resp)
 }
 
 // GetAllTransactions returns a list of transactions associated with the specified wallet

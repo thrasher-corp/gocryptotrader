@@ -180,14 +180,14 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 	}
 	aString := FormatAssetOutbound(a)
 	if verified {
-		products, err = c.GetAllProducts(ctx, 0, 0, aString, "", "", nil, verified)
+		products, err = c.GetAllProducts(ctx, 0, 0, aString, "", "", "", nil, true, true, verified)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, warnAuth, err)
 			verified = false
 		}
 	}
 	if !verified {
-		products, err = c.GetAllProducts(ctx, 0, 0, aString, "", "", nil, verified)
+		products, err = c.GetAllProducts(ctx, 0, 0, aString, "", "", "", nil, false, true, verified)
 		if err != nil {
 			return nil, err
 		}
@@ -709,7 +709,27 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawR
 	if withdrawRequest.WalletID == "" {
 		return nil, errWalletIDEmpty
 	}
-	resp, err := c.SendMoney(ctx, "send", withdrawRequest.WalletID, withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(), withdrawRequest.Description, withdrawRequest.IdempotencyToken, "", withdrawRequest.Crypto.AddressTag, withdrawRequest.Amount, false, false)
+	travel := TravelRule{
+		BeneficiaryWalletType: withdrawRequest.Travel.BeneficiaryWalletType,
+		BeneficiaryName:       withdrawRequest.Travel.BeneficiaryName,
+		BeneficiaryAddress: FullAddress{
+			Address1:   withdrawRequest.Travel.BeneficiaryAddress.Address1,
+			Address2:   withdrawRequest.Travel.BeneficiaryAddress.Address2,
+			Address3:   withdrawRequest.Travel.BeneficiaryAddress.Address3,
+			City:       withdrawRequest.Travel.BeneficiaryAddress.City,
+			State:      withdrawRequest.Travel.BeneficiaryAddress.State,
+			Country:    withdrawRequest.Travel.BeneficiaryAddress.Country,
+			PostalCode: withdrawRequest.Travel.BeneficiaryAddress.PostalCode,
+		},
+		BeneficiaryFinancialInstitution: withdrawRequest.Travel.BeneficiaryFinancialInstitution,
+		TransferPurpose:                 withdrawRequest.Travel.TransferPurpose,
+	}
+	if withdrawRequest.Travel.IsSelf {
+		travel.IsSelf = "IS_SELF_TRUE"
+	} else {
+		travel.IsSelf = "IS_SELF_FALSE"
+	}
+	resp, err := c.SendMoney(ctx, "send", withdrawRequest.WalletID, withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(), withdrawRequest.Description, withdrawRequest.IdempotencyToken, withdrawRequest.Crypto.AddressTag, "", withdrawRequest.Amount, false, travel)
 	if err != nil {
 		return nil, err
 	}
@@ -962,14 +982,14 @@ func (c *CoinbasePro) UpdateOrderExecutionLimits(ctx context.Context, a asset.It
 	}
 	aString := FormatAssetOutbound(a)
 	if verified {
-		data, err = c.GetAllProducts(ctx, 0, 0, aString, "", "", nil, true)
+		data, err = c.GetAllProducts(ctx, 0, 0, aString, "", "", "", nil, true, true, true)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, warnAuth, err)
 			verified = false
 		}
 	}
 	if !verified {
-		data, err = c.GetAllProducts(ctx, 0, 0, aString, "", "", nil, false)
+		data, err = c.GetAllProducts(ctx, 0, 0, aString, "", "", "", nil, false, true, false)
 		if err != nil {
 			return err
 		}
@@ -1006,14 +1026,14 @@ func (c *CoinbasePro) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp cu
 
 // fetchFutures is a helper function for GetLatestFundingRates and GetFuturesContractDetails that calls the List Products endpoint twice, to get both expiring futures and perpetual futures
 func (c *CoinbasePro) fetchFutures(ctx context.Context, verified bool) (*AllProducts, int, error) {
-	products, err := c.GetAllProducts(ctx, 0, 0, "FUTURE", "", "", nil, verified)
+	products, err := c.GetAllProducts(ctx, 0, 0, "FUTURE", "", "", "", nil, false, false, verified)
 	if err != nil {
 		if verified {
 			return c.fetchFutures(ctx, false)
 		}
 		return nil, 0, err
 	}
-	products2, err := c.GetAllProducts(ctx, 0, 0, "FUTURE", "PERPETUAL", "", nil, verified)
+	products2, err := c.GetAllProducts(ctx, 0, 0, "FUTURE", "PERPETUAL", "", "", nil, false, false, verified)
 	if err != nil {
 		if verified {
 			return c.fetchFutures(ctx, false)

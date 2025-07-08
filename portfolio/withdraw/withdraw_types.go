@@ -81,6 +81,27 @@ type FiatRequest struct {
 	WireCurrency                  string
 }
 
+// TravelAddress holds the address information required for travel rule compliance
+type TravelAddress struct {
+	Address1   string
+	Address2   string
+	Address3   string
+	City       string
+	State      string
+	Country    string
+	PostalCode string
+}
+
+// TravelRule stores the information that may need to be provided to comply with local regulations
+type TravelRule struct {
+	BeneficiaryWalletType           string
+	IsSelf                          bool
+	BeneficiaryName                 string
+	BeneficiaryAddress              TravelAddress
+	BeneficiaryFinancialInstitution string
+	TransferPurpose                 string
+}
+
 // Request holds complete details for request
 type Request struct {
 	Exchange    string        `json:"exchange"`
@@ -104,6 +125,8 @@ type Request struct {
 
 	Crypto CryptoRequest `json:"crypto"`
 	Fiat   FiatRequest   `json:"fiat"`
+
+	Travel TravelRule `json:"travel_rule"`
 
 	IdempotencyToken string
 }

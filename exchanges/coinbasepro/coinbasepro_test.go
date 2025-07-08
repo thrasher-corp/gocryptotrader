@@ -681,20 +681,7 @@ func TestGetProductBookV3(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
-func TestGetAllProducts(t *testing.T) {
-	t.Parallel()
-	testPairs := []string{testPairFiat.String(), "ETH-USD"}
-	resp, err := c.GetAllProducts(t.Context(), 30000, 1, "SPOT", "PERPETUAL", "STATUS_ALL", testPairs, false)
-	if assert.NoError(t, err) {
-		assert.NotEmpty(t, resp, errExpectedNonEmpty)
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err = c.GetAllProducts(t.Context(), 0, 1, "SPOT", "PERPETUAL", "STATUS_ALL", nil, true)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestGetHistoricRates(t *testing.T) {
+func TestGetHistoricKlines(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetHistoricKlines(t.Context(), "", granUnknown, time.Time{}, time.Time{}, false)
 	assert.ErrorIs(t, err, errProductIDEmpty)
@@ -710,43 +697,62 @@ func TestGetHistoricRates(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
+func TestGetAllProducts(t *testing.T) {
+	t.Parallel()
+	testPairs := []string{testPairFiat.String(), "ETH-USD"}
+	resp, err := c.GetAllProducts(t.Context(), 30000, 1, "SPOT", "PERPETUAL", "STATUS_ALL", "PRODUCTS_SORT_ORDER_UNDEFINED", testPairs, true, true, false)
+	if assert.NoError(t, err) {
+		assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err = c.GetAllProducts(t.Context(), 0, 1, "SPOT", "PERPETUAL", "STATUS_ALL", "", nil, true, true, true)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
 func TestGetV3Time(t *testing.T) {
 	t.Parallel()
 	testGetNoArgs(t, c.GetV3Time)
 }
 
-func TestGetCurrentUser(t *testing.T) {
+func TestSendMoney(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	// This intermittently fails with the message "Unauthorized", for no clear reason
-	testGetNoArgs(t, c.GetCurrentUser)
-}
-
-func TestGetAllWallets(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	pagIn := PaginationInp{Limit: 2}
-	resp, err := c.GetAllWallets(t.Context(), pagIn)
+	_, err := c.SendMoney(t.Context(), "", "", "", "", "", "", "", "", 0, false, TravelRule{})
+	assert.ErrorIs(t, err, errTransactionTypeEmpty)
+	_, err = c.SendMoney(t.Context(), "123", "", "", "", "", "", "", "", 0, false, TravelRule{})
+	assert.ErrorIs(t, err, errWalletIDEmpty)
+	_, err = c.SendMoney(t.Context(), "123", "123", "", "", "", "", "", "", 0, false, TravelRule{})
+	assert.ErrorIs(t, err, errToEmpty)
+	_, err = c.SendMoney(t.Context(), "123", "123", "123", "", "", "", "", "", 0, false, TravelRule{})
+	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
+	_, err = c.SendMoney(t.Context(), "123", "123", "123", "", "", "", "", "", 1, false, TravelRule{})
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	wID, err := c.GetAllWallets(t.Context(), PaginationInp{})
 	assert.NoError(t, err)
-	require.NotEmpty(t, resp, errExpectedNonEmpty)
-	if resp.Pagination.NextStartingAfter == "" {
+	if wID == nil || len(wID.Data) < 2 {
 		t.Skip(skipInsufficientWallets)
 	}
-	pagIn.StartingAfter = resp.Pagination.NextStartingAfter
-	resp, err = c.GetAllWallets(t.Context(), pagIn)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestGetWalletByID(t *testing.T) {
-	t.Parallel()
-	_, err := c.GetWalletByID(t.Context(), "", "")
-	assert.ErrorIs(t, err, errCurrWalletConflict)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetWalletByID(t.Context(), "", testCrypto.String())
-	require.NoError(t, err)
-	require.NotEmpty(t, resp, errExpectedNonEmpty)
-	resp, err = c.GetWalletByID(t.Context(), resp.ID, "")
+	var (
+		fromID string
+		toID   string
+	)
+	for i := range wID.Data {
+		if wID.Data[i].Currency.Name == testCrypto.String() {
+			if wID.Data[i].Balance.Amount > testAmount*100 {
+				fromID = wID.Data[i].ID
+			} else {
+				toID = wID.Data[i].ID
+			}
+		}
+		if fromID != "" && toID != "" {
+			break
+		}
+	}
+	if fromID == "" || toID == "" {
+		t.Skip(skipInsufficientFundsOrWallets)
+	}
+	resp, err := c.SendMoney(t.Context(), "transfer", wID.Data[0].ID, wID.Data[1].ID, testCrypto.String(), "GCT Test", "123", "", "", testAmount, false, TravelRule{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -796,6 +802,42 @@ func TestGetAddressByID(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
+func TestGetCurrentUser(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	// This intermittently fails with the message "Unauthorized", for no clear reason
+	testGetNoArgs(t, c.GetCurrentUser)
+}
+
+func TestGetAllWallets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	pagIn := PaginationInp{Limit: 2}
+	resp, err := c.GetAllWallets(t.Context(), pagIn)
+	assert.NoError(t, err)
+	require.NotEmpty(t, resp, errExpectedNonEmpty)
+	if resp.Pagination.NextStartingAfter == "" {
+		t.Skip(skipInsufficientWallets)
+	}
+	pagIn.StartingAfter = resp.Pagination.NextStartingAfter
+	resp, err = c.GetAllWallets(t.Context(), pagIn)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetWalletByID(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetWalletByID(t.Context(), "", "")
+	assert.ErrorIs(t, err, errCurrWalletConflict)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err := c.GetWalletByID(t.Context(), "", testCrypto.String())
+	require.NoError(t, err)
+	require.NotEmpty(t, resp, errExpectedNonEmpty)
+	resp, err = c.GetWalletByID(t.Context(), resp.ID, "")
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
 func TestGetAddressTransactions(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetAddressTransactions(t.Context(), "", "", PaginationInp{})
@@ -811,48 +853,6 @@ func TestGetAddressTransactions(t *testing.T) {
 	require.NotEmpty(t, addID, errExpectedNonEmpty)
 	_, err = c.GetAddressTransactions(t.Context(), wID.ID, addID.Data[0].ID, PaginationInp{})
 	assert.NoError(t, err)
-}
-
-func TestSendMoney(t *testing.T) {
-	t.Parallel()
-	_, err := c.SendMoney(t.Context(), "", "", "", "", "", "", "", "", 0, false, false)
-	assert.ErrorIs(t, err, errTransactionTypeEmpty)
-	_, err = c.SendMoney(t.Context(), "123", "", "", "", "", "", "", "", 0, false, false)
-	assert.ErrorIs(t, err, errWalletIDEmpty)
-	_, err = c.SendMoney(t.Context(), "123", "123", "", "", "", "", "", "", 0, false, false)
-	assert.ErrorIs(t, err, errToEmpty)
-	_, err = c.SendMoney(t.Context(), "123", "123", "123", "", "", "", "", "", 0, false, false)
-	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
-	_, err = c.SendMoney(t.Context(), "123", "123", "123", "", "", "", "", "", 1, false, false)
-	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	wID, err := c.GetAllWallets(t.Context(), PaginationInp{})
-	assert.NoError(t, err)
-	if wID == nil || len(wID.Data) < 2 {
-		t.Skip(skipInsufficientWallets)
-	}
-	var (
-		fromID string
-		toID   string
-	)
-	for i := range wID.Data {
-		if wID.Data[i].Currency.Name == testCrypto.String() {
-			if wID.Data[i].Balance.Amount > testAmount*100 {
-				fromID = wID.Data[i].ID
-			} else {
-				toID = wID.Data[i].ID
-			}
-		}
-		if fromID != "" && toID != "" {
-			break
-		}
-	}
-	if fromID == "" || toID == "" {
-		t.Skip(skipInsufficientFundsOrWallets)
-	}
-	resp, err := c.SendMoney(t.Context(), "transfer", wID.Data[0].ID, wID.Data[1].ID, testCrypto.String(), "GCT Test", "123", "", "", testAmount, false, false)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetAllTransactions(t *testing.T) {
