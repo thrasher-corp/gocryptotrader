@@ -236,63 +236,63 @@ var subscriptionNames = map[string]string{
 }
 
 // WsConnect initiates a websocket connection
-func (ex *Exchange) WsConnect() error {
+func (e *Exchange) WsConnect() error {
 	ctx := context.TODO()
-	if !ex.Websocket.IsEnabled() || !ex.IsEnabled() {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	err := ex.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	ex.Websocket.Wg.Add(1)
-	go ex.wsReadData(ctx, ex.Websocket.Conn)
-	if ex.Verbose {
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(ctx, e.Websocket.Conn)
+	if e.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
-			ex.Websocket.GetWebsocketURL())
+			e.Websocket.GetWebsocketURL())
 	}
-	ex.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
-	if ex.Websocket.CanUseAuthenticatedEndpoints() {
-		err = ex.WsAuth(ctx)
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		err = e.WsAuth(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
-			ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	return nil
 }
 
 // WsAuth will connect to Okx's Private websocket connection and Authenticate with a login payload.
-func (ex *Exchange) WsAuth(ctx context.Context) error {
-	if !ex.AreCredentialsValid(ctx) || !ex.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", ex.Name)
+func (e *Exchange) WsAuth(ctx context.Context) error {
+	if !e.AreCredentialsValid(ctx) || !e.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
 	}
-	creds, err := ex.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
 	var dialer gws.Dialer
-	err = ex.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
+	err = e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	ex.Websocket.Wg.Add(1)
-	go ex.wsReadData(ctx, ex.Websocket.AuthConn)
-	ex.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(ctx, e.Websocket.AuthConn)
+	e.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
 
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	ts := time.Now().Unix()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
@@ -312,38 +312,38 @@ func (ex *Exchange) WsAuth(ctx context.Context) error {
 		},
 	}
 
-	return ex.SendAuthenticatedWebsocketRequest(ctx, request.Unset, "login-response", operationLogin, args, nil)
+	return e.SendAuthenticatedWebsocketRequest(ctx, request.Unset, "login-response", operationLogin, args, nil)
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
-func (ex *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
-	defer ex.Websocket.Wg.Done()
+func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
+	defer e.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		if err := ex.WsHandleData(ctx, resp.Raw); err != nil {
-			ex.Websocket.DataHandler <- err
+		if err := e.WsHandleData(ctx, resp.Raw); err != nil {
+			e.Websocket.DataHandler <- err
 		}
 	}
 }
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
-func (ex *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
+func (e *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
 	ctx := context.TODO()
-	return ex.handleSubscription(ctx, operationSubscribe, channelsToSubscribe)
+	return e.handleSubscription(ctx, operationSubscribe, channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ex *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
+func (e *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	ctx := context.TODO()
-	return ex.handleSubscription(ctx, operationUnsubscribe, channelsToUnsubscribe)
+	return e.handleSubscription(ctx, operationUnsubscribe, channelsToUnsubscribe)
 }
 
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ex *Exchange) handleSubscription(ctx context.Context, operation string, subs subscription.List) error {
+func (e *Exchange) handleSubscription(ctx context.Context, operation string, subs subscription.List) error {
 	reqs := WSSubscriptionInformationList{Operation: operation}
 	authRequests := WSSubscriptionInformationList{Operation: operation}
 	var channels subscription.List
@@ -367,14 +367,14 @@ func (ex *Exchange) handleSubscription(ctx context.Context, operation string, su
 			if len(authChunk) > maxConnByteLen {
 				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
 				i--
-				err = ex.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, authRequests)
+				err = e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, authRequests)
 				if err != nil {
 					return err
 				}
 				if operation == operationUnsubscribe {
-					err = ex.Websocket.RemoveSubscriptions(ex.Websocket.AuthConn, channels...)
+					err = e.Websocket.RemoveSubscriptions(e.Websocket.AuthConn, channels...)
 				} else {
-					err = ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.AuthConn, channels...)
+					err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.AuthConn, channels...)
 				}
 				if err != nil {
 					return err
@@ -391,14 +391,14 @@ func (ex *Exchange) handleSubscription(ctx context.Context, operation string, su
 			}
 			if len(chunk) > maxConnByteLen {
 				i--
-				err = ex.Websocket.Conn.SendJSONMessage(ctx, request.Unset, reqs)
+				err = e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, reqs)
 				if err != nil {
 					return err
 				}
 				if operation == operationUnsubscribe {
-					err = ex.Websocket.RemoveSubscriptions(ex.Websocket.Conn, channels...)
+					err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, channels...)
 				} else {
-					err = ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.Conn, channels...)
+					err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, channels...)
 				}
 				if err != nil {
 					return err
@@ -411,28 +411,28 @@ func (ex *Exchange) handleSubscription(ctx context.Context, operation string, su
 	}
 
 	if len(reqs.Arguments) > 0 {
-		if err := ex.Websocket.Conn.SendJSONMessage(ctx, request.Unset, reqs); err != nil {
+		if err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, reqs); err != nil {
 			return err
 		}
 	}
 
-	if len(authRequests.Arguments) > 0 && ex.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := ex.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, authRequests); err != nil {
+	if len(authRequests.Arguments) > 0 && e.Websocket.CanUseAuthenticatedEndpoints() {
+		if err := e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, authRequests); err != nil {
 			return err
 		}
 	}
 
 	channels = append(channels, authChannels...)
 	if operation == operationUnsubscribe {
-		return ex.Websocket.RemoveSubscriptions(ex.Websocket.Conn, channels...)
+		return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, channels...)
 	}
-	return ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.Conn, channels...)
+	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, channels...)
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (ex *Exchange) WsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) WsHandleData(ctx context.Context, respRaw []byte) error {
 	if id, _ := jsonparser.GetString(respRaw, "id"); id != "" {
-		return ex.Websocket.Match.RequireMatchWithData(id, respRaw)
+		return e.Websocket.Match.RequireMatchWithData(id, respRaw)
 	}
 
 	var resp wsIncomingData
@@ -444,7 +444,7 @@ func (ex *Exchange) WsHandleData(ctx context.Context, respRaw []byte) error {
 		return fmt.Errorf("%w unmarshalling %v", err, respRaw)
 	}
 	if resp.Event == operationLogin || (resp.Event == "error" && slices.Contains(authConnErrorCodes, resp.StatusCode)) {
-		return ex.Websocket.Match.RequireMatchWithData("login-response", respRaw)
+		return e.Websocket.Match.RequireMatchWithData("login-response", respRaw)
 	}
 	if len(resp.Data) == 0 {
 		return nil
@@ -457,7 +457,7 @@ func (ex *Exchange) WsHandleData(ctx context.Context, respRaw []byte) error {
 		channelCandle3Mutc, channelCandle1Mutc, channelCandle1Wutc, channelCandle1Dutc,
 		channelCandle2Dutc, channelCandle3Dutc, channelCandle5Dutc, channelCandle12Hutc,
 		channelCandle6Hutc:
-		return ex.wsProcessCandles(respRaw)
+		return e.wsProcessCandles(respRaw)
 	case channelIndexCandle1Y, channelIndexCandle6M, channelIndexCandle3M, channelIndexCandle1M,
 		channelIndexCandle1W, channelIndexCandle1D, channelIndexCandle2D, channelIndexCandle3D,
 		channelIndexCandle5D, channelIndexCandle12H, channelIndexCandle6H, channelIndexCandle4H,
@@ -466,100 +466,100 @@ func (ex *Exchange) WsHandleData(ctx context.Context, respRaw []byte) error {
 		channelIndexCandle3Mutc, channelIndexCandle1Mutc, channelIndexCandle1Wutc,
 		channelIndexCandle1Dutc, channelIndexCandle2Dutc, channelIndexCandle3Dutc, channelIndexCandle5Dutc,
 		channelIndexCandle12Hutc, channelIndexCandle6Hutc:
-		return ex.wsProcessIndexCandles(respRaw)
+		return e.wsProcessIndexCandles(respRaw)
 	case channelTickers:
-		return ex.wsProcessTickers(respRaw)
+		return e.wsProcessTickers(respRaw)
 	case channelIndexTickers:
 		var response WsIndexTicker
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelStatus:
 		var response WsSystemStatusResponse
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelPublicStrucBlockTrades:
 		var response WsPublicTradesResponse
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelPublicBlockTrades:
-		return ex.wsProcessBlockPublicTrades(respRaw)
+		return e.wsProcessBlockPublicTrades(respRaw)
 	case channelBlockTickers:
 		var response WsBlockTicker
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelAccountGreeks:
 		var response WsGreeks
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelAccount:
 		var response WsAccountChannelPushData
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelPositions,
 		channelLiquidationWarning:
 		var response WsPositionResponse
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelBalanceAndPosition:
-		return ex.wsProcessBalanceAndPosition(ctx, respRaw)
+		return e.wsProcessBalanceAndPosition(ctx, respRaw)
 	case channelOrders:
-		return ex.wsProcessOrders(respRaw)
+		return e.wsProcessOrders(respRaw)
 	case channelAlgoOrders:
 		var response WsAlgoOrder
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelAlgoAdvance:
 		var response WsAdvancedAlgoOrder
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelRFQs:
 		var response WsRFQ
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelQuotes:
 		var response WsQuote
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelStructureBlockTrades:
 		var response WsStructureBlocTrade
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelSpotGridOrder:
 		var response WsSpotGridAlgoOrder
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelGridOrdersContract:
 		var response WsContractGridAlgoOrder
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelGridPositions:
 		var response WsContractGridAlgoOrder
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelGridSubOrders:
 		var response WsGridSubOrderData
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelInstruments:
 		var response WSInstrumentResponse
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelOpenInterest:
 		var response WSOpenInterestResponse
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelTrades, channelAllTrades:
-		return ex.wsProcessTrades(respRaw)
+		return e.wsProcessTrades(respRaw)
 	case channelEstimatedPrice:
 		var response WsDeliveryEstimatedPrice
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelMarkPrice, channelPriceLimit:
 		var response WsMarkPrice
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelOrderBooks5:
-		return ex.wsProcessOrderbook5(respRaw)
+		return e.wsProcessOrderbook5(respRaw)
 	case okxSpreadOrderbookLevel1,
 		okxSpreadOrderbook:
-		return ex.wsProcessSpreadOrderbook(respRaw)
+		return e.wsProcessSpreadOrderbook(respRaw)
 	case okxSpreadPublicTrades:
-		return ex.wsProcessPublicSpreadTrades(respRaw)
+		return e.wsProcessPublicSpreadTrades(respRaw)
 	case okxSpreadPublicTicker:
-		return ex.wsProcessPublicSpreadTicker(respRaw)
+		return e.wsProcessPublicSpreadTicker(respRaw)
 	case channelOrderBooks,
 		channelOrderBooks50TBT,
 		channelBBOTBT,
 		channelOrderBooksTBT:
-		return ex.wsProcessOrderBooks(respRaw)
+		return e.wsProcessOrderBooks(respRaw)
 	case channelOptionTrades:
-		return ex.wsProcessOptionTrades(respRaw)
+		return e.wsProcessOptionTrades(respRaw)
 	case channelOptSummary:
 		var response WsOptionSummary
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelFundingRate:
 		var response WsFundingRate
-		return ex.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelMarkPriceCandle1Y, channelMarkPriceCandle6M, channelMarkPriceCandle3M, channelMarkPriceCandle1M,
 		channelMarkPriceCandle1W, channelMarkPriceCandle1D, channelMarkPriceCandle2D, channelMarkPriceCandle3D,
 		channelMarkPriceCandle5D, channelMarkPriceCandle12H, channelMarkPriceCandle6H, channelMarkPriceCandle4H,
@@ -568,49 +568,49 @@ func (ex *Exchange) WsHandleData(ctx context.Context, respRaw []byte) error {
 		channelMarkPriceCandle3Mutc, channelMarkPriceCandle1Mutc, channelMarkPriceCandle1Wutc, channelMarkPriceCandle1Dutc,
 		channelMarkPriceCandle2Dutc, channelMarkPriceCandle3Dutc, channelMarkPriceCandle5Dutc, channelMarkPriceCandle12Hutc,
 		channelMarkPriceCandle6Hutc:
-		return ex.wsHandleMarkPriceCandles(respRaw)
+		return e.wsHandleMarkPriceCandles(respRaw)
 	case okxSpreadOrders:
-		return ex.wsProcessSpreadOrders(respRaw)
+		return e.wsProcessSpreadOrders(respRaw)
 	case okxSpreadTrades:
-		return ex.wsProcessSpreadTrades(respRaw)
+		return e.wsProcessSpreadTrades(respRaw)
 	case okxWithdrawalInfo:
 		resp := &struct {
 			Arguments SubscriptionInfo `json:"arg"`
 			Data      []WsDepositInfo  `json:"data"`
 		}{}
-		return ex.wsProcessPushData(respRaw, resp)
+		return e.wsProcessPushData(respRaw, resp)
 	case okxDepositInfo:
 		resp := &struct {
 			Arguments SubscriptionInfo  `json:"arg"`
 			Data      []WsWithdrawlInfo `json:"data"`
 		}{}
-		return ex.wsProcessPushData(respRaw, resp)
+		return e.wsProcessPushData(respRaw, resp)
 	case channelRecurringBuy:
 		resp := &struct {
 			Arguments SubscriptionInfo    `json:"arg"`
 			Data      []RecurringBuyOrder `json:"data"`
 		}{}
-		return ex.wsProcessPushData(respRaw, resp)
+		return e.wsProcessPushData(respRaw, resp)
 	case liquidationOrders:
 		var resp *LiquidationOrder
-		return ex.wsProcessPushData(respRaw, &resp)
+		return e.wsProcessPushData(respRaw, &resp)
 	case adlWarning:
 		var resp ADLWarning
-		return ex.wsProcessPushData(respRaw, &resp)
+		return e.wsProcessPushData(respRaw, &resp)
 	case economicCalendar:
 		var resp EconomicCalendarResponse
-		return ex.wsProcessPushData(respRaw, &resp)
+		return e.wsProcessPushData(respRaw, &resp)
 	case copyTrading:
 		var resp CopyTradingNotification
-		return ex.wsProcessPushData(respRaw, &resp)
+		return e.wsProcessPushData(respRaw, &resp)
 	default:
-		ex.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: ex.Name + websocket.UnhandledMessage + string(respRaw)}
+		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 }
 
 // wsProcessSpreadTrades handle and process spread order trades
-func (ex *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
+func (e *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
 	if respRaw == nil {
 		return common.ErrNilPointer
 	}
@@ -622,7 +622,7 @@ func (ex *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
 	if len(resp.Data) == 0 {
 		return kline.ErrNoTimeSeriesDataToConvert
 	}
-	pair, err := ex.GetPairFromInstrumentID(resp.Argument.SpreadID)
+	pair, err := e.GetPairFromInstrumentID(resp.Argument.SpreadID)
 	if err != nil {
 		return err
 	}
@@ -636,7 +636,7 @@ func (ex *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
 			Amount:       resp.Data[x].FillSize.Float64(),
 			AssetType:    asset.Spread,
 			CurrencyPair: pair,
-			Exchange:     ex.Name,
+			Exchange:     e.Name,
 			Side:         oSide,
 			Timestamp:    resp.Data[x].Timestamp.Time(),
 			TID:          resp.Data[x].TradeID,
@@ -649,7 +649,7 @@ func (ex *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
 // wsProcessSpreadOrders retrieve order information from the sprd-order Websocket channel.
 // Data will not be pushed when first subscribed.
 // Data will only be pushed when triggered by events such as placing/canceling order.
-func (ex *Exchange) wsProcessSpreadOrders(respRaw []byte) error {
+func (e *Exchange) wsProcessSpreadOrders(respRaw []byte) error {
 	if respRaw == nil {
 		return common.ErrNilPointer
 	}
@@ -664,7 +664,7 @@ func (ex *Exchange) wsProcessSpreadOrders(respRaw []byte) error {
 	if len(resp.Data) == 0 {
 		return kline.ErrNoTimeSeriesDataToConvert
 	}
-	pair, err := ex.GetPairFromInstrumentID(resp.Argument.SpreadID)
+	pair, err := e.GetPairFromInstrumentID(resp.Argument.SpreadID)
 	if err != nil {
 		return err
 	}
@@ -689,7 +689,7 @@ func (ex *Exchange) wsProcessSpreadOrders(respRaw []byte) error {
 			AverageExecutedPrice: resp.Data[x].AveragePrice.Float64(),
 			ClientOrderID:        resp.Data[x].ClientOrderID,
 			Date:                 resp.Data[x].CreationTime.Time(),
-			Exchange:             ex.Name,
+			Exchange:             e.Name,
 			ExecutedAmount:       resp.Data[x].FillSize.Float64(),
 			OrderID:              resp.Data[x].OrderID,
 			Pair:                 pair,
@@ -702,12 +702,12 @@ func (ex *Exchange) wsProcessSpreadOrders(respRaw []byte) error {
 			LastUpdated:          resp.Data[x].UpdateTime.Time(),
 		}
 	}
-	ex.Websocket.DataHandler <- orderDetails
+	e.Websocket.DataHandler <- orderDetails
 	return nil
 }
 
 // wsProcessIndexCandles processes index candlestick data
-func (ex *Exchange) wsProcessIndexCandles(respRaw []byte) error {
+func (e *Exchange) wsProcessIndexCandles(respRaw []byte) error {
 	if respRaw == nil {
 		return common.ErrNilPointer
 	}
@@ -731,7 +731,7 @@ func (ex *Exchange) wsProcessIndexCandles(respRaw []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ex.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -741,7 +741,7 @@ func (ex *Exchange) wsProcessIndexCandles(respRaw []byte) error {
 		candlesData := response.Data[i]
 		myCandle := websocket.KlineData{
 			Pair:       response.Argument.InstrumentID,
-			Exchange:   ex.Name,
+			Exchange:   e.Name,
 			Timestamp:  time.UnixMilli(candlesData[0].Int64()),
 			Interval:   candleInterval,
 			OpenPrice:  candlesData[1].Float64(),
@@ -751,14 +751,14 @@ func (ex *Exchange) wsProcessIndexCandles(respRaw []byte) error {
 		}
 		for i := range assets {
 			myCandle.AssetType = assets[i]
-			ex.Websocket.DataHandler <- myCandle
+			e.Websocket.DataHandler <- myCandle
 		}
 	}
 	return nil
 }
 
 // wsProcessPublicSpreadTicker process spread order ticker push data.
-func (ex *Exchange) wsProcessPublicSpreadTicker(respRaw []byte) error {
+func (e *Exchange) wsProcessPublicSpreadTicker(respRaw []byte) error {
 	var resp WsSpreadPushData
 	data := []WsSpreadPublicTicker{}
 	resp.Data = &data
@@ -777,19 +777,19 @@ func (ex *Exchange) wsProcessPublicSpreadTicker(respRaw []byte) error {
 			Bid:          data[x].BidPrice.Float64(),
 			Ask:          data[x].AskPrice.Float64(),
 			Pair:         pair,
-			ExchangeName: ex.Name,
+			ExchangeName: e.Name,
 			AssetType:    asset.Spread,
 			LastUpdated:  data[x].Timestamp.Time(),
 		}
 	}
-	ex.Websocket.DataHandler <- tickers
+	e.Websocket.DataHandler <- tickers
 	return nil
 }
 
 // wsProcessPublicSpreadTrades retrieve the recent trades data from sprd-public-trades.
 // Data will be pushed whenever there is a trade.
 // Every update contains only one trade.
-func (ex *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
+func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 	var resp WsSpreadPushData
 	data := []WsSpreadPublicTrade{}
 	resp.Data = data
@@ -809,7 +809,7 @@ func (ex *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 		}
 		trades[x] = trade.Data{
 			TID:          data[x].TradeID,
-			Exchange:     ex.Name,
+			Exchange:     e.Name,
 			CurrencyPair: pair,
 			AssetType:    asset.Spread,
 			Side:         oSide,
@@ -822,13 +822,13 @@ func (ex *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 }
 
 // wsProcessSpreadOrderbook process spread orderbook data.
-func (ex *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
+func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 	var resp WsSpreadOrderbook
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
-	pair, err := ex.GetPairFromInstrumentID(resp.Arg.SpreadID)
+	pair, err := e.GetPairFromInstrumentID(resp.Arg.SpreadID)
 	if err != nil {
 		return err
 	}
@@ -837,14 +837,14 @@ func (ex *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 		return err
 	}
 	for x := range extractedResponse.Data {
-		err = ex.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asset:             asset.Spread,
 			Asks:              extractedResponse.Data[x].Asks,
 			Bids:              extractedResponse.Data[x].Bids,
 			LastUpdated:       resp.Data[x].Timestamp.Time(),
 			Pair:              pair,
-			Exchange:          ex.Name,
-			ValidateOrderbook: ex.ValidateOrderbook,
+			Exchange:          e.Name,
+			ValidateOrderbook: e.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -854,7 +854,7 @@ func (ex *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 }
 
 // wsProcessOrderbook5 processes orderbook data
-func (ex *Exchange) wsProcessOrderbook5(data []byte) error {
+func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 	var resp WsOrderbook5
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -862,10 +862,10 @@ func (ex *Exchange) wsProcessOrderbook5(data []byte) error {
 	}
 
 	if len(resp.Data) != 1 {
-		return fmt.Errorf("%s - no data returned", ex.Name)
+		return fmt.Errorf("%s - no data returned", e.Name)
 	}
 
-	assets, err := ex.getAssetsFromInstrumentID(resp.Argument.InstrumentID.String())
+	assets, err := e.getAssetsFromInstrumentID(resp.Argument.InstrumentID.String())
 	if err != nil {
 		return err
 	}
@@ -883,14 +883,14 @@ func (ex *Exchange) wsProcessOrderbook5(data []byte) error {
 	}
 
 	for x := range assets {
-		err = ex.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asset:             assets[x],
 			Asks:              asks,
 			Bids:              bids,
 			LastUpdated:       resp.Data[0].Timestamp.Time(),
 			Pair:              resp.Argument.InstrumentID,
-			Exchange:          ex.Name,
-			ValidateOrderbook: ex.ValidateOrderbook,
+			Exchange:          e.Name,
+			ValidateOrderbook: e.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -900,7 +900,7 @@ func (ex *Exchange) wsProcessOrderbook5(data []byte) error {
 }
 
 // wsProcessOptionTrades handles options trade data
-func (ex *Exchange) wsProcessOptionTrades(data []byte) error {
+func (e *Exchange) wsProcessOptionTrades(data []byte) error {
 	var resp WsOptionTrades
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -909,7 +909,7 @@ func (ex *Exchange) wsProcessOptionTrades(data []byte) error {
 	trades := make([]trade.Data, len(resp.Data))
 	for i := range resp.Data {
 		var pair currency.Pair
-		pair, err = ex.GetPairFromInstrumentID(resp.Data[i].InstrumentID)
+		pair, err = e.GetPairFromInstrumentID(resp.Data[i].InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -921,7 +921,7 @@ func (ex *Exchange) wsProcessOptionTrades(data []byte) error {
 			Amount:       resp.Data[i].Size.Float64(),
 			AssetType:    asset.Options,
 			CurrencyPair: pair,
-			Exchange:     ex.Name,
+			Exchange:     e.Name,
 			Side:         oSide,
 			Timestamp:    resp.Data[i].Timestamp.Time(),
 			TID:          resp.Data[i].TradeID,
@@ -932,7 +932,7 @@ func (ex *Exchange) wsProcessOptionTrades(data []byte) error {
 }
 
 // wsProcessOrderBooks processes "snapshot" and "update" order book
-func (ex *Exchange) wsProcessOrderBooks(data []byte) error {
+func (e *Exchange) wsProcessOrderBooks(data []byte) error {
 	var response WsOrderBook
 	err := json.Unmarshal(data, &response)
 	if err != nil {
@@ -951,7 +951,7 @@ func (ex *Exchange) wsProcessOrderBooks(data []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ex.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -962,16 +962,16 @@ func (ex *Exchange) wsProcessOrderBooks(data []byte) error {
 	response.Argument.InstrumentID.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
 		if response.Action == wsOrderbookSnapshot {
-			err = ex.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
+			err = e.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
 		} else {
 			if len(response.Data[i].Asks) == 0 && len(response.Data[i].Bids) == 0 {
 				return nil
 			}
-			err = ex.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
+			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
 		}
 		if err != nil {
 			if errors.Is(err, errInvalidChecksum) {
-				err = ex.Subscribe(subscription.List{
+				err = e.Subscribe(subscription.List{
 					{
 						Channel: response.Argument.Channel,
 						Asset:   assets[0],
@@ -979,22 +979,22 @@ func (ex *Exchange) wsProcessOrderBooks(data []byte) error {
 					},
 				})
 				if err != nil {
-					ex.Websocket.DataHandler <- err
+					e.Websocket.DataHandler <- err
 				}
 			} else {
 				return err
 			}
 		}
 	}
-	if ex.Verbose {
-		log.Debugf(log.ExchangeSys, "%s passed checksum for pair %s", ex.Name, response.Argument.InstrumentID)
+	if e.Verbose {
+		log.Debugf(log.ExchangeSys, "%s passed checksum for pair %s", e.Name, response.Argument.InstrumentID)
 	}
 	return nil
 }
 
 // WsProcessSnapshotOrderBook processes snapshot order books
-func (ex *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	signedChecksum, err := ex.CalculateOrderbookChecksum(data)
+func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
+	signedChecksum, err := e.CalculateOrderbookChecksum(data)
 	if err != nil {
 		return fmt.Errorf("%w %v: unable to calculate orderbook checksum: %s",
 			errInvalidChecksum,
@@ -1007,11 +1007,11 @@ func (ex *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curre
 			pair)
 	}
 
-	asks, err := ex.AppendWsOrderbookItems(data.Asks)
+	asks, err := e.AppendWsOrderbookItems(data.Asks)
 	if err != nil {
 		return err
 	}
-	bids, err := ex.AppendWsOrderbookItems(data.Bids)
+	bids, err := e.AppendWsOrderbookItems(data.Bids)
 	if err != nil {
 		return err
 	}
@@ -1022,10 +1022,10 @@ func (ex *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curre
 			Bids:              bids,
 			LastUpdated:       data.Timestamp.Time(),
 			Pair:              pair,
-			Exchange:          ex.Name,
-			ValidateOrderbook: ex.ValidateOrderbook,
+			Exchange:          e.Name,
+			ValidateOrderbook: e.ValidateOrderbook,
 		}
-		err = ex.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+		err = e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
 			return err
 		}
@@ -1036,17 +1036,17 @@ func (ex *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curre
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
-func (ex *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	asks, err := ex.AppendWsOrderbookItems(data.Asks)
+func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
+	asks, err := e.AppendWsOrderbookItems(data.Asks)
 	if err != nil {
 		return err
 	}
-	bids, err := ex.AppendWsOrderbookItems(data.Bids)
+	bids, err := e.AppendWsOrderbookItems(data.Bids)
 	if err != nil {
 		return err
 	}
 	for i := range assets {
-		if err := ex.Websocket.Orderbook.Update(&orderbook.Update{
+		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
 			Pair:             pair,
 			Asset:            assets[i],
 			UpdateTime:       data.Timestamp.Time(),
@@ -1062,7 +1062,7 @@ func (ex *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currenc
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
-func (ex *Exchange) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Levels, error) {
+func (e *Exchange) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Levels, error) {
 	items := make(orderbook.Levels, len(entries))
 	for j := range entries {
 		items[j] = orderbook.Level{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
@@ -1094,7 +1094,7 @@ func generateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
 }
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
-func (ex *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (uint32, error) {
+func (e *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (uint32, error) {
 	var checksum strings.Builder
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1120,7 +1120,7 @@ func (ex *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (
 }
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.
-func (ex *Exchange) wsHandleMarkPriceCandles(data []byte) error {
+func (e *Exchange) wsHandleMarkPriceCandles(data []byte) error {
 	tempo := &struct {
 		Argument SubscriptionInfo  `json:"arg"`
 		Data     [][5]types.Number `json:"data"`
@@ -1139,20 +1139,20 @@ func (ex *Exchange) wsHandleMarkPriceCandles(data []byte) error {
 			ClosePrice:   tempo.Data[x][4].Float64(),
 		}
 	}
-	ex.Websocket.DataHandler <- candles
+	e.Websocket.DataHandler <- candles
 	return nil
 }
 
 // wsProcessTrades handles a list of trade information.
-func (ex *Exchange) wsProcessTrades(data []byte) error {
+func (e *Exchange) wsProcessTrades(data []byte) error {
 	var response WsTradeOrder
 	err := json.Unmarshal(data, &response)
 	if err != nil {
 		return err
 	}
 
-	saveTradeData := ex.IsSaveTradeDataEnabled()
-	tradeFeed := ex.IsTradeFeedEnabled()
+	saveTradeData := e.IsSaveTradeDataEnabled()
+	tradeFeed := e.IsTradeFeedEnabled()
 	if !saveTradeData && !tradeFeed {
 		return nil
 	}
@@ -1165,7 +1165,7 @@ func (ex *Exchange) wsProcessTrades(data []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ex.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -1181,7 +1181,7 @@ func (ex *Exchange) wsProcessTrades(data []byte) error {
 				Amount:       response.Data[i].Quantity.Float64(),
 				AssetType:    assets[j],
 				CurrencyPair: pair,
-				Exchange:     ex.Name,
+				Exchange:     e.Name,
 				Side:         response.Data[i].Side,
 				Timestamp:    response.Data[i].Timestamp.Time().UTC(),
 				TID:          response.Data[i].TradeID,
@@ -1191,7 +1191,7 @@ func (ex *Exchange) wsProcessTrades(data []byte) error {
 	}
 	if tradeFeed {
 		for i := range trades {
-			ex.Websocket.DataHandler <- trades[i]
+			e.Websocket.DataHandler <- trades[i]
 		}
 	}
 	if saveTradeData {
@@ -1201,7 +1201,7 @@ func (ex *Exchange) wsProcessTrades(data []byte) error {
 }
 
 // wsProcessOrders handles websocket order push data responses.
-func (ex *Exchange) wsProcessOrders(respRaw []byte) error {
+func (e *Exchange) wsProcessOrders(respRaw []byte) error {
 	var response WsOrderResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -1214,16 +1214,16 @@ func (ex *Exchange) wsProcessOrders(respRaw []byte) error {
 	for x := range response.Data {
 		orderType, err := order.StringToOrderType(response.Data[x].OrderType)
 		if err != nil {
-			ex.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: ex.Name,
+			e.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: e.Name,
 				OrderID:  response.Data[x].OrderID,
 				Err:      err,
 			}
 		}
 		orderStatus, err := order.StringToOrderStatus(response.Data[x].State)
 		if err != nil {
-			ex.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: ex.Name,
+			e.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: e.Name,
 				OrderID:  response.Data[x].OrderID,
 				Err:      err,
 			}
@@ -1268,7 +1268,7 @@ func (ex *Exchange) wsProcessOrders(respRaw []byte) error {
 			AverageExecutedPrice: avgPrice,
 			ClientOrderID:        response.Data[x].ClientOrderID,
 			Date:                 response.Data[x].CreationTime.Time(),
-			Exchange:             ex.Name,
+			Exchange:             e.Name,
 			ExecutedAmount:       execAmount,
 			Fee:                  0.0 - response.Data[x].Fee.Float64(),
 			FeeAsset:             response.Data[x].FeeCurrency,
@@ -1287,13 +1287,13 @@ func (ex *Exchange) wsProcessOrders(respRaw []byte) error {
 				d.Amount = d.ExecutedAmount
 			}
 		}
-		ex.Websocket.DataHandler <- d
+		e.Websocket.DataHandler <- d
 	}
 	return nil
 }
 
 // wsProcessCandles handler to get a list of candlestick messages.
-func (ex *Exchange) wsProcessCandles(respRaw []byte) error {
+func (e *Exchange) wsProcessCandles(respRaw []byte) error {
 	if respRaw == nil {
 		return common.ErrNilPointer
 	}
@@ -1316,7 +1316,7 @@ func (ex *Exchange) wsProcessCandles(respRaw []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ex.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -1324,11 +1324,11 @@ func (ex *Exchange) wsProcessCandles(respRaw []byte) error {
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
 		for j := range assets {
-			ex.Websocket.DataHandler <- websocket.KlineData{
+			e.Websocket.DataHandler <- websocket.KlineData{
 				Timestamp:  time.UnixMilli(response.Data[i][0].Int64()),
 				Pair:       response.Argument.InstrumentID,
 				AssetType:  assets[j],
-				Exchange:   ex.Name,
+				Exchange:   e.Name,
 				Interval:   candleInterval,
 				OpenPrice:  response.Data[i][1].Float64(),
 				ClosePrice: response.Data[i][4].Float64(),
@@ -1342,7 +1342,7 @@ func (ex *Exchange) wsProcessCandles(respRaw []byte) error {
 }
 
 // wsProcessTickers handles the trade ticker information.
-func (ex *Exchange) wsProcessTickers(data []byte) error {
+func (e *Exchange) wsProcessTickers(data []byte) error {
 	var response WSTickerResponse
 	err := json.Unmarshal(data, &response)
 	if err != nil {
@@ -1357,7 +1357,7 @@ func (ex *Exchange) wsProcessTickers(data []byte) error {
 			}
 			assets = append(assets, assetType)
 		} else {
-			assets, err = ex.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+			assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 			if err != nil {
 				return err
 			}
@@ -1373,7 +1373,7 @@ func (ex *Exchange) wsProcessTickers(data []byte) error {
 		}
 		for j := range assets {
 			tickData := &ticker.Price{
-				ExchangeName: ex.Name,
+				ExchangeName: e.Name,
 				Open:         response.Data[i].Open24H.Float64(),
 				Volume:       baseVolume,
 				QuoteVolume:  quoteVolume,
@@ -1388,19 +1388,19 @@ func (ex *Exchange) wsProcessTickers(data []byte) error {
 				Pair:         response.Data[i].InstrumentID,
 				LastUpdated:  response.Data[i].TickerDataGenerationTime.Time(),
 			}
-			ex.Websocket.DataHandler <- tickData
+			e.Websocket.DataHandler <- tickData
 		}
 	}
 	return nil
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (ex *Exchange) generateSubscriptions() (subscription.List, error) {
-	return ex.Features.Subscriptions.ExpandTemplates(ex)
+func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (ex *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
 		"channelName":     channelName,
 		"isSymbolChannel": isSymbolChannel,
@@ -1410,7 +1410,7 @@ func (ex *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*temp
 }
 
 // wsProcessBlockPublicTrades handles the recent block trades data by individual legs.
-func (ex *Exchange) wsProcessBlockPublicTrades(data []byte) error {
+func (e *Exchange) wsProcessBlockPublicTrades(data []byte) error {
 	var resp PublicBlockTrades
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -1419,7 +1419,7 @@ func (ex *Exchange) wsProcessBlockPublicTrades(data []byte) error {
 	trades := make([]trade.Data, len(resp.Data))
 	for i := range resp.Data {
 		var pair currency.Pair
-		pair, err = ex.GetPairFromInstrumentID(resp.Data[i].InstrumentID)
+		pair, err = e.GetPairFromInstrumentID(resp.Data[i].InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -1431,7 +1431,7 @@ func (ex *Exchange) wsProcessBlockPublicTrades(data []byte) error {
 			Amount:       resp.Data[i].Size.Float64(),
 			AssetType:    asset.Options,
 			CurrencyPair: pair,
-			Exchange:     ex.Name,
+			Exchange:     e.Name,
 			Side:         oSide,
 			Timestamp:    resp.Data[i].Timestamp.Time(),
 			TID:          resp.Data[i].TradeID,
@@ -1441,12 +1441,12 @@ func (ex *Exchange) wsProcessBlockPublicTrades(data []byte) error {
 	return trade.AddTradesToBuffer(trades...)
 }
 
-func (ex *Exchange) wsProcessBalanceAndPosition(ctx context.Context, data []byte) error {
+func (e *Exchange) wsProcessBalanceAndPosition(ctx context.Context, data []byte) error {
 	var resp WsBalanceAndPosition
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	creds, err := ex.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -1466,16 +1466,16 @@ func (ex *Exchange) wsProcessBalanceAndPosition(ctx context.Context, data []byte
 		}
 		// TODO: Handle position data
 	}
-	ex.Websocket.DataHandler <- changes
-	return account.ProcessChange(ex.Name, changes, creds)
+	e.Websocket.DataHandler <- changes
+	return account.ProcessChange(e.Name, changes, creds)
 }
 
 // wsProcessPushData processes push data coming through the websocket channel
-func (ex *Exchange) wsProcessPushData(data []byte, resp any) error {
+func (e *Exchange) wsProcessPushData(data []byte, resp any) error {
 	if err := json.Unmarshal(data, resp); err != nil {
 		return err
 	}
-	ex.Websocket.DataHandler <- resp
+	e.Websocket.DataHandler <- resp
 	return nil
 }
 

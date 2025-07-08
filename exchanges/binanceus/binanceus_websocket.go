@@ -44,99 +44,99 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (ex *Exchange) WsConnect() error {
+func (e *Exchange) WsConnect() error {
 	ctx := context.TODO()
-	if !ex.Websocket.IsEnabled() || !ex.IsEnabled() {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	dialer.HandshakeTimeout = ex.Config.HTTPTimeout
+	dialer.HandshakeTimeout = e.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
-	if ex.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err = ex.GetWsAuthStreamKey(ctx)
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		listenKey, err = e.GetWsAuthStreamKey(ctx)
 		if err != nil {
-			ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,
 				"%v unable to connect to authenticated Websocket. Error: %s",
-				ex.Name,
+				e.Name,
 				err)
 		} else {
 			// cleans on failed connection
-			clean := strings.Split(ex.Websocket.GetWebsocketURL(), "?streams=")
+			clean := strings.Split(e.Websocket.GetWebsocketURL(), "?streams=")
 			authPayload := clean[0] + "?streams=" + listenKey
-			err = ex.Websocket.SetWebsocketURL(authPayload, false, false)
+			err = e.Websocket.SetWebsocketURL(authPayload, false, false)
 			if err != nil {
 				return err
 			}
 		}
 	}
-	err = ex.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
-			ex.Name,
+			e.Name,
 			err)
 	}
 
-	if ex.Websocket.CanUseAuthenticatedEndpoints() {
-		ex.Websocket.Wg.Add(1)
-		go ex.KeepAuthKeyAlive(ctx)
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		e.Websocket.Wg.Add(1)
+		go e.KeepAuthKeyAlive(ctx)
 	}
 
-	ex.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
 
-	ex.Websocket.Wg.Add(1)
-	go ex.wsReadData()
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData()
 
-	ex.setupOrderbookManager(ctx)
+	e.setupOrderbookManager(ctx)
 	return nil
 }
 
 // KeepAuthKeyAlive will continuously send messages to
 // keep the WS auth key active
-func (ex *Exchange) KeepAuthKeyAlive(ctx context.Context) {
-	defer ex.Websocket.Wg.Done()
+func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
+	defer e.Websocket.Wg.Done()
 	// ClosUserDataStream closes the User data stream and remove the listen key when closing the websocket.
 	defer func() {
-		er := ex.CloseUserDataStream(ctx)
+		er := e.CloseUserDataStream(ctx)
 		if er != nil {
 			log.Errorf(log.WebsocketMgr, "%s closing user data stream error %v",
-				ex.Name, er)
+				e.Name, er)
 		}
 	}()
 	// Looping in 30 Minutes and updating the listenKey
 	ticks := time.NewTicker(time.Minute * 30)
 	for {
 		select {
-		case <-ex.Websocket.ShutdownC:
+		case <-e.Websocket.ShutdownC:
 			ticks.Stop()
 			return
 		case <-ticks.C:
-			err := ex.MaintainWsAuthStreamKey(ctx)
+			err := e.MaintainWsAuthStreamKey(ctx)
 			if err != nil {
-				ex.Websocket.DataHandler <- err
-				log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", ex.Name)
+				e.Websocket.DataHandler <- err
+				log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", e.Name)
 			}
 		}
 	}
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (ex *Exchange) wsReadData() {
-	defer ex.Websocket.Wg.Done()
+func (e *Exchange) wsReadData() {
+	defer e.Websocket.Wg.Done()
 
 	for {
-		resp := ex.Websocket.Conn.ReadMessage()
+		resp := e.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := ex.wsHandleData(resp.Raw)
+		err := e.wsHandleData(resp.Raw)
 		if err != nil {
-			ex.Websocket.DataHandler <- err
+			e.Websocket.DataHandler <- err
 		}
 	}
 }
@@ -162,7 +162,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	}
 }
 
-func (ex *Exchange) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(respRaw []byte) error {
 	var multiStreamData map[string]any
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
@@ -184,34 +184,34 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 		}
 	}
 	if newData, ok := multiStreamData["data"].(map[string]any); ok {
-		if e, ok := newData["e"].(string); ok {
-			switch e {
+		if event, ok := newData["e"].(string); ok {
+			switch event {
 			case "outboundAccountPosition":
 				var data wsAccountPosition
 				err = json.Unmarshal(respRaw, &data)
 				if err != nil {
 					return fmt.Errorf("%v - Could not convert to outboundAccountPosition structure %s",
-						ex.Name,
+						e.Name,
 						err)
 				}
-				ex.Websocket.DataHandler <- data
+				e.Websocket.DataHandler <- data
 				return nil
 			case "balanceUpdate":
 				var data wsBalanceUpdate
 				err := json.Unmarshal(respRaw, &data)
 				if err != nil {
 					return fmt.Errorf("%v - Could not convert to balanceUpdate structure %s",
-						ex.Name,
+						e.Name,
 						err)
 				}
-				ex.Websocket.DataHandler <- data
+				e.Websocket.DataHandler <- data
 				return nil
 			case "executionReport":
 				var data wsOrderUpdate
 				err := json.Unmarshal(respRaw, &data)
 				if err != nil {
 					return fmt.Errorf("%v - Could not convert to executionReport structure %s",
-						ex.Name,
+						e.Name,
 						err)
 				}
 				averagePrice := 0.0
@@ -219,7 +219,7 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 					averagePrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
 				}
 				remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
-				pair, assetType, err := ex.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
+				pair, assetType, err := e.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
 				if err != nil {
 					return err
 				}
@@ -230,8 +230,8 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 				orderID := strconv.FormatInt(data.Data.OrderID, 10)
 				orderStatus, err := stringToOrderStatus(data.Data.OrderStatus)
 				if err != nil {
-					ex.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: ex.Name,
+					e.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: e.Name,
 						OrderID:  orderID,
 						Err:      err,
 					}
@@ -242,21 +242,21 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 				}
 				orderType, err := order.StringToOrderType(data.Data.OrderType)
 				if err != nil {
-					ex.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: ex.Name,
+					e.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: e.Name,
 						OrderID:  orderID,
 						Err:      err,
 					}
 				}
 				orderSide, err := order.StringToOrderSide(data.Data.Side)
 				if err != nil {
-					ex.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: ex.Name,
+					e.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: e.Name,
 						OrderID:  orderID,
 						Err:      err,
 					}
 				}
-				ex.Websocket.DataHandler <- &order.Detail{
+				e.Websocket.DataHandler <- &order.Detail{
 					Price:                data.Data.Price,
 					Amount:               data.Data.Quantity,
 					AverageExecutedPrice: averagePrice,
@@ -266,7 +266,7 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 					CostAsset:            pair.Quote,
 					Fee:                  data.Data.Commission,
 					FeeAsset:             feeAsset,
-					Exchange:             ex.Name,
+					Exchange:             e.Name,
 					OrderID:              orderID,
 					ClientOrderID:        clientOrderID,
 					Type:                 orderType,
@@ -283,10 +283,10 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 				err := json.Unmarshal(respRaw, &data)
 				if err != nil {
 					return fmt.Errorf("%v - Could not convert to listStatus structure %s",
-						ex.Name,
+						e.Name,
 						err)
 				}
-				ex.Websocket.DataHandler <- data
+				e.Websocket.DataHandler <- data
 				return nil
 			}
 		}
@@ -302,20 +302,20 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 					return err
 				}
 
-				pairs, err = ex.GetEnabledPairs(asset.Spot)
+				pairs, err = e.GetEnabledPairs(asset.Spot)
 				if err != nil {
 					return err
 				}
 
-				format, err := ex.GetPairFormat(asset.Spot, true)
+				format, err := e.GetPairFormat(asset.Spot, true)
 				if err != nil {
 					return err
 				}
 
 				switch streamType[1] {
 				case "trade":
-					saveTradeData := ex.IsSaveTradeDataEnabled()
-					if !saveTradeData && !ex.IsTradeFeedEnabled() {
+					saveTradeData := e.IsSaveTradeDataEnabled()
+					if !saveTradeData && !e.IsTradeFeedEnabled() {
 						return nil
 					}
 
@@ -323,7 +323,7 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 					err = json.Unmarshal(rawData, &t)
 					if err != nil {
 						return fmt.Errorf("%v - Could not unmarshal trade data: %s",
-							ex.Name,
+							e.Name,
 							err)
 					}
 
@@ -332,13 +332,13 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					return ex.Websocket.Trade.Update(saveTradeData,
+					return e.Websocket.Trade.Update(saveTradeData,
 						trade.Data{
 							CurrencyPair: pair,
 							Timestamp:    t.TimeStamp.Time(),
 							Price:        t.Price.Float64(),
 							Amount:       t.Quantity.Float64(),
-							Exchange:     ex.Name,
+							Exchange:     e.Name,
 							AssetType:    asset.Spot,
 							TID:          strconv.FormatInt(t.TradeID, 10),
 						})
@@ -347,7 +347,7 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 					err := json.Unmarshal(rawData, &t)
 					if err != nil {
 						return fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
-							ex.Name,
+							e.Name,
 							err.Error())
 					}
 
@@ -356,8 +356,8 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					ex.Websocket.DataHandler <- &ticker.Price{
-						ExchangeName: ex.Name,
+					e.Websocket.DataHandler <- &ticker.Price{
+						ExchangeName: e.Name,
 						Open:         t.OpenPrice,
 						Close:        t.ClosePrice,
 						Volume:       t.TotalTradedVolume,
@@ -378,7 +378,7 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 					err := json.Unmarshal(rawData, &kline)
 					if err != nil {
 						return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
-							ex.Name,
+							e.Name,
 							err)
 					}
 
@@ -387,11 +387,11 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					ex.Websocket.DataHandler <- websocket.KlineData{
+					e.Websocket.DataHandler <- websocket.KlineData{
 						Timestamp:  kline.EventTime.Time(),
 						Pair:       pair,
 						AssetType:  asset.Spot,
-						Exchange:   ex.Name,
+						Exchange:   e.Name,
 						StartTime:  kline.Kline.StartTime.Time(),
 						CloseTime:  kline.Kline.CloseTime.Time(),
 						Interval:   kline.Kline.Interval,
@@ -407,16 +407,16 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 					err := json.Unmarshal(rawData, &depth)
 					if err != nil {
 						return fmt.Errorf("%v - Could not convert to depthStream structure %s",
-							ex.Name,
+							e.Name,
 							err)
 					}
-					init, err := ex.UpdateLocalBuffer(&depth)
+					init, err := e.UpdateLocalBuffer(&depth)
 					if err != nil {
 						if init {
 							return nil
 						}
 						return fmt.Errorf("%v - UpdateLocalCache error: %s",
-							ex.Name,
+							e.Name,
 							err)
 					}
 					return nil
@@ -425,35 +425,35 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 					err := json.Unmarshal(rawData, &depth)
 					if err != nil {
 						return fmt.Errorf("%v - Could not convert to depthStream structure %s",
-							ex.Name,
+							e.Name,
 							err)
 					}
-					ex.Websocket.DataHandler <- depth
+					e.Websocket.DataHandler <- depth
 					return nil
 				case "bookTicker":
 					var bo OrderBookTickerStream
 					err := json.Unmarshal(rawData, &bo)
 					if err != nil {
-						return fmt.Errorf("%v - Could not convert to bookOrder structure %s ", err, ex.Name)
+						return fmt.Errorf("%v - Could not convert to bookOrder structure %s ", err, e.Name)
 					}
 					pair, err := currency.NewPairFromFormattedPairs(bo.S, pairs, format)
 					if err != nil {
 						return err
 					}
 					bo.Symbol = pair
-					ex.Websocket.DataHandler <- &bo
+					e.Websocket.DataHandler <- &bo
 					return nil
 				case "aggTrade":
 					var agg WebsocketAggregateTradeStream
 					err := json.Unmarshal(rawData, &agg)
 					if err != nil {
-						return fmt.Errorf("%v - Could not convert to aggTrade structure %s ", err, ex.Name)
+						return fmt.Errorf("%v - Could not convert to aggTrade structure %s ", err, e.Name)
 					}
-					ex.Websocket.DataHandler <- agg
+					e.Websocket.DataHandler <- agg
 					return nil
 				default:
-					ex.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
-						Message: ex.Name + websocket.UnhandledMessage + string(respRaw),
+					e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+						Message: e.Name + websocket.UnhandledMessage + string(respRaw),
 					}
 				}
 			}
@@ -464,25 +464,25 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				pairs, err := ex.GetEnabledPairs(asset.Spot)
+				pairs, err := e.GetEnabledPairs(asset.Spot)
 				if err != nil {
 					return err
 				}
 
-				format, err := ex.GetPairFormat(asset.Spot, true)
+				format, err := e.GetPairFormat(asset.Spot, true)
 				if err != nil {
 					return err
 				}
 				err = json.Unmarshal(rawData, &bt)
 				if err != nil {
-					return fmt.Errorf("%v - Could not convert to bookOrder structure %s ", err, ex.Name)
+					return fmt.Errorf("%v - Could not convert to bookOrder structure %s ", err, e.Name)
 				}
 				pair, err := currency.NewPairFromFormattedPairs(bt.S, pairs, format)
 				if err != nil {
 					return err
 				}
 				bt.Symbol = pair
-				ex.Websocket.DataHandler <- &bt
+				e.Websocket.DataHandler <- &bt
 				return nil
 			}
 		}
@@ -491,13 +491,13 @@ func (ex *Exchange) wsHandleData(respRaw []byte) error {
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
-func (ex *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
-	enabledPairs, err := ex.GetEnabledPairs(asset.Spot)
+func (e *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
+	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return false, err
 	}
 
-	format, err := ex.GetPairFormat(asset.Spot, true)
+	format, err := e.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		return false, err
 	}
@@ -509,29 +509,29 @@ func (ex *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) 
 		return false, err
 	}
 
-	err = ex.obm.stageWsUpdate(wsdp, currencyPair, asset.Spot)
+	err = e.obm.stageWsUpdate(wsdp, currencyPair, asset.Spot)
 	if err != nil {
-		init, err2 := ex.obm.checkIsInitialSync(currencyPair)
+		init, err2 := e.obm.checkIsInitialSync(currencyPair)
 		if err2 != nil {
 			return false, err2
 		}
 		return init, err
 	}
 
-	err = ex.applyBufferUpdate(currencyPair)
+	err = e.applyBufferUpdate(currencyPair)
 	if err != nil {
-		ex.invalidateAndCleanupOrderbook(currencyPair)
+		e.invalidateAndCleanupOrderbook(currencyPair)
 	}
 
 	return false, err
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (ex *Exchange) GenerateSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateSubscriptions() (subscription.List, error) {
 	channels := []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
 	var subscriptions subscription.List
 
-	pairs, err := ex.GetEnabledPairs(asset.Spot)
+	pairs, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -557,7 +557,7 @@ subs:
 }
 
 // Subscribe subscribes to a set of channels
-func (ex *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
+func (e *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
 	ctx := context.TODO()
 	payload := WebsocketPayload{
 		Method: "SUBSCRIBE",
@@ -565,7 +565,7 @@ func (ex *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := ex.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payload)
+			err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payload)
 			if err != nil {
 				return err
 			}
@@ -573,16 +573,16 @@ func (ex *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := ex.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payload)
+		err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payload)
 		if err != nil {
 			return err
 		}
 	}
-	return ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.Conn, channelsToSubscribe...)
+	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, channelsToSubscribe...)
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (ex *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
+func (e *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	ctx := context.TODO()
 	payload := WebsocketPayload{
 		Method: "UNSUBSCRIBE",
@@ -590,7 +590,7 @@ func (ex *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	for i := range channelsToUnsubscribe {
 		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := ex.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payload)
+			err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payload)
 			if err != nil {
 				return err
 			}
@@ -598,24 +598,24 @@ func (ex *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := ex.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payload)
+		err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payload)
 		if err != nil {
 			return err
 		}
 	}
-	return ex.Websocket.RemoveSubscriptions(ex.Websocket.Conn, channelsToUnsubscribe...)
+	return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, channelsToUnsubscribe...)
 }
 
-func (ex *Exchange) setupOrderbookManager(ctx context.Context) {
-	if ex.obm == nil {
-		ex.obm = &orderbookManager{
+func (e *Exchange) setupOrderbookManager(ctx context.Context) {
+	if e.obm == nil {
+		e.obm = &orderbookManager{
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
 			jobs:  make(chan job, maxWSOrderbookJobs),
 		}
 	} else {
 		// Change state on reconnect for initial sync.
-		for x := range ex.obm.state {
-			for _, m2 := range ex.obm.state[x] {
+		for x := range e.obm.state {
+			for _, m2 := range e.obm.state[x] {
 				for y := range m2 {
 					m2[y].initialSync = true
 					m2[y].needsFetchingBook = true
@@ -626,31 +626,31 @@ func (ex *Exchange) setupOrderbookManager(ctx context.Context) {
 	}
 	for range maxWSOrderbookWorkers {
 		// 10 workers for synchronising book
-		ex.SynchroniseWebsocketOrderbook(ctx)
+		e.SynchroniseWebsocketOrderbook(ctx)
 	}
 }
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair asset
-func (ex *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
-	ex.Websocket.Wg.Add(1)
+func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
+	e.Websocket.Wg.Add(1)
 	go func() {
-		defer ex.Websocket.Wg.Done()
+		defer e.Websocket.Wg.Done()
 		for {
 			select {
-			case <-ex.Websocket.ShutdownC:
+			case <-e.Websocket.ShutdownC:
 				for {
 					select {
-					case <-ex.obm.jobs:
+					case <-e.obm.jobs:
 					default:
 						return
 					}
 				}
-			case j := <-ex.obm.jobs:
-				err := ex.processJob(ctx, j.Pair)
+			case j := <-e.obm.jobs:
+				err := e.processJob(ctx, j.Pair)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
 						"%s processing websocket orderbook error %v",
-						ex.Name, err)
+						e.Name, err)
 				}
 			}
 		}
@@ -658,7 +658,7 @@ func (ex *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 }
 
 // ProcessOrderbookUpdate processes the websocket orderbook update
-func (ex *Exchange) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, wsDSUpdate *WebsocketDepthStream) error {
+func (e *Exchange) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, wsDSUpdate *WebsocketDepthStream) error {
 	updateBid := make([]orderbook.Level, len(wsDSUpdate.UpdateBids))
 	for i := range wsDSUpdate.UpdateBids {
 		updateBid[i].Price = wsDSUpdate.UpdateBids[i][0].Float64()
@@ -671,7 +671,7 @@ func (ex *Exchange) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, wsDSU
 		updateAsk[i].Amount = wsDSUpdate.UpdateAsks[i][1].Float64()
 	}
 
-	return ex.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(&orderbook.Update{
 		Bids:       updateBid,
 		Asks:       updateAsk,
 		Pair:       cp,
@@ -708,8 +708,8 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
 
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
-func (ex *Exchange) applyBufferUpdate(pair currency.Pair) error {
-	fetching, needsFetching, err := ex.obm.handleFetchingBook(pair)
+func (e *Exchange) applyBufferUpdate(pair currency.Pair) error {
+	fetching, needsFetching, err := e.obm.handleFetchingBook(pair)
 	if err != nil {
 		return err
 	}
@@ -717,30 +717,30 @@ func (ex *Exchange) applyBufferUpdate(pair currency.Pair) error {
 		return nil
 	}
 	if needsFetching {
-		if ex.Verbose {
-			log.Debugf(log.WebsocketMgr, "%s Orderbook: Fetching via REST\n", ex.Name)
+		if e.Verbose {
+			log.Debugf(log.WebsocketMgr, "%s Orderbook: Fetching via REST\n", e.Name)
 		}
-		return ex.obm.fetchBookViaREST(pair)
+		return e.obm.fetchBookViaREST(pair)
 	}
 
-	recent, err := ex.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	recent, err := e.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	if err != nil {
 		log.Errorf(
 			log.WebsocketMgr,
 			"%s error fetching recent orderbook when applying updates: %s\n",
-			ex.Name,
+			e.Name,
 			err)
 	}
 
 	if recent != nil {
-		err = ex.obm.checkAndProcessOrderbookUpdate(ex.ProcessOrderbookUpdate, pair, recent)
+		err = e.obm.checkAndProcessOrderbookUpdate(e.ProcessOrderbookUpdate, pair, recent)
 		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
 				"%s error processing update - initiating new orderbook sync via REST: %s\n",
-				ex.Name,
+				e.Name,
 				err)
-			err = ex.obm.setNeedsFetchingBook(pair)
+			err = e.obm.setNeedsFetchingBook(pair)
 			if err != nil {
 				return err
 			}
@@ -770,31 +770,31 @@ func (o *orderbookManager) stopFetchingBook(pair currency.Pair) error {
 }
 
 // processJob fetches and processes orderbook updates
-func (ex *Exchange) processJob(ctx context.Context, p currency.Pair) error {
-	err := ex.SeedLocalCache(ctx, p)
+func (e *Exchange) processJob(ctx context.Context, p currency.Pair) error {
+	err := e.SeedLocalCache(ctx, p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)
 	}
 
-	err = ex.obm.stopFetchingBook(p)
+	err = e.obm.stopFetchingBook(p)
 	if err != nil {
 		return err
 	}
 
 	// Immediately apply the buffer updates so we don't wait for a
 	// new update to initiate this.
-	err = ex.applyBufferUpdate(p)
+	err = e.applyBufferUpdate(p)
 	if err != nil {
-		ex.invalidateAndCleanupOrderbook(p)
+		e.invalidateAndCleanupOrderbook(p)
 		return err
 	}
 	return nil
 }
 
 // SeedLocalCache seeds depth data
-func (ex *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
-	ob, err := ex.GetOrderBookDepth(ctx,
+func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
+	ob, err := e.GetOrderBookDepth(ctx,
 		&OrderBookDataRequestParams{
 			Symbol: p,
 			Limit:  1000,
@@ -802,17 +802,17 @@ func (ex *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 	if err != nil {
 		return err
 	}
-	return ex.SeedLocalCacheWithBook(p, ob)
+	return e.SeedLocalCacheWithBook(p, ob)
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (ex *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
+func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
 	newOrderBook := orderbook.Book{
 		Pair:              p,
 		Asset:             asset.Spot,
-		Exchange:          ex.Name,
+		Exchange:          e.Name,
 		LastUpdateID:      orderbookNew.LastUpdateID,
-		ValidateOrderbook: ex.ValidateOrderbook,
+		ValidateOrderbook: e.ValidateOrderbook,
 		Bids:              make(orderbook.Levels, len(orderbookNew.Bids)),
 		Asks:              make(orderbook.Levels, len(orderbookNew.Asks)),
 		LastUpdated:       time.Now(), // Time not provided in REST book.
@@ -829,7 +829,7 @@ func (ex *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderB
 			Price:  orderbookNew.Asks[i].Price,
 		}
 	}
-	return ex.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // handleFetchingBook checks if a full book is being fetched or needs to be
@@ -859,12 +859,12 @@ func (o *orderbookManager) handleFetchingBook(pair currency.Pair) (fetching, nee
 }
 
 // invalidateAndCleanupOrderbook invalidaates orderbook and cleans local cache
-func (ex *Exchange) invalidateAndCleanupOrderbook(p currency.Pair) {
-	if err := ex.Websocket.Orderbook.InvalidateOrderbook(p, asset.Spot); err != nil {
-		log.Errorf(log.WebsocketMgr, "%s invalidate orderbook websocket error: %v", ex.Name, err)
+func (e *Exchange) invalidateAndCleanupOrderbook(p currency.Pair) {
+	if err := e.Websocket.Orderbook.InvalidateOrderbook(p, asset.Spot); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s invalidate orderbook websocket error: %v", e.Name, err)
 	}
-	if err := ex.obm.cleanup(p); err != nil {
-		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v", ex.Name, err)
+	if err := e.obm.cleanup(p); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v", e.Name, err)
 	}
 }
 

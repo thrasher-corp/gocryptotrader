@@ -222,66 +222,66 @@ func TestGetWithdrawRecords(t *testing.T) {
 func TestLoadPrivKey(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	ex.SetDefaults()
-	require.ErrorIs(t, ex.loadPrivKey(t.Context()), exchange.ErrCredentialsAreEmpty)
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	e.SetDefaults()
+	require.ErrorIs(t, e.loadPrivKey(t.Context()), exchange.ErrCredentialsAreEmpty)
 
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "errortest"})
-	assert.ErrorIs(t, ex.loadPrivKey(ctx), errPEMBlockIsNil)
+	assert.ErrorIs(t, e.loadPrivKey(ctx), errPEMBlockIsNil)
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 	der := x509.MarshalPKCS1PrivateKey(key)
 	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
-	require.ErrorIs(t, ex.loadPrivKey(ctx), errUnableToParsePrivateKey)
+	require.ErrorIs(t, e.loadPrivKey(ctx), errUnableToParsePrivateKey)
 
 	ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	der, err = x509.MarshalPKCS8PrivateKey(ecdsaKey)
 	require.NoError(t, err)
 	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
-	require.ErrorIs(t, ex.loadPrivKey(ctx), common.ErrTypeAssertFailure)
+	require.ErrorIs(t, e.loadPrivKey(ctx), common.ErrTypeAssertFailure)
 
 	key, err = rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 	der, err = x509.MarshalPKCS8PrivateKey(key)
 	require.NoError(t, err)
 	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
-	assert.NoError(t, ex.loadPrivKey(ctx), "loadPrivKey should not error")
+	assert.NoError(t, e.loadPrivKey(ctx), "loadPrivKey should not error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	assert.NoError(t, ex.loadPrivKey(t.Context()), "loadPrivKey should not error")
+	assert.NoError(t, e.loadPrivKey(t.Context()), "loadPrivKey should not error")
 }
 
 func TestSign(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	ex.SetDefaults()
-	_, err := ex.sign("hello123")
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	e.SetDefaults()
+	_, err := e.sign("hello123")
 	require.ErrorIs(t, err, errPrivateKeyNotLoaded)
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err, "GenerateKey must not error")
-	ex.privateKey = key
+	e.privateKey = key
 
 	targetMessage := "hello123"
-	msg, err := ex.sign(targetMessage)
+	msg, err := e.sign(targetMessage)
 	require.NoError(t, err, "sign must not error")
 
 	md5sum := md5.Sum([]byte(targetMessage)) //nolint:gosec // Used for this exchange
 	shasum := sha256.Sum256([]byte(strings.ToUpper(hex.EncodeToString(md5sum[:]))))
 	sigBytes, err := base64.StdEncoding.DecodeString(msg)
 	require.NoError(t, err)
-	err = rsa.VerifyPKCS1v15(&ex.privateKey.PublicKey, crypto.SHA256, shasum[:], sigBytes)
+	err = rsa.VerifyPKCS1v15(&e.privateKey.PublicKey, crypto.SHA256, shasum[:], sigBytes)
 	require.NoError(t, err)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	require.NoError(t, ex.loadPrivKey(t.Context()), "loadPrivKey must not error")
+	require.NoError(t, e.loadPrivKey(t.Context()), "loadPrivKey must not error")
 
-	_, err = ex.sign("hello123")
+	_, err = e.sign("hello123")
 	assert.NoError(t, err, "sign should not error")
 }
 

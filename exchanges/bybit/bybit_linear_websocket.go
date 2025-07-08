@@ -13,47 +13,47 @@ import (
 )
 
 // WsLinearConnect connects to linear a websocket feed
-func (ex *Exchange) WsLinearConnect() error {
+func (e *Exchange) WsLinearConnect() error {
 	ctx := context.TODO()
-	if !ex.Websocket.IsEnabled() || !ex.IsEnabled() || !ex.IsAssetWebsocketSupported(asset.LinearContract) {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() || !e.IsAssetWebsocketSupported(asset.LinearContract) {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	ex.Websocket.Conn.SetURL(linearPublic)
+	e.Websocket.Conn.SetURL(linearPublic)
 	var dialer gws.Dialer
-	err := ex.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	ex.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     []byte(`{"op": "ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
 
-	ex.Websocket.Wg.Add(1)
-	go ex.wsReadData(ctx, asset.LinearContract, ex.Websocket.Conn)
-	if ex.IsWebsocketAuthenticationSupported() {
-		err = ex.WsAuth(ctx)
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(ctx, asset.LinearContract, e.Websocket.Conn)
+	if e.IsWebsocketAuthenticationSupported() {
+		err = e.WsAuth(ctx)
 		if err != nil {
-			ex.Websocket.DataHandler <- err
-			ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			e.Websocket.DataHandler <- err
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	return nil
 }
 
 // GenerateLinearDefaultSubscriptions generates default subscription
-func (ex *Exchange) GenerateLinearDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateLinearDefaultSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
 	channels := []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
-	pairs, err := ex.GetEnabledPairs(asset.USDTMarginedFutures)
+	pairs, err := e.GetEnabledPairs(asset.USDTMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
 	linearPairMap := map[asset.Item]currency.Pairs{
 		asset.USDTMarginedFutures: pairs,
 	}
-	usdcPairs, err := ex.GetEnabledPairs(asset.USDCMarginedFutures)
+	usdcPairs, err := e.GetEnabledPairs(asset.USDCMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
@@ -75,26 +75,26 @@ func (ex *Exchange) GenerateLinearDefaultSubscriptions() (subscription.List, err
 }
 
 // LinearSubscribe sends a subscription message to linear public channels.
-func (ex *Exchange) LinearSubscribe(channelSubscriptions subscription.List) error {
+func (e *Exchange) LinearSubscribe(channelSubscriptions subscription.List) error {
 	ctx := context.TODO()
-	return ex.handleLinearPayloadSubscription(ctx, "subscribe", channelSubscriptions)
+	return e.handleLinearPayloadSubscription(ctx, "subscribe", channelSubscriptions)
 }
 
 // LinearUnsubscribe sends an unsubscription messages through linear public channels.
-func (ex *Exchange) LinearUnsubscribe(channelSubscriptions subscription.List) error {
+func (e *Exchange) LinearUnsubscribe(channelSubscriptions subscription.List) error {
 	ctx := context.TODO()
-	return ex.handleLinearPayloadSubscription(ctx, "unsubscribe", channelSubscriptions)
+	return e.handleLinearPayloadSubscription(ctx, "unsubscribe", channelSubscriptions)
 }
 
-func (ex *Exchange) handleLinearPayloadSubscription(ctx context.Context, operation string, channelSubscriptions subscription.List) error {
-	payloads, err := ex.handleSubscriptions(operation, channelSubscriptions)
+func (e *Exchange) handleLinearPayloadSubscription(ctx context.Context, operation string, channelSubscriptions subscription.List) error {
+	payloads, err := e.handleSubscriptions(operation, channelSubscriptions)
 	if err != nil {
 		return err
 	}
 	for a := range payloads {
 		// The options connection does not send the subscription request id back with the subscription notification payload
 		// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
-		err = ex.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payloads[a])
+		err = e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payloads[a])
 		if err != nil {
 			return err
 		}

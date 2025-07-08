@@ -13,33 +13,33 @@ import (
 )
 
 // WsInverseConnect connects to inverse websocket feed
-func (ex *Exchange) WsInverseConnect() error {
+func (e *Exchange) WsInverseConnect() error {
 	ctx := context.TODO()
-	if !ex.Websocket.IsEnabled() || !ex.IsEnabled() || !ex.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() || !e.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	ex.Websocket.Conn.SetURL(inversePublic)
+	e.Websocket.Conn.SetURL(inversePublic)
 	var dialer gws.Dialer
-	err := ex.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	ex.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     []byte(`{"op": "ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
 
-	ex.Websocket.Wg.Add(1)
-	go ex.wsReadData(ctx, asset.CoinMarginedFutures, ex.Websocket.Conn)
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(ctx, asset.CoinMarginedFutures, e.Websocket.Conn)
 	return nil
 }
 
 // GenerateInverseDefaultSubscriptions generates default subscription
-func (ex *Exchange) GenerateInverseDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateInverseDefaultSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
 	channels := []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
-	pairs, err := ex.GetEnabledPairs(asset.CoinMarginedFutures)
+	pairs, err := e.GetEnabledPairs(asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
@@ -57,26 +57,26 @@ func (ex *Exchange) GenerateInverseDefaultSubscriptions() (subscription.List, er
 }
 
 // InverseSubscribe sends a subscription message to linear public channels.
-func (ex *Exchange) InverseSubscribe(channelSubscriptions subscription.List) error {
+func (e *Exchange) InverseSubscribe(channelSubscriptions subscription.List) error {
 	ctx := context.TODO()
-	return ex.handleInversePayloadSubscription(ctx, "subscribe", channelSubscriptions)
+	return e.handleInversePayloadSubscription(ctx, "subscribe", channelSubscriptions)
 }
 
 // InverseUnsubscribe sends an unsubscription messages through linear public channels.
-func (ex *Exchange) InverseUnsubscribe(channelSubscriptions subscription.List) error {
+func (e *Exchange) InverseUnsubscribe(channelSubscriptions subscription.List) error {
 	ctx := context.TODO()
-	return ex.handleInversePayloadSubscription(ctx, "unsubscribe", channelSubscriptions)
+	return e.handleInversePayloadSubscription(ctx, "unsubscribe", channelSubscriptions)
 }
 
-func (ex *Exchange) handleInversePayloadSubscription(ctx context.Context, operation string, channelSubscriptions subscription.List) error {
-	payloads, err := ex.handleSubscriptions(operation, channelSubscriptions)
+func (e *Exchange) handleInversePayloadSubscription(ctx context.Context, operation string, channelSubscriptions subscription.List) error {
+	payloads, err := e.handleSubscriptions(operation, channelSubscriptions)
 	if err != nil {
 		return err
 	}
 	for a := range payloads {
 		// The options connection does not send the subscription request id back with the subscription notification payload
 		// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
-		err = ex.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payloads[a])
+		err = e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payloads[a])
 		if err != nil {
 			return err
 		}

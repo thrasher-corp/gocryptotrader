@@ -418,7 +418,7 @@ func TestReset(t *testing.T) {
 
 func TestFullCycle(t *testing.T) {
 	t.Parallel()
-	ex := testExchange
+	e := testExchange
 	cp := currency.NewBTCUSDT()
 	a := asset.Spot
 	tt := time.Now()
@@ -439,10 +439,10 @@ func TestFullCycle(t *testing.T) {
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	assert.NoError(t, err)
 
-	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(e, a, cp.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(e, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
 	assert.NoError(t, err)
 
 	pair, err := funding.CreatePair(b, quote)
@@ -467,7 +467,7 @@ func TestFullCycle(t *testing.T) {
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: &gctkline.Item{
-			Exchange: ex,
+			Exchange: e,
 			Pair:     cp,
 			Asset:    a,
 			Interval: gctkline.FifteenMin,
@@ -502,7 +502,7 @@ func TestFullCycle(t *testing.T) {
 	err = k.Load()
 	assert.NoError(t, err)
 
-	err = bt.DataHolder.SetDataForCurrency(ex, a, cp, k)
+	err = bt.DataHolder.SetDataForCurrency(e, a, cp, k)
 	assert.NoError(t, err)
 
 	bt.MetaData.DateLoaded = time.Now()
@@ -536,7 +536,7 @@ func TestStop(t *testing.T) {
 
 func TestFullCycleMulti(t *testing.T) {
 	t.Parallel()
-	ex := testExchange
+	e := testExchange
 	cp := currency.NewBTCUSDT()
 	a := asset.Spot
 	tt := time.Now()
@@ -556,10 +556,10 @@ func TestFullCycleMulti(t *testing.T) {
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	assert.NoError(t, err)
 
-	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(e, a, cp.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(e, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
 	assert.NoError(t, err)
 
 	pair, err := funding.CreatePair(b, quote)
@@ -586,7 +586,7 @@ func TestFullCycleMulti(t *testing.T) {
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: &gctkline.Item{
-			Exchange: ex,
+			Exchange: e,
 			Pair:     cp,
 			Asset:    a,
 			Interval: gctkline.FifteenMin,
@@ -621,7 +621,7 @@ func TestFullCycleMulti(t *testing.T) {
 	err = k.Load()
 	assert.NoError(t, err)
 
-	err = bt.DataHolder.SetDataForCurrency(ex, a, cp, k)
+	err = bt.DataHolder.SetDataForCurrency(e, a, cp, k)
 	assert.NoError(t, err)
 
 	err = bt.Run()

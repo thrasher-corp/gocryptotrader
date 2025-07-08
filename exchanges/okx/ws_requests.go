@@ -23,22 +23,22 @@ var (
 )
 
 // WSPlaceOrder submits an order
-func (ex *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
+func (e *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
 
-	id := strconv.FormatInt(ex.Websocket.AuthConn.GenerateMessageID(false), 10)
+	id := strconv.FormatInt(e.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*OrderData
-	if err := ex.SendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, id, "order", []PlaceOrderRequestParam{*arg}, &resp); err != nil {
+	if err := e.SendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, id, "order", []PlaceOrderRequestParam{*arg}, &resp); err != nil {
 		return nil, err
 	}
 	return singleItem(resp)
 }
 
 // WSPlaceMultipleOrders submits multiple orders
-func (ex *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]*OrderData, error) {
+func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
@@ -49,14 +49,14 @@ func (ex *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrder
 		}
 	}
 
-	id := strconv.FormatInt(ex.Websocket.AuthConn.GenerateMessageID(false), 10)
+	id := strconv.FormatInt(e.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*OrderData
-	return resp, ex.SendAuthenticatedWebsocketRequest(ctx, placeMultipleOrdersEPL, id, "batch-orders", args, &resp)
+	return resp, e.SendAuthenticatedWebsocketRequest(ctx, placeMultipleOrdersEPL, id, "batch-orders", args, &resp)
 }
 
 // WSCancelOrder cancels an order
-func (ex *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) (*OrderData, error) {
+func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) (*OrderData, error) {
 	if arg == nil {
 		return nil, fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
 	}
@@ -67,10 +67,10 @@ func (ex *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestPa
 		return nil, order.ErrOrderIDNotSet
 	}
 
-	id := strconv.FormatInt(ex.Websocket.AuthConn.GenerateMessageID(false), 10)
+	id := strconv.FormatInt(e.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*OrderData
-	if err := ex.SendAuthenticatedWebsocketRequest(ctx, cancelOrderEPL, id, "cancel-order", []CancelOrderRequestParam{*arg}, &resp); err != nil {
+	if err := e.SendAuthenticatedWebsocketRequest(ctx, cancelOrderEPL, id, "cancel-order", []CancelOrderRequestParam{*arg}, &resp); err != nil {
 		return nil, err
 	}
 
@@ -78,7 +78,7 @@ func (ex *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestPa
 }
 
 // WSCancelMultipleOrders cancels multiple orders
-func (ex *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]*OrderData, error) {
+func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
@@ -92,14 +92,14 @@ func (ex *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrd
 		}
 	}
 
-	id := strconv.FormatInt(ex.Websocket.AuthConn.GenerateMessageID(false), 10)
+	id := strconv.FormatInt(e.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*OrderData
-	return resp, ex.SendAuthenticatedWebsocketRequest(ctx, cancelMultipleOrdersEPL, id, "batch-cancel-orders", args, &resp)
+	return resp, e.SendAuthenticatedWebsocketRequest(ctx, cancelMultipleOrdersEPL, id, "batch-cancel-orders", args, &resp)
 }
 
 // WSAmendOrder amends an order
-func (ex *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*OrderData, error) {
+func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*OrderData, error) {
 	if arg == nil {
 		return nil, fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
 	}
@@ -113,17 +113,17 @@ func (ex *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestPara
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
 
-	id := strconv.FormatInt(ex.Websocket.AuthConn.GenerateMessageID(false), 10)
+	id := strconv.FormatInt(e.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*OrderData
-	if err := ex.SendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, id, "amend-order", []AmendOrderRequestParams{*arg}, &resp); err != nil {
+	if err := e.SendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, id, "amend-order", []AmendOrderRequestParams{*arg}, &resp); err != nil {
 		return nil, err
 	}
 	return singleItem(resp)
 }
 
 // WSAmendMultipleOrders amends multiple orders
-func (ex *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]*OrderData, error) {
+func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
@@ -140,14 +140,14 @@ func (ex *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrder
 		}
 	}
 
-	id := strconv.FormatInt(ex.Websocket.AuthConn.GenerateMessageID(false), 10)
+	id := strconv.FormatInt(e.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*OrderData
-	return resp, ex.SendAuthenticatedWebsocketRequest(ctx, amendMultipleOrdersEPL, id, "batch-amend-orders", args, &resp)
+	return resp, e.SendAuthenticatedWebsocketRequest(ctx, amendMultipleOrdersEPL, id, "batch-amend-orders", args, &resp)
 }
 
 // WSMassCancelOrders cancels all MMP pending orders of an instrument family. Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
-func (ex *Exchange) WSMassCancelOrders(ctx context.Context, args []CancelMassReqParam) error {
+func (e *Exchange) WSMassCancelOrders(ctx context.Context, args []CancelMassReqParam) error {
 	if len(args) == 0 {
 		return fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
@@ -161,12 +161,12 @@ func (ex *Exchange) WSMassCancelOrders(ctx context.Context, args []CancelMassReq
 		}
 	}
 
-	id := strconv.FormatInt(ex.Websocket.AuthConn.GenerateMessageID(false), 10)
+	id := strconv.FormatInt(e.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resps []*struct {
 		Result bool `json:"result"`
 	}
-	if err := ex.SendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, id, "mass-cancel", args, &resps); err != nil {
+	if err := e.SendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, id, "mass-cancel", args, &resps); err != nil {
 		return err
 	}
 
@@ -183,15 +183,15 @@ func (ex *Exchange) WSMassCancelOrders(ctx context.Context, args []CancelMassReq
 }
 
 // WSPlaceSpreadOrder submits a spread order
-func (ex *Exchange) WSPlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*SpreadOrderResponse, error) {
+func (e *Exchange) WSPlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*SpreadOrderResponse, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
 
-	id := strconv.FormatInt(ex.Websocket.AuthConn.GenerateMessageID(false), 10)
+	id := strconv.FormatInt(e.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*SpreadOrderResponse
-	if err := ex.SendAuthenticatedWebsocketRequest(ctx, placeSpreadOrderEPL, id, "sprd-order", []SpreadOrderParam{*arg}, &resp); err != nil {
+	if err := e.SendAuthenticatedWebsocketRequest(ctx, placeSpreadOrderEPL, id, "sprd-order", []SpreadOrderParam{*arg}, &resp); err != nil {
 		return nil, err
 	}
 
@@ -199,7 +199,7 @@ func (ex *Exchange) WSPlaceSpreadOrder(ctx context.Context, arg *SpreadOrderPara
 }
 
 // WSAmendSpreadOrder amends a spread order
-func (ex *Exchange) WSAmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderParam) (*SpreadOrderResponse, error) {
+func (e *Exchange) WSAmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderParam) (*SpreadOrderResponse, error) {
 	if arg == nil {
 		return nil, fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
 	}
@@ -210,10 +210,10 @@ func (ex *Exchange) WSAmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrde
 		return nil, errSizeOrPriceIsRequired
 	}
 
-	id := strconv.FormatInt(ex.Websocket.AuthConn.GenerateMessageID(false), 10)
+	id := strconv.FormatInt(e.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*SpreadOrderResponse
-	if err := ex.SendAuthenticatedWebsocketRequest(ctx, amendSpreadOrderEPL, id, "sprd-amend-order", []AmendSpreadOrderParam{*arg}, &resp); err != nil {
+	if err := e.SendAuthenticatedWebsocketRequest(ctx, amendSpreadOrderEPL, id, "sprd-amend-order", []AmendSpreadOrderParam{*arg}, &resp); err != nil {
 		return nil, err
 	}
 
@@ -221,7 +221,7 @@ func (ex *Exchange) WSAmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrde
 }
 
 // WSCancelSpreadOrder cancels an incomplete spread order through the websocket connection.
-func (ex *Exchange) WSCancelSpreadOrder(ctx context.Context, orderID, clientOrderID string) (*SpreadOrderResponse, error) {
+func (e *Exchange) WSCancelSpreadOrder(ctx context.Context, orderID, clientOrderID string) (*SpreadOrderResponse, error) {
 	if orderID == "" && clientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -234,10 +234,10 @@ func (ex *Exchange) WSCancelSpreadOrder(ctx context.Context, orderID, clientOrde
 		arg["clOrdId"] = clientOrderID
 	}
 
-	id := strconv.FormatInt(ex.Websocket.AuthConn.GenerateMessageID(false), 10)
+	id := strconv.FormatInt(e.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*SpreadOrderResponse
-	if err := ex.SendAuthenticatedWebsocketRequest(ctx, cancelSpreadOrderEPL, id, "sprd-cancel-order", []map[string]string{arg}, &resp); err != nil {
+	if err := e.SendAuthenticatedWebsocketRequest(ctx, cancelSpreadOrderEPL, id, "sprd-cancel-order", []map[string]string{arg}, &resp); err != nil {
 		return nil, err
 	}
 
@@ -245,16 +245,16 @@ func (ex *Exchange) WSCancelSpreadOrder(ctx context.Context, orderID, clientOrde
 }
 
 // WSCancelAllSpreadOrders cancels all spread orders and return success message through the websocket channel.
-func (ex *Exchange) WSCancelAllSpreadOrders(ctx context.Context, spreadID string) error {
+func (e *Exchange) WSCancelAllSpreadOrders(ctx context.Context, spreadID string) error {
 	arg := make(map[string]string, 1)
 	if spreadID != "" {
 		arg["sprdId"] = spreadID
 	}
 
-	id := strconv.FormatInt(ex.Websocket.AuthConn.GenerateMessageID(false), 10)
+	id := strconv.FormatInt(e.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resps []*ResponseResult
-	if err := ex.SendAuthenticatedWebsocketRequest(ctx, cancelAllSpreadOrderEPL, id, "sprd-mass-cancel", []map[string]string{arg}, &resps); err != nil {
+	if err := e.SendAuthenticatedWebsocketRequest(ctx, cancelAllSpreadOrderEPL, id, "sprd-mass-cancel", []map[string]string{arg}, &resps); err != nil {
 		return err
 	}
 
@@ -271,7 +271,7 @@ func (ex *Exchange) WSCancelAllSpreadOrders(ctx context.Context, spreadID string
 }
 
 // SendAuthenticatedWebsocketRequest sends a websocket request to the server
-func (ex *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl request.EndpointLimit, id, operation string, payload, result any) error {
+func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl request.EndpointLimit, id, operation string, payload, result any) error {
 	if operation == "" || payload == nil {
 		return errInvalidWebsocketRequest
 	}
@@ -289,7 +289,7 @@ func (ex *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl r
 		Arguments: payload,
 	}
 
-	incoming, err := ex.Websocket.AuthConn.SendMessageReturnResponse(ctx, epl, id, outbound)
+	incoming, err := e.Websocket.AuthConn.SendMessageReturnResponse(ctx, epl, id, outbound)
 	if err != nil {
 		return err
 	}

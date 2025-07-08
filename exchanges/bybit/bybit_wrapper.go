@@ -53,27 +53,27 @@ var (
 )
 
 // SetDefaults sets the basic defaults for Bybit
-func (ex *Exchange) SetDefaults() {
-	ex.Name = "Bybit"
-	ex.Enabled = true
-	ex.Verbose = true
-	ex.API.CredentialsValidator.RequiresKey = true
-	ex.API.CredentialsValidator.RequiresSecret = true
+func (e *Exchange) SetDefaults() {
+	e.Name = "Bybit"
+	e.Enabled = true
+	e.Verbose = true
+	e.API.CredentialsValidator.RequiresKey = true
+	e.API.CredentialsValidator.RequiresSecret = true
 
 	for _, n := range assetPairFmts {
 		ps := currency.PairStore{AssetEnabled: true, RequestFormat: n.reqFmt, ConfigFormat: n.cfgFmt}
-		if err := ex.SetAssetPairStore(n.asset, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", ex.Name, n.asset, err)
+		if err := e.SetAssetPairStore(n.asset, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, n.asset, err)
 		}
 	}
 
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.Options} {
-		if err := ex.DisableAssetWebsocketSupport(a); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", ex.Name, a, err)
+		if err := e.DisableAssetWebsocketSupport(a); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", e.Name, a, err)
 		}
 	}
 
-	ex.Features = exchange.Features{
+	e.Features = exchange.Features{
 		CurrencyTranslations: currency.NewTranslations(
 			map[currency.Code]currency.Code{
 				currency.NewCode("10000000AIDOGE"):  currency.AIDOGE,
@@ -186,8 +186,8 @@ func (ex *Exchange) SetDefaults() {
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
-	ex.API.Endpoints = ex.NewEndpoints()
-	err := ex.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	e.API.Endpoints = e.NewEndpoints()
+	err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:         bybitAPIURL,
 		exchange.RestCoinMargined: bybitAPIURL,
 		exchange.RestUSDTMargined: bybitAPIURL,
@@ -199,62 +199,62 @@ func (ex *Exchange) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	if ex.Requester, err = request.New(ex.Name,
+	if e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()),
 	); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	ex.Websocket = websocket.NewManager()
-	ex.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	ex.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	ex.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	e.Websocket = websocket.NewManager()
+	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (ex *Exchange) Setup(exch *config.Exchange) error {
+func (e *Exchange) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
 	if err != nil {
 		return err
 	}
 	if !exch.Enabled {
-		ex.SetEnabled(false)
+		e.SetEnabled(false)
 		return nil
 	}
 
-	err = ex.SetupDefaults(exch)
+	err = e.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
 
-	wsRunningEndpoint, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	err = ex.Websocket.Setup(
+	err = e.Websocket.Setup(
 		&websocket.ManagerSetup{
 			ExchangeConfig:        exch,
 			DefaultURL:            spotPublic,
 			RunningURL:            wsRunningEndpoint,
 			RunningURLAuth:        websocketPrivate,
-			Connector:             ex.WsConnect,
-			Subscriber:            ex.Subscribe,
-			Unsubscriber:          ex.Unsubscribe,
-			GenerateSubscriptions: ex.generateSubscriptions,
-			Features:              &ex.Features.Supports.WebsocketCapabilities,
+			Connector:             e.WsConnect,
+			Subscriber:            e.Subscribe,
+			Unsubscriber:          e.Unsubscribe,
+			GenerateSubscriptions: e.generateSubscriptions,
+			Features:              &e.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
 				SortBufferByUpdateIDs: true,
 			},
-			TradeFeed: ex.Features.Enabled.TradeFeed,
+			TradeFeed: e.Features.Enabled.TradeFeed,
 		})
 	if err != nil {
 		return err
 	}
-	err = ex.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  ex.Websocket.GetWebsocketURL(),
+	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                  e.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     bybitWebsocketTimer,
 	})
@@ -262,7 +262,7 @@ func (ex *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return ex.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  websocketPrivate,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -271,18 +271,18 @@ func (ex *Exchange) Setup(exch *config.Exchange) error {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (ex *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	return ex.WsAuth(ctx)
+func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
+	return e.WsAuth(ctx)
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (ex *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	if !ex.SupportsAsset(a) {
+func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	if !e.SupportsAsset(a) {
 		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	var pair currency.Pair
 	var category string
-	format, err := ex.GetPairFormat(a, false)
+	format, err := e.GetPairFormat(a, false)
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +296,7 @@ func (ex *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curre
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
 		category = getCategoryName(a)
 		for {
-			response, err = ex.GetInstrumentInfo(ctx, category, "", "Trading", "", nextPageCursor, 1000)
+			response, err = e.GetInstrumentInfo(ctx, category, "", "Trading", "", nextPageCursor, 1000)
 			if err != nil {
 				return nil, err
 			}
@@ -311,7 +311,7 @@ func (ex *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curre
 		for x := range supportedOptionsTypes {
 			nextPageCursor = ""
 			for {
-				response, err = ex.GetInstrumentInfo(ctx, category, "", "Trading", supportedOptionsTypes[x], nextPageCursor, 1000)
+				response, err = e.GetInstrumentInfo(ctx, category, "", "Trading", supportedOptionsTypes[x], nextPageCursor, 1000)
 				if err != nil {
 					return nil, err
 				}
@@ -369,28 +369,28 @@ func getCategoryName(a asset.Item) string {
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (ex *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := ex.GetAssetTypes(true)
+func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+	assetTypes := e.GetAssetTypes(true)
 	for i := range assetTypes {
-		pairs, err := ex.FetchTradablePairs(ctx, assetTypes[i])
+		pairs, err := e.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
 			return err
 		}
-		err = ex.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
+		err = e.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
 		if err != nil {
 			return err
 		}
 	}
-	return ex.EnsureOnePairEnabled()
+	return e.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (ex *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	enabled, err := ex.GetEnabledPairs(assetType)
+func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+	enabled, err := e.GetEnabledPairs(assetType)
 	if err != nil {
 		return err
 	}
-	format, err := ex.GetPairFormat(assetType, false)
+	format, err := e.GetPairFormat(assetType, false)
 	if err != nil {
 		return err
 	}
@@ -399,13 +399,13 @@ func (ex *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) err
 	case asset.Spot, asset.USDCMarginedFutures,
 		asset.USDTMarginedFutures,
 		asset.CoinMarginedFutures:
-		ticks, err = ex.GetTickers(ctx, getCategoryName(assetType), "", "", time.Time{})
+		ticks, err = e.GetTickers(ctx, getCategoryName(assetType), "", "", time.Time{})
 		if err != nil {
 			return err
 		}
 		for x := range ticks.List {
 			var pair currency.Pair
-			pair, err = ex.MatchSymbolWithAvailablePairs(ticks.List[x].Symbol, assetType, true)
+			pair, err = e.MatchSymbolWithAvailablePairs(ticks.List[x].Symbol, assetType, true)
 			if err != nil {
 				continue
 			}
@@ -422,7 +422,7 @@ func (ex *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) err
 				AskSize:      ticks.List[x].Ask1Size.Float64(),
 				Volume:       ticks.List[x].Volume24H.Float64(),
 				Pair:         pair.Format(format),
-				ExchangeName: ex.Name,
+				ExchangeName: e.Name,
 				AssetType:    assetType,
 			})
 			if err != nil {
@@ -431,13 +431,13 @@ func (ex *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) err
 		}
 	case asset.Options:
 		for x := range supportedOptionsTypes {
-			ticks, err = ex.GetTickers(ctx, getCategoryName(assetType), "", supportedOptionsTypes[x], time.Time{})
+			ticks, err = e.GetTickers(ctx, getCategoryName(assetType), "", supportedOptionsTypes[x], time.Time{})
 			if err != nil {
 				return err
 			}
 			for x := range ticks.List {
 				var pair currency.Pair
-				pair, err = ex.MatchSymbolWithAvailablePairs(ticks.List[x].Symbol, assetType, true)
+				pair, err = e.MatchSymbolWithAvailablePairs(ticks.List[x].Symbol, assetType, true)
 				if err != nil {
 					continue
 				}
@@ -454,7 +454,7 @@ func (ex *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) err
 					AskSize:      ticks.List[x].Ask1Size.Float64(),
 					Volume:       ticks.List[x].Volume24H.Float64(),
 					Pair:         pair.Format(format),
-					ExchangeName: ex.Name,
+					ExchangeName: e.Name,
 					AssetType:    assetType,
 				})
 				if err != nil {
@@ -469,24 +469,24 @@ func (ex *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) err
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (ex *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	if err := ex.UpdateTickers(ctx, assetType); err != nil {
+func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	if err := e.UpdateTickers(ctx, assetType); err != nil {
 		return nil, err
 	}
-	return ticker.GetTicker(ex.Name, p, assetType)
+	return ticker.GetTicker(e.Name, p, assetType)
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (ex *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := ex.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
 	var orderbookNew *Orderbook
 	var err error
-	p, err = ex.FormatExchangeCurrency(p, assetType)
+	p, err = e.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -499,7 +499,7 @@ func (ex *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetT
 		if assetType == asset.USDCMarginedFutures && !p.Quote.Equal(currency.PERP) {
 			p.Delimiter = currency.DashDelimiter
 		}
-		orderbookNew, err = ex.GetOrderBook(ctx, getCategoryName(assetType), p.String(), 0)
+		orderbookNew, err = e.GetOrderBook(ctx, getCategoryName(assetType), p.String(), 0)
 	default:
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
@@ -507,10 +507,10 @@ func (ex *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetT
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:          ex.Name,
+		Exchange:          e.Name,
 		Pair:              p,
 		Asset:             assetType,
-		ValidateOrderbook: ex.ValidateOrderbook,
+		ValidateOrderbook: e.ValidateOrderbook,
 		Bids:              make([]orderbook.Level, len(orderbookNew.Bids)),
 		Asks:              make([]orderbook.Level, len(orderbookNew.Asks)),
 	}
@@ -530,16 +530,16 @@ func (ex *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetT
 	if err != nil {
 		return book, err
 	}
-	return orderbook.Get(ex.Name, p, assetType)
+	return orderbook.Get(e.Name, p, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (ex *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
 	var accountType string
-	info.Exchange = ex.Name
-	at, err := ex.FetchAccountType(ctx)
+	info.Exchange = e.Name
+	at, err := e.FetchAccountType(ctx)
 	if err != nil {
 		return info, err
 	}
@@ -562,7 +562,7 @@ func (ex *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item)
 	default:
 		return info, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
-	balances, err := ex.GetWalletBalance(ctx, accountType, "")
+	balances, err := e.GetWalletBalance(ctx, accountType, "")
 	if err != nil {
 		return info, err
 	}
@@ -585,7 +585,7 @@ func (ex *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item)
 	acc.Currencies = currencyBalance
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	creds, err := ex.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -598,15 +598,15 @@ func (ex *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item)
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (ex *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
+func (e *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (ex *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	switch a {
 	case asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
-		withdrawals, err := ex.GetWithdrawalRecords(ctx, c, "", "2", "", time.Time{}, time.Time{}, 0)
+		withdrawals, err := e.GetWithdrawalRecords(ctx, c, "", "2", "", time.Time{}, time.Time{}, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -632,8 +632,8 @@ func (ex *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, 
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (ex *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	formattedPair, err := ex.FormatExchangeCurrency(p, assetType)
+func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	formattedPair, err := e.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -647,9 +647,9 @@ func (ex *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetT
 		if assetType == asset.USDCMarginedFutures && !p.Quote.Equal(currency.PERP) {
 			formattedPair.Delimiter = currency.DashDelimiter
 		}
-		tradeData, err = ex.GetPublicTradingHistory(ctx, getCategoryName(assetType), formattedPair.String(), "", "", limit)
+		tradeData, err = e.GetPublicTradingHistory(ctx, getCategoryName(assetType), formattedPair.String(), "", "", limit)
 	case asset.Options:
-		tradeData, err = ex.GetPublicTradingHistory(ctx, getCategoryName(assetType), formattedPair.String(), formattedPair.Base.String(), "", limit)
+		tradeData, err = e.GetPublicTradingHistory(ctx, getCategoryName(assetType), formattedPair.String(), formattedPair.Base.String(), "", limit)
 	default:
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
@@ -663,7 +663,7 @@ func (ex *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetT
 			return nil, err
 		}
 		resp[i] = trade.Data{
-			Exchange:     ex.Name,
+			Exchange:     e.Name,
 			CurrencyPair: formattedPair,
 			AssetType:    assetType,
 			Price:        tradeData.List[i].Price.Float64(),
@@ -674,7 +674,7 @@ func (ex *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetT
 		}
 	}
 
-	if ex.IsSaveTradeDataEnabled() {
+	if e.IsSaveTradeDataEnabled() {
 		err := trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
@@ -686,9 +686,9 @@ func (ex *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetT
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (ex *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	var err error
-	p, err = ex.FormatExchangeCurrency(p, assetType)
+	p, err = e.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -702,12 +702,12 @@ func (ex *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asse
 		if assetType == asset.USDCMarginedFutures && !p.Quote.Equal(currency.PERP) {
 			p.Delimiter = currency.DashDelimiter
 		}
-		tradeHistoryResponse, err = ex.GetPublicTradingHistory(ctx, getCategoryName(assetType), p.String(), "", "", limit)
+		tradeHistoryResponse, err = e.GetPublicTradingHistory(ctx, getCategoryName(assetType), p.String(), "", "", limit)
 		if err != nil {
 			return nil, err
 		}
 	case asset.Options:
-		tradeHistoryResponse, err = ex.GetPublicTradingHistory(ctx, getCategoryName(assetType), p.String(), p.Base.String(), "", limit)
+		tradeHistoryResponse, err = e.GetPublicTradingHistory(ctx, getCategoryName(assetType), p.String(), p.Base.String(), "", limit)
 		if err != nil {
 			return nil, err
 		}
@@ -722,7 +722,7 @@ func (ex *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asse
 		}
 		resp[x] = trade.Data{
 			TID:          tradeHistoryResponse.List[x].ExecutionID,
-			Exchange:     ex.Name,
+			Exchange:     e.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
 			Side:         side,
@@ -746,12 +746,12 @@ func orderTypeToString(oType order.Type) string {
 }
 
 // SubmitOrder submits a new order
-func (ex *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(ex.GetTradingRequirements())
+func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	err := s.Validate(e.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
-	formattedPair, err := ex.FormatExchangeCurrency(s.Pair, s.AssetType)
+	formattedPair, err := e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return nil, err
 	}
@@ -807,7 +807,7 @@ func (ex *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Su
 			arg.SlOrderType = getOrderTypeString(s.RiskManagementModes.StopLoss.OrderType)
 			arg.SlLimitPrice = s.RiskManagementModes.StopLoss.LimitPrice
 		}
-		response, err = ex.PlaceOrder(ctx, arg)
+		response, err = e.PlaceOrder(ctx, arg)
 		if err != nil {
 			return nil, err
 		}
@@ -833,7 +833,7 @@ func getOrderTypeString(oType order.Type) string {
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (ex *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
@@ -841,7 +841,7 @@ func (ex *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*ord
 		result *OrderResponse
 		err    error
 	)
-	action.Pair, err = ex.FormatExchangeCurrency(action.Pair, action.AssetType)
+	action.Pair, err = e.FormatExchangeCurrency(action.Pair, action.AssetType)
 	if err != nil {
 		return nil, err
 	}
@@ -866,7 +866,7 @@ func (ex *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*ord
 			StopLossTriggerBy:    action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
 			StopLossLimitPrice:   action.RiskManagementModes.StopLoss.LimitPrice,
 		}
-		result, err = ex.AmendOrder(ctx, arg)
+		result, err = e.AmendOrder(ctx, arg)
 		if err != nil {
 			return nil, err
 		}
@@ -885,11 +885,11 @@ func (ex *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*ord
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (ex *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
+func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if err := ord.Validate(ord.StandardCancel()); err != nil {
 		return err
 	}
-	format, err := ex.GetPairFormat(ord.AssetType, true)
+	format, err := e.GetPairFormat(ord.AssetType, true)
 	if err != nil {
 		return err
 	}
@@ -898,7 +898,7 @@ func (ex *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		if ord.AssetType == asset.USDCMarginedFutures && !ord.Pair.Quote.Equal(currency.PERP) {
 			ord.Pair.Delimiter = currency.DashDelimiter
 		}
-		_, err = ex.CancelTradeOrder(ctx, &CancelOrderParams{
+		_, err = e.CancelTradeOrder(ctx, &CancelOrderParams{
 			Category:    getCategoryName(ord.AssetType),
 			Symbol:      ord.Pair.Format(format),
 			OrderID:     ord.OrderID,
@@ -911,7 +911,7 @@ func (ex *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (ex *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(o) == 0 {
 		return nil, order.ErrCancelOrderIsNil
 	}
@@ -930,7 +930,7 @@ func (ex *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*o
 		case o[i].ClientOrderID == "" && o[i].OrderID == "":
 			return nil, order.ErrOrderIDNotSet
 		default:
-			o[i].Pair, err = ex.FormatExchangeCurrency(o[i].Pair, category)
+			o[i].Pair, err = e.FormatExchangeCurrency(o[i].Pair, category)
 			if err != nil {
 				return nil, err
 			}
@@ -941,7 +941,7 @@ func (ex *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*o
 			}
 		}
 	}
-	cancelledOrders, err := ex.CancelBatchOrder(ctx, &CancelBatchOrder{
+	cancelledOrders, err := e.CancelBatchOrder(ctx, &CancelBatchOrder{
 		Category: getCategoryName(category),
 		Request:  requests,
 	})
@@ -958,12 +958,12 @@ func (ex *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*o
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (ex *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	err := orderCancellation.Validate()
 	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
-	orderCancellation.Pair, err = ex.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
+	orderCancellation.Pair, err = e.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
 	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -975,7 +975,7 @@ func (ex *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *orde
 		if orderCancellation.AssetType == asset.USDCMarginedFutures && !orderCancellation.Pair.Quote.Equal(currency.PERP) {
 			orderCancellation.Pair.Delimiter = currency.DashDelimiter
 		}
-		activeOrder, err := ex.CancelAllTradeOrders(ctx, &CancelAllOrdersParam{
+		activeOrder, err := e.CancelAllTradeOrders(ctx, &CancelAllOrdersParam{
 			Category: getCategoryName(orderCancellation.AssetType),
 			Symbol:   orderCancellation.Pair,
 			BaseCoin: orderCancellation.Pair.Base.String(),
@@ -993,14 +993,14 @@ func (ex *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *orde
 }
 
 // GetOrderInfo returns order information based on order ID
-func (ex *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
-	} else if err := ex.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	} else if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
 
-	pair, err := ex.FormatExchangeCurrency(pair, assetType)
+	pair, err := e.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -1010,7 +1010,7 @@ func (ex *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curre
 		if assetType == asset.USDCMarginedFutures && !pair.Quote.Equal(currency.PERP) {
 			pair.Delimiter = currency.DashDelimiter
 		}
-		resp, err := ex.GetOpenOrders(ctx, getCategoryName(assetType), pair.String(), "", "", orderID, "", "", "", 0, 1)
+		resp, err := e.GetOpenOrders(ctx, getCategoryName(assetType), pair.String(), "", "", orderID, "", "", "", 0, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -1027,7 +1027,7 @@ func (ex *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curre
 		}
 		return &order.Detail{
 			Amount:          resp.List[0].OrderQuantity.Float64(),
-			Exchange:        ex.Name,
+			Exchange:        e.Name,
 			OrderID:         resp.List[0].OrderID,
 			ClientOrderID:   resp.List[0].OrderLinkID,
 			Side:            getSide(resp.List[0].Side),
@@ -1048,8 +1048,8 @@ func (ex *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curre
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (ex *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
-	dAddressInfo, err := ex.GetMasterDepositAddress(ctx, cryptocurrency, chain)
+func (e *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+	dAddressInfo, err := e.GetMasterDepositAddress(ctx, cryptocurrency, chain)
 	if err != nil {
 		return nil, err
 	}
@@ -1067,8 +1067,8 @@ func (ex *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency curren
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
-func (ex *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
-	info, err := ex.GetCoinInfo(ctx, cryptocurrency)
+func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	info, err := e.GetCoinInfo(ctx, cryptocurrency)
 	if err != nil {
 		return nil, err
 	}
@@ -1085,11 +1085,11 @@ func (ex *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurren
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (ex *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	wID, err := ex.WithdrawCurrency(ctx,
+	wID, err := e.WithdrawCurrency(ctx,
 		&WithdrawalParam{
 			Coin:      withdrawRequest.Currency,
 			Chain:     withdrawRequest.Crypto.Chain,
@@ -1108,18 +1108,18 @@ func (ex *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReq
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (ex *Exchange) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (ex *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (ex *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1127,7 +1127,7 @@ func (ex *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRe
 	if len(req.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
-	format, err := ex.GetPairFormat(req.AssetType, true)
+	format, err := e.GetPairFormat(req.AssetType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1144,11 +1144,11 @@ func (ex *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRe
 	switch req.AssetType {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
 		if baseCoin != currency.EMPTYCODE {
-			openOrders, err := ex.GetOpenOrders(ctx, getCategoryName(req.AssetType), "", baseCoin.String(), "", req.FromOrderID, "", "", "", 0, 50)
+			openOrders, err := e.GetOpenOrders(ctx, getCategoryName(req.AssetType), "", baseCoin.String(), "", req.FromOrderID, "", "", "", 0, 50)
 			if err != nil {
 				return nil, err
 			}
-			newOpenOrders, err := ex.ConstructOrderDetails(openOrders.List, req.AssetType, currency.EMPTYPAIR, req.Pairs)
+			newOpenOrders, err := e.ConstructOrderDetails(openOrders.List, req.AssetType, currency.EMPTYPAIR, req.Pairs)
 			if err != nil {
 				return nil, err
 			}
@@ -1158,11 +1158,11 @@ func (ex *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRe
 				if req.AssetType == asset.USDCMarginedFutures && !req.Pairs[y].Quote.Equal(currency.PERP) {
 					req.Pairs[y].Delimiter = currency.DashDelimiter
 				}
-				openOrders, err := ex.GetOpenOrders(ctx, getCategoryName(req.AssetType), req.Pairs[y].String(), "", "", req.FromOrderID, "", "", "", 0, 50)
+				openOrders, err := e.GetOpenOrders(ctx, getCategoryName(req.AssetType), req.Pairs[y].String(), "", "", req.FromOrderID, "", "", "", 0, 50)
 				if err != nil {
 					return nil, err
 				}
-				newOpenOrders, err := ex.ConstructOrderDetails(openOrders.List, req.AssetType, req.Pairs[y], currency.Pairs{})
+				newOpenOrders, err := e.ConstructOrderDetails(openOrders.List, req.AssetType, req.Pairs[y], currency.Pairs{})
 				if err != nil {
 					return nil, err
 				}
@@ -1172,16 +1172,16 @@ func (ex *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRe
 	default:
 		return orders, fmt.Errorf("%s %w", req.AssetType, asset.ErrNotSupported)
 	}
-	return req.Filter(ex.Name, orders), nil
+	return req.Filter(e.Name, orders), nil
 }
 
 // ConstructOrderDetails constructs list of order.Detail instances given list of TradeOrder and other filtering information
-func (ex *Exchange) ConstructOrderDetails(tradeOrders []TradeOrder, assetType asset.Item, pair currency.Pair, filterPairs currency.Pairs) (order.FilteredOrders, error) {
+func (e *Exchange) ConstructOrderDetails(tradeOrders []TradeOrder, assetType asset.Item, pair currency.Pair, filterPairs currency.Pairs) (order.FilteredOrders, error) {
 	orders := make([]order.Detail, 0, len(tradeOrders))
 	var err error
 	var ePair currency.Pair
 	for x := range tradeOrders {
-		ePair, err = ex.MatchSymbolWithAvailablePairs(tradeOrders[x].Symbol, assetType, true)
+		ePair, err = e.MatchSymbolWithAvailablePairs(tradeOrders[x].Symbol, assetType, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1196,7 +1196,7 @@ func (ex *Exchange) ConstructOrderDetails(tradeOrders []TradeOrder, assetType as
 		orders = append(orders, order.Detail{
 			Amount:               tradeOrders[x].OrderQuantity.Float64(),
 			Date:                 tradeOrders[x].CreatedTime.Time(),
-			Exchange:             ex.Name,
+			Exchange:             e.Name,
 			OrderID:              tradeOrders[x].OrderID,
 			ClientOrderID:        tradeOrders[x].OrderLinkID,
 			Side:                 getSide(tradeOrders[x].Side),
@@ -1220,7 +1220,7 @@ func (ex *Exchange) ConstructOrderDetails(tradeOrders []TradeOrder, assetType as
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (ex *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1229,14 +1229,14 @@ func (ex *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRe
 	if req.AssetType == asset.Options {
 		limit = 25
 	}
-	format, err := ex.GetPairFormat(req.AssetType, false)
+	format, err := e.GetPairFormat(req.AssetType, false)
 	if err != nil {
 		return nil, err
 	}
 	var orders []order.Detail
 	switch req.AssetType {
 	case asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
-		resp, err := ex.GetTradeOrderHistory(ctx, getCategoryName(req.AssetType), "", req.FromOrderID, "", "", "", "", "", "", req.StartTime, req.EndTime, limit)
+		resp, err := e.GetTradeOrderHistory(ctx, getCategoryName(req.AssetType), "", req.FromOrderID, "", "", "", "", "", "", req.StartTime, req.EndTime, limit)
 		if err != nil {
 			return nil, err
 		}
@@ -1246,11 +1246,11 @@ func (ex *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRe
 			var side order.Side
 			side, err = order.StringToOrderSide(resp.List[i].Side)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", ex.Name, err)
+				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 			}
 
 			var pair currency.Pair
-			pair, err = ex.MatchSymbolWithAvailablePairs(resp.List[i].Symbol, req.AssetType, true)
+			pair, err = e.MatchSymbolWithAvailablePairs(resp.List[i].Symbol, req.AssetType, true)
 			if err != nil {
 				return nil, err
 			}
@@ -1264,7 +1264,7 @@ func (ex *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRe
 				RemainingAmount:      resp.List[i].LeavesQuantity.Float64(),
 				Date:                 resp.List[i].CreatedTime.Time(),
 				LastUpdated:          resp.List[i].UpdatedTime.Time(),
-				Exchange:             ex.Name,
+				Exchange:             e.Name,
 				OrderID:              resp.List[i].OrderID,
 				Side:                 side,
 				Type:                 orderType,
@@ -1283,7 +1283,7 @@ func (ex *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRe
 			orders = append(orders, detail)
 		}
 	case asset.Spot:
-		resp, err := ex.GetTradeOrderHistory(ctx, getCategoryName(req.AssetType), "", req.FromOrderID, "", "", "", "", "", "", req.StartTime, req.EndTime, limit)
+		resp, err := e.GetTradeOrderHistory(ctx, getCategoryName(req.AssetType), "", req.FromOrderID, "", "", "", "", "", "", req.StartTime, req.EndTime, limit)
 		if err != nil {
 			return nil, err
 		}
@@ -1293,10 +1293,10 @@ func (ex *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRe
 			var side order.Side
 			side, err = order.StringToOrderSide(resp.List[i].Side)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", ex.Name, err)
+				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 			}
 			var pair currency.Pair
-			pair, err = ex.MatchSymbolWithAvailablePairs(resp.List[i].Symbol, req.AssetType, true)
+			pair, err = e.MatchSymbolWithAvailablePairs(resp.List[i].Symbol, req.AssetType, true)
 			if err != nil {
 				return nil, err
 			}
@@ -1311,7 +1311,7 @@ func (ex *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRe
 				Cost:                 resp.List[i].AveragePrice.Float64() * resp.List[i].CumulativeExecQuantity.Float64(),
 				Date:                 resp.List[i].CreatedTime.Time(),
 				LastUpdated:          resp.List[i].UpdatedTime.Time(),
-				Exchange:             ex.Name,
+				Exchange:             e.Name,
 				OrderID:              resp.List[i].OrderID,
 				Side:                 side,
 				Type:                 orderType,
@@ -1331,15 +1331,15 @@ func (ex *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRe
 		return orders, fmt.Errorf("%s %w", req.AssetType, asset.ErrNotSupported)
 	}
 	order.FilterOrdersByPairs(&orders, req.Pairs)
-	return req.Filter(ex.Name, orders), nil
+	return req.Filter(e.Name, orders), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
-func (ex *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if feeBuilder.Pair.IsEmpty() {
 		return 0, currency.ErrCurrencyPairEmpty
 	}
-	if (!ex.AreCredentialsValid(ctx) || ex.SkipAuthCheck) &&
+	if (!e.AreCredentialsValid(ctx) || e.SkipAuthCheck) &&
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -1347,18 +1347,18 @@ func (ex *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBu
 	case exchange.OfflineTradeFee:
 		return getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount), nil
 	default:
-		assets := ex.getCategoryFromPair(feeBuilder.Pair)
+		assets := e.getCategoryFromPair(feeBuilder.Pair)
 		var err error
 		var baseCoin, pairString string
 		if assets[0] == asset.Options {
 			baseCoin = feeBuilder.Pair.Base.String()
 		} else {
-			pairString, err = ex.FormatSymbol(feeBuilder.Pair, assets[0])
+			pairString, err = e.FormatSymbol(feeBuilder.Pair, assets[0])
 			if err != nil {
 				return 0, err
 			}
 		}
-		accountFee, err := ex.GetFeeRate(ctx, getCategoryName(assets[0]), pairString, baseCoin)
+		accountFee, err := e.GetFeeRate(ctx, getCategoryName(assets[0]), pairString, baseCoin)
 		if err != nil {
 			return 0, err
 		}
@@ -1377,11 +1377,11 @@ func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.01 * price * amount
 }
 
-func (ex *Exchange) getCategoryFromPair(pair currency.Pair) []asset.Item {
-	assets := ex.GetAssetTypes(true)
+func (e *Exchange) getCategoryFromPair(pair currency.Pair) []asset.Item {
+	assets := e.GetAssetTypes(true)
 	containingAssets := make([]asset.Item, 0, len(assets))
 	for a := range assets {
-		pairs, err := ex.GetAvailablePairs(assets[a])
+		pairs, err := e.GetAvailablePairs(assets[a])
 		if err != nil {
 			continue
 		}
@@ -1393,16 +1393,16 @@ func (ex *Exchange) getCategoryFromPair(pair currency.Pair) []asset.Item {
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
-func (ex *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := ex.UpdateAccountInfo(ctx, assetType)
-	return ex.CheckTransientError(err)
+func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := e.UpdateAccountInfo(ctx, assetType)
+	return e.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (ex *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	switch a {
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures:
-		req, err := ex.GetKlineRequest(pair, a, interval, start, end, false)
+		req, err := e.GetKlineRequest(pair, a, interval, start, end, false)
 		if err != nil {
 			return nil, err
 		}
@@ -1411,7 +1411,7 @@ func (ex *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, 
 			req.RequestFormatted.Delimiter = currency.DashDelimiter
 		}
 		var candles []KlineItem
-		candles, err = ex.GetKlines(ctx, getCategoryName(req.Asset), req.RequestFormatted.String(), req.ExchangeInterval, req.Start, req.End, req.RequestLimit)
+		candles, err = e.GetKlines(ctx, getCategoryName(req.Asset), req.RequestFormatted.String(), req.ExchangeInterval, req.Start, req.End, req.RequestLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -1434,10 +1434,10 @@ func (ex *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, 
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (ex *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	switch a {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
-		req, err := ex.GetKlineExtendedRequest(pair, a, interval, start, end)
+		req, err := e.GetKlineExtendedRequest(pair, a, interval, start, end)
 		if err != nil {
 			return nil, err
 		}
@@ -1447,7 +1447,7 @@ func (ex *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currenc
 				req.RequestFormatted.Delimiter = currency.DashDelimiter
 			}
 			var klineItems []KlineItem
-			klineItems, err = ex.GetKlines(ctx,
+			klineItems, err = e.GetKlines(ctx,
 				getCategoryName(req.Asset),
 				req.RequestFormatted.String(),
 				req.ExchangeInterval,
@@ -1476,8 +1476,8 @@ func (ex *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currenc
 }
 
 // GetServerTime returns the current exchange server time.
-func (ex *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
-	info, err := ex.GetBybitServerTime(ctx)
+func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	info, err := e.GetBybitServerTime(ctx)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -1511,7 +1511,7 @@ func (i *InstrumentInfo) transformSymbol(a asset.Item) string {
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
-func (ex *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	var (
 		allInstrumentsInfo InstrumentsInfo
 		nextPageCursor     string
@@ -1519,7 +1519,7 @@ func (ex *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item
 	switch a {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
 		for {
-			instrumentInfo, err := ex.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "", nextPageCursor, 1000)
+			instrumentInfo, err := e.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "", nextPageCursor, 1000)
 			if err != nil {
 				return err
 			}
@@ -1550,7 +1550,7 @@ func (ex *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item
 		for i := range supportedOptionsTypes {
 			nextPageCursor = ""
 			for {
-				instrumentInfo, err := ex.GetInstrumentInfo(ctx, getCategoryName(a), "", "", supportedOptionsTypes[i], nextPageCursor, 1000)
+				instrumentInfo, err := e.GetInstrumentInfo(ctx, getCategoryName(a), "", "", supportedOptionsTypes[i], nextPageCursor, 1000)
 				if err != nil {
 					return fmt.Errorf("%w - %v", err, supportedOptionsTypes[i])
 				}
@@ -1570,9 +1570,9 @@ func (ex *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item
 			continue
 		}
 		symbol := allInstrumentsInfo.List[x].transformSymbol(a)
-		pair, err := ex.MatchSymbolWithAvailablePairs(symbol, a, true)
+		pair, err := e.MatchSymbolWithAvailablePairs(symbol, a, true)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "%s unable to load limits for %s %v, pair data missing", ex.Name, a, symbol)
+			log.Warnf(log.ExchangeSys, "%s unable to load limits for %s %v, pair data missing", e.Name, a, symbol)
 			continue
 		}
 		limits = append(limits, order.MinMaxLevel{
@@ -1589,15 +1589,15 @@ func (ex *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item
 			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
 		})
 	}
-	return ex.LoadLimits(limits)
+	return e.LoadLimits(limits)
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
-func (ex *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, amount float64, orderSide order.Side) error {
+func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, amount float64, orderSide order.Side) error {
 	switch item {
 	case asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
 		var err error
-		pair, err = ex.FormatExchangeCurrency(pair, item)
+		pair, err = e.FormatExchangeCurrency(pair, item)
 		if err != nil {
 			return err
 		}
@@ -1618,14 +1618,14 @@ func (ex *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair curre
 		default:
 			return order.ErrSideIsInvalid
 		}
-		return ex.SetLeverageLevel(ctx, params)
+		return e.SetLeverageLevel(ctx, params)
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
 }
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
-func (ex *Exchange) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool, error) {
+func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool, error) {
 	if !a.IsFutures() {
 		return false, nil
 	}
@@ -1636,18 +1636,18 @@ func (ex *Exchange) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bo
 }
 
 // GetFuturesContractDetails returns details about futures contracts
-func (ex *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
 	if !item.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	if !ex.SupportsAsset(item) {
+	if !e.SupportsAsset(item) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-	inverseContracts, err := ex.GetInstrumentInfo(ctx, getCategoryName(item), "", "", "", "", 1000)
+	inverseContracts, err := e.GetInstrumentInfo(ctx, getCategoryName(item), "", "", "", "", 1000)
 	if err != nil {
 		return nil, err
 	}
-	format, err := ex.GetPairFormat(item, false)
+	format, err := e.GetPairFormat(item, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1669,12 +1669,12 @@ func (ex *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.It
 				return nil, err
 			}
 			contractType := strings.ToLower(inverseContracts.List[i].ContractType)
-			var s, e time.Time
+			var start, end time.Time
 			if inverseContracts.List[i].LaunchTime.Time().UnixMilli() > 0 {
-				s = inverseContracts.List[i].LaunchTime.Time()
+				start = inverseContracts.List[i].LaunchTime.Time()
 			}
 			if inverseContracts.List[i].DeliveryTime.Time().UnixMilli() > 0 {
-				e = inverseContracts.List[i].DeliveryTime.Time()
+				end = inverseContracts.List[i].DeliveryTime.Time()
 			}
 
 			var ct futures.ContractType
@@ -1682,24 +1682,24 @@ func (ex *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.It
 			case "inverseperpetual":
 				ct = futures.Perpetual
 			case "inversefutures":
-				ct, err = getContractLength(e.Sub(s))
+				ct, err = getContractLength(end.Sub(start))
 				if err != nil {
-					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, ex.Name, item, cp, inverseContracts.List[i].LaunchTime.Time(), inverseContracts.List[i].DeliveryTime)
+					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, e.Name, item, cp, inverseContracts.List[i].LaunchTime.Time(), inverseContracts.List[i].DeliveryTime)
 				}
 			default:
-				if ex.Verbose {
-					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", ex.Name, item, cp, s, e)
+				if e.Verbose {
+					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", e.Name, item, cp, start, end)
 				}
 				ct = futures.Unknown
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             ex.Name,
+				Exchange:             e.Name,
 				Name:                 cp.Format(format),
 				Underlying:           underlying,
 				Asset:                item,
-				StartDate:            s,
-				EndDate:              e,
+				StartDate:            start,
+				EndDate:              end,
 				SettlementType:       futures.Inverse,
 				IsActive:             strings.EqualFold(inverseContracts.List[i].Status, "trading"),
 				Status:               inverseContracts.List[i].Status,
@@ -1710,7 +1710,7 @@ func (ex *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.It
 		}
 		return resp, nil
 	case asset.USDCMarginedFutures:
-		linearContracts, err := ex.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
+		linearContracts, err := e.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -1748,9 +1748,9 @@ func (ex *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.It
 			case "linearfutures":
 				ct, err = getContractLength(instruments[i].DeliveryTime.Time().Sub(instruments[i].LaunchTime.Time()))
 				if err != nil {
-					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, ex.Name, item, cp, instruments[i].LaunchTime.Time(), instruments[i].DeliveryTime.Time())
+					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, e.Name, item, cp, instruments[i].LaunchTime.Time(), instruments[i].DeliveryTime.Time())
 				}
-				cp, err = ex.MatchSymbolWithAvailablePairs(instruments[i].Symbol, item, true)
+				cp, err = e.MatchSymbolWithAvailablePairs(instruments[i].Symbol, item, true)
 				if err != nil {
 					if errors.Is(err, currency.ErrPairNotFound) {
 						continue
@@ -1758,11 +1758,11 @@ func (ex *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.It
 					return nil, err
 				}
 			default:
-				if ex.Verbose {
-					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", ex.Name, item, cp, instruments[i].LaunchTime.Time(), instruments[i].DeliveryTime.Time())
+				if e.Verbose {
+					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", e.Name, item, cp, instruments[i].LaunchTime.Time(), instruments[i].DeliveryTime.Time())
 				}
 				ct = futures.Unknown
-				cp, err = ex.MatchSymbolWithAvailablePairs(instruments[i].Symbol, item, true)
+				cp, err = e.MatchSymbolWithAvailablePairs(instruments[i].Symbol, item, true)
 				if err != nil {
 					if errors.Is(err, currency.ErrPairNotFound) {
 						continue
@@ -1772,7 +1772,7 @@ func (ex *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.It
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             ex.Name,
+				Exchange:             e.Name,
 				Name:                 cp.Format(format),
 				Underlying:           underlying,
 				Asset:                item,
@@ -1789,7 +1789,7 @@ func (ex *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.It
 		}
 		return resp, nil
 	case asset.USDTMarginedFutures:
-		linearContracts, err := ex.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
+		linearContracts, err := e.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -1820,12 +1820,12 @@ func (ex *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.It
 				return nil, err
 			}
 			contractType := strings.ToLower(instruments[i].ContractType)
-			var s, e time.Time
+			var start, end time.Time
 			if !instruments[i].LaunchTime.Time().IsZero() {
-				s = instruments[i].LaunchTime.Time()
+				start = instruments[i].LaunchTime.Time()
 			}
 			if !instruments[i].DeliveryTime.Time().IsZero() {
-				e = instruments[i].DeliveryTime.Time()
+				end = instruments[i].DeliveryTime.Time()
 			}
 
 			var ct futures.ContractType
@@ -1833,24 +1833,24 @@ func (ex *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.It
 			case "linearperpetual":
 				ct = futures.Perpetual
 			case "linearfutures":
-				ct, err = getContractLength(e.Sub(s))
+				ct, err = getContractLength(end.Sub(start))
 				if err != nil {
-					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, ex.Name, item, cp, s, e)
+					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, e.Name, item, cp, start, end)
 				}
 			default:
-				if ex.Verbose {
-					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", ex.Name, item, cp, s, e)
+				if e.Verbose {
+					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", e.Name, item, cp, start, end)
 				}
 				ct = futures.Unknown
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             ex.Name,
+				Exchange:             e.Name,
 				Name:                 cp.Format(format),
 				Underlying:           underlying,
 				Asset:                item,
-				StartDate:            s,
-				EndDate:              e,
+				StartDate:            start,
+				EndDate:              end,
 				SettlementType:       futures.Linear,
 				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
 				Status:               instruments[i].Status,
@@ -1893,7 +1893,7 @@ func getContractLength(contractLength time.Duration) (futures.ContractType, erro
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (ex *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
@@ -1907,18 +1907,18 @@ func (ex *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.La
 
 		symbol := ""
 		if !r.Pair.IsEmpty() {
-			format, err := ex.GetPairFormat(r.Asset, true)
+			format, err := e.GetPairFormat(r.Asset, true)
 			if err != nil {
 				return nil, err
 			}
 			symbol = r.Pair.Format(format).String()
 		}
-		ticks, err := ex.GetTickers(ctx, getCategoryName(r.Asset), symbol, "", time.Time{})
+		ticks, err := e.GetTickers(ctx, getCategoryName(r.Asset), symbol, "", time.Time{})
 		if err != nil {
 			return nil, err
 		}
 
-		instrumentInfo, err := ex.GetInstrumentInfo(ctx, getCategoryName(r.Asset), symbol, "", "", "", 1000)
+		instrumentInfo, err := e.GetInstrumentInfo(ctx, getCategoryName(r.Asset), symbol, "", "", "", 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -1927,7 +1927,7 @@ func (ex *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.La
 		for i := range ticks.List {
 			var cp currency.Pair
 			var isEnabled bool
-			cp, isEnabled, err = ex.MatchSymbolCheckEnabled(ticks.List[i].Symbol, r.Asset, false)
+			cp, isEnabled, err = e.MatchSymbolCheckEnabled(ticks.List[i].Symbol, r.Asset, false)
 			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return nil, err
 			} else if !isEnabled {
@@ -1946,7 +1946,7 @@ func (ex *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.La
 				lrt = ticks.List[i].NextFundingTime.Time().Add(-fundingInterval)
 			}
 			resp = append(resp, fundingrate.LatestRateResponse{
-				Exchange:    ex.Name,
+				Exchange:    e.Name,
 				TimeChecked: time.Now(),
 				Asset:       r.Asset,
 				Pair:        cp,
@@ -1966,7 +1966,7 @@ func (ex *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.La
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-func (ex *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
 	for i := range k {
 		if k[i].Asset != asset.USDCMarginedFutures &&
 			k[i].Asset != asset.USDTMarginedFutures &&
@@ -1975,7 +1975,7 @@ func (ex *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]
 		}
 	}
 	if len(k) == 1 {
-		formattedPair, err := ex.FormatExchangeCurrency(k[0].Pair(), k[0].Asset)
+		formattedPair, err := e.FormatExchangeCurrency(k[0].Pair(), k[0].Asset)
 		if err != nil {
 			return nil, err
 		}
@@ -1985,7 +1985,7 @@ func (ex *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]
 		}
 		pFmt := formattedPair.String()
 		var ticks *TickerData
-		ticks, err = ex.GetTickers(ctx, getCategoryName(k[0].Asset), pFmt, "", time.Time{})
+		ticks, err = e.GetTickers(ctx, getCategoryName(k[0].Asset), pFmt, "", time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -1995,7 +1995,7 @@ func (ex *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]
 			}
 			return []futures.OpenInterest{{
 				Key: key.ExchangePairAsset{
-					Exchange: ex.Name,
+					Exchange: e.Name,
 					Asset:    k[0].Asset,
 					Base:     k[0].Base,
 					Quote:    k[0].Quote,
@@ -2007,7 +2007,7 @@ func (ex *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]
 	assets := []asset.Item{asset.USDCMarginedFutures, asset.USDTMarginedFutures, asset.CoinMarginedFutures}
 	var resp []futures.OpenInterest
 	for i := range assets {
-		ticks, err := ex.GetTickers(ctx, getCategoryName(assets[i]), "", "", time.Time{})
+		ticks, err := e.GetTickers(ctx, getCategoryName(assets[i]), "", "", time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -2015,7 +2015,7 @@ func (ex *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]
 			var pair currency.Pair
 			var isEnabled bool
 			// only long-dated contracts have a delimiter
-			pair, isEnabled, err = ex.MatchSymbolCheckEnabled(ticks.List[x].Symbol, assets[i], strings.Contains(ticks.List[x].Symbol, currency.DashDelimiter))
+			pair, isEnabled, err = e.MatchSymbolCheckEnabled(ticks.List[x].Symbol, assets[i], strings.Contains(ticks.List[x].Symbol, currency.DashDelimiter))
 			if err != nil || !isEnabled {
 				continue
 			}
@@ -2031,7 +2031,7 @@ func (ex *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]
 			}
 			resp = append(resp, futures.OpenInterest{
 				Key: key.ExchangePairAsset{
-					Exchange: ex.Name,
+					Exchange: e.Name,
 					Base:     pair.Base.Item,
 					Quote:    pair.Quote.Item,
 					Asset:    assets[i],
@@ -2044,8 +2044,8 @@ func (ex *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
-func (ex *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := ex.CurrencyPairs.IsPairEnabled(cp, a)
+func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
 	if err != nil {
 		return "", err
 	}
@@ -2059,13 +2059,13 @@ func (ex *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cu
 			return tradeBaseURL + "trade/inverse/" + cp.Upper().String(), nil
 		}
 		var symbol string
-		symbol, err = ex.FormatSymbol(cp, a)
+		symbol, err = e.FormatSymbol(cp, a)
 		if err != nil {
 			return "", err
 		}
 		// convert long-dated to static contracts
 		var io *InstrumentsInfo
-		io, err = ex.GetInstrumentInfo(ctx, getCategoryName(a), symbol, "", "", "", 1000)
+		io, err = e.GetInstrumentInfo(ctx, getCategoryName(a), symbol, "", "", "", 1000)
 		if err != nil {
 			return "", err
 		}
