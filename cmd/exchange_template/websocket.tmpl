@@ -39,14 +39,19 @@ func (e *Exchange) WsConnect() error {
 	return nil
 }
 
-// Subscribe sends a websocket message to receive data from the channel
-func (e *Exchange) Subscribe(_ subscription.List) error {
+// GenerateSubscriptions returns a list of subscriptions from the configured subscriptions feature
+func (e *Exchange) GenerateSubscriptions() (subscription.List, error) {
+	return e.Features.Subscriptions.ExpandTemplates(e)
+}
+
+// Subscriber sends a websocket message to receive data from the channel
+func (e *Exchange) Subscriber(_ subscription.List) error {
 	// ctx := context.TODO()
 	return nil
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) Unsubscribe(_ subscription.List) error {
+// Unsubscriber sends a websocket message to stop receiving data from the channel
+func (e *Exchange) Unsubscriber(_ subscription.List) error {
 	// ctx := context.TODO()
 	return nil
 }

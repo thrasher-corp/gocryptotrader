@@ -36,15 +36,11 @@ func (e *Exchange) SetDefaults() {
 	e.API.CredentialsValidator.RequiresKey = true
 	e.API.CredentialsValidator.RequiresSecret = true
 
-	// If using only one pair format for request and configuration, across all 
-	// supported asset types either SPOT and FUTURES etc. You can use the 
-	// example below:
-
-	// Request format denotes what the pair as a string will be, when you send
-	// a request to an exchange.
+	// If using only one pair format for request and configuration, across all supported asset types either SPOT and FUTURES etc. You can use the example below:
+	// Request format denotes what the pair as a string will be, when you send a request to an exchange.
 	requestFmt := &currency.PairFormat{/*Set pair request formatting details here for e.g.*/ Uppercase: true, Delimiter: ":"}
-	// Config format denotes what the pair as a string will be, when saved to 
-	// the config.json file.
+	// Config format denotes how the currency pair should be represented as a string, including the delimiter between base and quote currency,
+	// when saved to the config.json file.
 	configFmt := &currency.PairFormat{/*Set pair request formatting details here*/}
 	if err := e.SetGlobalPairsManager(requestFmt, configFmt, /*multiple assets can be set here using the asset package ie asset.Spot*/); err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -81,8 +77,13 @@ func (e *Exchange) SetDefaults() {
 			{{ if .WS }} Websocket: true, {{ end }}
 			{{ if .REST }}
 			RESTCapabilities: protocol.Features{
-				TickerFetching: true,
-				OrderbookFetching: true,
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				KlineFetching:          true,
+				TradeFetching:          true,
+				GetOrders:              true,
+				AccountInfo:            true,
+				AuthenticatedEndpoints: true,
 			},
 			{{ end }}
 			{{ if .WS }}
@@ -93,8 +94,6 @@ func (e *Exchange) SetDefaults() {
 				TradeFetching:          true,
 				Subscribe:              true,
 				Unsubscribe:            true,
-				GetOrders:              true,
-				AccountInfo:            true,
 				AuthenticatedEndpoints: true,
 			},
 			{{ end }}
@@ -112,7 +111,7 @@ func (e *Exchange) SetDefaults() {
 			// 		kline.IntervalCapacity{Interval: kline.OneMin},
 			// 	),
 			// 	GlobalResultLimit: 2000,
-			// }
+			// },
 		},
 		{{ if .WS }} Subscriptions: defaultSubscriptions,{{ end }}
 	}
@@ -159,25 +158,23 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		// If websocket is not supported, remove these websocket sections
 		if err := e.Websocket.Setup(
 			&websocket.ManagerSetup{
-				ExchangeConfig:  exch,
-				DefaultURL:      wsAPIURL,
-				RunningURL:      wsRunningEndpoint,
-				Connector:       e.WsConnect,
-				Subscriber:      e.Subscribe,
-				UnSubscriber:    e.Unsubscribe,
-				Features:        &e.Features.Supports.WebsocketCapabilities,
+				ExchangeConfig:        exch,
+				DefaultURL:            wsAPIURL,
+				RunningURL:            wsRunningEndpoint,
+				Connector:             e.WsConnect,
+				Subscriber:            e.Subscriber,
+				Unsubscriber:          e.Unsubscriber,
+				GenerateSubscriptions: e.GenerateSubscriptions,
+				Features:              &e.Features.Supports.WebsocketCapabilities,
 			}); err != nil {
 			return err
 		}
 
-		e.WebsocketConn = &websocket.WebsocketConnection{
-			ExchangeName:         e.Name,
+		return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 			URL:                  e.Websocket.GetWebsocketURL(),
-			ProxyURL:             e.Websocket.GetProxyAddress(),
-			Verbose:              e.Verbose,
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
+		})
 	*/
 	return nil
 }
@@ -209,14 +206,14 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	// TODO: Replace this example code with exchange specific implementation
 	/*
-		tick, err := ti.GetTickers()
+		tick, err := e.GetTickers()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for y := range tick {
 			cp, err := currency.NewPairFromString(tick[y].Symbol)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[y].LastPrice,
@@ -229,11 +226,11 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 				Open:         tick[y].OpenPrice,
 				Close:        tick[y].PrevClosePrice,
 				Pair:         cp,
-				ExchangeName: b.Name,
+				ExchangeName: e.Name,
 				AssetType:    assetType,
 			})
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	*/
@@ -264,7 +261,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				Open:         tick[y].OpenPrice,
 				Close:        tick[y].PrevClosePrice,
 				Pair:         cp,
-				ExchangeName: b.Name,
+				ExchangeName: e.Name,
 				AssetType:    assetType,
 			})
 			if err != nil {
@@ -277,9 +274,14 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+	var err error
+	pair, err = e.FormatExchangeCurrency(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
 	// NOTE: UPDATE ORDERBOOK EXAMPLE
 	/*
-		ob, err := e.GetOrderBook(exchange.FormatExchangeCurrency(e.Name, p).String(), 1000)
+		ob, err := e.GetOrderBook(pair.String(), 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -351,29 +353,30 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
-	/* TODO: When an order has been submitted you can use this helpful constructor to
-	   return. Please add any additional order details to the
-	   order.SubmitResponse if you think they are applicable.
-	   resp, err := s.DeriveSubmitResponse( /*newOrderID*/)
-	   if err != nil {
-	   	return nil, nil
-	   }
-	   resp.Date = exampleTime // e.g. If this is supplied by the exchanges API.
-	*/ return resp, nil
+	/*  TODO: When an order has been submitted you can use this helpful constructor to
+	    return. Please add any additional order details to the
+	    order.SubmitResponse if you think they are applicable.
+	    resp, err := s.DeriveSubmitResponse(newOrderID)
+	    if err != nil {
+	    	return nil, err
+	    }
+	    resp.Date = exampleTime // e.g. If this is supplied by the exchanges API.
+		return resp, nil
+	*/ 
 	return nil, common.ErrNotYetImplemented
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to market conversion
+// ModifyOrder will allow changing of orderbook placements and limit to market conversions
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	// When an order has been modified you can use this helpful constructor to
+	// TODO: When an order has been modified you can use this helpful constructor to
 	// return. Please add any additional order details to the
 	// order.ModifyResponse if you think they are applicable.
 	// resp, err := action.DeriveModifyResponse()
 	// if err != nil {
-	// 	return nil, nil
+	// 	return nil, err
 	// }
 	// resp.OrderID = maybeANewOrderID // e.g. If this is supplied by the exchanges API.
 	return nil, common.ErrNotYetImplemented
@@ -395,7 +398,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel)
 // CancelAllOrders cancels all orders associated with a currency pair
 func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	// if err := orderCancellation.Validate(); err != nil {
-	//	 return err
+	//	 return order.CancelAllResponse{}, err
 	// }
 	return order.CancelAllResponse{}, common.ErrNotYetImplemented
 }

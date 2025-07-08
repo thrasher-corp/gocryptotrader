@@ -61,7 +61,7 @@ func main() {
 	newExchangeName = strings.ToLower(newExchangeName)
 
 	if !websocketSupport && !restSupport {
-		log.Println("At least one protocol must be specified (rest/ws or fix)")
+		log.Println("At least one protocol must be specified (rest/ws)")
 		flag.Usage()
 		return
 	}
