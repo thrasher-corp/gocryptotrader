@@ -32,7 +32,7 @@ func TestGetFilteredURLVals(t *testing.T) {
 	shadyVals := url.Values{}
 	shadyVals.Set("real_name", superSecretData)
 	cleanVals := GetFilteredURLVals(shadyVals, items)
-	assert.NotContains(t, superSecretData, cleanVals, "Super secret data found")
+	assert.NotContains(t, cleanVals, superSecretData, "Super secret data found")
 }
 
 func TestCheckResponsePayload(t *testing.T) {

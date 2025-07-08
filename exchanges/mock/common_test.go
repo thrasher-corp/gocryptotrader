@@ -9,6 +9,7 @@ import (
 )
 
 func TestMatchURLVals(t *testing.T) {
+	t.Parallel()
 	testVal, testVal2, testVal3, emptyVal := url.Values{}, url.Values{}, url.Values{}, url.Values{}
 	testVal.Add("test", "test")
 	testVal2.Add("test2", "test2")
@@ -18,34 +19,25 @@ func TestMatchURLVals(t *testing.T) {
 	nonceVal1.Add("nonce", "012349723587")
 	nonceVal2.Add("nonce", "9327373874")
 
-	expected := false
-	received := MatchURLVals(testVal, emptyVal)
-	assert.Equalf(t, expected, received, "MatchURLVals error expected %v received %v", expected, received)
-
-	received = MatchURLVals(emptyVal, testVal)
-	assert.Equalf(t, expected, received, "MatchURLVals error expected %v received %v", expected, received)
-
-	received = MatchURLVals(testVal, testVal2)
-	assert.Equalf(t, expected, received, "MatchURLVals error expected %v received %v", expected, received)
-
-	received = MatchURLVals(testVal2, testVal)
-	assert.Equalf(t, expected, received, "MatchURLVals error expected %v received %v", expected, received)
-
-	received = MatchURLVals(testVal, testVal3)
-	assert.Equalf(t, expected, received, "MatchURLVals error expected %v received %v", expected, received)
-
-	received = MatchURLVals(nonceVal1, testVal2)
-	assert.Equalf(t, expected, received, "MatchURLVals error expected %v received %v", expected, received)
-
-	expected = true
-	received = MatchURLVals(emptyVal, emptyVal)
-	assert.Equalf(t, expected, received, "MatchURLVals error expected %v received %v", expected, received)
-
-	received = MatchURLVals(testVal, testVal)
-	assert.Equalf(t, expected, received, "MatchURLVals error expected %v received %v", expected, received)
-
-	received = MatchURLVals(nonceVal1, nonceVal2)
-	assert.Equalf(t, expected, received, "MatchURLVals error expected %v received %v", expected, received)
+	args := []struct {
+		Src1     url.Values
+		Src2     url.Values
+		Expected bool
+	}{
+		{testVal, emptyVal, false},
+		{emptyVal, testVal, false},
+		{testVal, testVal2, false},
+		{testVal2, testVal, false},
+		{testVal, testVal3, false},
+		{nonceVal1, testVal2, false},
+		{emptyVal, emptyVal, true},
+		{testVal, testVal, true},
+		{nonceVal1, nonceVal2, true},
+	}
+	for a := range args {
+		received := MatchURLVals(args[a].Src1, args[a].Src2)
+		assert.Equalf(t, args[a].Expected, received, "MatchURLVals error expected %v received %v", args[a].Expected, received)
+	}
 }
 
 func TestDeriveURLValsFromJSON(t *testing.T) {

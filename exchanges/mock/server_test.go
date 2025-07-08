@@ -68,7 +68,7 @@ func TestNewVCRServer(t *testing.T) {
 		nil,
 		bytes.NewBufferString(""), true)
 	assert.NoErrorf(t, err, "Sending http request error: %v", err)
-	assert.Containsf(t, "404 page not found", string(r), "Was not expecting any value returned: %s", string(r))
+	assert.Containsf(t, string(r), "404 page not found", "Was not expecting any value returned: %s", string(r))
 
 	r, err = common.SendHTTPRequest(t.Context(),
 		http.MethodGet,

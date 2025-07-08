@@ -251,9 +251,9 @@ func GetFilteredHeader(res *http.Response, items Exclusion) http.Header {
 // GetFilteredURLVals filters excluded url value variables for insertion into a
 // mock test file
 func GetFilteredURLVals(vals url.Values, items Exclusion) string {
-	for key, val := range vals {
+	for key := range vals {
 		for i := range items.Variables {
-			if strings.EqualFold(items.Variables[i], val[0]) {
+			if strings.EqualFold(items.Variables[i], key) {
 				vals.Set(key, "")
 			}
 		}
