@@ -132,31 +132,19 @@ func (b *Bithumb) GetOrderBook(ctx context.Context, symbol string) (*Orderbook, 
 		return nil, errors.New(response.Message)
 	}
 
-	filteredBids := make([]struct {
-		Quantity float64 `json:"quantity,string"`
-		Price    float64 `json:"price,string"`
-	}, 0, len(response.Data.Bids))
-
-	for _, bid := range response.Data.Bids {
-		if bid.Quantity > 0 {
-			filteredBids = append(filteredBids, bid)
-		}
-	}
-	response.Data.Bids = filteredBids
-
-	filteredAsks := make([]struct {
-		Quantity float64 `json:"quantity,string"`
-		Price    float64 `json:"price,string"`
-	}, 0, len(response.Data.Asks))
-
-	for _, ask := range response.Data.Asks {
-		if ask.Quantity > 0 {
-			filteredAsks = append(filteredAsks, ask)
-		}
-	}
-	response.Data.Asks = filteredAsks
+	response.Data.Bids = response.Data.Bids.FilterZeros()
+	response.Data.Asks = response.Data.Asks.FilterZeros()
 
 	return &response, nil
+}
+
+func (o OrderbookLevels) FilterZeros() (c OrderbookLevels) {
+	for _, l := range o {
+		if l.Quantity > 0 {
+			c = append(c, l)
+		}
+	}
+	return c
 }
 
 // GetAssetStatus returns the withdrawal and deposit status for the symbol
