@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -1375,129 +1376,17 @@ var submitOrderCommand = &cli.Command{
 	Usage:     "submit order submits an exchange order",
 	ArgsUsage: "<exchange> <pair> <side> <type> <amount> <price> <client_id>",
 	Action:    submitOrder,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to submit the order for",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair",
-		},
-		&cli.StringFlag{
-			Name:  "side",
-			Usage: "the order side to use (BUY OR SELL)",
-		},
-		&cli.StringFlag{
-			Name:  "type",
-			Usage: "the order type (MARKET OR LIMIT)",
-		},
-		&cli.Float64Flag{
-			Name:  "amount",
-			Usage: "the amount for the order",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "required asset type",
-		},
-		&cli.Float64Flag{
-			Name:  "price",
-			Usage: "the price for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "leverage",
-			Usage: "the leverage for the order",
-		},
-		&cli.StringFlag{
-			Name:  "client_order_id",
-			Usage: "the optional client order ID",
-		},
-		&cli.StringFlag{
-			Name:     "margin_type",
-			Usage:    "the optional margin type",
-			Required: false,
-		},
-		&cli.StringFlag{
-			Name:  "time_in_force",
-			Usage: "the optional time-in-force for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "quote_amount",
-			Usage: "the optional quote amount for the order",
-		},
-		&cli.StringFlag{
-			Name:  "client_id",
-			Usage: "the optional client id",
-		},
-		&cli.Float64Flag{
-			Name:  "trigger_price",
-			Usage: "the optional trigger-price for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "trigger_limit_price",
-			Usage: "the optional trigger-limit-type for the order",
-		},
-		&cli.StringFlag{
-			Name:  "trigger_price_type",
-			Usage: "the optional trigger-price-type for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "tp_price",
-			Usage: "the optional take-profit price for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "tp_limit_price",
-			Usage: "the optional take-profit limit price for the order",
-		},
-		&cli.StringFlag{
-			Name:  "tp_price_type",
-			Usage: "the optional take-profit price type for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "sl_price",
-			Usage: "the optional stop-loss price for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "sl_limit_price",
-			Usage: "the optional stop-loss limit price for the order",
-		},
-		&cli.StringFlag{
-			Name:  "sl_price_type",
-			Usage: "the optional stop-loss price type for the order",
-		},
-		&cli.StringFlag{
-			Name:  "tracking_mode",
-			Usage: "the optional tracking mode for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "tracking_value",
-			Usage: "the optional tracking value for the order",
-		},
-		&cli.BoolFlag{
-			Name:  "hidden",
-			Usage: "the optional hidden order",
-		},
-		&cli.BoolFlag{
-			Name:  "iceberg",
-			Usage: "the optional iceberg order",
-		},
-		&cli.BoolFlag{
-			Name:  "auto_borrow",
-			Usage: "the optional auto-borrow order",
-		},
-		&cli.BoolFlag{
-			Name:  "reduce_only",
-			Usage: "the optional reduce-only order",
-		},
-		&cli.BoolFlag{
-			Name:  "retrieve_fees",
-			Usage: "the optional retrieve-fees order",
-		},
-		&cli.Int64Flag{
-			Name:  "retrieve_fee_delay_ms",
-			Usage: "the optional retrieve-fee-delay-ms order",
-		},
-	},
+	Flags: FlagsFromStruct(&SubmitOrderParams{}, map[string]string{
+		"pair":           "the currency pair",
+		"side":           "the order side to use (BUY OR SELL)",
+		"type":           "the order type (MARKET OR LIMIT)",
+		"tp_price":       "the optional take-profit price for the order",
+		"tp_limit_price": "the optional take-profit limit price for the order",
+		"tp_price_type":  "the optional take-profit price type for the order",
+		"sl_price":       "the optional stop-loss price for the order",
+		"sl_limit_price": "the optional stop-loss limit price for the order",
+		"sl_price_type":  "the optional stop-loss price type for the order",
+	}),
 }
 
 func submitOrder(c *cli.Context) error {
@@ -1806,7 +1695,7 @@ func submitOrder(c *cli.Context) error {
 	}
 
 	marginType = strings.ToLower(marginType)
-	if !margin.IsValidString(marginType) {
+	if marginType != "" && !margin.IsValidString(marginType) {
 		return margin.ErrInvalidMarginType
 	}
 
@@ -1980,53 +1869,11 @@ var cancelOrderCommand = &cli.Command{
 	Usage:     "cancel order cancels an exchange order",
 	ArgsUsage: "<exchange> <order_id> <client_order_id> <account_id> <pair> <asset> <side> <type> <client_id> <margin_type> <time_in_force>",
 	Action:    cancelOrder,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to cancel the order for",
-		},
-		&cli.StringFlag{
-			Name:  "account_id",
-			Usage: "the account id",
-		},
-		&cli.StringFlag{
-			Name:  "order_id",
-			Usage: "the order id",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair to cancel the order for",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type",
-		},
-		&cli.StringFlag{
-			Name:  "side",
-			Usage: "the order side",
-		},
-		&cli.StringFlag{
-			Name:  "type",
-			Usage: "the order type (MARKET OR LIMIT)",
-		},
-		&cli.StringFlag{
-			Name:  "client_order_id",
-			Usage: "the optional client order ID",
-		},
-		&cli.StringFlag{
-			Name:     "margin_type",
-			Usage:    "the optional margin type",
-			Required: false,
-		},
-		&cli.StringFlag{
-			Name:  "time_in_force",
-			Usage: "the optional time-in-force for the order",
-		},
-		&cli.StringFlag{
-			Name:  "client_id",
-			Usage: "the optional client id",
-		},
-	},
+	Flags: FlagsFromStruct(&CancelOrderParams{}, map[string]string{
+		"exchange": "the exchange to cancel the order for",
+		"pair":     "the currency pair to cancel the order for",
+		"type":     "the order type (MARKET OR LIMIT)",
+	}),
 }
 
 func cancelOrder(c *cli.Context) error {
@@ -2315,84 +2162,17 @@ var modifyOrderCommand = &cli.Command{
 	Usage:     "modify price and/or amount of a previously submitted order",
 	ArgsUsage: "<exchange> <asset> <pair> <order_id>",
 	Action:    modifyOrder,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "exchange this order is submitted to",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "required asset type",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "required trading pair",
-		},
-		&cli.StringFlag{
-			Name:  "order_id",
-			Usage: "id of the order to be modified",
-		},
-		&cli.StringFlag{
-			Name:  "type",
-			Usage: "the order type (MARKET OR LIMIT)",
-		},
-		&cli.StringFlag{
-			Name:  "side",
-			Usage: "the order side of the order to be modified",
-		},
-		&cli.Float64Flag{
-			Name:  "price",
-			Usage: "new order price",
-		},
-		&cli.Float64Flag{
-			Name:  "amount",
-			Usage: "new order amount",
-		},
-		&cli.StringFlag{
-			Name:  "client_order_id",
-			Usage: "client supplied id of the order to be modified",
-		},
-		&cli.StringFlag{
-			Name:  "time_in_force",
-			Usage: "the optional time-in-force for the order to be modified",
-		},
-		&cli.Float64Flag{
-			Name:  "trigger_price",
-			Usage: "the optional trigger-price for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "trigger_limit_price",
-			Usage: "the optional trigger-limit-type for the order",
-		},
-		&cli.StringFlag{
-			Name:  "trigger_price_type",
-			Usage: "the optional trigger-price-type for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "tp_price",
-			Usage: "the optional take-profit price for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "tp_limit_price",
-			Usage: "the optional take-profit limit price for the order",
-		},
-		&cli.StringFlag{
-			Name:  "tp_price_type",
-			Usage: "the optional take-profit price type for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "sl_price",
-			Usage: "the optional stop-loss price for the order",
-		},
-		&cli.Float64Flag{
-			Name:  "sl_limit_price",
-			Usage: "the optional stop-loss limit price for the order",
-		},
-		&cli.StringFlag{
-			Name:  "sl_price_type",
-			Usage: "the optional stop-loss price type for the order",
-		},
-	},
+	Flags: FlagsFromStruct(&ModifyOrderParams{}, map[string]string{
+		"pair":           "the currency pair",
+		"side":           "the order side of the order to be modified",
+		"type":           "the order type (MARKET OR LIMIT)",
+		"tp_price":       "the optional take-profit price for the order to be modified",
+		"tp_limit_price": "the optional take-profit limit price for the order to be modified",
+		"tp_price_type":  "the optional take-profit price type for the order to be modified",
+		"sl_price":       "the optional stop-loss price for the order to be modified",
+		"sl_limit_price": "the optional stop-loss limit price for the order to be modified",
+		"sl_price_type":  "the optional stop-loss price type for the order to be modified",
+	}),
 }
 
 func cancelAllOrders(c *cli.Context) error {
@@ -5162,4 +4942,59 @@ func getCurrencyTradeURL(c *cli.Context) error {
 
 	jsonOutput(result)
 	return nil
+}
+
+func FlagsFromStruct(params any, usageInfo map[string]string) []cli.Flag {
+	var flags []cli.Flag
+	val := reflect.ValueOf(params).Elem()
+	typ := val.Type()
+
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		flagStrings := strings.Split(field.Tag.Get("cli"), ",")
+		if len(flagStrings) == 0 {
+			continue
+		}
+		flagName := flagStrings[0]
+		required := len(flagStrings) == 2 && strings.EqualFold(flagStrings[1], "required")
+
+		var (
+			usage string
+			ok    bool
+		)
+		if usage, ok = usageInfo[flagName]; !ok {
+			if required {
+				usage = "the required '" + flagName + "' for the request"
+			} else {
+				usage = "the optional '" + flagName + "' for the request"
+			}
+		}
+		switch field.Type.Kind() {
+		case reflect.String:
+			flags = append(flags, &cli.StringFlag{
+				Name:     flagName,
+				Usage:    usage,
+				Required: required,
+			})
+		case reflect.Float64:
+			flags = append(flags, &cli.Float64Flag{
+				Name:     flagName,
+				Usage:    usage,
+				Required: required,
+			})
+		case reflect.Bool:
+			flags = append(flags, &cli.BoolFlag{
+				Name:     flagName,
+				Usage:    usage,
+				Required: required,
+			})
+		case reflect.Int64:
+			flags = append(flags, &cli.Int64Flag{
+				Name:     flagName,
+				Usage:    usage,
+				Required: required,
+			})
+		}
+	}
+	return flags
 }
