@@ -479,17 +479,17 @@ type CancelOrdersAfterData struct {
 
 // RecentOrderData stores order data of a recent order
 type RecentOrderData struct {
-	UID        string  `json:"uid"`
-	AccountID  string  `json:"accountId"`
-	Tradeable  string  `json:"tradeable"`
-	Direction  string  `json:"direction"`
-	Quantity   float64 `json:"quantity,string"`
-	Filled     float64 `json:"filled,string"`
-	Timestamp  string  `json:"timestamp"`
-	LimitPrice float64 `json:"limitPrice,string"`
-	OrderType  string  `json:"orderType"`
-	ClientID   string  `json:"clientId"`
-	StopPrice  float64 `json:"stopPrice,string"`
+	UID        string    `json:"uid"`
+	AccountID  string    `json:"accountId"`
+	Tradeable  string    `json:"tradeable"`
+	Direction  string    `json:"direction"`
+	Quantity   float64   `json:"quantity,string"`
+	Filled     float64   `json:"filled,string"`
+	Timestamp  time.Time `json:"timestamp"`
+	LimitPrice float64   `json:"limitPrice,string"`
+	OrderType  string    `json:"orderType"`
+	ClientID   string    `json:"clientId"`
+	StopPrice  float64   `json:"stopPrice,string"`
 }
 
 // FOpenOrdersData stores open orders data for futures

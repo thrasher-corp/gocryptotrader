@@ -112,7 +112,7 @@
 				</ul>
 				<ul class="navbar-nav nav-flex-icons">
 					<li class="nav-item">
-						<a href="https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk" target="_blank" class="nav-link">
+						<a href="https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g" target="_blank" rel="noopener noreferrer" class="nav-link">
 							<i class="fab fa-slack"></i>
 						</a>
 					</li>
@@ -292,20 +292,14 @@
 					</tr>
 					</thead>
 					<tbody>
-					{{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
-						{{ range $asset, $unused := .}}
-							{{ range $base, $unused := .}}
-								{{ range $quote, $unused := .}}
-									<tr>
-										<td>{{ $exchange}}</td>
-										<td>{{ $asset}}</td>
-										<td>{{ $base}}-{{$quote}}</td>
-										<td>{{ $.Prettify.Decimal8 .MarketMovement}}%</td>
-									</tr>
-								{{end}}
-							{{end}}
-						{{end}}
-					{{end}}
+					{{ range $key, $stats := .Statistics.ExchangeAssetPairStatistics }}
+						<tr>
+							<td>{{ $key.Exchange }}</td>
+							<td>{{ $key.Asset }}</td>
+							<td>{{ $key.Base }}-{{ $key.Quote }}</td>
+							<td>{{ $.Prettify.Decimal8 $stats.MarketMovement }}%</td>
+						</tr>
+					{{ end }}
 					</tbody>
 				</table>
 			{{else}}
@@ -329,11 +323,11 @@
 					</tr>
 					</thead>
 					<tbody>
-					{{ range $mapKey, $stats := .Statistics.ExchangeAssetPairStatistics}}
+					{{ range $key, $stats := .Statistics.ExchangeAssetPairStatistics}}
 						<tr>
-							<td>{{ $mapKey.Exchange}}</td>
-							<td>{{ $mapKey.Asset}}</td>
-							<td>{{ $mapKey.Base.Currency}}-{{$mapKey.Quote.Currency}}</td>
+							<td>{{ $key.Exchange}}</td>
+							<td>{{ $key.Asset}}</td>
+							<td>{{ $key.Base.Currency}}-{{$key.Quote.Currency}}</td>
 							<td>{{ $.Prettify.Decimal8 $stats.InitialHoldings.BaseInitialFunds }} {{$stats.FinalHoldings.Pair.Base}}</td>
 							<td>{{ $.Prettify.Decimal8 $stats.InitialHoldings.QuoteInitialFunds }} {{$stats.FinalHoldings.Pair.Quote}}</td>
 							<td>{{ $.Prettify.Decimal8 $stats.InitialHoldings.TotalInitialValue }} {{$stats.FinalHoldings.Pair.Quote}}</td>
@@ -1223,11 +1217,11 @@
 				</table>
 			</div>
 		</div>
-		{{ range $mapKey, $stats := .Statistics.ExchangeAssetPairStatistics}}
+		{{ range $key, $stats := .Statistics.ExchangeAssetPairStatistics}}
 
 		<div class="card card-cascade narrower">
 			<div class="view view-cascade bg-primary">
-				<h2 id="currency-statistics" class="px-4 card-header-title text-light">Pair Statistics for {{$mapKey.Exchange}} {{ $mapKey.Asset}} {{ $mapKey.Base.Currency}}-{{$mapKey.Quote.Currency}}</h2>
+				<h2 id="currency-statistics" class="px-4 card-header-title text-light">Pair Statistics for {{$key.Exchange}} {{ $key.Asset}} {{ $key.Base.Currency}}-{{$key.Quote.Currency}}</h2>
 			</div>
 			<div class="card-body card-body-cascade ">
 				<table class="table table-hover table-bordered table-striped">
@@ -1658,9 +1652,9 @@
 				<h2 id="orders" class="px-4 card-header-title text-light">Orders</h2>
 			</div>
 			<div class="card-body card-body-cascade ">
-				{{ range $mapKey, $val :=  .Statistics.ExchangeAssetPairStatistics}}
+				{{ range $key, $val :=  .Statistics.ExchangeAssetPairStatistics}}
 					<div  >
-						<h3>{{$mapKey.Exchange}} {{$mapKey.Asset}} {{ $mapKey.Base }}-{{$mapKey.Quote}}</h3>
+						<h3>{{$key.Exchange}} {{$key.Asset}} {{ $key.Base }}-{{$key.Quote}}</h3>
 					</div>
 					<div >
 						<table class="table table-hover table-bordered table-striped">
@@ -1678,11 +1672,11 @@
 							{{range $val.FinalOrders.Orders}}
 								<tr>
 									<td>{{ .Order.Date }}</td>
-									<td>{{  $.Prettify.Decimal8 .ClosePrice}} {{$mapKey.Quote}}</td>
+									<td>{{  $.Prettify.Decimal8 .ClosePrice}} {{$key.Quote}}</td>
 									<td>{{ .Order.Side }}</td>
-									<td>{{$.Prettify.Float8  .Order.Price }} {{$mapKey.Quote}}</td>
-									<td>{{$.Prettify.Float8  .Order.Amount }} {{$mapKey.Base}}</td>
-									<td>{{$.Prettify.Float8 .Order.Fee }} {{$mapKey.Quote}}</td>
+									<td>{{$.Prettify.Float8  .Order.Price }} {{$key.Quote}}</td>
+									<td>{{$.Prettify.Float8  .Order.Amount }} {{$key.Base}}</td>
+									<td>{{$.Prettify.Float8 .Order.Fee }} {{$key.Quote}}</td>
 									<td>{{ $.Prettify.Decimal8 .CostBasis }} {{.Order.FeeAsset}}</td>
 									<td>{{ $.Prettify.Decimal8 .SlippageRate }}%</td>
 								</tr>
@@ -1699,9 +1693,9 @@
 				<h2 id="events"  class="px-4 card-header-title text-light">Events</h2>
 			</div>
 			<div class="card-body card-body-cascade ">
-				{{ range $mapKey, $val :=  .Statistics.ExchangeAssetPairStatistics}}
+				{{ range $key, $val :=  .Statistics.ExchangeAssetPairStatistics}}
 					<div>
-						<h3>{{$mapKey.Exchange}} {{$mapKey.Asset}} {{ $mapKey.Base }}-{{$mapKey.Quote}}</h3>
+						<h3>{{$key.Exchange}} {{$key.Asset}} {{ $key.Base }}-{{$key.Quote}}</h3>
 					</div>
 					<div >
 						<table class="table table-hover table-bordered table-striped">
@@ -1710,16 +1704,16 @@
 								<th>Price</th>
 								<th>Action</th>
 								<th>Event Details</th>
-								{{if $mapKey.Asset.IsFutures}}
+								{{if $key.Asset.IsFutures}}
 									<th>Holdings</th>
 									<th>Position Direction</th>
 									<th>Unrealised PNL</th>
 									<th>Realised PNL</th>
 								{{ else }}
-									<th>{{$mapKey.Base}} Funds</th>
-									<th>{{$mapKey.Quote}} Funds</th>
-									<th>Total value in {{$mapKey.Quote}}</th>
-									<th>Committed funds in {{$mapKey.Quote}}</th>
+									<th>{{$key.Base}} Funds</th>
+									<th>{{$key.Quote}} Funds</th>
+									<th>Total value in {{$key.Quote}}</th>
+									<th>Committed funds in {{$key.Quote}}</th>
 								{{ end }}
 
 							</tr>
@@ -1728,7 +1722,7 @@
 								<tr>
 									{{ if ne $ev.FillEvent nil }}
 										<td><b>{{$ev.FillEvent.GetTime}}</b></td>
-										<td>{{ $.Prettify.Decimal8 $ev.FillEvent.GetClosePrice}} {{if $mapKey.Asset.IsFutures}}{{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}{{else}}{{$mapKey.Quote}}{{end}}</td>
+										<td>{{ $.Prettify.Decimal8 $ev.FillEvent.GetClosePrice}} {{if $key.Asset.IsFutures}}{{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}{{else}}{{$key.Quote}}{{end}}</td>
 										<td>{{$ev.FillEvent.GetDirection}}</td>
 										<td>
 											<ul>
@@ -1739,7 +1733,7 @@
 										</td>
 									{{ else if ne $ev.SignalEvent nil}}
 										<td>{{$ev.SignalEvent.GetTime}}</td>
-										<td>{{ $.Prettify.Decimal8 $ev.SignalEvent.GetClosePrice}} {{if $mapKey.Asset.IsFutures}}{{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}{{else}}{{$mapKey.Quote}}{{end}}</td>
+										<td>{{ $.Prettify.Decimal8 $ev.SignalEvent.GetClosePrice}} {{if $key.Asset.IsFutures}}{{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}{{else}}{{$key.Quote}}{{end}}</td>
 										<td>{{$ev.SignalEvent.GetDirection}}</td>
 										<td>
 											<ul>
@@ -1749,23 +1743,23 @@
 											</ul>
 										</td>
 									{{ end }}
-									{{if $mapKey.Asset.IsFutures}}
+									{{if $key.Asset.IsFutures}}
 										{{if ne $ev.PNL nil }}
-											<td>{{ $.Prettify.Decimal8 $ev.PNL.GetExposure}} {{$mapKey.Base}}-{{$mapKey.Quote}}</td>
+											<td>{{ $.Prettify.Decimal8 $ev.PNL.GetExposure}} {{$key.Base}}-{{$key.Quote}}</td>
 											<td>{{$ev.PNL.GetDirection}}</td>
 											<td>{{$.Prettify.Decimal8 $ev.PNL.GetUnrealisedPNL.PNL}} {{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}</td>
 											<td>{{$.Prettify.Decimal8 $ev.PNL.GetRealisedPNL.PNL}} {{if ne $ev.PNL nil }}{{$ev.PNL.GetCollateralCurrency}}{{end}}</td>
 										{{else}}
-											<td>0 {{$mapKey.Base}}-{{$mapKey.Quote}}</td>
+											<td>0 {{$key.Base}}-{{$key.Quote}}</td>
 											<td>N/A</td>
 											<td>0</td>
 											<td>0</td>
 										{{end}}
 									{{else }}
-										<td>{{ $.Prettify.Decimal8 $ev.Holdings.BaseSize}} {{$mapKey.Base}}</td>
-										<td>{{ $.Prettify.Decimal8 $ev.Holdings.QuoteSize}} {{$mapKey.Quote}}</td>
-										<td>{{ $.Prettify.Decimal8 $ev.Holdings.TotalValue}} {{$mapKey.Quote}}</td>
-										<td>{{ $.Prettify.Decimal8 $ev.Holdings.CommittedFunds}} {{$mapKey.Quote}}</td>
+										<td>{{ $.Prettify.Decimal8 $ev.Holdings.BaseSize}} {{$key.Base}}</td>
+										<td>{{ $.Prettify.Decimal8 $ev.Holdings.QuoteSize}} {{$key.Quote}}</td>
+										<td>{{ $.Prettify.Decimal8 $ev.Holdings.TotalValue}} {{$key.Quote}}</td>
+										<td>{{ $.Prettify.Decimal8 $ev.Holdings.CommittedFunds}} {{$key.Quote}}</td>
 									{{end}}
 								</tr>
 							{{end}}
