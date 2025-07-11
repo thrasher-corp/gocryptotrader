@@ -33,12 +33,12 @@ func (g *Gateio) WebsocketSpotSubmitOrder(ctx context.Context, order *CreateOrde
 	if len(resps) != 1 {
 		return nil, common.ErrInvalidResponse
 	}
-	return &resps[0], nil
+	return resps[0], nil
 }
 
 // WebsocketSpotSubmitOrders submits orders via the websocket connection. You can
 // send multiple orders in a single request. But only for one asset route.
-func (g *Gateio) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*CreateOrderRequest) ([]WebsocketOrderResponse, error) {
+func (g *Gateio) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*CreateOrderRequest) ([]*WebsocketOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
@@ -63,10 +63,10 @@ func (g *Gateio) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*Creat
 	}
 
 	if len(orders) == 1 {
-		var singleResponse WebsocketOrderResponse
-		return []WebsocketOrderResponse{singleResponse}, g.SendWebsocketRequest(ctx, spotPlaceOrderEPL, "spot.order_place", asset.Spot, orders[0], &singleResponse, 2)
+		var singleResponse *WebsocketOrderResponse
+		return []*WebsocketOrderResponse{singleResponse}, g.SendWebsocketRequest(ctx, spotPlaceOrderEPL, "spot.order_place", asset.Spot, orders[0], &singleResponse, 2)
 	}
-	var resp []WebsocketOrderResponse
+	var resp []*WebsocketOrderResponse
 	return resp, g.SendWebsocketRequest(ctx, spotBatchOrdersEPL, "spot.order_place", asset.Spot, orders, &resp, 2)
 }
 
