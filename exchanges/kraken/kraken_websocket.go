@@ -898,7 +898,7 @@ func (e *Exchange) handleSubResps(s *subscription.Subscription, resps [][]byte, 
 	return errs
 }
 
-// getSubErrResp calls getRespErr and if there's no error from that ensures the status matches the sub operation
+// getSubRespErr calls getRespErr and if there's no error from that ensures the status matches the sub operation
 func (e *Exchange) getSubRespErr(resp []byte, op string) error {
 	if err := e.getRespErr(resp); err != nil {
 		return err
