@@ -418,7 +418,7 @@ func TestReset(t *testing.T) {
 
 func TestFullCycle(t *testing.T) {
 	t.Parallel()
-	ex := testExchange
+	e := testExchange
 	cp := currency.NewBTCUSDT()
 	a := asset.Spot
 	tt := time.Now()
@@ -431,7 +431,7 @@ func TestFullCycle(t *testing.T) {
 	}, &risk.Risk{}, decimal.Zero)
 	assert.NoError(t, err)
 
-	fx := &binance.Binance{}
+	fx := &binance.Exchange{}
 	fx.Name = testExchange
 	err = port.SetCurrencySettingsMap(&exchange.Settings{Exchange: fx, Asset: a, Pair: cp})
 	assert.NoError(t, err)
@@ -439,10 +439,10 @@ func TestFullCycle(t *testing.T) {
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	assert.NoError(t, err)
 
-	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(e, a, cp.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(e, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
 	assert.NoError(t, err)
 
 	pair, err := funding.CreatePair(b, quote)
@@ -467,7 +467,7 @@ func TestFullCycle(t *testing.T) {
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: &gctkline.Item{
-			Exchange: ex,
+			Exchange: e,
 			Pair:     cp,
 			Asset:    a,
 			Interval: gctkline.FifteenMin,
@@ -502,7 +502,7 @@ func TestFullCycle(t *testing.T) {
 	err = k.Load()
 	assert.NoError(t, err)
 
-	err = bt.DataHolder.SetDataForCurrency(ex, a, cp, k)
+	err = bt.DataHolder.SetDataForCurrency(e, a, cp, k)
 	assert.NoError(t, err)
 
 	bt.MetaData.DateLoaded = time.Now()
@@ -536,7 +536,7 @@ func TestStop(t *testing.T) {
 
 func TestFullCycleMulti(t *testing.T) {
 	t.Parallel()
-	ex := testExchange
+	e := testExchange
 	cp := currency.NewBTCUSDT()
 	a := asset.Spot
 	tt := time.Now()
@@ -550,16 +550,16 @@ func TestFullCycleMulti(t *testing.T) {
 	}, &risk.Risk{}, decimal.Zero)
 	assert.NoError(t, err)
 
-	err = port.SetCurrencySettingsMap(&exchange.Settings{Exchange: &binance.Binance{}, Asset: a, Pair: cp})
+	err = port.SetCurrencySettingsMap(&exchange.Settings{Exchange: &binance.Exchange{}, Asset: a, Pair: cp})
 	assert.NoError(t, err)
 
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	assert.NoError(t, err)
 
-	b, err := funding.CreateItem(ex, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(e, a, cp.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quote, err := funding.CreateItem(ex, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(e, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
 	assert.NoError(t, err)
 
 	pair, err := funding.CreatePair(b, quote)
@@ -586,7 +586,7 @@ func TestFullCycleMulti(t *testing.T) {
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{
 		Item: &gctkline.Item{
-			Exchange: ex,
+			Exchange: e,
 			Pair:     cp,
 			Asset:    a,
 			Interval: gctkline.FifteenMin,
@@ -621,7 +621,7 @@ func TestFullCycleMulti(t *testing.T) {
 	err = k.Load()
 	assert.NoError(t, err)
 
-	err = bt.DataHolder.SetDataForCurrency(ex, a, cp, k)
+	err = bt.DataHolder.SetDataForCurrency(e, a, cp, k)
 	assert.NoError(t, err)
 
 	err = bt.Run()
@@ -762,7 +762,7 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 	require.NoError(t, err, "CreateCollateral must not error")
 
 	bt.Funding = f
-	exch := &binance.Binance{}
+	exch := &binance.Exchange{}
 	exch.Name = testExchange
 	ev.Time = time.Now()
 	fl := &fill.Fill{
@@ -831,7 +831,7 @@ func TestProcessSignalEvent(t *testing.T) {
 	require.NoError(t, err, "CreateCollateral must not error")
 
 	bt.Funding = f
-	exch := &binance.Binance{}
+	exch := &binance.Exchange{}
 	exch.Name = testExchange
 	bt.Exchange.SetExchangeAssetCurrencySettings(a, cp, &exchange.Settings{
 		Exchange: exch,
@@ -889,7 +889,7 @@ func TestProcessOrderEvent(t *testing.T) {
 	require.NoError(t, err, "CreateCollateral must not error")
 
 	bt.Funding = f
-	exch := &binance.Binance{}
+	exch := &binance.Exchange{}
 	exch.Name = testExchange
 	err = pt.SetCurrencySettingsMap(&exchange.Settings{
 		Exchange: exch,
@@ -1204,7 +1204,7 @@ func TestCloseAllPositions(t *testing.T) {
 	dc.funding = bt.Funding
 	cp := currency.NewBTCUSD()
 	dc.sourcesToCheck = append(dc.sourcesToCheck, &liveDataSourceDataHandler{
-		exchange:                  &binance.Binance{},
+		exchange:                  &binance.Exchange{},
 		exchangeName:              testExchange,
 		asset:                     asset.Spot,
 		pair:                      cp,
@@ -1285,7 +1285,7 @@ func TestRunLive(t *testing.T) {
 	}
 	// 	AppendDataSource(exchange gctexchange.IBotExchange, interval gctkline.Interval, asset asset.Asset, pair, underlyingPair currency.Pair, dataType int64) error
 	setup := &liveDataSourceSetup{
-		exchange:       &binance.Binance{},
+		exchange:       &binance.Exchange{},
 		interval:       i.Interval,
 		asset:          i.Asset,
 		pair:           i.Pair,
@@ -1373,7 +1373,7 @@ func TestSetExchangeCredentials(t *testing.T) {
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	cfg := &config.Config{}
-	f := &binanceus.Binanceus{}
+	f := &binanceus.Exchange{}
 	f.SetDefaults()
 	b := f.GetBase()
 	err = setExchangeCredentials(cfg, b)
@@ -1416,7 +1416,7 @@ func TestGetFees(t *testing.T) {
 	_, _, err := getFees(t.Context(), nil, currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	f := &binance.Binance{}
+	f := &binance.Exchange{}
 	f.SetDefaults()
 	_, _, err = getFees(t.Context(), f, currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)

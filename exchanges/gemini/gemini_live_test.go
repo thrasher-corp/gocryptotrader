@@ -17,17 +17,17 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	g = new(Gemini)
-	if err := testexch.Setup(g); err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Gemini Setup error: %s", err)
 	}
 	if apiKey != "" && apiSecret != "" {
-		g.API.AuthenticatedSupport = true
-		g.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.API.AuthenticatedSupport = true
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	if err := g.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), geminiAPIURL); err != nil {
+	if err := e.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), geminiAPIURL); err != nil {
 		log.Fatalf("Gemini SetRunningURL error: %s", err)
 	}
-	log.Printf(sharedtestvalues.LiveTesting, g.Name)
+	log.Printf(sharedtestvalues.LiveTesting, e.Name)
 	os.Exit(m.Run())
 }

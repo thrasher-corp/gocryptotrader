@@ -40,7 +40,7 @@ func newWsOBUpdateManager(snapshotSyncDelay time.Duration) *wsOBUpdateManager {
 }
 
 // ProcessOrderbookUpdate processes an orderbook update by syncing snapshot, caching updates and applying them
-func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, g *Gateio, firstUpdateID int64, update *orderbook.Update) error {
+func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, g *Exchange, firstUpdateID int64, update *orderbook.Update) error {
 	cache := m.LoadCache(update.Pair, update.Asset)
 	cache.mtx.Lock()
 	defer cache.mtx.Unlock()
@@ -97,7 +97,7 @@ func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) *updateCach
 
 // SyncOrderbook fetches and synchronises an orderbook snapshot to the limit size so that pending updates can be
 // applied to the orderbook.
-func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currency.Pair, a asset.Item) error {
+func (c *updateCache) SyncOrderbook(ctx context.Context, g *Exchange, pair currency.Pair, a asset.Item) error {
 	// TODO: When subscription config is added for all assets update limits to use sub.Levels
 	var limit uint64
 	switch a {
@@ -150,7 +150,7 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currenc
 }
 
 // ApplyPendingUpdates applies all pending updates to the orderbook
-func (c *updateCache) applyPendingUpdates(g *Gateio, a asset.Item) error {
+func (c *updateCache) applyPendingUpdates(g *Exchange, a asset.Item) error {
 	for _, data := range c.updates {
 		lastUpdateID, err := g.Websocket.Orderbook.LastUpdateID(data.update.Pair, a)
 		if err != nil {
@@ -171,7 +171,7 @@ func (c *updateCache) applyPendingUpdates(g *Gateio, a asset.Item) error {
 }
 
 // applyOrderbookUpdate applies an orderbook update to the orderbook
-func applyOrderbookUpdate(g *Gateio, update *orderbook.Update) error {
+func applyOrderbookUpdate(g *Exchange, update *orderbook.Update) error {
 	if update.Asset != asset.Spot {
 		return g.Websocket.Orderbook.Update(update)
 	}

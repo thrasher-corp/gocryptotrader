@@ -58,14 +58,14 @@ func (s *Statistic) SetEventForOffset(ev common.Event) error {
 	if ev.GetBase() == nil {
 		return fmt.Errorf("%w event base", common.ErrNilEvent)
 	}
-	ex := ev.GetExchange()
+	e := ev.GetExchange()
 	a := ev.GetAssetType()
 	p := ev.Pair()
 	if s.ExchangeAssetPairStatistics == nil {
 		s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	}
 	mapKey := key.ExchangePairAsset{
-		Exchange: ex,
+		Exchange: e,
 		Base:     p.Base.Item,
 		Quote:    p.Quote.Item,
 		Asset:    a,
@@ -73,7 +73,7 @@ func (s *Statistic) SetEventForOffset(ev common.Event) error {
 	stats, ok := s.ExchangeAssetPairStatistics[mapKey]
 	if !ok {
 		stats = &CurrencyPairStatistic{
-			Exchange:       ex,
+			Exchange:       e,
 			Asset:          a,
 			Currency:       p,
 			UnderlyingPair: ev.GetUnderlyingPair(),
