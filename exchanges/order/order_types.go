@@ -345,6 +345,7 @@ const (
 	Cancelling
 	Liquidated
 	STP
+	PendingTrigger
 )
 
 // Type enforces a standard for order types across the code base
