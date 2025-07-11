@@ -7,6 +7,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -234,7 +235,7 @@ type TradingHistory struct {
 type TradingHistoryItem struct {
 	ExecutionID  string       `json:"execId"`
 	Symbol       string       `json:"symbol"`
-	Side         string       `json:"side"`
+	Side         order.Side   `json:"side"`
 	Price        types.Number `json:"price"`
 	Size         types.Number `json:"size"`
 	TradeTime    types.Time   `json:"time"`
@@ -391,10 +392,10 @@ type TradeOrder struct {
 	Symbol                 string       `json:"symbol"`
 	Price                  types.Number `json:"price"`
 	OrderQuantity          types.Number `json:"qty"`
-	Side                   string       `json:"side"`
+	Side                   order.Side   `json:"side"`
 	IsLeverage             string       `json:"isLeverage"`
 	PositionIdx            int64        `json:"positionIdx"`
-	OrderStatus            string       `json:"orderStatus"`
+	OrderStatus            order.Status `json:"orderStatus"`
 	CancelType             string       `json:"cancelType"`
 	RejectReason           string       `json:"rejectReason"`
 	AveragePrice           types.Number `json:"avgPrice"`
@@ -404,7 +405,7 @@ type TradeOrder struct {
 	CumulativeExecValue    types.Number `json:"cumExecValue"`
 	CumulativeExecFee      types.Number `json:"cumExecFee"`
 	TimeInForce            string       `json:"timeInForce"`
-	OrderType              string       `json:"orderType"`
+	OrderType              order.Type   `json:"orderType"`
 	StopOrderType          string       `json:"stopOrderType"`
 	OrderIv                string       `json:"orderIv"`
 	TriggerPrice           types.Number `json:"triggerPrice"`
@@ -1210,18 +1211,18 @@ type CoinInfo struct {
 // WithdrawalRecords represents a list of withdrawal records.
 type WithdrawalRecords struct {
 	Rows []struct {
-		Coin          string       `json:"coin"`
-		Chain         string       `json:"chain"`
-		Amount        types.Number `json:"amount"`
-		TransactionID string       `json:"txID"`
-		Status        string       `json:"status"`
-		ToAddress     string       `json:"toAddress"`
-		Tag           string       `json:"tag"`
-		WithdrawFee   types.Number `json:"withdrawFee"`
-		CreateTime    types.Time   `json:"createTime"`
-		UpdateTime    types.Time   `json:"updateTime"`
-		WithdrawID    string       `json:"withdrawId"`
-		WithdrawType  int64        `json:"withdrawType"`
+		Coin          currency.Code `json:"coin"`
+		Chain         string        `json:"chain"`
+		Amount        types.Number  `json:"amount"`
+		TransactionID string        `json:"txID"`
+		Status        string        `json:"status"`
+		ToAddress     string        `json:"toAddress"`
+		Tag           string        `json:"tag"`
+		WithdrawFee   types.Number  `json:"withdrawFee"`
+		CreateTime    types.Time    `json:"createTime"`
+		UpdateTime    types.Time    `json:"updateTime"`
+		WithdrawID    string        `json:"withdrawId"`
+		WithdrawType  int64         `json:"withdrawType"`
 	} `json:"rows"`
 	NextPageCursor string `json:"nextPageCursor"`
 }
@@ -1792,7 +1793,7 @@ type WebsocketResponse struct {
 type WebsocketPublicTrades []struct {
 	OrderFillTimestamp   types.Time   `json:"T"`
 	Symbol               string       `json:"s"`
-	Side                 string       `json:"S"`
+	Side                 order.Side   `json:"S"`
 	Size                 types.Number `json:"v"`
 	Price                types.Number `json:"p"`
 	PriceChangeDirection string       `json:"L"`
@@ -1905,7 +1906,7 @@ type WsExecutions []struct {
 	OrderQty        types.Number `json:"orderQty"`
 	OrderType       string       `json:"orderType"`
 	StopOrderType   string       `json:"stopOrderType"`
-	Side            string       `json:"side"`
+	Side            order.Side   `json:"side"`
 	ExecTime        types.Time   `json:"execTime"`
 	IsLeverage      types.Number `json:"isLeverage"`
 	ClosedSize      types.Number `json:"closedSize"`
@@ -1915,14 +1916,14 @@ type WsExecutions []struct {
 type WsOrders []struct {
 	Symbol             string       `json:"symbol"`
 	OrderID            string       `json:"orderId"`
-	Side               string       `json:"side"`
-	OrderType          string       `json:"orderType"`
+	Side               order.Side   `json:"side"`
+	OrderType          order.Type   `json:"orderType"`
 	CancelType         string       `json:"cancelType"`
 	Price              types.Number `json:"price"`
 	Qty                types.Number `json:"qty"`
 	OrderIv            string       `json:"orderIv"`
 	TimeInForce        string       `json:"timeInForce"`
-	OrderStatus        string       `json:"orderStatus"`
+	OrderStatus        order.Status `json:"orderStatus"`
 	OrderLinkID        string       `json:"orderLinkId"`
 	LastPriceOnCreated string       `json:"lastPriceOnCreated"`
 	ReduceOnly         bool         `json:"reduceOnly"`

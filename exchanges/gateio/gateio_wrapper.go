@@ -850,16 +850,12 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 		}
 		resp = make([]trade.Data, len(tradeData))
 		for i := range tradeData {
-			side, err := order.StringToOrderSide(tradeData[i].Side)
-			if err != nil {
-				return nil, err
-			}
 			resp[i] = trade.Data{
 				Exchange:     g.Name,
 				TID:          tradeData[i].OrderID,
 				CurrencyPair: p,
 				AssetType:    a,
-				Side:         side,
+				Side:         tradeData[i].Side,
 				Price:        tradeData[i].Price.Float64(),
 				Amount:       tradeData[i].Amount.Float64(),
 				Timestamp:    tradeData[i].CreateTime.Time(),
@@ -952,16 +948,8 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		side, err := order.StringToOrderSide(sOrder.Side)
-		if err != nil {
-			return nil, err
-		}
-		response.Side = side
-		status, err := order.StringToOrderStatus(sOrder.Status)
-		if err != nil {
-			return nil, err
-		}
-		response.Status = status
+		response.Side = sOrder.Side
+		response.Status = sOrder.Status
 		response.Fee = sOrder.FeeDeducted.Float64()
 		response.FeeAsset = currency.NewCode(sOrder.FeeCurrency)
 		response.Pair = s.Pair
@@ -1034,11 +1022,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		status, err := order.StringToOrderStatus(optionOrder.Status)
-		if err != nil {
-			return nil, err
-		}
-		response.Status = status
+		response.Status = optionOrder.Status
 		response.Pair = s.Pair
 		response.Date = optionOrder.CreateTime.Time()
 		response.ClientOrderID = optionOrder.Text
@@ -1161,7 +1145,7 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*orde
 				return nil, err
 			}
 			for j := range cancel {
-				response.Status[strconv.FormatInt(cancel[j].OptionOrderID, 10)] = cancel[j].Status
+				response.Status[strconv.FormatInt(cancel[j].OptionOrderID, 10)] = cancel[j].Status.String()
 			}
 		}
 	default:
@@ -1224,7 +1208,7 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 			return cancelAllOrdersResponse, err
 		}
 		for x := range cancel {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[x].OptionOrderID, 10)] = cancel[x].Status
+			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[x].OptionOrderID, 10)] = cancel[x].Status.String()
 		}
 	default:
 		return cancelAllOrdersResponse, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
@@ -1250,31 +1234,16 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		if err != nil {
 			return nil, err
 		}
-		var side order.Side
-		side, err = order.StringToOrderSide(spotOrder.Side)
-		if err != nil {
-			return nil, err
-		}
-		var orderType order.Type
-		orderType, err = order.StringToOrderType(spotOrder.Type)
-		if err != nil {
-			return nil, err
-		}
-		var orderStatus order.Status
-		orderStatus, err = order.StringToOrderStatus(spotOrder.Status)
-		if err != nil {
-			return nil, err
-		}
 		return &order.Detail{
 			Amount:         spotOrder.Amount.Float64(),
 			Exchange:       g.Name,
 			OrderID:        spotOrder.OrderID,
-			Side:           side,
-			Type:           orderType,
+			Side:           spotOrder.Side,
+			Type:           spotOrder.Type,
 			Pair:           pair,
 			Cost:           spotOrder.FeeDeducted.Float64(),
 			AssetType:      a,
-			Status:         orderStatus,
+			Status:         spotOrder.Status,
 			Price:          spotOrder.Price.Float64(),
 			ExecutedAmount: spotOrder.Amount.Float64() - spotOrder.Left.Float64(),
 			Date:           spotOrder.CreateTime.Time(),
@@ -1334,10 +1303,6 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		if err != nil {
 			return nil, err
 		}
-		orderStatus, err := order.StringToOrderStatus(optionOrder.Status)
-		if err != nil {
-			return nil, err
-		}
 		pair, err = currency.NewPairFromString(optionOrder.Contract)
 		if err != nil {
 			return nil, err
@@ -1347,7 +1312,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			ExecutedAmount: optionOrder.Size - optionOrder.Left,
 			Exchange:       g.Name,
 			OrderID:        orderID,
-			Status:         orderStatus,
+			Status:         optionOrder.Status,
 			Price:          optionOrder.Price.Float64(),
 			Date:           optionOrder.CreateTime.Time(),
 			LastUpdated:    optionOrder.FinishTime.Time(),
@@ -1454,25 +1419,13 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				return nil, err
 			}
 			for y := range spotOrders[x].Orders {
-				if spotOrders[x].Orders[y].Status != statusOpen {
+				if spotOrders[x].Orders[y].Status != order.Open {
 					continue
 				}
-				side, err := order.StringToOrderSide(spotOrders[x].Orders[y].Side)
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-				}
-				oType, err := order.StringToOrderType(spotOrders[x].Orders[y].Type)
-				if err != nil {
-					return nil, err
-				}
-				status, err := order.StringToOrderStatus(spotOrders[x].Orders[y].Status)
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
-				}
 				orders = append(orders, order.Detail{
-					Side:                 side,
-					Type:                 oType,
-					Status:               status,
+					Side:                 spotOrders[x].Orders[y].Side,
+					Type:                 spotOrders[x].Orders[y].Type,
+					Status:               spotOrders[x].Orders[y].Status,
 					Pair:                 symbol,
 					OrderID:              spotOrders[x].Orders[y].OrderID,
 					Amount:               spotOrders[x].Orders[y].Amount.Float64(),
@@ -1540,24 +1493,17 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			})
 		}
 	case asset.Options:
-		var optionsOrders []OptionOrderResponse
-		optionsOrders, err = g.GetOptionFuturesOrders(ctx, currency.EMPTYPAIR, "", statusOpen, 0, 0, req.StartTime, req.EndTime)
+		optionsOrders, err := g.GetOptionFuturesOrders(ctx, currency.EMPTYPAIR, "", statusOpen, 0, 0, req.StartTime, req.EndTime)
 		if err != nil {
 			return nil, err
 		}
 		for i := range optionsOrders {
-			var currencyPair currency.Pair
-			var status order.Status
-			currencyPair, err = currency.NewPairFromString(optionsOrders[i].Contract)
-			if err != nil {
-				return nil, err
-			}
-			status, err = order.StringToOrderStatus(optionsOrders[i].Status)
+			currencyPair, err := currency.NewPairFromString(optionsOrders[i].Contract)
 			if err != nil {
 				return nil, err
 			}
 			orders = append(orders, order.Detail{
-				Status:          status,
+				Status:          optionsOrders[i].Status,
 				Amount:          optionsOrders[i].Size,
 				Pair:            currencyPair,
 				OrderID:         strconv.FormatInt(optionsOrders[i].OptionOrderID, 10),
@@ -1597,18 +1543,13 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 				return nil, err
 			}
 			for o := range spotOrders {
-				var side order.Side
-				side, err = order.StringToOrderSide(spotOrders[o].Side)
-				if err != nil {
-					return nil, err
-				}
 				detail := order.Detail{
 					OrderID:        spotOrders[o].OrderID,
 					Amount:         spotOrders[o].Amount.Float64(),
 					ExecutedAmount: spotOrders[o].Amount.Float64(),
 					Price:          spotOrders[o].Price.Float64(),
 					Date:           spotOrders[o].CreateTime.Time(),
-					Side:           side,
+					Side:           spotOrders[o].Side,
 					Exchange:       g.Name,
 					Pair:           fPair,
 					AssetType:      req.AssetType,
@@ -2401,36 +2342,24 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 
 	out := make([]*order.SubmitResponse, 0, len(responses))
 	for _, resp := range responses {
-		side, err := order.StringToOrderSide(resp.Side)
-		if err != nil {
-			return nil, err
-		}
 		status := order.Open
 		if resp.FinishAs != "" && resp.FinishAs != statusOpen {
+			var err error
 			status, err = order.StringToOrderStatus(resp.FinishAs)
 			if err != nil {
 				return nil, err
 			}
 		}
-		oType, err := order.StringToOrderType(resp.Type)
-		if err != nil {
-			return nil, err
-		}
-
 		var cost float64
 		var purchased float64
 		if resp.AverageDealPrice != 0 {
-			if side.IsLong() {
+			if resp.Side.IsLong() {
 				cost = resp.FilledTotal.Float64()
 				purchased = resp.FilledTotal.Decimal().Div(resp.AverageDealPrice.Decimal()).InexactFloat64()
 			} else {
 				cost = resp.Amount.Float64()
 				purchased = resp.FilledTotal.Float64()
 			}
-		}
-		tif, err := order.StringToTimeInForce(resp.TimeInForce)
-		if err != nil {
-			return nil, err
 		}
 		out = append(out, &order.SubmitResponse{
 			Exchange:             g.Name,
@@ -2444,10 +2373,10 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 			Amount:               resp.Amount.Float64(),
 			Price:                resp.Price.Float64(),
 			AverageExecutedPrice: resp.AverageDealPrice.Float64(),
-			Type:                 oType,
-			Side:                 side,
+			Type:                 resp.Type,
+			Side:                 resp.Side,
 			Status:               status,
-			TimeInForce:          tif,
+			TimeInForce:          resp.TimeInForce,
 			Cost:                 cost,
 			Purchased:            purchased,
 			Fee:                  resp.Fee.Float64(),
@@ -2496,10 +2425,6 @@ func (g *Gateio) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFutu
 		if resp.Text != "" && strings.HasPrefix(resp.Text, "t-") {
 			clientOrderID = resp.Text
 		}
-		tif, err := order.StringToTimeInForce(resp.TimeInForce)
-		if err != nil {
-			return nil, err
-		}
 		out = append(out, &order.SubmitResponse{
 			Exchange:             g.Name,
 			OrderID:              strconv.FormatInt(resp.ID, 10),
@@ -2515,7 +2440,7 @@ func (g *Gateio) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFutu
 			Type:                 oType,
 			Side:                 side,
 			Status:               status,
-			TimeInForce:          tif,
+			TimeInForce:          resp.TimeInForce,
 			ReduceOnly:           resp.IsReduceOnly,
 		})
 	}
