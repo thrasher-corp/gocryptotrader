@@ -146,7 +146,7 @@ func TestGetAllActiveOrderbooks(t *testing.T) {
 	require.NoError(t, err)
 
 	resp := getAllActiveOrderbooks(man)
-	require.NotNil(t, resp)
+	assert.NotNil(t, resp)
 }
 
 func TestGetAllActiveTickers(t *testing.T) {
@@ -159,7 +159,7 @@ func TestGetAllActiveTickers(t *testing.T) {
 	require.NoError(t, err)
 
 	resp := getAllActiveTickers(man)
-	require.NotNil(t, resp)
+	assert.NotNil(t, resp)
 }
 
 func TestGetAllActiveAccounts(t *testing.T) {
@@ -172,7 +172,7 @@ func TestGetAllActiveAccounts(t *testing.T) {
 	require.NoError(t, err)
 
 	resp := getAllActiveAccounts(man)
-	require.NotNil(t, resp)
+	assert.NotNil(t, resp)
 }
 
 func makeHTTPGetRequest(t *testing.T, response any) *http.Response {
