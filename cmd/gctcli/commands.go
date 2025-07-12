@@ -30,6 +30,11 @@ var getInfoCommand = &cli.Command{
 	Action: getInfo,
 }
 
+// error declarations
+var (
+	ErrRequiredValueMissing = errors.New("required value missing")
+)
+
 func getInfo(c *cli.Context) error {
 	conn, cancel, err := setupClient(c)
 	if err != nil {
@@ -1281,69 +1286,31 @@ var getOrderCommand = &cli.Command{
 	Usage:     "gets the specified order info",
 	ArgsUsage: "<exchange> <asset> <pair> <order_id>",
 	Action:    getOrder,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to get the order for",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "required asset type",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the pair to retrieve",
-		},
-		&cli.StringFlag{
-			Name:  "order_id",
-			Usage: "the order id to retrieve",
-		},
-	},
+	Flags:     FlagsFromStruct(&GetOrderParams{}, nil),
 }
 
 func getOrder(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	var exchangeName string
-	var orderID string
-	var currencyPair string
-	var assetType string
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
-	}
-	assetType = strings.ToLower(assetType)
-	if !validAsset(assetType) {
-		return errInvalidAsset
-	}
-
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
-	}
-	if !validPair(currencyPair) {
-		return errInvalidPair
-	}
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	getOrderParams := &GetOrderParams{}
+	err := UnmarshalCLIFields(c, getOrderParams)
 	if err != nil {
 		return err
 	}
 
-	if c.IsSet("order_id") {
-		orderID = c.String("order_id")
-	} else {
-		orderID = c.Args().Get(3)
+	getOrderParams.Asset = strings.ToLower(getOrderParams.Asset)
+	if !validAsset(getOrderParams.Asset) {
+		return errInvalidAsset
+	}
+
+	if !validPair(getOrderParams.CurrencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(getOrderParams.CurrencyPair, pairDelimiter)
+	if err != nil {
+		return err
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -1354,14 +1321,14 @@ func getOrder(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetOrder(c.Context, &gctrpc.GetOrderRequest{
-		Exchange: exchangeName,
-		OrderId:  orderID,
+		Exchange: getOrderParams.Exchange,
+		OrderId:  getOrderParams.OrderID,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		Asset: assetType,
+		Asset: getOrderParams.Asset,
 	})
 	if err != nil {
 		return err
@@ -1394,312 +1361,39 @@ func submitOrder(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var (
-		exchangeName       string
-		currencyPair       string
-		orderSide          string
-		orderType          string
-		amount             float64
-		price              float64
-		leverage           float64
-		clientID           string
-		clientOrderID      string
-		assetType          string
-		marginType         string
-		timeInForce        string
-		quoteAmount        float64
-		triggerPrice       float64
-		triggerLimitPrice  float64
-		triggerPriceType   string
-		trackingMode       string
-		trackingValue      float64
-		tpPrice            float64
-		tpLimitPrice       float64
-		tpPriceType        string
-		slPrice            float64
-		slLimitPrice       float64
-		slPriceType        string
-		retrieveFeeDelayMs int64
-
-		hidden, iceberg, autoBorrow, reduceOnly, retrieveFees bool
-	)
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	submitOrderParam := &SubmitOrderParams{}
+	err := UnmarshalCLIFields(c, submitOrderParam)
+	if err != nil {
+		return err
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
-
-	if !validPair(currencyPair) {
+	if !validPair(submitOrderParam.CurrencyPair) {
 		return errInvalidPair
 	}
 
-	if c.IsSet("side") {
-		orderSide = c.String("side")
-	} else {
-		orderSide = c.Args().Get(2)
-	}
-
-	if orderSide == "" {
+	if submitOrderParam.OrderSide == "" {
 		return errors.New("order side must be set")
 	}
 
-	if c.IsSet("type") {
-		orderType = c.String("type")
-	} else {
-		orderType = c.Args().Get(3)
-	}
-
-	if orderType == "" {
+	if submitOrderParam.OrderType == "" {
 		return errors.New("order type must be set")
 	}
 
-	if c.IsSet("amount") {
-		amount = c.Float64("amount")
-	} else if c.Args().Get(4) != "" {
-		var err error
-		amount, err = strconv.ParseFloat(c.Args().Get(4), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if amount == 0 {
+	if submitOrderParam.Amount == 0 {
 		return errors.New("amount must be set")
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(5)
-	}
-
-	// price is optional for market orders
-	if c.IsSet("price") {
-		price = c.Float64("price")
-	} else if c.Args().Get(6) != "" {
-		var err error
-		price, err = strconv.ParseFloat(c.Args().Get(6), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("leverage") {
-		leverage = c.Float64("leverage")
-	} else if c.Args().Get(7) != "" {
-		var err error
-		leverage, err = strconv.ParseFloat(c.Args().Get(7), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("client_order_id") {
-		clientOrderID = c.String("client_order_id")
-	} else {
-		clientOrderID = c.Args().Get(8)
-	}
-
-	if c.IsSet("margin_type") {
-		marginType = c.String("margin_type")
-	} else {
-		marginType = c.Args().Get(9)
-	}
-
-	if c.IsSet("time_in_force") {
-		timeInForce = c.String("time_in_force")
-	} else {
-		timeInForce = c.Args().Get(10)
-	}
-
-	if c.IsSet("quote_amount") {
-		quoteAmount = c.Float64("quote_amount")
-	} else if c.Args().Get(11) != "" {
-		var err error
-		quoteAmount, err = strconv.ParseFloat(c.Args().Get(11), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("client_id") {
-		clientID = c.String("client_id")
-	} else {
-		clientID = c.Args().Get(12)
-	}
-
-	if c.IsSet("trigger_price") {
-		triggerPrice = c.Float64("trigger_price")
-	} else if c.Args().Get(13) != "" {
-		var err error
-		triggerPrice, err = strconv.ParseFloat(c.Args().Get(13), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("trigger_limit_price") {
-		triggerLimitPrice = c.Float64("trigger_limit_price")
-	} else if c.Args().Get(14) != "" {
-		var err error
-		triggerLimitPrice, err = strconv.ParseFloat(c.Args().Get(14), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("trigger_price_type") {
-		triggerPriceType = c.String("trigger_price_type")
-	} else {
-		triggerPriceType = c.Args().Get(15)
-	}
-
-	if c.IsSet("tp_price") {
-		tpPrice = c.Float64("tp_price")
-	} else if c.Args().Get(16) != "" {
-		var err error
-		tpPrice, err = strconv.ParseFloat(c.Args().Get(16), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("tp_limit_price") {
-		tpLimitPrice = c.Float64("tp_limit_price")
-	} else if c.Args().Get(17) != "" {
-		var err error
-		tpLimitPrice, err = strconv.ParseFloat(c.Args().Get(17), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("tp_price_type") {
-		tpPriceType = c.String("tp_price_type")
-	} else {
-		tpPriceType = c.Args().Get(18)
-	}
-
-	if c.IsSet("sl_price") {
-		slPrice = c.Float64("sl_price")
-	} else if c.Args().Get(19) != "" {
-		var err error
-		slPrice, err = strconv.ParseFloat(c.Args().Get(19), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("sl_limit_price") {
-		slLimitPrice = c.Float64("sl_limit_price")
-	} else if c.Args().Get(20) != "" {
-		var err error
-		slLimitPrice, err = strconv.ParseFloat(c.Args().Get(20), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("sl_price_type") {
-		slPriceType = c.String("sl_price_type")
-	} else {
-		slPriceType = c.Args().Get(21)
-	}
-
-	if c.IsSet("tracking_mode") {
-		trackingMode = c.String("tracking_mode")
-	} else {
-		trackingMode = c.Args().Get(22)
-	}
-
-	if c.IsSet("tracking_value") {
-		trackingValue = c.Float64("tracking_value")
-	} else if c.Args().Get(23) != "" {
-		var err error
-		trackingValue, err = strconv.ParseFloat(c.Args().Get(23), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("hidden") {
-		hidden = c.Bool("hidden")
-	} else if c.Args().Get(24) != "" {
-		var err error
-		hidden, err = strconv.ParseBool(c.Args().Get(24))
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("iceberg") {
-		iceberg = c.Bool("iceberg")
-	} else if c.Args().Get(25) != "" {
-		var err error
-		iceberg, err = strconv.ParseBool(c.Args().Get(25))
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("auto_borrow") {
-		autoBorrow = c.Bool("auto_borrow")
-	} else if c.Args().Get(26) != "" {
-		var err error
-		autoBorrow, err = strconv.ParseBool(c.Args().Get(26))
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("reduce_only") {
-		reduceOnly = c.Bool("reduce_only")
-	} else if c.Args().Get(27) != "" {
-		var err error
-		reduceOnly, err = strconv.ParseBool(c.Args().Get(27))
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("retrieve_fees") {
-		retrieveFees = c.Bool("retrieve_fees")
-	} else if c.Args().Get(28) != "" {
-		var err error
-		retrieveFees, err = strconv.ParseBool(c.Args().Get(28))
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("retrieve_fee_delay_ms") {
-		retrieveFeeDelayMs = c.Int64("retrieve_fee_delay_ms")
-	} else if c.Args().Get(29) != "" {
-		var err error
-		retrieveFeeDelayMs, err = strconv.ParseInt(c.Args().Get(29), 10, 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	assetType = strings.ToLower(assetType)
-	if !validAsset(assetType) {
+	submitOrderParam.AssetType = strings.ToLower(submitOrderParam.AssetType)
+	if !validAsset(submitOrderParam.AssetType) {
 		return errInvalidAsset
 	}
 
-	marginType = strings.ToLower(marginType)
-	if marginType != "" && !margin.IsValidString(marginType) {
+	submitOrderParam.MarginType = strings.ToLower(submitOrderParam.MarginType)
+	if submitOrderParam.MarginType != "" && !margin.IsValidString(submitOrderParam.MarginType) {
 		return margin.ErrInvalidMarginType
 	}
 
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(submitOrderParam.CurrencyPair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -1712,44 +1406,44 @@ func submitOrder(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SubmitOrder(c.Context, &gctrpc.SubmitOrderRequest{
-		Exchange: exchangeName,
+		Exchange: submitOrderParam.ExchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		Amount:            amount,
-		Price:             price,
-		Leverage:          leverage,
-		Side:              orderSide,
-		OrderType:         orderType,
-		AssetType:         assetType,
-		MarginType:        marginType,
-		ClientId:          clientID,
-		ClientOrderId:     clientOrderID,
-		QuoteAmount:       quoteAmount,
-		TimeInForce:       timeInForce,
-		TriggerPrice:      triggerPrice,
-		TriggerPriceType:  triggerPriceType,
-		TriggerLimitPrice: triggerLimitPrice,
+		Amount:            submitOrderParam.Amount,
+		Price:             submitOrderParam.Price,
+		Leverage:          submitOrderParam.Leverage,
+		Side:              submitOrderParam.OrderSide,
+		OrderType:         submitOrderParam.OrderType,
+		AssetType:         submitOrderParam.AssetType,
+		MarginType:        submitOrderParam.MarginType,
+		ClientId:          submitOrderParam.ClientID,
+		ClientOrderId:     submitOrderParam.ClientOrderID,
+		QuoteAmount:       submitOrderParam.QuoteAmount,
+		TimeInForce:       submitOrderParam.TimeInForce,
+		TriggerPrice:      submitOrderParam.TriggerPrice,
+		TriggerPriceType:  submitOrderParam.TriggerPriceType,
+		TriggerLimitPrice: submitOrderParam.TriggerLimitPrice,
 		StopLoss: &gctrpc.RiskManagement{
-			Price:      slPrice,
-			LimitPrice: slLimitPrice,
-			PriceType:  slPriceType,
+			Price:      submitOrderParam.SlPrice,
+			LimitPrice: submitOrderParam.SlLimitPrice,
+			PriceType:  submitOrderParam.SlPriceType,
 		},
 		TakeProfit: &gctrpc.RiskManagement{
-			Price:      tpPrice,
-			LimitPrice: tpLimitPrice,
-			PriceType:  tpPriceType,
+			Price:      submitOrderParam.TpPrice,
+			LimitPrice: submitOrderParam.TpLimitPrice,
+			PriceType:  submitOrderParam.TpPriceType,
 		},
-		Hidden:             hidden,
-		Iceberg:            iceberg,
-		ReduceOnly:         reduceOnly,
-		AutoBorrow:         autoBorrow,
-		RetrieveFees:       retrieveFees,
-		RetrieveFeeDelayMs: retrieveFeeDelayMs,
-		TrackingMode:       trackingMode,
-		TrackingValue:      trackingValue,
+		Hidden:             submitOrderParam.Hidden,
+		Iceberg:            submitOrderParam.Iceberg,
+		ReduceOnly:         submitOrderParam.ReduceOnly,
+		AutoBorrow:         submitOrderParam.AutoBorrow,
+		RetrieveFees:       submitOrderParam.RetrieveFees,
+		RetrieveFeeDelayMs: submitOrderParam.RetrieveFeeDelayMs,
+		TrackingMode:       submitOrderParam.TrackingMode,
+		TrackingValue:      submitOrderParam.TrackingValue,
 	})
 	if err != nil {
 		return err
@@ -1881,102 +1575,29 @@ func cancelOrder(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var (
-		exchangeName  string
-		orderID       string
-		clientOrderID string
-		accountID     string
-		clientID      string
-		orderType     string
-		orderSide     string
-		assetType     string
-		currencyPair  string
-		marginType    string
-		timeInForce   string
-	)
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	cancelOrderParams := &CancelOrderParams{}
+	err := UnmarshalCLIFields(c, cancelOrderParams)
+	if err != nil {
+		return err
 	}
 
-	if c.IsSet("order_id") {
-		orderID = c.String("order_id")
-	} else {
-		orderID = c.Args().Get(1)
-	}
-	if orderID == "" {
+	if cancelOrderParams.OrderID == "" {
 		return errors.New("an order ID must be set")
 	}
 
-	if c.IsSet("client_order_id") {
-		clientOrderID = c.String("client_order_id")
-	} else {
-		clientOrderID = c.Args().Get(2)
-	}
-
-	if c.IsSet("account_id") {
-		accountID = c.String("account_id")
-	} else {
-		accountID = c.Args().Get(3)
-	}
-
-	if c.IsSet("client_id") {
-		clientID = c.String("client_id")
-	} else {
-		clientID = c.Args().Get(4)
-	}
-
-	if c.IsSet("type") {
-		orderType = c.String("type")
-	} else {
-		orderType = c.Args().Get(5)
-	}
-
-	if c.IsSet("side") {
-		orderSide = c.String("side")
-	} else {
-		orderSide = c.Args().Get(6)
-	}
-
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(7)
-	}
-
-	assetType = strings.ToLower(assetType)
-	if !validAsset(assetType) {
+	cancelOrderParams.AssetType = strings.ToLower(cancelOrderParams.AssetType)
+	if !validAsset(cancelOrderParams.AssetType) {
 		return errInvalidAsset
-	}
-
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(8)
-	}
-
-	if c.IsSet("margin_type") {
-		marginType = c.String("margin_type")
-	} else {
-		marginType = c.Args().Get(9)
-	}
-
-	if c.IsSet("time_in_force") {
-		timeInForce = c.String("time_in_force")
-	} else {
-		timeInForce = c.Args().Get(10)
 	}
 
 	// pair is optional, but if it's set, do a validity check
 	var p currency.Pair
-	if currencyPair != "" {
-		if !validPair(currencyPair) {
+	if cancelOrderParams.CurrencyPair != "" {
+		if !validPair(cancelOrderParams.CurrencyPair) {
 			return errInvalidPair
 		}
 		var err error
-		p, err = currency.NewPairDelimiter(currencyPair, pairDelimiter)
+		p, err = currency.NewPairDelimiter(cancelOrderParams.CurrencyPair, pairDelimiter)
 		if err != nil {
 			return err
 		}
@@ -1990,21 +1611,21 @@ func cancelOrder(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.CancelOrder(c.Context, &gctrpc.CancelOrderRequest{
-		Exchange:  exchangeName,
-		AccountId: accountID,
-		OrderId:   orderID,
+		Exchange:  cancelOrderParams.Exchange,
+		AccountId: cancelOrderParams.AccountID,
+		OrderId:   cancelOrderParams.OrderID,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		AssetType:     assetType,
-		Side:          orderSide,
-		Type:          orderType,
-		ClientOrderId: clientOrderID,
-		ClientId:      clientID,
-		MarginType:    marginType,
-		TimeInForce:   timeInForce,
+		AssetType:     cancelOrderParams.AssetType,
+		Side:          cancelOrderParams.OrderSide,
+		Type:          cancelOrderParams.OrderType,
+		ClientOrderId: cancelOrderParams.ClientOrderID,
+		ClientId:      cancelOrderParams.ClientID,
+		MarginType:    cancelOrderParams.MarginType,
+		TimeInForce:   cancelOrderParams.TimeInForce,
 	})
 	if err != nil {
 		return err
@@ -2019,32 +1640,11 @@ var cancelBatchOrdersCommand = &cli.Command{
 	Usage:     "cancel batch orders cancels a list of exchange orders (comma separated)",
 	ArgsUsage: "<exchange> <account_id> <order_ids> <pair> <asset> <side>",
 	Action:    cancelBatchOrders,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to cancel the order for",
-		},
-		&cli.StringFlag{
-			Name:  "account_id",
-			Usage: "the account id",
-		},
-		&cli.StringFlag{
-			Name:  "order_ids",
-			Usage: "the comma separated orders id-s",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair to cancel the order for",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type",
-		},
-		&cli.StringFlag{
-			Name:  "side",
-			Usage: "the order side",
-		},
-	},
+	Flags: FlagsFromStruct(&CancelOrderParams{}, map[string]string{
+		"exchange": "the exchange to cancel the order for",
+		"pair":     "the currency pair to cancel the order for",
+		"type":     "the order type (MARKET OR LIMIT)",
+	}),
 }
 
 func cancelBatchOrders(c *cli.Context) error {
@@ -2052,66 +1652,29 @@ func cancelBatchOrders(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	var accountID string
-	var orderID string
-	var currencyPair string
-	var assetType string
-	var orderSide string
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	cancelBatchParams := &CancelOrderParams{}
+	err := UnmarshalCLIFields(c, cancelBatchParams)
+	if err != nil {
+		return err
 	}
 
-	if c.IsSet("account_id") {
-		accountID = c.String("account_id")
-	} else {
-		accountID = c.Args().Get(1)
-	}
-
-	if c.IsSet("order_ids") {
-		orderID = c.String("order_ids")
-	} else {
-		orderID = c.Args().Get(2)
-	}
-
-	if orderID == "" {
+	if cancelBatchParams.OrderID == "" {
 		return errors.New("an order ID must be set")
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(3)
-	}
-
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(4)
-	}
-
-	assetType = strings.ToLower(assetType)
-	if !validAsset(assetType) {
+	cancelBatchParams.AssetType = strings.ToLower(cancelBatchParams.AssetType)
+	if !validAsset(cancelBatchParams.AssetType) {
 		return errInvalidAsset
-	}
-
-	if c.IsSet("side") {
-		orderSide = c.String("side")
-	} else {
-		orderSide = c.Args().Get(5)
 	}
 
 	// pair is optional, but if it's set, do a validity check
 	var p currency.Pair
-	if currencyPair != "" {
-		if !validPair(currencyPair) {
+	if cancelBatchParams.CurrencyPair != "" {
+		if !validPair(cancelBatchParams.CurrencyPair) {
 			return errInvalidPair
 		}
 		var err error
-		p, err = currency.NewPairDelimiter(currencyPair, pairDelimiter)
+		p, err = currency.NewPairDelimiter(cancelBatchParams.CurrencyPair, pairDelimiter)
 		if err != nil {
 			return err
 		}
@@ -2125,16 +1688,16 @@ func cancelBatchOrders(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.CancelBatchOrders(c.Context, &gctrpc.CancelBatchOrdersRequest{
-		Exchange:  exchangeName,
-		AccountId: accountID,
-		OrdersId:  orderID,
+		Exchange:  cancelBatchParams.Exchange,
+		AccountId: cancelBatchParams.AccountID,
+		OrdersId:  cancelBatchParams.OrderID,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		AssetType: assetType,
-		Side:      orderSide,
+		AssetType: cancelBatchParams.AssetType,
+		Side:      cancelBatchParams.OrderSide,
 	})
 	if err != nil {
 		return err
@@ -2206,171 +1769,22 @@ func modifyOrder(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	// Parse positional arguments.
-	var (
-		exchangeName      string
-		orderID           string
-		currencyPair      string
-		assetType         string
-		clientOrderID     string
-		timeInForce       string
-		triggerPrice      float64
-		triggerLimitPrice float64
-		triggerPriceType  string
-		tpPrice           float64
-		tpLimitPrice      float64
-		tpPriceType       string
-		slPrice           float64
-		slLimitPrice      float64
-		slPriceType       string
-		orderSide         string
-		orderType         string
-	)
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
-	}
-	assetType = strings.ToLower(assetType)
-	if !validAsset(assetType) {
+	modifyOrderParams := &ModifyOrderParams{}
+	modifyOrderParams.AssetType = strings.ToLower(modifyOrderParams.AssetType)
+	if !validAsset(modifyOrderParams.AssetType) {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
-	}
-	if !validPair(currencyPair) {
+	if !validPair(modifyOrderParams.CurrencyPair) {
 		return errInvalidPair
 	}
 
-	if c.IsSet("type") {
-		orderType = c.String("type")
-	} else {
-		orderType = c.Args().Get(3)
-	}
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(modifyOrderParams.CurrencyPair, pairDelimiter)
 	if err != nil {
 		return err
 	}
 
-	if c.IsSet("order_id") {
-		orderID = c.String("order_id")
-	} else {
-		orderID = c.Args().Get(3)
-	}
-
-	// Parse optional flags.
-	var price float64
-	var amount float64
-
-	if c.IsSet("price") {
-		price = c.Float64("price")
-	}
-	if c.IsSet("amount") {
-		amount = c.Float64("amount")
-	}
-
-	if c.IsSet("client_order_id") {
-		clientOrderID = c.String("client_order_id")
-	} else {
-		clientOrderID = c.Args().Get(8)
-	}
-
-	if c.IsSet("time_in_force") {
-		timeInForce = c.String("time_in_force")
-	} else {
-		timeInForce = c.Args().Get(10)
-	}
-
-	if c.IsSet("trigger_price") {
-		triggerPrice = c.Float64("trigger_price")
-	} else if c.Args().Get(13) != "" {
-		var err error
-		triggerPrice, err = strconv.ParseFloat(c.Args().Get(13), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("trigger_limit_price") {
-		triggerLimitPrice = c.Float64("trigger_limit_price")
-	} else if c.Args().Get(14) != "" {
-		var err error
-		triggerLimitPrice, err = strconv.ParseFloat(c.Args().Get(14), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("trigger_price_type") {
-		triggerPriceType = c.String("trigger_price_type")
-	} else {
-		triggerPriceType = c.Args().Get(15)
-	}
-
-	if c.IsSet("tp_price") {
-		tpPrice = c.Float64("sl_price")
-	} else if c.Args().Get(16) != "" {
-		var err error
-		tpPrice, err = strconv.ParseFloat(c.Args().Get(16), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("tp_limit_price") {
-		tpLimitPrice = c.Float64("tp_limit_price")
-	} else if c.Args().Get(17) != "" {
-		var err error
-		tpLimitPrice, err = strconv.ParseFloat(c.Args().Get(17), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("tp_price_type") {
-		tpPriceType = c.String("tp_price_type")
-	} else {
-		tpPriceType = c.Args().Get(18)
-	}
-
-	if c.IsSet("sl_price") {
-		slPrice = c.Float64("sl_price")
-	} else if c.Args().Get(19) != "" {
-		var err error
-		slPrice, err = strconv.ParseFloat(c.Args().Get(19), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("sl_limit_price") {
-		slLimitPrice = c.Float64("sl_limit_price")
-	} else if c.Args().Get(20) != "" {
-		var err error
-		slLimitPrice, err = strconv.ParseFloat(c.Args().Get(20), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("sl_price_type") {
-		slPriceType = c.String("sl_price_type")
-	} else {
-		slPriceType = c.Args().Get(21)
-	}
-
-	if price == 0 && amount == 0 {
+	if modifyOrderParams.Price == 0 && modifyOrderParams.Amount == 0 {
 		return errors.New("either --price or --amount should be present")
 	}
 
@@ -2383,32 +1797,32 @@ func modifyOrder(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.ModifyOrder(c.Context, &gctrpc.ModifyOrderRequest{
-		Exchange: exchangeName,
-		OrderId:  orderID,
+		Exchange: modifyOrderParams.ExchangeName,
+		OrderId:  modifyOrderParams.OrderID,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		Asset:             assetType,
-		Price:             price,
-		Amount:            amount,
-		Type:              orderType,
-		Side:              orderSide,
-		TimeInForce:       timeInForce,
-		ClientOrderId:     clientOrderID,
-		TriggerPrice:      triggerPrice,
-		TriggerLimitPrice: triggerLimitPrice,
-		TriggerPriceType:  triggerPriceType,
+		Asset:             modifyOrderParams.AssetType,
+		Price:             modifyOrderParams.Price,
+		Amount:            modifyOrderParams.Amount,
+		Type:              modifyOrderParams.OrderType,
+		Side:              modifyOrderParams.OrderSide,
+		TimeInForce:       modifyOrderParams.TimeInForce,
+		ClientOrderId:     modifyOrderParams.ClientOrderID,
+		TriggerPrice:      modifyOrderParams.TriggerPrice,
+		TriggerLimitPrice: modifyOrderParams.TriggerLimitPrice,
+		TriggerPriceType:  modifyOrderParams.TriggerPriceType,
 		StopLoss: &gctrpc.RiskManagement{
-			Price:      slPrice,
-			LimitPrice: slLimitPrice,
-			PriceType:  slPriceType,
+			Price:      modifyOrderParams.SlPrice,
+			LimitPrice: modifyOrderParams.SlLimitPrice,
+			PriceType:  modifyOrderParams.SlPriceType,
 		},
 		TakeProfit: &gctrpc.RiskManagement{
-			Price:      tpPrice,
-			LimitPrice: tpLimitPrice,
-			PriceType:  tpPriceType,
+			Price:      modifyOrderParams.TpPrice,
+			LimitPrice: modifyOrderParams.TpLimitPrice,
+			PriceType:  modifyOrderParams.TpPriceType,
 		},
 	})
 	if err != nil {
@@ -2726,41 +2140,13 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	var cryptocurrency string
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	getCurrencyDepositAddressParams := &GetCryptoDepositAddressParams{}
+	err := UnmarshalCLIFields(c, getCurrencyDepositAddressParams)
+	if err != nil {
+		return err
 	}
-
-	if c.IsSet("cryptocurrency") {
-		cryptocurrency = c.String("cryptocurrency")
-	} else if c.Args().Get(1) != "" {
-		cryptocurrency = c.Args().Get(1)
-	}
-
-	if cryptocurrency == "" {
+	if getCurrencyDepositAddressParams.Currency == "" {
 		return errors.New("cryptocurrency must be set")
-	}
-
-	var chain string
-	if c.IsSet("chain") {
-		chain = c.String("chain")
-	} else if c.Args().Get(2) != "" {
-		chain = c.Args().Get(2)
-	}
-
-	var bypass bool
-	if c.IsSet("bypass") {
-		bypass = c.Bool("bypass")
-	} else if c.Args().Get(3) != "" {
-		b, err := strconv.ParseBool(c.Args().Get(3))
-		if err != nil {
-			return err
-		}
-		bypass = b
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -2772,10 +2158,10 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetCryptocurrencyDepositAddress(c.Context,
 		&gctrpc.GetCryptocurrencyDepositAddressRequest{
-			Exchange:       exchangeName,
-			Cryptocurrency: cryptocurrency,
-			Chain:          chain,
-			Bypass:         bypass,
+			Exchange:       getCurrencyDepositAddressParams.Exchange,
+			Cryptocurrency: getCurrencyDepositAddressParams.Currency,
+			Chain:          getCurrencyDepositAddressParams.Chain,
+			Bypass:         getCurrencyDepositAddressParams.Bypass,
 		},
 	)
 	if err != nil {
@@ -2808,22 +2194,13 @@ func getAvailableTransferChains(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	var cryptocurrency string
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	getAvailableTransferChainsParams := &GetAvailableTransferChainsParams{}
+	err := UnmarshalCLIFields(c, getAvailableTransferChainsParams)
+	if err != nil {
+		return err
 	}
 
-	if c.IsSet("cryptocurrency") {
-		cryptocurrency = c.String("cryptocurrency")
-	} else if c.Args().Get(1) != "" {
-		cryptocurrency = c.Args().Get(1)
-	}
-
-	if cryptocurrency == "" {
+	if getAvailableTransferChainsParams.Currency == "" {
 		return errors.New("cryptocurrency must be set")
 	}
 
@@ -2836,8 +2213,8 @@ func getAvailableTransferChains(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetAvailableTransferChains(c.Context,
 		&gctrpc.GetAvailableTransferChainsRequest{
-			Exchange:       exchangeName,
-			Cryptocurrency: cryptocurrency,
+			Exchange:       getAvailableTransferChainsParams.Exchange,
+			Cryptocurrency: getAvailableTransferChainsParams.Currency,
 		},
 	)
 	if err != nil {
@@ -2853,102 +2230,24 @@ var withdrawCryptocurrencyFundsCommand = &cli.Command{
 	Usage:     "withdraws cryptocurrency funds from the desired exchange",
 	ArgsUsage: "<exchange> <currency> <amount> <address> <addresstag> <fee> <description> <chain>",
 	Action:    withdrawCryptocurrencyFunds,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to withdraw from",
-		},
-		&cli.StringFlag{
-			Name:  "currency",
-			Usage: "the cryptocurrency to withdraw funds from",
-		},
-		&cli.StringFlag{
-			Name:  "address",
-			Usage: "address to withdraw to",
-		},
-		&cli.StringFlag{
-			Name:  "addresstag",
-			Usage: "address tag/memo",
-		},
-		&cli.Float64Flag{
-			Name:  "amount",
-			Usage: "amount of funds to withdraw",
-		},
-		&cli.Float64Flag{
-			Name:  "fee",
-			Usage: "fee to submit with request",
-		},
-		&cli.StringFlag{
-			Name:  "description",
-			Usage: "description to submit with request",
-		},
-		&cli.StringFlag{
-			Name:  "chain",
-			Usage: "chain to use for the withdrawal",
-		},
-	},
+	Flags: FlagsFromStruct(&WithdrawCryptoCurrencyFundParams{}, map[string]string{
+		"exchange":   "the exchange to withdraw from",
+		"currency":   "the cryptocurrency to withdraw funds from",
+		"address":    "address to withdraw to",
+		"addresstag": "address tag/memo",
+		"amount":     "amount of funds to withdraw",
+		"chain":      "chain to use for the withdrawal",
+	}),
 }
 
 func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	var exchange, cur, address, addressTag, chain, description string
-	var amount, fee float64
-
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
-	} else if c.Args().Get(0) != "" {
-		exchange = c.Args().Get(0)
-	}
-
-	if c.IsSet("currency") {
-		cur = c.String("currency")
-	} else if c.Args().Get(1) != "" {
-		cur = c.Args().Get(1)
-	}
-
-	if c.IsSet("amount") {
-		amount = c.Float64("amount")
-	} else if c.Args().Get(2) != "" {
-		amountStr, err := strconv.ParseFloat(c.Args().Get(2), 64)
-		if err == nil {
-			amount = amountStr
-		}
-	}
-
-	if c.IsSet("address") {
-		address = c.String("address")
-	} else if c.Args().Get(3) != "" {
-		address = c.Args().Get(3)
-	}
-
-	if c.IsSet("addresstag") {
-		addressTag = c.String("addresstag")
-	} else if c.Args().Get(4) != "" {
-		addressTag = c.Args().Get(4)
-	}
-
-	if c.IsSet("fee") {
-		fee = c.Float64("fee")
-	} else if c.Args().Get(5) != "" {
-		feeStr, err := strconv.ParseFloat(c.Args().Get(5), 64)
-		if err == nil {
-			fee = feeStr
-		}
-	}
-
-	if c.IsSet("description") {
-		description = c.String("description")
-	} else if c.Args().Get(6) != "" {
-		description = c.Args().Get(6)
-	}
-
-	if c.IsSet("chain") {
-		chain = c.String("chain")
-	} else if c.Args().Get(7) != "" {
-		chain = c.Args().Get(7)
+	withdrawFundParams := &WithdrawCryptoCurrencyFundParams{}
+	err := UnmarshalCLIFields(c, withdrawFundParams)
+	if err != nil {
+		return err
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -2961,14 +2260,14 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 
 	result, err := client.WithdrawCryptocurrencyFunds(c.Context,
 		&gctrpc.WithdrawCryptoRequest{
-			Exchange:    exchange,
-			Currency:    cur,
-			Address:     address,
-			AddressTag:  addressTag,
-			Amount:      amount,
-			Fee:         fee,
-			Description: description,
-			Chain:       chain,
+			Exchange:    withdrawFundParams.Exchange,
+			Currency:    withdrawFundParams.CurrencyPair,
+			Address:     withdrawFundParams.Address,
+			AddressTag:  withdrawFundParams.AddressTag,
+			Amount:      withdrawFundParams.Amount,
+			Fee:         withdrawFundParams.Fee,
+			Description: withdrawFundParams.Description,
+			Chain:       withdrawFundParams.Chain,
 		},
 	)
 	if err != nil {
@@ -3012,40 +2311,10 @@ func withdrawFiatFunds(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange, cur, description, bankAccountID string
-	var amount float64
-
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
-	} else if c.Args().Get(0) != "" {
-		exchange = c.Args().Get(0)
-	}
-
-	if c.IsSet("currency") {
-		cur = c.String("currency")
-	} else if c.Args().Get(1) != "" {
-		cur = c.Args().Get(1)
-	}
-
-	if c.IsSet("amount") {
-		amount = c.Float64("amount")
-	} else if c.Args().Get(2) != "" {
-		amountStr, err := strconv.ParseFloat(c.Args().Get(2), 64)
-		if err == nil {
-			amount = amountStr
-		}
-	}
-
-	if c.IsSet("bankaccountid") {
-		bankAccountID = c.String("bankaccountid")
-	} else if c.Args().Get(3) != "" {
-		bankAccountID = c.Args().Get(3)
-	}
-
-	if c.IsSet("description") {
-		description = c.String("description")
-	} else if c.Args().Get(4) != "" {
-		description = c.Args().Get(4)
+	fiatWithdraFiatFundParams := &WithdrawFiatFundParams{}
+	err := UnmarshalCLIFields(c, fiatWithdraFiatFundParams)
+	if err != nil {
+		return err
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -3057,11 +2326,11 @@ func withdrawFiatFunds(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WithdrawFiatFunds(c.Context,
 		&gctrpc.WithdrawFiatRequest{
-			Exchange:      exchange,
-			Currency:      cur,
-			Amount:        amount,
-			Description:   description,
-			BankAccountId: bankAccountID,
+			Exchange:      fiatWithdraFiatFundParams.Exchange,
+			Currency:      fiatWithdraFiatFundParams.CurrencyPair,
+			Amount:        fiatWithdraFiatFundParams.Amount,
+			Description:   fiatWithdraFiatFundParams.Description,
+			BankAccountId: fiatWithdraFiatFundParams.BankAccountID,
 		},
 	)
 	if err != nil {
@@ -4944,12 +4213,84 @@ func getCurrencyTradeURL(c *cli.Context) error {
 	return nil
 }
 
+// UnmarshalCLIFields unmarshals field values from command line as *cli.Context to an interface.
+func UnmarshalCLIFields(c *cli.Context, params any) error {
+	val := reflect.ValueOf(params).Elem()
+	typ := val.Type()
+	for i := range typ.NumField() {
+		field := typ.Field(i)
+		flagStrings := strings.Split(field.Tag.Get("cli"), ",")
+		if len(flagStrings) == 0 {
+			continue
+		}
+		flagName := flagStrings[0]
+		required := len(flagStrings) == 2 && strings.EqualFold(flagStrings[1], "required")
+		switch field.Type.Kind() {
+		case reflect.String:
+			var value string
+			if c.IsSet(flagName) {
+				value = c.String(flagName)
+			} else {
+				value = c.Args().Get(i)
+			}
+			if required && value == "" {
+				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagName)
+			}
+			val.Field(i).SetString(value)
+		case reflect.Float64:
+			var value float64
+			if c.IsSet(flagName) {
+				value = c.Float64(flagName)
+			} else {
+				var err error
+				value, err = strconv.ParseFloat(c.Args().Get(i), 64)
+				if err != nil {
+					return err
+				}
+			}
+			if required && value == 0 {
+				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagName)
+			}
+			val.Field(i).SetFloat(value)
+		case reflect.Bool:
+			var value bool
+			if c.IsSet(flagName) {
+				value = c.Bool(flagName)
+			} else {
+				var err error
+				value, err = strconv.ParseBool(c.Args().Get(i))
+				if required && (err != nil || !value) {
+					return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagName)
+				}
+			}
+			val.Field(i).SetBool(value)
+		case reflect.Int64:
+			var value int64
+			if c.IsSet(flagName) {
+				value = c.Int64(flagName)
+			} else {
+				var err error
+				value, err = strconv.ParseInt(c.Args().Get(i), 10, 64)
+				if err != nil {
+					return err
+				}
+			}
+			if required && value == 0 {
+				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagName)
+			}
+			val.Field(i).SetInt(value)
+		}
+	}
+	return nil
+}
+
+// FlagsFromStruct returns list of cli flags from exported flags
 func FlagsFromStruct(params any, usageInfo map[string]string) []cli.Flag {
 	var flags []cli.Flag
 	val := reflect.ValueOf(params).Elem()
 	typ := val.Type()
 
-	for i := 0; i < typ.NumField(); i++ {
+	for i := range typ.NumField() {
 		field := typ.Field(i)
 		flagStrings := strings.Split(field.Tag.Get("cli"), ",")
 		if len(flagStrings) == 0 {

@@ -34,6 +34,14 @@ type SubmitOrderParams struct {
 	RetrieveFeeDelayMs int64   `cli:"retrieve_fee_delay_ms"`
 }
 
+// GetOrderParams holds an exchange order detail retrieval parameters
+type GetOrderParams struct {
+	Exchange     string `cli:"exchange"`
+	Asset        string `cli:"asset,required"`
+	CurrencyPair string `cli:"pair"`
+	OrderID      string `cli:"order_id"`
+}
+
 // ModifyOrderParams holds an order modification params
 type ModifyOrderParams struct {
 	ExchangeName      string  `cli:"exchange,required"`
@@ -70,4 +78,39 @@ type CancelOrderParams struct {
 	CurrencyPair  string `cli:"pair"`
 	MarginType    string `cli:"margin_type"`
 	TimeInForce   string `cli:"time_in_force"`
+}
+
+// WithdrawCryptoCurrencyFundParams holds a withdrawal parameters for cryptocurrency withdrawal
+type WithdrawCryptoCurrencyFundParams struct {
+	Exchange     string  `cli:"exchange"`
+	CurrencyPair string  `cli:"currency"`
+	Amount       float64 `cli:"amount"`
+	Address      string  `cli:"address"`
+	AddressTag   string  `cli:"addresstag"`
+	Fee          float64 `cli:"fee"`
+	Description  string  `cli:"description"`
+	Chain        string  `cli:"chain"`
+}
+
+// GetAvailableTransferChainsParams holds a crypto transfer chains for a currency code in an exchange
+type GetAvailableTransferChainsParams struct {
+	Exchange string `cli:"exchange"`
+	Currency string `cli:"cryptocurrency"`
+}
+
+// WithdrawFiatFundParams holds fiat fund withdrawal parameters
+type WithdrawFiatFundParams struct {
+	Exchange      string  `cli:"exchange"`
+	CurrencyPair  string  `cli:"currency"`
+	Amount        float64 `cli:"amount"`
+	BankAccountID string  `cli:"bankaccountid"`
+	Description   string  `cli:"description"`
+}
+
+// GetCryptoDepositAddressParams holds a cryptocurrency deposit addresses request parameters
+type GetCryptoDepositAddressParams struct {
+	Exchange string `cli:"exchange"`
+	Currency string `cli:"cryptocurrency"`
+	Chain    string `cli:"chain"`
+	Bypass   bool   `cli:"bypass"`
 }
