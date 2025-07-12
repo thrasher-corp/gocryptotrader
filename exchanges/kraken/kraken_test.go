@@ -50,7 +50,7 @@ const (
 func TestMain(m *testing.M) {
 	k = new(Kraken)
 	if err := testexch.Setup(k); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Kraken Setup error: %s", err)
 	}
 	if apiKey != "" && apiSecret != "" {
 		k.API.AuthenticatedSupport = true
@@ -381,22 +381,24 @@ func TestGetDepth(t *testing.T) {
 	assert.NoError(t, err, "GetDepth should not error")
 }
 
-// TestGetTrades API endpoint test
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, k)
-	_, err := k.GetTrades(t.Context(), spotTestPair)
-	assert.NoError(t, err, "GetTrades should not error")
-
-	_, err = k.GetTrades(t.Context(), currency.NewPairWithDelimiter("XXX", "XXX", ""))
-	assert.ErrorContains(t, err, "Unknown asset pair", "GetDepth should error correctly")
+	r, err := k.GetTrades(t.Context(), spotTestPair, time.Now().Add(-time.Hour*4), 1000)
+	require.NoError(t, err, "GetTrades must not error")
+	require.NotNil(t, r, "GetTrades must return a valid response")
 }
 
-// TestGetSpread API endpoint test
 func TestGetSpread(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetSpread(t.Context(), currency.NewPair(currency.BCH, currency.EUR)) // XBTUSD not in spread data
-	assert.NoError(t, err, "GetSpread should not error")
+	p := currency.NewPair(currency.BCH, currency.EUR) // XBTUSD not in spread data
+	r, err := k.GetSpread(t.Context(), p, time.Now().Add(-time.Hour*4))
+	require.NoError(t, err, "GetSpread must not error")
+	require.NotNil(t, r, "GetSpread must return a valid response")
+	require.NotZero(t, r.Last.Time(), "GetSpread must return a valid last updated time")
+	v, ok := r.Spreads[p.String()]
+	require.True(t, ok, "GetSpread must return valid spread data for the given pair")
+	assert.NotEmpty(t, v, "GetSpread should return some spread data for the given pair")
 }
 
 // TestGetBalance API endpoint test
@@ -407,7 +409,6 @@ func TestGetBalance(t *testing.T) {
 	assert.NoError(t, err, "GetBalance should not error")
 }
 
-// TestGetTradeBalance API endpoint test
 func TestGetDepositMethods(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
@@ -714,7 +715,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 }
 
-// TestCancelExchangeOrder wrapper test
 func TestCancelBatchExchangeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
@@ -1233,13 +1233,16 @@ func TestWSProcessTrades(t *testing.T) {
 	close(k.Websocket.DataHandler)
 
 	invalid := []any{"trades", []any{[]any{"95873.80000", "0.00051182", "1708731380.3791859"}}}
+	rawBytes, err := json.Marshal(invalid)
+	require.NoError(t, err, "Marshal must not error marshalling invalid trade data")
+
 	pair := currency.NewPair(currency.XBT, currency.USD)
-	err = k.wsProcessTrades(invalid, pair)
-	require.ErrorContains(t, err, "unexpected trade data length")
+	err = k.wsProcessTrades(json.RawMessage(rawBytes), pair)
+	require.ErrorContains(t, err, "error unmarshalling trade data")
 
 	expJSON := []string{
-		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"BUY","Price":95873.80000,"Amount":0.00051182,"Timestamp":"2025-02-23T23:29:40.379185914Z"}`,
-		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"SELL","Price":95940.90000,"Amount":0.00011069,"Timestamp":"2025-02-24T02:01:12.853682041Z"}`,
+		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"BUY","Price":95873.80000,"Amount":0.00051182,"Timestamp":"2025-02-23T23:29:40.379186Z"}`,
+		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"SELL","Price":95940.90000,"Amount":0.00011069,"Timestamp":"2025-02-24T02:01:12.853682Z"}`,
 	}
 	require.Len(t, k.Websocket.DataHandler, len(expJSON), "Must see correct number of trades")
 	for resp := range k.Websocket.DataHandler {

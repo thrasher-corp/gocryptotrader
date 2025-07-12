@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -752,14 +753,13 @@ func (g *Gateio) GetMySpotTradingHistory(ctx context.Context, p currency.Pair, o
 
 // GetServerTime retrieves current server time
 func (g *Gateio) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
-	resp := struct {
-		ServerTime int64 `json:"server_time"`
-	}{}
-	err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicGetServerTimeEPL, gateioSpotServerTime, &resp)
-	if err != nil {
+	var resp struct {
+		ServerTime types.Time `json:"server_time"`
+	}
+	if err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicGetServerTimeEPL, gateioSpotServerTime, &resp); err != nil {
 		return time.Time{}, err
 	}
-	return time.Unix(resp.ServerTime, 0), nil
+	return resp.ServerTime.Time(), nil
 }
 
 // CountdownCancelorders Countdown cancel orders
@@ -876,6 +876,11 @@ func (g *Gateio) CancelPriceTriggeredOrder(ctx context.Context, orderID string) 
 
 // GenerateSignature returns hash for authenticated requests
 func (g *Gateio) GenerateSignature(secret, method, path, query string, body any, dtime time.Time) (string, error) {
+	rawQuery, err := url.QueryUnescape(query)
+	if err != nil {
+		return "", err
+	}
+
 	h := sha512.New()
 	if body != nil {
 		val, err := json.Marshal(body)
@@ -886,12 +891,8 @@ func (g *Gateio) GenerateSignature(secret, method, path, query string, body any,
 	}
 	h.Write(nil)
 	hashedPayload := hex.EncodeToString(h.Sum(nil))
-	t := strconv.FormatInt(dtime.Unix(), 10)
-	rawQuery, err := url.QueryUnescape(query)
-	if err != nil {
-		return "", err
-	}
-	msg := method + "\n" + path + "\n" + rawQuery + "\n" + hashedPayload + "\n" + t
+
+	msg := method + "\n" + path + "\n" + rawQuery + "\n" + hashedPayload + "\n" + strconv.FormatInt(dtime.Unix(), 10)
 	mac := hmac.New(sha512.New, []byte(secret))
 	mac.Write([]byte(msg))
 	return hex.EncodeToString(mac.Sum(nil)), nil
@@ -3116,15 +3117,18 @@ func (g *Gateio) GetAllOptionsUnderlyings(ctx context.Context) ([]OptionUnderlyi
 
 // GetExpirationTime return the expiration time for the provided underlying.
 func (g *Gateio) GetExpirationTime(ctx context.Context, underlying string) (time.Time, error) {
-	var timestamp []float64
-	err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicExpirationOptionsEPL, gateioOptionExpiration+"?underlying="+underlying, &timestamp)
+	if underlying == "" {
+		return time.Time{}, errInvalidUnderlying
+	}
+	var timestamps []types.Time
+	err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicExpirationOptionsEPL, gateioOptionExpiration+"?underlying="+underlying, &timestamps)
 	if err != nil {
 		return time.Time{}, err
 	}
-	if len(timestamp) == 0 {
+	if len(timestamps) == 0 {
 		return time.Time{}, errNoValidResponseFromServer
 	}
-	return time.Unix(int64(timestamp[0]), 0), nil
+	return timestamps[0].Time(), nil
 }
 
 // GetAllContractOfUnderlyingWithinExpiryDate retrieves list of contracts of the specified underlying and expiry time.

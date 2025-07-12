@@ -1145,16 +1145,16 @@ var WithdrawalFees = map[currency.Code]float64{
 
 // DepositHistory stores deposit history info
 type DepositHistory struct {
-	Amount        float64 `json:"amount,string"`
-	Coin          string  `json:"coin"`
-	Network       string  `json:"network"`
-	Status        uint8   `json:"status"`
-	Address       string  `json:"address"`
-	AddressTag    string  `json:"adressTag"`
-	TransactionID string  `json:"txId"`
-	InsertTime    float64 `json:"insertTime"`
-	TransferType  uint8   `json:"transferType"`
-	ConfirmTimes  string  `json:"confirmTimes"`
+	Amount        float64    `json:"amount,string"`
+	Coin          string     `json:"coin"`
+	Network       string     `json:"network"`
+	Status        uint8      `json:"status"`
+	Address       string     `json:"address"`
+	AddressTag    string     `json:"adressTag"`
+	TransactionID string     `json:"txId"`
+	InsertTime    types.Time `json:"insertTime"`
+	TransferType  uint8      `json:"transferType"`
+	ConfirmTimes  string     `json:"confirmTimes"`
 }
 
 // WithdrawResponse contains status of withdrawal request

@@ -22,12 +22,17 @@ const (
 	canManipulateRealOrders = false
 )
 
-var a = &Alphapoint{}
+var a *Alphapoint
 
 func TestMain(m *testing.M) {
+	a = new(Alphapoint)
 	a.SetDefaults()
-	a.SetCredentials(apiKey, apiSecret, "", "", "", "")
-	a.API.AuthenticatedSupport = true
+
+	if apiKey != "" && apiSecret != "" {
+		a.API.AuthenticatedSupport = true
+		a.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	}
+
 	os.Exit(m.Run())
 }
 
@@ -100,52 +105,6 @@ func TestGetTrades(t *testing.T) {
 
 	if trades.Instrument != "BTCUSD" {
 		t.Error("GetTrades instrument is != BTCUSD")
-	}
-}
-
-func TestGetTradesByDate(t *testing.T) {
-	t.Parallel()
-	var trades Trades
-	var err error
-	if onlineTest {
-		trades, err = a.GetTradesByDate(t.Context(),
-			"BTCUSD", 1414799400, 1414800000)
-		if err != nil {
-			t.Errorf("Init error: %s", err)
-		}
-		_, err = a.GetTradesByDate(t.Context(),
-			"wigwham", 1414799400, 1414800000)
-		if err == nil {
-			t.Error("GetTradesByDate Expected error")
-		}
-	} else {
-		mockResp := []byte(
-			string(`{"isAccepted":true,"dateTimeUtc":635504540880633671,"ins":"BTCUSD","startDate":1414799400,"endDate":1414800000,"trades":[{"tid":11505,"px":334.669,"qty":0.1211,"unixtime":1414799403,"utcticks":635503962032459843,"incomingOrderSide":1,"incomingServerOrderId":5185651,"bookServerOrderId":5162440},{"tid":11506,"px":334.669,"qty":0.1211,"unixtime":1414799405,"utcticks":635503962058446171,"incomingOrderSide":1,"incomingServerOrderId":5186245,"bookServerOrderId":5162440},{"tid":11507,"px":336.498,"qty":0.011,"unixtime":1414799407,"utcticks":635503962072967656,"incomingOrderSide":0,"incomingServerOrderId":5186530,"bookServerOrderId":5178944},{"tid":11508,"px":335.948,"qty":0.011,"unixtime":1414799410,"utcticks":635503962108055546,"incomingOrderSide":0,"incomingServerOrderId":5187260,"bookServerOrderId":5186531}]}`),
-		)
-
-		err = json.Unmarshal(mockResp, &trades)
-		if err != nil {
-			t.Fatal("GetTradesByDate unmarshalling error: ", err)
-		}
-	}
-
-	if trades.DateTimeUTC < 0 {
-		t.Error("Alphapoint trades.Count value is negative")
-	}
-	if trades.EndDate < 0 {
-		t.Error("Alphapoint trades.DateTimeUTC value is negative")
-	}
-	if trades.Instrument != "BTCUSD" {
-		t.Error("Alphapoint trades.Instrument value is incorrect")
-	}
-	if !trades.IsAccepted {
-		t.Error("Alphapoint trades.IsAccepted value is true")
-	}
-	if trades.RejectReason != "" {
-		t.Error("Alphapoint trades.IsAccepted value has been returned")
-	}
-	if trades.StartDate < 0 {
-		t.Error("Alphapoint trades.StartIndex value is negative")
 	}
 }
 

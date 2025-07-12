@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -46,7 +45,7 @@ const (
 )
 
 var (
-	h                  = &HUOBI{}
+	h                  *HUOBI
 	btcFutureDatedPair currency.Pair
 	btccwPair          = currency.NewPair(currency.BTC, currency.NewCode("CW"))
 	btcusdPair         = currency.NewPairWithDelimiter("BTC", "USD", "-")
@@ -55,25 +54,17 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	h.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Huobi load config error", err)
+	h = new(HUOBI)
+	if err := testexch.Setup(h); err != nil {
+		log.Fatalf("HUOBI Setup error: %s", err)
 	}
-	hConfig, err := cfg.GetExchangeConfig("Huobi")
-	if err != nil {
-		log.Fatal("Huobi Setup() init error")
+
+	if apiKey != "" && apiSecret != "" {
+		h.API.AuthenticatedSupport = true
+		h.API.AuthenticatedWebsocketSupport = true
+		h.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	hConfig.API.AuthenticatedSupport = true
-	hConfig.API.AuthenticatedWebsocketSupport = true
-	hConfig.API.Credentials.Key = apiKey
-	hConfig.API.Credentials.Secret = apiSecret
-	h.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = h.Setup(hConfig)
-	if err != nil {
-		log.Fatal("Huobi setup error", err)
-	}
+
 	os.Exit(m.Run())
 }
 
@@ -530,8 +521,9 @@ func TestGetSwapMarketDepth(t *testing.T) {
 
 func TestGetSwapKlineData(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetSwapKlineData(t.Context(), btcusdPair, "5min", 5, time.Now().Add(-time.Hour), time.Now())
+	r, err := h.GetSwapKlineData(t.Context(), btcusdPair, "5min", 5, time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
+	assert.NotEmpty(t, r.Data, "GetSwapKlineData should return some data")
 }
 
 func TestGetSwapMarketOverview(t *testing.T) {
@@ -579,8 +571,8 @@ func TestGetTraderSentimentIndexPosition(t *testing.T) {
 
 func TestGetLiquidationOrders(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetLiquidationOrders(t.Context(), btcusdPair, "closed", 0, 0, "", 0)
-	require.NoError(t, err)
+	_, err := h.GetLiquidationOrders(t.Context(), btcusdPair, "closed", time.Now().AddDate(0, 0, -2), time.Now(), "", 0)
+	assert.NoError(t, err, "GetLiquidationOrders should not error")
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {
@@ -671,8 +663,9 @@ func TestGetAccountFinancialRecords(t *testing.T) {
 func TestGetSwapSettlementRecords(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h)
-	_, err := h.GetSwapSettlementRecords(t.Context(), ethusdPair, time.Time{}, time.Time{}, 0, 0)
+	r, err := h.GetSwapSettlementRecords(t.Context(), ethusdPair, time.Now().AddDate(0, -1, 0), time.Now(), 0, 0)
 	require.NoError(t, err)
+	assert.NotEmpty(t, r.Data, "GetSwapSettlementRecords should return some data")
 }
 
 func TestGetAvailableLeverage(t *testing.T) {
@@ -1160,7 +1153,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(h) {
 		require.NoError(t, err)
 	} else {
-		require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
@@ -1271,7 +1264,7 @@ func TestQueryDepositAddress(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(h) {
 		require.NoError(t, err)
 	} else {
-		require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
@@ -1281,7 +1274,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(h) {
 		require.NoError(t, err)
 	} else {
-		require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
@@ -1291,7 +1284,7 @@ func TestQueryWithdrawQuota(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(h) {
 		require.NoError(t, err)
 	} else {
-		require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 

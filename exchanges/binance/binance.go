@@ -283,11 +283,7 @@ func (b *Binance) retrieveSpotKline(ctx context.Context, arg *KlinesRequestParam
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	var resp []CandleStick
-	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpot,
-		common.EncodeURLValues(urlPath, params),
-		getKlineRate,
-		&resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(urlPath, params), getKlineRate, &resp)
 }
 
 // GetAveragePrice returns current average price for a symbol.

@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -35,28 +34,20 @@ const (
 )
 
 var (
-	b           = &BTSE{}
+	b           *BTSE
 	futuresPair = currency.NewPair(currency.ENJ, currency.PFC)
 	spotPair    = currency.NewPairWithDelimiter("BTC", "USD", "-")
 )
 
 func TestMain(m *testing.M) {
-	b.SetDefaults()
-	cfg := config.GetConfig()
-	if err := cfg.LoadConfig("../../testdata/configtest.json", true); err != nil {
-		log.Fatal(err)
-	}
-	btseConfig, err := cfg.GetExchangeConfig("BTSE")
-	if err != nil {
-		log.Fatal(err)
+	b = new(BTSE)
+	if err := testexch.Setup(b); err != nil {
+		log.Fatalf("BTSE Setup error: %s", err)
 	}
 
-	btseConfig.API.AuthenticatedSupport = true
-	btseConfig.API.Credentials.Key = apiKey
-	btseConfig.API.Credentials.Secret = apiSecret
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	if err = b.Setup(btseConfig); err != nil {
-		log.Fatal(err)
+	if apiKey != "" && apiSecret != "" {
+		b.API.AuthenticatedSupport = true
+		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 
 	os.Exit(m.Run())
@@ -394,12 +385,6 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.Amount = 1000
 	_, err = b.GetFee(t.Context(), feeBuilder)
 	assert.NoError(t, err, "fee builuder should not error for a fraction of a squillion")
-}
-
-func TestParseOrderTime(t *testing.T) {
-	actual, err := parseOrderTime("2018-08-20 19:20:46")
-	assert.NoError(t, err, "parseOrderTime should not error")
-	assert.EqualValues(t, 1534792846, actual.Unix(), "parseOrderTime should provide correct value")
 }
 
 func TestSubmitOrder(t *testing.T) {

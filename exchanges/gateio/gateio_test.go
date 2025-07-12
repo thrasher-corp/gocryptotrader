@@ -49,7 +49,7 @@ var g *Gateio
 func TestMain(m *testing.M) {
 	g = new(Gateio)
 	if err := testexch.Setup(g); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Gateio Setup error: %s", err)
 	}
 
 	if apiKey != "" && apiSecret != "" {
@@ -1473,9 +1473,10 @@ func TestGetAllOptionsUnderlyings(t *testing.T) {
 
 func TestGetExpirationTime(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GetExpirationTime(t.Context(), "BTC_USDT"); err != nil {
-		t.Errorf("%s GetExpirationTime() error %v", g.Name, err)
-	}
+	_, err := g.GetExpirationTime(t.Context(), "")
+	assert.ErrorIs(t, err, errInvalidUnderlying)
+	_, err = g.GetExpirationTime(t.Context(), "BTC_USDT")
+	assert.NoError(t, err, "GetExpirationTime should not error")
 }
 
 func TestGetAllContractOfUnderlyingWithinExpiryDate(t *testing.T) {

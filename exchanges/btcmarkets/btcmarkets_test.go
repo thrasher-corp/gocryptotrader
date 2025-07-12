@@ -1,8 +1,6 @@
 package btcmarkets
 
 import (
-	"context"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -11,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -36,30 +33,17 @@ const (
 var spotTestPair = currency.NewPair(currency.BTC, currency.AUD).Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter})
 
 func TestMain(m *testing.M) {
-	b.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal(err)
+	b = new(BTCMarkets)
+	if err := testexch.Setup(b); err != nil {
+		log.Fatalf("BTCMarkets Setup error: %s", err)
 	}
-	bConfig, err := cfg.GetExchangeConfig("BTC Markets")
-	if err != nil {
-		log.Fatal(err)
+
+	if apiKey != "" && apiSecret != "" {
+		b.API.AuthenticatedSupport = true
+		b.API.AuthenticatedWebsocketSupport = true
+		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	bConfig.API.Credentials.Key = apiKey
-	bConfig.API.Credentials.Secret = apiSecret
-	bConfig.API.AuthenticatedSupport = true
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = b.Setup(bConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = b.ValidateAPICredentials(context.Background(), asset.Spot)
-	if err != nil {
-		fmt.Println("API credentials are invalid:", err)
-		b.API.AuthenticatedSupport = false
-		b.API.AuthenticatedWebsocketSupport = false
-	}
+
 	os.Exit(m.Run())
 }
 

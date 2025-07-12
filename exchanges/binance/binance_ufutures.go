@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -34,13 +35,13 @@ const (
 // UServerTime gets the server time
 func (b *Binance) UServerTime(ctx context.Context) (time.Time, error) {
 	var data struct {
-		ServerTime int64 `json:"serverTime"`
+		ServerTime types.Time `json:"serverTime"`
 	}
 	err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, "/fapi/v1/time", uFuturesDefaultRate, &data)
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.UnixMilli(data.ServerTime), nil
+	return data.ServerTime.Time(), nil
 }
 
 // UExchangeInfo stores usdt margined futures data

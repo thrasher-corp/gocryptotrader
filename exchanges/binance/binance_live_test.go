@@ -22,7 +22,7 @@ var mockTests = false
 func TestMain(m *testing.M) {
 	b = new(Binance)
 	if err := testexch.Setup(b); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Binance Setup error: %s", err)
 	}
 
 	if apiKey != "" && apiSecret != "" {
@@ -36,8 +36,8 @@ func TestMain(m *testing.M) {
 			exchange.RestCoinMargined: "https://testnet.binancefuture.com",
 			exchange.RestSpot:         "https://testnet.binance.vision/api",
 		} {
-			if err := b.API.Endpoints.SetRunning(k.String(), v); err != nil {
-				log.Fatalf("Testnet %q URL error with %q: %s", k, v, err)
+			if err := b.API.Endpoints.SetRunningURL(k.String(), v); err != nil {
+				log.Fatalf("Binance SetRunningURL error: %s", err)
 			}
 		}
 	}
@@ -45,9 +45,6 @@ func TestMain(m *testing.M) {
 	b.setupOrderbookManager(ctx)
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
-	if err := b.populateTradablePairs(); err != nil {
-		log.Fatal(err)
-	}
 	if err := b.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}

@@ -166,9 +166,9 @@ const (
 
 // PremiumInfo represents data on premiums for the past 6 months.
 type PremiumInfo struct {
-	InstrumentID string `json:"instId"`
-	Premium      string `json:"premium"`
-	Timestamp    string `json:"ts"`
+	InstrumentID string     `json:"instId"`
+	Premium      string     `json:"premium"`
+	Timestamp    types.Time `json:"ts"`
 }
 
 // TickerResponse represents the detailed data from the market ticker endpoint.
@@ -812,13 +812,13 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 
 // OrderData response message for place, cancel, and amend an order requests.
 type OrderData struct {
-	OrderID       string `json:"ordId"`
-	RequestID     string `json:"reqId"`
-	ClientOrderID string `json:"clOrdId"`
-	Tag           string `json:"tag"`
-	StatusCode    int64  `json:"sCode,string"` // Anything above 0 is an error with an attached message
-	StatusMessage string `json:"sMsg"`
-	Timestamp     string `json:"ts"`
+	OrderID       string     `json:"ordId"`
+	RequestID     string     `json:"reqId"`
+	ClientOrderID string     `json:"clOrdId"`
+	Tag           string     `json:"tag"`
+	StatusCode    int64      `json:"sCode,string"` // Anything above 0 is an error with an attached message
+	StatusMessage string     `json:"sMsg"`
+	Timestamp     types.Time `json:"ts"`
 }
 
 func (o *OrderData) Error() error {
@@ -3039,7 +3039,7 @@ type SpreadTrade struct {
 	State         string       `json:"state"`
 	Side          string       `json:"side"`
 	ExecType      string       `json:"execType"`
-	Timestamp     string       `json:"ts"`
+	Timestamp     types.Time   `json:"ts"`
 	Legs          []struct {
 		InstrumentID string       `json:"instId"`
 		Price        types.Number `json:"px"`
