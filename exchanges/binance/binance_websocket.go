@@ -100,6 +100,14 @@ func (b *Binance) WsConnect() error {
 	go b.wsReadData()
 
 	b.setupOrderbookManager(ctx)
+
+	err = b.WsConnectAPI()
+	if err != nil {
+		b.SetIsAPIStreamConnected(false)
+		log.Errorf(log.ExchangeSys, "could not connect to API stream %v", err)
+		return err
+	}
+	b.SetIsAPIStreamConnected(true)
 	return nil
 }
 
@@ -260,6 +268,10 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
+			tif, err := order.StringToTimeInForce(data.TimeInForce)
+			if err != nil {
+				return err
+			}
 			b.Websocket.DataHandler <- &order.Detail{
 				Price:                data.Price,
 				Amount:               data.Quantity,
@@ -280,6 +292,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				Date:                 data.OrderCreationTime.Time(),
 				LastUpdated:          data.TransactionTime.Time(),
 				Pair:                 pair,
+				TimeInForce:          tif,
 			}
 			return nil
 		case "listStatus":
@@ -287,6 +300,16 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			err = json.Unmarshal(jsonData, &data)
 			if err != nil {
 				return fmt.Errorf("%v - Could not convert to listStatus structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
+			return nil
+		case "outboundAccountInfo":
+			var data wsAccountInfo
+			err = json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s",
 					b.Name,
 					err)
 			}
@@ -338,22 +361,22 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				b.Name,
 				err)
 		}
-		td := trade.Data{
-			CurrencyPair: pair,
-			Timestamp:    t.TimeStamp.Time(),
-			Price:        t.Price.Float64(),
-			Amount:       t.Quantity.Float64(),
-			Exchange:     b.Name,
-			AssetType:    asset.Spot,
-			TID:          strconv.FormatInt(t.TradeID, 10),
-		}
-
-		if t.IsBuyerMaker { // Seller is Taker
-			td.Side = order.Sell
-		} else { // Buyer is Taker
-			td.Side = order.Buy
-		}
-		return b.Websocket.Trade.Update(saveTradeData, td)
+		return b.Websocket.Trade.Update(saveTradeData,
+			trade.Data{
+				CurrencyPair: pair,
+				Timestamp:    t.TimeStamp.Time(),
+				Price:        t.Price.Float64(),
+				Amount:       t.Quantity.Float64(),
+				Exchange:     b.Name,
+				AssetType:    asset.Spot,
+				Side: func() order.Side {
+					if t.IsBuyerMaker {
+						return order.Sell
+					}
+					return order.Buy
+				}(),
+				TID: strconv.FormatInt(t.TradeID, 10),
+			})
 	case "ticker":
 		var t TickerStream
 		err = json.Unmarshal(jsonData, &t)
@@ -468,21 +491,9 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 		Exchange:          b.Name,
 		LastUpdateID:      orderbookNew.LastUpdateID,
 		ValidateOrderbook: b.ValidateOrderbook,
-		Bids:              make(orderbook.Levels, len(orderbookNew.Bids)),
-		Asks:              make(orderbook.Levels, len(orderbookNew.Asks)),
 		LastUpdated:       time.Now(), // Time not provided in REST book.
-	}
-	for i := range orderbookNew.Bids {
-		newOrderBook.Bids[i] = orderbook.Level{
-			Amount: orderbookNew.Bids[i].Quantity,
-			Price:  orderbookNew.Bids[i].Price,
-		}
-	}
-	for i := range orderbookNew.Asks {
-		newOrderBook.Asks[i] = orderbook.Level{
-			Amount: orderbookNew.Asks[i].Quantity,
-			Price:  orderbookNew.Asks[i].Price,
-		}
+		Bids:              orderbook.Levels(orderbookNew.Bids),
+		Asks:              orderbook.Levels(orderbookNew.Asks),
 	}
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
@@ -616,25 +627,11 @@ func (b *Binance) manageSubs(ctx context.Context, op string, subs subscription.L
 	return err
 }
 
-// ProcessOrderbookUpdate processes the websocket orderbook update
-func (b *Binance) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
-	updateBid := make([]orderbook.Level, len(ws.UpdateBids))
-	for i := range ws.UpdateBids {
-		updateBid[i] = orderbook.Level{
-			Price:  ws.UpdateBids[i][0].Float64(),
-			Amount: ws.UpdateBids[i][1].Float64(),
-		}
-	}
-	updateAsk := make([]orderbook.Level, len(ws.UpdateAsks))
-	for i := range ws.UpdateAsks {
-		updateAsk[i] = orderbook.Level{
-			Price:  ws.UpdateAsks[i][0].Float64(),
-			Amount: ws.UpdateAsks[i][1].Float64(),
-		}
-	}
+// ProcessUpdate processes the websocket orderbook update
+func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
 	return b.Websocket.Orderbook.Update(&orderbook.Update{
-		Bids:       updateBid,
-		Asks:       updateAsk,
+		Bids:       orderbook.Levels(ws.UpdateBids),
+		Asks:       orderbook.Levels(ws.UpdateAsks),
 		Pair:       cp,
 		UpdateID:   ws.LastUpdateID,
 		UpdateTime: ws.Timestamp.Time(),
@@ -669,7 +666,7 @@ func (b *Binance) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	if recent != nil {
-		err = b.obm.checkAndProcessOrderbookUpdate(b.ProcessOrderbookUpdate, pair, recent)
+		err = b.obm.checkAndProcessOrderbookUpdate(b.ProcessUpdate, pair, recent)
 		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
