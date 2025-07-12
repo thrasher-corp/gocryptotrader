@@ -362,7 +362,7 @@ func (b *Bithumb) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 	resp := make([]exchange.WithdrawalHistory, len(transactions.Data))
 	for i := range transactions.Data {
 		resp[i] = exchange.WithdrawalHistory{
-			Timestamp: time.UnixMilli(transactions.Data[i].TransferDate),
+			Timestamp: transactions.Data[i].TransferDate.Time(),
 			Currency:  transactions.Data[i].OrderCurrency.String(),
 			Amount:    transactions.Data[i].Amount,
 			Fee:       transactions.Data[i].Fee,
@@ -389,11 +389,6 @@ func (b *Bithumb) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 		if err != nil {
 			return nil, err
 		}
-		var t time.Time
-		t, err = time.Parse(time.DateTime, tradeData.Data[i].TransactionDate)
-		if err != nil {
-			return nil, err
-		}
 		resp[i] = trade.Data{
 			Exchange:     b.Name,
 			CurrencyPair: p,
@@ -401,7 +396,7 @@ func (b *Bithumb) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 			Side:         side,
 			Price:        tradeData.Data[i].Price,
 			Amount:       tradeData.Data[i].UnitsTraded,
-			Timestamp:    t,
+			Timestamp:    tradeData.Data[i].TransactionDate.Time(),
 		}
 	}
 
@@ -756,41 +751,27 @@ func (b *Bithumb) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		return nil, err
 	}
 
-	candle, err := b.GetCandleStick(ctx,
-		req.RequestFormatted.String(),
-		b.FormatExchangeKlineInterval(req.ExchangeInterval))
+	candles, err := b.GetCandleStick(ctx, req.RequestFormatted.String(), b.FormatExchangeKlineInterval(req.ExchangeInterval))
 	if err != nil {
 		return nil, err
 	}
 
-	timeSeries := make([]kline.Candle, 0, len(candle.Data))
-	for x := range candle.Data {
-		var tempCandle kline.Candle
-		if tempCandle.Time, err = convert.TimeFromUnixTimestampFloat(candle.Data[x][0]); err != nil {
-			return nil, fmt.Errorf("unable to convert timestamp: %w", err)
-		}
-		if tempCandle.Time.Before(req.Start) {
+	timeSeries := make([]kline.Candle, 0, len(candles.Data))
+	for x := range candles.Data {
+		if candles.Data[x].Timestamp.Time().Before(req.Start) {
 			continue
 		}
-		if tempCandle.Time.After(req.End) {
+		if candles.Data[x].Timestamp.Time().After(req.End) {
 			break
 		}
-		if tempCandle.Open, err = convert.FloatFromString(candle.Data[x][1]); err != nil {
-			return nil, fmt.Errorf("kline open conversion failed: %w", err)
-		}
-		if tempCandle.High, err = convert.FloatFromString(candle.Data[x][2]); err != nil {
-			return nil, fmt.Errorf("kline high conversion failed: %w", err)
-		}
-		if tempCandle.Low, err = convert.FloatFromString(candle.Data[x][3]); err != nil {
-			return nil, fmt.Errorf("kline low conversion failed: %w", err)
-		}
-		if tempCandle.Close, err = convert.FloatFromString(candle.Data[x][4]); err != nil {
-			return nil, fmt.Errorf("kline close conversion failed: %w", err)
-		}
-		if tempCandle.Volume, err = convert.FloatFromString(candle.Data[x][5]); err != nil {
-			return nil, fmt.Errorf("kline volume conversion failed: %w", err)
-		}
-		timeSeries = append(timeSeries, tempCandle)
+		timeSeries = append(timeSeries, kline.Candle{
+			Time:   candles.Data[x].Timestamp.Time(),
+			Open:   candles.Data[x].Open.Float64(),
+			High:   candles.Data[x].High.Float64(),
+			Low:    candles.Data[x].Low.Float64(),
+			Close:  candles.Data[x].Close.Float64(),
+			Volume: candles.Data[x].Volume.Float64(),
+		})
 	}
 	return req.ProcessResponse(timeSeries)
 }

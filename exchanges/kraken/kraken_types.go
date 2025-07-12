@@ -3,6 +3,7 @@ package kraken
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -74,15 +75,11 @@ const (
 
 	// Status consts
 	statusOpen = "open"
-
-	krakenFormat = "2006-01-02T15:04:05.000Z"
 )
 
 var (
-	assetTranslator assetTranslatorStore
-
-	errNoWebsocketOrderbookData = errors.New("no websocket orderbook data")
-	errBadChannelSuffix         = errors.New("bad websocket channel suffix")
+	assetTranslator     assetTranslatorStore
+	errBadChannelSuffix = errors.New("bad websocket channel suffix")
 )
 
 // GenericResponse stores general response data for functions that only return success
@@ -173,15 +170,50 @@ type OpenHighLowClose struct {
 	Count                      float64
 }
 
-// RecentTrades holds recent trade data
-type RecentTrades struct {
-	Price         float64
-	Volume        float64
-	Time          float64
+// RecentTradesResponse holds recent trade data
+type RecentTradesResponse struct {
+	Trades map[string][]RecentTradeResponseItem
+	Last   types.Time
+}
+
+// UnmarshalJSON unmarshals the recent trades response
+func (r *RecentTradesResponse) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	r.Trades = make(map[string][]RecentTradeResponseItem)
+	for key, raw := range raw {
+		if key == "last" {
+			if err := json.Unmarshal(raw, &r.Last); err != nil {
+				return err
+			}
+		} else {
+			var trades []RecentTradeResponseItem
+			if err := json.Unmarshal(raw, &trades); err != nil {
+				return err
+			}
+			r.Trades[key] = trades
+		}
+	}
+	return nil
+}
+
+// RecentTradeResponseItem holds a single recent trade response item
+type RecentTradeResponseItem struct {
+	Price         types.Number
+	Volume        types.Number
+	Time          types.Time
 	BuyOrSell     string
 	MarketOrLimit string
 	Miscellaneous any
-	TradeID       int64
+	TradeID       types.Number
+}
+
+// UnmarshalJSON unmarshals the recent trade response item
+func (r *RecentTradeResponseItem) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&r.Price, &r.Volume, &r.Time, &r.BuyOrSell, &r.MarketOrLimit, &r.Miscellaneous, &r.TradeID})
 }
 
 // OrderbookBase stores the orderbook price and amount data
@@ -197,11 +229,46 @@ type Orderbook struct {
 	Asks []OrderbookBase
 }
 
-// Spread holds the spread between trades
-type Spread struct {
-	Time time.Time
-	Bid  float64
-	Ask  float64
+// SpreadItem holds the spread between trades
+type SpreadItem struct {
+	Time types.Time
+	Bid  types.Number
+	Ask  types.Number
+}
+
+// UnmarshalJSON unmarshals the spread item
+func (s *SpreadItem) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[3]any{&s.Time, &s.Bid, &s.Ask})
+}
+
+// SpreadResponse holds the spread response data
+type SpreadResponse struct {
+	Spreads map[string][]SpreadItem
+	Last    types.Time
+}
+
+// UnmarshalJSON unmarshals the spread response
+func (s *SpreadResponse) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	s.Spreads = make(map[string][]SpreadItem)
+	for key, raw := range raw {
+		if key == "last" {
+			if err := json.Unmarshal(raw, &s.Last); err != nil {
+				return err
+			}
+		} else {
+			var spreads []SpreadItem
+			if err := json.Unmarshal(raw, &spreads); err != nil {
+				return err
+			}
+			s.Spreads[key] = spreads
+		}
+	}
+	return nil
 }
 
 // Balance represents account asset balances
@@ -734,4 +801,92 @@ func (e errorResponse) Errors() error {
 // Warnings returns a string of warnings
 func (e errorResponse) Warnings() string {
 	return strings.Join(e.warnings, ", ")
+}
+
+type wsTicker struct {
+	Ask                        [3]types.Number `json:"a"`
+	Bid                        [3]types.Number `json:"b"`
+	Last                       [2]types.Number `json:"c"`
+	Volume                     [2]types.Number `json:"v"`
+	VolumeWeightedAveragePrice [2]types.Number `json:"p"`
+	Trades                     [2]int64        `json:"t"`
+	Low                        [2]types.Number `json:"l"`
+	High                       [2]types.Number `json:"h"`
+	Open                       [2]types.Number `json:"o"`
+}
+
+type wsSpread struct {
+	Bid       types.Number
+	Ask       types.Number
+	Time      types.Time
+	BidVolume types.Number
+	AskVolume types.Number
+}
+
+func (w *wsSpread) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[5]any{&w.Bid, &w.Ask, &w.Time, &w.BidVolume, &w.AskVolume})
+}
+
+type wsTrades struct {
+	Price     types.Number
+	Volume    types.Number
+	Time      types.Time
+	Side      string
+	OrderType string
+	Misc      string
+}
+
+func (w *wsTrades) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[6]any{&w.Price, &w.Volume, &w.Time, &w.Side, &w.OrderType, &w.Misc})
+}
+
+type wsCandle struct {
+	LastUpdateTime types.Time
+	EndTime        types.Time
+	Open           types.Number
+	High           types.Number
+	Low            types.Number
+	Close          types.Number
+	VWAP           types.Number
+	Volume         types.Number
+	Count          int64
+}
+
+func (w *wsCandle) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[9]any{&w.LastUpdateTime, &w.EndTime, &w.Open, &w.High, &w.Low, &w.Close, &w.VWAP, &w.Volume, &w.Count})
+}
+
+type wsSnapshot struct {
+	Asks []wsOrderbookItem `json:"as"`
+	Bids []wsOrderbookItem `json:"bs"`
+}
+
+type wsUpdate struct {
+	Asks     []wsOrderbookItem `json:"a"`
+	Bids     []wsOrderbookItem `json:"b"`
+	Checksum uint32            `json:"c,string"`
+}
+
+type wsOrderbookItem struct {
+	Price     float64
+	PriceRaw  string
+	Amount    float64
+	AmountRaw string
+	Time      types.Time
+}
+
+func (ws *wsOrderbookItem) UnmarshalJSON(data []byte) error {
+	err := json.Unmarshal(data, &[3]any{&ws.PriceRaw, &ws.AmountRaw, &ws.Time})
+	if err != nil {
+		return err
+	}
+	ws.Price, err = strconv.ParseFloat(ws.PriceRaw, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing price: %w", err)
+	}
+	ws.Amount, err = strconv.ParseFloat(ws.AmountRaw, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing amount: %w", err)
+	}
+	return nil
 }

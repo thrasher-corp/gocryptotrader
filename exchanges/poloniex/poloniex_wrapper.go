@@ -388,7 +388,7 @@ func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		resp[i] = exchange.FundingHistory{
 			ExchangeName:    p.Name,
 			Status:          walletActivity.Deposits[i].Status,
-			Timestamp:       time.Unix(walletActivity.Deposits[i].Timestamp, 0),
+			Timestamp:       walletActivity.Deposits[i].Timestamp.Time(),
 			Currency:        walletActivity.Deposits[i].Currency.String(),
 			Amount:          walletActivity.Deposits[i].Amount,
 			CryptoToAddress: walletActivity.Deposits[i].Address,
@@ -399,7 +399,7 @@ func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		resp[i] = exchange.FundingHistory{
 			ExchangeName:    p.Name,
 			Status:          walletActivity.Withdrawals[i].Status,
-			Timestamp:       time.Unix(walletActivity.Withdrawals[i].Timestamp, 0),
+			Timestamp:       walletActivity.Withdrawals[i].Timestamp.Time(),
 			Currency:        walletActivity.Withdrawals[i].Currency.String(),
 			Amount:          walletActivity.Withdrawals[i].Amount,
 			Fee:             walletActivity.Withdrawals[i].Fee,
@@ -424,7 +424,7 @@ func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 		}
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawals.Withdrawals[i].Status,
-			Timestamp:       time.Unix(withdrawals.Withdrawals[i].Timestamp, 0),
+			Timestamp:       withdrawals.Withdrawals[i].Timestamp.Time(),
 			Currency:        withdrawals.Withdrawals[i].Currency.String(),
 			Amount:          withdrawals.Withdrawals[i].Amount,
 			Fee:             withdrawals.Withdrawals[i].Fee,

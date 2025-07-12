@@ -23,18 +23,18 @@ const (
 
 // Ticker holds ticker information
 type Ticker struct {
-	Last            float64   `json:"last,string"`
-	High            float64   `json:"high,string"`
-	Low             float64   `json:"low,string"`
-	Vwap            float64   `json:"vwap,string"`
-	Volume          float64   `json:"volume,string"`
-	Bid             float64   `json:"bid,string"`
-	Ask             float64   `json:"ask,string"`
-	Timestamp       int64     `json:"timestamp,string"`
-	Open            float64   `json:"open,string"`
-	Open24          float64   `json:"open_24,string"`
-	Side            orderSide `json:"side,string"`
-	PercentChange24 float64   `json:"percent_change_24,string"`
+	Last            float64    `json:"last,string"`
+	High            float64    `json:"high,string"`
+	Low             float64    `json:"low,string"`
+	Vwap            float64    `json:"vwap,string"`
+	Volume          float64    `json:"volume,string"`
+	Bid             float64    `json:"bid,string"`
+	Ask             float64    `json:"ask,string"`
+	Timestamp       types.Time `json:"timestamp"`
+	Open            float64    `json:"open,string"`
+	Open24          float64    `json:"open_24,string"`
+	Side            orderSide  `json:"side,string"`
+	PercentChange24 float64    `json:"percent_change_24,string"`
 }
 
 // OrderbookBase holds singular price information
@@ -63,11 +63,11 @@ type TradingPair struct {
 
 // Transactions holds transaction data
 type Transactions struct {
-	Date    int64   `json:"date,string"`
-	TradeID int64   `json:"tid,string"`
-	Price   float64 `json:"price,string"`
-	Type    int     `json:"type,string"`
-	Amount  float64 `json:"amount,string"`
+	Date    types.Time `json:"date"`
+	TradeID int64      `json:"tid,string"`
+	Price   float64    `json:"price,string"`
+	Type    int        `json:"type,string"`
+	Amount  float64    `json:"amount,string"`
 }
 
 // EURUSDConversionRate holds buy sell conversion rate information
@@ -101,49 +101,49 @@ type Balances map[string]Balance
 
 // UserTransactions holds user transaction information
 type UserTransactions struct {
-	Date          string  `json:"datetime"`
-	TransactionID int64   `json:"id"`
-	Type          int64   `json:"type,string"`
-	USD           float64 `json:"usd"`
-	EUR           float64 `json:"eur"`
-	BTC           float64 `json:"btc"`
-	XRP           float64 `json:"xrp"`
-	BTCUSD        float64 `json:"btc_usd"`
-	Fee           float64 `json:"fee,string"`
-	OrderID       int64   `json:"order_id"`
+	Date          types.DateTime `json:"datetime"`
+	TransactionID int64          `json:"id"`
+	Type          int64          `json:"type,string"`
+	USD           types.Number   `json:"usd"`
+	EUR           types.Number   `json:"eur"`
+	BTC           types.Number   `json:"btc"`
+	XRP           types.Number   `json:"xrp"`
+	BTCUSD        types.Number   `json:"btc_usd"`
+	Fee           types.Number   `json:"fee"`
+	OrderID       int64          `json:"order_id"`
 }
 
 // Order holds current open order data
 type Order struct {
-	ID             int64   `json:"id,string"`
-	DateTime       string  `json:"datetime"`
-	Type           int     `json:"type,string"`
-	Price          float64 `json:"price,string"`
-	Amount         float64 `json:"amount,string"`
-	AmountAtCreate float64 `json:"amount_at_create,string"`
-	Currency       string  `json:"currency_pair"`
-	LimitPrice     float64 `json:"limit_price,string"`
-	ClientOrderID  string  `json:"client_order_id"`
-	Market         string  `json:"market"`
+	ID             int64          `json:"id,string"`
+	DateTime       types.DateTime `json:"datetime"`
+	Type           int64          `json:"type,string"`
+	Price          float64        `json:"price,string"`
+	Amount         float64        `json:"amount,string"`
+	AmountAtCreate float64        `json:"amount_at_create,string"`
+	Currency       string         `json:"currency_pair"`
+	LimitPrice     float64        `json:"limit_price,string"`
+	ClientOrderID  string         `json:"client_order_id"`
+	Market         string         `json:"market"`
 }
 
 // OrderStatus holds order status information
 type OrderStatus struct {
-	AmountRemaining float64 `json:"amount_remaining,string"`
-	Type            int64   `json:"type"`
-	ID              string  `json:"id"`
-	DateTime        string  `json:"datetime"`
-	Status          string  `json:"status"`
-	ClientOrderID   string  `json:"client_order_id"`
-	Market          string  `json:"market"`
+	AmountRemaining float64        `json:"amount_remaining,string"`
+	Type            int64          `json:"type"`
+	ID              string         `json:"id"`
+	DateTime        types.DateTime `json:"datetime"`
+	Status          string         `json:"status"`
+	ClientOrderID   string         `json:"client_order_id"`
+	Market          string         `json:"market"`
 	Transactions    []struct {
-		TradeID      int64   `json:"tid"`
-		FromCurrency float64 `json:"{from_currency},string"`
-		ToCurrency   float64 `json:"{to_currency},string"`
-		Price        float64 `json:"price,string"`
-		Fee          float64 `json:"fee,string"`
-		DateTime     string  `json:"datetime"`
-		Type         int     `json:"type"`
+		TradeID      int64          `json:"tid"`
+		FromCurrency float64        `json:"{from_currency},string"`
+		ToCurrency   float64        `json:"{to_currency},string"`
+		Price        float64        `json:"price,string"`
+		Fee          float64        `json:"fee,string"`
+		DateTime     types.DateTime `json:"datetime"`
+		Type         int64          `json:"type"`
 	}
 }
 
@@ -163,16 +163,16 @@ type DepositAddress struct {
 
 // WithdrawalRequests holds request information on withdrawals
 type WithdrawalRequests struct {
-	OrderID       int64         `json:"id"`
-	Date          string        `json:"datetime"`
-	Type          int64         `json:"type"`
-	Amount        float64       `json:"amount,string"`
-	Status        int64         `json:"status"`
-	Currency      currency.Code `json:"currency"`
-	Address       string        `json:"address"`
-	TransactionID string        `json:"transaction_id"`
-	Network       string        `json:"network"`
-	TxID          int64         `json:"txid"`
+	OrderID       int64          `json:"id"`
+	Date          types.DateTime `json:"datetime"`
+	Type          int64          `json:"type"`
+	Amount        float64        `json:"amount,string"`
+	Status        int64          `json:"status"`
+	Currency      currency.Code  `json:"currency"`
+	Address       string         `json:"address"`
+	TransactionID string         `json:"transaction_id"`
+	Network       string         `json:"network"`
+	TxID          int64          `json:"txid"`
 }
 
 // CryptoWithdrawalResponse response from a crypto withdrawal request
@@ -228,16 +228,16 @@ type websocketTradeResponse struct {
 }
 
 type websocketTradeData struct {
-	Microtimestamp string  `json:"microtimestamp"`
-	Amount         float64 `json:"amount"`
-	BuyOrderID     int64   `json:"buy_order_id"`
-	SellOrderID    int64   `json:"sell_order_id"`
-	AmountStr      string  `json:"amount_str"`
-	PriceStr       string  `json:"price_str"`
-	Timestamp      int64   `json:"timestamp,string"`
-	Price          float64 `json:"price"`
-	Type           int     `json:"type"`
-	ID             int64   `json:"id"`
+	Microtimestamp string     `json:"microtimestamp"`
+	Amount         float64    `json:"amount"`
+	BuyOrderID     int64      `json:"buy_order_id"`
+	SellOrderID    int64      `json:"sell_order_id"`
+	AmountStr      string     `json:"amount_str"`
+	PriceStr       string     `json:"price_str"`
+	Timestamp      types.Time `json:"timestamp"`
+	Price          float64    `json:"price"`
+	Type           int        `json:"type"`
+	ID             int64      `json:"id"`
 }
 
 // WebsocketAuthResponse holds the auth token for subscribing to auth channels

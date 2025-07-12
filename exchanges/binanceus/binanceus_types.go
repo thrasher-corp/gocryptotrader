@@ -7,6 +7,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -200,17 +201,22 @@ type KlinesRequestParams struct {
 
 // CandleStick holds kline data
 type CandleStick struct {
-	OpenTime                 time.Time
-	Open                     float64
-	High                     float64
-	Low                      float64
-	Close                    float64
-	Volume                   float64
-	CloseTime                time.Time
-	QuoteAssetVolume         float64
-	TradeCount               float64
-	TakerBuyAssetVolume      float64
-	TakerBuyQuoteAssetVolume float64
+	OpenTime                 types.Time
+	Open                     types.Number
+	High                     types.Number
+	Low                      types.Number
+	Close                    types.Number
+	Volume                   types.Number
+	CloseTime                types.Time
+	QuoteAssetVolume         types.Number
+	TradeCount               types.Number
+	TakerBuyAssetVolume      types.Number
+	TakerBuyQuoteAssetVolume types.Number
+}
+
+// UnmarshalJSON unmarshals JSON data into a CandleStick struct
+func (c *CandleStick) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[11]any{&c.OpenTime, &c.Open, &c.High, &c.Low, &c.Close, &c.Volume, &c.CloseTime, &c.QuoteAssetVolume, &c.TradeCount, &c.TakerBuyAssetVolume, &c.TakerBuyQuoteAssetVolume})
 }
 
 // SymbolPrice represents a symbol and it's price.
@@ -718,15 +724,15 @@ type WithdrawalResponse struct {
 
 // WithdrawStatusResponse defines a withdrawal status response
 type WithdrawStatusResponse struct {
-	ID             string  `json:"id"`
-	Amount         float64 `json:"amount,string"`
-	TransactionFee float64 `json:"transactionFee,string"`
-	Coin           string  `json:"coin"`
-	Status         int64   `json:"status"`
-	Address        string  `json:"address"`
-	ApplyTime      string  `json:"applyTime"`
-	Network        string  `json:"network"`
-	TransferType   int64   `json:"transferType"`
+	ID             string         `json:"id"`
+	Amount         float64        `json:"amount,string"`
+	TransactionFee float64        `json:"transactionFee,string"`
+	Coin           string         `json:"coin"`
+	Status         int64          `json:"status"`
+	Address        string         `json:"address"`
+	ApplyTime      types.DateTime `json:"applyTime"`
+	Network        string         `json:"network"`
+	TransferType   int64          `json:"transferType"`
 }
 
 // FiatAssetRecord asset information for fiat.
@@ -777,16 +783,16 @@ type DepositAddress struct {
 
 // DepositHistory stores deposit history info.
 type DepositHistory struct {
-	Amount       string `json:"amount"`
-	Coin         string `json:"coin"`
-	Network      string `json:"network"`
-	Status       int64  `json:"status"`
-	Address      string `json:"address"`
-	AddressTag   string `json:"addressTag"`
-	TxID         string `json:"txId"`
-	InsertTime   int64  `json:"insertTime"`
-	TransferType int64  `json:"transferType"`
-	ConfirmTimes string `json:"confirmTimes"`
+	Amount       string     `json:"amount"`
+	Coin         string     `json:"coin"`
+	Network      string     `json:"network"`
+	Status       int64      `json:"status"`
+	Address      string     `json:"address"`
+	AddressTag   string     `json:"addressTag"`
+	TxID         string     `json:"txId"`
+	InsertTime   types.Time `json:"insertTime"`
+	TransferType int64      `json:"transferType"`
+	ConfirmTimes string     `json:"confirmTimes"`
 }
 
 // UserAccountStream represents the response for getting the listen key for the websocket

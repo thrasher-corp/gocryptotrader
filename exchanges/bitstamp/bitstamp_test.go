@@ -364,11 +364,11 @@ func TestGetOpenOrders(t *testing.T) {
 	if mockTests {
 		assert.NotEmpty(t, o, "Orders should not be empty")
 		for _, res := range o {
-			assert.Equal(t, "2022-01-31 14:43:15", res.DateTime, "DateTime should match")
+			assert.Equal(t, time.Date(2022, 1, 31, 14, 43, 15, 0, time.UTC), res.DateTime.Time(), "DateTime should match")
 			assert.Equal(t, int64(1234123412341234), res.ID, "ID should match")
 			assert.Equal(t, 0.50000000, res.Amount, "Amount should match")
 			assert.Equal(t, 100.00, res.Price, "Price should match")
-			assert.Equal(t, 0, res.Type, "Type should match")
+			assert.Equal(t, int64(0), res.Type, "Type should match")
 			assert.Equal(t, 0.50000000, res.AmountAtCreate, "AmountAtCreate should match")
 			assert.Equal(t, 110.00, res.LimitPrice, "LimitPrice should match")
 			assert.Equal(t, "1234123412341234", res.ClientOrderID, "ClientOrderID should match")
@@ -388,14 +388,14 @@ func TestGetOrderStatus(t *testing.T) {
 		assert.ErrorContains(t, err, "Order not found")
 	} else {
 		require.NoError(t, err, "GetOrderStatus must not error")
-		assert.Equal(t, "2022-01-31 14:43:15", o.DateTime, "DateTime should match")
+		assert.Equal(t, time.Date(2022, 1, 31, 14, 43, 15, 0, time.UTC), o.DateTime.Time(), "DateTime should match")
 		assert.Equal(t, "1458532827766784", o.ID, "OrderID should match")
 		assert.Equal(t, 200.00, o.AmountRemaining, "AmountRemaining should match")
 		assert.Equal(t, int64(0), o.Type, "Type should match")
 		assert.Equal(t, "0.50000000", o.ClientOrderID, "ClientOrderID should match")
 		assert.Equal(t, "BTC/USD", o.Market, "Market should match")
 		for _, tr := range o.Transactions {
-			assert.Equal(t, "2022-01-31 14:43:15", tr.DateTime, "DateTime should match")
+			assert.Equal(t, time.Date(2022, 1, 31, 14, 43, 15, 0, time.UTC), tr.DateTime.Time(), "DateTime should match")
 			assert.Equal(t, 50.00, tr.Price, "Price should match")
 			assert.Equal(t, 101.00, tr.FromCurrency, "FromCurrency should match")
 			assert.Equal(t, 1.0, tr.ToCurrency, "ToCurrency should match")
@@ -417,7 +417,7 @@ func TestGetWithdrawalRequests(t *testing.T) {
 		for _, req := range r {
 			assert.Equal(t, int64(1), req.OrderID, "OrderId should match")
 			assert.Equal(t, "aMDHooGmAkyrsaQiKhAORhSNTmoRzxqWIO", req.Address, "Address should match")
-			assert.Equal(t, "2022-01-31 16:07:32", req.Date, "Date should match")
+			assert.Equal(t, time.Date(2022, 1, 31, 16, 7, 32, 0, time.UTC), req.Date.Time(), "Date should match")
 			assert.Equal(t, currency.BTC, req.Currency, "Currency should match")
 			assert.Equal(t, 0.00006000, req.Amount, "Amount should match")
 			assert.Equal(t, "NsOeFbQhRnpGzNIThWGBTkQwRJqTNOGPVhYavrVyMfkAyMUmIlUpFIwGTzSvpeOP", req.TransactionID, "TransactionID should match")
@@ -711,24 +711,6 @@ func TestGetDepositAddress(t *testing.T) {
 	require.NoError(t, err, "GetDepositAddress must not error")
 	assert.NotEmpty(t, a.Address, "Address should not be empty")
 	assert.NotEmpty(t, a.Tag, "Tag should not be empty")
-}
-
-func TestParseTime(t *testing.T) {
-	t.Parallel()
-
-	tm, err := parseTime("2019-10-18 01:55:14")
-	if err != nil {
-		t.Error(err)
-	}
-
-	if tm.Year() != 2019 ||
-		tm.Month() != 10 ||
-		tm.Day() != 18 ||
-		tm.Hour() != 1 ||
-		tm.Minute() != 55 ||
-		tm.Second() != 14 {
-		t.Error("invalid time values")
-	}
 }
 
 func TestWsSubscription(t *testing.T) {
