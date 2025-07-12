@@ -3501,15 +3501,13 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = ok.SubmitOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 
-	arg.RiskManagementModes = order.RiskManagementModes{
-		TakeProfit: order.RiskManagement{
-			Price:      11999,
-			LimitPrice: 12000,
-		},
-		StopLoss: order.RiskManagement{
-			Price:      10999,
-			LimitPrice: 11000,
-		},
+	arg.TakeProfit = order.RiskManagement{
+		Price:      11999,
+		LimitPrice: 12000,
+	}
+	arg.StopLoss = order.RiskManagement{
+		Price:      10999,
+		LimitPrice: 11000,
 	}
 	result, err = ok.SubmitOrder(contextGenerate(), arg)
 	assert.NoError(t, err)
@@ -3725,10 +3723,8 @@ func TestModifyOrder(t *testing.T) {
 	_, err = ok.ModifyOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 
-	arg.RiskManagementModes = order.RiskManagementModes{
-		TakeProfit: order.RiskManagement{Price: 12345677},
-		StopLoss:   order.RiskManagement{Price: 12345667},
-	}
+	arg.TakeProfit = order.RiskManagement{Price: 12345677}
+	arg.StopLoss = order.RiskManagement{Price: 12345667}
 	result, err = ok.ModifyOrder(contextGenerate(), arg)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -6190,10 +6186,10 @@ func TestGetFee(t *testing.T) {
 func TestPriceTypeString(t *testing.T) {
 	t.Parallel()
 	priceTypeToStringMap := map[order.PriceType]string{
-		order.LastPrice:        "last",
-		order.IndexPrice:       "index",
-		order.MarkPrice:        "mark",
-		order.UnknownPriceType: "",
+		order.LastPrice:      "last",
+		order.IndexPrice:     "index",
+		order.MarkPrice:      "mark",
+		order.UnsetPriceType: "",
 	}
 	var priceTString string
 	for x := range priceTypeToStringMap {
