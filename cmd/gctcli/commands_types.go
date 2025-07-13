@@ -101,7 +101,7 @@ type GetAvailableTransferChainsParams struct {
 // WithdrawFiatFundParams holds fiat fund withdrawal parameters
 type WithdrawFiatFundParams struct {
 	Exchange      string  `cli:"exchange"`
-	CurrencyPair  string  `cli:"currency"`
+	Currency      string  `cli:"currency"`
 	Amount        float64 `cli:"amount"`
 	BankAccountID string  `cli:"bankaccountid"`
 	Description   string  `cli:"description"`
@@ -113,4 +113,49 @@ type GetCryptoDepositAddressParams struct {
 	Currency string `cli:"cryptocurrency"`
 	Chain    string `cli:"chain"`
 	Bypass   bool   `cli:"bypass"`
+}
+
+// GetTickerParams holds ticker fetching request params
+type GetTickerParams struct {
+	Exchange string `cli:"exchange"`
+	Currency string `cli:"pair"`
+}
+
+// AddEventParams holds a event add request params
+type AddEventParams struct {
+	ExchangeName    string  `cli:"exchange,required"`
+	Item            string  `cli:"item"`
+	Condition       string  `cli:"condition,required"`
+	Price           float64 `cli:"price"`
+	CheckBids       bool    `cli:"check_bids"`
+	CheckAsks       bool    `cli:"check_asks"`
+	OrderbookAmount float64 `cli:"orderbook_amount"`
+	CurrencyPair    string  `cli:"pair,required"`
+	AssetType       string  `cli:"asset"`
+	Action          string  `cli:"action,required"`
+}
+
+// GetTickerStreamParams holds exchange ticker stream retrieval params
+type GetTickerStreamParams struct {
+	Exchange string `cli:"exchange"`
+	Pair     string `cli:"pair"`
+	Asset    string `cli:"asset"`
+}
+
+// GetAuditEventParam holds an audit event request params
+type GetAuditEventParam struct {
+	Start string `cli:"start,required"`
+	End   string `cli:"end,required"`
+	Order string `cli:"order"`
+	Limit int64  `cli:"limit"`
+}
+
+// HistoricCandlesParams holds a historic candles retrieval params
+type HistoricCandlesParams struct {
+	Exchange                  string `cli:"exchange,e"`
+	CurrencyPair              string `cli:"pair,required"`
+	Asset                     string `cli:"asset,required"`
+	RangeSize                 int64  `cli:"rangesize,r"`
+	Granularity               int64  `cli:"granularity,g"`
+	FillMissingDataWithTrades bool   `cli:"fillmissingdatawithtrades,fill"`
 }

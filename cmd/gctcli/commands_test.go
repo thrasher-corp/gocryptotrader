@@ -38,7 +38,7 @@ func TestUnmarshalCLIFields(t *testing.T) {
 
 	target := &SampleTest{}
 	app := &cli.App{
-		Flags: FlagsFromStruct(sample1, nil),
+		Flags: FlagsFromStruct(target, nil),
 		Action: func(ctx *cli.Context) error {
 			return UnmarshalCLIFields(ctx, target)
 		},

@@ -1861,48 +1861,16 @@ var addEventCommand = &cli.Command{
 	Usage:     "adds an event",
 	ArgsUsage: "<exchange> <item> <condition> <price> <check_bids> <check_bids_and_asks> <orderbook_amount> <pair> <asset> <action>",
 	Action:    addEvent,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to add an event for",
-		},
-		&cli.StringFlag{
-			Name:  "item",
-			Usage: "the item to trigger the event",
-		},
-		&cli.StringFlag{
-			Name:  "condition",
-			Usage: "the condition for the event",
-		},
-		&cli.Float64Flag{
-			Name:  "price",
-			Usage: "the price to trigger the event",
-		},
-		&cli.BoolFlag{
-			Name:  "check_bids",
-			Usage: "whether to check the bids",
-		},
-		&cli.BoolFlag{
-			Name:  "check_asks",
-			Usage: "whether to check the asks",
-		},
-		&cli.Float64Flag{
-			Name:  "orderbook_amount",
-			Usage: "the orderbook amount to trigger the event",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type",
-		},
-		&cli.StringFlag{
-			Name:  "action",
-			Usage: "the action for the event to perform upon trigger",
-		},
-	},
+	Flags: FlagsFromStruct(&AddEventParams{}, map[string]string{
+		"exchange":         "the exchange to add an event for",
+		"item":             "the item to trigger the event",
+		"condition":        "the condition for the event",
+		"orderbook_amount": "the orderbook amount to trigger the event",
+		"action":           "the action for the event to perform upon trigger",
+		"check_asks":       "whether to check the asks",
+		"check_bids":       "whether to check the bids",
+		"price":            "the price to trigger the event",
+	}),
 }
 
 func addEvent(c *cli.Context) error {
@@ -1910,77 +1878,22 @@ func addEvent(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	var item string
-	var condition string
-	var price float64
-	var checkBids bool
-	var checkAsks bool
-	var orderbookAmount float64
-	var currencyPair string
-	var assetType string
-	var action string
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		return errors.New("exchange name is required")
+	addEventParams := &AddEventParams{}
+	err := UnmarshalCLIFields(c, addEventParams)
+	if err != nil {
+		return err
 	}
 
-	if c.IsSet("item") {
-		item = c.String("item")
-	} else {
-		return errors.New("item is required")
-	}
-
-	if c.IsSet("condition") {
-		condition = c.String("condition")
-	} else {
-		return errors.New("condition is required")
-	}
-
-	if c.IsSet("price") {
-		price = c.Float64("price")
-	}
-
-	if c.IsSet("check_bids") {
-		checkBids = c.Bool("check_bids")
-	}
-
-	if c.IsSet("check_asks") {
-		checkAsks = c.Bool("check_asks")
-	}
-
-	if c.IsSet("orderbook_amount") {
-		orderbookAmount = c.Float64("orderbook_amount")
-	}
-
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		return errors.New("currency pair is required")
-	}
-
-	if !validPair(currencyPair) {
+	if !validPair(addEventParams.CurrencyPair) {
 		return errInvalidPair
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	}
-
-	assetType = strings.ToLower(assetType)
-	if !validAsset(assetType) {
+	addEventParams.AssetType = strings.ToLower(addEventParams.AssetType)
+	if !validAsset(addEventParams.AssetType) {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("action") {
-		action = c.String("action")
-	} else {
-		return errors.New("action is required")
-	}
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(addEventParams.CurrencyPair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -1993,22 +1906,22 @@ func addEvent(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.AddEvent(c.Context, &gctrpc.AddEventRequest{
-		Exchange: exchangeName,
-		Item:     item,
+		Exchange: addEventParams.ExchangeName,
+		Item:     addEventParams.Item,
 		ConditionParams: &gctrpc.ConditionParams{
-			Condition:       condition,
-			Price:           price,
-			CheckBids:       checkBids,
-			CheckAsks:       checkAsks,
-			OrderbookAmount: orderbookAmount,
+			Condition:       addEventParams.Condition,
+			Price:           addEventParams.Price,
+			CheckBids:       addEventParams.CheckBids,
+			CheckAsks:       addEventParams.CheckAsks,
+			OrderbookAmount: addEventParams.OrderbookAmount,
 		},
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		AssetType: assetType,
-		Action:    action,
+		AssetType: addEventParams.AssetType,
+		Action:    addEventParams.Action,
 	})
 	if err != nil {
 		return err
@@ -2327,7 +2240,7 @@ func withdrawFiatFunds(c *cli.Context) error {
 	result, err := client.WithdrawFiatFunds(c.Context,
 		&gctrpc.WithdrawFiatRequest{
 			Exchange:      fiatWithdraFiatFundParams.Exchange,
-			Currency:      fiatWithdraFiatFundParams.CurrencyPair,
+			Currency:      fiatWithdraFiatFundParams.Currency,
 			Amount:        fiatWithdraFiatFundParams.Amount,
 			Description:   fiatWithdraFiatFundParams.Description,
 			BankAccountId: fiatWithdraFiatFundParams.BankAccountID,
@@ -2756,39 +2669,22 @@ func getTickerStream(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	var pair string
-	var assetType string
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	tickerStreamParam := &GetTickerStreamParams{}
+	err := UnmarshalCLIFields(c, tickerStreamParam)
+	if err != nil {
+		return err
 	}
 
-	if c.IsSet("pair") {
-		pair = c.String("pair")
-	} else {
-		pair = c.Args().Get(1)
-	}
-
-	if !validPair(pair) {
+	if !validPair(tickerStreamParam.Pair) {
 		return errInvalidPair
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
-	}
-
-	assetType = strings.ToLower(assetType)
-
-	if !validAsset(assetType) {
+	tickerStreamParam.Asset = strings.ToLower(tickerStreamParam.Asset)
+	if !validAsset(tickerStreamParam.Asset) {
 		return errInvalidAsset
 	}
 
-	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(tickerStreamParam.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -2802,13 +2698,13 @@ func getTickerStream(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetTickerStream(c.Context,
 		&gctrpc.GetTickerStreamRequest{
-			Exchange: exchangeName,
+			Exchange: tickerStreamParam.Exchange,
 			Pair: &gctrpc.CurrencyPair{
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 				Delimiter: p.Delimiter,
 			},
-			AssetType: assetType,
+			AssetType: tickerStreamParam.Asset,
 		},
 	)
 	if err != nil {
@@ -2826,7 +2722,7 @@ func getTickerStream(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Ticker stream for %s %s:\n", exchangeName,
+		fmt.Printf("Ticker stream for %s %s:\n", tickerStreamParam.Exchange,
 			resp.Pair.String())
 		fmt.Println()
 
@@ -2942,39 +2838,18 @@ var getAuditEventCommand = &cli.Command{
 }
 
 func getAuditEvent(c *cli.Context) error {
-	if !c.IsSet("start") {
-		if c.Args().Get(0) != "" {
-			startTime = c.Args().Get(0)
-		}
+	getAuditParams := &GetAuditEventParam{}
+	err := UnmarshalCLIFields(c, getAuditParams)
+	if err != nil {
+		return err
 	}
 
-	if !c.IsSet("end") {
-		if c.Args().Get(1) != "" {
-			endTime = c.Args().Get(1)
-		}
-	}
-
-	if !c.IsSet("order") {
-		if c.Args().Get(2) != "" {
-			orderingDirection = c.Args().Get(2)
-		}
-	}
-
-	if !c.IsSet("limit") {
-		if c.Args().Get(3) != "" {
-			limitStr, err := strconv.ParseInt(c.Args().Get(3), 10, 64)
-			if err == nil {
-				limit = int(limitStr)
-			}
-		}
-	}
-
-	s, err := time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, getAuditParams.Start, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
 
-	e, err := time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, getAuditParams.End, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -2996,8 +2871,8 @@ func getAuditEvent(c *cli.Context) error {
 		&gctrpc.GetAuditEventRequest{
 			StartDate: s.Format(common.SimpleTimeFormatWithTimezone),
 			EndDate:   e.Format(common.SimpleTimeFormatWithTimezone),
-			Limit:     int32(limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
-			OrderBy:   orderingDirection,
+			Limit:     int32(getAuditParams.Limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
+			OrderBy:   getAuditParams.Order,
 		})
 	if err != nil {
 		return err
@@ -3478,60 +3353,22 @@ func getHistoricCandles(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
-	if !validPair(currencyPair) {
-		return errInvalidPair
-	}
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	getHistoricCandles := &HistoricCandlesParams{Granularity: 86400, RangeSize: 10}
+	err := UnmarshalCLIFields(c, getHistoricCandles)
 	if err != nil {
 		return err
 	}
 
-	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
+	if !validPair(getHistoricCandles.CurrencyPair) {
+		return errInvalidPair
+	}
+	p, err := currency.NewPairDelimiter(getHistoricCandles.CurrencyPair, pairDelimiter)
+	if err != nil {
+		return err
 	}
 
-	if !validAsset(assetType) {
+	if !validAsset(getHistoricCandles.Asset) {
 		return errInvalidAsset
-	}
-
-	if c.IsSet("rangesize") {
-		candleRangeSize = c.Int64("rangesize")
-	} else if c.Args().Get(3) != "" {
-		candleRangeSize, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.IsSet("granularity") {
-		candleGranularity = c.Int64("granularity")
-	} else if c.Args().Get(4) != "" {
-		candleGranularity, err = strconv.ParseInt(c.Args().Get(4), 10, 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	var fillMissingData bool
-	if c.IsSet("fillmissingdatawithtrades") {
-		fillMissingData = c.Bool("fillmissingdatawithtrades")
-	} else if c.IsSet("fill") {
-		fillMissingData = c.Bool("fill")
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -3548,17 +3385,17 @@ func getHistoricCandles(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetHistoricCandles(c.Context,
 		&gctrpc.GetHistoricCandlesRequest{
-			Exchange: exchangeName,
+			Exchange: getHistoricCandles.Exchange,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			AssetType:             assetType,
+			AssetType:             getHistoricCandles.Asset,
 			Start:                 s.Format(common.SimpleTimeFormatWithTimezone),
 			End:                   e.Format(common.SimpleTimeFormatWithTimezone),
 			TimeInterval:          int64(candleInterval),
-			FillMissingWithTrades: fillMissingData,
+			FillMissingWithTrades: getHistoricCandles.FillMissingDataWithTrades,
 		})
 	if err != nil {
 		return err
@@ -4223,60 +4060,84 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 		if len(flagStrings) == 0 {
 			continue
 		}
-		flagName := flagStrings[0]
-		required := len(flagStrings) == 2 && strings.EqualFold(flagStrings[1], "required")
+		required := len(flagStrings) > 1 && strings.EqualFold(flagStrings[len(flagStrings)-1], "required")
+
+		flagNames := flagStrings
+		if len(flagStrings) > 1 && required {
+			flagNames = flagStrings[:len(flagStrings)-1]
+		}
 		switch field.Type.Kind() {
 		case reflect.String:
 			var value string
-			if c.IsSet(flagName) {
-				value = c.String(flagName)
-			} else {
-				value = c.Args().Get(i)
+			for n := range flagNames {
+				if c.IsSet(flagNames[n]) {
+					value = c.String(flagNames[n])
+				} else {
+					value = c.Args().Get(i)
+				}
+				if value != "" {
+					break
+				}
 			}
 			if required && value == "" {
-				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagName)
+				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
 			}
 			val.Field(i).SetString(value)
 		case reflect.Float64:
 			var value float64
-			if c.IsSet(flagName) {
-				value = c.Float64(flagName)
-			} else {
-				var err error
-				value, err = strconv.ParseFloat(c.Args().Get(i), 64)
-				if err != nil {
-					return err
+			for n := range flagNames {
+				if c.IsSet(flagNames[n]) {
+					value = c.Float64(flagNames[n])
+				} else {
+					var err error
+					value, err = strconv.ParseFloat(c.Args().Get(i), 64)
+					if err != nil {
+						return err
+					}
+				}
+				if value != 0 {
+					break
 				}
 			}
 			if required && value == 0 {
-				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagName)
+				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
 			}
 			val.Field(i).SetFloat(value)
 		case reflect.Bool:
 			var value bool
-			if c.IsSet(flagName) {
-				value = c.Bool(flagName)
-			} else {
-				var err error
-				value, err = strconv.ParseBool(c.Args().Get(i))
-				if required && (err != nil || !value) {
-					return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagName)
+			for n := range flagNames {
+				if c.IsSet(flagNames[n]) {
+					value = c.Bool(flagNames[n])
+				} else {
+					var err error
+					value, err = strconv.ParseBool(c.Args().Get(i))
+					if required && (err != nil || !value) {
+						return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
+					}
+				}
+				if !value {
+					break
 				}
 			}
 			val.Field(i).SetBool(value)
 		case reflect.Int64:
 			var value int64
-			if c.IsSet(flagName) {
-				value = c.Int64(flagName)
-			} else {
-				var err error
-				value, err = strconv.ParseInt(c.Args().Get(i), 10, 64)
-				if err != nil {
-					return err
+			for n := range flagNames {
+				if c.IsSet(flagNames[n]) {
+					value = c.Int64(flagNames[n])
+				} else {
+					var err error
+					value, err = strconv.ParseInt(c.Args().Get(i), 10, 64)
+					if err != nil {
+						return err
+					}
+				}
+				if value != 0 {
+					break
 				}
 			}
 			if required && value == 0 {
-				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagName)
+				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
 			}
 			val.Field(i).SetInt(value)
 		}
@@ -4316,12 +4177,14 @@ func FlagsFromStruct(params any, usageInfo map[string]string) []cli.Flag {
 				Name:     flagName,
 				Usage:    usage,
 				Required: required,
+				Value:    val.Field(i).String(),
 			})
 		case reflect.Float64:
 			flags = append(flags, &cli.Float64Flag{
 				Name:     flagName,
 				Usage:    usage,
 				Required: required,
+				Value:    val.Field(i).Float(),
 			})
 		case reflect.Bool:
 			flags = append(flags, &cli.BoolFlag{
@@ -4334,6 +4197,7 @@ func FlagsFromStruct(params any, usageInfo map[string]string) []cli.Flag {
 				Name:     flagName,
 				Usage:    usage,
 				Required: required,
+				Value:    val.Field(i).Int(),
 			})
 		}
 	}
