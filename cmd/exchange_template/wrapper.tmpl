@@ -115,14 +115,14 @@ func (e *Exchange) SetDefaults() {
 		},
 		{{ if .WS }} Subscriptions: defaultSubscriptions,{{ end }}
 	}
-	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
+	// TODO: SET THE EXCHANGES RATE LIMIT HERE
 	var err error
 	e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	// NOTE: SET THE URLs HERE
+	// TODO: SET THE URLs HERE
 	e.API.Endpoints = e.NewEndpoints()
 	if err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:  apiURL,
@@ -162,9 +162,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 				DefaultURL:            wsAPIURL,
 				RunningURL:            wsRunningEndpoint,
 				Connector:             e.WsConnect,
-				Subscriber:            e.Subscriber,
-				Unsubscriber:          e.Unsubscriber,
-				GenerateSubscriptions: e.GenerateSubscriptions,
+				Subscriber:            e.Subscribe,
+				Unsubscriber:          e.Unsubscribe,
+				GenerateSubscriptions: e.generateSubscriptions,
 				Features:              &e.Features.Supports.WebsocketCapabilities,
 			}); err != nil {
 			return err
@@ -279,7 +279,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if err != nil {
 		return nil, err
 	}
-	// NOTE: UPDATE ORDERBOOK EXAMPLE
+	// TODO: Replace this example code with exchange specific implementation
 	/*
 		ob, err := e.GetOrderBook(pair.String(), 1000)
 		if err != nil {
