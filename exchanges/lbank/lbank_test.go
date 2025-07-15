@@ -224,34 +224,34 @@ func TestLoadPrivKey(t *testing.T) {
 
 	l2 := new(Lbank)
 	l2.SetDefaults()
-	require.ErrorIs(t, l2.loadPrivKey(t.Context()), exchange.ErrCredentialsAreEmpty)
+	require.ErrorIs(t, l2.LoadPrivKey(t.Context()), exchange.ErrCredentialsAreEmpty)
 
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "errortest"})
-	assert.ErrorIs(t, l2.loadPrivKey(ctx), errPEMBlockIsNil)
+	assert.ErrorIs(t, l2.LoadPrivKey(ctx), errPEMBlockIsNil)
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 	der := x509.MarshalPKCS1PrivateKey(key)
 	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
-	require.ErrorIs(t, l2.loadPrivKey(ctx), errUnableToParsePrivateKey)
+	require.ErrorIs(t, l2.LoadPrivKey(ctx), errUnableToParsePrivateKey)
 
 	ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	der, err = x509.MarshalPKCS8PrivateKey(ecdsaKey)
 	require.NoError(t, err)
 	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
-	require.ErrorIs(t, l2.loadPrivKey(ctx), common.ErrTypeAssertFailure)
+	require.ErrorIs(t, l2.LoadPrivKey(ctx), common.ErrTypeAssertFailure)
 
 	key, err = rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 	der, err = x509.MarshalPKCS8PrivateKey(key)
 	require.NoError(t, err)
 	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
-	assert.NoError(t, l2.loadPrivKey(ctx), "loadPrivKey should not error")
+	assert.NoError(t, l2.LoadPrivKey(ctx), "loadPrivKey should not error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	assert.NoError(t, l.loadPrivKey(t.Context()), "loadPrivKey should not error")
+	assert.NoError(t, l.LoadPrivKey(t.Context()), "loadPrivKey should not error")
 }
 
 func TestSign(t *testing.T) {
@@ -279,7 +279,7 @@ func TestSign(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	require.NoError(t, l.loadPrivKey(t.Context()), "loadPrivKey must not error")
+	require.NoError(t, l.LoadPrivKey(t.Context()), "loadPrivKey must not error")
 
 	_, err = l.sign("hello123")
 	assert.NoError(t, err, "sign should not error")

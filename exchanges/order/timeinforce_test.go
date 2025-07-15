@@ -22,6 +22,7 @@ func TestTimeInForceIs(t *testing.T) {
 		FillOrKill:                  {FillOrKill},
 		PostOnly:                    {PostOnly},
 		GoodTillCrossing:            {GoodTillCrossing},
+		StopOrReduce:                {StopOrReduce},
 	}
 	for tif, exps := range tifValuesMap {
 		for _, v := range exps {
@@ -49,6 +50,7 @@ func TestIsValid(t *testing.T) {
 		GoodTillDay | PostOnly:             true,
 		GoodTillCrossing | PostOnly:        true,
 		GoodTillCancel | PostOnly:          true,
+		StopOrReduce:                       true,
 		UnknownTIF:                         true,
 	}
 	for tif, value := range timeInForceValidityMap {
@@ -80,6 +82,8 @@ var timeInForceStringToValueMap = map[string]struct {
 	"GTX":                 {TIF: GoodTillCrossing},
 	"GOOD_TILL_CROSSING":  {TIF: GoodTillCrossing},
 	"Good Til crossing":   {TIF: GoodTillCrossing},
+	"sor":                 {TIF: StopOrReduce},
+	"STOP_OR_REDUCE":      {TIF: StopOrReduce},
 	"abcdfeg":             {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
 }
 
@@ -113,6 +117,7 @@ func TestString(t *testing.T) {
 		GoodTillTime | PostOnly:        "GTT,POSTONLY",
 		GoodTillDay | PostOnly:         "GTD,POSTONLY",
 		FillOrKill | ImmediateOrCancel: "IOC,FOK",
+		StopOrReduce:                   "SOR",
 		TimeInForce(1):                 "UNKNOWN",
 	}
 	for x := range valMap {
@@ -125,9 +130,9 @@ func TestUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	targets := []TimeInForce{
 		GoodTillCancel | PostOnly | ImmediateOrCancel, GoodTillCancel | PostOnly, GoodTillCancel, UnknownTIF, PostOnly | ImmediateOrCancel,
-		GoodTillCancel, GoodTillCancel, PostOnly, PostOnly, ImmediateOrCancel, GoodTillDay, GoodTillDay, GoodTillTime, FillOrKill, FillOrKill,
+		GoodTillCancel, GoodTillCancel, PostOnly, PostOnly, ImmediateOrCancel, GoodTillDay, GoodTillDay, GoodTillTime, FillOrKill, FillOrKill, StopOrReduce,
 	}
-	data := []byte(`{"tifs": ["GTC,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`)
+	data := []byte(`{"tifs": ["GTC,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill", "SOR"]}`)
 	target := &struct {
 		TIFs []TimeInForce `json:"tifs"`
 	}{}
@@ -135,7 +140,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, targets, target.TIFs)
 
-	data = []byte(`{"tifs": ["abcd,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`)
+	data = []byte(`{"tifs": ["abcd,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill", "SOR"]}`)
 	target = &struct {
 		TIFs []TimeInForce `json:"tifs"`
 	}{}
