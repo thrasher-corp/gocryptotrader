@@ -40,7 +40,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
-	// Sandbox functionality only works for certain endpoints https://docs.cdp.coinbase.com/coinbase-app/docs/trade/rest-api-sandbox
+	// Sandbox functionality only works for certain endpoints https://docs.cdp.coinbase.com/coinbase-app/advanced-trade-apis/sandbox
 	testingInSandbox = false
 )
 
