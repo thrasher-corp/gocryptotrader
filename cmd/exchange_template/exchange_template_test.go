@@ -69,7 +69,7 @@ func TestNewExchangeAndSaveConfig(t *testing.T) {
 		&exchange{
 			Name: testExchangeName,
 			REST: true,
-			WS:   true,
+			WS:   false,
 		},
 	)
 	require.NoError(t, err)
