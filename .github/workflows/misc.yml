@@ -51,3 +51,9 @@ jobs:
         echo "::error::Replace !errors.Is(err, target) with testify equivalents"
         exit 1
 
+    - name: Check for zero width unicode characters
+      run: |
+        grep -r -I --color=always -P "[\x{200B}\x{200C}\x{200D}\x{FEFF}]" . || exit 0
+        echo "::error::Remove zero width unicode characters"
+        exit 1
+
