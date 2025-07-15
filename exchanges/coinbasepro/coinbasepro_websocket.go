@@ -456,18 +456,18 @@ func (c *CoinbasePro) manageSubs(ctx context.Context, op string, subs subscripti
 
 // GetWSJWT returns a JWT, using a stored one of it's provided, and generating a new one otherwise
 func (c *CoinbasePro) GetWSJWT(ctx context.Context) (string, error) {
-	c.jwtStruct.m.RLock()
-	if c.jwtStruct.expiresAt.After(time.Now()) {
-		retStr := c.jwtStruct.token
-		c.jwtStruct.m.RUnlock()
+	c.jwt.m.RLock()
+	if c.jwt.expiresAt.After(time.Now()) {
+		retStr := c.jwt.token
+		c.jwt.m.RUnlock()
 		return retStr, nil
 	}
-	c.jwtStruct.m.RUnlock()
-	c.jwtStruct.m.Lock()
-	defer c.jwtStruct.m.Unlock()
+	c.jwt.m.RUnlock()
+	c.jwt.m.Lock()
+	defer c.jwt.m.Unlock()
 	var err error
-	c.jwtStruct.token, c.jwtStruct.expiresAt, err = c.GetJWT(ctx, "")
-	return c.jwtStruct.token, err
+	c.jwt.token, c.jwt.expiresAt, err = c.GetJWT(ctx, "")
+	return c.jwt.token, err
 }
 
 // processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays of bids and asks

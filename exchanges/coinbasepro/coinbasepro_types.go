@@ -27,7 +27,7 @@ type pairAliases struct {
 // CoinbasePro is the overarching type across the coinbasepro package
 type CoinbasePro struct {
 	exchange.Base
-	jwtStruct   jwtManager
+	jwt         jwtManager
 	pairAliases pairAliases
 }
 
