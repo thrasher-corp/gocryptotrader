@@ -53,7 +53,7 @@ jobs:
 
     - name: Check for zero width unicode characters
       run: |
-        grep -r -I --color=always -P "[\x{200B}\x{200C}\x{200D}\x{FEFF}]" . || exit 0
+        grep -r -n -I --color=always --exclude-dir=.git -P "[\x{200B}\x{200C}\x{200D}\x{FEFF}]" . || exit 0
         echo "::error::Remove zero width unicode characters"
         exit 1
 
