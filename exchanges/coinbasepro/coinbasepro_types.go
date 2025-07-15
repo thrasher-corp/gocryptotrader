@@ -245,19 +245,19 @@ type Ticker struct {
 
 // MarketMarketIOC is a sub-struct used in the type OrderConfiguration
 type MarketMarketIOC struct {
-	QuoteSize types.Number `json:"quote_size,omitempty"`
-	BaseSize  types.Number `json:"base_size,omitempty"`
-	// The following fields might not be used on input. If they aren't, make these bools pointers, and use omitempty
-	RFQEnabled  bool `json:"rfq_enabled"`
-	RFQDisabled bool `json:"rfq_disabled"`
-	ReduceOnly  bool `json:"reduce_only"`
+	QuoteSize   types.Number `json:"quote_size,omitempty"`
+	BaseSize    types.Number `json:"base_size,omitempty"`
+	RFQDisabled bool         `json:"rfq_disabled"`
+	RFQEnabled  *bool        `json:"rfq_enabled,omitempty"`
+	ReduceOnly  *bool        `json:"reduce_only,omitempty"`
 }
 
 // QuoteBaseLimit is a sub-struct used in the type OrderConfiguration
 type QuoteBaseLimit struct {
-	QuoteSize  types.Number `json:"quote_size,omitempty"`
-	BaseSize   types.Number `json:"base_size,omitempty"`
-	LimitPrice types.Number `json:"limit_price"`
+	QuoteSize   types.Number `json:"quote_size,omitempty"`
+	BaseSize    types.Number `json:"base_size,omitempty"`
+	LimitPrice  types.Number `json:"limit_price"`
+	RFQDisabled bool         `json:"rfq_disabled"`
 }
 
 // LimitLimitGTC is a sub-struct used in the type OrderConfiguration
@@ -267,28 +267,30 @@ type LimitLimitGTC struct {
 	LimitPrice  types.Number `json:"limit_price"`
 	PostOnly    bool         `json:"post_only"`
 	RFQDisabled bool         `json:"rfq_disabled"`
+	ReduceOnly  *bool        `json:"reduce_only,omitempty"`
 }
 
 // LimitLimitGTD is a sub-struct used in the type OrderConfiguration
 type LimitLimitGTD struct {
-	BaseSize   types.Number `json:"base_size,omitempty"`
-	QuoteSize  types.Number `json:"quote_size,omitempty"`
-	LimitPrice types.Number `json:"limit_price"`
-	EndTime    time.Time    `json:"end_time"`
-	PostOnly   bool         `json:"post_only"`
-	ReduceOnly bool         `json:"reduce_only"`
+	BaseSize    types.Number `json:"base_size,omitempty"`
+	QuoteSize   types.Number `json:"quote_size,omitempty"`
+	LimitPrice  types.Number `json:"limit_price"`
+	EndTime     time.Time    `json:"end_time"`
+	PostOnly    bool         `json:"post_only"`
+	ReduceOnly  *bool        `json:"reduce_only,omitempty"`
+	RFQDisabled bool         `json:"rfq_disabled"`
 }
 
 // TWAPLimitGTD is a sub-struct used in the type OrderConfiguration
 type TWAPLimitGTD struct {
-	QuoteSize      types.Number  `json:"quote_size,omitempty"`
-	BaseSize       types.Number  `json:"base_size,omitempty"`
-	StartTime      time.Time     `json:"start_time"`
-	EndTime        time.Time     `json:"end_time"`
-	LimitPrice     types.Number  `json:"limit_price"`
-	NumberBuckets  int64         `json:"number_buckets"`
-	BucketSize     types.Number  `json:"bucket_size"`
-	BucketDuration time.Duration `json:"bucket_duration"`
+	QuoteSize      types.Number `json:"quote_size,omitempty"`
+	BaseSize       types.Number `json:"base_size,omitempty"`
+	StartTime      time.Time    `json:"start_time"`
+	EndTime        time.Time    `json:"end_time"`
+	LimitPrice     types.Number `json:"limit_price"`
+	NumberBuckets  int64        `json:"number_buckets,string"`
+	BucketSize     types.Number `json:"bucket_size"`
+	BucketDuration string       `json:"bucket_duration"`
 }
 
 // StopLimitStopLimitGTC is a sub-struct used in the type OrderConfiguration
@@ -375,6 +377,7 @@ type PlaceOrderInfo struct {
 	StopPrice                  float64
 	Leverage                   float64
 	PostOnly                   bool
+	RFQDisabled                bool
 	EndTime                    time.Time
 	BucketSize                 float64
 	BucketNumber               int64
@@ -456,26 +459,29 @@ type GetOrderResponse struct {
 	OriginatingOrderID         string             `json:"originating_order_id"`
 	AttachedOrderID            string             `json:"attached_order_id"`
 	AttachedOrderConfiguration OrderConfiguration `json:"attached_order_configuration"`
+	CurrentPendingReplace      json.RawMessage    `json:"current_pending_replace"`
+	CommissionDetailTotal      json.RawMessage    `json:"commission_detail_total"`
 }
 
 // Fills is a sub-struct used in the type FillResponse
 type Fills struct {
-	EntryID            string        `json:"entry_id"`
-	TradeID            string        `json:"trade_id"`
-	OrderID            string        `json:"order_id"`
-	TradeTime          time.Time     `json:"trade_time"`
-	TradeType          string        `json:"trade_type"`
-	Price              types.Number  `json:"price"`
-	Size               types.Number  `json:"size"`
-	Commission         types.Number  `json:"commission"`
-	ProductID          currency.Pair `json:"product_id"`
-	SequenceTimestamp  time.Time     `json:"sequence_timestamp"`
-	LiquidityIndicator string        `json:"liquidity_indicator"`
-	SizeInQuote        bool          `json:"size_in_quote"`
-	UserID             string        `json:"user_id"`
-	Side               string        `json:"side"`
-	RetailPortfolioID  string        `json:"retail_portfolio_id"`
-	FillSource         string        `json:"fill_source"`
+	EntryID               string          `json:"entry_id"`
+	TradeID               string          `json:"trade_id"`
+	OrderID               string          `json:"order_id"`
+	TradeTime             time.Time       `json:"trade_time"`
+	TradeType             string          `json:"trade_type"`
+	Price                 types.Number    `json:"price"`
+	Size                  types.Number    `json:"size"`
+	Commission            types.Number    `json:"commission"`
+	ProductID             currency.Pair   `json:"product_id"`
+	SequenceTimestamp     time.Time       `json:"sequence_timestamp"`
+	LiquidityIndicator    string          `json:"liquidity_indicator"`
+	SizeInQuote           bool            `json:"size_in_quote"`
+	UserID                string          `json:"user_id"`
+	Side                  string          `json:"side"`
+	RetailPortfolioID     string          `json:"retail_portfolio_id"`
+	FillSource            string          `json:"fill_source"`
+	CommissionDetailTotal json.RawMessage `json:"commission_detail_total"`
 }
 
 // FillResponse contains fill information, returned by ListFills
@@ -502,6 +508,7 @@ type PreviewOrderInfo struct {
 	BucketNumber               int64
 	BucketDuration             time.Duration
 	PostOnly                   bool
+	RFQDisabled                bool
 	EndTime                    time.Time
 	AttachedOrderConfiguration OrderConfiguration
 }
@@ -550,6 +557,7 @@ type PreviewOrderResp struct {
 	PositionNotionalLimit          types.Number       `json:"position_notional_limit"`
 	MaxNotionalAtRequestedLeverage types.Number       `json:"max_notional_at_requested_leverage"`
 	MarginRatioData                MarginRatioData    `json:"margin_ratio_data"`
+	CommissionDetailTotal          json.RawMessage    `json:"commission_detail_total"`
 }
 
 // SimplePortfolioData is a sub-struct used in the type DetailedPortfolioResponse
@@ -1135,14 +1143,14 @@ type Owner struct {
 	Type     string `json:"type"`
 }
 
-// LedgerAccount is a sub-struct, used in AccountStruct
+// LedgerAccount is a sub-struct, used in AccountStruct and AccountHolder
 type LedgerAccount struct {
 	AccountID string `json:"account_id"`
 	Currency  string `json:"currency"`
 	Owner     Owner  `json:"owner"`
 }
 
-// PaymentMethodID is a sub-struct, used in AccountStruct
+// PaymentMethodID is a sub-struct, used in AccountStruct and AccountHolder
 type PaymentMethodID struct {
 	PaymentMethodID string `json:"payment_method_id"`
 }
@@ -1721,7 +1729,7 @@ type ErrorMetadata struct {
 	LimitAmount ValueWithCurrency `json:"limit_amount"`
 }
 
-// CancellationReason is a sub-struct used in ConvertResponse
+// CancellationReason is a sub-struct used in ConvertResponse and DeposWithdrData
 type CancellationReason struct {
 	Message       string        `json:"message"`
 	Code          string        `json:"code"`
@@ -1820,15 +1828,16 @@ type IDResource struct {
 
 // PaginationResp holds pagination information, used in ListNotificationsResponse, GetAllWalletsResponse, GetAllAddrResponse, ManyTransactionsResp, and ManyDeposWithdrResp
 type PaginationResp struct {
-	EndingBefore  string `json:"ending_before"`
-	StartingAfter string `json:"starting_after"`
-	// PreviousEndingBefore string `json:"previous_ending_before"`
-	NextStartingAfter string `json:"next_starting_after"` // This also seems to be missing
-	Limit             uint8  `json:"limit"`
-	Order             string `json:"order"`
-	// PreviousURI          string `json:"previous_uri"` // These two are probably still here
-	// NextURI              string `json:"next_uri"` // These two are probably still here
-	Page uint8 `json:"page"`
+	EndingBefore         string `json:"ending_before"`
+	StartingAfter        string `json:"starting_after"`
+	PreviousEndingBefore string `json:"previous_ending_before"` // This is only present on some endpoints
+	NextStartingAfter    string `json:"next_starting_after"`    // This is only present on some endpoints
+	Limit                uint8  `json:"limit"`                  // This is only present on some endpoints
+	Order                string `json:"order"`
+	PreviousURI          string `json:"previous_uri"`       // Might only be present on some endpoints
+	NextURI              string `json:"next_uri"`           // Might only be present on some endpoints
+	Page                 uint8  `json:"page"`               // This is only present on some endpoints
+	TotalCount           uint32 `json:"total_count,string"` // This is only present on some endpoints
 }
 
 // PaginationInp holds information needed to engage in pagination with Sign in With Coinbase. Used in ListNotifications, GetAllWallets, GetAllAddresses, GetAddressTransactions, GetAllTransactions, GetAllFiatTransfers, ListPaymentMethods, and preparePagination
@@ -1966,18 +1975,14 @@ type UserResponse struct {
 
 // Currency is a sub-struct holding information on a currency, used in WalletData
 type Currency struct {
-	Code                string `json:"code"`
-	Name                string `json:"name"`
-	Color               string `json:"color"`
-	SortIndex           int32  `json:"sort_index"`
-	Exponent            int32  `json:"exponent"`
-	Type                string `json:"type"`
-	AddressRegex        string `json:"address_regex"`
-	AssetID             string `json:"asset_id"`
-	DestinationTagName  string `json:"destination_tag_name"`
-	DestinationTagRegex string `json:"destination_tag_regex"`
-	Slug                string `json:"slug"`
-	Rewards             any    `json:"rewards"`
+	Code     string          `json:"code"`
+	Name     string          `json:"name"`
+	Color    string          `json:"color"`
+	Exponent int32           `json:"exponent"`
+	Type     string          `json:"type"`
+	AssetID  string          `json:"asset_id"`
+	Slug     string          `json:"slug"`
+	Rewards  json.RawMessage `json:"rewards"`
 }
 
 // WalletData is a sub-struct holding wallet information, used in GetAllWalletsResponse
@@ -1994,6 +1999,7 @@ type WalletData struct {
 	ResourcePath     string             `json:"resource_path"`
 	AllowDeposits    bool               `json:"allow_deposits"`
 	AllowWithdrawals bool               `json:"allow_withdrawals"`
+	PortfolioID      string             `json:"portfolio_id"`
 }
 
 // GetAllWalletsResponse holds information on many wallets, returned by GetAllWallets
@@ -2101,20 +2107,15 @@ type TravelRule struct {
 
 // TransactionData is a sub-type that holds information on a transaction. Used in ManyTransactionsResp and returned by SendMoney
 type TransactionData struct {
-	ID           string             `json:"id"`
-	Type         string             `json:"type"`
-	Status       string             `json:"status"`
-	Amount       AmountWithCurrency `json:"amount"`
-	NativeAmount AmountWithCurrency `json:"native_amount"`
-	Description  string             `json:"description"`
-	CreatedAt    time.Time          `json:"created_at"`
-	UpdatedAt    time.Time          `json:"updated_at"`
-	Resource     string             `json:"resource"`
-	ResourcePath string             `json:"resource_path"`
-	Details      TitleSubtitle      `json:"details"`
-	Network      Network            `json:"network"`
-	To           IDResource         `json:"to"`
-	From         IDResource         `json:"from"`
+	ID                string             `json:"id"`
+	Type              string             `json:"type"`
+	Status            string             `json:"status"`
+	Amount            AmountWithCurrency `json:"amount"`
+	NativeAmount      AmountWithCurrency `json:"native_amount"`
+	CreatedAt         time.Time          `json:"created_at"`
+	Resource          string             `json:"resource"`
+	ResourcePath      string             `json:"resource_path"`
+	AdvancedTradeFill AdvancedTradeFill  `json:"advanced_trade_fill,omitzero"`
 }
 
 // ManyTransactionsResp holds information on many transactions. Returned by GetAddressTransactions and GetAllTransactions
@@ -2123,22 +2124,49 @@ type ManyTransactionsResp struct {
 	Data       []TransactionData `json:"data"`
 }
 
-// DeposWithdrData is a sub-type that holds information on a deposit/withdrawal. Used in ManyDeposWithdrResp
+// AccountHolder is a sub-type that holds information on an account holder. Used in DeposWithdrData
+type AccountHolder struct {
+	Type                  string          `json:"type"`
+	Network               string          `json:"network"`
+	PaymentMethodID       string          `json:"payment_method_id"`
+	ExternalPaymentMethod PaymentMethodID `json:"external_payment_method,omitempty"`
+	LedgerAccount         LedgerAccount   `json:"ledger_account,omitempty"`
+}
+
+// FeeDetail is a sub-type that holds information on a fee. Used in DeposWithdrData
+type FeeDetail struct {
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Amount      ValueWithCurrency `json:"amount"`
+	Type        string            `json:"type"`
+}
+
+// DeposWithdrData is a sub-type that holds information on a deposit/withdrawal. Returned by FiatTransfer and CommitTransfer, and used in ManyDeposWithdrResp
 type DeposWithdrData struct {
-	ID            string             `json:"id"`
-	Status        string             `json:"status"`
-	PaymentMethod IDResource         `json:"payment_method"`
-	Transaction   IDResource         `json:"transaction"`
-	Amount        AmountWithCurrency `json:"amount"`
-	Subtotal      AmountWithCurrency `json:"subtotal"`
-	CreatedAt     time.Time          `json:"created_at"`
-	UpdatedAt     time.Time          `json:"updated_at"`
-	Resource      string             `json:"resource"`
-	ResourcePath  string             `json:"resource_path"`
-	Committed     bool               `json:"committed"`
-	Fee           AmountWithCurrency `json:"fee"`
-	PayoutAt      time.Time          `json:"payout_at"`
-	TransferType  FiatTransferType   `json:"transfer_type"`
+	UserEnteredAmount      ValueWithCurrency  `json:"user_entered_amount"`
+	Amount                 ValueWithCurrency  `json:"amount"`
+	Total                  ValueWithCurrency  `json:"total"`
+	Subtotal               ValueWithCurrency  `json:"subtotal"`
+	Idempotency            string             `json:"idempotency"`
+	Committed              bool               `json:"committed"`
+	ID                     string             `json:"id"`
+	Instant                bool               `json:"instant"`
+	Source                 AccountHolder      `json:"source"`
+	Target                 AccountHolder      `json:"target"`
+	PayoutAt               time.Time          `json:"payout_at"`
+	Status                 string             `json:"status"`
+	UserReference          string             `json:"user_reference"`
+	Type                   string             `json:"type"`
+	CreatedAt              time.Time          `json:"created_at"`
+	UpdatedAt              time.Time          `json:"updated_at"`
+	UserWarnings           []string           `json:"user_warnings"`
+	Fees                   json.RawMessage    `json:"fees"`
+	TotalFee               FeeDetail          `json:"total_fee"`
+	CancellationReason     CancellationReason `json:"cancellation_reason"`
+	HoldDays               int32              `json:"hold_days"`
+	NextStep               json.RawMessage    `json:"next_step"`
+	CheckoutURL            string             `json:"checkout_url"`
+	RequiresCompletionStep bool               `json:"requires_completion_step"`
 }
 
 // ManyDeposWithdrResp holds information on many deposits. Returned by GetAllFiatTransfers

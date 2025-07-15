@@ -412,8 +412,7 @@ func (c *CoinbasePro) GetAccountFundingHistory(ctx context.Context) ([]exchange.
 			}
 		}
 	}
-	fundingData := c.processFundingData(accHistory, cryptoHistory)
-	return fundingData, nil
+	return c.processFundingData(accHistory, cryptoHistory)
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
@@ -454,7 +453,10 @@ func (c *CoinbasePro) GetWithdrawalsHistory(ctx context.Context, cur currency.Co
 			}
 		}
 	}
-	tempFundingData := c.processFundingData(accHistory, cryptoHistory)
+	tempFundingData, err := c.processFundingData(accHistory, cryptoHistory)
+	if err != nil {
+		return nil, err
+	}
 	fundingData := make([]exchange.WithdrawalHistory, len(tempFundingData))
 	for i := range tempFundingData {
 		fundingData[i] = exchange.WithdrawalHistory{
@@ -518,6 +520,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		StopPrice:     s.TriggerPrice,
 		Leverage:      s.Leverage,
 		PostOnly:      s.TimeInForce.Is(order.PostOnly),
+		RFQDisabled:   s.RFQDisabled,
 		EndTime:       s.EndTime,
 	})
 	if err != nil {
@@ -733,7 +736,7 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawR
 	if err != nil {
 		return nil, err
 	}
-	return &withdraw.ExchangeResponse{Name: resp.Network.Name, ID: resp.ID, Status: resp.Status}, nil
+	return &withdraw.ExchangeResponse{ID: resp.ID, Status: resp.Status}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
@@ -1046,7 +1049,7 @@ func (c *CoinbasePro) fetchFutures(ctx context.Context, verified bool) (*AllProd
 }
 
 // processFundingData is a helper function for GetAccountFundingHistory and GetWithdrawalsHistory, transforming the data returned by the Coinbase API into a format suitable for the exchange package
-func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHistory []TransactionData) []exchange.FundingHistory {
+func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHistory []TransactionData) ([]exchange.FundingHistory, error) {
 	fundingData := make([]exchange.FundingHistory, len(accHistory)+len(cryptoHistory))
 	for i := range accHistory {
 		fundingData[i] = exchange.FundingHistory{
@@ -1055,9 +1058,16 @@ func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHis
 			TransferID:   accHistory[i].ID,
 			Timestamp:    accHistory[i].PayoutAt,
 			Currency:     accHistory[i].Amount.Currency,
-			Amount:       accHistory[i].Amount.Amount.Float64(),
-			Fee:          accHistory[i].Fee.Amount.Float64(),
-			TransferType: accHistory[i].TransferType.String(),
+			Amount:       accHistory[i].Amount.Value.Float64(),
+			Fee:          accHistory[i].TotalFee.Amount.Value.Float64(),
+		}
+		switch accHistory[i].Type {
+		case "TRANSFER_TYPE_DEPOSIT":
+			fundingData[i].TransferType = "deposit"
+		case "TRANSFER_TYPE_WITHDRAWAL":
+			fundingData[i].TransferType = "withdrawal"
+		default:
+			return nil, fmt.Errorf("%w %v", errUnknownTransferType, accHistory[i].Type)
 		}
 	}
 	for i := range cryptoHistory {
@@ -1065,22 +1075,18 @@ func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHis
 			ExchangeName: c.Name,
 			Status:       cryptoHistory[i].Status,
 			TransferID:   cryptoHistory[i].ID,
-			Description:  cryptoHistory[i].Details.Title + cryptoHistory[i].Details.Subtitle,
 			Timestamp:    cryptoHistory[i].CreatedAt,
 			Currency:     cryptoHistory[i].Amount.Currency,
 			Amount:       cryptoHistory[i].Amount.Amount.Float64(),
-			CryptoChain:  cryptoHistory[i].Network.Name,
 		}
 		if cryptoHistory[i].Type == "receive" {
 			fundingData[i+len(accHistory)].TransferType = "deposit"
-			fundingData[i+len(accHistory)].CryptoFromAddress = cryptoHistory[i].To.ID
 		}
 		if cryptoHistory[i].Type == "send" {
 			fundingData[i+len(accHistory)].TransferType = "withdrawal"
-			fundingData[i+len(accHistory)].CryptoToAddress = cryptoHistory[i].From.ID
 		}
 	}
-	return fundingData
+	return fundingData, nil
 }
 
 // iterativeGetAllOrders is a helper function used in GetActiveOrders and GetOrderHistory to repeatedly call GetAllOrders until all orders have been retrieved

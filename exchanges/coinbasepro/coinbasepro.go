@@ -162,6 +162,7 @@ var (
 	errParamValuesNil           = errors.New("param values cannot be nil")
 	errMarginProfileTypeEmpty   = errors.New("margin profile type cannot be empty")
 	errSettingEmpty             = errors.New("setting cannot be empty")
+	errUnknownTransferType      = errors.New("unknown transfer type")
 
 	allowedGranularities = []string{granOneMin, granFiveMin, granFifteenMin, granThirtyMin, granOneHour, granTwoHour, granSixHour, granOneDay}
 	closedStatuses       = []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
@@ -425,7 +426,7 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*Suc
 	if ord.BaseAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(ord.OrderType, ord.TimeInForce, ord.StopDirection, ord.BaseAmount, ord.QuoteAmount, ord.LimitPrice, ord.StopPrice, ord.BucketSize, ord.EndTime, ord.PostOnly, ord.BucketNumber, ord.BucketDuration)
+	orderConfig, err := createOrderConfig(ord.OrderType, ord.TimeInForce, ord.StopDirection, ord.BaseAmount, ord.QuoteAmount, ord.LimitPrice, ord.StopPrice, ord.BucketSize, ord.EndTime, ord.PostOnly, ord.RFQDisabled, ord.BucketNumber, ord.BucketDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -589,7 +590,7 @@ func (c *CoinbasePro) PreviewOrder(ctx context.Context, inf *PreviewOrderInfo) (
 	if inf.BaseAmount <= 0 && inf.QuoteAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(inf.OrderType, inf.TimeInForce, inf.StopDirection, inf.BaseAmount, inf.QuoteAmount, inf.LimitPrice, inf.StopPrice, inf.BucketSize, inf.EndTime, inf.PostOnly, inf.BucketNumber, inf.BucketDuration)
+	orderConfig, err := createOrderConfig(inf.OrderType, inf.TimeInForce, inf.StopDirection, inf.BaseAmount, inf.QuoteAmount, inf.LimitPrice, inf.StopPrice, inf.BucketSize, inf.EndTime, inf.PostOnly, inf.RFQDisabled, inf.BucketNumber, inf.BucketDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -1017,43 +1018,6 @@ func (c *CoinbasePro) GetAddressByID(ctx context.Context, walletID, addressID st
 	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
 }
 
-// GetCurrentUser returns information about the user associated with the API key
-func (c *CoinbasePro) GetCurrentUser(ctx context.Context) (*UserResponse, error) {
-	resp := struct {
-		Data UserResponse `json:"data"`
-	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseUser, nil, nil, false, &resp)
-}
-
-// GetAllWallets lists all accounts associated with the API key
-func (c *CoinbasePro) GetAllWallets(ctx context.Context, pag PaginationInp) (*GetAllWalletsResponse, error) {
-	var resp *GetAllWalletsResponse
-	var params Params
-	params.Values = url.Values{}
-	if err := params.encodePagination(pag); err != nil {
-		return nil, err
-	}
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseAccounts, params.Values, nil, false, &resp)
-}
-
-// GetWalletByID returns information about a single wallet. In lieu of a wallet ID, a currency can be provided to get the primary account for that currency
-func (c *CoinbasePro) GetWalletByID(ctx context.Context, walletID, currency string) (*WalletData, error) {
-	if (walletID == "" && currency == "") || (walletID != "" && currency != "") {
-		return nil, errCurrWalletConflict
-	}
-	var path string
-	if walletID != "" {
-		path = coinbaseV2 + coinbaseAccounts + "/" + walletID
-	}
-	if currency != "" {
-		path = coinbaseV2 + coinbaseAccounts + "/" + currency
-	}
-	resp := struct {
-		Data WalletData `json:"data"`
-	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
-}
-
 // GetAddressTransactions returns a list of transactions associated with the specified address
 func (c *CoinbasePro) GetAddressTransactions(ctx context.Context, walletID, addressID string, pag PaginationInp) (*ManyTransactionsResp, error) {
 	if walletID == "" {
@@ -1070,36 +1034,6 @@ func (c *CoinbasePro) GetAddressTransactions(ctx context.Context, walletID, addr
 	}
 	var resp *ManyTransactionsResp
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
-}
-
-// GetAllTransactions returns a list of transactions associated with the specified wallet
-func (c *CoinbasePro) GetAllTransactions(ctx context.Context, walletID string, pag PaginationInp) (*ManyTransactionsResp, error) {
-	if walletID == "" {
-		return nil, errWalletIDEmpty
-	}
-	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseTransactions
-	var params Params
-	params.Values = url.Values{}
-	if err := params.encodePagination(pag); err != nil {
-		return nil, err
-	}
-	var resp *ManyTransactionsResp
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
-}
-
-// GetTransactionByID returns information on a single transaction associated with the specified wallet
-func (c *CoinbasePro) GetTransactionByID(ctx context.Context, walletID, transactionID string) (*TransactionData, error) {
-	if walletID == "" {
-		return nil, errWalletIDEmpty
-	}
-	if transactionID == "" {
-		return nil, errTransactionIDEmpty
-	}
-	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseTransactions + "/" + transactionID
-	resp := struct {
-		Data TransactionData `json:"data"`
-	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
 }
 
 // FiatTransfer prepares and optionally processes a transfer of funds between the exchange and a fiat payment method. "Deposit" signifies funds going from exchange to bank, "withdraw" signifies funds going from bank to exchange
@@ -1130,7 +1064,7 @@ func (c *CoinbasePro) FiatTransfer(ctx context.Context, walletID, cur, paymentMe
 		"commit":         commit,
 	}
 	resp := struct {
-		Data DeposWithdrData `json:"data"`
+		Data DeposWithdrData `json:"transfer"`
 	}{}
 	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, false, &resp)
 }
@@ -1178,9 +1112,6 @@ func (c *CoinbasePro) GetAllFiatTransfers(ctx context.Context, walletID string, 
 	if err != nil {
 		return nil, err
 	}
-	for i := range resp.Data {
-		resp.Data[i].TransferType = transferType
-	}
 	return resp, nil
 }
 
@@ -1201,6 +1132,65 @@ func (c *CoinbasePro) GetFiatTransferByID(ctx context.Context, walletID, deposit
 	}
 	resp := struct {
 		Data DeposWithdrData `json:"data"`
+	}{}
+	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
+}
+
+// GetAllWallets lists all accounts associated with the API key
+func (c *CoinbasePro) GetAllWallets(ctx context.Context, pag PaginationInp) (*GetAllWalletsResponse, error) {
+	var resp *GetAllWalletsResponse
+	var params Params
+	params.Values = url.Values{}
+	if err := params.encodePagination(pag); err != nil {
+		return nil, err
+	}
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseAccounts, params.Values, nil, false, &resp)
+}
+
+// GetWalletByID returns information about a single wallet. In lieu of a wallet ID, a currency can be provided to get the primary account for that currency
+func (c *CoinbasePro) GetWalletByID(ctx context.Context, walletID string, currency currency.Code) (*WalletData, error) {
+	if (walletID == "" && currency.IsEmpty()) || (walletID != "" && !currency.IsEmpty()) {
+		return nil, errCurrWalletConflict
+	}
+	var path string
+	if walletID != "" {
+		path = coinbaseV2 + coinbaseAccounts + "/" + walletID
+	}
+	if !currency.IsEmpty() {
+		path = coinbaseV2 + coinbaseAccounts + "/" + currency.String()
+	}
+	resp := struct {
+		Data WalletData `json:"data"`
+	}{}
+	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
+}
+
+// GetAllTransactions returns a list of transactions associated with the specified wallet
+func (c *CoinbasePro) GetAllTransactions(ctx context.Context, walletID string, pag PaginationInp) (*ManyTransactionsResp, error) {
+	if walletID == "" {
+		return nil, errWalletIDEmpty
+	}
+	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseTransactions
+	var params Params
+	params.Values = url.Values{}
+	if err := params.encodePagination(pag); err != nil {
+		return nil, err
+	}
+	var resp *ManyTransactionsResp
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
+}
+
+// GetTransactionByID returns information on a single transaction associated with the specified wallet
+func (c *CoinbasePro) GetTransactionByID(ctx context.Context, walletID, transactionID string) (*TransactionData, error) {
+	if walletID == "" {
+		return nil, errWalletIDEmpty
+	}
+	if transactionID == "" {
+		return nil, errTransactionIDEmpty
+	}
+	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseTransactions + "/" + transactionID
+	resp := struct {
+		Data TransactionData `json:"data"`
 	}{}
 	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
 }
@@ -1253,6 +1243,14 @@ func (c *CoinbasePro) GetV2Time(ctx context.Context) (*ServerTimeV2, error) {
 		Data ServerTimeV2 `json:"data"`
 	}{}
 	return &resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseTime, nil, &resp)
+}
+
+// GetCurrentUser returns information about the user associated with the API key
+func (c *CoinbasePro) GetCurrentUser(ctx context.Context) (*UserResponse, error) {
+	resp := struct {
+		Data UserResponse `json:"data"`
+	}{}
+	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseUser, nil, nil, false, &resp)
 }
 
 // GetAllCurrencies returns a list of all currencies that Coinbase knows about. These aren't necessarily tradable
@@ -1650,24 +1648,24 @@ func (p *Params) encodePagination(pag PaginationInp) error {
 }
 
 // createOrderConfig populates the OrderConfiguration struct
-func createOrderConfig(orderType order.Type, timeInForce order.TimeInForce, stopDirection string, baseAmount, quoteAmount, limitPrice, stopPrice, bucketSize float64, endTime time.Time, postOnly bool, bucketNumber int64, bucketDuration time.Duration) (OrderConfiguration, error) {
+func createOrderConfig(orderType order.Type, timeInForce order.TimeInForce, stopDirection string, baseAmount, quoteAmount, limitPrice, stopPrice, bucketSize float64, endTime time.Time, postOnly, rfqDisabled bool, bucketNumber int64, bucketDuration time.Duration) (OrderConfiguration, error) {
 	var orderConfig OrderConfiguration
 	switch orderType {
 	case order.Market:
 		if baseAmount != 0 {
-			orderConfig.MarketMarketIOC = &MarketMarketIOC{BaseSize: types.Number(baseAmount)}
+			orderConfig.MarketMarketIOC = &MarketMarketIOC{BaseSize: types.Number(baseAmount), RFQDisabled: rfqDisabled}
 		}
 		if quoteAmount != 0 {
-			orderConfig.MarketMarketIOC = &MarketMarketIOC{QuoteSize: types.Number(quoteAmount)}
+			orderConfig.MarketMarketIOC = &MarketMarketIOC{QuoteSize: types.Number(quoteAmount), RFQDisabled: rfqDisabled}
 		}
 	case order.Limit:
 		switch {
 		case timeInForce == order.StopOrReduce:
-			orderConfig.SORLimitIOC = &QuoteBaseLimit{BaseSize: types.Number(baseAmount), QuoteSize: types.Number(quoteAmount), LimitPrice: types.Number(limitPrice)}
+			orderConfig.SORLimitIOC = &QuoteBaseLimit{BaseSize: types.Number(baseAmount), QuoteSize: types.Number(quoteAmount), LimitPrice: types.Number(limitPrice), RFQDisabled: rfqDisabled}
 		case timeInForce == order.FillOrKill:
-			orderConfig.LimitLimitFOK = &QuoteBaseLimit{BaseSize: types.Number(baseAmount), QuoteSize: types.Number(quoteAmount), LimitPrice: types.Number(limitPrice)}
+			orderConfig.LimitLimitFOK = &QuoteBaseLimit{BaseSize: types.Number(baseAmount), QuoteSize: types.Number(quoteAmount), LimitPrice: types.Number(limitPrice), RFQDisabled: rfqDisabled}
 		case endTime.IsZero():
-			orderConfig.LimitLimitGTC = &LimitLimitGTC{LimitPrice: types.Number(limitPrice), PostOnly: postOnly}
+			orderConfig.LimitLimitGTC = &LimitLimitGTC{LimitPrice: types.Number(limitPrice), PostOnly: postOnly, RFQDisabled: rfqDisabled}
 			if baseAmount != 0 {
 				orderConfig.LimitLimitGTC.BaseSize = types.Number(baseAmount)
 			}
@@ -1678,7 +1676,7 @@ func createOrderConfig(orderType order.Type, timeInForce order.TimeInForce, stop
 			if endTime.Before(time.Now()) {
 				return orderConfig, errEndTimeInPast
 			}
-			orderConfig.LimitLimitGTD = &LimitLimitGTD{LimitPrice: types.Number(limitPrice), PostOnly: postOnly, EndTime: endTime}
+			orderConfig.LimitLimitGTD = &LimitLimitGTD{LimitPrice: types.Number(limitPrice), PostOnly: postOnly, EndTime: endTime, RFQDisabled: rfqDisabled}
 			if baseAmount != 0 {
 				orderConfig.LimitLimitGTD.BaseSize = types.Number(baseAmount)
 			}
@@ -1690,7 +1688,7 @@ func createOrderConfig(orderType order.Type, timeInForce order.TimeInForce, stop
 		if endTime.Before(time.Now()) {
 			return orderConfig, errEndTimeInPast
 		}
-		orderConfig.TWAPLimitGTD = &TWAPLimitGTD{StartTime: time.Now(), EndTime: endTime, LimitPrice: types.Number(limitPrice), NumberBuckets: bucketNumber, BucketSize: types.Number(bucketSize), BucketDuration: bucketDuration}
+		orderConfig.TWAPLimitGTD = &TWAPLimitGTD{StartTime: time.Now(), EndTime: endTime, LimitPrice: types.Number(limitPrice), NumberBuckets: bucketNumber, BucketSize: types.Number(bucketSize), BucketDuration: strconv.FormatFloat(bucketDuration.Seconds(), 'f', -1, 64) + "s"}
 	case order.StopLimit:
 		if endTime.IsZero() {
 			orderConfig.StopLimitStopLimitGTC = &StopLimitStopLimitGTC{LimitPrice: types.Number(limitPrice), StopPrice: types.Number(stopPrice), StopDirection: stopDirection}

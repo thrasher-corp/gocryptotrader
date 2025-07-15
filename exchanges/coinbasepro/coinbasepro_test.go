@@ -246,7 +246,7 @@ func TestGetFuturesPositionByID(t *testing.T) {
 	_, err := c.GetFuturesPositionByID(t.Context(), currency.Pair{})
 	assert.ErrorIs(t, err, errProductIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err = c.GetFuturesPositionByID(t.Context(), currency.NewPairWithDelimiter("BTC-PERP", "INTX", "-"))
+	_, err = c.GetFuturesPositionByID(t.Context(), currency.NewPairWithDelimiter("SLR-25NOV25", "CDE", "-"))
 	assert.NoError(t, err)
 }
 
@@ -429,7 +429,6 @@ func TestListFills(t *testing.T) {
 
 func TestListOrders(t *testing.T) {
 	t.Parallel()
-	// Test is currently barebones due to being in the middle of refactoring in line with recent API updates
 	_, err := c.ListOrders(t.Context(), nil, nil, nil, nil, nil, nil, "", "", "", "", "", "", 0, 0, time.Unix(2, 2), time.Unix(1, 1), currency.Code{})
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
@@ -762,7 +761,7 @@ func TestCreateAddress(t *testing.T) {
 	_, err := c.CreateAddress(t.Context(), "", "")
 	assert.ErrorIs(t, err, errWalletIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	wID, err := c.GetWalletByID(t.Context(), "", testCrypto.String())
+	wID, err := c.GetWalletByID(t.Context(), "", testCrypto)
 	require.NoError(t, err)
 	require.NotEmpty(t, wID, errExpectedNonEmpty)
 	resp, err := c.CreateAddress(t.Context(), wID.ID, "")
@@ -776,7 +775,7 @@ func TestGetAllAddresses(t *testing.T) {
 	_, err := c.GetAllAddresses(t.Context(), "", pag)
 	assert.ErrorIs(t, err, errWalletIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	wID, err := c.GetWalletByID(t.Context(), "", testCrypto.String())
+	wID, err := c.GetWalletByID(t.Context(), "", testCrypto)
 	require.NoError(t, err)
 	require.NotEmpty(t, wID, errExpectedNonEmpty)
 	resp, err := c.GetAllAddresses(t.Context(), wID.ID, pag)
@@ -791,49 +790,13 @@ func TestGetAddressByID(t *testing.T) {
 	_, err = c.GetAddressByID(t.Context(), "123", "")
 	assert.ErrorIs(t, err, errAddressIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	wID, err := c.GetWalletByID(t.Context(), "", testCrypto.String())
+	wID, err := c.GetWalletByID(t.Context(), "", testCrypto)
 	require.NoError(t, err)
 	require.NotEmpty(t, wID, errExpectedNonEmpty)
 	addID, err := c.GetAllAddresses(t.Context(), wID.ID, PaginationInp{})
 	require.NoError(t, err)
 	require.NotEmpty(t, addID, errExpectedNonEmpty)
 	resp, err := c.GetAddressByID(t.Context(), wID.ID, addID.Data[0].ID)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestGetCurrentUser(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	// This intermittently fails with the message "Unauthorized", for no clear reason
-	testGetNoArgs(t, c.GetCurrentUser)
-}
-
-func TestGetAllWallets(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	pagIn := PaginationInp{Limit: 2}
-	resp, err := c.GetAllWallets(t.Context(), pagIn)
-	assert.NoError(t, err)
-	require.NotEmpty(t, resp, errExpectedNonEmpty)
-	if resp.Pagination.NextStartingAfter == "" {
-		t.Skip(skipInsufficientWallets)
-	}
-	pagIn.StartingAfter = resp.Pagination.NextStartingAfter
-	resp, err = c.GetAllWallets(t.Context(), pagIn)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestGetWalletByID(t *testing.T) {
-	t.Parallel()
-	_, err := c.GetWalletByID(t.Context(), "", "")
-	assert.ErrorIs(t, err, errCurrWalletConflict)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetWalletByID(t.Context(), "", testCrypto.String())
-	require.NoError(t, err)
-	require.NotEmpty(t, resp, errExpectedNonEmpty)
-	resp, err = c.GetWalletByID(t.Context(), resp.ID, "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -845,7 +808,7 @@ func TestGetAddressTransactions(t *testing.T) {
 	_, err = c.GetAddressTransactions(t.Context(), "123", "", PaginationInp{})
 	assert.ErrorIs(t, err, errAddressIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	wID, err := c.GetWalletByID(t.Context(), "", testCrypto.String())
+	wID, err := c.GetWalletByID(t.Context(), "", testCrypto)
 	require.NoError(t, err)
 	require.NotEmpty(t, wID, errExpectedNonEmpty)
 	addID, err := c.GetAllAddresses(t.Context(), wID.ID, PaginationInp{})
@@ -853,39 +816,6 @@ func TestGetAddressTransactions(t *testing.T) {
 	require.NotEmpty(t, addID, errExpectedNonEmpty)
 	_, err = c.GetAddressTransactions(t.Context(), wID.ID, addID.Data[0].ID, PaginationInp{})
 	assert.NoError(t, err)
-}
-
-func TestGetAllTransactions(t *testing.T) {
-	t.Parallel()
-	var pag PaginationInp
-	_, err := c.GetAllTransactions(t.Context(), "", pag)
-	assert.ErrorIs(t, err, errWalletIDEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	wID, err := c.GetWalletByID(t.Context(), "", testCrypto.String())
-	require.NoError(t, err)
-	require.NotEmpty(t, wID, errExpectedNonEmpty)
-	_, err = c.GetAllTransactions(t.Context(), wID.ID, pag)
-	assert.NoError(t, err)
-}
-
-func TestGetTransactionByID(t *testing.T) {
-	t.Parallel()
-	_, err := c.GetTransactionByID(t.Context(), "", "")
-	assert.ErrorIs(t, err, errWalletIDEmpty)
-	_, err = c.GetTransactionByID(t.Context(), "123", "")
-	assert.ErrorIs(t, err, errTransactionIDEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	wID, err := c.GetWalletByID(t.Context(), "", testCrypto.String())
-	require.NoError(t, err)
-	require.NotEmpty(t, wID, errExpectedNonEmpty)
-	tID, err := c.GetAllTransactions(t.Context(), wID.ID, PaginationInp{})
-	assert.NoError(t, err)
-	if tID == nil || len(tID.Data) == 0 {
-		t.Skip(skipInsufficientTransactions)
-	}
-	resp, err := c.GetTransactionByID(t.Context(), wID.ID, tID.Data[0].ID)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestFiatTransfer(t *testing.T) {
@@ -942,11 +872,10 @@ func TestGetAllFiatTransfers(t *testing.T) {
 	_, err := c.GetAllFiatTransfers(t.Context(), "", pag, FiatDeposit)
 	assert.ErrorIs(t, err, errWalletIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	wID, err := c.GetWalletByID(t.Context(), "", "AUD")
+	wID, err := c.GetWalletByID(t.Context(), "", currency.AUD)
 	require.NoError(t, err)
 	assert.NotEmpty(t, wID, errExpectedNonEmpty)
-	// Fiat deposits/withdrawals aren't accepted for fiat currencies for Australian business accounts; the error
-	// "id not found" possibly reflects this
+	// Fiat deposits/withdrawals aren't accepted for fiat currencies for Australian business accounts; the error "id not found" possibly reflects this
 	_, err = c.GetAllFiatTransfers(t.Context(), wID.ID, pag, FiatDeposit)
 	assert.NoError(t, err)
 	_, err = c.GetAllFiatTransfers(t.Context(), wID.ID, pag, FiatWithdrawal)
@@ -960,11 +889,10 @@ func TestGetFiatTransferByID(t *testing.T) {
 	_, err = c.GetFiatTransferByID(t.Context(), "123", "", FiatDeposit)
 	assert.ErrorIs(t, err, errDepositIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	wID, err := c.GetWalletByID(t.Context(), "", "AUD")
+	wID, err := c.GetWalletByID(t.Context(), "", currency.AUD)
 	require.NoError(t, err)
 	assert.NotEmpty(t, wID, errExpectedNonEmpty)
-	// Fiat deposits/withdrawals aren't accepted for fiat currencies for Australian business accounts; the error
-	// "id not found" possibly reflects this
+	// Fiat deposits/withdrawals aren't accepted for fiat currencies for Australian business accounts; the error "id not found" possibly reflects this
 	dID, err := c.GetAllFiatTransfers(t.Context(), wID.ID, PaginationInp{}, FiatDeposit)
 	assert.NoError(t, err)
 	if dID == nil || len(dID.Data) == 0 {
@@ -975,6 +903,68 @@ func TestGetFiatTransferByID(t *testing.T) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
 	resp, err = c.GetFiatTransferByID(t.Context(), wID.ID, dID.Data[0].ID, FiatWithdrawal)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetAllWallets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	pagIn := PaginationInp{Limit: 2}
+	resp, err := c.GetAllWallets(t.Context(), pagIn)
+	assert.NoError(t, err)
+	require.NotEmpty(t, resp, errExpectedNonEmpty)
+	if resp.Pagination.NextStartingAfter == "" {
+		t.Skip(skipInsufficientWallets)
+	}
+	pagIn.StartingAfter = resp.Pagination.NextStartingAfter
+	resp, err = c.GetAllWallets(t.Context(), pagIn)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetWalletByID(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetWalletByID(t.Context(), "", currency.Code{})
+	assert.ErrorIs(t, err, errCurrWalletConflict)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err := c.GetWalletByID(t.Context(), "", testCrypto)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp, errExpectedNonEmpty)
+	resp, err = c.GetWalletByID(t.Context(), resp.ID, currency.Code{})
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetAllTransactions(t *testing.T) {
+	t.Parallel()
+	var pag PaginationInp
+	_, err := c.GetAllTransactions(t.Context(), "", pag)
+	assert.ErrorIs(t, err, errWalletIDEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	wID, err := c.GetWalletByID(t.Context(), "", testCrypto)
+	require.NoError(t, err)
+	require.NotEmpty(t, wID, errExpectedNonEmpty)
+	_, err = c.GetAllTransactions(t.Context(), wID.ID, pag)
+	assert.NoError(t, err)
+}
+
+func TestGetTransactionByID(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetTransactionByID(t.Context(), "", "")
+	assert.ErrorIs(t, err, errWalletIDEmpty)
+	_, err = c.GetTransactionByID(t.Context(), "123", "")
+	assert.ErrorIs(t, err, errTransactionIDEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	wID, err := c.GetWalletByID(t.Context(), "", testCrypto)
+	require.NoError(t, err)
+	require.NotEmpty(t, wID, errExpectedNonEmpty)
+	tID, err := c.GetAllTransactions(t.Context(), wID.ID, PaginationInp{})
+	assert.NoError(t, err)
+	if tID == nil || len(tID.Data) == 0 {
+		t.Skip(skipInsufficientTransactions)
+	}
+	resp, err := c.GetTransactionByID(t.Context(), wID.ID, tID.Data[0].ID)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1008,6 +998,13 @@ func TestGetPrice(t *testing.T) {
 func TestGetV2Time(t *testing.T) {
 	t.Parallel()
 	testGetNoArgs(t, c.GetV2Time)
+}
+
+func TestGetCurrentUser(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	// This intermittently fails with the message "Unauthorized", for no clear reason
+	testGetNoArgs(t, c.GetCurrentUser)
 }
 
 func TestGetAllCurrencies(t *testing.T) {
@@ -1805,35 +1802,35 @@ func TestEncodePagination(t *testing.T) {
 
 func TestCreateOrderConfig(t *testing.T) {
 	t.Parallel()
-	_, err := createOrderConfig(order.UnknownType, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Time{}, false, 0, 0)
+	_, err := createOrderConfig(order.UnknownType, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Time{}, false, false, 0, 0)
 	assert.ErrorIs(t, err, errInvalidOrderType)
-	_, err = createOrderConfig(order.Market, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, 0, 0)
+	_, err = createOrderConfig(order.Market, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Limit, order.StopOrReduce, "", 1, 2, 0, 0, 0, time.Time{}, false, 0, 0)
+	_, err = createOrderConfig(order.Limit, order.StopOrReduce, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Limit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, 0, 0)
+	_, err = createOrderConfig(order.Limit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Limit, order.FillOrKill, "", 1, 2, 0, 0, 0, time.Time{}, false, 0, 0)
+	_, err = createOrderConfig(order.Limit, order.FillOrKill, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Limit, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Unix(1, 1), false, 0, 0)
+	_, err = createOrderConfig(order.Limit, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Unix(1, 1), false, false, 0, 0)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.Limit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, 0, 0)
+	_, err = createOrderConfig(order.Limit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.TWAP, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, 0, 0)
+	_, err = createOrderConfig(order.TWAP, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.TWAP, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, 0, 0)
+	_, err = createOrderConfig(order.TWAP, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.StopLimit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, 0, 0)
+	_, err = createOrderConfig(order.StopLimit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.StopLimit, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Unix(1, 1), false, 0, 0)
+	_, err = createOrderConfig(order.StopLimit, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Unix(1, 1), false, false, 0, 0)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.StopLimit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, 0, 0)
+	_, err = createOrderConfig(order.StopLimit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Bracket, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, 0, 0)
+	_, err = createOrderConfig(order.Bracket, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Bracket, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Unix(1, 1), false, 0, 0)
+	_, err = createOrderConfig(order.Bracket, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Unix(1, 1), false, false, 0, 0)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.Bracket, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, 0, 0)
+	_, err = createOrderConfig(order.Bracket, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, false, 0, 0)
 	assert.NoError(t, err)
 }
 
@@ -1909,16 +1906,27 @@ func TestBase64URLEncode(t *testing.T) {
 
 func TestProcessFundingData(t *testing.T) {
 	t.Parallel()
-	resp := c.processFundingData([]DeposWithdrData{
-		{},
-	}, []TransactionData{
+	accHistory := []DeposWithdrData{
+		{
+			Type: "unknown",
+		},
+		{
+			Type: "TRANSFER_TYPE_WITHDRAWAL",
+		},
+	}
+	cryptoHistory := []TransactionData{
 		{
 			Type: "receive",
 		},
 		{
 			Type: "send",
 		},
-	})
+	}
+	_, err := c.processFundingData(accHistory, cryptoHistory)
+	assert.ErrorIs(t, err, errUnknownTransferType)
+	accHistory[0].Type = "TRANSFER_TYPE_DEPOSIT"
+	resp, err := c.processFundingData(accHistory, cryptoHistory)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
 

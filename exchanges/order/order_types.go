@@ -103,6 +103,9 @@ type Submit struct {
 	// See: https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
 	TrackingMode  TrackingMode
 	TrackingValue float64
+
+	// RFQDisabled, when set, attempts to route the order to the exchange CLOB. Currently only supported by Coinbase
+	RFQDisabled bool
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
