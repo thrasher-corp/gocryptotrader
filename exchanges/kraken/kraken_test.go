@@ -409,7 +409,6 @@ func TestGetBalance(t *testing.T) {
 	assert.NoError(t, err, "GetBalance should not error")
 }
 
-// TestGetTradeBalance API endpoint test
 func TestGetDepositMethods(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
@@ -716,7 +715,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 }
 
-// TestCancelExchangeOrder wrapper test
 func TestCancelBatchExchangeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
