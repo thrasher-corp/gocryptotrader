@@ -63,6 +63,20 @@ func TestNewExchangeAndSaveConfig(t *testing.T) {
 		}
 	})
 
+	_, err := makeExchange(
+		testExchangeDir,
+		cfg,
+		&exchange{
+			Name: testExchangeName,
+			REST: true,
+			WS:   true,
+		},
+	)
+	assert.NoError(t, err)
+
+	err = os.RemoveAll(testExchangeDir)
+	require.NoErrorf(t, err, "RemoveAll failed: %s, manual deletion of test directory required", err)
+
 	exchCfg, err := makeExchange(
 		testExchangeDir,
 		cfg,
