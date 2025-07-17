@@ -58,8 +58,8 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (me *Exchange) WsConnect() error {
-	if !me.Websocket.IsEnabled() || !me.IsEnabled() {
+func (e *Exchange) WsConnect() error {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	dialer := gws.Dialer{
@@ -67,24 +67,24 @@ func (me *Exchange) WsConnect() error {
 		ReadBufferSize:    8192,
 		WriteBufferSize:   8192,
 	}
-	if me.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err := me.GenerateListenKey(context.Background())
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		listenKey, err := e.GenerateListenKey(context.Background())
 		if err != nil {
 			return err
 		}
-		me.Websocket.Conn.SetURL(me.Websocket.Conn.GetURL() + "?listenKey=" + listenKey)
+		e.Websocket.Conn.SetURL(e.Websocket.Conn.GetURL() + "?listenKey=" + listenKey)
 	}
-	err := me.Websocket.Conn.Dial(context.Background(), &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(context.Background(), &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	me.Websocket.Wg.Add(1)
-	go me.wsReadData(me.Websocket.Conn)
-	if me.Verbose {
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(e.Websocket.Conn)
+	if e.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
-			me.Websocket.GetWebsocketURL())
+			e.Websocket.GetWebsocketURL())
 	}
-	me.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     []byte(`{"method": "PING"}`),
 		Delay:       time.Second * 20,
@@ -93,26 +93,26 @@ func (me *Exchange) WsConnect() error {
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
-func (me *Exchange) wsReadData(ws websocket.Connection) {
-	defer me.Websocket.Wg.Done()
+func (e *Exchange) wsReadData(ws websocket.Connection) {
+	defer e.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if len(resp.Raw) == 0 {
 			return
 		}
-		if err := me.WsHandleData(resp.Raw); err != nil {
-			me.Websocket.DataHandler <- err
+		if err := e.WsHandleData(resp.Raw); err != nil {
+			e.Websocket.DataHandler <- err
 		}
 	}
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (me *Exchange) generateSubscriptions() (subscription.List, error) {
-	enabledPairs, err := me.GetEnabledPairs(asset.Spot)
+func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	formatter, err := me.GetPairFormat(asset.Spot, true)
+	formatter, err := e.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
 	}
@@ -142,13 +142,13 @@ func (me *Exchange) generateSubscriptions() (subscription.List, error) {
 }
 
 // Subscribe subscribes to a channel
-func (me *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
-	return me.handleSubscription("SUBSCRIPTION", channelsToSubscribe)
+func (e *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
+	return e.handleSubscription("SUBSCRIPTION", channelsToSubscribe)
 }
 
 // Unsubscribe unsubscribes to a channel
-func (me *Exchange) Unsubscribe(channelsToSubscribe subscription.List) error {
-	return me.handleSubscription("UNSUBSCRIPTION", channelsToSubscribe)
+func (e *Exchange) Unsubscribe(channelsToSubscribe subscription.List) error {
+	return e.handleSubscription("UNSUBSCRIPTION", channelsToSubscribe)
 }
 
 func assetTypeToString(assetType asset.Item) (string, error) {
@@ -160,7 +160,7 @@ func assetTypeToString(assetType asset.Item) (string, error) {
 	}
 }
 
-func (me *Exchange) handleSubscription(method string, subs subscription.List) error {
+func (e *Exchange) handleSubscription(method string, subs subscription.List) error {
 	payloads := make([]WsSubscriptionPayload, len(subs))
 	successfulSubscriptions := subscription.List{}
 	failedSubscriptions := subscription.List{}
@@ -178,7 +178,7 @@ func (me *Exchange) handleSubscription(method string, subs subscription.List) er
 			if err != nil {
 				return err
 			}
-			payloads[s].ID = me.Websocket.Conn.GenerateMessageID(false)
+			payloads[s].ID = e.Websocket.Conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = make([]string, len(subs[s].Pairs))
 			for p := range subs[s].Pairs {
@@ -188,7 +188,7 @@ func (me *Exchange) handleSubscription(method string, subs subscription.List) er
 					payloads[s].Params[p] = assetTypeString + "@" + subs[s].Channel + "@" + intervalString + "@" + subs[s].Pairs[p].String()
 				}
 			}
-			data, err := me.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
+			data, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
 			if err != nil {
 				return err
 			}
@@ -201,13 +201,13 @@ func (me *Exchange) handleSubscription(method string, subs subscription.List) er
 			}
 			successfulSubscriptions = append(successfulSubscriptions, subs[s])
 		case chnlLimitDepthV3:
-			payloads[s].ID = me.Websocket.Conn.GenerateMessageID(false)
+			payloads[s].ID = e.Websocket.Conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = make([]string, len(subs[s].Pairs))
 			for p := range subs[s].Pairs {
 				payloads[s].Params[p] = assetTypeString + "@" + chnlLimitDepthV3 + "@" + subs[s].Pairs[p].String() + "@" + strconv.Itoa(subs[s].Levels)
 			}
-			data, err := me.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
+			data, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
 			if err != nil {
 				return err
 			}
@@ -217,10 +217,10 @@ func (me *Exchange) handleSubscription(method string, subs subscription.List) er
 				return err
 			}
 		case chnlAccountV3, chnlPrivateDealsV3, chnlPrivateOrdersAPI:
-			payloads[s].ID = me.Websocket.Conn.GenerateMessageID(false)
+			payloads[s].ID = e.Websocket.Conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = []string{assetTypeString + "@" + subs[s].Channel}
-			data, err := me.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
+			data, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
 			if err != nil {
 				return err
 			}
@@ -230,13 +230,13 @@ func (me *Exchange) handleSubscription(method string, subs subscription.List) er
 				return err
 			}
 		case chnlIncreaseDepthBatchV3, chnlBookTickerBatch:
-			payloads[s].ID = me.Websocket.Conn.GenerateMessageID(false)
+			payloads[s].ID = e.Websocket.Conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = make([]string, len(subs[s].Pairs))
 			for p := range subs[s].Pairs {
 				payloads[s].Params[p] = assetTypeString + "@" + subs[s].Channel + "@" + subs[s].Pairs[p].String()
 			}
-			data, err := me.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
+			data, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
 			if err != nil {
 				return err
 			}
@@ -247,19 +247,19 @@ func (me *Exchange) handleSubscription(method string, subs subscription.List) er
 			}
 		}
 	}
-	err := me.Websocket.RemoveSubscriptions(me.Websocket.Conn, failedSubscriptions...)
+	err := e.Websocket.RemoveSubscriptions(e.Websocket.Conn, failedSubscriptions...)
 	if err != nil {
 		return err
 	}
-	return me.Websocket.AddSuccessfulSubscriptions(me.Websocket.Conn, successfulSubscriptions...)
+	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, successfulSubscriptions...)
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (me *Exchange) WsHandleData(respRaw []byte) error {
+func (e *Exchange) WsHandleData(respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "{") {
 		if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
-			if !me.Websocket.Match.IncomingWithData(id, respRaw) {
-				me.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			if !e.Websocket.Match.IncomingWithData(id, respRaw) {
+				e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 					Message: string(respRaw) + websocket.UnhandledMessage,
 				}
 			}
@@ -296,13 +296,13 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
 		if ok := orderbookSnapshotLoadedPairs[dataSplit[2]]; !ok {
-			err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Exchange:    me.Name,
+			err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+				Exchange:    e.Name,
 				Asset:       asset.Spot,
 				Asks:        []orderbook.Level{ask},
 				Bids:        []orderbook.Level{bid},
@@ -317,7 +317,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 			syncOrderbookPairsLock.Unlock()
 			return nil
 		}
-		return me.Websocket.Orderbook.Update(&orderbook.Update{
+		return e.Websocket.Orderbook.Update(&orderbook.Update{
 			Pair:       cp,
 			Asset:      asset.Spot,
 			Asks:       []orderbook.Level{ask},
@@ -333,11 +333,11 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		depths := result.GetPublicAggreDepths()
-		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
-		format, err := me.GetPairFormat(asset.Spot, false)
+		format, err := e.GetPairFormat(asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -365,8 +365,8 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 		}
 
 		if !orderbookSnapshotLoadedPairs[*result.Symbol] {
-			err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Exchange:    me.Name,
+			err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+				Exchange:    e.Name,
 				Asset:       asset.Spot,
 				Asks:        asks,
 				Bids:        bids,
@@ -380,7 +380,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 			orderbookSnapshotLoadedPairs[*result.Symbol] = true
 			syncOrderbookPairsLock.Unlock()
 		}
-		return me.Websocket.Orderbook.Update(&orderbook.Update{
+		return e.Websocket.Orderbook.Update(&orderbook.Update{
 			Asset:      asset.Spot,
 			Asks:       asks,
 			Bids:       bids,
@@ -395,7 +395,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -411,7 +411,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 				return err
 			}
 			tradesDetail[t] = trade.Data{
-				Exchange:     me.Name,
+				Exchange:     e.Name,
 				CurrencyPair: cp,
 				AssetType:    asset.Spot,
 				Price:        price,
@@ -425,7 +425,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 				}(),
 			}
 		}
-		me.Websocket.DataHandler <- tradesDetail
+		e.Websocket.DataHandler <- tradesDetail
 		return nil
 	case chnlKlineV3:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
@@ -436,13 +436,13 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		body := result.GetPublicSpotKline()
-		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
 		klineData := websocket.KlineData{
 			Pair:      cp,
-			Exchange:  me.Name,
+			Exchange:  e.Name,
 			AssetType: asset.Spot,
 			Interval:  body.Interval,
 		}
@@ -471,7 +471,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		me.Websocket.DataHandler <- []websocket.KlineData{klineData}
+		e.Websocket.DataHandler <- []websocket.KlineData{klineData}
 		return nil
 	case chnlIncreaseDepthBatchV3:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
@@ -481,7 +481,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, true)
+		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, true)
 		if err != nil {
 			return err
 		}
@@ -510,8 +510,8 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 				}
 			}
 			if ok := orderbookSnapshotLoadedPairs[dataSplit[2]]; !ok {
-				err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-					Exchange:    me.Name,
+				err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+					Exchange:    e.Name,
 					Pair:        cp,
 					Asks:        asks,
 					Bids:        bids,
@@ -525,7 +525,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 				orderbookSnapshotLoadedPairs[dataSplit[2]] = true
 				syncOrderbookPairsLock.Unlock()
 			}
-			err = me.Websocket.Orderbook.Update(&orderbook.Update{
+			err = e.Websocket.Orderbook.Update(&orderbook.Update{
 				Pair:       cp,
 				Asks:       asks,
 				Bids:       bids,
@@ -544,7 +544,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -571,7 +571,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-		return me.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asset:       asset.Spot,
 			Bids:        bids,
 			Asks:        asks,
@@ -586,7 +586,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, true)
+		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, true)
 		if err != nil {
 			return err
 		}
@@ -595,7 +595,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 		for a := range body.Items {
 			tickersDetail[a] = ticker.Price{
 				Pair:         cp,
-				ExchangeName: me.Name,
+				ExchangeName: e.Name,
 				AssetType:    asset.Spot,
 			}
 			tickersDetail[a].Bid, err = strconv.ParseFloat(body.Items[a].BidPrice, 64)
@@ -615,7 +615,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-		me.Websocket.DataHandler <- tickersDetail
+		e.Websocket.DataHandler <- tickersDetail
 		return nil
 	case chnlAccountV3:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
@@ -634,7 +634,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		me.Websocket.DataHandler <- account.Change{
+		e.Websocket.DataHandler <- account.Change{
 			AssetType: asset.Spot,
 			Balance: &account.Balance{
 				Currency: currency.NewCode(body.VcoinName),
@@ -652,7 +652,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -669,10 +669,10 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		me.Websocket.DataHandler <- []trade.Data{
+		e.Websocket.DataHandler <- []trade.Data{
 			{
 				TID:          body.OrderId,
-				Exchange:     me.Name,
+				Exchange:     e.Name,
 				CurrencyPair: cp,
 				AssetType:    asset.Spot,
 				Price:        price,
@@ -729,11 +729,11 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 		case 5:
 			oStatus = order.PartiallyCancelled
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
-		me.Websocket.DataHandler <- &order.Detail{
+		e.Websocket.DataHandler <- &order.Detail{
 			Price:                body.Price.Float64(),
 			Amount:               body.Amount.Float64(),
 			ContractAmount:       body.Quantity.Float64(),
@@ -741,7 +741,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 			QuoteAmount:          body.Amount.Float64(),
 			ExecutedAmount:       body.CumulativeAmount.Float64() - body.RemainAmount.Float64(),
 			RemainingAmount:      body.RemainAmount.Float64(),
-			Exchange:             me.Name,
+			Exchange:             e.Name,
 			OrderID:              body.Id,
 			ClientID:             body.ClientId,
 			Type:                 oType,
@@ -758,7 +758,7 @@ func (me *Exchange) WsHandleData(respRaw []byte) error {
 			TimeInForce: tif,
 		}
 	default:
-		me.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 			Message: string(respRaw) + websocket.UnhandledMessage,
 		}
 	}

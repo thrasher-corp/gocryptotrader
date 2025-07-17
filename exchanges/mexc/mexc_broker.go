@@ -15,7 +15,7 @@ import (
 )
 
 // GetBrokerUniversalTransferHistory retrieves universal transfer history for broker users
-func (me *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType, fromAccount, toAccount string, startTime, endTime time.Time, page, limit int64) ([]BrokerAssetTransfer, error) {
+func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType, fromAccount, toAccount string, startTime, endTime time.Time, page, limit int64) ([]BrokerAssetTransfer, error) {
 	if fromAccountType == "" {
 		return nil, fmt.Errorf("%w: FronAccountType is required", errAddressRequired)
 	}
@@ -46,17 +46,17 @@ func (me *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromA
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []BrokerAssetTransfer
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/universalTransfer", params, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/universalTransfer", params, &resp, true)
 }
 
 // CreateBrokerSubAccount holds a broker sub-account detail
-func (me *Exchange) CreateBrokerSubAccount(ctx context.Context) (*BrokerSubAccounts, error) {
+func (e *Exchange) CreateBrokerSubAccount(ctx context.Context) (*BrokerSubAccounts, error) {
 	var resp *BrokerSubAccounts
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "broker/sub-account/virtualSubAccount", nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "broker/sub-account/virtualSubAccount", nil, &resp, true)
 }
 
 // GetBrokerAccountSubAccountList represents a list of broker sub-accounts and their details of the broker account
-func (me *Exchange) GetBrokerAccountSubAccountList(ctx context.Context, subAccount string, page, limit int64) (*BrokerSubAccounts, error) {
+func (e *Exchange) GetBrokerAccountSubAccountList(ctx context.Context, subAccount string, page, limit int64) (*BrokerSubAccounts, error) {
 	params := url.Values{}
 	if subAccount != "" {
 		params.Set("subAccount", subAccount)
@@ -68,22 +68,22 @@ func (me *Exchange) GetBrokerAccountSubAccountList(ctx context.Context, subAccou
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *BrokerSubAccounts
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/list", params, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/list", params, &resp, true)
 }
 
 // GetSubAccountStatus retrieves broker sub-account status information
-func (me *Exchange) GetSubAccountStatus(ctx context.Context, subAccount string) (*BrokerSubAccountStatus, error) {
+func (e *Exchange) GetSubAccountStatus(ctx context.Context, subAccount string) (*BrokerSubAccountStatus, error) {
 	if subAccount == "" {
 		return nil, errInvalidSubAccountName
 	}
 	params := url.Values{}
 	params.Set("subAccount", subAccount)
 	var resp *BrokerSubAccountStatus
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/status", params, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/status", params, &resp, true)
 }
 
 // CreateBrokerSubAccountAPIKey creates a new sub-account api-key for the broker account
-func (me *Exchange) CreateBrokerSubAccountAPIKey(ctx context.Context, arg *BrokerSubAccountAPIKeyParams) (*BrokerSubAccountAPIKey, error) {
+func (e *Exchange) CreateBrokerSubAccountAPIKey(ctx context.Context, arg *BrokerSubAccountAPIKeyParams) (*BrokerSubAccountAPIKey, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -97,22 +97,22 @@ func (me *Exchange) CreateBrokerSubAccountAPIKey(ctx context.Context, arg *Broke
 		return nil, errInvalidSubAccountNote
 	}
 	var resp *BrokerSubAccountAPIKey
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "broker/sub-account/apiKey", nil, arg, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "broker/sub-account/apiKey", nil, arg, &resp, true)
 }
 
 // GetBrokerSubAccountAPIKey holds a subaccount API Key information
-func (me *Exchange) GetBrokerSubAccountAPIKey(ctx context.Context, subAccount string) (*BrokerSubAccountAPIKeys, error) {
+func (e *Exchange) GetBrokerSubAccountAPIKey(ctx context.Context, subAccount string) (*BrokerSubAccountAPIKeys, error) {
 	if subAccount == "" {
 		return nil, errInvalidSubAccountName
 	}
 	params := url.Values{}
 	params.Set("subAccount", subAccount)
 	var resp *BrokerSubAccountAPIKeys
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/apiKey", params, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/apiKey", params, nil, &resp, true)
 }
 
 // DeleteBrokerAPIKeySubAccount deletes broker's sub-account API key
-func (me *Exchange) DeleteBrokerAPIKeySubAccount(ctx context.Context, arg *BrokerSubAccountAPIKeyDeletionParams) (interface{}, error) {
+func (e *Exchange) DeleteBrokerAPIKeySubAccount(ctx context.Context, arg *BrokerSubAccountAPIKeyDeletionParams) (interface{}, error) {
 	if arg.SubAccount == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -122,11 +122,11 @@ func (me *Exchange) DeleteBrokerAPIKeySubAccount(ctx context.Context, arg *Broke
 	resp := &struct {
 		SubAccount string `json:"subAccount"`
 	}{}
-	return resp.SubAccount, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodDelete, "broker/sub-account/apiKey", nil, &arg, &resp, true)
+	return resp.SubAccount, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodDelete, "broker/sub-account/apiKey", nil, &arg, &resp, true)
 }
 
 // GenerateBrokerSubAccountDepositAddress creates a new deposit address for a broker sub-account
-func (me *Exchange) GenerateBrokerSubAccountDepositAddress(ctx context.Context, arg *BrokerSubAccountDepositAddressCreationParams) (*BrokerSubAccountDepositAddress, error) {
+func (e *Exchange) GenerateBrokerSubAccountDepositAddress(ctx context.Context, arg *BrokerSubAccountDepositAddressCreationParams) (*BrokerSubAccountDepositAddress, error) {
 	if arg == nil || *arg == (BrokerSubAccountDepositAddressCreationParams{}) {
 		return nil, common.ErrNilPointer
 	}
@@ -137,31 +137,31 @@ func (me *Exchange) GenerateBrokerSubAccountDepositAddress(ctx context.Context, 
 		return nil, errNetworkNameRequired
 	}
 	var resp *BrokerSubAccountDepositAddress
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "broker/capital/deposit/subAddress", nil, &arg, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "broker/capital/deposit/subAddress", nil, &arg, &resp, true)
 }
 
 // GetBrokerSubAccountDepositAddress retrieves a broker sub-account deposit address
-func (me *Exchange) GetBrokerSubAccountDepositAddress(ctx context.Context, coin currency.Code) ([]BrokerSubAccountDepositAddress, error) {
+func (e *Exchange) GetBrokerSubAccountDepositAddress(ctx context.Context, coin currency.Code) ([]BrokerSubAccountDepositAddress, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
 	params.Set("coin", coin.String())
 	var resp []BrokerSubAccountDepositAddress
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/capital/deposit/subAddress", params, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/capital/deposit/subAddress", params, nil, &resp, true)
 }
 
 // GetSubAccountDepositHistory retrieves a broker sub-account deposit history
-func (me *Exchange) GetSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
-	return me.getSubAccountDepositList(ctx, coin, depositStatus, "broker/capital/deposit/subHisrec", startTime, endTime, limit, page)
+func (e *Exchange) GetSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
+	return e.getSubAccountDepositList(ctx, coin, depositStatus, "broker/capital/deposit/subHisrec", startTime, endTime, limit, page)
 }
 
 // GetAllRecentSubAccountDepositHistory retrieves a recent (3-days) broker sub-account deposit history
-func (me *Exchange) GetAllRecentSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
-	return me.getSubAccountDepositList(ctx, coin, depositStatus, "broker/capital/deposit/subHisrec/getall", startTime, endTime, limit, page)
+func (e *Exchange) GetAllRecentSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
+	return e.getSubAccountDepositList(ctx, coin, depositStatus, "broker/capital/deposit/subHisrec/getall", startTime, endTime, limit, page)
 }
 
-func (me *Exchange) getSubAccountDepositList(ctx context.Context, coin currency.Code, depositStatus, path string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
+func (e *Exchange) getSubAccountDepositList(ctx context.Context, coin currency.Code, depositStatus, path string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -183,5 +183,5 @@ func (me *Exchange) getSubAccountDepositList(ctx context.Context, coin currency.
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp []BrokerSubAccountDepositDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, path, params, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, path, params, nil, &resp, true)
 }
