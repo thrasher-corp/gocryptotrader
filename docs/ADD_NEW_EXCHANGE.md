@@ -146,6 +146,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Deribit | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | CoinbasePro | Yes | Yes | No|
+| CoinbaseInternational | Yes | Yes | No |
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
@@ -169,6 +170,7 @@ var Exchanges = []string{
 	"bitstamp",
 	"btc markets",
 	"btse",
+	"coinbaseinternational",
 	"bybit",
 	"coinbasepro",
 	"coinut",
