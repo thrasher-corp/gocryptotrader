@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -66,12 +67,12 @@ var defaultOptionsSubscriptions = []string{
 }
 
 // WsOptionsConnect initiates a websocket connection to options websocket endpoints.
-func (g *Gateio) WsOptionsConnect(ctx context.Context, conn websocket.Connection) error {
-	err := g.CurrencyPairs.IsAssetEnabled(asset.Options)
+func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connection) error {
+	err := e.CurrencyPairs.IsAssetEnabled(asset.Options)
 	if err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &gws.Dialer{}, http.Header{})
+	err = conn.Dial(ctx, &gws.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -94,17 +95,18 @@ func (g *Gateio) WsOptionsConnect(ctx context.Context, conn websocket.Connection
 
 // GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
 // TODO: Update to use the new subscription template system
-func (g *Gateio) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
+	ctx := context.TODO()
 	channelsToSubscribe := defaultOptionsSubscriptions
 	var userID int64
-	if g.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
-		_, err = g.GetCredentials(context.TODO())
+		_, err = e.GetCredentials(ctx)
 		if err != nil {
-			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			goto getEnabledPairs
 		}
-		response, err := g.GetSubAccountBalances(context.Background(), "")
+		response, err := e.GetSubAccountBalances(ctx, "")
 		if err != nil {
 			return nil, err
 		}
@@ -114,14 +116,14 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() (subscription.List, error
 				optionsBalancesChannel,
 			)
 			userID = response[0].UserID
-		} else if g.Verbose {
+		} else if e.Verbose {
 			log.Errorf(log.ExchangeSys, "no subaccount found for authenticated options channel subscriptions")
 		}
 	}
 
 getEnabledPairs:
 
-	pairs, err := g.GetEnabledPairs(asset.Options)
+	pairs, err := e.GetEnabledPairs(asset.Options)
 	if err != nil {
 		if errors.Is(err, asset.ErrNotEnabled) {
 			return nil, nil // no enabled pairs, subscriptions require an associated pair.
@@ -154,7 +156,7 @@ getEnabledPairs:
 				}
 				params["user_id"] = userID
 			}
-			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.Options)
+			fPair, err := e.FormatExchangeCurrency(pairs[j], asset.Options)
 			if err != nil {
 				return nil, err
 			}
@@ -169,7 +171,7 @@ getEnabledPairs:
 	return subscriptions, nil
 }
 
-func (g *Gateio) generateOptionsPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateOptionsPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -189,7 +191,7 @@ func (g *Gateio) generateOptionsPayload(ctx context.Context, conn websocket.Conn
 			optionsUnderlyingPriceChannel,
 			optionsUnderlyingCandlesticksChannel:
 			var uly currency.Pair
-			uly, err = g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Pairs[0])
+			uly, err = e.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Pairs[0])
 			if err != nil {
 				return nil, err
 			}
@@ -228,12 +230,12 @@ func (g *Gateio) generateOptionsPayload(ctx context.Context, conn websocket.Conn
 			}
 			params = append([]string{strconv.FormatInt(userID, 10)}, params...)
 			var creds *account.Credentials
-			creds, err = g.GetCredentials(ctx)
+			creds, err = e.GetCredentials(ctx)
 			if err != nil {
 				return nil, err
 			}
 			var sigTemp string
-			sigTemp, err = g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
+			sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
 			if err != nil {
 				return nil, err
 			}
@@ -283,110 +285,110 @@ func (g *Gateio) generateOptionsPayload(ctx context.Context, conn websocket.Conn
 }
 
 // OptionsSubscribe sends a websocket message to stop receiving data for asset type options
-func (g *Gateio) OptionsSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, g.generateOptionsPayload)
+func (e *Exchange) OptionsSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+	return e.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, e.generateOptionsPayload)
 }
 
 // OptionsUnsubscribe sends a websocket message to stop receiving data for asset type options
-func (g *Gateio) OptionsUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generateOptionsPayload)
+func (e *Exchange) OptionsUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+	return e.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, e.generateOptionsPayload)
 }
 
 // WsHandleOptionsData handles options websocket data
-func (g *Gateio) WsHandleOptionsData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) WsHandleOptionsData(ctx context.Context, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		return g.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
+		return e.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel {
 	case optionsContractTickersChannel:
-		return g.processOptionsContractTickers(push.Result)
+		return e.processOptionsContractTickers(push.Result)
 	case optionsUnderlyingTickersChannel:
-		return g.processOptionsUnderlyingTicker(push.Result)
+		return e.processOptionsUnderlyingTicker(push.Result)
 	case optionsTradesChannel,
 		optionsUnderlyingTradesChannel:
-		return g.processOptionsTradesPushData(respRaw)
+		return e.processOptionsTradesPushData(respRaw)
 	case optionsUnderlyingPriceChannel:
-		return g.processOptionsUnderlyingPricePushData(push.Result)
+		return e.processOptionsUnderlyingPricePushData(push.Result)
 	case optionsMarkPriceChannel:
-		return g.processOptionsMarkPrice(push.Result)
+		return e.processOptionsMarkPrice(push.Result)
 	case optionsSettlementChannel:
-		return g.processOptionsSettlementPushData(push.Result)
+		return e.processOptionsSettlementPushData(push.Result)
 	case optionsContractsChannel:
-		return g.processOptionsContractPushData(push.Result)
+		return e.processOptionsContractPushData(push.Result)
 	case optionsContractCandlesticksChannel,
 		optionsUnderlyingCandlesticksChannel:
-		return g.processOptionsCandlestickPushData(respRaw)
+		return e.processOptionsCandlestickPushData(respRaw)
 	case optionsOrderbookChannel:
-		return g.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time)
+		return e.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time)
 	case optionsOrderbookTickerChannel:
-		return g.processOrderbookTickerPushData(respRaw)
+		return e.processOrderbookTickerPushData(respRaw)
 	case optionsOrderbookUpdateChannel:
-		return g.processOptionsOrderbookUpdate(ctx, push.Result, asset.Options, push.Time)
+		return e.processOptionsOrderbookUpdate(ctx, push.Result, asset.Options, push.Time)
 	case optionsOrdersChannel:
-		return g.processOptionsOrderPushData(respRaw)
+		return e.processOptionsOrderPushData(respRaw)
 	case optionsUserTradesChannel:
-		return g.processOptionsUserTradesPushData(respRaw)
+		return e.processOptionsUserTradesPushData(respRaw)
 	case optionsLiquidatesChannel:
-		return g.processOptionsLiquidatesPushData(respRaw)
+		return e.processOptionsLiquidatesPushData(respRaw)
 	case optionsUserSettlementChannel:
-		return g.processOptionsUsersPersonalSettlementsPushData(respRaw)
+		return e.processOptionsUsersPersonalSettlementsPushData(respRaw)
 	case optionsPositionCloseChannel:
-		return g.processPositionCloseData(respRaw)
+		return e.processPositionCloseData(respRaw)
 	case optionsBalancesChannel:
-		return g.processBalancePushData(ctx, respRaw, asset.Options)
+		return e.processBalancePushData(ctx, respRaw, asset.Options)
 	case optionsPositionsChannel:
-		return g.processOptionsPositionPushData(respRaw)
+		return e.processOptionsPositionPushData(respRaw)
 	default:
-		g.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
-			Message: g.Name + websocket.UnhandledMessage + string(respRaw),
+		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
 		}
 		return errors.New(websocket.UnhandledMessage)
 	}
 }
 
-func (g *Gateio) processOptionsContractTickers(incoming []byte) error {
+func (e *Exchange) processOptionsContractTickers(incoming []byte) error {
 	var data OptionsTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &ticker.Price{
+	e.Websocket.DataHandler <- &ticker.Price{
 		Pair:         data.Name,
 		Last:         data.LastPrice.Float64(),
 		Bid:          data.Bid1Price.Float64(),
 		Ask:          data.Ask1Price.Float64(),
 		AskSize:      data.Ask1Size,
 		BidSize:      data.Bid1Size,
-		ExchangeName: g.Name,
+		ExchangeName: e.Name,
 		AssetType:    asset.Options,
 	}
 	return nil
 }
 
-func (g *Gateio) processOptionsUnderlyingTicker(incoming []byte) error {
+func (e *Exchange) processOptionsUnderlyingTicker(incoming []byte) error {
 	var data WsOptionUnderlyingTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &data
+	e.Websocket.DataHandler <- &data
 	return nil
 }
 
-func (g *Gateio) processOptionsTradesPushData(data []byte) error {
-	saveTradeData := g.IsSaveTradeDataEnabled()
+func (e *Exchange) processOptionsTradesPushData(data []byte) error {
+	saveTradeData := e.IsSaveTradeDataEnabled()
 	if !saveTradeData &&
-		!g.IsTradeFeedEnabled() {
+		!e.IsTradeFeedEnabled() {
 		return nil
 	}
 	resp := struct {
-		Time    int64             `json:"time"`
+		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsOptionsTrades `json:"result"`
@@ -401,58 +403,58 @@ func (g *Gateio) processOptionsTradesPushData(data []byte) error {
 			Timestamp:    resp.Result[x].CreateTime.Time(),
 			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    asset.Options,
-			Exchange:     g.Name,
+			Exchange:     e.Name,
 			Price:        resp.Result[x].Price,
 			Amount:       resp.Result[x].Size,
 			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
 		}
 	}
-	return g.Websocket.Trade.Update(saveTradeData, trades...)
+	return e.Websocket.Trade.Update(saveTradeData, trades...)
 }
 
-func (g *Gateio) processOptionsUnderlyingPricePushData(incoming []byte) error {
+func (e *Exchange) processOptionsUnderlyingPricePushData(incoming []byte) error {
 	var data WsOptionsUnderlyingPrice
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &data
+	e.Websocket.DataHandler <- &data
 	return nil
 }
 
-func (g *Gateio) processOptionsMarkPrice(incoming []byte) error {
+func (e *Exchange) processOptionsMarkPrice(incoming []byte) error {
 	var data WsOptionsMarkPrice
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &data
+	e.Websocket.DataHandler <- &data
 	return nil
 }
 
-func (g *Gateio) processOptionsSettlementPushData(incoming []byte) error {
+func (e *Exchange) processOptionsSettlementPushData(incoming []byte) error {
 	var data WsOptionsSettlement
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &data
+	e.Websocket.DataHandler <- &data
 	return nil
 }
 
-func (g *Gateio) processOptionsContractPushData(incoming []byte) error {
+func (e *Exchange) processOptionsContractPushData(incoming []byte) error {
 	var data WsOptionsContract
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &data
+	e.Websocket.DataHandler <- &data
 	return nil
 }
 
-func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
+func (e *Exchange) processOptionsCandlestickPushData(data []byte) error {
 	resp := struct {
-		Time    int64                          `json:"time"`
+		Time    types.Time                     `json:"time"`
 		Channel string                         `json:"channel"`
 		Event   string                         `json:"event"`
 		Result  []WsOptionsContractCandlestick `json:"result"`
@@ -474,7 +476,7 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 		klineDatas[x] = websocket.KlineData{
 			Pair:       currencyPair,
 			AssetType:  asset.Options,
-			Exchange:   g.Name,
+			Exchange:   e.Name,
 			StartTime:  resp.Result[x].Timestamp.Time(),
 			Interval:   icp[0],
 			OpenPrice:  resp.Result[x].OpenPrice.Float64(),
@@ -484,21 +486,21 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 			Volume:     resp.Result[x].Amount.Float64(),
 		}
 	}
-	g.Websocket.DataHandler <- klineDatas
+	e.Websocket.DataHandler <- klineDatas
 	return nil
 }
 
-func (g *Gateio) processOrderbookTickerPushData(incoming []byte) error {
+func (e *Exchange) processOrderbookTickerPushData(incoming []byte) error {
 	var data WsOptionsOrderbookTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &data
+	e.Websocket.DataHandler <- &data
 	return nil
 }
 
-func (g *Gateio) processOptionsOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
+func (e *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
 	var data WsFuturesAndOptionsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -513,7 +515,7 @@ func (g *Gateio) processOptionsOrderbookUpdate(ctx context.Context, incoming []b
 		bids[x].Price = data.Bids[x].Price.Float64()
 		bids[x].Amount = data.Bids[x].Size
 	}
-	return g.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, g, data.FirstUpdatedID, &orderbook.Update{
+	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, e, data.FirstUpdatedID, &orderbook.Update{
 		UpdateID:   data.LastUpdatedID,
 		UpdateTime: data.Timestamp.Time(),
 		LastPushed: pushTime,
@@ -525,7 +527,7 @@ func (g *Gateio) processOptionsOrderbookUpdate(ctx context.Context, incoming []b
 	})
 }
 
-func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, lastPushed time.Time) error {
+func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, lastPushed time.Time) error {
 	if event == "all" {
 		var data WsOptionsOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -533,12 +535,12 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			return err
 		}
 		base := orderbook.Book{
-			Asset:           asset.Options,
-			Exchange:        g.Name,
-			Pair:            data.Contract,
-			LastUpdated:     data.Timestamp.Time(),
-			LastPushed:      lastPushed,
-			VerifyOrderbook: g.CanVerifyOrderbook,
+			Asset:             asset.Options,
+			Exchange:          e.Name,
+			Pair:              data.Contract,
+			LastUpdated:       data.Timestamp.Time(),
+			LastPushed:        lastPushed,
+			ValidateOrderbook: e.ValidateOrderbook,
 		}
 		base.Asks = make([]orderbook.Level, len(data.Asks))
 		for x := range data.Asks {
@@ -550,7 +552,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			base.Bids[x].Amount = data.Bids[x].Size
 			base.Bids[x].Price = data.Bids[x].Price.Float64()
 		}
-		return g.Websocket.Orderbook.LoadSnapshot(&base)
+		return e.Websocket.Orderbook.LoadSnapshot(&base)
 	}
 	var data []WsFuturesOrderbookUpdateEvent
 	err := json.Unmarshal(incoming, &data)
@@ -584,15 +586,15 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 		if err != nil {
 			return err
 		}
-		err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Asks:            ab[0],
-			Bids:            ab[1],
-			Asset:           asset.Options,
-			Exchange:        g.Name,
-			Pair:            currencyPair,
-			LastUpdated:     lastPushed,
-			LastPushed:      lastPushed,
-			VerifyOrderbook: g.CanVerifyOrderbook,
+		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Asks:              ab[0],
+			Bids:              ab[1],
+			Asset:             asset.Options,
+			Exchange:          e.Name,
+			Pair:              currencyPair,
+			LastUpdated:       lastPushed,
+			LastPushed:        lastPushed,
+			ValidateOrderbook: e.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -601,9 +603,9 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 	return nil
 }
 
-func (g *Gateio) processOptionsOrderPushData(data []byte) error {
+func (e *Exchange) processOptionsOrderPushData(data []byte) error {
 	resp := struct {
-		Time    int64            `json:"time"`
+		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
 		Event   string           `json:"event"`
 		Result  []WsOptionsOrder `json:"result"`
@@ -625,7 +627,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 		}
 		orderDetails[x] = order.Detail{
 			Amount:         resp.Result[x].Size,
-			Exchange:       g.Name,
+			Exchange:       e.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
 			Pair:           resp.Result[x].Contract,
@@ -636,16 +638,16 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 			AccountID:      resp.Result[x].User,
 		}
 	}
-	g.Websocket.DataHandler <- orderDetails
+	e.Websocket.DataHandler <- orderDetails
 	return nil
 }
 
-func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
-	if !g.IsFillsFeedEnabled() {
+func (e *Exchange) processOptionsUserTradesPushData(data []byte) error {
+	if !e.IsFillsFeedEnabled() {
 		return nil
 	}
 	resp := struct {
-		Time    int64                `json:"time"`
+		Time    types.Time           `json:"time"`
 		Channel string               `json:"channel"`
 		Event   string               `json:"event"`
 		Result  []WsOptionsUserTrade `json:"result"`
@@ -658,7 +660,7 @@ func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
 	for x := range resp.Result {
 		fills[x] = fill.Data{
 			Timestamp:    resp.Result[x].CreateTime.Time(),
-			Exchange:     g.Name,
+			Exchange:     e.Name,
 			CurrencyPair: resp.Result[x].Contract,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
@@ -666,12 +668,12 @@ func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
 			Amount:       resp.Result[x].Size,
 		}
 	}
-	return g.Websocket.Fills.Update(fills...)
+	return e.Websocket.Fills.Update(fills...)
 }
 
-func (g *Gateio) processOptionsLiquidatesPushData(data []byte) error {
+func (e *Exchange) processOptionsLiquidatesPushData(data []byte) error {
 	resp := struct {
-		Time    int64                 `json:"time"`
+		Time    types.Time            `json:"time"`
 		Channel string                `json:"channel"`
 		Event   string                `json:"event"`
 		Result  []WsOptionsLiquidates `json:"result"`
@@ -680,13 +682,13 @@ func (g *Gateio) processOptionsLiquidatesPushData(data []byte) error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &resp
+	e.Websocket.DataHandler <- &resp
 	return nil
 }
 
-func (g *Gateio) processOptionsUsersPersonalSettlementsPushData(data []byte) error {
+func (e *Exchange) processOptionsUsersPersonalSettlementsPushData(data []byte) error {
 	resp := struct {
-		Time    int64                     `json:"time"`
+		Time    types.Time                `json:"time"`
 		Channel string                    `json:"channel"`
 		Event   string                    `json:"event"`
 		Result  []WsOptionsUserSettlement `json:"result"`
@@ -695,13 +697,13 @@ func (g *Gateio) processOptionsUsersPersonalSettlementsPushData(data []byte) err
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &resp
+	e.Websocket.DataHandler <- &resp
 	return nil
 }
 
-func (g *Gateio) processOptionsPositionPushData(data []byte) error {
+func (e *Exchange) processOptionsPositionPushData(data []byte) error {
 	resp := struct {
-		Time    int64               `json:"time"`
+		Time    types.Time          `json:"time"`
 		Channel string              `json:"channel"`
 		Event   string              `json:"event"`
 		Result  []WsOptionsPosition `json:"result"`
@@ -710,6 +712,6 @@ func (g *Gateio) processOptionsPositionPushData(data []byte) error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- &resp
+	e.Websocket.DataHandler <- &resp
 	return nil
 }

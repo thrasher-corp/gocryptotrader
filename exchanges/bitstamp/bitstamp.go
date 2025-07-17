@@ -58,21 +58,20 @@ const (
 
 	bitstampRateInterval = time.Minute * 10
 	bitstampRequestRate  = 8000
-	bitstampTimeLayout   = "2006-1-2 15:04:05"
 )
 
-// Bitstamp is the overarching type across the bitstamp package
-type Bitstamp struct {
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bitstamp
+type Exchange struct {
 	exchange.Base
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bitstamp) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		tradingFee, err := b.getTradingFee(ctx, feeBuilder)
+		tradingFee, err := e.getTradingFee(ctx, feeBuilder)
 		if err != nil {
 			return 0, fmt.Errorf("error getting trading fee: %w", err)
 		}
@@ -93,8 +92,8 @@ func (b *Bitstamp) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 }
 
 // GetTradingFee returns a trading fee based on a currency
-func (b *Bitstamp) getTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	tradingFees, err := b.GetAccountTradingFee(ctx, feeBuilder.Pair)
+func (e *Exchange) getTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	tradingFees, err := e.GetAccountTradingFee(ctx, feeBuilder.Pair)
 	if err != nil {
 		return 0, err
 	}
@@ -107,23 +106,23 @@ func (b *Bitstamp) getTradingFee(ctx context.Context, feeBuilder *exchange.FeeBu
 }
 
 // GetAccountTradingFee returns a TradingFee for a pair
-func (b *Bitstamp) GetAccountTradingFee(ctx context.Context, pair currency.Pair) (TradingFees, error) {
+func (e *Exchange) GetAccountTradingFee(ctx context.Context, pair currency.Pair) (TradingFees, error) {
 	path := bitstampAPITradingFees + "/" + strings.ToLower(pair.String())
 
 	var resp TradingFees
 	if pair.IsEmpty() {
 		return resp, currency.ErrCurrencyPairEmpty
 	}
-	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
 
 	return resp, err
 }
 
 // GetAccountTradingFees returns a slice of TradingFee
-func (b *Bitstamp) GetAccountTradingFees(ctx context.Context) ([]TradingFees, error) {
+func (e *Exchange) GetAccountTradingFees(ctx context.Context) ([]TradingFees, error) {
 	path := bitstampAPITradingFees
 	var resp []TradingFees
-	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
 	return resp, err
 }
 
@@ -156,7 +155,7 @@ func getInternationalBankDepositFee(amount float64) float64 {
 }
 
 // GetTicker returns ticker information
-func (b *Bitstamp) GetTicker(ctx context.Context, currency string, hourly bool) (*Ticker, error) {
+func (e *Exchange) GetTicker(ctx context.Context, currency string, hourly bool) (*Ticker, error) {
 	response := Ticker{}
 	tickerEndpoint := bitstampAPITicker
 
@@ -164,13 +163,13 @@ func (b *Bitstamp) GetTicker(ctx context.Context, currency string, hourly bool) 
 		tickerEndpoint = bitstampAPITickerHourly
 	}
 	path := "/v" + bitstampAPIVersion + "/" + tickerEndpoint + "/" + strings.ToLower(currency) + "/"
-	return &response, b.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
+	return &response, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
 }
 
 // GetOrderbook Returns a JSON dictionary with "bids" and "asks". Each is a list
 // of open orders and each order is represented as a list holding the price and
 // the amount.
-func (b *Bitstamp) GetOrderbook(ctx context.Context, currency string) (*Orderbook, error) {
+func (e *Exchange) GetOrderbook(ctx context.Context, currency string) (*Orderbook, error) {
 	type response struct {
 		Timestamp types.Time        `json:"timestamp"`
 		Bids      [][2]types.Number `json:"bids"`
@@ -179,7 +178,7 @@ func (b *Bitstamp) GetOrderbook(ctx context.Context, currency string) (*Orderboo
 
 	path := "/v" + bitstampAPIVersion + "/" + bitstampAPIOrderbook + "/" + strings.ToLower(currency) + "/"
 	var resp response
-	err := b.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -205,35 +204,35 @@ func (b *Bitstamp) GetOrderbook(ctx context.Context, currency string) (*Orderboo
 
 // GetTradingPairs returns a list of trading pairs which Bitstamp
 // currently supports
-func (b *Bitstamp) GetTradingPairs(ctx context.Context) ([]TradingPair, error) {
+func (e *Exchange) GetTradingPairs(ctx context.Context) ([]TradingPair, error) {
 	var result []TradingPair
 	path := "/v" + bitstampAPIVersion + "/" + bitstampAPITradingPairsInfo
-	return result, b.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
 }
 
 // GetTransactions returns transaction information
 // value parameter ["time"] = "minute", "hour", "day" will collate your
 // response into time intervals.
-func (b *Bitstamp) GetTransactions(ctx context.Context, currencyPair, timePeriod string) ([]Transactions, error) {
+func (e *Exchange) GetTransactions(ctx context.Context, currencyPair, timePeriod string) ([]Transactions, error) {
 	var transactions []Transactions
 	requestURL := "/v" + bitstampAPIVersion + "/" + bitstampAPITransactions + "/" + strings.ToLower(currencyPair) + "/"
 	if timePeriod != "" {
 		requestURL += "?time=" + url.QueryEscape(timePeriod)
 	}
-	return transactions, b.SendHTTPRequest(ctx, exchange.RestSpot, requestURL, &transactions)
+	return transactions, e.SendHTTPRequest(ctx, exchange.RestSpot, requestURL, &transactions)
 }
 
 // GetEURUSDConversionRate returns the conversion rate between Euro and USD
-func (b *Bitstamp) GetEURUSDConversionRate(ctx context.Context) (EURUSDConversionRate, error) {
+func (e *Exchange) GetEURUSDConversionRate(ctx context.Context) (EURUSDConversionRate, error) {
 	rate := EURUSDConversionRate{}
 	path := "/" + bitstampAPIEURUSD
-	return rate, b.SendHTTPRequest(ctx, exchange.RestSpot, path, &rate)
+	return rate, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &rate)
 }
 
 // GetBalance returns full balance of currency held on the exchange
-func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
+func (e *Exchange) GetBalance(ctx context.Context) (Balances, error) {
 	var balance map[string]types.Number
-	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIBalance, true, nil, &balance)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIBalance, true, nil, &balance)
 	if err != nil {
 		return nil, err
 	}
@@ -259,80 +258,41 @@ func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 }
 
 // GetUserTransactions returns an array of transactions
-func (b *Bitstamp) GetUserTransactions(ctx context.Context, currencyPair string) ([]UserTransactions, error) {
-	type Response struct {
-		Date          string       `json:"datetime"`
-		TransactionID int64        `json:"id"`
-		Type          int64        `json:"type,string"`
-		USD           types.Number `json:"usd"`
-		EUR           types.Number `json:"eur"`
-		XRP           types.Number `json:"xrp"`
-		BTC           types.Number `json:"btc"`
-		BTCUSD        types.Number `json:"btc_usd"`
-		Fee           float64      `json:"fee,string"`
-		OrderID       int64        `json:"order_id"`
-	}
-
-	var response []Response
+func (e *Exchange) GetUserTransactions(ctx context.Context, currencyPair string) ([]UserTransactions, error) {
+	var resp []UserTransactions
+	var err error
 	if currencyPair == "" {
-		if err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUserTransactions,
-			true,
-			url.Values{},
-			&response); err != nil {
-			return nil, err
-		}
+		err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUserTransactions, true, url.Values{}, &resp)
 	} else {
-		if err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUserTransactions+"/"+currencyPair,
-			true,
-			url.Values{},
-			&response); err != nil {
-			return nil, err
-		}
+		err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUserTransactions+"/"+currencyPair, true, url.Values{}, &resp)
 	}
-
-	transactions := make([]UserTransactions, len(response))
-	for x := range response {
-		transactions[x] = UserTransactions{
-			Date:          response[x].Date,
-			TransactionID: response[x].TransactionID,
-			Type:          response[x].Type,
-			EUR:           response[x].EUR.Float64(),
-			XRP:           response[x].XRP.Float64(),
-			USD:           response[x].USD.Float64(),
-			BTC:           response[x].BTC.Float64(),
-			BTCUSD:        response[x].BTCUSD.Float64(),
-			Fee:           response[x].Fee,
-			OrderID:       response[x].OrderID,
-		}
-	}
-
-	return transactions, nil
+	return resp, err
 }
 
 // GetOpenOrders returns all open orders on the exchange
-func (b *Bitstamp) GetOpenOrders(ctx context.Context, currencyPair string) ([]Order, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context, currencyPair string) ([]Order, error) {
 	var resp []Order
 	path := bitstampAPIOpenOrders + "/" + strings.ToLower(currencyPair)
-	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
 }
 
 // GetOrderStatus returns an the status of an order by its ID
-func (b *Bitstamp) GetOrderStatus(ctx context.Context, orderID int64) (OrderStatus, error) {
+func (e *Exchange) GetOrderStatus(ctx context.Context, orderID int64) (OrderStatus, error) {
 	resp := OrderStatus{}
 	req := url.Values{}
 	req.Add("id", strconv.FormatInt(orderID, 10))
 
 	return resp,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOrderStatus, false, req, &resp)
+		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOrderStatus, false, req, &resp)
 }
 
 // CancelExistingOrder cancels order by ID
-func (b *Bitstamp) CancelExistingOrder(ctx context.Context, orderID int64) (CancelOrder, error) {
+func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) (CancelOrder, error) {
 	req := url.Values{}
 	req.Add("id", strconv.FormatInt(orderID, 10))
 
 	var result CancelOrder
-	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPICancelOrder, true, req, &result)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPICancelOrder, true, req, &result)
 	if err != nil {
 		return result, err
 	}
@@ -341,15 +301,15 @@ func (b *Bitstamp) CancelExistingOrder(ctx context.Context, orderID int64) (Canc
 }
 
 // CancelAllExistingOrders cancels all open orders on the exchange
-func (b *Bitstamp) CancelAllExistingOrders(ctx context.Context) (bool, error) {
+func (e *Exchange) CancelAllExistingOrders(ctx context.Context) (bool, error) {
 	result := false
 
 	return result,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPICancelAllOrders, false, nil, &result)
+		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPICancelAllOrders, false, nil, &result)
 }
 
 // PlaceOrder places an order on the exchange.
-func (b *Bitstamp) PlaceOrder(ctx context.Context, currencyPair string, price, amount float64, buy, market bool) (Order, error) {
+func (e *Exchange) PlaceOrder(ctx context.Context, currencyPair string, price, amount float64, buy, market bool) (Order, error) {
 	req := url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("price", strconv.FormatFloat(price, 'f', -1, 64))
@@ -368,13 +328,13 @@ func (b *Bitstamp) PlaceOrder(ctx context.Context, currencyPair string, price, a
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, req, &response)
+		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, req, &response)
 }
 
 // GetWithdrawalRequests returns withdrawal requests for the account
 // timedelta - positive integer with max value 50000000 which returns requests
 // from number of seconds ago to now.
-func (b *Bitstamp) GetWithdrawalRequests(ctx context.Context, timedelta int64) ([]WithdrawalRequests, error) {
+func (e *Exchange) GetWithdrawalRequests(ctx context.Context, timedelta int64) ([]WithdrawalRequests, error) {
 	var resp []WithdrawalRequests
 	if timedelta > 50000000 || timedelta < 0 {
 		return resp, errors.New("time delta exceeded, max: 50000000 min: 0")
@@ -388,7 +348,7 @@ func (b *Bitstamp) GetWithdrawalRequests(ctx context.Context, timedelta int64) (
 	}
 
 	return resp,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIWithdrawalRequests, false, value, &resp)
+		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIWithdrawalRequests, false, value, &resp)
 }
 
 // CryptoWithdrawal withdraws a cryptocurrency into a supplied wallet, returns ID
@@ -396,7 +356,7 @@ func (b *Bitstamp) GetWithdrawalRequests(ctx context.Context, timedelta int64) (
 // address - The wallet address of the cryptocurrency
 // symbol - the type of crypto ie "ltc", "btc", "eth"
 // destTag - only for XRP  default to ""
-func (b *Bitstamp) CryptoWithdrawal(ctx context.Context, amount float64, address, symbol, destTag string) (*CryptoWithdrawalResponse, error) {
+func (e *Exchange) CryptoWithdrawal(ctx context.Context, amount float64, address, symbol, destTag string) (*CryptoWithdrawalResponse, error) {
 	req := url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("address", address)
@@ -415,11 +375,11 @@ func (b *Bitstamp) CryptoWithdrawal(ctx context.Context, amount float64, address
 
 	var resp CryptoWithdrawalResponse
 	endpoint = strings.ToLower(symbol) + "_withdrawal"
-	return &resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, endpoint, true, req, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, endpoint, true, req, &resp)
 }
 
 // OpenBankWithdrawal Opens a bank withdrawal request (SEPA or international)
-func (b *Bitstamp) OpenBankWithdrawal(ctx context.Context, amount float64, currency,
+func (e *Exchange) OpenBankWithdrawal(ctx context.Context, amount float64, currency,
 	name, iban, bic, address, postalCode, city, country,
 	comment, withdrawalType string,
 ) (FIATWithdrawalResponse, error) {
@@ -437,11 +397,11 @@ func (b *Bitstamp) OpenBankWithdrawal(ctx context.Context, amount float64, curre
 	req.Add("comment", comment)
 
 	resp := FIATWithdrawalResponse{}
-	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOpenWithdrawal, true, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOpenWithdrawal, true, req, &resp)
 }
 
 // OpenInternationalBankWithdrawal Opens a bank withdrawal request (international)
-func (b *Bitstamp) OpenInternationalBankWithdrawal(ctx context.Context, amount float64, currency,
+func (e *Exchange) OpenInternationalBankWithdrawal(ctx context.Context, amount float64, currency,
 	name, iban, bic, address, postalCode, city, country,
 	bankName, bankAddress, bankPostCode, bankCity, bankCountry, internationalCurrency,
 	comment, withdrawalType string,
@@ -466,27 +426,27 @@ func (b *Bitstamp) OpenInternationalBankWithdrawal(ctx context.Context, amount f
 	req.Add("bank_country", bankCountry)
 
 	resp := FIATWithdrawalResponse{}
-	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOpenWithdrawal, true, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOpenWithdrawal, true, req, &resp)
 }
 
 // GetCryptoDepositAddress returns a depositing address by crypto.
 // crypto - example "btc", "ltc", "eth", "xrp" or "bch"
-func (b *Bitstamp) GetCryptoDepositAddress(ctx context.Context, crypto currency.Code) (*DepositAddress, error) {
+func (e *Exchange) GetCryptoDepositAddress(ctx context.Context, crypto currency.Code) (*DepositAddress, error) {
 	path := crypto.Lower().String() + "_address"
 	var resp DepositAddress
-	return &resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
 }
 
 // GetUnconfirmedBitcoinDeposits returns unconfirmed transactions
-func (b *Bitstamp) GetUnconfirmedBitcoinDeposits(ctx context.Context) ([]UnconfirmedBTCTransactions, error) {
+func (e *Exchange) GetUnconfirmedBitcoinDeposits(ctx context.Context) ([]UnconfirmedBTCTransactions, error) {
 	var response []UnconfirmedBTCTransactions
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUnconfirmedBitcoin, false, nil, &response)
+		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUnconfirmedBitcoin, false, nil, &response)
 }
 
 // OHLC returns OHLCV data for step (interval)
-func (b *Bitstamp) OHLC(ctx context.Context, currency string, start, end time.Time, step, limit string) (resp OHLCResponse, err error) {
+func (e *Exchange) OHLC(ctx context.Context, currency string, start, end time.Time, step, limit string) (resp OHLCResponse, err error) {
 	v := url.Values{}
 	v.Add("limit", limit)
 	v.Add("step", step)
@@ -500,7 +460,7 @@ func (b *Bitstamp) OHLC(ctx context.Context, currency string, start, end time.Ti
 	if !end.IsZero() {
 		v.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v"+bitstampAPIVersion+"/"+bitstampAPIOHLC+"/"+currency, v), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v"+bitstampAPIVersion+"/"+bitstampAPIOHLC+"/"+currency, v), &resp)
 }
 
 // TransferAccountBalance transfers funds from either a main or sub account
@@ -508,7 +468,7 @@ func (b *Bitstamp) OHLC(ctx context.Context, currency string, start, end time.Ti
 // currency - which currency to transfer
 // subaccount - name of account
 // toMain - bool either to or from account
-func (b *Bitstamp) TransferAccountBalance(ctx context.Context, amount float64, currency, subAccount string, toMain bool) error {
+func (e *Exchange) TransferAccountBalance(ctx context.Context, amount float64, currency, subAccount string, toMain bool) error {
 	req := url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("currency", currency)
@@ -528,12 +488,12 @@ func (b *Bitstamp) TransferAccountBalance(ctx context.Context, amount float64, c
 
 	var resp any
 
-	return b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, req, &resp)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, req, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (b *Bitstamp) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
-	endpoint, err := b.API.Endpoints.GetURL(ep)
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
+	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -541,22 +501,22 @@ func (b *Bitstamp) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
 		Result:        result,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
+		Verbose:       e.Verbose,
+		HTTPDebugging: e.HTTPDebugging,
+		HTTPRecording: e.HTTPRecording,
 	}
-	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
-func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, v2 bool, values url.Values, result any) error {
-	creds, err := b.GetCredentials(ctx)
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, v2 bool, values url.Values, result any) error {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	endpoint, err := b.API.Endpoints.GetURL(ep)
+	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -566,8 +526,8 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 
 	interim := json.RawMessage{}
-	err = b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		n := b.Requester.GetNonce(nonce.UnixNano).String()
+	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		n := e.Requester.GetNonce(nonce.UnixNano).String()
 
 		values.Set("key", creds.Key)
 		values.Set("nonce", n)
@@ -599,9 +559,9 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Body:          readerValues,
 			Result:        &interim,
 			NonceEnabled:  true,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
@@ -633,10 +593,6 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}
 	}
 	return json.Unmarshal(interim, result)
-}
-
-func parseTime(dateTime string) (time.Time, error) {
-	return time.Parse(bitstampTimeLayout, dateTime)
 }
 
 func filterOrderbookZeroBidPrice(ob *orderbook.Book) {

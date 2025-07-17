@@ -46,11 +46,11 @@ var defaultSubscriptions = []string{
 // WsConnect connects to websocket client.
 // The WebSocket feed is publicly available and provides real-time
 // market data updates for orders and trades.
-func (co *CoinbaseInternational) WsConnect() error {
+func (co *Exchange) WsConnect() error {
 	if !co.Websocket.IsEnabled() || !co.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	err := co.Websocket.Conn.Dial(&gws.Dialer{Proxy: http.ProxyFromEnvironment}, http.Header{})
+	err := co.Websocket.Conn.Dial(context.Background(), &gws.Dialer{Proxy: http.ProxyFromEnvironment}, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func (co *CoinbaseInternational) WsConnect() error {
 }
 
 // wsReadData gets and passes on websocket messages for processing
-func (co *CoinbaseInternational) wsReadData(conn websocket.Connection) {
+func (co *Exchange) wsReadData(conn websocket.Connection) {
 	defer co.Websocket.Wg.Done()
 	for {
 		select {
@@ -89,7 +89,7 @@ func (co *CoinbaseInternational) wsReadData(conn websocket.Connection) {
 	}
 }
 
-func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
+func (co *Exchange) wsHandleData(respRaw []byte) error {
 	var resp SubscriptionResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -156,7 +156,7 @@ func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
 	}
 }
 
-func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
+func (co *Exchange) processOrderbookLevel2(respRaw []byte) error {
 	var resp []WsOrderbookLevel2
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -182,7 +182,7 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 				UpdateID:   resp[x].Sequence,
 				UpdateTime: resp[x].Time,
 				Asset:      asset.Spot,
-				Action:     orderbook.Amend,
+				Action:     orderbook.UpdateAction,
 				Bids:       bids,
 				Asks:       asks,
 				Pair:       pair,
@@ -207,7 +207,7 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 	return nil
 }
 
-func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
+func (co *Exchange) processOrderbookLevel1(respRaw []byte) error {
 	var resp []WsOrderbookLevel1
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -223,7 +223,7 @@ func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
 				Pair:       pair,
 				Asset:      asset.Spot,
 				UpdateTime: resp[x].Time,
-				Action:     orderbook.Amend,
+				Action:     orderbook.UpdateAction,
 				UpdateID:   resp[x].Sequence,
 				Asks:       []orderbook.Level{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
 				Bids:       []orderbook.Level{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
@@ -248,7 +248,7 @@ func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
 	return nil
 }
 
-func (co *CoinbaseInternational) processRisk(respRaw []byte) error {
+func (co *Exchange) processRisk(respRaw []byte) error {
 	var resp []WsRisk
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -258,7 +258,7 @@ func (co *CoinbaseInternational) processRisk(respRaw []byte) error {
 	return nil
 }
 
-func (co *CoinbaseInternational) processFunding(respRaw []byte) error {
+func (co *Exchange) processFunding(respRaw []byte) error {
 	var resp []WsFunding
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -275,7 +275,7 @@ func (co *CoinbaseInternational) processFunding(respRaw []byte) error {
 	return nil
 }
 
-func (co *CoinbaseInternational) processMatch(respRaw []byte) error {
+func (co *Exchange) processMatch(respRaw []byte) error {
 	var resp []WsMatch
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -285,7 +285,7 @@ func (co *CoinbaseInternational) processMatch(respRaw []byte) error {
 	return nil
 }
 
-func (co *CoinbaseInternational) processInstruments(respRaw []byte) error {
+func (co *Exchange) processInstruments(respRaw []byte) error {
 	var resp []WsInstrument
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -296,7 +296,7 @@ func (co *CoinbaseInternational) processInstruments(respRaw []byte) error {
 }
 
 // GenerateSubscriptionPayload generates a subscription payloads list.
-func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions subscription.List, operation string) ([]SubscriptionInput, error) {
+func (co *Exchange) GenerateSubscriptionPayload(subscriptions subscription.List, operation string) ([]SubscriptionInput, error) {
 	if len(subscriptions) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -366,7 +366,7 @@ func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions subsc
 	return payloads, nil
 }
 
-func (co *CoinbaseInternational) handleSubscription(payload []SubscriptionInput) error {
+func (co *Exchange) handleSubscription(payload []SubscriptionInput) error {
 	var (
 		authenticate bool
 		creds        *account.Credentials
@@ -395,7 +395,7 @@ func (co *CoinbaseInternational) handleSubscription(payload []SubscriptionInput)
 	return nil
 }
 
-func (co *CoinbaseInternational) signSubscriptionPayload(creds *account.Credentials, body *SubscriptionInput) error {
+func (co *Exchange) signSubscriptionPayload(creds *account.Credentials, body *SubscriptionInput) error {
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(body.Time+creds.Key+"CBINTLMD"+creds.ClientID),
 		[]byte(creds.Secret))
@@ -409,7 +409,7 @@ func (co *CoinbaseInternational) signSubscriptionPayload(creds *account.Credenti
 }
 
 // GenerateDefaultSubscriptions generates default subscription
-func (co *CoinbaseInternational) GenerateDefaultSubscriptions() (subscription.List, error) {
+func (co *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 	enabledPairs, err := co.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -426,7 +426,7 @@ func (co *CoinbaseInternational) GenerateDefaultSubscriptions() (subscription.Li
 }
 
 // Subscribe subscribe to channels
-func (co *CoinbaseInternational) Subscribe(subscriptions subscription.List) error {
+func (co *Exchange) Subscribe(subscriptions subscription.List) error {
 	subscriptionPayloads, err := co.GenerateSubscriptionPayload(subscriptions, "SUBSCRIBE")
 	if err != nil {
 		return err
@@ -435,7 +435,7 @@ func (co *CoinbaseInternational) Subscribe(subscriptions subscription.List) erro
 }
 
 // Unsubscribe unsubscribe to channels
-func (co *CoinbaseInternational) Unsubscribe(subscriptions subscription.List) error {
+func (co *Exchange) Unsubscribe(subscriptions subscription.List) error {
 	subscriptionPayloads, err := co.GenerateSubscriptionPayload(subscriptions, "UNSUBSCRIBE")
 	if err != nil {
 		return err

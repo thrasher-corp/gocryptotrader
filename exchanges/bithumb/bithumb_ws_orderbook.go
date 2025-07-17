@@ -24,7 +24,7 @@ const (
 	maxWSOrderbookWorkers = 10
 )
 
-func (b *Bithumb) processBooks(updates *WsOrderbooks) error {
+func (e *Exchange) processBooks(updates *WsOrderbooks) error {
 	bids := make([]orderbook.Level, 0, len(updates.List))
 	asks := make([]orderbook.Level, 0, len(updates.List))
 	for x := range updates.List {
@@ -35,7 +35,7 @@ func (b *Bithumb) processBooks(updates *WsOrderbooks) error {
 		}
 		asks = append(asks, i)
 	}
-	return b.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(&orderbook.Update{
 		Pair:       updates.List[0].Symbol,
 		Asset:      asset.Spot,
 		Bids:       bids,
@@ -45,30 +45,30 @@ func (b *Bithumb) processBooks(updates *WsOrderbooks) error {
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
-func (b *Bithumb) UpdateLocalBuffer(wsdp *WsOrderbooks) (bool, error) {
+func (e *Exchange) UpdateLocalBuffer(wsdp *WsOrderbooks) (bool, error) {
 	if len(wsdp.List) < 1 {
 		return false, errors.New("insufficient data to process")
 	}
-	err := b.obm.stageWsUpdate(wsdp, wsdp.List[0].Symbol, asset.Spot)
+	err := e.obm.stageWsUpdate(wsdp, wsdp.List[0].Symbol, asset.Spot)
 	if err != nil {
-		init, err2 := b.obm.checkIsInitialSync(wsdp.List[0].Symbol)
+		init, err2 := e.obm.checkIsInitialSync(wsdp.List[0].Symbol)
 		if err2 != nil {
 			return false, err2
 		}
 		return init, err
 	}
 
-	err = b.applyBufferUpdate(wsdp.List[0].Symbol)
+	err = e.applyBufferUpdate(wsdp.List[0].Symbol)
 	if err != nil {
-		b.flushAndCleanup(wsdp.List[0].Symbol)
+		e.invalidateAndCleanupOrderbook(wsdp.List[0].Symbol)
 	}
 	return false, err
 }
 
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
-func (b *Bithumb) applyBufferUpdate(pair currency.Pair) error {
-	fetching, needsFetching, err := b.obm.handleFetchingBook(pair)
+func (e *Exchange) applyBufferUpdate(pair currency.Pair) error {
+	fetching, needsFetching, err := e.obm.handleFetchingBook(pair)
 	if err != nil {
 		return err
 	}
@@ -77,30 +77,22 @@ func (b *Bithumb) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	if needsFetching {
-		if b.Verbose {
-			log.Debugf(log.WebsocketMgr, "%s Orderbook: Fetching via REST\n", b.Name)
+		if e.Verbose {
+			log.Debugf(log.WebsocketMgr, "%s Orderbook: Fetching via REST\n", e.Name)
 		}
-		return b.obm.fetchBookViaREST(pair)
+		return e.obm.fetchBookViaREST(pair)
 	}
 
-	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	recent, err := e.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	if err != nil {
-		log.Errorf(
-			log.WebsocketMgr,
-			"%s error fetching recent orderbook when applying updates: %s\n",
-			b.Name,
-			err)
+		log.Errorf(log.WebsocketMgr, "%s error fetching recent orderbook when applying updates: %s\n", e.Name, err)
 	}
 
 	if recent != nil {
-		err = b.obm.checkAndProcessOrderbookUpdate(b.processBooks, pair, recent)
+		err = e.obm.checkAndProcessOrderbookUpdate(e.processBooks, pair, recent)
 		if err != nil {
-			log.Errorf(
-				log.WebsocketMgr,
-				"%s error processing update - initiating new orderbook sync via REST: %s\n",
-				b.Name,
-				err)
-			err = b.obm.setNeedsFetchingBook(pair)
+			log.Errorf(log.WebsocketMgr, "%s error processing update - initiating new orderbook sync via REST: %s\n", e.Name, err)
+			err = e.obm.setNeedsFetchingBook(pair)
 			if err != nil {
 				return err
 			}
@@ -112,26 +104,24 @@ func (b *Bithumb) applyBufferUpdate(pair currency.Pair) error {
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
-func (b *Bithumb) SynchroniseWebsocketOrderbook() {
-	b.Websocket.Wg.Add(1)
+func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
+	e.Websocket.Wg.Add(1)
 	go func() {
-		defer b.Websocket.Wg.Done()
+		defer e.Websocket.Wg.Done()
 		for {
 			select {
-			case <-b.Websocket.ShutdownC:
+			case <-e.Websocket.ShutdownC:
 				for {
 					select {
-					case <-b.obm.jobs:
+					case <-e.obm.jobs:
 					default:
 						return
 					}
 				}
-			case j := <-b.obm.jobs:
-				err := b.processJob(j.Pair)
+			case j := <-e.obm.jobs:
+				err := e.processJob(ctx, j.Pair)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%s processing websocket orderbook error %v",
-						b.Name, err)
+					log.Errorf(log.WebsocketMgr, "%s processing websocket orderbook error %v", e.Name, err)
 				}
 			}
 		}
@@ -139,52 +129,45 @@ func (b *Bithumb) SynchroniseWebsocketOrderbook() {
 }
 
 // processJob fetches and processes orderbook updates
-func (b *Bithumb) processJob(p currency.Pair) error {
-	err := b.SeedLocalCache(context.TODO(), p)
+func (e *Exchange) processJob(ctx context.Context, p currency.Pair) error {
+	err := e.SeedLocalCache(ctx, p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)
 	}
 
-	err = b.obm.stopFetchingBook(p)
+	err = e.obm.stopFetchingBook(p)
 	if err != nil {
 		return err
 	}
 
 	// Immediately apply the buffer updates so we don't wait for a
 	// new update to initiate this.
-	err = b.applyBufferUpdate(p)
+	err = e.applyBufferUpdate(p)
 	if err != nil {
-		b.flushAndCleanup(p)
+		e.invalidateAndCleanupOrderbook(p)
 		return err
 	}
 	return nil
 }
 
-// flushAndCleanup flushes orderbook and clean local cache
-func (b *Bithumb) flushAndCleanup(p currency.Pair) {
-	errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s flushing websocket error: %v",
-			b.Name,
-			errClean)
+// invalidateAndCleanupOrderbook invalidates orderbook and cleans local cache
+func (e *Exchange) invalidateAndCleanupOrderbook(p currency.Pair) {
+	if err := e.Websocket.Orderbook.InvalidateOrderbook(p, asset.Spot); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s invalidate orderbook websocket error: %v", e.Name, err)
 	}
-	errClean = b.obm.cleanup(p)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
-			b.Name,
-			errClean)
+	if err := e.obm.cleanup(p); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v", e.Name, err)
 	}
 }
 
-func (b *Bithumb) setupOrderbookManager() {
-	if b.obm.state == nil {
-		b.obm.state = make(map[currency.Code]map[currency.Code]map[asset.Item]*update)
-		b.obm.jobs = make(chan job, maxWSOrderbookJobs)
+func (e *Exchange) setupOrderbookManager(ctx context.Context) {
+	if e.obm.state == nil {
+		e.obm.state = make(map[currency.Code]map[currency.Code]map[asset.Item]*update)
+		e.obm.jobs = make(chan job, maxWSOrderbookJobs)
 	} else {
 		// Change state on reconnect for initial sync.
-		for _, m1 := range b.obm.state {
+		for _, m1 := range e.obm.state {
 			for _, m2 := range m1 {
 				for _, update := range m2 {
 					update.initialSync = true
@@ -197,7 +180,7 @@ func (b *Bithumb) setupOrderbookManager() {
 
 	for range maxWSOrderbookWorkers {
 		// 10 workers for synchronising book
-		b.SynchroniseWebsocketOrderbook()
+		e.SynchroniseWebsocketOrderbook(ctx)
 	}
 }
 
@@ -415,38 +398,34 @@ bufferEmpty:
 }
 
 // SeedLocalCache seeds depth data
-func (b *Bithumb) SeedLocalCache(ctx context.Context, p currency.Pair) error {
-	ob, err := b.GetOrderBook(ctx, p.String())
+func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
+	ob, err := e.GetOrderBook(ctx, p.String())
 	if err != nil {
 		return err
 	}
-	return b.SeedLocalCacheWithBook(p, ob)
+	return e.SeedLocalCacheWithBook(p, ob)
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
-	var newOrderBook orderbook.Book
-	newOrderBook.Bids = make(orderbook.Levels, len(o.Data.Bids))
+func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
+	ob := &orderbook.Book{
+		Pair:              p,
+		Asset:             asset.Spot,
+		Exchange:          e.Name,
+		LastUpdated:       o.Data.Timestamp.Time(),
+		ValidateOrderbook: e.ValidateOrderbook,
+		Bids:              make(orderbook.Levels, len(o.Data.Bids)),
+		Asks:              make(orderbook.Levels, len(o.Data.Asks)),
+	}
 	for i := range o.Data.Bids {
-		newOrderBook.Bids[i] = orderbook.Level{
-			Amount: o.Data.Bids[i].Quantity,
-			Price:  o.Data.Bids[i].Price,
-		}
+		ob.Bids[i].Price = o.Data.Bids[i].Price
+		ob.Bids[i].Amount = o.Data.Bids[i].Quantity
 	}
-	newOrderBook.Asks = make(orderbook.Levels, len(o.Data.Asks))
 	for i := range o.Data.Asks {
-		newOrderBook.Asks[i] = orderbook.Level{
-			Amount: o.Data.Asks[i].Quantity,
-			Price:  o.Data.Asks[i].Price,
-		}
+		ob.Asks[i].Price = o.Data.Asks[i].Price
+		ob.Asks[i].Amount = o.Data.Asks[i].Quantity
 	}
-
-	newOrderBook.Pair = p
-	newOrderBook.Asset = asset.Spot
-	newOrderBook.Exchange = b.Name
-	newOrderBook.LastUpdated = time.UnixMilli(o.Data.Timestamp)
-	newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
-	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	return e.Websocket.Orderbook.LoadSnapshot(ob)
 }
 
 // setNeedsFetchingBook completes the book fetching initiation.

@@ -2,10 +2,12 @@ package exchange
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,24 +59,32 @@ const httpMockFile = "testdata/http.json"
 
 // MockHTTPInstance takes an existing Exchange instance and attaches it to a new http server
 // It is expected to be run once,  since http requests do not often tangle with each other
-func MockHTTPInstance(e exchange.IBotExchange) error {
-	serverDetails, newClient, err := mock.NewVCRServer(httpMockFile)
+func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) error {
+	serverPath, newClient, err := mock.NewVCRServer(httpMockFile)
 	if err != nil {
-		return fmt.Errorf("mock server error %s", err)
+		return fmt.Errorf("error starting NewVCRServer: %w", err)
 	}
+
 	b := e.GetBase()
 	b.SkipAuthCheck = true
-	err = b.SetHTTPClient(newClient)
-	if err != nil {
-		return fmt.Errorf("mock server error %s", err)
+	if err := b.SetHTTPClient(newClient); err != nil {
+		return fmt.Errorf("error setting HTTP client: %w", err)
 	}
-	endpointMap := b.API.Endpoints.GetURLMap()
-	for k := range endpointMap {
-		err = b.API.Endpoints.SetRunning(k, serverDetails)
+
+	if len(optionalPathPostfix) > 0 {
+		newPath, err := url.JoinPath(serverPath, optionalPathPostfix...)
 		if err != nil {
-			return fmt.Errorf("mock server error %s", err)
+			return fmt.Errorf("error joining server URL path: %w", err)
+		}
+		serverPath = newPath
+	}
+
+	for k := range b.API.Endpoints.GetURLMap() {
+		if err := b.API.Endpoints.SetRunningURL(k, serverPath); err != nil {
+			return fmt.Errorf("error setting running endpoint: %w", err)
 		}
 	}
+
 	log.Printf(sharedtestvalues.MockTesting, e.GetName())
 
 	return nil
@@ -99,8 +109,8 @@ func MockWsInstance[T any, PT interface {
 	b := e.GetBase()
 	b.SkipAuthCheck = true
 	b.API.AuthenticatedWebsocketSupport = true
-	err := b.API.Endpoints.SetRunning("RestSpotURL", s.URL)
-	require.NoError(tb, err, "Endpoints.SetRunning must not error for RestSpotURL")
+	err := b.API.Endpoints.SetRunningURL("RestSpotURL", s.URL)
+	require.NoError(tb, err, "Endpoints.SetRunningURL must not error for RestSpotURL")
 	for _, auth := range []bool{true, false} {
 		err = b.Websocket.SetWebsocketURL("ws"+strings.TrimPrefix(s.URL, "http"), auth, true)
 		require.NoErrorf(tb, err, "SetWebsocketURL must not error for auth: %v", auth)
@@ -124,7 +134,7 @@ type FixtureError struct {
 }
 
 // FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData) and asserts no errors are returned
-func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func([]byte) error) {
+func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func(context.Context, []byte) error) {
 	tb.Helper()
 
 	for _, e := range FixtureToDataHandlerWithErrors(tb, fixturePath, reader) {
@@ -134,7 +144,7 @@ func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func([]byte)
 
 // FixtureToDataHandlerWithErrors squirts the contents of a file to a reader function (probably e.wsHandleData) and returns handler errors
 // Any errors setting up the fixture will fail tests
-func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader func([]byte) error) []FixtureError {
+func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader func(context.Context, []byte) error) []FixtureError {
 	tb.Helper()
 
 	fixture, err := os.Open(fixturePath)
@@ -147,7 +157,7 @@ func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader fu
 	s := bufio.NewScanner(fixture)
 	for s.Scan() {
 		msg := s.Bytes()
-		if err := reader(msg); err != nil {
+		if err := reader(tb.Context(), msg); err != nil {
 			errs = append(errs, FixtureError{
 				Err: err,
 				Msg: msg,

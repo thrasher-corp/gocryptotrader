@@ -968,55 +968,55 @@ func genCert(targetDir string) error {
 func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 	switch strings.ToLower(name) {
 	case "binanceus":
-		return new(binanceus.Binanceus), nil
+		return new(binanceus.Exchange), nil
 	case "binance":
-		return new(binance.Binance), nil
+		return new(binance.Exchange), nil
 	case "bitfinex":
-		return new(bitfinex.Bitfinex), nil
+		return new(bitfinex.Exchange), nil
 	case "bitflyer":
-		return new(bitflyer.Bitflyer), nil
+		return new(bitflyer.Exchange), nil
 	case "bithumb":
-		return new(bithumb.Bithumb), nil
+		return new(bithumb.Exchange), nil
 	case "bitmex":
-		return new(bitmex.Bitmex), nil
+		return new(bitmex.Exchange), nil
 	case "bitstamp":
-		return new(bitstamp.Bitstamp), nil
+		return new(bitstamp.Exchange), nil
 	case "btc markets":
-		return new(btcmarkets.BTCMarkets), nil
+		return new(btcmarkets.Exchange), nil
 	case "btse":
-		return new(btse.BTSE), nil
+		return new(btse.Exchange), nil
 	case "bybit":
-		return new(bybit.Bybit), nil
+		return new(bybit.Exchange), nil
 	case "coinut":
-		return new(coinut.COINUT), nil
+		return new(coinut.Exchange), nil
 	case "deribit":
-		return new(deribit.Deribit), nil
+		return new(deribit.Exchange), nil
 	case "exmo":
-		return new(exmo.EXMO), nil
+		return new(exmo.Exchange), nil
 	case "coinbaseinternational":
-		return new(coinbaseinternational.CoinbaseInternational), nil
+		return new(coinbaseinternational.Exchange), nil
 	case "coinbasepro":
-		return new(coinbasepro.CoinbasePro), nil
+		return new(coinbasepro.Exchange), nil
 	case "gateio":
-		return new(gateio.Gateio), nil
+		return new(gateio.Exchange), nil
 	case "gemini":
-		return new(gemini.Gemini), nil
+		return new(gemini.Exchange), nil
 	case "hitbtc":
-		return new(hitbtc.HitBTC), nil
+		return new(hitbtc.Exchange), nil
 	case "huobi":
-		return new(huobi.HUOBI), nil
+		return new(huobi.Exchange), nil
 	case "kraken":
-		return new(kraken.Kraken), nil
+		return new(kraken.Exchange), nil
 	case "kucoin":
-		return new(kucoin.Kucoin), nil
+		return new(kucoin.Exchange), nil
 	case "lbank":
-		return new(lbank.Lbank), nil
+		return new(lbank.Exchange), nil
 	case "okx":
-		return new(okx.Okx), nil
+		return new(okx.Exchange), nil
 	case "poloniex":
-		return new(poloniex.Poloniex), nil
+		return new(poloniex.Exchange), nil
 	case "yobit":
-		return new(yobit.Yobit), nil
+		return new(yobit.Exchange), nil
 	default:
 		return nil, fmt.Errorf("%q, %w", name, ErrExchangeNotFound)
 	}

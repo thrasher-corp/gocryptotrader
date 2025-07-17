@@ -24,8 +24,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// CoinbaseInternational is the overarching type across this package
-type CoinbaseInternational struct {
+// Exchange is the overarching type across this package
+type Exchange struct {
 	exchange.Base
 }
 
@@ -51,13 +51,13 @@ var (
 )
 
 // ListAssets returns a list of all supported assets.
-func (co *CoinbaseInternational) ListAssets(ctx context.Context) ([]AssetItemInfo, error) {
+func (co *Exchange) ListAssets(ctx context.Context) ([]AssetItemInfo, error) {
 	var resp []AssetItemInfo
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "assets", nil, nil, &resp, false)
 }
 
 // GetAssetDetails retrieves information for a specific asset.
-func (co *CoinbaseInternational) GetAssetDetails(ctx context.Context, assetName currency.Code, assetUUID, assetID string) (*AssetItemInfo, error) {
+func (co *Exchange) GetAssetDetails(ctx context.Context, assetName currency.Code, assetUUID, assetID string) (*AssetItemInfo, error) {
 	path := "assets/"
 	switch {
 	case !assetName.IsEmpty():
@@ -74,7 +74,7 @@ func (co *CoinbaseInternational) GetAssetDetails(ctx context.Context, assetName 
 }
 
 // GetSupportedNetworksPerAsset returns a list of supported networks and network information for a specific asset.
-func (co *CoinbaseInternational) GetSupportedNetworksPerAsset(ctx context.Context, assetName currency.Code, assetUUID, assetID string) ([]AssetInfoWithSupportedNetwork, error) {
+func (co *Exchange) GetSupportedNetworksPerAsset(ctx context.Context, assetName currency.Code, assetUUID, assetID string) ([]AssetInfoWithSupportedNetwork, error) {
 	path := "assets/"
 	switch {
 	case !assetName.IsEmpty():
@@ -91,13 +91,13 @@ func (co *CoinbaseInternational) GetSupportedNetworksPerAsset(ctx context.Contex
 }
 
 // GetFeeRateTiers return all the fee rate tiers.
-func (co *CoinbaseInternational) GetFeeRateTiers(ctx context.Context) ([]FeeRateInfo, error) {
+func (co *Exchange) GetFeeRateTiers(ctx context.Context) ([]FeeRateInfo, error) {
 	var resp []FeeRateInfo
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "fee-rate-tiers", nil, nil, &resp, true)
 }
 
 // GetIndexComposition retrieves the latest index composition (metadata) with an ordered set of constituents
-func (co *CoinbaseInternational) GetIndexComposition(ctx context.Context, indexName string) (*IndexMetadata, error) {
+func (co *Exchange) GetIndexComposition(ctx context.Context, indexName string) (*IndexMetadata, error) {
 	if indexName == "" {
 		return nil, errIndexNameRequired
 	}
@@ -107,7 +107,7 @@ func (co *CoinbaseInternational) GetIndexComposition(ctx context.Context, indexN
 
 // GetIndexCompositionHistory retrieves a history of index composition records in a descending time order.
 // The results are an array of index composition data recorded at different “timestamps”.
-func (co *CoinbaseInternational) GetIndexCompositionHistory(ctx context.Context, indexName string, timeFrom time.Time, resultLimit, resultOffset int64) (*IndexMetadata, error) {
+func (co *Exchange) GetIndexCompositionHistory(ctx context.Context, indexName string, timeFrom time.Time, resultLimit, resultOffset int64) (*IndexMetadata, error) {
 	if indexName == "" {
 		return nil, errIndexNameRequired
 	}
@@ -126,7 +126,7 @@ func (co *CoinbaseInternational) GetIndexCompositionHistory(ctx context.Context,
 }
 
 // GetIndexPrice retrieves the latest index price
-func (co *CoinbaseInternational) GetIndexPrice(ctx context.Context, indexName string) (*IndexPriceInfo, error) {
+func (co *Exchange) GetIndexPrice(ctx context.Context, indexName string) (*IndexPriceInfo, error) {
 	if indexName == "" {
 		return nil, errIndexNameRequired
 	}
@@ -136,7 +136,7 @@ func (co *CoinbaseInternational) GetIndexPrice(ctx context.Context, indexName st
 
 // GetIndexCandles retrieves the historical daily index prices in time descending order.
 // The daily values are represented as aggregated entries for the day in typical OHLC format.
-func (co *CoinbaseInternational) GetIndexCandles(ctx context.Context, indexName, granularity string, start, end time.Time) (*IndexPriceCandlesticks, error) {
+func (co *Exchange) GetIndexCandles(ctx context.Context, indexName, granularity string, start, end time.Time) (*IndexPriceCandlesticks, error) {
 	if indexName == "" {
 		return nil, errIndexNameRequired
 	}
@@ -157,13 +157,13 @@ func (co *CoinbaseInternational) GetIndexCandles(ctx context.Context, indexName,
 }
 
 // GetInstruments returns all of the instruments available for trading.
-func (co *CoinbaseInternational) GetInstruments(ctx context.Context) ([]InstrumentInfo, error) {
+func (co *Exchange) GetInstruments(ctx context.Context) ([]InstrumentInfo, error) {
 	var resp []InstrumentInfo
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments", nil, nil, &resp, false)
 }
 
 // GetInstrumentDetails retrieves market information for a specific instrument.
-func (co *CoinbaseInternational) GetInstrumentDetails(ctx context.Context, instrumentName, instrumentUUID, instrumentID string) (*InstrumentInfo, error) {
+func (co *Exchange) GetInstrumentDetails(ctx context.Context, instrumentName, instrumentUUID, instrumentID string) (*InstrumentInfo, error) {
 	path := "instruments/"
 	switch {
 	case instrumentName != "":
@@ -180,7 +180,7 @@ func (co *CoinbaseInternational) GetInstrumentDetails(ctx context.Context, instr
 }
 
 // GetQuotePerInstrument retrieves the current quote for a specific instrument.
-func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, instrumentName, instrumentUUID, instrumentID string) (*QuoteInformation, error) {
+func (co *Exchange) GetQuotePerInstrument(ctx context.Context, instrumentName, instrumentUUID, instrumentID string) (*QuoteInformation, error) {
 	path := "instruments/"
 	switch {
 	case instrumentName != "":
@@ -197,7 +197,7 @@ func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, inst
 }
 
 // GetDailyTradingVolumes retrieves the trading volumes for each instrument separated by day
-func (co *CoinbaseInternational) GetDailyTradingVolumes(ctx context.Context, instruments []string, resultLimit, resultOffset int64, timeFrom time.Time, showOther bool) (*InstrumentsTradingVolumeInfo, error) {
+func (co *Exchange) GetDailyTradingVolumes(ctx context.Context, instruments []string, resultLimit, resultOffset int64, timeFrom time.Time, showOther bool) (*InstrumentsTradingVolumeInfo, error) {
 	if len(instruments) == 0 {
 		return nil, errInstrumentIDRequired
 	}
@@ -220,7 +220,7 @@ func (co *CoinbaseInternational) GetDailyTradingVolumes(ctx context.Context, ins
 }
 
 // GetAggregatedCandlesDataPerInstrument retrieves a list of aggregated candles data for a given instrument, granularity and time range
-func (co *CoinbaseInternational) GetAggregatedCandlesDataPerInstrument(ctx context.Context, instrument string, granularity kline.Interval, start, end time.Time) (*CandlestickDataHistory, error) {
+func (co *Exchange) GetAggregatedCandlesDataPerInstrument(ctx context.Context, instrument string, granularity kline.Interval, start, end time.Time) (*CandlestickDataHistory, error) {
 	if instrument == "" {
 		return nil, errInstrumentIDRequired
 	}
@@ -260,7 +260,7 @@ func stringFromInterval(interval kline.Interval) (string, error) {
 }
 
 // GetHistoricalFundingRate retrieves the historical funding rates for a specific instrument.
-func (co *CoinbaseInternational) GetHistoricalFundingRate(ctx context.Context, instrument string, resultOffset, resultLimit int64) (*FundingRateHistory, error) {
+func (co *Exchange) GetHistoricalFundingRate(ctx context.Context, instrument string, resultOffset, resultLimit int64) (*FundingRateHistory, error) {
 	if instrument == "" {
 		return nil, errInstrumentIDRequired
 	}
@@ -276,13 +276,13 @@ func (co *CoinbaseInternational) GetHistoricalFundingRate(ctx context.Context, i
 }
 
 // GetPositionOffsets returns all active position offsets
-func (co *CoinbaseInternational) GetPositionOffsets(ctx context.Context) (*PositionsOffset, error) {
+func (co *Exchange) GetPositionOffsets(ctx context.Context) (*PositionsOffset, error) {
 	var resp *PositionsOffset
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "position-offsets", nil, nil, &resp, false)
 }
 
 // CreateOrder creates a new order.
-func (co *CoinbaseInternational) CreateOrder(ctx context.Context, arg *OrderRequestParams) (*TradeOrder, error) {
+func (co *Exchange) CreateOrder(ctx context.Context, arg *OrderRequestParams) (*TradeOrder, error) {
 	if arg == nil || *arg == (OrderRequestParams{}) {
 		return nil, common.ErrNilPointer
 	}
@@ -309,7 +309,7 @@ func (co *CoinbaseInternational) CreateOrder(ctx context.Context, arg *OrderRequ
 }
 
 // GetOpenOrders returns a list of active orders resting on the order book matching the requested criteria. Does not return any rejected, cancelled, or fully filled orders as they are not active.
-func (co *CoinbaseInternational) GetOpenOrders(ctx context.Context, portfolioUUID, portfolioID, instrument, clientOrderID, eventType string, refDateTime time.Time, resultOffset, resultLimit int64) (*OrderItemDetail, error) {
+func (co *Exchange) GetOpenOrders(ctx context.Context, portfolioUUID, portfolioID, instrument, clientOrderID, eventType string, refDateTime time.Time, resultOffset, resultLimit int64) (*OrderItemDetail, error) {
 	params := url.Values{}
 	switch {
 	case portfolioID != "":
@@ -340,7 +340,7 @@ func (co *CoinbaseInternational) GetOpenOrders(ctx context.Context, portfolioUUI
 }
 
 // CancelOrders cancels all orders matching the requested criteria.
-func (co *CoinbaseInternational) CancelOrders(ctx context.Context, portfolioID, portfolioUUID, instrument string) ([]OrderItem, error) {
+func (co *Exchange) CancelOrders(ctx context.Context, portfolioID, portfolioUUID, instrument string) ([]OrderItem, error) {
 	params := url.Values{}
 	switch {
 	case portfolioID != "":
@@ -358,7 +358,7 @@ func (co *CoinbaseInternational) CancelOrders(ctx context.Context, portfolioID, 
 }
 
 // ModifyOpenOrder modifies an open order.
-func (co *CoinbaseInternational) ModifyOpenOrder(ctx context.Context, orderID string, arg *ModifyOrderParam) (*OrderItem, error) {
+func (co *Exchange) ModifyOpenOrder(ctx context.Context, orderID string, arg *ModifyOrderParam) (*OrderItem, error) {
 	if arg == nil || *arg == (ModifyOrderParam{}) {
 		return nil, common.ErrNilPointer
 	}
@@ -370,7 +370,7 @@ func (co *CoinbaseInternational) ModifyOpenOrder(ctx context.Context, orderID st
 }
 
 // GetOrderDetail retrieves a single order. The order retrieved can be either active or inactive.
-func (co *CoinbaseInternational) GetOrderDetail(ctx context.Context, orderID string) (*OrderItem, error) {
+func (co *Exchange) GetOrderDetail(ctx context.Context, orderID string) (*OrderItem, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -379,7 +379,7 @@ func (co *CoinbaseInternational) GetOrderDetail(ctx context.Context, orderID str
 }
 
 // CancelTradeOrder cancels a single open order.
-func (co *CoinbaseInternational) CancelTradeOrder(ctx context.Context, orderID, clientOrderID, portfolioID, portfolioUUID string) (*OrderItem, error) {
+func (co *Exchange) CancelTradeOrder(ctx context.Context, orderID, clientOrderID, portfolioID, portfolioUUID string) (*OrderItem, error) {
 	switch {
 	case orderID != "":
 	case clientOrderID != "":
@@ -401,14 +401,14 @@ func (co *CoinbaseInternational) CancelTradeOrder(ctx context.Context, orderID, 
 }
 
 // GetAllUserPortfolios returns all of the user's portfolios.
-func (co *CoinbaseInternational) GetAllUserPortfolios(ctx context.Context) ([]PortfolioItem, error) {
+func (co *Exchange) GetAllUserPortfolios(ctx context.Context) ([]PortfolioItem, error) {
 	var resp []PortfolioItem
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios", nil, nil, &resp, true)
 }
 
 // CreatePortfolio create a new portfolio. Request will fail if no name is provided or if user already has max number of portfolios.
 // Max number of portfolios is 20.
-func (co *CoinbaseInternational) CreatePortfolio(ctx context.Context, portfolioName string) (*PortfolioItem, error) {
+func (co *Exchange) CreatePortfolio(ctx context.Context, portfolioName string) (*PortfolioItem, error) {
 	var resp *PortfolioItem
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "portfolios", nil, &struct {
 		Name string `json:"name,omitempty"`
@@ -416,7 +416,7 @@ func (co *CoinbaseInternational) CreatePortfolio(ctx context.Context, portfolioN
 }
 
 // GetUserPortfolio retrieves the user's specified portfolio.
-func (co *CoinbaseInternational) GetUserPortfolio(ctx context.Context, portfolioID string) (*PortfolioItem, error) {
+func (co *Exchange) GetUserPortfolio(ctx context.Context, portfolioID string) (*PortfolioItem, error) {
 	if portfolioID == "" {
 		return nil, errMissingPortfolioID
 	}
@@ -425,7 +425,7 @@ func (co *CoinbaseInternational) GetUserPortfolio(ctx context.Context, portfolio
 }
 
 // PatchPortfolio update parameters for existing portfolio
-func (co *CoinbaseInternational) PatchPortfolio(ctx context.Context, arg *PatchPortfolioParams) (*PortfolioItem, error) {
+func (co *Exchange) PatchPortfolio(ctx context.Context, arg *PatchPortfolioParams) (*PortfolioItem, error) {
 	if arg == nil || *arg == (PatchPortfolioParams{}) {
 		return nil, common.ErrEmptyParams
 	}
@@ -434,7 +434,7 @@ func (co *CoinbaseInternational) PatchPortfolio(ctx context.Context, arg *PatchP
 }
 
 // UpdatePortfolio update existing user portfolio
-func (co *CoinbaseInternational) UpdatePortfolio(ctx context.Context, portfolioID, portfolioUniqueName string) (*PortfolioItem, error) {
+func (co *Exchange) UpdatePortfolio(ctx context.Context, portfolioID, portfolioUniqueName string) (*PortfolioItem, error) {
 	if portfolioID == "" {
 		return nil, errMissingPortfolioID
 	}
@@ -445,7 +445,7 @@ func (co *CoinbaseInternational) UpdatePortfolio(ctx context.Context, portfolioI
 }
 
 // GetPortfolioDetails retrieves the summary, positions, and balances of a portfolio.
-func (co *CoinbaseInternational) GetPortfolioDetails(ctx context.Context, portfolioID, portfolioUUID string) (*PortfolioDetail, error) {
+func (co *Exchange) GetPortfolioDetails(ctx context.Context, portfolioID, portfolioUUID string) (*PortfolioDetail, error) {
 	if portfolioID == "" && portfolioUUID == "" {
 		return nil, errMissingPortfolioID
 	}
@@ -461,7 +461,7 @@ func (co *CoinbaseInternational) GetPortfolioDetails(ctx context.Context, portfo
 }
 
 // GetPortfolioSummary retrieves the high level overview of a portfolio.
-func (co *CoinbaseInternational) GetPortfolioSummary(ctx context.Context, portfolioUUID, portfolioID string) (*PortfolioSummary, error) {
+func (co *Exchange) GetPortfolioSummary(ctx context.Context, portfolioUUID, portfolioID string) (*PortfolioSummary, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -476,7 +476,7 @@ func (co *CoinbaseInternational) GetPortfolioSummary(ctx context.Context, portfo
 }
 
 // ListPortfolioBalances returns all of the balances for a given portfolio.
-func (co *CoinbaseInternational) ListPortfolioBalances(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioBalance, error) {
+func (co *Exchange) ListPortfolioBalances(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioBalance, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -491,7 +491,7 @@ func (co *CoinbaseInternational) ListPortfolioBalances(ctx context.Context, port
 }
 
 // GetPortfolioAssetBalance retrieves the balance for a given portfolio and asset.
-func (co *CoinbaseInternational) GetPortfolioAssetBalance(ctx context.Context, portfolioUUID, portfolioID string, ccy currency.Code) (*PortfolioBalance, error) {
+func (co *Exchange) GetPortfolioAssetBalance(ctx context.Context, portfolioUUID, portfolioID string, ccy currency.Code) (*PortfolioBalance, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -509,7 +509,7 @@ func (co *CoinbaseInternational) GetPortfolioAssetBalance(ctx context.Context, p
 }
 
 // GetActiveLoansForPortfolio retrieves all loan info for a given portfolio.
-func (co *CoinbaseInternational) GetActiveLoansForPortfolio(ctx context.Context, portfolioUUID, portfolioID string) (*PortfolioLoanDetail, error) {
+func (co *Exchange) GetActiveLoansForPortfolio(ctx context.Context, portfolioUUID, portfolioID string) (*PortfolioLoanDetail, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -524,7 +524,7 @@ func (co *CoinbaseInternational) GetActiveLoansForPortfolio(ctx context.Context,
 }
 
 // GetLoanInfoForPortfolioAsset retrieves the loan info for a given portfolio and asset.
-func (co *CoinbaseInternational) GetLoanInfoForPortfolioAsset(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code) (*PortfolioLoanDetail, error) {
+func (co *Exchange) GetLoanInfoForPortfolioAsset(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code) (*PortfolioLoanDetail, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -543,7 +543,7 @@ func (co *CoinbaseInternational) GetLoanInfoForPortfolioAsset(ctx context.Contex
 
 // AcquireRepayLoan acquire or repay loan for a given portfolio and asset.
 // Action possible values: [ACQUIRE, REPAY]
-func (co *CoinbaseInternational) AcquireRepayLoan(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code, arg *LoanActionAmountParam) (*AcquireRepayLoanResponse, error) {
+func (co *Exchange) AcquireRepayLoan(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code, arg *LoanActionAmountParam) (*AcquireRepayLoanResponse, error) {
 	if arg == nil || *arg == (LoanActionAmountParam{}) {
 		return nil, common.ErrEmptyParams
 	}
@@ -564,7 +564,7 @@ func (co *CoinbaseInternational) AcquireRepayLoan(ctx context.Context, portfolio
 }
 
 // PreviewLoanUpdate preview acquire or repay loan for a given portfolio and asset.
-func (co *CoinbaseInternational) PreviewLoanUpdate(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code, arg *LoanActionAmountParam) (*LoanUpdate, error) {
+func (co *Exchange) PreviewLoanUpdate(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code, arg *LoanActionAmountParam) (*LoanUpdate, error) {
 	if arg == nil || *arg == (LoanActionAmountParam{}) {
 		return nil, common.ErrEmptyParams
 	}
@@ -585,7 +585,7 @@ func (co *CoinbaseInternational) PreviewLoanUpdate(ctx context.Context, portfoli
 }
 
 // ViewMaxLoanAvailability view the maximum amount of loan that could be acquired now
-func (co *CoinbaseInternational) ViewMaxLoanAvailability(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code) (*MaxLoanAvailability, error) {
+func (co *Exchange) ViewMaxLoanAvailability(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code) (*MaxLoanAvailability, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -603,7 +603,7 @@ func (co *CoinbaseInternational) ViewMaxLoanAvailability(ctx context.Context, po
 }
 
 // ListPortfolioPositions returns all of the positions for a given portfolio.
-func (co *CoinbaseInternational) ListPortfolioPositions(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioPosition, error) {
+func (co *Exchange) ListPortfolioPositions(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioPosition, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -618,7 +618,7 @@ func (co *CoinbaseInternational) ListPortfolioPositions(ctx context.Context, por
 }
 
 // GetPortfolioInstrumentPosition retrieves the position for a given portfolio and symbol.
-func (co *CoinbaseInternational) GetPortfolioInstrumentPosition(ctx context.Context, portfolioUUID, portfolioID string, instrument currency.Pair) (*PortfolioPosition, error) {
+func (co *Exchange) GetPortfolioInstrumentPosition(ctx context.Context, portfolioUUID, portfolioID string, instrument currency.Pair) (*PortfolioPosition, error) {
 	if instrument.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -636,7 +636,7 @@ func (co *CoinbaseInternational) GetPortfolioInstrumentPosition(ctx context.Cont
 }
 
 // GetTotalOpenPositionLimitPortfolio retrieves the total open position limit across instruments for a given portfolio.
-func (co *CoinbaseInternational) GetTotalOpenPositionLimitPortfolio(ctx context.Context, portfolioID string) (*PortfolioPositionLimit, error) {
+func (co *Exchange) GetTotalOpenPositionLimitPortfolio(ctx context.Context, portfolioID string) (*PortfolioPositionLimit, error) {
 	if portfolioID == "" {
 		return nil, errMissingPortfolioID
 	}
@@ -645,7 +645,7 @@ func (co *CoinbaseInternational) GetTotalOpenPositionLimitPortfolio(ctx context.
 }
 
 // GetFillsByPortfolio returns fills for specified portfolios or fills for all portfolios if none are provided
-func (co *CoinbaseInternational) GetFillsByPortfolio(ctx context.Context, portfolioUUID, orderID, clientOrderID string, resultLimit, resultOffset int64, refDateTime, timeFrom time.Time) (*PortfolioFill, error) {
+func (co *Exchange) GetFillsByPortfolio(ctx context.Context, portfolioUUID, orderID, clientOrderID string, resultLimit, resultOffset int64, refDateTime, timeFrom time.Time) (*PortfolioFill, error) {
 	params := url.Values{}
 	if portfolioUUID != "" {
 		params.Set("portfolios", portfolioUUID)
@@ -673,7 +673,7 @@ func (co *CoinbaseInternational) GetFillsByPortfolio(ctx context.Context, portfo
 }
 
 // ListPortfolioFills returns all of the fills for a given portfolio.
-func (co *CoinbaseInternational) ListPortfolioFills(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioFill, error) {
+func (co *Exchange) ListPortfolioFills(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioFill, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -688,7 +688,7 @@ func (co *CoinbaseInternational) ListPortfolioFills(ctx context.Context, portfol
 }
 
 // EnableDisablePortfolioCrossCollateral enable or disable the cross collateral feature for the portfolio, which allows the portfolio to use non-USDC assets as collateral for margin trading.
-func (co *CoinbaseInternational) EnableDisablePortfolioCrossCollateral(ctx context.Context, portfolioUUID, portfolioID string, enabled bool) (*PortfolioItem, error) {
+func (co *Exchange) EnableDisablePortfolioCrossCollateral(ctx context.Context, portfolioUUID, portfolioID string, enabled bool) (*PortfolioItem, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -708,7 +708,7 @@ func (co *CoinbaseInternational) EnableDisablePortfolioCrossCollateral(ctx conte
 
 // EnableDisablePortfolioAutoMarginMode enable or disable the auto margin feature,
 // which lets the portfolio automatically post margin amounts required to exceed the high leverage position restrictions.
-func (co *CoinbaseInternational) EnableDisablePortfolioAutoMarginMode(ctx context.Context, portfolioUUID, portfolioID string, enabled bool) (*PortfolioItem, error) {
+func (co *Exchange) EnableDisablePortfolioAutoMarginMode(ctx context.Context, portfolioUUID, portfolioID string, enabled bool) (*PortfolioItem, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -727,7 +727,7 @@ func (co *CoinbaseInternational) EnableDisablePortfolioAutoMarginMode(ctx contex
 }
 
 // SetPortfolioMarginOverride specify the margin override value for a portfolio to either increase notional requirements or opt-in to higher leverage.
-func (co *CoinbaseInternational) SetPortfolioMarginOverride(ctx context.Context, arg *PortfolioMarginOverrideParams) (*PortfolioMarginOverrideResponse, error) {
+func (co *Exchange) SetPortfolioMarginOverride(ctx context.Context, arg *PortfolioMarginOverrideParams) (*PortfolioMarginOverrideResponse, error) {
 	if arg == nil || *arg == (PortfolioMarginOverrideParams{}) {
 		return nil, common.ErrEmptyParams
 	}
@@ -736,7 +736,7 @@ func (co *CoinbaseInternational) SetPortfolioMarginOverride(ctx context.Context,
 }
 
 // TransferFundsBetweenPortfolios transfer assets from one portfolio to another.
-func (co *CoinbaseInternational) TransferFundsBetweenPortfolios(ctx context.Context, arg *TransferFundsBetweenPortfoliosParams) (bool, error) {
+func (co *Exchange) TransferFundsBetweenPortfolios(ctx context.Context, arg *TransferFundsBetweenPortfoliosParams) (bool, error) {
 	if arg == nil || *arg == (TransferFundsBetweenPortfoliosParams{}) {
 		return false, common.ErrEmptyParams
 	}
@@ -749,7 +749,7 @@ func (co *CoinbaseInternational) TransferFundsBetweenPortfolios(ctx context.Cont
 // TransferPositionsBetweenPortfolios transfer an existing position from one portfolio to another.
 // The position transfer must fulfill the same portfolio-level margin requirements as submitting a new order on the opposite side for the sender's portfolio and a new order on the same side for the recipient's portfolio.
 // Additionally, organization-level requirements must be satisfied when evaluating the outcome of the position transfer.
-func (co *CoinbaseInternational) TransferPositionsBetweenPortfolios(ctx context.Context, arg *TransferPortfolioParams) (bool, error) {
+func (co *Exchange) TransferPositionsBetweenPortfolios(ctx context.Context, arg *TransferPortfolioParams) (bool, error) {
 	if arg == nil || *arg == (TransferPortfolioParams{}) {
 		return false, common.ErrEmptyParams
 	}
@@ -760,7 +760,7 @@ func (co *CoinbaseInternational) TransferPositionsBetweenPortfolios(ctx context.
 }
 
 // GetPortfolioFeeRates retrieves the Perpetual Future and Spot fee rate tiers for the user.
-func (co *CoinbaseInternational) GetPortfolioFeeRates(ctx context.Context) ([]PortfolioFeeRate, error) {
+func (co *Exchange) GetPortfolioFeeRates(ctx context.Context) ([]PortfolioFeeRate, error) {
 	var resp []PortfolioFeeRate
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios/fee-rates", nil, nil, &resp, true)
 }
@@ -768,7 +768,7 @@ func (co *CoinbaseInternational) GetPortfolioFeeRates(ctx context.Context) ([]Po
 // GetYourRanking retrieve your volume rankings for maker, taker, and total volume.
 // Instrument type allowed values: SPOT, PERPETUAL_FUTURE
 // period allowed values: YESTERDAY, LAST_7_DAYS, THIS_MONTH, LAST_30_DAYS, LAST_MONTH. Default: THIS_MONTH
-func (co *CoinbaseInternational) GetYourRanking(ctx context.Context, instrumentType, period string, instruments []string) (*VolumeRankingInfo, error) {
+func (co *Exchange) GetYourRanking(ctx context.Context, instrumentType, period string, instruments []string) (*VolumeRankingInfo, error) {
 	if instrumentType == "" {
 		return nil, errInstrumentTypeRequired
 	}
@@ -789,7 +789,7 @@ func (co *CoinbaseInternational) GetYourRanking(ctx context.Context, instrumentT
 // ListMatchingTransfers represents a list of transfer based on the query
 // type: possible values DEPOSIT, WITHDRAW, REBATE, STIPEND
 // status: possible value PROCESSED, NEW, FAILED, STARTED
-func (co *CoinbaseInternational) ListMatchingTransfers(ctx context.Context, portfolioUUID, portfolioID, status, transferType string, resultLimit, resultOffset int64, timeFrom, timeTo time.Time) (*Transfers, error) {
+func (co *Exchange) ListMatchingTransfers(ctx context.Context, portfolioUUID, portfolioID, status, transferType string, resultLimit, resultOffset int64, timeFrom, timeTo time.Time) (*Transfers, error) {
 	params := url.Values{}
 	switch {
 	case portfolioUUID != "":
@@ -820,7 +820,7 @@ func (co *CoinbaseInternational) ListMatchingTransfers(ctx context.Context, port
 }
 
 // GetTransfer returns a single transfer instance
-func (co *CoinbaseInternational) GetTransfer(ctx context.Context, transferID string) (*FundTransfer, error) {
+func (co *Exchange) GetTransfer(ctx context.Context, transferID string) (*FundTransfer, error) {
 	if transferID == "" {
 		return nil, errMissingTransferID
 	}
@@ -829,7 +829,7 @@ func (co *CoinbaseInternational) GetTransfer(ctx context.Context, transferID str
 }
 
 // WithdrawToCryptoAddress withdraws a crypto fund to crypto address
-func (co *CoinbaseInternational) WithdrawToCryptoAddress(ctx context.Context, arg *WithdrawCryptoParams) (*WithdrawalResponse, error) {
+func (co *Exchange) WithdrawToCryptoAddress(ctx context.Context, arg *WithdrawCryptoParams) (*WithdrawalResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -847,7 +847,7 @@ func (co *CoinbaseInternational) WithdrawToCryptoAddress(ctx context.Context, ar
 }
 
 // CreateCryptoAddress created a new crypto address
-func (co *CoinbaseInternational) CreateCryptoAddress(ctx context.Context, arg *CryptoAddressParam) (*CryptoAddressInfo, error) {
+func (co *Exchange) CreateCryptoAddress(ctx context.Context, arg *CryptoAddressParam) (*CryptoAddressInfo, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -865,7 +865,7 @@ func (co *CoinbaseInternational) CreateCryptoAddress(ctx context.Context, arg *C
 }
 
 // CreateCounterPartyID create counterparty Id
-func (co *CoinbaseInternational) CreateCounterPartyID(ctx context.Context, portfolio string) (*CounterpartyIDCreationResponse, error) {
+func (co *Exchange) CreateCounterPartyID(ctx context.Context, portfolio string) (*CounterpartyIDCreationResponse, error) {
 	if portfolio == "" {
 		return nil, errMissingPortfolioID
 	}
@@ -876,7 +876,7 @@ func (co *CoinbaseInternational) CreateCounterPartyID(ctx context.Context, portf
 }
 
 // ValidateCounterpartyID validate counterparty Id
-func (co *CoinbaseInternational) ValidateCounterpartyID(ctx context.Context, counterpartyID string) (*CounterpartyValidationResponse, error) {
+func (co *Exchange) ValidateCounterpartyID(ctx context.Context, counterpartyID string) (*CounterpartyValidationResponse, error) {
 	if counterpartyID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -887,7 +887,7 @@ func (co *CoinbaseInternational) ValidateCounterpartyID(ctx context.Context, cou
 }
 
 // WithdrawToCounterpartyID withdraw to counterparty Id
-func (co *CoinbaseInternational) WithdrawToCounterpartyID(ctx context.Context, arg *AssetCounterpartyWithdrawalResponse) (*CounterpartyWithdrawalResponse, error) {
+func (co *Exchange) WithdrawToCounterpartyID(ctx context.Context, arg *AssetCounterpartyWithdrawalResponse) (*CounterpartyWithdrawalResponse, error) {
 	if arg == nil || *arg == (AssetCounterpartyWithdrawalResponse{}) {
 		return nil, common.ErrEmptyParams
 	}
@@ -896,7 +896,7 @@ func (co *CoinbaseInternational) WithdrawToCounterpartyID(ctx context.Context, a
 }
 
 // GetCounterpartyWithdrawalLimit retrieves counterparty withdrawal limit within coinbase transfer network
-func (co *CoinbaseInternational) GetCounterpartyWithdrawalLimit(ctx context.Context, portfolio, assetIdentifier string) (*CounterpartyWithdrawalLimi, error) {
+func (co *Exchange) GetCounterpartyWithdrawalLimit(ctx context.Context, portfolio, assetIdentifier string) (*CounterpartyWithdrawalLimi, error) {
 	if portfolio == "" {
 		return nil, errMissingPortfolioID
 	}
@@ -908,7 +908,7 @@ func (co *CoinbaseInternational) GetCounterpartyWithdrawalLimit(ctx context.Cont
 }
 
 // SendHTTPRequest sends a public HTTP request.
-func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params url.Values, data, result interface{}, authenticated bool) error {
+func (co *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params url.Values, data, result interface{}, authenticated bool) error {
 	endpoint, err := co.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -1001,7 +1001,7 @@ func OrderTypeString(oType order.Type) (string, error) {
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (co *CoinbaseInternational) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (co *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	var err error
 	switch feeBuilder.FeeType {
@@ -1025,7 +1025,7 @@ func (co *CoinbaseInternational) GetFee(ctx context.Context, feeBuilder *exchang
 	return fee, nil
 }
 
-func (co *CoinbaseInternational) calculateTradingFee(ctx context.Context, base, quote currency.Code, purchasePrice, amount float64, isMaker bool) (float64, error) {
+func (co *Exchange) calculateTradingFee(ctx context.Context, base, quote currency.Code, purchasePrice, amount float64, isMaker bool) (float64, error) {
 	fees, err := co.GetAllUserPortfolios(ctx)
 	if err != nil {
 		return 0, err

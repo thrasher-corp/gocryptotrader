@@ -35,51 +35,50 @@ var defaultSubscriptions = subscription.List{
 }
 
 // WsConnect initiates a websocket connection
-func (b *Bithumb) WsConnect() error {
-	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
+func (e *Exchange) WsConnect() error {
+	ctx := context.TODO()
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 
 	var dialer gws.Dialer
-	dialer.HandshakeTimeout = b.Config.HTTPTimeout
+	dialer.HandshakeTimeout = e.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %w",
-			b.Name,
-			err)
+		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %w", e.Name, err)
 	}
 
-	b.Websocket.Wg.Add(1)
-	go b.wsReadData()
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData()
 
-	b.setupOrderbookManager()
+	e.setupOrderbookManager(ctx)
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *Bithumb) wsReadData() {
-	defer b.Websocket.Wg.Done()
+func (e *Exchange) wsReadData() {
+	defer e.Websocket.Wg.Done()
 
 	for {
 		select {
-		case <-b.Websocket.ShutdownC:
+		case <-e.Websocket.ShutdownC:
 			return
 		default:
-			resp := b.Websocket.Conn.ReadMessage()
+			resp := e.Websocket.Conn.ReadMessage()
 			if resp.Raw == nil {
 				return
 			}
-			err := b.wsHandleData(resp.Raw)
+			err := e.wsHandleData(resp.Raw)
 			if err != nil {
-				b.Websocket.DataHandler <- err
+				e.Websocket.DataHandler <- err
 			}
 		}
 	}
 }
 
-func (b *Bithumb) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(respRaw []byte) error {
 	var resp WsResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -103,12 +102,12 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		var lu time.Time
-		lu, err = time.ParseInLocation(tickerTimeLayout, tick.Date+tick.Time, b.location)
+		lu, err = time.ParseInLocation(tickerTimeLayout, tick.Date+tick.Time, e.location)
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- &ticker.Price{
-			ExchangeName: b.Name,
+		e.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: e.Name,
 			AssetType:    asset.Spot,
 			Last:         tick.PreviousClosePrice,
 			Pair:         tick.Symbol,
@@ -121,7 +120,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 			LastUpdated:  lu,
 		}
 	case "transaction":
-		if !b.IsSaveTradeDataEnabled() {
+		if !e.IsSaveTradeDataEnabled() {
 			return nil
 		}
 
@@ -134,13 +133,13 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 		toBuffer := make([]trade.Data, len(trades.List))
 		var lu time.Time
 		for x := range trades.List {
-			lu, err = time.ParseInLocation(tradeTimeLayout, trades.List[x].ContractTime, b.location)
+			lu, err = time.ParseInLocation(tradeTimeLayout, trades.List[x].ContractTime, e.location)
 			if err != nil {
 				return err
 			}
 
 			toBuffer[x] = trade.Data{
-				Exchange:     b.Name,
+				Exchange:     e.Name,
 				AssetType:    asset.Spot,
 				CurrencyPair: trades.List[x].Symbol,
 				Timestamp:    lu,
@@ -149,7 +148,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		err = b.AddTradesToBuffer(toBuffer...)
+		err = e.AddTradesToBuffer(toBuffer...)
 		if err != nil {
 			return err
 		}
@@ -159,9 +158,9 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		init, err := b.UpdateLocalBuffer(&orderbooks)
+		init, err := e.UpdateLocalBuffer(&orderbooks)
 		if err != nil && !init {
-			return fmt.Errorf("%v - UpdateLocalCache error: %s", b.Name, err)
+			return fmt.Errorf("%v - UpdateLocalCache error: %s", e.Name, err)
 		}
 		return nil
 	default:
@@ -172,22 +171,23 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 }
 
 // generateSubscriptions generates the default subscription set
-func (b *Bithumb) generateSubscriptions() (subscription.List, error) {
-	return b.Features.Subscriptions.ExpandTemplates(b)
+func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (b *Bithumb) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{"subToReq": subToReq}).Parse(subTplText)
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Bithumb) Subscribe(subs subscription.List) error {
+func (e *Exchange) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	var errs error
 	for _, s := range subs {
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, json.RawMessage(s.QualifiedChannel))
+		err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(s.QualifiedChannel))
 		if err == nil {
-			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
+			err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s)
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)

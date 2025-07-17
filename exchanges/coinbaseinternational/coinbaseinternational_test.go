@@ -34,12 +34,12 @@ const (
 )
 
 var (
-	co                  = &CoinbaseInternational{}
+	co                  *Exchange
 	spotTP, perpetualTP currency.Pair
 )
 
 func TestMain(m *testing.M) {
-	co = new(CoinbaseInternational)
+	co = new(Exchange)
 	if err := testexch.Setup(co); err != nil {
 		log.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func setupWs() {
 	}
 }
 
-func (co *CoinbaseInternational) populateTradablePairs() error {
+func (co *Exchange) populateTradablePairs() error {
 	err := co.UpdateTradablePairs(context.Background(), false)
 	if err != nil {
 		return err
