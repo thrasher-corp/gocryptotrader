@@ -29,8 +29,8 @@ import (
 	"golang.org/x/exp/rand"
 )
 
-// Apexpro is the overarching type across this package
-type Apexpro struct {
+// Exchange is the overarching type across this package
+type Exchange struct {
 	exchange.Base
 
 	// SymbolsConfig represents all symbols configuration.
@@ -66,55 +66,55 @@ var (
 // Start implementing public and private exchange API funcs below
 
 // GetSystemTimeV3 retrieves V3 system time.
-func (ap *Apexpro) GetSystemTimeV3(ctx context.Context) (time.Time, error) {
-	return ap.getSystemTime(ctx, "v3/time")
+func (e *Exchange) GetSystemTimeV3(ctx context.Context) (time.Time, error) {
+	return e.getSystemTime(ctx, "v3/time")
 }
 
 // GetSystemTimeV2 retrieves V2 system time.
-func (ap *Apexpro) GetSystemTimeV2(ctx context.Context) (time.Time, error) {
-	return ap.getSystemTime(ctx, "v2/time")
+func (e *Exchange) GetSystemTimeV2(ctx context.Context) (time.Time, error) {
+	return e.getSystemTime(ctx, "v2/time")
 }
 
 // GetSystemTimeV1 retrieves V1 system time.
-func (ap *Apexpro) GetSystemTimeV1(ctx context.Context) (time.Time, error) {
-	return ap.getSystemTime(ctx, "v1/time")
+func (e *Exchange) GetSystemTimeV1(ctx context.Context) (time.Time, error) {
+	return e.getSystemTime(ctx, "v1/time")
 }
 
-func (ap *Apexpro) getSystemTime(ctx context.Context, path string) (time.Time, error) {
+func (e *Exchange) getSystemTime(ctx context.Context, path string) (time.Time, error) {
 	resp := &struct {
 		Time types.Time `json:"time"`
 	}{}
-	return resp.Time.Time(), ap.SendHTTPRequest(ctx, exchange.RestSpot, path, request.UnAuth, &resp)
+	return resp.Time.Time(), e.SendHTTPRequest(ctx, exchange.RestSpot, path, request.UnAuth, &resp)
 }
 
 // GetAllConfigDataV3 retrieves all symbols and asset configurations.
-func (ap *Apexpro) GetAllConfigDataV3(ctx context.Context) (*AllSymbolsConfigs, error) {
+func (e *Exchange) GetAllConfigDataV3(ctx context.Context) (*AllSymbolsConfigs, error) {
 	var resp *AllSymbolsConfigs
-	return resp, ap.SendHTTPRequest(ctx, exchange.RestSpot, "v3/symbols", request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "v3/symbols", request.UnAuth, &resp)
 }
 
 // GetAllSymbolsConfigDataV1 retrieves all symbols and asset configurations from the V1 API.
-func (ap *Apexpro) GetAllSymbolsConfigDataV1(ctx context.Context) (*AllSymbolsV1Config, error) {
+func (e *Exchange) GetAllSymbolsConfigDataV1(ctx context.Context) (*AllSymbolsV1Config, error) {
 	var resp *AllSymbolsV1Config
-	return resp, ap.SendHTTPRequest(ctx, exchange.RestSpot, "v1/symbols", request.UnAuth, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "v1/symbols", request.UnAuth, &resp, true)
 }
 
 // GetMarketDepthV3 retrieve all active orderbook for one symbol, include all bids and asks.
-func (ap *Apexpro) GetMarketDepthV3(ctx context.Context, symbol string, limit int64) (*MarketDepthV3, error) {
-	return ap.getMarketDepth(ctx, symbol, "v3/depth", limit)
+func (e *Exchange) GetMarketDepthV3(ctx context.Context, symbol string, limit int64) (*MarketDepthV3, error) {
+	return e.getMarketDepth(ctx, symbol, "v3/depth", limit)
 }
 
 // GetMarketDepthV2 retrieve all active orderbook for one symbol, include all bids and asks.
-func (ap *Apexpro) GetMarketDepthV2(ctx context.Context, symbol string, limit int64) (*MarketDepthV3, error) {
-	return ap.getMarketDepth(ctx, symbol, "v2/depth", limit)
+func (e *Exchange) GetMarketDepthV2(ctx context.Context, symbol string, limit int64) (*MarketDepthV3, error) {
+	return e.getMarketDepth(ctx, symbol, "v2/depth", limit)
 }
 
 // GetMarketDepthV1 retrieve all active orderbook for one symbol, include all bids and asks.
-func (ap *Apexpro) GetMarketDepthV1(ctx context.Context, symbol string, limit int64) (*MarketDepthV3, error) {
-	return ap.getMarketDepth(ctx, symbol, "v1/depth", limit)
+func (e *Exchange) GetMarketDepthV1(ctx context.Context, symbol string, limit int64) (*MarketDepthV3, error) {
+	return e.getMarketDepth(ctx, symbol, "v1/depth", limit)
 }
 
-func (ap *Apexpro) getMarketDepth(ctx context.Context, symbol, path string, limit int64) (*MarketDepthV3, error) {
+func (e *Exchange) getMarketDepth(ctx context.Context, symbol, path string, limit int64) (*MarketDepthV3, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -125,25 +125,25 @@ func (ap *Apexpro) getMarketDepth(ctx context.Context, symbol, path string, limi
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *MarketDepthV3
-	return resp, ap.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
 }
 
 // GetNewestTradingDataV3 retrieve trading data.
-func (ap *Apexpro) GetNewestTradingDataV3(ctx context.Context, symbol string, limit int64) ([]NewTradingData, error) {
-	return ap.getNewestTradingData(ctx, symbol, "v3/trades", limit)
+func (e *Exchange) GetNewestTradingDataV3(ctx context.Context, symbol string, limit int64) ([]NewTradingData, error) {
+	return e.getNewestTradingData(ctx, symbol, "v3/trades", limit)
 }
 
 // GetNewestTradingDataV2 retrieve trading data.
-func (ap *Apexpro) GetNewestTradingDataV2(ctx context.Context, symbol string, limit int64) ([]NewTradingData, error) {
-	return ap.getNewestTradingData(ctx, symbol, "v2/trades", limit)
+func (e *Exchange) GetNewestTradingDataV2(ctx context.Context, symbol string, limit int64) ([]NewTradingData, error) {
+	return e.getNewestTradingData(ctx, symbol, "v2/trades", limit)
 }
 
 // GetNewestTradingDataV1 retrieve trading data.
-func (ap *Apexpro) GetNewestTradingDataV1(ctx context.Context, symbol string, limit int64) ([]NewTradingData, error) {
-	return ap.getNewestTradingData(ctx, symbol, "v1/trades", limit)
+func (e *Exchange) GetNewestTradingDataV1(ctx context.Context, symbol string, limit int64) ([]NewTradingData, error) {
+	return e.getNewestTradingData(ctx, symbol, "v1/trades", limit)
 }
 
-func (ap *Apexpro) getNewestTradingData(ctx context.Context, symbol, path string, limit int64) ([]NewTradingData, error) {
+func (e *Exchange) getNewestTradingData(ctx context.Context, symbol, path string, limit int64) ([]NewTradingData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -153,7 +153,7 @@ func (ap *Apexpro) getNewestTradingData(ctx context.Context, symbol, path string
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []NewTradingData
-	return resp, ap.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
 }
 
 var intervalToStringMap = map[kline.Interval]string{kline.OneMin: "1", kline.FiveMin: "5", kline.FifteenMin: "15", kline.ThirtyMin: "30", kline.OneHour: "60", kline.TwoHour: "120", kline.FourHour: "240", kline.SixHour: "360", kline.SevenHour: "720", kline.OneDay: "D", kline.OneMonth: "M", kline.OneWeek: "W"}
@@ -168,21 +168,21 @@ func intervalToString(interval kline.Interval) (string, error) {
 
 // GetCandlestickChartDataV3 etrieves all candlestick chart data.
 // Candlestick chart time indicators: Numbers represent minutes, D for Days, M for Month and W for Week — 1 5 15 30 60 120 240 360 720 "D" "M" "W"
-func (ap *Apexpro) GetCandlestickChartDataV3(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
-	return ap.getCandlestickChartData(ctx, symbol, "v3/klines", interval, startTime, endTime, limit)
+func (e *Exchange) GetCandlestickChartDataV3(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
+	return e.getCandlestickChartData(ctx, symbol, "v3/klines", interval, startTime, endTime, limit)
 }
 
 // GetCandlestickChartDataV2 retrieves v2 all candlestick chart data.
-func (ap *Apexpro) GetCandlestickChartDataV2(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
-	return ap.getCandlestickChartData(ctx, symbol, "v2/klines", interval, startTime, endTime, limit)
+func (e *Exchange) GetCandlestickChartDataV2(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
+	return e.getCandlestickChartData(ctx, symbol, "v2/klines", interval, startTime, endTime, limit)
 }
 
 // GetCandlestickChartDataV1 retrieves v1 all candlestick chart data.
-func (ap *Apexpro) GetCandlestickChartDataV1(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
-	return ap.getCandlestickChartData(ctx, symbol, "v1/klines", interval, startTime, endTime, limit)
+func (e *Exchange) GetCandlestickChartDataV1(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
+	return e.getCandlestickChartData(ctx, symbol, "v1/klines", interval, startTime, endTime, limit)
 }
 
-func (ap *Apexpro) getCandlestickChartData(ctx context.Context, symbol, path string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
+func (e *Exchange) getCandlestickChartData(ctx context.Context, symbol, path string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -205,45 +205,45 @@ func (ap *Apexpro) getCandlestickChartData(ctx context.Context, symbol, path str
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp map[string][]CandlestickData
-	return resp, ap.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
 }
 
 // GetTickerDataV3 get the latest data on symbol tickers.
-func (ap *Apexpro) GetTickerDataV3(ctx context.Context, symbol string) ([]TickerData, error) {
-	return ap.getTickerData(ctx, symbol, "v3/ticker")
+func (e *Exchange) GetTickerDataV3(ctx context.Context, symbol string) ([]TickerData, error) {
+	return e.getTickerData(ctx, symbol, "v3/ticker")
 }
 
 // GetTickerDataV2 get the latest data on symbol tickers.
-func (ap *Apexpro) GetTickerDataV2(ctx context.Context, symbol string) ([]TickerData, error) {
-	return ap.getTickerData(ctx, symbol, "v2/ticker")
+func (e *Exchange) GetTickerDataV2(ctx context.Context, symbol string) ([]TickerData, error) {
+	return e.getTickerData(ctx, symbol, "v2/ticker")
 }
 
-func (ap *Apexpro) getTickerData(ctx context.Context, symbol, path string) ([]TickerData, error) {
+func (e *Exchange) getTickerData(ctx context.Context, symbol, path string) ([]TickerData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp []TickerData
-	return resp, ap.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
 }
 
 // GetFundingHistoryRateV3 retrieves a funding history rate.
-func (ap *Apexpro) GetFundingHistoryRateV3(ctx context.Context, symbol string, beginTime, endTime time.Time, page, limit int64) (*FundingRateHistory, error) {
-	return ap.getFundingHistoryRate(ctx, symbol, "v3/history-funding", beginTime, endTime, page, limit)
+func (e *Exchange) GetFundingHistoryRateV3(ctx context.Context, symbol string, beginTime, endTime time.Time, page, limit int64) (*FundingRateHistory, error) {
+	return e.getFundingHistoryRate(ctx, symbol, "v3/history-funding", beginTime, endTime, page, limit)
 }
 
 // GetFundingHistoryRateV2 retrieves a funding history rate.
-func (ap *Apexpro) GetFundingHistoryRateV2(ctx context.Context, symbol string, beginTime, endTime time.Time, page, limit int64) (*FundingRateHistory, error) {
-	return ap.getFundingHistoryRate(ctx, symbol, "v2/history-funding", beginTime, endTime, page, limit)
+func (e *Exchange) GetFundingHistoryRateV2(ctx context.Context, symbol string, beginTime, endTime time.Time, page, limit int64) (*FundingRateHistory, error) {
+	return e.getFundingHistoryRate(ctx, symbol, "v2/history-funding", beginTime, endTime, page, limit)
 }
 
 // GetFundingHistoryRateV1 retrieves a funding history rate.
-func (ap *Apexpro) GetFundingHistoryRateV1(ctx context.Context, symbol string, beginTime, endTime time.Time, page, limit int64) (*FundingRateHistory, error) {
-	return ap.getFundingHistoryRate(ctx, symbol, "v2/history-funding", beginTime, endTime, page, limit)
+func (e *Exchange) GetFundingHistoryRateV1(ctx context.Context, symbol string, beginTime, endTime time.Time, page, limit int64) (*FundingRateHistory, error) {
+	return e.getFundingHistoryRate(ctx, symbol, "v2/history-funding", beginTime, endTime, page, limit)
 }
 
-func (ap *Apexpro) getFundingHistoryRate(ctx context.Context, symbol, path string, beginTime, endTime time.Time, page, limit int64) (*FundingRateHistory, error) {
+func (e *Exchange) getFundingHistoryRate(ctx context.Context, symbol, path string, beginTime, endTime time.Time, page, limit int64) (*FundingRateHistory, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -262,53 +262,53 @@ func (ap *Apexpro) getFundingHistoryRate(ctx context.Context, symbol, path strin
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *FundingRateHistory
-	return resp, ap.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
 }
 
 // GetAllConfigDataV2 retrieves USDC and USDT config
-func (ap *Apexpro) GetAllConfigDataV2(ctx context.Context) (*V2ConfigData, error) {
+func (e *Exchange) GetAllConfigDataV2(ctx context.Context) (*V2ConfigData, error) {
 	var resp *V2ConfigData
-	return resp, ap.SendHTTPRequest(ctx, exchange.RestSpot, "v2/symbols", request.UnAuth, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "v2/symbols", request.UnAuth, &resp, true)
 }
 
 // GetCheckIfUserExistsV2 checks existence of a persion using the ethereum Address
-func (ap *Apexpro) GetCheckIfUserExistsV2(ctx context.Context, ethAddress string) (bool, error) {
-	return ap.getCheckIfUserExists(ctx, ethAddress, "v2/check-user-exist")
+func (e *Exchange) GetCheckIfUserExistsV2(ctx context.Context, ethAddress string) (bool, error) {
+	return e.getCheckIfUserExists(ctx, ethAddress, "v2/check-user-exist")
 }
 
 // GetCheckIfUserExistsV1 checks existence of a persion using the ethereum Address
-func (ap *Apexpro) GetCheckIfUserExistsV1(ctx context.Context, ethAddress string) (bool, error) {
-	return ap.getCheckIfUserExists(ctx, ethAddress, "v1/check-user-exist")
+func (e *Exchange) GetCheckIfUserExistsV1(ctx context.Context, ethAddress string) (bool, error) {
+	return e.getCheckIfUserExists(ctx, ethAddress, "v1/check-user-exist")
 }
 
-func (ap *Apexpro) getCheckIfUserExists(ctx context.Context, ethAddress, path string) (bool, error) {
+func (e *Exchange) getCheckIfUserExists(ctx context.Context, ethAddress, path string) (bool, error) {
 	if ethAddress == "" {
 		return false, errEthereumAddressMissing
 	}
 	params := url.Values{}
 	params.Set("ethAddress", ethAddress)
 	var resp bool
-	return resp, ap.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
 }
 
 // ----------------------------------------------------------------     Authenticated Endpoints ----------------------------------------------------------------
 
 // GenerateNonceV3 generate and obtain nonce before registration. The nonce is used to assemble the signature field upon registration.
-func (ap *Apexpro) GenerateNonceV3(ctx context.Context, l2Key, ethereumAddress, chainID string) (*NonceResponse, error) {
-	return ap.generateNonce(ctx, l2Key, ethereumAddress, chainID, "v3/generate-nonce")
+func (e *Exchange) GenerateNonceV3(ctx context.Context, l2Key, ethereumAddress, chainID string) (*NonceResponse, error) {
+	return e.generateNonce(ctx, l2Key, ethereumAddress, chainID, "v3/generate-nonce")
 }
 
 // GenerateNonceV2 before registering, generate and obtain a nonce. The nonce serves the purpose of assembling the signature field during the registration process.
-func (ap *Apexpro) GenerateNonceV2(ctx context.Context, l2Key, ethereumAddress, chainID string) (*NonceResponse, error) {
-	return ap.generateNonce(ctx, l2Key, ethereumAddress, chainID, "v2/generate-nonce")
+func (e *Exchange) GenerateNonceV2(ctx context.Context, l2Key, ethereumAddress, chainID string) (*NonceResponse, error) {
+	return e.generateNonce(ctx, l2Key, ethereumAddress, chainID, "v2/generate-nonce")
 }
 
 // GenerateNonceV1 before registering, generate and obtain a nonce.
-func (ap *Apexpro) GenerateNonceV1(ctx context.Context, l2Key, ethereumAddress, chainID string) (*NonceResponse, error) {
-	return ap.generateNonce(ctx, l2Key, ethereumAddress, chainID, "v1/generate-nonce")
+func (e *Exchange) GenerateNonceV1(ctx context.Context, l2Key, ethereumAddress, chainID string) (*NonceResponse, error) {
+	return e.generateNonce(ctx, l2Key, ethereumAddress, chainID, "v1/generate-nonce")
 }
 
-func (ap *Apexpro) generateNonce(ctx context.Context, l2Key, ethereumAddress, chainID, path string) (*NonceResponse, error) {
+func (e *Exchange) generateNonce(ctx context.Context, l2Key, ethereumAddress, chainID, path string) (*NonceResponse, error) {
 	if l2Key == "" {
 		return nil, errL2KeyMissing
 	}
@@ -328,101 +328,101 @@ func (ap *Apexpro) generateNonce(ctx context.Context, l2Key, ethereumAddress, ch
 		ChainID:         chainID,
 	}
 	var resp *NonceResponse
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, nil, arg, &resp)
 }
 
 // GetUsersDataV3 retrieves an account users information.
-func (ap *Apexpro) GetUsersDataV3(ctx context.Context) (*UserData, error) {
-	return ap.getUsersData(ctx, "v3/user")
+func (e *Exchange) GetUsersDataV3(ctx context.Context) (*UserData, error) {
+	return e.getUsersData(ctx, "v3/user")
 }
 
 // GetUsersDataV2 retrieves an account users information through the V2 API
-func (ap *Apexpro) GetUsersDataV2(ctx context.Context) (*UserData, error) {
-	return ap.getUsersData(ctx, "v2/user")
+func (e *Exchange) GetUsersDataV2(ctx context.Context) (*UserData, error) {
+	return e.getUsersData(ctx, "v2/user")
 }
 
 // GetUsersDataV1 retrieves an account users information through the V1 API
-func (ap *Apexpro) GetUsersDataV1(ctx context.Context) (*UserData, error) {
-	return ap.getUsersData(ctx, "v1/user")
+func (e *Exchange) GetUsersDataV1(ctx context.Context) (*UserData, error) {
+	return e.getUsersData(ctx, "v1/user")
 }
 
-func (ap *Apexpro) getUsersData(ctx context.Context, path string) (*UserData, error) {
+func (e *Exchange) getUsersData(ctx context.Context, path string) (*UserData, error) {
 	var resp *UserData
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, path, request.Unset, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, path, request.Unset, nil, nil, &resp)
 }
 
 // EditUserDataV3 edits user's data.
-func (ap *Apexpro) EditUserDataV3(ctx context.Context, arg *EditUserDataParams) (*UserDataResponse, error) {
-	return ap.editUserData(ctx, arg, "v3/modify-user")
+func (e *Exchange) EditUserDataV3(ctx context.Context, arg *EditUserDataParams) (*UserDataResponse, error) {
+	return e.editUserData(ctx, arg, "v3/modify-user")
 }
 
 // EditUserDataV2 edits user's data through the V2 API.
-func (ap *Apexpro) EditUserDataV2(ctx context.Context, arg *EditUserDataParams) (*UserDataResponse, error) {
-	return ap.editUserData(ctx, arg, "v2/modify-user")
+func (e *Exchange) EditUserDataV2(ctx context.Context, arg *EditUserDataParams) (*UserDataResponse, error) {
+	return e.editUserData(ctx, arg, "v2/modify-user")
 }
 
 // EditUserDataV1 edits user's data through the V1 API.
-func (ap *Apexpro) EditUserDataV1(ctx context.Context, arg *EditUserDataParams) (*UserDataResponse, error) {
-	return ap.editUserData(ctx, arg, "v1/modify-user")
+func (e *Exchange) EditUserDataV1(ctx context.Context, arg *EditUserDataParams) (*UserDataResponse, error) {
+	return e.editUserData(ctx, arg, "v1/modify-user")
 }
 
-func (ap *Apexpro) editUserData(ctx context.Context, arg *EditUserDataParams, path string) (*UserDataResponse, error) {
+func (e *Exchange) editUserData(ctx context.Context, arg *EditUserDataParams, path string) (*UserDataResponse, error) {
 	if *arg == (EditUserDataParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	var resp *UserDataResponse
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, nil, arg, &resp)
 }
 
 // GetUserAccountDataV3 get an account for a user by id. Using the client, the id will be generated with client information and an Ethereum address.
-func (ap *Apexpro) GetUserAccountDataV3(ctx context.Context) (*UserAccountDetail, error) {
+func (e *Exchange) GetUserAccountDataV3(ctx context.Context) (*UserAccountDetail, error) {
 	var resp *UserAccountDetail
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/account", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/account", request.UnAuth, nil, nil, &resp)
 }
 
 // GetUserAccountDataV2 get a user account detail through the V2 API.
-func (ap *Apexpro) GetUserAccountDataV2(ctx context.Context) (*UserAccountV2, error) {
+func (e *Exchange) GetUserAccountDataV2(ctx context.Context) (*UserAccountV2, error) {
 	var resp *UserAccountV2
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v2/account", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v2/account", request.UnAuth, nil, nil, &resp)
 }
 
 // GetUserAccountDataV1 get an account for a user by id
-func (ap *Apexpro) GetUserAccountDataV1(ctx context.Context) (*UserAccountDetailV1, error) {
+func (e *Exchange) GetUserAccountDataV1(ctx context.Context) (*UserAccountDetailV1, error) {
 	var resp *UserAccountDetailV1
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/account", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/account", request.UnAuth, nil, nil, &resp)
 }
 
 // GetUserAccountBalance retrieves user account balance information.
-func (ap *Apexpro) GetUserAccountBalance(ctx context.Context) (*UserAccountBalanceResponse, error) {
+func (e *Exchange) GetUserAccountBalance(ctx context.Context) (*UserAccountBalanceResponse, error) {
 	var resp *UserAccountBalanceResponse
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/account-balance", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/account-balance", request.UnAuth, nil, nil, &resp)
 }
 
 // GetUserAccountBalanceV2 retrieves user account balance information through the V2 API.
-func (ap *Apexpro) GetUserAccountBalanceV2(ctx context.Context) (*UserAccountBalanceV2Response, error) {
+func (e *Exchange) GetUserAccountBalanceV2(ctx context.Context) (*UserAccountBalanceV2Response, error) {
 	var resp *UserAccountBalanceV2Response
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v2/account-balance", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v2/account-balance", request.UnAuth, nil, nil, &resp)
 }
 
 // GetUserAccountBalanceV1 retrieve user account balance
-func (ap *Apexpro) GetUserAccountBalanceV1(ctx context.Context) (*UserAccountBalanceResponse, error) {
+func (e *Exchange) GetUserAccountBalanceV1(ctx context.Context) (*UserAccountBalanceResponse, error) {
 	var resp *UserAccountBalanceResponse
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/account-balance", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/account-balance", request.UnAuth, nil, nil, &resp)
 }
 
 // UserWithdrawalsV2
 
 // GetUserTransferDataV2 retrieves user's asset transfer information.
-func (ap *Apexpro) GetUserTransferDataV2(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, transferType string, chainIDs []string, limit, page int64) (*UserWithdrawalsV2, error) {
-	return ap.getUserTransferData(ctx, ccy, startTime, endTime, transferType, "v2/transfers", chainIDs, limit, page)
+func (e *Exchange) GetUserTransferDataV2(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, transferType string, chainIDs []string, limit, page int64) (*UserWithdrawalsV2, error) {
+	return e.getUserTransferData(ctx, ccy, startTime, endTime, transferType, "v2/transfers", chainIDs, limit, page)
 }
 
 // GetUserTransferDataV1 retrieves user's deposit data.
-func (ap *Apexpro) GetUserTransferDataV1(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, transferType string, chainIDs []string, limit, page int64) (*UserWithdrawalsV2, error) {
-	return ap.getUserTransferData(ctx, ccy, startTime, endTime, transferType, "v1/transfers", chainIDs, limit, page)
+func (e *Exchange) GetUserTransferDataV1(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, transferType string, chainIDs []string, limit, page int64) (*UserWithdrawalsV2, error) {
+	return e.getUserTransferData(ctx, ccy, startTime, endTime, transferType, "v1/transfers", chainIDs, limit, page)
 }
 
-func (ap *Apexpro) getUserTransferData(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, transferType, path string, chainIDs []string, limit, page int64) (*UserWithdrawalsV2, error) {
+func (e *Exchange) getUserTransferData(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, transferType, path string, chainIDs []string, limit, page int64) (*UserWithdrawalsV2, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currencyId", ccy.String())
@@ -446,20 +446,20 @@ func (ap *Apexpro) getUserTransferData(ctx context.Context, ccy currency.Code, s
 		params.Set("transferType", transferType)
 	}
 	var resp *UserWithdrawalsV2
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
 }
 
 // GetUserWithdrawalListV2 retrieves asset withdrawal list.
-func (ap *Apexpro) GetUserWithdrawalListV2(ctx context.Context, transferType string, startTime, endTime time.Time, page, limit int64) (*WithdrawalsV2, error) {
-	return ap.getUserWithdrawalList(ctx, transferType, "v2/withdraw-list", startTime, endTime, page, limit)
+func (e *Exchange) GetUserWithdrawalListV2(ctx context.Context, transferType string, startTime, endTime time.Time, page, limit int64) (*WithdrawalsV2, error) {
+	return e.getUserWithdrawalList(ctx, transferType, "v2/withdraw-list", startTime, endTime, page, limit)
 }
 
 // GetUserWithdrawalListV1 returns the user withdrawal list.
-func (ap *Apexpro) GetUserWithdrawalListV1(ctx context.Context, transferType string, startTime, endTime time.Time, page, limit int64) (*WithdrawalsV2, error) {
-	return ap.getUserWithdrawalList(ctx, transferType, "v1/withdraw-list", startTime, endTime, page, limit)
+func (e *Exchange) GetUserWithdrawalListV1(ctx context.Context, transferType string, startTime, endTime time.Time, page, limit int64) (*WithdrawalsV2, error) {
+	return e.getUserWithdrawalList(ctx, transferType, "v1/withdraw-list", startTime, endTime, page, limit)
 }
 
-func (ap *Apexpro) getUserWithdrawalList(ctx context.Context, transferType, path string, startTime, endTime time.Time, page, limit int64) (*WithdrawalsV2, error) {
+func (e *Exchange) getUserWithdrawalList(ctx context.Context, transferType, path string, startTime, endTime time.Time, page, limit int64) (*WithdrawalsV2, error) {
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("beginTimeInclusive", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -477,23 +477,23 @@ func (ap *Apexpro) getUserWithdrawalList(ctx context.Context, transferType, path
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *WithdrawalsV2
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
 }
 
 // GetFastAndCrossChainWithdrawalFeesV2 retrieves fee information of fast and cross-chain withdrawal transactions.
-func (ap *Apexpro) GetFastAndCrossChainWithdrawalFeesV2(ctx context.Context, amount float64, chainID string, token currency.Code) (*FastAndCrossChainWithdrawalFees, error) {
+func (e *Exchange) GetFastAndCrossChainWithdrawalFeesV2(ctx context.Context, amount float64, chainID string, token currency.Code) (*FastAndCrossChainWithdrawalFees, error) {
 	if token.IsEmpty() {
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
-	return ap.getFastAndCrossChainWithdrawalFees(ctx, amount, chainID, "v2/uncommon-withdraw-fee", token.String())
+	return e.getFastAndCrossChainWithdrawalFees(ctx, amount, chainID, "v2/uncommon-withdraw-fee", token.String())
 }
 
 // GetFastAndCrossChainWithdrawalFeesV1 retrieves fee information of fast and cross-chain withdrawals.
-func (ap *Apexpro) GetFastAndCrossChainWithdrawalFeesV1(ctx context.Context, amount float64, chainID string) (*FastAndCrossChainWithdrawalFees, error) {
-	return ap.getFastAndCrossChainWithdrawalFees(ctx, amount, chainID, "v1/uncommon-withdraw-fee", "")
+func (e *Exchange) GetFastAndCrossChainWithdrawalFeesV1(ctx context.Context, amount float64, chainID string) (*FastAndCrossChainWithdrawalFees, error) {
+	return e.getFastAndCrossChainWithdrawalFees(ctx, amount, chainID, "v1/uncommon-withdraw-fee", "")
 }
 
-func (ap *Apexpro) getFastAndCrossChainWithdrawalFees(ctx context.Context, amount float64, chainID, path, token string) (*FastAndCrossChainWithdrawalFees, error) {
+func (e *Exchange) getFastAndCrossChainWithdrawalFees(ctx context.Context, amount float64, chainID, path, token string) (*FastAndCrossChainWithdrawalFees, error) {
 	params := url.Values{}
 	params.Set("token", token)
 	if amount > 0 {
@@ -503,33 +503,33 @@ func (ap *Apexpro) getFastAndCrossChainWithdrawalFees(ctx context.Context, amoun
 		params.Set("chainId", chainID)
 	}
 	var resp *FastAndCrossChainWithdrawalFees
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
 }
 
 // GetAssetWithdrawalAndTransferLimitV2 retrieves an asset withdrawal and transfer limit per interval.
-func (ap *Apexpro) GetAssetWithdrawalAndTransferLimitV2(ctx context.Context, currencyID currency.Code) (*TransferAndWithdrawalLimit, error) {
-	return ap.getAssetWithdrawalAndTransferLimit(ctx, currencyID, "v2/transfer-limit")
+func (e *Exchange) GetAssetWithdrawalAndTransferLimitV2(ctx context.Context, currencyID currency.Code) (*TransferAndWithdrawalLimit, error) {
+	return e.getAssetWithdrawalAndTransferLimit(ctx, currencyID, "v2/transfer-limit")
 }
 
 // GetAssetWithdrawalAndTransferLimitV1 retrieves an asset withdrawal and transfer limit per interval.
-func (ap *Apexpro) GetAssetWithdrawalAndTransferLimitV1(ctx context.Context, currencyID currency.Code) (*TransferAndWithdrawalLimit, error) {
-	return ap.getAssetWithdrawalAndTransferLimit(ctx, currencyID, "v1/transfer-limit")
+func (e *Exchange) GetAssetWithdrawalAndTransferLimitV1(ctx context.Context, currencyID currency.Code) (*TransferAndWithdrawalLimit, error) {
+	return e.getAssetWithdrawalAndTransferLimit(ctx, currencyID, "v1/transfer-limit")
 }
 
-func (ap *Apexpro) getAssetWithdrawalAndTransferLimit(ctx context.Context, currencyID currency.Code, path string) (*TransferAndWithdrawalLimit, error) {
+func (e *Exchange) getAssetWithdrawalAndTransferLimit(ctx context.Context, currencyID currency.Code, path string) (*TransferAndWithdrawalLimit, error) {
 	if currencyID.IsEmpty() {
 		return nil, fmt.Errorf("%w, currencyID is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("currencyId", currencyID.String())
 	var resp *TransferAndWithdrawalLimit
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
 }
 
 // GetUserTransferData retrieves user's asset transfer data.
 // Direction: possible values are 'NEXT' and 'PREVIOUS'
 // TransfersType: possible values are 'DEPOSIT', 'WITHDRAW' ,'FAST_WITHDRAW' ,'OMNI_TO_PERP' for spot account -> contract account,'OMNI_FROM_PERP' for spot account <- contract account,'AFFILIATE_REBATE' affliate rebate,'REFERRAL_REBATE' for referral rebate,'BROKER_REBATE' for broker rebate
-func (ap *Apexpro) GetUserTransferData(ctx context.Context, id, limit int64, tokenID, transferType, subAccountID, direction string, startAt, endAt time.Time, chainIDs []string) (*UserWithdrawals, error) {
+func (e *Exchange) GetUserTransferData(ctx context.Context, id, limit int64, tokenID, transferType, subAccountID, direction string, startAt, endAt time.Time, chainIDs []string) (*UserWithdrawals, error) {
 	if startAt.IsZero() {
 		return nil, fmt.Errorf("%w, startTime is required", errInvalidTimestamp)
 	}
@@ -562,13 +562,13 @@ func (ap *Apexpro) GetUserTransferData(ctx context.Context, id, limit int64, tok
 	params.Set("endTimeExclusive", strconv.FormatInt(endAt.UnixMilli(), 10))
 	params.Set("beginTimeInclusive", strconv.FormatInt(startAt.UnixMilli(), 10))
 	var resp *UserWithdrawals
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/transfers", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/transfers", request.UnAuth, params, nil, &resp)
 }
 
 // GetWithdrawalFees retrieves list of withdrawal fees.
 // the withdrawal need zkAvailableAmount >= withdrawAmount
 // the fast withdrawal needzkAvailableAmount >= withdrawAmount && fastPoolAvailableAmount>= withdrawAmount
-func (ap *Apexpro) GetWithdrawalFees(ctx context.Context, amount float64, chainIDs []string, tokenID int64) (*WithdrawalFeeInfos, error) {
+func (e *Exchange) GetWithdrawalFees(ctx context.Context, amount float64, chainIDs []string, tokenID int64) (*WithdrawalFeeInfos, error) {
 	params := url.Values{}
 	if amount != 0 {
 		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -582,39 +582,39 @@ func (ap *Apexpro) GetWithdrawalFees(ctx context.Context, amount float64, chainI
 		params.Set("tokenId", strconv.FormatInt(tokenID, 10))
 	}
 	var resp *WithdrawalFeeInfos
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/withdraw-fee", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/withdraw-fee", request.UnAuth, params, nil, &resp)
 }
 
 // GetContractAccountTransferLimits retrieves a transfer limit of a contract.
-func (ap *Apexpro) GetContractAccountTransferLimits(ctx context.Context, ccy currency.Code) (*ContractTransferLimit, error) {
+func (e *Exchange) GetContractAccountTransferLimits(ctx context.Context, ccy currency.Code) (*ContractTransferLimit, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
 	params.Set("token", ccy.String())
 	var resp *ContractTransferLimit
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/contract-transfer-limit", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/contract-transfer-limit", request.UnAuth, params, nil, &resp)
 }
 
 // GetTradeHistory retrieves trade fills history
-func (ap *Apexpro) GetTradeHistory(ctx context.Context, symbol, side, orderType string, startTime, endTime time.Time, page, limit int64) (*TradeHistory, error) {
-	return ap.getTradeHistory(ctx, symbol, side, orderType, "", "v3/fills", startTime, endTime, page, limit, exchange.RestFutures)
+func (e *Exchange) GetTradeHistory(ctx context.Context, symbol, side, orderType string, startTime, endTime time.Time, page, limit int64) (*TradeHistory, error) {
+	return e.getTradeHistory(ctx, symbol, side, orderType, "", "v3/fills", startTime, endTime, page, limit, exchange.RestFutures)
 }
 
 // GetTradeHistoryV2 retrieves trade fills history through the v2 API
-func (ap *Apexpro) GetTradeHistoryV2(ctx context.Context, symbol, side, orderType string, token currency.Code, startTime, endTime time.Time, page, limit int64) (*TradeHistory, error) {
+func (e *Exchange) GetTradeHistoryV2(ctx context.Context, symbol, side, orderType string, token currency.Code, startTime, endTime time.Time, page, limit int64) (*TradeHistory, error) {
 	if token.IsEmpty() {
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
-	return ap.getTradeHistory(ctx, symbol, side, orderType, token.String(), "v2/fills", startTime, endTime, page, limit, exchange.RestSpot)
+	return e.getTradeHistory(ctx, symbol, side, orderType, token.String(), "v2/fills", startTime, endTime, page, limit, exchange.RestSpot)
 }
 
 // GetTradeHistoryV1 retrieves trade fills history through the v1 API
-func (ap *Apexpro) GetTradeHistoryV1(ctx context.Context, symbol, side, orderType string, startTime, endTime time.Time, page, limit int64) (*TradeHistory, error) {
-	return ap.getTradeHistory(ctx, symbol, side, orderType, "", "v1/fills", startTime, endTime, page, limit, exchange.RestSpot)
+func (e *Exchange) GetTradeHistoryV1(ctx context.Context, symbol, side, orderType string, startTime, endTime time.Time, page, limit int64) (*TradeHistory, error) {
+	return e.getTradeHistory(ctx, symbol, side, orderType, "", "v1/fills", startTime, endTime, page, limit, exchange.RestSpot)
 }
 
-func (ap *Apexpro) getTradeHistory(ctx context.Context, symbol, side, orderType, token, path string, startTime, endTime time.Time, page, limit int64, ePath exchange.URL) (*TradeHistory, error) {
+func (e *Exchange) getTradeHistory(ctx context.Context, symbol, side, orderType, token, path string, startTime, endTime time.Time, page, limit int64, ePath exchange.URL) (*TradeHistory, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -641,25 +641,25 @@ func (ap *Apexpro) getTradeHistory(ctx context.Context, symbol, side, orderType,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *TradeHistory
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
 }
 
 // GetWorstPriceV3 retrieves the worst market price from orderbook
-func (ap *Apexpro) GetWorstPriceV3(ctx context.Context, symbol, side string, amount float64) (*SymbolWorstPrice, error) {
-	return ap.getWorstPrice(ctx, symbol, side, "v3/get-worst-price", amount, exchange.RestFutures)
+func (e *Exchange) GetWorstPriceV3(ctx context.Context, symbol, side string, amount float64) (*SymbolWorstPrice, error) {
+	return e.getWorstPrice(ctx, symbol, side, "v3/get-worst-price", amount, exchange.RestFutures)
 }
 
 // GetWorstPriceV2 retrieves the worst market price from orderbook
-func (ap *Apexpro) GetWorstPriceV2(ctx context.Context, symbol, side string, amount float64) (*SymbolWorstPrice, error) {
-	return ap.getWorstPrice(ctx, symbol, side, "v2/get-worst-price", amount, exchange.RestSpot)
+func (e *Exchange) GetWorstPriceV2(ctx context.Context, symbol, side string, amount float64) (*SymbolWorstPrice, error) {
+	return e.getWorstPrice(ctx, symbol, side, "v2/get-worst-price", amount, exchange.RestSpot)
 }
 
 // GetWorstPriceV1 retrieves the worst market price from orderbook
-func (ap *Apexpro) GetWorstPriceV1(ctx context.Context, symbol, side string, amount float64) (*SymbolWorstPrice, error) {
-	return ap.getWorstPrice(ctx, symbol, side, "v1/get-worst-price", amount, exchange.RestSpot)
+func (e *Exchange) GetWorstPriceV1(ctx context.Context, symbol, side string, amount float64) (*SymbolWorstPrice, error) {
+	return e.getWorstPrice(ctx, symbol, side, "v1/get-worst-price", amount, exchange.RestSpot)
 }
 
-func (ap *Apexpro) orderCreationParamsFilter(ctx context.Context, arg *CreateOrderParams) (url.Values, error) {
+func (e *Exchange) orderCreationParamsFilter(ctx context.Context, arg *CreateOrderParams) (url.Values, error) {
 	if *arg == (CreateOrderParams{}) {
 		return nil, order.ErrOrderDetailIsNil
 	}
@@ -678,7 +678,7 @@ func (ap *Apexpro) orderCreationParamsFilter(ctx context.Context, arg *CreateOrd
 	if arg.Price <= 0 {
 		return nil, order.ErrPriceBelowMin
 	}
-	signature, err := ap.ProcessOrderSignature(ctx, arg)
+	signature, err := e.ProcessOrderSignature(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -710,46 +710,46 @@ func (ap *Apexpro) orderCreationParamsFilter(ctx context.Context, arg *CreateOrd
 }
 
 // CreateOrderV3 creates a new order
-func (ap *Apexpro) CreateOrderV3(ctx context.Context, arg *CreateOrderParams) (*OrderDetail, error) {
-	params, err := ap.orderCreationParamsFilter(ctx, arg)
+func (e *Exchange) CreateOrderV3(ctx context.Context, arg *CreateOrderParams) (*OrderDetail, error) {
+	params, err := e.orderCreationParamsFilter(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
 	var resp *OrderDetail
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/order", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/order", request.UnAuth, params, nil, &resp)
 }
 
 // CreateOrderV2 creates a new order through the v2 API
-func (ap *Apexpro) CreateOrderV2(ctx context.Context, arg *CreateOrderParams) (*OrderDetail, error) {
-	params, err := ap.orderCreationParamsFilter(ctx, arg)
+func (e *Exchange) CreateOrderV2(ctx context.Context, arg *CreateOrderParams) (*OrderDetail, error) {
+	params, err := e.orderCreationParamsFilter(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
 	var resp *OrderDetail
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v2/create-order", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v2/create-order", request.UnAuth, params, nil, &resp)
 }
 
 // CreateOrderV1 creates a new order through the v2 API
-func (ap *Apexpro) CreateOrderV1(ctx context.Context, arg *CreateOrderParams) (*OrderDetail, error) {
-	params, err := ap.orderCreationParamsFilter(ctx, arg)
+func (e *Exchange) CreateOrderV1(ctx context.Context, arg *CreateOrderParams) (*OrderDetail, error) {
+	params, err := e.orderCreationParamsFilter(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
 	var resp *OrderDetail
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v1/create-order", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v1/create-order", request.UnAuth, params, nil, &resp)
 }
 
 // FastWithdrawalV1 withdraws an asset
-func (ap *Apexpro) FastWithdrawalV1(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
-	return ap.fastWithdrawal(ctx, arg, "v1/fast-withdraw")
+func (e *Exchange) FastWithdrawalV1(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
+	return e.fastWithdrawal(ctx, arg, "v1/fast-withdraw")
 }
 
 // FastWithdrawalV2 withdraws an asset
-func (ap *Apexpro) FastWithdrawalV2(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
-	return ap.fastWithdrawal(ctx, arg, "v2/fast-withdraw")
+func (e *Exchange) FastWithdrawalV2(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
+	return e.fastWithdrawal(ctx, arg, "v2/fast-withdraw")
 }
 
-func (ap *Apexpro) fillWithdrawalParams(arg *FastWithdrawalParams) error {
+func (e *Exchange) fillWithdrawalParams(arg *FastWithdrawalParams) error {
 	if *arg == (FastWithdrawalParams{}) {
 		return common.ErrNilPointer
 	}
@@ -765,12 +765,12 @@ func (ap *Apexpro) fillWithdrawalParams(arg *FastWithdrawalParams) error {
 	return nil
 }
 
-func (ap *Apexpro) fastWithdrawal(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
-	err := ap.fillWithdrawalParams(arg)
+func (e *Exchange) fastWithdrawal(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
+	err := e.fillWithdrawalParams(arg)
 	if err != nil {
 		return nil, err
 	}
-	signature, err := ap.ProcessConditionalTransfer(ctx, arg)
+	signature, err := e.ProcessConditionalTransfer(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -783,10 +783,10 @@ func (ap *Apexpro) fastWithdrawal(ctx context.Context, arg *FastWithdrawalParams
 	params.Set("clientId", arg.ClientID)
 	params.Set("signature", signature)
 	var resp *WithdrawalResponse
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, request.UnAuth, params, nil, &resp)
 }
 
-func (ap *Apexpro) getWorstPrice(ctx context.Context, symbol, side, path string, amount float64, ePath exchange.URL) (*SymbolWorstPrice, error) {
+func (e *Exchange) getWorstPrice(ctx context.Context, symbol, side, path string, amount float64, ePath exchange.URL) (*SymbolWorstPrice, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -801,38 +801,38 @@ func (ap *Apexpro) getWorstPrice(ctx context.Context, symbol, side, path string,
 	params.Set("side", side)
 	params.Set("symbol", symbol)
 	var resp *SymbolWorstPrice
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
 }
 
 // CancelPerpOrder cancels a perpetual contract order cancellation.
-func (ap *Apexpro) CancelPerpOrder(ctx context.Context, orderID string) (types.Number, error) {
-	return ap.cancelOrderByID(ctx, orderID, "v3/delete-order")
+func (e *Exchange) CancelPerpOrder(ctx context.Context, orderID string) (types.Number, error) {
+	return e.cancelOrderByID(ctx, orderID, "v3/delete-order")
 }
 
 // CancelPerpOrderByClientOrderID cancels a perpetual contract order by client order ID.
-func (ap *Apexpro) CancelPerpOrderByClientOrderID(ctx context.Context, clientOrderID string) (types.Number, error) {
-	return ap.cancelOrderByID(ctx, clientOrderID, "v3/delete-client-order-id")
+func (e *Exchange) CancelPerpOrderByClientOrderID(ctx context.Context, clientOrderID string) (types.Number, error) {
+	return e.cancelOrderByID(ctx, clientOrderID, "v3/delete-client-order-id")
 }
 
-func (ap *Apexpro) cancelOrderByID(ctx context.Context, id, path string) (types.Number, error) {
+func (e *Exchange) cancelOrderByID(ctx context.Context, id, path string) (types.Number, error) {
 	if id == "" {
 		return 0, order.ErrOrderIDNotSet
 	}
 	var resp types.Number
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, nil, map[string]interface{}{"id": id}, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, nil, map[string]interface{}{"id": id}, &resp)
 }
 
 // CancelAllOpenOrdersV3 cancels all open orders
-func (ap *Apexpro) CancelAllOpenOrdersV3(ctx context.Context, symbols []string) error {
+func (e *Exchange) CancelAllOpenOrdersV3(ctx context.Context, symbols []string) error {
 	var symbolString string
 	if len(symbols) > 0 {
 		symbolString = strings.Join(symbols, ",")
 	}
-	return ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v3/delete-open-orders", request.UnAuth, nil, map[string]string{"symbol": symbolString}, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v3/delete-open-orders", request.UnAuth, nil, map[string]string{"symbol": symbolString}, nil)
 }
 
 // CancelPerpOrderV2 cancels a perpetual contract futures order.
-func (ap *Apexpro) CancelPerpOrderV2(ctx context.Context, orderID string, token currency.Code) (types.Number, error) {
+func (e *Exchange) CancelPerpOrderV2(ctx context.Context, orderID string, token currency.Code) (types.Number, error) {
 	if orderID == "" {
 		return 0, order.ErrOrderIDNotSet
 	}
@@ -844,54 +844,54 @@ func (ap *Apexpro) CancelPerpOrderV2(ctx context.Context, orderID string, token 
 		"token": token.String(),
 	}
 	var resp types.Number
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v2/delete-order", request.UnAuth, nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v2/delete-order", request.UnAuth, nil, arg, &resp)
 }
 
 // GetOpenOrders retrieves an active orders
-func (ap *Apexpro) GetOpenOrders(ctx context.Context) ([]OrderDetail, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context) ([]OrderDetail, error) {
 	var resp []OrderDetail
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/open-orders", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/open-orders", request.UnAuth, nil, nil, &resp)
 }
 
 // GetOpenOrdersV2 retrieves an active orders
-func (ap *Apexpro) GetOpenOrdersV2(ctx context.Context, token currency.Code) ([]OrderDetail, error) {
+func (e *Exchange) GetOpenOrdersV2(ctx context.Context, token currency.Code) ([]OrderDetail, error) {
 	if token.IsEmpty() {
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("token", token.String())
 	var resp []OrderDetail
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v2/open-orders", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v2/open-orders", request.UnAuth, params, nil, &resp)
 }
 
 // GetOpenOrdersV1 retrieves an active orders
-func (ap *Apexpro) GetOpenOrdersV1(ctx context.Context) ([]OrderDetail, error) {
+func (e *Exchange) GetOpenOrdersV1(ctx context.Context) ([]OrderDetail, error) {
 	var resp []OrderDetail
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/open-orders", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/open-orders", request.UnAuth, nil, nil, &resp)
 }
 
 // GetAllOrderHistory retrieves all order history
 // possible ordersKind are "ACTIVE","CONDITION", and "HISTORY"
-func (ap *Apexpro) GetAllOrderHistory(ctx context.Context, symbol, side, orderType, orderStatus, ordersKind string, startTime, endTime time.Time, page, limit int64) (*OrderHistoryResponse, error) {
-	return ap.getAllOrderHistory(ctx, symbol, side, orderType, orderStatus, ordersKind, "", "v3/history-orders", startTime, endTime, page, limit)
+func (e *Exchange) GetAllOrderHistory(ctx context.Context, symbol, side, orderType, orderStatus, ordersKind string, startTime, endTime time.Time, page, limit int64) (*OrderHistoryResponse, error) {
+	return e.getAllOrderHistory(ctx, symbol, side, orderType, orderStatus, ordersKind, "", "v3/history-orders", startTime, endTime, page, limit)
 }
 
 // GetAllOrderHistoryV2 retrieves all order history
 // possible ordersKind are "ACTIVE","CONDITION", and "HISTORY"
-func (ap *Apexpro) GetAllOrderHistoryV2(ctx context.Context, token currency.Code, symbol, side, orderType, orderStatus, ordersKind string, startTime, endTime time.Time, page, limit int64) (*OrderHistoryResponse, error) {
+func (e *Exchange) GetAllOrderHistoryV2(ctx context.Context, token currency.Code, symbol, side, orderType, orderStatus, ordersKind string, startTime, endTime time.Time, page, limit int64) (*OrderHistoryResponse, error) {
 	if token.IsEmpty() {
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
-	return ap.getAllOrderHistory(ctx, symbol, side, orderType, orderStatus, ordersKind, token.String(), "v2/history-orders", startTime, endTime, page, limit)
+	return e.getAllOrderHistory(ctx, symbol, side, orderType, orderStatus, ordersKind, token.String(), "v2/history-orders", startTime, endTime, page, limit)
 }
 
 // GetAllOrderHistoryV1 retrieves all order history
 // possible ordersKind are "ACTIVE","CONDITION", and "HISTORY"
-func (ap *Apexpro) GetAllOrderHistoryV1(ctx context.Context, symbol, side, orderType, orderStatus, ordersKind string, startTime, endTime time.Time, page, limit int64) (*OrderHistoryResponse, error) {
-	return ap.getAllOrderHistory(ctx, symbol, side, orderType, orderStatus, ordersKind, "", "v1/history-orders", startTime, endTime, page, limit)
+func (e *Exchange) GetAllOrderHistoryV1(ctx context.Context, symbol, side, orderType, orderStatus, ordersKind string, startTime, endTime time.Time, page, limit int64) (*OrderHistoryResponse, error) {
+	return e.getAllOrderHistory(ctx, symbol, side, orderType, orderStatus, ordersKind, "", "v1/history-orders", startTime, endTime, page, limit)
 }
 
-func (ap *Apexpro) getAllOrderHistory(ctx context.Context, symbol, side, orderType, orderStatus, ordersKind, token, path string, startTime, endTime time.Time, page, limit int64) (*OrderHistoryResponse, error) {
+func (e *Exchange) getAllOrderHistory(ctx context.Context, symbol, side, orderType, orderStatus, ordersKind, token, path string, startTime, endTime time.Time, page, limit int64) (*OrderHistoryResponse, error) {
 	params := url.Values{}
 	if token != "" {
 		params.Set("token", token)
@@ -924,44 +924,44 @@ func (ap *Apexpro) getAllOrderHistory(ctx context.Context, symbol, side, orderTy
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *OrderHistoryResponse
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, path, request.UnAuth, params, nil, &resp)
 }
 
 // GetOrderID retrieves a single order by ID.
-func (ap *Apexpro) GetOrderID(ctx context.Context, orderID string) (*OrderDetail, error) {
+func (e *Exchange) GetOrderID(ctx context.Context, orderID string) (*OrderDetail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	return ap.getOrderID(ctx, orderID, "v3/order")
+	return e.getOrderID(ctx, orderID, "v3/order")
 }
 
 // GetSingleOrderByOrderIDV2 retrieves a single order detail by ID through the V2 API
-func (ap *Apexpro) GetSingleOrderByOrderIDV2(ctx context.Context, orderID string, token currency.Code) (*OrderDetail, error) {
+func (e *Exchange) GetSingleOrderByOrderIDV2(ctx context.Context, orderID string, token currency.Code) (*OrderDetail, error) {
 	if token.IsEmpty() {
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
-	return ap.getSingleOrder(ctx, orderID, "v2/get-order", token)
+	return e.getSingleOrder(ctx, orderID, "v2/get-order", token)
 }
 
 // GetSingleOrderByClientOrderIDV2 retrieves a single order detail by client supplied order ID through the V2 API
-func (ap *Apexpro) GetSingleOrderByClientOrderIDV2(ctx context.Context, orderID string, token currency.Code) (*OrderDetail, error) {
+func (e *Exchange) GetSingleOrderByClientOrderIDV2(ctx context.Context, orderID string, token currency.Code) (*OrderDetail, error) {
 	if token.IsEmpty() {
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
-	return ap.getSingleOrder(ctx, orderID, "v2/order-by-client-order-id", token)
+	return e.getSingleOrder(ctx, orderID, "v2/order-by-client-order-id", token)
 }
 
 // GetSingleOrderByOrderIDV1 retrieves a single order detail by ID through the V1 API
-func (ap *Apexpro) GetSingleOrderByOrderIDV1(ctx context.Context, orderID string) (*OrderDetail, error) {
-	return ap.getSingleOrder(ctx, orderID, "v1/get-order", currency.EMPTYCODE)
+func (e *Exchange) GetSingleOrderByOrderIDV1(ctx context.Context, orderID string) (*OrderDetail, error) {
+	return e.getSingleOrder(ctx, orderID, "v1/get-order", currency.EMPTYCODE)
 }
 
 // GetSingleOrderByClientOrderIDV1 retrieves a single order detail by client supplied order ID through the V1 API
-func (ap *Apexpro) GetSingleOrderByClientOrderIDV1(ctx context.Context, orderID string) (*OrderDetail, error) {
-	return ap.getSingleOrder(ctx, orderID, "v1/order-by-client-order-id", currency.EMPTYCODE)
+func (e *Exchange) GetSingleOrderByClientOrderIDV1(ctx context.Context, orderID string) (*OrderDetail, error) {
+	return e.getSingleOrder(ctx, orderID, "v1/order-by-client-order-id", currency.EMPTYCODE)
 }
 
-func (ap *Apexpro) getSingleOrder(ctx context.Context, orderID, path string, token currency.Code) (*OrderDetail, error) {
+func (e *Exchange) getSingleOrder(ctx context.Context, orderID, path string, token currency.Code) (*OrderDetail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -969,11 +969,11 @@ func (ap *Apexpro) getSingleOrder(ctx context.Context, orderID, path string, tok
 	params.Set("id", orderID)
 	params.Set("token", token.String())
 	var resp *OrderDetail
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
 }
 
 // GetVerificationEmailLink retrieves a link to the verification email
-func (ap *Apexpro) GetVerificationEmailLink(ctx context.Context, userID string, token currency.Code) error {
+func (e *Exchange) GetVerificationEmailLink(ctx context.Context, userID string, token currency.Code) error {
 	params := url.Values{}
 	if userID == "" {
 		return errUserIDRequired
@@ -982,12 +982,12 @@ func (ap *Apexpro) GetVerificationEmailLink(ctx context.Context, userID string, 
 	if !token.IsEmpty() {
 		params.Set("token", token.String())
 	}
-	return ap.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("v1/verify-email", params), request.UnAuth, nil)
+	return e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("v1/verify-email", params), request.UnAuth, nil)
 }
 
 // LinkDevice bind a device to an account.
 // possible device type values: 1 (ios_firebase), 2 (android_firebase)
-func (ap *Apexpro) LinkDevice(ctx context.Context, deviceToken currency.Code, deviceType string) error {
+func (e *Exchange) LinkDevice(ctx context.Context, deviceToken currency.Code, deviceType string) error {
 	if deviceToken.IsEmpty() {
 		return fmt.Errorf("%w, device token is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -998,43 +998,43 @@ func (ap *Apexpro) LinkDevice(ctx context.Context, deviceToken currency.Code, de
 		"deviceToken": deviceType,
 		"deviceType":  deviceType,
 	}
-	return ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v1/bind-device", request.UnAuth, nil, arg, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v1/bind-device", request.UnAuth, nil, arg, nil)
 }
 
 // GetOrderByClientOrderID retrieves a single order by client order ID.
-func (ap *Apexpro) GetOrderByClientOrderID(ctx context.Context, clientOrderID string) (*OrderDetail, error) {
+func (e *Exchange) GetOrderByClientOrderID(ctx context.Context, clientOrderID string) (*OrderDetail, error) {
 	if clientOrderID == "" {
 		return nil, order.ErrClientOrderIDMustBeSet
 	}
-	return ap.getOrderID(ctx, clientOrderID, "v3/order-by-client-order-id")
+	return e.getOrderID(ctx, clientOrderID, "v3/order-by-client-order-id")
 }
 
-func (ap *Apexpro) getOrderID(ctx context.Context, id, path string) (*OrderDetail, error) {
+func (e *Exchange) getOrderID(ctx context.Context, id, path string) (*OrderDetail, error) {
 	params := url.Values{}
 	params.Set("id", id)
 	var resp *OrderDetail
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, path, request.UnAuth, params, nil, &resp)
 }
 
 // GetFundingRateV3 retrieves a funding rate information.
-func (ap *Apexpro) GetFundingRateV3(ctx context.Context, symbol, side, status string, startTime, endTime time.Time, limit, page int64) (*FundingRateResponse, error) {
-	return ap.getFundingRate(ctx, symbol, side, status, "", "v3/funding", startTime, endTime, limit, page, exchange.RestFutures)
+func (e *Exchange) GetFundingRateV3(ctx context.Context, symbol, side, status string, startTime, endTime time.Time, limit, page int64) (*FundingRateResponse, error) {
+	return e.getFundingRate(ctx, symbol, side, status, "", "v3/funding", startTime, endTime, limit, page, exchange.RestFutures)
 }
 
 // GetFundingRateV2 retrieves a funding rate info for a contract.
-func (ap *Apexpro) GetFundingRateV2(ctx context.Context, token currency.Code, symbol, side, status string, startTime, endTime time.Time, limit, page int64) (*FundingRateResponse, error) {
+func (e *Exchange) GetFundingRateV2(ctx context.Context, token currency.Code, symbol, side, status string, startTime, endTime time.Time, limit, page int64) (*FundingRateResponse, error) {
 	if token.IsEmpty() {
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
-	return ap.getFundingRate(ctx, symbol, side, status, token.String(), "v2/funding", startTime, endTime, limit, page, exchange.RestSpot)
+	return e.getFundingRate(ctx, symbol, side, status, token.String(), "v2/funding", startTime, endTime, limit, page, exchange.RestSpot)
 }
 
 // GetFundingRateV1 retrieves a funding rate information.
-func (ap *Apexpro) GetFundingRateV1(ctx context.Context, symbol, side, status string, startTime, endTime time.Time, limit, page int64) (*FundingRateResponse, error) {
-	return ap.getFundingRate(ctx, symbol, side, status, "", "v1/funding", startTime, endTime, limit, page, exchange.RestSpot)
+func (e *Exchange) GetFundingRateV1(ctx context.Context, symbol, side, status string, startTime, endTime time.Time, limit, page int64) (*FundingRateResponse, error) {
+	return e.getFundingRate(ctx, symbol, side, status, "", "v1/funding", startTime, endTime, limit, page, exchange.RestSpot)
 }
 
-func (ap *Apexpro) getFundingRate(ctx context.Context, symbol, side, status, token, path string, startTime, endTime time.Time, limit, page int64, ePath exchange.URL) (*FundingRateResponse, error) {
+func (e *Exchange) getFundingRate(ctx context.Context, symbol, side, status, token, path string, startTime, endTime time.Time, limit, page int64, ePath exchange.URL) (*FundingRateResponse, error) {
 	params := url.Values{}
 	if token != "" {
 		params.Set("token", token)
@@ -1061,28 +1061,28 @@ func (ap *Apexpro) getFundingRate(ctx context.Context, symbol, side, status, tok
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *FundingRateResponse
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
 }
 
 // GetUserHistorialProfitAndLoss retrieves a profit and loss history of order positions
-func (ap *Apexpro) GetUserHistorialProfitAndLoss(ctx context.Context, symbol, positionType string, startTime, endTime time.Time, page, limit int64) (*PNLHistory, error) {
-	return ap.getUserHistorialProfitAndLoss(ctx, symbol, positionType, "", "v3/historical-pnl", startTime, endTime, page, limit, exchange.RestFutures)
+func (e *Exchange) GetUserHistorialProfitAndLoss(ctx context.Context, symbol, positionType string, startTime, endTime time.Time, page, limit int64) (*PNLHistory, error) {
+	return e.getUserHistorialProfitAndLoss(ctx, symbol, positionType, "", "v3/historical-pnl", startTime, endTime, page, limit, exchange.RestFutures)
 }
 
 // GetUserHistorialProfitAndLossV1 retrieves a profit and loss history of order positions through the V1 API endpoint.
-func (ap *Apexpro) GetUserHistorialProfitAndLossV1(ctx context.Context, symbol, positionType string, startTime, endTime time.Time, page, limit int64) (*PNLHistory, error) {
-	return ap.getUserHistorialProfitAndLoss(ctx, symbol, positionType, "", "v1/historical-pnl", startTime, endTime, page, limit, exchange.RestSpot)
+func (e *Exchange) GetUserHistorialProfitAndLossV1(ctx context.Context, symbol, positionType string, startTime, endTime time.Time, page, limit int64) (*PNLHistory, error) {
+	return e.getUserHistorialProfitAndLoss(ctx, symbol, positionType, "", "v1/historical-pnl", startTime, endTime, page, limit, exchange.RestSpot)
 }
 
 // GetUserHistorialProfitAndLossV2 retrieves a profit and loss history of order positions.
-func (ap *Apexpro) GetUserHistorialProfitAndLossV2(ctx context.Context, token currency.Code, symbol, positionType string, startTime, endTime time.Time, page, limit int64) (*PNLHistory, error) {
+func (e *Exchange) GetUserHistorialProfitAndLossV2(ctx context.Context, token currency.Code, symbol, positionType string, startTime, endTime time.Time, page, limit int64) (*PNLHistory, error) {
 	if token.IsEmpty() {
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
-	return ap.getUserHistorialProfitAndLoss(ctx, symbol, positionType, token.String(), "v2/historical-pnl", startTime, endTime, page, limit, exchange.RestSpot)
+	return e.getUserHistorialProfitAndLoss(ctx, symbol, positionType, token.String(), "v2/historical-pnl", startTime, endTime, page, limit, exchange.RestSpot)
 }
 
-func (ap *Apexpro) getUserHistorialProfitAndLoss(ctx context.Context, symbol, positionType, token, path string, startTime, endTime time.Time, page, limit int64, ePath exchange.URL) (*PNLHistory, error) {
+func (e *Exchange) getUserHistorialProfitAndLoss(ctx context.Context, symbol, positionType, token, path string, startTime, endTime time.Time, page, limit int64, ePath exchange.URL) (*PNLHistory, error) {
 	params := url.Values{}
 	if token != "" {
 		params.Set("token", token)
@@ -1106,51 +1106,51 @@ func (ap *Apexpro) getUserHistorialProfitAndLoss(ctx context.Context, symbol, po
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *PNLHistory
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
 }
 
 // GetYesterdaysPNL retrieves yesterdays profit and loss(PNL)
-func (ap *Apexpro) GetYesterdaysPNL(ctx context.Context) (types.Number, error) {
+func (e *Exchange) GetYesterdaysPNL(ctx context.Context) (types.Number, error) {
 	var resp types.Number
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/yesterday-pnl", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/yesterday-pnl", request.UnAuth, nil, nil, &resp)
 }
 
 // GetYesterdaysPNLV1 retrieves yesterdays profit and loss(PNL)
-func (ap *Apexpro) GetYesterdaysPNLV1(ctx context.Context) (types.Number, error) {
+func (e *Exchange) GetYesterdaysPNLV1(ctx context.Context) (types.Number, error) {
 	var resp types.Number
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/yesterday-pnl", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/yesterday-pnl", request.UnAuth, nil, nil, &resp)
 }
 
 // GetYesterdaysPNLV2 retrieves yesterdays profit and loss(PNL)
-func (ap *Apexpro) GetYesterdaysPNLV2(ctx context.Context, token currency.Code) (types.Number, error) {
+func (e *Exchange) GetYesterdaysPNLV2(ctx context.Context, token currency.Code) (types.Number, error) {
 	if token.IsEmpty() {
 		return 0, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("token", token.String())
 	var resp types.Number
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v2/yesterday-pnl", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v2/yesterday-pnl", request.UnAuth, params, nil, &resp)
 }
 
 // GetHistoricalAssetValue retrieves a historical asset value
-func (ap *Apexpro) GetHistoricalAssetValue(ctx context.Context, startTime, endTime time.Time) (*AssetValueHistory, error) {
-	return ap.getHistoricalAssetValue(ctx, "", "v3/history-value", startTime, endTime, exchange.RestFutures)
+func (e *Exchange) GetHistoricalAssetValue(ctx context.Context, startTime, endTime time.Time) (*AssetValueHistory, error) {
+	return e.getHistoricalAssetValue(ctx, "", "v3/history-value", startTime, endTime, exchange.RestFutures)
 }
 
 // GetHistoricalAssetValueV1 retrieves a historical asset value through the V1 APi endpoints.
-func (ap *Apexpro) GetHistoricalAssetValueV1(ctx context.Context, startTime, endTime time.Time) (*AssetValueHistory, error) {
-	return ap.getHistoricalAssetValue(ctx, "", "v1/history-value", startTime, endTime, exchange.RestSpot)
+func (e *Exchange) GetHistoricalAssetValueV1(ctx context.Context, startTime, endTime time.Time) (*AssetValueHistory, error) {
+	return e.getHistoricalAssetValue(ctx, "", "v1/history-value", startTime, endTime, exchange.RestSpot)
 }
 
 // GetHistoricalAssetValueV2 retrieves a historical asset value
-func (ap *Apexpro) GetHistoricalAssetValueV2(ctx context.Context, token currency.Code, startTime, endTime time.Time) (*AssetValueHistory, error) {
+func (e *Exchange) GetHistoricalAssetValueV2(ctx context.Context, token currency.Code, startTime, endTime time.Time) (*AssetValueHistory, error) {
 	if token.IsEmpty() {
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
-	return ap.getHistoricalAssetValue(ctx, token.String(), "v2/history-value", startTime, endTime, exchange.RestSpot)
+	return e.getHistoricalAssetValue(ctx, token.String(), "v2/history-value", startTime, endTime, exchange.RestSpot)
 }
 
-func (ap *Apexpro) getHistoricalAssetValue(ctx context.Context, token, path string, startTime, endTime time.Time, ePath exchange.URL) (*AssetValueHistory, error) {
+func (e *Exchange) getHistoricalAssetValue(ctx context.Context, token, path string, startTime, endTime time.Time, ePath exchange.URL) (*AssetValueHistory, error) {
 	params := url.Values{}
 	if token != "" {
 		params.Set("token", token)
@@ -1162,16 +1162,16 @@ func (ap *Apexpro) getHistoricalAssetValue(ctx context.Context, token, path stri
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *AssetValueHistory
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
 }
 
 // SetInitialMarginRateInfo sets an initial margin rate
-func (ap *Apexpro) SetInitialMarginRateInfo(ctx context.Context, symbol string, initialMarginRate float64) error {
-	return ap.setInitialMarginRateInfo(ctx, symbol, "v3/set-initial-margin-rate", initialMarginRate, exchange.RestFutures)
+func (e *Exchange) SetInitialMarginRateInfo(ctx context.Context, symbol string, initialMarginRate float64) error {
+	return e.setInitialMarginRateInfo(ctx, symbol, "v3/set-initial-margin-rate", initialMarginRate, exchange.RestFutures)
 }
 
 // GetRepaymentPrice retrieves repayment prices for tokens
-func (ap *Apexpro) GetRepaymentPrice(ctx context.Context, repaymentPriceTokens []RepaymentTokenAndAmount, clientID string) (*LoanRepaymentRates, error) {
+func (e *Exchange) GetRepaymentPrice(ctx context.Context, repaymentPriceTokens []RepaymentTokenAndAmount, clientID string) (*LoanRepaymentRates, error) {
 	if len(repaymentPriceTokens) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -1193,11 +1193,11 @@ func (ap *Apexpro) GetRepaymentPrice(ctx context.Context, repaymentPriceTokens [
 	params.Set("repaymentPriceTokens", paramString)
 	params.Set("clientId", clientID)
 	var resp *LoanRepaymentRates
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/repayment-price", request.Auth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/repayment-price", request.Auth, params, nil, &resp)
 }
 
 // UserManualRepayment sends a user manual repayment request
-func (ap *Apexpro) UserManualRepayment(ctx context.Context, arg *UserManualRepaymentParams) (*IDResponse, error) {
+func (e *Exchange) UserManualRepayment(ctx context.Context, arg *UserManualRepaymentParams) (*IDResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -1228,20 +1228,20 @@ func (ap *Apexpro) UserManualRepayment(ctx context.Context, arg *UserManualRepay
 		"expireTime":          strconv.FormatInt(arg.ExpiryTime.UnixMilli(), 10),
 	}
 	var resp *IDResponse
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/manual-create-repayment", request.Auth, nil, argParam, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/manual-create-repayment", request.Auth, nil, argParam, &resp)
 }
 
 // SetInitialMarginRateInfoV1 sets an initial margin rate
-func (ap *Apexpro) SetInitialMarginRateInfoV1(ctx context.Context, symbol string, initialMarginRate float64) error {
-	return ap.setInitialMarginRateInfo(ctx, symbol, "v1/set-initial-margin-rate", initialMarginRate, exchange.RestSpot)
+func (e *Exchange) SetInitialMarginRateInfoV1(ctx context.Context, symbol string, initialMarginRate float64) error {
+	return e.setInitialMarginRateInfo(ctx, symbol, "v1/set-initial-margin-rate", initialMarginRate, exchange.RestSpot)
 }
 
 // SetInitialMarginRateInfoV2 sets an initial margin rate
-func (ap *Apexpro) SetInitialMarginRateInfoV2(ctx context.Context, symbol string, initialMarginRate float64) error {
-	return ap.setInitialMarginRateInfo(ctx, symbol, "v2/set-initial-margin-rate", initialMarginRate, exchange.RestSpot)
+func (e *Exchange) SetInitialMarginRateInfoV2(ctx context.Context, symbol string, initialMarginRate float64) error {
+	return e.setInitialMarginRateInfo(ctx, symbol, "v2/set-initial-margin-rate", initialMarginRate, exchange.RestSpot)
 }
 
-func (ap *Apexpro) setInitialMarginRateInfo(ctx context.Context, symbol, path string, initialMarginRate float64, ePath exchange.URL) error {
+func (e *Exchange) setInitialMarginRateInfo(ctx context.Context, symbol, path string, initialMarginRate float64, ePath exchange.URL) error {
 	if symbol == "" {
 		return currency.ErrSymbolStringEmpty
 	}
@@ -1252,11 +1252,11 @@ func (ap *Apexpro) setInitialMarginRateInfo(ctx context.Context, symbol, path st
 		"symbol":            symbol,
 		"initialMarginRate": strconv.FormatFloat(initialMarginRate, 'f', -1, 64),
 	}
-	return ap.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodPost, path, request.UnAuth, nil, arg, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodPost, path, request.UnAuth, nil, arg, nil)
 }
 
 // WithdrawAsset posts an asset withdrawal
-func (ap *Apexpro) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams) (*WithdrawalResponse, error) {
+func (e *Exchange) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams) (*WithdrawalResponse, error) {
 	if arg.Amount <= 0 {
 		return nil, order.ErrAmountBelowMin
 	}
@@ -1266,7 +1266,7 @@ func (ap *Apexpro) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams
 	if arg.Timestamp.IsZero() {
 		return nil, errInvalidTimestamp
 	}
-	creds, err := ap.GetCredentials(context.Background())
+	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -1290,7 +1290,7 @@ func (ap *Apexpro) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams
 		return nil, fmt.Errorf("%w, l1TargetTokenId is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.Nonce == "" {
-		arg.Nonce = strconv.FormatInt(ap.Websocket.Conn.GenerateMessageID(true), 10)
+		arg.Nonce = strconv.FormatInt(e.Websocket.Conn.GenerateMessageID(true), 10)
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
@@ -1307,7 +1307,7 @@ func (ap *Apexpro) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams
 	}
 	params.Set("isFastWithdraw", strconv.FormatBool(arg.IsFastWithdraw))
 	params.Set("nonce", arg.Nonce)
-	signature, err := ap.ProcessWithdrawalToAddressSignatureV3(ctx, arg)
+	signature, err := e.ProcessWithdrawalToAddressSignatureV3(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -1317,13 +1317,13 @@ func (ap *Apexpro) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams
 	params.Set("zkAccountId", arg.ZKAccountID)
 	params.Set("signature", signature)
 	var resp *WithdrawalResponse
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/withdrawal", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/withdrawal", request.UnAuth, params, nil, &resp)
 }
 
 // ----------------------------------------------------- Private V2 Endpoints --------------------------------------------------------------------------------
 
 // UserWithdrawalV2 withdraws an asset
-func (ap *Apexpro) UserWithdrawalV2(ctx context.Context, arg *WithdrawalParams) (*WithdrawalResponse, error) {
+func (e *Exchange) UserWithdrawalV2(ctx context.Context, arg *WithdrawalParams) (*WithdrawalResponse, error) {
 	if arg.Amount <= 0 {
 		return nil, order.ErrAmountBelowMin
 	}
@@ -1333,7 +1333,7 @@ func (ap *Apexpro) UserWithdrawalV2(ctx context.Context, arg *WithdrawalParams) 
 	if arg.Asset.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	signature, err := ap.ProcessWithdrawalSignature(ctx, arg)
+	signature, err := e.ProcessWithdrawalSignature(ctx, arg)
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	params.Set("clientId", arg.ClientID)
@@ -1345,20 +1345,20 @@ func (ap *Apexpro) UserWithdrawalV2(ctx context.Context, arg *WithdrawalParams) 
 	params.Set("signature", signature)
 	params.Set("ethAddress", arg.EthereumAddress)
 	var resp *WithdrawalResponse
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v2/create-withdrawal", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v2/create-withdrawal", request.UnAuth, params, nil, &resp)
 }
 
 // WithdrawalToAddressV1 withdraws as asset to an ethereum address
-func (ap *Apexpro) WithdrawalToAddressV1(ctx context.Context, arg *WithdrawalToAddressParams) (*WithdrawalResponse, error) {
-	return ap.withdrawalToAddress(ctx, arg, "v1/create-withdrawal-to-address")
+func (e *Exchange) WithdrawalToAddressV1(ctx context.Context, arg *WithdrawalToAddressParams) (*WithdrawalResponse, error) {
+	return e.withdrawalToAddress(ctx, arg, "v1/create-withdrawal-to-address")
 }
 
 // WithdrawalToAddressV2 withdraws as asset to an ethereum address
-func (ap *Apexpro) WithdrawalToAddressV2(ctx context.Context, arg *WithdrawalToAddressParams) (*WithdrawalResponse, error) {
-	return ap.withdrawalToAddress(ctx, arg, "v2/create-withdrawal-to-address")
+func (e *Exchange) WithdrawalToAddressV2(ctx context.Context, arg *WithdrawalToAddressParams) (*WithdrawalResponse, error) {
+	return e.withdrawalToAddress(ctx, arg, "v2/create-withdrawal-to-address")
 }
 
-func (ap *Apexpro) withdrawalToAddress(ctx context.Context, arg *WithdrawalToAddressParams, path string) (*WithdrawalResponse, error) {
+func (e *Exchange) withdrawalToAddress(ctx context.Context, arg *WithdrawalToAddressParams, path string) (*WithdrawalResponse, error) {
 	if *arg == (WithdrawalToAddressParams{}) {
 		return nil, common.ErrNilPointer
 	}
@@ -1372,7 +1372,7 @@ func (ap *Apexpro) withdrawalToAddress(ctx context.Context, arg *WithdrawalToAdd
 		return nil, errEthereumAddressMissing
 	}
 	var err error
-	signature, err := ap.ProcessWithdrawalToAddressSignature(ctx, arg)
+	signature, err := e.ProcessWithdrawalToAddressSignature(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -1387,26 +1387,26 @@ func (ap *Apexpro) withdrawalToAddress(ctx context.Context, arg *WithdrawalToAdd
 	params.Set("ethAddress", arg.EthereumAddress)
 	params.Set("signature", signature)
 	var resp *WithdrawalResponse
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, params, nil, &resp)
 }
 
 // CrossChainWithdrawalsV1 withdraws an asset through different chains
-func (ap *Apexpro) CrossChainWithdrawalsV1(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
-	return ap.crossChainWithdrawals(ctx, arg, "v1/cross-chain-withdraw")
+func (e *Exchange) CrossChainWithdrawalsV1(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
+	return e.crossChainWithdrawals(ctx, arg, "v1/cross-chain-withdraw")
 }
 
 // CrossChainWithdrawalsV2 withdraaws an asse tthrough the v2 api
-func (ap *Apexpro) CrossChainWithdrawalsV2(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
-	return ap.crossChainWithdrawals(ctx, arg, "v2/cross-chain-withdraw")
+func (e *Exchange) CrossChainWithdrawalsV2(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
+	return e.crossChainWithdrawals(ctx, arg, "v2/cross-chain-withdraw")
 }
 
-func (ap *Apexpro) crossChainWithdrawals(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
-	err := ap.fillWithdrawalParams(arg)
+func (e *Exchange) crossChainWithdrawals(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
+	err := e.fillWithdrawalParams(arg)
 	if err != nil {
 		return nil, err
 	}
 	// TODO: signature validation and testing
-	signature, err := ap.ProcessConditionalTransfer(ctx, arg)
+	signature, err := e.ProcessConditionalTransfer(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -1418,12 +1418,12 @@ func (ap *Apexpro) crossChainWithdrawals(ctx context.Context, arg *FastWithdrawa
 	params.Set("chainId", arg.ChainID)
 	params.Set("signature", signature)
 	var resp *WithdrawalResponse
-	return resp, ap.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, params, nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (ap *Apexpro) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}, useAsItIs ...bool) error {
-	endpointPath, err := ap.API.Endpoints.GetURL(ePath)
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}, useAsItIs ...bool) error {
+	endpointPath, err := e.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
@@ -1437,25 +1437,25 @@ func (ap *Apexpro) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path
 			Data: result,
 		}
 	}
-	return ap.SendPayload(ctx, f, func() (*request.Item, error) {
+	return e.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,
 			Path:          endpointPath + path,
 			Result:        response,
-			Verbose:       ap.Verbose,
-			HTTPDebugging: ap.HTTPDebugging,
-			HTTPRecording: ap.HTTPRecording,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
 		}, nil
 	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request.
-func (ap *Apexpro) SendAuthenticatedHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, f request.EndpointLimit, params url.Values, arg, result interface{}, timestamps ...int64) error {
-	creds, err := ap.GetCredentials(ctx)
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, f request.EndpointLimit, params url.Values, arg, result interface{}, timestamps ...int64) error {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	endpointPath, err := ap.API.Endpoints.GetURL(ePath)
+	endpointPath, err := e.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
@@ -1478,7 +1478,7 @@ func (ap *Apexpro) SendAuthenticatedHTTPRequest(ctx context.Context, ePath excha
 		body = bytes.NewBuffer([]byte(params.Encode()))
 		dataString = params.Encode()
 	}
-	err = ap.SendPayload(ctx, f, func() (*request.Item, error) {
+	err = e.SendPayload(ctx, f, func() (*request.Item, error) {
 		timestamp := time.Now().UTC().UnixMilli()
 		if len(timestamps) > 0 && timestamps[0] != 0 {
 			timestamp = timestamps[0]
@@ -1503,9 +1503,9 @@ func (ap *Apexpro) SendAuthenticatedHTTPRequest(ctx context.Context, ePath excha
 			Headers:       headers,
 			Result:        response,
 			Body:          body,
-			Verbose:       ap.Verbose,
-			HTTPDebugging: ap.HTTPDebugging,
-			HTTPRecording: ap.HTTPRecording,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
 		}
 		return reqItem, nil
 	}, request.AuthenticatedRequest)

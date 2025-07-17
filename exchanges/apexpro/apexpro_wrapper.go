@@ -30,27 +30,27 @@ import (
 )
 
 // SetDefaults sets the basic defaults for Apexpro
-func (ap *Apexpro) SetDefaults() {
-	ap.Name = "Apexpro"
-	ap.Enabled = true
-	ap.Verbose = false
-	ap.API.CredentialsValidator.RequiresKey = true
-	ap.API.CredentialsValidator.RequiresSecret = true
+func (e *Exchange) SetDefaults() {
+	e.Name = "Apexpro"
+	e.Enabled = true
+	e.Verbose = false
+	e.API.CredentialsValidator.RequiresKey = true
+	e.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: "-"}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: "-"}
-	err := ap.SetAssetPairStore(asset.Futures, currency.PairStore{
+	err := e.SetAssetPairStore(asset.Futures, currency.PairStore{
 		RequestFormat: requestFmt,
 		ConfigFormat:  configFmt,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	ap.StarkConfig, err = starkex.NewStarkExConfig()
+	e.StarkConfig, err = starkex.NewStarkExConfig()
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	ap.Features = exchange.Features{
+	e.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -70,14 +70,14 @@ func (ap *Apexpro) SetDefaults() {
 		},
 	}
 
-	ap.Requester, err = request.New(ap.Name,
+	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	ap.API.Endpoints = ap.NewEndpoints()
-	err = ap.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	e.API.Endpoints = e.NewEndpoints()
+	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpotSupplementary:      apexproAPIURL,
 		exchange.RestSpot:                   apexproAPIURL,
 		exchange.WebsocketSpot:              apexProWebsocket,
@@ -88,47 +88,47 @@ func (ap *Apexpro) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	ap.NetworkID = 1 // 1 for Main Net
-	ap.Websocket = websocket.NewManager()
-	ap.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	ap.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	ap.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	e.NetworkID = 1 // 1 for Main Net
+	e.Websocket = websocket.NewManager()
+	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (ap *Apexpro) Setup(exch *config.Exchange) error {
+func (e *Exchange) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
 	if err != nil {
 		return err
 	}
 	if !exch.Enabled {
-		ap.SetEnabled(false)
+		e.SetEnabled(false)
 		return nil
 	}
-	err = ap.SetupDefaults(exch)
+	err = e.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
-	wsRunningEndpoint, err := ap.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	err = ap.Websocket.Setup(
+	err = e.Websocket.Setup(
 		&websocket.ManagerSetup{
 			ExchangeConfig:        exch,
 			DefaultURL:            apexProWebsocket,
 			RunningURL:            wsRunningEndpoint,
-			Connector:             ap.WsConnect,
-			Subscriber:            ap.Subscribe,
-			Unsubscriber:          ap.Unsubscribe,
-			GenerateSubscriptions: ap.GenerateDefaultSubscriptions,
-			Features:              &ap.Features.Supports.WebsocketCapabilities,
+			Connector:             e.WsConnect,
+			Subscriber:            e.Subscribe,
+			Unsubscriber:          e.Unsubscribe,
+			GenerateSubscriptions: e.GenerateDefaultSubscriptions,
+			Features:              &e.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err
 	}
-	err = ap.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  apexProWebsocket,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -137,7 +137,7 @@ func (ap *Apexpro) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return ap.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  apexProPrivateWebsocket,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -146,16 +146,16 @@ func (ap *Apexpro) Setup(exch *config.Exchange) error {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (ap *Apexpro) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	if !ap.SupportsAsset(a) {
+func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	if !e.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	configs, err := ap.GetAllSymbolsConfigDataV1(ctx)
+	configs, err := e.GetAllSymbolsConfigDataV1(ctx)
 	if err != nil {
 		return nil, err
 	}
 	// Storing the configuration values for later use.
-	ap.SymbolsConfig = configs
+	e.SymbolsConfig = configs
 
 	tradablePairs := make(currency.Pairs, 0, len((configs.Data.PerpetualContract)))
 	for a := range configs.Data.PerpetualContract {
@@ -173,21 +173,21 @@ func (ap *Apexpro) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (ap *Apexpro) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := ap.FetchTradablePairs(ctx, asset.Futures)
+func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+	pairs, err := e.FetchTradablePairs(ctx, asset.Futures)
 	if err != nil {
 		return err
 	}
-	return ap.UpdatePairs(pairs, asset.Futures, true, forceUpdate)
+	return e.UpdatePairs(pairs, asset.Futures, true, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (ap *Apexpro) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	pairFormat, err := ap.GetPairFormat(assetType, true)
+func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	pairFormat, err := e.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
 	}
-	tick, err := ap.GetTickerDataV3(ctx, pairFormat.Format(p))
+	tick, err := e.GetTickerDataV3(ctx, pairFormat.Format(p))
 	if err != nil {
 		return nil, err
 	}
@@ -200,54 +200,54 @@ func (ap *Apexpro) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		Low:          tick[0].LowPrice24H.Float64(),
 		Volume:       tick[0].Volume24H.Float64(),
 		Pair:         p.Format(pairFormat),
-		ExchangeName: ap.Name,
+		ExchangeName: e.Name,
 		AssetType:    assetType,
 	}
 	err = ticker.ProcessTicker(tickerPrice)
 	if err != nil {
 		return tickerPrice, err
 	}
-	return ticker.GetTicker(ap.Name, p, assetType)
+	return ticker.GetTicker(e.Name, p, assetType)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
-func (ap *Apexpro) UpdateTickers(_ context.Context, _ asset.Item) error {
+func (e *Exchange) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (ap *Apexpro) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(ap.Name, p, assetType)
+func (e *Exchange) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(e.Name, p, assetType)
 	if err != nil {
-		return ap.UpdateTicker(ctx, p, assetType)
+		return e.UpdateTicker(ctx, p, assetType)
 	}
 	return tickerNew, nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (ap *Apexpro) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
-	ob, err := orderbook.Get(ap.Name, pair, assetType)
+func (e *Exchange) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+	ob, err := orderbook.Get(e.Name, pair, assetType)
 	if err != nil {
-		return ap.UpdateOrderbook(ctx, pair, assetType)
+		return e.UpdateOrderbook(ctx, pair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (ap *Apexpro) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
-	pairFormat, err := ap.GetPairFormat(assetType, true)
+func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+	pairFormat, err := e.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
 	}
-	orderbookNew, err := ap.GetMarketDepthV3(ctx, pairFormat.Format(pair), 1000)
+	orderbookNew, err := e.GetMarketDepthV3(ctx, pairFormat.Format(pair), 1000)
 	if err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:          ap.Name,
+		Exchange:          e.Name,
 		Pair:              pair,
 		Asset:             assetType,
-		ValidateOrderbook: ap.ValidateOrderbook,
+		ValidateOrderbook: e.ValidateOrderbook,
 	}
 	book.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
@@ -268,12 +268,12 @@ func (ap *Apexpro) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if err != nil {
 		return nil, err
 	}
-	return orderbook.Get(ap.Name, pair, assetType)
+	return orderbook.Get(e.Name, pair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (ap *Apexpro) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	accountInfo, err := ap.GetUserAccountDataV3(ctx)
+func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+	accountInfo, err := e.GetUserAccountDataV3(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -289,35 +289,35 @@ func (ap *Apexpro) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		})
 	}
 	return account.Holdings{
-		Exchange: ap.Name,
+		Exchange: e.Name,
 		Accounts: []account.SubAccount{spotSubAccount},
 	}, nil
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (ap *Apexpro) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := ap.GetCredentials(ctx)
+func (e *Exchange) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	acc, err := account.GetHoldings(ap.Name, creds, assetType)
+	acc, err := account.GetHoldings(e.Name, creds, assetType)
 	if err != nil {
-		return ap.UpdateAccountInfo(ctx, assetType)
+		return e.UpdateAccountInfo(ctx, assetType)
 	}
 	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (ap *Apexpro) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
-	transfers, err := ap.GetUserTransferDataV2(ctx, currency.EMPTYCODE, time.Time{}, time.Time{}, "", []string{}, 0, 0)
+func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+	transfers, err := e.GetUserTransferDataV2(ctx, currency.EMPTYCODE, time.Time{}, time.Time{}, "", []string{}, 0, 0)
 	if err != nil {
 		return nil, err
 	}
 	resp := make([]exchange.FundingHistory, len(transfers.Transfers))
 	for x := range transfers.Transfers {
 		resp[x] = exchange.FundingHistory{
-			ExchangeName: ap.Name,
+			ExchangeName: e.Name,
 			Status:       resp[x].Status,
 			Timestamp:    transfers.Transfers[x].UpdatedTime.Time(),
 			Currency:     transfers.Transfers[x].CurrencyID,
@@ -331,8 +331,8 @@ func (ap *Apexpro) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (ap *Apexpro) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
-	withdrawals, err := ap.GetUserTransferDataV2(ctx, currency.EMPTYCODE, time.Time{}, time.Time{}, "WITHDRAW", []string{}, 0, 0)
+func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	withdrawals, err := e.GetUserTransferDataV2(ctx, currency.EMPTYCODE, time.Time{}, time.Time{}, "WITHDRAW", []string{}, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -352,15 +352,15 @@ func (ap *Apexpro) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, _
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (ap *Apexpro) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if assetType != asset.Futures {
 		return nil, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
 	}
-	pairFormat, err := ap.GetPairFormat(asset.Futures, true)
+	pairFormat, err := e.GetPairFormat(asset.Futures, true)
 	if err != nil {
 		return nil, err
 	}
-	tradeData, err := ap.GetNewestTradingDataV3(ctx, pairFormat.Format(p), 1000)
+	tradeData, err := e.GetNewestTradingDataV3(ctx, pairFormat.Format(p), 1000)
 	if err != nil {
 		return nil, err
 	}
@@ -372,7 +372,7 @@ func (ap *Apexpro) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			return nil, err
 		}
 		resp[i] = trade.Data{
-			Exchange:     ap.Name,
+			Exchange:     e.Name,
 			CurrencyPair: p.Format(pairFormat),
 			AssetType:    asset.Futures,
 			Price:        tradeData[i].Price.Float64(),
@@ -385,21 +385,21 @@ func (ap *Apexpro) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (ap *Apexpro) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetServerTime returns the current exchange server time.
-func (ap *Apexpro) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
-	return ap.GetSystemTimeV3(ctx)
+func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return e.GetSystemTimeV3(ctx)
 }
 
 // SubmitOrder submits a new order
-func (ap *Apexpro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(ap.GetTradingRequirements()); err != nil {
+func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
-	orderResp, err := ap.CreateOrderV2(ctx, &CreateOrderParams{
+	orderResp, err := e.CreateOrderV2(ctx, &CreateOrderParams{
 		Symbol:           s.Pair,
 		Side:             s.Side.String(),
 		OrderType:        orderTypeString(s.Type),
@@ -420,12 +420,12 @@ func (ap *Apexpro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (ap *Apexpro) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (ap *Apexpro) CancelOrder(ctx context.Context, ord *order.Cancel) error {
+func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if err := ord.Validate(ord.StandardCancel()); err != nil {
 		return err
 	}
@@ -433,20 +433,20 @@ func (ap *Apexpro) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		return order.ErrOrderIDNotSet
 	}
 	if ord.OrderID != "" {
-		_, err := ap.CancelPerpOrder(ctx, ord.OrderID)
+		_, err := e.CancelPerpOrder(ctx, ord.OrderID)
 		return err
 	}
-	_, err := ap.CancelPerpOrderByClientOrderID(ctx, ord.ClientOrderID)
+	_, err := e.CancelPerpOrderByClientOrderID(ctx, ord.ClientOrderID)
 	return err
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (ap *Apexpro) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (ap *Apexpro) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -454,7 +454,7 @@ func (ap *Apexpro) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if !orderCancellation.Pair.IsEmpty() {
 		symbols = append(symbols, orderCancellation.Pair.String())
 	}
-	err := ap.CancelAllOpenOrdersV3(ctx, symbols)
+	err := e.CancelAllOpenOrdersV3(ctx, symbols)
 	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -462,11 +462,11 @@ func (ap *Apexpro) CancelAllOrders(ctx context.Context, orderCancellation *order
 }
 
 // GetOrderInfo returns order information based on order ID
-func (ap *Apexpro) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	orderDetail, err := ap.GetOrderID(ctx, orderID)
+	orderDetail, err := e.GetOrderID(ctx, orderID)
 	if err != nil {
 		return nil, err
 	} else if orderDetail == nil {
@@ -505,7 +505,7 @@ func (ap *Apexpro) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		ExecutedAmount:  orderDetail.CumMatchFillSize.Float64(),
 		RemainingAmount: orderDetail.Size.Float64() - orderDetail.TriggerPrice.Float64(),
 		Fee:             orderDetail.Fee.Float64(),
-		Exchange:        ap.Name,
+		Exchange:        e.Name,
 		OrderID:         orderDetail.ID,
 		ClientOrderID:   orderDetail.ClientOrderID,
 		AccountID:       orderDetail.AccountID,
@@ -519,17 +519,17 @@ func (ap *Apexpro) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (ap *Apexpro) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
+func (e *Exchange) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (ap *Apexpro) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	withdrawalResponse, err := ap.WithdrawAsset(ctx, &AssetWithdrawalParams{
+	withdrawalResponse, err := e.WithdrawAsset(ctx, &AssetWithdrawalParams{
 		Amount:           withdrawRequest.Amount,
 		ClientWithdrawID: withdrawRequest.ClientOrderID,
 		EthereumAddress:  withdrawRequest.Crypto.Address,
@@ -538,7 +538,7 @@ func (ap *Apexpro) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 		return nil, err
 	}
 	return &withdraw.ExchangeResponse{
-		Name:   ap.Name,
+		Name:   e.Name,
 		ID:     withdrawalResponse.ID,
 		Status: "success",
 	}, nil
@@ -546,22 +546,22 @@ func (ap *Apexpro) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (ap *Apexpro) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (ap *Apexpro) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (ap *Apexpro) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
-	orders, err := ap.GetOpenOrders(ctx)
+	orders, err := e.GetOpenOrders(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -600,7 +600,7 @@ func (ap *Apexpro) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			ExecutedAmount:  orders[a].CumMatchFillSize.Float64(),
 			RemainingAmount: orders[a].Size.Float64() - orders[a].TriggerPrice.Float64(),
 			Fee:             orders[a].Fee.Float64(),
-			Exchange:        ap.Name,
+			Exchange:        e.Name,
 			OrderID:         orders[a].ID,
 			ClientOrderID:   orders[a].ClientOrderID,
 			AccountID:       orders[a].AccountID,
@@ -617,12 +617,12 @@ func (ap *Apexpro) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (ap *Apexpro) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
 	// getOrdersRequest.AssetType
-	pairFormat, err := ap.GetPairFormat(asset.Futures, true)
+	pairFormat, err := e.GetPairFormat(asset.Futures, true)
 	if err != nil {
 		return nil, err
 	}
@@ -631,7 +631,7 @@ func (ap *Apexpro) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	if len(getOrdersRequest.Pairs) == 0 {
 		symbol = getOrdersRequest.Pairs[0].String()
 	}
-	orderHistoryResponse, err := ap.GetAllOrderHistory(ctx, symbol, getOrdersRequest.Side.String(), orderTypeString(getOrdersRequest.Type), "", "", getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
+	orderHistoryResponse, err := e.GetAllOrderHistory(ctx, symbol, getOrdersRequest.Side.String(), orderTypeString(getOrdersRequest.Type), "", "", getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -673,7 +673,7 @@ func (ap *Apexpro) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			ExecutedAmount:  orderHistoryResponse.Orders[a].CumMatchFillSize.Float64(),
 			RemainingAmount: orderHistoryResponse.Orders[a].Size.Float64() - orderHistoryResponse.Orders[a].TriggerPrice.Float64(),
 			Fee:             orderHistoryResponse.Orders[a].Fee.Float64(),
-			Exchange:        ap.Name,
+			Exchange:        e.Name,
 			OrderID:         orderHistoryResponse.Orders[a].ID,
 			ClientOrderID:   orderHistoryResponse.Orders[a].ClientOrderID,
 			AccountID:       orderHistoryResponse.Orders[a].AccountID,
@@ -689,12 +689,12 @@ func (ap *Apexpro) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
-func (ap *Apexpro) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	switch feeBuilder.FeeType {
 	case exchange.OfflineTradeFee:
 		return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.002, nil
 	case exchange.CryptocurrencyTradeFee:
-		userResp, err := ap.GetUserAccountDataV3(ctx)
+		userResp, err := e.GetUserAccountDataV3(ctx)
 		if err != nil {
 			return 0, err
 		}
@@ -703,7 +703,7 @@ func (ap *Apexpro) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 		}
 		return userResp.ContractAccount.TakerFeeRate.Float64() * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
 	case exchange.CryptocurrencyWithdrawalFee:
-		resp, err := ap.GetFastAndCrossChainWithdrawalFeesV2(ctx, feeBuilder.Amount, "", feeBuilder.FiatCurrency)
+		resp, err := e.GetFastAndCrossChainWithdrawalFeesV2(ctx, feeBuilder.Amount, "", feeBuilder.FiatCurrency)
 		if err != nil {
 			return 0, err
 		}
@@ -713,22 +713,22 @@ func (ap *Apexpro) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
-func (ap *Apexpro) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := ap.UpdateAccountInfo(ctx, assetType)
-	return ap.CheckTransientError(err)
+func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := e.UpdateAccountInfo(ctx, assetType)
+	return e.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (ap *Apexpro) GetHistoricCandles(ctx context.Context, pair currency.Pair, _ asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := ap.GetKlineRequest(pair, asset.Futures, interval, start, end, false)
+func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, _ asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := e.GetKlineRequest(pair, asset.Futures, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
-	pairFormat, err := ap.GetPairFormat(asset.Futures, true)
+	pairFormat, err := e.GetPairFormat(asset.Futures, true)
 	if err != nil {
 		return nil, err
 	}
-	candles, err := ap.GetCandlestickChartDataV3(ctx, pairFormat.Format(pair), interval, start, end, 1000)
+	candles, err := e.GetCandlestickChartDataV3(ctx, pairFormat.Format(pair), interval, start, end, 1000)
 	if err != nil {
 		return nil, err
 	}
@@ -757,14 +757,14 @@ func (ap *Apexpro) GetHistoricCandles(ctx context.Context, pair currency.Pair, _
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (ap *Apexpro) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, _ asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := ap.GetKlineExtendedRequest(pair, asset.Futures, interval, start, end)
+func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, _ asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := e.GetKlineExtendedRequest(pair, asset.Futures, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
-		candles, err := ap.GetCandlestickChartDataV3(ctx, req.RequestFormatted.String(), interval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, 1000)
+		candles, err := e.GetCandlestickChartDataV3(ctx, req.RequestFormatted.String(), interval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -792,8 +792,8 @@ func (ap *Apexpro) GetHistoricCandlesExtended(ctx context.Context, pair currency
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (ap *Apexpro) GetFuturesContractDetails(ctx context.Context, _ asset.Item) ([]futures.Contract, error) {
-	result, err := ap.GetAllConfigDataV3(ctx)
+func (e *Exchange) GetFuturesContractDetails(ctx context.Context, _ asset.Item) ([]futures.Contract, error) {
+	result, err := e.GetAllConfigDataV3(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -809,7 +809,7 @@ func (ap *Apexpro) GetFuturesContractDetails(ctx context.Context, _ asset.Item) 
 			return nil, err
 		}
 		resp = append(resp, futures.Contract{
-			Exchange:             ap.Name,
+			Exchange:             e.Name,
 			Name:                 cp,
 			Underlying:           underlying,
 			Asset:                asset.Futures,
@@ -824,7 +824,7 @@ func (ap *Apexpro) GetFuturesContractDetails(ctx context.Context, _ asset.Item) 
 }
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
-func (ap *Apexpro) IsPerpetualFutureCurrency(a asset.Item, pair currency.Pair) (bool, error) {
+func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, pair currency.Pair) (bool, error) {
 	if a != asset.Futures {
 		return false, futures.ErrNotFuturesAsset
 	}
@@ -832,10 +832,10 @@ func (ap *Apexpro) IsPerpetualFutureCurrency(a asset.Item, pair currency.Pair) (
 		return false, currency.ErrCurrencyPairEmpty
 	}
 	var contracts []PerpetualContractDetail
-	if ap.SymbolsConfig != nil {
-		contracts = ap.SymbolsConfig.Data.PerpetualContract
+	if e.SymbolsConfig != nil {
+		contracts = e.SymbolsConfig.Data.PerpetualContract
 	} else {
-		resp, err := ap.GetAllSymbolsConfigDataV1(context.Background())
+		resp, err := e.GetAllSymbolsConfigDataV1(context.Background())
 		if err != nil {
 			return false, err
 		}
@@ -851,19 +851,19 @@ func (ap *Apexpro) IsPerpetualFutureCurrency(a asset.Item, pair currency.Pair) (
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (ap *Apexpro) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
 	if r.Asset != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
-	pairFormat, err := ap.GetPairFormat(asset.Futures, true)
+	pairFormat, err := e.GetPairFormat(asset.Futures, true)
 	if err != nil {
 		return nil, err
 	}
 	r.Pair = r.Pair.Format(pairFormat)
-	tickerData, err := ap.GetTickerDataV3(ctx, r.Pair.String())
+	tickerData, err := e.GetTickerDataV3(ctx, r.Pair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -871,14 +871,14 @@ func (ap *Apexpro) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	for i := range tickerData {
 		var cp currency.Pair
 		var isEnabled bool
-		cp, isEnabled, err = ap.MatchSymbolCheckEnabled(tickerData[i].Symbol, r.Asset, false)
+		cp, isEnabled, err = e.MatchSymbolCheckEnabled(tickerData[i].Symbol, r.Asset, false)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		} else if !isEnabled {
 			continue
 		}
 		resp = append(resp, fundingrate.LatestRateResponse{
-			Exchange:    ap.Name,
+			Exchange:    e.Name,
 			TimeChecked: time.Now(),
 			Asset:       asset.Futures,
 			Pair:        cp,
@@ -899,17 +899,17 @@ func (ap *Apexpro) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (ap *Apexpro) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) error {
-	instrumentsInfo, err := ap.GetAllConfigDataV3(ctx)
+func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) error {
+	instrumentsInfo, err := e.GetAllConfigDataV3(ctx)
 	if err != nil {
 		return err
 	}
 	limits := make([]order.MinMaxLevel, 0, len(instrumentsInfo.ContractConfig.PerpetualContract))
 	for x := range instrumentsInfo.ContractConfig.PerpetualContract {
 		var pair currency.Pair
-		pair, err = ap.MatchSymbolWithAvailablePairs(instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol, asset.Futures, false)
+		pair, err = e.MatchSymbolWithAvailablePairs(instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol, asset.Futures, false)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", ap.Name, instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol)
+			log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", e.Name, instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol)
 			continue
 		}
 		limits = append(limits, order.MinMaxLevel{
@@ -925,7 +925,7 @@ func (ap *Apexpro) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item)
 			MaximumQuoteAmount:      instrumentsInfo.ContractConfig.PerpetualContract[x].MaxPositionValue.Float64(),
 		})
 	}
-	return ap.LoadLimits(limits)
+	return e.LoadLimits(limits)
 }
 
 func orderTypeString(oType order.Type) string {

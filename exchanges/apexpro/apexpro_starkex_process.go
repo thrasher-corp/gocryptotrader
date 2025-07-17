@@ -31,8 +31,8 @@ var (
 const orderSignatureExpirationBuffersHours = 24 * 7
 
 // ProcessOrderSignature processes order request parameter and generates a starkEx signature
-func (ap *Apexpro) ProcessOrderSignature(ctx context.Context, arg *CreateOrderParams) (string, error) {
-	creds, err := ap.GetCredentials(context.Background())
+func (e *Exchange) ProcessOrderSignature(ctx context.Context, arg *CreateOrderParams) (string, error) {
+	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err
 	}
@@ -43,16 +43,16 @@ func (ap *Apexpro) ProcessOrderSignature(ctx context.Context, arg *CreateOrderPa
 	size := decimal.NewFromFloat(arg.Size)
 
 	// check if the all symbols config is loaded, if not load
-	if ap.SymbolsConfig == nil {
-		ap.SymbolsConfig, err = ap.GetAllSymbolsConfigDataV1(ctx)
+	if e.SymbolsConfig == nil {
+		e.SymbolsConfig, err = e.GetAllSymbolsConfigDataV1(ctx)
 		if err != nil {
 			return "", err
 		}
 	}
 	var contractDetail *PerpetualContractDetail
-	for a := range ap.SymbolsConfig.Data.PerpetualContract {
-		if ap.SymbolsConfig.Data.PerpetualContract[a].Symbol == arg.Symbol.String() {
-			contractDetail = &ap.SymbolsConfig.Data.PerpetualContract[a]
+	for a := range e.SymbolsConfig.Data.PerpetualContract {
+		if e.SymbolsConfig.Data.PerpetualContract[a].Symbol == arg.Symbol.String() {
+			contractDetail = &e.SymbolsConfig.Data.PerpetualContract[a]
 			if !contractDetail.EnableTrade {
 				return "", currency.ErrPairNotEnabled
 			}
@@ -66,16 +66,16 @@ func (ap *Apexpro) ProcessOrderSignature(ctx context.Context, arg *CreateOrderPa
 	if !ok {
 		return "", fmt.Errorf("%w, syntheticAssetId: %s", errInvalidAssetID, contractDetail.StarkExSyntheticAssetID)
 	}
-	if ap.UserAccountDetail == nil {
-		ap.UserAccountDetail, err = ap.GetUserAccountDataV2(ctx)
+	if e.UserAccountDetail == nil {
+		e.UserAccountDetail, err = e.GetUserAccountDataV2(ctx)
 		if err != nil {
 			return "", err
 		}
 	}
 	takerFeeRate := -1.
-	for k := range ap.UserAccountDetail.Accounts {
-		if ap.UserAccountDetail.Accounts[k].Token == contractDetail.SettleCurrencyID {
-			takerFeeRate = ap.UserAccountDetail.Accounts[k].TakerFeeRate.Float64()
+	for k := range e.UserAccountDetail.Accounts {
+		if e.UserAccountDetail.Accounts[k].Token == contractDetail.SettleCurrencyID {
+			takerFeeRate = e.UserAccountDetail.Accounts[k].TakerFeeRate.Float64()
 			break
 		}
 	}
@@ -84,9 +84,9 @@ func (ap *Apexpro) ProcessOrderSignature(ctx context.Context, arg *CreateOrderPa
 	}
 	arg.LimitFee = takerFeeRate * arg.Size * arg.Price
 	var collateralAsset *V1CurrencyConfig
-	for c := range ap.SymbolsConfig.Data.Currency {
-		if ap.SymbolsConfig.Data.Currency[c].ID == contractDetail.SettleCurrencyID {
-			collateralAsset = &ap.SymbolsConfig.Data.Currency[c]
+	for c := range e.SymbolsConfig.Data.Currency {
+		if e.SymbolsConfig.Data.Currency[c].ID == contractDetail.SettleCurrencyID {
+			collateralAsset = &e.SymbolsConfig.Data.Currency[c]
 			break
 		}
 	}
@@ -99,7 +99,7 @@ func (ap *Apexpro) ProcessOrderSignature(ctx context.Context, arg *CreateOrderPa
 		return "", fmt.Errorf("%w, assetId: %s", errInvalidAssetID, collateralAsset.StarkExAssetID)
 	}
 
-	positionID, ok := big.NewInt(0).SetString(ap.UserAccountDetail.PositionID, 10)
+	positionID, ok := big.NewInt(0).SetString(e.UserAccountDetail.PositionID, 10)
 	if !ok {
 		return "", errInvalidPositionIDMissing
 	}
@@ -142,7 +142,7 @@ func (ap *Apexpro) ProcessOrderSignature(ctx context.Context, arg *CreateOrderPa
 		Nonce:                   nonceFromClientID(arg.ClientOrderID),
 		ExpirationEpochHours:    big.NewInt(expEpoch),
 	}
-	r, s, err := ap.StarkConfig.Sign(newArg, creds.L2Secret, creds.L2Key, creds.L2KeyYCoordinate)
+	r, s, err := e.StarkConfig.Sign(newArg, creds.L2Secret, creds.L2Key, creds.L2KeyYCoordinate)
 	if err != nil {
 		return "", err
 	}
@@ -163,29 +163,29 @@ func appendSignatures(r, s *big.Int) string {
 }
 
 // ProcessWithdrawalToAddressSignatureV3 processes withdrawal to specified ethereum address request parameter and generates a starkEx signature
-func (ap *Apexpro) ProcessWithdrawalToAddressSignatureV3(ctx context.Context, arg *AssetWithdrawalParams) (string, error) {
-	creds, err := ap.GetCredentials(context.Background())
+func (e *Exchange) ProcessWithdrawalToAddressSignatureV3(ctx context.Context, arg *AssetWithdrawalParams) (string, error) {
+	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err
 	}
 	var currencyInfo *V1CurrencyConfig
-	for c := range ap.SymbolsConfig.Data.Currency {
-		if ap.SymbolsConfig.Data.Currency[c].ID == arg.L1TargetTokenID.String() {
-			currencyInfo = &ap.SymbolsConfig.Data.Currency[c]
+	for c := range e.SymbolsConfig.Data.Currency {
+		if e.SymbolsConfig.Data.Currency[c].ID == arg.L1TargetTokenID.String() {
+			currencyInfo = &e.SymbolsConfig.Data.Currency[c]
 			break
 		}
 	}
 	if currencyInfo == nil {
 		return "", errSettlementCurrencyInfoNotFound
 	}
-	if ap.UserAccountDetail == nil {
-		ap.UserAccountDetail, err = ap.GetUserAccountDataV2(ctx)
+	if e.UserAccountDetail == nil {
+		e.UserAccountDetail, err = e.GetUserAccountDataV2(ctx)
 		if err != nil {
 			return "", err
 		}
 	}
 	if arg.ZKAccountID == "" {
-		arg.ZKAccountID = ap.UserAccountDetail.ID
+		arg.ZKAccountID = e.UserAccountDetail.ID
 	}
 	collateralAssetID, ok := big.NewInt(0).SetString(currencyInfo.StarkExAssetID, 0)
 	if !ok {
@@ -198,12 +198,12 @@ func (ap *Apexpro) ProcessWithdrawalToAddressSignatureV3(ctx context.Context, ar
 	if !ok {
 		return "", fmt.Errorf("%w, assetId: %s", errInvalidEthereumAddress, arg.EthereumAddress)
 	}
-	positionID, ok := big.NewInt(0).SetString(ap.UserAccountDetail.PositionID, 0)
+	positionID, ok := big.NewInt(0).SetString(e.UserAccountDetail.PositionID, 0)
 	if !ok {
 		return "", errInvalidPositionIDMissing
 	}
-	if ap.UserAccountDetail == nil {
-		ap.UserAccountDetail, err = ap.GetUserAccountDataV2(ctx)
+	if e.UserAccountDetail == nil {
+		e.UserAccountDetail, err = e.GetUserAccountDataV2(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -214,7 +214,7 @@ func (ap *Apexpro) ProcessWithdrawalToAddressSignatureV3(ctx context.Context, ar
 	}
 	amount := decimal.NewFromFloat(arg.Amount)
 
-	r, s, err := ap.StarkConfig.Sign(&starkex.WithdrawalToAddressParams{
+	r, s, err := e.StarkConfig.Sign(&starkex.WithdrawalToAddressParams{
 		AssetIDCollateral:    collateralAssetID,
 		EthAddress:           ethereumAddress,
 		PositionID:           positionID,
@@ -229,23 +229,23 @@ func (ap *Apexpro) ProcessWithdrawalToAddressSignatureV3(ctx context.Context, ar
 }
 
 // ProcessWithdrawalToAddressSignature processes withdrawal to specified ethereum address request parameter and generates a starkEx signature for V1 and V2 api endpoints
-func (ap *Apexpro) ProcessWithdrawalToAddressSignature(ctx context.Context, arg *WithdrawalToAddressParams) (string, error) {
-	creds, err := ap.GetCredentials(context.Background())
+func (e *Exchange) ProcessWithdrawalToAddressSignature(ctx context.Context, arg *WithdrawalToAddressParams) (string, error) {
+	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err
 	}
 	var currencyInfo *V1CurrencyConfig
-	for c := range ap.SymbolsConfig.Data.Currency {
-		if ap.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
-			currencyInfo = &ap.SymbolsConfig.Data.Currency[c]
+	for c := range e.SymbolsConfig.Data.Currency {
+		if e.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
+			currencyInfo = &e.SymbolsConfig.Data.Currency[c]
 			break
 		}
 	}
 	if currencyInfo == nil {
 		return "", errSettlementCurrencyInfoNotFound
 	}
-	if ap.UserAccountDetail == nil {
-		ap.UserAccountDetail, err = ap.GetUserAccountDataV2(ctx)
+	if e.UserAccountDetail == nil {
+		e.UserAccountDetail, err = e.GetUserAccountDataV2(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -261,12 +261,12 @@ func (ap *Apexpro) ProcessWithdrawalToAddressSignature(ctx context.Context, arg 
 	if !ok {
 		return "", fmt.Errorf("%w, ethereum address: %s", errInvalidEthereumAddress, arg.EthereumAddress)
 	}
-	positionID, ok := big.NewInt(0).SetString(ap.UserAccountDetail.PositionID, 0)
+	positionID, ok := big.NewInt(0).SetString(e.UserAccountDetail.PositionID, 0)
 	if !ok {
 		return "", errInvalidPositionIDMissing
 	}
-	if ap.UserAccountDetail == nil {
-		ap.UserAccountDetail, err = ap.GetUserAccountDataV2(ctx)
+	if e.UserAccountDetail == nil {
+		e.UserAccountDetail, err = e.GetUserAccountDataV2(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -284,7 +284,7 @@ func (ap *Apexpro) ProcessWithdrawalToAddressSignature(ctx context.Context, arg 
 		arg.ClientOrderID = strings.TrimPrefix(randomClientID(), "0")
 	}
 	amount := decimal.NewFromFloat(arg.Amount)
-	r, s, err := ap.StarkConfig.Sign(&starkex.WithdrawalToAddressParams{
+	r, s, err := e.StarkConfig.Sign(&starkex.WithdrawalToAddressParams{
 		AssetIDCollateral:    collateralAssetID,
 		EthAddress:           ethereumAddress,
 		PositionID:           positionID,
@@ -299,23 +299,23 @@ func (ap *Apexpro) ProcessWithdrawalToAddressSignature(ctx context.Context, arg 
 }
 
 // ProcessWithdrawalSignature processes withdrawal request parameter and generates a starkEx signature
-func (ap *Apexpro) ProcessWithdrawalSignature(ctx context.Context, arg *WithdrawalParams) (string, error) {
-	creds, err := ap.GetCredentials(context.Background())
+func (e *Exchange) ProcessWithdrawalSignature(ctx context.Context, arg *WithdrawalParams) (string, error) {
+	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err
 	}
 	var collateralInfo *V1CurrencyConfig
-	for c := range ap.SymbolsConfig.Data.Currency {
-		if ap.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
-			collateralInfo = &ap.SymbolsConfig.Data.Currency[c]
+	for c := range e.SymbolsConfig.Data.Currency {
+		if e.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
+			collateralInfo = &e.SymbolsConfig.Data.Currency[c]
 			break
 		}
 	}
 	if collateralInfo == nil {
 		return "", errSettlementCurrencyInfoNotFound
 	}
-	if ap.UserAccountDetail == nil {
-		ap.UserAccountDetail, err = ap.GetUserAccountDataV2(ctx)
+	if e.UserAccountDetail == nil {
+		e.UserAccountDetail, err = e.GetUserAccountDataV2(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -324,7 +324,7 @@ func (ap *Apexpro) ProcessWithdrawalSignature(ctx context.Context, arg *Withdraw
 	if !ok {
 		return "", fmt.Errorf("%w, assetId: %s", errInvalidAssetID, collateralInfo.StarkExAssetID)
 	}
-	positionID, ok := big.NewInt(0).SetString(ap.UserAccountDetail.PositionID, 0)
+	positionID, ok := big.NewInt(0).SetString(e.UserAccountDetail.PositionID, 0)
 	if !ok {
 		return "", errInvalidPositionIDMissing
 	}
@@ -348,7 +348,7 @@ func (ap *Apexpro) ProcessWithdrawalSignature(ctx context.Context, arg *Withdraw
 		Nonce:                nonceFromClientID(arg.ClientID),
 		ExpirationEpochHours: big.NewInt(expEpoch),
 	}
-	r, s, err := ap.StarkConfig.Sign(newArg, creds.L2Secret, creds.L2Key, creds.L2KeyYCoordinate)
+	r, s, err := e.StarkConfig.Sign(newArg, creds.L2Secret, creds.L2Key, creds.L2KeyYCoordinate)
 	if err != nil {
 		return "", err
 	}
@@ -356,23 +356,23 @@ func (ap *Apexpro) ProcessWithdrawalSignature(ctx context.Context, arg *Withdraw
 }
 
 // ProcessTransferSignature processes withdrawal request parameter and generates a starkEx signature
-func (ap *Apexpro) ProcessTransferSignature(ctx context.Context, arg *FastWithdrawalParams) (string, error) {
-	creds, err := ap.GetCredentials(context.Background())
+func (e *Exchange) ProcessTransferSignature(ctx context.Context, arg *FastWithdrawalParams) (string, error) {
+	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err
 	}
 	var currencyInfo *V1CurrencyConfig
-	for c := range ap.SymbolsConfig.Data.Currency {
-		if ap.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
-			currencyInfo = &ap.SymbolsConfig.Data.Currency[c]
+	for c := range e.SymbolsConfig.Data.Currency {
+		if e.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
+			currencyInfo = &e.SymbolsConfig.Data.Currency[c]
 			break
 		}
 	}
 	if currencyInfo == nil {
 		return "", errSettlementCurrencyInfoNotFound
 	}
-	if ap.UserAccountDetail == nil {
-		ap.UserAccountDetail, err = ap.GetUserAccountDataV2(ctx)
+	if e.UserAccountDetail == nil {
+		e.UserAccountDetail, err = e.GetUserAccountDataV2(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -381,12 +381,12 @@ func (ap *Apexpro) ProcessTransferSignature(ctx context.Context, arg *FastWithdr
 	if !ok {
 		return "", fmt.Errorf("%w, assetId: %s", errInvalidAssetID, currencyInfo.StarkExAssetID)
 	}
-	positionID, ok := big.NewInt(0).SetString(ap.UserAccountDetail.PositionID, 0)
+	positionID, ok := big.NewInt(0).SetString(e.UserAccountDetail.PositionID, 0)
 	if !ok {
 		return "", errInvalidPositionIDMissing
 	}
-	if ap.UserAccountDetail == nil {
-		ap.UserAccountDetail, err = ap.GetUserAccountDataV2(ctx)
+	if e.UserAccountDetail == nil {
+		e.UserAccountDetail, err = e.GetUserAccountDataV2(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -404,7 +404,7 @@ func (ap *Apexpro) ProcessTransferSignature(ctx context.Context, arg *FastWithdr
 		arg.Expiration = expEpoch * 3600 * 1000
 	}
 	amount := decimal.NewFromFloat(arg.Amount)
-	r, s, err := ap.StarkConfig.Sign(&starkex.TransferParams{
+	r, s, err := e.StarkConfig.Sign(&starkex.TransferParams{
 		AssetID:              collateralAssetID,
 		AssetIDFee:           big.NewInt(0),
 		SenderPositionID:     positionID,
@@ -419,30 +419,30 @@ func (ap *Apexpro) ProcessTransferSignature(ctx context.Context, arg *FastWithdr
 }
 
 // ProcessConditionalTransfer processes conditional transfer request parameter and generates a starkEx signature
-func (ap *Apexpro) ProcessConditionalTransfer(ctx context.Context, arg *FastWithdrawalParams) (string, error) {
-	creds, err := ap.GetCredentials(context.Background())
+func (e *Exchange) ProcessConditionalTransfer(ctx context.Context, arg *FastWithdrawalParams) (string, error) {
+	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err
 	}
 	// check if the all symbols config is loaded, if not load
-	if ap.SymbolsConfig == nil {
-		ap.SymbolsConfig, err = ap.GetAllSymbolsConfigDataV1(ctx)
+	if e.SymbolsConfig == nil {
+		e.SymbolsConfig, err = e.GetAllSymbolsConfigDataV1(ctx)
 		if err != nil {
 			return "", err
 		}
 	}
 	var currencyInfo *V1CurrencyConfig
-	for c := range ap.SymbolsConfig.Data.Currency {
-		if ap.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
-			currencyInfo = &ap.SymbolsConfig.Data.Currency[c]
+	for c := range e.SymbolsConfig.Data.Currency {
+		if e.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
+			currencyInfo = &e.SymbolsConfig.Data.Currency[c]
 			break
 		}
 	}
 	if currencyInfo == nil {
 		return "", errSettlementCurrencyInfoNotFound
 	}
-	if ap.UserAccountDetail == nil {
-		ap.UserAccountDetail, err = ap.GetUserAccountDataV2(ctx)
+	if e.UserAccountDetail == nil {
+		e.UserAccountDetail, err = e.GetUserAccountDataV2(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -452,17 +452,17 @@ func (ap *Apexpro) ProcessConditionalTransfer(ctx context.Context, arg *FastWith
 	if !ok {
 		return "", fmt.Errorf("%w, assetId: %s", errInvalidAssetID, currencyInfo.StarkExAssetID)
 	}
-	senderPositionID, ok := big.NewInt(0).SetString(ap.UserAccountDetail.PositionID, 0)
+	senderPositionID, ok := big.NewInt(0).SetString(e.UserAccountDetail.PositionID, 0)
 	if !ok {
 		return "", errInvalidPositionIDMissing
 	}
-	if ap.UserAccountDetail == nil {
-		ap.UserAccountDetail, err = ap.GetUserAccountDataV2(ctx)
+	if e.UserAccountDetail == nil {
+		e.UserAccountDetail, err = e.GetUserAccountDataV2(ctx)
 		if err != nil {
 			return "", err
 		}
 	}
-	if ap.UserAccountDetail.StarkKey != creds.L2Key {
+	if e.UserAccountDetail.StarkKey != creds.L2Key {
 		return "", errL2CredentialsMismatch
 	}
 	resolution, err := decimal.NewFromString(currencyInfo.StarkExResolution)
@@ -473,24 +473,24 @@ func (ap *Apexpro) ProcessConditionalTransfer(ctx context.Context, arg *FastWith
 	if arg.ClientID == "" {
 		arg.ClientID = randomClientID()
 	}
-	receiverPositionID, ok := big.NewInt(0).SetString(ap.SymbolsConfig.Data.Global.FastWithdrawAccountID, 0)
+	receiverPositionID, ok := big.NewInt(0).SetString(e.SymbolsConfig.Data.Global.FastWithdrawAccountID, 0)
 	if !ok {
 		return "", fmt.Errorf("%w, invalid fast withdrawal position ID", errInvalidPositionIDMissing)
 	}
-	receiverPublicKey, ok := big.NewInt(0).SetString(ap.SymbolsConfig.Data.Global.FeeAccountL2Key, 0)
+	receiverPublicKey, ok := big.NewInt(0).SetString(e.SymbolsConfig.Data.Global.FeeAccountL2Key, 0)
 	if !ok {
 		return "", fmt.Errorf("%w, invalid fast withdrawal L2 key", errL2KeyMissing)
 	}
-	fastWithdrawFactRegisterAddress, ok := big.NewInt(0).SetString(ap.SymbolsConfig.Data.Global.FastWithdrawFactRegisterAddress, 0)
+	fastWithdrawFactRegisterAddress, ok := big.NewInt(0).SetString(e.SymbolsConfig.Data.Global.FastWithdrawFactRegisterAddress, 0)
 	if !ok {
 		return "", fmt.Errorf("%w, invalid fast withdraw fact register address", errL2KeyMissing)
 	}
 	var token *TokenInfo
-	for k := range ap.SymbolsConfig.Data.MultiChain.Chains {
-		if ap.SymbolsConfig.Data.MultiChain.Chains[k].ChainID == int64(ap.NetworkID) {
-			for t := range ap.SymbolsConfig.Data.MultiChain.Chains[k].Tokens {
-				if ap.SymbolsConfig.Data.MultiChain.Chains[k].Tokens[t].Token == arg.Asset.Upper().String() {
-					token = &ap.SymbolsConfig.Data.MultiChain.Chains[k].Tokens[t]
+	for k := range e.SymbolsConfig.Data.MultiChain.Chains {
+		if e.SymbolsConfig.Data.MultiChain.Chains[k].ChainID == int64(e.NetworkID) {
+			for t := range e.SymbolsConfig.Data.MultiChain.Chains[k].Tokens {
+				if e.SymbolsConfig.Data.MultiChain.Chains[k].Tokens[t].Token == arg.Asset.Upper().String() {
+					token = &e.SymbolsConfig.Data.MultiChain.Chains[k].Tokens[t]
 				}
 			}
 		}
@@ -510,11 +510,11 @@ func (ap *Apexpro) ProcessConditionalTransfer(ctx context.Context, arg *FastWith
 		expEpoch = int64(math.Ceil(float64(time.Now().Add(time.Hour*24*28).UnixMilli()) / float64(3600*1000)))
 		arg.Expiration = expEpoch * 3600 * 1000
 	}
-	senderPublicKey, ok := big.NewInt(0).SetString(ap.UserAccountDetail.StarkKey, 0)
+	senderPublicKey, ok := big.NewInt(0).SetString(e.UserAccountDetail.StarkKey, 0)
 	if !ok {
 		return "", errL2KeyMissing
 	}
-	r, s, err := ap.StarkConfig.Sign(&starkex.ConditionalTransferParams{
+	r, s, err := e.StarkConfig.Sign(&starkex.ConditionalTransferParams{
 		AssetID:            assetID,
 		AssetIDFee:         big.NewInt(0),
 		MaxAmountFee:       big.NewInt(0),

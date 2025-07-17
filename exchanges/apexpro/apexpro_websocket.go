@@ -51,35 +51,35 @@ func generatePingMessage() ([]byte, error) {
 }
 
 // WsConnect creates a websocket connection
-func (ap *Apexpro) WsConnect() error {
+func (e *Exchange) WsConnect() error {
 	ctx := context.Background()
-	if !ap.Websocket.IsEnabled() || !ap.IsEnabled() {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	dialer.HandshakeTimeout = ap.Config.HTTPTimeout
+	dialer.HandshakeTimeout = e.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
-	err = ap.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
-			ap.Name,
+			e.Name,
 			err)
 	}
 	payload, err := generatePingMessage()
 	if err != nil {
 		return err
 	}
-	ap.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.PongMessage,
 		Message:           payload,
 	})
-	ap.Websocket.Wg.Add(1)
-	go ap.wsReadData(ap.Websocket.Conn)
-	if ap.Websocket.CanUseAuthenticatedEndpoints() {
-		err := ap.WsAuth(&dialer)
-		ap.Websocket.SetCanUseAuthenticatedEndpoints(err == nil)
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(e.Websocket.Conn)
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		err := e.WsAuth(&dialer)
+		e.Websocket.SetCanUseAuthenticatedEndpoints(err == nil)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "%v", err.Error())
 		}
@@ -88,13 +88,13 @@ func (ap *Apexpro) WsConnect() error {
 }
 
 // WsAuth authenticates the websocket connection
-func (ap *Apexpro) WsAuth(dialer *gws.Dialer) error {
+func (e *Exchange) WsAuth(dialer *gws.Dialer) error {
 	ctx := context.Background()
-	creds, err := ap.GetCredentials(context.Background())
+	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return err
 	}
-	err = ap.Websocket.AuthConn.Dial(ctx, dialer, http.Header{})
+	err = e.Websocket.AuthConn.Dial(ctx, dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -123,9 +123,9 @@ func (ap *Apexpro) WsAuth(dialer *gws.Dialer) error {
 	if err != nil {
 		return err
 	}
-	ap.Websocket.Wg.Add(1)
-	go ap.wsReadData(ap.Websocket.AuthConn)
-	return ap.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, &struct {
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(e.Websocket.AuthConn)
+	return e.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, &struct {
 		Operation string        `json:"op"`
 		Arguments []interface{} `json:"args"`
 	}{
@@ -135,9 +135,9 @@ func (ap *Apexpro) WsAuth(dialer *gws.Dialer) error {
 }
 
 // GenerateDefaultSubscriptions generates a default subscription list.
-func (ap *Apexpro) GenerateDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 	subscriptions := subscription.List{}
-	enabledPairs, err := ap.GetEnabledPairs(asset.Futures)
+	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		return subscriptions, err
 	}
@@ -172,33 +172,33 @@ func (ap *Apexpro) GenerateDefaultSubscriptions() (subscription.List, error) {
 }
 
 // Subscribe sends a websocket channel subscription.
-func (ap *Apexpro) Subscribe(subscriptions subscription.List) error {
-	payload, err := ap.handleSubscriptionPayload("subscribe", subscriptions)
+func (e *Exchange) Subscribe(subscriptions subscription.List) error {
+	payload, err := e.handleSubscriptionPayload("subscribe", subscriptions)
 	if err != nil {
 		return err
 	}
-	err = ap.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payload)
+	err = e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payload)
 	if err != nil {
 		return err
 	}
-	return ap.Websocket.AddSuccessfulSubscriptions(ap.Websocket.Conn, subscriptions...)
+	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subscriptions...)
 }
 
 // Unsubscribe sends a websocket channel unsubscriptions.
-func (ap *Apexpro) Unsubscribe(subscriptions subscription.List) error {
-	payload, err := ap.handleSubscriptionPayload("unsubscribe", subscriptions)
+func (e *Exchange) Unsubscribe(subscriptions subscription.List) error {
+	payload, err := e.handleSubscriptionPayload("unsubscribe", subscriptions)
 	if err != nil {
 		return err
 	}
-	return ap.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payload)
+	return e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payload)
 }
 
-func (ap *Apexpro) handleSubscriptionPayload(operation string, subscriptions subscription.List) (*WsMessage, error) {
+func (e *Exchange) handleSubscriptionPayload(operation string, subscriptions subscription.List) (*WsMessage, error) {
 	susbcriptionPayload := &WsMessage{
 		Operation: operation,
 		Args:      []string{},
 	}
-	pairFormat, err := ap.GetPairFormat(asset.Futures, true)
+	pairFormat, err := e.GetPairFormat(asset.Futures, true)
 	if err != nil {
 		return nil, err
 	}
@@ -234,21 +234,21 @@ func (ap *Apexpro) handleSubscriptionPayload(operation string, subscriptions sub
 	return susbcriptionPayload, nil
 }
 
-func (ap *Apexpro) wsReadData(conn websocket.Connection) {
-	defer ap.Websocket.Wg.Done()
+func (e *Exchange) wsReadData(conn websocket.Connection) {
+	defer e.Websocket.Wg.Done()
 	for {
 		response := conn.ReadMessage()
 		if response.Raw == nil {
 			return
 		}
-		err := ap.wsHandleData(response.Raw)
+		err := e.wsHandleData(response.Raw)
 		if err != nil {
-			ap.Websocket.DataHandler <- err
+			e.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (ap *Apexpro) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(respRaw []byte) error {
 	var response WsMessage
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -257,20 +257,20 @@ func (ap *Apexpro) wsHandleData(respRaw []byte) error {
 	switch response.Operation {
 	case "pong":
 	case chOrderbook:
-		return ap.processOrderbook(respRaw)
+		return e.processOrderbook(respRaw)
 	case chTrade:
-		return ap.processTrades(respRaw)
+		return e.processTrades(respRaw)
 	case chTicker:
-		return ap.processTickerData(respRaw)
+		return e.processTickerData(respRaw)
 	case chCandlestick:
-		return ap.processCandlestickData(respRaw)
+		return e.processCandlestickData(respRaw)
 	case chAllTickers:
-		return ap.processAllTickers(respRaw)
+		return e.processAllTickers(respRaw)
 	default:
 		var authResp *WsAuthResponse
 		err = json.Unmarshal(respRaw, &authResp)
 		if err != nil {
-			ap.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: string(respRaw)}
+			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: string(respRaw)}
 		}
 		switch authResp.Topic {
 		case chZKAccountV3:
@@ -279,11 +279,11 @@ func (ap *Apexpro) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			err = ap.processAccountOrders(resp.Orders)
+			err = e.processAccountOrders(resp.Orders)
 			if err != nil {
 				log.Warnf(log.ExchangeSys, "%v", err.Error())
 			}
-			err = ap.processAccountFills(resp.Fills)
+			err = e.processAccountFills(resp.Fills)
 			if err != nil {
 				log.Warnf(log.ExchangeSys, "%v", err.Error())
 			}
@@ -293,13 +293,13 @@ func (ap *Apexpro) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			ap.Websocket.DataHandler <- resp
+			e.Websocket.DataHandler <- resp
 		}
 	}
 	return nil
 }
 
-func (ap *Apexpro) processAccountOrders(respOrders []OrderDetail) error {
+func (e *Exchange) processAccountOrders(respOrders []OrderDetail) error {
 	orders := make([]order.Detail, len(respOrders))
 	for o := range respOrders {
 		pair, err := currency.NewPairFromString(respOrders[o].Symbol)
@@ -351,7 +351,7 @@ func (ap *Apexpro) processAccountOrders(respOrders []OrderDetail) error {
 			Cost:               respOrders[o].Size.Float64() * respOrders[o].Price.Float64(),
 			Fee:                respOrders[o].Fee.Float64(),
 			FeeAsset:           pair.Quote,
-			Exchange:           ap.Name,
+			Exchange:           e.Name,
 			OrderID:            respOrders[o].ID,
 			ClientOrderID:      respOrders[o].ClientOrderID,
 			AccountID:          respOrders[o].AccountID,
@@ -365,12 +365,12 @@ func (ap *Apexpro) processAccountOrders(respOrders []OrderDetail) error {
 			Pair:               pair,
 			SettlementCurrency: pair.Quote,
 		}
-		ap.Websocket.DataHandler <- &orders
+		e.Websocket.DataHandler <- &orders
 	}
 	return nil
 }
 
-func (ap *Apexpro) processAccountFills(orderFills []WsAccountOrderFill) error {
+func (e *Exchange) processAccountFills(orderFills []WsAccountOrderFill) error {
 	fillsList := make([]fill.Data, len(orderFills))
 	for f := range orderFills {
 		pair, err := currency.NewPairFromString(orderFills[f].Symbol)
@@ -384,7 +384,7 @@ func (ap *Apexpro) processAccountFills(orderFills []WsAccountOrderFill) error {
 		fillsList[f] = fill.Data{
 			ID:           orderFills[f].ID,
 			Timestamp:    orderFills[f].UpdatedAt.Time(),
-			Exchange:     ap.Name,
+			Exchange:     e.Name,
 			AssetType:    asset.Futures,
 			CurrencyPair: pair,
 			Side:         oSide,
@@ -394,11 +394,11 @@ func (ap *Apexpro) processAccountFills(orderFills []WsAccountOrderFill) error {
 			Amount:       orderFills[f].Size.Float64(),
 		}
 	}
-	ap.Websocket.DataHandler <- fillsList
+	e.Websocket.DataHandler <- fillsList
 	return nil
 }
 
-func (ap *Apexpro) processOrderbook(respRaw []byte) error {
+func (e *Exchange) processOrderbook(respRaw []byte) error {
 	var resp *WsDepth
 	var cp currency.Pair
 	err := json.Unmarshal(respRaw, &resp)
@@ -420,7 +420,7 @@ func (ap *Apexpro) processOrderbook(respRaw []byte) error {
 		bids[b].Amount = resp.Data.Bids[b][1].Float64()
 	}
 	if resp.Type == "delta" {
-		return ap.Websocket.Orderbook.Update(&orderbook.Update{
+		return e.Websocket.Orderbook.Update(&orderbook.Update{
 			Bids:       bids,
 			Asks:       asks,
 			Pair:       cp,
@@ -429,27 +429,27 @@ func (ap *Apexpro) processOrderbook(respRaw []byte) error {
 			Asset:      asset.Futures,
 		})
 	}
-	return ap.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Pair:              cp,
 		Asset:             asset.Spot,
-		Exchange:          ap.Name,
+		Exchange:          e.Name,
 		LastUpdateID:      resp.Data.UpdateID,
-		ValidateOrderbook: ap.ValidateOrderbook,
+		ValidateOrderbook: e.ValidateOrderbook,
 		LastUpdated:       time.Now(),
 		Asks:              asks,
 		Bids:              bids,
 	})
 }
 
-func (ap *Apexpro) processTrades(respRaw []byte) error {
+func (e *Exchange) processTrades(respRaw []byte) error {
 	var resp *WsTrade
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
-	saveTradeData := ap.IsSaveTradeDataEnabled()
+	saveTradeData := e.IsSaveTradeDataEnabled()
 	if !saveTradeData &&
-		!ap.IsTradeFeedEnabled() {
+		!e.IsTradeFeedEnabled() {
 		return nil
 	}
 	trades := make([]trade.Data, len(resp.Data))
@@ -463,15 +463,15 @@ func (ap *Apexpro) processTrades(respRaw []byte) error {
 			Timestamp:    resp.Data[a].Timestamp.Time(),
 			Price:        resp.Data[a].Price.Float64(),
 			Amount:       resp.Data[a].Volume.Float64(),
-			Exchange:     ap.Name,
+			Exchange:     e.Name,
 			AssetType:    asset.Futures,
 			TID:          resp.Data[a].OrderID,
 		}
 	}
-	return ap.Websocket.Trade.Update(saveTradeData, trades...)
+	return e.Websocket.Trade.Update(saveTradeData, trades...)
 }
 
-func (ap *Apexpro) processTickerData(respRaw []byte) error {
+func (e *Exchange) processTickerData(respRaw []byte) error {
 	var resp *WsTicker
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -481,7 +481,7 @@ func (ap *Apexpro) processTickerData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	ap.Websocket.DataHandler <- ticker.Price{
+	e.Websocket.DataHandler <- ticker.Price{
 		Last:         resp.Data.LastPrice.Float64(),
 		High:         resp.Data.HighPrice24H.Float64(),
 		Low:          resp.Data.LowPrice24H.Float64(),
@@ -490,13 +490,13 @@ func (ap *Apexpro) processTickerData(respRaw []byte) error {
 		MarkPrice:    resp.Data.OraclePrice.Float64(),
 		IndexPrice:   resp.Data.IndexPrice.Float64(),
 		Pair:         cp,
-		ExchangeName: ap.Name,
+		ExchangeName: e.Name,
 		AssetType:    asset.Futures,
 	}
 	return nil
 }
 
-func (ap *Apexpro) processCandlestickData(respRaw []byte) error {
+func (e *Exchange) processCandlestickData(respRaw []byte) error {
 	var resp *WsCandlesticks
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -512,7 +512,7 @@ func (ap *Apexpro) processCandlestickData(respRaw []byte) error {
 			Timestamp:  resp.Timestamp.Time(),
 			Pair:       pair,
 			AssetType:  asset.Futures,
-			Exchange:   ap.Name,
+			Exchange:   e.Name,
 			StartTime:  resp.Data[a].Start.Time(),
 			Interval:   resp.Data[a].Interval,
 			OpenPrice:  resp.Data[a].Open.Float64(),
@@ -522,11 +522,11 @@ func (ap *Apexpro) processCandlestickData(respRaw []byte) error {
 			Volume:     resp.Data[a].Volume.Float64(),
 		}
 	}
-	ap.Websocket.DataHandler <- klineData
+	e.Websocket.DataHandler <- klineData
 	return nil
 }
 
-func (ap *Apexpro) processAllTickers(respRaw []byte) error {
+func (e *Exchange) processAllTickers(respRaw []byte) error {
 	var resp *WsSymbolsTickerInformaton
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -548,11 +548,11 @@ func (ap *Apexpro) processAllTickers(respRaw []byte) error {
 			MarkPrice:    resp.Data[a].MarkPrice.Float64(),
 			IndexPrice:   resp.Data[a].IndexPrice.Float64(),
 			Pair:         pair,
-			ExchangeName: ap.Name,
+			ExchangeName: e.Name,
 			AssetType:    asset.Futures,
 			LastUpdated:  resp.Timestamp.Time(),
 		}
 	}
-	ap.Websocket.DataHandler <- tickerData
+	e.Websocket.DataHandler <- tickerData
 	return nil
 }

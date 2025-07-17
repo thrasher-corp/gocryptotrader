@@ -968,7 +968,7 @@ func genCert(targetDir string) error {
 func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 	switch strings.ToLower(name) {
 	case "apexpro":
-		return new(apexpro.Apexpro), nil
+		return new(apexpro.Exchange), nil
 	case "binanceus":
 		return new(binanceus.Exchange), nil
 	case "binance":
