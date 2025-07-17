@@ -16,16 +16,16 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	p = new(Poloniex)
-	if err := testexch.Setup(p); err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Poloniex Setup error: %s", err)
 	}
 	if apiKey != "" && apiSecret != "" {
-		p.API.AuthenticatedSupport = true
-		p.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.API.AuthenticatedSupport = true
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	log.Printf(sharedtestvalues.LiveTesting, p.Name)
-	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	log.Printf(sharedtestvalues.LiveTesting, e.Name)
+	e.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	e.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }

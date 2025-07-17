@@ -219,7 +219,7 @@ func TestAppendDataSource(t *testing.T) {
 	err = dataHandler.AppendDataSource(setup)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	setup.exchange = &binance.Binance{}
+	setup.exchange = &binance.Exchange{}
 	err = dataHandler.AppendDataSource(setup)
 	assert.ErrorIs(t, err, common.ErrInvalidDataType)
 
@@ -264,7 +264,7 @@ func TestFetchLatestData(t *testing.T) {
 	_, err = dataHandler.FetchLatestData()
 	require.NoError(t, err)
 	cp := currency.NewBTCUSDT()
-	f := &binanceus.Binanceus{}
+	f := &binanceus.Exchange{}
 	f.SetDefaults()
 	fb := f.GetBase()
 	require.NoError(t, fb.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
@@ -322,7 +322,7 @@ func TestLoadCandleData(t *testing.T) {
 	_, err := l.loadCandleData(time.Now())
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	exch := &binanceus.Binanceus{}
+	exch := &binanceus.Exchange{}
 	exch.SetDefaults()
 	cp := currency.NewBTCUSDT().Format(
 		currency.PairFormat{
@@ -367,7 +367,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 
 	dataHandler.started = 1
 	cp := currency.NewBTCUSDT()
-	f := &binanceus.Binanceus{}
+	f := &binanceus.Exchange{}
 	f.SetDefaults()
 	fb := f.GetBase()
 	err := fb.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{cp}, true)

@@ -758,7 +758,7 @@ func TestUpdateFundingFromLiveData(t *testing.T) {
 	err = f.UpdateFundingFromLiveData(false)
 	assert.NoError(t, err)
 
-	ff := &binance.Binance{}
+	ff := &binance.Exchange{}
 	ff.SetDefaults()
 	err = f.exchangeManager.Add(ff)
 	require.NoError(t, err)
@@ -793,7 +793,7 @@ func TestUpdateAllCollateral(t *testing.T) {
 	err = f.UpdateAllCollateral(false, false)
 	assert.NoError(t, err)
 
-	ff := &binance.Binance{}
+	ff := &binance.Exchange{}
 	ff.SetDefaults()
 	err = f.exchangeManager.Add(ff)
 	require.NoError(t, err)
