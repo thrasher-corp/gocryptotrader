@@ -821,10 +821,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		AssetType:    asset.Spot.String(),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err)
 	if len(results.Candle) == 0 {
 		t.Error("expected results")
 	}
@@ -843,10 +840,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		Sync:         true,
 		ExRequest:    true,
 	})
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err)
 	if len(results.Candle) == 0 {
 		t.Error("expected results")
 	}
@@ -864,10 +858,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		TimeInterval: int64(kline.OneHour.Duration()),
 		UseDb:        true,
 	})
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err)
 	if len(results.Candle) == 0 {
 		t.Error("expected results")
 	}
@@ -899,10 +890,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		UseDb:                 true,
 		FillMissingWithTrades: true,
 	})
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err)
 	if results.Candle[len(results.Candle)-1].Close != 1337 {
 		t.Error("expected fancy new candle based off fancy new trade data")
 	}
