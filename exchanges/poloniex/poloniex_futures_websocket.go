@@ -73,54 +73,54 @@ var defaultFuturesChannels = []string{
 var onceFuturesOrderbook map[string]bool
 
 // WsFuturesConnect establishes a websocket connection to the futures websocket server.
-func (p *Poloniex) WsFuturesConnect() error {
-	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
+func (e *Exchange) WsFuturesConnect() error {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	ctx := context.TODO()
 	var dialer gws.Dialer
 	onceFuturesOrderbook = make(map[string]bool)
-	err := p.Websocket.SetWebsocketURL(futuresWebsocketPublicURL, false, false)
+	err := e.Websocket.SetWebsocketURL(futuresWebsocketPublicURL, false, false)
 	if err != nil {
 		return err
 	}
-	err = p.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	p.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Delay:       time.Second * 15,
 		Message:     []byte(`{"type":"ping"}`),
 		MessageType: gws.TextMessage,
 	})
-	if p.Websocket.CanUseAuthenticatedEndpoints() {
-		err = p.AuthConnect()
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		err = e.AuthConnect()
 		if err != nil {
-			p.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", p.Name, err)
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", e.Name, err)
 		}
 	}
-	p.Websocket.Wg.Add(1)
-	go p.wsFuturesReadData(p.Websocket.Conn)
+	e.Websocket.Wg.Add(1)
+	go e.wsFuturesReadData(e.Websocket.Conn)
 	return nil
 }
 
 // AuthConnect establishes a websocket and authenticates to futures private websocket
-func (p *Poloniex) AuthConnect() error {
-	creds, err := p.GetCredentials(context.Background())
+func (e *Exchange) AuthConnect() error {
+	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return err
 	}
 	var dialer gws.Dialer
-	err = p.Websocket.SetWebsocketURL(futuresWebsocketPrivateURL, false, false)
+	err = e.Websocket.SetWebsocketURL(futuresWebsocketPrivateURL, false, false)
 	if err != nil {
 		return err
 	}
-	err = p.Websocket.Conn.Dial(context.Background(), &dialer, http.Header{})
+	err = e.Websocket.Conn.Dial(context.Background(), &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	p.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Delay:       time.Second * 15,
 		Message:     []byte(`{"type":"ping"}`),
 		MessageType: gws.TextMessage,
@@ -135,9 +135,9 @@ func (p *Poloniex) AuthConnect() error {
 	if err != nil {
 		return err
 	}
-	p.Websocket.Wg.Add(1)
-	go p.wsFuturesReadData(p.Websocket.AuthConn)
-	data, err := p.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, "auth", &SubscriptionPayload{
+	e.Websocket.Wg.Add(1)
+	go e.wsFuturesReadData(e.Websocket.AuthConn)
+	data, err := e.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, "auth", &SubscriptionPayload{
 		Event:   "subscribe",
 		Channel: []string{"auth"},
 		Params: map[string]any{
@@ -161,21 +161,21 @@ func (p *Poloniex) AuthConnect() error {
 }
 
 // wsFuturesReadData handles data from the websocket connection for futures instruments subscriptions.
-func (p *Poloniex) wsFuturesReadData(conn websocket.Connection) {
-	defer p.Websocket.Wg.Done()
+func (e *Exchange) wsFuturesReadData(conn websocket.Connection) {
+	defer e.Websocket.Wg.Done()
 	for {
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := p.wsFuturesHandleData(resp.Raw)
+		err := e.wsFuturesHandleData(resp.Raw)
 		if err != nil {
-			p.Websocket.DataHandler <- fmt.Errorf("%s: %w", p.Name, err)
+			e.Websocket.DataHandler <- fmt.Errorf("%s: %w", e.Name, err)
 		}
 	}
 }
 
-func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
+func (e *Exchange) wsFuturesHandleData(respRaw []byte) error {
 	var result *FuturesSubscriptionResp
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
@@ -183,33 +183,33 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 	}
 	switch result.Channel {
 	case cnlAuth:
-		if !p.Websocket.Match.IncomingWithData("auth", respRaw) {
+		if !e.Websocket.Match.IncomingWithData("auth", respRaw) {
 			return fmt.Errorf("could not match data with %s %s", "auth", respRaw)
 		}
 		return nil
 	case cnlFuturesSymbol:
 		var resp []ProductInfo
-		return p.processData(result.Data, &resp)
+		return e.processData(result.Data, &resp)
 	case cnlFuturesOrderbookLvl2,
 		cnlFuturesOrderbook:
-		return p.processFuturesOrderbook(result.Data, result.Action)
+		return e.processFuturesOrderbook(result.Data, result.Action)
 	case candles1Min, candles5Min, candles10Min, candles15Min, candles30Min, candles1Hr, candles2Hr, candles4Hr,
 		candles6Hr, candles12Hr, candles1Day, candles3Day, candles1Week, candles1Month:
 		interval, err := stringToInterval(strings.Join(strings.Split(result.Channel, "_")[1:], "_"))
 		if err != nil {
 			return err
 		}
-		return p.processFuturesCandlesticks(result.Data, interval)
+		return e.processFuturesCandlesticks(result.Data, interval)
 	case cnlFuturesTickers:
-		return p.processFuturesTickers(result.Data)
+		return e.processFuturesTickers(result.Data)
 	case cnlFuturesTrades:
-		return p.processFuturesTrades(result.Data)
+		return e.processFuturesTrades(result.Data)
 	case cnlFuturesIndexPrice:
 		var resp []InstrumentIndexPrice
-		return p.processData(result.Data, &resp)
+		return e.processData(result.Data, &resp)
 	case cnlFuturesMarkPrice:
 		var resp []V3FuturesMarkPrice
-		return p.processData(result.Data, &resp)
+		return e.processData(result.Data, &resp)
 	case markCandles1Min, markCandles5Min, markCandles10Min, markCandles15Min,
 		markCandles30Min, markCandles1Hr, markCandles2Hr, markCandles4Hr, markCandles12Hr, markCandles1Day, markCandles3Day, markCandles1Week,
 		// Index Candlestick channels
@@ -224,25 +224,25 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		return p.processFuturesMarkAndIndexPriceCandlesticks(result.Data, interval)
+		return e.processFuturesMarkAndIndexPriceCandlesticks(result.Data, interval)
 	case cnlFuturesFundingRate:
-		return p.processFuturesFundingRate(result.Data)
+		return e.processFuturesFundingRate(result.Data)
 	case cnlFuturesPrivatePositions:
 		var resp []V3FuturesPosition
-		return p.processData(result.Data, &resp)
+		return e.processData(result.Data, &resp)
 	case cnlFuturesPrivateOrders:
-		return p.processFuturesOrders(result.Data)
+		return e.processFuturesOrders(result.Data)
 	case cnlFuturesPrivateTrades:
-		return p.processFuturesTradeFills(result.Data)
+		return e.processFuturesTradeFills(result.Data)
 	case cnlFuturesAccount:
-		return p.processFuturesAccountData(result.Data)
+		return e.processFuturesAccountData(result.Data)
 	default:
-		p.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: p.Name + websocket.UnhandledMessage + string(respRaw)}
-		return fmt.Errorf("%s unhandled message: %s", p.Name, string(respRaw))
+		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
+		return fmt.Errorf("%s unhandled message: %s", e.Name, string(respRaw))
 	}
 }
 
-func (p *Poloniex) processFuturesAccountData(data []byte) error {
+func (e *Exchange) processFuturesAccountData(data []byte) error {
 	var resp []FuturesAccountBalance
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -263,11 +263,11 @@ func (p *Poloniex) processFuturesAccountData(data []byte) error {
 			})
 		}
 	}
-	p.Websocket.DataHandler <- accChanges
+	e.Websocket.DataHandler <- accChanges
 	return nil
 }
 
-func (p *Poloniex) processFuturesTradeFills(data []byte) error {
+func (e *Exchange) processFuturesTradeFills(data []byte) error {
 	var resp []FuturesTradeFill
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -286,7 +286,7 @@ func (p *Poloniex) processFuturesTradeFills(data []byte) error {
 		tfills[a] = fill.Data{
 			CurrencyPair:  pair,
 			Side:          oSide,
-			Exchange:      p.Name,
+			Exchange:      e.Name,
 			AssetType:     asset.Futures,
 			OrderID:       resp[a].OrderID,
 			ID:            resp[a].TradeID,
@@ -297,11 +297,11 @@ func (p *Poloniex) processFuturesTradeFills(data []byte) error {
 			Amount:        resp[a].FillQuantity.Float64(),
 		}
 	}
-	p.Websocket.DataHandler <- tfills
+	e.Websocket.DataHandler <- tfills
 	return nil
 }
 
-func (p *Poloniex) processFuturesOrders(data []byte) error {
+func (e *Exchange) processFuturesOrders(data []byte) error {
 	var resp []FuturesV3OrderDetail
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -336,7 +336,7 @@ func (p *Poloniex) processFuturesOrders(data []byte) error {
 			RemainingAmount:      resp[o].Size.Float64() - resp[o].ExecQuantity.Float64(),
 			Fee:                  resp[o].FeeAmount.Float64(),
 			FeeAsset:             currency.NewCode(resp[o].FeeCurrency),
-			Exchange:             p.Name,
+			Exchange:             e.Name,
 			OrderID:              resp[o].OrderID,
 			ClientOrderID:        resp[o].ClientOrderID,
 			Type:                 oType,
@@ -347,11 +347,11 @@ func (p *Poloniex) processFuturesOrders(data []byte) error {
 			Pair:                 pair,
 		}
 	}
-	p.Websocket.DataHandler <- orders
+	e.Websocket.DataHandler <- orders
 	return nil
 }
 
-func (p *Poloniex) processFuturesFundingRate(data []byte) error {
+func (e *Exchange) processFuturesFundingRate(data []byte) error {
 	var resp []V3FuturesFundingRate
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -363,18 +363,18 @@ func (p *Poloniex) processFuturesFundingRate(data []byte) error {
 		if err != nil {
 			return err
 		}
-		p.Websocket.DataHandler <- websocket.FundingData{
+		e.Websocket.DataHandler <- websocket.FundingData{
 			Timestamp:    resp[a].Timestamp.Time(),
 			CurrencyPair: pair,
 			AssetType:    asset.Futures,
-			Exchange:     p.Name,
+			Exchange:     e.Name,
 			Rate:         resp[a].FundingRate.Float64(),
 		}
 	}
 	return nil
 }
 
-func (p *Poloniex) processFuturesMarkAndIndexPriceCandlesticks(data []byte, interval kline.Interval) error {
+func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(data []byte, interval kline.Interval) error {
 	var resp []V3WsFuturesMarkAndIndexPriceCandle
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -391,7 +391,7 @@ func (p *Poloniex) processFuturesMarkAndIndexPriceCandlesticks(data []byte, inte
 			Timestamp:  resp[a].PushTimestamp.Time(),
 			Pair:       pair,
 			AssetType:  asset.Futures,
-			Exchange:   p.Name,
+			Exchange:   e.Name,
 			StartTime:  resp[a].StartTime.Time(),
 			CloseTime:  resp[a].EndTime.Time(),
 			Interval:   interval.String(),
@@ -401,20 +401,20 @@ func (p *Poloniex) processFuturesMarkAndIndexPriceCandlesticks(data []byte, inte
 			LowPrice:   resp[a].LowestPrice.Float64(),
 		}
 	}
-	p.Websocket.DataHandler <- candles
+	e.Websocket.DataHandler <- candles
 	return nil
 }
 
-func (p *Poloniex) processData(data []byte, respStruct interface{}) error {
+func (e *Exchange) processData(data []byte, respStruct interface{}) error {
 	err := json.Unmarshal(data, &respStruct)
 	if err != nil {
 		return err
 	}
-	p.Websocket.DataHandler <- respStruct
+	e.Websocket.DataHandler <- respStruct
 	return nil
 }
 
-func (p *Poloniex) processFuturesOrderbook(data []byte, action string) error {
+func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 	var resp []FuturesV3Orderbook
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -441,10 +441,10 @@ func (p *Poloniex) processFuturesOrderbook(data []byte, action string) error {
 				onceFuturesOrderbook = make(map[string]bool)
 			}
 			onceFuturesOrderbook[resp[x].Symbol] = true
-			err = p.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Bids:         bids,
 				Asks:         asks,
-				Exchange:     p.Name,
+				Exchange:     e.Name,
 				Pair:         pair,
 				Asset:        asset.Futures,
 				LastUpdated:  resp[x].CreationTime.Time(),
@@ -455,7 +455,7 @@ func (p *Poloniex) processFuturesOrderbook(data []byte, action string) error {
 			}
 			continue
 		}
-		err = p.Websocket.Orderbook.Update(&orderbook.Update{
+		err = e.Websocket.Orderbook.Update(&orderbook.Update{
 			UpdateID:   resp[x].ID.Int64(),
 			UpdateTime: resp[x].CreationTime.Time(),
 			LastPushed: resp[x].Timestamp.Time(),
@@ -472,7 +472,7 @@ func (p *Poloniex) processFuturesOrderbook(data []byte, action string) error {
 	return nil
 }
 
-func (p *Poloniex) processFuturesTickers(data []byte) error {
+func (e *Exchange) processFuturesTickers(data []byte) error {
 	var resp []V3FuturesTickerDetail
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -498,17 +498,17 @@ func (p *Poloniex) processFuturesTickers(data []byte) error {
 			Close:        resp[a].ClosingPrice.Float64(),
 			MarkPrice:    resp[a].MarkPrice.Float64(),
 			Pair:         pair,
-			ExchangeName: p.Name,
+			ExchangeName: e.Name,
 			AssetType:    asset.Futures,
 			LastUpdated:  resp[a].Timestamp.Time(),
 		}
 	}
-	p.Websocket.DataHandler <- tickerPrices
+	e.Websocket.DataHandler <- tickerPrices
 	return nil
 }
 
 // processFuturesTrades handles latest trading data for this product, including the latest price, trading volume, trading direction, etc.
-func (p *Poloniex) processFuturesTrades(data []byte) error {
+func (e *Exchange) processFuturesTrades(data []byte) error {
 	var resp []FuturesTrades
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -526,7 +526,7 @@ func (p *Poloniex) processFuturesTrades(data []byte) error {
 		}
 		trades[t] = trade.Data{
 			TID:          trades[t].TID,
-			Exchange:     p.Name,
+			Exchange:     e.Name,
 			CurrencyPair: pair,
 			AssetType:    asset.Futures,
 			Side:         oSide,
@@ -535,11 +535,11 @@ func (p *Poloniex) processFuturesTrades(data []byte) error {
 			Timestamp:    resp[t].Timestamp.Time(),
 		}
 	}
-	p.Websocket.DataHandler <- trades
+	e.Websocket.DataHandler <- trades
 	return nil
 }
 
-func (p *Poloniex) processFuturesCandlesticks(data []byte, interval kline.Interval) error {
+func (e *Exchange) processFuturesCandlesticks(data []byte, interval kline.Interval) error {
 	var resp []WsFuturesCandlesctick
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -556,7 +556,7 @@ func (p *Poloniex) processFuturesCandlesticks(data []byte, interval kline.Interv
 			Timestamp:  resp[a].PushTime.Time(),
 			Pair:       pair,
 			AssetType:  asset.Futures,
-			Exchange:   p.Name,
+			Exchange:   e.Name,
 			StartTime:  resp[a].StartTime.Time(),
 			CloseTime:  resp[a].EndTime.Time(),
 			Interval:   interval.String(),
@@ -567,15 +567,15 @@ func (p *Poloniex) processFuturesCandlesticks(data []byte, interval kline.Interv
 			Volume:     resp[a].Amount.Float64(),
 		}
 	}
-	p.Websocket.DataHandler <- candles
+	e.Websocket.DataHandler <- candles
 	return nil
 }
 
 // ------------------------------------------------------------------------------------------------
 
 // GenerateFuturesDefaultSubscriptions adds default subscriptions to futures websockets.
-func (p *Poloniex) GenerateFuturesDefaultSubscriptions() (subscription.List, error) {
-	enabledPairs, err := p.GetEnabledPairs(asset.Futures)
+func (e *Exchange) GenerateFuturesDefaultSubscriptions() (subscription.List, error) {
+	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		return nil, err
 	}
@@ -611,12 +611,12 @@ func (p *Poloniex) GenerateFuturesDefaultSubscriptions() (subscription.List, err
 	return subscriptions, nil
 }
 
-func (p *Poloniex) handleFuturesSubscriptions(operation string, subscs subscription.List) []FuturesSubscriptionInput {
+func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscription.List) []FuturesSubscriptionInput {
 	payloads := []FuturesSubscriptionInput{}
 	for x := range subscs {
 		if len(subscs[x].Pairs) == 0 {
 			input := FuturesSubscriptionInput{
-				ID:    strconv.FormatInt(p.Websocket.Conn.GenerateMessageID(false), 10),
+				ID:    strconv.FormatInt(e.Websocket.Conn.GenerateMessageID(false), 10),
 				Type:  operation,
 				Topic: subscs[x].Channel,
 			}
@@ -624,7 +624,7 @@ func (p *Poloniex) handleFuturesSubscriptions(operation string, subscs subscript
 		} else {
 			for i := range subscs[x].Pairs {
 				input := FuturesSubscriptionInput{
-					ID:    strconv.FormatInt(p.Websocket.Conn.GenerateMessageID(false), 10),
+					ID:    strconv.FormatInt(e.Websocket.Conn.GenerateMessageID(false), 10),
 					Type:  operation,
 					Topic: subscs[x].Channel,
 				}
@@ -639,35 +639,35 @@ func (p *Poloniex) handleFuturesSubscriptions(operation string, subscs subscript
 }
 
 // SubscribeFutures sends a websocket message to receive data from the channel
-func (p *Poloniex) SubscribeFutures(subs subscription.List) error {
-	payloads := p.handleFuturesSubscriptions("subscribe", subs)
+func (e *Exchange) SubscribeFutures(subs subscription.List) error {
+	payloads := e.handleFuturesSubscriptions("subscribe", subs)
 	var err error
 	for i := range payloads {
-		err = p.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
+		err = e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
 		if err != nil {
 			return err
 		}
 	}
-	return p.Websocket.AddSuccessfulSubscriptions(p.Websocket.Conn, subs...)
+	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subs...)
 }
 
 // UnsubscribeFutures sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) UnsubscribeFutures(unsub subscription.List) error {
-	payloads := p.handleFuturesSubscriptions("unsubscribe", unsub)
+func (e *Exchange) UnsubscribeFutures(unsub subscription.List) error {
+	payloads := e.handleFuturesSubscriptions("unsubscribe", unsub)
 	var err error
 	for i := range payloads {
-		err = p.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
+		err = e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
 		if err != nil {
 			return err
 		}
 	}
-	return p.Websocket.RemoveSubscriptions(p.Websocket.Conn, unsub...)
+	return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, unsub...)
 }
 
 // ----------------------------------------------------------------
 // Configuration update based on Gks
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (p *Poloniex) generateSubscriptions() (subscription.List, error) {
-	return p.Features.Subscriptions.ExpandTemplates(p)
+func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+	return e.Features.Subscriptions.ExpandTemplates(e)
 }

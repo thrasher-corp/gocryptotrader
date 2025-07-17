@@ -57,13 +57,13 @@ var defaultSubscriptions = []string{
 var onceOrderbook map[string]struct{}
 
 // WsConnect initiates a websocket connection
-func (p *Poloniex) WsConnect() error {
+func (e *Exchange) WsConnect() error {
 	ctx := context.TODO()
-	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := p.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -77,32 +77,32 @@ func (p *Poloniex) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	p.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.TextMessage,
 		Message:           pingPayload,
 		Delay:             30,
 	})
-	if p.Websocket.CanUseAuthenticatedEndpoints() {
-		err := p.wsAuthConn()
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		err := e.wsAuthConn()
 		if err != nil {
-			p.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	onceOrderbook = make(map[string]struct{})
-	p.Websocket.Wg.Add(1)
-	go p.wsReadData(p.Websocket.Conn)
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(e.Websocket.Conn)
 	return nil
 }
 
-func (p *Poloniex) wsAuthConn() error {
-	creds, err := p.GetCredentials(context.Background())
+func (e *Exchange) wsAuthConn() error {
+	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return err
 	}
 
 	var dialer gws.Dialer
-	err = p.Websocket.AuthConn.Dial(context.Background(), &dialer, http.Header{})
+	err = e.Websocket.AuthConn.Dial(context.Background(), &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -116,14 +116,14 @@ func (p *Poloniex) wsAuthConn() error {
 	if err != nil {
 		return err
 	}
-	p.Websocket.AuthConn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+	e.Websocket.AuthConn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.TextMessage,
 		Message:           pingPayload,
 		Delay:             30,
 	})
-	p.Websocket.Wg.Add(1)
-	go p.wsReadData(p.Websocket.AuthConn)
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(e.Websocket.AuthConn)
 	timestamp := time.Now()
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(fmt.Sprintf("GET\n/ws\nsignTimestamp=%d", timestamp.UnixMilli())),
@@ -145,7 +145,7 @@ func (p *Poloniex) wsAuthConn() error {
 			Signature:       base64.StdEncoding.EncodeToString(hmac),
 		},
 	}
-	data, err := p.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, cnlAuth, auth)
+	data, err := e.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, cnlAuth, auth)
 	if err != nil {
 		return err
 	}
@@ -161,28 +161,28 @@ func (p *Poloniex) wsAuthConn() error {
 }
 
 // wsReadData handles data from the websocket connection
-func (p *Poloniex) wsReadData(conn websocket.Connection) {
-	defer p.Websocket.Wg.Done()
+func (e *Exchange) wsReadData(conn websocket.Connection) {
+	defer e.Websocket.Wg.Done()
 	for {
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := p.wsHandleData(resp.Raw)
+		err := e.wsHandleData(resp.Raw)
 		if err != nil {
-			p.Websocket.DataHandler <- fmt.Errorf("%s: %w", p.Name, err)
+			e.Websocket.DataHandler <- fmt.Errorf("%s: %w", e.Name, err)
 		}
 	}
 }
 
-func (p *Poloniex) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(respRaw []byte) error {
 	var result SubscriptionResponse
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
 		return err
 	}
 	if result.ID != "" {
-		if !p.Websocket.Match.IncomingWithData(result.ID, respRaw) {
+		if !e.Websocket.Match.IncomingWithData(result.ID, respRaw) {
 			return fmt.Errorf("could not match trade response with ID: %s Event: %s ", result.ID, result.Event)
 		}
 		return nil
@@ -193,39 +193,39 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 	}
 	switch result.Channel {
 	case cnlAuth:
-		if !p.Websocket.Match.IncomingWithData("auth", respRaw) {
+		if !e.Websocket.Match.IncomingWithData("auth", respRaw) {
 			return fmt.Errorf("could not match data with %s %s", "auth", respRaw)
 		}
 		return nil
 	case cnlSymbols:
 		var response [][]WsSymbol
-		return p.processResponse(&result, &response)
+		return e.processResponse(&result, &response)
 	case cnlCurrencies:
 		var response [][]WsCurrency
-		return p.processResponse(&result, &response)
+		return e.processResponse(&result, &response)
 	case cnlExchange:
 		var response WsExchangeStatus
-		return p.processResponse(&result, &response)
+		return e.processResponse(&result, &response)
 	case cnlTrades:
-		return p.processTrades(&result)
+		return e.processTrades(&result)
 	case cnlTicker:
-		return p.processTicker(&result)
+		return e.processTicker(&result)
 	case cnlBooks, cnlBookLevel2:
-		return p.processBooks(&result)
+		return e.processBooks(&result)
 	case cnlOrders:
-		return p.processOrders(&result)
+		return e.processOrders(&result)
 	case cnlBalances:
-		return p.processBalance(&result)
+		return e.processBalance(&result)
 	default:
 		if strings.HasPrefix(result.Channel, cnlCandles) {
-			return p.processCandlestickData(&result)
+			return e.processCandlestickData(&result)
 		}
-		p.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: p.Name + websocket.UnhandledMessage + string(respRaw)}
-		return fmt.Errorf("%s unhandled message: %s", p.Name, string(respRaw))
+		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
+		return fmt.Errorf("%s unhandled message: %s", e.Name, string(respRaw))
 	}
 }
 
-func (p *Poloniex) processBalance(result *SubscriptionResponse) error {
+func (e *Exchange) processBalance(result *SubscriptionResponse) error {
 	var resp []WsTradeBalance
 	err := json.Unmarshal(result.Data, &resp)
 	if err != nil {
@@ -245,11 +245,11 @@ func (p *Poloniex) processBalance(result *SubscriptionResponse) error {
 			},
 		}
 	}
-	p.Websocket.DataHandler <- accountChanges
+	e.Websocket.DataHandler <- accountChanges
 	return nil
 }
 
-func (p *Poloniex) processOrders(result *SubscriptionResponse) error {
+func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 	response := []WebsocketTradeOrder{}
 	err := json.Unmarshal(result.Data, &response)
 	if err != nil {
@@ -281,7 +281,7 @@ func (p *Poloniex) processOrders(result *SubscriptionResponse) error {
 			RemainingAmount: response[x].OrderAmount.Float64() - response[x].FilledAmount.Float64(),
 			Fee:             response[x].TradeFee.Float64(),
 			FeeAsset:        currency.NewCode(response[x].FeeCurrency),
-			Exchange:        p.Name,
+			Exchange:        e.Name,
 			OrderID:         response[x].OrderID,
 			ClientOrderID:   response[x].ClientOrderID,
 			Type:            oType,
@@ -296,7 +296,7 @@ func (p *Poloniex) processOrders(result *SubscriptionResponse) error {
 					Price:     response[x].TradePrice.Float64(),
 					Amount:    response[x].TradeQty.Float64(),
 					Fee:       response[x].TradeFee.Float64(),
-					Exchange:  p.Name,
+					Exchange:  e.Name,
 					TID:       response[x].TradeID,
 					Type:      oType,
 					Side:      oSide,
@@ -307,11 +307,11 @@ func (p *Poloniex) processOrders(result *SubscriptionResponse) error {
 			},
 		}
 	}
-	p.Websocket.DataHandler <- orderDetails
+	e.Websocket.DataHandler <- orderDetails
 	return nil
 }
 
-func (p *Poloniex) processBooks(result *SubscriptionResponse) error {
+func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 	var resp []WsBook
 	err := json.Unmarshal(result.Data, &resp)
 	if err != nil {
@@ -328,11 +328,11 @@ func (p *Poloniex) processBooks(result *SubscriptionResponse) error {
 				onceOrderbook = make(map[string]struct{})
 			}
 			var orderbooks *orderbook.Book
-			orderbooks, err = p.UpdateOrderbook(context.Background(), pair, asset.Spot)
+			orderbooks, err = e.UpdateOrderbook(context.Background(), pair, asset.Spot)
 			if err != nil {
 				return err
 			}
-			err = p.Websocket.Orderbook.LoadSnapshot(orderbooks)
+			err = e.Websocket.Orderbook.LoadSnapshot(orderbooks)
 			if err != nil {
 				return err
 			}
@@ -360,7 +360,7 @@ func (p *Poloniex) processBooks(result *SubscriptionResponse) error {
 			}
 		}
 		update.UpdateID = resp[x].LastID
-		err = p.Websocket.Orderbook.Update(&update)
+		err = e.Websocket.Orderbook.Update(&update)
 		if err != nil {
 			return err
 		}
@@ -368,7 +368,7 @@ func (p *Poloniex) processBooks(result *SubscriptionResponse) error {
 	return nil
 }
 
-func (p *Poloniex) processTicker(result *SubscriptionResponse) error {
+func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 	var resp []WsTicker
 	err := json.Unmarshal(result.Data, &resp)
 	if err != nil {
@@ -390,15 +390,15 @@ func (p *Poloniex) processTicker(result *SubscriptionResponse) error {
 			Close:        resp[x].Close.Float64(),
 			Pair:         pair,
 			AssetType:    asset.Spot,
-			ExchangeName: p.Name,
+			ExchangeName: e.Name,
 			LastUpdated:  resp[x].Timestamp.Time(),
 		}
 	}
-	p.Websocket.DataHandler <- tickerData
+	e.Websocket.DataHandler <- tickerData
 	return nil
 }
 
-func (p *Poloniex) processTrades(result *SubscriptionResponse) error {
+func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 	var resp []WsTrade
 	err := json.Unmarshal(result.Data, &resp)
 	if err != nil {
@@ -412,7 +412,7 @@ func (p *Poloniex) processTrades(result *SubscriptionResponse) error {
 		}
 		trades[x] = trade.Data{
 			TID:          resp[x].ID,
-			Exchange:     p.Name,
+			Exchange:     e.Name,
 			CurrencyPair: pair,
 			Price:        resp[x].Price.Float64(),
 			Amount:       resp[x].Amount.Float64(),
@@ -422,7 +422,7 @@ func (p *Poloniex) processTrades(result *SubscriptionResponse) error {
 	return trade.AddTradesToBuffer(trades...)
 }
 
-func (p *Poloniex) processCandlestickData(result *SubscriptionResponse) error {
+func (e *Exchange) processCandlestickData(result *SubscriptionResponse) error {
 	var resp []WsCandles
 	err := json.Unmarshal(result.Data, &resp)
 	if err != nil {
@@ -437,7 +437,7 @@ func (p *Poloniex) processCandlestickData(result *SubscriptionResponse) error {
 		}
 		candles[x] = websocket.KlineData{
 			Pair:       pair,
-			Exchange:   p.Name,
+			Exchange:   e.Name,
 			Timestamp:  resp[x].Timestamp.Time(),
 			StartTime:  resp[x].StartTime.Time(),
 			CloseTime:  resp[x].CloseTime.Time(),
@@ -448,29 +448,29 @@ func (p *Poloniex) processCandlestickData(result *SubscriptionResponse) error {
 			Volume:     resp[x].Quantity.Float64(),
 		}
 	}
-	p.Websocket.DataHandler <- candles
+	e.Websocket.DataHandler <- candles
 	return nil
 }
 
-func (p *Poloniex) processResponse(result *SubscriptionResponse, instance interface{}) error {
+func (e *Exchange) processResponse(result *SubscriptionResponse, instance interface{}) error {
 	err := json.Unmarshal(result.Data, instance)
 	if err != nil {
 		return err
 	}
 	fullResp := result.GetWsResponse()
 	fullResp.Data = instance
-	p.Websocket.DataHandler <- fullResp
+	e.Websocket.DataHandler <- fullResp
 	return nil
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (p *Poloniex) GenerateDefaultSubscriptions() (subscription.List, error) {
-	enabledCurrencies, err := p.GetEnabledPairs(asset.Spot)
+func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
+	enabledCurrencies, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	channels := defaultSubscriptions
-	if p.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, []string{cnlOrders, cnlBalances}...)
 	}
 	subscriptions := make(subscription.List, 0, 6*len(enabledCurrencies))
@@ -525,8 +525,8 @@ func (p *Poloniex) GenerateDefaultSubscriptions() (subscription.List, error) {
 	return subscriptions, nil
 }
 
-func (p *Poloniex) handleSubscriptions(operation string, subscs subscription.List) ([]SubscriptionPayload, error) {
-	pairFormat, err := p.GetPairFormat(asset.Spot, true)
+func (e *Exchange) handleSubscriptions(operation string, subscs subscription.List) ([]SubscriptionPayload, error) {
+	pairFormat, err := e.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
 	}
@@ -592,51 +592,51 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs subscription.Lis
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(subs subscription.List) error {
-	payloads, err := p.handleSubscriptions("subscribe", subs)
+func (e *Exchange) Subscribe(subs subscription.List) error {
+	payloads, err := e.handleSubscriptions("subscribe", subs)
 	if err != nil {
 		return err
 	}
 	for i := range payloads {
 		switch payloads[i].Channel[0] {
 		case cnlBalances, cnlOrders:
-			if p.Websocket.CanUseAuthenticatedEndpoints() {
-				err = p.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
+			if e.Websocket.CanUseAuthenticatedEndpoints() {
+				err = e.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
 				if err != nil {
 					return err
 				}
 			}
 		default:
-			err = p.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
+			err = e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
 			if err != nil {
 				return err
 			}
 		}
 	}
-	return p.Websocket.AddSuccessfulSubscriptions(p.Websocket.Conn, subs...)
+	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subs...)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(unsub subscription.List) error {
-	payloads, err := p.handleSubscriptions("unsubscribe", unsub)
+func (e *Exchange) Unsubscribe(unsub subscription.List) error {
+	payloads, err := e.handleSubscriptions("unsubscribe", unsub)
 	if err != nil {
 		return err
 	}
 	for i := range payloads {
 		switch payloads[i].Channel[0] {
 		case cnlBalances, cnlOrders:
-			if p.IsWebsocketAuthenticationSupported() && p.Websocket.CanUseAuthenticatedEndpoints() {
-				err = p.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
+			if e.IsWebsocketAuthenticationSupported() && e.Websocket.CanUseAuthenticatedEndpoints() {
+				err = e.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
 				if err != nil {
 					return err
 				}
 			}
 		default:
-			err = p.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
+			err = e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
 			if err != nil {
 				return err
 			}
 		}
 	}
-	return p.Websocket.RemoveSubscriptions(p.Websocket.Conn, unsub...)
+	return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, unsub...)
 }

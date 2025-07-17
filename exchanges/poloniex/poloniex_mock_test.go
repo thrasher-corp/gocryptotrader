@@ -17,43 +17,43 @@ import (
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	p = new(Poloniex)
-	if err := testexch.Setup(p); err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatal(err)
 	}
 
 	if apiKey != "" && apiSecret != "" {
-		p.API.AuthenticatedSupport = true
-		p.API.AuthenticatedWebsocketSupport = true
-		p.SetCredentials(apiKey, apiSecret, "", "", "", "")
-		p.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		e.API.AuthenticatedSupport = true
+		e.API.AuthenticatedWebsocketSupport = true
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
-	if err := testexch.MockHTTPInstance(p); err != nil {
+	if err := testexch.MockHTTPInstance(e); err != nil {
 		log.Fatalf("Poloniex MockHTTPInstance error: %s", err)
 	}
 	var err error
-	spotTradablePair, err = p.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
+	spotTradablePair, err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
 	if err != nil {
 		log.Fatal(err)
 	}
-	futuresTradablePair, err = p.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT_PERP", ""), asset.Futures)
+	futuresTradablePair, err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT_PERP", ""), asset.Futures)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = p.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false)
+	err = e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = p.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, true)
+	err = e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, true)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = p.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, false)
+	err = e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, false)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = p.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, true)
+	err = e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, true)
 	if err != nil {
 		log.Fatal(err)
 	}

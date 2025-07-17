@@ -16,13 +16,13 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	b = new(Bitstamp)
-	if err := testexch.Setup(b); err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Bitstamp Setup error: %s", err)
 	}
 	if apiKey != "" && apiSecret != "" {
-		b.API.AuthenticatedSupport = true
-		b.SetCredentials(apiKey, apiSecret, customerID, "", "", "")
+		e.API.AuthenticatedSupport = true
+		e.SetCredentials(apiKey, apiSecret, customerID, "", "", "")
 	}
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
 	os.Exit(m.Run())

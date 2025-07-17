@@ -19,20 +19,20 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	p = new(Poloniex)
-	if err := testexch.Setup(p); err != nil {
+	e = new(Poloniex)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatal(err)
 	}
 
 	if apiKey != "" && apiSecret != "" {
-		p.API.AuthenticatedSupport = true
-		p.API.AuthenticatedWebsocketSupport = true
-		p.SetCredentials(apiKey, apiSecret, "", "", "", "")
-		p.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		e.API.AuthenticatedSupport = true
+		e.API.AuthenticatedWebsocketSupport = true
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
-	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	e.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	e.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	err := populateTradablePairs()
 	if err != nil {
 		log.Fatal(err)
@@ -41,26 +41,26 @@ func TestMain(m *testing.M) {
 }
 
 func populateTradablePairs() error {
-	err := p.UpdateTradablePairs(context.Background(), false)
+	err := e.UpdateTradablePairs(context.Background(), false)
 	if err != nil {
 		return err
 	}
-	tradablePairs, err := p.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	} else if len(tradablePairs) == 0 {
-		return currency.ErrCurrencyPairsEmpty
-	}
-	spotTradablePair, err = p.FormatExchangeCurrency(tradablePairs[0], asset.Spot)
-	if err != nil {
-		return err
-	}
-	tradablePairs, err = p.GetEnabledPairs(asset.Futures)
+	tradablePairs, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err
 	} else if len(tradablePairs) == 0 {
 		return currency.ErrCurrencyPairsEmpty
 	}
-	futuresTradablePair, err = p.FormatExchangeCurrency(tradablePairs[0], asset.Futures)
+	spotTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Spot)
+	if err != nil {
+		return err
+	}
+	tradablePairs, err = e.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	} else if len(tradablePairs) == 0 {
+		return currency.ErrCurrencyPairsEmpty
+	}
+	futuresTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Futures)
 	return err
 }

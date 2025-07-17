@@ -13,7 +13,7 @@ import (
 )
 
 // WsCreateOrder create an order for an account.
-func (p *Poloniex) WsCreateOrder(arg *PlaceOrderParams) (*PlaceOrderResponse, error) {
+func (e *Exchange) WsCreateOrder(arg *PlaceOrderParams) (*PlaceOrderResponse, error) {
 	if *arg == (PlaceOrderParams{}) {
 		return nil, errNilArgument
 	}
@@ -24,7 +24,7 @@ func (p *Poloniex) WsCreateOrder(arg *PlaceOrderParams) (*PlaceOrderResponse, er
 		return nil, order.ErrSideIsInvalid
 	}
 	var resp []PlaceOrderResponse
-	err := p.SendWebsocketRequest("createOrder", arg, &resp)
+	err := e.SendWebsocketRequest("createOrder", arg, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (p *Poloniex) WsCreateOrder(arg *PlaceOrderParams) (*PlaceOrderResponse, er
 }
 
 // WsCancelMultipleOrdersByIDs batch cancel one or many active orders in an account by IDs through the websocket stream.
-func (p *Poloniex) WsCancelMultipleOrdersByIDs(args *OrderCancellationParams) ([]WsCancelOrderResponse, error) {
+func (e *Exchange) WsCancelMultipleOrdersByIDs(args *OrderCancellationParams) ([]WsCancelOrderResponse, error) {
 	if args == nil {
 		return nil, errNilArgument
 	}
@@ -45,11 +45,11 @@ func (p *Poloniex) WsCancelMultipleOrdersByIDs(args *OrderCancellationParams) ([
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []WsCancelOrderResponse
-	return resp, p.SendWebsocketRequest("cancelOrders", args, &resp)
+	return resp, e.SendWebsocketRequest("cancelOrders", args, &resp)
 }
 
 // WsCancelAllTradeOrders batch cancel all orders in an account.
-func (p *Poloniex) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]WsCancelOrderResponse, error) {
+func (e *Exchange) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]WsCancelOrderResponse, error) {
 	args := make(map[string][]string)
 	if len(symbols) > 0 {
 		args["symbols"] = symbols
@@ -58,12 +58,12 @@ func (p *Poloniex) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]WsC
 		args["accountTypes"] = accountTypes
 	}
 	var resp []WsCancelOrderResponse
-	return resp, p.SendWebsocketRequest("cancelAllOrders", args, &resp)
+	return resp, e.SendWebsocketRequest("cancelAllOrders", args, &resp)
 }
 
 // SendWebsocketRequest represents a websocket request through the authenticated connections.
-func (p *Poloniex) SendWebsocketRequest(event string, arg, response interface{}) error {
-	if !p.Websocket.IsConnected() || !p.Websocket.CanUseAuthenticatedEndpoints() {
+func (e *Exchange) SendWebsocketRequest(event string, arg, response interface{}) error {
+	if !e.Websocket.IsConnected() || !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	input := &struct {
@@ -71,11 +71,11 @@ func (p *Poloniex) SendWebsocketRequest(event string, arg, response interface{})
 		Event  string      `json:"event"`
 		Params interface{} `json:"params"`
 	}{
-		ID:     strconv.FormatInt(p.Websocket.Conn.GenerateMessageID(false), 10),
+		ID:     strconv.FormatInt(e.Websocket.Conn.GenerateMessageID(false), 10),
 		Event:  event,
 		Params: arg,
 	}
-	result, err := p.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, input.ID, input)
+	result, err := e.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, input.ID, input)
 	if err != nil {
 		return err
 	}
