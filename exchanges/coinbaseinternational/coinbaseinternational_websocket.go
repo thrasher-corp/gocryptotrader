@@ -46,22 +46,22 @@ var defaultSubscriptions = []string{
 // WsConnect connects to websocket client.
 // The WebSocket feed is publicly available and provides real-time
 // market data updates for orders and trades.
-func (co *Exchange) WsConnect() error {
-	if !co.Websocket.IsEnabled() || !co.IsEnabled() {
+func (e *Exchange) WsConnect() error {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	err := co.Websocket.Conn.Dial(context.Background(), &gws.Dialer{Proxy: http.ProxyFromEnvironment}, http.Header{})
+	err := e.Websocket.Conn.Dial(context.Background(), &gws.Dialer{Proxy: http.ProxyFromEnvironment}, http.Header{})
 	if err != nil {
 		return err
 	}
-	co.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.PingMessage,
 		Delay:       time.Second * 10,
 	})
-	co.Websocket.Wg.Add(1)
-	go co.wsReadData(co.Websocket.Conn)
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(e.Websocket.Conn)
 
-	return co.handleSubscription([]SubscriptionInput{{
+	return e.handleSubscription([]SubscriptionInput{{
 		Type:       "SUBSCRIBE",
 		ProductIDs: []string{"BTC-PERP"},
 		Channels:   []string{"LEVEL2"},
@@ -69,27 +69,27 @@ func (co *Exchange) WsConnect() error {
 }
 
 // wsReadData gets and passes on websocket messages for processing
-func (co *Exchange) wsReadData(conn websocket.Connection) {
-	defer co.Websocket.Wg.Done()
+func (e *Exchange) wsReadData(conn websocket.Connection) {
+	defer e.Websocket.Wg.Done()
 	for {
 		select {
-		case <-co.Websocket.ShutdownC:
+		case <-e.Websocket.ShutdownC:
 			return
 		default:
 			resp := conn.ReadMessage()
 			if resp.Raw == nil {
-				log.Warnf(log.WebsocketMgr, "%s Received empty message\n", co.Name)
+				log.Warnf(log.WebsocketMgr, "%s Received empty message\n", e.Name)
 				return
 			}
-			err := co.wsHandleData(resp.Raw)
+			err := e.wsHandleData(resp.Raw)
 			if err != nil {
-				co.Websocket.DataHandler <- err
+				e.Websocket.DataHandler <- err
 			}
 		}
 	}
 }
 
-func (co *Exchange) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(respRaw []byte) error {
 	var resp SubscriptionResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -110,7 +110,7 @@ func (co *Exchange) wsHandleData(respRaw []byte) error {
 					Pairs:   pairs,
 				})
 		}
-		err = co.Websocket.AddSuccessfulSubscriptions(co.Websocket.Conn, subsccefulySubscribedChannels...)
+		err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...)
 		if err != nil {
 			return err
 		}
@@ -127,7 +127,7 @@ func (co *Exchange) wsHandleData(respRaw []byte) error {
 					Pairs:   pairs,
 				})
 		}
-		err = co.Websocket.RemoveSubscriptions(co.Websocket.Conn, subsccefulySubscribedChannels...)
+		err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...)
 		if err != nil {
 			return err
 		}
@@ -137,26 +137,26 @@ func (co *Exchange) wsHandleData(respRaw []byte) error {
 	}
 	switch resp.Channel {
 	case cnlInstruments:
-		return co.processInstruments(respRaw)
+		return e.processInstruments(respRaw)
 	case cnlMatch:
-		return co.processMatch(respRaw)
+		return e.processMatch(respRaw)
 	case cnlFunding:
-		return co.processFunding(respRaw)
+		return e.processFunding(respRaw)
 	case cnlRisk:
-		return co.processRisk(respRaw)
+		return e.processRisk(respRaw)
 	case cnlOrderbookLevel1:
-		return co.processOrderbookLevel1(respRaw)
+		return e.processOrderbookLevel1(respRaw)
 	case cnlOrderbookLevel2:
-		return co.processOrderbookLevel2(respRaw)
+		return e.processOrderbookLevel2(respRaw)
 	default:
-		co.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 			Message: string(respRaw),
 		}
 		return fmt.Errorf("unhandled message: %s", string(respRaw))
 	}
 }
 
-func (co *Exchange) processOrderbookLevel2(respRaw []byte) error {
+func (e *Exchange) processOrderbookLevel2(respRaw []byte) error {
 	var resp []WsOrderbookLevel2
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -178,7 +178,7 @@ func (co *Exchange) processOrderbookLevel2(respRaw []byte) error {
 			bids[b].Amount = resp[x].Bids[b][1].Float64()
 		}
 		if resp[x].Type == "UPDATE" {
-			err = co.Websocket.Orderbook.Update(&orderbook.Update{
+			err = e.Websocket.Orderbook.Update(&orderbook.Update{
 				UpdateID:   resp[x].Sequence,
 				UpdateTime: resp[x].Time,
 				Asset:      asset.Spot,
@@ -191,11 +191,11 @@ func (co *Exchange) processOrderbookLevel2(respRaw []byte) error {
 				return err
 			}
 		}
-		err = co.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Bids:         bids,
 			Asks:         asks,
 			Pair:         pair,
-			Exchange:     co.Name,
+			Exchange:     e.Name,
 			Asset:        asset.Spot,
 			LastUpdated:  resp[x].Time,
 			LastUpdateID: resp[x].Sequence,
@@ -207,7 +207,7 @@ func (co *Exchange) processOrderbookLevel2(respRaw []byte) error {
 	return nil
 }
 
-func (co *Exchange) processOrderbookLevel1(respRaw []byte) error {
+func (e *Exchange) processOrderbookLevel1(respRaw []byte) error {
 	var resp []WsOrderbookLevel1
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -219,7 +219,7 @@ func (co *Exchange) processOrderbookLevel1(respRaw []byte) error {
 			return err
 		}
 		if resp[x].Type == "UPDATE" {
-			err = co.Websocket.Orderbook.Update(&orderbook.Update{
+			err = e.Websocket.Orderbook.Update(&orderbook.Update{
 				Pair:       pair,
 				Asset:      asset.Spot,
 				UpdateTime: resp[x].Time,
@@ -232,9 +232,9 @@ func (co *Exchange) processOrderbookLevel1(respRaw []byte) error {
 				return err
 			}
 		}
-		err = co.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Pair:         pair,
-			Exchange:     co.Name,
+			Exchange:     e.Name,
 			Asset:        asset.Spot,
 			LastUpdated:  resp[x].Time,
 			LastUpdateID: resp[x].Sequence,
@@ -248,17 +248,17 @@ func (co *Exchange) processOrderbookLevel1(respRaw []byte) error {
 	return nil
 }
 
-func (co *Exchange) processRisk(respRaw []byte) error {
+func (e *Exchange) processRisk(respRaw []byte) error {
 	var resp []WsRisk
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
-	co.Websocket.DataHandler <- resp
+	e.Websocket.DataHandler <- resp
 	return nil
 }
 
-func (co *Exchange) processFunding(respRaw []byte) error {
+func (e *Exchange) processFunding(respRaw []byte) error {
 	var resp []WsFunding
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -271,37 +271,37 @@ func (co *Exchange) processFunding(respRaw []byte) error {
 			Rate: decimal.NewFromFloat(resp[x].FundingRate.Float64()),
 		}
 	}
-	co.Websocket.DataHandler <- fundingInfos
+	e.Websocket.DataHandler <- fundingInfos
 	return nil
 }
 
-func (co *Exchange) processMatch(respRaw []byte) error {
+func (e *Exchange) processMatch(respRaw []byte) error {
 	var resp []WsMatch
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
-	co.Websocket.DataHandler <- resp
+	e.Websocket.DataHandler <- resp
 	return nil
 }
 
-func (co *Exchange) processInstruments(respRaw []byte) error {
+func (e *Exchange) processInstruments(respRaw []byte) error {
 	var resp []WsInstrument
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
-	co.Websocket.DataHandler <- resp
+	e.Websocket.DataHandler <- resp
 	return nil
 }
 
 // GenerateSubscriptionPayload generates a subscription payloads list.
-func (co *Exchange) GenerateSubscriptionPayload(subscriptions subscription.List, operation string) ([]SubscriptionInput, error) {
+func (e *Exchange) GenerateSubscriptionPayload(subscriptions subscription.List, operation string) ([]SubscriptionInput, error) {
 	if len(subscriptions) == 0 {
 		return nil, common.ErrEmptyParams
 	}
 	channelPairsMap := make(map[string]currency.Pairs)
-	format, err := co.GetPairFormat(asset.Spot, true)
+	format, err := e.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
 	}
@@ -366,14 +366,14 @@ func (co *Exchange) GenerateSubscriptionPayload(subscriptions subscription.List,
 	return payloads, nil
 }
 
-func (co *Exchange) handleSubscription(payload []SubscriptionInput) error {
+func (e *Exchange) handleSubscription(payload []SubscriptionInput) error {
 	var (
 		authenticate bool
 		creds        *account.Credentials
 	)
-	if co.AreCredentialsValid(context.Background()) && co.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.AreCredentialsValid(context.Background()) && e.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
-		creds, err = co.GetCredentials(context.Background())
+		creds, err = e.GetCredentials(context.Background())
 		if err != nil {
 			return err
 		}
@@ -382,12 +382,12 @@ func (co *Exchange) handleSubscription(payload []SubscriptionInput) error {
 	for x := range payload {
 		payload[x].Time = strconv.FormatInt(time.Now().Unix(), 10)
 		if authenticate {
-			err := co.signSubscriptionPayload(creds, &payload[x])
+			err := e.signSubscriptionPayload(creds, &payload[x])
 			if err != nil {
 				return err
 			}
 		}
-		err := co.Websocket.Conn.SendJSONMessage(context.Background(), request.Unset, payload[x])
+		err := e.Websocket.Conn.SendJSONMessage(context.Background(), request.Unset, payload[x])
 		if err != nil {
 			return err
 		}
@@ -395,7 +395,7 @@ func (co *Exchange) handleSubscription(payload []SubscriptionInput) error {
 	return nil
 }
 
-func (co *Exchange) signSubscriptionPayload(creds *account.Credentials, body *SubscriptionInput) error {
+func (e *Exchange) signSubscriptionPayload(creds *account.Credentials, body *SubscriptionInput) error {
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(body.Time+creds.Key+"CBINTLMD"+creds.ClientID),
 		[]byte(creds.Secret))
@@ -409,8 +409,8 @@ func (co *Exchange) signSubscriptionPayload(creds *account.Credentials, body *Su
 }
 
 // GenerateDefaultSubscriptions generates default subscription
-func (co *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
-	enabledPairs, err := co.GetEnabledPairs(asset.Spot)
+func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
+	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -426,19 +426,19 @@ func (co *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 }
 
 // Subscribe subscribe to channels
-func (co *Exchange) Subscribe(subscriptions subscription.List) error {
-	subscriptionPayloads, err := co.GenerateSubscriptionPayload(subscriptions, "SUBSCRIBE")
+func (e *Exchange) Subscribe(subscriptions subscription.List) error {
+	subscriptionPayloads, err := e.GenerateSubscriptionPayload(subscriptions, "SUBSCRIBE")
 	if err != nil {
 		return err
 	}
-	return co.handleSubscription(subscriptionPayloads)
+	return e.handleSubscription(subscriptionPayloads)
 }
 
 // Unsubscribe unsubscribe to channels
-func (co *Exchange) Unsubscribe(subscriptions subscription.List) error {
-	subscriptionPayloads, err := co.GenerateSubscriptionPayload(subscriptions, "UNSUBSCRIBE")
+func (e *Exchange) Unsubscribe(subscriptions subscription.List) error {
+	subscriptionPayloads, err := e.GenerateSubscriptionPayload(subscriptions, "UNSUBSCRIBE")
 	if err != nil {
 		return err
 	}
-	return co.handleSubscription(subscriptionPayloads)
+	return e.handleSubscription(subscriptionPayloads)
 }
