@@ -9,7 +9,7 @@ import (
 )
 
 func TestSimulate(t *testing.T) {
-	b := bitstamp.Bitstamp{}
+	b := bitstamp.Exchange{}
 	b.SetDefaults()
 	b.Verbose = false
 	b.CurrencyPairs = currency.PairsManager{
