@@ -20,15 +20,15 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	b = new(Binance)
-	if err := testexch.Setup(b); err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Binance Setup error: %s", err)
 	}
 
 	if apiKey != "" && apiSecret != "" {
-		b.API.AuthenticatedSupport = true
-		b.API.CredentialsValidator.RequiresBase64DecodeSecret = false
-		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.API.AuthenticatedSupport = true
+		e.API.CredentialsValidator.RequiresBase64DecodeSecret = false
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 	if useTestNet {
 		for k, v := range map[exchange.URL]string{
@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 			exchange.RestCoinMargined: "https://testnet.binancefuture.com",
 			exchange.RestSpot:         "https://testnet.binance.vision/api",
 		} {
-			if err := b.API.Endpoints.SetRunningURL(k.String(), v); err != nil {
+			if err := e.API.Endpoints.SetRunningURL(k.String(), v); err != nil {
 				log.Fatalf("Binance SetRunningURL error: %s", err)
 			}
 		}

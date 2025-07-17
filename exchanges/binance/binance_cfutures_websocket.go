@@ -31,42 +31,42 @@ var defaultCFuturesSubscriptions = []string{
 }
 
 // WsCFutureConnect initiates a websocket connection to coin margined futures websocket
-func (b *Binance) WsCFutureConnect() error {
+func (e *Exchange) WsCFutureConnect() error {
 	ctx := context.Background()
-	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var err error
 	var dialer gws.Dialer
-	dialer.HandshakeTimeout = b.Config.HTTPTimeout
+	dialer.HandshakeTimeout = e.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	wsURL := binanceCFuturesWebsocketURL + "/stream"
-	err = b.Websocket.SetWebsocketURL(wsURL, false, false)
+	err = e.Websocket.SetWebsocketURL(wsURL, false, false)
 	if err != nil {
-		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Errorf(log.ExchangeSys,
 			"%v unable to connect to authenticated Websocket. Error: %s",
-			b.Name,
+			e.Name,
 			err)
 	}
-	err = b.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
+		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
-	b.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
-	b.Websocket.Wg.Add(1)
-	go b.wsCFuturesReadData()
+	e.Websocket.Wg.Add(1)
+	go e.wsCFuturesReadData()
 	return nil
 }
 
 // GenerateDefaultCFuturesSubscriptions generates a list of subscription instances.
-func (b *Binance) GenerateDefaultCFuturesSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateDefaultCFuturesSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
-	pairs, err := b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
+	pairs, err := e.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
@@ -118,21 +118,21 @@ func (b *Binance) GenerateDefaultCFuturesSubscriptions() (subscription.List, err
 
 // wsCFuturesReadData receives and passes on websocket messages for processing
 // for Coin margined instruments.
-func (b *Binance) wsCFuturesReadData() {
-	defer b.Websocket.Wg.Done()
+func (e *Exchange) wsCFuturesReadData() {
+	defer e.Websocket.Wg.Done()
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		resp := e.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleCFuturesData(resp.Raw)
+		err := e.wsHandleCFuturesData(resp.Raw)
 		if err != nil {
-			b.Websocket.DataHandler <- err
+			e.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (b *Binance) wsHandleCFuturesData(respRaw []byte) error {
+func (e *Exchange) wsHandleCFuturesData(respRaw []byte) error {
 	result := struct {
 		Result json.RawMessage `json:"result"`
 		ID     int64           `json:"id"`
@@ -144,7 +144,7 @@ func (b *Binance) wsHandleCFuturesData(respRaw []byte) error {
 		return err
 	}
 	if result.Stream == "" || (result.ID != 0 && result.Result != nil) {
-		if !b.Websocket.Match.IncomingWithData(result.ID, respRaw) {
+		if !e.Websocket.Match.IncomingWithData(result.ID, respRaw) {
 			return errors.New("Unhandled data: " + string(respRaw))
 		}
 		return nil
@@ -158,50 +158,50 @@ func (b *Binance) wsHandleCFuturesData(respRaw []byte) error {
 	}
 	switch stream {
 	case contractInfoAllChan:
-		return b.processContractInfoStream(result.Data)
+		return e.processContractInfoStream(result.Data)
 	case forceOrderAllChan, "forceOrder":
-		return b.processCFuturesForceOrder(result.Data)
+		return e.processCFuturesForceOrder(result.Data)
 	case bookTickerAllChan, "bookTicker":
-		return b.processBookTicker(result.Data, asset.CoinMarginedFutures)
+		return e.processBookTicker(result.Data, asset.CoinMarginedFutures)
 	case tickerAllChan:
-		return b.processCFuturesMarketTicker(result.Data, true)
+		return e.processCFuturesMarketTicker(result.Data, true)
 	case "ticker":
-		return b.processCFuturesMarketTicker(result.Data, false)
+		return e.processCFuturesMarketTicker(result.Data, false)
 	case miniTickerAllChan:
-		return b.processMiniTickers(result.Data, true, asset.CoinMarginedFutures)
+		return e.processMiniTickers(result.Data, true, asset.CoinMarginedFutures)
 	case "miniTicker":
-		return b.processMiniTickers(result.Data, false, asset.CoinMarginedFutures)
+		return e.processMiniTickers(result.Data, false, asset.CoinMarginedFutures)
 	case "aggTrade":
-		return b.processAggregateTrade(result.Data, asset.CoinMarginedFutures)
+		return e.processAggregateTrade(result.Data, asset.CoinMarginedFutures)
 	case "markPrice":
-		return b.processMarkPriceUpdate(result.Data, false)
+		return e.processMarkPriceUpdate(result.Data, false)
 	case cnlDepth:
-		return b.processOrderbookDepthUpdate(result.Data, asset.CoinMarginedFutures)
+		return e.processOrderbookDepthUpdate(result.Data, asset.CoinMarginedFutures)
 	case continuousKline:
-		return b.processContinuousKlineUpdate(result.Data, asset.CoinMarginedFutures)
+		return e.processContinuousKlineUpdate(result.Data, asset.CoinMarginedFutures)
 	case klineChan:
-		return b.processKlineData(result.Data)
+		return e.processKlineData(result.Data)
 	case indexPriceCFuturesChan:
-		return b.processIndexPrice(result.Data)
+		return e.processIndexPrice(result.Data)
 	case indexPriceKlineCFuturesChan,
 		markPriceKlineCFuturesChan:
-		return b.processMarkPriceKline(result.Data)
+		return e.processMarkPriceKline(result.Data)
 	}
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
 }
 
-func (b *Binance) processCFuturesMarketTicker(respRaw []byte, array bool) error {
+func (e *Exchange) processCFuturesMarketTicker(respRaw []byte, array bool) error {
 	if array {
 		var resp []CFuturesMarketTicker
 		err := json.Unmarshal(respRaw, &resp)
 		if err != nil {
 			return err
 		}
-		tickerPrices, err := b.getCFuturesTickerInfos(resp)
+		tickerPrices, err := e.getCFuturesTickerInfos(resp)
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- tickerPrices
+		e.Websocket.DataHandler <- tickerPrices
 		return nil
 	}
 	var resp CFuturesMarketTicker
@@ -213,7 +213,7 @@ func (b *Binance) processCFuturesMarketTicker(respRaw []byte, array bool) error 
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- &ticker.Price{
+	e.Websocket.DataHandler <- &ticker.Price{
 		Pair:         cp,
 		Last:         resp.LastPrice.Float64(),
 		High:         resp.HighPrice.Float64(),
@@ -221,14 +221,14 @@ func (b *Binance) processCFuturesMarketTicker(respRaw []byte, array bool) error 
 		Volume:       resp.TotalTradedVolume.Float64(),
 		QuoteVolume:  resp.TotalQuoteAssetVolume.Float64(),
 		Open:         resp.OpenPrice.Float64(),
-		ExchangeName: b.Name,
+		ExchangeName: e.Name,
 		AssetType:    asset.CoinMarginedFutures,
 		LastUpdated:  resp.EventTime.Time(),
 	}
 	return nil
 }
 
-func (b *Binance) getCFuturesTickerInfos(marketTickers []CFuturesMarketTicker) ([]ticker.Price, error) {
+func (e *Exchange) getCFuturesTickerInfos(marketTickers []CFuturesMarketTicker) ([]ticker.Price, error) {
 	tickerPrices := make([]ticker.Price, len(marketTickers))
 	for a := range marketTickers {
 		cp, err := currency.NewPairFromString(marketTickers[a].Symbol)
@@ -243,7 +243,7 @@ func (b *Binance) getCFuturesTickerInfos(marketTickers []CFuturesMarketTicker) (
 			Volume:       marketTickers[a].TotalTradeBaseVolume.Float64(),
 			QuoteVolume:  marketTickers[a].TotalQuoteAssetVolume.Float64(),
 			Open:         marketTickers[a].OpenPrice.Float64(),
-			ExchangeName: b.Name,
+			ExchangeName: e.Name,
 			AssetType:    asset.CoinMarginedFutures,
 			LastUpdated:  marketTickers[a].EventTime.Time(),
 		}
@@ -251,7 +251,7 @@ func (b *Binance) getCFuturesTickerInfos(marketTickers []CFuturesMarketTicker) (
 	return tickerPrices, nil
 }
 
-func (b *Binance) processKlineData(respRaw []byte) error {
+func (e *Exchange) processKlineData(respRaw []byte) error {
 	var resp CFutureKlineData
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -261,9 +261,9 @@ func (b *Binance) processKlineData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- &websocket.KlineData{
+	e.Websocket.DataHandler <- &websocket.KlineData{
 		Pair:       cp,
-		Exchange:   b.Name,
+		Exchange:   e.Name,
 		Interval:   resp.KlineData.Interval,
 		AssetType:  asset.CoinMarginedFutures,
 		StartTime:  resp.KlineData.StartTime.Time(),
@@ -277,7 +277,7 @@ func (b *Binance) processKlineData(respRaw []byte) error {
 	return nil
 }
 
-func (b *Binance) processIndexPrice(respRaw []byte) error {
+func (e *Exchange) processIndexPrice(respRaw []byte) error {
 	var resp CFutureIndexPriceStream
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -287,7 +287,7 @@ func (b *Binance) processIndexPrice(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- &ticker.Price{
+	e.Websocket.DataHandler <- &ticker.Price{
 		Pair:        cp,
 		Last:        resp.IndexPrice.Float64(),
 		LastUpdated: resp.EventTime.Time(),
@@ -295,7 +295,7 @@ func (b *Binance) processIndexPrice(respRaw []byte) error {
 	return nil
 }
 
-func (b *Binance) processCFuturesForceOrder(respRaw []byte) error {
+func (e *Exchange) processCFuturesForceOrder(respRaw []byte) error {
 	var resp MarketLiquidationOrder
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -317,13 +317,13 @@ func (b *Binance) processCFuturesForceOrder(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- order.Detail{
+	e.Websocket.DataHandler <- order.Detail{
 		Price:                resp.Order.Price.Float64(),
 		Amount:               resp.Order.OriginalQuantity.Float64(),
 		AverageExecutedPrice: resp.Order.AveragePrice.Float64(),
 		ExecutedAmount:       resp.Order.OrderFilledAccumulatedQuantity.Float64(),
 		RemainingAmount:      resp.Order.OriginalQuantity.Float64() - resp.Order.OrderFilledAccumulatedQuantity.Float64(),
-		Exchange:             b.Name,
+		Exchange:             e.Name,
 		Type:                 oType,
 		Side:                 oSide,
 		Status:               oStatus,
@@ -335,7 +335,7 @@ func (b *Binance) processCFuturesForceOrder(respRaw []byte) error {
 	return nil
 }
 
-func (b *Binance) processMarkPriceKline(respRaw []byte) error {
+func (e *Exchange) processMarkPriceKline(respRaw []byte) error {
 	var resp CFutureMarkOrIndexPriceKline
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -345,7 +345,7 @@ func (b *Binance) processMarkPriceKline(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- &websocket.KlineData{
+	e.Websocket.DataHandler <- &websocket.KlineData{
 		Pair:       cp,
 		AssetType:  asset.CoinMarginedFutures,
 		Interval:   resp.Kline.Interval,

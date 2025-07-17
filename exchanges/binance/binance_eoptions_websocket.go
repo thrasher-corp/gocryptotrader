@@ -51,67 +51,67 @@ var defaultEOptionsSubscriptions = []string{
 }
 
 // WsOptionsConnect initiates a websocket connection to coin margined futures websocket
-func (b *Binance) WsOptionsConnect() error {
+func (e *Exchange) WsOptionsConnect() error {
 	ctx := context.Background()
-	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var err error
 	var dialer gws.Dialer
-	dialer.HandshakeTimeout = b.Config.HTTPTimeout
+	dialer.HandshakeTimeout = e.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	wsURL := eoptionsWebsocketURL + "stream"
-	err = b.Websocket.SetWebsocketURL(wsURL, false, false)
+	err = e.Websocket.SetWebsocketURL(wsURL, false, false)
 	if err != nil {
-		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Errorf(log.ExchangeSys,
-			"%v unable to connect to authenticated Websocket. Error: %s", b.Name, err)
+			"%v unable to connect to authenticated Websocket. Error: %s", e.Name, err)
 	}
-	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err = b.GetEOptionsWsAuthStreamKey(context.TODO())
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		listenKey, err = e.GetEOptionsWsAuthStreamKey(context.TODO())
 		switch {
 		case err != nil:
-			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", b.Name, err)
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", e.Name, err)
 		default:
 			wsURL = wsURL + "ws/" + listenKey
-			err = b.Websocket.SetWebsocketURL(wsURL, false, false)
+			err = e.Websocket.SetWebsocketURL(wsURL, false, false)
 			if err != nil {
 				return err
 			}
 		}
 	}
-	err = b.Websocket.SetWebsocketURL(wsURL, false, false)
+	err = e.Websocket.SetWebsocketURL(wsURL, false, false)
 	if err != nil {
 		return err
 	}
-	err = b.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
+		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
-	b.Websocket.Wg.Add(1)
-	go b.wsEOptionsFuturesReadData()
+	e.Websocket.Wg.Add(1)
+	go e.wsEOptionsFuturesReadData()
 
-	b.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
-	subscriptions, err := b.GenerateEOptionsDefaultSubscriptions()
+	subscriptions, err := e.GenerateEOptionsDefaultSubscriptions()
 	if err != nil {
 		return err
 	}
-	return b.OptionSubscribe(subscriptions)
+	return e.OptionSubscribe(subscriptions)
 }
 
-func (b *Binance) handleEOptionsSubscriptions(operation string, subscs subscription.List) error {
+func (e *Exchange) handleEOptionsSubscriptions(operation string, subscs subscription.List) error {
 	if len(subscs) == 0 {
 		return common.ErrEmptyParams
 	}
 	params := &EOptionSubscriptionParam{
 		Method: operation,
 		Params: make([]string, 0, len(subscs)),
-		ID:     b.Websocket.Conn.GenerateMessageID(false),
+		ID:     e.Websocket.Conn.GenerateMessageID(false),
 	}
 	for s := range subscs {
 		switch subscs[s].Channel {
@@ -124,7 +124,7 @@ func (b *Binance) handleEOptionsSubscriptions(operation string, subscs subscript
 				params.Params = append(params.Params, subscs[s].Pairs[p].Base.String()+"@"+subscs[s].Channel)
 			}
 		case cnlKline: // subscriptions with <symbol>@channel<interval> pattern
-			intervalString := b.intervalToString(subscs[s].Interval)
+			intervalString := e.intervalToString(subscs[s].Interval)
 			if intervalString == "" {
 				intervalString = "15m"
 			}
@@ -156,7 +156,7 @@ func (b *Binance) handleEOptionsSubscriptions(operation string, subscs subscript
 			}
 			var intervalString string
 			if subscs[s].Interval != kline.Interval(0) {
-				intervalString = "@" + b.intervalToString(subscs[s].Interval)
+				intervalString = "@" + e.intervalToString(subscs[s].Interval)
 			}
 			for p := range subscs[s].Pairs {
 				params.Params = append(params.Params, subscs[s].Pairs[p].String()+"@"+subscs[s].Channel+"@"+level+intervalString)
@@ -168,7 +168,7 @@ func (b *Binance) handleEOptionsSubscriptions(operation string, subscs subscript
 		}
 	}
 
-	response, err := b.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, params.ID, params)
+	response, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, params.ID, params)
 	if err != nil {
 		return err
 	}
@@ -180,29 +180,29 @@ func (b *Binance) handleEOptionsSubscriptions(operation string, subscs subscript
 		return fmt.Errorf("err: code: %d, msg: %s", resp.Error.Code, resp.Error.Message)
 	}
 	if operation == "SUBSCRIBE" {
-		err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, subscs...)
+		err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subscs...)
 		if err != nil {
 			return err
 		}
 	}
-	return b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subscs...)
+	return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subscs...)
 }
 
 // OptionSubscribe sends an european option subscription messages.
-func (b *Binance) OptionSubscribe(subscs subscription.List) error {
-	return b.handleEOptionsSubscriptions("SUBSCRIBE", subscs)
+func (e *Exchange) OptionSubscribe(subscs subscription.List) error {
+	return e.handleEOptionsSubscriptions("SUBSCRIBE", subscs)
 }
 
 // OptionUnsubscribe unsubscribes an option un-subscription messages.
-func (b *Binance) OptionUnsubscribe(subscs subscription.List) error {
-	return b.handleEOptionsSubscriptions("UNSUBSCRIBE", subscs)
+func (e *Exchange) OptionUnsubscribe(subscs subscription.List) error {
+	return e.handleEOptionsSubscriptions("UNSUBSCRIBE", subscs)
 }
 
 // GenerateEOptionsDefaultSubscriptions generates the default subscription set
-func (b *Binance) GenerateEOptionsDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateEOptionsDefaultSubscriptions() (subscription.List, error) {
 	channels := defaultEOptionsSubscriptions
 	var subscriptions subscription.List
-	pairs, err := b.FetchTradablePairs(context.Background(), asset.Options)
+	pairs, err := e.FetchTradablePairs(context.Background(), asset.Options)
 	if err != nil {
 		return nil, err
 	}
@@ -256,13 +256,13 @@ func (b *Binance) GenerateEOptionsDefaultSubscriptions() (subscription.List, err
 }
 
 // GetEOptionsWsAuthStreamKey will retrieve a key to use for authorised WS streaming
-func (b *Binance) GetEOptionsWsAuthStreamKey(ctx context.Context) (string, error) {
-	endpointPath, err := b.API.Endpoints.GetURL(exchange.RestOptions)
+func (e *Exchange) GetEOptionsWsAuthStreamKey(ctx context.Context) (string, error) {
+	endpointPath, err := e.API.Endpoints.GetURL(exchange.RestOptions)
 	if err != nil {
 		return "", err
 	}
 
-	creds, err := b.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -275,63 +275,63 @@ func (b *Binance) GetEOptionsWsAuthStreamKey(ctx context.Context) (string, error
 		Path:          endpointPath + "/eapi/v1/listenKey",
 		Headers:       headers,
 		Result:        &resp,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
+		Verbose:       e.Verbose,
+		HTTPDebugging: e.HTTPDebugging,
+		HTTPRecording: e.HTTPRecording,
 	}
 
-	return resp.ListenKey, b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return resp.ListenKey, e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)
 }
 
 // wsEOptionsFuturesReadData receives and passes on websocket messages for processing
 // for European Options instruments.
-func (b *Binance) wsEOptionsFuturesReadData() {
-	defer b.Websocket.Wg.Done()
+func (e *Exchange) wsEOptionsFuturesReadData() {
+	defer e.Websocket.Wg.Done()
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		resp := e.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleEOptionsData(resp.Raw)
+		err := e.wsHandleEOptionsData(resp.Raw)
 		if err != nil {
-			b.Websocket.DataHandler <- err
+			e.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (b *Binance) wsHandleEOptionsData(respRaw []byte) error {
+func (e *Exchange) wsHandleEOptionsData(respRaw []byte) error {
 	var result WsOptionIncomingResps
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
 		return err
 	}
 	if result.Instances[0].EventType == "" || (result.Instances[0].ID != 0 && result.Instances[0].Result != nil) {
-		if !b.Websocket.Match.IncomingWithData(result.Instances[0].ID, respRaw) {
+		if !e.Websocket.Match.IncomingWithData(result.Instances[0].ID, respRaw) {
 			return errors.New("Unhandled data: " + string(respRaw))
 		}
 		return nil
 	}
 	switch result.Instances[0].Stream {
 	case cnlTrade:
-		return b.processOptionsTradeStream(respRaw)
+		return e.processOptionsTradeStream(respRaw)
 	case cnlIndex:
-		return b.processOptionsIndexPrice(respRaw)
+		return e.processOptionsIndexPrice(respRaw)
 	case "24hrTicker":
-		return b.processOptionsTicker(respRaw, result.IsSlice)
+		return e.processOptionsTicker(respRaw, result.IsSlice)
 	case "markPrice":
-		return b.processOptionsMarkPrices(respRaw)
+		return e.processOptionsMarkPrices(respRaw)
 	case "kline":
-		return b.processOptionsKline(respRaw)
+		return e.processOptionsKline(respRaw)
 	case "openInterest":
-		return b.processOptionsOpenInterest(respRaw)
+		return e.processOptionsOpenInterest(respRaw)
 	case "option_pair":
-		return b.processOptionsPair(respRaw)
+		return e.processOptionsPair(respRaw)
 	case "depth":
-		return b.processOptionsOrderbook(respRaw)
+		return e.processOptionsOrderbook(respRaw)
 	default:
-		b.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 			Message: string(respRaw),
 		}
 		return fmt.Errorf("unhandled stream data %s", string(respRaw))
@@ -341,7 +341,7 @@ func (b *Binance) wsHandleEOptionsData(respRaw []byte) error {
 // orderbookSnapshotLoadedPairsMap used for validation of whether the symbol has snapshot orderbook data in the buffer or not.
 var orderbookSnapshotLoadedPairsMap = map[string]bool{}
 
-func (b *Binance) processOptionsOrderbook(data []byte) error {
+func (e *Exchange) processOptionsOrderbook(data []byte) error {
 	var resp WsOptionsOrderbook
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -356,9 +356,9 @@ func (b *Binance) processOptionsOrderbook(data []byte) error {
 	}
 	okay := orderbookSnapshotLoadedPairsMap[resp.OptionSymbol]
 	if !okay {
-		err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Pair:         pair,
-			Exchange:     b.Name,
+			Exchange:     e.Name,
 			Asset:        asset.Options,
 			LastUpdated:  resp.TransactionTime.Time(),
 			LastUpdateID: resp.UpdateID,
@@ -369,7 +369,7 @@ func (b *Binance) processOptionsOrderbook(data []byte) error {
 			return err
 		}
 	} else {
-		err = b.Websocket.Orderbook.Update(&orderbook.Update{
+		err = e.Websocket.Orderbook.Update(&orderbook.Update{
 			Pair:       pair,
 			Asks:       orderbook.Levels(resp.Asks),
 			Bids:       orderbook.Levels(resp.Bids),
@@ -385,27 +385,27 @@ func (b *Binance) processOptionsOrderbook(data []byte) error {
 }
 
 // processOptionsPair new symbol listing stream
-func (b *Binance) processOptionsPair(data []byte) error {
+func (e *Exchange) processOptionsPair(data []byte) error {
 	var resp WsOptionsNewPair
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- resp
+	e.Websocket.DataHandler <- resp
 	return nil
 }
 
-func (b *Binance) processOptionsOpenInterest(data []byte) error {
+func (e *Exchange) processOptionsOpenInterest(data []byte) error {
 	var resp []WsOpenInterest
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- resp
+	e.Websocket.DataHandler <- resp
 	return nil
 }
 
-func (b *Binance) processOptionsKline(data []byte) error {
+func (e *Exchange) processOptionsKline(data []byte) error {
 	var resp WsOptionsKlineData
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -415,11 +415,11 @@ func (b *Binance) processOptionsKline(data []byte) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- websocket.KlineData{
+	e.Websocket.DataHandler <- websocket.KlineData{
 		Timestamp:  resp.EventTime.Time(),
 		Pair:       pair,
 		AssetType:  asset.Options,
-		Exchange:   b.Name,
+		Exchange:   e.Name,
 		StartTime:  resp.KlineData.StartTime.Time(),
 		CloseTime:  resp.KlineData.EndTime.Time(),
 		Interval:   strings.Split(resp.EventType, "_")[1],
@@ -432,27 +432,27 @@ func (b *Binance) processOptionsKline(data []byte) error {
 	return nil
 }
 
-func (b *Binance) processOptionsMarkPrices(data []byte) error {
+func (e *Exchange) processOptionsMarkPrices(data []byte) error {
 	var resp []WsOptionsMarkPrice
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- resp
+	e.Websocket.DataHandler <- resp
 	return nil
 }
 
-func (b *Binance) processOptionsIndexPrice(data []byte) error {
+func (e *Exchange) processOptionsIndexPrice(data []byte) error {
 	var resp OptionsIndexInfo
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- resp
+	e.Websocket.DataHandler <- resp
 	return nil
 }
 
-func (b *Binance) processOptionsTicker(data []byte, isSlice bool) error {
+func (e *Exchange) processOptionsTicker(data []byte, isSlice bool) error {
 	var resp []OptionsTicker24Hr
 	if isSlice {
 		err := json.Unmarshal(data, &resp)
@@ -472,7 +472,7 @@ func (b *Binance) processOptionsTicker(data []byte, isSlice bool) error {
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- ticker.Price{
+		e.Websocket.DataHandler <- ticker.Price{
 			High:         resp[a].HightPrice.Float64(),
 			Low:          resp[a].LowPrice.Float64(),
 			Bid:          resp[a].BestBuyPrice.Float64(),
@@ -483,7 +483,7 @@ func (b *Binance) processOptionsTicker(data []byte, isSlice bool) error {
 			Close:        resp[a].ClosingPrice.Float64(),
 			MarkPrice:    resp[a].MarkPrice.Float64(),
 			Pair:         pair,
-			ExchangeName: b.Name,
+			ExchangeName: e.Name,
 			AssetType:    asset.Options,
 			LastUpdated:  resp[a].EventTime.Time(),
 		}
@@ -491,7 +491,7 @@ func (b *Binance) processOptionsTicker(data []byte, isSlice bool) error {
 	return nil
 }
 
-func (b *Binance) processOptionsTradeStream(data []byte) error {
+func (e *Exchange) processOptionsTradeStream(data []byte) error {
 	var resp *EOptionsWsTrade
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -507,9 +507,9 @@ func (b *Binance) processOptionsTradeStream(data []byte) error {
 	} else {
 		side = order.Buy
 	}
-	b.Websocket.DataHandler <- trade.Data{
+	e.Websocket.DataHandler <- trade.Data{
 		TID:          strconv.FormatInt(resp.TradeID, 10),
-		Exchange:     b.Name,
+		Exchange:     e.Name,
 		CurrencyPair: pair,
 		AssetType:    asset.Options,
 		Side:         side,
@@ -531,7 +531,7 @@ var intervalsMap = map[kline.Interval]string{
 	kline.SixHour: "6h", kline.TwelveHour: "12h", kline.OneDay: "1d", kline.ThreeDay: "3d", kline.OneWeek: "1w",
 }
 
-func (b *Binance) intervalToString(interval kline.Interval) string {
+func (e *Exchange) intervalToString(interval kline.Interval) string {
 	intervalString, okay := intervalsMap[interval]
 	if !okay {
 		return ""

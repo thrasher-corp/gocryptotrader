@@ -25,20 +25,20 @@ import (
 var errInvalidBatchOrderType = errors.New("invalid batch order type")
 
 // GetFuturesOrderbook gets orderbook data for futures
-func (k *Kraken) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) (*FuturesOrderbookData, error) {
-	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) (*FuturesOrderbookData, error) {
+	symbolValue, err := e.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	var resp FuturesOrderbookData
-	return &resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresOrderbook+"?"+params.Encode(), &resp)
+	return &resp, e.SendHTTPRequest(ctx, exchange.RestFutures, futuresOrderbook+"?"+params.Encode(), &resp)
 }
 
 // GetFuturesCharts returns candle data for kraken futures
-func (k *Kraken) GetFuturesCharts(ctx context.Context, resolution, tickType string, symbol currency.Pair, to, from time.Time) (*FuturesCandles, error) {
-	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+func (e *Exchange) GetFuturesCharts(ctx context.Context, resolution, tickType string, symbol currency.Pair, to, from time.Time) (*FuturesCandles, error) {
+	symbolValue, err := e.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return nil, err
 	}
@@ -54,12 +54,12 @@ func (k *Kraken) GetFuturesCharts(ctx context.Context, resolution, tickType stri
 		reqStr += "?" + params.Encode()
 	}
 	var resp FuturesCandles
-	return &resp, k.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, reqStr, &resp)
+	return &resp, e.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, reqStr, &resp)
 }
 
 // GetFuturesTrades returns public trade data for kraken futures
-func (k *Kraken) GetFuturesTrades(ctx context.Context, symbol currency.Pair, to, from time.Time) (*FuturesPublicTrades, error) {
-	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+func (e *Exchange) GetFuturesTrades(ctx context.Context, symbol currency.Pair, to, from time.Time) (*FuturesPublicTrades, error) {
+	symbolValue, err := e.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return nil, err
 	}
@@ -71,32 +71,32 @@ func (k *Kraken) GetFuturesTrades(ctx context.Context, symbol currency.Pair, to,
 		params.Set("before", strconv.FormatInt(from.Unix(), 10))
 	}
 	var resp FuturesPublicTrades
-	return &resp, k.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, futuresPublicTrades+"/"+symbolValue+"/executions?"+params.Encode(), &resp)
+	return &resp, e.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, futuresPublicTrades+"/"+symbolValue+"/executions?"+params.Encode(), &resp)
 }
 
 // GetInstruments gets a list of futures markets and their data
-func (k *Kraken) GetInstruments(ctx context.Context) (FuturesInstrumentData, error) {
+func (e *Exchange) GetInstruments(ctx context.Context) (FuturesInstrumentData, error) {
 	var resp FuturesInstrumentData
-	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresInstruments, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, futuresInstruments, &resp)
 }
 
 // GetFuturesTickers gets a list of futures tickers and their data
-func (k *Kraken) GetFuturesTickers(ctx context.Context) (FuturesTickersData, error) {
+func (e *Exchange) GetFuturesTickers(ctx context.Context) (FuturesTickersData, error) {
 	var resp FuturesTickersData
-	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresTickers, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, futuresTickers, &resp)
 }
 
 // GetFuturesTickerBySymbol returns futures ticker data by symbol
-func (k *Kraken) GetFuturesTickerBySymbol(ctx context.Context, symbol string) (FuturesTickerData, error) {
+func (e *Exchange) GetFuturesTickerBySymbol(ctx context.Context, symbol string) (FuturesTickerData, error) {
 	var resp FuturesTickerData
-	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresTickers+"/"+symbol, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, futuresTickers+"/"+symbol, &resp)
 }
 
 // GetFuturesTradeHistory gets public trade history data for futures
-func (k *Kraken) GetFuturesTradeHistory(ctx context.Context, symbol currency.Pair, lastTime time.Time) (FuturesTradeHistoryData, error) {
+func (e *Exchange) GetFuturesTradeHistory(ctx context.Context, symbol currency.Pair, lastTime time.Time) (FuturesTradeHistoryData, error) {
 	var resp FuturesTradeHistoryData
 	params := url.Values{}
-	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+	symbolValue, err := e.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return resp, err
 	}
@@ -104,18 +104,18 @@ func (k *Kraken) GetFuturesTradeHistory(ctx context.Context, symbol currency.Pai
 	if !lastTime.IsZero() {
 		params.Set("lastTime", lastTime.Format("2006-01-02T15:04:05.070Z"))
 	}
-	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresTradeHistory+"?"+params.Encode(), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, futuresTradeHistory+"?"+params.Encode(), &resp)
 }
 
 // FuturesBatchOrder places a batch order for futures
-func (k *Kraken) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderData) (BatchOrderData, error) {
+func (e *Exchange) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderData) (BatchOrderData, error) {
 	var resp BatchOrderData
 	for x := range data {
 		unformattedPair, err := currency.NewPairFromString(data[x].Symbol)
 		if err != nil {
 			return resp, err
 		}
-		formattedPair, err := k.FormatExchangeCurrency(unformattedPair, asset.Futures)
+		formattedPair, err := e.FormatExchangeCurrency(unformattedPair, asset.Futures)
 		if err != nil {
 			return resp, err
 		}
@@ -137,11 +137,11 @@ func (k *Kraken) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderDa
 
 	params := url.Values{}
 	params.Set("json", string(jsonData))
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodPost, futuresBatchOrder, params, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodPost, futuresBatchOrder, params, &resp)
 }
 
 // FuturesEditOrder edits a futures order
-func (k *Kraken) FuturesEditOrder(ctx context.Context, orderID, clientOrderID string, size, limitPrice, stopPrice float64) (FuturesAccountsData, error) {
+func (e *Exchange) FuturesEditOrder(ctx context.Context, orderID, clientOrderID string, size, limitPrice, stopPrice float64) (FuturesAccountsData, error) {
 	var resp FuturesAccountsData
 	params := url.Values{}
 	if orderID != "" {
@@ -153,11 +153,11 @@ func (k *Kraken) FuturesEditOrder(ctx context.Context, orderID, clientOrderID st
 	params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
 	params.Set("limitPrice", strconv.FormatFloat(limitPrice, 'f', -1, 64))
 	params.Set("stopPrice", strconv.FormatFloat(stopPrice, 'f', -1, 64))
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodPost, futuresEditOrder, params, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodPost, futuresEditOrder, params, &resp)
 }
 
 // FuturesSendOrder sends a futures order
-func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, symbol currency.Pair, side, triggerSignal, clientOrderID, reduceOnly string, tif order.TimeInForce, size, limitPrice, stopPrice float64) (FuturesSendOrderData, error) {
+func (e *Exchange) FuturesSendOrder(ctx context.Context, orderType order.Type, symbol currency.Pair, side, triggerSignal, clientOrderID, reduceOnly string, tif order.TimeInForce, size, limitPrice, stopPrice float64) (FuturesSendOrderData, error) {
 	var resp FuturesSendOrderData
 	oType, ok := validOrderTypes[orderType]
 	if !ok {
@@ -174,7 +174,7 @@ func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, sym
 
 	params := url.Values{}
 	params.Set("orderType", oType)
-	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+	symbolValue, err := e.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return resp, err
 	}
@@ -203,11 +203,11 @@ func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, sym
 	if stopPrice != 0 {
 		params.Set("stopPrice", strconv.FormatFloat(stopPrice, 'f', -1, 64))
 	}
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodPost, futuresSendOrder, params, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodPost, futuresSendOrder, params, &resp)
 }
 
 // FuturesCancelOrder cancels an order
-func (k *Kraken) FuturesCancelOrder(ctx context.Context, orderID, clientOrderID string) (FuturesCancelOrderData, error) {
+func (e *Exchange) FuturesCancelOrder(ctx context.Context, orderID, clientOrderID string) (FuturesCancelOrderData, error) {
 	var resp FuturesCancelOrderData
 	params := url.Values{}
 	if orderID != "" {
@@ -216,110 +216,110 @@ func (k *Kraken) FuturesCancelOrder(ctx context.Context, orderID, clientOrderID 
 	if clientOrderID != "" {
 		params.Set("cliOrdId", clientOrderID)
 	}
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodPost, futuresCancelOrder, params, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodPost, futuresCancelOrder, params, &resp)
 }
 
 // FuturesGetFills gets order fills for futures
-func (k *Kraken) FuturesGetFills(ctx context.Context, lastFillTime time.Time) (FuturesFillsData, error) {
+func (e *Exchange) FuturesGetFills(ctx context.Context, lastFillTime time.Time) (FuturesFillsData, error) {
 	var resp FuturesFillsData
 	params := url.Values{}
 	if !lastFillTime.IsZero() {
 		params.Set("lastFillTime", lastFillTime.UTC().Format("2006-01-02T15:04:05.999Z"))
 	}
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodGet, futuresOrderFills, params, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodGet, futuresOrderFills, params, &resp)
 }
 
 // FuturesTransfer transfers funds between accounts
-func (k *Kraken) FuturesTransfer(ctx context.Context, fromAccount, toAccount, unit string, amount float64) (FuturesTransferData, error) {
+func (e *Exchange) FuturesTransfer(ctx context.Context, fromAccount, toAccount, unit string, amount float64) (FuturesTransferData, error) {
 	var resp FuturesTransferData
 	req := make(map[string]any)
 	req["fromAccount"] = fromAccount
 	req["toAccount"] = toAccount
 	req["unit"] = unit
 	req["amount"] = amount
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodPost, futuresTransfer, nil, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodPost, futuresTransfer, nil, &resp)
 }
 
 // FuturesGetOpenPositions gets futures platform's notifications
-func (k *Kraken) FuturesGetOpenPositions(ctx context.Context) (FuturesOpenPositions, error) {
+func (e *Exchange) FuturesGetOpenPositions(ctx context.Context) (FuturesOpenPositions, error) {
 	var resp FuturesOpenPositions
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodGet, futuresOpenPositions, nil, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodGet, futuresOpenPositions, nil, &resp)
 }
 
 // FuturesNotifications gets futures notifications
-func (k *Kraken) FuturesNotifications(ctx context.Context) (FuturesNotificationData, error) {
+func (e *Exchange) FuturesNotifications(ctx context.Context) (FuturesNotificationData, error) {
 	var resp FuturesNotificationData
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodGet, futuresNotifications, nil, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodGet, futuresNotifications, nil, &resp)
 }
 
 // FuturesCancelAllOrders cancels all futures orders for a given symbol or all symbols
-func (k *Kraken) FuturesCancelAllOrders(ctx context.Context, symbol currency.Pair) (CancelAllOrdersData, error) {
+func (e *Exchange) FuturesCancelAllOrders(ctx context.Context, symbol currency.Pair) (CancelAllOrdersData, error) {
 	var resp CancelAllOrdersData
 	params := url.Values{}
 	if !symbol.IsEmpty() {
-		symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+		symbolValue, err := e.FormatSymbol(symbol, asset.Futures)
 		if err != nil {
 			return resp, err
 		}
 		params.Set("symbol", symbolValue)
 	}
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodPost, futuresCancelAllOrders, params, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodPost, futuresCancelAllOrders, params, &resp)
 }
 
 // FuturesCancelAllOrdersAfter cancels all futures orders for all symbols after a period of time (timeout measured in seconds)
-func (k *Kraken) FuturesCancelAllOrdersAfter(ctx context.Context, timeout int64) (CancelOrdersAfterData, error) {
+func (e *Exchange) FuturesCancelAllOrdersAfter(ctx context.Context, timeout int64) (CancelOrdersAfterData, error) {
 	var resp CancelOrdersAfterData
 	params := url.Values{}
 	params.Set("timeout", strconv.FormatInt(timeout, 10))
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodPost, futuresCancelOrdersAfter, params, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodPost, futuresCancelOrdersAfter, params, &resp)
 }
 
 // FuturesOpenOrders gets all futures open orders
-func (k *Kraken) FuturesOpenOrders(ctx context.Context) (FuturesOpenOrdersData, error) {
+func (e *Exchange) FuturesOpenOrders(ctx context.Context) (FuturesOpenOrdersData, error) {
 	var resp FuturesOpenOrdersData
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodGet, futuresOpenOrders, nil, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodGet, futuresOpenOrders, nil, &resp)
 }
 
 // FuturesRecentOrders gets recent futures orders for a symbol or all symbols
-func (k *Kraken) FuturesRecentOrders(ctx context.Context, symbol currency.Pair) (FuturesRecentOrdersData, error) {
+func (e *Exchange) FuturesRecentOrders(ctx context.Context, symbol currency.Pair) (FuturesRecentOrdersData, error) {
 	var resp FuturesRecentOrdersData
 	params := url.Values{}
 	if !symbol.IsEmpty() {
-		symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+		symbolValue, err := e.FormatSymbol(symbol, asset.Futures)
 		if err != nil {
 			return resp, err
 		}
 		params.Set("symbol", symbolValue)
 	}
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodGet, futuresRecentOrders, nil, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodGet, futuresRecentOrders, nil, &resp)
 }
 
 // FuturesWithdrawToSpotWallet withdraws currencies from futures wallet to spot wallet
-func (k *Kraken) FuturesWithdrawToSpotWallet(ctx context.Context, currency string, amount float64) (GenericResponse, error) {
+func (e *Exchange) FuturesWithdrawToSpotWallet(ctx context.Context, currency string, amount float64) (GenericResponse, error) {
 	var resp GenericResponse
 	params := url.Values{}
 	params.Set("currency", currency)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodPost, futuresWithdraw, params, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodPost, futuresWithdraw, params, &resp)
 }
 
 // FuturesGetTransfers withdraws currencies from futures wallet to spot wallet
-func (k *Kraken) FuturesGetTransfers(ctx context.Context, lastTransferTime time.Time) (GenericResponse, error) {
+func (e *Exchange) FuturesGetTransfers(ctx context.Context, lastTransferTime time.Time) (GenericResponse, error) {
 	var resp GenericResponse
 	params := url.Values{}
 	if !lastTransferTime.IsZero() {
 		params.Set("lastTransferTime", lastTransferTime.UTC().Format(time.RFC3339))
 	}
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodGet, futuresTransfers, params, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodGet, futuresTransfers, params, &resp)
 }
 
 // GetFuturesAccountData gets account data for futures
-func (k *Kraken) GetFuturesAccountData(ctx context.Context) (FuturesAccountsData, error) {
+func (e *Exchange) GetFuturesAccountData(ctx context.Context) (FuturesAccountsData, error) {
 	var resp FuturesAccountsData
-	return resp, k.SendFuturesAuthRequest(ctx, http.MethodGet, futuresAccountData, nil, &resp)
+	return resp, e.SendFuturesAuthRequest(ctx, http.MethodGet, futuresAccountData, nil, &resp)
 }
 
-func (k *Kraken) signFuturesRequest(secret, endpoint, nonce, data string) (string, error) {
+func (e *Exchange) signFuturesRequest(secret, endpoint, nonce, data string) (string, error) {
 	shasum := sha256.Sum256([]byte(data + nonce + endpoint))
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512, shasum[:], []byte(secret))
 	if err != nil {
@@ -329,8 +329,8 @@ func (k *Kraken) signFuturesRequest(secret, endpoint, nonce, data string) (strin
 }
 
 // SendFuturesAuthRequest will send an auth req
-func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string, data url.Values, result any) error {
-	creds, err := k.GetCredentials(ctx)
+func (e *Exchange) SendFuturesAuthRequest(ctx context.Context, method, path string, data url.Values, result any) error {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -348,7 +348,7 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 	newRequest := func() (*request.Item, error) {
 		nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
 		var sig string
-		sig, err = k.signFuturesRequest(creds.Secret, path, nonce, dataToSign)
+		sig, err = e.signFuturesRequest(creds.Secret, path, nonce, dataToSign)
 		if err != nil {
 			return nil, err
 		}
@@ -359,7 +359,7 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 		}
 
 		var futuresURL string
-		futuresURL, err = k.API.Endpoints.GetURL(exchange.RestFutures)
+		futuresURL, err = e.API.Endpoints.GetURL(exchange.RestFutures)
 		if err != nil {
 			return nil, err
 		}
@@ -369,13 +369,13 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 			Path:          futuresURL + common.EncodeURLValues(path, data),
 			Headers:       headers,
 			Result:        &interim,
-			Verbose:       k.Verbose,
-			HTTPDebugging: k.HTTPDebugging,
-			HTTPRecording: k.HTTPRecording,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
 		}, nil
 	}
 
-	err = k.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
+	err = e.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
 
 	if err == nil {
 		err = getFuturesErr(interim)

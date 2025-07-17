@@ -18,25 +18,25 @@ import (
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	b = new(Bybit)
-	if err := testexch.Setup(b); err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Bybit Setup error: %s", err)
 	}
 
-	b.SetCredentials("mock", "tester", "", "", "", "") // Hack for UpdateAccountInfo test
+	e.SetCredentials("mock", "tester", "", "", "", "") // Hack for UpdateAccountInfo test
 
-	if err := testexch.MockHTTPInstance(b); err != nil {
+	if err := testexch.MockHTTPInstance(e); err != nil {
 		log.Fatalf("Bybit MockHTTPInstance error: %s", err)
 	}
 
-	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
+	if err := e.UpdateTradablePairs(context.Background(), true); err != nil {
 		log.Fatalf("Bybit unable to UpdateTradablePairs: %s", err)
 	}
 
 	setEnabledPair := func(assetType asset.Item, pair currency.Pair) {
-		okay, err := b.IsPairEnabled(pair, assetType)
+		okay, err := e.IsPairEnabled(pair, assetType)
 		if !okay || err != nil {
-			err = b.CurrencyPairs.EnablePair(assetType, pair)
+			err = e.CurrencyPairs.EnablePair(assetType, pair)
 			if err != nil {
 				log.Fatal(err)
 			}

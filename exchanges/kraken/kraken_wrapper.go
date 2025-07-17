@@ -34,13 +34,13 @@ import (
 )
 
 // SetDefaults sets current default settings
-func (k *Kraken) SetDefaults() {
-	k.Name = "Kraken"
-	k.Enabled = true
-	k.Verbose = true
-	k.API.CredentialsValidator.RequiresKey = true
-	k.API.CredentialsValidator.RequiresSecret = true
-	k.API.CredentialsValidator.RequiresBase64DecodeSecret = true
+func (e *Exchange) SetDefaults() {
+	e.Name = "Kraken"
+	e.Enabled = true
+	e.Verbose = true
+	e.API.CredentialsValidator.RequiresKey = true
+	e.API.CredentialsValidator.RequiresSecret = true
+	e.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
 		ps := currency.PairStore{
@@ -51,16 +51,16 @@ func (k *Kraken) SetDefaults() {
 		if a == asset.Futures {
 			ps.RequestFormat.Delimiter = currency.UnderscoreDelimiter
 		}
-		if err := k.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", k.Name, a, err)
+		if err := e.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, a, err)
 		}
 	}
 
-	if err := k.DisableAssetWebsocketSupport(asset.Futures); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", k.Name, asset.Futures, err)
+	if err := e.DisableAssetWebsocketSupport(asset.Futures); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", e.Name, asset.Futures, err)
 	}
 
-	k.Features = exchange.Features{
+	e.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -151,14 +151,14 @@ func (k *Kraken) SetDefaults() {
 	}
 
 	var err error
-	k.Requester, err = request.New(k.Name,
+	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate, 1)))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	k.API.Endpoints = k.NewEndpoints()
-	err = k.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	e.API.Endpoints = e.NewEndpoints()
+	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:                   krakenAPIURL,
 		exchange.RestFutures:                krakenFuturesURL,
 		exchange.WebsocketSpot:              krakenWSURL,
@@ -168,47 +168,47 @@ func (k *Kraken) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	k.Websocket = websocket.NewManager()
-	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	e.Websocket = websocket.NewManager()
+	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets current exchange configuration
-func (k *Kraken) Setup(exch *config.Exchange) error {
+func (e *Exchange) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
 	if err != nil {
 		return err
 	}
 	if !exch.Enabled {
-		k.SetEnabled(false)
+		e.SetEnabled(false)
 		return nil
 	}
-	err = k.SetupDefaults(exch)
+	err = e.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := k.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
-	err = k.Websocket.Setup(&websocket.ManagerSetup{
+	err = e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            krakenWSURL,
 		RunningURL:            wsRunningURL,
-		Connector:             k.WsConnect,
-		Subscriber:            k.Subscribe,
-		Unsubscriber:          k.Unsubscribe,
-		GenerateSubscriptions: k.generateSubscriptions,
-		Features:              &k.Features.Supports.WebsocketCapabilities,
+		Connector:             e.WsConnect,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		GenerateSubscriptions: e.generateSubscriptions,
+		Features:              &e.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
 	})
 	if err != nil {
 		return err
 	}
 
-	err = k.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -217,11 +217,11 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	wsRunningAuthURL, err := k.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	if err != nil {
 		return err
 	}
-	return k.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -231,10 +231,10 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 }
 
 // Bootstrap provides initialisation for an exchange
-func (k *Kraken) Bootstrap(ctx context.Context) (continueBootstrap bool, err error) {
+func (e *Exchange) Bootstrap(ctx context.Context) (continueBootstrap bool, err error) {
 	continueBootstrap = true
 
-	if err = k.SeedAssets(ctx); err != nil {
+	if err = e.SeedAssets(ctx); err != nil {
 		err = fmt.Errorf("failed to Seed Assets: %w", err)
 	}
 
@@ -242,20 +242,20 @@ func (k *Kraken) Bootstrap(ctx context.Context) (continueBootstrap bool, err err
 }
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
-func (k *Kraken) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
 
 	if !assetTranslator.Seeded() {
-		if err := k.SeedAssets(ctx); err != nil {
+		if err := e.SeedAssets(ctx); err != nil {
 			return err
 		}
 	}
 
-	pairInfo, err := k.fetchSpotPairInfo(ctx)
+	pairInfo, err := e.fetchSpotPairInfo(ctx)
 	if err != nil {
-		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", k.Name, a, err)
+		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", e.Name, a, err)
 	}
 
 	limits := make([]order.MinMaxLevel, 0, len(pairInfo))
@@ -269,17 +269,17 @@ func (k *Kraken) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		})
 	}
 
-	if err := k.LoadLimits(limits); err != nil {
-		return fmt.Errorf("%s Error loading %s exchange limits: %w", k.Name, a, err)
+	if err := e.LoadLimits(limits); err != nil {
+		return fmt.Errorf("%s Error loading %s exchange limits: %w", e.Name, a, err)
 	}
 
 	return nil
 }
 
-func (k *Kraken) fetchSpotPairInfo(ctx context.Context) (map[currency.Pair]*AssetPairs, error) {
+func (e *Exchange) fetchSpotPairInfo(ctx context.Context) (map[currency.Pair]*AssetPairs, error) {
 	pairs := make(map[currency.Pair]*AssetPairs)
 
-	pairInfo, err := k.GetAssetPairs(ctx, nil, "")
+	pairInfo, err := e.GetAssetPairs(ctx, nil, "")
 	if err != nil {
 		return pairs, err
 	}
@@ -292,7 +292,7 @@ func (k *Kraken) fetchSpotPairInfo(ctx context.Context) (map[currency.Pair]*Asse
 		if base == "" {
 			log.Warnf(log.ExchangeSys,
 				"%s unable to lookup altname for base currency %s",
-				k.Name,
+				e.Name,
 				info.Base)
 			continue
 		}
@@ -300,7 +300,7 @@ func (k *Kraken) fetchSpotPairInfo(ctx context.Context) (map[currency.Pair]*Asse
 		if quote == "" {
 			log.Warnf(log.ExchangeSys,
 				"%s unable to lookup altname for quote currency %s",
-				k.Name,
+				e.Name,
 				info.Quote)
 			continue
 		}
@@ -315,16 +315,16 @@ func (k *Kraken) fetchSpotPairInfo(ctx context.Context) (map[currency.Pair]*Asse
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	pairs := currency.Pairs{}
 	switch a {
 	case asset.Spot:
 		if !assetTranslator.Seeded() {
-			if err := k.SeedAssets(ctx); err != nil {
+			if err := e.SeedAssets(ctx); err != nil {
 				return nil, err
 			}
 		}
-		pairInfo, err := k.fetchSpotPairInfo(ctx)
+		pairInfo, err := e.fetchSpotPairInfo(ctx)
 		if err != nil {
 			return pairs, err
 		}
@@ -333,7 +333,7 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 			pairs = append(pairs, pair)
 		}
 	case asset.Futures:
-		symbols, err := k.GetInstruments(ctx)
+		symbols, err := e.GetInstruments(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -353,32 +353,32 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
-func (k *Kraken) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assets := k.GetAssetTypes(false)
+func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+	assets := e.GetAssetTypes(false)
 	for x := range assets {
-		pairs, err := k.FetchTradablePairs(ctx, assets[x])
+		pairs, err := e.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
 			return err
 		}
-		err = k.UpdatePairs(pairs, assets[x], false, forceUpdate)
+		err = e.UpdatePairs(pairs, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}
 	}
-	return k.EnsureOnePairEnabled()
+	return e.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	switch a {
 	case asset.Spot:
-		tickers, err := k.GetTickers(ctx, "")
+		tickers, err := e.GetTickers(ctx, "")
 		if err != nil {
 			return err
 		}
 		for c, t := range tickers {
 			var cp currency.Pair
-			cp, err = k.MatchSymbolWithAvailablePairs(c, a, false)
+			cp, err = e.MatchSymbolWithAvailablePairs(c, a, false)
 			if err != nil {
 				if !errors.Is(err, currency.ErrPairNotFound) {
 					return err
@@ -387,7 +387,7 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 				if altName == "" {
 					continue
 				}
-				cp, err = k.MatchSymbolWithAvailablePairs(altName, a, false)
+				cp, err = e.MatchSymbolWithAvailablePairs(altName, a, false)
 				if err != nil {
 					continue
 				}
@@ -403,7 +403,7 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Volume:       t.Volume,
 				Open:         t.Open,
 				Pair:         cp,
-				ExchangeName: k.Name,
+				ExchangeName: e.Name,
 				AssetType:    a,
 			})
 			if err != nil {
@@ -411,7 +411,7 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	case asset.Futures:
-		t, err := k.GetFuturesTickers(ctx)
+		t, err := e.GetFuturesTickers(ctx)
 		if err != nil {
 			return err
 		}
@@ -428,7 +428,7 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 				MarkPrice:    t.Tickers[x].MarkPrice,
 				IndexPrice:   t.Tickers[x].IndexPrice,
 				Pair:         t.Tickers[x].Symbol,
-				ExchangeName: k.Name,
+				ExchangeName: e.Name,
 				AssetType:    a,
 			})
 			if err != nil {
@@ -442,30 +442,30 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (k *Kraken) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	if err := k.UpdateTickers(ctx, a); err != nil {
+func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if err := e.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
-	return ticker.GetTicker(k.Name, p, a)
+	return ticker.GetTicker(e.Name, p, a)
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := k.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:          k.Name,
+		Exchange:          e.Name,
 		Pair:              p,
 		Asset:             assetType,
-		ValidateOrderbook: k.ValidateOrderbook,
+		ValidateOrderbook: e.ValidateOrderbook,
 	}
 	switch assetType {
 	case asset.Spot:
-		orderbookNew, err := k.GetDepth(ctx, p)
+		orderbookNew, err := e.GetDepth(ctx, p)
 		if err != nil {
 			return book, err
 		}
@@ -484,7 +484,7 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 			}
 		}
 	case asset.Futures:
-		futuresOB, err := k.GetFuturesOrderbook(ctx, p)
+		futuresOB, err := e.GetFuturesOrderbook(ctx, p)
 		if err != nil {
 			return book, err
 		}
@@ -509,23 +509,23 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	if err := book.Process(); err != nil {
 		return book, err
 	}
-	return orderbook.Get(k.Name, p, assetType)
+	return orderbook.Get(e.Name, p, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Kraken exchange - to-do
-func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var balances []account.Balance
-	info.Exchange = k.Name
+	info.Exchange = e.Name
 	if !assetTranslator.Seeded() {
-		if err := k.SeedAssets(ctx); err != nil {
+		if err := e.SeedAssets(ctx); err != nil {
 			return info, err
 		}
 	}
 	switch assetType {
 	case asset.Spot:
-		bal, err := k.GetBalance(ctx)
+		bal, err := e.GetBalance(ctx)
 		if err != nil {
 			return info, err
 		}
@@ -533,7 +533,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			translatedCurrency := assetTranslator.LookupAltName(key)
 			if translatedCurrency == "" {
 				log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
-					k.Name,
+					e.Name,
 					key)
 				continue
 			}
@@ -549,7 +549,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			AssetType:  assetType,
 		})
 	case asset.Futures:
-		bal, err := k.GetFuturesAccountData(ctx)
+		bal, err := e.GetFuturesAccountData(ctx)
 		if err != nil {
 			return info, err
 		}
@@ -567,7 +567,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			})
 		}
 	}
-	creds, err := k.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -579,13 +579,13 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (k *Kraken) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
+func (e *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
-	withdrawals, err := k.WithdrawStatus(ctx, c, "")
+func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	withdrawals, err := e.WithdrawStatus(ctx, c, "")
 	if err != nil {
 		return nil, err
 	}
@@ -607,16 +607,16 @@ func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
-	p, err = k.FormatExchangeCurrency(p, assetType)
+	p, err = e.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 	var resp []trade.Data
 	switch assetType {
 	case asset.Spot:
-		tradeData, err := k.GetTrades(ctx, p, time.Time{}, 1000)
+		tradeData, err := e.GetTrades(ctx, p, time.Time{}, 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -631,7 +631,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			}
 			resp = append(resp, trade.Data{
 				TID:          strconv.FormatInt(trades[i].TradeID.Int64(), 10),
-				Exchange:     k.Name,
+				Exchange:     e.Name,
 				CurrencyPair: p,
 				AssetType:    assetType,
 				Side:         side,
@@ -642,7 +642,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 		}
 	case asset.Futures:
 		var tradeData *FuturesPublicTrades
-		tradeData, err = k.GetFuturesTrades(ctx, p, time.Time{}, time.Time{})
+		tradeData, err = e.GetFuturesTrades(ctx, p, time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -653,7 +653,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			}
 			resp = append(resp, trade.Data{
 				TID:          tradeData.Elements[i].UID,
-				Exchange:     k.Name,
+				Exchange:     e.Name,
 				CurrencyPair: p,
 				AssetType:    assetType,
 				Side:         side,
@@ -666,7 +666,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 
-	err = k.AddTradesToBuffer(resp...)
+	err = e.AddTradesToBuffer(resp...)
 	if err != nil {
 		return nil, err
 	}
@@ -676,7 +676,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (k *Kraken) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -690,8 +690,8 @@ func timeInForceString(tif order.TimeInForce) (string, error) {
 }
 
 // SubmitOrder submits a new order
-func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(k.GetTradingRequirements())
+func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	err := s.Validate(e.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
@@ -704,8 +704,8 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			orderID, err = k.wsAddOrder(ctx, &WsAddOrderRequest{
+		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			orderID, err = e.wsAddOrder(ctx, &WsAddOrderRequest{
 				OrderType:   s.Type.Lower(),
 				OrderSide:   s.Side.Lower(),
 				Pair:        s.Pair.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"}).String(), // required pair format: ISO 4217-A3
@@ -718,7 +718,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			}
 		} else {
 			var response *AddOrderResponse
-			response, err = k.AddOrder(ctx,
+			response, err = e.AddOrder(ctx,
 				s.Pair,
 				s.Side.String(),
 				s.Type.String(),
@@ -741,7 +741,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		}
 	case asset.Futures:
 		var fOrder FuturesSendOrderData
-		fOrder, err = k.FuturesSendOrder(ctx,
+		fOrder, err = e.FuturesSendOrder(ctx,
 			s.Type,
 			s.Pair,
 			s.Side.Lower(),
@@ -774,24 +774,24 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to market conversion
-func (k *Kraken) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
+func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
 	switch o.AssetType {
 	case asset.Spot:
-		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			return k.wsCancelOrders(ctx, []string{o.OrderID})
+		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			return e.wsCancelOrders(ctx, []string{o.OrderID})
 		}
-		_, err := k.CancelExistingOrder(ctx, o.OrderID)
+		_, err := e.CancelExistingOrder(ctx, o.OrderID)
 		return err
 	case asset.Futures:
-		_, err := k.FuturesCancelOrder(ctx, o.OrderID, "")
+		_, err := e.FuturesCancelOrder(ctx, o.OrderID, "")
 		if err != nil {
 			return err
 		}
@@ -803,8 +803,8 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (k *Kraken) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
-	if !k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrFunctionNotSupported
 	}
 
@@ -816,12 +816,12 @@ func (k *Kraken) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*orde
 		ordersList[i] = o[i].OrderID
 	}
 
-	err := k.wsCancelOrders(ctx, ordersList)
+	err := e.wsCancelOrders(ctx, ordersList)
 	return nil, err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
 	if err := req.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -830,8 +830,8 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 	}
 	switch req.AssetType {
 	case asset.Spot:
-		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := k.wsCancelAllOrders(ctx)
+		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			resp, err := e.wsCancelAllOrders(ctx)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -841,23 +841,23 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 		}
 
 		var emptyOrderOptions OrderInfoOptions
-		openOrders, err := k.GetOpenOrders(ctx, emptyOrderOptions)
+		openOrders, err := e.GetOpenOrders(ctx, emptyOrderOptions)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
 		for orderID := range openOrders.Open {
 			var err error
-			if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				err = k.wsCancelOrders(ctx, []string{orderID})
+			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+				err = e.wsCancelOrders(ctx, []string{orderID})
 			} else {
-				_, err = k.CancelExistingOrder(ctx, orderID)
+				_, err = e.CancelExistingOrder(ctx, orderID)
 			}
 			if err != nil {
 				cancelAllOrdersResponse.Status[orderID] = err.Error()
 			}
 		}
 	case asset.Futures:
-		cancelData, err := k.FuturesCancelAllOrders(ctx, req.Pair)
+		cancelData, err := e.FuturesCancelAllOrders(ctx, req.Pair)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -869,15 +869,15 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 }
 
 // GetOrderInfo returns information on a current open order
-func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	if err := k.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
 
 	var orderDetail order.Detail
 	switch assetType {
 	case asset.Spot:
-		resp, err := k.QueryOrdersInfo(ctx,
+		resp, err := e.QueryOrdersInfo(ctx,
 			OrderInfoOptions{
 				Trades: true,
 			}, orderID)
@@ -894,12 +894,12 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 			assetType = asset.UseDefault()
 		}
 
-		avail, err := k.GetAvailablePairs(assetType)
+		avail, err := e.GetAvailablePairs(assetType)
 		if err != nil {
 			return nil, err
 		}
 
-		format, err := k.GetPairFormat(assetType, true)
+		format, err := e.GetPairFormat(assetType, true)
 		if err != nil {
 			return nil, err
 		}
@@ -916,7 +916,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 		}
 		status, err := order.StringToOrderStatus(orderInfo.Status)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 		}
 		oType, err := order.StringToOrderType(orderInfo.Description.OrderType)
 		if err != nil {
@@ -936,7 +936,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 		}
 
 		orderDetail = order.Detail{
-			Exchange:        k.Name,
+			Exchange:        e.Name,
 			OrderID:         orderID,
 			Pair:            p,
 			Side:            side,
@@ -954,7 +954,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 			AssetType:       asset.Spot,
 		}
 	case asset.Futures:
-		orderInfo, err := k.FuturesGetFills(ctx, time.Time{})
+		orderInfo, err := e.FuturesGetFills(ctx, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -982,7 +982,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 				Type:      fillOrderType,
 				Date:      orderInfo.Fills[y].FillTime,
 				Pair:      pair,
-				Exchange:  k.Name,
+				Exchange:  e.Name,
 				AssetType: asset.Futures,
 			}
 		}
@@ -993,9 +993,9 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (k *Kraken) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+func (e *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
 	if chain == "" {
-		methods, err := k.GetDepositMethods(ctx, cryptocurrency.String())
+		methods, err := e.GetDepositMethods(ctx, cryptocurrency.String())
 		if err != nil {
 			return nil, err
 		}
@@ -1005,10 +1005,10 @@ func (k *Kraken) GetDepositAddress(ctx context.Context, cryptocurrency currency.
 		chain = methods[0].Method
 	}
 
-	depositAddr, err := k.GetCryptoDepositAddress(ctx, chain, cryptocurrency.String(), false)
+	depositAddr, err := e.GetCryptoDepositAddress(ctx, chain, cryptocurrency.String(), false)
 	if err != nil {
 		if strings.Contains(err.Error(), "no addresses returned") {
-			depositAddr, err = k.GetCryptoDepositAddress(ctx, chain, cryptocurrency.String(), true)
+			depositAddr, err = e.GetCryptoDepositAddress(ctx, chain, cryptocurrency.String(), true)
 			if err != nil {
 				return nil, err
 			}
@@ -1024,11 +1024,11 @@ func (k *Kraken) GetDepositAddress(ctx context.Context, cryptocurrency currency.
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal
 // Populate exchange.WithdrawRequest.TradePassword with withdrawal key name, as set up on your account
-func (k *Kraken) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	v, err := k.Withdraw(ctx,
+	v, err := e.Withdraw(ctx,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.TradePassword,
 		withdrawRequest.Amount)
@@ -1042,11 +1042,11 @@ func (k *Kraken) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (k *Kraken) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	v, err := k.Withdraw(ctx,
+	v, err := e.Withdraw(ctx,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.TradePassword,
 		withdrawRequest.Amount)
@@ -1060,11 +1060,11 @@ func (k *Kraken) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdra
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (k *Kraken) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	v, err := k.Withdraw(ctx,
+	v, err := e.Withdraw(ctx,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.TradePassword,
 		withdrawRequest.Amount)
@@ -1077,19 +1077,19 @@ func (k *Kraken) WithdrawFiatFundsToInternationalBank(ctx context.Context, withd
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (k *Kraken) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if !k.AreCredentialsValid(ctx) && // Todo check connection status
+	if !e.AreCredentialsValid(ctx) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return k.GetFee(ctx, feeBuilder)
+	return e.GetFee(ctx, feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -1097,7 +1097,7 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	var orders []order.Detail
 	switch req.AssetType {
 	case asset.Spot:
-		resp, err := k.GetOpenOrders(ctx, OrderInfoOptions{})
+		resp, err := e.GetOpenOrders(ctx, OrderInfoOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -1107,12 +1107,12 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			assetType = asset.UseDefault()
 		}
 
-		avail, err := k.GetAvailablePairs(assetType)
+		avail, err := e.GetAvailablePairs(assetType)
 		if err != nil {
 			return nil, err
 		}
 
-		format, err := k.GetPairFormat(assetType, true)
+		format, err := e.GetPairFormat(assetType, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1131,14 +1131,14 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			var orderType order.Type
 			orderType, err = order.StringToOrderType(resp.Open[i].Description.OrderType)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 			}
 			orders = append(orders, order.Detail{
 				OrderID:         i,
 				Amount:          resp.Open[i].Volume,
 				RemainingAmount: resp.Open[i].Volume - resp.Open[i].VolumeExecuted,
 				ExecutedAmount:  resp.Open[i].VolumeExecuted,
-				Exchange:        k.Name,
+				Exchange:        e.Name,
 				Date:            resp.Open[i].OpenTime.Time(),
 				Price:           resp.Open[i].Description.Price,
 				Side:            side,
@@ -1154,17 +1154,17 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		if len(req.Pairs) > 0 {
 			pairs = req.Pairs
 		} else {
-			pairs, err = k.GetEnabledPairs(asset.Futures)
+			pairs, err = e.GetEnabledPairs(asset.Futures)
 			if err != nil {
 				return orders, err
 			}
 		}
-		activeOrders, err := k.FuturesOpenOrders(ctx)
+		activeOrders, err := e.FuturesOpenOrders(ctx)
 		if err != nil {
 			return orders, err
 		}
 		for i := range pairs {
-			fPair, err := k.FormatExchangeCurrency(pairs[i], asset.Futures)
+			fPair, err := e.FormatExchangeCurrency(pairs[i], asset.Futures)
 			if err != nil {
 				return orders, err
 			}
@@ -1188,7 +1188,7 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					Type:      oType,
 					Date:      activeOrders.OpenOrders[a].ReceivedTime,
 					Pair:      fPair,
-					Exchange:  k.Name,
+					Exchange:  e.Name,
 					AssetType: asset.Futures,
 					Status:    order.Open,
 				})
@@ -1197,12 +1197,12 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.AssetType)
 	}
-	return req.Filter(k.Name, orders), nil
+	return req.Filter(e.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err
@@ -1223,17 +1223,17 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 			assetType = asset.UseDefault()
 		}
 
-		avail, err := k.GetAvailablePairs(assetType)
+		avail, err := e.GetAvailablePairs(assetType)
 		if err != nil {
 			return nil, err
 		}
 
-		format, err := k.GetPairFormat(assetType, true)
+		format, err := e.GetPairFormat(assetType, true)
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := k.GetClosedOrders(ctx, req)
+		resp, err := e.GetClosedOrders(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -1249,16 +1249,16 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 			var side order.Side
 			side, err = order.StringToOrderSide(resp.Closed[i].Description.Type)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 			}
 			status, err := order.StringToOrderStatus(resp.Closed[i].Status)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 			}
 			var orderType order.Type
 			orderType, err = order.StringToOrderType(resp.Closed[i].Description.OrderType)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
+				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 			}
 			detail := order.Detail{
 				OrderID:         i,
@@ -1267,7 +1267,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 				RemainingAmount: resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted,
 				Cost:            resp.Closed[i].Cost,
 				CostAsset:       p.Quote,
-				Exchange:        k.Name,
+				Exchange:        e.Name,
 				Date:            resp.Closed[i].OpenTime.Time(),
 				CloseTime:       resp.Closed[i].CloseTime.Time(),
 				Price:           resp.Closed[i].Description.Price,
@@ -1286,13 +1286,13 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 		if len(getOrdersRequest.Pairs) > 0 {
 			pairs = getOrdersRequest.Pairs
 		} else {
-			pairs, err = k.GetEnabledPairs(asset.Futures)
+			pairs, err = e.GetEnabledPairs(asset.Futures)
 			if err != nil {
 				return orders, err
 			}
 		}
 		for p := range pairs {
-			orderHistory, err = k.FuturesRecentOrders(ctx, pairs[p])
+			orderHistory, err = e.FuturesRecentOrders(ctx, pairs[p])
 			if err != nil {
 				return orders, err
 			}
@@ -1319,7 +1319,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						Type:      oType,
 						Date:      orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Timestamp,
 						Side:      oDirection,
-						Exchange:  k.Name,
+						Exchange:  e.Name,
 						Pair:      pairs[p],
 					})
 				case orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID != "":
@@ -1343,7 +1343,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						Type:      oType,
 						Date:      orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Timestamp,
 						Side:      oDirection,
-						Exchange:  k.Name,
+						Exchange:  e.Name,
 						Pair:      pairs[p],
 						Status:    order.Rejected,
 					})
@@ -1368,7 +1368,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						Type:      oType,
 						Date:      orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Timestamp,
 						Side:      oDirection,
-						Exchange:  k.Name,
+						Exchange:  e.Name,
 						Pair:      pairs[p],
 						Status:    order.Cancelled,
 					})
@@ -1393,7 +1393,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						Type:      oType,
 						Date:      orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Timestamp,
 						Side:      oDirection,
-						Exchange:  k.Name,
+						Exchange:  e.Name,
 						Pair:      pairs[p],
 					})
 				default:
@@ -1402,34 +1402,34 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 			}
 		}
 	}
-	return getOrdersRequest.Filter(k.Name, orders), nil
+	return getOrdersRequest.Filter(e.Name, orders), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (k *Kraken) AuthenticateWebsocket(ctx context.Context) error {
-	resp, err := k.GetWebsocketToken(ctx)
+func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
+	resp, err := e.GetWebsocketToken(ctx)
 	if err != nil {
 		return err
 	}
 
-	k.setWebsocketAuthToken(resp)
+	e.setWebsocketAuthToken(resp)
 	return nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (k *Kraken) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := k.UpdateAccountInfo(ctx, assetType)
-	return k.CheckTransientError(err)
+func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := e.UpdateAccountInfo(ctx, assetType)
+	return e.CheckTransientError(err)
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (k *Kraken) FormatExchangeKlineInterval(in kline.Interval) string {
+func (e *Exchange) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Minutes(), 'f', -1, 64)
 }
 
 // FormatExchangeKlineIntervalFutures returns Interval to exchange formatted string
-func (k *Kraken) FormatExchangeKlineIntervalFutures(in kline.Interval) string {
+func (e *Exchange) FormatExchangeKlineIntervalFutures(in kline.Interval) string {
 	switch in {
 	case kline.OneDay:
 		return "1d"
@@ -1439,17 +1439,17 @@ func (k *Kraken) FormatExchangeKlineIntervalFutures(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := k.GetKlineRequest(pair, a, interval, start, end, true)
+func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := e.GetKlineRequest(pair, a, interval, start, end, true)
 	if err != nil {
 		return nil, err
 	}
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	switch a {
 	case asset.Spot:
-		candles, err := k.GetOHLC(ctx,
+		candles, err := e.GetOHLC(ctx,
 			req.RequestFormatted,
-			k.FormatExchangeKlineInterval(req.ExchangeInterval))
+			e.FormatExchangeKlineInterval(req.ExchangeInterval))
 		if err != nil {
 			return nil, err
 		}
@@ -1476,7 +1476,7 @@ func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (k *Kraken) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+func (e *Exchange) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1520,10 +1520,9 @@ func compatibleFillOrderType(fillType string) (order.Type, error) {
 	return resp, nil
 }
 
-// GetAvailableTransferChains returns the available transfer blockchains for the specific
-// cryptocurrency
-func (k *Kraken) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
-	methods, err := k.GetDepositMethods(ctx, cryptocurrency.String())
+// GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
+func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	methods, err := e.GetDepositMethods(ctx, cryptocurrency.String())
 	if err != nil {
 		return nil, err
 	}
@@ -1536,8 +1535,8 @@ func (k *Kraken) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 }
 
 // GetServerTime returns the current exchange server time.
-func (k *Kraken) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
-	st, err := k.GetCurrentServerTime(ctx)
+func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	st, err := e.GetCurrentServerTime(ctx)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -1545,14 +1544,14 @@ func (k *Kraken) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, er
 }
 
 // GetFuturesContractDetails returns details about futures contracts
-func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
 	if !item.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	if !k.SupportsAsset(item) {
+	if !e.SupportsAsset(item) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-	result, err := k.GetInstruments(ctx)
+	result, err := e.GetInstruments(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1579,27 +1578,27 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 		usdIndex := strings.LastIndex(strings.ToLower(underlyingStr), "usd")
 		if usdIndex <= 0 {
-			log.Warnf(log.ExchangeSys, "%v unable to find USD index in %v to process contract", k.Name, underlyingStr)
+			log.Warnf(log.ExchangeSys, "%v unable to find USD index in %v to process contract", e.Name, underlyingStr)
 			continue
 		}
 		underlying, err = currency.NewPairFromStrings(underlyingStr[0:usdIndex], underlyingStr[usdIndex:])
 		if err != nil {
 			return nil, err
 		}
-		var s, e time.Time
+		var startTime, endTime time.Time
 		if !result.Instruments[i].OpeningDate.IsZero() {
-			s = result.Instruments[i].OpeningDate
+			startTime = result.Instruments[i].OpeningDate
 		}
 		var ct futures.ContractType
 		if result.Instruments[i].LastTradingTime.IsZero() || item == asset.PerpetualSwap {
 			ct = futures.Perpetual
 		} else {
-			e = result.Instruments[i].LastTradingTime
+			endTime = result.Instruments[i].LastTradingTime
 			switch {
 			// three day is used for generosity for contract date ranges
-			case e.Sub(s) <= kline.OneMonth.Duration()+kline.ThreeDay.Duration():
+			case endTime.Sub(startTime) <= kline.OneMonth.Duration()+kline.ThreeDay.Duration():
 				ct = futures.Monthly
-			case e.Sub(s) <= kline.ThreeMonth.Duration()+kline.ThreeDay.Duration():
+			case endTime.Sub(startTime) <= kline.ThreeMonth.Duration()+kline.ThreeDay.Duration():
 				ct = futures.Quarterly
 			default:
 				ct = futures.SemiAnnually
@@ -1610,12 +1609,12 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			contractSettlementType = futures.Inverse
 		}
 		resp[i] = futures.Contract{
-			Exchange:       k.Name,
+			Exchange:       e.Name,
 			Name:           cp,
 			Underlying:     underlying,
 			Asset:          item,
-			StartDate:      s,
-			EndDate:        e,
+			StartDate:      startTime,
+			EndDate:        endTime,
 			SettlementType: contractSettlementType,
 			IsActive:       result.Instruments[i].Tradable,
 			Type:           ct,
@@ -1625,7 +1624,7 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
@@ -1633,14 +1632,14 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
 	if !r.Pair.IsEmpty() {
-		if ok, err := k.CurrencyPairs.IsPairAvailable(r.Pair, r.Asset); err != nil {
+		if ok, err := e.CurrencyPairs.IsPairAvailable(r.Pair, r.Asset); err != nil {
 			return nil, err
 		} else if !ok {
 			return nil, currency.ErrPairNotContainedInAvailablePairs
 		}
 	}
 
-	t, err := k.GetFuturesTickers(ctx)
+	t, err := e.GetFuturesTickers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1650,7 +1649,7 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 			continue
 		}
 		var isPerp bool
-		isPerp, err = k.IsPerpetualFutureCurrency(r.Asset, t.Tickers[i].Symbol)
+		isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, t.Tickers[i].Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -1658,7 +1657,7 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 			continue
 		}
 		rate := fundingrate.LatestRateResponse{
-			Exchange: k.Name,
+			Exchange: e.Name,
 			Asset:    r.Asset,
 			Pair:     t.Tickers[i].Symbol,
 			LatestRate: fundingrate.Rate{
@@ -1677,19 +1676,19 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 }
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
-func (k *Kraken) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
+func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
 	return cp.Base.Equal(currency.PF) && a == asset.Futures, nil
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]futures.OpenInterest, error) {
+func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]futures.OpenInterest, error) {
 	for i := range keys {
 		if keys[i].Asset != asset.Futures {
 			// avoid API calls or returning errors after a successful retrieval
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, keys[i].Asset, keys[i].Pair())
 		}
 	}
-	futuresTickersData, err := k.GetFuturesTickers(ctx)
+	futuresTickersData, err := e.GetFuturesTickers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1697,7 +1696,7 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 	for i := range futuresTickersData.Tickers {
 		var p currency.Pair
 		var isEnabled bool
-		p, isEnabled, err = k.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol.String(), asset.Futures, true)
+		p, isEnabled, err = e.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol.String(), asset.Futures, true)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}
@@ -1716,7 +1715,7 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 		}
 		resp = append(resp, futures.OpenInterest{
 			Key: key.ExchangePairAsset{
-				Exchange: k.Name,
+				Exchange: e.Name,
 				Base:     p.Base.Item,
 				Quote:    p.Quote.Item,
 				Asset:    asset.Futures,
@@ -1728,8 +1727,8 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
-func (k *Kraken) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := k.CurrencyPairs.IsPairEnabled(cp, a)
+func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
 	if err != nil {
 		return "", err
 	}

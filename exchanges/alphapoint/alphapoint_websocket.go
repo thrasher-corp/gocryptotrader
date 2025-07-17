@@ -14,35 +14,35 @@ const (
 )
 
 // WebsocketClient starts a new webstocket connection
-func (a *Alphapoint) WebsocketClient() {
-	for a.Enabled {
+func (e *Exchange) WebsocketClient() {
+	for e.Enabled {
 		var dialer gws.Dialer
 		var err error
 		var httpResp *http.Response
-		endpoint, err := a.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		endpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
 			log.Errorln(log.WebsocketMgr, err)
 		}
-		a.WebsocketConn, httpResp, err = dialer.Dial(endpoint, http.Header{})
+		e.WebsocketConn, httpResp, err = dialer.Dial(endpoint, http.Header{})
 		httpResp.Body.Close() // not used, so safely free the body
 
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s Unable to connect to Websocket. Error: %s\n", a.Name, err)
+			log.Errorf(log.ExchangeSys, "%s Unable to connect to Websocket. Error: %s\n", e.Name, err)
 			continue
 		}
 
-		if a.Verbose {
-			log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", a.Name)
+		if e.Verbose {
+			log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", e.Name)
 		}
 
-		err = a.WebsocketConn.WriteMessage(gws.TextMessage, []byte(`{"messageType": "logon"}`))
+		err = e.WebsocketConn.WriteMessage(gws.TextMessage, []byte(`{"messageType": "logon"}`))
 		if err != nil {
 			log.Errorln(log.ExchangeSys, err)
 			return
 		}
 
-		for a.Enabled {
-			msgType, resp, err := a.WebsocketConn.ReadMessage()
+		for e.Enabled {
+			msgType, resp, err := e.WebsocketConn.ReadMessage()
 			if err != nil {
 				log.Errorln(log.ExchangeSys, err)
 				break
@@ -70,7 +70,7 @@ func (a *Alphapoint) WebsocketClient() {
 				}
 			}
 		}
-		a.WebsocketConn.Close()
-		log.Debugf(log.ExchangeSys, "%s Websocket client disconnected.", a.Name)
+		e.WebsocketConn.Close()
+		log.Debugf(log.ExchangeSys, "%s Websocket client disconnected.", e.Name)
 	}
 }
