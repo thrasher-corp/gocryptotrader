@@ -823,6 +823,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	if len(results.Candle) == 0 {
 		t.Error("expected results")
@@ -844,6 +845,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	if len(results.Candle) == 0 {
 		t.Error("expected results")
@@ -864,6 +866,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	if len(results.Candle) == 0 {
 		t.Error("expected results")
@@ -898,6 +901,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	if results.Candle[len(results.Candle)-1].Close != 1337 {
 		t.Error("expected fancy new candle based off fancy new trade data")
