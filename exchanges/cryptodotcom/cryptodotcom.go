@@ -57,19 +57,19 @@ const (
 )
 
 // GetRiskParameters provides information on risk parameter settings for Smart Cross Margin.
-func (cr *Exchange) GetRiskParameters(ctx context.Context) (*SmartCrossMarginRiskParameter, error) {
+func (e *Exchange) GetRiskParameters(ctx context.Context) (*SmartCrossMarginRiskParameter, error) {
 	var resp *SmartCrossMarginRiskParameter
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "public/get-risk-parameters", request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "public/get-risk-parameters", request.UnAuth, &resp)
 }
 
 // GetInstruments provides information on all supported instruments
-func (cr *Exchange) GetInstruments(ctx context.Context) (*AllInstruments, error) {
+func (e *Exchange) GetInstruments(ctx context.Context) (*AllInstruments, error) {
 	var resp *AllInstruments
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, "public/get-instruments", publicInstrumentsRate, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "public/get-instruments", publicInstrumentsRate, &resp)
 }
 
 // GetOrderbook retches the public order book for a particular instrument and depth.
-func (cr *Exchange) GetOrderbook(ctx context.Context, symbol string, depth int64) (*OrderbookDetail, error) {
+func (e *Exchange) GetOrderbook(ctx context.Context, symbol string, depth int64) (*OrderbookDetail, error) {
 	params, err := checkInstrumentName(symbol)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (cr *Exchange) GetOrderbook(ctx context.Context, symbol string, depth int64
 		params.Set("depth", strconv.FormatInt(depth, 10))
 	}
 	var resp *OrderbookDetail
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-book", params), publicOrderbookRate, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-book", params), publicOrderbookRate, &resp)
 }
 
 func checkInstrumentName(symbol string) (url.Values, error) {
@@ -91,7 +91,7 @@ func checkInstrumentName(symbol string) (url.Values, error) {
 }
 
 // GetCandlestickDetail retrieves candlesticks (k-line data history) over a given period for an instrument
-func (cr *Exchange) GetCandlestickDetail(ctx context.Context, symbol string, interval kline.Interval) (*CandlestickDetail, error) {
+func (e *Exchange) GetCandlestickDetail(ctx context.Context, symbol string, interval kline.Interval) (*CandlestickDetail, error) {
 	params, err := checkInstrumentName(symbol)
 	if err != nil {
 		return nil, err
@@ -100,32 +100,32 @@ func (cr *Exchange) GetCandlestickDetail(ctx context.Context, symbol string, int
 		params.Set("timeframe", intervalString)
 	}
 	var resp *CandlestickDetail
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-candlestick", params), publicCandlestickRate, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-candlestick", params), publicCandlestickRate, &resp)
 }
 
 // GetTickers fetches the public tickers for an instrument.
-func (cr *Exchange) GetTickers(ctx context.Context, symbol string) (*TickersResponse, error) {
+func (e *Exchange) GetTickers(ctx context.Context, symbol string) (*TickersResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("instrument_name", symbol)
 	}
 	var resp *TickersResponse
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-tickers", params), publicTickerRate, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-tickers", params), publicTickerRate, &resp)
 }
 
 // GetTrades fetches the public trades for a particular instrument.
-func (cr *Exchange) GetTrades(ctx context.Context, symbol string) (*TradesResponse, error) {
+func (e *Exchange) GetTrades(ctx context.Context, symbol string) (*TradesResponse, error) {
 	params, err := checkInstrumentName(symbol)
 	if err != nil {
 		return nil, err
 	}
 	var resp *TradesResponse
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-trades", params), publicTradesRate, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-trades", params), publicTradesRate, &resp)
 }
 
 // GetValuations fetches certain valuation type data for a particular instrument.
 // Valuation type possible values: index_price, mark_price, funding_hist, funding_rate, and estimated_funding_rate
-func (cr *Exchange) GetValuations(ctx context.Context, symbol, valuationType string, count int64, startTimestamp, endTimestamp time.Time) (*InstrumentValuation, error) {
+func (e *Exchange) GetValuations(ctx context.Context, symbol, valuationType string, count int64, startTimestamp, endTimestamp time.Time) (*InstrumentValuation, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -147,7 +147,7 @@ func (cr *Exchange) GetValuations(ctx context.Context, symbol, valuationType str
 		params.Set("end_ts", strconv.FormatInt(endTimestamp.UnixMilli(), 10))
 	}
 	var resp *InstrumentValuation
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("public/get-valuations", params), getValuationsRate, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("public/get-valuations", params), getValuationsRate, &resp)
 }
 
 // Private endpoints
@@ -155,7 +155,7 @@ func (cr *Exchange) GetValuations(ctx context.Context, symbol, valuationType str
 // WithdrawFunds creates a withdrawal request. Withdrawal setting must be enabled for your API Key. If you do not see the option when viewing your API Key, this feature is not yet available for you.
 // Withdrawal addresses must first be whitelisted in your account’s Withdrawal Whitelist page.
 // Withdrawal fees and minimum withdrawal amount can be found on the Fees & Limits page on the Exchange website.
-func (cr *Exchange) WithdrawFunds(ctx context.Context, ccy currency.Code, amount float64, address, addressTag, networkID, clientWithdrawalID string) (*WithdrawalItem, error) {
+func (e *Exchange) WithdrawFunds(ctx context.Context, ccy currency.Code, amount float64, address, addressTag, networkID, clientWithdrawalID string) (*WithdrawalItem, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -179,23 +179,23 @@ func (cr *Exchange) WithdrawFunds(ctx context.Context, ccy currency.Code, amount
 		params["network_id"] = networkID
 	}
 	var resp *WithdrawalItem
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, postWithdrawalRate, privateWithdrawal, params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, postWithdrawalRate, privateWithdrawal, params, &resp)
 }
 
 // GetCurrencyNetworks retrieves the symbol network mapping.
-func (cr *Exchange) GetCurrencyNetworks(ctx context.Context) (*CurrencyNetworkResponse, error) {
+func (e *Exchange) GetCurrencyNetworks(ctx context.Context) (*CurrencyNetworkResponse, error) {
 	var resp *CurrencyNetworkResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetCurrencyNetworksRate, "private/get-currency-networks", nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetCurrencyNetworksRate, "private/get-currency-networks", nil, &resp)
 }
 
 // GetWithdrawalHistory retrieves accounts withdrawal history.
-func (cr *Exchange) GetWithdrawalHistory(ctx context.Context) (*WithdrawalResponse, error) {
+func (e *Exchange) GetWithdrawalHistory(ctx context.Context) (*WithdrawalResponse, error) {
 	var resp *WithdrawalResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetWithdrawalHistoryRate, privateGetWithdrawalHistory, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetWithdrawalHistoryRate, privateGetWithdrawalHistory, nil, &resp)
 }
 
 // GetDepositHistory retrieves deposit history. Withdrawal setting must be enabled for your API Key. If you do not see the option when viewing your API Keys, this feature is not yet available for you.
-func (cr *Exchange) GetDepositHistory(ctx context.Context, ccy currency.Code, startTimestamp, endTimestamp time.Time, pageSize, page, status int64) (*DepositResponse, error) {
+func (e *Exchange) GetDepositHistory(ctx context.Context, ccy currency.Code, startTimestamp, endTimestamp time.Time, pageSize, page, status int64) (*DepositResponse, error) {
 	params := make(map[string]any)
 	if ccy.IsEmpty() {
 		params["currency"] = ccy.String()
@@ -218,23 +218,23 @@ func (cr *Exchange) GetDepositHistory(ctx context.Context, ccy currency.Code, st
 		params["status"] = status
 	}
 	var resp *DepositResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetDepositHistoryRate, "private/get-deposit-history", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetDepositHistoryRate, "private/get-deposit-history", params, &resp)
 }
 
 // GetPersonalDepositAddress fetches deposit address. Withdrawal setting must be enabled for your API Key. If you do not see the option when viewing your API Keys, this feature is not yet available for you.
-func (cr *Exchange) GetPersonalDepositAddress(ctx context.Context, ccy currency.Code) (*DepositAddresses, error) {
+func (e *Exchange) GetPersonalDepositAddress(ctx context.Context, ccy currency.Code) (*DepositAddresses, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := make(map[string]any)
 	params["currency"] = ccy.String()
 	var resp *DepositAddresses
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privategetDepositAddressRate, "private/get-deposit-address", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privategetDepositAddressRate, "private/get-deposit-address", params, &resp)
 }
 
 // CreateExportRequest creates a new export
 // requested_data possible values: SPOT_ORDER, SPOT_TRADE, MARGIN_ORDER, MARGIN_TRADE , OEX_ORDER, OEX_TRADE
-func (cr *Exchange) CreateExportRequest(ctx context.Context, symbol, clientRequestID string, startTime, endTime time.Time, requestedData []string) (*ExportRequestResponse, error) {
+func (e *Exchange) CreateExportRequest(ctx context.Context, symbol, clientRequestID string, startTime, endTime time.Time, requestedData []string) (*ExportRequestResponse, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_names"] = symbol
@@ -253,11 +253,11 @@ func (cr *Exchange) CreateExportRequest(ctx context.Context, symbol, clientReque
 		params["client_request_id"] = clientRequestID
 	}
 	var resp *ExportRequestResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, createExportRequestRate, "private/export/create-export-request", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, createExportRequestRate, "private/export/create-export-request", params, &resp)
 }
 
 // GetExportRequests retrieves an export requests
-func (cr *Exchange) GetExportRequests(ctx context.Context, symbol string, startTime, endTime time.Time, requestedData []string, pageSize, page int64) (*ExportRequests, error) {
+func (e *Exchange) GetExportRequests(ctx context.Context, symbol string, startTime, endTime time.Time, requestedData []string, pageSize, page int64) (*ExportRequests, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_names"] = symbol
@@ -280,33 +280,33 @@ func (cr *Exchange) GetExportRequests(ctx context.Context, symbol string, startT
 		params["page"] = page
 	}
 	var resp *ExportRequests
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, getExportRequestRate, "private/export/get-export-requests", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getExportRequestRate, "private/export/get-export-requests", params, &resp)
 }
 
 // SPOT Trading API endpoints.
 
 // GetAccountSummary returns the account balance of a user for a particular token.
-func (cr *Exchange) GetAccountSummary(ctx context.Context, ccy currency.Code) (*Accounts, error) {
+func (e *Exchange) GetAccountSummary(ctx context.Context, ccy currency.Code) (*Accounts, error) {
 	params := make(map[string]any)
 	if !ccy.IsEmpty() {
 		params["currency"] = ccy.String()
 	}
 	var resp *Accounts
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetAccountSummaryRate, privateGetAccountSummary, params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetAccountSummaryRate, privateGetAccountSummary, params, &resp)
 }
 
 // CreateOrder created a new BUY or SELL order on the Exchange.
-func (cr *Exchange) CreateOrder(ctx context.Context, arg *CreateOrderParam) (*CreateOrderResponse, error) {
+func (e *Exchange) CreateOrder(ctx context.Context, arg *CreateOrderParam) (*CreateOrderResponse, error) {
 	params, err := arg.getCreateParamMap()
 	if err != nil {
 		return nil, err
 	}
 	var resp *CreateOrderResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOrderRate, privateCreateOrder, params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOrderRate, privateCreateOrder, params, &resp)
 }
 
 // CancelExistingOrder cancels and existing open order.
-func (cr *Exchange) CancelExistingOrder(ctx context.Context, symbol, orderID string) error {
+func (e *Exchange) CancelExistingOrder(ctx context.Context, symbol, orderID string) error {
 	if symbol == "" {
 		return currency.ErrSymbolStringEmpty
 	}
@@ -316,13 +316,13 @@ func (cr *Exchange) CancelExistingOrder(ctx context.Context, symbol, orderID str
 	params := make(map[string]any)
 	params["instrument_name"] = symbol
 	params["order_id"] = orderID
-	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelOrderRate, privateCancelOrder, params, nil)
+	return e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelOrderRate, privateCancelOrder, params, nil)
 }
 
 // CreateOrderList create a list of orders on the Exchange.
 // contingency_type must be LIST, for list of orders creation.
 // This call is asynchronous, so the response is simply a confirmation of the request.
-func (cr *Exchange) CreateOrderList(ctx context.Context, contingencyType string, arg []CreateOrderParam) (*OrderCreationResponse, error) {
+func (e *Exchange) CreateOrderList(ctx context.Context, contingencyType string, arg []CreateOrderParam) (*OrderCreationResponse, error) {
 	orderParams := make([]map[string]any, len(arg))
 	for x := range arg {
 		p, err := arg[x].getCreateParamMap()
@@ -338,11 +338,11 @@ func (cr *Exchange) CreateOrderList(ctx context.Context, contingencyType string,
 	params["order_list"] = orderParams
 	params["contingency_type"] = contingencyType
 	var resp *OrderCreationResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOrderListRate, privateCreateOrderList, params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOrderListRate, privateCreateOrderList, params, &resp)
 }
 
 // CancelOrderList cancel a list of orders on the Exchange.
-func (cr *Exchange) CancelOrderList(ctx context.Context, args []CancelOrderParam) (*CancelOrdersResponse, error) {
+func (e *Exchange) CancelOrderList(ctx context.Context, args []CancelOrderParam) (*CancelOrdersResponse, error) {
 	if len(args) == 0 {
 		return nil, common.ErrNilPointer
 	}
@@ -363,29 +363,29 @@ func (cr *Exchange) CancelOrderList(ctx context.Context, args []CancelOrderParam
 	params := make(map[string]any)
 	params["order_list"] = cancelOrderList
 	var resp *CancelOrdersResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelOrderListRate, privateCancelOrderList, params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelOrderListRate, privateCancelOrderList, params, &resp)
 }
 
 // CancelAllPersonalOrders cancels all orders for a particular instrument/pair (asynchronous)
 // This call is asynchronous, so the response is simply a confirmation of the request.
-func (cr *Exchange) CancelAllPersonalOrders(ctx context.Context, symbol string) error {
+func (e *Exchange) CancelAllPersonalOrders(ctx context.Context, symbol string) error {
 	if symbol == "" {
 		return currency.ErrSymbolStringEmpty
 	}
 	params := make(map[string]any)
 	params["instrument_name"] = symbol
-	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelAllOrdersRate, privateCancelAllOrders, params, nil)
+	return e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelAllOrdersRate, privateCancelAllOrders, params, nil)
 }
 
 // GetAccounts retrieves Account and its Sub Accounts
-func (cr *Exchange) GetAccounts(ctx context.Context) (*AccountResponse, error) {
+func (e *Exchange) GetAccounts(ctx context.Context) (*AccountResponse, error) {
 	var resp *AccountResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetAccountsRate, "private/get-accounts", nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetAccountsRate, "private/get-accounts", nil, &resp)
 }
 
 // SubAccountTransfer transfer between subaccounts (and master account).
 // Possible value for 'from' and 'to' : the master account UUID, or a sub-account UUID.
-func (cr *Exchange) SubAccountTransfer(ctx context.Context, from, to string, ccy currency.Code, amount float64) error {
+func (e *Exchange) SubAccountTransfer(ctx context.Context, from, to string, ccy currency.Code, amount float64) error {
 	if from == "" {
 		return fmt.Errorf("%w source address, 'from', is missing", errSubAccountAddressRequired)
 	}
@@ -403,11 +403,11 @@ func (cr *Exchange) SubAccountTransfer(ctx context.Context, from, to string, ccy
 	params["to"] = to
 	params["currency"] = ccy.String()
 	params["amount"] = amount
-	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCreateSubAccountRate, "private/create-subaccount-transfer", params, nil)
+	return e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCreateSubAccountRate, "private/create-subaccount-transfer", params, nil)
 }
 
 // GetTransactions fetches recent transactions
-func (cr *Exchange) GetTransactions(ctx context.Context, symbol, journalType string, startTimestamp, endTimestamp time.Time, limit int64) (*TransactionResponse, error) {
+func (e *Exchange) GetTransactions(ctx context.Context, symbol, journalType string, startTimestamp, endTimestamp time.Time, limit int64) (*TransactionResponse, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
@@ -425,28 +425,28 @@ func (cr *Exchange) GetTransactions(ctx context.Context, symbol, journalType str
 		params["limit"] = limit
 	}
 	var resp *TransactionResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetTransactionsRate, "private/get-transactions", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetTransactionsRate, "private/get-transactions", params, &resp)
 }
 
 // GetUserAccountFeeRate get fee rates for user’s account.
-func (cr *Exchange) GetUserAccountFeeRate(ctx context.Context) (*FeeRate, error) {
+func (e *Exchange) GetUserAccountFeeRate(ctx context.Context) (*FeeRate, error) {
 	var resp *FeeRate
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/get-fee-rate", nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/get-fee-rate", nil, &resp)
 }
 
 // GetInstrumentFeeRate get the instrument fee rate.
-func (cr *Exchange) GetInstrumentFeeRate(ctx context.Context, symbol string) (*InstrumentFeeRate, error) {
+func (e *Exchange) GetInstrumentFeeRate(ctx context.Context, symbol string) (*InstrumentFeeRate, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := make(map[string]any)
 	params["instrument_name"] = symbol
 	var resp *InstrumentFeeRate
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/get-instrument-fee-rate", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/get-instrument-fee-rate", params, &resp)
 }
 
 // CreateSubAccountTransfer transfer between subaccounts (and master account).
-func (cr *Exchange) CreateSubAccountTransfer(ctx context.Context, from, to string, ccy currency.Code, amount float64) error {
+func (e *Exchange) CreateSubAccountTransfer(ctx context.Context, from, to string, ccy currency.Code, amount float64) error {
 	if from == "" {
 		return fmt.Errorf("%w, 'from' is empty", errSubAccountAddressRequired)
 	}
@@ -464,13 +464,13 @@ func (cr *Exchange) CreateSubAccountTransfer(ctx context.Context, from, to strin
 	params["to"] = to
 	params["currency"] = ccy.String()
 	params["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateSubAccountTransferRate, "private/create-sub-account-transfer", params, nil)
+	return e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateSubAccountTransferRate, "private/create-sub-account-transfer", params, nil)
 }
 
 // GetPersonalOrderHistory gets the order history for a particular instrument
 //
 // If paging is used, enumerate each page (starting with 0) until an empty order_list array appears in the response.
-func (cr *Exchange) GetPersonalOrderHistory(ctx context.Context, symbol string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalOrdersResponse, error) {
+func (e *Exchange) GetPersonalOrderHistory(ctx context.Context, symbol string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalOrdersResponse, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
@@ -488,11 +488,11 @@ func (cr *Exchange) GetPersonalOrderHistory(ctx context.Context, symbol string, 
 		params["page"] = page
 	}
 	var resp *PersonalOrdersResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOrderHistoryRate, privateGetOrderHistory, params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOrderHistoryRate, privateGetOrderHistory, params, &resp)
 }
 
 // GetPersonalOpenOrders retrieves all open orders of particular instrument.
-func (cr *Exchange) GetPersonalOpenOrders(ctx context.Context, symbol string, pageSize, page int64) (*PersonalOrdersResponse, error) {
+func (e *Exchange) GetPersonalOpenOrders(ctx context.Context, symbol string, pageSize, page int64) (*PersonalOrdersResponse, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
@@ -504,25 +504,25 @@ func (cr *Exchange) GetPersonalOpenOrders(ctx context.Context, symbol string, pa
 		params["page"] = page
 	}
 	var resp *PersonalOrdersResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOpenOrdersRate, privateGetOpenOrders, params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOpenOrdersRate, privateGetOpenOrders, params, &resp)
 }
 
 // GetOrderDetail retrieves details on a particular order ID
-func (cr *Exchange) GetOrderDetail(ctx context.Context, orderID string) (*OrderDetail, error) {
+func (e *Exchange) GetOrderDetail(ctx context.Context, orderID string) (*OrderDetail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := make(map[string]any)
 	params["order_id"] = orderID
 	var resp *OrderDetail
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOrderDetailRate, privateGetOrderDetail, params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOrderDetailRate, privateGetOrderDetail, params, &resp)
 }
 
 // GetPrivateTrades gets all executed trades for a particular instrument.
 //
 // If paging is used, enumerate each page (starting with 0) until an empty trade_list array appears in the response.
 // Users should use user.trade to keep track of real-time trades, and private/get-trades should primarily be used for recovery; typically when the websocket is disconnected.
-func (cr *Exchange) GetPrivateTrades(ctx context.Context, symbol string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalTrades, error) {
+func (e *Exchange) GetPrivateTrades(ctx context.Context, symbol string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalTrades, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
@@ -540,24 +540,24 @@ func (cr *Exchange) GetPrivateTrades(ctx context.Context, symbol string, startTi
 		params["page"] = page
 	}
 	var resp *PersonalTrades
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetTradesRate, privateGetTrades, params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetTradesRate, privateGetTrades, params, &resp)
 }
 
 // GetOTCUser retrieves OTC User.
-func (cr *Exchange) GetOTCUser(ctx context.Context) (*OTCTrade, error) {
+func (e *Exchange) GetOTCUser(ctx context.Context) (*OTCTrade, error) {
 	var resp *OTCTrade
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCUserRate, "private/otc/get-otc-user", nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCUserRate, "private/otc/get-otc-user", nil, &resp)
 }
 
 // GetOTCInstruments retrieve tradable OTC instruments.
-func (cr *Exchange) GetOTCInstruments(ctx context.Context) (*OTCInstrumentsResponse, error) {
+func (e *Exchange) GetOTCInstruments(ctx context.Context) (*OTCInstrumentsResponse, error) {
 	var resp *OTCInstrumentsResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCInstrumentsRate, "private/otc/get-instruments", nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCInstrumentsRate, "private/otc/get-instruments", nil, &resp)
 }
 
 // RequestOTCQuote request a quote to buy or sell with either base currency or quote currency.
 // direction represents the order side enum with value of BUY, SELL, or TWO-WAY
-func (cr *Exchange) RequestOTCQuote(ctx context.Context, currencyPair currency.Pair, baseCurrencySize, quoteCurrencySize float64, direction string) (*OTCQuoteResponse, error) {
+func (e *Exchange) RequestOTCQuote(ctx context.Context, currencyPair currency.Pair, baseCurrencySize, quoteCurrencySize float64, direction string) (*OTCQuoteResponse, error) {
 	if !currencyPair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -579,11 +579,11 @@ func (cr *Exchange) RequestOTCQuote(ctx context.Context, currencyPair currency.P
 		params["quote_currency_size"] = strconv.FormatFloat(quoteCurrencySize, 'f', -1, 64)
 	}
 	var resp *OTCQuoteResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateOTCRequestQuoteRate, "private/otc/request-quote", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateOTCRequestQuoteRate, "private/otc/request-quote", params, &resp)
 }
 
 // AcceptOTCQuote accept a quote from request quote.
-func (cr *Exchange) AcceptOTCQuote(ctx context.Context, quoteID, direction string) (*AcceptQuoteResponse, error) {
+func (e *Exchange) AcceptOTCQuote(ctx context.Context, quoteID, direction string) (*AcceptQuoteResponse, error) {
 	if quoteID == "" {
 		return nil, errQuoteIDRequired
 	}
@@ -593,11 +593,11 @@ func (cr *Exchange) AcceptOTCQuote(ctx context.Context, quoteID, direction strin
 	}
 	params["quote_id"] = quoteID
 	var resp *AcceptQuoteResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateOTCAcceptQuoteRate, "private/otc/accept-quote", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateOTCAcceptQuoteRate, "private/otc/accept-quote", params, &resp)
 }
 
 // GetOTCQuoteHistory retrieves quote history.
-func (cr *Exchange) GetOTCQuoteHistory(ctx context.Context, currencyPair currency.Pair, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*QuoteHistoryResponse, error) {
+func (e *Exchange) GetOTCQuoteHistory(ctx context.Context, currencyPair currency.Pair, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*QuoteHistoryResponse, error) {
 	params := make(map[string]any)
 	if !currencyPair.Base.IsEmpty() {
 		params["base_currency"] = currencyPair.Base.String()
@@ -618,11 +618,11 @@ func (cr *Exchange) GetOTCQuoteHistory(ctx context.Context, currencyPair currenc
 		params["page"] = page
 	}
 	var resp *QuoteHistoryResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCTradeHistoryRate, "private/otc/get-quote-history", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCTradeHistoryRate, "private/otc/get-quote-history", params, &resp)
 }
 
 // GetOTCTradeHistory retrieves otc trade history
-func (cr *Exchange) GetOTCTradeHistory(ctx context.Context, currencyPair currency.Pair, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*OTCTradeHistoryResponse, error) {
+func (e *Exchange) GetOTCTradeHistory(ctx context.Context, currencyPair currency.Pair, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*OTCTradeHistoryResponse, error) {
 	params := make(map[string]any)
 	if !currencyPair.Base.IsEmpty() {
 		params["base_currency"] = currencyPair.Base.String()
@@ -643,7 +643,7 @@ func (cr *Exchange) GetOTCTradeHistory(ctx context.Context, currencyPair currenc
 		params["page"] = page
 	}
 	var resp *OTCTradeHistoryResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCTradeHistoryRate, "private/otc/get-trade-history", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCTradeHistoryRate, "private/otc/get-trade-history", params, &resp)
 }
 
 // CreateOTCOrder creates a new BUY or SELL OTC order.
@@ -652,7 +652,7 @@ func (cr *Exchange) GetOTCTradeHistory(ctx context.Context, currencyPair currenc
 // Receive otc_book.{instrument_name} response
 // Send private/otc/create-order with price obtained from step 2.
 // If receive PENDING status, keep sending private/otc/get-trade-history till status FILLED or REJECTED
-func (cr *Exchange) CreateOTCOrder(ctx context.Context, symbol, side, clientOrderID string, quantity, price float64, settleLater bool) (*OTCOrderResponse, error) {
+func (e *Exchange) CreateOTCOrder(ctx context.Context, symbol, side, clientOrderID string, quantity, price float64, settleLater bool) (*OTCOrderResponse, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -675,7 +675,7 @@ func (cr *Exchange) CreateOTCOrder(ctx context.Context, symbol, side, clientOrde
 	}
 	params["settle_later"] = settleLater
 	var resp *OTCOrderResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOTCOrderRate, "private/otc/create-order", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOTCOrderRate, "private/otc/create-order", params, &resp)
 }
 
 var intervalMap = map[kline.Interval]string{kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "1h", kline.FourHour: "4h", kline.SixHour: "6h", kline.TwelveHour: "12h", kline.OneDay: "1D", kline.SevenDay: "7D", kline.TwoWeek: "14D", kline.OneMonth: "1M"}
@@ -709,7 +709,7 @@ func stringToInterval(interval string) (kline.Interval, error) {
 // -------- Staking Endpoints ------------------------------------------------------------------------
 
 // CreateStaking create a request to earn token rewards by staking on-chain in the Exchange.
-func (cr *Exchange) CreateStaking(ctx context.Context, symbol string, quantity float64) (*StakingResp, error) {
+func (e *Exchange) CreateStaking(ctx context.Context, symbol string, quantity float64) (*StakingResp, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -720,11 +720,11 @@ func (cr *Exchange) CreateStaking(ctx context.Context, symbol string, quantity f
 	params["instrument_name"] = symbol
 	params["quantity"] = quantity
 	var resp *StakingResp
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/stake", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/stake", params, &resp)
 }
 
 // Unstake create a request to unlock staked token.
-func (cr *Exchange) Unstake(ctx context.Context, symbol string, quantity float64) (*StakingResp, error) {
+func (e *Exchange) Unstake(ctx context.Context, symbol string, quantity float64) (*StakingResp, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -735,27 +735,27 @@ func (cr *Exchange) Unstake(ctx context.Context, symbol string, quantity float64
 	params["instrument_name"] = symbol
 	params["quantity"] = quantity
 	var resp *StakingResp
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/unstake", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/unstake", params, &resp)
 }
 
 // GetStakingPosition get the total staking position for a user/token
-func (cr *Exchange) GetStakingPosition(ctx context.Context, symbol string) (*StakingPosition, error) {
+func (e *Exchange) GetStakingPosition(ctx context.Context, symbol string) (*StakingPosition, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
 	}
 	var resp *StakingPosition
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-staking-position", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-staking-position", params, &resp)
 }
 
 // GetStakingInstruments get staking instruments information
-func (cr *Exchange) GetStakingInstruments(ctx context.Context) (*StakingInstrumentsResponse, error) {
+func (e *Exchange) GetStakingInstruments(ctx context.Context) (*StakingInstrumentsResponse, error) {
 	var resp *StakingInstrumentsResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-staking-instruments", nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-staking-instruments", nil, &resp)
 }
 
 // GetOpenStakeUnStakeRequests get stake/unstake requests that status is not in final state.
-func (cr *Exchange) GetOpenStakeUnStakeRequests(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*StakingRequestsResponse, error) {
+func (e *Exchange) GetOpenStakeUnStakeRequests(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*StakingRequestsResponse, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
@@ -772,11 +772,11 @@ func (cr *Exchange) GetOpenStakeUnStakeRequests(ctx context.Context, symbol stri
 		params["limit"] = limit
 	}
 	var resp *StakingRequestsResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-open-stake", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-open-stake", params, &resp)
 }
 
 // GetStakingHistory get stake/unstake request history
-func (cr *Exchange) GetStakingHistory(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*StakingRequestsResponse, error) {
+func (e *Exchange) GetStakingHistory(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*StakingRequestsResponse, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
@@ -793,11 +793,11 @@ func (cr *Exchange) GetStakingHistory(ctx context.Context, symbol string, startT
 		params["limit"] = limit
 	}
 	var resp *StakingRequestsResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-stake-history", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-stake-history", params, &resp)
 }
 
 // GetStakingRewardHistory get stake/unstake request history
-func (cr *Exchange) GetStakingRewardHistory(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*StakingRewardHistory, error) {
+func (e *Exchange) GetStakingRewardHistory(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*StakingRewardHistory, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
@@ -814,11 +814,11 @@ func (cr *Exchange) GetStakingRewardHistory(ctx context.Context, symbol string, 
 		params["limit"] = limit
 	}
 	var resp *StakingRewardHistory
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-reward-history", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-reward-history", params, &resp)
 }
 
 // ConvertStakedToken create a request to convert between staked token with liquid staking token.
-func (cr *Exchange) ConvertStakedToken(ctx context.Context, fromSymbol, toSymbol string, expectedRate, fromQuantity, slippageToleranceBasisPoints float64) (*StakingTokenConversionResponse, error) {
+func (e *Exchange) ConvertStakedToken(ctx context.Context, fromSymbol, toSymbol string, expectedRate, fromQuantity, slippageToleranceBasisPoints float64) (*StakingTokenConversionResponse, error) {
 	if fromSymbol == "" {
 		return nil, fmt.Errorf("%w, fromSymbol is empty", currency.ErrSymbolStringEmpty)
 	}
@@ -841,11 +841,11 @@ func (cr *Exchange) ConvertStakedToken(ctx context.Context, fromSymbol, toSymbol
 	params["from_quantity"] = fromQuantity
 	params["slippage_tolerance_bps"] = slippageToleranceBasisPoints
 	var resp *StakingTokenConversionResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/convert", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/convert", params, &resp)
 }
 
 // GetOpenStakingConverts get convert request that status is not in final state.
-func (cr *Exchange) GetOpenStakingConverts(ctx context.Context, startTime, endTime time.Time, limit int64) (*StakingConvertsHistory, error) {
+func (e *Exchange) GetOpenStakingConverts(ctx context.Context, startTime, endTime time.Time, limit int64) (*StakingConvertsHistory, error) {
 	params := make(map[string]any)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -859,11 +859,11 @@ func (cr *Exchange) GetOpenStakingConverts(ctx context.Context, startTime, endTi
 		params["limit"] = limit
 	}
 	var resp *StakingConvertsHistory
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-open-convert", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-open-convert", params, &resp)
 }
 
 // GetStakingConvertHistory get convert request history
-func (cr *Exchange) GetStakingConvertHistory(ctx context.Context, startTime, endTime time.Time, limit int64) (*StakingConvertsHistory, error) {
+func (e *Exchange) GetStakingConvertHistory(ctx context.Context, startTime, endTime time.Time, limit int64) (*StakingConvertsHistory, error) {
 	params := make(map[string]any)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -877,37 +877,37 @@ func (cr *Exchange) GetStakingConvertHistory(ctx context.Context, startTime, end
 		params["limit"] = limit
 	}
 	var resp *StakingConvertsHistory
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-convert-history", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "private/staking/get-convert-history", params, &resp)
 }
 
 // StakingConversionRate get conversion rate between staked token and liquid staking token
-func (cr *Exchange) StakingConversionRate(ctx context.Context, symbol string) (*StakingConversionRate, error) {
+func (e *Exchange) StakingConversionRate(ctx context.Context, symbol string) (*StakingConversionRate, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := make(map[string]any)
 	params["instrument_name"] = symbol
 	var resp *StakingConversionRate
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "public/staking/get-conversion-rate", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "public/staking/get-conversion-rate", params, &resp)
 }
 
 // SendHTTPRequest send requests for un-authenticated market endpoints.
-func (cr *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
-	endpointPath, err := cr.API.Endpoints.GetURL(ePath)
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
+	endpointPath, err := e.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
 	response := &RespData{
 		Result: result,
 	}
-	err = cr.SendPayload(ctx, f, func() (*request.Item, error) {
+	err = e.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,
 			Path:          endpointPath + path,
 			Result:        response,
-			Verbose:       cr.Verbose,
-			HTTPDebugging: cr.HTTPDebugging,
-			HTTPRecording: cr.HTTPRecording,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
 		}, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
@@ -924,12 +924,12 @@ func (cr *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, pat
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request to the server
-func (cr *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, path string, arg map[string]any, resp any) error {
-	creds, err := cr.GetCredentials(ctx)
+func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, path string, arg map[string]any, resp any) error {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	endpoint, err := cr.API.Endpoints.GetURL(ePath)
+	endpoint, err := e.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
@@ -948,7 +948,7 @@ func (cr *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL,
 		if err != nil {
 			return nil, err
 		}
-		signaturePayload := path + strconv.FormatInt(idInt, 10) + creds.Key + cr.getParamString(arg) + strconv.FormatInt(timestamp.UnixMilli(), 10)
+		signaturePayload := path + strconv.FormatInt(idInt, 10) + creds.Key + e.getParamString(arg) + strconv.FormatInt(timestamp.UnixMilli(), 10)
 		var hmac []byte
 		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(signaturePayload),
@@ -978,12 +978,12 @@ func (cr *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL,
 			Headers:       headers,
 			Body:          body,
 			Result:        response,
-			Verbose:       cr.Verbose,
-			HTTPDebugging: cr.HTTPDebugging,
-			HTTPRecording: cr.HTTPRecording,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
 		}, nil
 	}
-	err = cr.SendPayload(ctx, epl, newRequest, request.AuthenticatedRequest)
+	err = e.SendPayload(ctx, epl, newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -997,9 +997,9 @@ func (cr *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL,
 	return nil
 }
 
-func (cr *Exchange) getParamString(params map[string]any) string {
+func (e *Exchange) getParamString(params map[string]any) string {
 	paramString := ""
-	keys := cr.sortParams(params)
+	keys := e.sortParams(params)
 	for x := range keys {
 		if params[keys[x]] == nil {
 			paramString += keys[x] + "null"
@@ -1012,19 +1012,19 @@ func (cr *Exchange) getParamString(params map[string]any) string {
 		case float64:
 			paramString += keys[x] + strconv.FormatFloat(value, 'f', -1, 64)
 		case map[string]any:
-			paramString += keys[x] + cr.getParamString(value)
+			paramString += keys[x] + e.getParamString(value)
 		case string:
 			paramString += keys[x] + value
 		case []map[string]any:
 			for y := range value {
-				paramString += cr.getParamString(value[y])
+				paramString += e.getParamString(value[y])
 			}
 		}
 	}
 	return paramString
 }
 
-func (cr *Exchange) sortParams(params map[string]any) []string {
+func (e *Exchange) sortParams(params map[string]any) []string {
 	keys := make([]string, 0, len(params))
 	for k := range params {
 		keys = append(keys, k)
@@ -1097,13 +1097,13 @@ func translateDepositStatus(status string) string {
 // -------------------------------   Account Balance and Position endpoints ---------------------------------
 
 // GetUserBalance returns the user's wallet balance.
-func (cr *Exchange) GetUserBalance(ctx context.Context) (*UserAccountBalanceDetail, error) {
+func (e *Exchange) GetUserBalance(ctx context.Context) (*UserAccountBalanceDetail, error) {
 	var resp *UserAccountBalanceDetail
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Auth, "private/user-balance", nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Auth, "private/user-balance", nil, &resp)
 }
 
 // GetUserBalanceHistory returns the user's balance history.
-func (cr *Exchange) GetUserBalanceHistory(ctx context.Context, timeFrame string, endTime time.Time, limit int64) (*UserBalanceHistory, error) {
+func (e *Exchange) GetUserBalanceHistory(ctx context.Context, timeFrame string, endTime time.Time, limit int64) (*UserBalanceHistory, error) {
 	params := make(map[string]any)
 	if timeFrame != "" {
 		params["timeframe"] = timeFrame
@@ -1115,27 +1115,27 @@ func (cr *Exchange) GetUserBalanceHistory(ctx context.Context, timeFrame string,
 		params["limit"] = limit
 	}
 	var resp *UserBalanceHistory
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Auth, "private/user-balance-history", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Auth, "private/user-balance-history", params, &resp)
 }
 
 // GetSubAccountBalances retrieves the user's wallet balances of all sub-accounts.
-func (cr *Exchange) GetSubAccountBalances(ctx context.Context) (*SubAccountBalance, error) {
+func (e *Exchange) GetSubAccountBalances(ctx context.Context) (*SubAccountBalance, error) {
 	var resp *SubAccountBalance
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Auth, "private/get-subaccount-balances", nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Auth, "private/get-subaccount-balances", nil, &resp)
 }
 
 // GetPositions returns the user's position.
-func (cr *Exchange) GetPositions(ctx context.Context, instrumentName string) (*UsersPositions, error) {
+func (e *Exchange) GetPositions(ctx context.Context, instrumentName string) (*UsersPositions, error) {
 	params := make(map[string]any)
 	if instrumentName != "" {
 		params["instrument_name"] = instrumentName
 	}
 	var resp *UsersPositions
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, getPositionsRate, "private/get-positions", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, getPositionsRate, "private/get-positions", params, &resp)
 }
 
 // GetExpiredSettlementPrice fetches settlement price of expired instruments.
-func (cr *Exchange) GetExpiredSettlementPrice(ctx context.Context, instrumentype asset.Item, page int) (*ExpiredSettlementPrice, error) {
+func (e *Exchange) GetExpiredSettlementPrice(ctx context.Context, instrumentype asset.Item, page int) (*ExpiredSettlementPrice, error) {
 	if instrumentype == asset.Empty {
 		return nil, asset.ErrInvalidAsset
 	}
@@ -1150,5 +1150,5 @@ func (cr *Exchange) GetExpiredSettlementPrice(ctx context.Context, instrumentype
 		params.Set("page", strconv.Itoa(page))
 	}
 	var resp *ExpiredSettlementPrice
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("public/get-expired-settlement-price", params), expiredSettlementPriceRate, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("public/get-expired-settlement-price", params), expiredSettlementPriceRate, &resp)
 }

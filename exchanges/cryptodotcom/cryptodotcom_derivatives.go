@@ -22,7 +22,7 @@ const (
 )
 
 // ChangeAccountLeverage changes the maximum leverage used by the account. Please note, each instrument has its own maximum leverage. Whichever leverage (account or instrument) is lower will be used.
-func (cr *Exchange) ChangeAccountLeverage(ctx context.Context, accountID string, leverage int64) error {
+func (e *Exchange) ChangeAccountLeverage(ctx context.Context, accountID string, leverage int64) error {
 	if accountID == "" {
 		return errAccountIDMissing
 	}
@@ -32,11 +32,11 @@ func (cr *Exchange) ChangeAccountLeverage(ctx context.Context, accountID string,
 	params := make(map[string]any)
 	params["account_id"] = accountID
 	params["leverage"] = leverage
-	return cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, changeAccountLeverageRate, "private/change-account-leverage", params, nil)
+	return e.SendAuthHTTPRequest(ctx, exchange.RestFutures, changeAccountLeverageRate, "private/change-account-leverage", params, nil)
 }
 
 // GetAllExecutableTradesForInstrument returns all executable trades for a particular instrument
-func (cr *Exchange) GetAllExecutableTradesForInstrument(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*InstrumentTrades, error) {
+func (e *Exchange) GetAllExecutableTradesForInstrument(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*InstrumentTrades, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
@@ -53,11 +53,11 @@ func (cr *Exchange) GetAllExecutableTradesForInstrument(ctx context.Context, sym
 		params["limit"] = limit
 	}
 	var resp *InstrumentTrades
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, getAllExecutableTradesRate, "private/get-trades", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, getAllExecutableTradesRate, "private/get-trades", params, &resp)
 }
 
 // ClosePosition cancels position for a particular instrument/pair (asynchronous).
-func (cr *Exchange) ClosePosition(ctx context.Context, symbol, orderType string, price float64) (*OrderIDsDetail, error) {
+func (e *Exchange) ClosePosition(ctx context.Context, symbol, orderType string, price float64) (*OrderIDsDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -73,12 +73,12 @@ func (cr *Exchange) ClosePosition(ctx context.Context, symbol, orderType string,
 	params["type"] = orderType
 	params["price"] = price
 	var resp *OrderIDsDetail
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, closePositionRate, "private/close-position", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, closePositionRate, "private/close-position", params, &resp)
 }
 
 // GetFuturesOrderList gets the details of an outstanding (not executed) contingency order on Exchange.
 // contingency type possible value OCO
-func (cr *Exchange) GetFuturesOrderList(ctx context.Context, contingencyType, listID, symbol string) (*OrdersDetail, error) {
+func (e *Exchange) GetFuturesOrderList(ctx context.Context, contingencyType, listID, symbol string) (*OrdersDetail, error) {
 	if contingencyType == "" {
 		return nil, errContingencyTypeRequired
 	}
@@ -93,11 +93,11 @@ func (cr *Exchange) GetFuturesOrderList(ctx context.Context, contingencyType, li
 	params["list_id"] = listID
 	params["instrument_name"] = symbol
 	var resp *OrdersDetail
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresOrderListRate, "private/get-order-list", params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresOrderListRate, "private/get-order-list", params, &resp)
 }
 
 // GetInsurance fetches balance of Insurance Fund for a particular currency.
-func (cr *Exchange) GetInsurance(ctx context.Context, symbol string, count int64, startTime, endTime time.Time) (*ValueAndTimestamp, error) {
+func (e *Exchange) GetInsurance(ctx context.Context, symbol string, count int64, startTime, endTime time.Time) (*ValueAndTimestamp, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -115,5 +115,5 @@ func (cr *Exchange) GetInsurance(ctx context.Context, symbol string, count int64
 		params.Set("end_ts", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *ValueAndTimestamp
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("public/get-insurance", params), getInsuranceRate, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("public/get-insurance", params), getInsuranceRate, &resp)
 }

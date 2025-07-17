@@ -15,26 +15,26 @@ import (
 )
 
 // WsSetCancelOnDisconnect cancel on Disconnect is an optional feature that will cancel all open orders created by the connection upon loss of connectivity between client or server.
-func (cr *Exchange) WsSetCancelOnDisconnect(scope string) (*CancelOnDisconnectScope, error) {
+func (e *Exchange) WsSetCancelOnDisconnect(scope string) (*CancelOnDisconnectScope, error) {
 	if scope != "ACCOUNT" && scope != "CONNECTION" {
 		return nil, errInvalidOrderCancellationScope
 	}
 	params := make(map[string]any)
 	params["scope"] = scope
 	var resp *CancelOnDisconnectScope
-	return resp, cr.SendWebsocketRequest("private/set-cancel-on-disconnect", params, &resp, true)
+	return resp, e.SendWebsocketRequest("private/set-cancel-on-disconnect", params, &resp, true)
 }
 
 // WsRetriveCancelOnDisconnect retrieves cancel-on-disconnect scope information.
-func (cr *Exchange) WsRetriveCancelOnDisconnect() (*CancelOnDisconnectScope, error) {
+func (e *Exchange) WsRetriveCancelOnDisconnect() (*CancelOnDisconnectScope, error) {
 	var resp *CancelOnDisconnectScope
-	return resp, cr.SendWebsocketRequest("private/get-cancel-on-disconnect", nil, &resp, true)
+	return resp, e.SendWebsocketRequest("private/get-cancel-on-disconnect", nil, &resp, true)
 }
 
 // WsCreateWithdrawal creates a withdrawal request. Withdrawal setting must be enabled for your API Key. If you do not see the option when viewing your API Key, this feature is not yet available for you.
 // Withdrawal addresses must first be whitelisted in your account’s Withdrawal Whitelist page.
 // Withdrawal fees and minimum withdrawal amount can be found on the Fees & Limits page on the Exchange website.
-func (cr *Exchange) WsCreateWithdrawal(ccy currency.Code, amount float64, address, addressTag, networkID, clientWithdrawalID string) (*WithdrawalItem, error) {
+func (e *Exchange) WsCreateWithdrawal(ccy currency.Code, amount float64, address, addressTag, networkID, clientWithdrawalID string) (*WithdrawalItem, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -58,27 +58,27 @@ func (cr *Exchange) WsCreateWithdrawal(ccy currency.Code, amount float64, addres
 		params["network_id"] = networkID
 	}
 	var resp *WithdrawalItem
-	return resp, cr.SendWebsocketRequest(privateWithdrawal, params, &resp, true)
+	return resp, e.SendWebsocketRequest(privateWithdrawal, params, &resp, true)
 }
 
 // WsRetriveWithdrawalHistory retrieves accounts withdrawal history through the websocket connection
-func (cr *Exchange) WsRetriveWithdrawalHistory() (*WithdrawalResponse, error) {
+func (e *Exchange) WsRetriveWithdrawalHistory() (*WithdrawalResponse, error) {
 	var resp *WithdrawalResponse
-	return resp, cr.SendWebsocketRequest(privateGetWithdrawalHistory, nil, &resp, true)
+	return resp, e.SendWebsocketRequest(privateGetWithdrawalHistory, nil, &resp, true)
 }
 
 // WsPlaceOrder created a new BUY or SELL order on the Exchange through the websocket connection.
-func (cr *Exchange) WsPlaceOrder(arg *CreateOrderParam) (*CreateOrderResponse, error) {
+func (e *Exchange) WsPlaceOrder(arg *CreateOrderParam) (*CreateOrderResponse, error) {
 	params, err := arg.getCreateParamMap()
 	if err != nil {
 		return nil, err
 	}
 	var resp *CreateOrderResponse
-	return resp, cr.SendWebsocketRequest(privateCreateOrder, params, &resp, true)
+	return resp, e.SendWebsocketRequest(privateCreateOrder, params, &resp, true)
 }
 
 // WsCancelExistingOrder cancels and existing open order through the websocket connection
-func (cr *Exchange) WsCancelExistingOrder(symbol, orderID string) error {
+func (e *Exchange) WsCancelExistingOrder(symbol, orderID string) error {
 	if symbol == "" {
 		return currency.ErrSymbolStringEmpty
 	}
@@ -88,13 +88,13 @@ func (cr *Exchange) WsCancelExistingOrder(symbol, orderID string) error {
 	params := make(map[string]any)
 	params["instrument_name"] = symbol
 	params["order_id"] = orderID
-	return cr.SendWebsocketRequest(privateCancelOrder, params, nil, true)
+	return e.SendWebsocketRequest(privateCancelOrder, params, nil, true)
 }
 
 // WsCreateOrderList create a list of orders on the Exchange.
 // contingency_type must be LIST, for list of orders creation.
 // This call is asynchronous, so the response is simply a confirmation of the request.
-func (cr *Exchange) WsCreateOrderList(contingencyType string, arg []CreateOrderParam) (*OrderCreationResponse, error) {
+func (e *Exchange) WsCreateOrderList(contingencyType string, arg []CreateOrderParam) (*OrderCreationResponse, error) {
 	if len(arg) == 0 {
 		return nil, common.ErrNilPointer
 	}
@@ -113,11 +113,11 @@ func (cr *Exchange) WsCreateOrderList(contingencyType string, arg []CreateOrderP
 	params["order_list"] = orderParams
 	params["contingency_type"] = contingencyType
 	var resp *OrderCreationResponse
-	return resp, cr.SendWebsocketRequest(privateCreateOrderList, params, &resp, true)
+	return resp, e.SendWebsocketRequest(privateCreateOrderList, params, &resp, true)
 }
 
 // WsCancelOrderList cancel a list of orders on the Exchange through the websocket connection.
-func (cr *Exchange) WsCancelOrderList(args []CancelOrderParam) (*CancelOrdersResponse, error) {
+func (e *Exchange) WsCancelOrderList(args []CancelOrderParam) (*CancelOrdersResponse, error) {
 	if len(args) == 0 {
 		return nil, common.ErrNilPointer
 	}
@@ -138,24 +138,24 @@ func (cr *Exchange) WsCancelOrderList(args []CancelOrderParam) (*CancelOrdersRes
 	params := make(map[string]any)
 	params["order_list"] = cancelOrderList
 	var resp *CancelOrdersResponse
-	return resp, cr.SendWebsocketRequest(privateCancelOrderList, params, &resp, true)
+	return resp, e.SendWebsocketRequest(privateCancelOrderList, params, &resp, true)
 }
 
 // WsCancelAllPersonalOrders cancels all orders for a particular instrument/pair (asynchronous)
 // This call is asynchronous, so the response is simply a confirmation of the request.
-func (cr *Exchange) WsCancelAllPersonalOrders(symbol string) error {
+func (e *Exchange) WsCancelAllPersonalOrders(symbol string) error {
 	if symbol == "" {
 		return currency.ErrSymbolStringEmpty
 	}
 	params := make(map[string]any)
 	params["instrument_name"] = symbol
-	return cr.SendWebsocketRequest(privateCancelAllOrders, params, nil, true)
+	return e.SendWebsocketRequest(privateCancelAllOrders, params, nil, true)
 }
 
 // WsRetrivePersonalOrderHistory gets the order history for a particular instrument
 //
 // If paging is used, enumerate each page (starting with 0) until an empty order_list array appears in the response.
-func (cr *Exchange) WsRetrivePersonalOrderHistory(instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalOrdersResponse, error) {
+func (e *Exchange) WsRetrivePersonalOrderHistory(instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalOrdersResponse, error) {
 	params := make(map[string]any)
 	if instrumentName != "" {
 		params["instrument_name"] = instrumentName
@@ -173,11 +173,11 @@ func (cr *Exchange) WsRetrivePersonalOrderHistory(instrumentName string, startTi
 		params["page"] = page
 	}
 	var resp *PersonalOrdersResponse
-	return resp, cr.SendWebsocketRequest(privateGetOrderHistory, params, &resp, true)
+	return resp, e.SendWebsocketRequest(privateGetOrderHistory, params, &resp, true)
 }
 
 // WsRetrivePersonalOpenOrders retrieves all open orders of particular instrument through the websocket connection
-func (cr *Exchange) WsRetrivePersonalOpenOrders(instrumentName string, pageSize, page int64) (*PersonalOrdersResponse, error) {
+func (e *Exchange) WsRetrivePersonalOpenOrders(instrumentName string, pageSize, page int64) (*PersonalOrdersResponse, error) {
 	params := make(map[string]any)
 	if instrumentName != "" {
 		params["instrument_name"] = instrumentName
@@ -187,25 +187,25 @@ func (cr *Exchange) WsRetrivePersonalOpenOrders(instrumentName string, pageSize,
 	}
 	params["page"] = page
 	var resp *PersonalOrdersResponse
-	return resp, cr.SendWebsocketRequest(privateGetOpenOrders, params, &resp, true)
+	return resp, e.SendWebsocketRequest(privateGetOpenOrders, params, &resp, true)
 }
 
 // WsRetriveOrderDetail retrieves details on a particular order ID through the websocket connection
-func (cr *Exchange) WsRetriveOrderDetail(orderID string) (*OrderDetail, error) {
+func (e *Exchange) WsRetriveOrderDetail(orderID string) (*OrderDetail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := make(map[string]any)
 	params["order_id"] = orderID
 	var resp *OrderDetail
-	return resp, cr.SendWebsocketRequest(privateGetOrderDetail, params, &resp, true)
+	return resp, e.SendWebsocketRequest(privateGetOrderDetail, params, &resp, true)
 }
 
 // WsRetrivePrivateTrades gets all executed trades for a particular instrument.
 //
 // If paging is used, enumerate each page (starting with 0) until an empty trade_list array appears in the response.
 // Users should use user.trade to keep track of real-time trades, and private/get-trades should primarily be used for recovery; typically when the websocket is disconnected.
-func (cr *Exchange) WsRetrivePrivateTrades(instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalTrades, error) {
+func (e *Exchange) WsRetrivePrivateTrades(instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalTrades, error) {
 	params := make(map[string]any)
 	if instrumentName != "" {
 		params["instrument_name"] = instrumentName
@@ -221,22 +221,22 @@ func (cr *Exchange) WsRetrivePrivateTrades(instrumentName string, startTimestamp
 	}
 	params["page"] = page
 	var resp *PersonalTrades
-	return resp, cr.SendWebsocketRequest(privateGetTrades, params, &resp, true)
+	return resp, e.SendWebsocketRequest(privateGetTrades, params, &resp, true)
 }
 
 // WsRetriveAccountSummary returns the account balance of a user for a particular token through the websocket connection.
-func (cr *Exchange) WsRetriveAccountSummary(ccy currency.Code) (*Accounts, error) {
+func (e *Exchange) WsRetriveAccountSummary(ccy currency.Code) (*Accounts, error) {
 	params := make(map[string]any)
 	if !ccy.IsEmpty() {
 		params["currency"] = ccy.String()
 	}
 	var resp *Accounts
-	return resp, cr.SendWebsocketRequest(privateGetAccountSummary, params, &resp, true)
+	return resp, e.SendWebsocketRequest(privateGetAccountSummary, params, &resp, true)
 }
 
 // SendWebsocketRequest pushed a request data through the websocket data for authenticated and public messages.
-func (cr *Exchange) SendWebsocketRequest(method string, arg map[string]any, result interface{}, authenticated bool) error {
-	if authenticated && !cr.Websocket.CanUseAuthenticatedEndpoints() {
+func (e *Exchange) SendWebsocketRequest(method string, arg map[string]any, result interface{}, authenticated bool) error {
+	if authenticated && !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return errors.New("can not send authenticated websocket request")
 	}
 	timestamp := time.Now()
@@ -248,11 +248,11 @@ func (cr *Exchange) SendWebsocketRequest(method string, arg map[string]any, resu
 	var payload []byte
 	var err error
 	if authenticated {
-		req.ID = cr.Websocket.AuthConn.GenerateMessageID(false)
-		payload, err = cr.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, req)
+		req.ID = e.Websocket.AuthConn.GenerateMessageID(false)
+		payload, err = e.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, req)
 	} else {
-		req.ID = cr.Websocket.Conn.GenerateMessageID(false)
-		payload, err = cr.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, req)
+		req.ID = e.Websocket.Conn.GenerateMessageID(false)
+		payload, err = e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, req)
 	}
 	if err != nil {
 		return err
