@@ -228,7 +228,7 @@ func TestSizeOrder(t *testing.T) {
 		MatchesOrderAmount: true,
 		ClosePrice:         decimal.NewFromInt(1337),
 	}
-	exch := binance.Binance{}
+	exch := binance.Exchange{}
 	// TODO adjust when Binance futures wrappers are implemented
 	cs.Exchange = &exch
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)

@@ -67,7 +67,7 @@ var defaultSubscriptions = []string{
 var responseStream chan SubscriptionRawData
 
 // WsConnect creates a new websocket to public and private endpoints.
-func (cr *Cryptodotcom) WsConnect() error {
+func (cr *Exchange) WsConnect() error {
 	ctx := context.TODO()
 	responseStream = make(chan SubscriptionRawData)
 	if !cr.Websocket.IsEnabled() || !cr.IsEnabled() {
@@ -108,7 +108,7 @@ func (cr *Cryptodotcom) WsConnect() error {
 
 // wsFunnelConnectionData receives data from multiple connection and pass the data
 // to wsRead through a channel responseStream
-func (cr *Cryptodotcom) wsFunnelConnectionData(ws websocket.Connection, authenticated bool) {
+func (cr *Exchange) wsFunnelConnectionData(ws websocket.Connection, authenticated bool) {
 	defer cr.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -120,7 +120,7 @@ func (cr *Cryptodotcom) wsFunnelConnectionData(ws websocket.Connection, authenti
 }
 
 // WsReadData read coming messages thought the websocket connection and process the data.
-func (cr *Cryptodotcom) WsReadData() {
+func (cr *Exchange) WsReadData() {
 	defer cr.Websocket.Wg.Done()
 	for {
 		select {
@@ -147,7 +147,7 @@ func (cr *Cryptodotcom) WsReadData() {
 	}
 }
 
-func (cr *Cryptodotcom) respondHeartbeat(resp *SubscriptionResponse, authConnection bool) error {
+func (cr *Exchange) respondHeartbeat(resp *SubscriptionResponse, authConnection bool) error {
 	subscriptionInput := &SubscriptionInput{
 		ID:     resp.ID,
 		Code:   resp.Code,
@@ -160,7 +160,7 @@ func (cr *Cryptodotcom) respondHeartbeat(resp *SubscriptionResponse, authConnect
 }
 
 // WsAuthConnect represents an authenticated connection to a websocket server
-func (cr *Cryptodotcom) WsAuthConnect(dialer *gws.Dialer) error {
+func (cr *Exchange) WsAuthConnect(dialer *gws.Dialer) error {
 	if !cr.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", cr.Name)
 	}
@@ -174,7 +174,7 @@ func (cr *Cryptodotcom) WsAuthConnect(dialer *gws.Dialer) error {
 }
 
 // AuthenticateWebsocketConnection authenticates the websocekt connection.
-func (cr *Cryptodotcom) AuthenticateWebsocketConnection() error {
+func (cr *Exchange) AuthenticateWebsocketConnection() error {
 	creds, err := cr.GetCredentials(context.Background())
 	if err != nil {
 		return err
@@ -217,17 +217,17 @@ func (cr *Cryptodotcom) AuthenticateWebsocketConnection() error {
 }
 
 // Subscribe sends a websocket subscription to a channel message through the websocket connection handlers.
-func (cr *Cryptodotcom) Subscribe(subscriptions subscription.List) error {
+func (cr *Exchange) Subscribe(subscriptions subscription.List) error {
 	return cr.handleSubscriptions("subscribe", subscriptions)
 }
 
 // Unsubscribe sends a websocket unsubscription to a channel message through the websocket connection handlers.
-func (cr *Cryptodotcom) Unsubscribe(subscriptions subscription.List) error {
+func (cr *Exchange) Unsubscribe(subscriptions subscription.List) error {
 	return cr.handleSubscriptions("unsubscribe", subscriptions)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (cr *Cryptodotcom) GenerateDefaultSubscriptions() (subscription.List, error) {
+func (cr *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
 	channels := defaultSubscriptions
 	if cr.Websocket.CanUseAuthenticatedEndpoints() {
@@ -287,7 +287,7 @@ func (cr *Cryptodotcom) GenerateDefaultSubscriptions() (subscription.List, error
 	return subscriptions, nil
 }
 
-func (cr *Cryptodotcom) handleSubscriptions(operation string, subscriptions subscription.List) error {
+func (cr *Exchange) handleSubscriptions(operation string, subscriptions subscription.List) error {
 	subscriptionPayloads, err := cr.generatePayload(operation, subscriptions)
 	if err != nil {
 		return err
@@ -305,7 +305,7 @@ func (cr *Cryptodotcom) handleSubscriptions(operation string, subscriptions subs
 	return nil
 }
 
-func (cr *Cryptodotcom) generatePayload(operation string, subscription subscription.List) ([]SubscriptionPayload, error) {
+func (cr *Exchange) generatePayload(operation string, subscription subscription.List) ([]SubscriptionPayload, error) {
 	subscriptionPayloads := make([]SubscriptionPayload, len(subscription))
 	timestamp := time.Now()
 	for x := range subscription {
@@ -351,7 +351,7 @@ func (cr *Cryptodotcom) generatePayload(operation string, subscription subscript
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error {
+func (cr *Exchange) WsHandleData(respRaw []byte, authConnection bool) error {
 	var resp *SubscriptionResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -411,7 +411,7 @@ func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error 
 	return nil
 }
 
-func (cr *Cryptodotcom) processFundingRate(resp *WsResult) error {
+func (cr *Exchange) processFundingRate(resp *WsResult) error {
 	var data []ValueAndTimestamp
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -433,7 +433,7 @@ func (cr *Cryptodotcom) processFundingRate(resp *WsResult) error {
 	return nil
 }
 
-func (cr *Cryptodotcom) processAccountRisk(resp *WsResult) error {
+func (cr *Exchange) processAccountRisk(resp *WsResult) error {
 	var data []UserAccountRisk
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -477,7 +477,7 @@ func (cr *Cryptodotcom) processAccountRisk(resp *WsResult) error {
 	return nil
 }
 
-func (cr *Cryptodotcom) processPositionBalance(resp *WsResult) error {
+func (cr *Exchange) processPositionBalance(resp *WsResult) error {
 	var data *WsUserPositionBalance
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -517,7 +517,7 @@ func (cr *Cryptodotcom) processPositionBalance(resp *WsResult) error {
 	return nil
 }
 
-func (cr *Cryptodotcom) processUserPosition(resp *WsResult) error {
+func (cr *Exchange) processUserPosition(resp *WsResult) error {
 	var data []UserPosition
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -550,7 +550,7 @@ func (cr *Cryptodotcom) processUserPosition(resp *WsResult) error {
 	return nil
 }
 
-func (cr *Cryptodotcom) processOTCOrderbook(resp *WsResult) error {
+func (cr *Exchange) processOTCOrderbook(resp *WsResult) error {
 	var data []OTCBook
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -588,7 +588,7 @@ func (cr *Cryptodotcom) processOTCOrderbook(resp *WsResult) error {
 	return nil
 }
 
-func (cr *Cryptodotcom) processCandlestick(resp *WsResult) error {
+func (cr *Exchange) processCandlestick(resp *WsResult) error {
 	var data []WsCandlestickItem
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -621,7 +621,7 @@ func (cr *Cryptodotcom) processCandlestick(resp *WsResult) error {
 	return nil
 }
 
-func (cr *Cryptodotcom) processTrades(resp *WsResult) error {
+func (cr *Exchange) processTrades(resp *WsResult) error {
 	var data []TradeItem
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -652,7 +652,7 @@ func (cr *Cryptodotcom) processTrades(resp *WsResult) error {
 	return trade.AddTradesToBuffer(trades...)
 }
 
-func (cr *Cryptodotcom) processTicker(resp *WsResult) error {
+func (cr *Exchange) processTicker(resp *WsResult) error {
 	var data []TickerItem
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -683,7 +683,7 @@ func (cr *Cryptodotcom) processTicker(resp *WsResult) error {
 	return nil
 }
 
-func (cr *Cryptodotcom) processOrderbook(resp *WsResult) error {
+func (cr *Exchange) processOrderbook(resp *WsResult) error {
 	var data []WsOrderbook
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -722,7 +722,7 @@ func (cr *Cryptodotcom) processOrderbook(resp *WsResult) error {
 	return nil
 }
 
-func (cr *Cryptodotcom) processUserBalance(wsResult *WsResult) error {
+func (cr *Exchange) processUserBalance(wsResult *WsResult) error {
 	var resp []UserBalanceDetail
 	err := json.Unmarshal(wsResult.Data, &resp)
 	if err != nil {
@@ -743,7 +743,7 @@ func (cr *Cryptodotcom) processUserBalance(wsResult *WsResult) error {
 	return nil
 }
 
-func (cr *Cryptodotcom) processUserTrade(resp *WsResult) error {
+func (cr *Exchange) processUserTrade(resp *WsResult) error {
 	var data []UserTrade
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -778,7 +778,7 @@ func (cr *Cryptodotcom) processUserTrade(resp *WsResult) error {
 	return cr.Websocket.Fills.Update(fills...)
 }
 
-func (cr *Cryptodotcom) processUserOrders(resp *WsResult) error {
+func (cr *Exchange) processUserOrders(resp *WsResult) error {
 	var data []UserOrder
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {

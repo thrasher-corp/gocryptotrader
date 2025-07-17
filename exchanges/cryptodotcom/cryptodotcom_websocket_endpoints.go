@@ -15,7 +15,7 @@ import (
 )
 
 // WsSetCancelOnDisconnect cancel on Disconnect is an optional feature that will cancel all open orders created by the connection upon loss of connectivity between client or server.
-func (cr *Cryptodotcom) WsSetCancelOnDisconnect(scope string) (*CancelOnDisconnectScope, error) {
+func (cr *Exchange) WsSetCancelOnDisconnect(scope string) (*CancelOnDisconnectScope, error) {
 	if scope != "ACCOUNT" && scope != "CONNECTION" {
 		return nil, errInvalidOrderCancellationScope
 	}
@@ -26,7 +26,7 @@ func (cr *Cryptodotcom) WsSetCancelOnDisconnect(scope string) (*CancelOnDisconne
 }
 
 // WsRetriveCancelOnDisconnect retrieves cancel-on-disconnect scope information.
-func (cr *Cryptodotcom) WsRetriveCancelOnDisconnect() (*CancelOnDisconnectScope, error) {
+func (cr *Exchange) WsRetriveCancelOnDisconnect() (*CancelOnDisconnectScope, error) {
 	var resp *CancelOnDisconnectScope
 	return resp, cr.SendWebsocketRequest("private/get-cancel-on-disconnect", nil, &resp, true)
 }
@@ -34,7 +34,7 @@ func (cr *Cryptodotcom) WsRetriveCancelOnDisconnect() (*CancelOnDisconnectScope,
 // WsCreateWithdrawal creates a withdrawal request. Withdrawal setting must be enabled for your API Key. If you do not see the option when viewing your API Key, this feature is not yet available for you.
 // Withdrawal addresses must first be whitelisted in your account’s Withdrawal Whitelist page.
 // Withdrawal fees and minimum withdrawal amount can be found on the Fees & Limits page on the Exchange website.
-func (cr *Cryptodotcom) WsCreateWithdrawal(ccy currency.Code, amount float64, address, addressTag, networkID, clientWithdrawalID string) (*WithdrawalItem, error) {
+func (cr *Exchange) WsCreateWithdrawal(ccy currency.Code, amount float64, address, addressTag, networkID, clientWithdrawalID string) (*WithdrawalItem, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -62,13 +62,13 @@ func (cr *Cryptodotcom) WsCreateWithdrawal(ccy currency.Code, amount float64, ad
 }
 
 // WsRetriveWithdrawalHistory retrieves accounts withdrawal history through the websocket connection
-func (cr *Cryptodotcom) WsRetriveWithdrawalHistory() (*WithdrawalResponse, error) {
+func (cr *Exchange) WsRetriveWithdrawalHistory() (*WithdrawalResponse, error) {
 	var resp *WithdrawalResponse
 	return resp, cr.SendWebsocketRequest(privateGetWithdrawalHistory, nil, &resp, true)
 }
 
 // WsPlaceOrder created a new BUY or SELL order on the Exchange through the websocket connection.
-func (cr *Cryptodotcom) WsPlaceOrder(arg *CreateOrderParam) (*CreateOrderResponse, error) {
+func (cr *Exchange) WsPlaceOrder(arg *CreateOrderParam) (*CreateOrderResponse, error) {
 	params, err := arg.getCreateParamMap()
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (cr *Cryptodotcom) WsPlaceOrder(arg *CreateOrderParam) (*CreateOrderRespons
 }
 
 // WsCancelExistingOrder cancels and existing open order through the websocket connection
-func (cr *Cryptodotcom) WsCancelExistingOrder(symbol, orderID string) error {
+func (cr *Exchange) WsCancelExistingOrder(symbol, orderID string) error {
 	if symbol == "" {
 		return currency.ErrSymbolStringEmpty
 	}
@@ -94,7 +94,7 @@ func (cr *Cryptodotcom) WsCancelExistingOrder(symbol, orderID string) error {
 // WsCreateOrderList create a list of orders on the Exchange.
 // contingency_type must be LIST, for list of orders creation.
 // This call is asynchronous, so the response is simply a confirmation of the request.
-func (cr *Cryptodotcom) WsCreateOrderList(contingencyType string, arg []CreateOrderParam) (*OrderCreationResponse, error) {
+func (cr *Exchange) WsCreateOrderList(contingencyType string, arg []CreateOrderParam) (*OrderCreationResponse, error) {
 	if len(arg) == 0 {
 		return nil, common.ErrNilPointer
 	}
@@ -117,7 +117,7 @@ func (cr *Cryptodotcom) WsCreateOrderList(contingencyType string, arg []CreateOr
 }
 
 // WsCancelOrderList cancel a list of orders on the Exchange through the websocket connection.
-func (cr *Cryptodotcom) WsCancelOrderList(args []CancelOrderParam) (*CancelOrdersResponse, error) {
+func (cr *Exchange) WsCancelOrderList(args []CancelOrderParam) (*CancelOrdersResponse, error) {
 	if len(args) == 0 {
 		return nil, common.ErrNilPointer
 	}
@@ -143,7 +143,7 @@ func (cr *Cryptodotcom) WsCancelOrderList(args []CancelOrderParam) (*CancelOrder
 
 // WsCancelAllPersonalOrders cancels all orders for a particular instrument/pair (asynchronous)
 // This call is asynchronous, so the response is simply a confirmation of the request.
-func (cr *Cryptodotcom) WsCancelAllPersonalOrders(symbol string) error {
+func (cr *Exchange) WsCancelAllPersonalOrders(symbol string) error {
 	if symbol == "" {
 		return currency.ErrSymbolStringEmpty
 	}
@@ -155,7 +155,7 @@ func (cr *Cryptodotcom) WsCancelAllPersonalOrders(symbol string) error {
 // WsRetrivePersonalOrderHistory gets the order history for a particular instrument
 //
 // If paging is used, enumerate each page (starting with 0) until an empty order_list array appears in the response.
-func (cr *Cryptodotcom) WsRetrivePersonalOrderHistory(instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalOrdersResponse, error) {
+func (cr *Exchange) WsRetrivePersonalOrderHistory(instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalOrdersResponse, error) {
 	params := make(map[string]any)
 	if instrumentName != "" {
 		params["instrument_name"] = instrumentName
@@ -177,7 +177,7 @@ func (cr *Cryptodotcom) WsRetrivePersonalOrderHistory(instrumentName string, sta
 }
 
 // WsRetrivePersonalOpenOrders retrieves all open orders of particular instrument through the websocket connection
-func (cr *Cryptodotcom) WsRetrivePersonalOpenOrders(instrumentName string, pageSize, page int64) (*PersonalOrdersResponse, error) {
+func (cr *Exchange) WsRetrivePersonalOpenOrders(instrumentName string, pageSize, page int64) (*PersonalOrdersResponse, error) {
 	params := make(map[string]any)
 	if instrumentName != "" {
 		params["instrument_name"] = instrumentName
@@ -191,7 +191,7 @@ func (cr *Cryptodotcom) WsRetrivePersonalOpenOrders(instrumentName string, pageS
 }
 
 // WsRetriveOrderDetail retrieves details on a particular order ID through the websocket connection
-func (cr *Cryptodotcom) WsRetriveOrderDetail(orderID string) (*OrderDetail, error) {
+func (cr *Exchange) WsRetriveOrderDetail(orderID string) (*OrderDetail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -205,7 +205,7 @@ func (cr *Cryptodotcom) WsRetriveOrderDetail(orderID string) (*OrderDetail, erro
 //
 // If paging is used, enumerate each page (starting with 0) until an empty trade_list array appears in the response.
 // Users should use user.trade to keep track of real-time trades, and private/get-trades should primarily be used for recovery; typically when the websocket is disconnected.
-func (cr *Cryptodotcom) WsRetrivePrivateTrades(instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalTrades, error) {
+func (cr *Exchange) WsRetrivePrivateTrades(instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalTrades, error) {
 	params := make(map[string]any)
 	if instrumentName != "" {
 		params["instrument_name"] = instrumentName
@@ -225,7 +225,7 @@ func (cr *Cryptodotcom) WsRetrivePrivateTrades(instrumentName string, startTimes
 }
 
 // WsRetriveAccountSummary returns the account balance of a user for a particular token through the websocket connection.
-func (cr *Cryptodotcom) WsRetriveAccountSummary(ccy currency.Code) (*Accounts, error) {
+func (cr *Exchange) WsRetriveAccountSummary(ccy currency.Code) (*Accounts, error) {
 	params := make(map[string]any)
 	if !ccy.IsEmpty() {
 		params["currency"] = ccy.String()
@@ -235,7 +235,7 @@ func (cr *Cryptodotcom) WsRetriveAccountSummary(ccy currency.Code) (*Accounts, e
 }
 
 // SendWebsocketRequest pushed a request data through the websocket data for authenticated and public messages.
-func (cr *Cryptodotcom) SendWebsocketRequest(method string, arg map[string]any, result interface{}, authenticated bool) error {
+func (cr *Exchange) SendWebsocketRequest(method string, arg map[string]any, result interface{}, authenticated bool) error {
 	if authenticated && !cr.Websocket.CanUseAuthenticatedEndpoints() {
 		return errors.New("can not send authenticated websocket request")
 	}

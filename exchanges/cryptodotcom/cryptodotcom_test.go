@@ -32,12 +32,12 @@ const (
 )
 
 var (
-	cr                  = &Cryptodotcom{}
+	cr                  = &Exchange{}
 	mainTP, perpetualTP currency.Pair
 )
 
 func TestMain(m *testing.M) {
-	cr = new(Cryptodotcom)
+	cr = new(Exchange)
 	if err := testexch.Setup(cr); err != nil {
 		log.Fatal(err)
 	}

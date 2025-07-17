@@ -22,7 +22,7 @@ const (
 )
 
 // ChangeAccountLeverage changes the maximum leverage used by the account. Please note, each instrument has its own maximum leverage. Whichever leverage (account or instrument) is lower will be used.
-func (cr *Cryptodotcom) ChangeAccountLeverage(ctx context.Context, accountID string, leverage int64) error {
+func (cr *Exchange) ChangeAccountLeverage(ctx context.Context, accountID string, leverage int64) error {
 	if accountID == "" {
 		return errAccountIDMissing
 	}
@@ -36,7 +36,7 @@ func (cr *Cryptodotcom) ChangeAccountLeverage(ctx context.Context, accountID str
 }
 
 // GetAllExecutableTradesForInstrument returns all executable trades for a particular instrument
-func (cr *Cryptodotcom) GetAllExecutableTradesForInstrument(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*InstrumentTrades, error) {
+func (cr *Exchange) GetAllExecutableTradesForInstrument(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*InstrumentTrades, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
@@ -57,7 +57,7 @@ func (cr *Cryptodotcom) GetAllExecutableTradesForInstrument(ctx context.Context,
 }
 
 // ClosePosition cancels position for a particular instrument/pair (asynchronous).
-func (cr *Cryptodotcom) ClosePosition(ctx context.Context, symbol, orderType string, price float64) (*OrderIDsDetail, error) {
+func (cr *Exchange) ClosePosition(ctx context.Context, symbol, orderType string, price float64) (*OrderIDsDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -78,7 +78,7 @@ func (cr *Cryptodotcom) ClosePosition(ctx context.Context, symbol, orderType str
 
 // GetFuturesOrderList gets the details of an outstanding (not executed) contingency order on Exchange.
 // contingency type possible value OCO
-func (cr *Cryptodotcom) GetFuturesOrderList(ctx context.Context, contingencyType, listID, symbol string) (*OrdersDetail, error) {
+func (cr *Exchange) GetFuturesOrderList(ctx context.Context, contingencyType, listID, symbol string) (*OrdersDetail, error) {
 	if contingencyType == "" {
 		return nil, errContingencyTypeRequired
 	}
@@ -97,7 +97,7 @@ func (cr *Cryptodotcom) GetFuturesOrderList(ctx context.Context, contingencyType
 }
 
 // GetInsurance fetches balance of Insurance Fund for a particular currency.
-func (cr *Cryptodotcom) GetInsurance(ctx context.Context, symbol string, count int64, startTime, endTime time.Time) (*ValueAndTimestamp, error) {
+func (cr *Exchange) GetInsurance(ctx context.Context, symbol string, count int64, startTime, endTime time.Time) (*ValueAndTimestamp, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
