@@ -341,10 +341,10 @@ type MarginLimits struct {
 
 // Balance holds current balance data
 type Balance struct {
-	Type      string  `json:"type"`
-	Currency  string  `json:"currency"`
-	Amount    float64 `json:"amount,string"`
-	Available float64 `json:"available,string"`
+	Type      string        `json:"type"`
+	Currency  currency.Code `json:"currency"`
+	Amount    float64       `json:"amount,string"`
+	Available float64       `json:"available,string"`
 }
 
 // WalletTransfer holds status of wallet to wallet content transfer on exchange
@@ -374,7 +374,7 @@ type Order struct {
 	Exchange              string        `json:"exchange"`
 	Price                 float64       `json:"price,string"`
 	AverageExecutionPrice float64       `json:"avg_execution_price,string"`
-	Side                  string        `json:"side"`
+	Side                  order.Side    `json:"side"`
 	Type                  string        `json:"type"`
 	Timestamp             types.Time    `json:"timestamp"`
 	IsLive                bool          `json:"is_live"`
@@ -432,7 +432,7 @@ type BalanceHistory struct {
 // MovementHistory holds deposit and withdrawal history data
 type MovementHistory struct {
 	ID                 int64
-	Currency           string
+	Currency           currency.Code
 	CurrencyName       string // AKA Method
 	TXID               string
 	MTSStarted         types.Time
