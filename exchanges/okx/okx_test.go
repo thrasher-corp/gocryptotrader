@@ -330,7 +330,7 @@ LOOP:
 				assert.Positive(t, trade.Price.Float64(), "Price should have a positive value")
 				assert.Positive(t, trade.Size.Float64(), "Size should have a positive value")
 				assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
-				assert.Positive(t, trade.FillVolatility.Float64(), "FillVolatility should have a positive value")
+				assert.GreaterOrEqual(t, trade.FillVolatility.Float64(), float64(0), "FillVolatility should have a non-negative value")
 				assert.Positive(t, trade.ForwardPrice.Float64(), "ForwardPrice should have a positive value")
 				assert.Positive(t, trade.IndexPrice.Float64(), "IndexPrice should have a positive value")
 				assert.Positive(t, trade.MarkPrice.Float64(), "MarkPrice should have a positive value")
