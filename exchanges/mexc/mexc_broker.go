@@ -15,7 +15,7 @@ import (
 )
 
 // GetBrokerUniversalTransferHistory retrieves universal transfer history for broker users
-func (me *MEXC) GetBrokerUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType, fromAccount, toAccount string, startTime, endTime time.Time, page, limit int64) ([]BrokerAssetTransfer, error) {
+func (me *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType, fromAccount, toAccount string, startTime, endTime time.Time, page, limit int64) ([]BrokerAssetTransfer, error) {
 	if fromAccountType == "" {
 		return nil, fmt.Errorf("%w: FronAccountType is required", errAddressRequired)
 	}
@@ -50,13 +50,13 @@ func (me *MEXC) GetBrokerUniversalTransferHistory(ctx context.Context, fromAccou
 }
 
 // CreateBrokerSubAccount holds a broker sub-account detail
-func (me *MEXC) CreateBrokerSubAccount(ctx context.Context) (*BrokerSubAccounts, error) {
+func (me *Exchange) CreateBrokerSubAccount(ctx context.Context) (*BrokerSubAccounts, error) {
 	var resp *BrokerSubAccounts
 	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "broker/sub-account/virtualSubAccount", nil, &resp, true)
 }
 
 // GetBrokerAccountSubAccountList represents a list of broker sub-accounts and their details of the broker account
-func (me *MEXC) GetBrokerAccountSubAccountList(ctx context.Context, subAccount string, page, limit int64) (*BrokerSubAccounts, error) {
+func (me *Exchange) GetBrokerAccountSubAccountList(ctx context.Context, subAccount string, page, limit int64) (*BrokerSubAccounts, error) {
 	params := url.Values{}
 	if subAccount != "" {
 		params.Set("subAccount", subAccount)
@@ -72,7 +72,7 @@ func (me *MEXC) GetBrokerAccountSubAccountList(ctx context.Context, subAccount s
 }
 
 // GetSubAccountStatus retrieves broker sub-account status information
-func (me *MEXC) GetSubAccountStatus(ctx context.Context, subAccount string) (*BrokerSubAccountStatus, error) {
+func (me *Exchange) GetSubAccountStatus(ctx context.Context, subAccount string) (*BrokerSubAccountStatus, error) {
 	if subAccount == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -83,7 +83,7 @@ func (me *MEXC) GetSubAccountStatus(ctx context.Context, subAccount string) (*Br
 }
 
 // CreateBrokerSubAccountAPIKey creates a new sub-account api-key for the broker account
-func (me *MEXC) CreateBrokerSubAccountAPIKey(ctx context.Context, arg *BrokerSubAccountAPIKeyParams) (*BrokerSubAccountAPIKey, error) {
+func (me *Exchange) CreateBrokerSubAccountAPIKey(ctx context.Context, arg *BrokerSubAccountAPIKeyParams) (*BrokerSubAccountAPIKey, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -101,7 +101,7 @@ func (me *MEXC) CreateBrokerSubAccountAPIKey(ctx context.Context, arg *BrokerSub
 }
 
 // GetBrokerSubAccountAPIKey holds a subaccount API Key information
-func (me *MEXC) GetBrokerSubAccountAPIKey(ctx context.Context, subAccount string) (*BrokerSubAccountAPIKeys, error) {
+func (me *Exchange) GetBrokerSubAccountAPIKey(ctx context.Context, subAccount string) (*BrokerSubAccountAPIKeys, error) {
 	if subAccount == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -112,7 +112,7 @@ func (me *MEXC) GetBrokerSubAccountAPIKey(ctx context.Context, subAccount string
 }
 
 // DeleteBrokerAPIKeySubAccount deletes broker's sub-account API key
-func (me *MEXC) DeleteBrokerAPIKeySubAccount(ctx context.Context, arg *BrokerSubAccountAPIKeyDeletionParams) (interface{}, error) {
+func (me *Exchange) DeleteBrokerAPIKeySubAccount(ctx context.Context, arg *BrokerSubAccountAPIKeyDeletionParams) (interface{}, error) {
 	if arg.SubAccount == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -126,7 +126,7 @@ func (me *MEXC) DeleteBrokerAPIKeySubAccount(ctx context.Context, arg *BrokerSub
 }
 
 // GenerateBrokerSubAccountDepositAddress creates a new deposit address for a broker sub-account
-func (me *MEXC) GenerateBrokerSubAccountDepositAddress(ctx context.Context, arg *BrokerSubAccountDepositAddressCreationParams) (*BrokerSubAccountDepositAddress, error) {
+func (me *Exchange) GenerateBrokerSubAccountDepositAddress(ctx context.Context, arg *BrokerSubAccountDepositAddressCreationParams) (*BrokerSubAccountDepositAddress, error) {
 	if arg == nil || *arg == (BrokerSubAccountDepositAddressCreationParams{}) {
 		return nil, common.ErrNilPointer
 	}
@@ -141,7 +141,7 @@ func (me *MEXC) GenerateBrokerSubAccountDepositAddress(ctx context.Context, arg 
 }
 
 // GetBrokerSubAccountDepositAddress retrieves a broker sub-account deposit address
-func (me *MEXC) GetBrokerSubAccountDepositAddress(ctx context.Context, coin currency.Code) ([]BrokerSubAccountDepositAddress, error) {
+func (me *Exchange) GetBrokerSubAccountDepositAddress(ctx context.Context, coin currency.Code) ([]BrokerSubAccountDepositAddress, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -152,16 +152,16 @@ func (me *MEXC) GetBrokerSubAccountDepositAddress(ctx context.Context, coin curr
 }
 
 // GetSubAccountDepositHistory retrieves a broker sub-account deposit history
-func (me *MEXC) GetSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
+func (me *Exchange) GetSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
 	return me.getSubAccountDepositList(ctx, coin, depositStatus, "broker/capital/deposit/subHisrec", startTime, endTime, limit, page)
 }
 
 // GetAllRecentSubAccountDepositHistory retrieves a recent (3-days) broker sub-account deposit history
-func (me *MEXC) GetAllRecentSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
+func (me *Exchange) GetAllRecentSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
 	return me.getSubAccountDepositList(ctx, coin, depositStatus, "broker/capital/deposit/subHisrec/getall", startTime, endTime, limit, page)
 }
 
-func (me *MEXC) getSubAccountDepositList(ctx context.Context, coin currency.Code, depositStatus, path string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
+func (me *Exchange) getSubAccountDepositList(ctx context.Context, coin currency.Code, depositStatus, path string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())

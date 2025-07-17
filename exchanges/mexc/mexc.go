@@ -23,8 +23,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// MEXC is the overarching type across this package
-type MEXC struct {
+// Exchange is the overarching type across this package
+type Exchange struct {
 	exchange.Base
 }
 
@@ -54,7 +54,7 @@ var (
 // Start implementing public and private exchange API funcs below
 
 // GetSymbols retrieves current exchange trading rules and symbol information
-func (me *MEXC) GetSymbols(ctx context.Context, symbols []string) (*ExchangeConfig, error) {
+func (me *Exchange) GetSymbols(ctx context.Context, symbols []string) (*ExchangeConfig, error) {
 	params := url.Values{}
 	if len(symbols) > 1 {
 		params.Set("symbols", strings.Join(symbols, ","))
@@ -66,7 +66,7 @@ func (me *MEXC) GetSymbols(ctx context.Context, symbols []string) (*ExchangeConf
 }
 
 // GetSystemTime check server time
-func (me *MEXC) GetSystemTime(ctx context.Context) (types.Time, error) {
+func (me *Exchange) GetSystemTime(ctx context.Context) (types.Time, error) {
 	resp := &struct {
 		ServerTime types.Time `json:"serverTime"`
 	}{}
@@ -74,7 +74,7 @@ func (me *MEXC) GetSystemTime(ctx context.Context) (types.Time, error) {
 }
 
 // GetDefaultSumbols retrieves all default symbols
-func (me *MEXC) GetDefaultSumbols(ctx context.Context) ([]string, error) {
+func (me *Exchange) GetDefaultSumbols(ctx context.Context) ([]string, error) {
 	resp := &struct {
 		Symbols []string `json:"data"`
 	}{}
@@ -82,7 +82,7 @@ func (me *MEXC) GetDefaultSumbols(ctx context.Context) ([]string, error) {
 }
 
 // GetOrderbook retrieves orderbook data of a symbol
-func (me *MEXC) GetOrderbook(ctx context.Context, symbol string, limit int64) (*Orderbook, error) {
+func (me *Exchange) GetOrderbook(ctx context.Context, symbol string, limit int64) (*Orderbook, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -96,7 +96,7 @@ func (me *MEXC) GetOrderbook(ctx context.Context, symbol string, limit int64) (*
 }
 
 // GetRecentTradesList retrieves recent trades list
-func (me *MEXC) GetRecentTradesList(ctx context.Context, symbol string, limit int64) ([]TradeDetail, error) {
+func (me *Exchange) GetRecentTradesList(ctx context.Context, symbol string, limit int64) ([]TradeDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -110,7 +110,7 @@ func (me *MEXC) GetRecentTradesList(ctx context.Context, symbol string, limit in
 }
 
 // GetAggregatedTrades get compressed, aggregate trades. Trades that fill at the time, from the same order, with the same price will have the quantity aggregated.
-func (me *MEXC) GetAggregatedTrades(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]AggregatedTradeDetail, error) {
+func (me *Exchange) GetAggregatedTrades(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]AggregatedTradeDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -149,7 +149,7 @@ func intervalToString(interval kline.Interval, isWebsocket ...bool) (string, err
 
 // GetCandlestick retrieves kline/candlestick bars for a symbol.
 // Klines are uniquely identified by their open time.
-func (me *MEXC) GetCandlestick(ctx context.Context, symbol, interval string, startTime, endTime time.Time, limit uint64) ([]CandlestickData, error) {
+func (me *Exchange) GetCandlestick(ctx context.Context, symbol, interval string, startTime, endTime time.Time, limit uint64) ([]CandlestickData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -175,7 +175,7 @@ func (me *MEXC) GetCandlestick(ctx context.Context, symbol, interval string, sta
 }
 
 // GetCurrentAveragePrice retrieves current average price of symbol
-func (me *MEXC) GetCurrentAveragePrice(ctx context.Context, symbol string) (*SymbolAveragePrice, error) {
+func (me *Exchange) GetCurrentAveragePrice(ctx context.Context, symbol string) (*SymbolAveragePrice, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -186,7 +186,7 @@ func (me *MEXC) GetCurrentAveragePrice(ctx context.Context, symbol string) (*Sym
 }
 
 // Get24HourTickerPriceChangeStatistics retrieves ticker price change statistics
-func (me *MEXC) Get24HourTickerPriceChangeStatistics(ctx context.Context, symbols []string) (TickerList, error) {
+func (me *Exchange) Get24HourTickerPriceChangeStatistics(ctx context.Context, symbols []string) (TickerList, error) {
 	params := url.Values{}
 	if len(symbols) > 1 {
 		params.Set("symbols", strings.Join(symbols, ","))
@@ -202,7 +202,7 @@ func (me *MEXC) Get24HourTickerPriceChangeStatistics(ctx context.Context, symbol
 }
 
 // GetSymbolPriceTicker represents a symbol price ticker detail
-func (me *MEXC) GetSymbolPriceTicker(ctx context.Context, symbols []string) ([]SymbolPriceTicker, error) {
+func (me *Exchange) GetSymbolPriceTicker(ctx context.Context, symbols []string) ([]SymbolPriceTicker, error) {
 	params := url.Values{}
 	if len(symbols) > 1 {
 		params.Set("symbols", strings.Join(symbols, ","))
@@ -218,7 +218,7 @@ func (me *MEXC) GetSymbolPriceTicker(ctx context.Context, symbols []string) ([]S
 }
 
 // GetSymbolOrderbookTicker represents an orderbook detail for a symbol
-func (me *MEXC) GetSymbolOrderbookTicker(ctx context.Context, symbol string) ([]SymbolOrderbookTicker, error) {
+func (me *Exchange) GetSymbolOrderbookTicker(ctx context.Context, symbol string) ([]SymbolOrderbookTicker, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -228,7 +228,7 @@ func (me *MEXC) GetSymbolOrderbookTicker(ctx context.Context, symbol string) ([]
 }
 
 // CreateSubAccount create a sub-account from the master account.
-func (me *MEXC) CreateSubAccount(ctx context.Context, subAccountName, note string) (*SubAccountCreationResponse, error) {
+func (me *Exchange) CreateSubAccount(ctx context.Context, subAccountName, note string) (*SubAccountCreationResponse, error) {
 	if subAccountName == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -243,7 +243,7 @@ func (me *MEXC) CreateSubAccount(ctx context.Context, subAccountName, note strin
 }
 
 // GetSubAccountList get details of the sub-account list
-func (me *MEXC) GetSubAccountList(ctx context.Context, subAccountName string, isFreeze bool, page, limit int64) (*SubAccounts, error) {
+func (me *Exchange) GetSubAccountList(ctx context.Context, subAccountName string, isFreeze bool, page, limit int64) (*SubAccounts, error) {
 	params := url.Values{}
 	if subAccountName != "" {
 		params.Set("subAccount", subAccountName)
@@ -264,7 +264,7 @@ func (me *MEXC) GetSubAccountList(ctx context.Context, subAccountName string, is
 // CreateAPIKeyForSubAccount creates an API key for sub-account
 // Permission of APIKey: SPOT_ACCOUNT_READ, SPOT_ACCOUNT_WRITE, SPOT_DEAL_READ, SPOT_DEAL_WRITE, CONTRACT_ACCOUNT_READ, CONTRACT_ACCOUNT_WRITE, CONTRACT_DEAL_READ,
 // CONTRACT_DEAL_WRITE, SPOT_TRANSFER_READ, SPOT_TRANSFER_WRITE
-func (me *MEXC) CreateAPIKeyForSubAccount(ctx context.Context, subAccountName, note, permissions, ip string) (*SubAccountAPIDetail, error) {
+func (me *Exchange) CreateAPIKeyForSubAccount(ctx context.Context, subAccountName, note, permissions, ip string) (*SubAccountAPIDetail, error) {
 	if subAccountName == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -286,7 +286,7 @@ func (me *MEXC) CreateAPIKeyForSubAccount(ctx context.Context, subAccountName, n
 }
 
 // GetSubAccountAPIKey applies to master accounts only
-func (me *MEXC) GetSubAccountAPIKey(ctx context.Context, subAccountName string) (*SubAccountsAPIs, error) {
+func (me *Exchange) GetSubAccountAPIKey(ctx context.Context, subAccountName string) (*SubAccountsAPIs, error) {
 	if subAccountName == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -297,7 +297,7 @@ func (me *MEXC) GetSubAccountAPIKey(ctx context.Context, subAccountName string) 
 }
 
 // DeleteAPIKeySubAccount delete the API Key of a sub-account
-func (me *MEXC) DeleteAPIKeySubAccount(ctx context.Context, subAccountName string) (string, error) {
+func (me *Exchange) DeleteAPIKeySubAccount(ctx context.Context, subAccountName string) (string, error) {
 	if subAccountName == "" {
 		return "", errInvalidSubAccountName
 	}
@@ -310,7 +310,7 @@ func (me *MEXC) DeleteAPIKeySubAccount(ctx context.Context, subAccountName strin
 }
 
 // SubAccountUniversalTransfer requires SPOT_TRANSFER_WRITE permission
-func (me *MEXC) SubAccountUniversalTransfer(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, ccy currency.Code, amount float64) (*AssetTransferResponse, error) {
+func (me *Exchange) SubAccountUniversalTransfer(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, ccy currency.Code, amount float64) (*AssetTransferResponse, error) {
 	if !me.SupportsAsset(fromAccountType) {
 		return nil, fmt.Errorf("%w fromAccountType %v", asset.ErrNotSupported, fromAccountType)
 	}
@@ -339,7 +339,7 @@ func (me *MEXC) SubAccountUniversalTransfer(ctx context.Context, fromAccount, to
 }
 
 // GetSubAccountUnversalTransferHistory retrieves universal assets transfer history of master account
-func (me *MEXC) GetSubAccountUnversalTransferHistory(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, startTime, endTime time.Time, page, limit int64) (*UniversalTransferHistoryData, error) {
+func (me *Exchange) GetSubAccountUnversalTransferHistory(ctx context.Context, fromAccount, toAccount string, fromAccountType, toAccountType asset.Item, startTime, endTime time.Time, page, limit int64) (*UniversalTransferHistoryData, error) {
 	if !me.SupportsAsset(fromAccountType) {
 		return nil, fmt.Errorf("%w fromAccountType %v", asset.ErrNotSupported, fromAccountType)
 	}
@@ -374,7 +374,7 @@ func (me *MEXC) GetSubAccountUnversalTransferHistory(ctx context.Context, fromAc
 }
 
 // GetSubAccountAsset represents a sub-account asset balance detail
-func (me *MEXC) GetSubAccountAsset(ctx context.Context, subAccount string, accountType asset.Item) (*SubAccountAssetBalances, error) {
+func (me *Exchange) GetSubAccountAsset(ctx context.Context, subAccount string, accountType asset.Item) (*SubAccountAssetBalances, error) {
 	if subAccount == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -389,13 +389,13 @@ func (me *MEXC) GetSubAccountAsset(ctx context.Context, subAccount string, accou
 }
 
 // GetKYCStatus retrieves accounts KYC(know your customer) status
-func (me *MEXC) GetKYCStatus(ctx context.Context) (*KYCStatusInfo, error) {
+func (me *Exchange) GetKYCStatus(ctx context.Context) (*KYCStatusInfo, error) {
 	var resp *KYCStatusInfo
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getKYCStatusEPL, http.MethodGet, "kyc/status", nil, nil, &resp, true)
 }
 
 // UseAPIDefaultSymbols retrieves a default user API symbols
-func (me *MEXC) UseAPIDefaultSymbols(ctx context.Context) ([]string, error) {
+func (me *Exchange) UseAPIDefaultSymbols(ctx context.Context) ([]string, error) {
 	resp := &struct {
 		Data []string `json:"data"`
 	}{}
@@ -403,13 +403,13 @@ func (me *MEXC) UseAPIDefaultSymbols(ctx context.Context) ([]string, error) {
 }
 
 // GetCurrencyInformation get currency information
-func (me *MEXC) GetCurrencyInformation(ctx context.Context) ([]CurrencyInformation, error) {
+func (me *Exchange) GetCurrencyInformation(ctx context.Context) ([]CurrencyInformation, error) {
 	var resp []CurrencyInformation
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getCurrencyInformationEPL, http.MethodGet, "capital/config/getall", nil, nil, &resp, true)
 }
 
 // WithdrawCapital withdraws an asset through chains
-func (me *MEXC) WithdrawCapital(ctx context.Context, amount float64, coin currency.Code, withdrawID, network, contractAddress, address, memo, remark string) (*IDResponse, error) {
+func (me *Exchange) WithdrawCapital(ctx context.Context, amount float64, coin currency.Code, withdrawID, network, contractAddress, address, memo, remark string) (*IDResponse, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -443,7 +443,7 @@ func (me *MEXC) WithdrawCapital(ctx context.Context, amount float64, coin curren
 }
 
 // CancelWithdrawal cancels an pending withdrawal order
-func (me *MEXC) CancelWithdrawal(ctx context.Context, id string) (*IDResponse, error) {
+func (me *Exchange) CancelWithdrawal(ctx context.Context, id string) (*IDResponse, error) {
 	if id == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -454,7 +454,7 @@ func (me *MEXC) CancelWithdrawal(ctx context.Context, id string) (*IDResponse, e
 }
 
 // GetFundDepositHistory retrieves a list of fund deposit transaction details
-func (me *MEXC) GetFundDepositHistory(ctx context.Context, coin currency.Code, status string, startTime, endTime time.Time, limit int64) ([]FundDepositInfo, error) {
+func (me *Exchange) GetFundDepositHistory(ctx context.Context, coin currency.Code, status string, startTime, endTime time.Time, limit int64) ([]FundDepositInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -479,7 +479,7 @@ func (me *MEXC) GetFundDepositHistory(ctx context.Context, coin currency.Code, s
 
 // GetWithdrawalHistory represents currency withdrawal history possible values of withdraw status
 // 1:APPLY,2:AUDITING,3:WAIT,4:PROCESSING,5:WAIT_PACKAGING,6:WAIT_CONFIRM,7:SUCCESS,8:FAILED,9:CANCEL,10:MANUAL
-func (me *MEXC) GetWithdrawalHistory(ctx context.Context, coin currency.Code, startTime, endTime time.Time, status, limit int64) ([]WithdrawalInfo, error) {
+func (me *Exchange) GetWithdrawalHistory(ctx context.Context, coin currency.Code, startTime, endTime time.Time, status, limit int64) ([]WithdrawalInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -503,7 +503,7 @@ func (me *MEXC) GetWithdrawalHistory(ctx context.Context, coin currency.Code, st
 }
 
 // GenerateDepositAddress generates a deposit address given the currency code and network name
-func (me *MEXC) GenerateDepositAddress(ctx context.Context, coin currency.Code, network string) ([]DepositAddressInfo, error) {
+func (me *Exchange) GenerateDepositAddress(ctx context.Context, coin currency.Code, network string) ([]DepositAddressInfo, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -518,7 +518,7 @@ func (me *MEXC) GenerateDepositAddress(ctx context.Context, coin currency.Code, 
 }
 
 // GetDepositAddressOfCoin retrieves a deposit address detail of an asset
-func (me *MEXC) GetDepositAddressOfCoin(ctx context.Context, coin currency.Code, network string) ([]DepositAddressInfo, error) {
+func (me *Exchange) GetDepositAddressOfCoin(ctx context.Context, coin currency.Code, network string) ([]DepositAddressInfo, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -532,7 +532,7 @@ func (me *MEXC) GetDepositAddressOfCoin(ctx context.Context, coin currency.Code,
 }
 
 // GetWithdrawalAddress retrieves a list of previously used deposit addresses
-func (me *MEXC) GetWithdrawalAddress(ctx context.Context, coin currency.Code, page, limit int64) (*WithdrawalAddressesDetail, error) {
+func (me *Exchange) GetWithdrawalAddress(ctx context.Context, coin currency.Code, page, limit int64) (*WithdrawalAddressesDetail, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -548,7 +548,7 @@ func (me *MEXC) GetWithdrawalAddress(ctx context.Context, coin currency.Code, pa
 }
 
 // UserUniversalTransfer transfers an asset transfer between account types of same account
-func (me *MEXC) UserUniversalTransfer(ctx context.Context, fromAccountType, toAccountType string, asset currency.Code, amount float64) ([]UserUniversalTransferResponse, error) {
+func (me *Exchange) UserUniversalTransfer(ctx context.Context, fromAccountType, toAccountType string, asset currency.Code, amount float64) ([]UserUniversalTransferResponse, error) {
 	if fromAccountType == "" {
 		return nil, fmt.Errorf("%w, fromAccountType is required", errAccountTypeRequired)
 	}
@@ -571,7 +571,7 @@ func (me *MEXC) UserUniversalTransfer(ctx context.Context, fromAccountType, toAc
 }
 
 // GetUniversalTransferHistory retrieves users universal asset transfer history
-func (me *MEXC) GetUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType string, startTime, endTime time.Time, page, size int64) (*UniversalTransferHistoryResponse, error) {
+func (me *Exchange) GetUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType string, startTime, endTime time.Time, page, size int64) (*UniversalTransferHistoryResponse, error) {
 	if fromAccountType == "" {
 		return nil, fmt.Errorf("%w, fromAccountType is required", errAccountTypeRequired)
 	}
@@ -601,7 +601,7 @@ func (me *MEXC) GetUniversalTransferHistory(ctx context.Context, fromAccountType
 }
 
 // GetUniversalTransferDetailByID retrieves a universal asset transfer history item detail
-func (me *MEXC) GetUniversalTransferDetailByID(ctx context.Context, transactionID string) (*UniversalTransferHistoryData, error) {
+func (me *Exchange) GetUniversalTransferDetailByID(ctx context.Context, transactionID string) (*UniversalTransferHistoryData, error) {
 	if transactionID == "" {
 		return nil, errTransactionIDRequired
 	}
@@ -612,13 +612,13 @@ func (me *MEXC) GetUniversalTransferDetailByID(ctx context.Context, transactionI
 }
 
 // GetAssetThatCanBeConvertedintoMX represents an asset that can be converted into an MX asset
-func (me *MEXC) GetAssetThatCanBeConvertedintoMX(ctx context.Context) ([]AssetConvertableToMX, error) {
+func (me *Exchange) GetAssetThatCanBeConvertedintoMX(ctx context.Context) ([]AssetConvertableToMX, error) {
 	var resp []AssetConvertableToMX
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getAssetConvertedMXEPL, http.MethodGet, "capital/convert/list", nil, nil, &resp, true)
 }
 
 // DustTransfer transfer near-worthless crypto assets whose value is smaller than transaction fees
-func (me *MEXC) DustTransfer(ctx context.Context, assets []currency.Code) (*DustConvertResponse, error) {
+func (me *Exchange) DustTransfer(ctx context.Context, assets []currency.Code) (*DustConvertResponse, error) {
 	if len(assets) == 0 {
 		return nil, fmt.Errorf("%w: at least one asset must be specified", currency.ErrCurrencyCodeEmpty)
 	}
@@ -637,7 +637,7 @@ func (me *MEXC) DustTransfer(ctx context.Context, assets []currency.Code) (*Dust
 }
 
 // DustLog retrieves a dust conversion history
-func (me *MEXC) DustLog(ctx context.Context, startTime, endTime time.Time, page, limit int64) (*DustLogDetail, error) {
+func (me *Exchange) DustLog(ctx context.Context, startTime, endTime time.Time, page, limit int64) (*DustLogDetail, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -659,7 +659,7 @@ func (me *MEXC) DustLog(ctx context.Context, startTime, endTime time.Time, page,
 }
 
 // InternalTransfer allows an internal asset transfer between assets.
-func (me *MEXC) InternalTransfer(ctx context.Context, toAccountType, toAccount, areaCode string, asset currency.Code, amount float64) (*AssetTransferResponse, error) {
+func (me *Exchange) InternalTransfer(ctx context.Context, toAccountType, toAccount, areaCode string, asset currency.Code, amount float64) (*AssetTransferResponse, error) {
 	if toAccountType == "" {
 		return nil, fmt.Errorf("%w: toAccountType is required", errAccountTypeRequired)
 	}
@@ -685,7 +685,7 @@ func (me *MEXC) InternalTransfer(ctx context.Context, toAccountType, toAccount, 
 }
 
 // GetInternalTransferHistory retrieves an internal asset transfer history
-func (me *MEXC) GetInternalTransferHistory(ctx context.Context, transferID string, startTime, endTime time.Time, page, limit int64) (*InternalTransferDetail, error) {
+func (me *Exchange) GetInternalTransferHistory(ctx context.Context, transferID string, startTime, endTime time.Time, page, limit int64) (*InternalTransferDetail, error) {
 	params := url.Values{}
 	if transferID != "" {
 		params.Set("tranId", transferID)
@@ -709,7 +709,7 @@ func (me *MEXC) GetInternalTransferHistory(ctx context.Context, transferID strin
 }
 
 // CapitalWithdrawal withdraws an asset through a network
-func (me *MEXC) CapitalWithdrawal(ctx context.Context, coin currency.Code, withdrawOrderID, network, address, memo, remark string, amount float64) ([]IDResponse, error) {
+func (me *Exchange) CapitalWithdrawal(ctx context.Context, coin currency.Code, withdrawOrderID, network, address, memo, remark string, amount float64) ([]IDResponse, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -740,7 +740,7 @@ func (me *MEXC) CapitalWithdrawal(ctx context.Context, coin currency.Code, withd
 }
 
 // NewTestOrder creates and validates a new order but does not send it into the matching engine.
-func (me *MEXC) NewTestOrder(ctx context.Context, symbol, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
+func (me *Exchange) NewTestOrder(ctx context.Context, symbol, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
 	return me.newOrder(ctx, symbol, newClientOrderID, side, orderType, "order/test", quantity, quoteOrderQty, price)
 }
 
@@ -775,11 +775,11 @@ func SpotOrderStringFromOrderTypeAndTimeInForce(oType order.Type, tif order.Time
 }
 
 // NewOrder creates a new order
-func (me *MEXC) NewOrder(ctx context.Context, symbol, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
+func (me *Exchange) NewOrder(ctx context.Context, symbol, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
 	return me.newOrder(ctx, symbol, newClientOrderID, side, orderType, "order", quantity, quoteOrderQty, price)
 }
 
-func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, orderType, path string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
+func (me *Exchange) newOrder(ctx context.Context, symbol, newClientOrderID, side, orderType, path string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -826,7 +826,7 @@ func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, or
 }
 
 // OrderTypeStringFromOrderTypeAndTimeInForce returns a string representation of an order.Type instance.
-func (me *MEXC) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, tif order.TimeInForce) (string, error) {
+func (me *Exchange) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, tif order.TimeInForce) (string, error) {
 	switch oType {
 	case order.Limit:
 		if tif == order.PostOnly {
@@ -857,7 +857,7 @@ func (me *MEXC) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, tif
 }
 
 // StringToOrderTypeAndTimeInForce returns an order type from string
-func (me *MEXC) StringToOrderTypeAndTimeInForce(oType string) (order.Type, order.TimeInForce, error) {
+func (me *Exchange) StringToOrderTypeAndTimeInForce(oType string) (order.Type, order.TimeInForce, error) {
 	switch oType {
 	case typeLimit:
 		return order.Limit, order.GoodTillCancel, nil
@@ -879,7 +879,7 @@ func (me *MEXC) StringToOrderTypeAndTimeInForce(oType string) (order.Type, order
 }
 
 // CreateBatchOrder creates utmost 30 orders with a same symbol in a batch,rate limit:2 times/s.
-func (me *MEXC) CreateBatchOrder(ctx context.Context, args []BatchOrderCreationParam) ([]OrderDetail, error) {
+func (me *Exchange) CreateBatchOrder(ctx context.Context, args []BatchOrderCreationParam) ([]OrderDetail, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -921,7 +921,7 @@ func (me *MEXC) CreateBatchOrder(ctx context.Context, args []BatchOrderCreationP
 }
 
 // CancelTradeOrder cancels an order
-func (me *MEXC) CancelTradeOrder(ctx context.Context, symbol, orderID, clientOrderID, newClientOrderID string) (*OrderDetail, error) {
+func (me *Exchange) CancelTradeOrder(ctx context.Context, symbol, orderID, clientOrderID, newClientOrderID string) (*OrderDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -944,7 +944,7 @@ func (me *MEXC) CancelTradeOrder(ctx context.Context, symbol, orderID, clientOrd
 }
 
 // CancelAllOpenOrdersBySymbol cancel all pending orders for a single symbol, including OCO pending orders.
-func (me *MEXC) CancelAllOpenOrdersBySymbol(ctx context.Context, symbol string) ([]OrderDetail, error) {
+func (me *Exchange) CancelAllOpenOrdersBySymbol(ctx context.Context, symbol string) ([]OrderDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -955,7 +955,7 @@ func (me *MEXC) CancelAllOpenOrdersBySymbol(ctx context.Context, symbol string) 
 }
 
 // GetOrderByID retrieves a single order
-func (me *MEXC) GetOrderByID(ctx context.Context, symbol, clientOrderID, orderID string) (*OrderDetail, error) {
+func (me *Exchange) GetOrderByID(ctx context.Context, symbol, clientOrderID, orderID string) (*OrderDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -975,7 +975,7 @@ func (me *MEXC) GetOrderByID(ctx context.Context, symbol, clientOrderID, orderID
 }
 
 // GetOpenOrders retrieves all open orders on a symbol. Careful when accessing this with no symbol.
-func (me *MEXC) GetOpenOrders(ctx context.Context, symbol string) ([]OrderDetail, error) {
+func (me *Exchange) GetOpenOrders(ctx context.Context, symbol string) ([]OrderDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -987,7 +987,7 @@ func (me *MEXC) GetOpenOrders(ctx context.Context, symbol string) ([]OrderDetail
 
 // GetAllOrders retrieves all account orders including active, cancelled or completed orders(the query period is the latest 24 hours by default).
 // You can query a maximum of the latest 7 days.
-func (me *MEXC) GetAllOrders(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]OrderDetail, error) {
+func (me *Exchange) GetAllOrders(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]OrderDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -1009,13 +1009,13 @@ func (me *MEXC) GetAllOrders(ctx context.Context, symbol string, startTime, endT
 }
 
 // GetAccountInformation retrieves current account information,rate limit:2 times/s.
-func (me *MEXC) GetAccountInformation(ctx context.Context) (*AccountDetail, error) {
+func (me *Exchange) GetAccountInformation(ctx context.Context) (*AccountDetail, error) {
 	var resp *AccountDetail
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, accountInformationEPL, http.MethodGet, "account", nil, nil, &resp, true)
 }
 
 // GetAccountTradeList retrieves trades for a specific account and symbol,Only the transaction records in the past 1 month can be queried.
-func (me *MEXC) GetAccountTradeList(ctx context.Context, symbol, orderID string, startTime, endTime time.Time, limit int64) ([]AccountTrade, error) {
+func (me *Exchange) GetAccountTradeList(ctx context.Context, symbol, orderID string, startTime, endTime time.Time, limit int64) ([]AccountTrade, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -1040,7 +1040,7 @@ func (me *MEXC) GetAccountTradeList(ctx context.Context, symbol, orderID string,
 }
 
 // EnableMXDeduct enable or disable MX deduct for spot commission fee
-func (me *MEXC) EnableMXDeduct(ctx context.Context, mxDeductEnable bool) (*MXDeductResponse, error) {
+func (me *Exchange) EnableMXDeduct(ctx context.Context, mxDeductEnable bool) (*MXDeductResponse, error) {
 	params := url.Values{}
 	if mxDeductEnable {
 		params.Set("mxDeductEnable", "true")
@@ -1052,13 +1052,13 @@ func (me *MEXC) EnableMXDeduct(ctx context.Context, mxDeductEnable bool) (*MXDed
 }
 
 // GetMXDeductStatus retrieves MX deduct status detail
-func (me *MEXC) GetMXDeductStatus(ctx context.Context) (*MXDeductResponse, error) {
+func (me *Exchange) GetMXDeductStatus(ctx context.Context) (*MXDeductResponse, error) {
 	var resp *MXDeductResponse
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getMXDeductStatusEPL, http.MethodGet, "mxDeduct/enable", nil, nil, &resp, true)
 }
 
 // GetSymbolTradingFee retrieves symbol commissions
-func (me *MEXC) GetSymbolTradingFee(ctx context.Context, symbol string) (*SymbolCommissionFee, error) {
+func (me *Exchange) GetSymbolTradingFee(ctx context.Context, symbol string) (*SymbolCommissionFee, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -1069,7 +1069,7 @@ func (me *MEXC) GetSymbolTradingFee(ctx context.Context, symbol string) (*Symbol
 }
 
 // GetRebateHistoryRecords retrieves a rebate history record
-func (me *MEXC) GetRebateHistoryRecords(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateHistory, error) {
+func (me *Exchange) GetRebateHistoryRecords(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateHistory, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -1087,7 +1087,7 @@ func (me *MEXC) GetRebateHistoryRecords(ctx context.Context, startTime, endTime 
 }
 
 // GetRebateRecordsDetail retrieves a rebate record detail
-func (me *MEXC) GetRebateRecordsDetail(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateRecordDetail, error) {
+func (me *Exchange) GetRebateRecordsDetail(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateRecordDetail, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -1105,7 +1105,7 @@ func (me *MEXC) GetRebateRecordsDetail(ctx context.Context, startTime, endTime t
 }
 
 // GetSelfRebateRecordsDetail retrieves self rebate records details
-func (me *MEXC) GetSelfRebateRecordsDetail(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateRecordDetail, error) {
+func (me *Exchange) GetSelfRebateRecordsDetail(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateRecordDetail, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -1123,13 +1123,13 @@ func (me *MEXC) GetSelfRebateRecordsDetail(ctx context.Context, startTime, endTi
 }
 
 // GetReferCode retrieves refer code
-func (me *MEXC) GetReferCode(ctx context.Context) (*ReferCode, error) {
+func (me *Exchange) GetReferCode(ctx context.Context) (*ReferCode, error) {
 	var resp *ReferCode
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getReferCodeEPL, http.MethodGet, "rebate/referCode", nil, nil, &resp, true)
 }
 
 // GetAffiliateCommissionRecord retrieves affiliate commission record
-func (me *MEXC) GetAffiliateCommissionRecord(ctx context.Context, startTime, endTime time.Time, inviteCode string, page, pageSize int64) (*AffiliateCommissionRecord, error) {
+func (me *Exchange) GetAffiliateCommissionRecord(ctx context.Context, startTime, endTime time.Time, inviteCode string, page, pageSize int64) (*AffiliateCommissionRecord, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -1153,7 +1153,7 @@ func (me *MEXC) GetAffiliateCommissionRecord(ctx context.Context, startTime, end
 }
 
 // GetAffiliateWithdrawRecord retrieves affiliate withdrawal records
-func (me *MEXC) GetAffiliateWithdrawRecord(ctx context.Context, startTime, endTime time.Time, page, pageSize int64) (*AffiliateWithdrawRecords, error) {
+func (me *Exchange) GetAffiliateWithdrawRecord(ctx context.Context, startTime, endTime time.Time, page, pageSize int64) (*AffiliateWithdrawRecords, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -1175,7 +1175,7 @@ func (me *MEXC) GetAffiliateWithdrawRecord(ctx context.Context, startTime, endTi
 
 // GetAffiliateCommissionDetailRecord retrieves an affiliate commission detail record
 // Commission type possible values: '1':spot,'2':futures, and '3':ETF
-func (me *MEXC) GetAffiliateCommissionDetailRecord(ctx context.Context, startTime, endTime time.Time, inviteCode, commissionType string, page, pageSize int64) (*RebateAffiliateCommissionDetail, error) {
+func (me *Exchange) GetAffiliateCommissionDetailRecord(ctx context.Context, startTime, endTime time.Time, inviteCode, commissionType string, page, pageSize int64) (*RebateAffiliateCommissionDetail, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -1202,7 +1202,7 @@ func (me *MEXC) GetAffiliateCommissionDetailRecord(ctx context.Context, startTim
 }
 
 // GetAffiliateCampaignData retrieves an affiliate campaign data
-func (me *MEXC) GetAffiliateCampaignData(ctx context.Context, startTime, endTime time.Time, page, pageSize int64) (*AffiliateCampaignData, error) {
+func (me *Exchange) GetAffiliateCampaignData(ctx context.Context, startTime, endTime time.Time, page, pageSize int64) (*AffiliateCampaignData, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -1223,7 +1223,7 @@ func (me *MEXC) GetAffiliateCampaignData(ctx context.Context, startTime, endTime
 }
 
 // GetAffiliateReferralData retrieves an affiliate referral data
-func (me *MEXC) GetAffiliateReferralData(ctx context.Context, startTime, endTime time.Time, uid, inviteCode string, page, pageSize int64) (*AffiliateReferralData, error) {
+func (me *Exchange) GetAffiliateReferralData(ctx context.Context, startTime, endTime time.Time, uid, inviteCode string, page, pageSize int64) (*AffiliateReferralData, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -1250,7 +1250,7 @@ func (me *MEXC) GetAffiliateReferralData(ctx context.Context, startTime, endTime
 }
 
 // GetSubAffiliateData retrieve a sub-affiliate data
-func (me *MEXC) GetSubAffiliateData(ctx context.Context, startTime, endTime time.Time, inviteCode string, page, pageSize int64) (*SubAffiliateData, error) {
+func (me *Exchange) GetSubAffiliateData(ctx context.Context, startTime, endTime time.Time, inviteCode string, page, pageSize int64) (*SubAffiliateData, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -1274,7 +1274,7 @@ func (me *MEXC) GetSubAffiliateData(ctx context.Context, startTime, endTime time
 }
 
 // GenerateListenKey starts a new data stream. The stream will close 60 minutes after creation unless a keepalive is sent.
-func (me *MEXC) GenerateListenKey(ctx context.Context) (string, error) {
+func (me *Exchange) GenerateListenKey(ctx context.Context) (string, error) {
 	resp := &struct {
 		ListenKey string `json:"listenKey"`
 	}{}
@@ -1282,7 +1282,7 @@ func (me *MEXC) GenerateListenKey(ctx context.Context) (string, error) {
 }
 
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
-func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, requestPath string, values url.Values, arg, result interface{}, auth ...bool) error {
+func (me *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, requestPath string, values url.Values, arg, result interface{}, auth ...bool) error {
 	ePoint, err := me.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err

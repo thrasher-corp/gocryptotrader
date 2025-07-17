@@ -20,7 +20,7 @@ import (
 )
 
 // GetFuturesContracts retrieves list of detailed futures contract
-func (me *MEXC) GetFuturesContracts(ctx context.Context, symbol string) (*FuturesContractsDetail, error) {
+func (me *Exchange) GetFuturesContracts(ctx context.Context, symbol string) (*FuturesContractsDetail, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -30,13 +30,13 @@ func (me *MEXC) GetFuturesContracts(ctx context.Context, symbol string) (*Future
 }
 
 // GetTransferableCurrencies returns list of transferabe currencies
-func (me *MEXC) GetTransferableCurrencies(ctx context.Context) (*TransferableCurrencies, error) {
+func (me *Exchange) GetTransferableCurrencies(ctx context.Context) (*TransferableCurrencies, error) {
 	var resp *TransferableCurrencies
 	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, getTransferableCurrenciesEPL, http.MethodGet, "contract/support_currencies", nil, nil, &resp)
 }
 
 // GetContractDepthInformation returns orderbook depth data of a contract
-func (me *MEXC) GetContractDepthInformation(ctx context.Context, symbol string, limit int64) (*ContractOrderbook, error) {
+func (me *Exchange) GetContractDepthInformation(ctx context.Context, symbol string, limit int64) (*ContractOrderbook, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -50,7 +50,7 @@ func (me *MEXC) GetContractDepthInformation(ctx context.Context, symbol string, 
 
 // GetDepthSnapshotOfContract retrieves the order book details and depth information
 // for a given contract, filtered by symbol and depth.
-func (me *MEXC) GetDepthSnapshotOfContract(ctx context.Context, symbol string, limit int64) (*ContractOrderbookWithDepth, error) {
+func (me *Exchange) GetDepthSnapshotOfContract(ctx context.Context, symbol string, limit int64) (*ContractOrderbookWithDepth, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -62,7 +62,7 @@ func (me *MEXC) GetDepthSnapshotOfContract(ctx context.Context, symbol string, l
 }
 
 // GetContractIndexPrice retrieves contract's index price details
-func (me *MEXC) GetContractIndexPrice(ctx context.Context, symbol string) (*ContractIndexPriceDetail, error) {
+func (me *Exchange) GetContractIndexPrice(ctx context.Context, symbol string) (*ContractIndexPriceDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -71,7 +71,7 @@ func (me *MEXC) GetContractIndexPrice(ctx context.Context, symbol string) (*Cont
 }
 
 // GetContractFairPrice retrieves contracts fair price detail
-func (me *MEXC) GetContractFairPrice(ctx context.Context, symbol string) (*ContractFairPrice, error) {
+func (me *Exchange) GetContractFairPrice(ctx context.Context, symbol string) (*ContractFairPrice, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -80,7 +80,7 @@ func (me *MEXC) GetContractFairPrice(ctx context.Context, symbol string) (*Contr
 }
 
 // GetContractFundingPrice holds contract's funding price
-func (me *MEXC) GetContractFundingPrice(ctx context.Context, symbol string) (*ContractFundingRate, error) {
+func (me *Exchange) GetContractFundingPrice(ctx context.Context, symbol string) (*ContractFundingRate, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -104,21 +104,21 @@ func ContractIntervalString(interval kline.Interval) (string, error) {
 }
 
 // GetContractsCandlestickData retrieves futures contracts candlestick data
-func (me *MEXC) GetContractsCandlestickData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
+func (me *Exchange) GetContractsCandlestickData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
 	return me.getCandlestickData(ctx, symbol, "contract/kline/", interval, startTime, endTime)
 }
 
 // GetKlineDataOfIndexPrice retrieves kline data of an instrument by index price
-func (me *MEXC) GetKlineDataOfIndexPrice(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
+func (me *Exchange) GetKlineDataOfIndexPrice(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
 	return me.getCandlestickData(ctx, symbol, "contract/kline/index_price/", interval, startTime, endTime)
 }
 
 // GetKlineDataOfFairPrice retrieves fair kline price data
-func (me *MEXC) GetKlineDataOfFairPrice(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
+func (me *Exchange) GetKlineDataOfFairPrice(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
 	return me.getCandlestickData(ctx, symbol, "contract/kline/fair_price/", interval, startTime, endTime)
 }
 
-func (me *MEXC) getCandlestickData(ctx context.Context, symbol, path string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
+func (me *Exchange) getCandlestickData(ctx context.Context, symbol, path string, interval kline.Interval, startTime, endTime time.Time) (*ContractCandlestickData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -143,7 +143,7 @@ func (me *MEXC) getCandlestickData(ctx context.Context, symbol, path string, int
 }
 
 // GetContractTransactionData retrieves contract transaction data
-func (me *MEXC) GetContractTransactionData(ctx context.Context, symbol string, limit int64) (*ContractTransactions, error) {
+func (me *Exchange) GetContractTransactionData(ctx context.Context, symbol string, limit int64) (*ContractTransactions, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -156,7 +156,7 @@ func (me *MEXC) GetContractTransactionData(ctx context.Context, symbol string, l
 }
 
 // GetContractTickers holds contract trend data
-func (me *MEXC) GetContractTickers(ctx context.Context, symbol string) (*ContractTickers, error) {
+func (me *Exchange) GetContractTickers(ctx context.Context, symbol string) (*ContractTickers, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -166,13 +166,13 @@ func (me *MEXC) GetContractTickers(ctx context.Context, symbol string) (*Contrac
 }
 
 // GetAllContractRiskFundBalance holds a list of contracts risk fund balance
-func (me *MEXC) GetAllContractRiskFundBalance(ctx context.Context) (*ContractRiskFundBalance, error) {
+func (me *Exchange) GetAllContractRiskFundBalance(ctx context.Context) (*ContractRiskFundBalance, error) {
 	var resp *ContractRiskFundBalance
 	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, getAllContrRiskFundBalanceEPL, http.MethodGet, "contract/risk_reverse", nil, nil, &resp)
 }
 
 // GetContractRiskFundBalanceHistory holds a list of contracts risk fund balance history
-func (me *MEXC) GetContractRiskFundBalanceHistory(ctx context.Context, symbol string, pageNumber, pageSize int64) (*ContractRiskFundBalanceHistory, error) {
+func (me *Exchange) GetContractRiskFundBalanceHistory(ctx context.Context, symbol string, pageNumber, pageSize int64) (*ContractRiskFundBalanceHistory, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -191,7 +191,7 @@ func (me *MEXC) GetContractRiskFundBalanceHistory(ctx context.Context, symbol st
 }
 
 // GetContractFundingRateHistory holds contracts funding rate history
-func (me *MEXC) GetContractFundingRateHistory(ctx context.Context, symbol string, pageNumber, pageSize int64) (*ContractFundingRateHistory, error) {
+func (me *Exchange) GetContractFundingRateHistory(ctx context.Context, symbol string, pageNumber, pageSize int64) (*ContractFundingRateHistory, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -208,13 +208,13 @@ func (me *MEXC) GetContractFundingRateHistory(ctx context.Context, symbol string
 }
 
 // GetAllUserAssetsInformation retrieves all user asset balances
-func (me *MEXC) GetAllUserAssetsInformation(ctx context.Context) (*UserAssetsBalance, error) {
+func (me *Exchange) GetAllUserAssetsInformation(ctx context.Context) (*UserAssetsBalance, error) {
 	var resp *UserAssetsBalance
 	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, allUserAssetsInfoEPL, http.MethodGet, "private/account/assets", nil, &resp, true)
 }
 
 // GetUserSingleCurrencyAssetInformation retrieves user's single asset balance
-func (me *MEXC) GetUserSingleCurrencyAssetInformation(ctx context.Context, ccy currency.Code) (*UserAssetBalance, error) {
+func (me *Exchange) GetUserSingleCurrencyAssetInformation(ctx context.Context, ccy currency.Code) (*UserAssetBalance, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -226,7 +226,7 @@ func (me *MEXC) GetUserSingleCurrencyAssetInformation(ctx context.Context, ccy c
 
 // GetUserAssetTransferRecords retrieves user's asset transfer records
 // possible values of status are: WAIT, SUCCESS, and FAILED
-func (me *MEXC) GetUserAssetTransferRecords(ctx context.Context, ccy currency.Code, status, transferType string, pageNumber, pageSize int64) (*AssetTransfers, error) {
+func (me *Exchange) GetUserAssetTransferRecords(ctx context.Context, ccy currency.Code, status, transferType string, pageNumber, pageSize int64) (*AssetTransfers, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -251,7 +251,7 @@ func (me *MEXC) GetUserAssetTransferRecords(ctx context.Context, ccy currency.Co
 // Possible position type values are:
 // - '1' for long positions
 // - '2' for short positions.
-func (me *MEXC) GetUserPositionHistory(ctx context.Context, symbol, positionType string, pageNumber, pageSize int64) (*Positions, error) {
+func (me *Exchange) GetUserPositionHistory(ctx context.Context, symbol, positionType string, pageNumber, pageSize int64) (*Positions, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -270,7 +270,7 @@ func (me *MEXC) GetUserPositionHistory(ctx context.Context, symbol, positionType
 }
 
 // GetUsersCurrentHoldingPositions retrieves user's current holding positions
-func (me *MEXC) GetUsersCurrentHoldingPositions(ctx context.Context, symbol string) (*Positions, error) {
+func (me *Exchange) GetUsersCurrentHoldingPositions(ctx context.Context, symbol string) (*Positions, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -280,7 +280,7 @@ func (me *MEXC) GetUsersCurrentHoldingPositions(ctx context.Context, symbol stri
 }
 
 // GetUsersFundingRateDetails retrieves user's funding rate details
-func (me *MEXC) GetUsersFundingRateDetails(ctx context.Context, symbol string, positionID, pageNumber, pageSize int64) (interface{}, error) {
+func (me *Exchange) GetUsersFundingRateDetails(ctx context.Context, symbol string, positionID, pageNumber, pageSize int64) (interface{}, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -299,7 +299,7 @@ func (me *MEXC) GetUsersFundingRateDetails(ctx context.Context, symbol string, p
 }
 
 // GetUserCurrentPendingOrder holds users current pending orders
-func (me *MEXC) GetUserCurrentPendingOrder(ctx context.Context, symbol string, pageNumber, pageSize int64) (*FuturesOrders, error) {
+func (me *Exchange) GetUserCurrentPendingOrder(ctx context.Context, symbol string, pageNumber, pageSize int64) (*FuturesOrders, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -315,7 +315,7 @@ func (me *MEXC) GetUserCurrentPendingOrder(ctx context.Context, symbol string, p
 }
 
 // GetAllUserHistoricalOrders retrieves user all order history
-func (me *MEXC) GetAllUserHistoricalOrders(ctx context.Context, symbol, states, category, side string, startTime, endTime time.Time, pageNumber, pageSize int64) (*FuturesOrders, error) {
+func (me *Exchange) GetAllUserHistoricalOrders(ctx context.Context, symbol, states, category, side string, startTime, endTime time.Time, pageNumber, pageSize int64) (*FuturesOrders, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -347,7 +347,7 @@ func (me *MEXC) GetAllUserHistoricalOrders(ctx context.Context, symbol, states, 
 }
 
 // GetOrderBasedOnExternalNumber retrieves a single order using the external order ID and symbol.
-func (me *MEXC) GetOrderBasedOnExternalNumber(ctx context.Context, symbol, externalOrderID string) (interface{}, error) {
+func (me *Exchange) GetOrderBasedOnExternalNumber(ctx context.Context, symbol, externalOrderID string) (interface{}, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -361,7 +361,7 @@ func (me *MEXC) GetOrderBasedOnExternalNumber(ctx context.Context, symbol, exter
 }
 
 // GetOrderByOrderID retrieves a single order using order id
-func (me *MEXC) GetOrderByOrderID(ctx context.Context, orderID string) (*FuturesOrderDetail, error) {
+func (me *Exchange) GetOrderByOrderID(ctx context.Context, orderID string) (*FuturesOrderDetail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -372,7 +372,7 @@ func (me *MEXC) GetOrderByOrderID(ctx context.Context, orderID string) (*Futures
 }
 
 // GetBatchOrdersByOrderID retrieves a batch of futures orders by order ids
-func (me *MEXC) GetBatchOrdersByOrderID(ctx context.Context, orderIDs []string) (interface{}, error) {
+func (me *Exchange) GetBatchOrdersByOrderID(ctx context.Context, orderIDs []string) (interface{}, error) {
 	if len(orderIDs) == 0 {
 		return nil, fmt.Errorf("%w: no order ID provided", order.ErrOrderIDNotSet)
 	}
@@ -383,7 +383,7 @@ func (me *MEXC) GetBatchOrdersByOrderID(ctx context.Context, orderIDs []string) 
 }
 
 // GetOrderTransactionDetailsByOrderID retrieves an order transactions by order ID
-func (me *MEXC) GetOrderTransactionDetailsByOrderID(ctx context.Context, orderID string) (*OrderTransactions, error) {
+func (me *Exchange) GetOrderTransactionDetailsByOrderID(ctx context.Context, orderID string) (*OrderTransactions, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -394,7 +394,7 @@ func (me *MEXC) GetOrderTransactionDetailsByOrderID(ctx context.Context, orderID
 }
 
 // GetUserOrderAllTransactionDetails retrieves user order all transaction details.
-func (me *MEXC) GetUserOrderAllTransactionDetails(ctx context.Context, symbol string, startTime, endTime time.Time, pageNumber, pageSize int64) (*OrderTransactions, error) {
+func (me *Exchange) GetUserOrderAllTransactionDetails(ctx context.Context, symbol string, startTime, endTime time.Time, pageNumber, pageSize int64) (*OrderTransactions, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -418,7 +418,7 @@ func (me *MEXC) GetUserOrderAllTransactionDetails(ctx context.Context, symbol st
 }
 
 // GetTriggerOrderList retrieves a list of futures trigger orders
-func (me *MEXC) GetTriggerOrderList(ctx context.Context, symbol, states string, startTime, endTime time.Time, pageNumber, pageSize int64) (*FuturesTriggerOrders, error) {
+func (me *Exchange) GetTriggerOrderList(ctx context.Context, symbol, states string, startTime, endTime time.Time, pageNumber, pageSize int64) (*FuturesTriggerOrders, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -444,7 +444,7 @@ func (me *MEXC) GetTriggerOrderList(ctx context.Context, symbol, states string, 
 }
 
 // GetFuturesStopLimitOrderList retrieves futures stop limit orders list
-func (me *MEXC) GetFuturesStopLimitOrderList(ctx context.Context, symbol string, isFinished bool, startTime, endTime time.Time, pageNumber, pageSize int64) (interface{}, error) {
+func (me *Exchange) GetFuturesStopLimitOrderList(ctx context.Context, symbol string, isFinished bool, startTime, endTime time.Time, pageNumber, pageSize int64) (interface{}, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -470,7 +470,7 @@ func (me *MEXC) GetFuturesStopLimitOrderList(ctx context.Context, symbol string,
 }
 
 // GetFuturesRiskLimit retrieves futures symbols risk limits
-func (me *MEXC) GetFuturesRiskLimit(ctx context.Context, symbol string) (*FutureRiskLimit, error) {
+func (me *Exchange) GetFuturesRiskLimit(ctx context.Context, symbol string) (*FutureRiskLimit, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -480,7 +480,7 @@ func (me *MEXC) GetFuturesRiskLimit(ctx context.Context, symbol string) (*Future
 }
 
 // GetFuturesCurrentTradingFeeRate holds futures current trading fee rates
-func (me *MEXC) GetFuturesCurrentTradingFeeRate(ctx context.Context, symbol string) (*FuturesTradingFeeRates, error) {
+func (me *Exchange) GetFuturesCurrentTradingFeeRate(ctx context.Context, symbol string) (*FuturesTradingFeeRates, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -494,7 +494,7 @@ func (me *MEXC) GetFuturesCurrentTradingFeeRate(ctx context.Context, symbol stri
 // Possible change type values:
 // - 'ADD' to increase the margin
 // - 'SUB' to decrease the margin.
-func (me *MEXC) IncreaseDecreaseMargin(ctx context.Context, positionID int64, amount float64, changeType string) error {
+func (me *Exchange) IncreaseDecreaseMargin(ctx context.Context, positionID int64, amount float64, changeType string) error {
 	if positionID == 0 {
 		return fmt.Errorf("%w: positionID is required", order.ErrOrderIDNotSet)
 	}
@@ -512,7 +512,7 @@ func (me *MEXC) IncreaseDecreaseMargin(ctx context.Context, positionID int64, am
 }
 
 // GetContractLeverage retrieves leverage information for a contract
-func (me *MEXC) GetContractLeverage(ctx context.Context, symbol string) (*ContractLeverageInfo, error) {
+func (me *Exchange) GetContractLeverage(ctx context.Context, symbol string) (*ContractLeverageInfo, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -529,7 +529,7 @@ func (me *MEXC) GetContractLeverage(ctx context.Context, symbol string) (*Contra
 // Possible position type values:
 // - 1: Long position
 // - 2: Short position
-func (me *MEXC) SwitchLeverage(ctx context.Context, positionID, leverage, openType, positionType int64, symbol string) (*PositionLeverageResponse, error) {
+func (me *Exchange) SwitchLeverage(ctx context.Context, positionID, leverage, openType, positionType int64, symbol string) (*PositionLeverageResponse, error) {
 	if positionID == 0 {
 		return nil, fmt.Errorf("%w: positionID is required", order.ErrOrderIDNotSet)
 	}
@@ -555,7 +555,7 @@ func (me *MEXC) SwitchLeverage(ctx context.Context, positionID, leverage, openTy
 }
 
 // GetPositionMode retrieves a list of position modes
-func (me *MEXC) GetPositionMode(ctx context.Context) (*PositionMode, error) {
+func (me *Exchange) GetPositionMode(ctx context.Context) (*PositionMode, error) {
 	var resp *PositionMode
 	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, getPositionModeEPL, http.MethodGet, "private/position/position_mode", nil, &resp, true)
 }
@@ -570,7 +570,7 @@ func (me *MEXC) GetPositionMode(ctx context.Context) (*PositionMode, error) {
 //
 // When switching between One-way and Hedge mode, the risk limit level
 // will be reset to Level 1. If you need to change this setting via API, modify the call accordingly.
-func (me *MEXC) ChangePositionMode(ctx context.Context, positionMode int64) (*StatusResponse, error) {
+func (me *Exchange) ChangePositionMode(ctx context.Context, positionMode int64) (*StatusResponse, error) {
 	if positionMode == 0 {
 		return nil, errPositionModeRequired
 	}
@@ -581,7 +581,7 @@ func (me *MEXC) ChangePositionMode(ctx context.Context, positionMode int64) (*St
 }
 
 // PlaceFuturesOrder placed a futures order
-func (me *MEXC) PlaceFuturesOrder(ctx context.Context, arg *PlaceFuturesOrderParams) (int64, error) {
+func (me *Exchange) PlaceFuturesOrder(ctx context.Context, arg *PlaceFuturesOrderParams) (int64, error) {
 	params, err := validateOrderParams(arg)
 	if err != nil {
 		return 0, err
@@ -653,7 +653,7 @@ func validateOrderParams(arg *PlaceFuturesOrderParams) (url.Values, error) {
 // TODO: Futures Bulk orders is under construction and the documentation is not clear to understand.
 
 // CancelOrdersByID cancels batch of futures orders by their order ID.
-func (me *MEXC) CancelOrdersByID(ctx context.Context, ordersID ...string) (*BatchOrdersCancelationResponse, error) {
+func (me *Exchange) CancelOrdersByID(ctx context.Context, ordersID ...string) (*BatchOrdersCancelationResponse, error) {
 	if len(ordersID) == 0 {
 		return nil, fmt.Errorf("%w at lease 1 order ID is required", order.ErrOrderIDNotSet)
 	}
@@ -665,7 +665,7 @@ func (me *MEXC) CancelOrdersByID(ctx context.Context, ordersID ...string) (*Batc
 }
 
 // CancelOrderByClientOrderID cancels a single order by client supplied(external) order ID
-func (me *MEXC) CancelOrderByClientOrderID(ctx context.Context, symbol, externalOrderID string) (*OrderCancellationResponse, error) {
+func (me *Exchange) CancelOrderByClientOrderID(ctx context.Context, symbol, externalOrderID string) (*OrderCancellationResponse, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -680,7 +680,7 @@ func (me *MEXC) CancelOrderByClientOrderID(ctx context.Context, symbol, external
 }
 
 // CancelAllOpenOrders cancels all open contracts under this account
-func (me *MEXC) CancelAllOpenOrders(ctx context.Context, symbol string) ([]OrderCancellationResponse, error) {
+func (me *Exchange) CancelAllOpenOrders(ctx context.Context, symbol string) ([]OrderCancellationResponse, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)

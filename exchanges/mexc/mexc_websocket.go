@@ -58,7 +58,7 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (me *MEXC) WsConnect() error {
+func (me *Exchange) WsConnect() error {
 	if !me.Websocket.IsEnabled() || !me.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -93,7 +93,7 @@ func (me *MEXC) WsConnect() error {
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
-func (me *MEXC) wsReadData(ws websocket.Connection) {
+func (me *Exchange) wsReadData(ws websocket.Connection) {
 	defer me.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -107,7 +107,7 @@ func (me *MEXC) wsReadData(ws websocket.Connection) {
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (me *MEXC) generateSubscriptions() (subscription.List, error) {
+func (me *Exchange) generateSubscriptions() (subscription.List, error) {
 	enabledPairs, err := me.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -142,12 +142,12 @@ func (me *MEXC) generateSubscriptions() (subscription.List, error) {
 }
 
 // Subscribe subscribes to a channel
-func (me *MEXC) Subscribe(channelsToSubscribe subscription.List) error {
+func (me *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
 	return me.handleSubscription("SUBSCRIPTION", channelsToSubscribe)
 }
 
 // Unsubscribe unsubscribes to a channel
-func (me *MEXC) Unsubscribe(channelsToSubscribe subscription.List) error {
+func (me *Exchange) Unsubscribe(channelsToSubscribe subscription.List) error {
 	return me.handleSubscription("UNSUBSCRIPTION", channelsToSubscribe)
 }
 
@@ -160,7 +160,7 @@ func assetTypeToString(assetType asset.Item) (string, error) {
 	}
 }
 
-func (me *MEXC) handleSubscription(method string, subs subscription.List) error {
+func (me *Exchange) handleSubscription(method string, subs subscription.List) error {
 	payloads := make([]WsSubscriptionPayload, len(subs))
 	successfulSubscriptions := subscription.List{}
 	failedSubscriptions := subscription.List{}
@@ -255,7 +255,7 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (me *MEXC) WsHandleData(respRaw []byte) error {
+func (me *Exchange) WsHandleData(respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "{") {
 		if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
 			if !me.Websocket.Match.IncomingWithData(id, respRaw) {

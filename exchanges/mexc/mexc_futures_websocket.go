@@ -59,7 +59,7 @@ var defaultFuturesSubscriptions = []string{
 }
 
 // WsFuturesConnect established a futures websocket connection
-func (me *MEXC) WsFuturesConnect() error {
+func (me *Exchange) WsFuturesConnect() error {
 	if !me.Websocket.IsEnabled() || !me.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -92,7 +92,7 @@ func (me *MEXC) WsFuturesConnect() error {
 }
 
 // wsAuth authenticates a futures websocket connection
-func (me *MEXC) wsAuth() error {
+func (me *Exchange) wsAuth() error {
 	credentials, err := me.GetCredentials(context.Background())
 	if err != nil {
 		return err
@@ -127,7 +127,7 @@ func (me *MEXC) wsAuth() error {
 }
 
 // GenerateDefaultFuturesSubscriptions generates a futures default subscription instances
-func (me *MEXC) GenerateDefaultFuturesSubscriptions() (subscription.List, error) {
+func (me *Exchange) GenerateDefaultFuturesSubscriptions() (subscription.List, error) {
 	channels := defaultFuturesSubscriptions
 	if me.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, cnlFPersonalPositions, cnlFPersonalAssets, cnlFPersonalOrder, cnlFPersonalADLLevel, cnlFPersonalRiskLimit, cnlFPositionMode)
@@ -161,16 +161,16 @@ func (me *MEXC) GenerateDefaultFuturesSubscriptions() (subscription.List, error)
 }
 
 // SubscribeFutures subscribes to a futures websocket channel
-func (me *MEXC) SubscribeFutures(subscriptions subscription.List) error {
+func (me *Exchange) SubscribeFutures(subscriptions subscription.List) error {
 	return me.handleSubscriptionFuturesPayload(subscriptions, "sub")
 }
 
 // UnsubscribeFutures unsubscribes to a futures websocket channel
-func (me *MEXC) UnsubscribeFutures(subscriptions subscription.List) error {
+func (me *Exchange) UnsubscribeFutures(subscriptions subscription.List) error {
 	return me.handleSubscriptionFuturesPayload(subscriptions, "unsub")
 }
 
-func (me *MEXC) handleSubscriptionFuturesPayload(subscriptionItems subscription.List, method string) error {
+func (me *Exchange) handleSubscriptionFuturesPayload(subscriptionItems subscription.List, method string) error {
 	for x := range subscriptionItems {
 		switch subscriptionItems[x].Channel {
 		case cnlFDeal, cnlFTicker, cnlFDepthFull, cnlFKline, cnlFFundingRate, cnlFIndexPrice, cnlFFairPrice:
@@ -209,7 +209,7 @@ func (me *MEXC) handleSubscriptionFuturesPayload(subscriptionItems subscription.
 }
 
 // wsFuturesReadData sends futures assets related msgs from public and auth websockets to data handler
-func (me *MEXC) wsFuturesReadData(ws websocket.Connection) {
+func (me *Exchange) wsFuturesReadData(ws websocket.Connection) {
 	defer me.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -223,7 +223,7 @@ func (me *MEXC) wsFuturesReadData(ws websocket.Connection) {
 }
 
 // WsHandleFuturesData processed futures websocket data
-func (me *MEXC) WsHandleFuturesData(respRaw []byte) error {
+func (me *Exchange) WsHandleFuturesData(respRaw []byte) error {
 	var resp *WsFuturesData
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -276,7 +276,7 @@ func (me *MEXC) WsHandleFuturesData(respRaw []byte) error {
 	return nil
 }
 
-func (me *MEXC) processPersonalADLLevel(data []byte) error {
+func (me *Exchange) processPersonalADLLevel(data []byte) error {
 	var resp *FuturesADLLevel
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -286,7 +286,7 @@ func (me *MEXC) processPersonalADLLevel(data []byte) error {
 	return nil
 }
 
-func (me *MEXC) processPersonalPositionMode(data []byte) error {
+func (me *Exchange) processPersonalPositionMode(data []byte) error {
 	var resp *FuturesPositionMode
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -296,7 +296,7 @@ func (me *MEXC) processPersonalPositionMode(data []byte) error {
 	return nil
 }
 
-func (me *MEXC) processPersonalRiskLimit(data []byte) error {
+func (me *Exchange) processPersonalRiskLimit(data []byte) error {
 	var resp *FuturesWebsocketRiskLimit
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -306,7 +306,7 @@ func (me *MEXC) processPersonalRiskLimit(data []byte) error {
 	return nil
 }
 
-func (me *MEXC) processPersonalPosition(data []byte) error {
+func (me *Exchange) processPersonalPosition(data []byte) error {
 	var resp *FuturesWsPersonalPosition
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -356,7 +356,7 @@ func (me *MEXC) processPersonalPosition(data []byte) error {
 	return nil
 }
 
-func (me *MEXC) processPersonalAsset(data []byte) error {
+func (me *Exchange) processPersonalAsset(data []byte) error {
 	var resp *FuturesPersonalAsset
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -374,7 +374,7 @@ func (me *MEXC) processPersonalAsset(data []byte) error {
 	return nil
 }
 
-func (me *MEXC) processPersonalOrder(data []byte) error {
+func (me *Exchange) processPersonalOrder(data []byte) error {
 	var resp *WsFuturesPersonalOrder
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -454,7 +454,7 @@ func (me *MEXC) processPersonalOrder(data []byte) error {
 	return nil
 }
 
-func (me *MEXC) processFairPrice(data []byte) error {
+func (me *Exchange) processFairPrice(data []byte) error {
 	var resp *PriceAndSymbol
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -471,7 +471,7 @@ func (me *MEXC) processFairPrice(data []byte) error {
 	return nil
 }
 
-func (me *MEXC) processIndexPrice(data []byte) error {
+func (me *Exchange) processIndexPrice(data []byte) error {
 	var resp *PriceAndSymbol
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -488,7 +488,7 @@ func (me *MEXC) processIndexPrice(data []byte) error {
 	return nil
 }
 
-func (me *MEXC) processFuturesFundingRate(data []byte) error {
+func (me *Exchange) processFuturesFundingRate(data []byte) error {
 	var resp *FuturesWsFundingRate
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -498,7 +498,7 @@ func (me *MEXC) processFuturesFundingRate(data []byte) error {
 	return nil
 }
 
-func (me *MEXC) processFuturesKlineData(data []byte, symbol string) error {
+func (me *Exchange) processFuturesKlineData(data []byte, symbol string) error {
 	var resp *FuturesWebsocketKline
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -523,7 +523,7 @@ func (me *MEXC) processFuturesKlineData(data []byte, symbol string) error {
 	return nil
 }
 
-func (me *MEXC) processOrderbookDepth(data []byte, symbol string) error {
+func (me *Exchange) processOrderbookDepth(data []byte, symbol string) error {
 	var resp *FuturesWsDepth
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -559,7 +559,7 @@ func (me *MEXC) processOrderbookDepth(data []byte, symbol string) error {
 	})
 }
 
-func (me *MEXC) processFuturesFillData(data []byte, symbol string) error {
+func (me *Exchange) processFuturesFillData(data []byte, symbol string) error {
 	var resp []FuturesTransactionFills
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -591,7 +591,7 @@ func (me *MEXC) processFuturesFillData(data []byte, symbol string) error {
 	return nil
 }
 
-func (me *MEXC) processFuturesTicker(data []byte) error {
+func (me *Exchange) processFuturesTicker(data []byte) error {
 	var resp *FuturesPriceTickerDetail
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -617,7 +617,7 @@ func (me *MEXC) processFuturesTicker(data []byte) error {
 	return nil
 }
 
-func (me *MEXC) processFuturesTickers(data []byte) error {
+func (me *Exchange) processFuturesTickers(data []byte) error {
 	var tickers []FuturesTickerItem
 	err := json.Unmarshal(data, &tickers)
 	if err != nil {

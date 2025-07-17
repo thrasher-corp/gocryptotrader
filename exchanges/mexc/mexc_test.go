@@ -33,7 +33,7 @@ const (
 )
 
 var (
-	me = &MEXC{}
+	me = &Exchange{}
 
 	assetsAndErrors = map[asset.Item]error{
 		asset.Spot:    nil,
@@ -45,7 +45,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	me = new(MEXC)
+	me = new(Exchange)
 	if err := testexch.Setup(me); err != nil {
 		log.Fatal(err)
 	}
