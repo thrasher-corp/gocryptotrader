@@ -3598,3 +3598,85 @@ func TestGetIntervalString(t *testing.T) {
 	_, err = getIntervalString(kline.FiveDay)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "Any other random interval should also be invalid")
 }
+
+func TestValidateContractOrderCreateParams(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		params *ContractOrderCreateParams
+		isRest bool
+		error  error
+	}{
+		{
+			error: common.ErrNilPointer,
+		},
+		{
+			params: &ContractOrderCreateParams{}, error: currency.ErrCurrencyPairEmpty,
+		},
+		{
+			params: &ContractOrderCreateParams{Contract: BTCUSDT},
+			error:  errInvalidOrderSize,
+		},
+		{
+			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: "bad"},
+			error:  order.ErrUnsupportedTimeInForce,
+		},
+		{
+			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: pocTIF},
+			error:  order.ErrUnsupportedTimeInForce,
+		},
+		{
+			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "test"},
+			error:  errInvalidText,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "silly_billy",
+			},
+			error: errInvalidAutoSize,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
+			},
+			error: errInvalidOrderSize,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
+			},
+			isRest: true,
+			error:  errEmptyOrInvalidSettlementCurrency,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.NewCode("Silly"),
+			},
+			error: errEmptyOrInvalidSettlementCurrency,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.USDT,
+			},
+		},
+	} {
+		assert.ErrorIs(t, tc.params.validate(tc.isRest), tc.error)
+	}
+}
+
+func TestMarshalJSONNumber(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		number   number
+		expected string
+	}{
+		{number: 0, expected: `"0"`},
+		{number: 1, expected: `"1"`},
+		{number: 1.5, expected: `"1.5"`},
+	} {
+		payload, err := tc.number.MarshalJSON()
+		require.NoError(t, err, "MarshalJSON should not error")
+		assert.Equal(t, tc.expected, string(payload), "MarshalJSON should return expected value")
+	}
+}
