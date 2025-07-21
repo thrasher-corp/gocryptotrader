@@ -3677,7 +3677,7 @@ func TestMarshalJSONNumber(t *testing.T) {
 		{number: 1.5, expected: `"1.5"`},
 	} {
 		payload, err := tc.number.MarshalJSON()
-		require.NoError(t, err, "MarshalJSON should not error")
+		require.NoError(t, err, "MarshalJSON must not error")
 		assert.Equal(t, tc.expected, string(payload), "MarshalJSON should return expected value")
 	}
 }
