@@ -2,13 +2,14 @@ package exmo
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Trades holds trade data
 type Trades struct {
 	TradeID  int64      `json:"trade_id"`
-	Type     string     `json:"type"`
+	Side     order.Side `json:"type"`
 	Quantity float64    `json:"quantity,string"`
 	Price    float64    `json:"price,string"`
 	Amount   float64    `json:"amount,string"`
@@ -67,25 +68,25 @@ type UserInfo struct {
 
 // OpenOrders stores the order info
 type OpenOrders struct {
-	OrderID  int64      `json:"order_id,string"`
-	Created  types.Time `json:"created"`
-	Type     string     `json:"type"`
-	Pair     string     `json:"pair"`
-	Price    float64    `json:"price,string"`
-	Quantity float64    `json:"quantity,string"`
-	Amount   float64    `json:"amount,string"`
+	OrderID  int64         `json:"order_id,string"`
+	Created  types.Time    `json:"created"`
+	Side     order.Side    `json:"type"`
+	Pair     currency.Pair `json:"pair"`
+	Price    float64       `json:"price,string"`
+	Quantity float64       `json:"quantity,string"`
+	Amount   float64       `json:"amount,string"`
 }
 
 // UserTrades stores the users trade info
 type UserTrades struct {
-	TradeID  int64      `json:"trade_id"`
-	Date     types.Time `json:"date"`
-	Type     string     `json:"type"`
-	Pair     string     `json:"pair"`
-	OrderID  int64      `json:"order_id"`
-	Quantity float64    `json:"quantity"`
-	Price    float64    `json:"price"`
-	Amount   float64    `json:"amount"`
+	TradeID  int64         `json:"trade_id"`
+	Date     types.Time    `json:"date"`
+	Side     order.Side    `json:"type"`
+	Pair     currency.Pair `json:"pair"`
+	OrderID  int64         `json:"order_id"`
+	Quantity float64       `json:"quantity"`
+	Price    float64       `json:"price"`
+	Amount   float64       `json:"amount"`
 }
 
 // CancelledOrder stores cancelled order data
@@ -139,14 +140,14 @@ type WalletHistory struct {
 	Begin   int64 `json:"begin,string"`
 	End     int64 `json:"end,string"`
 	History []struct {
-		Timestamp types.Time `json:"dt"`
-		Type      string     `json:"type"`
-		Currency  string     `json:"curr"`
-		Status    string     `json:"status"`
-		Provider  string     `json:"provider"`
-		Amount    float64    `json:"amount,string"`
-		Account   string     `json:"account"`
-		TXID      string     `json:"txid"`
+		Timestamp types.Time    `json:"dt"`
+		Type      string        `json:"type"`
+		Currency  currency.Code `json:"curr"`
+		Status    string        `json:"status"`
+		Provider  string        `json:"provider"`
+		Amount    float64       `json:"amount,string"`
+		Account   string        `json:"account"`
+		TXID      string        `json:"txid"`
 	}
 }
 

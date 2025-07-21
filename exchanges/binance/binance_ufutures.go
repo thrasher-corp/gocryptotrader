@@ -1010,19 +1010,12 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.M
 
 	limits := make([]order.MinMaxLevel, 0, len(usdtFutures.Symbols))
 	for x := range usdtFutures.Symbols {
-		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(usdtFutures.Symbols[x].BaseAsset,
-			usdtFutures.Symbols[x].QuoteAsset)
-		if err != nil {
-			return nil, err
-		}
-
 		if len(usdtFutures.Symbols[x].Filters) < 7 {
 			continue
 		}
 
 		limits = append(limits, order.MinMaxLevel{
-			Pair:                    cp,
+			Pair:                    currency.NewPair(usdtFutures.Symbols[x].BaseAsset, usdtFutures.Symbols[x].QuoteAsset),
 			Asset:                   asset.USDTMarginedFutures,
 			MinPrice:                usdtFutures.Symbols[x].Filters[0].MinPrice,
 			MaxPrice:                usdtFutures.Symbols[x].Filters[0].MaxPrice,

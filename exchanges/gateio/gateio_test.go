@@ -807,7 +807,7 @@ func TestSubAccountTransferToSubAccount(t *testing.T) {
 func TestGetWithdrawalStatus(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetWithdrawalStatus(t.Context(), currency.NewCode("")); err != nil {
+	if _, err := e.GetWithdrawalStatus(t.Context(), currency.EMPTYCODE); err != nil {
 		t.Errorf("%s GetWithdrawalStatus() error %v", e.Name, err)
 	}
 }

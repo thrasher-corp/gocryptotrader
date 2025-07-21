@@ -220,36 +220,20 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			oStatus, err := order.StringToOrderStatus(response.Data[i].OrdStatus)
-			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  response.Data[i].OrderID,
-					Err:      err,
-				}
-			}
-			oSide, err := order.StringToOrderSide(response.Data[i].Side)
-			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  response.Data[i].OrderID,
-					Err:      err,
-				}
-			}
 			e.Websocket.DataHandler <- &order.Detail{
 				Exchange:  e.Name,
 				OrderID:   response.Data[i].OrderID,
 				AccountID: strconv.FormatInt(response.Data[i].Account, 10),
 				AssetType: a,
 				Pair:      p,
-				Status:    oStatus,
+				Status:    response.Data[i].OrdStatus,
 				Trades: []order.TradeHistory{
 					{
 						Price:     response.Data[i].Price,
 						Amount:    response.Data[i].OrderQuantity,
 						Exchange:  e.Name,
 						TID:       response.Data[i].ExecID,
-						Side:      oSide,
+						Side:      response.Data[i].Side,
 						Timestamp: response.Data[i].Timestamp,
 						IsMaker:   false,
 					},
@@ -268,39 +252,15 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				oSide, err := order.StringToOrderSide(response.Data[x].Side)
-				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
-				}
-				oType, err := order.StringToOrderType(response.Data[x].OrderType)
-				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
-				}
-				oStatus, err := order.StringToOrderStatus(response.Data[x].OrderStatus)
-				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
-				}
 				e.Websocket.DataHandler <- &order.Detail{
 					Price:     response.Data[x].Price,
 					Amount:    response.Data[x].OrderQuantity,
 					Exchange:  e.Name,
 					OrderID:   response.Data[x].OrderID,
 					AccountID: strconv.FormatInt(response.Data[x].Account, 10),
-					Type:      oType,
-					Side:      oSide,
-					Status:    oStatus,
+					Type:      response.Data[x].OrderType,
+					Side:      response.Data[x].Side,
+					Status:    response.Data[x].OrderStatus,
 					AssetType: a,
 					Date:      response.Data[x].TransactTime,
 					Pair:      p,
@@ -312,42 +272,15 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				var oSide order.Side
-				oSide, err = order.StringToOrderSide(response.Data[x].Side)
-				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
-				}
-				var oType order.Type
-				oType, err = order.StringToOrderType(response.Data[x].OrderType)
-				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
-				}
-				var oStatus order.Status
-				oStatus, err = order.StringToOrderStatus(response.Data[x].OrderStatus)
-				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
-				}
 				e.Websocket.DataHandler <- &order.Detail{
 					Price:     response.Data[x].Price,
 					Amount:    response.Data[x].OrderQuantity,
 					Exchange:  e.Name,
 					OrderID:   response.Data[x].OrderID,
 					AccountID: strconv.FormatInt(response.Data[x].Account, 10),
-					Type:      oType,
-					Side:      oSide,
-					Status:    oStatus,
+					Type:      response.Data[x].OrderType,
+					Side:      response.Data[x].Side,
+					Status:    response.Data[x].OrderStatus,
 					AssetType: a,
 					Date:      response.Data[x].TransactTime,
 					Pair:      p,
@@ -488,17 +421,12 @@ func (e *Exchange) handleWsTrades(msg []byte) error {
 		if err != nil {
 			return err
 		}
-		oSide, err := order.StringToOrderSide(t.Side)
-		if err != nil {
-			return err
-		}
-
 		trades = append(trades, trade.Data{
 			TID:          t.TrdMatchID,
 			Exchange:     e.Name,
 			CurrencyPair: p,
 			AssetType:    a,
-			Side:         oSide,
+			Side:         t.Side,
 			Price:        t.Price,
 			Amount:       float64(t.Size),
 			Timestamp:    t.Timestamp,
