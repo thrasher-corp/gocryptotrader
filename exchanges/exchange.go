@@ -804,21 +804,21 @@ func (b *Base) SetAPIURL() error {
 	var err error
 	if b.Config.API.OldEndPoints != nil {
 		if b.Config.API.OldEndPoints.URL != "" && b.Config.API.OldEndPoints.URL != config.APIURLNonDefaultMessage {
-			err = b.API.Endpoints.SetRunning(RestSpot.String(), b.Config.API.OldEndPoints.URL)
+			err = b.API.Endpoints.SetRunningURL(RestSpot.String(), b.Config.API.OldEndPoints.URL)
 			if err != nil {
 				return err
 			}
 			checkInsecureEndpoint(b.Config.API.OldEndPoints.URL)
 		}
 		if b.Config.API.OldEndPoints.URLSecondary != "" && b.Config.API.OldEndPoints.URLSecondary != config.APIURLNonDefaultMessage {
-			err = b.API.Endpoints.SetRunning(RestSpotSupplementary.String(), b.Config.API.OldEndPoints.URLSecondary)
+			err = b.API.Endpoints.SetRunningURL(RestSpotSupplementary.String(), b.Config.API.OldEndPoints.URLSecondary)
 			if err != nil {
 				return err
 			}
 			checkInsecureEndpoint(b.Config.API.OldEndPoints.URLSecondary)
 		}
 		if b.Config.API.OldEndPoints.WebsocketURL != "" && b.Config.API.OldEndPoints.WebsocketURL != config.WebsocketURLNonDefaultMessage {
-			err = b.API.Endpoints.SetRunning(WebsocketSpot.String(), b.Config.API.OldEndPoints.WebsocketURL)
+			err = b.API.Endpoints.SetRunningURL(WebsocketSpot.String(), b.Config.API.OldEndPoints.WebsocketURL)
 			if err != nil {
 				return err
 			}
@@ -865,7 +865,7 @@ func (b *Base) SetAPIURL() error {
 
 			checkInsecureEndpoint(val)
 
-			err = b.API.Endpoints.SetRunning(key, val)
+			err = b.API.Endpoints.SetRunningURL(key, val)
 			if err != nil {
 				return err
 			}
@@ -1242,7 +1242,7 @@ func (b *Base) NewEndpoints() *Endpoints {
 // SetDefaultEndpoints declares and sets the default URLs map
 func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
 	for k, v := range m {
-		err := e.SetRunning(k.String(), v)
+		err := e.SetRunningURL(k.String(), v)
 		if err != nil {
 			return err
 		}
@@ -1250,8 +1250,8 @@ func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
 	return nil
 }
 
-// SetRunning populates running URLs map
-func (e *Endpoints) SetRunning(key, val string) error {
+// SetRunningURL populates running URLs map
+func (e *Endpoints) SetRunningURL(key, val string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	err := validateKey(key)
