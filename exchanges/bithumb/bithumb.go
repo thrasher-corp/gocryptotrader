@@ -132,7 +132,19 @@ func (e *Exchange) GetOrderBook(ctx context.Context, symbol string) (*Orderbook,
 		return nil, errors.New(response.Message)
 	}
 
+	response.Data.Bids = response.Data.Bids.FilterZeros()
+	response.Data.Asks = response.Data.Asks.FilterZeros()
+
 	return &response, nil
+}
+
+func (o OrderbookLevels) FilterZeros() (c OrderbookLevels) {
+	for _, l := range o {
+		if l.Quantity > 0 {
+			c = append(c, l)
+		}
+	}
+	return c
 }
 
 // GetAssetStatus returns the withdrawal and deposit status for the symbol
