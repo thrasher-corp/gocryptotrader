@@ -18,7 +18,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 | Exchange | REST API | Streaming API | FIX API |
 |----------|------|-----------|-----|
-| Alphapoint | Yes  | Yes        | NA  |
 | Binance.US| Yes  | Yes        | NA  |
 | Binance| Yes  | Yes        | NA  |
 | Bitfinex | Yes  | Yes        | NA  |
