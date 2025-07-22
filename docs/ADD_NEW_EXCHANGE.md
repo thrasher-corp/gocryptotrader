@@ -142,6 +142,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | BTSE | Yes | Yes | NA |
 | Bybit | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
+| Cryptodotcom | Yes | Yes | No |
 | Deribit | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | CoinbasePro | Yes | Yes | No|
@@ -171,6 +172,7 @@ var Exchanges = []string{
 	"bybit",
 	"coinbasepro",
 	"coinut",
+	"cryptodotcom",
 	"deribit",
 	"exmo",
 	"gateio",
