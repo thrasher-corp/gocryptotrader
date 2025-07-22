@@ -265,8 +265,7 @@ func GetFilteredURLVals(vals url.Values, items Exclusion) string {
 // that should not be there.
 func CheckResponsePayload(data []byte, items Exclusion) ([]byte, error) {
 	var intermediary any
-	err := json.Unmarshal(data, &intermediary)
-	if err != nil {
+	if err := json.Unmarshal(data, &intermediary); err != nil {
 		return nil, err
 	}
 

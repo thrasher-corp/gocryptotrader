@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
@@ -62,7 +63,7 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	}
 
 	payload, err := json.Marshal(test1)
-	assert.NoErrorf(t, err, "marshal error: %v", err)
+	require.NoErrorf(t, err, "marshal error: %v", err)
 
 	_, err = DeriveURLValsFromJSONMap(payload)
 	assert.NoErrorf(t, err, "DeriveURLValsFromJSON error: %v", err)
@@ -78,9 +79,13 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	}
 
 	payload, err = json.Marshal(test2)
-	assert.NoErrorf(t, err, "marshal error: %v", err)
+	require.NoErrorf(t, err, "marshal error: %v", err)
 
-	vals, err := DeriveURLValsFromJSONMap(payload)
-	assert.NoErrorf(t, err, "DeriveURLValsFromJSON error: %v", err)
-	assert.Equalf(t, "1", vals["val"][0], "DeriveURLValsFromJSON unexpected value: ^%v", vals["val"][0])
+	values, err := DeriveURLValsFromJSONMap(payload)
+	require.NoErrorf(t, err, "DeriveURLValsFromJSON error: %v", err)
+	require.Len(t, values, 7)
+	for key, val := range values {
+		require.Len(t, val, 1)
+		assert.Equalf(t, val[0], test2[key], "DeriveURLValsFromJSON unexpected value: ^%v", val[0])
+	}
 }
