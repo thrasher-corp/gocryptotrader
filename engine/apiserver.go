@@ -124,7 +124,6 @@ func (m *apiServerManager) newRouter(isREST bool) *mux.Router {
 			{"", http.MethodGet, "/", m.getIndex},
 			{"GetAllSettings", http.MethodGet, "/config/all", m.restGetAllSettings},
 			{"SaveAllSettings", http.MethodPost, "/config/all/save", m.restSaveAllSettings},
-			{"AllEnabledAccountInfo", http.MethodGet, "/exchanges/enabled/accounts/all", m.restGetAllEnabledAccountInfo},
 			{"AllActiveExchangesAndCurrencies", http.MethodGet, "/exchanges/enabled/latest/all", m.restGetAllActiveTickers},
 			{"GetPortfolio", http.MethodGet, "/portfolio/all", m.restGetPortfolio},
 			{"AllActiveExchangesAndOrderbooks", http.MethodGet, "/exchanges/orderbook/latest/all", m.restGetAllActiveOrderbooks},
@@ -288,16 +287,6 @@ func (m *apiServerManager) restGetAllActiveTickers(w http.ResponseWriter, r *htt
 	}
 }
 
-// restGetAllEnabledAccountInfo via get request returns JSON response of account
-// info
-func (m *apiServerManager) restGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
-	response := getAllActiveAccounts(m.exchangeManager)
-	err := writeResponse(w, response)
-	if err != nil {
-		handleError(r.Method, err)
-	}
-}
-
 // getIndex returns an HTML snippet for when a user requests the index URL
 func (m *apiServerManager) getIndex(w http.ResponseWriter, _ *http.Request) {
 	_, err := fmt.Fprint(w, restIndexResponse)
@@ -367,36 +356,6 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 		exchangeTickers = append(exchangeTickers, EnabledExchangeCurrencies{ExchangeName: e.GetName(), ExchangeValues: tickers})
 	}
 	return exchangeTickers
-}
-
-// getAllActiveAccounts returns all enabled exchanges accounts
-func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
-	exchanges, err := m.GetExchanges()
-	if err != nil {
-		log.Errorf(log.APIServerMgr, "Cannot get exchanges: %v", err)
-		return nil
-	}
-
-	accounts := make([]AllEnabledExchangeAccounts, 0, len(exchanges))
-	for x := range exchanges {
-		assets := exchanges[x].GetAssetTypes(true)
-		exchName := exchanges[x].GetName()
-		var exchangeAccounts AllEnabledExchangeAccounts
-		for y := range assets {
-			a, err := exchanges[x].GetCachedAccountInfo(context.TODO(), assets[y])
-			if err != nil {
-				log.Errorf(log.APIServerMgr,
-					"Exchange %s failed to retrieve %s ticker. Err: %s\n",
-					exchName,
-					assets[y],
-					err)
-				continue
-			}
-			exchangeAccounts.Data = append(exchangeAccounts.Data, a)
-		}
-		accounts = append(accounts, exchangeAccounts)
-	}
-	return accounts
 }
 
 // StartWebsocketServer starts a Websocket handler
@@ -772,15 +731,6 @@ func wsSaveConfig(client *websocketClient, data any) error {
 		return err
 	}
 	wsResp.Data = WebsocketResponseSuccess
-	return client.SendWebsocketMessage(wsResp)
-}
-
-func wsGetAccountInfo(client *websocketClient, _ any) error {
-	accountInfo := getAllActiveAccounts(client.exchangeManager)
-	wsResp := WebsocketEventResponse{
-		Event: "GetAccountInfo",
-		Data:  accountInfo,
-	}
 	return client.SendWebsocketMessage(wsResp)
 }
 

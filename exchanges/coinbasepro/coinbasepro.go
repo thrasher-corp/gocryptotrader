@@ -201,7 +201,7 @@ func (e *Exchange) GetAccounts(ctx context.Context) ([]AccountResponse, error) {
 		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproAccounts, nil, &resp)
 }
 
-// GetAccount returns information for a single account. Use this endpoint when
+// GetAccount returns information for a single accounts. Use this endpoint when
 // account_id is known
 func (e *Exchange) GetAccount(ctx context.Context, accountID string) (AccountResponse, error) {
 	resp := AccountResponse{}
@@ -498,7 +498,7 @@ func (e *Exchange) DepositViaPaymentMethod(ctx context.Context, amount float64, 
 		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproPaymentMethodDeposit, req, &resp)
 }
 
-// DepositViaCoinbase deposits funds from a coinbase account. Move funds between
+// DepositViaCoinbase deposits funds from a coinbase accounts. Move funds between
 // a Coinbase account and coinbasepro trading account within daily limits. Moving
 // funds between Coinbase and coinbasepro is instant and free. See the Coinbase
 // Accounts section for retrieving your Coinbase accounts.
@@ -534,7 +534,7 @@ func (e *Exchange) WithdrawViaPaymentMethod(ctx context.Context, amount float64,
 }
 
 // /////////////////////// NO ROUTE FOUND ERROR ////////////////////////////////
-// WithdrawViaCoinbase withdraws funds to a coinbase account.
+// WithdrawViaCoinbase withdraws funds to a coinbase accounts.
 //
 // amount - The amount to withdraw
 // currency - The type of currency

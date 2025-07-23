@@ -21,8 +21,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -522,26 +522,19 @@ func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	changes := make([]account.Change, len(resp.Result))
+	subAccts := accounts.SubAccounts{}
 	for i := range resp.Result {
-		changes[i] = account.Change{
-			Account:   resp.Result[i].User,
-			AssetType: asset.Spot,
-			Balance: &account.Balance{
-				Currency:  currency.NewCode(resp.Result[i].Currency),
-				Total:     resp.Result[i].Total.Float64(),
-				Free:      resp.Result[i].Available.Float64(),
-				Hold:      resp.Result[i].Total.Float64() - resp.Result[i].Available.Float64(),
-				UpdatedAt: resp.Result[i].Timestamp.Time(),
-			},
-		}
+		a := accounts.NewSubAccount(asset.Spot, resp.Result[i].User)
+		a.Balances.Set(resp.Result[i].Currency, accounts.Balance{
+			Total:     resp.Result[i].Total.Float64(),
+			Free:      resp.Result[i].Available.Float64(),
+			Hold:      resp.Result[i].Total.Float64() - resp.Result[i].Available.Float64(),
+			UpdatedAt: resp.Result[i].Timestamp.Time(),
+		})
+		subAccts = subAccts.Merge(a)
 	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	e.Websocket.DataHandler <- subAccts
+	return e.Accounts.Save(ctx, subAccts, false)
 }
 
 func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error {
@@ -555,25 +548,17 @@ func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error
 	if err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	changes := make([]account.Change, len(resp.Result))
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Margin, "")}
 	for x := range resp.Result {
-		changes[x] = account.Change{
-			AssetType: asset.Margin,
-			Balance: &account.Balance{
-				Currency:  currency.NewCode(resp.Result[x].Currency),
-				Total:     resp.Result[x].Available.Float64() + resp.Result[x].Freeze.Float64(),
-				Free:      resp.Result[x].Available.Float64(),
-				Hold:      resp.Result[x].Freeze.Float64(),
-				UpdatedAt: resp.Result[x].Timestamp.Time(),
-			},
-		}
+		subAccts[0].Balances.Set(resp.Result[x].Currency, accounts.Balance{
+			Total:     resp.Result[x].Available.Float64() + resp.Result[x].Freeze.Float64(),
+			Free:      resp.Result[x].Available.Float64(),
+			Hold:      resp.Result[x].Freeze.Float64(),
+			UpdatedAt: resp.Result[x].Timestamp.Time(),
+		})
 	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	e.Websocket.DataHandler <- subAccts
+	return e.Accounts.Save(ctx, subAccts, false)
 }
 
 func (e *Exchange) processFundingBalances(data []byte) error {
@@ -602,25 +587,18 @@ func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) e
 	if err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	changes := make([]account.Change, len(resp.Result))
+	subAccts := accounts.SubAccounts{}
 	for x := range resp.Result {
-		changes[x] = account.Change{
-			Account:   resp.Result[x].User,
-			AssetType: asset.Margin,
-			Balance: &account.Balance{
-				Currency:  currency.NewCode(resp.Result[x].Currency),
-				Total:     resp.Result[x].Total.Float64(),
-				Free:      resp.Result[x].Available.Float64(),
-				UpdatedAt: resp.Result[x].Timestamp.Time(),
-			},
-		}
+		a := accounts.NewSubAccount(asset.Margin, resp.Result[x].User)
+		a.Balances.Set(resp.Result[x].Currency, accounts.Balance{
+			Total:     resp.Result[x].Total.Float64(),
+			Free:      resp.Result[x].Available.Float64(),
+			UpdatedAt: resp.Result[x].Timestamp.Time(),
+		})
+		subAccts = subAccts.Merge(a)
 	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	e.Websocket.DataHandler <- subAccts
+	return e.Accounts.Save(ctx, subAccts, false)
 }
 
 func (e *Exchange) processCrossMarginLoans(data []byte) error {

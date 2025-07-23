@@ -2592,7 +2592,7 @@ type SubaccountInfo struct {
 	SubAccountName  string     `json:"subAcct"`
 	SubaccountType  string     `json:"type"` // sub-account note
 	SubaccountLabel string     `json:"label"`
-	MobileNumber    string     `json:"mobile"`      // Mobile number that linked with the sub-account.
+	MobileNumber    string     `json:"mobile"`      // Mobile number that linked with the sub-accounts.
 	GoogleAuth      bool       `json:"gAuth"`       // If the sub-account switches on the Google Authenticator for login authentication.
 	CanTransferOut  bool       `json:"canTransOut"` // If can transfer out, false: can not transfer out, true: can transfer.
 	Timestamp       types.Time `json:"ts"`

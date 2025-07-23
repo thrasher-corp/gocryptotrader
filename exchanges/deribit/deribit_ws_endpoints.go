@@ -2013,7 +2013,7 @@ func (e *Exchange) SayHello(ctx context.Context, clientName, clientVersion strin
 	return resp, e.SendWSRequest(ctx, nonMatchingEPL, "public/hello", input, &resp, false)
 }
 
-// WsRetrieveCancelOnDisconnect read current Cancel On Disconnect configuration for the account.
+// WsRetrieveCancelOnDisconnect read current Cancel On Disconnect configuration for the accounts.
 // 'scope': Specifies if Cancel On Disconnect change should be applied/checked for the current connection or the account (default - connection)
 // Scope connection can be used only when working via Websocket.
 func (e *Exchange) WsRetrieveCancelOnDisconnect(ctx context.Context, scope string) (*CancelOnDisconnect, error) {

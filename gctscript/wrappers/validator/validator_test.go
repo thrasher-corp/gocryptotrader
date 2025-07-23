@@ -60,19 +60,19 @@ func TestWrapper_IsEnabled(t *testing.T) {
 	}
 }
 
-func TestWrapper_AccountInformation(t *testing.T) {
+func TestWrapperAccountBalances(t *testing.T) {
 	t.Parallel()
 
-	_, err := testWrapper.AccountInformation(t.Context(),
+	_, err := testWrapper.AccountBalances(t.Context(),
 		exchName, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = testWrapper.AccountInformation(t.Context(),
+	_, err = testWrapper.AccountBalances(t.Context(),
 		exchError.String(), asset.Spot)
 	if err == nil {
-		t.Fatal("expected AccountInformation to return error on invalid name")
+		t.Fatal("expected AccountHoldings to return error on invalid name")
 	}
 }
 

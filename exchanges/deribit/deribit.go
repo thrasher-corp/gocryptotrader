@@ -852,7 +852,7 @@ func (e *Exchange) GetWithdrawals(ctx context.Context, ccy currency.Code, count,
 }
 
 // SubmitTransferBetweenSubAccounts transfer funds between two (sub)accounts.
-// Id of the source (sub)account. Can be found in My Account >> Subaccounts tab. By default, it is the Id of the account which made the request.
+// Id of the source (sub)accounts. Can be found in My Account >> Subaccounts tab. By default, it is the Id of the account which made the request.
 // However, if a different "source" is specified, the user must possess the mainaccount scope, and only other subaccounts can be designated as the source.
 func (e *Exchange) SubmitTransferBetweenSubAccounts(ctx context.Context, ccy currency.Code, amount float64, destinationID int64, source string) (*TransferData, error) {
 	if ccy.IsEmpty() {

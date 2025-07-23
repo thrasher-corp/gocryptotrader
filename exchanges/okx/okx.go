@@ -1622,7 +1622,7 @@ func (e *Exchange) GetAccountInstruments(ctx context.Context, instrumentType ass
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAccountInstrumentsEPL, http.MethodGet, common.EncodeURLValues("account/instruments", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// AccountBalance retrieves a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
+// AccountBalance retrieves a list of assets (with non-zero balance), remaining balance, and available amount in the trading accounts.
 // Interest-free quota and discount rates are public data and not displayed on the account interface
 func (e *Exchange) AccountBalance(ctx context.Context, ccy currency.Code) ([]Account, error) {
 	params := url.Values{}
@@ -1699,7 +1699,7 @@ func (e *Exchange) GetBillsDetailLast7Days(ctx context.Context, arg *BillsDetail
 }
 
 // GetBillsDetail3Months retrieves the account’s bills.
-// The bill refers to all transaction records that result in changing the balance of an account.
+// The bill refers to all transaction records that result in changing the balance of an accounts.
 // Pagination is supported, and the response is sorted with most recent first.
 // This endpoint can retrieve data from the last 3 months
 func (e *Exchange) GetBillsDetail3Months(ctx context.Context, arg *BillsDetailQueryParameter) ([]BillsDetailResponse, error) {

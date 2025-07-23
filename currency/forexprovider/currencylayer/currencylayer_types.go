@@ -24,7 +24,7 @@ const (
 
 // CurrencyLayer is a foreign exchange rate provider at
 // https://currencylayer.com NOTE default base currency is USD when using a free
-// account. Has automatic upgrade to a SSL connection.
+// accounts. Has automatic upgrade to a SSL connection.
 type CurrencyLayer struct {
 	base.Base
 	Requester *request.Requester
