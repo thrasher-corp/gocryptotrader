@@ -42,7 +42,6 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 
 | Exchange | Deposits | Withdrawals | Notes|
 |----------|----------|-------------|------|
-| Alphapoint | No | No | |
 | Binance.US | Yes  | Yes        | | 
 | Binance | Yes | Yes | |
 | Bitfinex | Yes | Yes | Only supports USDT |
