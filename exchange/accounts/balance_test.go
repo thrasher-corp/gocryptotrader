@@ -134,13 +134,13 @@ func TestBalanceUpdate(t *testing.T) {
 
 	n = time.Now()
 	u, err = b.update(Balance{UpdatedAt: n, Currency: currency.LTC, Total: 4.2})
-	require.NoError(t, err, "should not error when Currency matches")
+	require.NoError(t, err, "Must not error when Currency matches")
 	assert.Equal(t, n, b.internal.UpdatedAt, "should update UpdatedAt")
 	assert.False(t, u, "should return not updated when only time changed")
 
 	n = time.Now()
 	u, err = b.update(Balance{UpdatedAt: n, Currency: currency.LTC, Total: 4.4})
-	assert.NoError(t, err, "should not error when Currency matches")
+	require.NoError(t, err, "Must not error when Currency matches")
 	assert.Equal(t, n, b.internal.UpdatedAt, "should update UpdatedAt")
 	assert.Equal(t, 4.4, b.internal.Total, "should update Total")
 	assert.True(t, u, "should return updated")
