@@ -3960,7 +3960,7 @@ func TestHandleNoTopicWebsocketResponse(t *testing.T) {
 		t.Run(fmt.Sprintf("operation: %s, requestID: %s", tc.operation, tc.requestID), func(t *testing.T) {
 			t.Parallel()
 			err := e.handleNoTopicWebsocketResponse(&WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
-			assert.ErrorIs(t, err, tc.error, "handleNoTopicWebsocketResponse must return expected error")
+			assert.ErrorIs(t, err, tc.error, "handleNoTopicWebsocketResponse should return expected error")
 		})
 	}
 }
