@@ -50,68 +50,43 @@ func getKlineIntervalString(interval kline.Interval) string {
 }
 
 // WsUFuturesConnect initiates a websocket connection
-func (e *Exchange) WsUFuturesConnect() error {
-	ctx := context.Background()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	var err error
-	var dialer gws.Dialer
-	dialer.HandshakeTimeout = e.Config.HTTPTimeout
-	dialer.Proxy = http.ProxyFromEnvironment
-	wsURL := binanceUFuturesWebsocketURL + "/stream"
-	err = e.Websocket.SetWebsocketURL(wsURL, false, false)
+func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connection) error {
+	err := e.CurrencyPairs.IsAssetEnabled(asset.USDTMarginedFutures)
 	if err != nil {
 		return err
 	}
+
+	dialer := gws.Dialer{
+		HandshakeTimeout: e.Config.HTTPTimeout,
+		Proxy:            http.ProxyFromEnvironment,
+	}
+	wsURL := binanceUFuturesWebsocketURL + "/stream"
+	conn.SetURL(wsURL)
+
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		listenKey, err = e.GetWsAuthStreamKey(context.TODO())
 		switch {
 		case err != nil:
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys,
-				"%v unable to connect to authenticated Websocket. Error: %s",
-				e.Name,
-				err)
+			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", e.Name, err)
 		default:
 			wsURL = binanceUFuturesAuthWebsocketURL + "?streams=" + listenKey
-			err = e.Websocket.SetWebsocketURL(wsURL, false, false)
-			if err != nil {
-				return err
-			}
+			conn.SetURL(wsURL)
 		}
 	}
-	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err = conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
-	e.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
-	e.Websocket.Wg.Add(1)
-	go e.wsUFuturesReadData(asset.USDTMarginedFutures)
 	return nil
 }
 
-// wsUFuturesReadData receives and passes on websocket messages for processing
-// for USDT margined instruments.
-func (e *Exchange) wsUFuturesReadData(assetType asset.Item) {
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := e.wsHandleFuturesData(resp.Raw, assetType)
-		if err != nil {
-			e.Websocket.DataHandler <- err
-		}
-	}
-}
-
-func (e *Exchange) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error {
+func (e *Exchange) wsHandleFuturesData(ctx context.Context, respRaw []byte, assetType asset.Item) error {
 	result := struct {
 		Result json.RawMessage `json:"result"`
 		ID     int64           `json:"id"`
@@ -562,44 +537,44 @@ func (e *Exchange) processMarkPriceUpdate(respRaw []byte, array bool) error {
 }
 
 // SubscribeFutures subscribes to a set of channels
-func (e *Exchange) SubscribeFutures(channelsToSubscribe subscription.List) error {
-	return e.handleSubscriptions("SUBSCRIBE", channelsToSubscribe)
+func (e *Exchange) SubscribeFutures(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
+	return e.handleSubscriptions(ctx, conn, "SUBSCRIBE", channelsToSubscribe)
 }
 
 // UnsubscribeFutures unsubscribes from a set of channels
-func (e *Exchange) UnsubscribeFutures(channelsToUnsubscribe subscription.List) error {
-	return e.handleSubscriptions("UNSUBSCRIBE", channelsToUnsubscribe)
+func (e *Exchange) UnsubscribeFutures(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+	return e.handleSubscriptions(ctx, conn, "UNSUBSCRIBE", channelsToUnsubscribe)
 }
 
-func (e *Exchange) handleSubscriptions(operation string, subscriptionChannels subscription.List) error {
+func (e *Exchange) handleSubscriptions(ctx context.Context, conn websocket.Connection, operation string, subscriptionChannels subscription.List) error {
 	payload := WsPayload{
-		ID:     e.Websocket.Conn.GenerateMessageID(false),
+		ID:     conn.GenerateMessageID(false),
 		Method: operation,
 	}
 	for i := range subscriptionChannels {
 		payload.Params = append(payload.Params, subscriptionChannels[i].Channel)
 		if i%50 == 0 && i != 0 {
-			err := e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payload)
+			err := conn.SendJSONMessage(ctx, request.UnAuth, payload)
 			if err != nil {
 				return err
 			}
 			payload.Params = []string{}
-			payload.ID = e.Websocket.Conn.GenerateMessageID(false)
+			payload.ID = conn.GenerateMessageID(false)
 		}
 	}
 	if len(payload.Params) > 0 {
-		err := e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payload)
+		err := conn.SendJSONMessage(ctx, request.UnAuth, payload)
 		if err != nil {
 			return err
 		}
 	}
 	if operation == "UNSUBSCRIBE" {
-		err := e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subscriptionChannels...)
+		err := e.Websocket.RemoveSubscriptions(conn, subscriptionChannels...)
 		if err != nil {
 			return err
 		}
 	}
-	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subscriptionChannels...)
+	return e.Websocket.AddSuccessfulSubscriptions(conn, subscriptionChannels...)
 }
 
 // GenerateUFuturesDefaultSubscriptions generates the default subscription set
@@ -659,13 +634,13 @@ func (e *Exchange) GenerateUFuturesDefaultSubscriptions() (subscription.List, er
 }
 
 // ListSubscriptions retrieves list of subscriptions
-func (e *Exchange) ListSubscriptions() ([]string, error) {
+func (e *Exchange) ListSubscriptions(ctx context.Context, conn websocket.Connection) ([]string, error) {
 	req := &WsPayload{
-		ID:     e.Websocket.Conn.GenerateMessageID(false),
+		ID:     conn.GenerateMessageID(false),
 		Method: "LIST_SUBSCRIPTIONS",
 	}
 	var resp WebsocketActionResponse
-	respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, &req)
+	respRaw, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, req.ID, &req)
 	if err != nil {
 		return nil, err
 	}
@@ -673,14 +648,14 @@ func (e *Exchange) ListSubscriptions() ([]string, error) {
 }
 
 // SetProperty to set a property for the websocket connection you are using.
-func (e *Exchange) SetProperty(property string, value interface{}) error {
+func (e *Exchange) SetProperty(ctx context.Context, conn websocket.Connection, property string, value interface{}) error {
 	// Currently, the only property can be set is to set whether "combined" stream payloads are enabled are not.
 	req := &struct {
 		ID     int64         `json:"method"`
 		Method string        `json:"params"`
 		Params []interface{} `json:"id"`
 	}{
-		ID:     e.Websocket.Conn.GenerateMessageID(false),
+		ID:     conn.GenerateMessageID(false),
 		Method: "SET_PROPERTY",
 		Params: []interface{}{
 			property,
@@ -688,7 +663,7 @@ func (e *Exchange) SetProperty(property string, value interface{}) error {
 		},
 	}
 	var resp WebsocketActionResponse
-	respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, &req)
+	respRaw, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, req.ID, &req)
 	if err != nil {
 		return err
 	}

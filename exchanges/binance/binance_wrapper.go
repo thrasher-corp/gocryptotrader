@@ -222,55 +222,98 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
-	ePoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            binanceDefaultWebsocketURL,
-		RunningURL:            ePoint,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+	if err := e.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:               exch,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		TradeFeed:                    e.Features.Enabled.TradeFeed,
+		UseMultiConnectionManagement: true,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
 		},
-		TradeFeed: e.Features.Enabled.TradeFeed,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
-	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
-		URL:                  binanceWebsocketAPIURL,
-		Authenticated:        true,
-	})
-	if err != nil {
+	// Spot connection for subscriptions
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   binanceDefaultWebsocketURL,
+		Connector:             e.WsConnect,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		Handler:               e.wsHandleData,
+		GenerateSubscriptions: e.generateSubscriptions,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+		MessageFilter:         asset.Spot,
+	}); err != nil {
 		return err
 	}
 
+	// Spot connection for API calls
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		MessageFilter:         spotWebsocketAPI,
+		URL:                   binanceWebsocketAPIURL,
+		Handler:               e.wsHandleSpotAPIData,
+		Connector:             e.WsConnectAPI,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		GenerateSubscriptions: e.generateSubscriptions,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+		Authenticated:         true,
+	}); err != nil {
+		return err
+	}
+
+	// Coin Margined Futures connection
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		MessageFilter:         asset.CoinMarginedFutures,
+		URL:                   binanceCFuturesWebsocketURL,
+		Handler:               e.wsHandleCFuturesData,
+		Connector:             e.WsCFutureConnect,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		GenerateSubscriptions: e.GenerateDefaultCFuturesSubscriptions,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+	}); err != nil {
+		return err
+	}
+
+	// USDT Margined Futures connection
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		MessageFilter: asset.USDTMarginedFutures,
+		URL:           binanceUFuturesWebsocketURL,
+		Handler: func(ctx context.Context, respRaw []byte) error {
+			return e.wsHandleFuturesData(ctx, respRaw, asset.USDTMarginedFutures)
+		},
+		Connector:             e.WsUFuturesConnect,
+		Subscriber:            e.SubscribeFutures,
+		Unsubscriber:          e.UnsubscribeFutures,
+		GenerateSubscriptions: e.GenerateUFuturesDefaultSubscriptions,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+	}); err != nil {
+		return err
+	}
+
+	// European Options Margined Futures connection
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
-		URL:                  binanceWebsocketAPIURL,
-		Authenticated:        true,
-	})
-	if err != nil {
-		return err
-	}
-
-	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+		MessageFilter:         asset.Options,
+		URL:                   eoptionsWebsocketURL,
+		Handler:               e.wsHandleEOptionsData,
+		Connector:             e.WsOptionsConnect,
+		Subscriber:            e.OptionSubscribe,
+		Unsubscriber:          e.OptionUnsubscribe,
+		GenerateSubscriptions: e.GenerateEOptionsDefaultSubscriptions,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
 	})
 }
 
@@ -1261,20 +1304,20 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		var oType, timeInForce string
 		switch s.Type {
 		case order.Limit:
-			oType = cfuturesLimit
+			oType = "LIMIT"
 			timeInForce = order.GoodTillCancel.String()
 		case order.Market:
-			oType = cfuturesMarket
+			oType = "MARKET"
 		case order.Stop:
-			oType = cfuturesStop
+			oType = "STOP"
 		case order.TakeProfit:
-			oType = cfuturesTakeProfit
+			oType = "TAKE_PROFIT"
 		case order.StopMarket:
-			oType = cfuturesStopMarket
+			oType = "STOP_MARKET"
 		case order.TakeProfitMarket:
-			oType = cfuturesTakeProfitMarket
+			oType = "TAKE_PROFIT_MARKET"
 		case order.TrailingStop:
-			oType = cfuturesTrailingStopMarket
+			oType = "TRAILING_STOP_MARKET"
 		default:
 			return nil, errors.New("invalid type, check api docs for updates")
 		}

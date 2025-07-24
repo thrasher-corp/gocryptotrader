@@ -31,35 +31,33 @@ var defaultCFuturesSubscriptions = []string{
 }
 
 // WsCFutureConnect initiates a websocket connection to coin margined futures websocket
-func (e *Exchange) WsCFutureConnect() error {
-	ctx := context.Background()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	var err error
-	var dialer gws.Dialer
-	dialer.HandshakeTimeout = e.Config.HTTPTimeout
-	dialer.Proxy = http.ProxyFromEnvironment
-	wsURL := binanceCFuturesWebsocketURL + "/stream"
-	err = e.Websocket.SetWebsocketURL(wsURL, false, false)
+func (e *Exchange) WsCFutureConnect(ctx context.Context, conn websocket.Connection) error {
+	err := e.CurrencyPairs.IsAssetEnabled(asset.CoinMarginedFutures)
 	if err != nil {
+		return err
+	}
+
+	dialer := gws.Dialer{
+		HandshakeTimeout: e.Config.HTTPTimeout,
+		Proxy:            http.ProxyFromEnvironment,
+	}
+	wsURL := binanceCFuturesWebsocketURL + "/stream"
+	if err = e.Websocket.SetWebsocketURL(wsURL, false, false); err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Errorf(log.ExchangeSys,
 			"%v unable to connect to authenticated Websocket. Error: %s",
 			e.Name,
 			err)
 	}
-	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err = conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
-	e.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
-	e.Websocket.Wg.Add(1)
-	go e.wsCFuturesReadData()
 	return nil
 }
 
@@ -116,23 +114,7 @@ func (e *Exchange) GenerateDefaultCFuturesSubscriptions() (subscription.List, er
 	return subscriptions, nil
 }
 
-// wsCFuturesReadData receives and passes on websocket messages for processing
-// for Coin margined instruments.
-func (e *Exchange) wsCFuturesReadData() {
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := e.wsHandleCFuturesData(resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- err
-		}
-	}
-}
-
-func (e *Exchange) wsHandleCFuturesData(respRaw []byte) error {
+func (e *Exchange) wsHandleCFuturesData(_ context.Context, respRaw []byte) error {
 	result := struct {
 		Result json.RawMessage `json:"result"`
 		ID     int64           `json:"id"`

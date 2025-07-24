@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -23,6 +24,8 @@ import (
 const (
 	binanceWebsocketAPIURL = "wss://ws-api.binance.com:443/ws-api/v3"
 )
+
+const spotWebsocketAPI = "Spot-Websocket-API"
 
 // websocket request status codes
 var websocketStatusCodes = map[int64]string{
@@ -34,31 +37,33 @@ var websocketStatusCodes = map[int64]string{
 }
 
 // WsConnectAPI creates a new websocket connection to API server
-func (e *Exchange) WsConnectAPI() error {
-	ctx := context.Background()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
+func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) (err error) {
+	defer func() {
+		if err != nil {
+			e.SetIsAPIStreamConnected(false)
+		} else {
+			e.SetIsAPIStreamConnected(true)
+		}
+	}()
+
+	if err = e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
+		return err
 	}
-
-	var err error
-	var dialer gws.Dialer
-	dialer.HandshakeTimeout = e.Config.HTTPTimeout
-	dialer.Proxy = http.ProxyFromEnvironment
-
-	e.Websocket.AuthConn.SetURL(binanceWebsocketAPIURL)
-	err = e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	conn.SetURL(binanceWebsocketAPIURL)
+	dialer := gws.Dialer{
+		HandshakeTimeout: e.Config.HTTPTimeout,
+		Proxy:            http.ProxyFromEnvironment,
+	}
+	if err = conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 
-	e.Websocket.AuthConn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
 
-	e.Websocket.Wg.Add(1)
-	go e.wsAPIReadData()
 	return nil
 }
 
@@ -76,24 +81,8 @@ func (e *Exchange) SetIsAPIStreamConnected(isAPIStreamConnected bool) {
 	e.isAPIStreamConnected = isAPIStreamConnected
 }
 
-// wsAPIReadData receives and passes on websocket api messages for processing
-func (e *Exchange) wsAPIReadData() {
-	defer e.Websocket.Wg.Done()
-
-	for {
-		resp := e.Websocket.AuthConn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := e.wsHandleSpotAPIData(resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- err
-		}
-	}
-}
-
 // wsHandleSpotAPIData routes API response data.
-func (e *Exchange) wsHandleSpotAPIData(respRaw []byte) error {
+func (e *Exchange) wsHandleSpotAPIData(ctx context.Context, respRaw []byte) error {
 	result := struct {
 		Result json.RawMessage `json:"result"`
 		ID     string          `json:"id"`
@@ -114,16 +103,20 @@ func (e *Exchange) wsHandleSpotAPIData(respRaw []byte) error {
 
 // SendWsRequest sends websocket endpoint request through the websocket connection
 func (e *Exchange) SendWsRequest(method string, param, result interface{}) error {
+	conn, err := e.Websocket.GetConnection(spotWebsocketAPI)
+	if err != nil {
+		return err
+	}
 	input := &struct {
 		ID     string      `json:"id"`
 		Method string      `json:"method"`
 		Params interface{} `json:"params"`
 	}{
-		ID:     strconv.FormatInt(e.Websocket.AuthConn.GenerateMessageID(false), 10),
+		ID:     strconv.FormatInt(conn.GenerateMessageID(false), 10),
 		Method: method,
 		Params: param,
 	}
-	respRaw, err := e.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, input.ID, input)
+	respRaw, err := conn.SendMessageReturnResponse(context.Background(), request.UnAuth, input.ID, input)
 	if err != nil {
 		return err
 	}

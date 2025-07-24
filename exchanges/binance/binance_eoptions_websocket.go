@@ -51,67 +51,52 @@ var defaultEOptionsSubscriptions = []string{
 }
 
 // WsOptionsConnect initiates a websocket connection to coin margined futures websocket
-func (e *Exchange) WsOptionsConnect() error {
-	ctx := context.Background()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	var err error
-	var dialer gws.Dialer
-	dialer.HandshakeTimeout = e.Config.HTTPTimeout
-	dialer.Proxy = http.ProxyFromEnvironment
-	wsURL := eoptionsWebsocketURL + "stream"
-	err = e.Websocket.SetWebsocketURL(wsURL, false, false)
+func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connection) error {
+	err := e.CurrencyPairs.IsAssetEnabled(asset.Options)
 	if err != nil {
-		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		log.Errorf(log.ExchangeSys,
-			"%v unable to connect to authenticated Websocket. Error: %s", e.Name, err)
+		return err
 	}
+
+	dialer := gws.Dialer{
+		HandshakeTimeout: e.Config.HTTPTimeout,
+		Proxy:            http.ProxyFromEnvironment,
+	}
+	wsURL := eoptionsWebsocketURL + "stream"
+	conn.SetURL(wsURL)
+
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err = e.GetEOptionsWsAuthStreamKey(context.TODO())
+		listenKey, err = e.GetEOptionsWsAuthStreamKey(ctx)
 		switch {
 		case err != nil:
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", e.Name, err)
 		default:
 			wsURL = wsURL + "ws/" + listenKey
-			err = e.Websocket.SetWebsocketURL(wsURL, false, false)
-			if err != nil {
-				return err
-			}
+			conn.SetURL(wsURL)
 		}
 	}
-	err = e.Websocket.SetWebsocketURL(wsURL, false, false)
-	if err != nil {
-		return err
-	}
-	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	conn.SetURL(wsURL)
+	err = conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsEOptionsFuturesReadData()
 
-	e.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
-	subscriptions, err := e.GenerateEOptionsDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return e.OptionSubscribe(subscriptions)
+	return nil
 }
 
-func (e *Exchange) handleEOptionsSubscriptions(operation string, subscs subscription.List) error {
+func (e *Exchange) handleEOptionsSubscriptions(ctx context.Context, conn websocket.Connection, operation string, subscs subscription.List) error {
 	if len(subscs) == 0 {
 		return common.ErrEmptyParams
 	}
 	params := &EOptionSubscriptionParam{
 		Method: operation,
 		Params: make([]string, 0, len(subscs)),
-		ID:     e.Websocket.Conn.GenerateMessageID(false),
+		ID:     conn.GenerateMessageID(false),
 	}
 	for s := range subscs {
 		switch subscs[s].Channel {
@@ -168,7 +153,7 @@ func (e *Exchange) handleEOptionsSubscriptions(operation string, subscs subscrip
 		}
 	}
 
-	response, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, params.ID, params)
+	response, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, params.ID, params)
 	if err != nil {
 		return err
 	}
@@ -180,22 +165,22 @@ func (e *Exchange) handleEOptionsSubscriptions(operation string, subscs subscrip
 		return fmt.Errorf("err: code: %d, msg: %s", resp.Error.Code, resp.Error.Message)
 	}
 	if operation == "SUBSCRIBE" {
-		err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subscs...)
+		err = e.Websocket.AddSuccessfulSubscriptions(conn, subscs...)
 		if err != nil {
 			return err
 		}
 	}
-	return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subscs...)
+	return e.Websocket.RemoveSubscriptions(conn, subscs...)
 }
 
 // OptionSubscribe sends an european option subscription messages.
-func (e *Exchange) OptionSubscribe(subscs subscription.List) error {
-	return e.handleEOptionsSubscriptions("SUBSCRIBE", subscs)
+func (e *Exchange) OptionSubscribe(ctx context.Context, conn websocket.Connection, subscs subscription.List) error {
+	return e.handleEOptionsSubscriptions(ctx, conn, "SUBSCRIBE", subscs)
 }
 
 // OptionUnsubscribe unsubscribes an option un-subscription messages.
-func (e *Exchange) OptionUnsubscribe(subscs subscription.List) error {
-	return e.handleEOptionsSubscriptions("UNSUBSCRIBE", subscs)
+func (e *Exchange) OptionUnsubscribe(ctx context.Context, conn websocket.Connection, subscs subscription.List) error {
+	return e.handleEOptionsSubscriptions(ctx, conn, "UNSUBSCRIBE", subscs)
 }
 
 // GenerateEOptionsDefaultSubscriptions generates the default subscription set
@@ -285,23 +270,7 @@ func (e *Exchange) GetEOptionsWsAuthStreamKey(ctx context.Context) (string, erro
 	}, request.AuthenticatedRequest)
 }
 
-// wsEOptionsFuturesReadData receives and passes on websocket messages for processing
-// for European Options instruments.
-func (e *Exchange) wsEOptionsFuturesReadData() {
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := e.wsHandleEOptionsData(resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- err
-		}
-	}
-}
-
-func (e *Exchange) wsHandleEOptionsData(respRaw []byte) error {
+func (e *Exchange) wsHandleEOptionsData(ctx context.Context, respRaw []byte) error {
 	var result WsOptionIncomingResps
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {

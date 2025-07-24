@@ -50,16 +50,12 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
+func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
+	err := e.CurrencyPairs.IsAssetEnabled(asset.Spot)
+	if err != nil {
+		return err
 	}
 
-	var dialer gws.Dialer
-	dialer.HandshakeTimeout = e.Config.HTTPTimeout
-	dialer.Proxy = http.ProxyFromEnvironment
-	var err error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		listenKey, err = e.GetWsAuthStreamKey(ctx)
 		if err != nil {
@@ -70,44 +66,33 @@ func (e *Exchange) WsConnect() error {
 				err)
 		} else {
 			// cleans on failed connection
-			clean := strings.Split(e.Websocket.GetWebsocketURL(), "?streams=")
+			clean := strings.Split(conn.GetURL(), "?streams=")
 			authPayload := clean[0] + "?streams=" + listenKey
-			err = e.Websocket.SetWebsocketURL(authPayload, false, false)
-			if err != nil {
-				return err
-			}
+			conn.SetURL(authPayload)
 		}
 	}
 
-	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	dialer := gws.Dialer{
+		HandshakeTimeout: e.Config.HTTPTimeout,
+		Proxy:            http.ProxyFromEnvironment,
+	}
+
+	err = conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
-			e.Name,
-			err)
+		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		go e.KeepAuthKeyAlive(ctx)
 	}
 
-	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
 
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData()
-
 	e.setupOrderbookManager(ctx)
-
-	err = e.WsConnectAPI()
-	if err != nil {
-		e.SetIsAPIStreamConnected(false)
-		log.Errorf(log.ExchangeSys, "could not connect to API stream %v", err)
-		return err
-	}
-	e.SetIsAPIStreamConnected(true)
 	return nil
 }
 
@@ -157,23 +142,7 @@ func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
 	}
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData() {
-	defer e.Websocket.Wg.Done()
-
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := e.wsHandleData(resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- err
-		}
-	}
-}
-
-func (e *Exchange) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
 		if e.Websocket.Match.IncomingWithData(id, respRaw) {
 			return nil
@@ -569,21 +538,23 @@ func formatChannelInterval(s *subscription.Subscription) string {
 }
 
 // Subscribe subscribes to a set of channels
-func (e *Exchange) Subscribe(channels subscription.List) error {
-	ctx := context.TODO()
-	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsSubscribeMethod, l) }, 50)
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, channels subscription.List) error {
+	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error {
+		return e.manageSubs(ctx, conn, wsSubscribeMethod, l)
+	}, 50)
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (e *Exchange) Unsubscribe(channels subscription.List) error {
-	ctx := context.TODO()
-	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsUnsubscribeMethod, l) }, 50)
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, channels subscription.List) error {
+	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error {
+		return e.manageSubs(ctx, conn, wsUnsubscribeMethod, l)
+	}, 50)
 }
 
 // manageSubs subscribes or unsubscribes from a list of subscriptions
-func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
+func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op string, subs subscription.List) error {
 	if op == wsSubscribeMethod {
-		if err := e.Websocket.AddSubscriptions(e.Websocket.Conn, subs...); err != nil { // Note: AddSubscription will set state to subscribing
+		if err := e.Websocket.AddSubscriptions(conn, subs...); err != nil { // Note: AddSubscription will set state to subscribing
 			return err
 		}
 	} else {
@@ -593,12 +564,12 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 	}
 
 	req := WsPayload{
-		ID:     e.Websocket.Conn.GenerateMessageID(false),
+		ID:     conn.GenerateMessageID(false),
 		Method: op,
 		Params: subs.QualifiedChannels(),
 	}
 
-	respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err == nil {
 		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
 			err = rErr
@@ -612,7 +583,7 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 		e.Websocket.DataHandler <- err
 
 		if op == wsSubscribeMethod {
-			if err2 := e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subs...); err2 != nil {
+			if err2 := e.Websocket.RemoveSubscriptions(conn, subs...); err2 != nil {
 				err = common.AppendError(err, err2)
 			}
 		}
@@ -620,7 +591,7 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 		if op == wsSubscribeMethod {
 			err = common.AppendError(err, subs.SetStates(subscription.SubscribedState))
 		} else {
-			err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subs...)
+			err = e.Websocket.RemoveSubscriptions(conn, subs...)
 		}
 	}
 

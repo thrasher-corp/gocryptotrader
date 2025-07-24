@@ -21,17 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-const (
-	// Auth
-	cfuturesLimit              = "LIMIT"
-	cfuturesMarket             = "MARKET"
-	cfuturesStop               = "STOP"
-	cfuturesTakeProfit         = "TAKE_PROFIT"
-	cfuturesStopMarket         = "STOP_MARKET"
-	cfuturesTakeProfitMarket   = "TAKE_PROFIT_MARKET"
-	cfuturesTrailingStopMarket = "TRAILING_STOP_MARKET"
-)
-
 // FuturesExchangeInfo stores CoinMarginedFutures, data
 func (e *Exchange) FuturesExchangeInfo(ctx context.Context) (*CExchangeInfo, error) {
 	var resp *CExchangeInfo
