@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -116,9 +115,7 @@ func TestReset(t *testing.T) {
 
 	e = nil
 	err = e.Reset()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestSetCurrency(t *testing.T) {
@@ -128,7 +125,7 @@ func TestSetCurrency(t *testing.T) {
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
-	f := &binance.Binance{}
+	f := &binance.Exchange{}
 	f.Name = testExchange
 	cs := &Settings{
 		Exchange:      f,
@@ -243,7 +240,7 @@ func TestExecuteOrder(t *testing.T) {
 	require.NoError(t, exchB.CurrencyPairs.SetAssetEnabled(a, true), "SetAssetEnabled must not error")
 	_, err = exch.UpdateOrderbook(t.Context(), p, a)
 	require.NoError(t, err, "UpdateOrderbook must not error")
-	f := &binanceus.Binanceus{}
+	f := &binanceus.Exchange{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:            f,
@@ -295,18 +292,14 @@ func TestExecuteOrder(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if !errors.Is(err, errNoCurrencySettingsFound) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errNoCurrencySettingsFound)
 
 	cs.UseRealOrders = true
 	cs.CanUseExchangeLimits = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
-		t.Errorf("received: %v but expected: %v", err, exchange.ErrCredentialsAreEmpty)
-	}
+	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
 
 	o.LiquidatingPosition = true
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
@@ -323,9 +316,7 @@ func TestExecuteOrder(t *testing.T) {
 	e.CurrencySettings[0].Asset = asset.Spot
 	e.CurrencySettings[0].UseRealOrders = false
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if !errors.Is(err, gctorder.ErrAmountIsInvalid) {
-		t.Errorf("received: %v but expected: %v", err, gctorder.ErrAmountIsInvalid)
-	}
+	assert.ErrorIs(t, err, gctorder.ErrAmountIsInvalid)
 }
 
 func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
@@ -368,7 +359,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	limits, err := exch.GetOrderExecutionLimits(a, p)
 	require.NoError(t, err, "GetOrderExecutionLimits must not error")
 
-	f := &btcmarkets.BTCMarkets{}
+	f := &btcmarkets.Exchange{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:      f,
@@ -509,9 +500,7 @@ func TestApplySlippageToPrice(t *testing.T) {
 	}
 
 	_, err = applySlippageToPrice(gctorder.UnknownSide, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
-	if !errors.Is(err, gctorder.ErrSideIsInvalid) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.ErrorIs(t, err, gctorder.ErrSideIsInvalid)
 }
 
 func TestReduceAmountToFitPortfolioLimit(t *testing.T) {
@@ -538,19 +527,14 @@ func TestReduceAmountToFitPortfolioLimit(t *testing.T) {
 func TestVerifyOrderWithinLimits(t *testing.T) {
 	t.Parallel()
 	err := verifyOrderWithinLimits(nil, decimal.Zero, nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received %v expected %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	err = verifyOrderWithinLimits(&fill.Fill{}, decimal.Zero, nil)
-	if !errors.Is(err, errNilCurrencySettings) {
-		t.Errorf("received %v expected %v", err, errNilCurrencySettings)
-	}
+	assert.ErrorIs(t, err, errNilCurrencySettings)
 
 	err = verifyOrderWithinLimits(&fill.Fill{}, decimal.Zero, &Settings{})
-	if !errors.Is(err, errInvalidDirection) {
-		t.Errorf("received %v expected %v", err, errInvalidDirection)
-	}
+	assert.ErrorIs(t, err, errInvalidDirection)
+
 	f := &fill.Fill{
 		Direction: gctorder.Buy,
 	}
@@ -565,14 +549,11 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 	}
 	f.Base = &event.Base{}
 	err = verifyOrderWithinLimits(f, decimal.NewFromFloat(0.5), s)
-	if !errors.Is(err, errExceededPortfolioLimit) {
-		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
-	}
+	assert.ErrorIs(t, err, errExceededPortfolioLimit)
+
 	f.Direction = gctorder.Buy
 	err = verifyOrderWithinLimits(f, decimal.NewFromInt(2), s)
-	if !errors.Is(err, errExceededPortfolioLimit) {
-		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
-	}
+	assert.ErrorIs(t, err, errExceededPortfolioLimit)
 
 	f.Direction = gctorder.Sell
 	s.SellSide = MinMax{
@@ -580,25 +561,18 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 		MaximumSize: decimal.NewFromInt(1),
 	}
 	err = verifyOrderWithinLimits(f, decimal.NewFromFloat(0.5), s)
-	if !errors.Is(err, errExceededPortfolioLimit) {
-		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
-	}
+	assert.ErrorIs(t, err, errExceededPortfolioLimit)
+
 	f.Direction = gctorder.Sell
 	err = verifyOrderWithinLimits(f, decimal.NewFromInt(2), s)
-	if !errors.Is(err, errExceededPortfolioLimit) {
-		t.Errorf("received %v expected %v", err, errExceededPortfolioLimit)
-	}
+	assert.ErrorIs(t, err, errExceededPortfolioLimit)
 }
 
 func TestAllocateFundsPostOrder(t *testing.T) {
 	t.Parallel()
-	expectedError := common.ErrNilEvent
 	err := allocateFundsPostOrder(nil, nil, nil, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
-	expectedError = gctcommon.ErrNilPointer
 	f := &fill.Fill{
 		Base: &event.Base{
 			AssetType: asset.Spot,
@@ -606,101 +580,66 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 		Direction: gctorder.Buy,
 	}
 	err = allocateFundsPostOrder(f, nil, nil, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	expectedError = nil
 	one := decimal.NewFromInt(1)
 	item, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "CreateItem must not error")
+
 	item2, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "CreateItem must not error")
+
 	err = item.Reserve(one)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "Reserve must not error")
+
 	err = item2.Reserve(one)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "Reserve must not error")
+
 	fundPair, err := funding.CreatePair(item, item2)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "CreatePair must not error")
+
 	f.Order = &gctorder.Detail{}
 	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "allocateFundsPostOrder must not error")
+
 	f.SetDirection(gctorder.Sell)
 	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "allocateFundsPostOrder must not error")
 
-	expectedError = gctorder.ErrSubmissionIsNil
-	orderError := gctorder.ErrSubmissionIsNil
-	err = allocateFundsPostOrder(f, fundPair, orderError, one, one, one, one, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	err = allocateFundsPostOrder(f, fundPair, gctorder.ErrSubmissionIsNil, one, one, one, one, decimal.Zero)
+	assert.ErrorIs(t, err, gctorder.ErrSubmissionIsNil)
 
 	f.AssetType = asset.Futures
 	f.SetDirection(gctorder.Short)
-	expectedError = nil
 	item3, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "CreateItem must not error")
+
 	item4, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "CreateItem must not error")
+
 	err = item3.Reserve(one)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "Reserve must not error")
+
 	err = item4.Reserve(one)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "Reserve must not error")
+
 	collateralPair, err := funding.CreateCollateral(item, item2)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "CreateCollateral must not error")
 
-	expectedError = gctorder.ErrSubmissionIsNil
-	err = allocateFundsPostOrder(f, collateralPair, orderError, one, one, one, one, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
-	expectedError = nil
+	err = allocateFundsPostOrder(f, collateralPair, gctorder.ErrSubmissionIsNil, one, one, one, one, decimal.Zero)
+	assert.ErrorIs(t, err, gctorder.ErrSubmissionIsNil)
+
 	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	require.NoError(t, err, "allocateFundsPostOrder must not error")
 
-	expectedError = gctorder.ErrSubmissionIsNil
 	f.SetDirection(gctorder.Long)
-	err = allocateFundsPostOrder(f, collateralPair, orderError, one, one, one, one, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
-	expectedError = nil
+	err = allocateFundsPostOrder(f, collateralPair, gctorder.ErrSubmissionIsNil, one, one, one, one, decimal.Zero)
+	assert.ErrorIs(t, err, gctorder.ErrSubmissionIsNil)
+
 	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	assert.NoError(t, err, "allocateFundsPostOrder should not error")
 
 	f.AssetType = asset.Margin
-	expectedError = common.ErrInvalidDataType
 	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, decimal.Zero)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	assert.ErrorIs(t, err, common.ErrInvalidDataType)
 }

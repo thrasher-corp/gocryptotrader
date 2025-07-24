@@ -597,7 +597,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		log.Warnf(log.ExchangeSys, "%s orderbook verification has been bypassed via config.", b.Name)
 	}
 
-	b.CanVerifyOrderbook = !exch.Orderbook.VerificationBypass
+	b.ValidateOrderbook = !exch.Orderbook.VerificationBypass
 	b.States = currencystate.NewCurrencyStates()
 
 	return nil
@@ -804,21 +804,21 @@ func (b *Base) SetAPIURL() error {
 	var err error
 	if b.Config.API.OldEndPoints != nil {
 		if b.Config.API.OldEndPoints.URL != "" && b.Config.API.OldEndPoints.URL != config.APIURLNonDefaultMessage {
-			err = b.API.Endpoints.SetRunning(RestSpot.String(), b.Config.API.OldEndPoints.URL)
+			err = b.API.Endpoints.SetRunningURL(RestSpot.String(), b.Config.API.OldEndPoints.URL)
 			if err != nil {
 				return err
 			}
 			checkInsecureEndpoint(b.Config.API.OldEndPoints.URL)
 		}
 		if b.Config.API.OldEndPoints.URLSecondary != "" && b.Config.API.OldEndPoints.URLSecondary != config.APIURLNonDefaultMessage {
-			err = b.API.Endpoints.SetRunning(RestSpotSupplementary.String(), b.Config.API.OldEndPoints.URLSecondary)
+			err = b.API.Endpoints.SetRunningURL(RestSpotSupplementary.String(), b.Config.API.OldEndPoints.URLSecondary)
 			if err != nil {
 				return err
 			}
 			checkInsecureEndpoint(b.Config.API.OldEndPoints.URLSecondary)
 		}
 		if b.Config.API.OldEndPoints.WebsocketURL != "" && b.Config.API.OldEndPoints.WebsocketURL != config.WebsocketURLNonDefaultMessage {
-			err = b.API.Endpoints.SetRunning(WebsocketSpot.String(), b.Config.API.OldEndPoints.WebsocketURL)
+			err = b.API.Endpoints.SetRunningURL(WebsocketSpot.String(), b.Config.API.OldEndPoints.WebsocketURL)
 			if err != nil {
 				return err
 			}
@@ -865,7 +865,7 @@ func (b *Base) SetAPIURL() error {
 
 			checkInsecureEndpoint(val)
 
-			err = b.API.Endpoints.SetRunning(key, val)
+			err = b.API.Endpoints.SetRunningURL(key, val)
 			if err != nil {
 				return err
 			}
@@ -1242,16 +1242,15 @@ func (b *Base) NewEndpoints() *Endpoints {
 // SetDefaultEndpoints declares and sets the default URLs map
 func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
 	for k, v := range m {
-		err := e.SetRunning(k.String(), v)
-		if err != nil {
+		if err := e.SetRunningURL(k.String(), v); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// SetRunning populates running URLs map
-func (e *Endpoints) SetRunning(key, val string) error {
+// SetRunningURL populates running URLs map
+func (e *Endpoints) SetRunningURL(key, val string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	err := validateKey(key)
@@ -1380,6 +1379,16 @@ func (u URL) String() string {
 		return restSwapURL
 	case WebsocketSpot:
 		return websocketSpotURL
+	case WebsocketCoinMargined:
+		return websocketCoinMarginedURL
+	case WebsocketUSDTMargined:
+		return websocketUSDTMarginedURL
+	case WebsocketUSDCMargined:
+		return websocketUSDCMarginedURL
+	case WebsocketOptions:
+		return websocketOptionsURL
+	case WebsocketPrivate:
+		return websocketPrivateURL
 	case WebsocketSpotSupplementary:
 		return websocketSpotSupplementaryURL
 	case ChainAnalysis:
@@ -1418,6 +1427,16 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return RestSwap, nil
 	case websocketSpotURL:
 		return WebsocketSpot, nil
+	case websocketCoinMarginedURL:
+		return WebsocketCoinMargined, nil
+	case websocketUSDTMarginedURL:
+		return WebsocketUSDTMargined, nil
+	case websocketUSDCMarginedURL:
+		return WebsocketUSDCMargined, nil
+	case websocketOptionsURL:
+		return WebsocketOptions, nil
+	case websocketPrivateURL:
+		return WebsocketPrivate, nil
 	case websocketSpotSupplementaryURL:
 		return WebsocketSpotSupplementary, nil
 	case chainAnalysisURL:
@@ -1773,7 +1792,7 @@ func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.Ope
 }
 
 // ParallelChanOp performs a single method call in parallel across streams and waits to return any errors
-func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.List) error, batchSize int) error {
+func (b *Base) ParallelChanOp(ctx context.Context, channels subscription.List, m func(context.Context, subscription.List) error, batchSize int) error {
 	wg := sync.WaitGroup{}
 	errC := make(chan error, len(channels))
 
@@ -1781,7 +1800,7 @@ func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.Li
 		wg.Add(1)
 		go func(c subscription.List) {
 			defer wg.Done()
-			if err := m(c); err != nil {
+			if err := m(ctx, c); err != nil {
 				errC <- err
 			}
 		}(b)
@@ -1918,9 +1937,9 @@ func (b *Base) GetCachedTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
-// GetCachedOrderbook returns orderbook base on the currency pair and asset type
+// GetCachedOrderbook returns an orderbook snapshot for the currency pair and asset type
 // NOTE: UpdateOrderbook method must be called first to update the orderbook map
-func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	return orderbook.Get(b.Name, p, assetType)
 }
 

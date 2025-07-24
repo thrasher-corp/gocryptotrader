@@ -33,12 +33,12 @@ import (
 )
 
 // SetDefaults sets default settings for poloniex
-func (p *Poloniex) SetDefaults() {
-	p.Name = "Poloniex"
-	p.Enabled = true
-	p.Verbose = true
-	p.API.CredentialsValidator.RequiresKey = true
-	p.API.CredentialsValidator.RequiresSecret = true
+func (e *Exchange) SetDefaults() {
+	e.Name = "Poloniex"
+	e.Enabled = true
+	e.Verbose = true
+	e.API.CredentialsValidator.RequiresKey = true
+	e.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{
 		Delimiter: currency.UnderscoreDelimiter,
@@ -50,12 +50,12 @@ func (p *Poloniex) SetDefaults() {
 		Uppercase: true,
 	}
 
-	err := p.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	p.Features = exchange.Features{
+	e.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -122,14 +122,14 @@ func (p *Poloniex) SetDefaults() {
 		},
 	}
 
-	p.Requester, err = request.New(p.Name,
+	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	p.API.Endpoints = p.NewEndpoints()
-	err = p.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	e.API.Endpoints = e.NewEndpoints()
+	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              poloniexAPIURL,
 		exchange.RestSpotSupplementary: poloniexAltAPIUrl,
 		exchange.WebsocketSpot:         poloniexWebsocketAddress,
@@ -137,41 +137,41 @@ func (p *Poloniex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	p.Websocket = websocket.NewManager()
-	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	p.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	e.Websocket = websocket.NewManager()
+	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets user exchange configuration settings
-func (p *Poloniex) Setup(exch *config.Exchange) error {
+func (e *Exchange) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
 	if err != nil {
 		return err
 	}
 	if !exch.Enabled {
-		p.SetEnabled(false)
+		e.SetEnabled(false)
 		return nil
 	}
-	err = p.SetupDefaults(exch)
+	err = e.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := p.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	err = p.Websocket.Setup(&websocket.ManagerSetup{
+	err = e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            poloniexWebsocketAddress,
 		RunningURL:            wsRunningURL,
-		Connector:             p.WsConnect,
-		Subscriber:            p.Subscribe,
-		Unsubscriber:          p.Unsubscribe,
-		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
-		Features:              &p.Features.Supports.WebsocketCapabilities,
+		Connector:             e.WsConnect,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		GenerateSubscriptions: e.GenerateDefaultSubscriptions,
+		Features:              &e.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -181,16 +181,16 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return p.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (p *Poloniex) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
+func (e *Exchange) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	// TODO: Upgrade to new API version for fetching operational pairs.
-	resp, err := p.GetTicker(ctx)
+	resp, err := e.GetTicker(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -214,31 +214,31 @@ func (p *Poloniex) FetchTradablePairs(ctx context.Context, _ asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (p *Poloniex) UpdateTradablePairs(ctx context.Context, forceUpgrade bool) error {
-	pairs, err := p.FetchTradablePairs(ctx, asset.Spot)
+func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpgrade bool) error {
+	pairs, err := e.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = p.UpdatePairs(pairs, asset.Spot, false, forceUpgrade)
+	err = e.UpdatePairs(pairs, asset.Spot, false, forceUpgrade)
 	if err != nil {
 		return err
 	}
-	return p.EnsureOnePairEnabled()
+	return e.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
-	tick, err := p.GetTicker(ctx)
+func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
+	tick, err := e.GetTicker(ctx)
 	if err != nil {
 		return err
 	}
 
-	enabledPairs, err := p.GetEnabledPairs(a)
+	enabledPairs, err := e.GetEnabledPairs(a)
 	if err != nil {
 		return err
 	}
 	for i := range enabledPairs {
-		fPair, err := p.FormatExchangeCurrency(enabledPairs[i], a)
+		fPair, err := e.FormatExchangeCurrency(enabledPairs[i], a)
 		if err != nil {
 			return err
 		}
@@ -256,7 +256,7 @@ func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Low:          tick[curr].Low24Hr,
 			Volume:       tick[curr].BaseVolume,
 			QuoteVolume:  tick[curr].QuoteVolume,
-			ExchangeName: p.Name,
+			ExchangeName: e.Name,
 			AssetType:    a,
 		})
 		if err != nil {
@@ -267,38 +267,38 @@ func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (p *Poloniex) UpdateTicker(ctx context.Context, currencyPair currency.Pair, a asset.Item) (*ticker.Price, error) {
-	if err := p.UpdateTickers(ctx, a); err != nil {
+func (e *Exchange) UpdateTicker(ctx context.Context, currencyPair currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if err := e.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
-	return ticker.GetTicker(p.Name, currencyPair, a)
+	return ticker.GetTicker(e.Name, currencyPair, a)
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := p.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	callingBook := &orderbook.Base{
-		Exchange:        p.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: p.CanVerifyOrderbook,
+	callingBook := &orderbook.Book{
+		Exchange:          e.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: e.ValidateOrderbook,
 	}
-	orderbookNew, err := p.GetOrderbook(ctx, "", poloniexMaxOrderbookDepth)
+	orderbookNew, err := e.GetOrderbook(ctx, "", poloniexMaxOrderbookDepth)
 	if err != nil {
 		return callingBook, err
 	}
 
-	enabledPairs, err := p.GetEnabledPairs(assetType)
+	enabledPairs, err := e.GetEnabledPairs(assetType)
 	if err != nil {
 		return callingBook, err
 	}
 	for i := range enabledPairs {
-		pFmt, err := p.GetPairFormat(assetType, true)
+		pFmt, err := e.GetPairFormat(assetType, true)
 		if err != nil {
 			return nil, err
 		}
@@ -310,24 +310,24 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 				continue
 			}
 		}
-		book := &orderbook.Base{
-			Exchange:        p.Name,
-			Pair:            enabledPairs[i],
-			Asset:           assetType,
-			VerifyOrderbook: p.CanVerifyOrderbook,
+		book := &orderbook.Book{
+			Exchange:          e.Name,
+			Pair:              enabledPairs[i],
+			Asset:             assetType,
+			ValidateOrderbook: e.ValidateOrderbook,
 		}
 
-		book.Bids = make(orderbook.Tranches, len(data.Bids))
+		book.Bids = make(orderbook.Levels, len(data.Bids))
 		for y := range data.Bids {
-			book.Bids[y] = orderbook.Tranche{
+			book.Bids[y] = orderbook.Level{
 				Amount: data.Bids[y].Amount,
 				Price:  data.Bids[y].Price,
 			}
 		}
 
-		book.Asks = make(orderbook.Tranches, len(data.Asks))
+		book.Asks = make(orderbook.Levels, len(data.Asks))
 		for y := range data.Asks {
-			book.Asks[y] = orderbook.Tranche{
+			book.Asks[y] = orderbook.Level{
 				Amount: data.Asks[y].Amount,
 				Price:  data.Asks[y].Price,
 			}
@@ -337,15 +337,15 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 			return book, err
 		}
 	}
-	return orderbook.Get(p.Name, pair, assetType)
+	return orderbook.Get(e.Name, pair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
-	response.Exchange = p.Name
-	accountBalance, err := p.GetBalances(ctx)
+	response.Exchange = e.Name
+	accountBalance, err := e.GetBalances(ctx)
 	if err != nil {
 		return response, err
 	}
@@ -363,7 +363,7 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		Currencies: currencies,
 	})
 
-	creds, err := p.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
@@ -377,18 +377,18 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	end := time.Now()
-	walletActivity, err := p.WalletActivity(ctx, end.Add(-time.Hour*24*365), end, "")
+	walletActivity, err := e.WalletActivity(ctx, end.Add(-time.Hour*24*365), end, "")
 	if err != nil {
 		return nil, err
 	}
 	resp := make([]exchange.FundingHistory, len(walletActivity.Deposits))
 	for i := range walletActivity.Deposits {
 		resp[i] = exchange.FundingHistory{
-			ExchangeName:    p.Name,
+			ExchangeName:    e.Name,
 			Status:          walletActivity.Deposits[i].Status,
-			Timestamp:       time.Unix(walletActivity.Deposits[i].Timestamp, 0),
+			Timestamp:       walletActivity.Deposits[i].Timestamp.Time(),
 			Currency:        walletActivity.Deposits[i].Currency.String(),
 			Amount:          walletActivity.Deposits[i].Amount,
 			CryptoToAddress: walletActivity.Deposits[i].Address,
@@ -397,9 +397,9 @@ func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 	}
 	for i := range walletActivity.Withdrawals {
 		resp[i] = exchange.FundingHistory{
-			ExchangeName:    p.Name,
+			ExchangeName:    e.Name,
 			Status:          walletActivity.Withdrawals[i].Status,
-			Timestamp:       time.Unix(walletActivity.Withdrawals[i].Timestamp, 0),
+			Timestamp:       walletActivity.Withdrawals[i].Timestamp.Time(),
 			Currency:        walletActivity.Withdrawals[i].Currency.String(),
 			Amount:          walletActivity.Withdrawals[i].Amount,
 			Fee:             walletActivity.Withdrawals[i].Fee,
@@ -411,9 +411,9 @@ func (p *Poloniex) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	end := time.Now()
-	withdrawals, err := p.WalletActivity(ctx, end.Add(-time.Hour*24*365), end, "withdrawals")
+	withdrawals, err := e.WalletActivity(ctx, end.Add(-time.Hour*24*365), end, "withdrawals")
 	if err != nil {
 		return nil, err
 	}
@@ -424,7 +424,7 @@ func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 		}
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawals.Withdrawals[i].Status,
-			Timestamp:       time.Unix(withdrawals.Withdrawals[i].Timestamp, 0),
+			Timestamp:       withdrawals.Withdrawals[i].Timestamp.Time(),
 			Currency:        withdrawals.Withdrawals[i].Currency.String(),
 			Amount:          withdrawals.Withdrawals[i].Amount,
 			Fee:             withdrawals.Withdrawals[i].Fee,
@@ -436,17 +436,17 @@ func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (p *Poloniex) GetRecentTrades(ctx context.Context, pair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return p.GetHistoricTrades(ctx, pair, assetType, time.Now().Add(-time.Minute*15), time.Now())
+func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return e.GetHistoricTrades(ctx, pair, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
 	var err error
-	pair, err = p.FormatExchangeCurrency(pair, assetType)
+	pair, err = e.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -456,7 +456,7 @@ func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 allTrades:
 	for {
 		var tradeData []TradeHistory
-		tradeData, err = p.GetTradeHistory(ctx,
+		tradeData, err = e.GetTradeHistory(ctx,
 			pair.String(),
 			ts.Unix(),
 			timestampEnd.Unix())
@@ -478,7 +478,7 @@ allTrades:
 				return nil, err
 			}
 			resp = append(resp, trade.Data{
-				Exchange:     p.Name,
+				Exchange:     e.Name,
 				TID:          tradeData[i].TradeID,
 				CurrencyPair: pair,
 				AssetType:    assetType,
@@ -500,7 +500,7 @@ allTrades:
 		}
 	}
 
-	err = p.AddTradesToBuffer(resp...)
+	err = e.AddTradesToBuffer(resp...)
 	if err != nil {
 		return nil, err
 	}
@@ -511,16 +511,16 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(p.GetTradingRequirements()); err != nil {
+func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 
-	fPair, err := p.FormatExchangeCurrency(s.Pair, s.AssetType)
+	fPair, err := e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return nil, err
 	}
-	response, err := p.PlaceOrder(ctx,
+	response, err := e.PlaceOrder(ctx,
 		fPair.String(),
 		s.Price,
 		s.Amount,
@@ -535,7 +535,7 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
@@ -545,7 +545,7 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 
-	resp, err := p.MoveOrder(ctx,
+	resp, err := e.MoveOrder(ctx,
 		oID,
 		action.Price,
 		action.Amount,
@@ -564,7 +564,7 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
+func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
@@ -574,11 +574,11 @@ func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	return p.CancelExistingOrder(ctx, orderIDInt)
+	return e.CancelExistingOrder(ctx, orderIDInt)
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(o) == 0 {
 		return nil, order.ErrCancelOrderIsNil
 	}
@@ -594,7 +594,7 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
-	cancelledOrders, err := p.CancelMultipleOrdersByIDs(ctx, orderIDs, clientOrderIDs)
+	cancelledOrders, err := e.CancelMultipleOrdersByIDs(ctx, orderIDs, clientOrderIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -612,18 +612,18 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (p *Poloniex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	openOrders, err := p.GetOpenOrdersForAllCurrencies(ctx)
+	openOrders, err := e.GetOpenOrdersForAllCurrencies(ctx)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
 	for key := range openOrders.Data {
 		for i := range openOrders.Data[key] {
-			err = p.CancelExistingOrder(ctx, openOrders.Data[key][i].OrderNumber)
+			err = e.CancelExistingOrder(ctx, openOrders.Data[key][i].OrderNumber)
 			if err != nil {
 				id := strconv.FormatInt(openOrders.Data[key][i].OrderNumber, 10)
 				cancelAllOrdersResponse.Status[id] = err.Error()
@@ -635,24 +635,24 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, _ asset.Item) (*order.Detail, error) {
+func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, _ asset.Item) (*order.Detail, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 
 	orderInfo := order.Detail{
-		Exchange: p.Name,
+		Exchange: e.Name,
 		Pair:     pair,
 	}
 
-	trades, err := p.GetAuthenticatedOrderTrades(ctx, orderID)
+	trades, err := e.GetAuthenticatedOrderTrades(ctx, orderID)
 	if err != nil && !strings.Contains(err.Error(), "Order not found") {
 		return nil, err
 	}
 
 	for i := range trades {
 		var tradeHistory order.TradeHistory
-		tradeHistory.Exchange = p.Name
+		tradeHistory.Exchange = e.Name
 		tradeHistory.Side, err = order.StringToOrderSide(trades[i].Type)
 		if err != nil {
 			return nil, err
@@ -669,7 +669,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		orderInfo.Trades = append(orderInfo.Trades, tradeHistory)
 	}
 
-	resp, err := p.GetAuthenticatedOrderStatus(ctx, orderID)
+	resp, err := e.GetAuthenticatedOrderStatus(ctx, orderID)
 	if err != nil {
 		if len(orderInfo.Trades) > 0 { // on closed orders return trades only
 			if strings.Contains(err.Error(), "Order not found") {
@@ -681,7 +681,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	}
 
 	if orderInfo.Status, err = order.StringToOrderStatus(resp.Status); err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", p.Name, err)
+		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 	}
 	orderInfo.Price = resp.Rate
 	orderInfo.Amount = resp.Amount
@@ -703,15 +703,15 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
-	depositAddrs, err := p.GetDepositAddresses(ctx)
+func (e *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+	depositAddrs, err := e.GetDepositAddresses(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Some coins use a main address, so we must use this in conjunction with the returned
 	// deposit address to produce the full deposit address and tag
-	currencies, err := p.GetCurrencies(ctx)
+	currencies, err := e.GetCurrencies(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -727,7 +727,7 @@ func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 		address = coinParams.DepositAddress
 		tag, ok = depositAddrs.Addresses[cryptocurrency.Upper().String()]
 		if !ok {
-			newAddr, err := p.GenerateNewAddress(ctx, cryptocurrency.Upper().String())
+			newAddr, err := e.GenerateNewAddress(ctx, cryptocurrency.Upper().String())
 			if err != nil {
 				return nil, err
 			}
@@ -762,7 +762,7 @@ func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 			return nil, fmt.Errorf("deposits and withdrawals for %v are currently disabled", targetCurrency)
 		}
 
-		newAddr, err := p.GenerateNewAddress(ctx, targetCurrency)
+		newAddr, err := e.GenerateNewAddress(ctx, targetCurrency)
 		if err != nil {
 			return nil, err
 		}
@@ -773,7 +773,7 @@ func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (p *Poloniex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -782,7 +782,7 @@ func (p *Poloniex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if withdrawRequest.Crypto.Chain != "" {
 		targetCurrency = withdrawRequest.Crypto.Chain
 	}
-	v, err := p.Withdraw(ctx, targetCurrency, withdrawRequest.Crypto.Address, withdrawRequest.Amount)
+	v, err := e.Withdraw(ctx, targetCurrency, withdrawRequest.Crypto.Address, withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -793,41 +793,41 @@ func (p *Poloniex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (p *Poloniex) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (p *Poloniex) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (p *Poloniex) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if (!p.AreCredentialsValid(ctx) || p.SkipAuthCheck) && // Todo check connection status
+	if (!e.AreCredentialsValid(ctx) || e.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return p.GetFee(ctx, feeBuilder)
+	return e.GetFee(ctx, feeBuilder)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := p.GetOpenOrdersForAllCurrencies(ctx)
+	resp, err := e.GetOpenOrdersForAllCurrencies(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	format, err := p.GetPairFormat(asset.Spot, false)
+	format, err := e.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		return nil, err
 	}
@@ -850,7 +850,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-					p.Name,
+					e.Name,
 					"GetActiveOrders",
 					resp.Data[key][i].OrderNumber,
 					resp.Data[key][i].Date)
@@ -863,22 +863,22 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Date:     orderDate,
 				Price:    resp.Data[key][i].Rate,
 				Pair:     symbol,
-				Exchange: p.Name,
+				Exchange: e.Name,
 			})
 		}
 	}
-	return req.Filter(p.Name, orders), nil
+	return req.Filter(e.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := p.GetAuthenticatedTradeHistory(ctx,
+	resp, err := e.GetAuthenticatedTradeHistory(ctx,
 		req.StartTime.Unix(),
 		req.EndTime.Unix(),
 		10000)
@@ -886,7 +886,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 
-	format, err := p.GetPairFormat(asset.Spot, false)
+	format, err := e.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		return nil, err
 	}
@@ -909,7 +909,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-					p.Name,
+					e.Name,
 					"GetActiveOrders",
 					resp.Data[key][i].OrderNumber,
 					resp.Data[key][i].Date)
@@ -925,34 +925,34 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				AverageExecutedPrice: resp.Data[key][i].Rate,
 				Pair:                 pair,
 				Status:               order.Filled,
-				Exchange:             p.Name,
+				Exchange:             e.Name,
 			}
 			detail.InferCostsAndTimes()
 			orders = append(orders, detail)
 		}
 	}
-	return req.Filter(p.Name, orders), nil
+	return req.Filter(e.Name, orders), nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (p *Poloniex) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := p.UpdateAccountInfo(ctx, assetType)
-	return p.CheckTransientError(err)
+func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := e.UpdateAccountInfo(ctx, assetType)
+	return e.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := p.GetKlineRequest(pair, a, interval, start, end, false)
+func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := e.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := p.GetChartData(ctx,
+	resp, err := e.GetChartData(ctx,
 		req.RequestFormatted.String(),
 		req.Start,
 		req.End,
-		p.FormatExchangeKlineInterval(req.ExchangeInterval))
+		e.FormatExchangeKlineInterval(req.ExchangeInterval))
 	if err != nil {
 		return nil, err
 	}
@@ -972,19 +972,19 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := p.GetKlineExtendedRequest(pair, a, interval, start, end)
+func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := e.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for i := range req.RangeHolder.Ranges {
-		resp, err := p.GetChartData(ctx,
+		resp, err := e.GetChartData(ctx,
 			req.RequestFormatted.String(),
 			req.RangeHolder.Ranges[i].Start.Time,
 			req.RangeHolder.Ranges[i].End.Time,
-			p.FormatExchangeKlineInterval(req.ExchangeInterval))
+			e.FormatExchangeKlineInterval(req.ExchangeInterval))
 		if err != nil {
 			return nil, err
 		}
@@ -1003,10 +1003,9 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	return req.ProcessResponse(timeSeries)
 }
 
-// GetAvailableTransferChains returns the available transfer blockchains for the specific
-// cryptocurrency
-func (p *Poloniex) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
-	currencies, err := p.GetCurrencies(ctx)
+// GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
+func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	currencies, err := e.GetCurrencies(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1020,30 +1019,30 @@ func (p *Poloniex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 }
 
 // GetServerTime returns the current exchange server time.
-func (p *Poloniex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
-	return p.GetTimestamp(ctx)
+func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	return e.GetTimestamp(ctx)
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (p *Poloniex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+func (e *Exchange) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	// TODO: implement with API upgrade
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (p *Poloniex) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+func (e *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	// TODO: implement with API upgrade
 	return nil, common.ErrNotYetImplemented
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (p *Poloniex) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+func (e *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
-func (p *Poloniex) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := p.CurrencyPairs.IsPairEnabled(cp, a)
+func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
 	if err != nil {
 		return "", err
 	}

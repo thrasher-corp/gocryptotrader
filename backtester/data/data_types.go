@@ -23,7 +23,7 @@ var (
 	ErrEndOfData = errors.New("no more data to retrieve")
 
 	errNothingToAdd    = errors.New("cannot append empty event to stream")
-	errMisMatchedEvent = errors.New("cannot add event to stream, does not match")
+	errMismatchedEvent = errors.New("cannot add event to stream, does not match")
 )
 
 // HandlerHolder stores an event handler per exchange asset pair

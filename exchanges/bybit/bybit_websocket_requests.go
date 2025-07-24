@@ -27,27 +27,27 @@ const (
 // NOTE: When a SPOT order gets matched the fee is deducted from the purchased balance. e.g. if you buy 0.001 BTC depending
 // on fee rate you will receive a sub 0.0009... BTC amount. Fees are returned in this response which can then be deducted.
 // This does not apply to other asset types as it uses a settlement.
-func (by *Bybit) WSCreateOrder(ctx context.Context, arg *PlaceOrderParams) (*WebsocketOrderDetails, error) {
+func (e *Exchange) WSCreateOrder(ctx context.Context, arg *PlaceOrderParams) (*WebsocketOrderDetails, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	return by.SendWebsocketRequest(ctx, WsCreate, arg)
+	return e.SendWebsocketRequest(ctx, WsCreate, arg)
 }
 
 // WSAmendOrder amends an order through the websocket connection
-func (by *Bybit) WSAmendOrder(ctx context.Context, arg *AmendOrderParams) (*WebsocketOrderDetails, error) {
+func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderParams) (*WebsocketOrderDetails, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	return by.SendWebsocketRequest(ctx, WsAmend, arg)
+	return e.SendWebsocketRequest(ctx, WsAmend, arg)
 }
 
 // WSCancelOrder cancels an order through the websocket connection
-func (by *Bybit) WSCancelOrder(ctx context.Context, arg *CancelOrderParams) (*WebsocketOrderDetails, error) {
+func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderParams) (*WebsocketOrderDetails, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	return by.SendWebsocketRequest(ctx, WsCancel, arg)
+	return e.SendWebsocketRequest(ctx, WsCancel, arg)
 }
 
 // WebsocketOrderDetails is the order details from the websocket response.
@@ -135,14 +135,14 @@ type IDLoader interface {
 }
 
 // SendWebsocketRequest sends a request to the exchange through the websocket connection
-func (by *Bybit) SendWebsocketRequest(ctx context.Context, op string, argument IDLoader) (*WebsocketOrderDetails, error) {
+func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, argument IDLoader) (*WebsocketOrderDetails, error) {
 	// Get the outbound and inbound connections to send and receive the request. This makes sure both are live before
 	// sending the request.
-	outbound, err := by.Websocket.GetConnection(OutboundTradeConnection)
+	outbound, err := e.Websocket.GetConnection(OutboundTradeConnection)
 	if err != nil {
 		return nil, err
 	}
-	inbound, err := by.Websocket.GetConnection(InboundPrivateConnection)
+	inbound, err := e.Websocket.GetConnection(InboundPrivateConnection)
 	if err != nil {
 		return nil, err
 	}

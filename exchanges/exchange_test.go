@@ -91,7 +91,7 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = b.API.Endpoints.SetRunning(EdgeCase2.String(), "http://google.com/")
+	err = b.API.Endpoints.SetRunningURL(EdgeCase2.String(), "http://google.com/")
 	if err != nil {
 		t.Error(err)
 	}
@@ -102,7 +102,7 @@ func TestSet(t *testing.T) {
 	if val != "http://google.com/" {
 		t.Errorf("vals didn't match. expecting: %s, got: %s\n", "http://google.com/", val)
 	}
-	err = b.API.Endpoints.SetRunning(EdgeCase3.String(), "Added Edgecase3")
+	err = b.API.Endpoints.SetRunningURL(EdgeCase3.String(), "Added Edgecase3")
 	if err != nil {
 		t.Errorf("not expecting an error since invalid url val err should be logged but received: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestGetURL(t *testing.T) {
 	if getVal != "http://test1.com/" {
 		t.Errorf("getVal failed")
 	}
-	err = b.API.Endpoints.SetRunning(EdgeCase2.String(), "http://OVERWRITTENBRO.com.au/")
+	err = b.API.Endpoints.SetRunningURL(EdgeCase2.String(), "http://OVERWRITTENBRO.com.au/")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1457,34 +1457,25 @@ func TestSetGlobalPairsManager(t *testing.T) {
 	assert.ErrorIs(t, err, errConfigPairFormatRequiresDelimiter, "SetGlobalPairsManager should error correctly")
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
-	testCases := []struct {
-		name     string
+func TestFormatExchangeKlineInterval(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	for _, tc := range []struct {
 		interval kline.Interval
 		output   string
 	}{
 		{
-			"OneMin",
 			kline.OneMin,
 			"60",
 		},
 		{
-			"OneDay",
 			kline.OneDay,
 			"86400",
 		},
-	}
-
-	b := Base{}
-	for x := range testCases {
-		test := testCases[x]
-
-		t.Run(test.name, func(t *testing.T) {
-			ret := b.FormatExchangeKlineInterval(test.interval)
-
-			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
-			}
+	} {
+		t.Run(tc.interval.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.output, b.FormatExchangeKlineInterval(tc.interval))
 		})
 	}
 }
@@ -1548,9 +1539,7 @@ func TestCheckTransientError(t *testing.T) {
 func TestDisableEnableRateLimiter(t *testing.T) {
 	b := Base{}
 	err := b.EnableRateLimiter()
-	if !errors.Is(err, request.ErrRequestSystemIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, request.ErrRequestSystemIsNil)
-	}
+	require.ErrorIs(t, err, request.ErrRequestSystemIsNil)
 
 	b.Requester, err = request.New("testingRateLimiter", common.NewHTTPClientWithTimeout(0))
 	if err != nil {
@@ -1561,17 +1550,13 @@ func TestDisableEnableRateLimiter(t *testing.T) {
 	require.NoError(t, err)
 
 	err = b.DisableRateLimiter()
-	if !errors.Is(err, request.ErrRateLimiterAlreadyDisabled) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, request.ErrRateLimiterAlreadyDisabled)
-	}
+	require.ErrorIs(t, err, request.ErrRateLimiterAlreadyDisabled)
 
 	err = b.EnableRateLimiter()
 	require.NoError(t, err)
 
 	err = b.EnableRateLimiter()
-	if !errors.Is(err, request.ErrRateLimiterAlreadyEnabled) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, request.ErrRateLimiterAlreadyEnabled)
-	}
+	require.ErrorIs(t, err, request.ErrRateLimiterAlreadyEnabled)
 }
 
 func TestGetWebsocket(t *testing.T) {
@@ -1653,13 +1638,6 @@ func TestKlineIntervalEnabled(t *testing.T) {
 	}
 }
 
-func TestFormatExchangeKlineInterval(t *testing.T) {
-	b := Base{}
-	if b.FormatExchangeKlineInterval(kline.EightHour) != "28800" {
-		t.Fatal("unexpected value")
-	}
-}
-
 func TestSetSaveTradeDataStatus(t *testing.T) {
 	b := Base{
 		Features: Features{
@@ -1714,50 +1692,39 @@ func TestAddTradesToBuffer(t *testing.T) {
 }
 
 func TestString(t *testing.T) {
-	if RestSpot.String() != restSpotURL {
-		t.Errorf("received '%v' expected '%v'", RestSpot, restSpotURL)
-	}
-	if RestSpotSupplementary.String() != restSpotSupplementaryURL {
-		t.Errorf("received '%v' expected '%v'", RestSpotSupplementary, restSpotSupplementaryURL)
-	}
-	if RestUSDTMargined.String() != "RestUSDTMarginedFuturesURL" {
-		t.Errorf("received '%v' expected '%v'", RestUSDTMargined, "RestUSDTMarginedFuturesURL")
-	}
-	if RestCoinMargined.String() != restCoinMarginedFuturesURL {
-		t.Errorf("received '%v' expected '%v'", RestCoinMargined, restCoinMarginedFuturesURL)
-	}
-	if RestFutures.String() != restFuturesURL {
-		t.Errorf("received '%v' expected '%v'", RestFutures, restFuturesURL)
-	}
-	if RestFuturesSupplementary.String() != restFuturesSupplementaryURL {
-		t.Errorf("received '%v' expected '%v'", RestFutures, restFuturesSupplementaryURL)
-	}
-	if RestUSDCMargined.String() != restUSDCMarginedFuturesURL {
-		t.Errorf("received '%v' expected '%v'", RestUSDCMargined, restUSDCMarginedFuturesURL)
-	}
-	if RestSandbox.String() != restSandboxURL {
-		t.Errorf("received '%v' expected '%v'", RestSandbox, restSandboxURL)
-	}
-	if RestSwap.String() != restSwapURL {
-		t.Errorf("received '%v' expected '%v'", RestSwap, restSwapURL)
-	}
-	if WebsocketSpot.String() != websocketSpotURL {
-		t.Errorf("received '%v' expected '%v'", WebsocketSpot, websocketSpotURL)
-	}
-	if WebsocketSpotSupplementary.String() != websocketSpotSupplementaryURL {
-		t.Errorf("received '%v' expected '%v'", WebsocketSpotSupplementary, websocketSpotSupplementaryURL)
-	}
-	if ChainAnalysis.String() != chainAnalysisURL {
-		t.Errorf("received '%v' expected '%v'", ChainAnalysis, chainAnalysisURL)
-	}
-	if EdgeCase1.String() != edgeCase1URL {
-		t.Errorf("received '%v' expected '%v'", EdgeCase1, edgeCase1URL)
-	}
-	if EdgeCase2.String() != edgeCase2URL {
-		t.Errorf("received '%v' expected '%v'", EdgeCase2, edgeCase2URL)
-	}
-	if EdgeCase3.String() != edgeCase3URL {
-		t.Errorf("received '%v' expected '%v'", EdgeCase3, edgeCase3URL)
+	t.Parallel()
+
+	for _, tc := range []struct {
+		url      URL
+		expected string
+	}{
+		{0, ""},
+		{RestSpot, restSpotURL},
+		{RestSpotSupplementary, restSpotSupplementaryURL},
+		{RestUSDTMargined, restUSDTMarginedFuturesURL},
+		{RestCoinMargined, restCoinMarginedFuturesURL},
+		{RestFutures, restFuturesURL},
+		{RestFuturesSupplementary, restFuturesSupplementaryURL},
+		{RestUSDCMargined, restUSDCMarginedFuturesURL},
+		{RestSandbox, restSandboxURL},
+		{RestSwap, restSwapURL},
+		{WebsocketSpot, websocketSpotURL},
+		{WebsocketCoinMargined, websocketCoinMarginedURL},
+		{WebsocketUSDTMargined, websocketUSDTMarginedURL},
+		{WebsocketUSDCMargined, websocketUSDCMarginedURL},
+		{WebsocketOptions, websocketOptionsURL},
+		{WebsocketPrivate, websocketPrivateURL},
+		{WebsocketSpotSupplementary, websocketSpotSupplementaryURL},
+		{ChainAnalysis, chainAnalysisURL},
+		{EdgeCase1, edgeCase1URL},
+		{EdgeCase2, edgeCase2URL},
+		{EdgeCase3, edgeCase3URL},
+		{420, ""},
+	} {
+		t.Run(tc.url.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, tc.url.String(), "String() should return the expected URL")
+		})
 	}
 }
 
@@ -1771,24 +1738,13 @@ func TestFormatSymbol(t *testing.T) {
 		},
 	}
 	err := b.SetAssetPairStore(asset.Spot, spotStore)
-	if err != nil {
-		t.Error(err)
-	}
-	pair, err := currency.NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Error(err)
-	}
-	sym, err := b.FormatSymbol(pair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-	if sym != "BTCUSD" {
-		t.Error("formatting failed")
-	}
-	_, err = b.FormatSymbol(pair, asset.Futures)
-	if err == nil {
-		t.Error("expecting an error since asset pair format has not been set")
-	}
+	require.NoError(t, err, "SetAssetPairStore must not error")
+	p := currency.NewBTCUSD().Format(*spotStore.ConfigFormat)
+	sym, err := b.FormatSymbol(p, asset.Spot)
+	require.NoError(t, err, "FormatSymbol must not error")
+	assert.Equal(t, "BTCUSD", sym, "FormatSymbol should format the pair correctly")
+	_, err = b.FormatSymbol(p, asset.Futures)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestSetAPIURL(t *testing.T) {
@@ -1860,12 +1816,12 @@ func TestSetAPIURL(t *testing.T) {
 	}
 }
 
-func TestSetRunning(t *testing.T) {
+func TestSetRunningURL(t *testing.T) {
 	b := Base{
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	err := b.API.Endpoints.SetRunning(EdgeCase1.String(), "http://google.com/")
+	err := b.API.Endpoints.SetRunningURL(EdgeCase1.String(), "http://google.com/")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1878,9 +1834,7 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 	}
 
 	err := b.DisableAssetWebsocketSupport(asset.Spot)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("expected error: %v but received: %v", asset.ErrNotSupported, err)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = b.SetAssetPairStore(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{
@@ -1921,20 +1875,26 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		Expected URL
 		Error    error
 	}{
-		{Endpoint: "RestSpotURL", Expected: RestSpot},
-		{Endpoint: "RestSpotSupplementaryURL", Expected: RestSpotSupplementary},
-		{Endpoint: "RestUSDTMarginedFuturesURL", Expected: RestUSDTMargined},
-		{Endpoint: "RestCoinMarginedFuturesURL", Expected: RestCoinMargined},
-		{Endpoint: "RestFuturesURL", Expected: RestFutures},
-		{Endpoint: "RestUSDCMarginedFuturesURL", Expected: RestUSDCMargined},
-		{Endpoint: "RestSandboxURL", Expected: RestSandbox},
-		{Endpoint: "RestSwapURL", Expected: RestSwap},
-		{Endpoint: "WebsocketSpotURL", Expected: WebsocketSpot},
-		{Endpoint: "WebsocketSpotSupplementaryURL", Expected: WebsocketSpotSupplementary},
-		{Endpoint: "ChainAnalysisURL", Expected: ChainAnalysis},
-		{Endpoint: "EdgeCase1URL", Expected: EdgeCase1},
-		{Endpoint: "EdgeCase2URL", Expected: EdgeCase2},
-		{Endpoint: "EdgeCase3URL", Expected: EdgeCase3},
+		{Endpoint: restSpotURL, Expected: RestSpot},
+		{Endpoint: restSpotSupplementaryURL, Expected: RestSpotSupplementary},
+		{Endpoint: restUSDTMarginedFuturesURL, Expected: RestUSDTMargined},
+		{Endpoint: restCoinMarginedFuturesURL, Expected: RestCoinMargined},
+		{Endpoint: restFuturesURL, Expected: RestFutures},
+		{Endpoint: restFuturesSupplementaryURL, Expected: RestFuturesSupplementary},
+		{Endpoint: restUSDCMarginedFuturesURL, Expected: RestUSDCMargined},
+		{Endpoint: restSandboxURL, Expected: RestSandbox},
+		{Endpoint: restSwapURL, Expected: RestSwap},
+		{Endpoint: websocketSpotURL, Expected: WebsocketSpot},
+		{Endpoint: websocketCoinMarginedURL, Expected: WebsocketCoinMargined},
+		{Endpoint: websocketUSDTMarginedURL, Expected: WebsocketUSDTMargined},
+		{Endpoint: websocketUSDCMarginedURL, Expected: WebsocketUSDCMargined},
+		{Endpoint: websocketOptionsURL, Expected: WebsocketOptions},
+		{Endpoint: websocketPrivateURL, Expected: WebsocketPrivate},
+		{Endpoint: websocketSpotSupplementaryURL, Expected: WebsocketSpotSupplementary},
+		{Endpoint: chainAnalysisURL, Expected: ChainAnalysis},
+		{Endpoint: edgeCase1URL, Expected: EdgeCase1},
+		{Endpoint: edgeCase2URL, Expected: EdgeCase2},
+		{Endpoint: edgeCase3URL, Expected: EdgeCase3},
 		{Endpoint: "sillyMcSillyBilly", Expected: 0, Error: errEndpointStringNotFound},
 	}
 
@@ -1942,9 +1902,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		t.Run(tt.Endpoint, func(t *testing.T) {
 			t.Parallel()
 			u, err := getURLTypeFromString(tt.Endpoint)
-			if !errors.Is(err, tt.Error) {
-				t.Fatalf("received: %v but expected: %v", err, tt.Error)
-			}
+			require.ErrorIs(t, err, tt.Error)
 
 			if u != tt.Expected {
 				t.Fatalf("received: %v but expected: %v", u, tt.Expected)
@@ -1956,41 +1914,36 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetAvailableTransferChains(t.Context(), currency.BTC); !errors.Is(err, common.ErrFunctionNotSupported) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
-	}
+	_, err := b.GetAvailableTransferChains(t.Context(), currency.BTC)
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestCalculatePNL(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.CalculatePNL(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.CalculatePNL(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestScaleCollateral(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.ScaleCollateral(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.ScaleCollateral(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestCalculateTotalCollateral(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.CalculateTotalCollateral(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.CalculateTotalCollateral(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestUpdateCurrencyStates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if err := b.UpdateCurrencyStates(t.Context(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	err := b.UpdateCurrencyStates(t.Context(), asset.Spot)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestSetTradeFeedStatus(t *testing.T) {
@@ -2032,49 +1985,43 @@ func TestSetFillsFeedStatus(t *testing.T) {
 func TestGetMarginRateHistory(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetMarginRatesHistory(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.GetMarginRatesHistory(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetPositionSummary(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetFuturesPositionSummary(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.GetFuturesPositionSummary(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetFuturesPositionOrders(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.GetFuturesPositionOrders(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetHistoricalFundingRates(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.GetHistoricalFundingRates(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetHistoricalFundingRates(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.GetHistoricalFundingRates(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.IsPerpetualFutureCurrency(asset.Spot, currency.NewBTCUSD()); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.IsPerpetualFutureCurrency(asset.Spot, currency.NewBTCUSD())
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
@@ -2109,19 +2056,13 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	}
 
 	_, _, err := b.GetPairAndAssetTypeRequestFormatted("")
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCAUD")
-	if !errors.Is(err, ErrSymbolCannotBeMatched) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSymbolCannotBeMatched)
-	}
+	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
-	if !errors.Is(err, ErrSymbolCannotBeMatched) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSymbolCannotBeMatched)
-	}
+	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
 
 	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
 	require.NoError(t, err)
@@ -2176,18 +2117,14 @@ func TestGetCollateralCurrencyForContract(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	_, _, err := b.GetCollateralCurrencyForContract(asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
-	}
+	require.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetCurrencyForRealisedPNL(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	_, _, err := b.GetCurrencyForRealisedPNL(asset.Empty, currency.EMPTYPAIR)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
-	}
+	require.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestHasAssetTypeAccountSegregation(t *testing.T) {
@@ -2361,63 +2298,50 @@ func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	err := b.SetCollateralMode(t.Context(), asset.Spot, collateral.SingleMode)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetCollateralMode(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	_, err := b.GetCollateralMode(t.Context(), asset.Spot)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestSetMarginType(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	err := b.SetMarginType(t.Context(), asset.Spot, currency.NewBTCUSD(), margin.Multi)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	_, err := b.ChangePositionMargin(t.Context(), nil)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	err := b.SetLeverage(t.Context(), asset.Spot, currency.NewBTCUSD(), margin.Multi, 1, order.UnknownSide)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	_, err := b.GetLeverage(t.Context(), asset.Spot, currency.NewBTCUSD(), margin.Multi, order.UnknownSide)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestEnsureOnePairEnabled(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 	err := b.EnsureOnePairEnabled()
-	if !errors.Is(err, currency.ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairsEmpty)
-	}
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+
 	b.CurrencyPairs = currency.PairsManager{
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Futures: {},
@@ -2449,15 +2373,11 @@ func TestGetStandardConfig(t *testing.T) {
 
 	var b *Base
 	_, err := b.GetStandardConfig()
-	if !errors.Is(err, errExchangeIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeIsNil)
-	}
+	require.ErrorIs(t, err, errExchangeIsNil)
 
 	b = &Base{}
 	_, err = b.GetStandardConfig()
-	if !errors.Is(err, errSetDefaultsNotCalled) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errSetDefaultsNotCalled)
-	}
+	require.ErrorIs(t, err, errSetDefaultsNotCalled)
 
 	b.Name = "test"
 	b.Features.Supports.Websocket = true
@@ -2499,9 +2419,7 @@ func TestMatchSymbolWithAvailablePairs(t *testing.T) {
 	}
 
 	_, err = b.MatchSymbolWithAvailablePairs("sillBillies", asset.Futures, false)
-	if !errors.Is(err, currency.ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrPairNotFound)
-	}
+	require.ErrorIs(t, err, currency.ErrPairNotFound)
 
 	whatIGot, err := b.MatchSymbolWithAvailablePairs("btcusdT", asset.Spot, false)
 	require.NoError(t, err)
@@ -2533,9 +2451,7 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 	}
 
 	_, _, err = b.MatchSymbolCheckEnabled("sillBillies", asset.Futures, false)
-	if !errors.Is(err, currency.ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrPairNotFound)
-	}
+	require.ErrorIs(t, err, currency.ErrPairNotFound)
 
 	whatIGot, enabled, err := b.MatchSymbolCheckEnabled("btcusdT", asset.Spot, false)
 	require.NoError(t, err)
@@ -2610,9 +2526,8 @@ func TestIsPairEnabled(t *testing.T) {
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetOpenInterest(t.Context()); !errors.Is(err, common.ErrFunctionNotSupported) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
-	}
+	_, err := b.GetOpenInterest(t.Context())
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestGetCachedOpenInterest(t *testing.T) {
@@ -2681,7 +2596,7 @@ func TestParallelChanOp(t *testing.T) {
 	b := Base{}
 	errC := make(chan error, 1)
 	go func() {
-		errC <- b.ParallelChanOp(c, func(c subscription.List) error {
+		errC <- b.ParallelChanOp(t.Context(), c, func(_ context.Context, c subscription.List) error {
 			time.Sleep(300 * time.Millisecond)
 			run <- struct{}{}
 			switch c[0].Channel {
@@ -2758,7 +2673,7 @@ func TestGetCachedOrderbook(t *testing.T) {
 	_, err := b.GetCachedOrderbook(pair, asset.Spot)
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 
-	err = (&orderbook.Base{Exchange: "test", Pair: pair, Asset: asset.Spot}).Process()
+	err = (&orderbook.Book{Exchange: "test", Pair: pair, Asset: asset.Spot}).Process()
 	assert.NoError(t, err)
 
 	ob, err := b.GetCachedOrderbook(pair, asset.Spot)
@@ -2834,7 +2749,7 @@ func (f *FakeBase) GetCachedAccountInfo(context.Context, asset.Item) (account.Ho
 	return account.Holdings{}, nil
 }
 
-func (f *FakeBase) GetCachedOrderbook(currency.Pair, asset.Item) (*orderbook.Base, error) {
+func (f *FakeBase) GetCachedOrderbook(currency.Pair, asset.Item) (*orderbook.Book, error) {
 	return nil, nil
 }
 
@@ -2862,7 +2777,7 @@ func (f *FakeBase) UpdateTicker(context.Context, currency.Pair, asset.Item) (*ti
 	return nil, nil
 }
 
-func (f *FakeBase) UpdateOrderbook(context.Context, currency.Pair, asset.Item) (*orderbook.Base, error) {
+func (f *FakeBase) UpdateOrderbook(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
 	return nil, nil
 }
 

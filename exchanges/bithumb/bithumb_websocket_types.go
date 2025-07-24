@@ -39,13 +39,13 @@ type WsTicker struct {
 	VolumePower        float64       `json:"volumePower,string"`
 }
 
-// WsOrderbooks defines an amalgamated bid ask orderbook tranche list
+// WsOrderbooks defines an amalgamated bid ask orderbook level list
 type WsOrderbooks struct {
 	List     []WsOrderbook `json:"list"`
 	DateTime types.Time    `json:"datetime"`
 }
 
-// WsOrderbook defines a singular orderbook tranche
+// WsOrderbook defines a singular orderbook level
 type WsOrderbook struct {
 	Symbol    currency.Pair `json:"symbol"`
 	OrderSide string        `json:"orderType"`

@@ -1,12 +1,12 @@
 package kline
 
 import (
-	"errors"
 	"math"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var accuracy10dp = 1 / math.Pow10(10)
@@ -142,10 +142,8 @@ var expectVWAPs = []float64{245.05046666666664, 245.00156932123465, 245.07320400
 func TestGetVWAPs(t *testing.T) {
 	t.Parallel()
 	candles := Item{}
-	if _, err := candles.GetVWAPs(); !errors.Is(err, errNoData) {
-		t.Fatal(err)
-	}
-
+	_, err := candles.GetVWAPs()
+	require.ErrorIs(t, err, errNoData)
 	candles.Candles = vwapdataset
 	vwap, err := candles.GetVWAPs()
 	assert.NoError(t, err, "GetVWAPs should not error")

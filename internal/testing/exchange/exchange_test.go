@@ -14,7 +14,7 @@ import (
 
 // TestSetup exercises Setup
 func TestSetup(t *testing.T) {
-	b := new(binance.Binance)
+	b := new(binance.Exchange)
 	require.NoError(t, Setup(b), "Setup must not error")
 	assert.NotNil(t, b.Websocket, "Websocket should not be nil after Setup")
 
@@ -24,13 +24,14 @@ func TestSetup(t *testing.T) {
 
 // TestMockHTTPInstance exercises MockHTTPInstance
 func TestMockHTTPInstance(t *testing.T) {
-	b := new(binance.Binance)
+	b := new(binance.Exchange)
 	require.NoError(t, Setup(b), "Test exchange Setup must not error")
-	require.NoError(t, MockHTTPInstance(b), "MockHTTPInstance must not error")
+	require.NoError(t, MockHTTPInstance(b), "MockHTTPInstance with no optional path must not error")
+	require.NoError(t, MockHTTPInstance(b, "api"), "MockHTTPInstance with optional path must not error")
 }
 
 // TestMockWsInstance exercises MockWsInstance
 func TestMockWsInstance(t *testing.T) {
-	b := MockWsInstance[binance.Binance](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
+	b := MockWsInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
 	require.NotNil(t, b, "MockWsInstance must not be nil")
 }

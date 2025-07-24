@@ -34,8 +34,7 @@ var (
 
 // Connection defines the interface for websocket connections
 type Connection interface {
-	Dial(*gws.Dialer, http.Header) error
-	DialContext(context.Context, *gws.Dialer, http.Header) error
+	Dial(context.Context, *gws.Dialer, http.Header) error
 	ReadMessage() Response
 	SetupPingHandler(request.EndpointLimit, PingHandler)
 	// GenerateMessageID generates a message ID for the individual connection. If a bespoke function is set
@@ -138,12 +137,7 @@ type connection struct {
 }
 
 // Dial sets proxy urls and then connects to the websocket
-func (c *connection) Dial(dialer *gws.Dialer, headers http.Header) error {
-	return c.DialContext(context.Background(), dialer, headers)
-}
-
-// DialContext sets proxy urls and then connects to the websocket
-func (c *connection) DialContext(ctx context.Context, dialer *gws.Dialer, headers http.Header) error {
+func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.Header) error {
 	if c.ProxyURL != "" {
 		proxy, err := url.Parse(c.ProxyURL)
 		if err != nil {

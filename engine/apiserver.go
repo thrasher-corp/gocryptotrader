@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,7 +17,6 @@ import (
 	"github.com/gorilla/mux"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -316,7 +317,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 
 	orderbookData := make([]EnabledExchangeOrderbooks, 0, len(exchanges))
 	for _, e := range exchanges {
-		var orderbooks []orderbook.Base
+		var orderbooks []orderbook.Book
 		for _, a := range e.GetAssetTypes(true) {
 			pairs, err := e.GetEnabledPairs(a)
 			if err != nil {
@@ -693,13 +694,8 @@ func wsAuth(client *websocketClient, data any) error {
 		return err
 	}
 
-	hash, err := crypto.GetSHA256([]byte(client.password))
-	if err != nil {
-		return err
-	}
-
-	hashPW := crypto.HexEncodeToString(hash)
-	if auth.Username == client.username && auth.Password == hashPW {
+	shasum := sha256.Sum256([]byte(client.password))
+	if auth.Username == client.username && auth.Password == hex.EncodeToString(shasum[:]) {
 		client.Authenticated = true
 		wsResp.Data = WebsocketResponseSuccess
 		log.Debugln(log.APIServerMgr,
