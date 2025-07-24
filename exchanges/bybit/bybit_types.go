@@ -18,11 +18,11 @@ var validCategory = []string{"spot", "linear", "inverse", "option"}
 var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
 
 type orderbookResponse struct {
-	Symbol    string      `json:"s"`
-	Asks      [][2]string `json:"a"`
-	Bids      [][2]string `json:"b"`
-	Timestamp types.Time  `json:"ts"`
-	UpdateID  int64       `json:"u"`
+	Symbol    string            `json:"s"`
+	Asks      [][2]types.Number `json:"a"`
+	Bids      [][2]types.Number `json:"b"`
+	Timestamp types.Time        `json:"ts"`
+	UpdateID  int64             `json:"u"`
 }
 
 // Authenticate stores authentication variables required
@@ -116,49 +116,45 @@ type RestResponse struct {
 
 // KlineResponse represents a kline item list instance as an array of string.
 type KlineResponse struct {
-	Symbol   string     `json:"symbol"`
-	Category string     `json:"category"`
-	List     [][]string `json:"list"`
+	Symbol   string      `json:"symbol"`
+	Category string      `json:"category"`
+	List     []KlineItem `json:"list"`
 }
 
 // KlineItem stores an individual kline data item
 type KlineItem struct {
-	StartTime time.Time
-	Open      float64
-	High      float64
-	Low       float64
-	Close     float64
+	StartTime types.Time
+	Open      types.Number
+	High      types.Number
+	Low       types.Number
+	Close     types.Number
 
 	// not available for mark and index price kline data
-	TradeVolume float64
-	Turnover    float64
+	TradeVolume types.Number
+	Turnover    types.Number
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface for KlineItem
+func (k *KlineItem) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&k.StartTime, &k.Open, &k.High, &k.Low, &k.Close, &k.TradeVolume, &k.Turnover})
 }
 
 // MarkPriceKlineResponse represents a kline data item.
 type MarkPriceKlineResponse struct {
-	Symbol   string     `json:"symbol"`
-	Category string     `json:"category"`
-	List     [][]string `json:"list"`
+	Symbol   string      `json:"symbol"`
+	Category string      `json:"category"`
+	List     []KlineItem `json:"list"`
 }
 
 func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
-	var (
-		s = Orderbook{
-			Symbol:         o.Symbol,
-			UpdateID:       o.UpdateID,
-			GenerationTime: o.Timestamp.Time(),
-		}
-		err error
-	)
-	s.Bids, err = processOB(o.Bids)
-	if err != nil {
-		return nil, err
+	s := Orderbook{
+		Symbol:         o.Symbol,
+		UpdateID:       o.UpdateID,
+		GenerationTime: o.Timestamp.Time(),
 	}
-	s.Asks, err = processOB(o.Asks)
-	if err != nil {
-		return nil, err
-	}
-	return &s, err
+	s.Bids = processOB(o.Bids)
+	s.Asks = processOB(o.Asks)
+	return &s, nil
 }
 
 // TickerData represents a list of ticker detailed information.
@@ -1750,19 +1746,19 @@ type ServerTime struct {
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	UpdateID       int64
-	Bids           []orderbook.Tranche
-	Asks           []orderbook.Tranche
+	Bids           []orderbook.Level
+	Asks           []orderbook.Level
 	Symbol         string
 	GenerationTime time.Time
 }
 
 // WsOrderbookDetail represents an orderbook detail information.
 type WsOrderbookDetail struct {
-	Symbol   string     `json:"s"`
-	Bids     [][]string `json:"b"`
-	Asks     [][]string `json:"a"`
-	UpdateID int64      `json:"u"`
-	Sequence int64      `json:"seq"`
+	Symbol   string            `json:"s"`
+	Bids     [][2]types.Number `json:"b"`
+	Asks     [][2]types.Number `json:"a"`
+	UpdateID int64             `json:"u"`
+	Sequence int64             `json:"seq"`
 }
 
 // SubscriptionResponse represents a subscription response.

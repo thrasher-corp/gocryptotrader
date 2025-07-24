@@ -2,6 +2,7 @@ package coinbasepro
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -28,38 +28,39 @@ const (
 )
 
 // WsConnect initiates a websocket connection
-func (c *CoinbasePro) WsConnect() error {
-	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
+func (e *Exchange) WsConnect() error {
+	ctx := context.TODO()
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	c.Websocket.Wg.Add(1)
-	go c.wsReadData()
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(ctx)
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (c *CoinbasePro) wsReadData() {
-	defer c.Websocket.Wg.Done()
+func (e *Exchange) wsReadData(ctx context.Context) {
+	defer e.Websocket.Wg.Done()
 
 	for {
-		resp := c.Websocket.Conn.ReadMessage()
+		resp := e.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := c.wsHandleData(resp.Raw)
+		err := e.wsHandleData(ctx, resp.Raw)
 		if err != nil {
-			c.Websocket.DataHandler <- err
+			e.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	msgType := wsMsgType{}
 	err := json.Unmarshal(respRaw, &msgType)
 	if err != nil {
@@ -77,9 +78,9 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		c.Websocket.DataHandler <- status
+		e.Websocket.DataHandler <- status
 	case "error":
-		c.Websocket.DataHandler <- errors.New(string(respRaw))
+		e.Websocket.DataHandler <- errors.New(string(respRaw))
 	case "ticker":
 		wsTicker := WebsocketTicker{}
 		err := json.Unmarshal(respRaw, &wsTicker)
@@ -87,11 +88,11 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		c.Websocket.DataHandler <- &ticker.Price{
+		e.Websocket.DataHandler <- &ticker.Price{
 			LastUpdated:  wsTicker.Time,
 			Pair:         wsTicker.ProductID,
 			AssetType:    asset.Spot,
-			ExchangeName: c.Name,
+			ExchangeName: e.Name,
 			Open:         wsTicker.Open24H,
 			High:         wsTicker.High24H,
 			Low:          wsTicker.Low24H,
@@ -108,7 +109,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		err = c.ProcessSnapshot(&snapshot)
+		err = e.ProcessSnapshot(&snapshot)
 		if err != nil {
 			return err
 		}
@@ -119,7 +120,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		err = c.ProcessUpdate(&update)
+		err = e.ProcessOrderbookUpdate(&update)
 		if err != nil {
 			return err
 		}
@@ -134,24 +135,24 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		var oStatus order.Status
 		oType, err = order.StringToOrderType(wsOrder.OrderType)
 		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
+			e.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: e.Name,
 				OrderID:  wsOrder.OrderID,
 				Err:      err,
 			}
 		}
 		oSide, err = order.StringToOrderSide(wsOrder.Side)
 		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
+			e.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: e.Name,
 				OrderID:  wsOrder.OrderID,
 				Err:      err,
 			}
 		}
 		oStatus, err = statusToStandardStatus(wsOrder.Type)
 		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
+			e.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: e.Name,
 				OrderID:  wsOrder.OrderID,
 				Err:      err,
 			}
@@ -161,13 +162,13 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		}
 		ts := wsOrder.Time
 		if wsOrder.Type == "activate" {
-			ts = convert.TimeFromUnixTimestampDecimal(wsOrder.Timestamp)
+			ts = wsOrder.Timestamp.Time()
 		}
 
-		creds, err := c.GetCredentials(context.TODO())
+		creds, err := e.GetCredentials(ctx)
 		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
+			e.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: e.Name,
 				OrderID:  wsOrder.OrderID,
 				Err:      err,
 			}
@@ -181,11 +182,11 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		if wsOrder.UserID != "" {
 			var p currency.Pair
 			var a asset.Item
-			p, a, err = c.GetRequestFormattedPairAndAssetType(wsOrder.ProductID)
+			p, a, err = e.GetRequestFormattedPairAndAssetType(wsOrder.ProductID)
 			if err != nil {
 				return err
 			}
-			c.Websocket.DataHandler <- &order.Detail{
+			e.Websocket.DataHandler <- &order.Detail{
 				HiddenOrder:     wsOrder.Private,
 				Price:           wsOrder.Price,
 				Amount:          wsOrder.Size,
@@ -193,7 +194,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				ExecutedAmount:  wsOrder.Size - wsOrder.RemainingSize,
 				RemainingAmount: wsOrder.RemainingSize,
 				Fee:             wsOrder.TakerFeeRate,
-				Exchange:        c.Name,
+				Exchange:        e.Name,
 				OrderID:         wsOrder.OrderID,
 				AccountID:       wsOrder.ProfileID,
 				ClientID:        clientID,
@@ -213,20 +214,20 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		}
 		oSide, err := order.StringToOrderSide(wsOrder.Side)
 		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
+			e.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: e.Name,
 				Err:      err,
 			}
 		}
 		var p currency.Pair
 		var a asset.Item
-		p, a, err = c.GetRequestFormattedPairAndAssetType(wsOrder.ProductID)
+		p, a, err = e.GetRequestFormattedPairAndAssetType(wsOrder.ProductID)
 		if err != nil {
 			return err
 		}
 
 		if wsOrder.UserID != "" {
-			c.Websocket.DataHandler <- &order.Detail{
+			e.Websocket.DataHandler <- &order.Detail{
 				OrderID:   wsOrder.OrderID,
 				Pair:      p,
 				AssetType: a,
@@ -234,7 +235,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 					{
 						Price:     wsOrder.Price,
 						Amount:    wsOrder.Size,
-						Exchange:  c.Name,
+						Exchange:  e.Name,
 						TID:       strconv.FormatInt(wsOrder.TradeID, 10),
 						Side:      oSide,
 						Timestamp: wsOrder.Time,
@@ -243,12 +244,12 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				},
 			}
 		} else {
-			if !c.IsSaveTradeDataEnabled() {
+			if !e.IsSaveTradeDataEnabled() {
 				return nil
 			}
 			return trade.AddTradesToBuffer(trade.Data{
 				Timestamp:    wsOrder.Time,
-				Exchange:     c.Name,
+				Exchange:     e.Name,
 				CurrencyPair: p,
 				AssetType:    a,
 				Price:        wsOrder.Price,
@@ -258,7 +259,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			})
 		}
 	default:
-		c.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: c.Name + websocket.UnhandledMessage + string(respRaw)}
+		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
@@ -282,56 +283,35 @@ func statusToStandardStatus(stat string) (order.Status, error) {
 }
 
 // ProcessSnapshot processes the initial orderbook snap shot
-func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) error {
+func (e *Exchange) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) error {
 	pair, err := currency.NewPairFromString(snapshot.ProductID)
 	if err != nil {
 		return err
 	}
 
-	base := orderbook.Base{
-		Pair: pair,
-		Bids: make(orderbook.Tranches, len(snapshot.Bids)),
-		Asks: make(orderbook.Tranches, len(snapshot.Asks)),
+	ob := &orderbook.Book{
+		Pair:              pair,
+		Bids:              make(orderbook.Levels, len(snapshot.Bids)),
+		Asks:              make(orderbook.Levels, len(snapshot.Asks)),
+		Asset:             asset.Spot,
+		Exchange:          e.Name,
+		ValidateOrderbook: e.ValidateOrderbook,
+		LastUpdated:       snapshot.Time,
 	}
 
 	for i := range snapshot.Bids {
-		var price float64
-		price, err = strconv.ParseFloat(snapshot.Bids[i][0], 64)
-		if err != nil {
-			return err
-		}
-		var amount float64
-		amount, err = strconv.ParseFloat(snapshot.Bids[i][1], 64)
-		if err != nil {
-			return err
-		}
-		base.Bids[i] = orderbook.Tranche{Price: price, Amount: amount}
+		ob.Bids[i].Price = snapshot.Bids[i][0].Float64()
+		ob.Bids[i].Amount = snapshot.Bids[i][1].Float64()
 	}
-
 	for i := range snapshot.Asks {
-		var price float64
-		price, err = strconv.ParseFloat(snapshot.Asks[i][0], 64)
-		if err != nil {
-			return err
-		}
-		var amount float64
-		amount, err = strconv.ParseFloat(snapshot.Asks[i][1], 64)
-		if err != nil {
-			return err
-		}
-		base.Asks[i] = orderbook.Tranche{Price: price, Amount: amount}
+		ob.Asks[i].Price = snapshot.Asks[i][0].Float64()
+		ob.Asks[i].Amount = snapshot.Asks[i][1].Float64()
 	}
-
-	base.Asset = asset.Spot
-	base.Pair = pair
-	base.Exchange = c.Name
-	base.VerifyOrderbook = c.CanVerifyOrderbook
-	base.LastUpdated = snapshot.Time
-	return c.Websocket.Orderbook.LoadSnapshot(&base)
+	return e.Websocket.Orderbook.LoadSnapshot(ob)
 }
 
-// ProcessUpdate updates the orderbook local cache
-func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
+// ProcessOrderbookUpdate updates the orderbook local cache
+func (e *Exchange) ProcessOrderbookUpdate(update *WebsocketL2Update) error {
 	if len(update.Changes) == 0 {
 		return errors.New("no data in websocket update")
 	}
@@ -341,8 +321,8 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 		return err
 	}
 
-	asks := make(orderbook.Tranches, 0, len(update.Changes))
-	bids := make(orderbook.Tranches, 0, len(update.Changes))
+	asks := make(orderbook.Levels, 0, len(update.Changes))
+	bids := make(orderbook.Levels, 0, len(update.Changes))
 
 	for i := range update.Changes {
 		price, err := strconv.ParseFloat(update.Changes[i][1], 64)
@@ -354,13 +334,13 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 			return err
 		}
 		if update.Changes[i][0] == order.Buy.Lower() {
-			bids = append(bids, orderbook.Tranche{Price: price, Amount: volume})
+			bids = append(bids, orderbook.Level{Price: price, Amount: volume})
 		} else {
-			asks = append(asks, orderbook.Tranche{Price: price, Amount: volume})
+			asks = append(asks, orderbook.Level{Price: price, Amount: volume})
 		}
 	}
 
-	return c.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(&orderbook.Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       p,
@@ -370,19 +350,19 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
-	pairs, err := c.GetEnabledPairs(asset.Spot)
+func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+	pairs, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	pairFmt, err := c.GetPairFormat(asset.Spot, true)
+	pairFmt, err := e.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
 	}
 	pairs = pairs.Format(pairFmt)
-	authed := c.IsWebsocketAuthenticationSupported()
-	subs := make(subscription.List, 0, len(c.Features.Subscriptions))
-	for _, baseSub := range c.Features.Subscriptions {
+	authed := e.IsWebsocketAuthenticationSupported()
+	subs := make(subscription.List, 0, len(e.Features.Subscriptions))
+	for _, baseSub := range e.Features.Subscriptions {
 		if !authed && baseSub.Authenticated {
 			continue
 		}
@@ -396,7 +376,8 @@ func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(subs subscription.List) error {
+func (e *Exchange) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	r := &WebsocketSubscribe{
 		Type:     "subscribe",
 		Channels: make([]any, 0, len(subs)),
@@ -413,8 +394,8 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 		}
 	}
 	for _, s := range subs {
-		if s.Authenticated && r.Key == "" && c.IsWebsocketAuthenticationSupported() {
-			if err := c.authWsSubscibeReq(r); err != nil {
+		if s.Authenticated && r.Key == "" && e.IsWebsocketAuthenticationSupported() {
+			if err := e.authWsSubscibeReq(ctx, r); err != nil {
 				return err
 			}
 		}
@@ -429,15 +410,15 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 			r.Channels = append(r.Channels, s.Channel)
 		}
 	}
-	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
+	err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, r)
 	if err == nil {
-		err = c.Websocket.AddSuccessfulSubscriptions(c.Websocket.Conn, subs...)
+		err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subs...)
 	}
 	return err
 }
 
-func (c *CoinbasePro) authWsSubscibeReq(r *WebsocketSubscribe) error {
-	creds, err := c.GetCredentials(context.TODO())
+func (e *Exchange) authWsSubscibeReq(ctx context.Context, r *WebsocketSubscribe) error {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -447,14 +428,15 @@ func (c *CoinbasePro) authWsSubscibeReq(r *WebsocketSubscribe) error {
 	if err != nil {
 		return err
 	}
-	r.Signature = crypto.Base64Encode(hmac)
+	r.Signature = base64.StdEncoding.EncodeToString(hmac)
 	r.Key = creds.Key
 	r.Passphrase = creds.ClientID
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
+func (e *Exchange) Unsubscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	r := &WebsocketSubscribe{
 		Type:     "unsubscribe",
 		Channels: make([]any, 0, len(subs)),
@@ -465,9 +447,9 @@ func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
 			ProductIDs: s.Pairs.Strings(),
 		})
 	}
-	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
+	err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, r)
 	if err == nil {
-		err = c.Websocket.RemoveSubscriptions(c.Websocket.Conn, subs...)
+		err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subs...)
 	}
 	return err
 }

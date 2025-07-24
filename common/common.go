@@ -704,17 +704,17 @@ func ThrottledBatch[S ~[]E, E any](batchSize int, list S, process ElementProcess
 }
 
 // BatchProcessor defines the function signature for processing a batch of elements.
-type BatchProcessor[S ~[]E, E any] func(batch S) error
+type BatchProcessor[S ~[]E, E any] func(ctx context.Context, batch S) error
 
 // ProcessBatches processes `S` concurrently in batches of `batchSize`
 // For example, if batchSize = 10 and list has 100 elements, 10 goroutines will be created to process
 // 10 batches. Each batch is processed sequentially by the `process` function, and batches are processed
 // in parallel.
-func ProcessBatches[S ~[]E, E any](batchSize int, list S, process BatchProcessor[S, E]) error {
+func ProcessBatches[S ~[]E, E any](ctx context.Context, batchSize int, list S, process BatchProcessor[S, E]) error {
 	batches := Batch(list, batchSize)
 	errs := CollectErrors(len(batches))
 	for _, s := range batches {
-		go func(s S) { errs.C <- process(s); errs.Wg.Done() }(s)
+		go func(s S) { errs.C <- process(ctx, s); errs.Wg.Done() }(s)
 	}
 	return errs.Collect()
 }

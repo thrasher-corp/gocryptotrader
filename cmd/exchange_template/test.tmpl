@@ -1,0 +1,39 @@
+{{define "test"}}
+package {{.Name}}
+
+import (
+	"log"
+	"os"
+	"testing"
+
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+)
+
+// Please supply your own keys here to do authenticated endpoint testing
+const (
+	apiKey                    = ""
+	apiSecret                 = ""
+	canManipulateRealOrders   = false
+)
+
+var e *Exchange
+
+func TestMain(m *testing.M) {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
+		log.Fatal(err)
+	}
+
+	if apiKey != "" && apiSecret != "" {
+		e.API.AuthenticatedSupport = true
+		{{ if .WS }} e.API.AuthenticatedWebsocketSupport = true {{ end }}
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		{{ if .WS }} e.Websocket.SetCanUseAuthenticatedEndpoints(true) {{ end }}
+	}
+
+	os.Exit(m.Run())
+}
+
+
+// Implement tests for API endpoints below
+{{end}}

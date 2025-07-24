@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -82,12 +83,12 @@ var subscriptionNames = map[string]string{
 var standardMarginAssetTypes = []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
 
 // WsConnectSpot initiates a websocket connection
-func (g *Gateio) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
-	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
+func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
+	err := e.CurrencyPairs.IsAssetEnabled(asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &gws.Dialer{}, http.Header{})
+	err = conn.Dial(ctx, &gws.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -105,7 +106,7 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn websocket.Connection) e
 }
 
 // websocketLogin authenticates the websocket connection
-func (g *Gateio) websocketLogin(ctx context.Context, conn websocket.Connection, channel string) error {
+func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection, channel string) error {
 	if conn == nil {
 		return fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
 	}
@@ -114,7 +115,7 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn websocket.Connection, 
 		return errChannelEmpty
 	}
 
-	creds, err := g.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -158,7 +159,7 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn websocket.Connection, 
 	return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
 }
 
-func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (string, error) {
+func (e *Exchange) generateWsSignature(secret, event, channel string, t int64) (string, error) {
 	msg := "channel=" + channel + "&event=" + event + "&time=" + strconv.FormatInt(t, 10)
 	mac := hmac.New(sha512.New, []byte(secret))
 	if _, err := mac.Write([]byte(msg)); err != nil {
@@ -168,51 +169,51 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 }
 
 // WsHandleSpotData handles spot data
-func (g *Gateio) WsHandleSpotData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) WsHandleSpotData(ctx context.Context, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
 	}
 
 	if push.RequestID != "" {
-		return g.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
+		return e.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		return g.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
+		return e.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
 	case spotTickerChannel:
-		return g.processTicker(push.Result, push.Time)
+		return e.processTicker(push.Result, push.Time)
 	case spotTradesChannel:
-		return g.processTrades(push.Result)
+		return e.processTrades(push.Result)
 	case spotCandlesticksChannel:
-		return g.processCandlestick(push.Result)
+		return e.processCandlestick(push.Result)
 	case spotOrderbookTickerChannel:
-		return g.processOrderbookTicker(push.Result, push.Time)
+		return e.processOrderbookTicker(push.Result, push.Time)
 	case spotOrderbookUpdateChannel:
-		return g.processOrderbookUpdate(ctx, push.Result, push.Time)
+		return e.processOrderbookUpdate(ctx, push.Result, push.Time)
 	case spotOrderbookChannel:
-		return g.processOrderbookSnapshot(push.Result, push.Time)
+		return e.processOrderbookSnapshot(push.Result, push.Time)
 	case spotOrdersChannel:
-		return g.processSpotOrders(respRaw)
+		return e.processSpotOrders(respRaw)
 	case spotUserTradesChannel:
-		return g.processUserPersonalTrades(respRaw)
+		return e.processUserPersonalTrades(respRaw)
 	case spotBalancesChannel:
-		return g.processSpotBalances(ctx, respRaw)
+		return e.processSpotBalances(ctx, respRaw)
 	case marginBalancesChannel:
-		return g.processMarginBalances(ctx, respRaw)
+		return e.processMarginBalances(ctx, respRaw)
 	case spotFundingBalanceChannel:
-		return g.processFundingBalances(respRaw)
+		return e.processFundingBalances(respRaw)
 	case crossMarginBalanceChannel:
-		return g.processCrossMarginBalance(ctx, respRaw)
+		return e.processCrossMarginBalance(ctx, respRaw)
 	case crossMarginLoanChannel:
-		return g.processCrossMarginLoans(respRaw)
+		return e.processCrossMarginLoans(respRaw)
 	case spotPongChannel:
 	default:
-		g.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
-			Message: g.Name + websocket.UnhandledMessage + string(respRaw),
+		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
 		}
 		return errors.New(websocket.UnhandledMessage)
 	}
@@ -258,16 +259,16 @@ func parseWSHeader(msg []byte) (r *WSResponse, errs error) {
 	return r, errs
 }
 
-func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
+func (e *Exchange) processTicker(incoming []byte, pushTime time.Time) error {
 	var data WsTicker
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
 	out := make([]ticker.Price, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
+		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
 			out = append(out, ticker.Price{
-				ExchangeName: g.Name,
+				ExchangeName: e.Name,
 				Volume:       data.BaseVolume.Float64(),
 				QuoteVolume:  data.QuoteVolume.Float64(),
 				High:         data.High24H.Float64(),
@@ -281,13 +282,13 @@ func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
 			})
 		}
 	}
-	g.Websocket.DataHandler <- out
+	e.Websocket.DataHandler <- out
 	return nil
 }
 
-func (g *Gateio) processTrades(incoming []byte) error {
-	saveTradeData := g.IsSaveTradeDataEnabled()
-	if !saveTradeData && !g.IsTradeFeedEnabled() {
+func (e *Exchange) processTrades(incoming []byte) error {
+	saveTradeData := e.IsSaveTradeDataEnabled()
+	if !saveTradeData && !e.IsTradeFeedEnabled() {
 		return nil
 	}
 
@@ -302,12 +303,12 @@ func (g *Gateio) processTrades(incoming []byte) error {
 	}
 
 	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
-			if err := g.Websocket.Trade.Update(saveTradeData, trade.Data{
+		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
+			if err := e.Websocket.Trade.Update(saveTradeData, trade.Data{
 				Timestamp:    data.CreateTime.Time(),
 				CurrencyPair: data.CurrencyPair,
 				AssetType:    a,
-				Exchange:     g.Name,
+				Exchange:     e.Name,
 				Price:        data.Price.Float64(),
 				Amount:       data.Amount.Float64(),
 				Side:         side,
@@ -321,7 +322,7 @@ func (g *Gateio) processTrades(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processCandlestick(incoming []byte) error {
+func (e *Exchange) processCandlestick(incoming []byte) error {
 	var data WsCandlesticks
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -337,11 +338,11 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 
 	out := make([]websocket.KlineData, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := g.CurrencyPairs.IsPairEnabled(currencyPair, a); enabled {
+		if enabled, _ := e.CurrencyPairs.IsPairEnabled(currencyPair, a); enabled {
 			out = append(out, websocket.KlineData{
 				Pair:       currencyPair,
 				AssetType:  a,
-				Exchange:   g.Name,
+				Exchange:   e.Name,
 				StartTime:  data.Timestamp.Time(),
 				Interval:   icp[0],
 				OpenPrice:  data.OpenPrice.Float64(),
@@ -352,80 +353,80 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 			})
 		}
 	}
-	g.Websocket.DataHandler <- out
+	e.Websocket.DataHandler <- out
 	return nil
 }
 
-func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Time) error {
+func (e *Exchange) processOrderbookTicker(incoming []byte, lastPushed time.Time) error {
 	var data WsOrderbookTickerData
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Exchange:       g.Name,
-		Pair:           data.Pair,
-		Asset:          asset.Spot,
-		LastUpdated:    data.UpdateTime.Time(),
-		UpdatePushedAt: updatePushedAt,
-		Bids:           []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
-		Asks:           []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
+	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:    e.Name,
+		Pair:        data.Pair,
+		Asset:       asset.Spot,
+		LastUpdated: data.UpdateTime.Time(),
+		LastPushed:  lastPushed,
+		Bids:        []orderbook.Level{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
+		Asks:        []orderbook.Level{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
 	})
 }
 
-func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, updatePushedAt time.Time) error {
+func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, lastPushed time.Time) error {
 	var data WsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	asks := make([]orderbook.Tranche, len(data.Asks))
+	asks := make([]orderbook.Level, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x][0].Float64()
 		asks[x].Amount = data.Asks[x][1].Float64()
 	}
-	bids := make([]orderbook.Tranche, len(data.Bids))
+	bids := make([]orderbook.Level, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x][0].Float64()
 		bids[x].Amount = data.Bids[x][1].Float64()
 	}
-	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, data.FirstUpdateID, &orderbook.Update{
-		UpdateID:       data.LastUpdateID,
-		UpdateTime:     data.UpdateTime.Time(),
-		UpdatePushedAt: updatePushedAt,
-		Pair:           data.Pair,
-		Asset:          asset.Spot,
-		Asks:           asks,
-		Bids:           bids,
-		AllowEmpty:     true,
+	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, e, data.FirstUpdateID, &orderbook.Update{
+		UpdateID:   data.LastUpdateID,
+		UpdateTime: data.UpdateTime.Time(),
+		LastPushed: lastPushed,
+		Pair:       data.Pair,
+		Asset:      asset.Spot,
+		Asks:       asks,
+		Bids:       bids,
+		AllowEmpty: true,
 	})
 }
 
-func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.Time) error {
+func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Time) error {
 	var data WsOrderbookSnapshot
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
 
-	asks := make([]orderbook.Tranche, len(data.Asks))
+	asks := make([]orderbook.Level, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x][0].Float64()
 		asks[x].Amount = data.Asks[x][1].Float64()
 	}
-	bids := make([]orderbook.Tranche, len(data.Bids))
+	bids := make([]orderbook.Level, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x][0].Float64()
 		bids[x].Amount = data.Bids[x][1].Float64()
 	}
 
 	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
-			if err := g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-				Exchange:       g.Name,
-				Pair:           data.CurrencyPair,
-				Asset:          a,
-				LastUpdated:    data.UpdateTime.Time(),
-				UpdatePushedAt: updatePushedAt,
-				Bids:           bids,
-				Asks:           asks,
+		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
+			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+				Exchange:    e.Name,
+				Pair:        data.CurrencyPair,
+				Asset:       a,
+				LastUpdated: data.UpdateTime.Time(),
+				LastPushed:  lastPushed,
+				Bids:        bids,
+				Asks:        asks,
 			}); err != nil {
 				return err
 			}
@@ -434,9 +435,9 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.T
 	return nil
 }
 
-func (g *Gateio) processSpotOrders(data []byte) error {
+func (e *Exchange) processSpotOrders(data []byte) error {
 	resp := struct {
-		Time    int64         `json:"time"`
+		Time    types.Time    `json:"time"`
 		Channel string        `json:"channel"`
 		Event   string        `json:"event"`
 		Result  []WsSpotOrder `json:"result"`
@@ -461,7 +462,7 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 		}
 		details[x] = order.Detail{
 			Amount:         resp.Result[x].Amount.Float64(),
-			Exchange:       g.Name,
+			Exchange:       e.Name,
 			OrderID:        resp.Result[x].ID,
 			Side:           side,
 			Type:           orderType,
@@ -474,17 +475,17 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 			LastUpdated:    resp.Result[x].UpdateTime.Time(),
 		}
 	}
-	g.Websocket.DataHandler <- details
+	e.Websocket.DataHandler <- details
 	return nil
 }
 
-func (g *Gateio) processUserPersonalTrades(data []byte) error {
-	if !g.IsFillsFeedEnabled() {
+func (e *Exchange) processUserPersonalTrades(data []byte) error {
+	if !e.IsFillsFeedEnabled() {
 		return nil
 	}
 
 	resp := struct {
-		Time    int64                 `json:"time"`
+		Time    types.Time            `json:"time"`
 		Channel string                `json:"channel"`
 		Event   string                `json:"event"`
 		Result  []WsUserPersonalTrade `json:"result"`
@@ -501,7 +502,7 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 		}
 		fills[x] = fill.Data{
 			Timestamp:    resp.Result[x].CreateTime.Time(),
-			Exchange:     g.Name,
+			Exchange:     e.Name,
 			CurrencyPair: resp.Result[x].CurrencyPair,
 			Side:         side,
 			OrderID:      resp.Result[x].OrderID,
@@ -510,12 +511,12 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 			Amount:       resp.Result[x].Amount.Float64(),
 		}
 	}
-	return g.Websocket.Fills.Update(fills...)
+	return e.Websocket.Fills.Update(fills...)
 }
 
-func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
+func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    int64           `json:"time"`
+		Time    types.Time      `json:"time"`
 		Channel string          `json:"channel"`
 		Event   string          `json:"event"`
 		Result  []WsSpotBalance `json:"result"`
@@ -524,7 +525,7 @@ func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
-	creds, err := g.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -542,13 +543,13 @@ func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
 			},
 		}
 	}
-	g.Websocket.DataHandler <- changes
-	return account.ProcessChange(g.Name, changes, creds)
+	e.Websocket.DataHandler <- changes
+	return account.ProcessChange(e.Name, changes, creds)
 }
 
-func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
+func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    int64             `json:"time"`
+		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsMarginBalance `json:"result"`
@@ -557,7 +558,7 @@ func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
-	creds, err := g.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -574,13 +575,13 @@ func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
 			},
 		}
 	}
-	g.Websocket.DataHandler <- changes
-	return account.ProcessChange(g.Name, changes, creds)
+	e.Websocket.DataHandler <- changes
+	return account.ProcessChange(e.Name, changes, creds)
 }
 
-func (g *Gateio) processFundingBalances(data []byte) error {
+func (e *Exchange) processFundingBalances(data []byte) error {
 	resp := struct {
-		Time    int64              `json:"time"`
+		Time    types.Time         `json:"time"`
 		Channel string             `json:"channel"`
 		Event   string             `json:"event"`
 		Result  []WsFundingBalance `json:"result"`
@@ -589,13 +590,13 @@ func (g *Gateio) processFundingBalances(data []byte) error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- resp
+	e.Websocket.DataHandler <- resp
 	return nil
 }
 
-func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) error {
+func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    int64                  `json:"time"`
+		Time    types.Time             `json:"time"`
 		Channel string                 `json:"channel"`
 		Event   string                 `json:"event"`
 		Result  []WsCrossMarginBalance `json:"result"`
@@ -604,7 +605,7 @@ func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) err
 	if err != nil {
 		return err
 	}
-	creds, err := g.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -621,13 +622,13 @@ func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) err
 			},
 		}
 	}
-	g.Websocket.DataHandler <- changes
-	return account.ProcessChange(g.Name, changes, creds)
+	e.Websocket.DataHandler <- changes
+	return account.ProcessChange(e.Name, changes, creds)
 }
 
-func (g *Gateio) processCrossMarginLoans(data []byte) error {
+func (e *Exchange) processCrossMarginLoans(data []byte) error {
 	resp := struct {
-		Time    int64             `json:"time"`
+		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  WsCrossMarginLoan `json:"result"`
@@ -636,17 +637,17 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 	if err != nil {
 		return err
 	}
-	g.Websocket.DataHandler <- resp
+	e.Websocket.DataHandler <- resp
 	return nil
 }
 
 // generateSubscriptionsSpot returns configured subscriptions
-func (g *Gateio) generateSubscriptionsSpot() (subscription.List, error) {
-	return g.Features.Subscriptions.ExpandTemplates(g)
+func (e *Exchange) generateSubscriptionsSpot() (subscription.List, error) {
+	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").
 		Funcs(sprig.FuncMap()).
 		Funcs(template.FuncMap{
@@ -659,8 +660,8 @@ func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 }
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
-func (g *Gateio) manageSubs(ctx context.Context, event string, conn websocket.Connection, subs subscription.List) error {
-	exp, err := subs.ExpandTemplates(g)
+func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.Connection, subs subscription.List) error {
+	exp, err := subs.ExpandTemplates(e)
 	if err != nil {
 		return err
 	}
@@ -668,15 +669,15 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn websocket.Co
 	// Need to throttle the requests to allow gct to process the incoming responses or else the websocket frame will be
 	// clipped.
 	return common.ThrottledBatch(subscriptionBatchCount, exp, func(_ int, s *subscription.Subscription) error {
-		if err := g.manageSubPayload(ctx, conn, event, s); err != nil {
+		if err := e.manageSubPayload(ctx, conn, event, s); err != nil {
 			return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
 		}
 		return nil
 	})
 }
 
-func (g *Gateio) manageSubPayload(ctx context.Context, conn websocket.Connection, event string, s *subscription.Subscription) error {
-	msg, err := g.manageSubReq(ctx, event, conn, s)
+func (e *Exchange) manageSubPayload(ctx context.Context, conn websocket.Connection, event string, s *subscription.Subscription) error {
+	msg, err := e.manageSubReq(ctx, event, conn, s)
 	if err != nil {
 		return err
 	}
@@ -692,13 +693,13 @@ func (g *Gateio) manageSubPayload(ctx context.Context, conn websocket.Connection
 		return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
 	}
 	if event == "unsubscribe" {
-		return g.Websocket.RemoveSubscriptions(conn, s)
+		return e.Websocket.RemoveSubscriptions(conn, s)
 	}
-	return g.Websocket.AddSuccessfulSubscriptions(conn, s)
+	return e.Websocket.AddSuccessfulSubscriptions(conn, s)
 }
 
 // manageSubReq constructs the subscription management message for a subscription
-func (g *Gateio) manageSubReq(ctx context.Context, event string, conn websocket.Connection, s *subscription.Subscription) (*WsInput, error) {
+func (e *Exchange) manageSubReq(ctx context.Context, event string, conn websocket.Connection, s *subscription.Subscription) (*WsInput, error) {
 	req := &WsInput{
 		ID:      conn.GenerateMessageID(false),
 		Event:   event,
@@ -707,11 +708,11 @@ func (g *Gateio) manageSubReq(ctx context.Context, event string, conn websocket.
 		Payload: strings.Split(s.QualifiedChannel, ","),
 	}
 	if s.Authenticated {
-		creds, err := g.GetCredentials(ctx)
+		creds, err := e.GetCredentials(ctx)
 		if err != nil {
 			return nil, err
 		}
-		sig, err := g.generateWsSignature(creds.Secret, event, req.Channel, req.Time)
+		sig, err := e.generateWsSignature(creds.Secret, event, req.Channel, req.Time)
 		if err != nil {
 			return nil, err
 		}
@@ -725,18 +726,18 @@ func (g *Gateio) manageSubReq(ctx context.Context, event string, conn websocket.
 }
 
 // Subscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return g.manageSubs(ctx, subscribeEvent, conn, subs)
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.manageSubs(ctx, subscribeEvent, conn, subs)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return g.manageSubs(ctx, unsubscribeEvent, conn, subs)
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.manageSubs(ctx, unsubscribeEvent, conn, subs)
 }
 
 // GenerateWebsocketMessageID generates a message ID for the individual connection
-func (g *Gateio) GenerateWebsocketMessageID(bool) int64 {
-	return g.Counter.IncrementAndGet()
+func (e *Exchange) GenerateWebsocketMessageID(bool) int64 {
+	return e.Counter.IncrementAndGet()
 }
 
 // channelName converts global channel names to gateio specific channel names
@@ -759,7 +760,7 @@ func singleSymbolChannel(name string) bool {
 // ValidateSubscriptions implements the subscription.ListValidator interface.
 // It ensures that, for each orderbook pair asset, only one type of subscription (e.g., best bid/ask, orderbook update, or orderbook snapshot)
 // is active at a time. Multiple concurrent subscriptions for the same asset are disallowed to prevent orderbook data corruption.
-func (g *Gateio) ValidateSubscriptions(l subscription.List) error {
+func (e *Exchange) ValidateSubscriptions(l subscription.List) error {
 	orderbookGuard := map[key.PairAsset]string{}
 	for _, s := range l {
 		n := channelName(s)
@@ -925,7 +926,7 @@ const subTplText = `
 type GeneratePayload func(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
 
 // handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
+func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
 	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -934,14 +935,14 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn websocket.Connecti
 	// Need to throttle the requests to allow gct to process the incoming responses or else the websocket frame will be
 	// clipped.
 	return common.ThrottledBatch(subscriptionBatchCount, payloads, func(index int, payload WsInput) error {
-		if err := g.sendSubPayload(ctx, conn, event, channelsToSubscribe[index], &payload); err != nil {
+		if err := e.sendSubPayload(ctx, conn, event, channelsToSubscribe[index], &payload); err != nil {
 			return fmt.Errorf("%s %s %s: %w", channelsToSubscribe[index].Channel, channelsToSubscribe[index].Asset, channelsToSubscribe[index].Pairs, err)
 		}
 		return nil
 	})
 }
 
-func (g *Gateio) sendSubPayload(ctx context.Context, conn websocket.Connection, event string, s *subscription.Subscription, payload *WsInput) error {
+func (e *Exchange) sendSubPayload(ctx context.Context, conn websocket.Connection, event string, s *subscription.Subscription, payload *WsInput) error {
 	result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.ID, payload)
 	if err != nil {
 		return err
@@ -954,9 +955,9 @@ func (g *Gateio) sendSubPayload(ctx context.Context, conn websocket.Connection, 
 		return fmt.Errorf("error while %s to channel %s error code: %d message: %s", event, payload.Channel, resp.Error.Code, resp.Error.Message)
 	}
 	if event == subscribeEvent {
-		return g.Websocket.AddSuccessfulSubscriptions(conn, s)
+		return e.Websocket.AddSuccessfulSubscriptions(conn, s)
 	}
-	return g.Websocket.RemoveSubscriptions(conn, s)
+	return e.Websocket.RemoveSubscriptions(conn, s)
 }
 
 type resultHolder struct {
@@ -964,13 +965,13 @@ type resultHolder struct {
 }
 
 // SendWebsocketRequest sends a websocket request to the exchange
-func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, channel string, connSignature, params, result any, expectedResponses int) error {
+func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, channel string, connSignature, params, result any, expectedResponses int) error {
 	paramPayload, err := json.Marshal(params)
 	if err != nil {
 		return err
 	}
 
-	conn, err := g.Websocket.GetConnection(connSignature)
+	conn, err := e.Websocket.GetConnection(connSignature)
 	if err != nil {
 		return err
 	}
