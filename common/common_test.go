@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -678,4 +680,62 @@ func TestNilGuard(t *testing.T) {
 
 	err = NilGuard()
 	require.NoError(t, err, "NilGuard with no arguments must not error")
+}
+
+func TestThrottledBatch(t *testing.T) {
+	t.Parallel()
+	testSlice := make([]int, 0, 100)
+	for i := range 100 {
+		testSlice = append(testSlice, i)
+	}
+
+	trackIndex := map[int]bool{}
+	m := sync.Mutex{}
+
+	ch := make(chan int, len(testSlice))
+
+	require.NoError(t, ThrottledBatch(10, testSlice, func(_, v int) error {
+		m.Lock()
+		defer m.Unlock()
+		if trackIndex[v] {
+			return errors.New("duplicate index")
+		}
+		trackIndex[v] = true
+		ch <- v
+		return nil
+	}))
+
+	require.Len(t, trackIndex, len(testSlice))
+
+	close(ch)
+	for v := range ch {
+		assert.Contains(t, testSlice, v)
+	}
+
+	expected := errors.New("test error")
+	require.ErrorIs(t, ThrottledBatch(10, testSlice, func(int, int) error { return expected }), expected)
+}
+
+func TestProcessBatches(t *testing.T) {
+	t.Parallel()
+	testSlice := make([]int, 0, 100)
+	for i := range 100 {
+		testSlice = append(testSlice, i)
+	}
+
+	ch := make(chan int, len(testSlice))
+	require.NoError(t, ProcessBatches(t.Context(), 10, testSlice, func(_ context.Context, v []int) error {
+		for _, i := range v {
+			ch <- i
+		}
+		return nil
+	}))
+
+	close(ch)
+	for v := range ch {
+		assert.Contains(t, testSlice, v)
+	}
+
+	expected := errors.New("test error")
+	require.ErrorIs(t, ProcessBatches(t.Context(), 10, testSlice, func(context.Context, []int) error { return expected }), expected)
 }

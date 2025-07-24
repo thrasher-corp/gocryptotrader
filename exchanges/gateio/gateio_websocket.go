@@ -56,6 +56,9 @@ const (
 
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
+
+	// subscriptionBatchCount is the number of subscriptions to send in a single batch
+	subscriptionBatchCount = 200
 )
 
 var defaultSubscriptions = subscription.List{
@@ -658,38 +661,41 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
 func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.Connection, subs subscription.List) error {
-	var errs error
-	subs, errs = subs.ExpandTemplates(e)
-	if errs != nil {
-		return errs
+	exp, err := subs.ExpandTemplates(e)
+	if err != nil {
+		return err
 	}
-
-	for _, s := range subs {
-		if err := func() error {
-			msg, err := e.manageSubReq(ctx, event, conn, s)
-			if err != nil {
-				return err
-			}
-			result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
-			if err != nil {
-				return err
-			}
-			var resp WsEventResponse
-			if err := json.Unmarshal(result, &resp); err != nil {
-				return err
-			}
-			if resp.Error != nil && resp.Error.Code != 0 {
-				return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
-			}
-			if event == "unsubscribe" {
-				return e.Websocket.RemoveSubscriptions(conn, s)
-			}
-			return e.Websocket.AddSuccessfulSubscriptions(conn, s)
-		}(); err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err))
+	// ThrottledBatch will batch the subscriptions into groups of subscriptionBatchCount then concurrently subscribe to them.
+	// Need to throttle the requests to allow gct to process the incoming responses or else the websocket frame will be
+	// clipped.
+	return common.ThrottledBatch(subscriptionBatchCount, exp, func(_ int, s *subscription.Subscription) error {
+		if err := e.manageSubPayload(ctx, conn, event, s); err != nil {
+			return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
 		}
+		return nil
+	})
+}
+
+func (e *Exchange) manageSubPayload(ctx context.Context, conn websocket.Connection, event string, s *subscription.Subscription) error {
+	msg, err := e.manageSubReq(ctx, event, conn, s)
+	if err != nil {
+		return err
 	}
-	return errs
+	result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
+	if err != nil {
+		return err
+	}
+	var resp WsEventResponse
+	if err := json.Unmarshal(result, &resp); err != nil {
+		return err
+	}
+	if resp.Error != nil && resp.Error.Code != 0 {
+		return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
+	}
+	if event == "unsubscribe" {
+		return e.Websocket.RemoveSubscriptions(conn, s)
+	}
+	return e.Websocket.AddSuccessfulSubscriptions(conn, s)
 }
 
 // manageSubReq constructs the subscription management message for a subscription
@@ -925,29 +931,33 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 	if err != nil {
 		return err
 	}
-	var errs error
-	for k := range payloads {
-		result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
-		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
+	// ThrottledBatch will batch the subscriptions into groups of subscriptionBatchCount then concurrently subscribe to them.
+	// Need to throttle the requests to allow gct to process the incoming responses or else the websocket frame will be
+	// clipped.
+	return common.ThrottledBatch(subscriptionBatchCount, payloads, func(index int, payload WsInput) error {
+		if err := e.sendSubPayload(ctx, conn, event, channelsToSubscribe[index], &payload); err != nil {
+			return fmt.Errorf("%s %s %s: %w", channelsToSubscribe[index].Channel, channelsToSubscribe[index].Asset, channelsToSubscribe[index].Pairs, err)
 		}
-		var resp WsEventResponse
-		if err = json.Unmarshal(result, &resp); err != nil {
-			errs = common.AppendError(errs, err)
-		} else {
-			if resp.Error != nil && resp.Error.Code != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
-				continue
-			}
-			if event == subscribeEvent {
-				errs = common.AppendError(errs, e.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k]))
-			} else {
-				errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k]))
-			}
-		}
+		return nil
+	})
+}
+
+func (e *Exchange) sendSubPayload(ctx context.Context, conn websocket.Connection, event string, s *subscription.Subscription, payload *WsInput) error {
+	result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.ID, payload)
+	if err != nil {
+		return err
 	}
-	return errs
+	var resp WsEventResponse
+	if err := json.Unmarshal(result, &resp); err != nil {
+		return err
+	}
+	if resp.Error != nil && resp.Error.Code != 0 {
+		return fmt.Errorf("error while %s to channel %s error code: %d message: %s", event, payload.Channel, resp.Error.Code, resp.Error.Message)
+	}
+	if event == subscribeEvent {
+		return e.Websocket.AddSuccessfulSubscriptions(conn, s)
+	}
+	return e.Websocket.RemoveSubscriptions(conn, s)
 }
 
 type resultHolder struct {
