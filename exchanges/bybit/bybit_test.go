@@ -3,6 +3,7 @@ package bybit
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -3018,20 +3019,34 @@ func TestCancelBatchOrders(t *testing.T) {
 	}
 }
 
-type DummyConnection struct{ websocket.Connection }
+type DummyConnection struct {
+	dialError                         error
+	sendMessageReturnResponseOverride []byte
+	websocket.Connection
+}
 
 func (d *DummyConnection) GenerateMessageID(bool) int64                                  { return 1337 }
 func (d *DummyConnection) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {}
-func (d *DummyConnection) Dial(context.Context, *gws.Dialer, http.Header) error          { return nil }
+func (d *DummyConnection) Dial(context.Context, *gws.Dialer, http.Header) error          { return d.dialError }
 
 func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	if d.sendMessageReturnResponseOverride != nil {
+		return d.sendMessageReturnResponseOverride, nil
+	}
 	return []byte(`{"success":true,"ret_msg":"subscribe","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`), nil
+}
+
+func (d *DummyConnection) SendJSONMessage(ctx context.Context, epl request.EndpointLimit, payload any) error {
+	return nil
 }
 
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
-	err := e.WsConnect(t.Context(), &DummyConnection{})
+	err := e.WsConnect(t.Context(), &DummyConnection{dialError: nil})
 	require.NoError(t, err)
+	exp := errors.New("dial error")
+	err = e.WsConnect(t.Context(), &DummyConnection{dialError: exp})
+	require.ErrorIs(t, err, exp)
 }
 
 var pushDataMap = map[string]string{
@@ -3043,6 +3058,8 @@ var pushDataMap = map[string]string{
 	"Public LT Kline":      `{ "type": "snapshot", "topic": "kline_lt.5.BTCUSDT", "data": [ { "start": 1672325100000, "end": 1672325399999, "interval": "5", "open": "0.416039541212402799", "close": "0.41477848043290448", "high": "0.416039541212402799", "low": "0.409734237314911206", "confirm": false, "timestamp": 1672325322393} ], "ts": 1672325322393}`,
 	"Public LT Ticker":     `{ "topic": "tickers_lt.BTCUSDT", "ts": 1672325446847, "type": "snapshot", "data": { "symbol": "BTCUSDT", "lastPrice": "0.41477848043290448", "highPrice24h": "0.435285472510871305", "lowPrice24h": "0.394601507960931382", "prevPrice24h": "0.431502290172376349", "price24hPcnt": "-0.0388" } }`,
 	"Public LT Navigation": `{ "topic": "lt.EOS3LUSDT", "ts": 1672325564669, "type": "snapshot", "data": { "symbol": "BTCUSDT", "time": 1672325564554, "nav": "0.413517419653406162", "basketPosition": "1.261060779498318641", "leverage": "2.656197506416192150", "basketLoan": "-0.684866519289629374", "circulation": "72767.309468460367138199", "basket": "91764.000000292013277472" } }`,
+	"pong":                 `{"op":"pong","args":["1753340040127"],"conn_id":"d157a7favkf4mm3ibuvg-14toog"}`,
+	"unhandled":            `{"topic": "unhandled"}`,
 }
 
 func TestPushDataPublic(t *testing.T) {
@@ -3051,14 +3068,29 @@ func TestPushDataPublic(t *testing.T) {
 	keys := slices.Collect(maps.Keys(pushDataMap))
 	slices.Sort(keys)
 
+	expErrFn := func(k string) error {
+		if k == "unhandled" {
+			return errUnhandledStreamData
+		}
+		return nil
+	}
+
 	for x := range keys {
-		err := e.wsHandleData(asset.Spot, []byte(pushDataMap[keys[x]]))
-		assert.NoError(t, err, "wsHandleData should not error")
+		assert.ErrorIsf(t, e.wsHandleData(asset.Spot, []byte(pushDataMap[keys[x]])), expErrFn(keys[x]), "wsHandleData should not error for %s", keys[x])
 	}
 }
 
 func TestWSHandleAuthenticatedData(t *testing.T) {
 	t.Parallel()
+
+	err := e.wsHandleAuthenticatedData(t.Context(), []byte(`{"op":"pong","args":["1753340040127"],"conn_id":"d157a7favkf4mm3ibuvg-14toog"}`))
+	require.NoError(t, err, "wsHandleAuthenticatedData must not error for pong message")
+
+	err = e.wsHandleAuthenticatedData(t.Context(), []byte(`{"topic": "dcp"}`))
+	require.NoError(t, err, "wsHandleAuthenticatedData must not error for dcp message")
+
+	err = e.wsHandleAuthenticatedData(t.Context(), []byte(`{"topic": "unhandled"}`))
+	require.ErrorIs(t, err, errUnhandledStreamData, "wsHandleAuthenticatedData must error for unhandled stream data")
 
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
@@ -3483,19 +3515,13 @@ func TestDeltaUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
 	err := e.wsHandleData(asset.Spot, data)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "wsHandleData must not error")
 	update := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"delta","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
 	var wsResponse WebsocketResponse
 	err = json.Unmarshal(update, &wsResponse)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Unmarshal must not error")
 	err = e.wsProcessOrderbook(asset.Spot, &wsResponse)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "wsProcessOrderbook must not error")
 }
 
 func TestGetLongShortRatio(t *testing.T) {
@@ -3765,18 +3791,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 }
 
-func TestSubscribe(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
-	require.NoError(t, err, "ExpandTemplates must not error")
-	e.Features.Subscriptions = subscription.List{}
-	testexch.SetupWs(t, e)
-	err = e.Subscribe(t.Context(), &DummyConnection{}, subs)
-	require.NoError(t, err, "Subscribe must not error")
-}
-
 func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
 
@@ -3802,12 +3816,18 @@ func TestWebsocketAuthenticateConnection(t *testing.T) {
 
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e))
+
+	err := e.WebsocketAuthenticateConnection(t.Context(), &DummyConnection{})
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "dummy", Secret: "dummy"})
-	err := e.WebsocketAuthenticateConnection(ctx, &DummyConnection{})
+	err = e.WebsocketAuthenticateConnection(ctx, &DummyConnection{})
 	require.NoError(t, err)
+	err = e.WebsocketAuthenticateConnection(ctx, &DummyConnection{sendMessageReturnResponseOverride: []byte(`{"success":false,"ret_msg":"failed auth","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`)})
+	require.Error(t, err)
 }
 
 func TestTransformSymbol(t *testing.T) {
@@ -3920,4 +3940,27 @@ func TestGetPairFromCategory(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrPairNotFound)
 	require.Empty(t, p)
 	require.Empty(t, a)
+}
+
+func TestHandleNoTopicWebsocketResponse(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		operation string
+		requestID string
+		error     error
+	}{
+		{operation: "subscribe"},
+		{operation: "unsubscribe"},
+		{operation: "auth"},
+		{operation: "auth", requestID: "noMatch", error: websocket.ErrSignatureNotMatched},
+		{operation: "ping"},
+		{operation: "pong"},
+	} {
+		t.Run(fmt.Sprintf("operation: %s, requestID: %s", tc.operation, tc.requestID), func(t *testing.T) {
+			t.Parallel()
+			err := e.handleNoTopicWebsocketResponse(&WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
+			assert.ErrorIs(t, err, tc.error, "handleNoTopicWebsocketResponse must return expected error")
+		})
+	}
 }

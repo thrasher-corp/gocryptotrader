@@ -250,8 +250,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
 		Connector:             e.WsConnect,
 		GenerateSubscriptions: e.generateSubscriptions,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
+		Subscriber:            e.SpotSubscribe,
+		Unsubscriber:          e.SpotUnsubscribe,
 		Handler:               func(_ context.Context, resp []byte) error { return e.wsHandleData(asset.Spot, resp) },
 		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
@@ -271,8 +271,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
 		Connector:             e.WsConnect,
 		GenerateSubscriptions: e.GenerateOptionsDefaultSubscriptions,
-		Subscriber:            e.OptionSubscribe,
-		Unsubscriber:          e.OptionUnsubscribe,
+		Subscriber:            e.OptionsSubscribe,
+		Unsubscriber:          e.OptionsUnsubscribe,
 		Handler:               func(_ context.Context, resp []byte) error { return e.wsHandleData(asset.Options, resp) },
 		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
 	}); err != nil {

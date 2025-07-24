@@ -3,6 +3,7 @@ package bybit
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -12,6 +13,9 @@ import (
 
 // GenerateLinearDefaultSubscriptions generates default subscription
 func (e *Exchange) GenerateLinearDefaultSubscriptions(a asset.Item) (subscription.List, error) {
+	if err := checkLinearAsset(a); err != nil {
+		return nil, err
+	}
 	pairs, err := e.GetEnabledPairs(a)
 	if err != nil {
 		if errors.Is(err, asset.ErrNotEnabled) {
@@ -35,10 +39,23 @@ func (e *Exchange) GenerateLinearDefaultSubscriptions(a asset.Item) (subscriptio
 
 // LinearSubscribe sends a websocket message to receive data from the channel
 func (e *Exchange) LinearSubscribe(ctx context.Context, conn websocket.Connection, a asset.Item, channelSubscriptions subscription.List) error {
+	if err := checkLinearAsset(a); err != nil {
+		return err
+	}
 	return e.submitDirectSubscription(ctx, conn, a, "subscribe", channelSubscriptions)
 }
 
 // LinearUnsubscribe sends a websocket message to stop receiving data from the channel
 func (e *Exchange) LinearUnsubscribe(ctx context.Context, conn websocket.Connection, a asset.Item, channelSubscriptions subscription.List) error {
+	if err := checkLinearAsset(a); err != nil {
+		return err
+	}
 	return e.submitDirectSubscription(ctx, conn, a, "unsubscribe", channelSubscriptions)
+}
+
+func checkLinearAsset(a asset.Item) error {
+	if a != asset.USDTMarginedFutures && a != asset.USDCMarginedFutures {
+		return fmt.Errorf("%q %w for linear subscriptions", a, asset.ErrInvalidAsset)
+	}
+	return nil
 }

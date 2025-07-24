@@ -33,12 +33,12 @@ func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, err
 	return subscriptions, nil
 }
 
-// OptionSubscribe sends a websocket message to receive data from the channel
-func (e *Exchange) OptionSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
+// OptionsSubscribe sends a websocket message to receive data from the channel
+func (e *Exchange) OptionsSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
 	return e.submitDirectSubscription(ctx, conn, asset.Options, "subscribe", channelSubscriptions)
 }
 
-// OptionUnsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) OptionUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
+// OptionsUnsubscribe sends a websocket message to stop receiving data from the channel
+func (e *Exchange) OptionsUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
 	return e.submitDirectSubscription(ctx, conn, asset.Options, "unsubscribe", channelSubscriptions)
 }

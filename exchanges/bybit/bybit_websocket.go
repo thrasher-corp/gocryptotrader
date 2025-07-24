@@ -79,6 +79,8 @@ var subscriptionNames = map[string]string{
 	subscription.CandlesChannel:   chanKline,
 }
 
+var errUnhandledStreamData = errors.New("unhandled stream data")
+
 // WsConnect connects to a websocket feed
 func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
@@ -123,11 +125,6 @@ func (e *Exchange) WebsocketAuthenticateConnection(ctx context.Context, conn web
 	return nil
 }
 
-// Subscribe sends a websocket message to receive data from the channel
-func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
-	return e.handleSpotSubscription(ctx, conn, "subscribe", channelsToSubscribe)
-}
-
 func (e *Exchange) handleSubscriptions(conn websocket.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
 	subs, err = subs.ExpandTemplates(e)
 	if err != nil {
@@ -146,40 +143,6 @@ func (e *Exchange) handleSubscriptions(conn websocket.Connection, operation stri
 		}
 	}
 	return
-}
-
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
-	return e.handleSpotSubscription(ctx, conn, "unsubscribe", channelsToUnsubscribe)
-}
-
-func (e *Exchange) handleSpotSubscription(ctx context.Context, conn websocket.Connection, operation string, channelsToSubscribe subscription.List) error {
-	payloads, err := e.handleSubscriptions(conn, operation, channelsToSubscribe)
-	if err != nil {
-		return err
-	}
-	for _, payload := range payloads {
-		response, err := conn.SendMessageReturnResponse(ctx, request.Unset, payload.RequestID, payload)
-		if err != nil {
-			return err
-		}
-		var resp SubscriptionResponse
-		if err := json.Unmarshal(response, &resp); err != nil {
-			return err
-		}
-		if !resp.Success {
-			return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.RetMsg)
-		}
-		if operation == "unsubscribe" {
-			err = e.Websocket.RemoveSubscriptions(conn, payload.associatedSubs...)
-		} else {
-			err = e.Websocket.AddSubscriptions(conn, payload.associatedSubs...)
-		}
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // generateSubscriptions generates default subscription
@@ -204,24 +167,9 @@ func (e *Exchange) wsHandleData(assetType asset.Item, respRaw []byte) error {
 		return err
 	}
 	if result.Topic == "" {
-		switch result.Operation {
-		case "subscribe", "unsubscribe", "auth":
-			if result.RequestID != "" {
-				if !e.Websocket.Match.IncomingWithData(result.RequestID, respRaw) {
-					return fmt.Errorf("could not match subscription with id %s data %s", result.RequestID, respRaw)
-				}
-			}
-		case "ping", "pong":
-		default:
-			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: string(respRaw)}
-			return nil
-		}
-		return nil
+		return e.handleNoTopicWebsocketResponse(&result, respRaw)
 	}
 	topicSplit := strings.Split(result.Topic, ".")
-	if len(topicSplit) == 0 {
-		return errInvalidPushData
-	}
 	switch topicSplit[0] {
 	case chanOrderbook:
 		return e.wsProcessOrderbook(assetType, &result)
@@ -240,7 +188,7 @@ func (e *Exchange) wsHandleData(assetType asset.Item, respRaw []byte) error {
 	case chanLeverageTokenNav:
 		return e.wsLeverageTokenNav(&result)
 	}
-	return fmt.Errorf("unhandled stream data %s", string(respRaw))
+	return fmt.Errorf("%w %s", errUnhandledStreamData, string(respRaw))
 }
 
 func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, respRaw []byte) error {
@@ -249,25 +197,9 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, respRaw []byte
 		return err
 	}
 	if result.Topic == "" {
-		switch result.Operation {
-		case "subscribe", "unsubscribe", "auth":
-			if result.RequestID != "" {
-				if !e.Websocket.Match.IncomingWithData(result.RequestID, respRaw) {
-					return fmt.Errorf("could not match subscription with id %s data %s", result.RequestID, respRaw)
-				}
-			}
-		case "ping", "pong":
-		default:
-			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: string(respRaw)}
-			return nil
-		}
-		return nil
+		return e.handleNoTopicWebsocketResponse(&result, respRaw)
 	}
 	topicSplit := strings.Split(result.Topic, ".")
-	if len(topicSplit) == 0 {
-		return errInvalidPushData
-	}
-
 	switch topicSplit[0] {
 	case chanPositions:
 		return e.wsProcessPosition(&result)
@@ -289,13 +221,25 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, respRaw []byte
 	case chanDCP:
 		return nil
 	}
-	return fmt.Errorf("unhandled stream data %s", string(respRaw))
+	return fmt.Errorf("%w %s", errUnhandledStreamData, string(respRaw))
+}
+
+func (e *Exchange) handleNoTopicWebsocketResponse(result *WebsocketResponse, respRaw []byte) error {
+	switch result.Operation {
+	case "subscribe", "unsubscribe", "auth":
+		if result.RequestID != "" && !e.Websocket.Match.IncomingWithData(result.RequestID, respRaw) {
+			return fmt.Errorf("%w with id %s data %s", websocket.ErrSignatureNotMatched, result.RequestID, respRaw)
+		}
+	case "ping", "pong":
+	default:
+		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: string(respRaw)}
+	}
+	return nil
 }
 
 func (e *Exchange) wsProcessGreeks(resp []byte) error {
 	var result GreeksResponse
-	err := json.Unmarshal(resp, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp, &result); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- &result
@@ -411,8 +355,7 @@ func (e *Exchange) wsProcessExecution(resp *WebsocketResponse) error {
 
 func (e *Exchange) wsProcessPosition(resp *WebsocketResponse) error {
 	var result WsPositions
-	err := json.Unmarshal(resp.Data, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- result
@@ -421,8 +364,7 @@ func (e *Exchange) wsProcessPosition(resp *WebsocketResponse) error {
 
 func (e *Exchange) wsLeverageTokenNav(resp *WebsocketResponse) error {
 	var result LTNav
-	err := json.Unmarshal(resp.Data, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- result
@@ -431,8 +373,7 @@ func (e *Exchange) wsLeverageTokenNav(resp *WebsocketResponse) error {
 
 func (e *Exchange) wsProcessLeverageTokenTicker(assetType asset.Item, resp *WebsocketResponse) error {
 	var result TickerWebsocket
-	err := json.Unmarshal(resp.Data, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
 	cp, err := e.MatchSymbolWithAvailablePairs(result.Symbol, assetType, hasPotentialDelimiter(assetType))
@@ -453,8 +394,7 @@ func (e *Exchange) wsProcessLeverageTokenTicker(assetType asset.Item, resp *Webs
 
 func (e *Exchange) wsProcessLeverageTokenKline(assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {
 	var result LTKlines
-	err := json.Unmarshal(resp.Data, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
 	cp, err := e.MatchSymbolWithAvailablePairs(topicSplit[2], assetType, hasPotentialDelimiter(assetType))
@@ -487,8 +427,7 @@ func (e *Exchange) wsProcessLeverageTokenKline(assetType asset.Item, resp *Webso
 
 func (e *Exchange) wsProcessLiquidation(resp *WebsocketResponse) error {
 	var result WebsocketLiquidation
-	err := json.Unmarshal(resp.Data, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- result
@@ -497,8 +436,7 @@ func (e *Exchange) wsProcessLiquidation(resp *WebsocketResponse) error {
 
 func (e *Exchange) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {
 	var result WsKlines
-	err := json.Unmarshal(resp.Data, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
 	cp, err := e.MatchSymbolWithAvailablePairs(topicSplit[2], assetType, hasPotentialDelimiter(assetType))
@@ -619,8 +557,7 @@ func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {
 
 func (e *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketResponse) error {
 	var result WebsocketPublicTrades
-	err := json.Unmarshal(resp.Data, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
 	tradeDatas := make([]trade.Data, len(result))
