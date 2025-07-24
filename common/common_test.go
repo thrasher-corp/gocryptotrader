@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -723,7 +724,7 @@ func TestProcessBatches(t *testing.T) {
 	}
 
 	ch := make(chan int, len(testSlice))
-	require.NoError(t, ProcessBatches(10, testSlice, func(v []int) error {
+	require.NoError(t, ProcessBatches(t.Context(), 10, testSlice, func(_ context.Context, v []int) error {
 		for _, i := range v {
 			ch <- i
 		}
@@ -736,5 +737,5 @@ func TestProcessBatches(t *testing.T) {
 	}
 
 	expected := errors.New("test error")
-	require.ErrorIs(t, ProcessBatches(10, testSlice, func([]int) error { return expected }), expected)
+	require.ErrorIs(t, ProcessBatches(t.Context(), 10, testSlice, func(context.Context, []int) error { return expected }), expected)
 }
