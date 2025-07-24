@@ -25,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -2874,7 +2873,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 
-	r, err := e.UpdateAccountInfo(request.WithVerbose(t.Context()), asset.Spot)
+	r, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
 	require.NoError(t, err, "UpdateAccountInfo must not error")
 	require.NotEmpty(t, r, "UpdateAccountInfo must return account info")
 
