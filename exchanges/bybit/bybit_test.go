@@ -3036,7 +3036,7 @@ func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.End
 	return []byte(`{"success":true,"ret_msg":"subscribe","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`), nil
 }
 
-func (d *DummyConnection) SendJSONMessage(ctx context.Context, epl request.EndpointLimit, payload any) error {
+func (d *DummyConnection) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
 	return nil
 }
 
