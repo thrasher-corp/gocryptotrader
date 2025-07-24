@@ -1958,7 +1958,7 @@ func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.Submit
 	return nil, common.ErrFunctionNotSupported
 }
 
-// WebsocketModifyOrder cancels an order via the websocket connection
+// WebsocketModifyOrder modifies an order via the websocket connection
 func (*Base) WebsocketModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
