@@ -40,7 +40,7 @@ func TestLessByPrice(t *testing.T) {
 	}
 	localItems := []Item{
 		{
-			Exchange:  "alphapoint",
+			Exchange:  "bitstamp",
 			Pair:      p,
 			AssetType: asset.Spot,
 			Price:     1200,

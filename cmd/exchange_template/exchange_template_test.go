@@ -5,12 +5,15 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
 func TestCheckExchangeName(t *testing.T) {
-	tester := []struct {
+	t.Parallel()
+	for _, tt := range []struct {
 		Name        string
 		ErrExpected error
 	}{
@@ -36,12 +39,16 @@ func TestCheckExchangeName(t *testing.T) {
 		{
 			Name: "testexch",
 		},
-	}
-
-	for x := range tester {
-		if r := checkExchangeName(tester[x].Name); r != tester[x].ErrExpected {
-			t.Errorf("test: %d unexpected result", x)
-		}
+	} {
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
+			err := checkExchangeName(tt.Name)
+			if tt.ErrExpected == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.Equal(t, tt.ErrExpected, err)
+			}
+		})
 	}
 }
 
@@ -56,7 +63,7 @@ func TestNewExchangeAndSaveConfig(t *testing.T) {
 		}
 	})
 
-	exchCfg, err := makeExchange(
+	_, err := makeExchange(
 		testExchangeDir,
 		cfg,
 		&exchange{
@@ -65,18 +72,28 @@ func TestNewExchangeAndSaveConfig(t *testing.T) {
 			WS:   true,
 		},
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
+
+	err = os.RemoveAll(testExchangeDir)
+	require.NoErrorf(t, err, "RemoveAll failed: %s, manual deletion of test directory required", err)
+
+	exchCfg, err := makeExchange(
+		testExchangeDir,
+		cfg,
+		&exchange{
+			Name: testExchangeName,
+			REST: true,
+			WS:   false,
+		},
+	)
+	require.NoError(t, err)
 
 	cfgData, err := os.ReadFile(exchangeConfigPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = saveConfig(testExchangeDir, cfg, exchCfg); err != nil {
-		t.Error(err)
-	}
-	if err = os.WriteFile(exchangeConfigPath, cfgData, file.DefaultPermissionOctal); err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err, "os.ReadFile must not error")
+
+	err = saveConfig(testExchangeDir, cfg, exchCfg)
+	require.NoError(t, err, "saveConfig must not error")
+
+	err = os.WriteFile(exchangeConfigPath, cfgData, file.DefaultPermissionOctal)
+	require.NoError(t, err, "os.WriteFile must not error")
 }

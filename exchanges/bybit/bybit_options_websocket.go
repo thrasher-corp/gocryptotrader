@@ -11,8 +11,8 @@ import (
 )
 
 // GenerateOptionsDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
-	pairs, err := by.GetEnabledPairs(asset.Options)
+func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
+	pairs, err := e.GetEnabledPairs(asset.Options)
 	if err != nil {
 		if errors.Is(err, asset.ErrNotEnabled) {
 			return nil, nil
@@ -34,11 +34,11 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() (subscription.List, error
 }
 
 // OptionSubscribe sends a websocket message to receive data from the channel
-func (by *Bybit) OptionSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
-	return by.submitDirectSubscription(ctx, conn, asset.Options, "subscribe", channelSubscriptions)
+func (e *Exchange) OptionSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
+	return e.submitDirectSubscription(ctx, conn, asset.Options, "subscribe", channelSubscriptions)
 }
 
 // OptionUnsubscribe sends a websocket message to stop receiving data from the channel
-func (by *Bybit) OptionUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
-	return by.submitDirectSubscription(ctx, conn, asset.Options, "unsubscribe", channelSubscriptions)
+func (e *Exchange) OptionUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
+	return e.submitDirectSubscription(ctx, conn, asset.Options, "unsubscribe", channelSubscriptions)
 }

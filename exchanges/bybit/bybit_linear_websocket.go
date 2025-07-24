@@ -11,8 +11,8 @@ import (
 )
 
 // GenerateLinearDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateLinearDefaultSubscriptions(a asset.Item) (subscription.List, error) {
-	pairs, err := by.GetEnabledPairs(a)
+func (e *Exchange) GenerateLinearDefaultSubscriptions(a asset.Item) (subscription.List, error) {
+	pairs, err := e.GetEnabledPairs(a)
 	if err != nil {
 		if errors.Is(err, asset.ErrNotEnabled) {
 			return nil, nil
@@ -34,11 +34,11 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions(a asset.Item) (subscription.
 }
 
 // LinearSubscribe sends a websocket message to receive data from the channel
-func (by *Bybit) LinearSubscribe(ctx context.Context, conn websocket.Connection, a asset.Item, channelSubscriptions subscription.List) error {
-	return by.submitDirectSubscription(ctx, conn, a, "subscribe", channelSubscriptions)
+func (e *Exchange) LinearSubscribe(ctx context.Context, conn websocket.Connection, a asset.Item, channelSubscriptions subscription.List) error {
+	return e.submitDirectSubscription(ctx, conn, a, "subscribe", channelSubscriptions)
 }
 
 // LinearUnsubscribe sends a websocket message to stop receiving data from the channel
-func (by *Bybit) LinearUnsubscribe(ctx context.Context, conn websocket.Connection, a asset.Item, channelSubscriptions subscription.List) error {
-	return by.submitDirectSubscription(ctx, conn, a, "unsubscribe", channelSubscriptions)
+func (e *Exchange) LinearUnsubscribe(ctx context.Context, conn websocket.Connection, a asset.Item, channelSubscriptions subscription.List) error {
+	return e.submitDirectSubscription(ctx, conn, a, "unsubscribe", channelSubscriptions)
 }

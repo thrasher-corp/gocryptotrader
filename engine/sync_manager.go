@@ -911,8 +911,8 @@ func relayWebsocketEvent(result any, event, assetType, exchangeName string) {
 		Exchange:  exchangeName,
 	}
 	err := BroadcastWebsocketMessage(evt)
-	if !errors.Is(err, ErrWebsocketServiceNotRunning) {
-		log.Errorf(log.APIServerMgr, "Failed to broadcast websocket event %v. Error: %s",
+	if err != nil && !errors.Is(err, ErrWebsocketServiceNotRunning) {
+		log.Errorf(log.APIServerMgr, "Failed to broadcast websocket event %v. Error: %v",
 			event, err)
 	}
 }

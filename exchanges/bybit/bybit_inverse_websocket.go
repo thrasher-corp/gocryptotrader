@@ -11,8 +11,8 @@ import (
 )
 
 // GenerateInverseDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateInverseDefaultSubscriptions() (subscription.List, error) {
-	pairs, err := by.GetEnabledPairs(asset.CoinMarginedFutures)
+func (e *Exchange) GenerateInverseDefaultSubscriptions() (subscription.List, error) {
+	pairs, err := e.GetEnabledPairs(asset.CoinMarginedFutures)
 	if err != nil {
 		if errors.Is(err, asset.ErrNotEnabled) {
 			return nil, nil
@@ -34,11 +34,11 @@ func (by *Bybit) GenerateInverseDefaultSubscriptions() (subscription.List, error
 }
 
 // InverseSubscribe sends a websocket message to receive data from the channel
-func (by *Bybit) InverseSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
-	return by.submitDirectSubscription(ctx, conn, asset.CoinMarginedFutures, "subscribe", channelSubscriptions)
+func (e *Exchange) InverseSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
+	return e.submitDirectSubscription(ctx, conn, asset.CoinMarginedFutures, "subscribe", channelSubscriptions)
 }
 
 // InverseUnsubscribe sends a websocket message to stop receiving data from the channel
-func (by *Bybit) InverseUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
-	return by.submitDirectSubscription(ctx, conn, asset.CoinMarginedFutures, "unsubscribe", channelSubscriptions)
+func (e *Exchange) InverseUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
+	return e.submitDirectSubscription(ctx, conn, asset.CoinMarginedFutures, "unsubscribe", channelSubscriptions)
 }
