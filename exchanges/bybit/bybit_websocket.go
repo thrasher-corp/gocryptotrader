@@ -805,12 +805,10 @@ func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
 	return subscriptions, nil
 }
 
-// LinearSubscribe sends a subscription message to linear public channels.
 func (e *Exchange) authSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
 	return e.submitDirectSubscription(ctx, conn, asset.Spot, "subscribe", channelSubscriptions)
 }
 
-// LinearUnsubscribe sends an unsubscription messages through linear public channels.
 func (e *Exchange) authUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
 	return e.submitDirectSubscription(ctx, conn, asset.Spot, "unsubscribe", channelSubscriptions)
 }
