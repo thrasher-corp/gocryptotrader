@@ -67,7 +67,7 @@ func (c *CustomEx) UpdateTicker(_ context.Context, _ currency.Pair, _ asset.Item
 }
 
 // UpdateOrderbook is a mock method for CustomEx
-func (c *CustomEx) UpdateOrderbook(_ context.Context, _ currency.Pair, _ asset.Item) (*orderbook.Base, error) {
+func (c *CustomEx) UpdateOrderbook(_ context.Context, _ currency.Pair, _ asset.Item) (*orderbook.Book, error) {
 	return nil, nil
 }
 

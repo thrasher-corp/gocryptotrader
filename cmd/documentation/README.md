@@ -16,7 +16,7 @@ This documentation package is part of the GoCryptoTrader codebase.
 
 You can track ideas, planned features and what's in progress on our [GoCryptoTrader Kanban board](https://github.com/orgs/thrasher-corp/projects/3).
 
-Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g)
 
 ## Current Features for documentation
 
@@ -29,7 +29,7 @@ Be aware, this tool will:
 - Works off a configuration JSON file located at ``gocryptotrader/cmd/documentation/`` for future use with multiple repositories.
 - Automatically find the directory and file tree for the GoCryptoTrader source code and alert you of undocumented file systems which **need** to be updated.
 - Automatically find the template folder tree.
-- Fetch an updated contributor list and rank on pull request commit amount
+- Fetch an updated contributor list and rank on pull request commit amount. Set the `GITHUB_TOKEN` environment variable or use the `ghtoken` command-line flag for optional authentication.
 - Sets up core folder docs for the root directory tree including **LICENSE** and **CONTRIBUTORS**
 
 ### config.json example

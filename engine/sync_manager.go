@@ -815,7 +815,7 @@ const (
 )
 
 // PrintOrderbookSummary outputs orderbook results
-func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Base, protocol string, err error) {
+func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Book, protocol string, err error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
@@ -911,8 +911,8 @@ func relayWebsocketEvent(result any, event, assetType, exchangeName string) {
 		Exchange:  exchangeName,
 	}
 	err := BroadcastWebsocketMessage(evt)
-	if !errors.Is(err, ErrWebsocketServiceNotRunning) {
-		log.Errorf(log.APIServerMgr, "Failed to broadcast websocket event %v. Error: %s",
+	if err != nil && !errors.Is(err, ErrWebsocketServiceNotRunning) {
+		log.Errorf(log.APIServerMgr, "Failed to broadcast websocket event %v. Error: %v",
 			event, err)
 	}
 }

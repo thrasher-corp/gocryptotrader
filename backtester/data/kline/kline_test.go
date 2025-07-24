@@ -1,7 +1,6 @@
 package kline
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -31,9 +30,8 @@ func TestLoad(t *testing.T) {
 		Base: &data.Base{},
 	}
 	err := d.Load()
-	if !errors.Is(err, errNoCandleData) {
-		t.Errorf("received: %v, expected: %v", err, errNoCandleData)
-	}
+	assert.ErrorIs(t, err, errNoCandleData)
+
 	d.Item = &gctkline.Item{
 		Exchange: exch,
 		Pair:     p,
@@ -155,9 +153,7 @@ func TestAppend(t *testing.T) {
 		},
 	}
 	err := d.AppendResults(&item)
-	if !errors.Is(err, gctkline.ErrItemNotEqual) {
-		t.Errorf("received: %v, expected: %v", err, gctkline.ErrItemNotEqual)
-	}
+	assert.ErrorIs(t, err, gctkline.ErrItemNotEqual)
 
 	item.Exchange = testExchange
 	item.Pair = p
@@ -170,9 +166,7 @@ func TestAppend(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = d.AppendResults(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestStreamOpen(t *testing.T) {

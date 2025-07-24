@@ -17,9 +17,9 @@ const (
 
 // FundingHistoryData stores funding history data
 type FundingHistoryData struct {
-	Time   int64   `json:"time"`
-	Rate   float64 `json:"rate"`
-	Symbol string  `json:"symbol"`
+	Time   types.Time `json:"time"`
+	Rate   float64    `json:"rate"`
+	Symbol string     `json:"symbol"`
 }
 
 // MarketSummary response data
@@ -27,41 +27,41 @@ type MarketSummary []*MarketPair
 
 // MarketPair is a single pair in Market Summary
 type MarketPair struct {
-	Symbol              string   `json:"symbol"`
-	Last                float64  `json:"last"`
-	LowestAsk           float64  `json:"lowestAsk"`
-	HighestBid          float64  `json:"highestBid"`
-	PercentageChange    float64  `json:"percentageChange"`
-	Volume              float64  `json:"volume"`
-	High24Hr            float64  `json:"high24Hr"`
-	Low24Hr             float64  `json:"low24Hr"`
-	Base                string   `json:"base"`
-	Quote               string   `json:"quote"`
-	Active              bool     `json:"active"`
-	Size                float64  `json:"size"`
-	MinValidPrice       float64  `json:"minValidPrice"`
-	MinPriceIncrement   float64  `json:"minPriceIncrement"`
-	MinOrderSize        float64  `json:"minOrderSize"`
-	MaxOrderSize        float64  `json:"maxOrderSize"`
-	MinSizeIncrement    float64  `json:"minSizeIncrement"`
-	OpenInterest        float64  `json:"openInterest"`
-	OpenInterestUSD     float64  `json:"openInterestUSD"`
-	ContractStart       int64    `json:"contractStart"`
-	ContractEnd         int64    `json:"contractEnd"`
-	TimeBasedContract   bool     `json:"timeBasedContract"`
-	OpenTime            int64    `json:"openTime"`
-	CloseTime           int64    `json:"closeTime"`
-	StartMatching       int64    `json:"startMatching"`
-	InactiveTime        int64    `json:"inactiveTime"`
-	FundingRate         float64  `json:"fundingRate"`
-	ContractSize        float64  `json:"contractSize"`
-	MaxPosition         int64    `json:"maxPosition"`
-	MinRiskLimit        int      `json:"minRiskLimit"`
-	MaxRiskLimit        int      `json:"maxRiskLimit"`
-	AvailableSettlement []string `json:"availableSettlement"`
-	Futures             bool     `json:"futures"`
-	IsMarketOpenToSpot  bool     `json:"isMarketOpenToSpot"`
-	IsMarketOpenToOTC   bool     `json:"isMarketOpenToOtc"`
+	Symbol              string     `json:"symbol"`
+	Last                float64    `json:"last"`
+	LowestAsk           float64    `json:"lowestAsk"`
+	HighestBid          float64    `json:"highestBid"`
+	PercentageChange    float64    `json:"percentageChange"`
+	Volume              float64    `json:"volume"`
+	High24Hr            float64    `json:"high24Hr"`
+	Low24Hr             float64    `json:"low24Hr"`
+	Base                string     `json:"base"`
+	Quote               string     `json:"quote"`
+	Active              bool       `json:"active"`
+	Size                float64    `json:"size"`
+	MinValidPrice       float64    `json:"minValidPrice"`
+	MinPriceIncrement   float64    `json:"minPriceIncrement"`
+	MinOrderSize        float64    `json:"minOrderSize"`
+	MaxOrderSize        float64    `json:"maxOrderSize"`
+	MinSizeIncrement    float64    `json:"minSizeIncrement"`
+	OpenInterest        float64    `json:"openInterest"`
+	OpenInterestUSD     float64    `json:"openInterestUSD"`
+	ContractStart       int64      `json:"contractStart"`
+	ContractEnd         int64      `json:"contractEnd"`
+	TimeBasedContract   bool       `json:"timeBasedContract"`
+	OpenTime            types.Time `json:"openTime"`
+	CloseTime           types.Time `json:"closeTime"`
+	StartMatching       int64      `json:"startMatching"`
+	InactiveTime        types.Time `json:"inactiveTime"`
+	FundingRate         float64    `json:"fundingRate"`
+	ContractSize        float64    `json:"contractSize"`
+	MaxPosition         int64      `json:"maxPosition"`
+	MinRiskLimit        int        `json:"minRiskLimit"`
+	MaxRiskLimit        int        `json:"maxRiskLimit"`
+	AvailableSettlement []string   `json:"availableSettlement"`
+	Futures             bool       `json:"futures"`
+	IsMarketOpenToSpot  bool       `json:"isMarketOpenToSpot"`
+	IsMarketOpenToOTC   bool       `json:"isMarketOpenToOtc"`
 }
 
 // OHLCV holds Open, High Low, Close, Volume data for set symbol
@@ -91,48 +91,48 @@ type SpotMarket struct {
 
 // FuturesMarket stores market data
 type FuturesMarket struct {
-	Symbol              string   `json:"symbol"`
-	Last                float64  `json:"last"`
-	LowestAsk           float64  `json:"lowestAsk"`
-	HighestBid          float64  `json:"highestBid"`
-	OpenInterest        float64  `json:"openInterest"`
-	OpenInterestUSD     float64  `json:"openInterestUSD"`
-	PercentageChange    float64  `json:"percentageChange"`
-	Volume              float64  `json:"volume"`
-	High24Hr            float64  `json:"high24Hr"`
-	Low24Hr             float64  `json:"low24Hr"`
-	Base                string   `json:"base"`
-	Quote               string   `json:"quote"`
-	ContractStart       int64    `json:"contractStart"`
-	ContractEnd         int64    `json:"contractEnd"`
-	Active              bool     `json:"active"`
-	TimeBasedContract   bool     `json:"timeBasedContract"`
-	OpenTime            int64    `json:"openTime"`
-	CloseTime           int64    `json:"closeTime"`
-	StartMatching       int64    `json:"startMatching"`
-	InactiveTime        int64    `json:"inactiveTime"`
-	FundingRate         float64  `json:"fundingRate"`
-	ContractSize        float64  `json:"contractSize"`
-	MaxPosition         int64    `json:"maxPosition"`
-	MinValidPrice       float64  `json:"minValidPrice"`
-	MinPriceIncrement   float64  `json:"minPriceIncrement"`
-	MinOrderSize        int32    `json:"minOrderSize"`
-	MaxOrderSize        int32    `json:"maxOrderSize"`
-	MinRiskLimit        int32    `json:"minRiskLimit"`
-	MaxRiskLimit        int32    `json:"maxRiskLimit"`
-	MinSizeIncrement    float64  `json:"minSizeIncrement"`
-	AvailableSettlement []string `json:"availableSettlement"`
+	Symbol              string     `json:"symbol"`
+	Last                float64    `json:"last"`
+	LowestAsk           float64    `json:"lowestAsk"`
+	HighestBid          float64    `json:"highestBid"`
+	OpenInterest        float64    `json:"openInterest"`
+	OpenInterestUSD     float64    `json:"openInterestUSD"`
+	PercentageChange    float64    `json:"percentageChange"`
+	Volume              float64    `json:"volume"`
+	High24Hr            float64    `json:"high24Hr"`
+	Low24Hr             float64    `json:"low24Hr"`
+	Base                string     `json:"base"`
+	Quote               string     `json:"quote"`
+	ContractStart       int64      `json:"contractStart"`
+	ContractEnd         int64      `json:"contractEnd"`
+	Active              bool       `json:"active"`
+	TimeBasedContract   bool       `json:"timeBasedContract"`
+	OpenTime            types.Time `json:"openTime"`
+	CloseTime           types.Time `json:"closeTime"`
+	StartMatching       types.Time `json:"startMatching"`
+	InactiveTime        types.Time `json:"inactiveTime"`
+	FundingRate         float64    `json:"fundingRate"`
+	ContractSize        float64    `json:"contractSize"`
+	MaxPosition         int64      `json:"maxPosition"`
+	MinValidPrice       float64    `json:"minValidPrice"`
+	MinPriceIncrement   float64    `json:"minPriceIncrement"`
+	MinOrderSize        int32      `json:"minOrderSize"`
+	MaxOrderSize        int32      `json:"maxOrderSize"`
+	MinRiskLimit        int32      `json:"minRiskLimit"`
+	MaxRiskLimit        int32      `json:"maxRiskLimit"`
+	MinSizeIncrement    float64    `json:"minSizeIncrement"`
+	AvailableSettlement []string   `json:"availableSettlement"`
 }
 
 // Trade stores trade data
 type Trade struct {
-	SerialID int64   `json:"serialId"`
-	Symbol   string  `json:"symbol"`
-	Price    float64 `json:"price"`
-	Amount   float64 `json:"size"`
-	Time     int64   `json:"timestamp"`
-	Side     string  `json:"side"`
-	Type     string  `json:"type"`
+	SerialID int64      `json:"serialId"`
+	Symbol   string     `json:"symbol"`
+	Price    float64    `json:"price"`
+	Amount   float64    `json:"size"`
+	Time     types.Time `json:"timestamp"`
+	Side     string     `json:"side"`
+	Type     string     `json:"type"`
 }
 
 // QuoteData stores quote data
@@ -146,17 +146,17 @@ type Orderbook struct {
 	BuyQuote  []QuoteData `json:"buyQuote"`
 	SellQuote []QuoteData `json:"sellQuote"`
 	Symbol    string      `json:"symbol"`
-	Timestamp int64       `json:"timestamp"`
+	Timestamp types.Time  `json:"timestamp"`
 }
 
 // Ticker stores the ticker data
 type Ticker struct {
-	Price  float64 `json:"price,string"`
-	Size   float64 `json:"size,string"`
-	Bid    float64 `json:"bid,string"`
-	Ask    float64 `json:"ask,string"`
-	Volume float64 `json:"volume,string"`
-	Time   string  `json:"time"`
+	Price  float64    `json:"price,string"`
+	Size   float64    `json:"size,string"`
+	Bid    float64    `json:"bid,string"`
+	Ask    float64    `json:"ask,string"`
+	Volume float64    `json:"volume,string"`
+	Time   types.Time `json:"time"`
 }
 
 // MarketStatistics stores market statistics for a particular product
@@ -191,42 +191,42 @@ type AccountFees struct {
 
 // TradeHistory stores user trades for exchange
 type TradeHistory []struct {
-	Base         string  `json:"base"`
-	ClOrderID    string  `json:"clOrderID"`
-	FeeAmount    float64 `json:"feeAmount"`
-	FeeCurrency  string  `json:"feeCurrency"`
-	FilledPrice  float64 `json:"filledPrice"`
-	FilledSize   float64 `json:"filledSize"`
-	OrderID      string  `json:"orderId"`
-	OrderType    int     `json:"orderType"`
-	Price        float64 `json:"price"`
-	Quote        string  `json:"quote"`
-	RealizedPnl  float64 `json:"realizedPnl"`
-	SerialID     int64   `json:"serialId"`
-	Side         string  `json:"side"`
-	Size         float64 `json:"size"`
-	Symbol       string  `json:"symbol"`
-	Timestamp    string  `json:"timestamp"`
-	Total        float64 `json:"total"`
-	TradeID      string  `json:"tradeId"`
-	TriggerPrice float64 `json:"triggerPrice"`
-	TriggerType  int     `json:"triggerType"`
-	Username     string  `json:"username"`
-	Wallet       string  `json:"wallet"`
+	Base         string     `json:"base"`
+	ClOrderID    string     `json:"clOrderID"`
+	FeeAmount    float64    `json:"feeAmount"`
+	FeeCurrency  string     `json:"feeCurrency"`
+	FilledPrice  float64    `json:"filledPrice"`
+	FilledSize   float64    `json:"filledSize"`
+	OrderID      string     `json:"orderId"`
+	OrderType    int        `json:"orderType"`
+	Price        float64    `json:"price"`
+	Quote        string     `json:"quote"`
+	RealizedPnl  float64    `json:"realizedPnl"`
+	SerialID     int64      `json:"serialId"`
+	Side         string     `json:"side"`
+	Size         float64    `json:"size"`
+	Symbol       string     `json:"symbol"`
+	Timestamp    types.Time `json:"timestamp"`
+	Total        float64    `json:"total"`
+	TradeID      string     `json:"tradeId"`
+	TriggerPrice float64    `json:"triggerPrice"`
+	TriggerType  int        `json:"triggerType"`
+	Username     string     `json:"username"`
+	Wallet       string     `json:"wallet"`
 }
 
 // WalletHistory stores account funding history
 type WalletHistory []struct {
-	Amount      float64 `json:"amount"`
-	Currency    string  `json:"currency"`
-	Description string  `json:"description"`
-	Fees        float64 `json:"fees"`
-	OrderID     string  `json:"orderId"`
-	Status      string  `json:"status"`
-	Timestamp   int64   `json:"timestamp"`
-	Type        string  `json:"type"`
-	Username    string  `json:"username"`
-	Wallet      string  `json:"wallet"`
+	Amount      float64    `json:"amount"`
+	Currency    string     `json:"currency"`
+	Description string     `json:"description"`
+	Fees        float64    `json:"fees"`
+	OrderID     string     `json:"orderId"`
+	Status      string     `json:"status"`
+	Timestamp   types.Time `json:"timestamp"`
+	Type        string     `json:"type"`
+	Username    string     `json:"username"`
+	Wallet      string     `json:"wallet"`
 }
 
 // WalletAddress stores address for crypto deposit's
@@ -242,31 +242,31 @@ type WithdrawalResponse struct {
 
 // OpenOrder stores an open order info
 type OpenOrder struct {
-	AverageFillPrice             float64 `json:"averageFillPrice"`
-	CancelDuration               int64   `json:"cancelDuration"`
-	ClOrderID                    string  `json:"clOrderID"`
-	FillSize                     float64 `json:"fillSize"`
-	FilledSize                   float64 `json:"filledSize"`
-	OrderID                      string  `json:"orderID"`
-	OrderState                   string  `json:"orderState"`
-	OrderType                    int     `json:"orderType"`
-	OrderValue                   float64 `json:"orderValue"`
-	PegPriceDeviation            float64 `json:"pegPriceDeviation"`
-	PegPriceMax                  float64 `json:"pegPriceMax"`
-	PegPriceMin                  float64 `json:"pegPriceMin"`
-	Price                        float64 `json:"price"`
-	Side                         string  `json:"side"`
-	Size                         float64 `json:"size"`
-	Symbol                       string  `json:"symbol"`
-	Timestamp                    int64   `json:"timestamp"`
-	TrailValue                   float64 `json:"trailValue"`
-	TriggerOrder                 bool    `json:"triggerOrder"`
-	TriggerOrderType             int     `json:"triggerOrderType"`
-	TriggerOriginalPrice         float64 `json:"triggerOriginalPrice"`
-	TriggerPrice                 float64 `json:"triggerPrice"`
-	TriggerStopPrice             float64 `json:"triggerStopPrice"`
-	TriggerTrailingStopDeviation float64 `json:"triggerTrailingStopDeviation"`
-	Triggered                    bool    `json:"triggered"`
+	AverageFillPrice             float64    `json:"averageFillPrice"`
+	CancelDuration               int64      `json:"cancelDuration"`
+	ClOrderID                    string     `json:"clOrderID"`
+	FillSize                     float64    `json:"fillSize"`
+	FilledSize                   float64    `json:"filledSize"`
+	OrderID                      string     `json:"orderID"`
+	OrderState                   string     `json:"orderState"`
+	OrderType                    int        `json:"orderType"`
+	OrderValue                   float64    `json:"orderValue"`
+	PegPriceDeviation            float64    `json:"pegPriceDeviation"`
+	PegPriceMax                  float64    `json:"pegPriceMax"`
+	PegPriceMin                  float64    `json:"pegPriceMin"`
+	Price                        float64    `json:"price"`
+	Side                         string     `json:"side"`
+	Size                         float64    `json:"size"`
+	Symbol                       string     `json:"symbol"`
+	Timestamp                    types.Time `json:"timestamp"`
+	TrailValue                   float64    `json:"trailValue"`
+	TriggerOrder                 bool       `json:"triggerOrder"`
+	TriggerOrderType             int        `json:"triggerOrderType"`
+	TriggerOriginalPrice         float64    `json:"triggerOriginalPrice"`
+	TriggerPrice                 float64    `json:"triggerPrice"`
+	TriggerStopPrice             float64    `json:"triggerStopPrice"`
+	TriggerTrailingStopDeviation float64    `json:"triggerTrailingStopDeviation"`
+	Triggered                    bool       `json:"triggered"`
 }
 
 // CancelOrder stores slice of orders
@@ -274,23 +274,23 @@ type CancelOrder []Order
 
 // Order stores information for a single order
 type Order struct {
-	AverageFillPrice float64 `json:"averageFillPrice"`
-	ClOrderID        string  `json:"clOrderID"`
-	Deviation        float64 `json:"deviation"`
-	FillSize         float64 `json:"fillSize"`
-	Message          string  `json:"message"`
-	OrderID          string  `json:"orderID"`
-	OrderType        int     `json:"orderType"`
-	Price            float64 `json:"price"`
-	Side             string  `json:"side"`
-	Size             float64 `json:"size"`
-	Status           int     `json:"status"`
-	Stealth          float64 `json:"stealth"`
-	StopPrice        float64 `json:"stopPrice"`
-	Symbol           string  `json:"symbol"`
-	Timestamp        int64   `json:"timestamp"`
-	Trigger          bool    `json:"trigger"`
-	TriggerPrice     float64 `json:"triggerPrice"`
+	AverageFillPrice float64    `json:"averageFillPrice"`
+	ClOrderID        string     `json:"clOrderID"`
+	Deviation        float64    `json:"deviation"`
+	FillSize         float64    `json:"fillSize"`
+	Message          string     `json:"message"`
+	OrderID          string     `json:"orderID"`
+	OrderType        int        `json:"orderType"`
+	Price            float64    `json:"price"`
+	Side             string     `json:"side"`
+	Size             float64    `json:"size"`
+	Status           int        `json:"status"`
+	Stealth          float64    `json:"stealth"`
+	StopPrice        float64    `json:"stopPrice"`
+	Symbol           string     `json:"symbol"`
+	Timestamp        types.Time `json:"timestamp"`
+	Trigger          bool       `json:"trigger"`
+	TriggerPrice     float64    `json:"triggerPrice"`
 }
 
 type wsSub struct {
@@ -335,18 +335,18 @@ type wsNotification struct {
 }
 
 type wsOrderUpdate struct {
-	OrderID           string  `json:"orderID"`
-	OrderMode         string  `json:"orderMode"`
-	OrderType         string  `json:"orderType"`
-	PegPriceDeviation string  `json:"pegPriceDeviation"`
-	Price             float64 `json:"price,string"`
-	Size              float64 `json:"size,string"`
-	Status            string  `json:"status"`
-	Stealth           string  `json:"stealth"`
-	Symbol            string  `json:"symbol"`
-	Timestamp         int64   `json:"timestamp,string"`
-	TriggerPrice      float64 `json:"triggerPrice,string"`
-	Type              string  `json:"type"`
+	OrderID           string     `json:"orderID"`
+	OrderMode         string     `json:"orderMode"`
+	OrderType         string     `json:"orderType"`
+	PegPriceDeviation string     `json:"pegPriceDeviation"`
+	Price             float64    `json:"price,string"`
+	Size              float64    `json:"size,string"`
+	Status            string     `json:"status"`
+	Stealth           string     `json:"stealth"`
+	Symbol            string     `json:"symbol"`
+	Timestamp         types.Time `json:"timestamp"`
+	TriggerPrice      float64    `json:"triggerPrice,string"`
+	Type              string     `json:"type"`
 }
 
 // ErrorResponse contains errors received from API

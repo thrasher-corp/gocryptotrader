@@ -1,7 +1,6 @@
 package poloniex
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,56 +15,36 @@ func TestWsCurrencyMap(t *testing.T) {
 	}
 
 	err := m.loadPairs(nil)
-	if !errors.Is(err, errCannotLoadNoData) {
-		t.Fatalf("expected: %v but received: %v", errCannotLoadNoData, err)
-	}
+	require.ErrorIs(t, err, errCannotLoadNoData)
 
 	err = m.loadCodes(nil)
-	if !errors.Is(err, errCannotLoadNoData) {
-		t.Fatalf("expected: %v but received: %v", errCannotLoadNoData, err)
-	}
+	require.ErrorIs(t, err, errCannotLoadNoData)
 
 	_, err = m.GetPair(1337)
-	if !errors.Is(err, errPairMapIsNil) {
-		t.Fatalf("expected: %v but received: %v", errPairMapIsNil, err)
-	}
+	require.ErrorIs(t, err, errPairMapIsNil)
 
 	_, err = m.GetCode(1337)
-	if !errors.Is(err, errCodeMapIsNil) {
-		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
-	}
+	require.ErrorIs(t, err, errCodeMapIsNil)
 
 	_, err = m.GetWithdrawalTXFee(currency.EMPTYCODE)
-	if !errors.Is(err, errCodeMapIsNil) {
-		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
-	}
+	require.ErrorIs(t, err, errCodeMapIsNil)
 
 	_, err = m.GetDepositAddress(currency.EMPTYCODE)
-	if !errors.Is(err, errCodeMapIsNil) {
-		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
-	}
+	require.ErrorIs(t, err, errCodeMapIsNil)
 
 	_, err = m.IsWithdrawAndDepositsEnabled(currency.EMPTYCODE)
-	if !errors.Is(err, errCodeMapIsNil) {
-		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
-	}
+	require.ErrorIs(t, err, errCodeMapIsNil)
 
 	_, err = m.IsTradingEnabledForCurrency(currency.EMPTYCODE)
-	if !errors.Is(err, errCodeMapIsNil) {
-		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
-	}
+	require.ErrorIs(t, err, errCodeMapIsNil)
 
 	_, err = m.IsTradingEnabledForPair(currency.EMPTYPAIR)
-	if !errors.Is(err, errCodeMapIsNil) {
-		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
-	}
+	require.ErrorIs(t, err, errCodeMapIsNil)
 
 	_, err = m.IsPostOnlyForPair(currency.EMPTYPAIR)
-	if !errors.Is(err, errCodeMapIsNil) {
-		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
-	}
+	require.ErrorIs(t, err, errCodeMapIsNil)
 
-	c, err := p.GetCurrencies(t.Context())
+	c, err := e.GetCurrencies(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +54,7 @@ func TestWsCurrencyMap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tick, err := p.GetTicker(t.Context())
+	tick, err := e.GetTicker(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,18 +65,14 @@ func TestWsCurrencyMap(t *testing.T) {
 	}
 
 	pTest, err := m.GetPair(1337)
-	if !errors.Is(err, errIDNotFoundInPairMap) {
-		t.Fatalf("expected: %v but received: %v", errIDNotFoundInPairMap, err)
-	}
+	require.ErrorIs(t, err, errIDNotFoundInPairMap)
 
 	if pTest.String() != "1337" {
 		t.Fatal("unexpected value")
 	}
 
 	_, err = m.GetCode(1337)
-	if !errors.Is(err, errIDNotFoundInCodeMap) {
-		t.Fatalf("expected: %v but received: %v", errIDNotFoundInCodeMap, err)
-	}
+	require.ErrorIs(t, err, errIDNotFoundInCodeMap)
 
 	btcusdt, err := m.GetPair(121)
 	require.NoError(t, err)
@@ -123,9 +98,7 @@ func TestWsCurrencyMap(t *testing.T) {
 	}
 
 	_, err = m.GetDepositAddress(eth)
-	if !errors.Is(err, errNoDepositAddress) {
-		t.Fatalf("expected: %v but received: %v", errNoDepositAddress, err)
-	}
+	require.ErrorIs(t, err, errNoDepositAddress)
 
 	dAddr, err := m.GetDepositAddress(currency.NewCode("BCN"))
 	require.NoError(t, err)
@@ -165,32 +138,20 @@ func TestWsCurrencyMap(t *testing.T) {
 	}
 
 	_, err = m.GetWithdrawalTXFee(currency.EMPTYCODE)
-	if !errors.Is(err, errCurrencyNotFoundInMap) {
-		t.Fatalf("expected: %v but received: %v", errCurrencyNotFoundInMap, err)
-	}
+	require.ErrorIs(t, err, errCurrencyNotFoundInMap)
 
 	_, err = m.GetDepositAddress(currency.EMPTYCODE)
-	if !errors.Is(err, errCurrencyNotFoundInMap) {
-		t.Fatalf("expected: %v but received: %v", errCurrencyNotFoundInMap, err)
-	}
+	require.ErrorIs(t, err, errCurrencyNotFoundInMap)
 
 	_, err = m.IsWithdrawAndDepositsEnabled(currency.EMPTYCODE)
-	if !errors.Is(err, errCurrencyNotFoundInMap) {
-		t.Fatalf("expected: %v but received: %v", errCurrencyNotFoundInMap, err)
-	}
+	require.ErrorIs(t, err, errCurrencyNotFoundInMap)
 
 	_, err = m.IsTradingEnabledForCurrency(currency.EMPTYCODE)
-	if !errors.Is(err, errCurrencyNotFoundInMap) {
-		t.Fatalf("expected: %v but received: %v", errCurrencyNotFoundInMap, err)
-	}
+	require.ErrorIs(t, err, errCurrencyNotFoundInMap)
 
 	_, err = m.IsTradingEnabledForPair(currency.EMPTYPAIR)
-	if !errors.Is(err, errCurrencyNotFoundInMap) {
-		t.Fatalf("expected: %v but received: %v", errCurrencyNotFoundInMap, err)
-	}
+	require.ErrorIs(t, err, errCurrencyNotFoundInMap)
 
 	_, err = m.IsPostOnlyForPair(currency.EMPTYPAIR)
-	if !errors.Is(err, errCurrencyNotFoundInMap) {
-		t.Fatalf("expected: %v but received: %v", errCurrencyNotFoundInMap, err)
-	}
+	require.ErrorIs(t, err, errCurrencyNotFoundInMap)
 }

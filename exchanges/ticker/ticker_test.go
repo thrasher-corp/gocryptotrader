@@ -1,7 +1,6 @@
 package ticker
 
 import (
-	"errors"
 	"log"
 	"math/rand"
 	"os"
@@ -293,9 +292,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		Bid:          1338,
 		Ask:          1336,
 	})
-	if !errors.Is(err, errBidGreaterThanAsk) {
-		t.Errorf("received: %v but expected: %v", err, errBidGreaterThanAsk)
-	}
+	assert.ErrorIs(t, err, errBidGreaterThanAsk)
 
 	err = ProcessTicker(&Price{
 		ExchangeName: "Bitfinex",
