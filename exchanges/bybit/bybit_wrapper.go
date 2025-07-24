@@ -544,9 +544,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		return info, err
 	}
 	switch assetType {
-	case asset.Spot, asset.Options,
-		asset.USDCMarginedFutures,
-		asset.USDTMarginedFutures:
+	case asset.Spot, asset.Options, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
 		switch at {
 		case accountTypeUnified:
 			accountType = "UNIFIED"
@@ -572,9 +570,9 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 			balance := account.Balance{
 				Currency: balances.List[i].Coin[c].Coin,
 				Total:    balances.List[i].Coin[c].WalletBalance.Float64(),
-				Free:     balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
+				Free:     (balances.List[i].Coin[c].BorrowAmount.Float64() + balances.List[i].Coin[c].WalletBalance.Float64()) - balances.List[i].Coin[c].Locked.Float64(),
 				Borrowed: balances.List[i].Coin[c].BorrowAmount.Float64(),
-				Hold:     balances.List[i].Coin[c].WalletBalance.Float64() - balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
+				Hold:     balances.List[i].Coin[c].Locked.Float64(),
 			}
 			if assetType == asset.Spot && balances.List[i].Coin[c].AvailableBalanceForSpot.Float64() != 0 {
 				balance.Free = balances.List[i].Coin[c].AvailableBalanceForSpot.Float64()

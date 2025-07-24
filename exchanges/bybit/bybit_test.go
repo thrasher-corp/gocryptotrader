@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -2873,7 +2874,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 
-	r, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
+	r, err := e.UpdateAccountInfo(request.WithVerbose(t.Context()), asset.Spot)
 	require.NoError(t, err, "UpdateAccountInfo must not error")
 	require.NotEmpty(t, r, "UpdateAccountInfo must return account info")
 
@@ -2886,15 +2887,15 @@ func TestUpdateAccountInfo(t *testing.T) {
 			case 0:
 				assert.Equal(t, currency.USDC, r.Accounts[0].Currencies[x].Currency, "Currency should be USDC")
 				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Total, "Total amount should match")
-				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
+				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
 				assert.Equal(t, 30723.630216383714, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should match")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Free, "Free amount should match")
+				assert.Equal(t, 3.714376362040639e-09, r.Accounts[0].Currencies[x].Free, "Free amount should match")
 			case 1:
 				assert.Equal(t, currency.AVAX, r.Accounts[0].Currencies[x].Currency, "Currency should be AVAX")
 				assert.Equal(t, 2473.9, r.Accounts[0].Currencies[x].Total, "Total amount should match")
-				assert.Equal(t, 1468.10808813, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
+				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
 				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should match")
-				assert.Equal(t, 1005.79191187, r.Accounts[0].Currencies[x].Free, "Free amount should match")
+				assert.Equal(t, 2473.9, r.Accounts[0].Currencies[x].Free, "Free amount should match")
 			case 2:
 				assert.Equal(t, currency.USDT, r.Accounts[0].Currencies[x].Currency, "Currency should be USDT")
 				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Total, "Total amount should match")
