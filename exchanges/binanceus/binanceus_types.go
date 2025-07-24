@@ -7,6 +7,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -174,9 +175,9 @@ type OrderbookItem struct {
 
 // OrderBookData is resp data from orderbook endpoint
 type OrderBookData struct {
-	LastUpdateID int64       `json:"lastUpdateId"`
-	Bids         [][2]string `json:"bids"`
-	Asks         [][2]string `json:"asks"`
+	LastUpdateID int64             `json:"lastUpdateId"`
+	Bids         [][2]types.Number `json:"bids"`
+	Asks         [][2]types.Number `json:"asks"`
 }
 
 // OrderBook actual structured data that can be used for orderbook
@@ -200,17 +201,22 @@ type KlinesRequestParams struct {
 
 // CandleStick holds kline data
 type CandleStick struct {
-	OpenTime                 time.Time
-	Open                     float64
-	High                     float64
-	Low                      float64
-	Close                    float64
-	Volume                   float64
-	CloseTime                time.Time
-	QuoteAssetVolume         float64
-	TradeCount               float64
-	TakerBuyAssetVolume      float64
-	TakerBuyQuoteAssetVolume float64
+	OpenTime                 types.Time
+	Open                     types.Number
+	High                     types.Number
+	Low                      types.Number
+	Close                    types.Number
+	Volume                   types.Number
+	CloseTime                types.Time
+	QuoteAssetVolume         types.Number
+	TradeCount               types.Number
+	TakerBuyAssetVolume      types.Number
+	TakerBuyQuoteAssetVolume types.Number
+}
+
+// UnmarshalJSON unmarshals JSON data into a CandleStick struct
+func (c *CandleStick) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[11]any{&c.OpenTime, &c.Open, &c.High, &c.Low, &c.Close, &c.Volume, &c.CloseTime, &c.QuoteAssetVolume, &c.TradeCount, &c.TakerBuyAssetVolume, &c.TakerBuyQuoteAssetVolume})
 }
 
 // SymbolPrice represents a symbol and it's price.
@@ -718,15 +724,15 @@ type WithdrawalResponse struct {
 
 // WithdrawStatusResponse defines a withdrawal status response
 type WithdrawStatusResponse struct {
-	ID             string  `json:"id"`
-	Amount         float64 `json:"amount,string"`
-	TransactionFee float64 `json:"transactionFee,string"`
-	Coin           string  `json:"coin"`
-	Status         int64   `json:"status"`
-	Address        string  `json:"address"`
-	ApplyTime      string  `json:"applyTime"`
-	Network        string  `json:"network"`
-	TransferType   int64   `json:"transferType"`
+	ID             string         `json:"id"`
+	Amount         float64        `json:"amount,string"`
+	TransactionFee float64        `json:"transactionFee,string"`
+	Coin           string         `json:"coin"`
+	Status         int64          `json:"status"`
+	Address        string         `json:"address"`
+	ApplyTime      types.DateTime `json:"applyTime"`
+	Network        string         `json:"network"`
+	TransferType   int64          `json:"transferType"`
 }
 
 // FiatAssetRecord asset information for fiat.
@@ -777,16 +783,16 @@ type DepositAddress struct {
 
 // DepositHistory stores deposit history info.
 type DepositHistory struct {
-	Amount       string `json:"amount"`
-	Coin         string `json:"coin"`
-	Network      string `json:"network"`
-	Status       int64  `json:"status"`
-	Address      string `json:"address"`
-	AddressTag   string `json:"addressTag"`
-	TxID         string `json:"txId"`
-	InsertTime   int64  `json:"insertTime"`
-	TransferType int64  `json:"transferType"`
-	ConfirmTimes string `json:"confirmTimes"`
+	Amount       string     `json:"amount"`
+	Coin         string     `json:"coin"`
+	Network      string     `json:"network"`
+	Status       int64      `json:"status"`
+	Address      string     `json:"address"`
+	AddressTag   string     `json:"addressTag"`
+	TxID         string     `json:"txId"`
+	InsertTime   types.Time `json:"insertTime"`
+	TransferType int64      `json:"transferType"`
+	ConfirmTimes string     `json:"confirmTimes"`
 }
 
 // UserAccountStream represents the response for getting the listen key for the websocket
@@ -827,20 +833,20 @@ type update struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string      `json:"e"`
-	Timestamp     types.Time  `json:"E"`
-	Pair          string      `json:"s"`
-	FirstUpdateID int64       `json:"U"`
-	LastUpdateID  int64       `json:"u"`
-	UpdateBids    [][2]string `json:"b"`
-	UpdateAsks    [][2]string `json:"a"`
+	Event         string            `json:"e"`
+	Timestamp     types.Time        `json:"E"`
+	Pair          string            `json:"s"`
+	FirstUpdateID int64             `json:"U"`
+	LastUpdateID  int64             `json:"u"`
+	UpdateBids    [][2]types.Number `json:"b"`
+	UpdateAsks    [][2]types.Number `json:"a"`
 }
 
 // WebsocketDepthDiffStream websocket response of depth diff stream
 type WebsocketDepthDiffStream struct {
-	LastUpdateID int64       `json:"lastUpdateId"`
-	Bids         [][2]string `json:"bids"`
-	Asks         [][2]string `json:"asks"`
+	LastUpdateID int64             `json:"lastUpdateId"`
+	Bids         [][2]types.Number `json:"bids"`
+	Asks         [][2]types.Number `json:"asks"`
 }
 
 // WsAccountInfoData defines websocket account info data
@@ -963,17 +969,17 @@ type WsListStatusData struct {
 
 // TradeStream holds the trade stream data
 type TradeStream struct {
-	EventType      string     `json:"e"`
-	EventTime      types.Time `json:"E"`
-	Symbol         string     `json:"s"`
-	TradeID        int64      `json:"t"`
-	Price          string     `json:"p"`
-	Quantity       string     `json:"q"`
-	BuyerOrderID   int64      `json:"b"`
-	SellerOrderID  int64      `json:"a"`
-	TimeStamp      types.Time `json:"T"`
-	Maker          bool       `json:"m"`
-	BestMatchPrice bool       `json:"M"`
+	EventType      string       `json:"e"`
+	EventTime      types.Time   `json:"E"`
+	Symbol         string       `json:"s"`
+	TradeID        int64        `json:"t"`
+	Price          types.Number `json:"p"`
+	Quantity       types.Number `json:"q"`
+	BuyerOrderID   int64        `json:"b"`
+	SellerOrderID  int64        `json:"a"`
+	TimeStamp      types.Time   `json:"T"`
+	Maker          bool         `json:"m"`
+	BestMatchPrice bool         `json:"M"`
 }
 
 // KlineStream holds the kline stream data

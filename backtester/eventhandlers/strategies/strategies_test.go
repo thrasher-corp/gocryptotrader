@@ -1,7 +1,6 @@
 package strategies
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,13 +25,10 @@ func TestLoadStrategyByName(t *testing.T) {
 	t.Parallel()
 	var resp Handler
 	_, err := LoadStrategyByName("test", false)
-	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
-	}
+	assert.ErrorIs(t, err, base.ErrStrategyNotFound)
+
 	_, err = LoadStrategyByName("test", true)
-	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
-	}
+	assert.ErrorIs(t, err, base.ErrStrategyNotFound)
 
 	resp, err = LoadStrategyByName(dollarcostaverage.Name, false)
 	assert.NoError(t, err)
@@ -60,13 +56,10 @@ func TestLoadStrategyByName(t *testing.T) {
 func TestAddStrategy(t *testing.T) {
 	t.Parallel()
 	err := AddStrategy(nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
 	err = AddStrategy(new(dollarcostaverage.Strategy))
-	if !errors.Is(err, ErrStrategyAlreadyExists) {
-		t.Errorf("received '%v' expected '%v'", err, ErrStrategyAlreadyExists)
-	}
+	assert.ErrorIs(t, err, ErrStrategyAlreadyExists)
 
 	err = AddStrategy(new(customStrategy))
 	assert.NoError(t, err)
