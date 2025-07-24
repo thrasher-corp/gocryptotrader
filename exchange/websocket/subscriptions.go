@@ -284,6 +284,13 @@ func (m *Manager) FlushChannels() error {
 	}
 
 	for x := range m.connectionManager {
+		if m.connectionManager[x].setup.SubscriptionsNotRequired {
+			if m.verbose {
+				log.Debugf(log.WebsocketMgr, "%s websocket: skipping connection %s while flushing channels, subscriptions not required", m.exchangeName, m.connectionManager[x].setup.URL)
+			}
+			continue
+		}
+
 		newSubs, err := m.connectionManager[x].setup.GenerateSubscriptions()
 		if err != nil {
 			return err
