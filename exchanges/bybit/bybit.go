@@ -29,7 +29,9 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bybit
 type Exchange struct {
 	exchange.Base
-	account accountTypeHolder
+
+	messageIDSeq common.Counter
+	account      accountTypeHolder
 }
 
 const (
@@ -76,7 +78,6 @@ var (
 	errTimeWindowRequired                 = errors.New("time window is required")
 	errFrozenPeriodRequired               = errors.New("frozen period required")
 	errQuantityLimitRequired              = errors.New("quantity limit required")
-	errInvalidPushData                    = errors.New("invalid push data")
 	errInvalidLeverage                    = errors.New("leverage can't be zero or less then it")
 	errInvalidPositionMode                = errors.New("position mode is invalid")
 	errInvalidMode                        = errors.New("mode can't be empty or missing")
