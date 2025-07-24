@@ -3060,7 +3060,7 @@ func TestPushDataPublic(t *testing.T) {
 func TestWSHandleAuthenticatedData(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange)
+	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
@@ -3231,7 +3231,7 @@ func TestWsTicker(t *testing.T) {
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
 	}
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(ctx context.Context, r []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
 		defer slices.Delete(assetRouting, 0, 1)
 		return e.wsHandleData(assetRouting[0], r)
 	})
@@ -3719,7 +3719,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange)
+	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -3767,7 +3767,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange)
+	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
@@ -3780,7 +3780,7 @@ func TestSubscribe(t *testing.T) {
 func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange)
+	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e))
 	require.NoError(t, e.authSubscribe(t.Context(), &DummyConnection{}, subscription.List{}))
 
@@ -3800,7 +3800,7 @@ func TestAuthSubscribe(t *testing.T) {
 func TestWebsocketAuthenticateConnection(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange)
+	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e))
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
