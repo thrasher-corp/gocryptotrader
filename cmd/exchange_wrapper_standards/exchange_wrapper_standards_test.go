@@ -197,7 +197,7 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 			if slices.ContainsFunc(validWrapperParams, func(t reflect.Type) bool {
 				return input.AssignableTo(t)
 			}) {
-				assetLen = len(assetParams) - 1
+				assetLen = len(assetParams)
 				break
 			}
 		}
