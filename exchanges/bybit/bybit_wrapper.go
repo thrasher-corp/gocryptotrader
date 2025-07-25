@@ -394,6 +394,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler:               e.wsHandleAuthenticatedData,
 		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
 		Authenticate:          e.WebsocketAuthenticatePrivateConnection,
+		MessageFilter:         InboundPrivateConnection,
 	})
 }
 
