@@ -178,6 +178,8 @@ var validWrapperParams = []reflect.Type{
 	latestRateRequest,
 }
 
+type testCtxKey string
+
 func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
 	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
@@ -207,24 +209,27 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 			e = time.Now()
 			s = e.Add(-time.Minute * 3)
 		}
-		for y := 0; y <= assetLen; y++ {
-			inputs := make([]reflect.Value, method.Type().NumIn())
-			argGenerator := &MethodArgumentGenerator{
-				Exchange:    exch,
-				AssetParams: assetParams[y],
-				MethodName:  methodName,
-				Start:       s,
-				End:         e,
-			}
-			for z := range method.Type().NumIn() {
-				argGenerator.MethodInputType = method.Type().In(z)
-				generatedArg := generateMethodArg(ctx, t, argGenerator)
-				inputs[z] = *generatedArg
-			}
-			assetY := assetParams[y].Asset.String()
-			pairY := assetParams[y].Pair.String()
+		for y := range assetLen {
+			ap := assetParams[y]
+			assetY := ap.Asset.String()
+			pairY := ap.Pair.String()
 			t.Run(methodName+"-"+assetY+"-"+pairY, func(t *testing.T) {
 				t.Parallel()
+				// Create a new context for each test run to avoid race conditions
+				ctx := context.WithValue(ctx, testCtxKey("test"), t.Name()) //nolint:govet // Intentional shadow
+				inputs := make([]reflect.Value, method.Type().NumIn())
+				argGenerator := &MethodArgumentGenerator{
+					Exchange:    exch,
+					AssetParams: ap,
+					MethodName:  methodName,
+					Start:       s,
+					End:         e,
+				}
+				for z := range method.Type().NumIn() {
+					argGenerator.MethodInputType = method.Type().In(z)
+					generatedArg := generateMethodArg(ctx, t, argGenerator)
+					inputs[z] = *generatedArg
+				}
 				CallExchangeMethod(t, method, inputs, methodName, exch)
 			})
 		}
