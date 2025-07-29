@@ -53,6 +53,5 @@ Templates do not need to worry about joining around separators; Trailing separat
 
 Template functions should panic to handle errors. They are caught by text/template and turned into errors for use in `subscription.expandTemplate`.
 
-{{template "contributions"}}
 {{template "donations" .}}
 {{end}}
