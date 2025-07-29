@@ -55,13 +55,17 @@ type Connection interface {
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
+	// MatchReturnResponses sets up a channel to listen for an expected number of responses. This is used for when a
+	// request is sent and a response is expected in a different connection.
+	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
 }
 
 // ConnectionSetup defines variables for an individual stream connection
 type ConnectionSetup struct {
-	ResponseCheckTimeout    time.Duration
-	ResponseMaxLimit        time.Duration
-	RateLimit               *request.RateLimiterWithWeight
+	ResponseCheckTimeout time.Duration
+	ResponseMaxLimit     time.Duration
+	RateLimit            *request.RateLimiterWithWeight
+	// Authenticated indicates if the connection can be authenticated, this is not used for multi-connection.
 	Authenticated           bool
 	ConnectionLevelReporter Reporter
 
@@ -86,14 +90,17 @@ type ConnectionSetup struct {
 	// received from the exchange's websocket server. This function should
 	// handle the incoming message and pass it to the appropriate data handler.
 	Handler func(ctx context.Context, incoming []byte) error
-	// BespokeGenerateMessageID is a function that returns a unique message ID.
+	// RequestIDGenerator is a function that returns a unique message ID.
 	// This is useful for when an exchange connection requires a unique or
 	// structured message ID for each message sent.
-	BespokeGenerateMessageID func(highPrecision bool) int64
-	Authenticate             func(ctx context.Context, conn Connection) error
+	RequestIDGenerator func() int64
+	// Authenticate will be called to authenticate the connection
+	Authenticate func(ctx context.Context, conn Connection) error
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.
 	MessageFilter any
+	// SubscriptionsNotRequired generation and handling is not required.
+	SubscriptionsNotRequired bool
 }
 
 // Inspector is used to verify messages via SendMessageReturnResponsesWithInspection
@@ -110,23 +117,23 @@ type Response struct {
 
 // connection contains all the data needed to send a message to a websocket connection
 type connection struct {
-	Verbose                  bool
-	connected                int32
-	writeControl             sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
-	RateLimit                *request.RateLimiterWithWeight // RateLimit is a rate limiter for the connection itself
-	RateLimitDefinitions     request.RateLimitDefinitions   // RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections
-	Reporter                 Reporter
-	ExchangeName             string
-	URL                      string
-	ProxyURL                 string
-	Wg                       *sync.WaitGroup
-	Connection               *gws.Conn
-	shutdown                 chan struct{}
-	Match                    *Match
-	ResponseMaxLimit         time.Duration
-	Traffic                  chan struct{}
-	readMessageErrors        chan error
-	bespokeGenerateMessageID func(highPrecision bool) int64
+	Verbose              bool
+	connected            int32
+	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
+	RateLimit            *request.RateLimiterWithWeight // RateLimit is a rate limiter for the connection itself
+	RateLimitDefinitions request.RateLimitDefinitions   // RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections
+	Reporter             Reporter
+	ExchangeName         string
+	URL                  string
+	ProxyURL             string
+	Wg                   *sync.WaitGroup
+	Connection           *gws.Conn
+	shutdown             chan struct{}
+	Match                *Match
+	ResponseMaxLimit     time.Duration
+	Traffic              chan struct{}
+	readMessageErrors    chan error
+	requestIDGenerator   func() int64
 }
 
 // Dial sets proxy urls and then connects to the websocket
@@ -337,8 +344,8 @@ func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
 // If a bespoke function is set (by using SetupNewConnection) it will use that,
 // otherwise it will use the defaultGenerateMessageID function.
 func (c *connection) GenerateMessageID(highPrec bool) int64 {
-	if c.bespokeGenerateMessageID != nil {
-		return c.bespokeGenerateMessageID(highPrec)
+	if c.requestIDGenerator != nil {
+		return c.requestIDGenerator()
 	}
 	return c.defaultGenerateMessageID(highPrec)
 }
@@ -465,6 +472,32 @@ inspection:
 	}
 
 	return resps, nil
+}
+
+// MatchedResponse encapsulates the matched responses along with any errors encountered.
+type MatchedResponse struct {
+	Responses [][]byte
+	Err       error
+}
+
+// MatchReturnResponses sets up a channel to listen for an expected number of responses. These responses may not
+// originate from the same connection as the request, but can come from an alternative connection. It returns a channel
+// that will receive a MatchedResponse containing the collected responses or an error.
+func (c *connection) MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error) {
+	connectionListen, err := c.Match.Set(signature, expected)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan MatchedResponse, 1) // buffered so routine below doesn't leak
+
+	go func() {
+		resps, err := c.waitForResponses(ctx, signature, connectionListen, expected, nil)
+		out <- MatchedResponse{Responses: resps, Err: err}
+		close(out)
+	}()
+
+	return out, nil
 }
 
 func removeURLQueryString(url string) string {

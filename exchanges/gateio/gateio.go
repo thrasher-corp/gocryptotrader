@@ -188,8 +188,9 @@ func timeInForceFromString(tif string) (order.TimeInForce, error) {
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with GateIO
 type Exchange struct {
-	Counter common.Counter // Must be first	due to alignment requirements
 	exchange.Base
+
+	messageIDSeq  common.Counter
 	wsOBUpdateMgr *wsOBUpdateManager
 }
 
