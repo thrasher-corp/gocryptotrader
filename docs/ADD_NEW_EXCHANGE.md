@@ -215,19 +215,19 @@ for i := range bot.Exchanges {
 pair := currency.NewBTCUSD()
 
 // Fetches current ticker information
-tick, err := e.GetCachedTicker(context.Background(), pair, asset.Spot) // e -> f 
+tick, err := e.GetCachedTicker(context.Background(), pair, asset.Spot)
 if err != nil {
   // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := e.GetCachedOrderbook(context.Background(), pair, asset.Spot) // e -> f (do so for the rest of the functions too)
+ob, err := e.GetCachedOrderbook(context.Background(), pair, asset.Spot)
 if err != nil {
   // Handle error
 }
 ```
 
-- Run documentation.go to generate readme file for the exchange:
+Run documentation.go to generate readme file for the exchange:
 ```bash
 cd gocryptotrader\cmd\documentation
 go run documentation.go
@@ -249,9 +249,9 @@ This will generate a readme file for the exchange which can be found in the new 
 
 6. Test deduplication should be the default approach for exchanges, image provided as an example diff
 
-### Create functions supported by the exchange:
+### Create functions supported by the exchange
 
-#### Requester functions:
+#### Requester functions
 
 ```go
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -278,7 +278,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any)
 }
 ```
 
-#### Public Functions:
+#### Public Functions
 
 https://developers.binance.com/docs/binance-spot-api-docs/rest-api/general-endpoints
 
@@ -320,20 +320,12 @@ type ExchangeInfo struct {
 }
 ```
 
-Create new consts to define endpoint strings, they are created at the top of rest.go file:
+Fill out or create new consts to define the API URL paths:
+
 ```go
-const (
 	apiURL = "https://api.binance.com"
 
-	// Public endpoints
-	exchangeInfo      = "/api/v3/exchangeInfo"
-	orderBookDepth    = "/api/v3/depth"
-	recentTrades      = "/api/v3/trades"
-	aggregatedTrades  = "/api/v3/aggTrades"
-	candleStick       = "/api/v3/klines"
-	orderEndpoint     = "/api/v3/order"
-)
-  ```
+```
 
 Create a get function in rest.go file and unmarshall the data in the created type:
 ```go
@@ -341,8 +333,7 @@ Create a get function in rest.go file and unmarshall the data in the created typ
 // information
 func (e *Exchange) GetExchangeInfo(ctx context.Context) (*ExchangeInfo, error) {
 	var resp *ExchangeInfo
-	return resp, e.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, exchangeInfo, spotExchangeInfo, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, exchangeInfo, spotExchangeInfo, &resp)
 }
 ```
 
@@ -467,26 +458,22 @@ https://developers.binance.com/docs/binance-spot-api-docs/rest-api/trading-endpo
 
 ```go
 // QueryOrder returns information on a past order
-func (e *Exchange) QueryOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (*OrderResponse, error) {
-	params := url.Values{}
+func (e *Exchange) QueryOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID uint64) (*OrderResponse, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return resp, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	if orderID != 0 {
-		params.Set("orderId", strconv.FormatInt(orderID, 10))
+		params.Set("orderId", strconv.FormatUint(orderID, 10))
 	}
 
 	var resp *OrderResponse
-	if err := e.SendAuthHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		http.MethodGet, orderEndpoint,
-		params, spotOrderQueryRate,
-		&resp); err != nil {
+	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, orderEndpoint, params, spotOrderQueryRate, &resp); err != nil {
 		return resp, err
 	}
 
@@ -573,7 +560,7 @@ func (e *Exchange) NewOrder(ctx context.Context, o *NewOrderRequest) (*OrderResp
 }
 ```
 
-### Implementing wrapper functions:
+### Implementing wrapper functions
 
 Wrapper functions are the interface in which the GoCryptoTrader engine communicates with an exchange for receiving data and sending requests. A breakdown of all API functions can be found [here](../exchanges/interfaces.go).
 The exchanges may not support all the functionality in the wrapper, so fill out the ones that are supported as shown in the examples below:
@@ -581,8 +568,7 @@ The exchanges may not support all the functionality in the wrapper, so fill out 
 Unsupported Example:
 
 ```go
-// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
-// submitted
+// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
 func (e *Exchange) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
@@ -591,7 +577,6 @@ func (e *Exchange) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withd
 Supported Examples:
 
 ```go
-// FetchTradablePairs returns a list of the exchanges tradable pairs
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !e.SupportsAsset(a) {
@@ -677,12 +662,13 @@ func (e *Exchange) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 
-	var dialer gws.Dialer
-	dialer.HandshakeTimeout = e.Config.HTTPTimeout
-	dialer.Proxy = http.ProxyFromEnvironment
-	var err error
+	dialer := gws.Dialer{
+		HandshakeTimeout: e.Config.HTTPTimeout
+		Proxy:            http.ProxyFromEnvironment
+	}
+
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err = e.GetWsAuthStreamKey(ctx)
+		listenKey, err := e.GetWsAuthStreamKey(ctx)
 		if err != nil {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", e.Name, err)
@@ -690,15 +676,13 @@ func (e *Exchange) WsConnect() error {
 			// cleans on failed connection
 			clean := strings.Split(b.Websocket.GetWebsocketURL(), "?streams=")
 			authPayload := clean[0] + "?streams=" + listenKey
-			err = e.Websocket.SetWebsocketURL(authPayload, false, false)
-			if err != nil {
+			if err := e.Websocket.SetWebsocketURL(authPayload, false, false); err != nil {
 				return err
 			}
 		}
 	}
 
-	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 
@@ -899,10 +883,9 @@ type WsResponseData struct {
 
 ```go
 	var result map[string]any
-	err := json.Unmarshal(respRaw, &result)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
-  }
+  	}
 ```
 
 Using switch cases and types created earlier, unmarshall the data into the more specific structs.
@@ -913,8 +896,7 @@ If a suitable struct does not exist in wshandler, wrapper types are the next pre
 	switch result["channel"] {
 	case wsTicker:
 		var resultData WsTickerDataStore
-		err = json.Unmarshal(respRaw, &resultData)
-		if err != nil {
+		if err := json.Unmarshal(respRaw, &resultData);err != nil {
 			return err
 		}
 		e.Websocket.DataHandler <- &ticker.Price{
@@ -922,7 +904,7 @@ If a suitable struct does not exist in wshandler, wrapper types are the next pre
 			Bid:          resultData.Ticker.Bid,
 			Ask:          resultData.Ticker.Ask,
 			Last:         resultData.Ticker.Last,
-			LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
+			LastUpdated:  resultData.Ticker.Time,
 			Pair:         p,
 			AssetType:    a,
 	    }
