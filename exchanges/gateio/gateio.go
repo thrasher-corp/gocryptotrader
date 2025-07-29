@@ -2242,9 +2242,6 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCrea
 	if arg.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
-	if arg.Size == 0 {
-		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
-	}
 	if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
 		return nil, err
 	}
@@ -2254,13 +2251,12 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCrea
 	if arg.Price == "0" && arg.TimeInForce != iocTIF && arg.TimeInForce != fokTIF {
 		return nil, fmt.Errorf("%w: %q; only 'IOC' and 'FOK' allowed for market order", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
 	}
-	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
+	if arg.AutoSize != "" && (arg.AutoSize != "close_long" && arg.AutoSize != "close_short") {
 		return nil, errInvalidAutoSizeValue
 	}
 	if arg.Settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
-
 	var response *Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSubmitOrderEPL, http.MethodPost, futuresPath+arg.Settle.Item.Lower+ordersPath, nil, &arg, &response)
 }

@@ -235,6 +235,8 @@ github.com/subosito/gotenv v1.6.0 h1:9NlTDc1FTs4qu0DDq7AEtTPNw6SVm7uBMsUCUjABIf8
 github.com/subosito/gotenv v1.6.0/go.mod h1:Dk4QP5c2W3ibzajGcXpNraDfq2IrhjMIvMSWPKKo0FU=
 github.com/thrasher-corp/gct-ta v0.0.0-20200623072738-f2b55b7f9f41 h1:oFqn2u2F6cnHskAlQ3j702hBbEfn+5bbIl90pQz9IPo=
 github.com/thrasher-corp/gct-ta v0.0.0-20200623072738-f2b55b7f9f41/go.mod h1:z51vdK6i7okTmwu9tPh9+W8nqPWv80B/nMZUCX17fwY=
+github.com/thrasher-corp/gocryptotrader v0.0.0-20250728074239-2ab4379189c6 h1:uxlvf4+Xn9RaemNtaU23NaXgOuo5XNQu9eGUwUwok5U=
+github.com/thrasher-corp/gocryptotrader v0.0.0-20250728074239-2ab4379189c6/go.mod h1:7PB7B5dQifjQYGnlN/b9zY5nhUJtaUBmMV0735urUWI=
 github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible h1:SPqQlzFu3g4P9wK2iwJaWVLJWcQ5rYc43rvXBJ8RSCY=
 github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible/go.mod h1:2Bb/y0SpnUWOlPU5kDz+ctvb3w/mzuAVqxy7JPfBzgw=
 github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e h1:4kYBo2YhqqFY7aZPPEhrtPTMoAq4iCsoDITd3jseRbY=
