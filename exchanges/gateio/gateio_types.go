@@ -488,6 +488,7 @@ type CurrencyPairDetail struct {
 	ID              string       `json:"id"`
 	Base            string       `json:"base"`
 	Quote           string       `json:"quote"`
+	Type            string       `json:"type"`
 	TradingFee      types.Number `json:"fee"`
 	MinBaseAmount   types.Number `json:"min_base_amount"`
 	MinQuoteAmount  types.Number `json:"min_quote_amount"`
@@ -496,6 +497,7 @@ type CurrencyPairDetail struct {
 	TradeStatus     string       `json:"trade_status"`
 	SellStart       float64      `json:"sell_start"`
 	BuyStart        float64      `json:"buy_start"`
+	DelistingTime   types.Time   `json:"delisting_time"`
 }
 
 // Ticker holds detail ticker information for a currency pair
@@ -1126,6 +1128,12 @@ type WithdrawalStatus struct {
 	WithdrawEachTimeLimit  types.Number      `json:"withdraw_eachtime_limit"`
 	WithdrawFixOnChains    map[string]string `json:"withdraw_fix_on_chains"`
 	AdditionalProperties   string            `json:"additionalProperties"`
+}
+
+// SubAccountBalances holds all subaccount balance informations.
+type SubAccountBalances struct {
+	UID       string                         `json:"uid"`
+	Available map[currency.Code]types.Number `json:"available"`
 }
 
 // FuturesSubAccountBalance represents sub account balance for specific sub account and several currencies

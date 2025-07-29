@@ -22,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -110,14 +109,13 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() (subscription.List, error
 		if err != nil {
 			return nil, err
 		}
-		if len(response) != 0 {
-			channelsToSubscribe = append(channelsToSubscribe,
-				optionsUserTradesChannel,
-				optionsBalancesChannel,
-			)
-			userID = response[0].UserID
-		} else if g.Verbose {
-			log.Errorf(log.ExchangeSys, "no subaccount found for authenticated options channel subscriptions")
+		channelsToSubscribe = append(channelsToSubscribe,
+			optionsUserTradesChannel,
+			optionsBalancesChannel,
+		)
+		userID, err = strconv.ParseInt(response.UID, 10, 64)
+		if err != nil {
+			return nil, err
 		}
 	}
 

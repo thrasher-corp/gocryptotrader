@@ -1213,12 +1213,12 @@ func (g *Gateio) GetWithdrawalStatus(ctx context.Context, ccy currency.Code) ([]
 }
 
 // GetSubAccountBalances retrieve sub account balances
-func (g *Gateio) GetSubAccountBalances(ctx context.Context, subAccountUserID string) ([]FuturesSubAccountBalance, error) {
+func (g *Gateio) GetSubAccountBalances(ctx context.Context, subAccountUserID string) (*SubAccountBalances, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
 	}
-	var response []FuturesSubAccountBalance
+	var response *SubAccountBalances
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountBalancesEPL, http.MethodGet, walletSubAccountBalance, params, nil, &response)
 }
 
