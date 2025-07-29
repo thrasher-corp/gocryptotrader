@@ -1130,7 +1130,7 @@ type WithdrawalStatus struct {
 	AdditionalProperties   string            `json:"additionalProperties"`
 }
 
-// SubAccountBalances holds all subaccount balance informations.
+// SubAccountBalances holds all subaccount balance information
 type SubAccountBalances struct {
 	UID       string                         `json:"uid"`
 	Available map[currency.Code]types.Number `json:"available"`

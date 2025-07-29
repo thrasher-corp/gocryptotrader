@@ -131,41 +131,40 @@ const (
 )
 
 var (
-	errEmptyOrInvalidSettlementCurrency = errors.New("empty or invalid settlement currency")
-	errInvalidOrMissingContractParam    = errors.New("invalid or empty contract")
-	errNoValidResponseFromServer        = errors.New("no valid response from server")
-	errInvalidUnderlying                = errors.New("missing underlying")
-	errInvalidOrderSize                 = errors.New("invalid order size")
-	errInvalidOrderID                   = errors.New("invalid order id")
-	errInvalidAmount                    = errors.New("invalid amount")
-	errInvalidSubAccount                = errors.New("invalid or empty subaccount")
-	errInvalidTransferDirection         = errors.New("invalid transfer direction")
-	errDifferentAccount                 = errors.New("account type must be identical for all orders")
-	errInvalidPrice                     = errors.New("invalid price")
-	errNoValidParameterPassed           = errors.New("no valid parameter passed")
-	errInvalidCountdown                 = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
-	errInvalidOrderStatus               = errors.New("invalid order status")
-	errInvalidLoanSide                  = errors.New("invalid loan side, only 'lend' and 'borrow'")
-	errInvalidLoanID                    = errors.New("missing loan ID")
-	errInvalidRepayMode                 = errors.New("invalid repay mode specified, must be 'all' or 'partial'")
-	errMissingPreviewID                 = errors.New("missing required parameter: preview_id")
-	errChangeHasToBePositive            = errors.New("change has to be positive")
-	errInvalidLeverageValue             = errors.New("invalid leverage value")
-	errInvalidRiskLimit                 = errors.New("new position risk limit")
-	errInvalidCountTotalValue           = errors.New("invalid \"count_total\" value, supported \"count_total\" values are 0 and 1")
-	errInvalidAutoSizeValue             = errors.New("invalid \"auto_size\" value, only \"close_long\" and \"close_short\" are supported")
-	errTooManyOrderRequest              = errors.New("too many order creation request")
-	errInvalidTimeout                   = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
-	errNoTickerData                     = errors.New("no ticker data available")
-	errNilArgument                      = errors.New("null argument")
-	errInvalidTimezone                  = errors.New("invalid timezone")
-	errMultipleOrders                   = errors.New("multiple orders passed")
-	errMissingWithdrawalID              = errors.New("missing withdrawal ID")
-	errInvalidSubAccountUserID          = errors.New("sub-account user id is required")
-	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
-	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
-	errMissingAPIKey                    = errors.New("missing API key information")
-	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
+	errInvalidOrMissingContractParam = errors.New("invalid or empty contract")
+	errNoValidResponseFromServer     = errors.New("no valid response from server")
+	errInvalidUnderlying             = errors.New("missing underlying")
+	errInvalidOrderSize              = errors.New("invalid order size")
+	errInvalidOrderID                = errors.New("invalid order id")
+	errInvalidAmount                 = errors.New("invalid amount")
+	errInvalidSubAccount             = errors.New("invalid or empty subaccount")
+	errInvalidTransferDirection      = errors.New("invalid transfer direction")
+	errDifferentAccount              = errors.New("account type must be identical for all orders")
+	errInvalidPrice                  = errors.New("invalid price")
+	errNoValidParameterPassed        = errors.New("no valid parameter passed")
+	errInvalidCountdown              = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
+	errInvalidOrderStatus            = errors.New("invalid order status")
+	errInvalidLoanSide               = errors.New("invalid loan side, only 'lend' and 'borrow'")
+	errInvalidLoanID                 = errors.New("missing loan ID")
+	errInvalidRepayMode              = errors.New("invalid repay mode specified, must be 'all' or 'partial'")
+	errMissingPreviewID              = errors.New("missing required parameter: preview_id")
+	errChangeHasToBePositive         = errors.New("change has to be positive")
+	errInvalidLeverageValue          = errors.New("invalid leverage value")
+	errInvalidRiskLimit              = errors.New("new position risk limit")
+	errInvalidCountTotalValue        = errors.New("invalid \"count_total\" value, supported \"count_total\" values are 0 and 1")
+	errInvalidAutoSizeValue          = errors.New("invalid \"auto_size\" value, only \"close_long\" and \"close_short\" are supported")
+	errTooManyOrderRequest           = errors.New("too many order creation request")
+	errInvalidTimeout                = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
+	errNoTickerData                  = errors.New("no ticker data available")
+	errNilArgument                   = errors.New("null argument")
+	errInvalidTimezone               = errors.New("invalid timezone")
+	errMultipleOrders                = errors.New("multiple orders passed")
+	errMissingWithdrawalID           = errors.New("missing withdrawal ID")
+	errInvalidSubAccountUserID       = errors.New("sub-account user id is required")
+	errInvalidSettlementQuote        = errors.New("symbol quote currency does not match asset settlement currency")
+	errInvalidSettlementBase         = errors.New("symbol base currency does not match asset settlement currency")
+	errMissingAPIKey                 = errors.New("missing API key information")
+	errInvalidTextValue              = errors.New("invalid text value, requires prefix `t-`")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -1807,7 +1806,7 @@ func (e *Exchange) GetSingleBorrowLoanDetail(ctx context.Context, loanID string)
 // GetAllFutureContracts retrieves list all futures contracts
 func (e *Exchange) GetAllFutureContracts(ctx context.Context, settle currency.Code) ([]FuturesContract, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	var contracts []FuturesContract
 	return contracts, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFuturesContractsEPL, futuresPath+settle.Item.Lower+"/contracts", &contracts)
@@ -1819,7 +1818,7 @@ func (e *Exchange) GetFuturesContract(ctx context.Context, settle currency.Code,
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	var futureContract *FuturesContract
 	return futureContract, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFuturesContractsEPL, futuresPath+settle.Item.Lower+"/contracts/"+contract, &futureContract)
@@ -1831,7 +1830,7 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, settle currency.Code
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("contract", contract)
@@ -1851,7 +1850,7 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, settle currency.Code
 // GetFuturesTradingHistory retrieves futures trading history
 func (e *Exchange) GetFuturesTradingHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, lastID string, from, to time.Time) ([]TradingHistoryItem, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -1880,7 +1879,7 @@ func (e *Exchange) GetFuturesTradingHistory(ctx context.Context, settle currency
 // GetFuturesCandlesticks retrieves specified contract candlesticks.
 func (e *Exchange) GetFuturesCandlesticks(ctx context.Context, settle currency.Code, contract string, from, to time.Time, limit uint64, interval kline.Interval) ([]FuturesCandlestick, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract == "" {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -1911,7 +1910,7 @@ func (e *Exchange) GetFuturesCandlesticks(ctx context.Context, settle currency.C
 // Maximum of 1000 points can be returned in a query. Be sure not to exceed the limit when specifying from, to and interval
 func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, from, to time.Time, limit int64, interval kline.Interval) ([]FuturesPremiumIndexKLineResponse, error) {
 	if settleCurrency.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -1939,7 +1938,7 @@ func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currenc
 // GetFuturesTickers retrieves futures ticker information for a specific settle and contract info.
 func (e *Exchange) GetFuturesTickers(ctx context.Context, settle currency.Code, contract currency.Pair) ([]FuturesTicker, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if contract.IsPopulated() {
@@ -1952,7 +1951,7 @@ func (e *Exchange) GetFuturesTickers(ctx context.Context, settle currency.Code, 
 // GetFutureFundingRates retrieves funding rate information.
 func (e *Exchange) GetFutureFundingRates(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64) ([]FuturesFundingRate, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -1969,7 +1968,7 @@ func (e *Exchange) GetFutureFundingRates(ctx context.Context, settle currency.Co
 // GetFuturesInsuranceBalanceHistory retrieves futures insurance balance history
 func (e *Exchange) GetFuturesInsuranceBalanceHistory(ctx context.Context, settle currency.Code, limit uint64) ([]InsuranceBalance, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if limit > 0 {
@@ -1982,7 +1981,7 @@ func (e *Exchange) GetFuturesInsuranceBalanceHistory(ctx context.Context, settle
 // GetFutureStats retrieves futures stats
 func (e *Exchange) GetFutureStats(ctx context.Context, settle currency.Code, contract currency.Pair, from time.Time, interval kline.Interval, limit uint64) ([]ContractStat, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -2009,7 +2008,7 @@ func (e *Exchange) GetFutureStats(ctx context.Context, settle currency.Code, con
 // GetIndexConstituent retrieves index constituents
 func (e *Exchange) GetIndexConstituent(ctx context.Context, settle currency.Code, index string) (*IndexConstituent, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if index == "" {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -2022,7 +2021,7 @@ func (e *Exchange) GetIndexConstituent(ctx context.Context, settle currency.Code
 // GetLiquidationHistory retrieves liqudiation history
 func (e *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, from, to time.Time, limit uint64) ([]LiquidationHistory, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, errInvalidOrMissingContractParam
@@ -2045,7 +2044,7 @@ func (e *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Co
 // QueryFuturesAccount retrieves futures account
 func (e *Exchange) QueryFuturesAccount(ctx context.Context, settle currency.Code) (*FuturesAccount, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	var response *FuturesAccount
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualAccountEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/accounts", nil, nil, &response)
@@ -2054,7 +2053,7 @@ func (e *Exchange) QueryFuturesAccount(ctx context.Context, settle currency.Code
 // GetFuturesAccountBooks retrieves account books
 func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if limit > 0 {
@@ -2076,7 +2075,7 @@ func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.C
 // GetAllFuturesPositionsOfUsers list all positions of users.
 func (e *Exchange) GetAllFuturesPositionsOfUsers(ctx context.Context, settle currency.Code, realPositionsOnly bool) ([]Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if realPositionsOnly {
@@ -2089,7 +2088,7 @@ func (e *Exchange) GetAllFuturesPositionsOfUsers(ctx context.Context, settle cur
 // GetSinglePosition returns a single position
 func (e *Exchange) GetSinglePosition(ctx context.Context, settle currency.Code, contract currency.Pair) (*Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2101,7 +2100,7 @@ func (e *Exchange) GetSinglePosition(ctx context.Context, settle currency.Code, 
 // UpdateFuturesPositionMargin represents account position margin for a futures contract.
 func (e *Exchange) UpdateFuturesPositionMargin(ctx context.Context, settle currency.Code, change float64, contract currency.Pair) (*Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2118,7 +2117,7 @@ func (e *Exchange) UpdateFuturesPositionMargin(ctx context.Context, settle curre
 // UpdateFuturesPositionLeverage update position leverage
 func (e *Exchange) UpdateFuturesPositionLeverage(ctx context.Context, settle currency.Code, contract currency.Pair, leverage, crossLeverageLimit float64) (*Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2138,7 +2137,7 @@ func (e *Exchange) UpdateFuturesPositionLeverage(ctx context.Context, settle cur
 // UpdateFuturesPositionRiskLimit updates the position risk limit
 func (e *Exchange) UpdateFuturesPositionRiskLimit(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit uint64) (*Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2153,7 +2152,7 @@ func (e *Exchange) UpdateFuturesPositionRiskLimit(ctx context.Context, settle cu
 // Before setting dual mode, make sure all positions are closed and no orders are open
 func (e *Exchange) EnableOrDisableDualMode(ctx context.Context, settle currency.Code, dualMode bool) (*DualModeResponse, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("dual_mode", strconv.FormatBool(dualMode))
@@ -2164,7 +2163,7 @@ func (e *Exchange) EnableOrDisableDualMode(ctx context.Context, settle currency.
 // RetrivePositionDetailInDualMode retrieve position detail in dual mode
 func (e *Exchange) RetrivePositionDetailInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair) ([]Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2176,7 +2175,7 @@ func (e *Exchange) RetrivePositionDetailInDualMode(ctx context.Context, settle c
 // UpdatePositionMarginInDualMode update position margin in dual mode
 func (e *Exchange) UpdatePositionMarginInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, change float64, dualSide string) ([]Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2194,7 +2193,7 @@ func (e *Exchange) UpdatePositionMarginInDualMode(ctx context.Context, settle cu
 // UpdatePositionLeverageInDualMode update position leverage in dual mode
 func (e *Exchange) UpdatePositionLeverageInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, leverage, crossLeverageLimit float64) (*Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2214,7 +2213,7 @@ func (e *Exchange) UpdatePositionLeverageInDualMode(ctx context.Context, settle 
 // UpdatePositionRiskLimitInDualMode update position risk limit in dual mode
 func (e *Exchange) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit float64) ([]Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2255,7 +2254,7 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCrea
 		return nil, errInvalidAutoSizeValue
 	}
 	if arg.Settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	var response *Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSubmitOrderEPL, http.MethodPost, futuresPath+arg.Settle.Item.Lower+ordersPath, nil, &arg, &response)
@@ -2265,7 +2264,7 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCrea
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
 func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal int64) ([]Order, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if !contract.IsEmpty() {
@@ -2297,7 +2296,7 @@ func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair,
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
 func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]Order, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2321,7 +2320,7 @@ func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract
 // In the rate limiting, each order is counted individually
 func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []ContractOrderCreateParams) ([]Order, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if len(args) > 10 {
 		return nil, errTooManyOrderRequest
@@ -2346,7 +2345,7 @@ func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.
 			return nil, errInvalidAutoSizeValue
 		}
 		if !args[x].Settle.Equal(currency.BTC) && !args[x].Settle.Equal(currency.USDT) {
-			return nil, errEmptyOrInvalidSettlementCurrency
+			return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 		}
 	}
 	var response []Order
@@ -2356,7 +2355,7 @@ func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.
 // GetSingleFuturesOrder retrieves a single order by its identifier
 func (e *Exchange) GetSingleFuturesOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, 'order_id' cannot be empty", errInvalidOrderID)
@@ -2368,7 +2367,7 @@ func (e *Exchange) GetSingleFuturesOrder(ctx context.Context, settle currency.Co
 // CancelSingleFuturesOrder cancel a single order
 func (e *Exchange) CancelSingleFuturesOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, 'order_id' cannot be empty", errInvalidOrderID)
@@ -2380,7 +2379,7 @@ func (e *Exchange) CancelSingleFuturesOrder(ctx context.Context, settle currency
 // AmendFuturesOrder amends an existing futures order
 func (e *Exchange) AmendFuturesOrder(ctx context.Context, settle currency.Code, orderID string, arg AmendFuturesOrderParam) (*Order, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, 'order_id' cannot be empty", errInvalidOrderID)
@@ -2395,7 +2394,7 @@ func (e *Exchange) AmendFuturesOrder(ctx context.Context, settle currency.Code, 
 // GetMyFuturesTradingHistory retrieves authenticated account's futures trading history
 func (e *Exchange) GetMyFuturesTradingHistory(ctx context.Context, settle currency.Code, lastID, orderID string, contract currency.Pair, limit, offset, countTotal uint64) ([]TradingHistoryItem, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if contract.IsPopulated() {
@@ -2423,7 +2422,7 @@ func (e *Exchange) GetMyFuturesTradingHistory(ctx context.Context, settle curren
 // GetFuturesPositionCloseHistory lists position close history
 func (e *Exchange) GetFuturesPositionCloseHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, from, to time.Time) ([]PositionCloseHistoryResponse, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if contract.IsPopulated() {
@@ -2448,7 +2447,7 @@ func (e *Exchange) GetFuturesPositionCloseHistory(ctx context.Context, settle cu
 // GetFuturesLiquidationHistory list liquidation history
 func (e *Exchange) GetFuturesLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]LiquidationHistoryItem, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if contract.IsPopulated() {
@@ -2467,7 +2466,7 @@ func (e *Exchange) GetFuturesLiquidationHistory(ctx context.Context, settle curr
 // CountdownCancelOrders represents a trigger time response
 func (e *Exchange) CountdownCancelOrders(ctx context.Context, settle currency.Code, arg CountdownParams) (*TriggerTimeResponse, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.Timeout < 0 {
 		return nil, errInvalidTimeout
@@ -2482,7 +2481,7 @@ func (e *Exchange) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle 
 		return nil, errNilArgument
 	}
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.Initial.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2521,7 +2520,7 @@ func (e *Exchange) ListAllFuturesAutoOrders(ctx context.Context, status string, 
 		return nil, fmt.Errorf("%w status: %s", errInvalidOrderStatus, status)
 	}
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("status", status)
@@ -2541,7 +2540,7 @@ func (e *Exchange) ListAllFuturesAutoOrders(ctx context.Context, status string, 
 // CancelAllFuturesOpenOrders cancels all futures open orders
 func (e *Exchange) CancelAllFuturesOpenOrders(ctx context.Context, settle currency.Code, contract currency.Pair) ([]PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2555,7 +2554,7 @@ func (e *Exchange) CancelAllFuturesOpenOrders(ctx context.Context, settle curren
 // GetSingleFuturesPriceTriggeredOrder retrieves a single price triggered order
 func (e *Exchange) GetSingleFuturesPriceTriggeredOrder(ctx context.Context, settle currency.Code, orderID string) (*PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if orderID == "" {
 		return nil, errInvalidOrderID
@@ -2567,7 +2566,7 @@ func (e *Exchange) GetSingleFuturesPriceTriggeredOrder(ctx context.Context, sett
 // CancelFuturesPriceTriggeredOrder cancel a price-triggered order
 func (e *Exchange) CancelFuturesPriceTriggeredOrder(ctx context.Context, settle currency.Code, orderID string) (*PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if orderID == "" {
 		return nil, errInvalidOrderID
@@ -2581,7 +2580,7 @@ func (e *Exchange) CancelFuturesPriceTriggeredOrder(ctx context.Context, settle 
 // GetAllDeliveryContracts retrieves all futures contracts
 func (e *Exchange) GetAllDeliveryContracts(ctx context.Context, settle currency.Code) ([]DeliveryContract, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	var contracts []DeliveryContract
 	return contracts, e.SendHTTPRequest(ctx, exchange.RestSpot, publicDeliveryContractsEPL, deliveryPath+settle.Item.Lower+"/contracts", &contracts)
@@ -2590,7 +2589,7 @@ func (e *Exchange) GetAllDeliveryContracts(ctx context.Context, settle currency.
 // GetDeliveryContract retrieves a single delivery contract instance
 func (e *Exchange) GetDeliveryContract(ctx context.Context, settle currency.Code, contract currency.Pair) (*DeliveryContract, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	var deliveryContract *DeliveryContract
 	return deliveryContract, e.SendHTTPRequest(ctx, exchange.RestSpot, publicDeliveryContractsEPL, deliveryPath+settle.Item.Lower+"/contracts/"+contract.String(), &deliveryContract)
@@ -2599,7 +2598,7 @@ func (e *Exchange) GetDeliveryContract(ctx context.Context, settle currency.Code
 // GetDeliveryOrderbook delivery orderbook
 func (e *Exchange) GetDeliveryOrderbook(ctx context.Context, settle currency.Code, interval string, contract currency.Pair, limit uint64, withOrderbookID bool) (*Orderbook, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, errInvalidOrMissingContractParam
@@ -2622,7 +2621,7 @@ func (e *Exchange) GetDeliveryOrderbook(ctx context.Context, settle currency.Cod
 // GetDeliveryTradingHistory retrieves futures trading history
 func (e *Exchange) GetDeliveryTradingHistory(ctx context.Context, settle currency.Code, lastID string, contract currency.Pair, limit uint64, from, to time.Time) ([]TradingHistoryItem, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, errInvalidOrMissingContractParam
@@ -2648,7 +2647,7 @@ func (e *Exchange) GetDeliveryTradingHistory(ctx context.Context, settle currenc
 // GetDeliveryFuturesCandlesticks retrieves specified contract candlesticks
 func (e *Exchange) GetDeliveryFuturesCandlesticks(ctx context.Context, settle currency.Code, contract currency.Pair, from, to time.Time, limit uint64, interval kline.Interval) ([]FuturesCandlestick, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, errInvalidOrMissingContractParam
@@ -2678,7 +2677,7 @@ func (e *Exchange) GetDeliveryFuturesCandlesticks(ctx context.Context, settle cu
 // GetDeliveryFutureTickers retrieves futures ticker information for a specific settle and contract info.
 func (e *Exchange) GetDeliveryFutureTickers(ctx context.Context, settle currency.Code, contract currency.Pair) ([]FuturesTicker, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if contract.IsPopulated() {
@@ -2691,7 +2690,7 @@ func (e *Exchange) GetDeliveryFutureTickers(ctx context.Context, settle currency
 // GetDeliveryInsuranceBalanceHistory retrieves delivery futures insurance balance history
 func (e *Exchange) GetDeliveryInsuranceBalanceHistory(ctx context.Context, settle currency.Code, limit uint64) ([]InsuranceBalance, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if limit > 0 {
@@ -2704,7 +2703,7 @@ func (e *Exchange) GetDeliveryInsuranceBalanceHistory(ctx context.Context, settl
 // GetDeliveryFuturesAccounts retrieves futures account
 func (e *Exchange) GetDeliveryFuturesAccounts(ctx context.Context, settle currency.Code) (*FuturesAccount, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	var response *FuturesAccount
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryAccountEPL, http.MethodGet, deliveryPath+settle.Item.Lower+"/accounts", nil, nil, &response)
@@ -2713,7 +2712,7 @@ func (e *Exchange) GetDeliveryFuturesAccounts(ctx context.Context, settle curren
 // GetDeliveryAccountBooks retrieves account books
 func (e *Exchange) GetDeliveryAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if limit > 0 {
@@ -2735,7 +2734,7 @@ func (e *Exchange) GetDeliveryAccountBooks(ctx context.Context, settle currency.
 // GetAllDeliveryPositionsOfUser retrieves all positions of user
 func (e *Exchange) GetAllDeliveryPositionsOfUser(ctx context.Context, settle currency.Code) (*Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	var response *Position
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryPositionsEPL, http.MethodGet, deliveryPath+settle.Item.Lower+"/positions", nil, nil, &response)
@@ -2744,7 +2743,7 @@ func (e *Exchange) GetAllDeliveryPositionsOfUser(ctx context.Context, settle cur
 // GetSingleDeliveryPosition get single position
 func (e *Exchange) GetSingleDeliveryPosition(ctx context.Context, settle currency.Code, contract currency.Pair) (*Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2756,7 +2755,7 @@ func (e *Exchange) GetSingleDeliveryPosition(ctx context.Context, settle currenc
 // UpdateDeliveryPositionMargin updates position margin
 func (e *Exchange) UpdateDeliveryPositionMargin(ctx context.Context, settle currency.Code, change float64, contract currency.Pair) (*Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2773,7 +2772,7 @@ func (e *Exchange) UpdateDeliveryPositionMargin(ctx context.Context, settle curr
 // UpdateDeliveryPositionLeverage updates position leverage
 func (e *Exchange) UpdateDeliveryPositionLeverage(ctx context.Context, settle currency.Code, contract currency.Pair, leverage float64) (*Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2791,7 +2790,7 @@ func (e *Exchange) UpdateDeliveryPositionLeverage(ctx context.Context, settle cu
 // UpdateDeliveryPositionRiskLimit update position risk limit
 func (e *Exchange) UpdateDeliveryPositionRiskLimit(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit uint64) (*Position, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2824,7 +2823,7 @@ func (e *Exchange) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCre
 		return nil, errInvalidAutoSizeValue
 	}
 	if arg.Settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	var response *Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliverySubmitOrderEPL, http.MethodPost, deliveryPath+arg.Settle.Item.Lower+ordersPath, nil, &arg, &response)
@@ -2834,7 +2833,7 @@ func (e *Exchange) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCre
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
 func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal int64) ([]Order, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if !contract.IsEmpty() {
@@ -2866,7 +2865,7 @@ func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
 func (e *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]Order, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -2884,7 +2883,7 @@ func (e *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract cu
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
 func (e *Exchange) GetSingleDeliveryOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, 'order_id' cannot be empty", errInvalidOrderID)
@@ -2896,7 +2895,7 @@ func (e *Exchange) GetSingleDeliveryOrder(ctx context.Context, settle currency.C
 // CancelSingleDeliveryOrder cancel a single order
 func (e *Exchange) CancelSingleDeliveryOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, 'order_id' cannot be empty", errInvalidOrderID)
@@ -2908,7 +2907,7 @@ func (e *Exchange) CancelSingleDeliveryOrder(ctx context.Context, settle currenc
 // GetMyDeliveryTradingHistory retrieves authenticated account delivery futures trading history
 func (e *Exchange) GetMyDeliveryTradingHistory(ctx context.Context, settle currency.Code, orderID string, contract currency.Pair, limit, offset, countTotal uint64, lastID string) ([]TradingHistoryItem, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if contract.IsPopulated() {
@@ -2936,7 +2935,7 @@ func (e *Exchange) GetMyDeliveryTradingHistory(ctx context.Context, settle curre
 // GetDeliveryPositionCloseHistory retrieves position history
 func (e *Exchange) GetDeliveryPositionCloseHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, from, to time.Time) ([]PositionCloseHistoryResponse, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if contract.IsPopulated() {
@@ -2961,7 +2960,7 @@ func (e *Exchange) GetDeliveryPositionCloseHistory(ctx context.Context, settle c
 // GetDeliveryLiquidationHistory lists liquidation history
 func (e *Exchange) GetDeliveryLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]LiquidationHistoryItem, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if contract.IsPopulated() {
@@ -2980,7 +2979,7 @@ func (e *Exchange) GetDeliveryLiquidationHistory(ctx context.Context, settle cur
 // GetDeliverySettlementHistory retrieves settlement history
 func (e *Exchange) GetDeliverySettlementHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]SettlementHistoryItem, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	if contract.IsPopulated() {
@@ -3002,7 +3001,7 @@ func (e *Exchange) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle cu
 		return nil, errNilArgument
 	}
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.Initial.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -3048,7 +3047,7 @@ func (e *Exchange) GetDeliveryAllAutoOrder(ctx context.Context, status string, s
 		return nil, fmt.Errorf("%w status %s", errInvalidOrderStatus, status)
 	}
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("status", status)
@@ -3068,7 +3067,7 @@ func (e *Exchange) GetDeliveryAllAutoOrder(ctx context.Context, status string, s
 // CancelAllDeliveryPriceTriggeredOrder cancels all delivery price triggered orders
 func (e *Exchange) CancelAllDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, contract currency.Pair) ([]PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
@@ -3082,7 +3081,7 @@ func (e *Exchange) CancelAllDeliveryPriceTriggeredOrder(ctx context.Context, set
 // GetSingleDeliveryPriceTriggeredOrder retrieves a single price triggered order
 func (e *Exchange) GetSingleDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, orderID string) (*PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if orderID == "" {
 		return nil, errInvalidOrderID
@@ -3094,7 +3093,7 @@ func (e *Exchange) GetSingleDeliveryPriceTriggeredOrder(ctx context.Context, set
 // CancelDeliveryPriceTriggeredOrder cancel a price-triggered order
 func (e *Exchange) CancelDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, orderID string) (*PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if orderID == "" {
 		return nil, errInvalidOrderID
