@@ -177,7 +177,7 @@ func (e *Exchange) SetDefaults() {
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-	e.wsOBUpdateMgr = newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
+	e.wsOBUpdateMgr = newWsOBUpdateManager(defaultWSOrderbookUpdateDeadline)
 }
 
 // Setup sets user configuration
@@ -655,6 +655,17 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 
 // UpdateOrderbookWithLimit updates and returns the orderbook for a currency pair with a set orderbook size limit
 func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Book, error) {
+	book, err := e.fetchOrderbook(ctx, p, a, limit)
+	if err != nil {
+		return nil, err
+	}
+	if err := book.Process(); err != nil {
+		return nil, err
+	}
+	return orderbook.Get(e.Name, book.Pair, a)
+}
+
+func (e *Exchange) fetchOrderbook(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Book, error) {
 	p, err := e.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -688,7 +699,22 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Book{
+
+	bids := make(orderbook.Levels, len(o.Bids))
+	for x := range o.Bids {
+		bids[x] = orderbook.Level{
+			Amount: o.Bids[x].Amount.Float64(),
+			Price:  o.Bids[x].Price.Float64(),
+		}
+	}
+	asks := make(orderbook.Levels, len(o.Asks))
+	for x := range o.Asks {
+		asks[x] = orderbook.Level{
+			Amount: o.Asks[x].Amount.Float64(),
+			Price:  o.Asks[x].Price.Float64(),
+		}
+	}
+	return &orderbook.Book{
 		Exchange:          e.Name,
 		Asset:             a,
 		ValidateOrderbook: e.ValidateOrderbook,
@@ -696,26 +722,9 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 		LastUpdateID:      o.ID,
 		LastUpdated:       o.Update.Time(),
 		LastPushed:        o.Current.Time(),
-	}
-	book.Bids = make(orderbook.Levels, len(o.Bids))
-	for x := range o.Bids {
-		book.Bids[x] = orderbook.Level{
-			Amount: o.Bids[x].Amount.Float64(),
-			Price:  o.Bids[x].Price.Float64(),
-		}
-	}
-	book.Asks = make(orderbook.Levels, len(o.Asks))
-	for x := range o.Asks {
-		book.Asks[x] = orderbook.Level{
-			Amount: o.Asks[x].Amount.Float64(),
-			Price:  o.Asks[x].Price.Float64(),
-		}
-	}
-	err = book.Process()
-	if err != nil {
-		return book, err
-	}
-	return orderbook.Get(e.Name, book.Pair, a)
+		Bids:              bids,
+		Asks:              asks,
+	}, nil
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the

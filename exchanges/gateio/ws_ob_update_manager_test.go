@@ -108,7 +108,7 @@ func TestSyncOrderbook(t *testing.T) {
 	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
 	require.NoError(t, err)
 
-	m := newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
+	m := newWsOBUpdateManager(defaultWSOrderbookUpdateDeadline)
 
 	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
 		pair := currency.NewPair(currency.ETH, currency.USDT)
@@ -118,7 +118,7 @@ func TestSyncOrderbook(t *testing.T) {
 
 		cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: a}}}
 		cache.updating = true
-		err = cache.SyncOrderbook(t.Context(), e, pair, a)
+		err = cache.SyncOrderbook(t.Context(), e, pair, a, defaultWSOrderbookUpdateDeadline)
 		require.NoError(t, err)
 		require.False(t, cache.updating)
 		require.Empty(t, cache.updates)
@@ -142,7 +142,7 @@ func TestApplyPendingUpdates(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	require.NoError(t, e.UpdateTradablePairs(t.Context(), false))
 
-	m := newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
+	m := newWsOBUpdateManager(defaultWSOrderbookUpdateDeadline)
 	pair := currency.NewPair(currency.LTC, currency.USDT)
 	err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Exchange:     e.Name,
