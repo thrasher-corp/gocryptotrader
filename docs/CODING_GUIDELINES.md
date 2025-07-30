@@ -1,4 +1,4 @@
-# GoCryptoTrader Coding Gudelines
+# GoCryptoTrader Coding Guidelines
 
 This document outlines the coding, formatting, and testing standards for implementing or refactoring exchange API integrations or any related functionality within the codebase. These practices ensure consistency, maintainability, and performance throughout the project.
 
@@ -26,7 +26,6 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 - If native Go types are not supported directly, use the following built-in types:
   - `types.Time` for Unix timestamps that require custom unmarshalling.
   - `types.Number` for string-encoded numbers that must support accurate precision or parsing.
-- Add omitempty to JSON tags for optional fields or when zero values are meaningful.
 - Always use full and descriptive field names for clarity and consistency. Avoid short API-provided aliases unless compatibility requires it.
 
 ### Struct Naming
@@ -56,7 +55,7 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 - For multi-part strings, consider using `strings.Builder`:
   - Use only after benchmarking with `testing.B` to ensure it improves performance for realistic input sizes.
 
-- Use:
+- Use the following function:
 
 ```go
     path = common.EncodeURLValues(path, params)
@@ -129,7 +128,7 @@ Use `require` and `assert` appropriately:
 
 Run the following after completing changes:
 
-```sh
+```console
     make gofumpt
 ```
 
