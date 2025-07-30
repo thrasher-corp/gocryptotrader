@@ -25,8 +25,15 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
   - For timestamps, use `time.Time` if Go's JSON unmarshalling supports the format directly.
 - If native Go types are not supported directly, use the following built-in types:
   - `types.Time` for Unix timestamps that require custom unmarshalling.
-  - `types.Number` for string-encoded numbers that must support accurate precision or parsing.
+  - `types.Number` for numerical float values where an exchange API may return either a `string` or `float64` value.
 - Always use full and descriptive field names for clarity and consistency. Avoid short API-provided aliases unless compatibility requires it.
+- Default to `uint64` for exchange API parameters and structs for integers where appropriate.
+  - Avoid `int` (size varies by architecture) or `int64` (allows negatives where they don't make sense).
+  - Aligns well with `strconv.FormatUint`.
+
+### TestMain usage
+
+- TestMain must avoid API calls to keep the test footprint as minimal as possible unless there's a good case as to why it was done.
 
 ### Struct Naming
 
@@ -42,6 +49,7 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 
 - Use pointer structs for passing request parameters.
 - Use idiomatic Go types (e.g., `time.Time`) in the parameter definition and convert them within the method as needed when preparing the request.
+- Time related requests should default to UTC.
 
 ### Path Construction
 
@@ -116,6 +124,42 @@ Use `require` and `assert` appropriately:
 - Maintain original test inputs unless they are incorrect.
 - Basic test coverage is acceptable; mock external calls as needed.
 - All unit tests must pass before finalising changes.
+
+### Test deduplication
+
+- Test deduplication should be the default approach for exchanges and across the codebase, an example can be seen below:
+
+```diff
+--- a/gateio_test.go
++++ b/gateio_test.go
+@@ -89,19 +89,11 @@ func TestGetAccountInfo(t *testing.T) {
+     t.Parallel()
+     sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
+-    _, err := g.UpdateAccountInfo(t.Context(), asset.Spot)
+-    if err != nil {
+-        t.Error("GetAccountInfo() error", err)
+-    }
+-    if _, err := g.UpdateAccountInfo(t.Context(), asset.Margin); err != nil {
+-        t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
+-    }
+-    if _, err := g.UpdateAccountInfo(t.Context(), asset.CrossMargin); err != nil {
+-        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
+-    }
+-    if _, err := g.UpdateAccountInfo(t.Context(), asset.Options); err != nil {
+-        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
+-    }
+-    if _, err := g.UpdateAccountInfo(t.Context(), asset.Futures); err != nil {
+-        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
+-    }
+-    if _, err := g.UpdateAccountInfo(t.Context(), asset.DeliveryFutures); err != nil {
+-        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
+-    }
++    for _, a := range g.GetAssetTypes(false) {
++        _, err := g.UpdateAccountInfo(t.Context(), a)
++        assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
++    }
+}
+```
 
 ## Comments
 
