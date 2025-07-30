@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -178,28 +179,22 @@ func (e *Exchange) handleBusinessSubscription(ctx context.Context, operation str
 		arg := SubscriptionInfo{
 			Channel: subscriptions[i].Channel,
 		}
-		var instrumentFamily, spreadID string
-		var instrumentID currency.Pair
+
 		switch arg.Channel {
-		case okxSpreadOrders,
-			okxSpreadTrades,
-			okxSpreadOrderbookLevel1,
-			okxSpreadOrderbook,
-			okxSpreadPublicTrades,
-			okxSpreadPublicTicker:
-			spreadID = subscriptions[i].Pairs[0].String()
-		case channelPublicBlockTrades,
-			channelBlockTickers:
-			instrumentID = subscriptions[i].Pairs[0]
-		}
-		instrumentFamilyInterface, okay := subscriptions[i].Params["instFamily"]
-		if okay {
-			instrumentFamily, _ = instrumentFamilyInterface.(string)
+		case okxSpreadOrders, okxSpreadTrades, okxSpreadOrderbookLevel1, okxSpreadOrderbook, okxSpreadPublicTrades, okxSpreadPublicTicker:
+			arg.SpreadID = subscriptions[i].Pairs[0].String()
+		case channelPublicBlockTrades, channelBlockTickers:
+			arg.InstrumentID = subscriptions[i].Pairs[0]
 		}
 
-		arg.InstrumentFamily = instrumentFamily
-		arg.SpreadID = spreadID
-		arg.InstrumentID = instrumentID
+		if strings.HasPrefix(arg.Channel, candle) || strings.HasPrefix(arg.Channel, indexCandlestick) || strings.HasPrefix(arg.Channel, markPrice) {
+			arg.InstrumentID = subscriptions[i].Pairs[0]
+		}
+
+		instrumentFamilyInterface, okay := subscriptions[i].Params["instFamily"]
+		if okay {
+			arg.InstrumentFamily, _ = instrumentFamilyInterface.(string)
+		}
 
 		var chunk []byte
 		channels = append(channels, subscriptions[i])
