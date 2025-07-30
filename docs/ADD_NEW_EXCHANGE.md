@@ -240,49 +240,7 @@ This will generate a readme file for the exchange which can be found in the new 
 
 ### Code Consistency Guidelines
 
-1. Exchange API function parameters and structs should default to using unsigned integers (e.g., uint64) instead of int or int64. Using int can be problematic since we target different architectures, and its size varies between 32-bit and 64-bit systems (e.g., Some people run GCT on 32-bit Raspiberry Pi's). Explicitly using uint64 ensures consistency and prevents issues like negative values where they don’t make sense. Additionally, many common strconv functions (e.g., FormatUint) default to uint64, making it a more natural choice over uint32, despite the potential memory savings.
-
-2. Exchange parameters for start and end times should use time.Time instead of int64 UNIX timestamps. Even if an exchange requires a UNIX timestamp, we should convert it within the function to maintain consistency and readability.
-
-3. Time usage within Exchange API requests and responses should default to UTC. There is an existing PR for this, but further work is needed to enforce UTC across all exchanges before merging.
-
-4. TestMain in exchanges must avoid API calls to keep test footprint as minimal as possible unless there's a good case as to why it was done.
-
-5. Excessive exchange API method params should use structs.
-
-6. Test deduplication should be the default approach for exchanges and an example diff can be seen below:
-
-```diff
---- a/account_test.go
-+++ b/account_test.go
-@@ -89,19 +89,11 @@ func TestGetAccountInfo(t *testing.T) {
-     t.Parallel()
-     sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
--    _, err := g.UpdateAccountInfo(t.Context(), asset.Spot)
--    if err != nil {
--        t.Error("GetAccountInfo() error", err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.Margin); err != nil {
--        t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.CrossMargin); err != nil {
--        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.Options); err != nil {
--        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.Futures); err != nil {
--        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.DeliveryFutures); err != nil {
--        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
-+    for _, a := range g.GetAssetTypes(false) {
-+        _, err := g.UpdateAccountInfo(t.Context(), a)
-+        assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
-+    }
- }
-```
+Please refer to our [coding guidelines](/docs/CODING_GUIDELINES.md).
 
 ### Create functions supported by the exchange
 
@@ -315,7 +273,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any)
 
 #### Public Functions
 
-[Binance Spot REST API referance link](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/general-endpoints).
+[Binance Spot REST API reference link](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/general-endpoints).
 
 Create a type struct in `types.go` for the response type based off the above documentation.
 
