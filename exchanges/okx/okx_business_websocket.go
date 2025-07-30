@@ -10,6 +10,7 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -182,18 +183,28 @@ func (e *Exchange) handleBusinessSubscription(ctx context.Context, operation str
 
 		switch arg.Channel {
 		case okxSpreadOrders, okxSpreadTrades, okxSpreadOrderbookLevel1, okxSpreadOrderbook, okxSpreadPublicTrades, okxSpreadPublicTicker:
+			if len(subscriptions[i].Pairs) != 1 {
+				return currency.ErrCurrencyPairEmpty
+			}
 			arg.SpreadID = subscriptions[i].Pairs[0].String()
 		case channelPublicBlockTrades, channelBlockTickers:
+			if len(subscriptions[i].Pairs) != 1 {
+				return currency.ErrCurrencyPairEmpty
+			}
 			arg.InstrumentID = subscriptions[i].Pairs[0]
 		}
 
 		if strings.HasPrefix(arg.Channel, candle) || strings.HasPrefix(arg.Channel, indexCandlestick) || strings.HasPrefix(arg.Channel, markPrice) {
+			if len(subscriptions[i].Pairs) != 1 {
+				return currency.ErrCurrencyPairEmpty
+			}
 			arg.InstrumentID = subscriptions[i].Pairs[0]
 		}
 
-		instrumentFamilyInterface, okay := subscriptions[i].Params["instFamily"]
-		if okay {
-			arg.InstrumentFamily, _ = instrumentFamilyInterface.(string)
+		if ifAny, ok := subscriptions[i].Params["instFamily"]; ok {
+			if arg.InstrumentFamily, ok = ifAny.(string); !ok {
+				return common.GetTypeAssertError("string", ifAny, "instFamily")
+			}
 		}
 
 		var chunk []byte
