@@ -3164,9 +3164,9 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, order.Filled, v[0].Status, "Order status should be correct")
 			assert.Empty(t, v[0].ClientOrderID, "client order ID should be empty")
 			assert.False(t, v[0].ReduceOnly, "Reduce only should be false")
-			assert.Equal(t, 1.0, v[0].ExecutedAmount, "Cum exec qty should be correct")
+			assert.Equal(t, 1.0, v[0].ExecutedAmount, "executed amount should be correct")
 			assert.Equal(t, 75.0, v[0].AverageExecutedPrice, "Avg price should be correct")
-			assert.Equal(t, 0.358635, v[0].Fee, "Cum exec fee should be correct")
+			assert.Equal(t, 0.358635, v[0].Fee, "fee should be correct")
 			assert.Equal(t, time.UnixMilli(1672364262444), v[0].Date, "Created time should be correct")
 			assert.Equal(t, time.UnixMilli(1672364262457), v[0].LastUpdated, "Updated time should be correct")
 		case []account.Change:
@@ -3795,7 +3795,7 @@ func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange) //nolint:govet // Intentional shadow
-	require.NoError(t, testexch.Setup(e))
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	require.NoError(t, e.authSubscribe(t.Context(), &DummyConnection{}, subscription.List{}))
 
 	authsubs, err := e.generateAuthSubscriptions()

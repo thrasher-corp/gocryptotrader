@@ -217,12 +217,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := exch.Validate(); err != nil {
 		return err
 	}
-
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil
 	}
-
 	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}

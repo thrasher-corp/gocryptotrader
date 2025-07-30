@@ -11,7 +11,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -206,13 +205,6 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, respRaw []byte
 	case chanExecution:
 		return e.wsProcessExecution(&result)
 	case chanOrder:
-		// Below provides a way of matching an order change to a websocket request. There is no batch support for this
-		// so the first element will be used to match the order link ID.
-		if id, err := jsonparser.GetString(respRaw, "data", "[0]", "orderLinkId"); err == nil {
-			if e.Websocket.Match.IncomingWithData(id, respRaw) {
-				return nil // If the data has been routed, return
-			}
-		}
 		return e.wsProcessOrder(&result)
 	case chanWallet:
 		return e.wsProcessWalletPushData(ctx, respRaw)
@@ -481,12 +473,11 @@ func (e *Exchange) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketRe
 
 	tick := &ticker.Price{Pair: p, ExchangeName: e.Name, AssetType: assetType}
 	if resp.Type != "snapshot" {
-		snapshot, err := e.GetCachedTicker(p, assetType)
+		// ticker updates may be partial, so we need to update the current ticker
+		tick, err = e.GetCachedTicker(p, assetType)
 		if err != nil {
 			return err
 		}
-		// ticker updates may be partial, so we need to update the current ticker
-		tick = snapshot
 	}
 	updateTicker(tick, &tickResp)
 	tick.LastUpdated = resp.PushTimestamp.Time()
@@ -494,7 +485,7 @@ func (e *Exchange) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketRe
 		return err
 	}
 	e.Websocket.DataHandler <- tick
-	return err
+	return nil
 }
 
 func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {
@@ -827,7 +818,7 @@ func (e *Exchange) getPairFromCategory(category, symbol string) (currency.Pair, 
 	case "option":
 		assets = append(assets, asset.Options)
 	default:
-		return currency.EMPTYPAIR, 0, fmt.Errorf("category %q not supported for incoming symbol %q", category, symbol)
+		return currency.EMPTYPAIR, 0, fmt.Errorf("incoming symbol %q has unsupported category %q", symbol, category)
 	}
 	for _, a := range assets {
 		cp, err := e.MatchSymbolWithAvailablePairs(symbol, a, hasPotentialDelimiter(a))
