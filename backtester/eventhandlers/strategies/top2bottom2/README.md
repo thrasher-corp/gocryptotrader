@@ -33,7 +33,6 @@ This strategy does support strategy customisation in the following ways:
 |mfi-low| The lower bounds of MFI that when met, will trigger a Buy signal | 30 |
 |mfi-period| The consecutive candle periods used in order to generate a value. All values less than this number cannot output a buy or sell signal | 14 |
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

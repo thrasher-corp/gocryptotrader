@@ -25,10 +25,6 @@ This is a base implementation, the more proper implementation that is used throu
 
 This can also be used to implement other means to load data for the backtester to process, however kline is currently the only supported method.
 
-
-
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

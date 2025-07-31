@@ -32,7 +32,6 @@ Slippage is calculated in two ways in the GoCryptoTrader Backtester
   - If it is a buy order, it will raise the price by a random percentage between the two values
   - If the order is a sell order, it will reduce the price by a random percentage between the two values
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

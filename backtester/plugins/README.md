@@ -42,13 +42,9 @@ This outputs a file named `plugins.so` which can be loaded by the backtester. At
 
 You must ensure that the plugin is built with the same version of code as the GoCryptoTrader Backtester. Otherwise the plugin will refuse to load.
 
-
-
 #### Installing Golang in WSL
 See the following for instructions on installing Golang in WSL: [here](https://ao.ms/how-to-install-golang-on-wsl-wsl2/)
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

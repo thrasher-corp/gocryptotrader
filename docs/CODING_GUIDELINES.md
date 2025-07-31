@@ -166,7 +166,6 @@ Use `require` and `assert` appropriately:
 - API methods and public types must have comments for GoDoc.
 - Self-explanatory comments must be avoided.
 - Only retain comments for complex logic or where external behavior needs clarification.
-- Justify any `//nolint` directives with a comment explaining the rationale.
 
 ## Formatting
 

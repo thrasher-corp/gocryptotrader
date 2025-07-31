@@ -35,8 +35,6 @@ The following steps are taken for the `ExecuteOrder` function:
   - If `RealOrders` is set to `true` it will submit the order via the exchange's API and if successful, will be stored in the order manager
  - If an order is successfully placed, a snapshot of all existing orders in the run will be captured and store for statistical purposes
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

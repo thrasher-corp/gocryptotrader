@@ -22,8 +22,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + The deposit address manager subsystem stores Exchange deposit addresses.
 + On start of the application the engine Bot will retrieve deposit addresses from exchanges if you have API keys set
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

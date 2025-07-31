@@ -24,7 +24,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + All orders placed via GoCryptoTrader will be added to the order manager store
 + Any futures based order will be tracked via the [futures positions controller](/exchanges/order/README.md) which can be used to track PNL. Use GRPC command [getfuturesposition](https://api.gocryptotrader.app/#gocryptotrader_getfuturesposition) to view position data for an exchange, asset, pair
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

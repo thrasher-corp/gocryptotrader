@@ -44,9 +44,6 @@ The following steps are taken for the `OnFill` function:
 The following steps are taken for the `Update` function:
 - The `Update` function is called when orders are not placed, this allows for the portfolio manager to still keep track of pricing and holding statistics, while not needing to process any orders
 
-
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

@@ -84,8 +84,6 @@ _b in this context is an `IBotExchange` implemented struct_
 | Poloniex | Yes | Yes | Yes |
 | Yobit | Yes | NA | No |
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

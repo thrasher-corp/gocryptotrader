@@ -41,8 +41,6 @@ To run a strategy you will need to use the following flags when running the GoCr
 
 Upon startup, the GoCryptoTrader Backtester will load the strategy and run it for all events.
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

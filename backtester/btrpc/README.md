@@ -73,7 +73,6 @@ buf generate
 
 If any changes were made, ensure that the `rpc.proto` file is formatted correctly by using `buf format -w`
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

@@ -25,8 +25,6 @@ Risk is currently defined by ensuring that orders cannot have too much leverage 
 
 See config package [readme](/backtester/config/README.md) to view the risk related fields to customise
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

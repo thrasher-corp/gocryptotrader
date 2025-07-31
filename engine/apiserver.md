@@ -40,7 +40,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | maxAuthFailures | For authenticated endpoints, the amount of failed attempts allowed before disconnection | `3` |
 | allowInsecureOrigin | Allows use of insecure connections | `true` |
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

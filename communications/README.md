@@ -35,10 +35,7 @@ to be exported out to a defined communication medium
 ### How to enable example
 
 + In your config.json enable each individual communications package you desire
-+ Please view the individual readme documentation inside the specific package
-for more details
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
++ Please view the individual readme documentation inside the specific package for more details
 
 ## Donations
 

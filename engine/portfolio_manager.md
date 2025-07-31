@@ -43,8 +43,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | ColdStorage | Describes whether the wallet address is a cold storage wallet eg Ledger | `false`  |
 | SupportedExchanges | A comma delimited string of which exchanges are allowed to interact with this wallet | `"Binance"`  |
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

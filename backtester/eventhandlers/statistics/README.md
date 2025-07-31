@@ -54,8 +54,6 @@ Both! We calculate ratios where an average is required using both types. The rea
 ## USD total tracking
 If the strategy config setting `DisableUSDTracking` is `false`, then the GoCryptoTrader Backtester will automatically retrieve USD data that matches your backtesting currencies, eg pair BTC/LTC will track BTC/USD and LTC/USD as well. This allows for tracking overall strategic performance against one currency. This can allow for much easier performance calculations and comparisons
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

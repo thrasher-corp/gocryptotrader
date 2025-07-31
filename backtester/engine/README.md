@@ -29,12 +29,8 @@ It is responsible for the following functionality
 - Looping through all data
 - Outputting results into a report
 
-
 A flow of the application is as follows:
 ![workflow](https://i.imgur.com/Kup6IA9.png)
-
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 
 ## Donations
 

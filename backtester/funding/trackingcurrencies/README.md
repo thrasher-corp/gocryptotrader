@@ -43,7 +43,6 @@ If you need to disable this functionality, for example, you are using Live, Data
 ### Can I supply my own list of equivalent currencies instead of USD?
 This is currently not supported. If this is a feature you would like to have, please raise an issue on GitHub or in our Slack channel
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

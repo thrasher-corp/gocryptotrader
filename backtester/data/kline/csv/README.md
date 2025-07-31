@@ -46,8 +46,6 @@ Additionally, you can view an example under `./testdata/binance_BTCUSDT_24h_2019
 
 Additionally, you can view an example under `./testdata/binance_BTCUSDT_24h-trades_2020_11_16.csv`
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

@@ -25,7 +25,6 @@ This package will retrieve data for the backtester via continuous requests to li
 ## Important notice
 Its incredibly risky to enable `real-orders`. *Past performance is no guarantee of future results*
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

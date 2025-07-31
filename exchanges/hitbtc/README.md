@@ -130,7 +130,6 @@ Subscriptions are subject to enabled assets and pairs.
 
 Configure Levels for number of history entries to return for applicable APIs.
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

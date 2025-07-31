@@ -23,8 +23,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 Holdings are used to calculate the holdings at any given time for a given exchange, asset, currency pair. If an order is placed, funds are removed from funding and placed under assets.
 Every data event will update and calculate holdings value based on the new price. This will allow for statistics to be easily calculated at the end of a backtesting run
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

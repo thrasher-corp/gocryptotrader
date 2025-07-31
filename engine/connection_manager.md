@@ -30,8 +30,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | preferredDomainList |  Is a string array of domains to periodically verify whether GoCryptoTrader is connected to the internet |  `["www.google.com","www.cloudflare.com","www.facebook.com"]` |
 | checkInterval | A time period in golang `time.Duration` format to check whether GoCryptoTrader is connected to the internet | `1000000000` |
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

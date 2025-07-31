@@ -23,7 +23,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + The exchange manager itself is not customisable, it is always enabled.
 + The exchange manager by default will load all exchanges that are enabled in your config, however, it will also load exchanges by request via GRPC commands
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
