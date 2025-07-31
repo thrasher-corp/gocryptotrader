@@ -51,9 +51,15 @@ jobs:
         echo "::error::Replace !errors.Is(err, target) with testify equivalents"
         exit 1
 
-    - name: Check for zero width unicode characters
+    - name: Check for LLM targeted invisible Unicode
       run: |
-        grep -r -n -I --color=always --exclude-dir=.git -P "[\x{200B}\x{200C}\x{200D}\x{FEFF}\x{2060}]" . || exit 0
-        echo "::error::Remove zero width unicode characters"
+        WHITELIST=''
+        if [[ -z "$WHITELIST" ]]; then
+          PATTERN='(?!\x20)[\p{Cf}\p{Z}\p{M}]'
+        else
+          PATTERN="(?![\x20$WHITELIST])[\p{Cf}\p{Z}\p{M}]"
+        fi
+        grep -r -n -I --color=always --exclude-dir=.git -P "$PATTERN" . || exit 0
+        echo "::error::Remove zero-width/format, separator or combining-mark characters"
         exit 1
 
