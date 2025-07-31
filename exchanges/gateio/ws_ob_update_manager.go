@@ -18,7 +18,6 @@ import (
 var (
 	errOrderbookSnapshotOutdated = errors.New("orderbook snapshot is outdated")
 	errPendingUpdatesNotApplied  = errors.New("pending updates not applied")
-	errWSOrderbookUpdateDeadline = errors.New("websocket orderbook update deadline exceeded")
 
 	defaultWSOrderbookUpdateDeadline  = time.Minute * 2
 	defaultWsOrderbookUpdateTimeDelay = time.Second
