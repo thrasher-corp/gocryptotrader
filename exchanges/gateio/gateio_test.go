@@ -2076,6 +2076,8 @@ func TestCrossMarginBalancePushData(t *testing.T) {
 	}
 }
 
+// PING
+
 const wsCrossMarginBalanceLoan = `{	"time":1658289372,	"channel":"spot.cross_loan",	"event":"update",	"result":{	  "timestamp":1658289372338,	  "user":"1000001",	  "currency":"BTC",	  "change":"0.01",	  "total":"4.992341029566",	  "available":"0.078054772536",	  "borrowed":"0.01",	  "interest":"0.00001375"	}}`
 
 func TestCrossMarginBalanceLoan(t *testing.T) {

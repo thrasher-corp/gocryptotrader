@@ -1,6 +1,9 @@
 package gateio
 
 import (
+	"context"
+	"math"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,7 +20,7 @@ import (
 func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 
-	m := newWsOBUpdateManager(0)
+	m := newWsOBUpdateManager(0, 0)
 	err := m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
@@ -86,7 +89,7 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 func TestLoadCache(t *testing.T) {
 	t.Parallel()
 
-	m := newWsOBUpdateManager(0)
+	m := newWsOBUpdateManager(0, 0)
 	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
 	cache := m.LoadCache(pair, asset.USDTMarginedFutures)
 	assert.NotNil(t, cache)
@@ -102,37 +105,100 @@ func TestSyncOrderbook(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
-	require.NoError(t, e.UpdateTradablePairs(t.Context(), false))
+
+	cache := &updateCache{}
+	pair := currency.NewPair(currency.ETH, currency.USDT)
+	err := cache.SyncOrderbook(t.Context(), e, pair, asset.Spot, 0, defaultWSOrderbookUpdateDeadline)
+	require.ErrorIs(t, err, subscription.ErrNotFound)
 
 	// Add dummy subscription so that it can be matched and a limit/level can be extracted for initial orderbook sync spot.
-	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
+	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
 	require.NoError(t, err)
 
-	m := newWsOBUpdateManager(defaultWSOrderbookUpdateDeadline)
+	ctxCancel, cancel := context.WithCancel(t.Context())
+	cancel()
+	err = cache.SyncOrderbook(ctxCancel, e, pair, asset.Spot, 0, defaultWSOrderbookUpdateDeadline)
+	require.ErrorIs(t, err, context.Canceled)
 
-	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
-		pair := currency.NewPair(currency.ETH, currency.USDT)
-		err := e.CurrencyPairs.EnablePair(a, pair)
+	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}}}
+	err = cache.SyncOrderbook(t.Context(), e, pair, asset.Spot, 0, 0)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+
+	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}}}
+	err = cache.SyncOrderbook(t.Context(), e, pair, asset.Spot, 0, time.Second)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+
+	err = e.Base.SetPairs([]currency.Pair{pair}, asset.Spot, true)
+	require.NoError(t, err)
+	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: math.MaxInt64}}}
+	err = cache.SyncOrderbook(t.Context(), e, pair, asset.Spot, 0, time.Second)
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid)
+
+	err = e.Base.SetPairs([]currency.Pair{pair}, asset.USDTMarginedFutures, true)
+	require.NoError(t, err)
+	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.USDTMarginedFutures, UpdateID: math.MaxInt64}}}
+	err = cache.SyncOrderbook(t.Context(), e, pair, asset.USDTMarginedFutures, 0, time.Second)
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid)
+}
+
+func TestExtractOrderbookLimit(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Setup must not error")
+	cache := &updateCache{}
+
+	_, err := cache.extractOrderbookLimit(e, 1337)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = cache.extractOrderbookLimit(e, asset.Spot)
+	require.ErrorIs(t, err, subscription.ErrNotFound)
+
+	// Add dummy subscription so that it can be matched and a limit/level can be extracted for initial orderbook sync spot.
+	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		asset asset.Item
+		exp   uint64
+	}{
+		{asset: asset.Spot, exp: 100},
+		{asset: asset.USDTMarginedFutures, exp: futuresOrderbookUpdateLimit},
+		{asset: asset.DeliveryFutures, exp: deliveryFuturesUpdateLimit},
+		{asset: asset.Options, exp: optionOrderbookUpdateLimit},
+	} {
+		limit, err := cache.extractOrderbookLimit(e, tc.asset)
 		require.NoError(t, err)
-		cache := m.LoadCache(pair, a)
-
-		cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: a}}}
-		cache.updating = true
-		err = cache.SyncOrderbook(t.Context(), e, pair, a, defaultWSOrderbookUpdateDeadline)
-		require.NoError(t, err)
-		require.False(t, cache.updating)
-		require.Empty(t, cache.updates)
-
-		expectedLimit := 20
-		if a == asset.Spot {
-			expectedLimit = 100
-		}
-
-		b, err := e.Websocket.Orderbook.GetOrderbook(pair, a)
-		require.NoError(t, err)
-		require.Len(t, b.Bids, expectedLimit)
-		require.Len(t, b.Asks, expectedLimit)
+		require.Equal(t, tc.exp, limit)
 	}
+}
+
+func TestWaitForUpdate(t *testing.T) {
+	t.Parallel()
+
+	cache := &updateCache{
+		updates: []pendingUpdate{
+			{update: &orderbook.Update{Pair: currency.NewBTCUSD(), Asset: asset.Spot, UpdateID: 1337, AllowEmpty: true, UpdateTime: time.Now()}},
+		},
+	}
+
+	err := cache.waitForUpdate(t.Context(), 1337)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithDeadline(t.Context(), time.Now())
+	defer cancel()
+	err = cache.waitForUpdate(ctx, 1338)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+
+	cache.ch = make(chan int64, 1) // Reset channel to avoid deadlock
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = cache.waitForUpdate(t.Context(), 1338)
+	}()
+	cache.ch <- 1338
+	wg.Wait()
+	require.NoError(t, err)
 }
 
 func TestApplyPendingUpdates(t *testing.T) {
@@ -140,11 +206,12 @@ func TestApplyPendingUpdates(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
-	require.NoError(t, e.UpdateTradablePairs(t.Context(), false))
-
-	m := newWsOBUpdateManager(defaultWSOrderbookUpdateDeadline)
 	pair := currency.NewPair(currency.LTC, currency.USDT)
-	err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.USDTMarginedFutures}}}}
+	err := cache.applyPendingUpdates(e)
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
+
+	dummy := &orderbook.Book{
 		Exchange:     e.Name,
 		Pair:         pair,
 		Asset:        asset.USDTMarginedFutures,
@@ -153,26 +220,56 @@ func TestApplyPendingUpdates(t *testing.T) {
 		LastUpdated:  time.Now(),
 		LastPushed:   time.Now(),
 		LastUpdateID: 1335,
-	})
-	require.NoError(t, err)
-
-	cache := m.LoadCache(pair, asset.USDTMarginedFutures)
-
-	update := &orderbook.Update{
-		UpdateID:   1339,
-		Pair:       pair,
-		Asset:      asset.USDTMarginedFutures,
-		AllowEmpty: true,
-		UpdateTime: time.Now(),
 	}
 
-	cache.updates = []pendingUpdate{{update: update, firstUpdateID: 1337}}
-	err = cache.applyPendingUpdates(e, asset.USDTMarginedFutures)
+	err = e.Websocket.Orderbook.LoadSnapshot(dummy)
+	require.NoError(t, err)
+
+	err = cache.applyPendingUpdates(e)
+	require.ErrorIs(t, err, errPendingUpdatesNotApplied)
+
+	cache.updates[0].firstUpdateID = 1337
+	cache.updates[0].update.UpdateID = 1338
+	err = cache.applyPendingUpdates(e)
 	require.ErrorIs(t, err, errOrderbookSnapshotOutdated)
 
 	cache.updates[0].firstUpdateID = 1336
-	err = cache.applyPendingUpdates(e, asset.USDTMarginedFutures)
+	cache.updates[0].update.UpdateID = 1338
+	err = cache.applyPendingUpdates(e)
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid)
+
+	err = e.Websocket.Orderbook.LoadSnapshot(dummy)
 	require.NoError(t, err)
+
+	cache.updates[0].update.AllowEmpty = true
+	cache.updates[0].update.UpdateTime = time.Now()
+	err = cache.applyPendingUpdates(e)
+	require.NoError(t, err)
+
+	cache.updates[0].firstUpdateID = 1339
+	cache.updates[0].update.UpdateID = 1342
+	cache.updates = append(cache.updates, pendingUpdate{
+		firstUpdateID: 1344,
+		update:        &orderbook.Update{Pair: pair, Asset: asset.USDTMarginedFutures, UpdateID: 1345, AllowEmpty: true, UpdateTime: time.Now()},
+	})
+	err = cache.applyPendingUpdates(e)
+	require.ErrorIs(t, err, errOrderbookSnapshotOutdated)
+}
+
+func TestClearWithLock(t *testing.T) {
+	t.Parallel()
+	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}, updating: true}
+	cache.clearWithLock()
+	require.Empty(t, cache.updates)
+	require.False(t, cache.updating)
+}
+
+func TestClearWithNoLock(t *testing.T) {
+	t.Parallel()
+	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}, updating: true}
+	cache.clearNoLock()
+	require.Empty(t, cache.updates)
+	require.False(t, cache.updating)
 }
 
 func TestApplyOrderbookUpdate(t *testing.T) {
@@ -180,9 +277,8 @@ func TestApplyOrderbookUpdate(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
-	require.NoError(t, e.UpdateTradablePairs(t.Context(), false))
 
-	pair := currency.NewBTCUSDT()
+	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
 
 	update := &orderbook.Update{
 		Pair:       pair,
@@ -196,9 +292,29 @@ func TestApplyOrderbookUpdate(t *testing.T) {
 
 	update.Asset = asset.Spot
 	err = applyOrderbookUpdate(e, update)
-	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
+	require.ErrorIs(t, err, currency.ErrPairNotEnabled)
 
-	update.Pair = currency.NewPair(currency.BABY, currency.BABYDOGE)
+	pair = currency.NewBTCUSD()
+	err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:     e.Name,
+		Pair:         pair,
+		Asset:        asset.Spot,
+		Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
+		Asks:         []orderbook.Level{{Price: 1, Amount: 1}},
+		LastUpdated:  time.Now(),
+		LastPushed:   time.Now(),
+		LastUpdateID: 1336,
+	})
+	require.NoError(t, err)
+
+	err = e.Base.SetPairs([]currency.Pair{pair}, asset.Spot, true)
+	require.NoError(t, err)
+
+	update.Pair = pair
 	err = applyOrderbookUpdate(e, update)
 	require.NoError(t, err)
+
+	update.AllowEmpty = false
+	err = applyOrderbookUpdate(e, update)
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid)
 }

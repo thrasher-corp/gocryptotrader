@@ -12,21 +12,24 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
-	errOrderbookSnapshotOutdated     = errors.New("orderbook snapshot is outdated")
-	errOrderbookUpdateMessageDropped = errors.New("orderbook update message dropped between updates check")
-	errPendingUpdatesNotApplied      = errors.New("pending updates not applied")
-	errWSOrderbookUpdateDeadline     = errors.New("websocket orderbook update deadline exceeded")
+	errOrderbookSnapshotOutdated = errors.New("orderbook snapshot is outdated")
+	errPendingUpdatesNotApplied  = errors.New("pending updates not applied")
+	errWSOrderbookUpdateDeadline = errors.New("websocket orderbook update deadline exceeded")
 
-	defaultWSOrderbookUpdateDeadline = time.Minute * 2
+	defaultWSOrderbookUpdateDeadline  = time.Minute * 2
+	defaultWsOrderbookUpdateTimeDelay = time.Second
+	spotOrderbookUpdateKey            = subscription.MustChannelKey(subscription.OrderbookChannel)
 )
 
 type wsOBUpdateManager struct {
-	lookup  map[key.PairAsset]*updateCache
-	timeout time.Duration
-	mtx     sync.RWMutex
+	lookup   map[key.PairAsset]*updateCache
+	deadline time.Duration
+	delay    time.Duration
+	mtx      sync.RWMutex
 }
 
 type updateCache struct {
@@ -41,12 +44,12 @@ type pendingUpdate struct {
 	firstUpdateID int64
 }
 
-func newWsOBUpdateManager(timeout time.Duration) *wsOBUpdateManager {
-	return &wsOBUpdateManager{lookup: make(map[key.PairAsset]*updateCache), timeout: timeout}
+func newWsOBUpdateManager(delay, deadline time.Duration) *wsOBUpdateManager {
+	return &wsOBUpdateManager{lookup: make(map[key.PairAsset]*updateCache), deadline: deadline, delay: delay}
 }
 
 // ProcessOrderbookUpdate processes an orderbook update by syncing snapshot, caching updates and applying them
-func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, g *Exchange, firstUpdateID int64, update *orderbook.Update) error {
+func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Exchange, firstUpdateID int64, update *orderbook.Update) error {
 	cache := m.LoadCache(update.Pair, update.Asset)
 	cache.mtx.Lock()
 	defer cache.mtx.Unlock()
@@ -60,17 +63,17 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, g *Excha
 		return nil
 	}
 
-	lastUpdateID, err := g.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
+	lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
 	if err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
 		return err
 	}
 
 	if lastUpdateID+1 == firstUpdateID {
-		return applyOrderbookUpdate(g, update)
+		return applyOrderbookUpdate(e, update)
 	}
 
 	// Orderbook is behind notifications, therefore Invalidate store
-	if err := g.Websocket.Orderbook.InvalidateOrderbook(update.Pair, update.Asset); err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
+	if err := e.Websocket.Orderbook.InvalidateOrderbook(update.Pair, update.Asset); err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
 		return err
 	}
 
@@ -78,8 +81,8 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, g *Excha
 	cache.updates = append(cache.updates, pendingUpdate{update: update, firstUpdateID: firstUpdateID})
 
 	go func() {
-		if err := cache.SyncOrderbook(ctx, g, update.Pair, update.Asset, m.timeout); err != nil {
-			g.Websocket.DataHandler <- fmt.Errorf("failed to sync orderbook for %v %v: %w", update.Pair, update.Asset, err)
+		if err := cache.SyncOrderbook(ctx, e, update.Pair, update.Asset, m.delay, m.deadline); err != nil {
+			log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
 		}
 	}()
 
@@ -102,58 +105,36 @@ func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) *updateCach
 
 // SyncOrderbook fetches and synchronises an orderbook snapshot to the limit size so that pending updates can be
 // applied to the orderbook.
-func (c *updateCache) SyncOrderbook(ctx context.Context, g *Exchange, pair currency.Pair, a asset.Item, deadline time.Duration) error {
-	// TODO: When subscription config is added for all assets update limits to use sub.Levels
-	var limit uint64
-	switch a {
-	case asset.Spot:
-		sub := g.Websocket.GetSubscription(spotOrderbookUpdateKey)
-		if sub == nil {
-			c.clearWithLock()
-			return fmt.Errorf("no subscription found for %q", spotOrderbookUpdateKey)
-		}
-		// There is no way to set levels when we subscribe for this specific subscription case.
-		// Extract limit from interval e.g. 20ms == 20 limit book and 100ms == 100 limit book.
-		limit = uint64(sub.Interval.Duration().Milliseconds()) //nolint:gosec // No overflow risk
-	case asset.USDTMarginedFutures, asset.USDCMarginedFutures:
-		limit = futuresOrderbookUpdateLimit
-	case asset.DeliveryFutures:
-		limit = deliveryFuturesUpdateLimit
-	case asset.Options:
-		limit = optionOrderbookUpdateLimit
-	}
-
-	// prevents rate limiter from blocking across multiple enabled pairs across connections, which consumes resources
-	// when appending to the update cache
-	ctxWDeadline, cancel := context.WithDeadlineCause(ctx, time.Now().Add(deadline), errWSOrderbookUpdateDeadline)
-	defer cancel()
-
-	book, err := g.fetchOrderbook(ctxWDeadline, pair, a, limit)
+func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair currency.Pair, a asset.Item, delay, deadline time.Duration) error {
+	limit, err := c.extractOrderbookLimit(e, a)
 	if err != nil {
 		c.clearWithLock()
 		return err
 	}
 
-	var updateListLastUpdateID int64
-	c.mtx.Lock()
-	updateListLastUpdateID = c.updates[len(c.updates)-1].update.UpdateID
-	c.mtx.Unlock()
+	// Rest requests can be behind websocket updates by a large margin, we need to wait here so as to allow the cache to
+	// fill with updates before we fetch the orderbook snapshot.
+	select {
+	case <-ctx.Done():
+		c.clearWithLock()
+		return ctx.Err()
+	case <-time.After(delay):
+	}
 
-	nextUpdateID := book.LastUpdateID + 1
+	// prevents rate limiter from blocking across multiple enabled pairs and connections, which consumes resources
+	// when appending to the update cache.
+	ctxWDeadline, cancel := context.WithDeadline(ctx, time.Now().Add(deadline))
+	defer cancel()
 
-	if updateListLastUpdateID < nextUpdateID {
-	wait:
-		for {
-			select {
-			case <-ctxWDeadline.Done():
-				c.clearWithLock()
-				return ctxWDeadline.Err()
-			case recentPendingUpdateID := <-c.ch:
-				if recentPendingUpdateID >= nextUpdateID {
-					break wait
-				}
-			}
-		}
+	book, err := e.fetchOrderbook(ctxWDeadline, pair, a, limit)
+	if err != nil {
+		c.clearWithLock()
+		return err
+	}
+
+	if err := c.waitForUpdate(ctxWDeadline, book.LastUpdateID+1); err != nil {
+		c.clearWithLock()
+		return err
 	}
 
 	c.mtx.Lock() // lock here to prevent ws handle data interference with REST request above
@@ -163,49 +144,94 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, g *Exchange, pair curre
 	}()
 
 	if a != asset.Spot {
-		if err := g.Websocket.Orderbook.LoadSnapshot(book); err != nil {
+		if err := e.Websocket.Orderbook.LoadSnapshot(book); err != nil {
 			return err
 		}
 	} else {
 		// Spot, Margin, and Cross Margin books are all classified as spot
 		for i := range standardMarginAssetTypes {
-			if enabled, _ := g.IsPairEnabled(pair, standardMarginAssetTypes[i]); !enabled {
+			if enabled, _ := e.IsPairEnabled(pair, standardMarginAssetTypes[i]); !enabled {
 				continue
 			}
 			book.Asset = standardMarginAssetTypes[i]
-			if err := g.Websocket.Orderbook.LoadSnapshot(book); err != nil {
+			if err := e.Websocket.Orderbook.LoadSnapshot(book); err != nil {
 				return err
 			}
 		}
 	}
-	return c.applyPendingUpdates(g, a)
+	return c.applyPendingUpdates(e)
+}
+
+// TODO: When subscription config is added for all assets update limits to use sub.Levels
+func (c *updateCache) extractOrderbookLimit(e *Exchange, a asset.Item) (uint64, error) {
+	switch a {
+	case asset.Spot:
+		sub := e.Websocket.GetSubscription(spotOrderbookUpdateKey)
+		if sub == nil {
+			return 0, fmt.Errorf("%w for %q", subscription.ErrNotFound, spotOrderbookUpdateKey)
+		}
+		// There is no way to set levels when we subscribe for this specific subscription case.
+		// Extract limit from interval e.g. 20ms == 20 limit book and 100ms == 100 limit book.
+		return uint64(sub.Interval.Duration().Milliseconds()), nil //nolint:gosec // No overflow risk
+	case asset.USDTMarginedFutures, asset.USDCMarginedFutures:
+		return futuresOrderbookUpdateLimit, nil
+	case asset.DeliveryFutures:
+		return deliveryFuturesUpdateLimit, nil
+	case asset.Options:
+		return optionOrderbookUpdateLimit, nil
+	default:
+		return 0, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
+	}
+}
+
+// waitForUpdate waits for the next update with the specified ID to be available in the cache that exceeds the next
+// update ID, this ensures that an update can be applied to the orderbook. This is needed for illiquid pairs and the
+// REST book ID's are out of sync.
+func (c *updateCache) waitForUpdate(ctx context.Context, nextUpdateID int64) error {
+	var updateListLastUpdateID int64
+	c.mtx.Lock()
+	updateListLastUpdateID = c.updates[len(c.updates)-1].update.UpdateID
+	c.mtx.Unlock()
+
+	if updateListLastUpdateID >= nextUpdateID {
+		return nil // No need to wait, the update is already in the cache
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case recentPendingUpdateID := <-c.ch:
+			if recentPendingUpdateID >= nextUpdateID {
+				return nil // Update is now available
+			}
+		}
+	}
 }
 
 // applyPendingUpdates applies all pending updates to the orderbook
-func (c *updateCache) applyPendingUpdates(g *Exchange, a asset.Item) error {
+func (c *updateCache) applyPendingUpdates(e *Exchange) error {
 	var updateApplied bool
 	for _, data := range c.updates {
-		bookLastUpdateID, err := g.Websocket.Orderbook.LastUpdateID(data.update.Pair, a)
+		bookLastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(data.update.Pair, data.update.Asset)
 		if err != nil {
 			return fmt.Errorf("applying pending updates: %w", err)
 		}
 
-		lastUpdateID := data.update.UpdateID // u
-		nextUpdateID := bookLastUpdateID + 1 // baseId + 1
-		if lastUpdateID < nextUpdateID {
+		nextUpdateID := bookLastUpdateID + 1 // `baseId+1`
+
+		// Dump all notifications which satisfy `u` < `baseId+1`
+		if data.update.UpdateID < nextUpdateID {
 			continue
 		}
 
-		firstUpdateID := data.firstUpdateID // U
-		if nextUpdateID < firstUpdateID {
+		pendingFirstUpdateID := data.firstUpdateID // `U`
+		// `baseID+1`` < first notification `U` current base order book falls behind notifications
+		if nextUpdateID < pendingFirstUpdateID {
 			return fmt.Errorf("applying pending updates: %w", errOrderbookSnapshotOutdated)
 		}
 
-		if updateApplied && firstUpdateID > nextUpdateID {
-			return fmt.Errorf("applying pending updates: %w", errOrderbookUpdateMessageDropped)
-		}
-
-		if err := applyOrderbookUpdate(g, data.update); err != nil {
+		if err := applyOrderbookUpdate(e, data.update); err != nil {
 			return fmt.Errorf("applying pending updates: %w", err)
 		}
 
@@ -236,6 +262,7 @@ func applyOrderbookUpdate(g *Exchange, update *orderbook.Update) error {
 		return g.Websocket.Orderbook.Update(update)
 	}
 
+	var updateApplied bool
 	for i := range standardMarginAssetTypes {
 		if enabled, _ := g.IsPairEnabled(update.Pair, standardMarginAssetTypes[i]); !enabled {
 			continue
@@ -244,23 +271,12 @@ func applyOrderbookUpdate(g *Exchange, update *orderbook.Update) error {
 		if err := g.Websocket.Orderbook.Update(update); err != nil {
 			return err
 		}
+		updateApplied = true
 	}
 
-	return nil
-}
+	if updateApplied {
+		return nil
+	}
 
-var spotOrderbookUpdateKey = channelKey{&subscription.Subscription{Channel: subscription.OrderbookChannel}}
-
-var _ subscription.MatchableKey = channelKey{}
-
-type channelKey struct {
-	*subscription.Subscription
-}
-
-func (k channelKey) Match(eachKey subscription.MatchableKey) bool {
-	return k.Subscription.Channel == eachKey.GetSubscription().Channel
-}
-
-func (k channelKey) GetSubscription() *subscription.Subscription {
-	return k.Subscription
+	return fmt.Errorf("apply orderbook update: %q %q %w", update.Pair, update.Asset, currency.ErrPairNotEnabled)
 }
