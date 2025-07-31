@@ -41,7 +41,7 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	out.Side = strings.ToLower(order.Sell.String())
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
-	require.ErrorIs(t, err, errInvalidAmount)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 	out.Amount = 1
 	out.Type = "limit"
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
@@ -69,7 +69,7 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	out.Side = strings.ToLower(order.Buy.String())
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
-	require.ErrorIs(t, err, errInvalidAmount)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 	out.Amount = 0.0003
 	out.Type = "limit"
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
@@ -160,7 +160,7 @@ func TestWebsocketSpotAmendOrder(t *testing.T) {
 	amend.Pair = BTCUSDT
 
 	_, err = e.WebsocketSpotAmendOrder(t.Context(), amend)
-	require.ErrorIs(t, err, errInvalidAmount)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	amend.Amount = "0.0004"
 

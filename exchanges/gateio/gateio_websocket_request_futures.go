@@ -50,7 +50,7 @@ func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Ite
 		}
 
 		if o.Size == 0 && o.AutoSize == "" {
-			return nil, fmt.Errorf("%w: size cannot be zero", errInvalidAmount)
+			return nil, fmt.Errorf("%w: size cannot be zero", order.ErrAmountIsInvalid)
 		}
 
 		if o.AutoSize != "" {
@@ -58,7 +58,7 @@ func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Ite
 				return nil, fmt.Errorf("%w: %s", errInvalidAutoSize, o.AutoSize)
 			}
 			if o.Size != 0 {
-				return nil, fmt.Errorf("%w: size needs to be zero when auto size is set", errInvalidAmount)
+				return nil, fmt.Errorf("%w: size needs to be zero when auto size is set", order.ErrAmountIsInvalid)
 			}
 		}
 	}
@@ -125,7 +125,7 @@ func (e *Exchange) WebsocketFuturesAmendOrder(ctx context.Context, amend *Websoc
 	}
 
 	if amend.Size == 0 && amend.Price == "" {
-		return nil, fmt.Errorf("%w: size or price must be set", errInvalidAmount)
+		return nil, fmt.Errorf("%w: size or price must be set", order.ErrAmountIsInvalid)
 	}
 
 	var resp WebsocketFuturesOrderResponse

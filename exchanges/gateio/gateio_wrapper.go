@@ -1392,13 +1392,12 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	response, err := e.WithdrawCurrency(ctx,
-		WithdrawalRequestParam{
-			Amount:   types.Number(withdrawRequest.Amount),
-			Currency: withdrawRequest.Currency,
-			Address:  withdrawRequest.Crypto.Address,
-			Chain:    withdrawRequest.Crypto.Chain,
-		})
+	response, err := e.WithdrawCurrency(ctx, &WithdrawalRequestParam{
+		Amount:   types.Number(withdrawRequest.Amount),
+		Currency: withdrawRequest.Currency,
+		Address:  withdrawRequest.Crypto.Address,
+		Chain:    withdrawRequest.Crypto.Chain,
+	})
 	if err != nil {
 		return nil, err
 	}

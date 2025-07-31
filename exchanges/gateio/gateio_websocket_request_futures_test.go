@@ -25,7 +25,7 @@ func TestWebsocketFuturesSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPrice)
 	out.Price = "40000"
 	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
-	require.ErrorIs(t, err, errInvalidAmount)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 	out.Size = 1 // 1 lovely long contract
 	out.AutoSize = "silly_billies"
 	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
@@ -57,7 +57,7 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 
 	out.Price = "40000"
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
-	require.ErrorIs(t, err, errInvalidAmount)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	out.Size = 1 // 1 lovely long contract
 	out.AutoSize = "silly_billies"
@@ -66,7 +66,7 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 
 	out.AutoSize = "close_long"
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
-	require.ErrorIs(t, err, errInvalidAmount)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	out.AutoSize = ""
 
@@ -144,7 +144,7 @@ func TestWebsocketFuturesAmendOrder(t *testing.T) {
 
 	amend.Asset = asset.USDTMarginedFutures
 	_, err = e.WebsocketFuturesAmendOrder(t.Context(), amend)
-	require.ErrorIs(t, err, errInvalidAmount)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	amend.Size = 2
 

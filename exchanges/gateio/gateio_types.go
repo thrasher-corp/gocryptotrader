@@ -601,9 +601,20 @@ type CurrencyChain struct {
 	Chain              string `json:"chain"`
 	ChineseChainName   string `json:"name_cn"`
 	ChainName          string `json:"name_en"`
+	ContractAddress    string `json:"contract_address"`
 	IsDisabled         int64  `json:"is_disabled"`          // If it is disabled. 0 means NOT being disabled
 	IsDepositDisabled  int64  `json:"is_deposit_disabled"`  // Is deposit disabled. 0 means not
 	IsWithdrawDisabled int64  `json:"is_withdraw_disabled"` // Is withdrawal disabled. 0 means not
+	Decimal            string `json:"decimal"`
+}
+
+// SmallCurrencyBalance holds a small currency balance detail
+type SmallCurrencyBalance struct {
+	ID         string       `json:"id"`
+	CreateTime types.Time   `json:"create_time"`
+	Currency   string       `json:"currency"`
+	Amount     types.Number `json:"amount"`
+	GtAmount   types.Number `json:"gt_amount"`
 }
 
 // MarginCurrencyPairInfo represents margin currency pair detailed info.
@@ -1029,12 +1040,14 @@ type WithdrawalResponse struct {
 	Timestamp         types.Time   `json:"timestamp"`
 	Currency          string       `json:"currency"`
 	WithdrawalAddress string       `json:"address"`
+	WithdrawalOrderID string       `json:"withdraw_order_id"`
 	TransactionID     string       `json:"txid"`
 	Amount            types.Number `json:"amount"`
 	Memo              string       `json:"memo"`
 	Status            string       `json:"status"`
 	Chain             string       `json:"chain"`
 	Fee               types.Number `json:"fee"`
+	AssetClass        string       `json:"asset_class"`
 }
 
 // WithdrawalRequestParam represents currency withdrawal request param.
@@ -1043,9 +1056,18 @@ type WithdrawalRequestParam struct {
 	Amount   types.Number  `json:"amount"`
 	Chain    string        `json:"chain,omitempty"`
 
-	// Optional parameters
-	Address string `json:"address,omitempty"`
-	Memo    string `json:"memo,omitempty"`
+	AssetClass      string `json:"asset_class,omitempty"`
+	WithdrawID      string `json:"withdraw_id,omitempty"`
+	WithdrawOrderID string `json:"withdraw_order_id,omitempty"`
+	Address         string `json:"address,omitempty"`
+	Memo            string `json:"memo,omitempty"`
+}
+
+// SubAccountTransfer holds request parameter for transferring an asset between main and a sub-account.
+type SubAccountTransfer struct {
+	ReceiveUID int64         `json:"receive_uid"`
+	Currency   currency.Code `json:"currency"`
+	Amount     float64       `json:"amount"`
 }
 
 // CurrencyDepositAddressInfo represents a crypto deposit address
@@ -1100,6 +1122,7 @@ type SubAccountTransferParam struct {
 	Direction      string        `json:"direction"`
 	Amount         types.Number  `json:"amount"`
 	SubAccountType string        `json:"sub_account_type"`
+	ClientOrderID  string        `json:"client_order_id,omitempty"`
 }
 
 // SubAccountTransferResponse represents transfer records between main and sub accounts
@@ -1172,11 +1195,19 @@ type SubAccountMarginBalance struct {
 	UID       string `json:"uid"`
 	Available []struct {
 		CurrencyPair string                `json:"currency_pair"`
+		AccountType  string                `json:"account_type"`
+		Leverage     string                `json:"leverage"`
 		Locked       bool                  `json:"locked"`
 		Risk         string                `json:"risk"`
 		Base         MarginCurrencyBalance `json:"base"`
 		Quote        MarginCurrencyBalance `json:"quote"`
 	} `json:"available"`
+}
+
+// TransferStatus holds an asset transfer status
+type TransferStatus struct {
+	TransactionID string `json:"tx_id"`
+	Status        string `json:"status"`
 }
 
 // MarginCurrencyBalance represents a currency balance detail information.

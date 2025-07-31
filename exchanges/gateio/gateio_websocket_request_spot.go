@@ -55,7 +55,7 @@ func (e *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*Cre
 			return nil, order.ErrSideIsInvalid
 		}
 		if orders[i].Amount == 0 {
-			return nil, errInvalidAmount
+			return nil, order.ErrAmountIsInvalid
 		}
 		if orders[i].Type == "limit" && orders[i].Price == 0 {
 			return nil, errInvalidPrice
@@ -141,7 +141,7 @@ func (e *Exchange) WebsocketSpotAmendOrder(ctx context.Context, amend *Websocket
 	}
 
 	if amend.Amount == "" && amend.Price == "" {
-		return nil, fmt.Errorf("%w: amount or price must be set", errInvalidAmount)
+		return nil, fmt.Errorf("%w: amount or price must be set", order.ErrAmountIsInvalid)
 	}
 
 	var resp WebsocketOrderResponse

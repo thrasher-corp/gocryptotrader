@@ -55,21 +55,7 @@ const (
 	gateioSpotPriceOrders                                = "spot/price_orders"
 
 	// Wallets
-	walletCurrencyChain                 = "wallet/currency_chains"
-	walletDepositAddress                = "wallet/deposit_address"
-	walletWithdrawals                   = "wallet/withdrawals"
-	walletDeposits                      = "wallet/deposits"
-	walletTransfer                      = "wallet/transfers"
-	walletSubAccountTransfer            = "wallet/sub_account_transfers"
-	walletInterSubAccountTransfer       = "wallet/sub_account_to_sub_account"
-	walletWithdrawStatus                = "wallet/withdraw_status"
-	walletSubAccountBalance             = "wallet/sub_account_balances"
-	walletSubAccountMarginBalance       = "wallet/sub_account_margin_balances"
-	walletSubAccountFuturesBalance      = "wallet/sub_account_futures_balances"
-	walletSubAccountCrossMarginBalances = "wallet/sub_account_cross_margin_balances"
-	walletSavedAddress                  = "wallet/saved_address"
-	walletTradingFee                    = "wallet/fee"
-	walletTotalBalance                  = "wallet/total_balance"
+	walletSubAccountTransfer = "wallet/sub_account_transfers"
 
 	// Margin
 	gateioMarginCurrencyPairs     = "margin/currency_pairs"
@@ -136,7 +122,6 @@ var (
 	errInvalidUnderlying             = errors.New("missing underlying")
 	errInvalidOrderSize              = errors.New("invalid order size")
 	errInvalidOrderID                = errors.New("invalid order id")
-	errInvalidAmount                 = errors.New("invalid amount")
 	errInvalidSubAccount             = errors.New("invalid or empty subaccount")
 	errInvalidTransferDirection      = errors.New("invalid transfer direction")
 	errDifferentAccount              = errors.New("account type must be identical for all orders")
@@ -531,7 +516,7 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 			return nil, errors.New("only spot, margin, and cross_margin area allowed")
 		}
 		if args[x].Amount <= 0 {
-			return nil, errInvalidAmount
+			return nil, order.ErrAmountIsInvalid
 		}
 		if args[x].Price <= 0 {
 			return nil, errInvalidPrice
@@ -569,7 +554,7 @@ func (e *Exchange) SpotClosePositionWhenCrossCurrencyDisabled(ctx context.Contex
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if arg.Amount <= 0 {
-		return nil, errInvalidAmount
+		return nil, order.ErrAmountIsInvalid
 	}
 	if arg.Price <= 0 {
 		return nil, errInvalidPrice
@@ -597,7 +582,7 @@ func (e *Exchange) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) 
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
 	}
 	if arg.Amount <= 0 {
-		return nil, errInvalidAmount
+		return nil, order.ErrAmountIsInvalid
 	}
 	if arg.Price < 0 {
 		return nil, errInvalidPrice
@@ -804,7 +789,7 @@ func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrig
 		return nil, fmt.Errorf("%w, %s", errInvalidPrice, "put price has to be greater than 0")
 	}
 	if arg.Put.Amount <= 0 {
-		return nil, errInvalidAmount
+		return nil, order.ErrAmountIsInvalid
 	}
 	arg.Put.Account = strings.ToLower(arg.Put.Account)
 	if arg.Put.Account == "" {
@@ -994,9 +979,9 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 // *********************************** Withdrawals ******************************
 
 // WithdrawCurrency to withdraw a currency.
-func (e *Exchange) WithdrawCurrency(ctx context.Context, arg WithdrawalRequestParam) (*WithdrawalResponse, error) {
+func (e *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawalRequestParam) (*WithdrawalResponse, error) {
 	if arg.Amount <= 0 {
-		return nil, fmt.Errorf("%w currency amount must be greater than zero", errInvalidAmount)
+		return nil, fmt.Errorf("%w currency amount must be greater than zero", order.ErrAmountIsInvalid)
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, fmt.Errorf("%w currency to be withdrawal nust be specified", currency.ErrCurrencyCodeEmpty)
@@ -1004,8 +989,23 @@ func (e *Exchange) WithdrawCurrency(ctx context.Context, arg WithdrawalRequestPa
 	if arg.Chain == "" {
 		return nil, errors.New("name of the chain used for withdrawal must be specified")
 	}
-	var response *WithdrawalResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletWithdrawEPL, http.MethodPost, withdrawal, nil, &arg, &response)
+	var resp *WithdrawalResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletWithdrawEPL, http.MethodPost, withdrawal, nil, &arg, &resp)
+}
+
+// TransferBetweenSubAccountsByUID transfers between main spot accounts. Both parties cannot be sub-accounts
+func (e *Exchange) TransferBetweenSubAccountsByUID(ctx context.Context, arg *SubAccountTransfer) (*OrderID, error) {
+	if arg.Amount <= 0 {
+		return nil, order.ErrAmountIsInvalid
+	}
+	if arg.ReceiveUID <= 0 {
+		return nil, errInvalidSubAccountUserID
+	}
+	if arg.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	var resp *OrderID
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "withdrawals/push", nil, &arg, &resp)
 }
 
 // CancelWithdrawalWithSpecifiedID cancels withdrawal with specified ID.
@@ -1027,7 +1027,7 @@ func (e *Exchange) ListCurrencyChain(ctx context.Context, ccy currency.Code) ([]
 	params := url.Values{}
 	params.Set("currency", ccy.String())
 	var resp []CurrencyChain
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicListCurrencyChainEPL, common.EncodeURLValues(walletCurrencyChain, params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicListCurrencyChainEPL, common.EncodeURLValues("wallet/currency_chains", params), &resp)
 }
 
 // GenerateCurrencyDepositAddress generate currency deposit address
@@ -1038,7 +1038,7 @@ func (e *Exchange) GenerateCurrencyDepositAddress(ctx context.Context, ccy curre
 	params := url.Values{}
 	params.Set("currency", ccy.String())
 	var response *CurrencyDepositAddressInfo
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletDepositAddressEPL, http.MethodGet, walletDepositAddress, params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletDepositAddressEPL, http.MethodGet, "wallet/deposit_address", params, nil, &response)
 }
 
 // GetWithdrawalRecords retrieves withdrawal records. Record time range cannot exceed 30 days
@@ -1062,7 +1062,7 @@ func (e *Exchange) GetWithdrawalRecords(ctx context.Context, ccy currency.Code, 
 		}
 	}
 	var withdrawals []WithdrawalResponse
-	return withdrawals, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletWithdrawalRecordsEPL, http.MethodGet, walletWithdrawals, params, nil, &withdrawals)
+	return withdrawals, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletWithdrawalRecordsEPL, http.MethodGet, "wallet/withdrawals", params, nil, &withdrawals)
 }
 
 // GetDepositRecords retrieves deposit records. Record time range cannot exceed 30 days
@@ -1079,12 +1079,13 @@ func (e *Exchange) GetDepositRecords(ctx context.Context, ccy currency.Code, fro
 	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-		if err := common.StartEndTimeCheck(from, to); err != nil {
-			params.Set("to", strconv.FormatInt(to.Unix(), 10))
+		if err := common.StartEndTimeCheck(from, to); err != nil && !to.IsZero() {
+			return nil, err
 		}
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	var depositHistories []DepositRecord
-	return depositHistories, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletDepositRecordsEPL, http.MethodGet, walletDeposits, params, nil, &depositHistories)
+	return depositHistories, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletDepositRecordsEPL, http.MethodGet, "wallet/deposits", params, nil, &depositHistories)
 }
 
 // TransferCurrency Transfer between different accounts. Currently support transfers between the following:
@@ -1113,10 +1114,10 @@ func (e *Exchange) TransferCurrency(ctx context.Context, arg *TransferCurrencyPa
 		return nil, errors.New("settle is required for futures account transfer")
 	}
 	if arg.Amount <= 0 {
-		return nil, errInvalidAmount
+		return nil, order.ErrAmountIsInvalid
 	}
 	var response *TransactionIDResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTransferCurrencyEPL, http.MethodPost, walletTransfer, nil, &arg, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTransferCurrencyEPL, http.MethodPost, "wallet/transfers", nil, &arg, &response)
 }
 
 func (e *Exchange) assetTypeToString(acc asset.Item) string {
@@ -1128,7 +1129,7 @@ func (e *Exchange) assetTypeToString(acc asset.Item) string {
 
 // SubAccountTransfer to transfer between main and sub accounts
 // Support transferring with sub user's spot or futures account. Note that only main user's spot account is used no matter which sub user's account is operated.
-func (e *Exchange) SubAccountTransfer(ctx context.Context, arg SubAccountTransferParam) error {
+func (e *Exchange) SubAccountTransfer(ctx context.Context, arg *SubAccountTransferParam) error {
 	if arg.Currency.IsEmpty() {
 		return currency.ErrCurrencyCodeEmpty
 	}
@@ -1140,7 +1141,7 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg SubAccountTransfe
 		return errInvalidTransferDirection
 	}
 	if arg.Amount <= 0 {
-		return errInvalidAmount
+		return order.ErrAmountIsInvalid
 	}
 	switch arg.SubAccountType {
 	case "", "spot", "futures", "delivery":
@@ -1179,26 +1180,27 @@ func (e *Exchange) GetSubAccountTransferHistory(ctx context.Context, subAccountU
 }
 
 // SubAccountTransferToSubAccount performs sub-account transfers to sub-account
-func (e *Exchange) SubAccountTransferToSubAccount(ctx context.Context, arg *InterSubAccountTransferParams) error {
+func (e *Exchange) SubAccountTransferToSubAccount(ctx context.Context, arg *InterSubAccountTransferParams) (*TransactionIDResponse, error) {
 	if arg.Currency.IsEmpty() {
-		return currency.ErrCurrencyCodeEmpty
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.SubAccountFromUserID == "" {
-		return errors.New("sub-account from user-id is required")
+		return nil, errors.New("sub-account from user-id is required")
 	}
 	if arg.SubAccountFromAssetType == asset.Empty {
-		return errors.New("sub-account to transfer the asset from is required")
+		return nil, errors.New("sub-account to transfer the asset from is required")
 	}
 	if arg.SubAccountToUserID == "" {
-		return errors.New("sub-account to user-id is required")
+		return nil, errors.New("sub-account to user-id is required")
 	}
 	if arg.SubAccountToAssetType == asset.Empty {
-		return errors.New("sub-account to transfer to is required")
+		return nil, errors.New("sub-account to transfer to is required")
 	}
 	if arg.Amount <= 0 {
-		return errInvalidAmount
+		return nil, order.ErrAmountIsInvalid
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountToSubAccountTransferEPL, http.MethodPost, walletInterSubAccountTransfer, nil, &arg, nil)
+	var resp *TransactionIDResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountToSubAccountTransferEPL, http.MethodPost, "wallet/sub_account_to_sub_account", nil, &arg, &resp)
 }
 
 // GetWithdrawalStatus retrieves withdrawal status
@@ -1208,7 +1210,7 @@ func (e *Exchange) GetWithdrawalStatus(ctx context.Context, ccy currency.Code) (
 		params.Set("currency", ccy.String())
 	}
 	var response []WithdrawalStatus
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletWithdrawStatusEPL, http.MethodGet, walletWithdrawStatus, params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletWithdrawStatusEPL, http.MethodGet, "wallet/withdraw_status", params, nil, &response)
 }
 
 // GetSubAccountBalances retrieve sub account balances
@@ -1218,7 +1220,7 @@ func (e *Exchange) GetSubAccountBalances(ctx context.Context, subAccountUserID s
 		params.Set("sub_uid", subAccountUserID)
 	}
 	var response *SubAccountBalances
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountBalancesEPL, http.MethodGet, walletSubAccountBalance, params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountBalancesEPL, http.MethodGet, "wallet/sub_account_balances", params, nil, &response)
 }
 
 // GetSubAccountMarginBalances query sub accounts' margin balances
@@ -1228,7 +1230,20 @@ func (e *Exchange) GetSubAccountMarginBalances(ctx context.Context, subAccountUs
 		params.Set("sub_uid", subAccountUserID)
 	}
 	var response []SubAccountMarginBalance
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountMarginBalancesEPL, http.MethodGet, walletSubAccountMarginBalance, params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountMarginBalancesEPL, http.MethodGet, "wallet/sub_account_margin_balances", params, nil, &response)
+}
+
+// GetTransferOrderStatus supports querying transfer status based on user-defined client_order_id or tx_id returned by the transfer interface
+func (e *Exchange) GetTransferOrderStatus(ctx context.Context, clientOrderID, transactionID string) (*TransferStatus, error) {
+	params := url.Values{}
+	if clientOrderID != "" {
+		params.Set("client_order_id", clientOrderID)
+	}
+	if transactionID != "" {
+		params.Set("tx_id", transactionID)
+	}
+	var resp *TransferStatus
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "wallet/order_status", params, nil, &resp)
 }
 
 // GetSubAccountFuturesBalances retrieves sub accounts' futures account balances
@@ -1241,7 +1256,7 @@ func (e *Exchange) GetSubAccountFuturesBalances(ctx context.Context, subAccountU
 		params.Set("settle", settle.Item.Lower)
 	}
 	var response []FuturesSubAccountBalance
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountFuturesBalancesEPL, http.MethodGet, walletSubAccountFuturesBalance, params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountFuturesBalancesEPL, http.MethodGet, "wallet/sub_account_futures_balances", params, nil, &response)
 }
 
 // GetSubAccountCrossMarginBalances query subaccount's cross_margin account info
@@ -1251,11 +1266,11 @@ func (e *Exchange) GetSubAccountCrossMarginBalances(ctx context.Context, subAcco
 		params.Set("sub_uid", subAccountUserID)
 	}
 	var response []SubAccountCrossMarginInfo
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountCrossMarginBalancesEPL, http.MethodGet, walletSubAccountCrossMarginBalances, params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountCrossMarginBalancesEPL, http.MethodGet, "wallet/sub_account_cross_margin_balances", params, nil, &response)
 }
 
 // GetSavedAddresses retrieves saved currency address info and related details.
-func (e *Exchange) GetSavedAddresses(ctx context.Context, ccy currency.Code, chain string, limit uint64) ([]WalletSavedAddress, error) {
+func (e *Exchange) GetSavedAddresses(ctx context.Context, ccy currency.Code, chain string, limit, page uint64) ([]WalletSavedAddress, error) {
 	params := url.Values{}
 	if ccy.IsEmpty() {
 		return nil, fmt.Errorf("%w address is required", currency.ErrCurrencyPairEmpty)
@@ -1267,8 +1282,11 @@ func (e *Exchange) GetSavedAddresses(ctx context.Context, ccy currency.Code, cha
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
 	var response []WalletSavedAddress
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSavedAddressesEPL, http.MethodGet, walletSavedAddress, params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSavedAddressesEPL, http.MethodGet, "wallet/saved_address", params, nil, &response)
 }
 
 // GetPersonalTradingFee retrieves personal trading fee
@@ -1282,7 +1300,7 @@ func (e *Exchange) GetPersonalTradingFee(ctx context.Context, currencyPair curre
 		params.Set("settle", settle.Item.Lower)
 	}
 	var response *PersonalTradingFee
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTradingFeeEPL, http.MethodGet, walletTradingFee, params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTradingFeeEPL, http.MethodGet, "wallet/fee", params, nil, &response)
 }
 
 // GetUsersTotalBalance retrieves user's total balances
@@ -1292,7 +1310,7 @@ func (e *Exchange) GetUsersTotalBalance(ctx context.Context, ccy currency.Code) 
 		params.Set("currency", ccy.String())
 	}
 	var response *UsersAllAccountBalance
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTotalBalanceEPL, http.MethodGet, walletTotalBalance, params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTotalBalanceEPL, http.MethodGet, "wallet/total_balance", params, nil, &response)
 }
 
 // ConvertSmallBalances converts small balances of provided currencies into GT.
@@ -1315,6 +1333,22 @@ func (e *Exchange) ConvertSmallBalances(ctx context.Context, currs ...currency.C
 		IsAll:    len(currs) == 0,
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletConvertSmallBalancesEPL, http.MethodPost, "wallet/small_balance", nil, payload, nil)
+}
+
+// GetConvertibleSmallBalanceCurrencyHistory get convertible small balance currency history
+func (e *Exchange) GetConvertibleSmallBalanceCurrencyHistory(ctx context.Context, ccy currency.Code, page, limit int64) ([]SmallCurrencyBalance, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SmallCurrencyBalance
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "wallet/small_balance_history", params, nil, &resp)
 }
 
 // ********************************* Margin *******************************************
@@ -1404,7 +1438,7 @@ func (e *Exchange) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) 
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Amount <= 0 {
-		return nil, errInvalidAmount
+		return nil, order.ErrAmountIsInvalid
 	}
 	if arg.Rate != 0 && arg.Rate > 0.002 || arg.Rate < 0.0002 {
 		return nil, errors.New("invalid loan rate, rate must be between 0.0002 and 0.002")
@@ -1531,7 +1565,7 @@ func (e *Exchange) RepayALoan(ctx context.Context, loanID string, arg *RepayLoan
 		return nil, errInvalidRepayMode
 	}
 	if arg.Mode == "partial" && arg.Amount <= 0 {
-		return nil, fmt.Errorf("%w, repay amount for partial repay mode must be greater than 0", errInvalidAmount)
+		return nil, fmt.Errorf("%w, repay amount for partial repay mode must be greater than 0", order.ErrAmountIsInvalid)
 	}
 	var response *MarginLoanResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginRepayLoanEPL, http.MethodPost, gateioMarginLoans+"/"+loanID+"/repayment", nil, &arg, &response)
@@ -1704,7 +1738,7 @@ func (e *Exchange) CreateCrossMarginBorrowLoan(ctx context.Context, arg CrossMar
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Amount <= 0 {
-		return nil, fmt.Errorf("%w, borrow amount must be greater than 0", errInvalidAmount)
+		return nil, fmt.Errorf("%w, borrow amount must be greater than 0", order.ErrAmountIsInvalid)
 	}
 	var response CrossMarginLoanResponse
 	return &response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginCreateCrossBorrowLoanEPL, http.MethodPost, gateioCrossMarginLoans, nil, &arg, &response)
@@ -1718,7 +1752,7 @@ func (e *Exchange) ExecuteRepayment(ctx context.Context, arg CurrencyAndAmount) 
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Amount <= 0 {
-		return nil, fmt.Errorf("%w, repay amount must be greater than 0", errInvalidAmount)
+		return nil, fmt.Errorf("%w, repay amount must be greater than 0", order.ErrAmountIsInvalid)
 	}
 	var response []CrossMarginLoanResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginExecuteRepaymentsEPL, http.MethodPost, gateioCrossMarginRepayments, nil, &arg, &response)
@@ -3517,10 +3551,10 @@ func (e *Exchange) CreateFlashSwapOrder(ctx context.Context, arg FlashSwapOrderP
 		return nil, fmt.Errorf("%w, sell currency can not empty", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.SellAmount <= 0 {
-		return nil, fmt.Errorf("%w, sell_amount can not be less than or equal to 0", errInvalidAmount)
+		return nil, fmt.Errorf("%w, sell_amount can not be less than or equal to 0", order.ErrAmountIsInvalid)
 	}
 	if arg.BuyAmount <= 0 {
-		return nil, fmt.Errorf("%w, buy_amount amount can not be less than or equal to 0", errInvalidAmount)
+		return nil, fmt.Errorf("%w, buy_amount amount can not be less than or equal to 0", order.ErrAmountIsInvalid)
 	}
 	var response *FlashSwapOrderResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, flashSwapOrderEPL, http.MethodPost, gateioFlashSwapOrders, nil, &arg, &response)

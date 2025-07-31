@@ -705,14 +705,14 @@ func TestTransferCurrency(t *testing.T) {
 func TestSubAccountTransfer(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	req := SubAccountTransferParam{SubAccountType: "index"}
+	req := &SubAccountTransferParam{SubAccountType: "index"}
 	require.ErrorIs(t, e.SubAccountTransfer(ctx, req), currency.ErrCurrencyCodeEmpty)
 	req.Currency = currency.BTC
 	require.ErrorIs(t, e.SubAccountTransfer(ctx, req), errInvalidSubAccount)
 	req.SubAccount = "1337"
 	require.ErrorIs(t, e.SubAccountTransfer(ctx, req), errInvalidTransferDirection)
 	req.Direction = "to"
-	require.ErrorIs(t, e.SubAccountTransfer(ctx, req), errInvalidAmount)
+	require.ErrorIs(t, e.SubAccountTransfer(ctx, req), order.ErrAmountIsInvalid)
 	req.Amount = 1.337
 	require.ErrorIs(t, e.SubAccountTransfer(ctx, req), asset.ErrNotSupported)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -729,8 +729,11 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 
 func TestSubAccountTransferToSubAccount(t *testing.T) {
 	t.Parallel()
+	_, err := e.SubAccountTransferToSubAccount(t.Context(), &InterSubAccountTransferParams{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err := e.SubAccountTransferToSubAccount(t.Context(), &InterSubAccountTransferParams{
+	_, err = e.SubAccountTransferToSubAccount(t.Context(), &InterSubAccountTransferParams{
 		Currency:                currency.BTC,
 		SubAccountFromUserID:    "1234",
 		SubAccountFromAssetType: asset.Spot,
@@ -744,7 +747,7 @@ func TestSubAccountTransferToSubAccount(t *testing.T) {
 func TestGetWithdrawalStatus(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetWithdrawalStatus(t.Context(), currency.NewCode(""))
+	_, err := e.GetWithdrawalStatus(t.Context(), currency.EMPTYCODE)
 	assert.NoError(t, err)
 }
 
@@ -759,6 +762,13 @@ func TestGetSubAccountMarginBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSubAccountMarginBalances(t.Context(), "")
+	assert.NoError(t, err)
+}
+
+func TestGetTransferOrderStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetTransferOrderStatus(t.Context(), "12345678", "abcdefg")
 	assert.NoError(t, err)
 }
 
@@ -778,8 +788,11 @@ func TestGetSubAccountCrossMarginBalances(t *testing.T) {
 
 func TestGetSavedAddresses(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetSavedAddresses(t.Context(), currency.EMPTYCODE, "", 0, 10)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSavedAddresses(t.Context(), currency.BTC, "", 0)
+	_, err = e.GetSavedAddresses(t.Context(), currency.BTC, "", 0, 10)
 	assert.NoError(t, err)
 }
 
@@ -1590,11 +1603,11 @@ func TestGetMyOptionsTradingHistory(t *testing.T) {
 
 func TestWithdrawCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := e.WithdrawCurrency(t.Context(), WithdrawalRequestParam{})
-	assert.ErrorIs(t, err, errInvalidAmount)
+	_, err := e.WithdrawCurrency(t.Context(), &WithdrawalRequestParam{})
+	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.WithdrawCurrency(t.Context(), WithdrawalRequestParam{
+	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalRequestParam{
 		Currency: currency.BTC,
 		Amount:   0.00000001,
 		Chain:    "BTC",
@@ -3065,6 +3078,13 @@ func TestConvertSmallBalances(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestGetConvertibleSmallBalanceCurrencyHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetConvertibleSmallBalanceCurrencyHistory(t.Context(), currency.ETH, 0, 10)
+	require.NoError(t, err)
+}
+
 func TestGetAccountDetails(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -3386,4 +3406,23 @@ func TestGetIntervalString(t *testing.T) {
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "0 should be an invalid interval")
 	_, err = getIntervalString(kline.FiveDay)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "Any other random interval should also be invalid")
+}
+
+func TestTransferBetweenSubAccountsByUID(t *testing.T) {
+	t.Parallel()
+	_, err := e.TransferBetweenSubAccountsByUID(t.Context(), &SubAccountTransfer{})
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+	_, err = e.TransferBetweenSubAccountsByUID(t.Context(), &SubAccountTransfer{Amount: 1.})
+	require.ErrorIs(t, err, errInvalidSubAccountUserID)
+
+	_, err = e.TransferBetweenSubAccountsByUID(t.Context(), &SubAccountTransfer{Amount: 1., ReceiveUID: 2231234})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.TransferBetweenSubAccountsByUID(t.Context(), &SubAccountTransfer{
+		Amount:     1.,
+		ReceiveUID: 2231234,
+		Currency:   currency.ETH,
+	})
+	require.NoError(t, err)
 }
