@@ -274,9 +274,9 @@ func applyOrderbookUpdate(g *Exchange, update *orderbook.Update) error {
 		updateApplied = true
 	}
 
-	if updateApplied {
-		return nil
+	if !updateApplied {
+		return fmt.Errorf("apply orderbook update: %q %q %w", update.Pair, update.Asset, currency.ErrPairNotEnabled)
 	}
 
-	return fmt.Errorf("apply orderbook update: %q %q %w", update.Pair, update.Asset, currency.ErrPairNotEnabled)
+	return nil
 }
