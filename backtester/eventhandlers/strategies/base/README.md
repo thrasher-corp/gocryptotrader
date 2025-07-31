@@ -22,8 +22,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 The strategy base file has basic implementations of the `strategies.Handler` interface. Add any functions that can be used across all strategies here.
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

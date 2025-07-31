@@ -25,7 +25,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
   + Subsystems which are designed to be switched off also have `Start(...) error`, `IsRunning() bool` and `Stop(...) error` functions to allow the main `engine.Engine` instance to manage them
 + Common subsystem types such as errors can be found within the `subsystem.go` file
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

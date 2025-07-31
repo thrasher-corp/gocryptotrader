@@ -23,12 +23,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 The backtest package is responsible for handling all events. It is the engine which combines all elements.
 Data is converted into candles which are then analysed via the strategyhandler. From there, events can be passed through to other handlers such as the portfolio handler to determine whether or not to place an order
 
-
 A flow of the application is as follows:
 ![workflow](https://i.imgur.com/Kup6IA9.png)
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

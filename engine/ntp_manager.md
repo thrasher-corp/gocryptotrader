@@ -33,8 +33,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | allowedDifference | A Golang time.Duration representation of the allowable time discrepancy between NTP server and your system time. Any discrepancy greater than this allowance will display an alert to your logging output |  `50000000` |
 | allowedNegativeDifference | A Golang time.Duration representation of the allowable negative time discrepancy between NTP server and your system time. Any discrepancy greater than this allowance will display an alert to your logging output |  `50000000` |
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

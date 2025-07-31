@@ -32,8 +32,6 @@ The report utilises the following sweet technologies:
 Output example:
 ![example](https://user-images.githubusercontent.com/9261323/105283038-c124be00-5c03-11eb-88af-d67e727a8c16.png)
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

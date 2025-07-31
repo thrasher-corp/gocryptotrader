@@ -40,7 +40,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ### Want to make your own configs?
 Use the provided config builder under `/backtester/config/configbuilder` or modify tests under `/backtester/config/config_test.go` to generates strategy files quickly
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

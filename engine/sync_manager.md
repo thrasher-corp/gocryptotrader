@@ -33,8 +33,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | synccontinuously | Whether to sync exchange data continuously (ticker, orderbook and trades) | `true` |
 | synctimeout | The amount of time in golang `time.Duration` format before the syncer will switch from one protocol to the other (e.g. from REST to websocket) | `15000000000` |
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

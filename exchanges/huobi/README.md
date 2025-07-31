@@ -129,7 +129,6 @@ Default Authenticated Subscriptions:
 - Account Orders
 - Account Updates
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

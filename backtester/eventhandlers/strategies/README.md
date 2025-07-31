@@ -39,7 +39,6 @@ It allows for complex strategical decisions to be made when you consider the sco
 ### Loading strategies
 Each strategy has a unique name and is to be added to the function `getStrategies()` in order to be recognised.
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

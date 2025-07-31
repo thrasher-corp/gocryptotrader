@@ -22,7 +22,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 The Kline event type is used to store the candle data of an individual data event. It can be utilised to understand market conditions at a point in time and make decisions from there
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

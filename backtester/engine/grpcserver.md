@@ -22,7 +22,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 The GRPC server is responsible for handling requests from the client. All GRPC functionality as defined in the proto file is implemented [here](/backtester/btrpc)
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

@@ -22,8 +22,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 The event event type is an important base for all other events. It allows for consistent information to be used across all events in order to track and make decisions. Any information that is shared between events should be added to this struct
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

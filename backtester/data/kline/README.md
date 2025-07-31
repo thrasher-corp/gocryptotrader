@@ -26,8 +26,6 @@ Candle data represents the opening, closing, highest, lowest prices of a given t
 
 Trade data represents the raw trading data on an exchange. Every buy or sell action for the given currency. When trading data is used for the GoCryptoTrader Backtester, it is converted into candle data at the interval you specify. This allows for custom candle intervals not provided by an exchange's API and thus has a greater amount of flexibility in backtesting strategies.
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

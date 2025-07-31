@@ -26,8 +26,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Will not process withdrawal events if `dryrun` is true
 + The withdraw manager subsystem is always enabled
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

@@ -31,7 +31,6 @@ The default database will be loaded from your GoCryptoTrader config. See [this](
 #### Overriding the GoCryptoTrader config
 Database configuration details can be overridden in the `.strat` config file to allow other sources to be used and not rely on existing GoCryptoTrader configuration. See [this readme](/backtester/config/README.md) for details on config customisation
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

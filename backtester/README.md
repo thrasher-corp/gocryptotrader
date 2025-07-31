@@ -107,9 +107,6 @@ Creating strategies requires programming skills. [Here](/backtester/eventhandler
 - While an experimental feature, it is **not** recommended to **ever** use live trading and real orders
 - **Past performance is no guarantee of future results**
 
-
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

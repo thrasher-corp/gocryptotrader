@@ -25,7 +25,6 @@ This package uses existing GoCryptoTrader exchange implementations.
 
 See individual exchange implementations [here](/exchanges) and the interface used [here](/exchanges/interfaces.go)
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

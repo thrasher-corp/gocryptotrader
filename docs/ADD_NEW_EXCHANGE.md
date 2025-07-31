@@ -1,6 +1,6 @@
 # GoCryptoTrader ADD NEW EXCHANGE
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70" alt="GoCryptoTrader logo">
+<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -336,7 +336,10 @@ Create a test function in `rest_test.go` to see if the data is received and unma
 ```go
 func TestGetExchangeInfo(t *testing.T) {
     t.Parallel() // adding t.Parallel() is preferred as it allows tests to run simultaneously, speeding up package test time
-    e.Verbose = true // used for more detailed output
+    // Either set verbose to true for more detailed output as shown below:
+    e.Verbose = true
+    // Or alternatively you can use:
+    // result, err := e.GetExchangeInfo(request.WithVerbose(context.Background()))
     result, err := e.GetExchangeInfo(context.Background())
     require.NoError(t, err)
     t.Log(result)
@@ -346,6 +349,7 @@ func TestGetExchangeInfo(t *testing.T) {
 
 Set `Verbose` to `true` to view received data during unmarshalling errors.
 After testing, remove `Verbose`, the result variable, and `t.Log(result)`, or replace the log with `assert.NotNil(t, result)` to avoid unnecessary output when running GCT.
+Alternatively you can use `request.WithVerbose(context.Background())` as the `context` param to achieve the same result.
 
 ```go
     result, err := e.GetExchangeInfo(context.Background())

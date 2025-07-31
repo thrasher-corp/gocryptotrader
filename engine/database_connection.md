@@ -42,7 +42,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | database | The name of the database | `database.db` |
 | sslmode | The connection type of the database for Postgres databases only | `disable` |
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

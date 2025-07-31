@@ -286,7 +286,6 @@ See below for a set of tables and fields, expected values and what they can do
 |----------------|-------------------------------------------------------------------------|---------|
 | risk-free-rate | The risk free rate used in the calculation of sharpe and sortino ratios | `0.03`  |
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">

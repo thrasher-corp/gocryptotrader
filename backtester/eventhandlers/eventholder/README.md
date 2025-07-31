@@ -24,7 +24,6 @@ The event holder is a simple interface implementation which allows the backteste
 The event holder is based on the `EventHolder` interface and is implemented by `Holder`.
 It is used by `backtest.Backtester` and it accepts appending any struct which implements the `common.EventHandler` interface, eg `order.Order`
 
-### Please click GoDocs chevron above to view current GoDoc information for this package
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
