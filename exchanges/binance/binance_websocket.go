@@ -384,9 +384,9 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			Pair:       pair,
 			AssetType:  asset.Spot,
 			Exchange:   e.Name,
+			Interval:   kline.Kline.Interval,
 			StartTime:  kline.Kline.StartTime.Time(),
 			CloseTime:  kline.Kline.CloseTime.Time(),
-			Interval:   kline.Kline.Interval,
 			OpenPrice:  kline.Kline.OpenPrice.Float64(),
 			ClosePrice: kline.Kline.ClosePrice.Float64(),
 			HighPrice:  kline.Kline.HighPrice.Float64(),
@@ -454,17 +454,16 @@ func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
-	newOrderBook := orderbook.Book{
+	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Pair:              p,
-		Asset:             asset.Spot,
 		Exchange:          e.Name,
-		LastUpdateID:      orderbookNew.LastUpdateID,
+		Asset:             asset.Spot,
 		ValidateOrderbook: e.ValidateOrderbook,
+		LastUpdateID:      orderbookNew.LastUpdateID,
 		LastUpdated:       time.Now(), // Time not provided in REST book.
-		Bids:              orderbook.Levels(orderbookNew.Bids),
 		Asks:              orderbook.Levels(orderbookNew.Asks),
-	}
-	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+		Bids:              orderbook.Levels(orderbookNew.Bids),
+	})
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook

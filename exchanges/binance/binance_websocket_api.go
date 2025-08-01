@@ -41,9 +41,9 @@ func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) 
 	defer func() {
 		if err != nil {
 			e.SetIsAPIStreamConnected(false)
-		} else {
-			e.SetIsAPIStreamConnected(true)
+			return
 		}
+		e.SetIsAPIStreamConnected(true)
 	}()
 
 	if err := e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
@@ -102,15 +102,15 @@ func (e *Exchange) wsHandleSpotAPIData(_ context.Context, respRaw []byte) error 
 }
 
 // SendWsRequest sends websocket endpoint request through the websocket connection
-func (e *Exchange) SendWsRequest(method string, param, result interface{}) error {
+func (e *Exchange) SendWsRequest(method string, param, result any) error {
 	conn, err := e.Websocket.GetConnection(spotWebsocketAPI)
 	if err != nil {
 		return err
 	}
 	input := &struct {
-		ID     string      `json:"id"`
-		Method string      `json:"method"`
-		Params interface{} `json:"params"`
+		ID     string `json:"id"`
+		Method string `json:"method"`
+		Params any    `json:"params"`
 	}{
 		ID:     strconv.FormatInt(conn.GenerateMessageID(false), 10),
 		Method: method,
@@ -123,7 +123,7 @@ func (e *Exchange) SendWsRequest(method string, param, result interface{}) error
 	resp := &struct {
 		ID         string             `json:"id"`
 		Status     int64              `json:"status"`
-		Result     interface{}        `json:"result"`
+		Result     any                `json:"result"`
 		Error      *WebsocketAPIError `json:"error"`
 		Ratelimits []RateLimitItem    `json:"ratelimits,omitempty"`
 	}{
@@ -322,7 +322,7 @@ func (e *Exchange) GetWsSymbolOrderbookTicker(symbols currency.Pairs) ([]WsOrder
 	return resp, e.SendWsRequest("ticker.book", arg, &resp)
 }
 
-func (e *Exchange) getSignature(arg interface{}) (apiKey, signature string, err error) {
+func (e *Exchange) getSignature(arg any) (apiKey, signature string, err error) {
 	mapValue, err := e.ToMap(arg)
 	if err != nil {
 		return apiKey, signature, err
@@ -331,7 +331,7 @@ func (e *Exchange) getSignature(arg interface{}) (apiKey, signature string, err 
 }
 
 // SignRequest creates a signature given params map
-func (e *Exchange) SignRequest(params map[string]interface{}) (apiKey, signature string, err error) {
+func (e *Exchange) SignRequest(params map[string]any) (apiKey, signature string, err error) {
 	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", "", err
@@ -363,7 +363,7 @@ func (e *Exchange) SignRequest(params map[string]interface{}) (apiKey, signature
 }
 
 // SortMap gives a slice of sorted keys from the passed map
-func SortMap(params map[string]interface{}) []string {
+func SortMap(params map[string]any) []string {
 	keys := make([]string, 0, len(params))
 	for a := range params {
 		count := 0
@@ -518,11 +518,11 @@ func (e *Exchange) WsCancelAndReplaceTradeOrder(arg *WsCancelAndReplaceParam) (*
 	return resp, e.SendWsRequest("order.cancelReplace", &arg, &resp)
 }
 
-func (e *Exchange) openOrdersFilter(symbol currency.Pair, recvWindow int64) (map[string]interface{}, error) {
+func (e *Exchange) openOrdersFilter(symbol currency.Pair, recvWindow int64) (map[string]any, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	arg := map[string]interface{}{}
+	arg := make(map[string]any)
 	if recvWindow != 0 {
 		arg["recvWindow"] = recvWindow
 	}
@@ -608,7 +608,7 @@ func (e *Exchange) WsQueryOCOOrder(origClientOrderID string, orderListID, recvWi
 	if origClientOrderID == "" {
 		return nil, fmt.Errorf("origClientOrderID %w", order.ErrOrderIDNotSet)
 	}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"origClientOrderId": origClientOrderID,
 	}
 	if orderListID != 0 {
@@ -636,7 +636,7 @@ func (e *Exchange) WsCancelOCOOrder(symbol currency.Pair, orderListID, listClien
 	if orderListID == "" {
 		return nil, fmt.Errorf("orderListID %w", order.ErrOrderIDNotSet)
 	}
-	params := map[string]interface{}{}
+	params := make(map[string]any)
 	if listClientOrderID == "" {
 		params["listClientOrderId"] = listClientOrderID
 	}
@@ -657,7 +657,7 @@ func (e *Exchange) WsCancelOCOOrder(symbol currency.Pair, orderListID, listClien
 
 // WsCurrentOpenOCOOrders query execution status of all open OCOs.
 func (e *Exchange) WsCurrentOpenOCOOrders(recvWindow int64) ([]OCOOrder, error) {
-	params := map[string]interface{}{}
+	params := make(map[string]any)
 	if recvWindow != 0 {
 		params["recvWindow"] = recvWindow
 	}
@@ -729,12 +729,12 @@ func (e *Exchange) WsTestNewOrderUsingSOR(arg *WsOSRPlaceOrderParams) error {
 }
 
 // ToMap creates a map out of struct instances
-func (e *Exchange) ToMap(input interface{}) (map[string]interface{}, error) {
+func (e *Exchange) ToMap(input any) (map[string]any, error) {
 	data, err := json.Marshal(input)
 	if err != nil {
 		return nil, err
 	}
-	var resp map[string]interface{}
+	var resp map[string]any
 	return resp, json.Unmarshal(data, &resp)
 }
 
@@ -742,7 +742,7 @@ func (e *Exchange) ToMap(input interface{}) (map[string]interface{}, error) {
 
 // GetWsAccountInfo query information about your account.
 func (e *Exchange) GetWsAccountInfo(recvWindow int64) (*Account, error) {
-	params := map[string]interface{}{}
+	params := map[string]any{}
 	if recvWindow != 0 {
 		params["recvWindow"] = recvWindow
 	}
@@ -759,7 +759,7 @@ func (e *Exchange) GetWsAccountInfo(recvWindow int64) (*Account, error) {
 
 // WsQueryAccountOrderRateLimits query your current order rate limit.
 func (e *Exchange) WsQueryAccountOrderRateLimits(recvWindow int64) ([]RateLimitItem, error) {
-	params := map[string]interface{}{}
+	params := map[string]any{}
 	if recvWindow > 0 {
 		params["recvWindow"] = recvWindow
 	}
@@ -797,7 +797,7 @@ func (e *Exchange) WsQueryAccountOrderHistory(arg *AccountOrderRequestParam) ([]
 // WsQueryAccountOCOOrderHistory query information about all your OCOs, filtered by time range.
 // Status reports for OCOs are identical to orderList.status.
 func (e *Exchange) WsQueryAccountOCOOrderHistory(fromID, limit, recvWindow int64, startTime, endTime time.Time) ([]OCOOrder, error) {
-	params := map[string]interface{}{}
+	params := make(map[string]any)
 	if fromID != 0 {
 		params["fromId"] = fromID
 	}
@@ -862,7 +862,7 @@ func (e *Exchange) WsAccountPreventedMatches(symbol currency.Pair, preventedMatc
 	if orderID == 0 && preventedMatchID == 0 {
 		return nil, fmt.Errorf("%w, either orderID or preventedMatchID is required", order.ErrOrderIDNotSet)
 	}
-	params := map[string]interface{}{}
+	params := make(map[string]any)
 	params["symbol"] = symbol
 	if preventedMatchID != 0 {
 		params["preventedMatchId"] = preventedMatchID
@@ -895,7 +895,7 @@ func (e *Exchange) WsAccountAllocation(symbol currency.Pair, startTime, endTime 
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"symbol": symbol.String(),
 	}
 	switch {
@@ -937,7 +937,7 @@ func (e *Exchange) WsAccountCommissionRates(symbol currency.Pair) (*CommissionRa
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"symbol": symbol.String(),
 	}
 	params["timestamp"] = time.Now().UnixMilli()
@@ -960,7 +960,7 @@ func (e *Exchange) WsStartUserDataStream() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"apiKey": creds.Key,
 	}
 	resp := &struct {
@@ -981,7 +981,7 @@ func (e *Exchange) WsPingUserDataStream(listenKey string) error {
 	if err != nil {
 		return err
 	}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"apiKey":    creds.Key,
 		"listenKey": listenKey,
 	}
@@ -997,7 +997,7 @@ func (e *Exchange) WsStopUserDataStream(listenKey string) error {
 	if err != nil {
 		return err
 	}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"apiKey":    creds.Key,
 		"listenKey": listenKey,
 	}
