@@ -1977,10 +1977,10 @@ type SettlementHistoryItem struct {
 
 // SubAccountParams represents subaccount creation parameters
 type SubAccountParams struct {
-	LoginName string `json:"login_name"`
-	Remark    string `json:"remark,omitempty"`
-	Email     string `json:"email,omitempty"`    // The sub-account's password.
-	Password  string `json:"password,omitempty"` // The sub-account's email address.
+	SubAccountName string `json:"login_name"`
+	Remark         string `json:"remark,omitempty"`
+	Email          string `json:"email,omitempty"`    // The sub-account's password.
+	Password       string `json:"password,omitempty"` // The sub-account's email address.
 }
 
 // SubAccount represents a subaccount response
@@ -2652,8 +2652,8 @@ type APIV4KeyPerm struct {
 	IPWhitelist    []string `json:"ip_whitelist,omitempty"`
 }
 
-// CreateAPIKeyResponse represents an API key response object
-type CreateAPIKeyResponse struct {
+// APIDetailResponse represents an API key response object
+type APIDetailResponse struct {
 	UserID      string         `json:"user_id"`
 	APIKeyName  string         `json:"name"` // API key name
 	Permissions []APIV4KeyPerm `json:"perms"`

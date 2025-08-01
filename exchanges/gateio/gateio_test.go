@@ -324,7 +324,7 @@ func TestAmendSpotOrder(t *testing.T) {
 	_, err := e.AmendSpotOrder(t.Context(), "", getPair(t, asset.Spot), false, &PriceAndAmount{
 		Price: 1000,
 	})
-	assert.ErrorIs(t, err, errInvalidOrderID)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	_, err = e.AmendSpotOrder(t.Context(), "123", currency.EMPTYPAIR, false, &PriceAndAmount{
 		Price: 1000,
@@ -1579,7 +1579,7 @@ func TestCancelOptionOpenOrders(t *testing.T) {
 func TestGetSingleOptionOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSingleOptionOrder(t.Context(), "")
-	assert.ErrorIs(t, err, errInvalidOrderID)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetSingleOptionOrder(t.Context(), "1234")
@@ -1664,8 +1664,8 @@ func TestGetOptionsTradeHistory(t *testing.T) {
 func TestCreateNewSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CreateNewSubAccount(t.Context(), SubAccountParams{
-		LoginName: "Sub_Account_for_testing",
+	_, err := e.CreateNewSubAccount(t.Context(), &SubAccountParams{
+		SubAccountName: "Sub_Account_for_testing",
 	})
 	assert.NoError(t, err)
 }
