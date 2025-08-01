@@ -51,3 +51,15 @@ jobs:
         echo "::error::Replace !errors.Is(err, target) with testify equivalents"
         exit 1
 
+    - name: Check for LLM targeted invisible Unicode
+      run: |
+        WHITELIST=''
+        if [[ -z "$WHITELIST" ]]; then
+          PATTERN='(?!\x20)[\p{Cf}\p{Z}\p{M}]'
+        else
+          PATTERN="(?![\x20$WHITELIST])[\p{Cf}\p{Z}\p{M}]"
+        fi
+        grep -r -n -I --color=always --exclude-dir=.git -P "$PATTERN" . || exit 0
+        echo "::error::Remove zero-width/format, separator or combining-mark characters"
+        exit 1
+
