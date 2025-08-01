@@ -228,8 +228,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  usdtFuturesWebsocketURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return e.WsHandleFuturesData(ctx, incoming, asset.USDTMarginedFutures)
+		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+			return e.WsHandleFuturesData(ctx, conn, incoming, asset.USDTMarginedFutures)
 		},
 		Subscriber:   e.FuturesSubscribe,
 		Unsubscriber: e.FuturesUnsubscribe,
@@ -250,8 +250,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  btcFuturesWebsocketURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return e.WsHandleFuturesData(ctx, incoming, asset.CoinMarginedFutures)
+		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+			return e.WsHandleFuturesData(ctx, conn, incoming, asset.CoinMarginedFutures)
 		},
 		Subscriber:   e.FuturesSubscribe,
 		Unsubscriber: e.FuturesUnsubscribe,
@@ -272,8 +272,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  deliveryRealUSDTTradingURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return e.WsHandleFuturesData(ctx, incoming, asset.DeliveryFutures)
+		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+			return e.WsHandleFuturesData(ctx, conn, incoming, asset.DeliveryFutures)
 		},
 		Subscriber:               e.DeliveryFuturesSubscribe,
 		Unsubscriber:             e.DeliveryFuturesUnsubscribe,
