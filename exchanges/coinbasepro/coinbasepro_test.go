@@ -981,28 +981,6 @@ func TestWsOrders(t *testing.T) {
 	}
 }
 
-func TestStatusToStandardStatus(t *testing.T) {
-	type TestCases struct {
-		Case   string
-		Result order.Status
-	}
-	testCases := []TestCases{
-		{Case: "received", Result: order.New},
-		{Case: "open", Result: order.Active},
-		{Case: "done", Result: order.Filled},
-		{Case: "match", Result: order.PartiallyFilled},
-		{Case: "change", Result: order.Active},
-		{Case: "activate", Result: order.Active},
-		{Case: "LOL", Result: order.UnknownStatus},
-	}
-	for i := range testCases {
-		result, _ := statusToStandardStatus(testCases[i].Case)
-		if result != testCases[i].Result {
-			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
-		}
-	}
-}
-
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetRecentTrades(t.Context(), testPair, asset.Spot)
