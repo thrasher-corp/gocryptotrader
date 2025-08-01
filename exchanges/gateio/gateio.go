@@ -109,6 +109,7 @@ var (
 	errInvalidSettlementBase         = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                 = errors.New("missing API key information")
 	errInvalidTextValue              = errors.New("invalid text value, requires prefix `t-`")
+	errLoanTypeIsRequired            = errors.New("loan type is required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -185,7 +186,24 @@ func (e *Exchange) GetAllAPIKeyOfSubAccount(ctx context.Context, userID int64) (
 
 // UpdateAPIKeyOfSubAccount update API key of the sub-account
 func (e *Exchange) UpdateAPIKeyOfSubAccount(ctx context.Context, subAccountAPIKey string, arg CreateAPIKeySubAccountParams) error {
+	if arg.SubAccountUserID == 0 {
+		return errInvalidSubAccountUserID
+	}
+	if subAccountAPIKey == "" {
+		return errMissingAPIKey
+	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPut, subAccountsPath+strconv.FormatInt(arg.SubAccountUserID, 10)+"/keys/"+subAccountAPIKey, nil, &arg, nil)
+}
+
+// DeleteSubAccountAPIKeyPair deletes a subaccount API key pair
+func (e *Exchange) DeleteSubAccountAPIKeyPair(ctx context.Context, subAccountUserID int64, subAccountAPIKey string) error {
+	if subAccountUserID == 0 {
+		return errInvalidSubAccountUserID
+	}
+	if subAccountAPIKey == "" {
+		return errMissingAPIKey
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodDelete, subAccountsPath+strconv.FormatInt(subAccountUserID, 10)+"/keys/"+subAccountAPIKey, nil, nil, nil)
 }
 
 // GetAPIKeyOfSubAccount retrieves the API Key of the sub-account
@@ -214,6 +232,17 @@ func (e *Exchange) UnlockSubAccount(ctx context.Context, subAccountUserID int64)
 		return errInvalidSubAccountUserID
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPost, subAccountsPath+strconv.FormatInt(subAccountUserID, 10)+"/unlock", nil, nil, nil)
+}
+
+// GetSubAccountMode retrieves sub-account mode
+// Unified account mode:
+//
+//	classic: Classic account mode
+//	multi_currency: Multi-currency margin mode
+//	portfolio: Portfolio margin mode
+func (e *Exchange) GetSubAccountMode(ctx context.Context) ([]SubAccountMode, error) {
+	var resp []SubAccountMode
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "sub_accounts/unified_mode", nil, nil, &resp)
 }
 
 // *****************************************  Spot **************************************
@@ -440,13 +469,94 @@ func (e *Exchange) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]Sp
 }
 
 // GetUnifiedAccount retrieves unified account.
-func (e *Exchange) GetUnifiedAccount(ctx context.Context, ccy currency.Code) (*UnifiedUserAccount, error) {
+func (e *Exchange) GetUnifiedAccount(ctx context.Context, ccy currency.Code, subAccountUserID string) (*UnifiedUserAccount, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	var response UnifiedUserAccount
-	return &response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUnifiedSpotEPL, http.MethodGet, "unified/accounts", params, nil, &response)
+	if subAccountUserID != "" {
+		params.Set("sub_uid", subAccountUserID)
+	}
+	var resp *UnifiedUserAccount
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUnifiedSpotEPL, http.MethodGet, "unified/accounts", params, nil, &resp)
+}
+
+// GetMaximumBorrowableAmountUnifiedAccount query maximum borrowable amount for unified account
+func (e *Exchange) GetMaximumBorrowableAmountUnifiedAccount(ctx context.Context, ccy currency.Code) (*CurrencyAndAmount, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	var resp *CurrencyAndAmount
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUnifiedSpotEPL, http.MethodGet, "unified/borrowable", params, nil, &resp)
+}
+
+// GetUnifiedAccountMaximumTransferableAmount query maximum transferable amount for unified account
+func (e *Exchange) GetUnifiedAccountMaximumTransferableAmount(ctx context.Context, ccy currency.Code) (*CurrencyAndAmount, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	var resp *CurrencyAndAmount
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUnifiedSpotEPL, http.MethodGet, "unified/transferable", params, nil, &resp)
+}
+
+// GetMultipleTransferableAmountForUnifiedAccounts batch query maximum transferable amount for unified accounts. Each currency shows the maximum value. After user withdrawal, the transferable amount for all currencies will change
+func (e *Exchange) GetMultipleTransferableAmountForUnifiedAccounts(ctx context.Context, currencies ...currency.Code) ([]CurrencyAndAmount, error) {
+	if len(currencies) == 0 {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	currenciesString := make([]string, len(currencies))
+	for x := range currencies {
+		if currencies[x].IsEmpty() {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
+		currenciesString[x] = currencies[x].String()
+	}
+	params := url.Values{}
+	params.Set("currencies", strings.Join(currenciesString, ","))
+	var resp []CurrencyAndAmount
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUnifiedSpotEPL, http.MethodGet, "unified/transferables", params, nil, &resp)
+}
+
+// GetBatchUnifiedAccountMaximumBorrowableAmount batch query unified account maximum borrowable amount
+func (e *Exchange) GetBatchUnifiedAccountMaximumBorrowableAmount(ctx context.Context, currencies ...currency.Code) ([]CurrencyAndAmount, error) {
+	if len(currencies) == 0 {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	currenciesString := make([]string, len(currencies))
+	for x := range currencies {
+		if currencies[x].IsEmpty() {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
+		currenciesString[x] = currencies[x].String()
+	}
+	params := url.Values{}
+	params.Set("currencies", strings.Join(currenciesString, ","))
+	var resp []CurrencyAndAmount
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUnifiedSpotEPL, http.MethodGet, "unified/batch_borrowable", params, nil, &resp)
+}
+
+// BorrowOrRepay borrow or repay an asset in unified account
+// When borrowing, ensure the borrowed amount is not below the minimum borrowing threshold for the specific cryptocurrency and does not exceed the maximum borrowing limit set by the platform and user.
+// Loan interest will be automatically deducted from the account at regular intervals. Users are responsible for managing repayment of borrowed amounts.
+// For repayment, use repaid_all=true to repay all available amounts
+func (e *Exchange) BorrowOrRepay(ctx context.Context, arg *BorrowOrRepayParams) (string, error) {
+	if arg.Currency.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Type == "" {
+		return "", errLoanTypeIsRequired
+	}
+	if arg.Amount <= 0 {
+		return "", order.ErrAmountBelowMin
+	}
+	resp := &struct {
+		TransactionID string `json:"tran_id"`
+	}{}
+	return resp.TransactionID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUnifiedSpotEPL, http.MethodPost, "unified/loans", nil, arg, &resp)
 }
 
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
@@ -1570,11 +1680,9 @@ func (e *Exchange) ModifyALoanRecord(ctx context.Context, loanRecordID string, a
 
 // UpdateUsersAutoRepaymentSetting represents update user's auto repayment setting
 func (e *Exchange) UpdateUsersAutoRepaymentSetting(ctx context.Context, statusOn bool) (*OnOffStatus, error) {
-	var statusStr string
+	statusStr := "off"
 	if statusOn {
 		statusStr = "on"
-	} else {
-		statusStr = "off"
 	}
 	params := url.Values{}
 	params.Set("status", statusStr)

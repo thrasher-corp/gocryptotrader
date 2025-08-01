@@ -1844,7 +1844,7 @@ type ContractOrderCreateParams struct {
 	ReduceOnly                bool          `json:"reduce_only,omitempty"`
 	AutoSize                  string        `json:"auto_size,omitempty"` // either close_long or close_short, requires zero in size field
 	Settle                    currency.Code `json:"-"`                   // Used in URL. REST Calls only.
-	SelfTradePreventionAction string        `json:"stp_act,omitempty"`
+	SelfTradePreventionAction string        `json:"stp_act,omitempty"`   // possible values are "cn", "co", and "cb"
 }
 
 // Order represents future order response
@@ -2684,6 +2684,15 @@ type BalanceDetails struct {
 	SpotInUse             types.Number `json:"spot_in_use"`
 	Funding               types.Number `json:"funding"`
 	FundingVersion        types.Number `json:"funding_version"`
+	CrossBalance          types.Number `json:"cross_balance"`
+	IsolatedBalance       types.Number `json:"iso_balance"`
+	InitialMargin         types.Number `json:"im"`
+	MaintenanceMargin     types.Number `json:"mm"`
+	InitialMarginRate     types.Number `json:"imr"`
+	MaintenanceMarginRate types.Number `json:"mmr"`
+	MarginBalance         types.Number `json:"margin_balance"`
+	AvailableMargin       types.Number `json:"available_margin"`
+	EmableCollateral      bool         `json:"enabled_collateral"`
 }
 
 // UnifiedUserAccount represents a unified user account
@@ -2707,6 +2716,7 @@ type UnifiedUserAccount struct {
 	SpotHedge                      bool                             `json:"spot_hedge"`
 	UseFunding                     bool                             `json:"use_funding"`
 	RefreshTime                    types.Time                       `json:"refresh_time"`
+	IsAllCollateral                bool                             `json:"is_all_collateral"`
 }
 
 // AccountDetails represents account detail information
@@ -2729,4 +2739,20 @@ type UserTransactionRateLimitInfo struct {
 	Ratio     types.Number `json:"ratio"`
 	MainRatio types.Number `json:"main_ratio"`
 	UpdatedAt types.Time   `json:"updated_at"`
+}
+
+// SubAccountMode holds a sub-account mode detail
+type SubAccountMode struct {
+	UserID    int    `json:"user_id"`
+	IsUnified bool   `json:"is_unified"`
+	Mode      string `json:"mode"`
+}
+
+// BorrowOrRepayParams holds a request parameter for asset borrow and repay requests
+type BorrowOrRepayParams struct {
+	Currency  currency.Code `json:"currency"`
+	Type      string        `json:"type"` // Type: borrow - "borrow", repay - "repay"
+	Amount    float64       `json:"amount"`
+	RepaidAll bool          `json:"repaid_all,omitempty"`
+	Text      string        `json:"text,omitempty"`
 }

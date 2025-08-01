@@ -2312,17 +2312,37 @@ func TestUpdateAPIKeyOfSubAccount(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestDeleteSubAccountAPIKeyPair(t *testing.T) {
+	t.Parallel()
+	err := e.DeleteSubAccountAPIKeyPair(t.Context(), 0, "12312mnfsndfsfjsdklfjsdlkfj")
+	require.ErrorIs(t, err, errInvalidSubAccountUserID)
+	err = e.DeleteSubAccountAPIKeyPair(t.Context(), 12345, "")
+	require.ErrorIs(t, err, errMissingAPIKey)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	err = e.DeleteSubAccountAPIKeyPair(t.Context(), 12345, "12312mnfsndfsfjsdklfjsdlkfj")
+	require.NoError(t, err)
+}
+
 func TestGetAPIKeyOfSubAccount(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetAPIKeyOfSubAccount(t.Context(), 0, "12312mnfsndfsfjsdklfjsdlkfj")
+	require.ErrorIs(t, err, errInvalidSubAccountUserID)
+	_, err = e.GetAPIKeyOfSubAccount(t.Context(), 12345, "")
+	require.ErrorIs(t, err, errMissingAPIKey)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetAPIKeyOfSubAccount(t.Context(), 1234, "target_api_key")
+	_, err = e.GetAPIKeyOfSubAccount(t.Context(), 1234, "target_api_key")
 	assert.NoError(t, err)
 }
 
 func TestLockSubAccount(t *testing.T) {
 	t.Parallel()
+	err := e.LockSubAccount(t.Context(), 0)
+	require.Error(t, err, errInvalidSubAccountUserID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	err := e.LockSubAccount(t.Context(), 1234)
+	err = e.LockSubAccount(t.Context(), 1234)
 	assert.NoError(t, err)
 }
 
@@ -2330,6 +2350,13 @@ func TestUnlockSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	err := e.UnlockSubAccount(t.Context(), 1234)
+	assert.NoError(t, err)
+}
+
+func TestGetSubAccountMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetSubAccountMode(t.Context())
 	assert.NoError(t, err)
 }
 
@@ -2652,9 +2679,73 @@ func TestGetUnifiedAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	// Requires unified account to be enabled for this to function.
-	payload, err := e.GetUnifiedAccount(t.Context(), currency.EMPTYCODE)
+	payload, err := e.GetUnifiedAccount(t.Context(), currency.EMPTYCODE, "")
 	require.NoError(t, err)
 	require.NotEmpty(t, payload)
+}
+
+func TestGetMaximumBorrowableAmountUnifiedAccount(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMaximumBorrowableAmountUnifiedAccount(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetMaximumBorrowableAmountUnifiedAccount(t.Context(), currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUnifiedAccountMaximumTransferableAmount(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetUnifiedAccountMaximumTransferableAmount(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUnifiedAccountMaximumTransferableAmount(t.Context(), currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMultipleTransferableAmountForUnifiedAccounts(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMultipleTransferableAmountForUnifiedAccounts(t.Context())
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetMultipleTransferableAmountForUnifiedAccounts(t.Context(), currency.BTC, currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetMultipleTransferableAmountForUnifiedAccounts(t.Context(), currency.BTC, currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBatchUnifiedAccountMaximumBorrowableAmount(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetBatchUnifiedAccountMaximumBorrowableAmount(t.Context())
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetBatchUnifiedAccountMaximumBorrowableAmount(t.Context(), currency.BTC, currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetBatchUnifiedAccountMaximumBorrowableAmount(t.Context(), currency.BTC, currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestBorrowOrRepay(t *testing.T) {
+	t.Parallel()
+	_, err := e.BorrowOrRepay(t.Context(), &BorrowOrRepayParams{Amount: 1})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = e.BorrowOrRepay(t.Context(), &BorrowOrRepayParams{Currency: currency.ETH})
+	require.ErrorIs(t, err, errLoanTypeIsRequired)
+	_, err = e.BorrowOrRepay(t.Context(), &BorrowOrRepayParams{Currency: currency.ETH, Type: "borrow"})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.BorrowOrRepay(t.Context(), &BorrowOrRepayParams{Amount: 2, Currency: currency.ETH, Type: "borrow"})
+	assert.NoError(t, err)
 }
 
 func TestGetSettlementCurrency(t *testing.T) {
@@ -2701,7 +2792,6 @@ func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.End
 
 func TestHandleSubscriptions(t *testing.T) {
 	t.Parallel()
-
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
 
 	err := e.handleSubscription(t.Context(), &DummyConnection{}, subscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
