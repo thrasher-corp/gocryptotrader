@@ -270,7 +270,7 @@ func (e *Exchange) GetEOptionsWsAuthStreamKey(ctx context.Context) (string, erro
 	}, request.AuthenticatedRequest)
 }
 
-func (e *Exchange) wsHandleEOptionsData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleEOptionsData(_ context.Context, respRaw []byte) error {
 	var result WsOptionIncomingResps
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {

@@ -142,7 +142,7 @@ func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
 	}
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 	if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
 		if e.Websocket.Match.IncomingWithData(id, respRaw) {
 			return nil

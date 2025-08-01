@@ -86,7 +86,7 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 	return nil
 }
 
-func (e *Exchange) wsHandleFuturesData(ctx context.Context, respRaw []byte, assetType asset.Item) error {
+func (e *Exchange) wsHandleFuturesData(_ context.Context, respRaw []byte, assetType asset.Item) error {
 	result := struct {
 		Result json.RawMessage `json:"result"`
 		ID     int64           `json:"id"`

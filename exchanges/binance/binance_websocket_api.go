@@ -46,7 +46,7 @@ func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) 
 		}
 	}()
 
-	if err = e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
 		return err
 	}
 	conn.SetURL(binanceWebsocketAPIURL)
@@ -82,7 +82,7 @@ func (e *Exchange) SetIsAPIStreamConnected(isAPIStreamConnected bool) {
 }
 
 // wsHandleSpotAPIData routes API response data.
-func (e *Exchange) wsHandleSpotAPIData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleSpotAPIData(_ context.Context, respRaw []byte) error {
 	result := struct {
 		Result json.RawMessage `json:"result"`
 		ID     string          `json:"id"`
