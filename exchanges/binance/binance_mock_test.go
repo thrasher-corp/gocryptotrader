@@ -46,6 +46,5 @@ func TestMain(m *testing.M) {
 		asset.CoinMarginedFutures: coinmTradablePair,
 		asset.Margin:              spotTradablePair,
 	}
-	setupWs()
 	os.Exit(m.Run())
 }

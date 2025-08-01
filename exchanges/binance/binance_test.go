@@ -38,10 +38,11 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-	useTestNet              = false
+	apiKey                      = ""
+	apiSecret                   = ""
+	canManipulateRealOrders     = false
+	canManipulateAPICredentials = false
+	useTestNet                  = false
 
 	apiStreamingIsNotConnected = "API streaming is not connected"
 )
@@ -9895,7 +9896,7 @@ func TestCreateAPIKey(t *testing.T) {
 	_, err = e.CreateAPIKey(t.Context(), "12345", "", "1", "", "", true, true, false, true)
 	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateAPICredentials)
 	result, err := e.CreateAPIKey(t.Context(), "", "", "1", "", "", true, true, false, true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
