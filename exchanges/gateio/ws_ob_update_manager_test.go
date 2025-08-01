@@ -163,6 +163,7 @@ func TestExtractOrderbookLimit(t *testing.T) {
 	}{
 		{asset: asset.Spot, exp: 100},
 		{asset: asset.USDTMarginedFutures, exp: futuresOrderbookUpdateLimit},
+		{asset: asset.CoinMarginedFutures, exp: futuresOrderbookUpdateLimit},
 		{asset: asset.DeliveryFutures, exp: deliveryFuturesUpdateLimit},
 		{asset: asset.Options, exp: optionOrderbookUpdateLimit},
 	} {

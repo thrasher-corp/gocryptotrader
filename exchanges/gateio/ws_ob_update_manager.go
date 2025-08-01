@@ -172,7 +172,7 @@ func (c *updateCache) extractOrderbookLimit(e *Exchange, a asset.Item) (uint64, 
 		// There is no way to set levels when we subscribe for this specific subscription case.
 		// Extract limit from interval e.g. 20ms == 20 limit book and 100ms == 100 limit book.
 		return uint64(sub.Interval.Duration().Milliseconds()), nil //nolint:gosec // No overflow risk
-	case asset.USDTMarginedFutures, asset.USDCMarginedFutures:
+	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		return futuresOrderbookUpdateLimit, nil
 	case asset.DeliveryFutures:
 		return deliveryFuturesUpdateLimit, nil
