@@ -8,7 +8,6 @@ import (
 	"github.com/gorilla/mux"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
@@ -137,23 +136,16 @@ type AllEnabledExchangeCurrencies struct {
 	Data []EnabledExchangeCurrencies `json:"data"`
 }
 
-// EnabledExchangeCurrencies is a sub type for singular exchanges and respective
-// currencies
+// EnabledExchangeCurrencies is a sub type for singular exchanges and respective currencies
 type EnabledExchangeCurrencies struct {
 	ExchangeName   string          `json:"exchangeName"`
 	ExchangeValues []*ticker.Price `json:"exchangeValues"`
-}
-
-// AllEnabledExchangeAccounts holds all enabled accounts info
-type AllEnabledExchangeAccounts struct {
-	Data []account.Holdings `json:"data"`
 }
 
 var wsHandlers = map[string]wsCommandHandler{
 	"auth":             {authRequired: false, handler: wsAuth},
 	"getconfig":        {authRequired: true, handler: wsGetConfig},
 	"saveconfig":       {authRequired: true, handler: wsSaveConfig},
-	"getaccountinfo":   {authRequired: true, handler: wsGetAccountInfo},
 	"gettickers":       {authRequired: false, handler: wsGetTickers},
 	"getticker":        {authRequired: false, handler: wsGetTicker},
 	"getorderbooks":    {authRequired: false, handler: wsGetOrderbooks},

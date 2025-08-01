@@ -1018,7 +1018,7 @@ type UserRequestWithdrawalParams struct {
 	// a chance to confirm this via email.
 	Fee float64 `json:"fee,omitempty"`
 
-	// OtpToken - 2FA token. Required if 2FA is enabled on your account.
+	// OtpToken - 2FA token. Required if 2FA is enabled on your accounts.
 	OtpToken int64 `json:"otpToken,omitempty"`
 }
 
