@@ -172,7 +172,7 @@ func TestUCompressedTrades(t *testing.T) {
 	_, err := e.UCompressedTrades(t.Context(), "", "", 5, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	result, err := e.UCompressedTrades(t.Context(), "LTCUSDT", "", 5, time.Time{}, time.Time{})
+	result, err := e.UCompressedTrades(t.Context(), usdtmTradablePair.String(), "", 5, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -180,7 +180,7 @@ func TestUCompressedTrades(t *testing.T) {
 	if !mockTests {
 		start, end = time.Now().Add(-time.Hour*25), time.Now()
 	}
-	result, err = e.UCompressedTrades(t.Context(), "LTCUSDT", "", 0, start, end)
+	result, err = e.UCompressedTrades(t.Context(), usdtmTradablePair.String(), "", 0, start, end)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
