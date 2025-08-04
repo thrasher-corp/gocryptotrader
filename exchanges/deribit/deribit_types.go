@@ -844,7 +844,7 @@ type TransactionsData struct {
 // response
 type wsInput struct {
 	JSONRPCVersion string         `json:"jsonrpc,omitempty"`
-	ID             int64          `json:"id,omitempty"`
+	ID             string         `json:"id,omitempty"`
 	Method         string         `json:"method"`
 	Params         map[string]any `json:"params,omitempty"`
 }
@@ -853,7 +853,7 @@ type wsInput struct {
 // response
 type WsRequest struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
-	ID             int64  `json:"id,omitempty"`
+	ID             string `json:"id,omitempty"`
 	Method         string `json:"method"`
 	Params         any    `json:"params,omitempty"`
 }
@@ -862,14 +862,14 @@ type WsRequest struct {
 // response
 type WsSubscriptionInput struct {
 	JSONRPCVersion string              `json:"jsonrpc,omitempty"`
-	ID             int64               `json:"id,omitempty"`
+	ID             string              `json:"id,omitempty"`
 	Method         string              `json:"method"`
 	Params         map[string][]string `json:"params,omitempty"`
 }
 
 type wsResponse struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
-	ID             int64  `json:"id,omitempty"`
+	ID             string `json:"id,omitempty"`
 	Result         any    `json:"result,omitempty"`
 	Error          struct {
 		Message string `json:"message,omitempty"`
@@ -880,7 +880,7 @@ type wsResponse struct {
 
 type wsLoginResponse struct {
 	JSONRPCVersion string          `json:"jsonrpc"`
-	ID             int64           `json:"id"`
+	ID             string          `json:"id"`
 	Method         string          `json:"method"`
 	Result         map[string]any  `json:"result"`
 	Error          *UnmarshalError `json:"error"`
@@ -888,7 +888,7 @@ type wsLoginResponse struct {
 
 type wsSubscriptionResponse struct {
 	JSONRPCVersion string   `json:"jsonrpc"`
-	ID             int64    `json:"id"`
+	ID             string   `json:"id"`
 	Method         string   `json:"method"`
 	Result         []string `json:"result"`
 }
@@ -1065,7 +1065,7 @@ type BlockTradeMoveResponse struct {
 
 // WsResponse represents generalized websocket subscription push data and immediate websocket call responses.
 type WsResponse struct {
-	ID     int64 `json:"id,omitempty"`
+	ID     string `json:"id,omitempty"`
 	Params struct {
 		Data    any    `json:"data"`
 		Channel string `json:"channel"`
