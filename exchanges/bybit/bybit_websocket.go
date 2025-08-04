@@ -654,9 +654,6 @@ func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespo
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
-	if len(result.Bids) == 0 && len(result.Asks) == 0 {
-		return nil
-	}
 
 	cp, err := e.MatchSymbolWithAvailablePairs(result.Symbol, assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
@@ -693,6 +690,7 @@ func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespo
 		UpdateID:   result.UpdateID,
 		UpdateTime: resp.OrderbookLastUpdated.Time(),
 		LastPushed: resp.PushTimestamp.Time(),
+		AllowEmpty: true,
 	})
 }
 
@@ -762,11 +760,11 @@ func (e *Exchange) submitDirectSubscription(ctx context.Context, conn websocket.
 		if a == asset.Options {
 			// The options connection does not send the subscription request id back with the subscription notification payload
 			// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
-			if err := conn.SendJSONMessage(ctx, request.Unset, payload); err != nil {
+			if err := conn.SendJSONMessage(ctx, wsSubscriptionEPL, payload); err != nil {
 				return err
 			}
 		} else {
-			response, err := conn.SendMessageReturnResponse(ctx, request.Unset, payload.RequestID, payload)
+			response, err := conn.SendMessageReturnResponse(ctx, wsSubscriptionEPL, payload.RequestID, payload)
 			if err != nil {
 				return err
 			}

@@ -202,10 +202,7 @@ func (e *Exchange) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	if e.Requester, err = request.New(e.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(GetRateLimit()),
-	); err != nil {
+	if e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(rateLimits)); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
@@ -236,6 +233,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		OrderbookBufferConfig:        buffer.Config{SortBuffer: true, SortBufferByUpdateIDs: true},
 		TradeFeed:                    e.Features.Enabled.TradeFeed,
 		UseMultiConnectionManagement: true,
+		RateLimitDefinitions:         rateLimits,
 	}); err != nil {
 		return err
 	}
@@ -250,7 +248,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsSpotURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
 		Connector:             e.WsConnect,
 		GenerateSubscriptions: e.generateSubscriptions,
 		Subscriber:            e.SpotSubscribe,
@@ -271,7 +268,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsOptionsURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
 		Connector:             e.WsConnect,
 		GenerateSubscriptions: e.GenerateOptionsDefaultSubscriptions,
 		Subscriber:            e.OptionsSubscribe,
@@ -292,7 +288,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  wsUSDTLinearURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            request.NewWeightedRateLimitByDuration(time.Microsecond),
 		Connector:            e.WsConnect,
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return e.GenerateLinearDefaultSubscriptions(asset.USDTMarginedFutures)
@@ -320,7 +315,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  wsUSDCLinearURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            request.NewWeightedRateLimitByDuration(time.Microsecond),
 		Connector:            e.WsConnect,
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return e.GenerateLinearDefaultSubscriptions(asset.USDCMarginedFutures)
@@ -348,7 +342,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsInverseURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
 		Connector:             e.WsConnect,
 		GenerateSubscriptions: e.GenerateInverseDefaultSubscriptions,
 		Subscriber:            e.InverseSubscribe,
@@ -364,7 +357,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                      websocketTrade,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		RateLimit:                request.NewWeightedRateLimitByDuration(time.Microsecond),
 		Connector:                e.WsConnect,
 		Handler:                  func(_ context.Context, resp []byte) error { return e.wsHandleTradeData(resp) },
 		RequestIDGenerator:       e.messageIDSeq.IncrementAndGet,
@@ -385,7 +377,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsPrivateURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
 		Authenticated:         true,
 		Connector:             e.WsConnect,
 		GenerateSubscriptions: e.generateAuthSubscriptions,
@@ -615,10 +606,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	}
 
 	switch assetType {
-	case asset.Spot, asset.USDTMarginedFutures,
-		asset.USDCMarginedFutures,
-		asset.CoinMarginedFutures,
-		asset.Options:
+	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
 		if assetType == asset.USDCMarginedFutures && !p.Quote.Equal(currency.PERP) {
 			p.Delimiter = currency.DashDelimiter
 		}

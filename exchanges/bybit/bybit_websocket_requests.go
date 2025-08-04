@@ -31,7 +31,11 @@ func (e *Exchange) WSCreateOrder(ctx context.Context, arg *PlaceOrderParams) (*W
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	return e.SendWebsocketRequest(ctx, WsCreate, arg)
+	epl, err := getWSRateLimitEPLByCategory(arg.Category)
+	if err != nil {
+		return nil, err
+	}
+	return e.SendWebsocketRequest(ctx, WsCreate, arg, epl)
 }
 
 // WSAmendOrder amends an order through the websocket connection
@@ -39,7 +43,11 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderParams) (*We
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	return e.SendWebsocketRequest(ctx, WsAmend, arg)
+	epl, err := getWSRateLimitEPLByCategory(arg.Category)
+	if err != nil {
+		return nil, err
+	}
+	return e.SendWebsocketRequest(ctx, WsAmend, arg, epl)
 }
 
 // WSCancelOrder cancels an order through the websocket connection
@@ -47,7 +55,11 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderParams) (*
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	return e.SendWebsocketRequest(ctx, WsCancel, arg)
+	epl, err := getWSRateLimitEPLByCategory(arg.Category)
+	if err != nil {
+		return nil, err
+	}
+	return e.SendWebsocketRequest(ctx, WsCancel, arg, epl)
 }
 
 // WebsocketOrderDetails is the order details from the websocket response.
@@ -135,7 +147,7 @@ type IDLoader interface {
 }
 
 // SendWebsocketRequest sends a request to the exchange through the websocket connection
-func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, argument IDLoader) (*WebsocketOrderDetails, error) {
+func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, argument IDLoader, limit request.EndpointLimit) (*WebsocketOrderDetails, error) {
 	// Get the outbound and inbound connections to send and receive the request. This makes sure both are live before
 	// sending the request.
 	outbound, err := e.Websocket.GetConnection(OutboundTradeConnection)
@@ -162,7 +174,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, argument
 	}
 
 	// TODO: Create new function to return a channel so that we can select on multiple connections, this is a slight potential optimisation.
-	outResp, err := outbound.SendMessageReturnResponse(ctx, request.Unset, requestID, WebsocketGeneralPayload{
+	outResp, err := outbound.SendMessageReturnResponse(ctx, limit, requestID, WebsocketGeneralPayload{
 		RequestID: requestID,
 		Header:    map[string]string{"X-BAPI-TIMESTAMP": strconv.FormatInt(tn.UnixMilli(), 10)},
 		Operation: op,
