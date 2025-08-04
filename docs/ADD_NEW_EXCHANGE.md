@@ -361,7 +361,7 @@ Ensure each endpoint is implemented and has an associated test to improve test c
 
 #### Authenticated functions
 
-Authenticated request function is created based on the way the exchange documentation specifies: see the [Binance Spot API - Endpoint Security Types](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/endpoint-security-type).
+Authenticated request function is created based on the way the exchange documentation specifies: see the [Binance Spot API - Endpoint Security Types](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/endpoint-security-type).
 
 ```go
 // SendAuthHTTPRequest sends an authenticated request
@@ -439,7 +439,7 @@ An HTTP mocking framework can also be added for the exchange. For reference, ple
 
 Create authenticated functions and test along the way, similar to the functions above.  
 
-See the [Binance Spot REST API - Account Endpoints](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/account-endpoints) for details.
+See the [Binance Spot REST API - Account Endpoints](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/account-endpoints) for details.
 
 ```go
 // GetAccount returns binance user accounts
@@ -485,7 +485,7 @@ func (e *Exchange) QueryOrder(ctx context.Context, symbol currency.Pair, origCli
 ```
 
 Structs for unmarshalling the data are made exactly the same way as the previous functions.  
-See the [Binance Spot REST API - Trading Endpoints](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/trading-endpoints) for details.
+See the [Binance Spot REST API - Trading Endpoints](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/trading-endpoints) for details.
 
 ```go
 // OrderResponse is the return structured response from the exchange
