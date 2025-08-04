@@ -962,15 +962,15 @@ func (e *Exchange) DeriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderParam
 	}
 
 	arg := &PlaceOrderParams{
-		Category:        getCategoryName(s.AssetType),
-		Symbol:          formattedPair,
-		Side:            sideType,
-		OrderType:       orderTypeToString(s.Type),
-		OrderQuantity:   s.Amount,
-		Price:           s.Price,
-		OrderLinkID:     s.ClientOrderID,
-		WhetherToBorrow: s.AssetType == asset.Margin,
-		ReduceOnly:      s.ReduceOnly,
+		Category:      getCategoryName(s.AssetType),
+		Symbol:        formattedPair,
+		Side:          sideType,
+		OrderType:     orderTypeToString(s.Type),
+		OrderQuantity: s.Amount,
+		Price:         s.Price,
+		OrderLinkID:   s.ClientOrderID,
+		EnableBorrow:  s.AssetType == asset.Margin,
+		ReduceOnly:    s.ReduceOnly,
 		OrderFilter: func() string {
 			if s.RiskManagementModes.TakeProfit.Price != 0 || s.RiskManagementModes.TakeProfit.LimitPrice != 0 ||
 				s.RiskManagementModes.StopLoss.Price != 0 || s.RiskManagementModes.StopLoss.LimitPrice != 0 {

@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	errAmendArgumentsRequired = errors.New("at least one of the following fields is required: orderIv, triggerPrice, qty, price, takeProfit, stopLoss etc")
+	errAmendArgumentsRequired = errors.New("at least one of the following fields is required: orderIv, triggerPrice, qty, price, takeProfit, stopLoss")
 	errInvalidLeverageValue   = errors.New("please provide a valid isLeverage value; must be 0 for unified spot and 1 for margin trading")
 	validCategory             = []string{"spot", "linear", "inverse", "option"}
 )
@@ -323,7 +323,7 @@ type PlaceOrderParams struct {
 	Price                  float64       `json:"price,string,omitempty"`
 	TimeInForce            string        `json:"timeInForce,omitempty"`      // IOC and GTC
 	OrderLinkID            string        `json:"orderLinkId,omitempty"`      // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
-	WhetherToBorrow        bool          `json:"-"`                          // '0' for default spot, '1' for Margin trading.
+	EnableBorrow           bool          `json:"-"`                          // '0' for default spot, '1' for Margin trading.
 	IsLeverage             int64         `json:"isLeverage,omitempty"`       // Required   // '0' for default spot, '1' for Margin trading.
 	OrderFilter            string        `json:"orderFilter,omitempty"`      // Valid for spot only. Order,tpslOrder. If not passed, Order by default
 	TriggerDirection       int64         `json:"triggerDirection,omitempty"` // Required // Conditional order param. Used to identify the expected direction of the conditional order. '1': triggered when market price rises to triggerPrice '2': triggered when market price falls to triggerPrice
@@ -359,7 +359,7 @@ func (p *PlaceOrderParams) Validate() error {
 	if p.Symbol.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
-	if p.WhetherToBorrow {
+	if p.EnableBorrow {
 		p.IsLeverage = 1
 	}
 	// specifies whether to borrow or to trade.
