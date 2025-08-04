@@ -38,8 +38,8 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 
 ### Struct Naming
 
-- Request structs must be named in the form `XRequest.`
-- Response structs must be named in the form `XResponse.`
+- Request structs must be named in the form `XRequest`.
+- Response structs must be named in the form `XResponse`.
 - All request and response structs should be used as pointers in implementations:
 
 ```go
