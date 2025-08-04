@@ -17,6 +17,7 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 - Implement API endpoints in the order they are presented in the API documentation to maintain alignment with the source.
 - Group related endpoints into files that follow the documented API structure.
 - Inline endpoint paths directly in the method implementation. Avoid defining them as constants elsewhere.
+- Export exchange types, functions and methods by default (e.g. `func (e *Exchange) GetOrderBook(...)`) so that GoCryptoTrader can be consumed as both a standalone library and interfaced via the engine package.
 
 ### Type Usage
 
@@ -33,7 +34,7 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 
 ### TestMain usage
 
-- TestMain must avoid API calls to keep the test footprint as minimal as possible unless there's a good case as to why it was done.
+- TestMain must avoid API calls to keep the test footprint as minimal as possible unless there's a good case with commentary as to why it was done.
 
 ### Struct Naming
 
@@ -122,7 +123,7 @@ Use `require` and `assert` appropriately:
 ### Test Coverage
 
 - Maintain original test inputs unless they are incorrect.
-- Basic test coverage is acceptable; mock external calls as needed.
+- Full test coverage is preferable; mock external calls as needed.
 - All unit tests must pass before finalising changes.
 
 ### Test deduplication
