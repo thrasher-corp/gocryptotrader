@@ -1,13 +1,14 @@
 package bybit
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-var errUnknownCategory = fmt.Errorf("unknown category")
+var errUnknownCategory = errors.New("unknown category")
 
 const (
 	defaultEPL request.EndpointLimit = iota

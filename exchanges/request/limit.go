@@ -21,7 +21,7 @@ var (
 )
 
 // RateLimitNotRequired is a no-op rate limiter
-var RateLimitNotRequired *RateLimiterWithWeight = nil
+var RateLimitNotRequired *RateLimiterWithWeight
 
 // Const here define individual functionality sub types for rate limiting
 const (
