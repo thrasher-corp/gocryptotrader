@@ -3668,8 +3668,10 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
+	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+
 	sub.AssetType = asset.Spot
 	cpy.AssetType = asset.Spot
-	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
+	_, err = e.WebsocketSubmitOrders(request.WithVerbose(t.Context()), []*order.Submit{sub, &cpy})
 	require.NoError(t, err)
 }
