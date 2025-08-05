@@ -2753,6 +2753,13 @@ func TestGetClientOrderIDFromText(t *testing.T) {
 	assert.Equal(t, "t-123", getClientOrderIDFromText("t-123"), "should return t-123")
 }
 
+func TestFormatClientOrderID(t *testing.T) {
+	t.Parallel()
+	assert.Empty(t, formatClientOrderID(""), "should not return anything")
+	assert.Equal(t, "t-123", formatClientOrderID("t-123"), "should return t-123")
+	assert.Equal(t, "t-456", formatClientOrderID("456"), "should return t-456")
+}
+
 func TestGetSideAndAmountFromSize(t *testing.T) {
 	t.Parallel()
 	side, amount, remaining := getSideAndAmountFromSize(1, 1)
