@@ -146,7 +146,6 @@ type MarkPriceKlineResponse struct {
 	List     []KlineItem `json:"list"`
 }
 
-
 // TickerData represents a list of ticker detailed information.
 type TickerData struct {
 	Category string       `json:"category"`
