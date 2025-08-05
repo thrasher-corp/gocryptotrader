@@ -3603,3 +3603,40 @@ func (e *Exchange) GetUserTransactionRateLimitInfo(ctx context.Context) ([]UserT
 	var resp []UserTransactionRateLimitInfo
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/rate_limit", nil, nil, &resp)
 }
+
+// validate validates the ContractOrderCreateParams
+func (c *ContractOrderCreateParams) validate(isRest bool) error {
+	if err := common.NilGuard(c); err != nil {
+		return err
+	}
+	if c.Contract.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if c.Size == 0 && c.AutoSize == "" {
+		return errInvalidOrderSize
+	}
+	if c.TimeInForce != "" {
+		if _, err := timeInForceFromString(c.TimeInForce); err != nil {
+			return err
+		}
+	}
+	if c.Price == 0 && c.TimeInForce != iocTIF && c.TimeInForce != fokTIF {
+		return fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, c.TimeInForce)
+	}
+	if c.Text != "" && !strings.HasPrefix(c.Text, "t-") {
+		return errInvalidText
+	}
+	if c.AutoSize != "" {
+		if c.AutoSize != "close_long" && c.AutoSize != "close_short" {
+			return errInvalidAutoSize
+		}
+		if c.Size != 0 {
+			return fmt.Errorf("%w: size needs to be zero when auto size is set", errInvalidOrderSize)
+		}
+	}
+	if (isRest && c.Settle.IsEmpty()) ||
+		(!isRest && !c.Settle.IsEmpty() && !c.Settle.Equal(currency.BTC) && !c.Settle.Equal(currency.USDT)) {
+		return errEmptyOrInvalidSettlementCurrency
+	}
+	return nil
+}
