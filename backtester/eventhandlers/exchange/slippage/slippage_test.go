@@ -21,7 +21,7 @@ func TestRandomSlippage(t *testing.T) {
 
 func TestCalculateSlippageByOrderbook(t *testing.T) {
 	t.Parallel()
-	b := bitstamp.Bitstamp{}
+	b := bitstamp.Exchange{}
 	b.SetDefaults()
 
 	cp := currency.NewBTCUSD()

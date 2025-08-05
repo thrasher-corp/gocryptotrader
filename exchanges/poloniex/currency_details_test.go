@@ -44,7 +44,7 @@ func TestWsCurrencyMap(t *testing.T) {
 	_, err = m.IsPostOnlyForPair(currency.EMPTYPAIR)
 	require.ErrorIs(t, err, errCodeMapIsNil)
 
-	c, err := p.GetCurrencies(t.Context())
+	c, err := e.GetCurrencies(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestWsCurrencyMap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tick, err := p.GetTicker(t.Context())
+	tick, err := e.GetTicker(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

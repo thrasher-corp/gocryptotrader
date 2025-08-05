@@ -58,37 +58,37 @@ var defaultSubscriptions = subscription.List{
 }
 
 // WsConnect initiates a websocket connection
-func (c *CoinbasePro) WsConnect() error {
+func (e *Exchange) WsConnect() error {
 	ctx := context.TODO()
-	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := c.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	c.Websocket.Wg.Add(1)
-	go c.wsReadData()
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData()
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (c *CoinbasePro) wsReadData() {
-	defer c.Websocket.Wg.Done()
+func (e *Exchange) wsReadData() {
+	defer e.Websocket.Wg.Done()
 	var seqCount uint64
 	for {
-		resp := c.Websocket.Conn.ReadMessage()
+		resp := e.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		sequence, err := c.wsHandleData(resp.Raw)
+		sequence, err := e.wsHandleData(resp.Raw)
 		if err != nil {
-			c.Websocket.DataHandler <- err
+			e.Websocket.DataHandler <- err
 		}
 		if sequence != nil {
 			if *sequence != seqCount {
-				c.Websocket.DataHandler <- fmt.Sprintf(warnSequenceIssue, sequence, seqCount)
+				e.Websocket.DataHandler <- fmt.Sprintf(warnSequenceIssue, sequence, seqCount)
 				seqCount = *sequence
 			}
 			seqCount++
@@ -97,7 +97,7 @@ func (c *CoinbasePro) wsReadData() {
 }
 
 // wsHandleData handles all the websocket data coming from the websocket connection
-func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
+func (e *Exchange) wsHandleData(respRaw []byte) (*uint64, error) {
 	var inc StandardWebsocketResponse
 	if err := json.Unmarshal(respRaw, &inc); err != nil {
 		return nil, err
@@ -113,21 +113,21 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 		if err := json.Unmarshal(inc.Events, &wsStatus); err != nil {
 			return &inc.Sequence, err
 		}
-		c.Websocket.DataHandler <- wsStatus
+		e.Websocket.DataHandler <- wsStatus
 	case "ticker", "ticker_batch":
 		var wsTicker []WebsocketTickerHolder
 		if err := json.Unmarshal(inc.Events, &wsTicker); err != nil {
 			return &inc.Sequence, err
 		}
 		var sliToSend []ticker.Price
-		aliases := c.pairAliases.GetAliases()
+		aliases := e.pairAliases.GetAliases()
 		for i := range wsTicker {
 			for j := range wsTicker[i].Tickers {
 				tickAlias := aliases[wsTicker[i].Tickers[j].ProductID]
 				newTick := ticker.Price{
 					LastUpdated:  inc.Timestamp,
 					AssetType:    asset.Spot,
-					ExchangeName: c.Name,
+					ExchangeName: e.Name,
 					High:         wsTicker[i].Tickers[j].High24H.Float64(),
 					Low:          wsTicker[i].Tickers[j].Low24H.Float64(),
 					Last:         wsTicker[i].Tickers[j].Price.Float64(),
@@ -139,7 +139,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 				}
 				var errs error
 				for k := range tickAlias {
-					isEnabled, err := c.CurrencyPairs.IsPairEnabled(tickAlias[k], asset.Spot)
+					isEnabled, err := e.CurrencyPairs.IsPairEnabled(tickAlias[k], asset.Spot)
 					if err != nil {
 						errs = common.AppendError(errs, err)
 						continue
@@ -151,7 +151,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 				}
 			}
 		}
-		c.Websocket.DataHandler <- sliToSend
+		e.Websocket.DataHandler <- sliToSend
 	case "candles":
 		var wsCandles []WebsocketCandleHolder
 		if err := json.Unmarshal(inc.Events, &wsCandles); err != nil {
@@ -164,7 +164,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 					Timestamp:  inc.Timestamp,
 					Pair:       wsCandles[i].Candles[j].ProductID,
 					AssetType:  asset.Spot,
-					Exchange:   c.Name,
+					Exchange:   e.Name,
 					StartTime:  wsCandles[i].Candles[j].Start.Time(),
 					OpenPrice:  wsCandles[i].Candles[j].Open.Float64(),
 					ClosePrice: wsCandles[i].Candles[j].Close.Float64(),
@@ -174,7 +174,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 				})
 			}
 		}
-		c.Websocket.DataHandler <- sliToSend
+		e.Websocket.DataHandler <- sliToSend
 	case "market_trades":
 		var wsTrades []WebsocketMarketTradeHolder
 		if err := json.Unmarshal(inc.Events, &wsTrades); err != nil {
@@ -185,7 +185,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 			for j := range wsTrades[i].Trades {
 				sliToSend = append(sliToSend, trade.Data{
 					TID:          wsTrades[i].Trades[j].TradeID,
-					Exchange:     c.Name,
+					Exchange:     e.Name,
 					CurrencyPair: wsTrades[i].Trades[j].ProductID,
 					AssetType:    asset.Spot,
 					Side:         wsTrades[i].Trades[j].Side,
@@ -195,7 +195,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 				})
 			}
 		}
-		c.Websocket.DataHandler <- sliToSend
+		e.Websocket.DataHandler <- sliToSend
 	case "l2_data":
 		var wsL2 []WebsocketOrderbookDataHolder
 		err := json.Unmarshal(inc.Events, &wsL2)
@@ -205,9 +205,9 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 		for i := range wsL2 {
 			switch wsL2[i].Type {
 			case "snapshot":
-				err = c.ProcessSnapshot(&wsL2[i], inc.Timestamp)
+				err = e.ProcessSnapshot(&wsL2[i], inc.Timestamp)
 			case "update":
-				err = c.ProcessUpdate(&wsL2[i], inc.Timestamp)
+				err = e.ProcessUpdate(&wsL2[i], inc.Timestamp)
 			default:
 				err = fmt.Errorf("%w %v", errUnknownL2DataType, wsL2[i].Type)
 			}
@@ -227,24 +227,24 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 				var oType order.Type
 				oType, err = stringToStandardType(wsUser[i].Orders[j].OrderType)
 				if err != nil {
-					c.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: c.Name,
+					e.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: e.Name,
 						Err:      err,
 					}
 				}
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(wsUser[i].Orders[j].OrderSide)
 				if err != nil {
-					c.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: c.Name,
+					e.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: e.Name,
 						Err:      err,
 					}
 				}
 				var oStatus order.Status
 				oStatus, err = statusToStandardStatus(wsUser[i].Orders[j].Status)
 				if err != nil {
-					c.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: c.Name,
+					e.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: e.Name,
 						Err:      err,
 					}
 				}
@@ -255,16 +255,16 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 				var asset asset.Item
 				asset, err = stringToStandardAsset(wsUser[i].Orders[j].ProductType)
 				if err != nil {
-					c.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: c.Name,
+					e.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: e.Name,
 						Err:      err,
 					}
 				}
 				var tif order.TimeInForce
 				tif, err = strategyDecoder(wsUser[i].Orders[j].TimeInForce)
 				if err != nil {
-					c.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: c.Name,
+					e.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: e.Name,
 						Err:      err,
 					}
 				}
@@ -288,23 +288,23 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 					Fee:             wsUser[i].Orders[j].TotalFees.Float64(),
 					Date:            wsUser[i].Orders[j].CreationTime,
 					CloseTime:       wsUser[i].Orders[j].EndTime,
-					Exchange:        c.Name,
+					Exchange:        e.Name,
 				})
 			}
 			for j := range wsUser[i].Positions.PerpetualFuturesPositions {
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(wsUser[i].Positions.PerpetualFuturesPositions[j].PositionSide)
 				if err != nil {
-					c.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: c.Name,
+					e.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: e.Name,
 						Err:      err,
 					}
 				}
 				var mType margin.Type
 				mType, err = margin.StringToMarginType(wsUser[i].Positions.PerpetualFuturesPositions[j].MarginType)
 				if err != nil {
-					c.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: c.Name,
+					e.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: e.Name,
 						Err:      err,
 					}
 				}
@@ -315,15 +315,15 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 					Amount:     wsUser[i].Positions.PerpetualFuturesPositions[j].NetSize.Float64(),
 					Leverage:   wsUser[i].Positions.PerpetualFuturesPositions[j].Leverage.Float64(),
 					AssetType:  asset.Futures,
-					Exchange:   c.Name,
+					Exchange:   e.Name,
 				})
 			}
 			for j := range wsUser[i].Positions.ExpiringFuturesPositions {
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(wsUser[i].Positions.ExpiringFuturesPositions[j].Side)
 				if err != nil {
-					c.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: c.Name,
+					e.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: e.Name,
 						Err:      err,
 					}
 				}
@@ -335,7 +335,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 				})
 			}
 		}
-		c.Websocket.DataHandler <- sliToSend
+		e.Websocket.DataHandler <- sliToSend
 	default:
 		return &inc.Sequence, errChannelNameUnknown
 	}
@@ -343,7 +343,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 }
 
 // ProcessSnapshot processes the initial orderbook snap shot
-func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, timestamp time.Time) error {
+func (e *Exchange) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, timestamp time.Time) error {
 	bids, asks, err := processBidAskArray(snapshot, true)
 	if err != nil {
 		return err
@@ -351,20 +351,20 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, ti
 	book := &orderbook.Book{
 		Bids:              bids,
 		Asks:              asks,
-		Exchange:          c.Name,
+		Exchange:          e.Name,
 		Pair:              snapshot.ProductID,
 		Asset:             asset.Spot,
 		LastUpdated:       timestamp,
-		ValidateOrderbook: c.ValidateOrderbook,
+		ValidateOrderbook: e.ValidateOrderbook,
 	}
-	for _, a := range c.pairAliases.GetAlias(snapshot.ProductID) {
-		isEnabled, err := c.IsPairEnabled(a, asset.Spot)
+	for _, a := range e.pairAliases.GetAlias(snapshot.ProductID) {
+		isEnabled, err := e.IsPairEnabled(a, asset.Spot)
 		if err != nil {
 			return err
 		}
 		if isEnabled {
 			book.Pair = a
-			err = c.Websocket.Orderbook.LoadSnapshot(book)
+			err = e.Websocket.Orderbook.LoadSnapshot(book)
 			if err != nil {
 				return err
 			}
@@ -374,7 +374,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, ti
 }
 
 // ProcessUpdate updates the orderbook local cache
-func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timestamp time.Time) error {
+func (e *Exchange) ProcessUpdate(update *WebsocketOrderbookDataHolder, timestamp time.Time) error {
 	bids, asks, err := processBidAskArray(update, false)
 	if err != nil {
 		return err
@@ -386,14 +386,14 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timest
 		UpdateTime: timestamp,
 		Asset:      asset.Spot,
 	}
-	for _, a := range c.pairAliases.GetAlias(update.ProductID) {
-		isEnabled, err := c.IsPairEnabled(a, asset.Spot)
+	for _, a := range e.pairAliases.GetAlias(update.ProductID) {
+		isEnabled, err := e.IsPairEnabled(a, asset.Spot)
 		if err != nil {
 			return err
 		}
 		if isEnabled {
 			obU.Pair = a
-			err = c.Websocket.Orderbook.Update(obU)
+			err = e.Websocket.Orderbook.Update(obU)
 			if err != nil {
 				return err
 			}
@@ -403,29 +403,29 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timest
 }
 
 // GenerateSubscriptions adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
-	return c.Features.Subscriptions.ExpandTemplates(c)
+func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (c *CoinbasePro) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName}).Parse(subTplText)
 }
 
 // Subscribe sends a websocket message to receive data from a list of channels
-func (c *CoinbasePro) Subscribe(subs subscription.List) error {
-	return c.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error { return c.manageSubs(ctx, "subscribe", subs) }, 1)
+func (e *Exchange) Subscribe(subs subscription.List) error {
+	return e.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error { return e.manageSubs(ctx, "subscribe", subs) }, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from a list of channels
-func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
-	return c.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error { return c.manageSubs(ctx, "unsubscribe", subs) }, 1)
+func (e *Exchange) Unsubscribe(subs subscription.List) error {
+	return e.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error { return e.manageSubs(ctx, "unsubscribe", subs) }, 1)
 }
 
 // manageSubs subscribes or unsubscribes from a list of websocket channels
-func (c *CoinbasePro) manageSubs(ctx context.Context, op string, subs subscription.List) error {
+func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	var errs error
-	subs, errs = subs.ExpandTemplates(c)
+	subs, errs = subs.ExpandTemplates(e)
 	for _, s := range subs {
 		r := &WebsocketRequest{
 			Type:       op,
@@ -437,16 +437,16 @@ func (c *CoinbasePro) manageSubs(ctx context.Context, op string, subs subscripti
 		limitType := WSUnauthRate
 		if s.Authenticated {
 			limitType = WSAuthRate
-			if r.JWT, err = c.GetWSJWT(ctx); err != nil {
+			if r.JWT, err = e.GetWSJWT(ctx); err != nil {
 				return err
 			}
 		}
-		if err = c.Websocket.Conn.SendJSONMessage(ctx, limitType, r); err == nil {
+		if err = e.Websocket.Conn.SendJSONMessage(ctx, limitType, r); err == nil {
 			switch op {
 			case "subscribe":
-				err = c.Websocket.AddSuccessfulSubscriptions(c.Websocket.Conn, s)
+				err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s)
 			case "unsubscribe":
-				err = c.Websocket.RemoveSubscriptions(c.Websocket.Conn, s)
+				err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s)
 			}
 		}
 		errs = common.AppendError(errs, err)
@@ -455,19 +455,19 @@ func (c *CoinbasePro) manageSubs(ctx context.Context, op string, subs subscripti
 }
 
 // GetWSJWT returns a JWT, using a stored one of it's provided, and generating a new one otherwise
-func (c *CoinbasePro) GetWSJWT(ctx context.Context) (string, error) {
-	c.jwt.m.RLock()
-	if c.jwt.expiresAt.After(time.Now()) {
-		retStr := c.jwt.token
-		c.jwt.m.RUnlock()
+func (e *Exchange) GetWSJWT(ctx context.Context) (string, error) {
+	e.jwt.m.RLock()
+	if e.jwt.expiresAt.After(time.Now()) {
+		retStr := e.jwt.token
+		e.jwt.m.RUnlock()
 		return retStr, nil
 	}
-	c.jwt.m.RUnlock()
-	c.jwt.m.Lock()
-	defer c.jwt.m.Unlock()
+	e.jwt.m.RUnlock()
+	e.jwt.m.Lock()
+	defer e.jwt.m.Unlock()
 	var err error
-	c.jwt.token, c.jwt.expiresAt, err = c.GetJWT(ctx, "")
-	return c.jwt.token, err
+	e.jwt.token, e.jwt.expiresAt, err = e.GetJWT(ctx, "")
+	return e.jwt.token, err
 }
 
 // processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays of bids and asks
@@ -564,12 +564,12 @@ func base64URLEncode(b []byte) string {
 
 // checkSubscriptions looks for incompatible subscriptions and if found replaces all with defaults
 // This should be unnecessary and removable by mid-2025
-func (c *CoinbasePro) checkSubscriptions() {
-	for _, s := range c.Config.Features.Subscriptions {
+func (e *Exchange) checkSubscriptions() {
+	for _, s := range e.Config.Features.Subscriptions {
 		switch s.Channel {
 		case "level2_batch", "matches":
-			c.Config.Features.Subscriptions = defaultSubscriptions.Clone()
-			c.Features.Subscriptions = c.Config.Features.Subscriptions.Enabled()
+			e.Config.Features.Subscriptions = defaultSubscriptions.Clone()
+			e.Features.Subscriptions = e.Config.Features.Subscriptions.Enabled()
 			return
 		}
 	}

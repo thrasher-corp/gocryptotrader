@@ -24,8 +24,8 @@ type pairAliases struct {
 	m                 sync.RWMutex
 }
 
-// CoinbasePro is the overarching type across the coinbasepro package
-type CoinbasePro struct {
+// Exchange is the overarching type across the coinbasepro package
+type Exchange struct {
 	exchange.Base
 	jwt         jwtManager
 	pairAliases pairAliases

@@ -170,7 +170,7 @@ var (
 )
 
 // GetAccountByID returns information for a single account
-func (c *CoinbasePro) GetAccountByID(ctx context.Context, accountID string) (*Account, error) {
+func (e *Exchange) GetAccountByID(ctx context.Context, accountID string) (*Account, error) {
 	if accountID == "" {
 		return nil, errAccountIDEmpty
 	}
@@ -178,11 +178,11 @@ func (c *CoinbasePro) GetAccountByID(ctx context.Context, accountID string) (*Ac
 	resp := struct {
 		Account Account `json:"account"`
 	}{}
-	return &resp.Account, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return &resp.Account, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // ListAccounts returns information on all trading accounts associated with the API key
-func (c *CoinbasePro) ListAccounts(ctx context.Context, limit uint8, cursor int64) (*AllAccountsResponse, error) {
+func (e *Exchange) ListAccounts(ctx context.Context, limit uint8, cursor int64) (*AllAccountsResponse, error) {
 	vals := url.Values{}
 	if limit != 0 {
 		vals.Set("limit", strconv.FormatUint(uint64(limit), 10))
@@ -191,11 +191,11 @@ func (c *CoinbasePro) ListAccounts(ctx context.Context, limit uint8, cursor int6
 		vals.Set("cursor", strconv.FormatInt(cursor, 10))
 	}
 	var resp AllAccountsResponse
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseAccounts, vals, nil, true, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseAccounts, vals, nil, true, &resp)
 }
 
 // CommitConvertTrade commits a conversion between two currencies, using the trade_id returned from CreateConvertQuote
-func (c *CoinbasePro) CommitConvertTrade(ctx context.Context, tradeID, from, to string) (*ConvertResponse, error) {
+func (e *Exchange) CommitConvertTrade(ctx context.Context, tradeID, from, to string) (*ConvertResponse, error) {
 	if tradeID == "" {
 		return nil, errTransactionIDEmpty
 	}
@@ -210,11 +210,11 @@ func (c *CoinbasePro) CommitConvertTrade(ctx context.Context, tradeID, from, to 
 	resp := struct {
 		Trade ConvertResponse `json:"trade"`
 	}{}
-	return &resp.Trade, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return &resp.Trade, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
 // CreateConvertQuote creates a quote for a conversion between two currencies. The trade_id returned can be used to commit the trade, but that must be done within 10 minutes of the quote's creation
-func (c *CoinbasePro) CreateConvertQuote(ctx context.Context, from, to, userIncentiveID, codeVal string, amount float64) (*ConvertResponse, error) {
+func (e *Exchange) CreateConvertQuote(ctx context.Context, from, to, userIncentiveID, codeVal string, amount float64) (*ConvertResponse, error) {
 	if from == "" || to == "" {
 		return nil, errAccountIDEmpty
 	}
@@ -235,11 +235,11 @@ func (c *CoinbasePro) CreateConvertQuote(ctx context.Context, from, to, userInce
 	resp := struct {
 		Trade ConvertResponse `json:"trade"`
 	}{}
-	return &resp.Trade, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return &resp.Trade, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
 // GetConvertTradeByID returns information on a conversion between two currencies
-func (c *CoinbasePro) GetConvertTradeByID(ctx context.Context, tradeID, from, to string) (*ConvertResponse, error) {
+func (e *Exchange) GetConvertTradeByID(ctx context.Context, tradeID, from, to string) (*ConvertResponse, error) {
 	if tradeID == "" {
 		return nil, errTransactionIDEmpty
 	}
@@ -254,17 +254,17 @@ func (c *CoinbasePro) GetConvertTradeByID(ctx context.Context, tradeID, from, to
 	resp := struct {
 		Trade ConvertResponse `json:"trade"`
 	}{}
-	return &resp.Trade, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, req, true, &resp)
+	return &resp.Trade, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, req, true, &resp)
 }
 
 // GetPermissions returns the permissions associated with the API key
-func (c *CoinbasePro) GetPermissions(ctx context.Context) (*PermissionsResponse, error) {
+func (e *Exchange) GetPermissions(ctx context.Context) (*PermissionsResponse, error) {
 	var resp PermissionsResponse
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseKeyPermissions, nil, nil, true, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseKeyPermissions, nil, nil, true, &resp)
 }
 
 // GetTransactionSummary returns a summary of transactions with fee tiers, total volume, and fees
-func (c *CoinbasePro) GetTransactionSummary(ctx context.Context, startDate, endDate time.Time, productVenue, productType, contractExpiryType string) (*TransactionSummary, error) {
+func (e *Exchange) GetTransactionSummary(ctx context.Context, startDate, endDate time.Time, productVenue, productType, contractExpiryType string) (*TransactionSummary, error) {
 	var params Params
 	params.Values = url.Values{}
 	err := params.encodeDateRange(startDate, endDate, startDateString, endDateString)
@@ -281,20 +281,20 @@ func (c *CoinbasePro) GetTransactionSummary(ctx context.Context, startDate, endD
 		params.Values.Set("product_venue", productVenue)
 	}
 	var resp TransactionSummary
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseTransactionSummary, params.Values, nil, true, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseTransactionSummary, params.Values, nil, true, &resp)
 }
 
 // CancelPendingFuturesSweep cancels a pending sweep request
-func (c *CoinbasePro) CancelPendingFuturesSweep(ctx context.Context) (bool, error) {
+func (e *Exchange) CancelPendingFuturesSweep(ctx context.Context) (bool, error) {
 	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps
 	resp := struct {
 		Success bool `json:"success"`
 	}{}
-	return resp.Success, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, true, &resp)
+	return resp.Success, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, true, &resp)
 }
 
 // GetCurrentMarginWindow returns the futures current margin window
-func (c *CoinbasePro) GetCurrentMarginWindow(ctx context.Context, marginProfileType string) (*CurrentMarginWindow, error) {
+func (e *Exchange) GetCurrentMarginWindow(ctx context.Context, marginProfileType string) (*CurrentMarginWindow, error) {
 	if marginProfileType == "" {
 		return nil, errMarginProfileTypeEmpty
 	}
@@ -304,20 +304,20 @@ func (c *CoinbasePro) GetCurrentMarginWindow(ctx context.Context, marginProfileT
 	}
 	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseIntraday + "/" + coinbaseCurrentMarginWindow
 	var resp CurrentMarginWindow
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
 }
 
 // GetFuturesBalanceSummary returns information on balances related to Coinbase Financial Markets futures trading
-func (c *CoinbasePro) GetFuturesBalanceSummary(ctx context.Context) (*FuturesBalanceSummary, error) {
+func (e *Exchange) GetFuturesBalanceSummary(ctx context.Context) (*FuturesBalanceSummary, error) {
 	resp := struct {
 		BalanceSummary FuturesBalanceSummary `json:"balance_summary"`
 	}{}
 	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseBalanceSummary
-	return &resp.BalanceSummary, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return &resp.BalanceSummary, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // GetFuturesPositionByID returns information on a single open position in CFM futures products
-func (c *CoinbasePro) GetFuturesPositionByID(ctx context.Context, productID currency.Pair) (*FuturesPosition, error) {
+func (e *Exchange) GetFuturesPositionByID(ctx context.Context, productID currency.Pair) (*FuturesPosition, error) {
 	if productID.IsEmpty() {
 		return nil, errProductIDEmpty
 	}
@@ -325,38 +325,38 @@ func (c *CoinbasePro) GetFuturesPositionByID(ctx context.Context, productID curr
 	resp := struct {
 		Position FuturesPosition `json:"position"`
 	}{}
-	return &resp.Position, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return &resp.Position, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // GetIntradayMarginSetting returns the futures intraday margin setting
-func (c *CoinbasePro) GetIntradayMarginSetting(ctx context.Context) (string, error) {
+func (e *Exchange) GetIntradayMarginSetting(ctx context.Context) (string, error) {
 	resp := struct {
 		Setting string `json:"setting"`
 	}{}
 	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseIntraday + "/" + coinbaseMarginSetting
-	return resp.Setting, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return resp.Setting, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // ListFuturesPositions returns a list of all open positions in CFM futures products
-func (c *CoinbasePro) ListFuturesPositions(ctx context.Context) ([]FuturesPosition, error) {
+func (e *Exchange) ListFuturesPositions(ctx context.Context) ([]FuturesPosition, error) {
 	resp := struct {
 		Positions []FuturesPosition `json:"positions"`
 	}{}
 	path := coinbaseV3 + coinbaseCFM + "/" + coinbasePositions
-	return resp.Positions, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return resp.Positions, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // ListFuturesSweeps returns information on pending and/or processing requests to sweep funds
-func (c *CoinbasePro) ListFuturesSweeps(ctx context.Context) ([]SweepData, error) {
+func (e *Exchange) ListFuturesSweeps(ctx context.Context) ([]SweepData, error) {
 	resp := struct {
 		Sweeps []SweepData `json:"sweeps"`
 	}{}
 	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps
-	return resp.Sweeps, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return resp.Sweeps, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // ScheduleFuturesSweep schedules a sweep of funds from a CFTC-regulated futures account to a Coinbase USD Spot wallet. Request submitted before 5 pm ET are processed the following business day, requests submitted after are processed in 2 business days. Only one sweep request can be pending at a time. Funds transferred depend on the excess available in the futures account. An amount of 0 will sweep all available excess funds
-func (c *CoinbasePro) ScheduleFuturesSweep(ctx context.Context, amount float64) (bool, error) {
+func (e *Exchange) ScheduleFuturesSweep(ctx context.Context, amount float64) (bool, error) {
 	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps + "/" + coinbaseSchedule
 	var req map[string]any
 	if amount != 0 {
@@ -365,21 +365,21 @@ func (c *CoinbasePro) ScheduleFuturesSweep(ctx context.Context, amount float64) 
 	resp := struct {
 		Success bool `json:"success"`
 	}{}
-	return resp.Success, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return resp.Success, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
 // SetIntradayMarginSetting sets the futures intraday margin setting
-func (c *CoinbasePro) SetIntradayMarginSetting(ctx context.Context, setting string) error {
+func (e *Exchange) SetIntradayMarginSetting(ctx context.Context, setting string) error {
 	if setting == "" {
 		return errSettingEmpty
 	}
 	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseIntraday + "/" + coinbaseMarginSetting
 	req := map[string]any{"setting": setting}
-	return c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, nil)
 }
 
 // CancelOrders cancels orders by orderID. Can only cancel 100 orders per request
-func (c *CoinbasePro) CancelOrders(ctx context.Context, orderIDs []string) ([]OrderCancelDetail, error) {
+func (e *Exchange) CancelOrders(ctx context.Context, orderIDs []string) ([]OrderCancelDetail, error) {
 	if len(orderIDs) == 0 {
 		return nil, errOrderIDEmpty
 	}
@@ -391,11 +391,11 @@ func (c *CoinbasePro) CancelOrders(ctx context.Context, orderIDs []string) ([]Or
 	resp := struct {
 		Results []OrderCancelDetail `json:"results"`
 	}{}
-	return resp.Results, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return resp.Results, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
 // ClosePosition closes a position by client order ID, product ID, and size
-func (c *CoinbasePro) ClosePosition(ctx context.Context, clientOrderID string, productID currency.Pair, size float64) (*SuccessFailureConfig, error) {
+func (e *Exchange) ClosePosition(ctx context.Context, clientOrderID string, productID currency.Pair, size float64) (*SuccessFailureConfig, error) {
 	if clientOrderID == "" {
 		return nil, errClientOrderIDEmpty
 	}
@@ -412,11 +412,11 @@ func (c *CoinbasePro) ClosePosition(ctx context.Context, clientOrderID string, p
 		"size":            strconv.FormatFloat(size, 'f', -1, 64),
 	}
 	var resp SuccessFailureConfig
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
 // PlaceOrder places either a limit, market, or stop order
-func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*SuccessFailureConfig, error) {
+func (e *Exchange) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*SuccessFailureConfig, error) {
 	if ord.ClientOID == "" {
 		return nil, errClientOrderIDEmpty
 	}
@@ -447,11 +447,11 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*Suc
 	}
 	var resp SuccessFailureConfig
 	return &resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseV3+coinbaseOrders, nil, req, true, &resp)
+		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseV3+coinbaseOrders, nil, req, true, &resp)
 }
 
 // EditOrder edits an order to a new size or price. Only limit orders with a good-till-cancelled time in force can be edited
-func (c *CoinbasePro) EditOrder(ctx context.Context, orderID string, size, price float64) (bool, error) {
+func (e *Exchange) EditOrder(ctx context.Context, orderID string, size, price float64) (bool, error) {
 	if orderID == "" {
 		return false, errOrderIDEmpty
 	}
@@ -467,11 +467,11 @@ func (c *CoinbasePro) EditOrder(ctx context.Context, orderID string, size, price
 	resp := struct {
 		Success bool `json:"success"`
 	}{}
-	return resp.Success, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return resp.Success, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
 // EditOrderPreview simulates an edit order request, to preview the result. Only limit orders with a good-till-cancelled time in force can be edited.
-func (c *CoinbasePro) EditOrderPreview(ctx context.Context, orderID string, size, price float64) (*EditOrderPreviewResp, error) {
+func (e *Exchange) EditOrderPreview(ctx context.Context, orderID string, size, price float64) (*EditOrderPreviewResp, error) {
 	if orderID == "" {
 		return nil, errOrderIDEmpty
 	}
@@ -485,11 +485,11 @@ func (c *CoinbasePro) EditOrderPreview(ctx context.Context, orderID string, size
 		"price":    strconv.FormatFloat(price, 'f', -1, 64),
 	}
 	var resp *EditOrderPreviewResp
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
 // GetOrderByID returns a single order by order id.
-func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, clientOID string, userNativeCurrency currency.Code) (*GetOrderResponse, error) {
+func (e *Exchange) GetOrderByID(ctx context.Context, orderID, clientOID string, userNativeCurrency currency.Code) (*GetOrderResponse, error) {
 	if orderID == "" {
 		return nil, errOrderIDEmpty
 	}
@@ -504,11 +504,11 @@ func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, clientOID strin
 	resp := struct {
 		Order GetOrderResponse `json:"order"`
 	}{}
-	return &resp.Order, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
+	return &resp.Order, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
 }
 
 // ListFills returns information on recent fills
-func (c *CoinbasePro) ListFills(ctx context.Context, orderIDs, tradeIDs []string, productIDs currency.Pairs, cursor int64, sortBy string, startDate, endDate time.Time, limit uint16) (*FillResponse, error) {
+func (e *Exchange) ListFills(ctx context.Context, orderIDs, tradeIDs []string, productIDs currency.Pairs, cursor int64, sortBy string, startDate, endDate time.Time, limit uint16) (*FillResponse, error) {
 	var params Params
 	params.Values = url.Values{}
 	err := params.encodeDateRange(startDate, endDate, "start_sequence_timestamp", "end_sequence_timestamp")
@@ -531,11 +531,11 @@ func (c *CoinbasePro) ListFills(ctx context.Context, orderIDs, tradeIDs []string
 	}
 	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseHistorical + "/" + coinbaseFills
 	var resp FillResponse
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
 }
 
 // ListOrders lists orders, filtered by their status
-func (c *CoinbasePro) ListOrders(ctx context.Context, orderIDs, orderStatus, timeInForces, orderTypes, assetFilters []string, productIDs currency.Pairs, productType, orderSide, orderPlacementSource, contractExpiryType, retailPortfolioID, sortBy string, cursor int64, limit int32, startDate, endDate time.Time, userNativeCurrency currency.Code) (*ListOrdersResp, error) {
+func (e *Exchange) ListOrders(ctx context.Context, orderIDs, orderStatus, timeInForces, orderTypes, assetFilters []string, productIDs currency.Pairs, productType, orderSide, orderPlacementSource, contractExpiryType, retailPortfolioID, sortBy string, cursor int64, limit int32, startDate, endDate time.Time, userNativeCurrency currency.Code) (*ListOrdersResp, error) {
 	var params Params
 	params.Values = make(url.Values)
 	err := params.encodeDateRange(startDate, endDate, startDateString, endDateString)
@@ -582,11 +582,11 @@ func (c *CoinbasePro) ListOrders(ctx context.Context, orderIDs, orderStatus, tim
 	params.Values.Set("retail_portfolio_id", retailPortfolioID)
 	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseHistorical + "/" + coinbaseBatch
 	var resp ListOrdersResp
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
 }
 
 // PreviewOrder simulates the results of an order request
-func (c *CoinbasePro) PreviewOrder(ctx context.Context, inf *PreviewOrderInfo) (*PreviewOrderResp, error) {
+func (e *Exchange) PreviewOrder(ctx context.Context, inf *PreviewOrderInfo) (*PreviewOrderResp, error) {
 	if inf.BaseAmount <= 0 && inf.QuoteAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
@@ -607,11 +607,11 @@ func (c *CoinbasePro) PreviewOrder(ctx context.Context, inf *PreviewOrderInfo) (
 	}
 	var resp *PreviewOrderResp
 	path := coinbaseV3 + coinbaseOrders + "/" + coinbasePreview
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
 // GetPaymentMethodByID returns information on a single payment method associated with the user's account
-func (c *CoinbasePro) GetPaymentMethodByID(ctx context.Context, paymentMethodID string) (*PaymentMethodData, error) {
+func (e *Exchange) GetPaymentMethodByID(ctx context.Context, paymentMethodID string) (*PaymentMethodData, error) {
 	if paymentMethodID == "" {
 		return nil, errPaymentMethodEmpty
 	}
@@ -619,21 +619,21 @@ func (c *CoinbasePro) GetPaymentMethodByID(ctx context.Context, paymentMethodID 
 	resp := struct {
 		PaymentMethod PaymentMethodData `json:"payment_method"`
 	}{}
-	return &resp.PaymentMethod, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return &resp.PaymentMethod, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // ListPaymentMethods returns a list of all payment methods associated with the user's account
-func (c *CoinbasePro) ListPaymentMethods(ctx context.Context) ([]PaymentMethodData, error) {
+func (e *Exchange) ListPaymentMethods(ctx context.Context) ([]PaymentMethodData, error) {
 	resp := struct {
 		PaymentMethods []PaymentMethodData `json:"payment_methods"`
 	}{}
 	req := map[string]any{"currency": "BTC"}
 	path := coinbaseV3 + coinbasePaymentMethods
-	return resp.PaymentMethods, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, req, true, &resp)
+	return resp.PaymentMethods, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, req, true, &resp)
 }
 
 // AllocatePortfolio allocates funds to a position in your perpetuals portfolio
-func (c *CoinbasePro) AllocatePortfolio(ctx context.Context, portfolioID, productID, cur string, amount float64) error {
+func (e *Exchange) AllocatePortfolio(ctx context.Context, portfolioID, productID, cur string, amount float64) error {
 	if portfolioID == "" {
 		return errPortfolioIDEmpty
 	}
@@ -653,11 +653,11 @@ func (c *CoinbasePro) AllocatePortfolio(ctx context.Context, portfolioID, produc
 		"amount":         strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 	path := coinbaseV3 + coinbaseIntx + "/" + coinbaseAllocate
-	return c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, nil)
 }
 
 // GetPerpetualsPortfolioSummary returns a summary of your perpetuals portfolio
-func (c *CoinbasePro) GetPerpetualsPortfolioSummary(ctx context.Context, portfolioID string) (*PerpetualPortfolioResponse, error) {
+func (e *Exchange) GetPerpetualsPortfolioSummary(ctx context.Context, portfolioID string) (*PerpetualPortfolioResponse, error) {
 	if portfolioID == "" {
 		return nil, errPortfolioIDEmpty
 	}
@@ -665,11 +665,11 @@ func (c *CoinbasePro) GetPerpetualsPortfolioSummary(ctx context.Context, portfol
 	resp := struct {
 		Summary PerpetualPortfolioResponse `json:"summary"`
 	}{}
-	return &resp.Summary, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return &resp.Summary, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // GetPerpetualsPositionByID returns information on a single open position in your perpetuals portfolio
-func (c *CoinbasePro) GetPerpetualsPositionByID(ctx context.Context, portfolioID string, productID currency.Pair) (*PerpPositionDetail, error) {
+func (e *Exchange) GetPerpetualsPositionByID(ctx context.Context, portfolioID string, productID currency.Pair) (*PerpPositionDetail, error) {
 	if portfolioID == "" {
 		return nil, errPortfolioIDEmpty
 	}
@@ -680,11 +680,11 @@ func (c *CoinbasePro) GetPerpetualsPositionByID(ctx context.Context, portfolioID
 	resp := struct {
 		Position PerpPositionDetail `json:"position"`
 	}{}
-	return &resp.Position, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return &resp.Position, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // GetPortfolioBalances returns the current balances for all assets in your portfolio
-func (c *CoinbasePro) GetPortfolioBalances(ctx context.Context, portfolioID string) ([]PortfolioBalancesResponse, error) {
+func (e *Exchange) GetPortfolioBalances(ctx context.Context, portfolioID string) ([]PortfolioBalancesResponse, error) {
 	if portfolioID == "" {
 		return nil, errPortfolioIDEmpty
 	}
@@ -692,21 +692,21 @@ func (c *CoinbasePro) GetPortfolioBalances(ctx context.Context, portfolioID stri
 	resp := struct {
 		PortfolioBalances []PortfolioBalancesResponse `json:"portfolio_balances"`
 	}{}
-	return resp.PortfolioBalances, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return resp.PortfolioBalances, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // GetAllPerpetualsPositions returns a list of all open positions in your perpetuals portfolio
-func (c *CoinbasePro) GetAllPerpetualsPositions(ctx context.Context, portfolioID string) (*AllPerpPosResponse, error) {
+func (e *Exchange) GetAllPerpetualsPositions(ctx context.Context, portfolioID string) (*AllPerpPosResponse, error) {
 	if portfolioID == "" {
 		return nil, errPortfolioIDEmpty
 	}
 	path := coinbaseV3 + coinbaseIntx + "/" + coinbasePositions + "/" + portfolioID
 	var resp *AllPerpPosResponse
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // MultiAssetCollateralToggle allows for the toggling of multi-asset collateral on a portfolio
-func (c *CoinbasePro) MultiAssetCollateralToggle(ctx context.Context, portfolioID string, enabled bool) (bool, error) {
+func (e *Exchange) MultiAssetCollateralToggle(ctx context.Context, portfolioID string, enabled bool) (bool, error) {
 	if portfolioID == "" {
 		return false, errPortfolioIDEmpty
 	}
@@ -718,11 +718,11 @@ func (c *CoinbasePro) MultiAssetCollateralToggle(ctx context.Context, portfolioI
 	var resp struct {
 		Enabled bool `json:"multi_asset_collateral_enabled"`
 	}
-	return resp.Enabled, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return resp.Enabled, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
 // CreatePortfolio creates a new portfolio
-func (c *CoinbasePro) CreatePortfolio(ctx context.Context, name string) (*SimplePortfolioData, error) {
+func (e *Exchange) CreatePortfolio(ctx context.Context, name string) (*SimplePortfolioData, error) {
 	if name == "" {
 		return nil, errNameEmpty
 	}
@@ -730,20 +730,20 @@ func (c *CoinbasePro) CreatePortfolio(ctx context.Context, name string) (*Simple
 	resp := struct {
 		Portfolio SimplePortfolioData `json:"portfolio"`
 	}{}
-	return &resp.Portfolio, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseV3+coinbasePortfolios, nil, req, true, &resp)
+	return &resp.Portfolio, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseV3+coinbasePortfolios, nil, req, true, &resp)
 }
 
 // DeletePortfolio deletes a portfolio
-func (c *CoinbasePro) DeletePortfolio(ctx context.Context, portfolioID string) error {
+func (e *Exchange) DeletePortfolio(ctx context.Context, portfolioID string) error {
 	if portfolioID == "" {
 		return errPortfolioIDEmpty
 	}
 	path := coinbaseV3 + coinbasePortfolios + "/" + portfolioID
-	return c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, true, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, true, nil)
 }
 
 // EditPortfolio edits the name of a portfolio
-func (c *CoinbasePro) EditPortfolio(ctx context.Context, portfolioID, name string) (*SimplePortfolioData, error) {
+func (e *Exchange) EditPortfolio(ctx context.Context, portfolioID, name string) (*SimplePortfolioData, error) {
 	if portfolioID == "" {
 		return nil, errPortfolioIDEmpty
 	}
@@ -755,11 +755,11 @@ func (c *CoinbasePro) EditPortfolio(ctx context.Context, portfolioID, name strin
 	resp := struct {
 		Portfolio SimplePortfolioData `json:"portfolio"`
 	}{}
-	return &resp.Portfolio, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, nil, req, true, &resp)
+	return &resp.Portfolio, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, nil, req, true, &resp)
 }
 
 // GetPortfolioByID provides detailed information on a single portfolio
-func (c *CoinbasePro) GetPortfolioByID(ctx context.Context, portfolioID string) (*DetailedPortfolioResponse, error) {
+func (e *Exchange) GetPortfolioByID(ctx context.Context, portfolioID string) (*DetailedPortfolioResponse, error) {
 	if portfolioID == "" {
 		return nil, errPortfolioIDEmpty
 	}
@@ -767,11 +767,11 @@ func (c *CoinbasePro) GetPortfolioByID(ctx context.Context, portfolioID string) 
 	resp := struct {
 		Breakdown DetailedPortfolioResponse `json:"breakdown"`
 	}{}
-	return &resp.Breakdown, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return &resp.Breakdown, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // GetAllPortfolios returns a list of portfolios associated with the user
-func (c *CoinbasePro) GetAllPortfolios(ctx context.Context, portfolioType string) ([]SimplePortfolioData, error) {
+func (e *Exchange) GetAllPortfolios(ctx context.Context, portfolioType string) ([]SimplePortfolioData, error) {
 	resp := struct {
 		Portfolios []SimplePortfolioData `json:"portfolios"`
 	}{}
@@ -779,11 +779,11 @@ func (c *CoinbasePro) GetAllPortfolios(ctx context.Context, portfolioType string
 	if portfolioType != "" {
 		vals.Set("portfolio_type", portfolioType)
 	}
-	return resp.Portfolios, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbasePortfolios, vals, nil, true, &resp)
+	return resp.Portfolios, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbasePortfolios, vals, nil, true, &resp)
 }
 
 // MovePortfolioFunds transfers funds between portfolios
-func (c *CoinbasePro) MovePortfolioFunds(ctx context.Context, cur, from, to string, amount float64) (*MovePortfolioFundsResponse, error) {
+func (e *Exchange) MovePortfolioFunds(ctx context.Context, cur, from, to string, amount float64) (*MovePortfolioFundsResponse, error) {
 	if from == "" || to == "" {
 		return nil, errPortfolioIDEmpty
 	}
@@ -804,11 +804,11 @@ func (c *CoinbasePro) MovePortfolioFunds(ctx context.Context, cur, from, to stri
 	}
 	path := coinbaseV3 + coinbasePortfolios + "/" + coinbaseMoveFunds
 	var resp *MovePortfolioFundsResponse
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
 // GetBestBidAsk returns the best bid/ask for all products. Can be filtered to certain products by passing through additional strings
-func (c *CoinbasePro) GetBestBidAsk(ctx context.Context, products []string) ([]ProductBook, error) {
+func (e *Exchange) GetBestBidAsk(ctx context.Context, products []string) ([]ProductBook, error) {
 	vals := url.Values{}
 	for x := range products {
 		vals.Add("product_ids", products[x])
@@ -816,11 +816,11 @@ func (c *CoinbasePro) GetBestBidAsk(ctx context.Context, products []string) ([]P
 	resp := struct {
 		Pricebooks []ProductBook `json:"pricebooks"`
 	}{}
-	return resp.Pricebooks, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseBestBidAsk, vals, nil, true, &resp)
+	return resp.Pricebooks, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseBestBidAsk, vals, nil, true, &resp)
 }
 
 // GetTicker returns snapshot information about the last trades (ticks) and best bid/ask. Contrary to documentation, this does not tell you the 24h volume
-func (c *CoinbasePro) GetTicker(ctx context.Context, productID currency.Pair, limit uint16, startDate, endDate time.Time, authenticated bool) (*Ticker, error) {
+func (e *Exchange) GetTicker(ctx context.Context, productID currency.Pair, limit uint16, startDate, endDate time.Time, authenticated bool) (*Ticker, error) {
 	if productID.IsEmpty() {
 		return nil, errProductIDEmpty
 	}
@@ -835,28 +835,28 @@ func (c *CoinbasePro) GetTicker(ctx context.Context, productID currency.Pair, li
 	var resp Ticker
 	if authenticated {
 		path := coinbaseV3 + coinbaseProducts + "/" + productID.String() + "/" + coinbaseTicker
-		return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
+		return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
 	}
 	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID.String() + "/" + coinbaseTicker
-	return &resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
+	return &resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // GetProductByID returns information on a single specified currency pair
-func (c *CoinbasePro) GetProductByID(ctx context.Context, productID currency.Pair, authenticated bool) (*Product, error) {
+func (e *Exchange) GetProductByID(ctx context.Context, productID currency.Pair, authenticated bool) (*Product, error) {
 	if productID.IsEmpty() {
 		return nil, errProductIDEmpty
 	}
 	var resp Product
 	if authenticated {
 		path := coinbaseV3 + coinbaseProducts + "/" + productID.String()
-		return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+		return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 	}
 	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID.String()
-	return &resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
+	return &resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
 // GetProductBookV3 returns a list of bids/asks for a single product
-func (c *CoinbasePro) GetProductBookV3(ctx context.Context, productID currency.Pair, limit uint16, aggregationIncrement float64, authenticated bool) (*ProductBookResp, error) {
+func (e *Exchange) GetProductBookV3(ctx context.Context, productID currency.Pair, limit uint16, aggregationIncrement float64, authenticated bool) (*ProductBookResp, error) {
 	if productID.IsEmpty() {
 		return nil, errProductIDEmpty
 	}
@@ -870,14 +870,14 @@ func (c *CoinbasePro) GetProductBookV3(ctx context.Context, productID currency.P
 	}
 	var resp *ProductBookResp
 	if authenticated {
-		return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProductBook, vals, nil, true, &resp)
+		return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProductBook, vals, nil, true, &resp)
 	}
 	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProductBook
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // GetHistoricKlines returns historic candles for a product. Candles are returned in grouped buckets based on requested granularity. Requests that return more than 300 data points are rejected
-func (c *CoinbasePro) GetHistoricKlines(ctx context.Context, productID, granularity string, startDate, endDate time.Time, authenticated bool) ([]Klines, error) {
+func (e *Exchange) GetHistoricKlines(ctx context.Context, productID, granularity string, startDate, endDate time.Time, authenticated bool) ([]Klines, error) {
 	if productID == "" {
 		return nil, errProductIDEmpty
 	}
@@ -893,16 +893,16 @@ func (c *CoinbasePro) GetHistoricKlines(ctx context.Context, productID, granular
 	}{}
 	if authenticated {
 		path := coinbaseV3 + coinbaseProducts + "/" + productID + "/" + coinbaseCandles
-		return resp.Candles, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
+		return resp.Candles, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
 	}
 	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID + "/" + coinbaseCandles
-	return resp.Candles, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
+	return resp.Candles, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // GetAllProducts returns information on all currency pairs that are available for trading
 // The getTradabilityStatus parameter is only used for authenticated requests, and will return the tradability status of SPOT products in their view_only field
 // The getAllProducts parameter overrides the set productType; with it set to true, it will return both SPOT and Futures products
-func (c *CoinbasePro) GetAllProducts(ctx context.Context, limit, offset int32, productType, contractExpiryType, expiringContractStatus, productsSortOrder string, productIDs []string, getTradabilityStatus, getAllProducts, authenticated bool) (*AllProducts, error) {
+func (e *Exchange) GetAllProducts(ctx context.Context, limit, offset int32, productType, contractExpiryType, expiringContractStatus, productsSortOrder string, productIDs []string, getTradabilityStatus, getAllProducts, authenticated bool) (*AllProducts, error) {
 	vals := url.Values{}
 	vals.Set("limit", strconv.FormatInt(int64(limit), 10))
 	if offset != 0 {
@@ -927,20 +927,20 @@ func (c *CoinbasePro) GetAllProducts(ctx context.Context, limit, offset int32, p
 	vals.Set("get_all_products", strconv.FormatBool(getAllProducts))
 	var resp AllProducts
 	if authenticated {
-		return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProducts, vals, nil, true, &resp)
+		return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProducts, vals, nil, true, &resp)
 	}
 	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts
-	return &resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
+	return &resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // GetV3Time returns the current server time, calling V3 of the API
-func (c *CoinbasePro) GetV3Time(ctx context.Context) (*ServerTimeV3, error) {
+func (e *Exchange) GetV3Time(ctx context.Context) (*ServerTimeV3, error) {
 	var resp *ServerTimeV3
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV3+coinbaseTime, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV3+coinbaseTime, nil, &resp)
 }
 
 // SendMoney can send funds to an email or cryptocurrency address (if "traType" is set to "send"), or to another one of the user's wallets or vaults (if "traType" is set to "transfer"). Coinbase may delay or cancel the transaction at their discretion. The "idem" parameter is an optional string for idempotency; a token with a max length of 100 characters, if a previous transaction included the same token as a parameter, the new transaction won't be processed, and information on the previous transaction will be returned instead
-func (c *CoinbasePro) SendMoney(ctx context.Context, traType, walletID, to, cur, description, idem, destinationTag, network string, amount float64, skipNotifications bool, travelRuleData TravelRule) (*TransactionData, error) {
+func (e *Exchange) SendMoney(ctx context.Context, traType, walletID, to, cur, description, idem, destinationTag, network string, amount float64, skipNotifications bool, travelRuleData TravelRule) (*TransactionData, error) {
 	if traType == "" {
 		return nil, errTransactionTypeEmpty
 	}
@@ -972,11 +972,11 @@ func (c *CoinbasePro) SendMoney(ctx context.Context, traType, walletID, to, cur,
 	resp := struct {
 		Data TransactionData `json:"data"`
 	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, false, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, false, &resp)
 }
 
 // CreateAddress generates a crypto address for depositing to the specified wallet
-func (c *CoinbasePro) CreateAddress(ctx context.Context, walletID, name string) (*AddressData, error) {
+func (e *Exchange) CreateAddress(ctx context.Context, walletID, name string) (*AddressData, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
@@ -985,11 +985,11 @@ func (c *CoinbasePro) CreateAddress(ctx context.Context, walletID, name string) 
 	resp := struct {
 		Data AddressData `json:"data"`
 	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, false, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, false, &resp)
 }
 
 // GetAllAddresses returns information on all addresses associated with a wallet
-func (c *CoinbasePro) GetAllAddresses(ctx context.Context, walletID string, pag PaginationInp) (*GetAllAddrResponse, error) {
+func (e *Exchange) GetAllAddresses(ctx context.Context, walletID string, pag PaginationInp) (*GetAllAddrResponse, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
@@ -1000,11 +1000,11 @@ func (c *CoinbasePro) GetAllAddresses(ctx context.Context, walletID string, pag 
 		return nil, err
 	}
 	var resp *GetAllAddrResponse
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
 }
 
 // GetAddressByID returns information on a single address associated with the specified wallet
-func (c *CoinbasePro) GetAddressByID(ctx context.Context, walletID, addressID string) (*AddressData, error) {
+func (e *Exchange) GetAddressByID(ctx context.Context, walletID, addressID string) (*AddressData, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
@@ -1015,11 +1015,11 @@ func (c *CoinbasePro) GetAddressByID(ctx context.Context, walletID, addressID st
 	resp := struct {
 		Data AddressData `json:"data"`
 	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
 }
 
 // GetAddressTransactions returns a list of transactions associated with the specified address
-func (c *CoinbasePro) GetAddressTransactions(ctx context.Context, walletID, addressID string, pag PaginationInp) (*ManyTransactionsResp, error) {
+func (e *Exchange) GetAddressTransactions(ctx context.Context, walletID, addressID string, pag PaginationInp) (*ManyTransactionsResp, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
@@ -1033,11 +1033,11 @@ func (c *CoinbasePro) GetAddressTransactions(ctx context.Context, walletID, addr
 		return nil, err
 	}
 	var resp *ManyTransactionsResp
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
 }
 
 // FiatTransfer prepares and optionally processes a transfer of funds between the exchange and a fiat payment method. "Deposit" signifies funds going from exchange to bank, "withdraw" signifies funds going from bank to exchange
-func (c *CoinbasePro) FiatTransfer(ctx context.Context, walletID, cur, paymentMethod string, amount float64, commit bool, transferType FiatTransferType) (*DeposWithdrData, error) {
+func (e *Exchange) FiatTransfer(ctx context.Context, walletID, cur, paymentMethod string, amount float64, commit bool, transferType FiatTransferType) (*DeposWithdrData, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
@@ -1066,11 +1066,11 @@ func (c *CoinbasePro) FiatTransfer(ctx context.Context, walletID, cur, paymentMe
 	resp := struct {
 		Data DeposWithdrData `json:"transfer"`
 	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, false, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, false, &resp)
 }
 
 // CommitTransfer processes a deposit/withdrawal that was created with the "commit" parameter set to false
-func (c *CoinbasePro) CommitTransfer(ctx context.Context, walletID, depositID string, transferType FiatTransferType) (*DeposWithdrData, error) {
+func (e *Exchange) CommitTransfer(ctx context.Context, walletID, depositID string, transferType FiatTransferType) (*DeposWithdrData, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
@@ -1087,11 +1087,11 @@ func (c *CoinbasePro) CommitTransfer(ctx context.Context, walletID, depositID st
 	resp := struct {
 		Data DeposWithdrData `json:"data"`
 	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, nil, false, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, nil, false, &resp)
 }
 
 // GetAllFiatTransfers returns a list of transfers either to or from fiat payment methods and the specified wallet
-func (c *CoinbasePro) GetAllFiatTransfers(ctx context.Context, walletID string, pag PaginationInp, transferType FiatTransferType) (*ManyDeposWithdrResp, error) {
+func (e *Exchange) GetAllFiatTransfers(ctx context.Context, walletID string, pag PaginationInp, transferType FiatTransferType) (*ManyDeposWithdrResp, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
@@ -1108,7 +1108,7 @@ func (c *CoinbasePro) GetAllFiatTransfers(ctx context.Context, walletID string, 
 		return nil, err
 	}
 	var resp *ManyDeposWithdrResp
-	err := c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -1116,7 +1116,7 @@ func (c *CoinbasePro) GetAllFiatTransfers(ctx context.Context, walletID string, 
 }
 
 // GetFiatTransferByID returns information on a single deposit/withdrawal associated with the specified wallet
-func (c *CoinbasePro) GetFiatTransferByID(ctx context.Context, walletID, depositID string, transferType FiatTransferType) (*DeposWithdrData, error) {
+func (e *Exchange) GetFiatTransferByID(ctx context.Context, walletID, depositID string, transferType FiatTransferType) (*DeposWithdrData, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
@@ -1133,22 +1133,22 @@ func (c *CoinbasePro) GetFiatTransferByID(ctx context.Context, walletID, deposit
 	resp := struct {
 		Data DeposWithdrData `json:"data"`
 	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
 }
 
 // GetAllWallets lists all accounts associated with the API key
-func (c *CoinbasePro) GetAllWallets(ctx context.Context, pag PaginationInp) (*GetAllWalletsResponse, error) {
+func (e *Exchange) GetAllWallets(ctx context.Context, pag PaginationInp) (*GetAllWalletsResponse, error) {
 	var resp *GetAllWalletsResponse
 	var params Params
 	params.Values = url.Values{}
 	if err := params.encodePagination(pag); err != nil {
 		return nil, err
 	}
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseAccounts, params.Values, nil, false, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseAccounts, params.Values, nil, false, &resp)
 }
 
 // GetWalletByID returns information about a single wallet. In lieu of a wallet ID, a currency can be provided to get the primary account for that currency
-func (c *CoinbasePro) GetWalletByID(ctx context.Context, walletID string, currency currency.Code) (*WalletData, error) {
+func (e *Exchange) GetWalletByID(ctx context.Context, walletID string, currency currency.Code) (*WalletData, error) {
 	if (walletID == "" && currency.IsEmpty()) || (walletID != "" && !currency.IsEmpty()) {
 		return nil, errCurrWalletConflict
 	}
@@ -1162,11 +1162,11 @@ func (c *CoinbasePro) GetWalletByID(ctx context.Context, walletID string, curren
 	resp := struct {
 		Data WalletData `json:"data"`
 	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
 }
 
 // GetAllTransactions returns a list of transactions associated with the specified wallet
-func (c *CoinbasePro) GetAllTransactions(ctx context.Context, walletID string, pag PaginationInp) (*ManyTransactionsResp, error) {
+func (e *Exchange) GetAllTransactions(ctx context.Context, walletID string, pag PaginationInp) (*ManyTransactionsResp, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
@@ -1177,11 +1177,11 @@ func (c *CoinbasePro) GetAllTransactions(ctx context.Context, walletID string, p
 		return nil, err
 	}
 	var resp *ManyTransactionsResp
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
 }
 
 // GetTransactionByID returns information on a single transaction associated with the specified wallet
-func (c *CoinbasePro) GetTransactionByID(ctx context.Context, walletID, transactionID string) (*TransactionData, error) {
+func (e *Exchange) GetTransactionByID(ctx context.Context, walletID, transactionID string) (*TransactionData, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
@@ -1192,38 +1192,38 @@ func (c *CoinbasePro) GetTransactionByID(ctx context.Context, walletID, transact
 	resp := struct {
 		Data TransactionData `json:"data"`
 	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, false, &resp)
 }
 
 // GetFiatCurrencies lists currencies that Coinbase knows about
-func (c *CoinbasePro) GetFiatCurrencies(ctx context.Context) ([]FiatData, error) {
+func (e *Exchange) GetFiatCurrencies(ctx context.Context) ([]FiatData, error) {
 	resp := struct {
 		Data []FiatData `json:"data"`
 	}{}
-	return resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseCurrencies, nil, &resp)
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseCurrencies, nil, &resp)
 }
 
 // GetCryptocurrencies lists cryptocurrencies that Coinbase knows about
-func (c *CoinbasePro) GetCryptocurrencies(ctx context.Context) ([]CryptoData, error) {
+func (e *Exchange) GetCryptocurrencies(ctx context.Context) ([]CryptoData, error) {
 	resp := struct {
 		Data []CryptoData `json:"data"`
 	}{}
 	path := coinbaseV2 + coinbaseCurrencies + "/" + coinbaseCrypto
-	return resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
 // GetExchangeRates returns exchange rates for the specified currency. If none is specified, it defaults to USD
-func (c *CoinbasePro) GetExchangeRates(ctx context.Context, currency string) (*GetExchangeRatesResp, error) {
+func (e *Exchange) GetExchangeRates(ctx context.Context, currency string) (*GetExchangeRatesResp, error) {
 	resp := struct {
 		Data GetExchangeRatesResp `json:"data"`
 	}{}
 	vals := url.Values{}
 	vals.Set("currency", currency)
-	return &resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseExchangeRates, vals, &resp)
+	return &resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseExchangeRates, vals, &resp)
 }
 
 // GetPrice returns the price the spot/buy/sell price for the specified currency pair, including the standard Coinbase fee of 1%, but excluding any other fees
-func (c *CoinbasePro) GetPrice(ctx context.Context, currencyPair, priceType string) (*GetPriceResp, error) {
+func (e *Exchange) GetPrice(ctx context.Context, currencyPair, priceType string) (*GetPriceResp, error) {
 	var path string
 	switch priceType {
 	case "spot", "buy", "sell":
@@ -1234,70 +1234,70 @@ func (c *CoinbasePro) GetPrice(ctx context.Context, currencyPair, priceType stri
 	resp := struct {
 		Data GetPriceResp `json:"data"`
 	}{}
-	return &resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
+	return &resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
 // GetV2Time returns the current server time, calling V2 of the API
-func (c *CoinbasePro) GetV2Time(ctx context.Context) (*ServerTimeV2, error) {
+func (e *Exchange) GetV2Time(ctx context.Context) (*ServerTimeV2, error) {
 	resp := struct {
 		Data ServerTimeV2 `json:"data"`
 	}{}
-	return &resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseTime, nil, &resp)
+	return &resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseTime, nil, &resp)
 }
 
 // GetCurrentUser returns information about the user associated with the API key
-func (c *CoinbasePro) GetCurrentUser(ctx context.Context) (*UserResponse, error) {
+func (e *Exchange) GetCurrentUser(ctx context.Context) (*UserResponse, error) {
 	resp := struct {
 		Data UserResponse `json:"data"`
 	}{}
-	return &resp.Data, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseUser, nil, nil, false, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseUser, nil, nil, false, &resp)
 }
 
 // GetAllCurrencies returns a list of all currencies that Coinbase knows about. These aren't necessarily tradable
-func (c *CoinbasePro) GetAllCurrencies(ctx context.Context) ([]CurrencyData, error) {
+func (e *Exchange) GetAllCurrencies(ctx context.Context) ([]CurrencyData, error) {
 	var resp []CurrencyData
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseCurrencies, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseCurrencies, nil, &resp)
 }
 
 // GetACurrency returns information on a single currency specified by the user
-func (c *CoinbasePro) GetACurrency(ctx context.Context, cur string) (*CurrencyData, error) {
+func (e *Exchange) GetACurrency(ctx context.Context, cur string) (*CurrencyData, error) {
 	if cur == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp *CurrencyData
 	path := coinbaseCurrencies + "/" + cur
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // GetAllTradingPairs returns a list of currency pairs which are available for trading
-func (c *CoinbasePro) GetAllTradingPairs(ctx context.Context, pairType string) ([]PairData, error) {
+func (e *Exchange) GetAllTradingPairs(ctx context.Context, pairType string) ([]PairData, error) {
 	var resp []PairData
 	vals := url.Values{}
 	if pairType != "" {
 		vals.Set("type", pairType)
 	}
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseProducts, vals, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseProducts, vals, &resp)
 }
 
 // GetAllPairVolumes returns a list of currency pairs and their associated volumes
-func (c *CoinbasePro) GetAllPairVolumes(ctx context.Context) ([]PairVolumeData, error) {
+func (e *Exchange) GetAllPairVolumes(ctx context.Context) ([]PairVolumeData, error) {
 	var resp []PairVolumeData
 	path := coinbaseProducts + "/" + coinbaseVolumeSummary
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // GetPairDetails returns information on a single currency pair
-func (c *CoinbasePro) GetPairDetails(ctx context.Context, pair string) (*PairData, error) {
+func (e *Exchange) GetPairDetails(ctx context.Context, pair string) (*PairData, error) {
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *PairData
 	path := coinbaseProducts + "/" + pair
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // GetProductBookV1 returns the order book for the specified currency pair. Level 1 only returns the best bids and asks, Level 2 returns the full order book with orders at the same price aggregated, Level 3 returns the full non-aggregated order book.
-func (c *CoinbasePro) GetProductBookV1(ctx context.Context, pair string, level uint8) (*OrderBookResp, error) {
+func (e *Exchange) GetProductBookV1(ctx context.Context, pair string, level uint8) (*OrderBookResp, error) {
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1305,11 +1305,11 @@ func (c *CoinbasePro) GetProductBookV1(ctx context.Context, pair string, level u
 	vals := url.Values{}
 	vals.Set("level", strconv.FormatUint(uint64(level), 10))
 	path := coinbaseProducts + "/" + pair + "/" + coinbaseBook
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, vals, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, vals, &resp)
 }
 
 // GetProductCandles returns historical market data for the specified currency pair.
-func (c *CoinbasePro) GetProductCandles(ctx context.Context, pair string, granularity uint32, startTime, endTime time.Time) ([]Candle, error) {
+func (e *Exchange) GetProductCandles(ctx context.Context, pair string, granularity uint32, startTime, endTime time.Time) ([]Candle, error) {
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1324,31 +1324,31 @@ func (c *CoinbasePro) GetProductCandles(ctx context.Context, pair string, granul
 	}
 	path := coinbaseProducts + "/" + pair + "/" + coinbaseCandles
 	var resp []Candle
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, params.Values, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, params.Values, &resp)
 }
 
 // GetProductStats returns information on a specific pair's price and volume
-func (c *CoinbasePro) GetProductStats(ctx context.Context, pair string) (*ProductStats, error) {
+func (e *Exchange) GetProductStats(ctx context.Context, pair string) (*ProductStats, error) {
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	path := coinbaseProducts + "/" + pair + "/" + coinbaseStats
 	var resp *ProductStats
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // GetProductTicker returns the ticker for the specified currency pair
-func (c *CoinbasePro) GetProductTicker(ctx context.Context, pair string) (*ProductTicker, error) {
+func (e *Exchange) GetProductTicker(ctx context.Context, pair string) (*ProductTicker, error) {
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	path := coinbaseProducts + "/" + pair + "/" + coinbaseTicker
 	var resp *ProductTicker
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // GetProductTrades returns a list of the latest traides for a pair
-func (c *CoinbasePro) GetProductTrades(ctx context.Context, pair, step, direction string, limit int64) ([]ProductTrades, error) {
+func (e *Exchange) GetProductTrades(ctx context.Context, pair, step, direction string, limit int64) ([]ProductTrades, error) {
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1359,38 +1359,38 @@ func (c *CoinbasePro) GetProductTrades(ctx context.Context, pair, step, directio
 	vals.Set("limit", strconv.FormatInt(limit, 10))
 	path := coinbaseProducts + "/" + pair + "/" + coinbaseTrades
 	var resp []ProductTrades
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, vals, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, vals, &resp)
 }
 
 // GetAllWrappedAssets returns a list of supported wrapped assets
-func (c *CoinbasePro) GetAllWrappedAssets(ctx context.Context) (*AllWrappedAssets, error) {
+func (e *Exchange) GetAllWrappedAssets(ctx context.Context) (*AllWrappedAssets, error) {
 	var resp *AllWrappedAssets
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseWrappedAssets, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseWrappedAssets, nil, &resp)
 }
 
 // GetWrappedAssetDetails returns information on a single wrapped asset
-func (c *CoinbasePro) GetWrappedAssetDetails(ctx context.Context, wrappedAsset string) (*WrappedAsset, error) {
+func (e *Exchange) GetWrappedAssetDetails(ctx context.Context, wrappedAsset string) (*WrappedAsset, error) {
 	if wrappedAsset == "" {
 		return nil, errWrappedAssetEmpty
 	}
 	var resp *WrappedAsset
 	path := coinbaseWrappedAssets + "/" + wrappedAsset
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // GetWrappedAssetConversionRate returns the conversion rate for the specified wrapped asset
-func (c *CoinbasePro) GetWrappedAssetConversionRate(ctx context.Context, wrappedAsset string) (*WrappedAssetConversionRate, error) {
+func (e *Exchange) GetWrappedAssetConversionRate(ctx context.Context, wrappedAsset string) (*WrappedAssetConversionRate, error) {
 	if wrappedAsset == "" {
 		return nil, errWrappedAssetEmpty
 	}
 	var resp *WrappedAssetConversionRate
 	path := coinbaseWrappedAssets + "/" + wrappedAsset + "/" + coinbaseConversionRate
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, vals url.Values, result any) error {
-	endpoint, err := c.API.Endpoints.GetURL(ep)
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, vals url.Values, result any) error {
+	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -1403,18 +1403,18 @@ func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
 		Result:        result,
-		Verbose:       c.Verbose,
-		HTTPDebugging: c.HTTPDebugging,
-		HTTPRecording: c.HTTPRecording,
+		Verbose:       e.Verbose,
+		HTTPDebugging: e.HTTPDebugging,
+		HTTPRecording: e.HTTPRecording,
 	}
-	return c.SendPayload(ctx, rLim, func() (*request.Item, error) {
+	return e.SendPayload(ctx, rLim, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, queryParams url.Values, bodyParams map[string]any, isVersion3 bool, result any) (err error) {
-	endpoint, err := c.API.Endpoints.GetURL(ep)
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, queryParams url.Values, bodyParams map[string]any, isVersion3 bool, result any) (err error) {
+	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -1431,7 +1431,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			}
 		}
 		var jwt string
-		jwt, _, err = c.GetJWT(ctx, method+" "+endpoint[8:]+path)
+		jwt, _, err = e.GetJWT(ctx, method+" "+endpoint[8:]+path)
 		if err != nil {
 			return nil, err
 		}
@@ -1445,16 +1445,16 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &interim,
-			Verbose:       c.Verbose,
-			HTTPDebugging: c.HTTPDebugging,
-			HTTPRecording: c.HTTPRecording,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
 		}, nil
 	}
 	rateLim := V2Rate
 	if isVersion3 {
 		rateLim = V3Rate
 	}
-	err = c.SendPayload(ctx, rateLim, newRequest, request.AuthenticatedRequest)
+	err = e.SendPayload(ctx, rateLim, newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -1495,8 +1495,8 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 }
 
 // GetJWT generates a new JWT
-func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, time.Time, error) {
-	creds, err := c.GetCredentials(ctx)
+func (e *Exchange) GetJWT(ctx context.Context, uri string) (string, time.Time, error) {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return "", time.Time{}, err
 	}
@@ -1554,14 +1554,14 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, time.Time
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (c *CoinbasePro) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
 	var fee float64
 	switch {
 	case !isStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.CryptocurrencyTradeFee:
-		fees, err := c.GetTransactionSummary(ctx, time.Now().Add(-time.Hour*24*30), time.Now(), "", "", "")
+		fees, err := e.GetTransactionSummary(ctx, time.Now().Add(-time.Hour*24*30), time.Now(), "", "", "")
 		if err != nil {
 			return 0, err
 		}

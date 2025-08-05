@@ -14,7 +14,7 @@ import (
 )
 
 type broken struct {
-	bitfinex.Bitfinex
+	bitfinex.Exchange
 }
 
 func (b *broken) Shutdown() error { return errExpectedTestError }
@@ -40,7 +40,7 @@ func TestExchangeManagerAdd(t *testing.T) {
 	err = m.Add(nil)
 	require.ErrorIs(t, err, errExchangeIsNil)
 
-	b := new(bitfinex.Bitfinex)
+	b := new(bitfinex.Exchange)
 	b.SetDefaults()
 	err = m.Add(b)
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestExchangeManagerGetExchanges(t *testing.T) {
 	if len(exchanges) != 0 {
 		t.Error("unexpected value")
 	}
-	b := new(bitfinex.Bitfinex)
+	b := new(bitfinex.Exchange)
 	b.SetDefaults()
 	err = m.Add(b)
 	require.NoError(t, err)
@@ -99,7 +99,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	err = m.RemoveExchange("Bitfinex")
 	require.ErrorIs(t, err, ErrExchangeNotFound)
 
-	b := new(bitfinex.Bitfinex)
+	b := new(bitfinex.Exchange)
 	b.SetDefaults()
 	err = m.Add(b)
 	require.NoError(t, err)
@@ -149,7 +149,7 @@ func TestNewExchangeByName(t *testing.T) {
 		}
 	}
 
-	load := &bitfinex.Bitfinex{}
+	load := &bitfinex.Exchange{}
 	load.SetDefaults()
 
 	err = m.Add(load)
