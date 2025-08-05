@@ -64,6 +64,7 @@ var (
 	errSubjectIDRequired                   = errors.New("subject id is required")
 	errMissingSignature                    = errors.New("missing signature")
 	errStartingHeartbeat                   = errors.New("error starting heartbeat")
+	errSendingHeartbeat                    = errors.New("error sending heartbeat")
 
 	websocketRequestTimeout = time.Second * 30
 
