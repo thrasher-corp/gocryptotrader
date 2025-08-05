@@ -870,8 +870,14 @@ type WsSubscriptionInput struct {
 type wsResponse struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
 	ID             string `json:"id,omitempty"`
-	Result         any    `json:"result,omitempty"`
-	Error          struct {
+	Method         string `json:"method"`
+	Params         struct {
+		Data    any    `json:"data"`
+		Channel string `json:"channel"`
+		Type    string `json:"type"` // Used in heartbeat and test_request messages
+	} `json:"params"`
+	Result any `json:"result,omitempty"`
+	Error  struct {
 		Message string `json:"message,omitempty"`
 		Code    int64  `json:"code,omitempty"`
 		Data    any    `json:"data"`
@@ -1061,23 +1067,6 @@ type BlockTradeMoveResponse struct {
 	InstrumentName      string  `json:"instrument_name"`
 	Direction           string  `json:"direction"`
 	Amount              float64 `json:"amount"`
-}
-
-// WsResponse represents generalized websocket subscription push data and immediate websocket call responses.
-type WsResponse struct {
-	ID     string `json:"id,omitempty"`
-	Params struct {
-		Data    any    `json:"data"`
-		Channel string `json:"channel"`
-
-		// Used in heartbead and test_request messages.
-		Type string `json:"type"`
-	} `json:"params"`
-	Method         string `json:"method"`
-	JSONRPCVersion string `json:"jsonrpc"`
-
-	// for status "ok" and "version" push data messages
-	Result any `json:"result"`
 }
 
 // VersionInformation represents websocket version information

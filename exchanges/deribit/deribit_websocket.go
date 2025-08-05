@@ -208,7 +208,7 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 }
 
 func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
-	var response WsResponse
+	var response wsResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", e.Name, err, respRaw)
@@ -216,13 +216,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if response.Method == "heartbeat" {
 		return e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, pingMessage)
 	}
-	if response.ID > 2 {
-		if !e.Websocket.Match.IncomingWithData(response.ID, respRaw) {
-			return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d", response.ID)
-		}
-		return nil
-	} else if response.ID > 0 {
-		return nil
+	if response.ID != "" {
+		return e.Websocket.Match.RequireMatchWithData(response.ID, respRaw)
 	}
 	channels := strings.Split(response.Params.Channel, ".")
 	switch channels[0] {
@@ -325,7 +320,7 @@ func (e *Exchange) processUserOrders(respRaw []byte, channels []string) error {
 	if len(channels) != 4 && len(channels) != 5 {
 		return fmt.Errorf("%w, expected format 'user.orders.{instrument_name}.raw, user.orders.{instrument_name}.{interval}, user.orders.{kind}.{currency}.raw, or user.orders.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
-	var response WsResponse
+	var response wsResponse
 	orderData := []WsOrder{}
 	response.Params.Data = orderData
 	err := json.Unmarshal(respRaw, &response)
@@ -374,7 +369,7 @@ func (e *Exchange) processUserOrderChanges(respRaw []byte, channels []string) er
 	if len(channels) < 4 || len(channels) > 5 {
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
-	var response WsResponse
+	var response wsResponse
 	changeData := &wsChanges{}
 	response.Params.Data = changeData
 	err := json.Unmarshal(respRaw, &response)
@@ -454,7 +449,7 @@ func (e *Exchange) processQuoteTicker(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-	var response WsResponse
+	var response wsResponse
 	quoteTicker := &wsQuoteTickerInformation{}
 	response.Params.Data = quoteTicker
 	err = json.Unmarshal(respRaw, &response)
@@ -484,7 +479,7 @@ func (e *Exchange) processTrades(respRaw []byte, channels []string) error {
 	if len(channels) < 3 || len(channels) > 5 {
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
-	var response WsResponse
+	var response wsResponse
 	var tradeList []wsTrade
 	response.Params.Data = &tradeList
 	err := json.Unmarshal(respRaw, &response)
@@ -532,7 +527,7 @@ func (e *Exchange) processIncrementalTicker(respRaw []byte, channels []string) e
 	if err != nil {
 		return err
 	}
-	var response WsResponse
+	var response wsResponse
 	incrementalTicker := &WsIncrementalTicker{}
 	response.Params.Data = incrementalTicker
 	err = json.Unmarshal(respRaw, &response)
@@ -568,7 +563,7 @@ func (e *Exchange) processTicker(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-	var response WsResponse
+	var response wsResponse
 	tickerPriceResponse := &wsTicker{}
 	response.Params.Data = tickerPriceResponse
 	err = json.Unmarshal(respRaw, &response)
@@ -601,7 +596,7 @@ func (e *Exchange) processTicker(respRaw []byte, channels []string) error {
 }
 
 func (e *Exchange) processData(respRaw []byte, result any) error {
-	var response WsResponse
+	var response wsResponse
 	response.Params.Data = result
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -619,7 +614,7 @@ func (e *Exchange) processCandleChart(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-	var response WsResponse
+	var response wsResponse
 	candleData := &wsCandlestickData{}
 	response.Params.Data = candleData
 	err = json.Unmarshal(respRaw, &response)
@@ -641,7 +636,7 @@ func (e *Exchange) processCandleChart(respRaw []byte, channels []string) error {
 }
 
 func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
-	var response WsResponse
+	var response wsResponse
 	orderbookData := &wsOrderbook{}
 	response.Params.Data = orderbookData
 	err := json.Unmarshal(respRaw, &response)
