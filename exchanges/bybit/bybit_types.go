@@ -146,16 +146,6 @@ type MarkPriceKlineResponse struct {
 	List     []KlineItem `json:"list"`
 }
 
-// func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
-// 	s := Orderbook{
-// 		Symbol:         o.Symbol,
-// 		UpdateID:       o.UpdateID,
-// 		GenerationTime: o.Timestamp.Time(),
-// 	}
-// 	s.Bids = processOB(o.Bids)
-// 	s.Asks = processOB(o.Asks)
-// 	return &s, nil
-// }
 
 // TickerData represents a list of ticker detailed information.
 type TickerData struct {
