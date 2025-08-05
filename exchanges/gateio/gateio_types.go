@@ -1849,7 +1849,8 @@ func (c *ContractOrderCreateParams) validate(isRest bool) error {
 			return fmt.Errorf("%w: size needs to be zero when auto size is set", errInvalidOrderSize)
 		}
 	}
-	if (isRest && c.Settle.IsEmpty()) || (!isRest && !c.Settle.IsEmpty() && !c.Settle.Equal(currency.BTC) && !c.Settle.Equal(currency.USDT)) {
+	if (isRest && c.Settle.IsEmpty()) || 
+	     (!isRest && !c.Settle.IsEmpty() && !c.Settle.Equal(currency.BTC) && !c.Settle.Equal(currency.USDT)) {
 		return errEmptyOrInvalidSettlementCurrency
 	}
 	return nil
