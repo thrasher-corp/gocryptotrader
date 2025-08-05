@@ -11,6 +11,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/gofrs/uuid"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -165,7 +166,7 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 	req := wsInput{
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/auth",
-		ID:             e.Websocket.Conn.GenerateMessageID(false),
+		ID:             uuid.Must(uuid.NewV7()).String(),
 		Params: map[string]any{
 			"grant_type": "client_signature",
 			"client_id":  creds.Key,
@@ -812,7 +813,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 
 	r := WsSubscriptionInput{
 		JSONRPCVersion: rpcVersion,
-		ID:             e.Websocket.Conn.GenerateMessageID(false),
+		ID:             uuid.Must(uuid.NewV7()).String(),
 		Method:         method,
 		Params:         map[string][]string{"channels": subs.QualifiedChannels()},
 	}
