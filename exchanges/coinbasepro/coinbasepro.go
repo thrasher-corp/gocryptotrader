@@ -940,7 +940,7 @@ func (e *Exchange) GetV3Time(ctx context.Context) (*ServerTimeV3, error) {
 }
 
 // SendMoney can send funds to an email or cryptocurrency address (if "traType" is set to "send"), or to another one of the user's wallets or vaults (if "traType" is set to "transfer"). Coinbase may delay or cancel the transaction at their discretion. The "idem" parameter is an optional string for idempotency; a token with a max length of 100 characters, if a previous transaction included the same token as a parameter, the new transaction won't be processed, and information on the previous transaction will be returned instead
-func (e *Exchange) SendMoney(ctx context.Context, traType, walletID, to, cur, description, idem, destinationTag, network string, amount float64, skipNotifications bool, travelRuleData TravelRule) (*TransactionData, error) {
+func (e *Exchange) SendMoney(ctx context.Context, traType, walletID, to, cur, description, idem, destinationTag, network string, amount float64, skipNotifications bool, travelRuleData *TravelRule) (*TransactionData, error) {
 	if traType == "" {
 		return nil, errTransactionTypeEmpty
 	}

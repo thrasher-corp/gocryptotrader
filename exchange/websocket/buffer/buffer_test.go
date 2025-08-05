@@ -456,7 +456,7 @@ func TestLoadSnapshot(t *testing.T) {
 	require.ErrorIs(t, err, orderbook.ErrPriceZero)
 
 	err = obl.LoadSnapshot(&orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}})
-	require.ErrorIs(t, err, orderbook.ErrExchangeNameEmpty)
+	require.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	err = obl.LoadSnapshot(&orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}, Exchange: "test", Pair: cp, Asset: asset.Spot})
 	require.ErrorIs(t, err, orderbook.ErrLastUpdatedNotSet)

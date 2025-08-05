@@ -278,7 +278,7 @@ type LimitLimitGTD struct {
 	EndTime     time.Time    `json:"end_time"`
 	PostOnly    bool         `json:"post_only"`
 	ReduceOnly  *bool        `json:"reduce_only,omitempty"`
-	RFQDisabled bool         `json:"rfq_disabled"`
+	RFQDisabled bool         `json:"rfq_disabled,omitempty"`
 }
 
 // TWAPLimitGTD is a sub-struct used in the type OrderConfiguration

@@ -712,7 +712,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if withdrawRequest.WalletID == "" {
 		return nil, errWalletIDEmpty
 	}
-	travel := TravelRule{
+	travel := &TravelRule{
 		BeneficiaryWalletType: withdrawRequest.Travel.BeneficiaryWalletType,
 		BeneficiaryName:       withdrawRequest.Travel.BeneficiaryName,
 		BeneficiaryAddress: FullAddress{
@@ -1103,8 +1103,12 @@ func (e *Exchange) iterativeGetAllOrders(ctx context.Context, productIDs currenc
 	if productType == "FUTURES" {
 		productType = "FUTURE"
 	}
+	orderTypeSlice := []string{orderType}
+	if orderType == "" {
+		orderTypeSlice = nil
+	}
 	for hasNext {
-		interResp, err := e.ListOrders(ctx, nil, orderStatus, nil, []string{orderType}, nil, productIDs, productType, orderSide, "", "", "", "", cursor, limit, startDate, endDate, currency.Code{})
+		interResp, err := e.ListOrders(ctx, nil, orderStatus, nil, orderTypeSlice, nil, productIDs, productType, orderSide, "", "", "", "", cursor, limit, startDate, endDate, currency.Code{})
 		if err != nil {
 			return nil, err
 		}

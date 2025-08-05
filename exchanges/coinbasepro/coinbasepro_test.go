@@ -61,7 +61,7 @@ const (
 	testAmount2 = 1e-02
 	testAmount3 = 1
 	testPrice   = 1e+09
-	testPrice2  = 1e+05
+	testPrice2  = 1.5e+05
 
 	skipPayMethodNotFound          = "no payment methods found, skipping"
 	skipInsufSuitableAccs          = "insufficient suitable accounts for test, skipping"
@@ -328,7 +328,7 @@ func TestClosePosition(t *testing.T) {
 	_, err = e.ClosePosition(t.Context(), "meow", testPairFiat, 0)
 	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	resp, err := e.ClosePosition(t.Context(), "1", currency.NewPairWithDelimiter("BIT", "28JUL23-CDE", "-"), testAmount)
+	resp, err := e.ClosePosition(t.Context(), "1", currency.NewPairWithDelimiter("BIT", "31OCT25-CDE", "-"), testAmount)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -716,15 +716,15 @@ func TestGetV3Time(t *testing.T) {
 
 func TestSendMoney(t *testing.T) {
 	t.Parallel()
-	_, err := e.SendMoney(t.Context(), "", "", "", "", "", "", "", "", 0, false, TravelRule{})
+	_, err := e.SendMoney(t.Context(), "", "", "", "", "", "", "", "", 0, false, &TravelRule{})
 	assert.ErrorIs(t, err, errTransactionTypeEmpty)
-	_, err = e.SendMoney(t.Context(), "123", "", "", "", "", "", "", "", 0, false, TravelRule{})
+	_, err = e.SendMoney(t.Context(), "123", "", "", "", "", "", "", "", 0, false, &TravelRule{})
 	assert.ErrorIs(t, err, errWalletIDEmpty)
-	_, err = e.SendMoney(t.Context(), "123", "123", "", "", "", "", "", "", 0, false, TravelRule{})
+	_, err = e.SendMoney(t.Context(), "123", "123", "", "", "", "", "", "", 0, false, &TravelRule{})
 	assert.ErrorIs(t, err, errToEmpty)
-	_, err = e.SendMoney(t.Context(), "123", "123", "123", "", "", "", "", "", 0, false, TravelRule{})
+	_, err = e.SendMoney(t.Context(), "123", "123", "123", "", "", "", "", "", 0, false, &TravelRule{})
 	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
-	_, err = e.SendMoney(t.Context(), "123", "123", "123", "", "", "", "", "", 1, false, TravelRule{})
+	_, err = e.SendMoney(t.Context(), "123", "123", "123", "", "", "", "", "", 1, false, &TravelRule{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	wID, err := e.GetAllWallets(t.Context(), PaginationInp{})
@@ -751,7 +751,7 @@ func TestSendMoney(t *testing.T) {
 	if fromID == "" || toID == "" {
 		t.Skip(skipInsufficientFundsOrWallets)
 	}
-	resp, err := e.SendMoney(t.Context(), "transfer", wID.Data[0].ID, wID.Data[1].ID, testCrypto.String(), "GCT Test", "123", "", "", testAmount, false, TravelRule{})
+	resp, err := e.SendMoney(t.Context(), "transfer", wID.Data[0].ID, wID.Data[1].ID, testCrypto.String(), "GCT Test", "123", "", "", testAmount, false, &TravelRule{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1248,6 +1248,7 @@ func TestSubmitOrder(t *testing.T) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
 	ord.StopDirection = order.StopDown
+	ord.TriggerPrice = testPrice2/2 + 1
 	resp, err = e.SubmitOrder(t.Context(), &ord)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
