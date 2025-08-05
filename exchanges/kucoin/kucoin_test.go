@@ -2953,12 +2953,12 @@ func getFirstTradablePairOfAssets(ctx context.Context) {
 	futuresTradablePair.Delimiter = ""
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	assetTypes := e.GetAssetTypes(true)
 	for _, assetType := range assetTypes {
-		result, err := e.UpdateAccountInfo(t.Context(), assetType)
+		result, err := e.UpdateAccountBalances(t.Context(), assetType)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 	}

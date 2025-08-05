@@ -673,7 +673,7 @@ func (e *Exchange) ConfirmEmail(ctx context.Context, token string) (ConfirmEmail
 		&confirmation)
 }
 
-// ConfirmTwoFactorAuth confirms 2FA for this account.
+// ConfirmTwoFactorAuth confirms 2FA for this account
 func (e *Exchange) ConfirmTwoFactorAuth(ctx context.Context, token, typ string) (bool, error) {
 	var working bool
 

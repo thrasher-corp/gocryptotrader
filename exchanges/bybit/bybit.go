@@ -1323,7 +1323,7 @@ func (e *Exchange) GetFeeRate(ctx context.Context, category, symbol, baseCoin st
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/fee-rate", params, nil, &resp, getAccountFeeEPL)
 }
 
-// GetAccountInfo retrieves the margin mode configuration of the account.
+// GetAccountInfo retrieves the margin mode configuration of the accounts.
 // query the margin mode and the upgraded status of account
 func (e *Exchange) GetAccountInfo(ctx context.Context) (*AccountInfo, error) {
 	var resp *AccountInfo
@@ -1510,7 +1510,7 @@ func fillCoinBalanceFetchParams(accountType, memberID, coin string, withBonus in
 	return params, nil
 }
 
-// GetAllCoinBalance retrieves all coin balance of all account types under the master account, and sub account.
+// GetAllCoinBalance retrieves all coin balance of all account types under the master account, and sub accounts.
 // It is not allowed to get master account coin balance via sub account api key.
 func (e *Exchange) GetAllCoinBalance(ctx context.Context, accountType, memberID, coin string, withBonus int64) (*CoinBalances, error) {
 	params, err := fillCoinBalanceFetchParams(accountType, memberID, coin, withBonus, false)
@@ -2004,13 +2004,13 @@ func (e *Exchange) DeleteSubUID(ctx context.Context, subMemberID string) error {
 	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/del-submember", nil, arg, &resp, defaultEPL)
 }
 
-// DeleteMasterAPIKey delete the api key of master account.
+// DeleteMasterAPIKey delete the api key of master accounts.
 // Use the api key pending to be delete to call the endpoint. Use master user's api key only.
 func (e *Exchange) DeleteMasterAPIKey(ctx context.Context) error {
 	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/delete-api", nil, nil, &struct{}{}, userDeleteAPIEPL)
 }
 
-// DeleteSubAccountAPIKey delete the api key of sub account.
+// DeleteSubAccountAPIKey delete the api key of sub accounts.
 // Use the api key pending to be delete to call the endpoint. Use sub user's api key only.
 func (e *Exchange) DeleteSubAccountAPIKey(ctx context.Context, subAccountUID string) error {
 	if subAccountUID == "" {
