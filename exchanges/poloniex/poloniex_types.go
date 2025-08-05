@@ -169,24 +169,24 @@ type DepositAddresses struct {
 // DepositsWithdrawals holds withdrawal information
 type DepositsWithdrawals struct {
 	Deposits []struct {
-		Currency      string  `json:"currency"`
-		Address       string  `json:"address"`
-		Amount        float64 `json:"amount,string"`
-		Confirmations int64   `json:"confirmations"`
-		TransactionID string  `json:"txid"`
-		Timestamp     int64   `json:"timestamp"`
-		Status        string  `json:"status"`
+		Currency      string     `json:"currency"`
+		Address       string     `json:"address"`
+		Amount        float64    `json:"amount,string"`
+		Confirmations int64      `json:"confirmations"`
+		TransactionID string     `json:"txid"`
+		Timestamp     types.Time `json:"timestamp"`
+		Status        string     `json:"status"`
 	} `json:"deposits"`
 	Withdrawals []struct {
-		WithdrawalNumber int64   `json:"withdrawalNumber"`
-		Currency         string  `json:"currency"`
-		Address          string  `json:"address"`
-		Amount           float64 `json:"amount,string"`
-		Confirmations    int64   `json:"confirmations"`
-		TransactionID    string  `json:"txid"`
-		Timestamp        int64   `json:"timestamp"`
-		Status           string  `json:"status"`
-		IPAddress        string  `json:"ipAddress"`
+		WithdrawalNumber int64      `json:"withdrawalNumber"`
+		Currency         string     `json:"currency"`
+		Address          string     `json:"address"`
+		Amount           float64    `json:"amount,string"`
+		Confirmations    int64      `json:"confirmations"`
+		TransactionID    string     `json:"txid"`
+		Timestamp        types.Time `json:"timestamp"`
+		Status           string     `json:"status"`
+		IPAddress        string     `json:"ipAddress"`
 	} `json:"withdrawals"`
 }
 
@@ -388,7 +388,7 @@ type WsTrade struct {
 	Side      string
 	Volume    float64
 	Price     float64
-	Timestamp int64
+	Timestamp types.Time
 }
 
 // WithdrawalFees the large list of predefined withdrawal fees
@@ -506,7 +506,7 @@ type WalletDeposits struct {
 	Amount        float64       `json:"amount,string"`
 	Confirmations int64         `json:"confirmations"`
 	TransactionID string        `json:"txid"`
-	Timestamp     int64         `json:"timestamp"`
+	Timestamp     types.Time    `json:"timestamp"`
 	Status        string        `json:"status"`
 }
 
@@ -517,7 +517,7 @@ type WalletWithdrawals struct {
 	Address              string        `json:"address"`
 	Amount               float64       `json:"amount,string"`
 	Fee                  float64       `json:"fee,string"`
-	Timestamp            int64         `json:"timestamp"`
+	Timestamp            types.Time    `json:"timestamp"`
 	Status               string        `json:"status"`
 	TransactionID        string        `json:"txid"`
 	IPAddress            string        `json:"ipAddress"`
@@ -526,5 +526,5 @@ type WalletWithdrawals struct {
 
 // TimeStampResponse returns the time
 type TimeStampResponse struct {
-	ServerTime int64 `json:"serverTime"`
+	ServerTime types.Time `json:"serverTime"`
 }

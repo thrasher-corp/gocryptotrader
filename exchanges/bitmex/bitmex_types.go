@@ -103,7 +103,7 @@ type Execution struct {
 	TimeInForce           string    `json:"timeInForce"`
 	Timestamp             time.Time `json:"timestamp"`
 	TradePublishIndicator string    `json:"tradePublishIndicator"`
-	TransactTime          string    `json:"transactTime"`
+	TransactTime          time.Time `json:"transactTime"`
 	TrdMatchID            string    `json:"trdMatchID"`
 	Triggered             string    `json:"triggered"`
 	UnderlyingLastPx      float64   `json:"underlyingLastPx"`
@@ -187,7 +187,7 @@ type Instrument struct {
 	PrevTotalTurnover              float64   `json:"prevTotalTurnover"`
 	PrevTotalVolume                float64   `json:"prevTotalVolume"`
 	PublishInterval                string    `json:"publishInterval"`
-	PublishTime                    string    `json:"publishTime"`
+	PublishTime                    time.Time `json:"publishTime"`
 	QuoteCurrency                  string    `json:"quoteCurrency"`
 	QuoteToSettleMultiplier        int64     `json:"quoteToSettleMultiplier"`
 	RebalanceInterval              string    `json:"rebalanceInterval"`
@@ -460,11 +460,11 @@ type Stats struct {
 
 // StatsHistory stats history
 type StatsHistory struct {
-	Currency   string `json:"currency"`
-	Date       string `json:"date"`
-	RootSymbol string `json:"rootSymbol"`
-	Turnover   int64  `json:"turnover"`
-	Volume     int64  `json:"volume"`
+	Currency   string    `json:"currency"`
+	Date       time.Time `json:"date"`
+	RootSymbol string    `json:"rootSymbol"`
+	Turnover   int64     `json:"turnover"`
+	Volume     int64     `json:"volume"`
 }
 
 // StatsUSD contains summary of exchange stats
@@ -573,7 +573,7 @@ type TransactionInfo struct {
 	TransactID     string    `json:"transactID"`
 	Network        string    `json:"network"`
 	TransactStatus string    `json:"transactStatus"`
-	TransactTime   string    `json:"transactTime"`
+	TransactTime   time.Time `json:"transactTime"`
 	TransactType   string    `json:"transactType"`
 	Tx             string    `json:"tx"`
 }
