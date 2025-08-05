@@ -106,13 +106,6 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 }
 
-var pingMessage = WsSubscriptionInput{
-	ID:             2,
-	JSONRPCVersion: rpcVersion,
-	Method:         "public/test",
-	Params:         map[string][]string{},
-}
-
 // WsConnect starts a new connection with the websocket API
 func (e *Exchange) WsConnect() error {
 	ctx := context.TODO()
@@ -227,15 +220,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, msgRaw []byte) error {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", e.Name, err, msgRaw)
 	}
 	if response.Method == "heartbeat" {
-		return e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, pingMessage)
+		go e.wsSendHeartbeat(ctx)
+		return nil
 	}
-	if response.ID > 2 {
-		if !e.Websocket.Match.IncomingWithData(response.ID, msgRaw) {
-			return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d", response.ID)
-		}
-		return nil
-	} else if response.ID > 0 {
-		return nil
+	if response.ID != "" {
+		return e.Websocket.Match.RequireMatchWithData(response.ID, msgRaw)
 	}
 	channels := strings.Split(response.Params.Channel, ".")
 	switch channels[0] {
@@ -332,6 +321,17 @@ func (e *Exchange) wsHandleData(ctx context.Context, msgRaw []byte) error {
 		}
 	}
 	return nil
+}
+
+func (e *Exchange) wsSendHeartbeat(ctx context.Context) {
+	msg := WsSubscriptionInput{
+		ID:             uuid.Must(uuid.NewV7()).String(),
+		JSONRPCVersion: rpcVersion,
+		Method:         "public/test",
+	}
+	if err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, msg); err != nil {
+		log.Errorf(log.ExchangeSys, "%v %s: %s\n", e.Name, errSendingHeartbeat, err)
+	}
 }
 
 func (e *Exchange) processUserOrders(respRaw []byte, channels []string) error {

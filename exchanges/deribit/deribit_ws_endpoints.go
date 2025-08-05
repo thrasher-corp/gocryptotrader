@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -2304,7 +2305,7 @@ func (e *Exchange) SendWSRequest(ctx context.Context, epl request.EndpointLimit,
 	}
 	input := &WsRequest{
 		JSONRPCVersion: rpcVersion,
-		ID:             e.Websocket.Conn.GenerateMessageID(true),
+		ID:             uuid.Must(uuid.NewV7()).String(),
 		Method:         method,
 		Params:         params,
 	}
