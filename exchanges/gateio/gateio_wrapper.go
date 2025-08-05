@@ -2368,28 +2368,24 @@ func getFuturesOrderRequest(s *order.Submit) (*ContractOrderCreateParams, error)
 }
 
 // toExchangeTIF converts a TimeInForce to its corresponding exchange-compatible string.
-// For orders with PostOnly, ImmediateOrCancel, or FillOrKill flags, it returns "poc", "ioc", or "fok" respectively.
-// Market orders (price == 0) default to "ioc". Otherwise, it returns "gtc" for GoodTillCancel or an error for invalid TimeInForce values.
 func toExchangeTIF(tif order.TimeInForce, price float64) (string, error) {
-	s := gtcTIF
-	if price == 0 {
-		s = iocTIF // Market orders default to IOC but can be FOK
-	}
-	if tif != order.UnknownTIF {
-		switch {
-		case tif.Is(order.PostOnly):
-			s = pocTIF
-		case tif.Is(order.ImmediateOrCancel):
-			s = iocTIF
-		case tif.Is(order.FillOrKill):
-			s = fokTIF
-		case tif.Is(order.GoodTillCancel):
-			s = gtcTIF
-		default:
-			return "", fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, tif)
+	switch {
+	case tif == order.UnknownTIF:
+		if price == 0 {
+			return iocTIF, nil // Market orders default to IOC
 		}
+		return gtcTIF, nil // Default to GTC for limit orders
+	case tif.Is(order.PostOnly):
+		return pocTIF, nil
+	case tif.Is(order.ImmediateOrCancel):
+		return iocTIF, nil
+	case tif.Is(order.FillOrKill):
+		return fokTIF, nil
+	case tif.Is(order.GoodTillCancel):
+		return gtcTIF, nil
+	default:
+		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, tif)
 	}
-	return s, nil
 }
 
 func (e *Exchange) deriveSpotWebsocketOrderResponse(responses *WebsocketOrderResponse) (*order.SubmitResponse, error) {

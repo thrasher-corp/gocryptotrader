@@ -2313,7 +2313,7 @@ func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.
 			return nil, err
 		}
 		if !args[x].Settle.Equal(settle) {
-			return nil, fmt.Errorf("%w, settlement currency in order %d does not match the specified settlement currency %s", errEmptyOrInvalidSettlementCurrency, x+1, settle)
+			return nil, fmt.Errorf("%w: %q expected %q", errEmptyOrInvalidSettlementCurrency, args[x].Settle, settle)
 		}
 	}
 	var response []Order
