@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -33,11 +34,11 @@ type CompleteBalances map[string]CompleteBalance
 
 // OrderbookResponse is a sub-type for orderbooks
 type OrderbookResponse struct {
-	Asks     [][2]types.Number `json:"asks"`
-	Bids     [][2]types.Number `json:"bids"`
-	IsFrozen string            `json:"isFrozen"`
-	Error    string            `json:"error"`
-	Seq      int64             `json:"seq"`
+	Asks     orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids     orderbook.LevelsArrayPriceAmount `json:"bids"`
+	IsFrozen string                           `json:"isFrozen"`
+	Error    string                           `json:"error"`
+	Seq      int64                            `json:"seq"`
 }
 
 // OrderbookItem holds data on an individual item
@@ -53,8 +54,8 @@ type OrderbookAll struct {
 
 // Orderbook is a generic type golding orderbook information
 type Orderbook struct {
-	Asks []OrderbookItem `json:"asks"`
-	Bids []OrderbookItem `json:"bids"`
+	Asks []orderbook.Level `json:"asks"`
+	Bids []orderbook.Level `json:"bids"`
 }
 
 // TradeHistory holds trade history data

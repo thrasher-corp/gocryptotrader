@@ -325,34 +325,25 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTrad
 }
 
 // GetOrderBookDepth to get the order book depth. Please note the limits in the table below.
-func (e *Exchange) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRequestParams) (*OrderBook, error) {
+func (e *Exchange) GetOrderBookDepth(ctx context.Context, pair currency.Pair, limit int64) (*OrderBook, error) {
 	params := url.Values{}
-	symbol, err := e.FormatSymbol(arg.Symbol, asset.Spot)
+	symbol, err := e.FormatSymbol(pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.FormatInt(arg.Limit, 10))
+	params.Set("limit", strconv.FormatInt(limit, 10))
 
 	var resp *OrderBookData
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(arg.Limit), &resp); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(limit), &resp); err != nil {
 		return nil, err
 	}
 
-	ob := &OrderBook{
-		Bids:         make([]OrderbookItem, len(resp.Bids)),
-		Asks:         make([]OrderbookItem, len(resp.Asks)),
+	return &OrderBook{
+		Bids:         resp.Bids.Levels(),
+		Asks:         resp.Asks.Levels(),
 		LastUpdateID: resp.LastUpdateID,
-	}
-	for x := range resp.Bids {
-		ob.Bids[x].Price = resp.Bids[x][0].Float64()
-		ob.Bids[x].Quantity = resp.Bids[x][1].Float64()
-	}
-	for x := range resp.Asks {
-		ob.Asks[x].Price = resp.Asks[x][0].Float64()
-		ob.Asks[x].Quantity = resp.Asks[x][1].Float64()
-	}
-	return ob, nil
+	}, nil
 }
 
 // GetIntervalEnum allowed interval params by Binanceus

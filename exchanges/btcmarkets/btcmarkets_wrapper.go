@@ -256,44 +256,29 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	book := &orderbook.Book{
+	fPair, err := e.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	// Retrieve level one book which is the top 50 ask and bids, this is not
+	// cached.
+	resp, err := e.GetOrderbook(ctx, fPair.String(), 1)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := (&orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
 		Asset:             assetType,
 		PriceDuplication:  true,
 		ValidateOrderbook: e.ValidateOrderbook,
+		Asks:              resp.Asks,
+		Bids:              resp.Bids,
+	}).Process(); err != nil {
+		return nil, err
 	}
 
-	fPair, err := e.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return book, err
-	}
-	// Retrieve level one book which is the top 50 ask and bids, this is not
-	// cached.
-	tempResp, err := e.GetOrderbook(ctx, fPair.String(), 1)
-	if err != nil {
-		return book, err
-	}
-
-	book.Bids = make(orderbook.Levels, len(tempResp.Bids))
-	for x := range tempResp.Bids {
-		book.Bids[x] = orderbook.Level{
-			Amount: tempResp.Bids[x].Volume,
-			Price:  tempResp.Bids[x].Price,
-		}
-	}
-
-	book.Asks = make(orderbook.Levels, len(tempResp.Asks))
-	for y := range tempResp.Asks {
-		book.Asks[y] = orderbook.Level{
-			Amount: tempResp.Asks[y].Volume,
-			Price:  tempResp.Asks[y].Price,
-		}
-	}
-	err = book.Process()
-	if err != nil {
-		return book, err
-	}
 	return orderbook.Get(e.Name, p, assetType)
 }
 

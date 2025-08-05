@@ -300,22 +300,13 @@ func (e *Exchange) handleWSOrderbook(msg []byte) error {
 	}
 
 	obUpdate := &orderbook.Book{
-		Bids:              make(orderbook.Levels, len(wsOrderBookResp.Data.Bids)),
-		Asks:              make(orderbook.Levels, len(wsOrderBookResp.Data.Asks)),
+		Bids:              wsOrderBookResp.Data.Bids.Levels(),
+		Asks:              wsOrderBookResp.Data.Asks.Levels(),
 		Pair:              p,
 		LastUpdated:       wsOrderBookResp.Data.Microtimestamp.Time(),
 		Asset:             asset.Spot,
 		Exchange:          e.Name,
 		ValidateOrderbook: e.ValidateOrderbook,
-	}
-
-	for i := range wsOrderBookResp.Data.Asks {
-		obUpdate.Asks[i].Price = wsOrderBookResp.Data.Asks[i][0].Float64()
-		obUpdate.Asks[i].Amount = wsOrderBookResp.Data.Asks[i][1].Float64()
-	}
-	for i := range wsOrderBookResp.Data.Bids {
-		obUpdate.Bids[i].Price = wsOrderBookResp.Data.Bids[i][0].Float64()
-		obUpdate.Bids[i].Amount = wsOrderBookResp.Data.Bids[i][1].Float64()
 	}
 	filterOrderbookZeroBidPrice(obUpdate)
 	return e.Websocket.Orderbook.LoadSnapshot(obUpdate)

@@ -520,22 +520,12 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Book{
-		Exchange:          e.Name,
-		Pair:              p,
-		Asset:             assetType,
-		ValidateOrderbook: e.ValidateOrderbook,
-	}
-	var orderbookNew *OrderBook
-	var err error
 
+	var orderbookNew *OrderBookResponse
+	var err error
 	switch assetType {
 	case asset.Spot, asset.Margin:
-		orderbookNew, err = e.GetOrderBook(ctx,
-			OrderBookDataRequestParams{
-				Symbol: p,
-				Limit:  1000,
-			})
+		orderbookNew, err = e.GetOrderBook(ctx, p, 1000)
 	case asset.USDTMarginedFutures:
 		orderbookNew, err = e.UFuturesOrderbook(ctx, p, 1000)
 	case asset.CoinMarginedFutures:
@@ -544,28 +534,20 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return nil, fmt.Errorf("[%s] %w", assetType, asset.ErrNotSupported)
 	}
 	if err != nil {
-		return book, err
+		return nil, err
 	}
 
-	book.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
-	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Level{
-			Amount: orderbookNew.Bids[x].Quantity,
-			Price:  orderbookNew.Bids[x].Price,
-		}
-	}
-	book.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
-	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Level{
-			Amount: orderbookNew.Asks[x].Quantity,
-			Price:  orderbookNew.Asks[x].Price,
-		}
+	if err := (&orderbook.Book{
+		Exchange:          e.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: e.ValidateOrderbook,
+		Bids:              orderbookNew.Bids.Levels(),
+		Asks:              orderbookNew.Asks.Levels(),
+	}).Process(); err != nil {
+		return nil, err
 	}
 
-	err = book.Process()
-	if err != nil {
-		return book, err
-	}
 	return orderbook.Get(e.Name, p, assetType)
 }
 
