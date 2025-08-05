@@ -48,7 +48,7 @@ const (
 	chanOrder     = "order"
 	chanWallet    = "wallet"
 	chanGreeks    = "greeks"
-	chanDCP       = "dcp"
+	// TODO: Implement DCP (Disconnection Protect) subscription
 
 	spotPublic    = "wss://stream.bybit.com/v5/public/spot"
 	linearPublic  = "wss://stream.bybit.com/v5/public/linear"  // USDT, USDC perpetual & USDC Futures
@@ -210,8 +210,6 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, respRaw []byte
 		return e.wsProcessWalletPushData(ctx, respRaw)
 	case chanGreeks:
 		return e.wsProcessGreeks(respRaw)
-	case chanDCP:
-		return nil
 	}
 	return fmt.Errorf("%w %s", errUnhandledStreamData, string(respRaw))
 }
@@ -633,7 +631,7 @@ func channelName(s *subscription.Subscription) string {
 // isSymbolChannel returns whether the channel accepts a symbol parameter
 func isSymbolChannel(name string) bool {
 	switch name {
-	case chanPositions, chanExecution, chanOrder, chanDCP, chanWallet:
+	case chanPositions, chanExecution, chanOrder, chanWallet:
 		return false
 	}
 	return true
@@ -753,7 +751,7 @@ func (e *Exchange) directSubscriptionPayload(conn websocket.Connection, assetTyp
 			}
 			arg.Arguments = append(arg.Arguments, s.Channel+"."+interval+"."+pairFmt.Format(pair))
 			arg.associatedSubs = append(arg.associatedSubs, s)
-		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks, chanDCP:
+		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks:
 			if chanMap[s.Channel] {
 				continue
 			}
