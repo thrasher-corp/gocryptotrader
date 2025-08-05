@@ -983,7 +983,7 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 		Contract:    getPair(t, asset.DeliveryFutures),
 		Size:        6024,
 		Iceberg:     0,
-		Price:       "3765",
+		Price:       3765,
 		Text:        "t-my-custom-id",
 		Settle:      currency.USDT,
 		TimeInForce: gtcTIF,
@@ -1145,7 +1145,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		Contract:    getPair(t, asset.CoinMarginedFutures),
 		Size:        6024,
 		Iceberg:     0,
-		Price:       "3765",
+		Price:       3765,
 		TimeInForce: "gtc",
 		Text:        "t-my-custom-id",
 		Settle:      currency.BTC,
@@ -1189,7 +1189,7 @@ func TestPlaceBatchFuturesOrders(t *testing.T) {
 			Contract:    getPair(t, asset.CoinMarginedFutures),
 			Size:        6024,
 			Iceberg:     0,
-			Price:       "3765",
+			Price:       3765,
 			TimeInForce: "gtc",
 			Text:        "t-my-custom-id",
 			Settle:      currency.BTC,
@@ -1198,7 +1198,7 @@ func TestPlaceBatchFuturesOrders(t *testing.T) {
 			Contract:    getPair(t, asset.CoinMarginedFutures),
 			Size:        232,
 			Iceberg:     0,
-			Price:       "376225",
+			Price:       376225,
 			TimeInForce: "gtc",
 			Text:        "t-my-custom-id",
 			Settle:      currency.BTC,
@@ -2339,7 +2339,7 @@ func TestGetAPIKeyOfSubAccount(t *testing.T) {
 func TestLockSubAccount(t *testing.T) {
 	t.Parallel()
 	err := e.LockSubAccount(t.Context(), 0)
-	require.Error(t, err, errInvalidSubAccountUserID)
+	require.ErrorIs(t, err, errInvalidSubAccountUserID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	err = e.LockSubAccount(t.Context(), 1234)

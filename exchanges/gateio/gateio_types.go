@@ -1363,8 +1363,8 @@ type UsersAllAccountBalance struct {
 
 // CurrencyBalanceAmount represents currency and its amount.
 type CurrencyBalanceAmount struct {
-	Currency string `json:"currency"`
-	Amount   string `json:"amount"`
+	Currency string       `json:"currency"`
+	Amount   types.Number `json:"amount"`
 }
 
 // SpotTradingFeeRate user trading fee rates
@@ -1798,12 +1798,17 @@ type Position struct {
 		Price types.Number `json:"price"`
 		IsLiq bool         `json:"is_liq"`
 	} `json:"close_order"`
-	Mode               string       `json:"mode"`
-	CrossLeverageLimit types.Number `json:"cross_leverage_limit"`
-	UpdateTime         types.Time   `json:"update_time"`
-	OpenTime           types.Time   `json:"open_time"`
-	UpdateID           int64        `json:"update_id"`
-	TradeMaxSize       types.Number `json:"trade_max_size"`
+	Mode                   string       `json:"mode"`
+	CrossLeverageLimit     types.Number `json:"cross_leverage_limit"`
+	UpdateTime             types.Time   `json:"update_time"`
+	OpenTime               types.Time   `json:"open_time"`
+	UpdateID               int64        `json:"update_id"`
+	TradeMaxSize           types.Number `json:"trade_max_size"`
+	RiskLimitTable         string       `json:"risk_limit_table"`
+	AverageMaintenanceRate string       `json:"average_maintenance_rate"`
+	VoucherSize            string       `json:"voucher_size"`
+	VoucherMargin          string       `json:"voucher_margin"`
+	VoucherID              int          `json:"voucher_id"`
 }
 
 // DualModeResponse represents  dual mode enable or disable
@@ -1835,12 +1840,13 @@ type DualModeResponse struct {
 // ContractOrderCreateParams represents future order creation parameters
 type ContractOrderCreateParams struct {
 	Contract                  currency.Pair `json:"contract"`
-	Size                      float64       `json:"size,omitempty"`    // positive long, negative short
+	Size                      float64       `json:"size"`              // positive long, negative short
 	Iceberg                   int64         `json:"iceberg,omitempty"` // required; can be zero
-	Price                     string        `json:"price"`             // NOTE: Market orders require string "0"
+	Price                     float64       `json:"price"`             // NOTE: Market orders require string "0"
 	TimeInForce               string        `json:"tif"`
 	Text                      string        `json:"text,omitempty"`  // errors when empty; Either populated or omitted
 	ClosePosition             bool          `json:"close,omitempty"` // Size needs to be zero if true
+	IsClose                   bool          `json:"is_close,omitempty"`
 	ReduceOnly                bool          `json:"reduce_only,omitempty"`
 	AutoSize                  string        `json:"auto_size,omitempty"` // either close_long or close_short, requires zero in size field
 	Settle                    currency.Code `json:"-"`                   // Used in URL. REST Calls only.

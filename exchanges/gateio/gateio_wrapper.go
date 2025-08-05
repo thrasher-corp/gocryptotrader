@@ -986,7 +986,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		orderParams := &ContractOrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
-			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64), // Cannot be an empty string, requires "0" for market orders.
+			Price:       s.Price, // Cannot be an empty string, requires "0" for market orders.
 			Settle:      settle,
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: timeInForceString(s.TimeInForce),
@@ -2351,7 +2351,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		resp, err := e.WebsocketFuturesSubmitOrder(ctx, s.AssetType, &ContractOrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
-			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
+			Price:       s.Price,
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: timeInForceString(s.TimeInForce),
 			Text:        s.ClientOrderID,

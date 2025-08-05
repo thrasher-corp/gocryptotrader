@@ -132,9 +132,7 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 		Timestamp: strconv.FormatInt(tn, 10),
 	}
 
-	req := WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload}
-
-	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.RequestID, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.RequestID, &WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload})
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -45,7 +46,7 @@ func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Ite
 			return nil, err
 		}
 
-		if o.Price == "" && o.TimeInForce != "ioc" {
+		if o.Price == 0 && !slices.Contains([]string{"ioc", "fok"}, o.TimeInForce) {
 			return nil, fmt.Errorf("%w: cannot be zero when time in force is not IOC", errInvalidPrice)
 		}
 

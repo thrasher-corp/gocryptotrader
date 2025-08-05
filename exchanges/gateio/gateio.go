@@ -2204,8 +2204,8 @@ func (e *Exchange) UpdateFuturesPositionLeverage(ctx context.Context, settle cur
 	if leverage == 0 && crossLeverageLimit > 0 {
 		params.Set("cross_leverage_limit", strconv.FormatFloat(crossLeverageLimit, 'f', -1, 64))
 	}
-	var response *Position
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualUpdateLeverageEPL, http.MethodPost, futuresPath+settle.Item.Lower+positionsPath+contract.String()+"/leverage", params, nil, &response)
+	var resp Position
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualUpdateLeverageEPL, http.MethodPost, futuresPath+settle.Item.Lower+positionsPath+contract.String()+"/leverage", params, nil, &[1]*Position{&resp})
 }
 
 // UpdateFuturesPositionRiskLimit updates the position risk limit
@@ -2312,13 +2312,12 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCrea
 	if arg.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
-	if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
-		return nil, err
+	if arg.TimeInForce != "" {
+		if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
+			return nil, err
+		}
 	}
-	if arg.Price == "" {
-		return nil, errInvalidPrice
-	}
-	if arg.Price == "0" && arg.TimeInForce != iocTIF && arg.TimeInForce != fokTIF {
+	if arg.Price == 0 && arg.TimeInForce != iocTIF && arg.TimeInForce != fokTIF {
 		return nil, fmt.Errorf("%w: %q; only 'IOC' and 'FOK' allowed for market order", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
 	}
 	if arg.AutoSize != "" && (arg.AutoSize != "close_long" && arg.AutoSize != "close_short") {
@@ -2403,10 +2402,7 @@ func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.
 		if _, err := timeInForceFromString(args[x].TimeInForce); err != nil {
 			return nil, err
 		}
-		if args[x].Price == "" {
-			return nil, errInvalidPrice
-		}
-		if args[x].Price == "0" && args[x].TimeInForce != iocTIF && args[x].TimeInForce != fokTIF {
+		if args[x].Price <= 0 && args[x].TimeInForce != iocTIF && args[x].TimeInForce != fokTIF {
 			return nil, fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, args[x].TimeInForce)
 		}
 		if args[x].Text != "" && !strings.HasPrefix(args[x].Text, "t-") {
@@ -2878,11 +2874,10 @@ func (e *Exchange) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCre
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
-	if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
-		return nil, err
-	}
-	if arg.Price == "" {
-		return nil, errInvalidPrice
+	if arg.TimeInForce != "" {
+		if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
+			return nil, err
+		}
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
