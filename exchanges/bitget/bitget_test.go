@@ -96,6 +96,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if testingInSandbox {
+		e.isDemoTrading = true
+	}
 	var dialer gws.Dialer
 	err = e.Websocket.Conn.Dial(context.TODO(), &dialer, http.Header{})
 	if err != nil {
@@ -3430,11 +3433,22 @@ func TestWsAuth(t *testing.T) {
 // func TestWsReadData(t *testing.T) {
 // 	mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
 // 		tb.Helper()
-// 		return nil
+// 		msg, err := json.Marshal("pong")
+// 		require.NoError(t, err)
+// 		return w.WriteMessage(gws.TextMessage, msg)
 // 	}
-// 	wsTest := testexch.MockWsInstance[Bitget](t, mockws.CurryWsMockUpgrader(t, mock))
+// 	wsTest := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 // 	wsTest.Websocket.Enable()
-// 	err := wsTest.Subscribe(defaultSubscriptions)
+// 	err := exchangeBaseHelper(wsTest)
+// 	require.NoError(t, err)
+// 	var dialer gws.Dialer
+// 	err = wsTest.Websocket.Conn.Dial(context.TODO(), &dialer, http.Header{})
+// 	require.NoError(t, err)
+// 	err = wsTest.Websocket.AuthConn.Dial(context.TODO(), &dialer, http.Header{})
+// 	require.NoError(t, err)
+// 	// e.Websocket.Wg.Add(1)
+// 	// go e.wsReadData(e.Websocket.Conn)
+// 	err = wsTest.Subscribe(defaultSubscriptions)
 // 	require.NoError(t, err)
 // 	// Implement internal/testing/websocket mockws stuff after merging
 // 	// See: https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/kraken/kraken_test.go#L1169

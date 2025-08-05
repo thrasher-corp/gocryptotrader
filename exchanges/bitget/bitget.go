@@ -26,6 +26,7 @@ import (
 // Exchange is the overarching type across this package
 type Exchange struct {
 	exchange.Base
+	isDemoTrading bool
 }
 
 const (
@@ -4784,6 +4785,9 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["ACCESS-PASSPHRASE"] = creds.ClientID
 		headers["Content-Type"] = "application/json"
 		headers["locale"] = "en-US"
+		if e.isDemoTrading {
+			headers["paptrading"] = "1"
+		}
 		return &request.Item{
 			Method:        method,
 			Path:          endpoint + path,
