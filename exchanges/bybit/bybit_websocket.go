@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -271,7 +272,7 @@ func (e *Exchange) wsProcessOrder(resp *WebsocketResponse) error {
 	}
 	execution := make([]order.Detail, len(result))
 	for x := range result {
-		cp, a, err := e.getPairFromCategory(result[x].Category, result[x].Symbol)
+		cp, a, err := e.matchPairAssetFromResponse(result[x].Category, result[x].Symbol)
 		if err != nil {
 			return err
 		}
@@ -318,7 +319,7 @@ func (e *Exchange) wsProcessExecution(resp *WebsocketResponse) error {
 	}
 	executions := make([]fill.Data, len(result))
 	for x := range result {
-		cp, a, err := e.getPairFromCategory(result[x].Category, result[x].Symbol)
+		cp, a, err := e.matchPairAssetFromResponse(result[x].Category, result[x].Symbol)
 		if err != nil {
 			return err
 		}
@@ -786,13 +787,13 @@ func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}
-        for _, configSub := range e.Config.Features.Subscriptions.Enabled() {
+
+	for _, configSub := range e.Config.Features.Subscriptions.Enabled() {
 		if configSub.Authenticated {
-			log.Warnf(log.WebsocketMgr, "%q has an authenticated subscription %q in config which is not supported. Please remove",
-				e.Name, configSub.Channel)
+			log.Warnf(log.WebsocketMgr, "%q has an authenticated subscription %q in config which is not supported. Please remove", e.Name, configSub.Channel)
 		}
 	}
-	
+
 	var subscriptions subscription.List
 	// TODO: Implement DCP (Disconnection Protect) subscription
 	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet} {
@@ -809,9 +810,11 @@ func (e *Exchange) authUnsubscribe(ctx context.Context, conn websocket.Connectio
 	return e.submitDirectSubscription(ctx, conn, asset.Spot, "unsubscribe", channelSubscriptions)
 }
 
-// getPairFromCategory returns the currency pair and asset type based on the category and symbol. Used with a dedicated
+var errUnsupportedCategory = errors.New("unsupported category")
+
+// matchPairAssetFromResponse returns the currency pair and asset type based on the category and symbol. Used with a dedicated
 // auth connection where multiple asset type changes are piped through a single connection.
-func (e *Exchange) getPairFromCategory(category, symbol string) (currency.Pair, asset.Item, error) {
+func (e *Exchange) matchPairAssetFromResponse(category, symbol string) (currency.Pair, asset.Item, error) {
 	assets := make([]asset.Item, 0, 2)
 	switch category {
 	case "spot":
@@ -823,7 +826,7 @@ func (e *Exchange) getPairFromCategory(category, symbol string) (currency.Pair, 
 	case "option":
 		assets = append(assets, asset.Options)
 	default:
-		return currency.EMPTYPAIR, 0, fmt.Errorf("incoming symbol %q has unsupported category %q", symbol, category)
+		return currency.EMPTYPAIR, 0, fmt.Errorf("incoming symbol %q %w: %q", symbol, errUnsupportedCategory, category)
 	}
 	for _, a := range assets {
 		cp, err := e.MatchSymbolWithAvailablePairs(symbol, a, hasPotentialDelimiter(a))

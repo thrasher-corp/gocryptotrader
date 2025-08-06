@@ -3894,52 +3894,33 @@ func TestTransformSymbol(t *testing.T) {
 	}
 }
 
-func TestGetPairFromCategory(t *testing.T) {
+func TestMatchPairAssetFromResponse(t *testing.T) {
 	t.Parallel()
 
-	exp := spotTradablePair
-	exp.Delimiter = ""
-	p, a, err := e.getPairFromCategory("spot", exp.String())
-	require.NoError(t, err)
-	require.True(t, exp.Equal(p))
-	require.Equal(t, asset.Spot, a)
-
-	exp = usdtMarginedTradablePair
-	exp.Delimiter = ""
-	p, a, err = e.getPairFromCategory("linear", exp.String())
-	require.NoError(t, err)
-	require.True(t, exp.Equal(p))
-	require.Equal(t, asset.USDTMarginedFutures, a)
-
-	exp = usdcMarginedTradablePair
-	exp.Delimiter = ""
-	p, a, err = e.getPairFromCategory("linear", exp.String())
-	require.NoError(t, err)
-	require.True(t, exp.Equal(p))
-	require.Equal(t, asset.USDCMarginedFutures, a)
-
-	exp = inverseTradablePair
-	exp.Delimiter = ""
-	p, a, err = e.getPairFromCategory("inverse", exp.String())
-	require.NoError(t, err)
-	require.True(t, exp.Equal(p))
-	require.Equal(t, asset.CoinMarginedFutures, a)
-
-	exp = optionsTradablePair
-	p, a, err = e.getPairFromCategory("option", exp.String())
-	require.NoError(t, err)
-	require.True(t, exp.Equal(p))
-	require.Equal(t, asset.Options, a)
-
-	p, a, err = e.getPairFromCategory("silly", exp.String())
-	require.Error(t, err)
-	require.Empty(t, p)
-	require.Empty(t, a)
-
-	p, a, err = e.getPairFromCategory("spot", "bad pair")
-	require.ErrorIs(t, err, currency.ErrPairNotFound)
-	require.Empty(t, p)
-	require.Empty(t, a)
+	noDelim := currency.PairFormat{Uppercase: true}
+	for _, tc := range []struct {
+		pair          string
+		category      string
+		expectedAsset asset.Item
+		expectedPair  currency.Pair
+		err           error
+	}{
+		{pair: noDelim.Format(spotTradablePair), category: "spot", expectedAsset: asset.Spot, expectedPair: spotTradablePair},
+		{pair: noDelim.Format(usdtMarginedTradablePair), category: "linear", expectedAsset: asset.USDTMarginedFutures, expectedPair: usdtMarginedTradablePair},
+		{pair: noDelim.Format(usdcMarginedTradablePair), category: "linear", expectedAsset: asset.USDCMarginedFutures, expectedPair: usdcMarginedTradablePair},
+		{pair: noDelim.Format(inverseTradablePair), category: "inverse", expectedAsset: asset.CoinMarginedFutures, expectedPair: inverseTradablePair},
+		{pair: optionsTradablePair.String(), category: "option", expectedAsset: asset.Options, expectedPair: optionsTradablePair},
+		{pair: optionsTradablePair.String(), category: "silly", err: errUnsupportedCategory, expectedAsset: 0},
+		{pair: "bad pair", category: "spot", err: currency.ErrPairNotFound},
+	} {
+		t.Run(fmt.Sprintf("pair: %s, category: %s", tc.pair, tc.category), func(t *testing.T) {
+			t.Parallel()
+			p, a, err := e.matchPairAssetFromResponse(tc.category, tc.pair)
+			require.ErrorIs(t, err, tc.err)
+			assert.Equal(t, tc.expectedAsset, a)
+			assert.True(t, tc.expectedPair.Equal(p))
+		})
+	}
 }
 
 func TestHandleNoTopicWebsocketResponse(t *testing.T) {
