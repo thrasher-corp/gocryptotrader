@@ -761,7 +761,7 @@ func (e *Exchange) directSubscriptionPayload(conn websocket.Connection, assetTyp
 				continue
 			}
 			authArg.Arguments = append(authArg.Arguments, s.Channel)
-			// adding the channel to selected channels so that we will not visit it again.
+			// add channel name to map so we only subscribe to channel once
 			chanMap[s.Channel] = true
 			authArg.associatedSubs = append(authArg.associatedSubs, s)
 		}
