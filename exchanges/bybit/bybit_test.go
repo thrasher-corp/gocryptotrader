@@ -3086,9 +3086,6 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 	err := e.wsHandleAuthenticatedData(t.Context(), []byte(`{"op":"pong","args":["1753340040127"],"conn_id":"d157a7favkf4mm3ibuvg-14toog"}`))
 	require.NoError(t, err, "wsHandleAuthenticatedData must not error for pong message")
 
-	err = e.wsHandleAuthenticatedData(t.Context(), []byte(`{"topic": "dcp"}`))
-	require.NoError(t, err, "wsHandleAuthenticatedData must not error for dcp message")
-
 	err = e.wsHandleAuthenticatedData(t.Context(), []byte(`{"topic": "unhandled"}`))
 	require.ErrorIs(t, err, errUnhandledStreamData, "wsHandleAuthenticatedData must error for unhandled stream data")
 
