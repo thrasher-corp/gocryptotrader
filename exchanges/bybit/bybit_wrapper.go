@@ -250,8 +250,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: e.generateSubscriptions,
 		Subscriber:            e.SpotSubscribe,
 		Unsubscriber:          e.SpotUnsubscribe,
-		Handler:               func(_ context.Context, resp []byte) error { return e.wsHandleData(asset.Spot, resp) },
-		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
+		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
+			return e.wsHandleData(conn, asset.Spot, resp)
+		},
+		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -271,8 +273,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: e.GenerateOptionsDefaultSubscriptions,
 		Subscriber:            e.OptionsSubscribe,
 		Unsubscriber:          e.OptionsUnsubscribe,
-		Handler:               func(_ context.Context, resp []byte) error { return e.wsHandleData(asset.Options, resp) },
-		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
+		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
+			return e.wsHandleData(conn, asset.Options, resp)
+		},
+		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -298,7 +302,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber: func(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
 			return e.LinearUnsubscribe(ctx, conn, asset.USDTMarginedFutures, unsub)
 		},
-		Handler:            func(_ context.Context, resp []byte) error { return e.wsHandleData(asset.USDTMarginedFutures, resp) },
+		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
+			return e.wsHandleData(conn, asset.USDTMarginedFutures, resp)
+		},
 		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 		MessageFilter:      asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
@@ -326,7 +332,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber: func(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
 			return e.LinearUnsubscribe(ctx, conn, asset.USDCMarginedFutures, unsub)
 		},
-		Handler:            func(_ context.Context, resp []byte) error { return e.wsHandleData(asset.USDCMarginedFutures, resp) },
+		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
+			return e.wsHandleData(conn, asset.USDCMarginedFutures, resp)
+		},
 		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 		MessageFilter:      asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
@@ -348,8 +356,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: e.GenerateInverseDefaultSubscriptions,
 		Subscriber:            e.InverseSubscribe,
 		Unsubscriber:          e.InverseUnsubscribe,
-		Handler:               func(_ context.Context, resp []byte) error { return e.wsHandleData(asset.CoinMarginedFutures, resp) },
-		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
+		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
+			return e.wsHandleData(conn, asset.CoinMarginedFutures, resp)
+		},
+		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}

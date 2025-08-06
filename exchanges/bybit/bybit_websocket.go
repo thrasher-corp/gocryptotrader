@@ -79,7 +79,10 @@ var subscriptionNames = map[string]string{
 	subscription.CandlesChannel:   chanKline,
 }
 
-var errUnhandledStreamData = errors.New("unhandled stream data")
+var (
+	errUnhandledStreamData = errors.New("unhandled stream data")
+	errUnsupportedCategory = errors.New("unsupported category")
+)
 
 // WsConnect connects to a websocket feed
 func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
@@ -161,13 +164,13 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	}).Parse(subTplText)
 }
 
-func (e *Exchange) wsHandleData(assetType asset.Item, respRaw []byte) error {
+func (e *Exchange) wsHandleData(conn websocket.Connection, assetType asset.Item, respRaw []byte) error {
 	var result WebsocketResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	if result.Topic == "" {
-		return e.handleNoTopicWebsocketResponse(&result, respRaw)
+		return e.handleNoTopicWebsocketResponse(conn, &result, respRaw)
 	}
 	topicSplit := strings.Split(result.Topic, ".")
 	switch topicSplit[0] {
@@ -191,13 +194,14 @@ func (e *Exchange) wsHandleData(assetType asset.Item, respRaw []byte) error {
 	return fmt.Errorf("%w %s", errUnhandledStreamData, string(respRaw))
 }
 
-func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+	fmt.Println("wsHandleAuthenticatedData", string(respRaw))
 	var result WebsocketResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	if result.Topic == "" {
-		return e.handleNoTopicWebsocketResponse(&result, respRaw)
+		return e.handleNoTopicWebsocketResponse(conn, &result, respRaw)
 	}
 	topicSplit := strings.Split(result.Topic, ".")
 	switch topicSplit[0] {
@@ -215,12 +219,13 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, respRaw []byte
 	return fmt.Errorf("%w %s", errUnhandledStreamData, string(respRaw))
 }
 
-func (e *Exchange) handleNoTopicWebsocketResponse(result *WebsocketResponse, respRaw []byte) error {
+func (e *Exchange) handleNoTopicWebsocketResponse(conn websocket.Connection, result *WebsocketResponse, respRaw []byte) error {
 	switch result.Operation {
 	case "subscribe", "unsubscribe", "auth":
-		if result.RequestID != "" && !e.Websocket.Match.IncomingWithData(result.RequestID, respRaw) {
-			return fmt.Errorf("%w with id %s data %s", websocket.ErrSignatureNotMatched, result.RequestID, respRaw)
+		if result.RequestID != "" {
+			return conn.RequireMatchWithData(result.RequestID, respRaw)
 		}
+
 	case "ping", "pong":
 	default:
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: string(respRaw)}
@@ -809,8 +814,6 @@ func (e *Exchange) authSubscribe(ctx context.Context, conn websocket.Connection,
 func (e *Exchange) authUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
 	return e.submitDirectSubscription(ctx, conn, asset.Spot, "unsubscribe", channelSubscriptions)
 }
-
-var errUnsupportedCategory = errors.New("unsupported category")
 
 // matchPairAssetFromResponse returns the currency pair and asset type based on the category and symbol. Used with a dedicated
 // auth connection where multiple asset type changes are piped through a single connection.

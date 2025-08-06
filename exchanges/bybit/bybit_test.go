@@ -3022,6 +3022,7 @@ func TestCancelBatchOrders(t *testing.T) {
 type DummyConnection struct {
 	dialError                         error
 	sendMessageReturnResponseOverride []byte
+	match                             websocket.Match
 	websocket.Connection
 }
 
@@ -3038,6 +3039,10 @@ func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.End
 
 func (d *DummyConnection) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
 	return nil
+}
+
+func (d *DummyConnection) RequireMatchWithData(signature any, data []byte) error {
+	return d.match.RequireMatchWithData(signature, data)
 }
 
 func TestWsConnect(t *testing.T) {
@@ -3076,17 +3081,17 @@ func TestPushDataPublic(t *testing.T) {
 	}
 
 	for x := range keys {
-		assert.ErrorIsf(t, e.wsHandleData(asset.Spot, []byte(pushDataMap[keys[x]])), expErrFn(keys[x]), "wsHandleData should not error for %s", keys[x])
+		assert.ErrorIsf(t, e.wsHandleData(nil, asset.Spot, []byte(pushDataMap[keys[x]])), expErrFn(keys[x]), "wsHandleData should not error for %s", keys[x])
 	}
 }
 
 func TestWSHandleAuthenticatedData(t *testing.T) {
 	t.Parallel()
 
-	err := e.wsHandleAuthenticatedData(t.Context(), []byte(`{"op":"pong","args":["1753340040127"],"conn_id":"d157a7favkf4mm3ibuvg-14toog"}`))
+	err := e.wsHandleAuthenticatedData(t.Context(), nil, []byte(`{"op":"pong","args":["1753340040127"],"conn_id":"d157a7favkf4mm3ibuvg-14toog"}`))
 	require.NoError(t, err, "wsHandleAuthenticatedData must not error for pong message")
 
-	err = e.wsHandleAuthenticatedData(t.Context(), []byte(`{"topic": "unhandled"}`))
+	err = e.wsHandleAuthenticatedData(t.Context(), nil, []byte(`{"topic": "unhandled"}`))
 	require.ErrorIs(t, err, errUnhandledStreamData, "wsHandleAuthenticatedData must error for unhandled stream data")
 
 	e := new(Exchange) //nolint:govet // Intentional shadow
@@ -3098,7 +3103,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 		if bytes.Contains(r, []byte("%s")) {
 			r = fmt.Appendf(nil, string(r), optionsTradablePair.String())
 		}
-		return e.wsHandleAuthenticatedData(ctx, r)
+		return e.wsHandleAuthenticatedData(ctx, nil, r)
 	})
 	close(e.Websocket.DataHandler)
 	require.Len(t, e.Websocket.DataHandler, 6, "Should see correct number of messages")
@@ -3262,7 +3267,7 @@ func TestWsTicker(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
 		defer slices.Delete(assetRouting, 0, 1)
-		return e.wsHandleData(assetRouting[0], r)
+		return e.wsHandleData(nil, assetRouting[0], r)
 	})
 	close(e.Websocket.DataHandler)
 	expected := 8
@@ -3511,7 +3516,7 @@ func TestFetchTradablePairs(t *testing.T) {
 func TestDeltaUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
-	err := e.wsHandleData(asset.Spot, data)
+	err := e.wsHandleData(nil, asset.Spot, data)
 	require.NoError(t, err, "wsHandleData must not error")
 	update := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"delta","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
 	var wsResponse WebsocketResponse
@@ -3937,7 +3942,7 @@ func TestHandleNoTopicWebsocketResponse(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("operation: %s, requestID: %s", tc.operation, tc.requestID), func(t *testing.T) {
 			t.Parallel()
-			err := e.handleNoTopicWebsocketResponse(&WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
+			err := e.handleNoTopicWebsocketResponse(&DummyConnection{}, &WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
 			assert.ErrorIs(t, err, tc.error, "handleNoTopicWebsocketResponse should return expected error")
 		})
 	}

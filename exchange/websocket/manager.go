@@ -382,6 +382,12 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 	if c.URL != "" {
 		connectionURL = c.URL
 	}
+	match := m.Match
+	if m.useMultiConnectionManagement {
+		// If we are using multi connection management, we can decouple
+		// the match from the global match and have a match per connection.
+		match = NewMatch()
+	}
 	return &connection{
 		ExchangeName:         m.exchangeName,
 		URL:                  connectionURL,
@@ -392,7 +398,7 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 		readMessageErrors:    m.ReadMessageErrors,
 		shutdown:             m.ShutdownC,
 		Wg:                   &m.Wg,
-		Match:                m.Match,
+		Match:                match,
 		RateLimit:            c.RateLimit,
 		Reporter:             c.ConnectionLevelReporter,
 		requestIDGenerator:   c.RequestIDGenerator,
@@ -862,14 +868,14 @@ func checkWebsocketURL(s string) error {
 }
 
 // Reader reads and handles data from a specific connection
-func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, message []byte) error) {
+func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error) {
 	defer m.Wg.Done()
 	for {
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {
 			return // Connection has been closed
 		}
-		if err := handler(ctx, resp.Raw); err != nil {
+		if err := handler(ctx, conn, resp.Raw); err != nil {
 			m.DataHandler <- fmt.Errorf("connection URL:[%v] error: %w", conn.GetURL(), err)
 		}
 	}
