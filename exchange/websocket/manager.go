@@ -23,18 +23,18 @@ import (
 
 // Public websocket errors
 var (
-	ErrWebsocketNotEnabled  = errors.New("websocket not enabled")
-	ErrAlreadyDisabled      = errors.New("websocket already disabled")
-	ErrNotConnected         = errors.New("websocket is not connected")
-	ErrSignatureTimeout     = errors.New("websocket timeout waiting for response with signature")
-	ErrRequestRouteNotFound = errors.New("request route not found")
-	ErrSignatureNotSet      = errors.New("signature not set")
+	ErrWebsocketNotEnabled     = errors.New("websocket not enabled")
+	ErrAlreadyDisabled         = errors.New("websocket already disabled")
+	ErrWebsocketAlreadyEnabled = errors.New("websocket already enabled")
+	ErrNotConnected            = errors.New("websocket is not connected")
+	ErrSignatureTimeout        = errors.New("websocket timeout waiting for response with signature")
+	ErrRequestRouteNotFound    = errors.New("request route not found")
+	ErrSignatureNotSet         = errors.New("signature not set")
 )
 
 // Private websocket errors
 var (
 	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
-	errWebsocketAlreadyEnabled              = errors.New("websocket already enabled")
 	errDefaultURLIsEmpty                    = errors.New("default url is empty")
 	errRunningURLIsEmpty                    = errors.New("running url cannot be empty")
 	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
@@ -617,7 +617,7 @@ func (m *Manager) Disable() error {
 // Enable enables the exchange websocket protocol
 func (m *Manager) Enable() error {
 	if m.IsConnected() || m.IsEnabled() {
-		return fmt.Errorf("%s %w", m.exchangeName, errWebsocketAlreadyEnabled)
+		return fmt.Errorf("%s %w", m.exchangeName, ErrWebsocketAlreadyEnabled)
 	}
 
 	m.setEnabled(true)
