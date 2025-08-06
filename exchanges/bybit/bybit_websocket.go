@@ -795,6 +795,7 @@ func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
 	for _, configSub := range e.Config.Features.Subscriptions.Enabled() {
 		if configSub.Authenticated {
 			log.Warnf(log.WebsocketMgr, "%q has an authenticated subscription %q in config which is not supported. Please remove", e.Name, configSub.Channel)
+			configSub.Enabled = false
 		}
 	}
 
