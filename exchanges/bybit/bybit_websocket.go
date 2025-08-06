@@ -195,7 +195,6 @@ func (e *Exchange) wsHandleData(conn websocket.Connection, assetType asset.Item,
 }
 
 func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
-	fmt.Println("wsHandleAuthenticatedData", string(respRaw))
 	var result WebsocketResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
