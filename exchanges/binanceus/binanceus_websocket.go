@@ -223,38 +223,9 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				var feeAsset currency.Code
-				if data.Data.CommissionAsset != "" {
-					feeAsset = currency.NewCode(data.Data.CommissionAsset)
-				}
-				orderID := strconv.FormatInt(data.Data.OrderID, 10)
-				orderStatus, err := stringToOrderStatus(data.Data.OrderStatus)
-				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
 				clientOrderID := data.Data.ClientOrderID
-				if orderStatus == order.Cancelled {
+				if data.Data.OrderStatus == order.Cancelled {
 					clientOrderID = data.Data.CancelledClientOrderID
-				}
-				orderType, err := order.StringToOrderType(data.Data.OrderType)
-				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				orderSide, err := order.StringToOrderSide(data.Data.Side)
-				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
 				}
 				e.Websocket.DataHandler <- &order.Detail{
 					Price:                data.Data.Price,
@@ -265,13 +236,13 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 					Cost:                 data.Data.CumulativeQuoteTransactedQuantity,
 					CostAsset:            pair.Quote,
 					Fee:                  data.Data.Commission,
-					FeeAsset:             feeAsset,
+					FeeAsset:             data.Data.CommissionAsset,
 					Exchange:             e.Name,
-					OrderID:              orderID,
+					OrderID:              strconv.FormatInt(data.Data.OrderID, 10),
 					ClientOrderID:        clientOrderID,
-					Type:                 orderType,
-					Side:                 orderSide,
-					Status:               orderStatus,
+					Type:                 data.Data.OrderType,
+					Side:                 data.Data.Side,
+					Status:               data.Data.OrderStatus,
 					AssetType:            assetType,
 					Date:                 data.Data.OrderCreationTime.Time(),
 					LastUpdated:          data.Data.TransactionTime.Time(),
