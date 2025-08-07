@@ -11574,7 +11574,7 @@
        "updateTime": 1499827319559
       }
      ],
-     "queryString": "recvWindow=5000\u0026signature=2d0f397e43d519076dd5b04ccb0004d5f44d55caf6f1a9be4ff5a157060a4d5c\u0026symbol=BTCUSDT\u0026timestamp=1754592774286",
+     "queryString": "limit=1000\u0026recvWindow=5000\u0026signature=2d0f397e43d519076dd5b04ccb0004d5f44d55caf6f1a9be4ff5a157060a4d5c\u0026symbol=BTCUSDT\u0026timestamp=1754592774286",
      "bodyParams": "",
      "headers": {
       "X-Mbx-Apikey": [

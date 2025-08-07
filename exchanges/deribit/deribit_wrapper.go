@@ -441,7 +441,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 	}
 	resp := []exchange.WithdrawalHistory{}
 	for x := range currencies {
-		if currencies[x].Currency.Equal(c) {
+		if !currencies[x].Currency.Equal(c) {
 			continue
 		}
 		var withdrawalData *WithdrawalsData

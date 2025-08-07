@@ -630,8 +630,14 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 		return err
 	}
 
-	if len(channels) != 3 && len(channels) != 5 {
-		return nil
+	const (
+		partialFeedCount = 3
+		fullFeedCount    = 5
+	)
+
+	chanLen := len(channels)
+	if chanLen != partialFeedCount && chanLen != fullFeedCount {
+		return fmt.Errorf("expected %d or %d channels, but got %d", partialFeedCount, fullFeedCount, chanLen)
 	}
 
 	a, cp, err := getAssetPairByInstrument(ob.InstrumentName)
@@ -641,7 +647,6 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 
 	buildLevels := func(items []orderbookItem) orderbook.Levels {
 		lvls := make(orderbook.Levels, 0, len(items))
-
 		for x := range items {
 			if items[x].Amount == 0 {
 				continue
@@ -659,22 +664,7 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 		return nil
 	}
 
-	book := &orderbook.Book{
-		Exchange:     e.Name,
-		Pair:         cp,
-		Asset:        a,
-		Asks:         asks,
-		Bids:         bids,
-		LastUpdateID: ob.ChangeID,
-		LastUpdated:  ob.Timestamp.Time(),
-	}
-
-	switch {
-	case len(channels) == 3 && ob.Type == "snapshot":
-		book.ValidateOrderbook = e.ValidateOrderbook
-		return e.Websocket.Orderbook.LoadSnapshot(book)
-
-	case len(channels) == 3 && ob.Type == "change":
+	if chanLen == partialFeedCount && ob.Type == "change" {
 		return e.Websocket.Orderbook.Update(&orderbook.Update{
 			Asks:       asks,
 			Bids:       bids,
@@ -683,15 +673,18 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 			UpdateID:   ob.ChangeID,
 			UpdateTime: ob.Timestamp.Time(),
 		})
-
-	case len(channels) == 5:
-		// on the “5-item” feed we always treat every push as a snapshot
-		return e.Websocket.Orderbook.LoadSnapshot(book)
-
-	default:
-		// either an unknown type or a channel length we don’t handle
-		return nil
 	}
+
+	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:          e.Name,
+		Pair:              cp,
+		Asset:             a,
+		Asks:              asks,
+		Bids:              bids,
+		LastUpdateID:      ob.ChangeID,
+		LastUpdated:       ob.Timestamp.Time(),
+		ValidateOrderbook: e.ValidateOrderbook,
+	})
 }
 
 // generateSubscriptions returns a list of configured subscriptions

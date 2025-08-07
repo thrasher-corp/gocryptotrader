@@ -571,7 +571,7 @@ func stringToOrderSide(side string) (order.Side, error) {
 		return order.Sell, nil
 	}
 
-	return order.UnknownSide, errors.New(side + " not recognised as order side")
+	return order.UnknownSide, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, side)
 }
 
 func stringToOrderType(oType string) (order.Type, error) {
@@ -582,7 +582,7 @@ func stringToOrderType(oType string) (order.Type, error) {
 		return order.Market, nil
 	}
 
-	return order.UnknownType, errors.New(oType + " not recognised as order type")
+	return order.UnknownType, fmt.Errorf("%w: %q", order.ErrUnrecognisedOrderType, oType)
 }
 
 func setOrderTypeAndSide(rawOrderType string, origSide order.Side, d *order.Detail) error {

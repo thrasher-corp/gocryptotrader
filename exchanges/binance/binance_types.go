@@ -800,39 +800,39 @@ type WsBalanceUpdateData struct {
 
 // WsOrderUpdateData defines websocket account order update data
 type WsOrderUpdateData struct {
-	EventType                         string        `json:"e"`
-	EventTime                         types.Time    `json:"E"`
-	Symbol                            string        `json:"s"`
-	ClientOrderID                     string        `json:"c"`
-	Side                              order.Side    `json:"S"`
-	OrderType                         order.Type    `json:"o"`
-	TimeInForce                       string        `json:"f"`
-	Quantity                          float64       `json:"q,string"`
-	Price                             float64       `json:"p,string"`
-	StopPrice                         float64       `json:"P,string"`
-	IcebergQuantity                   float64       `json:"F,string"`
-	OrderListID                       int64         `json:"g"`
-	CancelledClientOrderID            string        `json:"C"`
-	CurrentExecutionType              string        `json:"x"`
-	OrderStatus                       order.Status  `json:"X"`
-	RejectionReason                   string        `json:"r"`
-	OrderID                           int64         `json:"i"`
-	LastExecutedQuantity              float64       `json:"l,string"`
-	CumulativeFilledQuantity          float64       `json:"z,string"`
-	LastExecutedPrice                 float64       `json:"L,string"`
-	Commission                        float64       `json:"n,string"`
-	CommissionAsset                   currency.Code `json:"N"`
-	TransactionTime                   types.Time    `json:"T"`
-	TradeID                           int64         `json:"t"`
-	Ignored                           int64         `json:"I"` // Must be ignored explicitly, otherwise it overwrites 'i'.
-	IsOnOrderBook                     bool          `json:"w"`
-	IsMaker                           bool          `json:"m"`
-	Ignored2                          bool          `json:"M"` // See the comment for "I".
-	OrderCreationTime                 types.Time    `json:"O"`
-	WorkingTime                       types.Time    `json:"W"`
-	CumulativeQuoteTransactedQuantity float64       `json:"Z,string"`
-	LastQuoteAssetTransactedQuantity  float64       `json:"Y,string"`
-	QuoteOrderQuantity                float64       `json:"Q,string"`
+	EventType                         string          `json:"e"`
+	EventTime                         types.Time      `json:"E"`
+	Symbol                            string          `json:"s"`
+	ClientOrderID                     string          `json:"c"`
+	Side                              order.Side      `json:"S"`
+	OrderType                         order.Type      `json:"o"`
+	TimeInForce                       string          `json:"f"`
+	Quantity                          float64         `json:"q,string"`
+	Price                             float64         `json:"p,string"`
+	StopPrice                         float64         `json:"P,string"`
+	IcebergQuantity                   float64         `json:"F,string"`
+	OrderListID                       int64           `json:"g"`
+	CancelledClientOrderID            string          `json:"C"`
+	CurrentExecutionType              string          `json:"x"`
+	OrderStatus                       order.Status    `json:"X"`
+	RejectionReason                   string          `json:"r"`
+	OrderID                           int64           `json:"i"`
+	LastExecutedQuantity              float64         `json:"l,string"`
+	CumulativeFilledQuantity          float64         `json:"z,string"`
+	LastExecutedPrice                 float64         `json:"L,string"`
+	Commission                        float64         `json:"n,string"`
+	CommissionAsset                   currency.Code   `json:"N"`
+	TransactionTime                   types.Time      `json:"T"`
+	TradeID                           int64           `json:"t"`
+	Ignored                           json.RawMessage `json:"I"` // Must be ignored explicitly, otherwise it overwrites 'i'.
+	IsOnOrderBook                     bool            `json:"w"`
+	IsMaker                           bool            `json:"m"`
+	Ignored2                          json.RawMessage `json:"M"` // Must be ignored explicitly, otherwise it overwrites 'm'
+	OrderCreationTime                 types.Time      `json:"O"`
+	WorkingTime                       types.Time      `json:"W"`
+	CumulativeQuoteTransactedQuantity float64         `json:"Z,string"`
+	LastQuoteAssetTransactedQuantity  float64         `json:"Y,string"`
+	QuoteOrderQuantity                float64         `json:"Q,string"`
 }
 
 // WsListStatusData defines websocket account listing status data

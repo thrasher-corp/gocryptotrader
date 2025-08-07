@@ -1083,8 +1083,8 @@ func StringToOrderSide(side string) (Side, error) {
 // It expects a quoted string input, and uses StringToOrderSide to parse it
 func (s *Side) UnmarshalJSON(data []byte) (err error) {
 	if !bytes.HasPrefix(data, []byte(`"`)) {
-		// Note that we don't need to worry about invalid JSON here, it wouldn't have made it past the deserialiser far
-		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeFor[Side](), Offset: 1}
+		// Note: Invalid JSON is caught earlier by the JSON decoder
+		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeFor[Side]()}
 	}
 	*s, err = StringToOrderSide(string(data[1 : len(data)-1])) // Remove quotes
 	return
@@ -1147,8 +1147,8 @@ func StringToOrderType(oType string) (Type, error) {
 // It expects a quoted string input, and uses StringToOrderType to parse it
 func (t *Type) UnmarshalJSON(data []byte) (err error) {
 	if !bytes.HasPrefix(data, []byte(`"`)) {
-		// Note that we don't need to worry about invalid JSON here, it wouldn't have made it past the deserialiser far
-		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeFor[Type](), Offset: 1}
+		// Note: Invalid JSON is caught earlier by the JSON decoder
+		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeFor[Type]()}
 	}
 	*t, err = StringToOrderType(string(data[1 : len(data)-1])) // Remove quotes
 	return
@@ -1210,8 +1210,8 @@ func StringToOrderStatus(status string) (Status, error) {
 // It expects a quoted string input, and uses StringToOrderStatus to parse it
 func (s *Status) UnmarshalJSON(data []byte) (err error) {
 	if !bytes.HasPrefix(data, []byte(`"`)) {
-		// Note that we don't need to worry about invalid JSON here, it wouldn't have made it past the deserialiser far
-		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeFor[Status](), Offset: 1}
+		// Note: Invalid JSON is caught earlier by the JSON decoder
+		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeFor[Status]()}
 	}
 	*s, err = StringToOrderStatus(string(data[1 : len(data)-1])) // Remove quotes
 	return

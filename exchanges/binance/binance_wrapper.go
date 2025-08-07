@@ -1402,7 +1402,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	switch req.AssetType {
 	case asset.Spot, asset.Margin:
 		for x := range req.Pairs {
-			resp, err := e.AllOrders(ctx, req.Pairs[x], "", "1000")
+			resp, err := e.AllOrders(ctx, req.Pairs[x], 0, 1000)
 			if err != nil {
 				return nil, err
 			}

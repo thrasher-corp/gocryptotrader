@@ -719,7 +719,7 @@ func (e *Exchange) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 		var err error
 		orderDetail.Type, err = order.StringToOrderType(orderType)
 		if err != nil {
-			return nil, fmt.Errorf("unable to convert order type %s to order.Type: %w", orderType, err)
+			return nil, fmt.Errorf("unable to convert order type %q to order.Type: %w", orderType, err)
 		}
 	}
 
