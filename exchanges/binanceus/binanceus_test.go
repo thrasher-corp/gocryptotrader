@@ -860,7 +860,7 @@ func TestCancelOpenOrdersForSymbol(t *testing.T) {
 }
 
 // TestGetTrades test for fetching the list of
-// trades attached with this accounts.
+// trades attached with this account.
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTrades(t.Context(), &GetTradesParams{})
