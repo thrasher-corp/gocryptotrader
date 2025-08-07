@@ -831,7 +831,7 @@ func TestStringToOrderType(t *testing.T) {
 		{"mMp", MarketMakerProtection, nil},
 		{"tWaP", TWAP, nil},
 		{"TWAP", TWAP, nil},
-		{"woahMan", UnknownType, errUnrecognisedOrderType},
+		{"woahMan", UnknownType, ErrUnrecognisedOrderType},
 		{"chase", Chase, nil},
 		{"MOVE_ORDER_STOP", TrailingStop, nil},
 		{"mOVe_OrdeR_StoP", TrailingStop, nil},
@@ -1135,7 +1135,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 	getOrders.Side = AnySide
 	err = getOrders.Validate()
-	require.ErrorIs(t, err, errUnrecognisedOrderType)
+	require.ErrorIs(t, err, ErrUnrecognisedOrderType)
 
 	errTestError := errors.New("test error")
 	getOrders.Type = AnyType
@@ -1687,7 +1687,7 @@ func TestTypeUnmarshalJSON(t *testing.T) {
 	var ordType Type
 	require.NoError(t, ordType.UnmarshalJSON([]byte(`"LIMIT"`)), "UnmarshalJSON with valid type must not error")
 	assert.Equal(t, Limit, ordType, "Order type should be set correctly")
-	assert.ErrorIs(t, ordType.UnmarshalJSON([]byte(`"COW"`)), errUnrecognisedOrderType, "UnmarshalJSON with invalid type should error")
+	assert.ErrorIs(t, ordType.UnmarshalJSON([]byte(`"COW"`)), ErrUnrecognisedOrderType, "UnmarshalJSON with invalid type should error")
 	var jErr *json.UnmarshalTypeError
 	assert.ErrorAs(t, ordType.UnmarshalJSON([]byte(`420`)), &jErr, "UnmarshalJSON with non-string valid JSON should error")
 }
