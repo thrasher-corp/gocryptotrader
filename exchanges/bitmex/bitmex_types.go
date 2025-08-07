@@ -649,31 +649,17 @@ type MinWithdrawalFee struct {
 
 // WalletInfo wallet information
 type WalletInfo struct {
-	Account          int64         `json:"account"`
-	Addr             string        `json:"addr"`
-	Amount           float64       `json:"amount"`
-	ConfirmedDebit   int64         `json:"confirmedDebit"`
-	Currency         currency.Code `json:"currency"`
-	DeltaAmount      int64         `json:"deltaAmount"`
-	DeltaDeposited   int64         `json:"deltaDeposited"`
-	DeltaTransferIn  int64         `json:"deltaTransferIn"`
-	DeltaTransferOut int64         `json:"deltaTransferOut"`
-	DeltaWithdrawn   int64         `json:"deltaWithdrawn"`
-	Deposited        int64         `json:"deposited"`
-	PendingCredit    int64         `json:"pendingCredit"`
-	PendingDebit     int64         `json:"pendingDebit"`
-	PrevAmount       int64         `json:"prevAmount"`
-	PrevDeposited    int64         `json:"prevDeposited"`
-	PrevTimestamp    time.Time     `json:"prevTimestamp"`
-	PrevTransferIn   int64         `json:"prevTransferIn"`
-	PrevTransferOut  int64         `json:"prevTransferOut"`
-	PrevWithdrawn    int64         `json:"prevWithdrawn"`
-	Script           string        `json:"script"`
-	Timestamp        time.Time     `json:"timestamp"`
-	TransferIn       int64         `json:"transferIn"`
-	TransferOut      int64         `json:"transferOut"`
-	WithdrawalLock   []string      `json:"withdrawalLock"`
-	Withdrawn        int64         `json:"withdrawn"`
+	Account        int64         `json:"account"`
+	Currency       currency.Code `json:"currency"`
+	Deposited      float64       `json:"deposited"`
+	Withdrawn      float64       `json:"withdrawn"`
+	TransferIn     float64       `json:"transferIn"`
+	TransferOut    float64       `json:"transferOut"`
+	Amount         float64       `json:"amount"`
+	PendingCredit  float64       `json:"pendingCredit"`
+	PendingDebit   float64       `json:"pendingDebit"`
+	ConfirmedDebit float64       `json:"confirmedDebit"`
+	Timestamp      time.Time     `json:"timestamp"`
 }
 
 // orderTypeMap holds order type info based on Bitmex data
