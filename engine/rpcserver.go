@@ -4744,7 +4744,6 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		return nil, fmt.Errorf("%s %w", a, futures.ErrNotFuturesAsset)
 	}
 	currBalances, err := exch.GetCachedCurrencyBalances(ctx, a)
-	fmt.Println("", err, "")
 	if err != nil {
 		return nil, err
 	}
