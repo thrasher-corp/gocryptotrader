@@ -53,7 +53,7 @@ func (s *Store) GetExchangeAccounts(e exchange) (a *Accounts, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if w, ok := e.(exchangeWrapper); ok {
-		// Because SetupDefualts is called on Base, it's easiest to just use the Base pointer as the key
+		// Because SetupDefaults is called on Base, it's easiest to just use the Base pointer as the key
 		e = w.GetBase()
 	}
 	a, ok := s.exchangeAccounts[e]
