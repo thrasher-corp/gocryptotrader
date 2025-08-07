@@ -134,7 +134,7 @@ type RequestAQuoteResponse struct {
 	ExtTaxAndFee json.RawMessage `json:"extTaxAndFee"` // Compliance-related field. Currently returns an empty array, which may be used in the future
 }
 
-// GetConvertCoinList returns a list of coins you can convert to/from
+// RequestAQuote requests a conversion quote between two coins with the specified parameters.
 func (e *Exchange) RequestAQuote(ctx context.Context, params *RequestAQuoteParams) (*RequestAQuoteResponse, error) {
 	if !slices.Contains(supportedAccountTypes, params.AccountType) {
 		return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, params.AccountType)
