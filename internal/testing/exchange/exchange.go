@@ -54,7 +54,7 @@ func Setup(e exchange.IBotExchange) error {
 
 	b.Accounts = accounts.MustNewAccounts(b)
 
-	return err
+	return nil
 }
 
 // httpMockFile is a consistent path under each exchange to find the mock server definitions
