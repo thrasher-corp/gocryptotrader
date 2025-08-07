@@ -592,8 +592,7 @@ func (s *RPCServer) UpdateAccountBalances(ctx context.Context, r *gctrpc.GetAcco
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, e, assetType, currency.EMPTYPAIR)
-	if err != nil {
+	if err := checkParams(r.Exchange, e, assetType, currency.EMPTYPAIR); err != nil {
 		return nil, err
 	}
 
