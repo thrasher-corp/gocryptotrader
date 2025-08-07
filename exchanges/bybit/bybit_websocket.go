@@ -661,9 +661,6 @@ const subTplText = `
 				{{- $p }}
 				{{- $.PairSeparator }}
 			{{- end }}
-		{{- else }}
-			{{- $name }}
-			{{- if and (isCategorisedChannel $name) ($categoryName := getCategoryName $asset) -}} . {{- $categoryName -}} {{- end }}
 		{{- end }}
 	{{- end }}
 	{{- $.AssetSeparator }}
