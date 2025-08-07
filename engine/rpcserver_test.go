@@ -402,8 +402,7 @@ func (f fExchange) UpdateAccountBalances(_ context.Context, a asset.Item) (accou
 	if a == asset.Futures {
 		return accounts.SubAccounts{}, asset.ErrNotSupported
 	}
-	accts := accounts.SubAccounts{accounts.NewSubAccount(a, "1337")}
-	return accts, nil
+	return accounts.SubAccounts{accounts.NewSubAccount(a, "1337")}, nil
 }
 
 // GetCurrencyStateSnapshot overrides interface function
