@@ -1042,7 +1042,7 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 		Contract:    getPair(t, asset.DeliveryFutures),
 		Size:        6024,
 		Iceberg:     0,
-		Price:       "3765",
+		Price:       3765,
 		Text:        "t-my-custom-id",
 		Settle:      currency.USDT,
 		TimeInForce: gtcTIF,
@@ -1204,7 +1204,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		Contract:    getPair(t, asset.CoinMarginedFutures),
 		Size:        6024,
 		Iceberg:     0,
-		Price:       "3765",
+		Price:       3765,
 		TimeInForce: "gtc",
 		Text:        "t-my-custom-id",
 		Settle:      currency.BTC,
@@ -1248,7 +1248,7 @@ func TestPlaceBatchFuturesOrders(t *testing.T) {
 			Contract:    getPair(t, asset.CoinMarginedFutures),
 			Size:        6024,
 			Iceberg:     0,
-			Price:       "3765",
+			Price:       3765,
 			TimeInForce: "gtc",
 			Text:        "t-my-custom-id",
 			Settle:      currency.BTC,
@@ -1257,7 +1257,7 @@ func TestPlaceBatchFuturesOrders(t *testing.T) {
 			Contract:    getPair(t, asset.CoinMarginedFutures),
 			Size:        232,
 			Iceberg:     0,
-			Price:       "376225",
+			Price:       376225,
 			TimeInForce: "gtc",
 			Text:        "t-my-custom-id",
 			Settle:      currency.BTC,
@@ -2753,6 +2753,13 @@ func TestGetClientOrderIDFromText(t *testing.T) {
 	assert.Equal(t, "t-123", getClientOrderIDFromText("t-123"), "should return t-123")
 }
 
+func TestFormatClientOrderID(t *testing.T) {
+	t.Parallel()
+	assert.Empty(t, formatClientOrderID(""), "should not return anything")
+	assert.Equal(t, "t-123", formatClientOrderID("t-123"), "should return t-123")
+	assert.Equal(t, "t-456", formatClientOrderID("456"), "should return t-456")
+}
+
 func TestGetSideAndAmountFromSize(t *testing.T) {
 	t.Parallel()
 	side, amount, remaining := getSideAndAmountFromSize(1, 1)
@@ -3352,11 +3359,30 @@ func TestGetTypeFromTimeInForce(t *testing.T) {
 	assert.Equal(t, order.Market, typeResp, "should be market order")
 }
 
-func TestTimeInForceString(t *testing.T) {
+func TestToExchangeTIF(t *testing.T) {
 	t.Parallel()
-	assert.Empty(t, timeInForceString(order.UnknownTIF))
-	for _, valid := range validTimesInForce {
-		assert.Equal(t, valid.String, timeInForceString(valid.TimeInForce))
+
+	for _, tc := range []struct {
+		tif      order.TimeInForce
+		price    float64
+		expected string
+		error    error
+	}{
+		{price: 0, expected: iocTIF}, // market orders default to IOC
+		{price: 0, tif: order.FillOrKill, expected: fokTIF},
+		{price: 420, expected: gtcTIF}, // limit orders default to GTC
+		{price: 420, tif: order.GoodTillCancel, expected: gtcTIF},
+		{price: 420, tif: order.ImmediateOrCancel, expected: iocTIF},
+		{price: 420, tif: order.PostOnly, expected: pocTIF},
+		{price: 420, tif: order.FillOrKill, expected: fokTIF},
+		{tif: order.GoodTillTime, error: order.ErrUnsupportedTimeInForce},
+	} {
+		t.Run(fmt.Sprintf("TIF:%q Price:'%v'", tc.tif, tc.price), func(t *testing.T) {
+			t.Parallel()
+			got, err := toExchangeTIF(tc.tif, tc.price)
+			require.ErrorIs(t, err, tc.error)
+			require.Equal(t, tc.expected, got)
+		})
 	}
 }
 
@@ -3579,4 +3605,86 @@ func TestGetIntervalString(t *testing.T) {
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "0 should be an invalid interval")
 	_, err = getIntervalString(kline.FiveDay)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "Any other random interval should also be invalid")
+}
+
+func TestValidateContractOrderCreateParams(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		params *ContractOrderCreateParams
+		isRest bool
+		error  error
+	}{
+		{
+			error: common.ErrNilPointer,
+		},
+		{
+			params: &ContractOrderCreateParams{}, error: currency.ErrCurrencyPairEmpty,
+		},
+		{
+			params: &ContractOrderCreateParams{Contract: BTCUSDT},
+			error:  errInvalidOrderSize,
+		},
+		{
+			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: "bad"},
+			error:  order.ErrUnsupportedTimeInForce,
+		},
+		{
+			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: pocTIF},
+			error:  order.ErrUnsupportedTimeInForce,
+		},
+		{
+			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "test"},
+			error:  errInvalidText,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "silly_billy",
+			},
+			error: errInvalidAutoSize,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
+			},
+			error: errInvalidOrderSize,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
+			},
+			isRest: true,
+			error:  errEmptyOrInvalidSettlementCurrency,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.NewCode("Silly"),
+			},
+			error: errEmptyOrInvalidSettlementCurrency,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.USDT,
+			},
+		},
+	} {
+		assert.ErrorIs(t, tc.params.validate(tc.isRest), tc.error)
+	}
+}
+
+func TestMarshalJSONNumber(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		number   number
+		expected string
+	}{
+		{number: 0, expected: `"0"`},
+		{number: 1, expected: `"1"`},
+		{number: 1.5, expected: `"1.5"`},
+	} {
+		payload, err := tc.number.MarshalJSON()
+		require.NoError(t, err, "MarshalJSON must not error")
+		assert.Equal(t, tc.expected, string(payload), "MarshalJSON should return expected value")
+	}
 }
