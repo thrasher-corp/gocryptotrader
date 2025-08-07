@@ -472,14 +472,7 @@ func (e *Exchange) QueryOrder(ctx context.Context, symbol currency.Pair, origCli
     }
 
     var resp *OrderResponse
-    if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, orderEndpoint, params, spotOrderQueryRate, &resp); err != nil {
-        return resp, err
-    }
-
-    if resp.Code != 0 {
-        return resp, errors.New(resp.Msg)
-    }
-    return resp, nil
+    return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, orderEndpoint, params, spotOrderQueryRate, &resp)
 }
 ```
 
