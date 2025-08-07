@@ -49,7 +49,7 @@ func TestCheckResponsePayload(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, items)
 
-	data, err := CheckResponsePayload(payload, items)
+	data, err := CheckResponsePayload(payload, items, 5)
 	assert.NoError(t, err)
 
 	expected := `{

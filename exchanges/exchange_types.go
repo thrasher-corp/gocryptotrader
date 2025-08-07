@@ -230,19 +230,20 @@ type API struct {
 
 // Base stores the individual exchange information
 type Base struct {
-	Name                          string
-	Enabled                       bool
-	Verbose                       bool
-	LoadedByConfig                bool
-	SkipAuthCheck                 bool
-	API                           API
-	BaseCurrencies                currency.Currencies
-	CurrencyPairs                 currency.PairsManager
-	Features                      Features
-	HTTPTimeout                   time.Duration
-	HTTPRecording                 bool
-	HTTPDebugging                 bool
-	BypassConfigFormatUpgrades    bool
+	Name                       string
+	Enabled                    bool
+	Verbose                    bool
+	LoadedByConfig             bool
+	SkipAuthCheck              bool
+	API                        API
+	BaseCurrencies             currency.Currencies
+	CurrencyPairs              currency.PairsManager
+	Features                   Features
+	HTTPTimeout                time.Duration
+	HTTPRecording              bool
+	HTTPDebugging              bool
+	BypassConfigFormatUpgrades bool
+
 	WebsocketResponseCheckTimeout time.Duration
 	WebsocketResponseMaxLimit     time.Duration
 	WebsocketOrderbookBufferLimit int64
@@ -255,6 +256,10 @@ type Base struct {
 	// integrity.
 	ValidateOrderbook bool
 	order.ExecutionLimits
+
+	// Used in HTTP recording to limit the number of slices per record,
+	// helping reduce the size of the recorded mock data.
+	MockDataSliceLimit int
 
 	AssetWebsocketSupport
 	*currencystate.States

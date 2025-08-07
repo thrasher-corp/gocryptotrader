@@ -709,12 +709,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path
 		return err
 	}
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpointPath + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:             http.MethodGet,
+		Path:               endpointPath + path,
+		Result:             result,
+		Verbose:            e.Verbose,
+		HTTPDebugging:      e.HTTPDebugging,
+		HTTPRecording:      e.HTTPRecording,
+		MockDataSliceLimit: e.MockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, f, func() (*request.Item, error) {

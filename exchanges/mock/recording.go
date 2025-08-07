@@ -30,7 +30,7 @@ type HTTPResponse struct {
 
 // HTTPRecord will record the request and response to a default JSON file for
 // mocking purposes
-func HTTPRecord(res *http.Response, service string, respContents []byte) error {
+func HTTPRecord(res *http.Response, service string, respContents []byte, mockDataSliceLimit int) error {
 	if res == nil {
 		return errors.New("http.Response cannot be nil")
 	}
@@ -47,7 +47,10 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 		return errors.New("service not supplied cannot access correct mock file")
 	}
 	service = strings.ToLower(service)
-
+	if mockDataSliceLimit == 0 {
+		// Set the mock slice data size limit to a default of 5
+		mockDataSliceLimit = 5
+	}
 	outputFilePath := filepath.Join(DefaultDirectory, service, service+".json")
 	_, err := os.Stat(outputFilePath)
 	if err != nil {
@@ -83,7 +86,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 	}
 
 	var httpResponse HTTPResponse
-	cleanedContents, err := CheckResponsePayload(respContents, items)
+	cleanedContents, err := CheckResponsePayload(respContents, items, mockDataSliceLimit)
 	if err != nil {
 		return err
 	}
@@ -263,13 +266,13 @@ func GetFilteredURLVals(vals url.Values, items Exclusion) string {
 
 // CheckResponsePayload checks to see if there are any response body variables
 // that should not be there.
-func CheckResponsePayload(data []byte, items Exclusion) ([]byte, error) {
+func CheckResponsePayload(data []byte, items Exclusion, mockDataSliceLimit int) ([]byte, error) {
 	var intermediary any
 	if err := json.Unmarshal(data, &intermediary); err != nil {
 		return nil, err
 	}
 
-	payload, err := CheckJSON(intermediary, &items, 5)
+	payload, err := CheckJSON(intermediary, &items, mockDataSliceLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -304,18 +307,21 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 					return nil, err
 				}
 				sData = append(sData, checkedData)
+				if limit > 0 && len(sData) >= limit {
+					return sData, nil
+				}
 			case map[string]any:
 				checkedData, err := CheckJSON(subvalues, excluded, limit)
 				if err != nil {
 					return nil, err
 				}
 				sData = append(sData, checkedData)
+				if limit > 0 && len(sData) >= limit {
+					return sData, nil
+				}
 			default:
 				// Primitive value doesn't need exclusions applied, e.g. float64 or string
 				sData = append(sData, subvalues)
-			}
-			if limit > 0 && len(sData) >= limit {
-				return sData, nil
 			}
 		}
 		return sData, nil
