@@ -579,8 +579,7 @@ func (f *FundManager) UpdateFundingFromLiveData(initialFundsSet bool) error {
 			}
 			for _, subAcct := range subAccts {
 				for _, bal := range subAcct.Balances {
-					err = f.SetFunding(eName, a, &bal, initialFundsSet)
-					if err != nil {
+					if err := f.SetFunding(eName, a, &bal, initialFundsSet); err != nil {
 						return err
 					}
 				}
