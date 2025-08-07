@@ -1323,7 +1323,7 @@ func (e *Exchange) GetFeeRate(ctx context.Context, category, symbol, baseCoin st
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/fee-rate", params, nil, &resp, getAccountFeeEPL)
 }
 
-// GetAccountInfo retrieves the margin mode configuration of the accounts.
+// GetAccountInfo retrieves the margin mode configuration of the account.
 // query the margin mode and the upgraded status of account
 func (e *Exchange) GetAccountInfo(ctx context.Context) (*AccountInfo, error) {
 	var resp *AccountInfo
