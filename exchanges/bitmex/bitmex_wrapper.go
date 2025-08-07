@@ -446,11 +446,11 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 
 // UpdateAccountBalances retrieves balances for all enabled currencies for the Bitmex exchange
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var subAccts accounts.SubAccounts
 	userMargins, err := e.GetAllUserMargin(ctx)
 	if err != nil {
-		return subAccts, err
+		return nil, err
 	}
+	var subAccts accounts.SubAccounts
 	// Need to update to add Margin/Liquidity availability
 	for i := range userMargins {
 		wallet, err := e.GetWalletInfo(ctx, userMargins[i].Currency)
