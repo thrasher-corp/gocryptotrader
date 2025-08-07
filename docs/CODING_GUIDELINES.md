@@ -34,7 +34,7 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 
 ### TestMain usage
 
-- TestMain must avoid API calls to keep the test footprint as minimal as possible unless there's a good case with commentary as to why it was done.
+- TestMain must avoid API calls, so that individual unit tests can run quickly. Use sync.Once or similar patterns to bootstrap common data without burdening all unit tests with the same overhaed. See `UpdatePairsOnce` for an example of this.
 
 ### Struct Naming
 
@@ -101,7 +101,7 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 Verify all tests pass by:
 
 ```console
-    go test ./... -race
+    go test ./... -race -count 1
 ```
 
 ### Assertion Usage
@@ -165,6 +165,7 @@ Use `require` and `assert` appropriately:
 ## Comments
 
 - API methods and public types must have comments for GoDoc.
+- Comments should explain **why** the code is doing something, not **what** it's doing, which should be self-explanatory.
 - Self-explanatory comments must be avoided.
 - Only retain comments for complex logic or where external behavior needs clarification.
 
