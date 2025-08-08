@@ -25,7 +25,7 @@ func (e *Exchange) handleSpotSubscription(ctx context.Context, conn websocket.Co
 			return err
 		}
 		if !resp.Success {
-			return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.RetMsg)
+			return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.ReturnMessage)
 		}
 		if operation == "unsubscribe" {
 			err = e.Websocket.RemoveSubscriptions(conn, payload.associatedSubs...)

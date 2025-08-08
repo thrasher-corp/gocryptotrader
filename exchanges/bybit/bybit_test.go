@@ -3045,6 +3045,10 @@ func (d *FixtureConnection) RequireMatchWithData(signature any, data []byte) err
 	return d.match.RequireMatchWithData(signature, data)
 }
 
+func (d *FixtureConnection) IncomingWithData(signature any, data []byte) bool {
+	return d.match.IncomingWithData(signature, data)
+}
+
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
 	err := e.WsConnect(t.Context(), &FixtureConnection{dialError: nil})
@@ -3072,7 +3076,6 @@ func TestPushDataPublic(t *testing.T) {
 
 	keys := slices.Collect(maps.Keys(pushDataMap))
 	slices.Sort(keys)
-
 	for x := range keys {
 		err := e.wsHandleData(nil, asset.Spot, []byte(pushDataMap[keys[x]]))
 		if keys[x] == "unhandled" {
@@ -3101,7 +3104,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 		if bytes.Contains(r, []byte("%s")) {
 			r = fmt.Appendf(nil, string(r), optionsTradablePair.String())
 		}
-		return e.wsHandleAuthenticatedData(ctx, nil, r)
+		return e.wsHandleAuthenticatedData(ctx, &FixtureConnection{}, r)
 	})
 	close(e.Websocket.DataHandler)
 	require.Len(t, e.Websocket.DataHandler, 6, "Should see correct number of messages")
@@ -3806,22 +3809,41 @@ func TestAuthSubscribe(t *testing.T) {
 	require.NoError(t, e.authUnsubscribe(t.Context(), &FixtureConnection{}, authsubs))
 }
 
-func TestWebsocketAuthenticateConnection(t *testing.T) {
+func TestWebsocketAuthenticatePrivateConnection(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e))
 
-	err := e.WebsocketAuthenticateConnection(t.Context(), &FixtureConnection{})
+	err := e.WebsocketAuthenticatePrivateConnection(t.Context(), &FixtureConnection{})
 	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "dummy", Secret: "dummy"})
-	err = e.WebsocketAuthenticateConnection(ctx, &FixtureConnection{})
+	err = e.WebsocketAuthenticatePrivateConnection(ctx, &FixtureConnection{})
 	require.NoError(t, err)
-	err = e.WebsocketAuthenticateConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":false,"ret_msg":"failed auth","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`)})
+	err = e.WebsocketAuthenticatePrivateConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":false,"ret_msg":"failed auth","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`)})
+	require.Error(t, err)
+}
+
+func TestWebsocketAuthenticateTradeConnection(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e))
+
+	err := e.WebsocketAuthenticateTradeConnection(t.Context(), &FixtureConnection{})
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+
+	e.API.AuthenticatedSupport = true
+	e.API.AuthenticatedWebsocketSupport = true
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "dummy", Secret: "dummy"})
+	err = e.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":0,"retMsg":"OK","op":"auth","connId":"d2a641kgcg7ab33b7mdg-4x6a"}`)})
+	require.NoError(t, err)
+	err = e.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":10004,"retMsg":"Invalid sign","op":"auth","connId":"d2a63t6p49kk82nefh90-4ye8"}`)})
 	require.Error(t, err)
 }
 

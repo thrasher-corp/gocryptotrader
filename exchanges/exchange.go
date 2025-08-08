@@ -1387,6 +1387,8 @@ func (u URL) String() string {
 		return websocketUSDCMarginedURL
 	case WebsocketOptions:
 		return websocketOptionsURL
+	case WebsocketTrade:
+		return websocketTradeURL
 	case WebsocketPrivate:
 		return websocketPrivateURL
 	case WebsocketSpotSupplementary:
@@ -1435,6 +1437,8 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return WebsocketUSDCMargined, nil
 	case websocketOptionsURL:
 		return WebsocketOptions, nil
+	case websocketTradeURL:
+		return WebsocketTrade, nil
 	case websocketPrivateURL:
 		return WebsocketPrivate, nil
 	case websocketSpotSupplementaryURL:
@@ -1956,4 +1960,14 @@ func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (
 // WebsocketSubmitOrder submits an order to the exchange via a websocket connection
 func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketModifyOrder modifies an order via the websocket connection
+func (*Base) WebsocketModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketCancelOrder cancels an order via the websocket connection
+func (*Base) WebsocketCancelOrder(context.Context, *order.Cancel) error {
+	return common.ErrFunctionNotSupported
 }
