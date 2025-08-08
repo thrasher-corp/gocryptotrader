@@ -678,8 +678,8 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 				} else {
 					a.Balances.Set(balances[j].Currency, accounts.Balance{Total: balances[j].Balance})
 				}
-				subAccts = subAccts.Merge(a)
 			}
+			subAccts = subAccts.Merge(a)
 		}
 	case asset.CoinMarginedFutures:
 		mainResp, err := e.GetSwapAccountInfo(ctx, currency.EMPTYPAIR)
