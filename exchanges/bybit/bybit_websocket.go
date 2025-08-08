@@ -276,7 +276,7 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket
 		// Below provides a way of matching an order change to a websocket request. There is no batch support for this
 		// so the first element will be used to match the order link ID.
 		if id, err := jsonparser.GetString(respRaw, "data", "[0]", "orderLinkId"); err == nil {
-			if e.Websocket.Match.IncomingWithData(id, respRaw) {
+			if conn.IncomingWithData(id, respRaw) {
 				return nil // If the data has been routed, return
 			}
 		}
