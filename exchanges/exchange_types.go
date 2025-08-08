@@ -277,6 +277,7 @@ const (
 	WebsocketUSDTMargined
 	WebsocketUSDCMargined
 	WebsocketOptions
+	WebsocketTrade
 	WebsocketPrivate
 	WebsocketSpotSupplementary
 	ChainAnalysis
@@ -298,6 +299,7 @@ const (
 	websocketUSDTMarginedURL      = "WebsocketUSDTMarginedURL"
 	websocketUSDCMarginedURL      = "WebsocketUSDCMarginedURL"
 	websocketOptionsURL           = "WebsocketOptionsURL"
+	websocketTradeURL             = "WebsocketTradeURL"
 	websocketPrivateURL           = "WebsocketPrivateURL"
 	websocketSpotSupplementaryURL = "WebsocketSpotSupplementaryURL"
 	chainAnalysisURL              = "ChainAnalysisURL"
@@ -321,6 +323,7 @@ var keyURLs = []URL{
 	WebsocketUSDTMargined,
 	WebsocketUSDCMargined,
 	WebsocketOptions,
+	WebsocketTrade,
 	WebsocketPrivate,
 	WebsocketSpotSupplementary,
 	ChainAnalysis,

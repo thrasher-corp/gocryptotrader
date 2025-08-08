@@ -75,6 +75,9 @@ var subscriptionNames = map[string]string{
 	subscription.TickerChannel:    chanPublicTicker,
 	subscription.OrderbookChannel: chanOrderbook,
 	subscription.AllTradesChannel: chanPublicTrade,
+	subscription.MyOrdersChannel:  chanOrder,
+	subscription.MyWalletChannel:  chanWallet,
+	subscription.MyTradesChannel:  chanExecution,
 	subscription.CandlesChannel:   chanKline,
 }
 
@@ -163,11 +166,6 @@ func (e *Exchange) GetAuthenticationPayload(ctx context.Context, requestID strin
 		Args:      []any{creds.Key, intNonce, hex.EncodeToString(hmac)},
 	}, nil
 }
-
-// // Subscribe sends a websocket message to receive data from the channel
-// func (by *Bybit) Subscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
-// 	return by.handleSpotSubscription(ctx, conn, "subscribe", channelsToSubscribe)
-// }
 
 func (e *Exchange) handleSubscriptions(conn websocket.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
 	subs, err = subs.ExpandTemplates(e)

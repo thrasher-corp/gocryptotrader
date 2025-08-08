@@ -1713,6 +1713,7 @@ func TestString(t *testing.T) {
 		{WebsocketUSDTMargined, websocketUSDTMarginedURL},
 		{WebsocketUSDCMargined, websocketUSDCMarginedURL},
 		{WebsocketOptions, websocketOptionsURL},
+		{WebsocketTrade, websocketTradeURL},
 		{WebsocketPrivate, websocketPrivateURL},
 		{WebsocketSpotSupplementary, websocketSpotSupplementaryURL},
 		{ChainAnalysis, chainAnalysisURL},

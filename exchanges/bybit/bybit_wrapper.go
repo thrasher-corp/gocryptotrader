@@ -196,6 +196,7 @@ func (e *Exchange) SetDefaults() {
 		exchange.WebsocketUSDTMargined: linearPublic,
 		exchange.WebsocketUSDCMargined: linearPublic,
 		exchange.WebsocketOptions:      optionPublic,
+		exchange.WebsocketTrade:        websocketTrade,
 		exchange.WebsocketPrivate:      websocketPrivate,
 	})
 	if err != nil {
@@ -360,10 +361,14 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// TODO: GET URL
+	wsTradeURL, err := e.API.Endpoints.GetURL(exchange.WebsocketTrade)
+	if err != nil {
+		return err
+	}
+
 	// Trade - Dedicated trade connection for all outbound trading requests.
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  websocketTrade,
+		URL:                  wsTradeURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Connector:            e.WsConnect,
@@ -383,7 +388,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// Private
+	// Private - Inbound private data connection for authenticated data
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   wsPrivateURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,

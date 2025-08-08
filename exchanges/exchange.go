@@ -1387,6 +1387,8 @@ func (u URL) String() string {
 		return websocketUSDCMarginedURL
 	case WebsocketOptions:
 		return websocketOptionsURL
+	case WebsocketTrade:
+		return websocketTradeURL
 	case WebsocketPrivate:
 		return websocketPrivateURL
 	case WebsocketSpotSupplementary:

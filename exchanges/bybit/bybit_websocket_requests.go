@@ -24,9 +24,6 @@ const (
 )
 
 // WSCreateOrder creates an order through the websocket connection
-// NOTE: When a SPOT order gets matched the fee is deducted from the purchased balance. e.g. if you buy 0.001 BTC depending
-// on fee rate you will receive a sub 0.0009... BTC amount. Fees are returned in this response which can then be deducted.
-// This does not apply to other asset types as it uses a settlement.
 func (e *Exchange) WSCreateOrder(ctx context.Context, arg *PlaceOrderParams) (*WebsocketOrderDetails, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
@@ -173,7 +170,6 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, argument
 		return nil, err
 	}
 
-	// TODO: Create new function to return a channel so that we can select on multiple connections, this is a slight potential optimisation.
 	outResp, err := outbound.SendMessageReturnResponse(ctx, limit, requestID, WebsocketGeneralPayload{
 		RequestID: requestID,
 		Header:    map[string]string{"X-BAPI-TIMESTAMP": strconv.FormatInt(tn.UnixMilli(), 10)},
@@ -193,7 +189,6 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, argument
 		return nil, fmt.Errorf("code:%d, info:%v message:%s", confirmation.RetCode, retCode[confirmation.RetCode], confirmation.RetMsg)
 	}
 
-	// Wait for the response to come back from the inbound connection.
 	inResp := <-wait
 	if inResp.Err != nil {
 		return nil, inResp.Err
@@ -219,7 +214,6 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, argument
 	return &ret.Data[0], nil
 }
 
-// retCode is a map of error codes to their respective messages, as they are not supplied through the API.
 var retCode = map[int64]string{
 	10404: "1. op type is not found; 2. category is not correct/supported",
 	10429: "System level frequency protection",

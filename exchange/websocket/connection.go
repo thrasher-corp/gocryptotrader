@@ -57,7 +57,7 @@ type Connection interface {
 	Shutdown() error
 	// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
 	RequireMatchWithData(signature any, incoming []byte) error
-	// IncomingWithData routes incoming data to the correct handler based on the signature
+	// IncomingWithData routes incoming data using the connection specific match system to the correct handler
 	IncomingWithData(signature any, data []byte) bool
 	// MatchReturnResponses sets up a channel to listen for an expected number of responses. This is used for when a
 	// request is sent and a response is expected in a different connection.
@@ -66,12 +66,12 @@ type Connection interface {
 
 // ConnectionSetup defines variables for an individual stream connection
 type ConnectionSetup struct {
-	ResponseCheckTimeout time.Duration
-	ResponseMaxLimit     time.Duration
-	RateLimit            *request.RateLimiterWithWeight
-	// Authenticated indicates if the connection can be authenticated, this is not used for multi-connection.
-	Authenticated           bool
-	ConnectionLevelReporter Reporter
+	ResponseCheckTimeout     time.Duration
+	ResponseMaxLimit         time.Duration
+	RateLimit                *request.RateLimiterWithWeight
+	Authenticated            bool // unused for multi-connection websocket
+	SubscriptionsNotRequired bool
+	ConnectionLevelReporter  Reporter
 
 	// URL defines the websocket server URL to connect to
 	URL string
@@ -103,8 +103,6 @@ type ConnectionSetup struct {
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.
 	MessageFilter any
-	// SubscriptionsNotRequired generation and handling is not required.
-	SubscriptionsNotRequired bool
 }
 
 // Inspector is used to verify messages via SendMessageReturnResponsesWithInspection
@@ -516,7 +514,7 @@ func (c *connection) RequireMatchWithData(signature any, incoming []byte) error 
 	return c.Match.RequireMatchWithData(signature, incoming)
 }
 
-// IncomingWithData routes incoming data to the correct handler based on the signature
+// IncomingWithData routes incoming data using the connection specific match system to the correct handler
 func (c *connection) IncomingWithData(signature any, data []byte) bool {
 	return c.Match.IncomingWithData(signature, data)
 }
