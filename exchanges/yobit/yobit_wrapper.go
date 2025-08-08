@@ -246,13 +246,13 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	for curr, bal := range resp.FundsInclOrders {
 		subAccts[0].Balances.Set(curr, accounts.Balance{
 			Total: bal,
-			Hold:  bal, // FundsInclOrders balance - Funds balance
+			Hold:  bal, // Hold = FundsInclOrders balance - Funds balance; So we Set total here and then subtract Funds below
 		})
 	}
 	for curr, bal := range resp.Funds {
 		subAccts[0].Balances.Add(curr, accounts.Balance{
 			Free: bal,
-			Hold: -bal, // FundsInclOrders balance - Funds balance
+			Hold: -bal, // Hold = FundsInclOrders balance - Funds balance; so we Set total above and now subtract Funds here
 		})
 	}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
