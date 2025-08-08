@@ -1437,6 +1437,8 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return WebsocketUSDCMargined, nil
 	case websocketOptionsURL:
 		return WebsocketOptions, nil
+	case websocketTradeURL:
+		return WebsocketTrade, nil
 	case websocketPrivateURL:
 		return WebsocketPrivate, nil
 	case websocketSpotSupplementaryURL:

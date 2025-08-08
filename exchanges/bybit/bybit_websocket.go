@@ -129,7 +129,7 @@ func (e *Exchange) WebsocketAuthenticateTradeConnection(ctx context.Context, con
 	if err != nil {
 		return err
 	}
-	resp, err := conn.SendMessageReturnResponse(request.WithVerbose(ctx), wsSubscriptionEPL, req.RequestID, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, wsSubscriptionEPL, req.RequestID, req)
 	if err != nil {
 		return err
 	}

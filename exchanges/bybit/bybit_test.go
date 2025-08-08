@@ -3841,9 +3841,9 @@ func TestWebsocketAuthenticateTradeConnection(t *testing.T) {
 	e.API.AuthenticatedWebsocketSupport = true
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "dummy", Secret: "dummy"})
-	err = e.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{})
+	err = e.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":0,"retMsg":"OK","op":"auth","connId":"d2a641kgcg7ab33b7mdg-4x6a"}`)})
 	require.NoError(t, err)
-	err = e.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":false,"ret_msg":"failed auth","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`)})
+	err = e.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":10004,"retMsg":"Invalid sign","op":"auth","connId":"d2a63t6p49kk82nefh90-4ye8"}`)})
 	require.Error(t, err)
 }
 
