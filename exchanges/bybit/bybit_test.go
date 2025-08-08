@@ -3022,6 +3022,7 @@ func TestCancelBatchOrders(t *testing.T) {
 type DummyConnection struct {
 	dialError                         error
 	sendMessageReturnResponseOverride []byte
+	match                             websocket.Match
 	websocket.Connection
 }
 
@@ -3038,6 +3039,10 @@ func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.End
 
 func (d *DummyConnection) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
 	return nil
+}
+
+func (d *DummyConnection) RequireMatchWithData(signature any, data []byte) error {
+	return d.match.RequireMatchWithData(signature, data)
 }
 
 func TestWsConnect(t *testing.T) {
@@ -3076,20 +3081,17 @@ func TestPushDataPublic(t *testing.T) {
 	}
 
 	for x := range keys {
-		assert.ErrorIsf(t, e.wsHandleData([]byte(pushDataMap[keys[x]]), asset.Spot), expErrFn(keys[x]), "wsHandleData should not error for %s", keys[x])
+		assert.ErrorIsf(t, e.wsHandleData(nil, asset.Spot, []byte(pushDataMap[keys[x]])), expErrFn(keys[x]), "wsHandleData should not error for %s", keys[x])
 	}
 }
 
 func TestWSHandleAuthenticatedData(t *testing.T) {
 	t.Parallel()
 
-	err := e.wsHandleAuthenticatedData(t.Context(), []byte(`{"op":"pong","args":["1753340040127"],"conn_id":"d157a7favkf4mm3ibuvg-14toog"}`))
+	err := e.wsHandleAuthenticatedData(t.Context(), nil, []byte(`{"op":"pong","args":["1753340040127"],"conn_id":"d157a7favkf4mm3ibuvg-14toog"}`))
 	require.NoError(t, err, "wsHandleAuthenticatedData must not error for pong message")
 
-	err = e.wsHandleAuthenticatedData(t.Context(), []byte(`{"topic": "dcp"}`))
-	require.NoError(t, err, "wsHandleAuthenticatedData must not error for dcp message")
-
-	err = e.wsHandleAuthenticatedData(t.Context(), []byte(`{"topic": "unhandled"}`))
+	err = e.wsHandleAuthenticatedData(t.Context(), nil, []byte(`{"topic": "unhandled"}`))
 	require.ErrorIs(t, err, errUnhandledStreamData, "wsHandleAuthenticatedData must error for unhandled stream data")
 
 	e := new(Exchange) //nolint:govet // Intentional shadow
@@ -3101,7 +3103,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 		if bytes.Contains(r, []byte("%s")) {
 			r = fmt.Appendf(nil, string(r), optionsTradablePair.String())
 		}
-		return e.wsHandleAuthenticatedData(ctx, r)
+		return e.wsHandleAuthenticatedData(ctx, nil, r)
 	})
 	close(e.Websocket.DataHandler)
 	require.Len(t, e.Websocket.DataHandler, 6, "Should see correct number of messages")
@@ -3164,9 +3166,9 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, order.Filled, v[0].Status, "Order status should be correct")
 			assert.Empty(t, v[0].ClientOrderID, "client order ID should be empty")
 			assert.False(t, v[0].ReduceOnly, "Reduce only should be false")
-			assert.Equal(t, 1.0, v[0].ExecutedAmount, "Cum exec qty should be correct")
+			assert.Equal(t, 1.0, v[0].ExecutedAmount, "executed amount should be correct")
 			assert.Equal(t, 75.0, v[0].AverageExecutedPrice, "Avg price should be correct")
-			assert.Equal(t, 0.358635, v[0].Fee, "Cum exec fee should be correct")
+			assert.Equal(t, 0.358635, v[0].Fee, "fee should be correct")
 			assert.Equal(t, time.UnixMilli(1672364262444), v[0].Date, "Created time should be correct")
 			assert.Equal(t, time.UnixMilli(1672364262457), v[0].LastUpdated, "Updated time should be correct")
 		case []account.Change:
@@ -3265,7 +3267,7 @@ func TestWsTicker(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
 		defer slices.Delete(assetRouting, 0, 1)
-		return e.wsHandleData(r, assetRouting[0])
+		return e.wsHandleData(nil, assetRouting[0], r)
 	})
 	close(e.Websocket.DataHandler)
 	expected := 8
@@ -3514,7 +3516,7 @@ func TestFetchTradablePairs(t *testing.T) {
 func TestDeltaUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
-	err := e.wsHandleData(data, asset.Spot)
+	err := e.wsHandleData(nil, asset.Spot, data)
 	require.NoError(t, err, "wsHandleData must not error")
 	update := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"delta","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
 	var wsResponse WebsocketResponse
@@ -3795,7 +3797,7 @@ func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange) //nolint:govet // Intentional shadow
-	require.NoError(t, testexch.Setup(e))
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	require.NoError(t, e.authSubscribe(t.Context(), &DummyConnection{}, subscription.List{}))
 
 	authsubs, err := e.generateAuthSubscriptions()
@@ -3894,52 +3896,33 @@ func TestTransformSymbol(t *testing.T) {
 	}
 }
 
-func TestGetPairFromCategory(t *testing.T) {
+func TestMatchPairAssetFromResponse(t *testing.T) {
 	t.Parallel()
 
-	exp := spotTradablePair
-	exp.Delimiter = ""
-	p, a, err := e.getPairFromCategory("spot", exp.String())
-	require.NoError(t, err)
-	require.True(t, exp.Equal(p))
-	require.Equal(t, asset.Spot, a)
-
-	exp = usdtMarginedTradablePair
-	exp.Delimiter = ""
-	p, a, err = e.getPairFromCategory("linear", exp.String())
-	require.NoError(t, err)
-	require.True(t, exp.Equal(p))
-	require.Equal(t, asset.USDTMarginedFutures, a)
-
-	exp = usdcMarginedTradablePair
-	exp.Delimiter = ""
-	p, a, err = e.getPairFromCategory("linear", exp.String())
-	require.NoError(t, err)
-	require.True(t, exp.Equal(p))
-	require.Equal(t, asset.USDCMarginedFutures, a)
-
-	exp = inverseTradablePair
-	exp.Delimiter = ""
-	p, a, err = e.getPairFromCategory("inverse", exp.String())
-	require.NoError(t, err)
-	require.True(t, exp.Equal(p))
-	require.Equal(t, asset.CoinMarginedFutures, a)
-
-	exp = optionsTradablePair
-	p, a, err = e.getPairFromCategory("option", exp.String())
-	require.NoError(t, err)
-	require.True(t, exp.Equal(p))
-	require.Equal(t, asset.Options, a)
-
-	p, a, err = e.getPairFromCategory("silly", exp.String())
-	require.Error(t, err)
-	require.Empty(t, p)
-	require.Empty(t, a)
-
-	p, a, err = e.getPairFromCategory("spot", "bad pair")
-	require.ErrorIs(t, err, currency.ErrPairNotFound)
-	require.Empty(t, p)
-	require.Empty(t, a)
+	noDelim := currency.PairFormat{Uppercase: true}
+	for _, tc := range []struct {
+		pair          string
+		category      string
+		expectedAsset asset.Item
+		expectedPair  currency.Pair
+		err           error
+	}{
+		{pair: noDelim.Format(spotTradablePair), category: "spot", expectedAsset: asset.Spot, expectedPair: spotTradablePair},
+		{pair: noDelim.Format(usdtMarginedTradablePair), category: "linear", expectedAsset: asset.USDTMarginedFutures, expectedPair: usdtMarginedTradablePair},
+		{pair: noDelim.Format(usdcMarginedTradablePair), category: "linear", expectedAsset: asset.USDCMarginedFutures, expectedPair: usdcMarginedTradablePair},
+		{pair: noDelim.Format(inverseTradablePair), category: "inverse", expectedAsset: asset.CoinMarginedFutures, expectedPair: inverseTradablePair},
+		{pair: optionsTradablePair.String(), category: "option", expectedAsset: asset.Options, expectedPair: optionsTradablePair},
+		{pair: optionsTradablePair.String(), category: "silly", err: errUnsupportedCategory, expectedAsset: 0},
+		{pair: "bad pair", category: "spot", err: currency.ErrPairNotFound},
+	} {
+		t.Run(fmt.Sprintf("pair: %s, category: %s", tc.pair, tc.category), func(t *testing.T) {
+			t.Parallel()
+			p, a, err := e.matchPairAssetFromResponse(tc.category, tc.pair)
+			require.ErrorIs(t, err, tc.err)
+			assert.Equal(t, tc.expectedAsset, a)
+			assert.True(t, tc.expectedPair.Equal(p))
+		})
+	}
 }
 
 func TestHandleNoTopicWebsocketResponse(t *testing.T) {
@@ -3959,7 +3942,7 @@ func TestHandleNoTopicWebsocketResponse(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("operation: %s, requestID: %s", tc.operation, tc.requestID), func(t *testing.T) {
 			t.Parallel()
-			err := e.handleNoTopicWebsocketResponse(&WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
+			err := e.handleNoTopicWebsocketResponse(&DummyConnection{}, &WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
 			assert.ErrorIs(t, err, tc.error, "handleNoTopicWebsocketResponse should return expected error")
 		})
 	}

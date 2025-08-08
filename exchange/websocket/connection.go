@@ -55,6 +55,10 @@ type Connection interface {
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
+	// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
+	RequireMatchWithData(signature any, incoming []byte) error
+	// IncomingWithData routes incoming data to the correct handler based on the signature
+	IncomingWithData(signature any, data []byte) bool
 	// MatchReturnResponses sets up a channel to listen for an expected number of responses. This is used for when a
 	// request is sent and a response is expected in a different connection.
 	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
@@ -89,7 +93,7 @@ type ConnectionSetup struct {
 	// Handler defines the function that will be called when a message is
 	// received from the exchange's websocket server. This function should
 	// handle the incoming message and pass it to the appropriate data handler.
-	Handler func(ctx context.Context, incoming []byte) error
+	Handler func(ctx context.Context, conn Connection, incoming []byte) error
 	// RequestIDGenerator is a function that returns a unique message ID.
 	// This is useful for when an exchange connection requires a unique or
 	// structured message ID for each message sent.
@@ -505,4 +509,14 @@ func removeURLQueryString(url string) string {
 		return url[:index]
 	}
 	return url
+}
+
+// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
+func (c *connection) RequireMatchWithData(signature any, incoming []byte) error {
+	return c.Match.RequireMatchWithData(signature, incoming)
+}
+
+// IncomingWithData routes incoming data to the correct handler based on the signature
+func (c *connection) IncomingWithData(signature any, data []byte) bool {
+	return c.Match.IncomingWithData(signature, data)
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -49,7 +50,7 @@ const (
 	chanOrder     = "order"
 	chanWallet    = "wallet"
 	chanGreeks    = "greeks"
-	chanDCP       = "dcp"
+	// TODO: Implement DCP (Disconnection Protect) subscription
 
 	spotPublic    = "wss://stream.bybit.com/v5/public/spot"
 	linearPublic  = "wss://stream.bybit.com/v5/public/linear"  // USDT, USDC perpetual & USDC Futures
@@ -77,7 +78,10 @@ var subscriptionNames = map[string]string{
 	subscription.CandlesChannel:   chanKline,
 }
 
-var errUnhandledStreamData = errors.New("unhandled stream data")
+var (
+	errUnhandledStreamData = errors.New("unhandled stream data")
+	errUnsupportedCategory = errors.New("unsupported category")
+)
 
 // WsConnect connects to a websocket feed
 func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
@@ -201,7 +205,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	}).Parse(subTplText)
 }
 
-func (e *Exchange) wsHandleTradeData(respRaw []byte) error {
+func (e *Exchange) wsHandleTradeData(conn websocket.Connection, respRaw []byte) error {
 	var response struct {
 		RequestID string `json:"reqId"`
 		Operation string `json:"op"`
@@ -211,18 +215,12 @@ func (e *Exchange) wsHandleTradeData(respRaw []byte) error {
 	}
 
 	if response.RequestID != "" {
-		if !e.Websocket.Match.IncomingWithData(response.RequestID, respRaw) {
-			return fmt.Errorf("could not match subscription with id %s data %s", response.RequestID, respRaw)
-		}
-		return nil
+		return conn.RequireMatchWithData(response.RequestID, respRaw)
 	}
 
 	switch response.Operation {
 	case "auth": // When authenticating the connection there is no request ID, so a static value is used.
-		if !e.Websocket.Match.IncomingWithData(response.Operation, respRaw) {
-			return fmt.Errorf("could not match subscription with id %s data %s", response.Operation, respRaw)
-		}
-		return nil
+		return conn.RequireMatchWithData(response.Operation, respRaw)
 	case "pong":
 		return nil
 	default:
@@ -230,13 +228,13 @@ func (e *Exchange) wsHandleTradeData(respRaw []byte) error {
 	}
 }
 
-func (e *Exchange) wsHandleData(respRaw []byte, assetType asset.Item) error {
+func (e *Exchange) wsHandleData(conn websocket.Connection, assetType asset.Item, respRaw []byte) error {
 	var result WebsocketResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	if result.Topic == "" {
-		return e.handleNoTopicWebsocketResponse(&result, respRaw)
+		return e.handleNoTopicWebsocketResponse(conn, &result, respRaw)
 	}
 	topicSplit := strings.Split(result.Topic, ".")
 	switch topicSplit[0] {
@@ -260,13 +258,13 @@ func (e *Exchange) wsHandleData(respRaw []byte, assetType asset.Item) error {
 	return fmt.Errorf("%w %s", errUnhandledStreamData, string(respRaw))
 }
 
-func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var result WebsocketResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	if result.Topic == "" {
-		return e.handleNoTopicWebsocketResponse(&result, respRaw)
+		return e.handleNoTopicWebsocketResponse(conn, &result, respRaw)
 	}
 	topicSplit := strings.Split(result.Topic, ".")
 	switch topicSplit[0] {
@@ -287,17 +285,15 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, respRaw []byte
 		return e.wsProcessWalletPushData(ctx, respRaw)
 	case chanGreeks:
 		return e.wsProcessGreeks(respRaw)
-	case chanDCP:
-		return nil
 	}
 	return fmt.Errorf("%w %s", errUnhandledStreamData, string(respRaw))
 }
 
-func (e *Exchange) handleNoTopicWebsocketResponse(result *WebsocketResponse, respRaw []byte) error {
+func (e *Exchange) handleNoTopicWebsocketResponse(conn websocket.Connection, result *WebsocketResponse, respRaw []byte) error {
 	switch result.Operation {
 	case "subscribe", "unsubscribe", "auth":
-		if result.RequestID != "" && !e.Websocket.Match.IncomingWithData(result.RequestID, respRaw) {
-			return fmt.Errorf("%w with id %s data %s", websocket.ErrSignatureNotMatched, result.RequestID, respRaw)
+		if result.RequestID != "" {
+			return conn.RequireMatchWithData(result.RequestID, respRaw)
 		}
 	case "ping", "pong":
 	default:
@@ -350,7 +346,7 @@ func (e *Exchange) wsProcessOrder(resp *WebsocketResponse) error {
 	}
 	execution := make([]order.Detail, len(result))
 	for x := range result {
-		cp, a, err := e.getPairFromCategory(result[x].Category, result[x].Symbol)
+		cp, a, err := e.matchPairAssetFromResponse(result[x].Category, result[x].Symbol)
 		if err != nil {
 			return err
 		}
@@ -393,7 +389,7 @@ func (e *Exchange) wsProcessExecution(resp *WebsocketResponse) error {
 	}
 	executions := make([]fill.Data, len(result))
 	for x := range result {
-		cp, a, err := e.getPairFromCategory(result[x].Category, result[x].Symbol)
+		cp, a, err := e.matchPairAssetFromResponse(result[x].Category, result[x].Symbol)
 		if err != nil {
 			return err
 		}
@@ -546,12 +542,11 @@ func (e *Exchange) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketRe
 
 	tick := &ticker.Price{Pair: p, ExchangeName: e.Name, AssetType: assetType}
 	if resp.Type != "snapshot" {
-		snapshot, err := e.GetCachedTicker(p, assetType)
+		// ticker updates may be partial, so we need to update the current ticker
+		tick, err = e.GetCachedTicker(p, assetType)
 		if err != nil {
 			return err
 		}
-		// ticker updates may be partial, so we need to update the current ticker
-		tick = snapshot
 	}
 	updateTicker(tick, &tickResp)
 	tick.LastUpdated = resp.PushTimestamp.Time()
@@ -559,7 +554,7 @@ func (e *Exchange) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketRe
 		return err
 	}
 	e.Websocket.DataHandler <- tick
-	return err
+	return nil
 }
 
 func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {
@@ -705,7 +700,7 @@ func channelName(s *subscription.Subscription) string {
 // isSymbolChannel returns whether the channel accepts a symbol parameter
 func isSymbolChannel(name string) bool {
 	switch name {
-	case chanPositions, chanExecution, chanOrder, chanDCP, chanWallet:
+	case chanPositions, chanExecution, chanOrder, chanWallet:
 		return false
 	}
 	return true
@@ -730,9 +725,6 @@ const subTplText = `
 				{{- $p }}
 				{{- $.PairSeparator }}
 			{{- end }}
-		{{- else }}
-			{{- $name }}
-			{{- if and (isCategorisedChannel $name) ($categoryName := getCategoryName $asset) -}} . {{- $categoryName -}} {{- end }}
 		{{- end }}
 	{{- end }}
 	{{- $.AssetSeparator }}
@@ -825,12 +817,12 @@ func (e *Exchange) directSubscriptionPayload(conn websocket.Connection, assetTyp
 			}
 			arg.Arguments = append(arg.Arguments, s.Channel+"."+interval+"."+pairFmt.Format(pair))
 			arg.associatedSubs = append(arg.associatedSubs, s)
-		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks, chanDCP:
+		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks:
 			if chanMap[s.Channel] {
 				continue
 			}
 			authArg.Arguments = append(authArg.Arguments, s.Channel)
-			// adding the channel to selected channels so that we will not visit it again.
+			// add channel name to map so we only subscribe to channel once
 			chanMap[s.Channel] = true
 			authArg.associatedSubs = append(authArg.associatedSubs, s)
 		}
@@ -860,6 +852,14 @@ func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}
+
+	for _, configSub := range e.Config.Features.Subscriptions.Enabled() {
+		if configSub.Authenticated {
+			log.Warnf(log.WebsocketMgr, "%s has an authenticated subscription %q in config which is not supported. Please remove.", e.Name, configSub.Channel)
+			configSub.Enabled = false
+		}
+	}
+
 	var subscriptions subscription.List
 	// TODO: Implement DCP (Disconnection Protect) subscription
 	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet} {
@@ -876,9 +876,9 @@ func (e *Exchange) authUnsubscribe(ctx context.Context, conn websocket.Connectio
 	return e.submitDirectSubscription(ctx, conn, asset.Spot, "unsubscribe", channelSubscriptions)
 }
 
-// getPairFromCategory returns the currency pair and asset type based on the category and symbol. Used with a dedicated
+// matchPairAssetFromResponse returns the currency pair and asset type based on the category and symbol. Used with a dedicated
 // auth connection where multiple asset type changes are piped through a single connection.
-func (e *Exchange) getPairFromCategory(category, symbol string) (currency.Pair, asset.Item, error) {
+func (e *Exchange) matchPairAssetFromResponse(category, symbol string) (currency.Pair, asset.Item, error) {
 	assets := make([]asset.Item, 0, 2)
 	switch category {
 	case "spot":
@@ -890,7 +890,7 @@ func (e *Exchange) getPairFromCategory(category, symbol string) (currency.Pair, 
 	case "option":
 		assets = append(assets, asset.Options)
 	default:
-		return currency.EMPTYPAIR, 0, fmt.Errorf("category %q not supported for incoming symbol %q", category, symbol)
+		return currency.EMPTYPAIR, 0, fmt.Errorf("incoming symbol %q %w: %q", symbol, errUnsupportedCategory, category)
 	}
 	for _, a := range assets {
 		cp, err := e.MatchSymbolWithAvailablePairs(symbol, a, hasPotentialDelimiter(a))
