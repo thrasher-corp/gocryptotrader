@@ -219,22 +219,22 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      apiWebsocketPublicURL,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         websocketResponseMaxLimit,
-		RateLimit:                request.NewRateLimitWithWeight(time.Second, 2, 1),
-		BespokeGenerateMessageID: func(bool) int64 { return e.messageIDSeq.IncrementAndGet() },
+		URL:                  apiWebsocketPublicURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     websocketResponseMaxLimit,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		RequestIDGenerator:   e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      apiWebsocketPrivateURL,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         websocketResponseMaxLimit,
-		Authenticated:            true,
-		RateLimit:                request.NewRateLimitWithWeight(time.Second, 2, 1),
-		BespokeGenerateMessageID: func(bool) int64 { return e.messageIDSeq.IncrementAndGet() },
+		URL:                  apiWebsocketPrivateURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     websocketResponseMaxLimit,
+		Authenticated:        true,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		RequestIDGenerator:   e.messageIDSeq.IncrementAndGet,
 	})
 }
 
