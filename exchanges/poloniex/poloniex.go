@@ -263,7 +263,7 @@ func (e *Exchange) GetBalances(ctx context.Context) (Balance, error) {
 	}
 
 	balance := Balance{
-		Currency: make(map[string]float64),
+		Currency: make(map[currency.Code]float64),
 	}
 
 	for x, y := range data {
@@ -273,7 +273,7 @@ func (e *Exchange) GetBalances(ctx context.Context) (Balance, error) {
 		}
 
 		var err error
-		balance.Currency[x], err = strconv.ParseFloat(bal, 64)
+		balance.Currency[currency.NewCode(x)], err = strconv.ParseFloat(bal, 64)
 		if err != nil {
 			return Balance{}, err
 		}

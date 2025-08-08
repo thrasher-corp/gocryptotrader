@@ -48,37 +48,15 @@ type CurrencyBalances map[currency.Code]Balance
 type currencyBalances map[*currency.Item]*balance
 
 // Set will set a currency balance, overwriting any previous Balance
-// currency may be a string or a currency.Code
-func (c *CurrencyBalances) Set(cAny any, b Balance) { //nolint:gocritic // hugeparam not relevant; we want to store a value so we'd deref anyway
-	var curr currency.Code
-	switch v := cAny.(type) {
-	case string:
-		curr = currency.NewCode(v)
-	case currency.Code:
-		curr = v
-	default:
-		panic(fmt.Errorf("%w: '%v'", currency.ErrCurrencyNotSupported, cAny))
-	}
+func (c *CurrencyBalances) Set(curr currency.Code, b Balance) { //nolint:gocritic // hugeparam not relevant; we want to store a value so we'd deref anyway
 	b.Currency = curr
 	(*c)[curr] = b
 }
 
 // Add will add to a currency balance
-// currency may be a string or a currency.Code
-func (c *CurrencyBalances) Add(cAny any, b Balance) { //nolint:gocritic // hugeparam not relevant; we want to store a value so we'd deref anyway
-	var curr currency.Code
-	switch v := cAny.(type) {
-	case string:
-		curr = currency.NewCode(v)
-	case currency.Code:
-		curr = v
-	// case *currency.Item:
-	//	curr = v.Currency()
-	default:
-		panic(fmt.Errorf("%w: '%v'", currency.ErrCurrencyNotSupported, cAny))
-	}
+func (c *CurrencyBalances) Add(curr currency.Code, b Balance) error { //nolint:gocritic // hugeparam not relevant; we want to store a value so we'd deref anyway
 	if b.Currency != currency.EMPTYCODE && b.Currency != curr {
-		panic(fmt.Errorf("%w: '%v'", errBalanceCurrencyMismatch, curr))
+		return fmt.Errorf("%w: '%v'", errBalanceCurrencyMismatch, curr)
 	}
 	if e, ok := (*c)[curr]; !ok {
 		b.Currency = curr
@@ -86,6 +64,7 @@ func (c *CurrencyBalances) Add(cAny any, b Balance) { //nolint:gocritic // hugep
 	} else {
 		(*c)[curr] = e.Add(b)
 	}
+	return nil
 }
 
 // Balance returns a snapshot copy of the Balance

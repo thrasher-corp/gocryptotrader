@@ -251,7 +251,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		}
 		totalVal := val.Float64()
 		totalHold := hold.Float64()
-		subAccts[0].Balances.Set(k, accounts.Balance{
+		subAccts[0].Balances.Set(currency.NewCode(k), accounts.Balance{
 			Total: totalVal,
 			Hold:  totalHold,
 			Free:  totalVal - totalHold,

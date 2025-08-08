@@ -344,7 +344,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	}
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 	for k, v := range accountBalance {
-		subAccts[0].Balances.Set(k, accounts.Balance{
+		subAccts[0].Balances.Set(currency.NewCode(k), accounts.Balance{
 			Total: v.Balance,
 			Hold:  v.Reserved,
 			Free:  v.Available,

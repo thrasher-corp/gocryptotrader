@@ -655,9 +655,9 @@ type AccountBalance struct {
 
 // AccountBalanceDetail stores the user account balance
 type AccountBalanceDetail struct {
-	Currency string  `json:"currency"`
-	Type     string  `json:"type"`
-	Balance  float64 `json:"balance,string"`
+	Currency currency.Code `json:"currency"`
+	Type     string        `json:"type"`
+	Balance  float64       `json:"balance,string"`
 }
 
 // AggregatedBalance stores balances of all the sub-account

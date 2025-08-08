@@ -89,15 +89,15 @@ type ServerTime struct {
 
 // AccountResponse holds the details for the trading accounts
 type AccountResponse struct {
-	ID            string  `json:"id"`
-	Currency      string  `json:"currency"`
-	Balance       float64 `json:"balance,string"`
-	Available     float64 `json:"available,string"`
-	Hold          float64 `json:"hold,string"`
-	ProfileID     string  `json:"profile_id"`
-	MarginEnabled bool    `json:"margin_enabled"`
-	FundedAmount  float64 `json:"funded_amount,string"`
-	DefaultAmount float64 `json:"default_amount,string"`
+	ID            string        `json:"id"`
+	Currency      currency.Code `json:"currency"`
+	Balance       float64       `json:"balance,string"`
+	Available     float64       `json:"available,string"`
+	Hold          float64       `json:"hold,string"`
+	ProfileID     string        `json:"profile_id"`
+	MarginEnabled bool          `json:"margin_enabled"`
+	FundedAmount  float64       `json:"funded_amount,string"`
+	DefaultAmount float64       `json:"default_amount,string"`
 }
 
 // AccountLedgerResponse holds account history information

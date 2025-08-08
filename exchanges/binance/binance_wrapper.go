@@ -2505,7 +2505,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		for i := range ai.Assets {
 			// TODO: utilise contract data to discern the underlying currency
 			// instead of having a user provide it
-			if ai.Assets[i].Asset != req.UnderlyingPair.Base.Upper().String() {
+			if !ai.Assets[i].Asset.Equal(req.UnderlyingPair.Base.Upper()) {
 				continue
 			}
 			accountAsset = &ai.Assets[i]
@@ -2582,7 +2582,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 			MarginType:                   marginType,
 			CollateralMode:               collateralMode,
 			ContractSettlementType:       contractSettlementType,
-			Currency:                     currency.NewCode(accountAsset.Asset),
+			Currency:                     accountAsset.Asset,
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
 			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),
 			Leverage:                     decimal.NewFromFloat(leverage),

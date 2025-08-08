@@ -1,7 +1,6 @@
 package accounts
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -17,16 +16,13 @@ func TestCurrencyBalancesSet(t *testing.T) {
 
 	c := CurrencyBalances{}
 
-	c.Set("BTC", Balance{Total: 4.2})
-	assert.Contains(t, c, currency.BTC, "string for courrency should be converted to a currency.Code")
+	c.Set(currency.BTC, Balance{Total: 4.2})
+	require.Contains(t, c, currency.BTC, "must add an entry to an unitialised CurrencyBalances")
 	assert.Equal(t, currency.BTC, c[currency.BTC].Currency, "should set the Currency")
 
 	c.Set(currency.LTC, Balance{Currency: currency.ETH, Total: 52.4})
-	assert.Contains(t, c, currency.LTC, "currency.Code for currency should just work")
+	require.Contains(t, c, currency.LTC, "must add an entry to an existing CurrencyBalances")
 	assert.Equal(t, currency.LTC, c[currency.LTC].Currency, "should overwrite Currency")
-
-	expErr := fmt.Sprintf("%s: '<nil>'", currency.ErrCurrencyNotSupported)
-	assert.PanicsWithError(t, expErr, func() { c.Set(nil, Balance{}) }, "should panic when currency is not a currency.Code or string")
 }
 
 // TestCurrencyBalancesAdd exercises CurrencyBalances.Add
@@ -34,9 +30,9 @@ func TestCurrencyBalancesAdd(t *testing.T) {
 	t.Parallel()
 
 	c := CurrencyBalances{}
-	c.Add("BTC", Balance{Total: 4.2})
+	c.Add(currency.BTC, Balance{Total: 4.2})
 
-	assert.Contains(t, c, currency.BTC, "string for courrency should be converted to a currency.Code")
+	assert.Contains(t, c, currency.BTC, "should add an entry to an unitialised CurrencyBalances")
 	assert.Equal(t, currency.BTC, c[currency.BTC].Currency, "should set the Currency")
 	assert.Equal(t, 4.2, c[currency.BTC].Total, "should initialise the Total")
 
@@ -47,10 +43,8 @@ func TestCurrencyBalancesAdd(t *testing.T) {
 	c.Add(currency.LTC, Balance{Currency: currency.LTC, Total: 14.3})
 	assert.Equal(t, 14.3, c[currency.LTC].Total, "should add when Balance.Currency is equal")
 
-	expErr := fmt.Sprintf("%s: 'ETH'", errBalanceCurrencyMismatch)
-	assert.PanicsWithError(t, expErr, func() { c.Add(currency.ETH, Balance{Currency: currency.LTC, Total: 14.2}) }, "should panic when currency does not match")
-
-	assert.Panics(t, func() { c.Add(nil, Balance{}) }, "should panic when currency is not a currency.Code or string")
+	err := c.Add(currency.ETH, Balance{Currency: currency.LTC, Total: 14.2})
+	assert.ErrorIs(t, err, errBalanceCurrencyMismatch)
 }
 
 // TestCurrencyBalancesPublic exercises currencyBalances.Public

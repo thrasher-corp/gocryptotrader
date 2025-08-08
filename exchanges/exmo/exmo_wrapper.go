@@ -282,7 +282,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		if r, ok := resp.Reserved[k]; ok {
 			reserved = r.Float64()
 		}
-		subAccts[0].Balances.Set(k, accounts.Balance{
+		subAccts[0].Balances.Set(currency.NewCode(k), accounts.Balance{
 			Total: avail + reserved,
 			Hold:  reserved,
 			Free:  avail,

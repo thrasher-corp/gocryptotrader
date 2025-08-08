@@ -244,16 +244,18 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	}
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 	for curr, bal := range resp.FundsInclOrders {
-		subAccts[0].Balances.Set(curr, accounts.Balance{
+		subAccts[0].Balances.Set(currency.NewCode(curr), accounts.Balance{
 			Total: bal,
 			Hold:  bal, // Hold = FundsInclOrders balance - Funds balance; So we Set total here and then subtract Funds below
 		})
 	}
 	for curr, bal := range resp.Funds {
-		subAccts[0].Balances.Add(curr, accounts.Balance{
+		if err := subAccts[0].Balances.Add(currency.NewCode(curr), accounts.Balance{
 			Free: bal,
 			Hold: -bal, // Hold = FundsInclOrders balance - Funds balance; so we Set total above and now subtract Funds here
-		})
+		}); err != nil {
+			return nil, err
+		}
 	}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }

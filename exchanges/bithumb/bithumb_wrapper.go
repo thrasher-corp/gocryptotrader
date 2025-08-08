@@ -316,7 +316,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		if !ok {
 			avail = totalAmount - hold
 		}
-		subAccts[0].Balances.Set(k, accounts.Balance{
+		subAccts[0].Balances.Set(currency.NewCode(k), accounts.Balance{
 			Total: totalAmount,
 			Hold:  hold,
 			Free:  avail,

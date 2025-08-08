@@ -346,9 +346,9 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, _ asset.Item) (acc
 	for i := range currencies {
 		var resp *AccountSummaryData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err = e.WSRetrieveAccountSummary(ctx, currency.NewCode(currencies[i].Currency), false)
+			resp, err = e.WSRetrieveAccountSummary(ctx, currencies[i].Currency, false)
 		} else {
-			resp, err = e.GetAccountSummary(ctx, currency.NewCode(currencies[i].Currency), false)
+			resp, err = e.GetAccountSummary(ctx, currencies[i].Currency, false)
 		}
 		if err != nil {
 			return nil, err
@@ -377,9 +377,9 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 	for x := range currencies {
 		var deposits *DepositsData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			deposits, err = e.WSRetrieveDeposits(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			deposits, err = e.WSRetrieveDeposits(ctx, currencies[x].Currency, 100, 0)
 		} else {
-			deposits, err = e.GetDeposits(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			deposits, err = e.GetDeposits(ctx, currencies[x].Currency, 100, 0)
 		}
 		if err != nil {
 			return nil, err
@@ -390,7 +390,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 				Status:          deposits.Data[y].State,
 				TransferID:      deposits.Data[y].TransactionID,
 				Timestamp:       deposits.Data[y].UpdatedTimestamp.Time(),
-				Currency:        currencies[x].Currency,
+				Currency:        currencies[x].Currency.String(),
 				Amount:          deposits.Data[y].Amount,
 				CryptoToAddress: deposits.Data[y].Address,
 				TransferType:    "deposit",
@@ -398,9 +398,9 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		}
 		var withdrawalData *WithdrawalsData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			withdrawalData, err = e.WSRetrieveWithdrawals(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			withdrawalData, err = e.WSRetrieveWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		} else {
-			withdrawalData, err = e.GetWithdrawals(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			withdrawalData, err = e.GetWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		}
 		if err != nil {
 			return nil, err
@@ -411,7 +411,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 				Status:          withdrawalData.Data[z].State,
 				TransferID:      withdrawalData.Data[z].TransactionID,
 				Timestamp:       withdrawalData.Data[z].UpdatedTimestamp.Time(),
-				Currency:        currencies[x].Currency,
+				Currency:        currencies[x].Currency.String(),
 				Amount:          withdrawalData.Data[z].Amount,
 				CryptoToAddress: withdrawalData.Data[z].Address,
 				TransferType:    "withdrawal",
@@ -435,14 +435,14 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 	}
 	resp := []exchange.WithdrawalHistory{}
 	for x := range currencies {
-		if !strings.EqualFold(currencies[x].Currency, c.String()) {
+		if !currencies[x].Currency.Equal(c) {
 			continue
 		}
 		var withdrawalData *WithdrawalsData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			withdrawalData, err = e.WSRetrieveWithdrawals(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			withdrawalData, err = e.WSRetrieveWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		} else {
-			withdrawalData, err = e.GetWithdrawals(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			withdrawalData, err = e.GetWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		}
 		if err != nil {
 			return nil, err
@@ -452,7 +452,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 				Status:          withdrawalData.Data[y].State,
 				TransferID:      withdrawalData.Data[y].TransactionID,
 				Timestamp:       withdrawalData.Data[y].UpdatedTimestamp.Time(),
-				Currency:        currencies[x].Currency,
+				Currency:        currencies[x].Currency.String(),
 				Amount:          withdrawalData.Data[y].Amount,
 				CryptoToAddress: withdrawalData.Data[y].Address,
 				TransferType:    "deposit",

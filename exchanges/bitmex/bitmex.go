@@ -979,12 +979,14 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 	return fee * purchasePrice * amount
 }
 
+var xbtCurr = currency.NewCode("XBt")
+
 // normalizeWalletInfo converts any non-standard currencies (eg. XBt -> BTC)
 func normalizeWalletInfo(w *WalletInfo) {
-	if w.Currency != "XBt" {
+	if !w.Currency.Equal(xbtCurr) {
 		return
 	}
 
-	w.Currency = "BTC"
+	w.Currency = currency.BTC
 	w.Amount *= constSatoshiBTC
 }

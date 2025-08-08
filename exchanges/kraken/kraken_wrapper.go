@@ -532,7 +532,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 				log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n", e.Name, key)
 				continue
 			}
-			subAccts[0].Balances.Set(c, accounts.Balance{
+			subAccts[0].Balances.Set(currency.NewCode(c), accounts.Balance{
 				Total: bal.Total,
 				Hold:  bal.Hold,
 				Free:  bal.Total - bal.Hold,
@@ -546,7 +546,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		for name, v := range resp.Accounts {
 			a := accounts.NewSubAccount(assetType, name)
 			for curr, bal := range v.Balances {
-				a.Balances.Set(curr, accounts.Balance{Total: bal})
+				a.Balances.Set(currency.NewCode(curr), accounts.Balance{Total: bal})
 			}
 			subAccts = subAccts.Merge(a)
 		}

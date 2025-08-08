@@ -656,7 +656,7 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 			return errors.New("malformed text")
 		}
 		a := accounts.NewSubAccount(assetType, bal.User)
-		a.Balances.Set(info[0], accounts.Balance{
+		a.Balances.Set(currency.NewCode(info[0]), accounts.Balance{
 			Total:     bal.Balance,
 			Free:      bal.Balance,
 			UpdatedAt: bal.Time.Time(),
