@@ -669,7 +669,7 @@ func SortStrings[S ~[]E, E fmt.Stringer](x S) S {
 
 // Counter is a thread-safe counter.
 type Counter struct {
-	n atomic.Int64 // privatised so you can't use counter as a value type
+	n atomic.Int64 // private so you can't use counter as a value type
 }
 
 // IncrementAndGet returns the next count after incrementing.
