@@ -443,12 +443,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method,
 		p = btseFuturesPath + btseFuturesAPIPath
 	}
 	item := &request.Item{
-		Method:        method,
-		Path:          ePoint + p + endpoint,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:             method,
+		Path:               ePoint + p + endpoint,
+		Result:             result,
+		Verbose:            e.Verbose,
+		HTTPDebugging:      e.HTTPDebugging,
+		HTTPRecording:      e.HTTPRecording,
+		MockDataSliceLimit: e.MockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
@@ -520,14 +521,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["btse-sign"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:        method,
-			Path:          host,
-			Headers:       headers,
-			Body:          body,
-			Result:        result,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:             method,
+			Path:               host,
+			Headers:            headers,
+			Body:               body,
+			Result:             result,
+			Verbose:            e.Verbose,
+			HTTPDebugging:      e.HTTPDebugging,
+			HTTPRecording:      e.HTTPRecording,
+			MockDataSliceLimit: e.MockDataSliceLimit,
 		}, nil
 	}
 	return e.SendPayload(ctx, f, newRequest, request.AuthenticatedRequest)

@@ -732,12 +732,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 
 	var rawMessage json.RawMessage
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        &rawMessage,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:             http.MethodGet,
+		Path:               endpoint + path,
+		Result:             &rawMessage,
+		Verbose:            e.Verbose,
+		HTTPDebugging:      e.HTTPDebugging,
+		HTTPRecording:      e.HTTPRecording,
+		MockDataSliceLimit: e.MockDataSliceLimit,
 	}
 
 	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
@@ -800,15 +801,16 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["API-Sign"] = base64.StdEncoding.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:        http.MethodPost,
-			Path:          endpoint + path,
-			Headers:       headers,
-			Body:          strings.NewReader(encoded),
-			Result:        &interim,
-			NonceEnabled:  true,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:             http.MethodPost,
+			Path:               endpoint + path,
+			Headers:            headers,
+			Body:               strings.NewReader(encoded),
+			Result:             &interim,
+			NonceEnabled:       true,
+			Verbose:            e.Verbose,
+			HTTPDebugging:      e.HTTPDebugging,
+			HTTPRecording:      e.HTTPRecording,
+			MockDataSliceLimit: e.MockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {

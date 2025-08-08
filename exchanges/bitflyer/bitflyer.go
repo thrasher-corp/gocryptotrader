@@ -268,12 +268,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		return err
 	}
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:             http.MethodGet,
+		Path:               endpoint + path,
+		Result:             result,
+		Verbose:            e.Verbose,
+		HTTPDebugging:      e.HTTPDebugging,
+		HTTPRecording:      e.HTTPRecording,
+		MockDataSliceLimit: e.MockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil

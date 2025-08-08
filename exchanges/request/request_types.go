@@ -54,6 +54,10 @@ type Item struct {
 	// HeaderResponse for inspection of header contents package side useful for
 	// pagination
 	HeaderResponse *http.Header
+
+	// Used in HTTP recording to limit the number of slices per record,
+	// helping reduce the size of the recorded mock data.
+	MockDataSliceLimit int
 }
 
 // Backoff determines how long to wait between request attempts.
