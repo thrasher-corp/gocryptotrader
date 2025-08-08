@@ -293,14 +293,14 @@ func (e *Exchange) OptionsUnsubscribe(ctx context.Context, conn websocket.Connec
 }
 
 // WsHandleOptionsData handles options websocket data
-func (e *Exchange) WsHandleOptionsData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		return e.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
+		return conn.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel {

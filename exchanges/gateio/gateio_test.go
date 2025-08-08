@@ -776,7 +776,7 @@ func TestGetSubAccountFuturesBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSubAccountFuturesBalances(t.Context(), "", currency.EMPTYCODE)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 }
 
 func TestGetSubAccountCrossMarginBalances(t *testing.T) {
@@ -1883,32 +1883,36 @@ const wsTickerPushDataJSON = `{"time": 1606291803,	"channel": "spot.tickers",	"e
 
 func TestWsTickerPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleSpotData(t.Context(), []byte(wsTickerPushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsTickerPushDataJSON)); err != nil {
+		t.Errorf("%s websocket ticker push data error: %v", e.Name, err)
+	}
 }
 
 const wsTradePushDataJSON = `{	"time": 1606292218,	"channel": "spot.trades",	"event": "update",	"result": {	  "id": 309143071,	  "create_time": 1606292218,	  "create_time_ms": "1606292218213.4578",	  "side": "sell",	  "currency_pair": "BTC_USDT",	  "amount": "16.4700000000",	  "price": "0.4705000000"}}`
 
 func TestWsTradePushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleSpotData(t.Context(), []byte(wsTradePushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsTradePushDataJSON)); err != nil {
+		t.Errorf("%s websocket trade push data error: %v", e.Name, err)
+	}
 }
 
 const wsCandlestickPushDataJSON = `{"time": 1606292600,	"channel": "spot.candlesticks",	"event": "update",	"result": {	  "t": "1606292580",	  "v": "2362.32035",	  "c": "19128.1",	  "h": "19128.1",	  "l": "19128.1",	  "o": "19128.1","n": "1m_BTC_USDT"}}`
 
 func TestWsCandlestickPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleSpotData(t.Context(), []byte(wsCandlestickPushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsCandlestickPushDataJSON)); err != nil {
+		t.Errorf("%s websocket candlestick push data error: %v", e.Name, err)
+	}
 }
 
 const wsOrderbookTickerJSON = `{"time": 1606293275,	"channel": "spot.book_ticker",	"event": "update",	"result": {	  "t": 1606293275123,	  "u": 48733182,	  "s": "BTC_USDT",	  "b": "19177.79",	  "B": "0.0003341504",	  "a": "19179.38",	  "A": "0.09"	}}`
 
 func TestWsOrderbookTickerPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleSpotData(t.Context(), []byte(wsOrderbookTickerJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsOrderbookTickerJSON)); err != nil {
+		t.Errorf("%s websocket orderbook push data error: %v", e.Name, err)
+	}
 }
 
 const (
@@ -1918,27 +1922,31 @@ const (
 
 func TestWsOrderbookSnapshotPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleSpotData(t.Context(), []byte(wsOrderbookSnapshotPushDataJSON))
-	require.NoError(t, err)
-
-	err = e.WsHandleSpotData(t.Context(), []byte(wsOrderbookUpdatePushDataJSON))
-	assert.NoError(t, err)
+	err := e.WsHandleSpotData(t.Context(), nil, []byte(wsOrderbookSnapshotPushDataJSON))
+	if err != nil {
+		t.Errorf("%s websocket orderbook snapshot push data error: %v", e.Name, err)
+	}
+	if err = e.WsHandleSpotData(t.Context(), nil, []byte(wsOrderbookUpdatePushDataJSON)); err != nil {
+		t.Errorf("%s websocket orderbook update push data error: %v", e.Name, err)
+	}
 }
 
 const wsSpotOrderPushDataJSON = `{"time": 1605175506,	"channel": "spot.orders",	"event": "update",	"result": [	  {		"id": "30784435",		"user": 123456,		"text": "t-abc",		"create_time": "1605175506",		"create_time_ms": "1605175506123",		"update_time": "1605175506",		"update_time_ms": "1605175506123",		"event": "put",		"currency_pair": "BTC_USDT",		"type": "limit",		"account": "spot",		"side": "sell",		"amount": "1",		"price": "10001",		"time_in_force": "gtc",		"left": "1",		"filled_total": "0",		"fee": "0",		"fee_currency": "USDT",		"point_fee": "0",		"gt_fee": "0",		"gt_discount": true,		"rebated_fee": "0",		"rebated_fee_currency": "USDT"}	]}`
 
 func TestWsPushOrders(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleSpotData(t.Context(), []byte(wsSpotOrderPushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsSpotOrderPushDataJSON)); err != nil {
+		t.Errorf("%s websocket orders push data error: %v", e.Name, err)
+	}
 }
 
 const wsUserTradePushDataJSON = `{"time": 1605176741,	"channel": "spot.usertrades",	"event": "update",	"result": [	  {		"id": 5736713,		"user_id": 1000001,		"order_id": "30784428",		"currency_pair": "BTC_USDT",		"create_time": 1605176741,		"create_time_ms": "1605176741123.456",		"side": "sell",		"amount": "1.00000000",		"role": "taker",		"price": "10000.00000000",		"fee": "0.00200000000000",		"point_fee": "0",		"gt_fee": "0",		"text": "apiv4"	  }	]}`
 
 func TestWsUserTradesPushDataJSON(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleSpotData(t.Context(), []byte(wsUserTradePushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsUserTradePushDataJSON)); err != nil {
+		t.Errorf("%s websocket users trade push data error: %v", e.Name, err)
+	}
 }
 
 const wsBalancesPushDataJSON = `{"time": 1605248616,	"channel": "spot.balances",	"event": "update",	"result": [	  {		"timestamp": "1605248616",		"timestamp_ms": "1605248616123",		"user": "1000001",		"currency": "USDT",		"change": "100",		"total": "1032951.325075926",		"available": "1022943.325075926"}	]}`
@@ -1946,16 +1954,18 @@ const wsBalancesPushDataJSON = `{"time": 1605248616,	"channel": "spot.balances",
 func TestBalancesPushData(t *testing.T) {
 	t.Parallel()
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
-	err := e.WsHandleSpotData(ctx, []byte(wsBalancesPushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleSpotData(ctx, nil, []byte(wsBalancesPushDataJSON)); err != nil {
+		t.Errorf("%s websocket balances push data error: %v", e.Name, err)
+	}
 }
 
 const wsMarginBalancePushDataJSON = `{"time": 1605248616,	"channel": "spot.funding_balances",	"event": "update",	"result": [	  {"timestamp": "1605248616","timestamp_ms": "1605248616123","user": "1000001","currency": "USDT","change": "100","freeze": "100","lent": "0"}	]}`
 
 func TestMarginBalancePushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleSpotData(t.Context(), []byte(wsMarginBalancePushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsMarginBalancePushDataJSON)); err != nil {
+		t.Errorf("%s websocket margin balance push data error: %v", e.Name, err)
+	}
 }
 
 const wsCrossMarginBalancePushDataJSON = `{"time": 1605248616,"channel": "spot.cross_balances","event": "update",	"result": [{"timestamp": "1605248616","timestamp_ms": "1605248616123","user": "1000001","currency": "USDT",	"change": "100","total": "1032951.325075926","available": "1022943.325075926"}]}`
@@ -1963,16 +1973,18 @@ const wsCrossMarginBalancePushDataJSON = `{"time": 1605248616,"channel": "spot.c
 func TestCrossMarginBalancePushData(t *testing.T) {
 	t.Parallel()
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
-	err := e.WsHandleSpotData(ctx, []byte(wsCrossMarginBalancePushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleSpotData(ctx, nil, []byte(wsCrossMarginBalancePushDataJSON)); err != nil {
+		t.Errorf("%s websocket cross margin balance push data error: %v", e.Name, err)
+	}
 }
 
 const wsCrossMarginBalanceLoan = `{	"time":1658289372,	"channel":"spot.cross_loan",	"event":"update",	"result":{	  "timestamp":1658289372338,	  "user":"1000001",	  "currency":"BTC",	  "change":"0.01",	  "total":"4.992341029566",	  "available":"0.078054772536",	  "borrowed":"0.01",	  "interest":"0.00001375"	}}`
 
 func TestCrossMarginBalanceLoan(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleSpotData(t.Context(), []byte(wsCrossMarginBalanceLoan))
-	assert.NoError(t, err)
+	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsCrossMarginBalanceLoan)); err != nil {
+		t.Errorf("%s websocket cross margin loan push data error: %v", e.Name, err)
+	}
 }
 
 // TestFuturesDataHandler ensures that messages from various futures channels do not error
@@ -1984,7 +1996,7 @@ func TestFuturesDataHandler(t *testing.T) {
 		if strings.Contains(string(m), "futures.balances") {
 			ctx = account.DeployCredentialsToContext(ctx, &account.Credentials{Key: "test", Secret: "test"})
 		}
-		return e.WsHandleFuturesData(ctx, m, asset.CoinMarginedFutures)
+		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
 	close(e.Websocket.DataHandler)
 	assert.Len(t, e.Websocket.DataHandler, 14, "Should see the correct number of messages")
@@ -2001,64 +2013,65 @@ const optionsContractTickerPushDataJSON = `{"time": 1630576352,	"channel": "opti
 
 func TestOptionsContractTickerPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsContractTickerPushDataJSON))
-	assert.NoError(t, err)
+	err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractTickerPushDataJSON))
+	assert.NoErrorf(t, err, "%s websocket options contract ticker push data failed with error %v", e.Name, err)
 }
 
 const optionsUnderlyingTickerPushDataJSON = `{"time": 1630576352,	"channel": "options.ul_tickers",	"event": "update",	"result": {	   "trade_put": 800,	   "trade_call": 41700,	   "index_price": "50695.43",	   "name": "BTC_USDT"	}}`
 
 func TestOptionsUnderlyingTickerPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsUnderlyingTickerPushDataJSON))
-	assert.NoError(t, err)
+	err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsUnderlyingTickerPushDataJSON))
+	assert.NoErrorf(t, err, "%s websocket options underlying ticker push data error: %v", e.Name, err)
 }
 
 const optionsContractTradesPushDataJSON = `{"time": 1630576356,	"channel": "options.trades",	"event": "update",	"result": [    {        "contract": "BTC_USDT-20211231-59800-C",        "create_time": 1639144526,        "id": 12279,        "price": 997.8,        "size": -100,        "create_time_ms": 1639144526597,        "underlying": "BTC_USDT"    }	]}`
 
 func TestOptionsContractTradesPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsContractTradesPushDataJSON))
-	assert.NoError(t, err)
+	err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractTradesPushDataJSON))
+	assert.NoErrorf(t, err, "%s websocket contract trades push data error: %v", e.Name, err)
 }
 
 const optionsUnderlyingTradesPushDataJSON = `{"time": 1630576356,	"channel": "options.ul_trades",	"event": "update",	"result": [{"contract": "BTC_USDT-20211231-59800-C","create_time": 1639144526,"id": 12279,"price": 997.8,"size": -100,"create_time_ms": 1639144526597,"underlying": "BTC_USDT","is_call": true}	]}`
 
 func TestOptionsUnderlyingTradesPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsUnderlyingTradesPushDataJSON))
-	assert.NoError(t, err)
+	err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsUnderlyingTradesPushDataJSON))
+	assert.NoErrorf(t, err, "%s websocket underlying trades push data error: %v", e.Name, err)
 }
 
 const optionsUnderlyingPricePushDataJSON = `{	"time": 1630576356,	"channel": "options.ul_price",	"event": "update",	"result": {	   "underlying": "BTC_USDT",	   "price": 49653.24,"time": 1639143988,"time_ms": 1639143988931}}`
 
 func TestOptionsUnderlyingPricePushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsUnderlyingPricePushDataJSON))
-	assert.NoError(t, err)
+	err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsUnderlyingPricePushDataJSON))
+	assert.NoErrorf(t, err, "%s websocket underlying price push data error: %v", e.Name, err)
 }
 
 const optionsMarkPricePushDataJSON = `{	"time": 1630576356,	"channel": "options.mark_price",	"event": "update",	"result": {    "contract": "BTC_USDT-20211231-59800-P",    "price": 11021.27,    "time": 1639143401,    "time_ms": 1639143401676}}`
 
 func TestOptionsMarkPricePushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsMarkPricePushDataJSON))
-	assert.NoError(t, err)
+	err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsMarkPricePushDataJSON))
+	assert.NoErrorf(t, err, "%s websocket mark price push data error: %v", e.Name, err)
 }
 
 const optionsSettlementsPushDataJSON = `{	"time": 1630576356,	"channel": "options.settlements",	"event": "update",	"result": {	   "contract": "BTC_USDT-20211130-55000-P",	   "orderbook_id": 2,	   "position_size": 1,	   "profit": 0.5,	   "settle_price": 70000,	   "strike_price": 65000,	   "tag": "WEEK",	   "trade_id": 1,	   "trade_size": 1,	   "underlying": "BTC_USDT",	   "time": 1639051907,	   "time_ms": 1639051907000}}`
 
 func TestSettlementsPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsSettlementsPushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsSettlementsPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options settlements push data error: %v", e.Name, err)
+	}
 }
 
 const optionsContractPushDataJSON = `{"time": 1630576356,	"channel": "options.contracts",	"event": "update",	"result": {	   "contract": "BTC_USDT-20211130-50000-P",	   "create_time": 1637917026,	   "expiration_time": 1638230400,	   "init_margin_high": 0.15,	   "init_margin_low": 0.1,	   "is_call": false,	   "maint_margin_base": 0.075,	   "maker_fee_rate": 0.0004,	   "mark_price_round": 0.1,	   "min_balance_short": 0.5,	   "min_order_margin": 0.1,	   "multiplier": 0.0001,	   "order_price_deviate": 0,	   "order_price_round": 0.1,	   "order_size_max": 1,	   "order_size_min": 10,	   "orders_limit": 100000,	   "ref_discount_rate": 0.1,	   "ref_rebate_rate": 0,	   "strike_price": 50000,	   "tag": "WEEK",	   "taker_fee_rate": 0.0004,	   "underlying": "BTC_USDT",	   "time": 1639051907,	   "time_ms": 1639051907000}}`
 
 func TestOptionsContractPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsContractPushDataJSON))
-	assert.NoError(t, err)
+	err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractPushDataJSON))
+	assert.NoErrorf(t, err, "%s websocket options contracts push data error: %v", e.Name, err)
 }
 
 const (
@@ -2068,10 +2081,12 @@ const (
 
 func TestOptionsCandlesticksPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsContractCandlesticksPushDataJSON))
-	assert.NoError(t, err)
-	err = e.WsHandleOptionsData(t.Context(), []byte(optionsUnderlyingCandlesticksPushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractCandlesticksPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options contracts candlestick push data error: %v", e.Name, err)
+	}
+	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsUnderlyingCandlesticksPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options underlying candlestick push data error: %v", e.Name, err)
+	}
 }
 
 const (
@@ -2084,50 +2099,55 @@ const (
 func TestOptionsOrderbookPushData(t *testing.T) {
 	t.Parallel()
 	p := getPair(t, asset.Options)
-	assert.NoError(t, e.WsHandleOptionsData(t.Context(), []byte(optionsOrderbookTickerPushDataJSON)))
-	assert.NoError(t, e.WsHandleOptionsData(t.Context(), fmt.Appendf(nil, optionsOrderbookUpdatePushDataJSON, p.Upper().String())))
-	assert.NoError(t, e.WsHandleOptionsData(t.Context(), []byte(optionsOrderbookSnapshotPushDataJSON)))
-	assert.NoError(t, e.WsHandleOptionsData(t.Context(), []byte(optionsOrderbookSnapshotUpdateEventPushDataJSON)))
+	assert.NoError(t, e.WsHandleOptionsData(t.Context(), nil, []byte(optionsOrderbookTickerPushDataJSON)))
+	assert.NoError(t, e.WsHandleOptionsData(t.Context(), nil, fmt.Appendf(nil, optionsOrderbookUpdatePushDataJSON, p.Upper().String())))
+	assert.NoError(t, e.WsHandleOptionsData(t.Context(), nil, []byte(optionsOrderbookSnapshotPushDataJSON)))
+	assert.NoError(t, e.WsHandleOptionsData(t.Context(), nil, []byte(optionsOrderbookSnapshotUpdateEventPushDataJSON)))
 }
 
 const optionsOrderPushDataJSON = `{"time": 1630654851,"channel": "options.orders",	"event": "update",	"result": [	   {		  "contract": "BTC_USDT-20211130-65000-C",		  "create_time": 1637897000,		  "fill_price": 0,		  "finish_as": "cancelled",		  "iceberg": 0,		  "id": 106,		  "is_close": false,		  "is_liq": false,		  "is_reduce_only": false,		  "left": -10,		  "mkfr": 0.0004,		  "price": 15000,		  "refr": 0,		  "refu": 0,		  "size": -10,		  "status": "finished",		  "text": "web",		  "tif": "gtc",		  "tkfr": 0.0004,		  "underlying": "BTC_USDT",		  "user": "9xxx",		  "time": 1639051907,"time_ms": 1639051907000}]}`
 
 func TestOptionsOrderPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsOrderPushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsOrderPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options orders push data error: %v", e.Name, err)
+	}
 }
 
 const optionsUsersTradesPushDataJSON = `{	"time": 1639144214,	"channel": "options.usertrades",	"event": "update",	"result": [{"id": "1","underlying": "BTC_USDT","order": "557940","contract": "BTC_USDT-20211216-44800-C","create_time": 1639144214,"create_time_ms": 1639144214583,"price": "4999","role": "taker","size": -1}]}`
 
 func TestOptionUserTradesPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsUsersTradesPushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsUsersTradesPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options orders push data error: %v", e.Name, err)
+	}
 }
 
 const optionsLiquidatesPushDataJSON = `{	"channel": "options.liquidates",	"event": "update",	"time": 1630654851,	"result": [	   {		  "user": "1xxxx",		  "init_margin": 1190,		  "maint_margin": 1042.5,		  "order_margin": 0,		  "time": 1639051907,		  "time_ms": 1639051907000}	]}`
 
 func TestOptionsLiquidatesPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsLiquidatesPushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsLiquidatesPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options liquidates push data error: %v", e.Name, err)
+	}
 }
 
 const optionsSettlementPushDataJSON = `{	"channel": "options.user_settlements",	"event": "update",	"time": 1639051907,	"result": [{"contract": "BTC_USDT-20211130-65000-C","realised_pnl": -13.028,"settle_price": 70000,"settle_profit": 5,"size": 10,"strike_price": 65000,"underlying": "BTC_USDT","user": "9xxx","time": 1639051907,"time_ms": 1639051907000}]}`
 
 func TestOptionsSettlementPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsSettlementPushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsSettlementPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options settlement push data error: %v", e.Name, err)
+	}
 }
 
 const optionsPositionClosePushDataJSON = `{"channel": "options.position_closes",	"event": "update",	"time": 1630654851,	"result": [{"contract": "BTC_USDT-20211130-50000-C","pnl": -0.0056,"settle_size": 0,"side": "long","text": "web","underlying": "BTC_USDT","user": "11xxxxx","time": 1639051907,"time_ms": 1639051907000}]}`
 
 func TestOptionsPositionClosePushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsPositionClosePushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsPositionClosePushDataJSON)); err != nil {
+		t.Errorf("%s websocket options position close push data error: %v", e.Name, err)
+	}
 }
 
 const optionsBalancePushDataJSON = `{	"channel": "options.balances",	"event": "update",	"time": 1630654851,	"result": [	   {		  "balance": 60.79009,"change": -0.5,"text": "BTC_USDT-20211130-55000-P","type": "set","user": "11xxxx","time": 1639051907,"time_ms": 1639051907000}]}`
@@ -2135,16 +2155,18 @@ const optionsBalancePushDataJSON = `{	"channel": "options.balances",	"event": "u
 func TestOptionsBalancePushData(t *testing.T) {
 	t.Parallel()
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
-	err := e.WsHandleOptionsData(ctx, []byte(optionsBalancePushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleOptionsData(ctx, nil, []byte(optionsBalancePushDataJSON)); err != nil {
+		t.Errorf("%s websocket options balance push data error: %v", e.Name, err)
+	}
 }
 
 const optionsPositionPushDataJSON = `{"time": 1630654851,	"channel": "options.positions",	"event": "update",	"error": null,	"result": [	   {		  "entry_price": 0,		  "realised_pnl": -13.028,		  "size": 0,		  "contract": "BTC_USDT-20211130-65000-C",		  "user": "9010",		  "time": 1639051907,		  "time_ms": 1639051907000}	]}`
 
 func TestOptionsPositionPushData(t *testing.T) {
 	t.Parallel()
-	err := e.WsHandleOptionsData(t.Context(), []byte(optionsPositionPushDataJSON))
-	assert.NoError(t, err)
+	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsPositionPushDataJSON)); err != nil {
+		t.Errorf("%s websocket options position push data error: %v", e.Name, err)
+	}
 }
 
 func TestGenerateSubscriptionsSpot(t *testing.T) {
@@ -2197,7 +2219,7 @@ func TestSubscribe(t *testing.T) {
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	e.Features.Subscriptions = subscription.List{}
-	err = e.Subscribe(t.Context(), &DummyConnection{}, subs)
+	err = e.Subscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "Subscribe must not error")
 }
 
@@ -2778,15 +2800,10 @@ func TestGetSettlementCurrency(t *testing.T) {
 	}
 }
 
-func TestGenerateWebsocketMessageID(t *testing.T) {
-	t.Parallel()
-	require.NotEmpty(t, e.GenerateWebsocketMessageID(false))
-}
+type FixtureConnection struct{ websocket.Connection }
 
-type DummyConnection struct{ websocket.Connection }
-
-func (d *DummyConnection) GenerateMessageID(bool) int64 { return 1337 }
-func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+func (d *FixtureConnection) GenerateMessageID(bool) int64 { return 1337 }
+func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
 	return []byte(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`), nil
 }
 
@@ -2794,12 +2811,12 @@ func TestHandleSubscriptions(t *testing.T) {
 	t.Parallel()
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
 
-	err := e.handleSubscription(t.Context(), &DummyConnection{}, subscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
+	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
 
-	err = e.handleSubscription(t.Context(), &DummyConnection{}, unsubscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
+	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
