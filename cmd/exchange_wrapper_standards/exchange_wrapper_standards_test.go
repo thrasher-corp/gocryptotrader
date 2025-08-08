@@ -248,12 +248,16 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 		if isUnacceptableError(t, err) != nil {
 			literalInputs := make([]any, len(methodValues))
 			for j := range methodValues {
-				if methodValues[j].Kind() == reflect.Ptr {
+				switch {
+				case methodValues[j].Type().Implements(contextParam):
+					// Errorf will use reflection on ctx and cause a race, so we need to replace it
+					literalInputs[j] = "<context>"
+				case methodValues[j].Kind() == reflect.Ptr:
 					// dereference pointers just to add a bit more clarity
 					literalInputs[j] = methodValues[j].Elem().Interface()
-					continue
+				default:
+					literalInputs[j] = methodValues[j].Interface()
 				}
-				literalInputs[j] = methodValues[j].Interface()
 			}
 			t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
 		}
@@ -343,8 +347,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			OneTimePassword: "test",
 		})
 	case argGenerator.MethodInputType.Implements(contextParam):
-		// Need to deploy a context.Context value as nil value is not
-		// checked throughout codebase.
+		// Need to deploy a context.Context value as nil value is not checked throughout codebase
 		input = reflect.ValueOf(ctx)
 	case argGenerator.MethodInputType.AssignableTo(feeBuilderParam):
 		input = reflect.ValueOf(&exchange.FeeBuilder{
