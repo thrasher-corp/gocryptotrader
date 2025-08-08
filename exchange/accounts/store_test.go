@@ -45,15 +45,3 @@ func TestGetExchangeAccounts(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 }
-
-func TestRegisterExchange(t *testing.T) {
-	t.Parallel()
-	s := NewStore()
-	m := &mockEx{name: "mocky"}
-	got, err := s.registerExchange(m)
-	require.NoError(t, err)
-	require.NotNil(t, got)
-
-	_, err = s.registerExchange(m)
-	require.ErrorIs(t, err, errExchangeAlreadyExists, "Should error when registering the same exchange again")
-}

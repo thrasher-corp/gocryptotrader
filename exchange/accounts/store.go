@@ -2,14 +2,11 @@ package accounts
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 )
-
-var errExchangeAlreadyExists = errors.New("exchange already exists")
 
 // Store contains exchanges accounts
 type Store struct {
@@ -61,16 +58,5 @@ func (s *Store) GetExchangeAccounts(e exchange) (a *Accounts, err error) {
 		a, err = NewAccounts(e, s.mux)
 		s.exchangeAccounts[e] = a
 	}
-	return a, err
-}
-
-// registerExchange adds a new empty shared account accounts entry for an exchange
-// must be called with s.mu locked
-func (s *Store) registerExchange(e exchange) (*Accounts, error) {
-	if _, ok := s.exchangeAccounts[e]; ok {
-		return nil, errExchangeAlreadyExists
-	}
-	a, err := NewAccounts(e, s.mux)
-	s.exchangeAccounts[e] = a
 	return a, err
 }
