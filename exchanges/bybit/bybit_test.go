@@ -3019,7 +3019,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	}
 }
 
-type DummyConnection struct {
+type FixtureConnection struct {
 	dialError                         error
 	sendMessageReturnResponseOverride []byte
 	match                             websocket.Match
