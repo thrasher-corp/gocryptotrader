@@ -942,14 +942,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			payload = string(byteData)
 		}
 		return &request.Item{
-			Method:        method,
-			Path:          urlPath,
-			Headers:       headers,
-			Body:          strings.NewReader(payload),
-			Result:        &intermediary,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:             method,
+			Path:               urlPath,
+			Headers:            headers,
+			Body:               strings.NewReader(payload),
+			Result:             &intermediary,
+			Verbose:            e.Verbose,
+			HTTPDebugging:      e.HTTPDebugging,
+			HTTPRecording:      e.HTTPRecording,
+			MockDataSliceLimit: e.MockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
@@ -980,12 +981,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 		return err
 	}
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:             http.MethodGet,
+		Path:               endpoint + path,
+		Result:             result,
+		Verbose:            e.Verbose,
+		HTTPDebugging:      e.HTTPDebugging,
+		HTTPRecording:      e.HTTPRecording,
+		MockDataSliceLimit: e.MockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil

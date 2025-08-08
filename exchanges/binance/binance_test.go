@@ -1090,7 +1090,12 @@ func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
 	info, err := e.GetExchangeInfo(t.Context())
 	require.NoError(t, err, "GetExchangeInfo must not error")
-	assert.WithinRange(t, info.ServerTime.Time(), time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
+	if mockTests {
+		exp := time.UnixMilli(1754603741167).UTC()
+		assert.Truef(t, info.ServerTime.Time().Equal(exp), "expected %v received %v", exp.UTC(), info.ServerTime.Time().UTC())
+	} else {
+		assert.WithinRange(t, info.ServerTime.Time(), time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
+	}
 }
 
 func TestFetchTradablePairs(t *testing.T) {
@@ -1099,10 +1104,6 @@ func TestFetchTradablePairs(t *testing.T) {
 	if err != nil {
 		t.Error("Binance FetchTradablePairs(asset asets.AssetType) error", err)
 	}
-
-	enabledPair, err := e.GetEnabledPairs(asset.Spot)
-	require.NoError(t, err)
-	println(enabledPair[0].String())
 
 	_, err = e.FetchTradablePairs(t.Context(), asset.CoinMarginedFutures)
 	if err != nil {
@@ -1162,10 +1163,7 @@ func TestGetAggregatedTrades(t *testing.T) {
 }
 
 func TestGetSpotKline(t *testing.T) {
-	if !mockTests {
-		t.Parallel()
-		e.MockDataSliceLimit = 24
-	}
+	t.Parallel()
 	start, end := getTime()
 	r, err := e.GetSpotKline(t.Context(), &KlinesRequestParams{
 		Symbol:    currency.NewBTCUSDT(),
@@ -2513,13 +2511,7 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 }
 
 func TestSetExchangeOrderExecutionLimits(t *testing.T) {
-	if !mockTests {
-		t.Parallel()
-
-		// A filter size of 6 is required; which is bigger than a filter slice limit of 5. Therefore, we set the mock data slice limit to 6 for this specific live data recording.
-		e.MockDataSliceLimit = 7
-	}
-	e.Verbose = true
+	t.Parallel()
 	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
@@ -2758,11 +2750,7 @@ func TestFormatUSDTMarginedFuturesPair(t *testing.T) {
 }
 
 func TestFetchExchangeLimits(t *testing.T) {
-	if !mockTests {
-		t.Parallel()
-		// A filter size of 7 is required; which is bigger than a filter slice limit of 5. Therefore, we set the mock data slice limit to 6 for this specific live data recording.
-		e.MockDataSliceLimit = 7
-	}
+	t.Parallel()
 	limits, err := e.FetchExchangeLimits(t.Context(), asset.Spot)
 	assert.NoError(t, err, "FetchExchangeLimits should not error")
 	assert.NotEmpty(t, limits, "Should get some limits back")
@@ -2776,13 +2764,10 @@ func TestFetchExchangeLimits(t *testing.T) {
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
-	if !mockTests {
-		t.Parallel()
-		e.MockDataSliceLimit = 24
-	}
+	t.Parallel()
 	spotEnabled, err := e.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err)
-	e.Verbose = true
+
 	tests := map[asset.Item]currency.Pair{
 		asset.Spot:   spotEnabled[0],
 		asset.Margin: currency.NewPair(currency.ETH, currency.BTC),

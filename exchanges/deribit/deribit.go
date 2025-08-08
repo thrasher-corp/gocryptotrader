@@ -711,12 +711,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	}
 	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpoint + deribitAPIVersion + "/" + path,
-			Result:        data,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:             http.MethodGet,
+			Path:               endpoint + deribitAPIVersion + "/" + path,
+			Result:             data,
+			Verbose:            e.Verbose,
+			HTTPDebugging:      e.HTTPDebugging,
+			HTTPRecording:      e.HTTPRecording,
+			MockDataSliceLimit: e.MockDataSliceLimit,
 		}, nil
 	}, request.UnauthenticatedRequest)
 }
@@ -2232,13 +2233,14 @@ func (e *Exchange) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl
 	}
 	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
-			Method:        method,
-			Path:          endpoint + deribitAPIVersion + "/" + common.EncodeURLValues(path, params),
-			Headers:       headers,
-			Result:        &tempData,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:             method,
+			Path:               endpoint + deribitAPIVersion + "/" + common.EncodeURLValues(path, params),
+			Headers:            headers,
+			Result:             &tempData,
+			Verbose:            e.Verbose,
+			HTTPDebugging:      e.HTTPDebugging,
+			HTTPRecording:      e.HTTPRecording,
+			MockDataSliceLimit: e.MockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {

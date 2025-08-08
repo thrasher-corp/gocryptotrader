@@ -739,13 +739,14 @@ func (e *Exchange) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpointPath + path,
-		Headers:       headers,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:             http.MethodGet,
+		Path:               endpointPath + path,
+		Headers:            headers,
+		Result:             result,
+		Verbose:            e.Verbose,
+		HTTPDebugging:      e.HTTPDebugging,
+		HTTPRecording:      e.HTTPRecording,
+		MockDataSliceLimit: e.MockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, f, func() (*request.Item, error) {
@@ -784,13 +785,14 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, 
 		headers["X-MBX-APIKEY"] = creds.Key
 		fullPath := common.EncodeURLValues(endpointPath+path, params) + "&signature=" + hex.EncodeToString(hmacSigned)
 		return &request.Item{
-			Method:        method,
-			Path:          fullPath,
-			Headers:       headers,
-			Result:        &interim,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:             method,
+			Path:               fullPath,
+			Headers:            headers,
+			Result:             &interim,
+			Verbose:            e.Verbose,
+			HTTPDebugging:      e.HTTPDebugging,
+			HTTPRecording:      e.HTTPRecording,
+			MockDataSliceLimit: e.MockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
@@ -1062,13 +1064,14 @@ func (e *Exchange) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
-		Method:        http.MethodPost,
-		Path:          endpointPath + userAccountStream,
-		Headers:       headers,
-		Result:        &resp,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:             http.MethodPost,
+		Path:               endpointPath + userAccountStream,
+		Headers:            headers,
+		Result:             &resp,
+		Verbose:            e.Verbose,
+		HTTPDebugging:      e.HTTPDebugging,
+		HTTPRecording:      e.HTTPRecording,
+		MockDataSliceLimit: e.MockDataSliceLimit,
 	}
 
 	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
@@ -1103,12 +1106,13 @@ func (e *Exchange) MaintainWsAuthStreamKey(ctx context.Context) error {
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
-		Method:        http.MethodPut,
-		Path:          path,
-		Headers:       headers,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:             http.MethodPut,
+		Path:               path,
+		Headers:            headers,
+		Verbose:            e.Verbose,
+		HTTPDebugging:      e.HTTPDebugging,
+		HTTPRecording:      e.HTTPRecording,
+		MockDataSliceLimit: e.MockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {

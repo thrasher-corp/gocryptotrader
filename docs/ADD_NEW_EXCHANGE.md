@@ -259,12 +259,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any)
 	// This is used to generate the *http.Request, used in conjunction with the
 	// generate functionality below. 
 	item := &request.Item{  
-		Method:        http.MethodGet,
-		Path:          path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:        		http.MethodGet,
+		Path:          		path,
+		Result:        		result,
+		Verbose:       		e.Verbose,
+		HTTPDebugging: 		e.HTTPDebugging,
+		HTTPRecording: 		e.HTTPRecording,
+		MockDataSliceLimit: e.MockDataSliceLimit,
 	}
 
 	// Request function that closes over the above request.Item values, which
@@ -410,13 +411,14 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, 
 		headers["X-MBX-APIKEY"] = creds.Key
 		fullPath := common.EncodeURLValues(endpointPath+path, params) + "&signature=" + hex.EncodeToString(hmacSigned)
 		return &request.Item{
-			Method:        method,
-			Path:          fullPath,
-			Headers:       headers,
-			Result:        &interim,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:        		method,
+			Path:          		fullPath,
+			Headers:       		headers,
+			Result:        		&interim,
+			Verbose:       		e.Verbose,
+			HTTPDebugging: 		e.HTTPDebugging,
+			HTTPRecording: 		e.HTTPRecording,
+			MockDataSliceLimit: e.MockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {

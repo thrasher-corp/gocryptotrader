@@ -5919,14 +5919,15 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 			headers["OK-ACCESS-PASSPHRASE"] = creds.ClientID
 		}
 		return &request.Item{
-			Method:        strings.ToUpper(httpMethod),
-			Path:          endpoint + requestPath,
-			Headers:       headers,
-			Body:          bytes.NewBuffer(payload),
-			Result:        &resp,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:             strings.ToUpper(httpMethod),
+			Path:               endpoint + requestPath,
+			Headers:            headers,
+			Body:               bytes.NewBuffer(payload),
+			Result:             &resp,
+			Verbose:            e.Verbose,
+			HTTPDebugging:      e.HTTPDebugging,
+			HTTPRecording:      e.HTTPRecording,
+			MockDataSliceLimit: e.MockDataSliceLimit,
 		}, nil
 	}
 	if err := e.SendPayload(ctx, f, newRequest, requestType); err != nil {
