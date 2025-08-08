@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -63,17 +65,11 @@ func TestWrapper_IsEnabled(t *testing.T) {
 func TestWrapperAccountBalances(t *testing.T) {
 	t.Parallel()
 
-	_, err := testWrapper.AccountBalances(t.Context(),
-		exchName, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err := testWrapper.AccountBalances(t.Context(), exchName, asset.Spot)
+	require.NoError(t, err)
 
-	_, err = testWrapper.AccountBalances(t.Context(),
-		exchError.String(), asset.Spot)
-	if err == nil {
-		t.Fatal("expected AccountHoldings to return error on invalid name")
-	}
+	_, err = testWrapper.AccountBalances(t.Context(), exchError.String(), asset.Spot)
+	assert.ErrorIs(t, err, errTestFailed)
 }
 
 func TestWrapper_CancelOrder(t *testing.T) {
