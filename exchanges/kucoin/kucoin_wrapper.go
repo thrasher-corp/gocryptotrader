@@ -393,17 +393,15 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		return nil, err
 	}
 
-	book := &orderbook.Book{
+	if err := (&orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              pair,
 		Asset:             assetType,
 		ValidateOrderbook: e.ValidateOrderbook,
 		Asks:              ordBook.Asks,
 		Bids:              ordBook.Bids,
-	}
-	err = book.Process()
-	if err != nil {
-		return book, err
+	}).Process(); err != nil {
+		return nil, err
 	}
 	return orderbook.Get(e.Name, pair, assetType)
 }
