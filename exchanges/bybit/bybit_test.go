@@ -3073,15 +3073,13 @@ func TestPushDataPublic(t *testing.T) {
 	keys := slices.Collect(maps.Keys(pushDataMap))
 	slices.Sort(keys)
 
-	expErrFn := func(k string) error {
-		if k == "unhandled" {
-			return errUnhandledStreamData
-		}
-		return nil
-	}
-
 	for x := range keys {
-		assert.ErrorIsf(t, e.wsHandleData(nil, asset.Spot, []byte(pushDataMap[keys[x]])), expErrFn(keys[x]), "wsHandleData should not error for %s", keys[x])
+		err := e.wsHandleData(nil, asset.Spot, []byte(pushDataMap[keys[x]]))
+		if keys[x] == "unhandled" {
+			assert.ErrorIs(t, err, errUnhandledStreamData, "wsHandleData should error correctly for unhandled topics")
+		} else {
+			assert.NoError(t, err, "wsHandleData should not error")
+		}
 	}
 }
 
