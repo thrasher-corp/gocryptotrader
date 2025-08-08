@@ -50,10 +50,10 @@ func TestLinearSubscribe(t *testing.T) {
 	require.NoError(t, err, "GenerateLinearDefaultSubscriptions must not error")
 	assert.NotEmpty(t, subs, "Subscriptions should not be empty")
 
-	err = e.LinearSubscribe(t.Context(), &DummyConnection{}, asset.OptionCombo, subs)
+	err = e.LinearSubscribe(t.Context(), &FixtureConnection{}, asset.OptionCombo, subs)
 	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 
-	err = e.LinearSubscribe(t.Context(), &DummyConnection{}, asset.USDTMarginedFutures, subs)
+	err = e.LinearSubscribe(t.Context(), &FixtureConnection{}, asset.USDTMarginedFutures, subs)
 	require.NoError(t, err, "LinearSubscribe must not error")
 }
 
@@ -67,12 +67,12 @@ func TestLinearUnsubscribe(t *testing.T) {
 	require.NoError(t, err, "GenerateLinearDefaultSubscriptions must not error")
 	assert.NotEmpty(t, subs, "Subscriptions should not be empty")
 
-	err = e.LinearSubscribe(t.Context(), &DummyConnection{}, asset.USDTMarginedFutures, subs)
+	err = e.LinearSubscribe(t.Context(), &FixtureConnection{}, asset.USDTMarginedFutures, subs)
 	require.NoError(t, err, "LinearSubscribe must not error")
 
-	err = e.LinearUnsubscribe(t.Context(), &DummyConnection{}, asset.OptionCombo, subs)
+	err = e.LinearUnsubscribe(t.Context(), &FixtureConnection{}, asset.OptionCombo, subs)
 	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 
-	err = e.LinearUnsubscribe(t.Context(), &DummyConnection{}, asset.USDTMarginedFutures, subs)
+	err = e.LinearUnsubscribe(t.Context(), &FixtureConnection{}, asset.USDTMarginedFutures, subs)
 	require.NoError(t, err, "LinearUnsubscribe must not error")
 }

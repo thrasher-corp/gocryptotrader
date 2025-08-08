@@ -3026,31 +3026,31 @@ type FixtureConnection struct {
 	websocket.Connection
 }
 
-func (d *DummyConnection) GenerateMessageID(bool) int64                                  { return 1337 }
-func (d *DummyConnection) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {}
-func (d *DummyConnection) Dial(context.Context, *gws.Dialer, http.Header) error          { return d.dialError }
+func (d *FixtureConnection) GenerateMessageID(bool) int64                                  { return 1337 }
+func (d *FixtureConnection) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {}
+func (d *FixtureConnection) Dial(context.Context, *gws.Dialer, http.Header) error          { return d.dialError }
 
-func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
 	if d.sendMessageReturnResponseOverride != nil {
 		return d.sendMessageReturnResponseOverride, nil
 	}
 	return []byte(`{"success":true,"ret_msg":"subscribe","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`), nil
 }
 
-func (d *DummyConnection) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
+func (d *FixtureConnection) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
 	return nil
 }
 
-func (d *DummyConnection) RequireMatchWithData(signature any, data []byte) error {
+func (d *FixtureConnection) RequireMatchWithData(signature any, data []byte) error {
 	return d.match.RequireMatchWithData(signature, data)
 }
 
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
-	err := e.WsConnect(t.Context(), &DummyConnection{dialError: nil})
+	err := e.WsConnect(t.Context(), &FixtureConnection{dialError: nil})
 	require.NoError(t, err)
 	exp := errors.New("dial error")
-	err = e.WsConnect(t.Context(), &DummyConnection{dialError: exp})
+	err = e.WsConnect(t.Context(), &FixtureConnection{dialError: exp})
 	require.ErrorIs(t, err, exp)
 }
 
@@ -3781,11 +3781,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 			} else {
 				s.Pairs = pairs
 				s.QualifiedChannel = channelName(s)
-				categoryName := getCategoryName(a)
-				if isCategorisedChannel(s.QualifiedChannel) && categoryName != "" {
-					s.QualifiedChannel += "." + categoryName
-				}
-
 				exp = append(exp, s)
 			}
 		}
@@ -3798,7 +3793,7 @@ func TestAuthSubscribe(t *testing.T) {
 
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	require.NoError(t, e.authSubscribe(t.Context(), &DummyConnection{}, subscription.List{}))
+	require.NoError(t, e.authSubscribe(t.Context(), &FixtureConnection{}, subscription.List{}))
 
 	authsubs, err := e.generateAuthSubscriptions()
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
@@ -3809,8 +3804,8 @@ func TestAuthSubscribe(t *testing.T) {
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	require.NotEmpty(t, authsubs, "generateAuthSubscriptions must return subs")
 
-	require.NoError(t, e.authSubscribe(t.Context(), &DummyConnection{}, authsubs))
-	require.NoError(t, e.authUnsubscribe(t.Context(), &DummyConnection{}, authsubs))
+	require.NoError(t, e.authSubscribe(t.Context(), &FixtureConnection{}, authsubs))
+	require.NoError(t, e.authUnsubscribe(t.Context(), &FixtureConnection{}, authsubs))
 }
 
 func TestWebsocketAuthenticateConnection(t *testing.T) {
@@ -3819,16 +3814,16 @@ func TestWebsocketAuthenticateConnection(t *testing.T) {
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e))
 
-	err := e.WebsocketAuthenticateConnection(t.Context(), &DummyConnection{})
+	err := e.WebsocketAuthenticateConnection(t.Context(), &FixtureConnection{})
 	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "dummy", Secret: "dummy"})
-	err = e.WebsocketAuthenticateConnection(ctx, &DummyConnection{})
+	err = e.WebsocketAuthenticateConnection(ctx, &FixtureConnection{})
 	require.NoError(t, err)
-	err = e.WebsocketAuthenticateConnection(ctx, &DummyConnection{sendMessageReturnResponseOverride: []byte(`{"success":false,"ret_msg":"failed auth","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`)})
+	err = e.WebsocketAuthenticateConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":false,"ret_msg":"failed auth","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`)})
 	require.Error(t, err)
 }
 
@@ -3942,7 +3937,7 @@ func TestHandleNoTopicWebsocketResponse(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("operation: %s, requestID: %s", tc.operation, tc.requestID), func(t *testing.T) {
 			t.Parallel()
-			err := e.handleNoTopicWebsocketResponse(&DummyConnection{}, &WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
+			err := e.handleNoTopicWebsocketResponse(&FixtureConnection{}, &WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
 			assert.ErrorIs(t, err, tc.error, "handleNoTopicWebsocketResponse should return expected error")
 		})
 	}

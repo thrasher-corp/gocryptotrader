@@ -156,11 +156,10 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
-		"channelName":          channelName,
-		"isSymbolChannel":      isSymbolChannel,
-		"intervalToString":     intervalToString,
-		"getCategoryName":      getCategoryName,
-		"isCategorisedChannel": isCategorisedChannel,
+		"channelName":      channelName,
+		"isSymbolChannel":  isSymbolChannel,
+		"intervalToString": intervalToString,
+		"getCategoryName":  getCategoryName,
 	}).Parse(subTplText)
 }
 
@@ -224,7 +223,6 @@ func (e *Exchange) handleNoTopicWebsocketResponse(conn websocket.Connection, res
 		if result.RequestID != "" {
 			return conn.RequireMatchWithData(result.RequestID, respRaw)
 		}
-
 	case "ping", "pong":
 	default:
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: string(respRaw)}
@@ -642,14 +640,6 @@ func isSymbolChannel(name string) bool {
 	return true
 }
 
-func isCategorisedChannel(name string) bool {
-	switch name {
-	case chanPositions, chanExecution, chanOrder:
-		return true
-	}
-	return false
-}
-
 const subTplText = `
 {{ with $name := channelName $.S }}
 	{{- range $asset, $pairs := $.AssetPairs }}
@@ -832,7 +822,7 @@ func (e *Exchange) matchPairAssetFromResponse(category, symbol string) (currency
 		cp, err := e.MatchSymbolWithAvailablePairs(symbol, a, hasPotentialDelimiter(a))
 		if err != nil {
 			if !errors.Is(err, currency.ErrPairNotFound) {
-				return currency.EMPTYPAIR, 0, fmt.Errorf("could not match symbol %s with asset %s: %w", symbol, a, err)
+				return currency.EMPTYPAIR, 0, fmt.Errorf("%w for symbol %q: %q", err, category, symbol)
 			}
 			continue
 		}

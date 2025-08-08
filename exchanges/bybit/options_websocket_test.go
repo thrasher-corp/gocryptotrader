@@ -37,7 +37,7 @@ func TestOptionSubscribe(t *testing.T) {
 	subs, err := e.GenerateOptionsDefaultSubscriptions()
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
 
-	err = e.OptionsSubscribe(t.Context(), &DummyConnection{}, subs)
+	err = e.OptionsSubscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "OptionsSubscribe must not error")
 }
 
@@ -50,9 +50,9 @@ func TestOptionsUnsubscribe(t *testing.T) {
 	subs, err := e.GenerateOptionsDefaultSubscriptions()
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
 
-	err = e.OptionsSubscribe(t.Context(), &DummyConnection{}, subs)
+	err = e.OptionsSubscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "OptionsSubscribe must not error")
 
-	err = e.OptionsUnsubscribe(t.Context(), &DummyConnection{}, subs)
+	err = e.OptionsUnsubscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "OptionsUnsubscribe must not error")
 }

@@ -13,7 +13,7 @@ func TestSpotSubscribe(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	err = e.SpotSubscribe(t.Context(), &DummyConnection{}, subs)
+	err = e.SpotSubscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "Subscribe must not error")
 }
 
@@ -23,8 +23,8 @@ func TestSpotUnsubscribe(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	err = e.SpotSubscribe(t.Context(), &DummyConnection{}, subs)
+	err = e.SpotSubscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "Subscribe must not error")
-	err = e.SpotUnsubscribe(t.Context(), &DummyConnection{}, subs)
+	err = e.SpotUnsubscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "Unsubscribe must not error")
 }
