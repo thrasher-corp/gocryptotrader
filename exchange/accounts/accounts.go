@@ -280,17 +280,6 @@ func (l SubAccounts) Merge(s *SubAccount) SubAccounts {
 	return l
 }
 
-func (l SubAccounts) clone() (c SubAccounts) {
-	for _, s := range l {
-		c = append(c, &SubAccount{
-			ID:        s.ID,
-			AssetType: s.AssetType,
-			Balances:  s.Balances.clone(),
-		})
-	}
-	return c
-}
-
 // currencyBalances returns a currencyBalances entry for Credentials, SubAccount and asset
 // No nilguard protection provided, since this is a private function
 func (a *Accounts) currencyBalances(c *Credentials, subAcct string, aType asset.Item) currencyBalances {

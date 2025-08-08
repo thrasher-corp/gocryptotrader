@@ -514,3 +514,14 @@ func TestSubAccountsClone(t *testing.T) {
 	c[0].ID = "3"
 	assert.NotEqual(t, s, c, "Should not be equal after modification")
 }
+
+func (l SubAccounts) clone() (c SubAccounts) {
+	for _, s := range l {
+		c = append(c, &SubAccount{
+			ID:        s.ID,
+			AssetType: s.AssetType,
+			Balances:  s.Balances.clone(),
+		})
+	}
+	return c
+}
