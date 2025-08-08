@@ -37,7 +37,7 @@ func TestInverseSubscribe(t *testing.T) {
 	subs, err := e.GenerateInverseDefaultSubscriptions()
 	require.NoError(t, err, "GenerateInverseDefaultSubscriptions must not error")
 
-	err = e.InverseSubscribe(t.Context(), &DummyConnection{}, subs)
+	err = e.InverseSubscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "InverseSubscribe must not error")
 }
 
@@ -50,9 +50,9 @@ func TestInverseUnsubscribe(t *testing.T) {
 	subs, err := e.GenerateInverseDefaultSubscriptions()
 	require.NoError(t, err, "GenerateInverseDefaultSubscriptions must not error")
 
-	err = e.InverseSubscribe(t.Context(), &DummyConnection{}, subs)
+	err = e.InverseSubscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "InverseSubscribe must not error")
 
-	err = e.InverseUnsubscribe(t.Context(), &DummyConnection{}, subs)
+	err = e.InverseUnsubscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "InverseUnsubscribe must not error")
 }

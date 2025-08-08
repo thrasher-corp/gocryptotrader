@@ -360,6 +360,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	// TODO: GET URL
 	// Trade - Dedicated trade connection for all outbound trading requests.
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  websocketTrade,
