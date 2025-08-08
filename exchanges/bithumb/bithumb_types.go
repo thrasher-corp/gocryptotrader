@@ -325,9 +325,11 @@ type StatusAll struct {
 	Message string `json:"message"`
 }
 
+// OrderbookLevel defines a single level in the orderbook
 type OrderbookLevel struct {
 	Quantity float64 `json:"quantity,string"`
 	Price    float64 `json:"price,string"`
 }
 
+// OrderbookLevels defines a slice of OrderbookLevel
 type OrderbookLevels []OrderbookLevel

@@ -132,19 +132,21 @@ func (b *Bithumb) GetOrderBook(ctx context.Context, symbol string) (*Orderbook, 
 		return nil, errors.New(response.Message)
 	}
 
-	response.Data.Bids = response.Data.Bids.FilterZeros()
-	response.Data.Asks = response.Data.Asks.FilterZeros()
+	response.Data.Bids.FilterZeroQuantities()
+	response.Data.Asks.FilterZeroQuantities()
 
 	return &response, nil
 }
 
-func (o OrderbookLevels) FilterZeros() (c OrderbookLevels) {
-	for _, l := range o {
-		if l.Quantity > 0 {
-			c = append(c, l)
+// FilterZeroQuantities filters out orderbook levels with zero quantity
+func (o *OrderbookLevels) FilterZeroQuantities() {
+	b := (*o)[:0]
+	for _, x := range *o {
+		if x.Quantity > 0 {
+			b = append(b, x)
 		}
 	}
-	return c
+	*o = b
 }
 
 // GetAssetStatus returns the withdrawal and deposit status for the symbol
