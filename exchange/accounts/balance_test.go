@@ -145,12 +145,3 @@ func TestBalanceUpdate(t *testing.T) {
 	assert.Equal(t, 4.4, b.internal.Total, "should update Total")
 	assert.True(t, u, "should return updated")
 }
-
-func TestCurrencyBalancesClone(t *testing.T) {
-	t.Parallel()
-	b := CurrencyBalances{currency.BTC: {Total: 1}, currency.LTC: {Total: 2}}
-	c := b.clone()
-	require.Equal(t, b, c)
-	c[currency.BTC] = Balance{Total: 3}
-	assert.NotEqual(t, b, c, "should not be equal after modification")
-}

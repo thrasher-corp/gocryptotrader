@@ -517,10 +517,14 @@ func TestSubAccountsClone(t *testing.T) {
 
 func (l SubAccounts) clone() (c SubAccounts) {
 	for _, s := range l {
+		bals := make(CurrencyBalances, len(s.Balances))
+		for curr, bal := range s.Balances {
+			bals[curr] = bal
+		}
 		c = append(c, &SubAccount{
 			ID:        s.ID,
 			AssetType: s.AssetType,
-			Balances:  s.Balances.clone(),
+			Balances:  bals,
 		})
 	}
 	return c

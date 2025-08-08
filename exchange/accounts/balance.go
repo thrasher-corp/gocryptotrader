@@ -161,11 +161,3 @@ func (c currencyBalances) balance(curr *currency.Item) *balance {
 	}
 	return c[curr]
 }
-
-func (c CurrencyBalances) clone() CurrencyBalances {
-	n := make(CurrencyBalances, len(c))
-	for curr, bal := range c {
-		n[curr] = bal
-	}
-	return n
-}
