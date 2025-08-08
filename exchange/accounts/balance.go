@@ -45,7 +45,7 @@ type balance struct {
 type CurrencyBalances map[currency.Code]Balance
 
 // currencyBalances provides a map of currencies to balances
-type currencyBalances map[currency.Code]*balance
+type currencyBalances map[*currency.Item]*balance
 
 // Set will set a currency balance, overwriting any previous Balance
 // currency may be a string or a currency.Code
@@ -72,6 +72,8 @@ func (c *CurrencyBalances) Add(cAny any, b Balance) { //nolint:gocritic // hugep
 		curr = currency.NewCode(v)
 	case currency.Code:
 		curr = v
+	// case *currency.Item:
+	//	curr = v.Currency()
 	default:
 		panic(fmt.Errorf("%w: '%v'", currency.ErrCurrencyNotSupported, cAny))
 	}
@@ -115,7 +117,7 @@ func (b *Balance) Add(a Balance) Balance { //nolint:gocritic // hugeparam not re
 func (c *currencyBalances) Public() CurrencyBalances {
 	n := make(CurrencyBalances, len(*c))
 	for curr, bal := range *c {
-		n[curr] = bal.Balance()
+		n[curr.Currency()] = bal.Balance()
 	}
 	return n
 }
@@ -153,9 +155,9 @@ func (b *balance) update(change Balance) (bool, error) { //nolint:gocritic // hu
 }
 
 // balance rutens a balance for a currency
-func (c currencyBalances) balance(curr currency.Code) *balance {
+func (c currencyBalances) balance(curr *currency.Item) *balance {
 	if _, ok := c[curr]; !ok {
-		c[curr] = &balance{internal: Balance{Currency: curr}}
+		c[curr] = &balance{internal: Balance{Currency: curr.Currency()}}
 	}
 	return c[curr]
 }

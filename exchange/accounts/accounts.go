@@ -117,7 +117,7 @@ func (a *Accounts) CurrencyBalances(creds *Credentials, assetType asset.Item) (C
 				continue
 			}
 			for curr, bal := range balances {
-				currs.Add(curr, bal.Balance())
+				currs.Add(curr.Currency(), bal.Balance())
 			}
 		}
 	}
@@ -194,7 +194,7 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 	if !ok {
 		return Balance{}, fmt.Errorf("%w for %s SubAccount %q %s", ErrNoBalances, a.Exchange.GetName(), subAccount, aType)
 	}
-	b, ok := assets[c]
+	b, ok := assets[c.Item]
 	if !ok {
 		return Balance{}, fmt.Errorf("%w for %s SubAccount %q %s %s", ErrNoBalances, a.Exchange.GetName(), subAccount, aType, c)
 	}
@@ -236,7 +236,7 @@ func (a *Accounts) Save(ctx context.Context, subAccts SubAccounts, isSnapshot bo
 		updated := false
 		missing := maps.Clone(accBalances)
 		for curr, newBal := range s.Balances {
-			delete(missing, curr)
+			delete(missing, curr.Item)
 			if newBal.UpdatedAt.IsZero() {
 				newBal.UpdatedAt = time.Now()
 			}
@@ -244,7 +244,7 @@ func (a *Accounts) Save(ctx context.Context, subAccts SubAccounts, isSnapshot bo
 				newBal.Currency = curr
 			}
 			s.Balances[curr] = newBal
-			if u, err := accBalances.balance(curr).update(newBal); err != nil {
+			if u, err := accBalances.balance(curr.Item).update(newBal); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("%w for account ID %q [%s %s]: %w", errUpdatingBalance, s.ID, s.AssetType, curr, err))
 			} else if u {
 				updated = true

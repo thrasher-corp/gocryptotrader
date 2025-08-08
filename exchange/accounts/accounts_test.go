@@ -408,7 +408,7 @@ func accountsFixture(t *testing.T) *Accounts {
 		{creds2, "2a", asset.Spot, currency.BTC, 3},
 	} {
 		// Not using t.Run because this is a helper
-		u, err := a.currencyBalances(f.c, f.sA, f.aT).balance(f.cC).update(Balance{Total: f.b, UpdatedAt: skynetDate})
+		u, err := a.currencyBalances(f.c, f.sA, f.aT).balance(f.cC.Item).update(Balance{Total: f.b, UpdatedAt: skynetDate})
 		require.NoErrorf(t, err, "Deploy fixture balance must not error for %s/%s/%s/%s", f.c.Key, f.sA, f.aT, f.cC)
 		require.Truef(t, u, "Deploy fixture balance must apply an update for %s/%s/%s/%s", f.c.Key, f.sA, f.aT, f.cC)
 	}

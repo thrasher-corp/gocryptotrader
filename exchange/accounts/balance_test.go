@@ -57,8 +57,8 @@ func TestCurrencyBalancesAdd(t *testing.T) {
 func TestCurrencyBalancesPublic(t *testing.T) {
 	t.Parallel()
 	b := (&currencyBalances{
-		currency.BTC: &balance{internal: Balance{Total: 4.2}},
-		currency.LTC: &balance{internal: Balance{Total: 1.7}},
+		currency.BTC.Item: &balance{internal: Balance{Total: 4.2}},
+		currency.LTC.Item: &balance{internal: Balance{Total: 1.7}},
 	}).Public()
 	require.Equal(t, 2, len(b), "Pulbic must return the correct number of Balances")
 	require.Contains(t, b, currency.BTC)
@@ -71,10 +71,10 @@ func TestCurrencyBalancesPublic(t *testing.T) {
 func TestCurrencyBalancesBalance(t *testing.T) {
 	t.Parallel()
 	c := currencyBalances{}
-	b := c.balance(currency.BTC)
+	b := c.balance(currency.BTC.Item)
 	require.NotNil(t, b)
-	assert.Same(t, c[currency.BTC], b, "should make and return the same entry")
-	assert.Same(t, b, c.balance(currency.BTC), "should make and return the same entry")
+	assert.Same(t, c[currency.BTC.Item], b, "should make and return the same entry")
+	assert.Same(t, b, c.balance(currency.BTC.Item), "should make and return the same entry")
 }
 
 // TestBalanceBalance exercises balance.Balance
