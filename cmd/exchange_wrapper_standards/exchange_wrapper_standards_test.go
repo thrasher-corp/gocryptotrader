@@ -647,6 +647,7 @@ var acceptableErrors = []error{
 	order.ErrCannotValidateBaseCurrency,  // Is thrown when attempting to get order limits from an base currency that is not yet loaded
 	order.ErrCannotValidateQuoteCurrency, // Is thrown when attempting to get order limits from an quote currency that is not yet loaded
 	accounts.ErrNoBalances,
+	accounts.ErrNoSubAccounts,
 	ticker.ErrTickerNotFound,
 	orderbook.ErrOrderbookNotFound,
 	websocket.ErrNotConnected,
