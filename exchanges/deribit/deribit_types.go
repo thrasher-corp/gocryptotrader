@@ -63,6 +63,7 @@ var (
 	errRefreshTokenRequired                = errors.New("refresh token is required")
 	errSubjectIDRequired                   = errors.New("subject id is required")
 	errMissingSignature                    = errors.New("missing signature")
+	errStartingHeartbeat                   = errors.New("error starting heartbeat")
 
 	websocketRequestTimeout = time.Second * 30
 
