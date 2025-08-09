@@ -117,7 +117,9 @@ func (a *Accounts) CurrencyBalances(creds *Credentials, assetType asset.Item) (C
 				continue
 			}
 			for curr, bal := range balances {
-				currs.Add(curr.Currency(), bal.Balance())
+				if err := currs.Add(curr.Currency(), bal.Balance()); err != nil {
+					return nil, err // Should be impossible, so return immediately
+				}
 			}
 		}
 	}

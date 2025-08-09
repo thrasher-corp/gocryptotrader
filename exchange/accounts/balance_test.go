@@ -30,20 +30,23 @@ func TestCurrencyBalancesAdd(t *testing.T) {
 	t.Parallel()
 
 	c := CurrencyBalances{}
-	c.Add(currency.BTC, Balance{Total: 4.2})
+	err := c.Add(currency.BTC, Balance{Total: 4.2})
+	require.NoError(t, err)
 
 	assert.Contains(t, c, currency.BTC, "should add an entry to an unitialised CurrencyBalances")
 	assert.Equal(t, currency.BTC, c[currency.BTC].Currency, "should set the Currency")
 	assert.Equal(t, 4.2, c[currency.BTC].Total, "should initialise the Total")
 
-	c.Add(currency.BTC, Balance{Total: 1.3, Hold: 2.4})
+	err = c.Add(currency.BTC, Balance{Total: 1.3, Hold: 2.4})
+	require.NoError(t, err)
 	assert.Equal(t, 5.5, c[currency.BTC].Total, "should add to existing Total")
 	assert.Equal(t, 2.4, c[currency.BTC].Hold, "should initialise Hold")
 
-	c.Add(currency.LTC, Balance{Currency: currency.LTC, Total: 14.3})
+	err = c.Add(currency.LTC, Balance{Currency: currency.LTC, Total: 14.3})
+	require.NoError(t, err)
 	assert.Equal(t, 14.3, c[currency.LTC].Total, "should add when Balance.Currency is equal")
 
-	err := c.Add(currency.ETH, Balance{Currency: currency.LTC, Total: 14.2})
+	err = c.Add(currency.ETH, Balance{Currency: currency.LTC, Total: 14.2})
 	assert.ErrorIs(t, err, errBalanceCurrencyMismatch)
 }
 
