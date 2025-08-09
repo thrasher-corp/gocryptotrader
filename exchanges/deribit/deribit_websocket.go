@@ -11,6 +11,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/gofrs/uuid"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -105,23 +106,6 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 }
 
-var (
-	pingMessage = WsSubscriptionInput{
-		ID:             2,
-		JSONRPCVersion: rpcVersion,
-		Method:         "public/test",
-		Params:         map[string][]string{},
-	}
-	setHeartBeatMessage = wsInput{
-		ID:             1,
-		JSONRPCVersion: rpcVersion,
-		Method:         "public/set_heartbeat",
-		Params: map[string]any{
-			"interval": 15,
-		},
-	}
-)
-
 // WsConnect starts a new connection with the websocket API
 func (e *Exchange) WsConnect() error {
 	ctx := context.TODO()
@@ -129,20 +113,42 @@ func (e *Exchange) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(ctx)
+	go e.wsStartHeartbeat(ctx)
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err = e.wsLogin(ctx)
-		if err != nil {
+		if err := e.wsLogin(ctx); err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", e.Name, err)
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			return err
 		}
 	}
-	return e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, setHeartBeatMessage)
+	return nil
+}
+
+func (e *Exchange) wsStartHeartbeat(ctx context.Context) {
+	msg := wsInput{
+		ID:             uuid.Must(uuid.NewV7()).String(),
+		JSONRPCVersion: rpcVersion,
+		Method:         "public/set_heartbeat",
+		Params: map[string]any{
+			"interval": 15,
+		},
+	}
+	respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
+	if err == nil {
+		var resp wsResponse
+		err = json.Unmarshal(respRaw, &resp)
+		if resp.Error.Code != 0 || resp.Error.Message != "" {
+			err = fmt.Errorf("code: %d message: %s", resp.Error.Code, resp.Error.Message)
+		}
+	}
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%v %s: %s\n", e.Name, errStartingHeartbeat, err)
+	}
 }
 
 func (e *Exchange) wsLogin(ctx context.Context) error {
@@ -165,7 +171,7 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 	req := wsInput{
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/auth",
-		ID:             e.Websocket.Conn.GenerateMessageID(false),
+		ID:             uuid.Must(uuid.NewV7()).String(),
 		Params: map[string]any{
 			"grant_type": "client_signature",
 			"client_id":  creds.Key,
@@ -207,100 +213,96 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 	}
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
-	var response WsResponse
-	err := json.Unmarshal(respRaw, &response)
+func (e *Exchange) wsHandleData(ctx context.Context, msgRaw []byte) error {
+	var response wsResponse
+	err := json.Unmarshal(msgRaw, &response)
 	if err != nil {
-		return fmt.Errorf("%s - err %s could not parse websocket data: %s", e.Name, err, respRaw)
+		return fmt.Errorf("%s - err %s could not parse websocket data: %s", e.Name, err, msgRaw)
 	}
 	if response.Method == "heartbeat" {
-		return e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, pingMessage)
+		go e.wsSendHeartbeat(ctx)
+		return nil
 	}
-	if response.ID > 2 {
-		if !e.Websocket.Match.IncomingWithData(response.ID, respRaw) {
-			return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d", response.ID)
-		}
-		return nil
-	} else if response.ID > 0 {
-		return nil
+	if response.ID != "" {
+		return e.Websocket.Match.RequireMatchWithData(response.ID, msgRaw)
 	}
 	channels := strings.Split(response.Params.Channel, ".")
 	switch channels[0] {
 	case "announcements":
 		announcement := &Announcement{}
 		response.Params.Data = announcement
-		err = json.Unmarshal(respRaw, &response)
+		err = json.Unmarshal(msgRaw, &response)
 		if err != nil {
 			return err
 		}
 		e.Websocket.DataHandler <- announcement
 	case "book":
-		return e.processOrderbook(respRaw, channels)
+		return e.processOrderbook(msgRaw, channels)
 	case "chart":
-		return e.processCandleChart(respRaw, channels)
+		return e.processCandleChart(msgRaw, channels)
 	case "deribit_price_index":
 		indexPrice := &wsIndexPrice{}
-		return e.processData(respRaw, indexPrice)
+		return e.processData(msgRaw, indexPrice)
 	case "deribit_price_ranking":
 		priceRankings := &wsRankingPrices{}
-		return e.processData(respRaw, priceRankings)
+		return e.processData(msgRaw, priceRankings)
 	case "deribit_price_statistics":
 		priceStatistics := &wsPriceStatistics{}
-		return e.processData(respRaw, priceStatistics)
+		return e.processData(msgRaw, priceStatistics)
 	case "deribit_volatility_index":
 		volatilityIndex := &wsVolatilityIndex{}
-		return e.processData(respRaw, volatilityIndex)
+		return e.processData(msgRaw, volatilityIndex)
 	case "estimated_expiration_price":
 		estimatedExpirationPrice := &wsEstimatedExpirationPrice{}
-		return e.processData(respRaw, estimatedExpirationPrice)
+		return e.processData(msgRaw, estimatedExpirationPrice)
 	case "incremental_ticker":
-		return e.processIncrementalTicker(respRaw, channels)
+		return e.processIncrementalTicker(msgRaw, channels)
 	case "instrument":
 		instrumentState := &wsInstrumentState{}
-		return e.processData(respRaw, instrumentState)
+		return e.processData(msgRaw, instrumentState)
 	case "markprice":
 		markPriceOptions := []wsMarkPriceOptions{}
-		return e.processData(respRaw, markPriceOptions)
+		return e.processData(msgRaw, markPriceOptions)
 	case "perpetual":
 		perpetualInterest := &wsPerpetualInterest{}
-		return e.processData(respRaw, perpetualInterest)
+		return e.processData(msgRaw, perpetualInterest)
 	case platformStateChannel:
 		platformState := &wsPlatformState{}
-		return e.processData(respRaw, platformState)
+		return e.processData(msgRaw, platformState)
 	case "quote": // Quote ticker information.
-		return e.processQuoteTicker(respRaw, channels)
+		return e.processQuoteTicker(msgRaw, channels)
 	case "rfq":
 		rfq := &wsRequestForQuote{}
-		return e.processData(respRaw, rfq)
+		return e.processData(msgRaw, rfq)
 	case "ticker":
-		return e.processInstrumentTicker(respRaw, channels)
+		return e.processInstrumentTicker(msgRaw, channels)
 	case "trades":
-		return e.processTrades(respRaw, channels)
+		return e.processTrades(msgRaw, channels)
 	case "user":
 		switch channels[1] {
 		case "access_log":
 			accessLog := &wsAccessLog{}
-			return e.processData(respRaw, accessLog)
+			return e.processData(msgRaw, accessLog)
 		case "changes":
-			return e.processUserOrderChanges(respRaw, channels)
+			return e.processUserOrderChanges(msgRaw, channels)
 		case "lock":
 			userLock := &WsUserLock{}
-			return e.processData(respRaw, userLock)
+			return e.processData(msgRaw, userLock)
 		case "mmp_trigger":
 			data := &WsMMPTrigger{
 				Currency: channels[2],
 			}
-			return e.processData(respRaw, data)
+			return e.processData(msgRaw, data)
 		case "orders":
-			return e.processUserOrders(respRaw, channels)
+			return e.processUserOrders(msgRaw, channels)
 		case "portfolio":
 			portfolio := &wsUserPortfolio{}
-			return e.processData(respRaw, portfolio)
+			return e.processData(msgRaw, portfolio)
 		case "trades":
-			return e.processTrades(respRaw, channels)
+			return e.processTrades(msgRaw, channels)
 		default:
 			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
-				Message: e.Name + websocket.UnhandledMessage + string(respRaw),
+				Message: e.Name + websocket.UnhandledMessage + string(msgRaw),
 			}
 			return nil
 		}
@@ -313,7 +315,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			}
 		default:
 			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
-				Message: e.Name + websocket.UnhandledMessage + string(respRaw),
+				Message: e.Name + websocket.UnhandledMessage + string(msgRaw),
 			}
 			return nil
 		}
@@ -321,11 +323,22 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	return nil
 }
 
+func (e *Exchange) wsSendHeartbeat(ctx context.Context) {
+	msg := WsSubscriptionInput{
+		ID:             uuid.Must(uuid.NewV7()).String(),
+		JSONRPCVersion: rpcVersion,
+		Method:         "public/test",
+	}
+	if err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, msg); err != nil {
+		log.Errorf(log.ExchangeSys, "%v %s: %s\n", e.Name, errSendingHeartbeat, err)
+	}
+}
+
 func (e *Exchange) processUserOrders(respRaw []byte, channels []string) error {
 	if len(channels) != 4 && len(channels) != 5 {
 		return fmt.Errorf("%w, expected format 'user.orders.{instrument_name}.raw, user.orders.{instrument_name}.{interval}, user.orders.{kind}.{currency}.raw, or user.orders.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
-	var response WsResponse
+	var response wsResponse
 	orderData := []WsOrder{}
 	response.Params.Data = orderData
 	err := json.Unmarshal(respRaw, &response)
@@ -374,7 +387,7 @@ func (e *Exchange) processUserOrderChanges(respRaw []byte, channels []string) er
 	if len(channels) < 4 || len(channels) > 5 {
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
-	var response WsResponse
+	var response wsResponse
 	changeData := &wsChanges{}
 	response.Params.Data = changeData
 	err := json.Unmarshal(respRaw, &response)
@@ -454,7 +467,7 @@ func (e *Exchange) processQuoteTicker(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-	var response WsResponse
+	var response wsResponse
 	quoteTicker := &wsQuoteTickerInformation{}
 	response.Params.Data = quoteTicker
 	err = json.Unmarshal(respRaw, &response)
@@ -484,7 +497,7 @@ func (e *Exchange) processTrades(respRaw []byte, channels []string) error {
 	if len(channels) < 3 || len(channels) > 5 {
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
-	var response WsResponse
+	var response wsResponse
 	var tradeList []wsTrade
 	response.Params.Data = &tradeList
 	err := json.Unmarshal(respRaw, &response)
@@ -532,7 +545,7 @@ func (e *Exchange) processIncrementalTicker(respRaw []byte, channels []string) e
 	if err != nil {
 		return err
 	}
-	var response WsResponse
+	var response wsResponse
 	incrementalTicker := &WsIncrementalTicker{}
 	response.Params.Data = incrementalTicker
 	err = json.Unmarshal(respRaw, &response)
@@ -568,7 +581,7 @@ func (e *Exchange) processTicker(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-	var response WsResponse
+	var response wsResponse
 	tickerPriceResponse := &wsTicker{}
 	response.Params.Data = tickerPriceResponse
 	err = json.Unmarshal(respRaw, &response)
@@ -601,7 +614,7 @@ func (e *Exchange) processTicker(respRaw []byte, channels []string) error {
 }
 
 func (e *Exchange) processData(respRaw []byte, result any) error {
-	var response WsResponse
+	var response wsResponse
 	response.Params.Data = result
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -619,7 +632,7 @@ func (e *Exchange) processCandleChart(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-	var response WsResponse
+	var response wsResponse
 	candleData := &wsCandlestickData{}
 	response.Params.Data = candleData
 	err = json.Unmarshal(respRaw, &response)
@@ -641,7 +654,7 @@ func (e *Exchange) processCandleChart(respRaw []byte, channels []string) error {
 }
 
 func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
-	var response WsResponse
+	var response wsResponse
 	orderbookData := &wsOrderbook{}
 	response.Params.Data = orderbookData
 	err := json.Unmarshal(respRaw, &response)
@@ -817,7 +830,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 
 	r := WsSubscriptionInput{
 		JSONRPCVersion: rpcVersion,
-		ID:             e.Websocket.Conn.GenerateMessageID(false),
+		ID:             uuid.Must(uuid.NewV7()).String(),
 		Method:         method,
 		Params:         map[string][]string{"channels": subs.QualifiedChannels()},
 	}
