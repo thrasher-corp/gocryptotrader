@@ -106,22 +106,12 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 }
 
-var (
-	pingMessage = WsSubscriptionInput{
-		ID:             2,
-		JSONRPCVersion: rpcVersion,
-		Method:         "public/test",
-		Params:         map[string][]string{},
-	}
-	setHeartBeatMessage = wsInput{
-		ID:             1,
-		JSONRPCVersion: rpcVersion,
-		Method:         "public/set_heartbeat",
-		Params: map[string]any{
-			"interval": 15,
-		},
-	}
-)
+var pingMessage = WsSubscriptionInput{
+	ID:             2,
+	JSONRPCVersion: rpcVersion,
+	Method:         "public/test",
+	Params:         map[string][]string{},
+}
 
 // WsConnect starts a new connection with the websocket API
 func (e *Exchange) WsConnect() error {
@@ -130,20 +120,42 @@ func (e *Exchange) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(ctx)
+	go e.wsStartHeartbeat(ctx)
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err = e.wsLogin(ctx)
-		if err != nil {
+		if err := e.wsLogin(ctx); err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", e.Name, err)
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	return e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, setHeartBeatMessage)
+	return nil
+}
+
+func (e *Exchange) wsStartHeartbeat(ctx context.Context) {
+	msg := wsInput{
+		ID:             uuid.Must(uuid.NewV7()).String(),
+		JSONRPCVersion: rpcVersion,
+		Method:         "public/set_heartbeat",
+		Params: map[string]any{
+			"interval": 15,
+		},
+	}
+	respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%v %s: %s\n", e.Name, errStartingHeartbeat, err)
+		return
+	}
+	var resp wsResponse
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
+		log.Errorf(log.ExchangeSys, "%v %s: %s\n", e.Name, errStartingHeartbeat, err)
+	}
+	if resp.Error.Code != 0 || resp.Error.Message != "" {
+		log.Errorf(log.ExchangeSys, "%s %s code: %d message: %s", e.Name, errStartingHeartbeat, resp.Error.Code, resp.Error.Message)
+	}
 }
 
 func (e *Exchange) wsLogin(ctx context.Context) error {
