@@ -560,17 +560,21 @@ type Orderbook struct {
 
 // Trade represents market trade.
 type Trade struct {
-	ID          int64        `json:"id,string"`
-	CreateTime  types.Time   `json:"create_time_ms"`
-	OrderID     string       `json:"order_id"`
-	Side        string       `json:"side"`
-	Role        string       `json:"role"`
-	Amount      types.Number `json:"amount"`
-	Price       types.Number `json:"price"`
-	Fee         types.Number `json:"fee"`
-	FeeCurrency string       `json:"fee_currency"`
-	PointFee    string       `json:"point_fee"`
-	GtFee       string       `json:"gt_fee"`
+	ID           int64        `json:"id,string"`
+	CreateTime   types.Time   `json:"create_time_ms"`
+	CurrencyPair string       `json:"currency_pair"`
+	OrderID      string       `json:"order_id"`
+	Side         string       `json:"side"`
+	Role         string       `json:"role"`
+	Amount       types.Number `json:"amount"`
+	Price        types.Number `json:"price"`
+	Fee          types.Number `json:"fee"`
+	FeeCurrency  string       `json:"fee_currency"`
+	PointFee     string       `json:"point_fee"`
+	GtFee        string       `json:"gt_fee"`
+	AmendText    string       `json:"amend_text"`
+	SequenceID   string       `json:"sequence_id"`
+	Text         string       `json:"text"`
 }
 
 // Candlestick represents candlestick data point detail.
@@ -1369,6 +1373,7 @@ type CurrencyBalanceAmount struct {
 
 // SpotTradingFeeRate user trading fee rates
 type SpotTradingFeeRate struct {
+	CurrencyPair    string       `json:"currency_pair"`
 	UserID          int64        `json:"user_id"`
 	TakerFee        types.Number `json:"taker_fee"`
 	MakerFee        types.Number `json:"maker_fee"`
@@ -1379,6 +1384,7 @@ type SpotTradingFeeRate struct {
 	FuturesMakerFee types.Number `json:"futures_maker_fee"`
 	LoanFee         types.Number `json:"loan_fee"`
 	PointType       string       `json:"point_type"`
+	DebitFee        types.Number `json:"debit_fee"`
 }
 
 // SpotAccount represents spot account
@@ -2761,4 +2767,125 @@ type BorrowOrRepayParams struct {
 	Amount    float64       `json:"amount"`
 	RepaidAll bool          `json:"repaid_all,omitempty"`
 	Text      string        `json:"text,omitempty"`
+}
+
+// MultiCollateralLoanOrderParam holds a multi-collateral loan order parameters
+type MultiCollateralLoanOrderParam struct {
+	OrderID              string                                  `json:"order_id"`
+	OrderType            string                                  `json:"order_type"`
+	FixedType            string                                  `json:"fixed_type"`
+	FixedRate            float64                                 `json:"fixed_rate"`
+	AutoRenew            bool                                    `json:"auto_renew"`
+	AutoRepay            bool                                    `json:"auto_repay"`
+	BorrowCurrency       currency.Code                           `json:"borrow_currency"`
+	BorrowAmount         float64                                 `json:"borrow_amount"`
+	CollateralCurrencies []MultiCollateralLoanCollateralCurrency `json:"collateral_currencies"`
+}
+
+// MultiCollateralLoanCollateralCurrency
+type MultiCollateralLoanCollateralCurrency struct {
+	Currency currency.Code `json:"currency"`
+	Amount   float64       `json:"amount"`
+}
+
+// MultiCollateralLoanOrderDetail queries a multi-collateral loan order detail
+type MultiCollateralLoanOrderDetail struct {
+	OrderID                 string     `json:"order_id"`
+	OrderType               string     `json:"order_type"`
+	FixedType               string     `json:"fixed_type"`
+	FixedRate               float64    `json:"fixed_rate"`
+	ExpireTime              types.Time `json:"expire_time"`
+	AutoRenew               bool       `json:"auto_renew"`
+	AutoRepay               bool       `json:"auto_repay"`
+	CurrentLTV              string     `json:"current_ltv"`
+	Status                  string     `json:"status"`
+	BorrowTime              types.Time `json:"borrow_time"`
+	TotalLeftRepayUSDT      string     `json:"total_left_repay_usdt"`
+	TotalLeftCollateralUSDT string     `json:"total_left_collateral_usdt"`
+	BorrowCurrencies        []struct {
+		Currency           string       `json:"currency"`
+		IndexPrice         types.Number `json:"index_price"`
+		LeftRepayPrincipal types.Number `json:"left_repay_principal"`
+		LeftRepayInterest  types.Number `json:"left_repay_interest"`
+		LeftRepayUSDT      types.Number `json:"left_repay_usdt"`
+	} `json:"borrow_currencies"`
+	CollateralCurrencies []struct {
+		Currency           string       `json:"currency"`
+		IndexPrice         types.Number `json:"index_price"`
+		LeftCollateralUSDT types.Number `json:"left_collateral_usdt"`
+		LeftCollateral     string       `json:"left_collateral"`
+	} `json:"collateral_currencies"`
+}
+
+// MultiCollateralLoanRepaymentParams holds a request parameter for multi-collateral asset loan repayment parameter
+type MultiCollateralLoanRepaymentParams struct {
+	OrderID    string                                  `json:"order_id"`
+	RepayItems []LoanRepaymentMultiCollateralAssetItem `json:"repay_items"`
+}
+
+// LoanRepaymentMultiCollateralAssetItem holds a loan repayment collateral asset iitem
+type LoanRepaymentMultiCollateralAssetItem struct {
+	Currency  currency.Code `json:"currency"`
+	Amount    float64       `json:"amount"`
+	RepaidAll bool          `json:"repaid_all"`
+}
+
+// MultiCollateralLoanRepayment holds a multi-loan collateral repayment detail
+type MultiCollateralLoanRepayment struct {
+	OrderID          int64 `json:"order_id"`
+	RepaidCurrencies []struct {
+		Succeeded       bool         `json:"succeeded"`
+		Label           string       `json:"label,omitempty"`
+		Message         string       `json:"message,omitempty"`
+		Currency        string       `json:"currency"`
+		RepaidPrincipal types.Number `json:"repaid_principal"`
+		RepaidInterest  string       `json:"repaid_interest"`
+	} `json:"repaid_currencies"`
+}
+
+// MultiCurrencyCollateralRepayment holds a multi-currency collateral repayment detail
+type MultiCurrencyCollateralRepayment struct {
+	OrderID               int                   `json:"order_id"`
+	RecordID              int                   `json:"record_id"`
+	InitLtv               string                `json:"init_ltv"`
+	BeforeLtv             string                `json:"before_ltv"`
+	AfterLtv              string                `json:"after_ltv"`
+	BorrowTime            int                   `json:"borrow_time"`
+	RepayTime             int                   `json:"repay_time"`
+	BorrowCurrencies      []MultiCurrencyDetail `json:"borrow_currencies"`
+	CollateralCurrencies  []MultiCurrencyDetail `json:"collateral_currencies"`
+	RepaidCurrencies      []MultiCurrencyDetail `json:"repaid_currencies"`
+	TotalInterestList     []MultiCurrencyDetail `json:"total_interest_list"`
+	LeftRepayInterestList []MultiCurrencyDetail `json:"left_repay_interest_list"`
+}
+
+// MultiCurrencyDetail holds a multi-currency detail
+type MultiCurrencyDetail struct {
+	Currency         string       `json:"currency"`
+	IndexPrice       types.Number `json:"index_price"`
+	BeforeAmount     types.Number `json:"before_amount"`
+	BeforeAmountUSDT types.Number `json:"before_amount_usdt"`
+	AfterAmount      types.Number `json:"after_amount"`
+	AfterAmountUSDT  types.Number `json:"after_amount_usdt"`
+	RepaidAmount     string       `json:"repaid_amount"`
+	RepaidPrincipal  string       `json:"repaid_principal"`
+	RepaidInterest   string       `json:"repaid_interest"`
+	RepaidAmountUsdt string       `json:"repaid_amount_usdt"`
+}
+
+// AddOrWithdrawCollateralParams holds a request parameter for adding or withdrawing collateral
+type AddOrWithdrawCollateralParams struct {
+	OrderID       uint64                                  `json:"order_id"`
+	OperationType string                                  `json:"type"`
+	Collaterals   []MultiCollateralLoanCollateralCurrency `json:"collaterals"`
+}
+
+// CollateralAddOrRemoveResponse holds a request parameter after adding or removing a collateral
+type CollateralAddOrRemoveResponse struct {
+	OrderID              int `json:"order_id"`
+	CollateralCurrencies []struct {
+		Succeeded bool         `json:"succeeded"`
+		Currency  string       `json:"currency"`
+		Amount    types.Number `json:"amount"`
+	} `json:"collateral_currencies"`
 }

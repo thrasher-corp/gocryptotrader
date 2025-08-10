@@ -215,6 +215,14 @@ func TestGetTradingFeeRatio(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetAccountBatchFeeRates(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetAccountBatchFeeRates(t.Context(), []string{"BTC_USDT", "ETH_USDT"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetSpotAccounts(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -3208,6 +3216,23 @@ func TestGetUserTransactionRateLimitInfo(t *testing.T) {
 	require.NotEmpty(t, got)
 }
 
+func TestPlaceMultiCollateralLoanOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.PlaceMultiCollateralLoanOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.PlaceMultiCollateralLoanOrder(t.Context(), &MultiCollateralLoanOrderParam{BorrowAmount: 123})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.PlaceMultiCollateralLoanOrder(t.Context(), &MultiCollateralLoanOrderParam{BorrowCurrency: currency.ETH})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.PlaceMultiCollateralLoanOrder(t.Context(), &MultiCollateralLoanOrderParam{BorrowCurrency: currency.ETH, BorrowAmount: 123})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 var pairMap = map[asset.Item]currency.Pairs{}
 
 var pairsGuard sync.RWMutex
@@ -3532,4 +3557,57 @@ func TestTransferBetweenSubAccountsByUID(t *testing.T) {
 		Currency:   currency.ETH,
 	})
 	require.NoError(t, err)
+}
+
+func TestGetOrderDetails(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetOrderDetails(t.Context(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetOrderDetails(t.Context(), "1234556")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRepayMultiCollateraLoan(t *testing.T) {
+	t.Parallel()
+	_, err := e.RepayMultiCollateraLoan(t.Context(), &MultiCollateralLoanRepaymentParams{})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	_, err = e.RepayMultiCollateraLoan(t.Context(), &MultiCollateralLoanRepaymentParams{OrderID: "1234"})
+	require.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.RepayMultiCollateraLoan(t.Context(), &MultiCollateralLoanRepaymentParams{OrderID: "1234", RepayItems: []LoanRepaymentMultiCollateralAssetItem{{Currency: currency.USDT}}})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMultiCurrencyCollateralRepaymentRecords(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMultiCurrencyCollateralRepaymentRecords(t.Context(), "", currency.USDT, 0, 10, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, errLoanTypeIsRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetMultiCurrencyCollateralRepaymentRecords(t.Context(), "repay", currency.USDT, 0, 10, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestAddOrWithdrawCollateral(t *testing.T) {
+	t.Parallel()
+	_, err := e.AddOrWithdrawCollateral(t.Context(), &AddOrWithdrawCollateralParams{})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	_, err = e.AddOrWithdrawCollateral(t.Context(), &AddOrWithdrawCollateralParams{OrderID: 12344})
+	require.ErrorIs(t, err, errLoanTypeIsRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.AddOrWithdrawCollateral(t.Context(), &AddOrWithdrawCollateralParams{
+		OrderID:       12344,
+		OperationType: "withdraw",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }

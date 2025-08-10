@@ -35,10 +35,9 @@ const (
 	subAccounts = "sub_accounts"
 
 	// Spot
-	gateioSpotCurrencies    = "spot/currencies"
-	gateioSpotCurrencyPairs = "spot/currency_pairs"
-	gateioSpotOrders        = "spot/orders"
-	gateioSpotPriceOrders   = "spot/price_orders"
+	gateioSpotCurrencies  = "spot/currencies"
+	gateioSpotOrders      = "spot/orders"
+	gateioSpotPriceOrders = "spot/price_orders"
 
 	// Wallets
 	walletSubAccountTransfer = "wallet/sub_account_transfers"
@@ -266,7 +265,7 @@ func (e *Exchange) GetCurrencyDetail(ctx context.Context, ccy currency.Code) (*C
 // ListSpotCurrencyPairs retrieve all currency pairs supported by the exchange.
 func (e *Exchange) ListSpotCurrencyPairs(ctx context.Context) ([]CurrencyPairDetail, error) {
 	var resp []CurrencyPairDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicListCurrencyPairsSpotEPL, gateioSpotCurrencyPairs, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicListCurrencyPairsSpotEPL, "spot/currency_pairs", &resp)
 }
 
 // GetCurrencyPairDetail to get details of a specific order for spot/margin accounts.
@@ -275,7 +274,7 @@ func (e *Exchange) GetCurrencyPairDetail(ctx context.Context, currencyPair strin
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *CurrencyPairDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairDetailSpotEPL, gateioSpotCurrencyPairs+"/"+currencyPair, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairDetailSpotEPL, "spot/currency_pairs/"+currencyPair, &resp)
 }
 
 // GetTickers retrieve ticker information
@@ -457,6 +456,18 @@ func (e *Exchange) GetTradingFeeRatio(ctx context.Context, currencyPair currency
 	}
 	var response *SpotTradingFeeRate
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotTradingFeeEPL, http.MethodGet, "spot/fee", params, nil, &response)
+}
+
+// GetAccountBatchFeeRates retrieves account fee rates
+// Maximum 50 currency pairs per request
+func (e *Exchange) GetAccountBatchFeeRates(ctx context.Context, currencyPairs []string) ([]SpotTradingFeeRate, error) {
+	if len(currencyPairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	params := url.Values{}
+	params.Set("currency_pairs", strings.Join(currencyPairs, ","))
+	var resp []SpotTradingFeeRate
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotTradingFeeEPL, http.MethodGet, "spot/batch_fee", params, nil, &resp)
 }
 
 // GetSpotAccounts retrieves spot account.
@@ -3710,4 +3721,82 @@ func (e *Exchange) GetAccountDetails(ctx context.Context) (*AccountDetails, erro
 func (e *Exchange) GetUserTransactionRateLimitInfo(ctx context.Context) ([]UserTransactionRateLimitInfo, error) {
 	var resp []UserTransactionRateLimitInfo
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/rate_limit", nil, nil, &resp)
+}
+
+// PlaceMultiCollateralLoanOrder place multi-currency collateral order
+func (e *Exchange) PlaceMultiCollateralLoanOrder(ctx context.Context, arg *MultiCollateralLoanOrderParam) (orderID uint64, err error) {
+	if arg == nil {
+		return 0, common.ErrNilPointer
+	}
+	if arg.BorrowCurrency.IsEmpty() {
+		return 0, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.BorrowAmount <= 0 {
+		return 0, order.ErrAmountBelowMin
+	}
+	resp := &struct {
+		OrderID uint64 `json:"order_id"`
+	}{}
+	return resp.OrderID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "loan/multi_collateral/orders", nil, arg, &resp)
+}
+
+// GetOrderDetails query order details
+func (e *Exchange) GetOrderDetails(ctx context.Context, orderID string) (*MultiCollateralLoanOrderDetail, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *MultiCollateralLoanOrderDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "loan/multi_collateral/orders/"+orderID, nil, nil, &resp)
+}
+
+// RepayMultiCollateraLoan multi-currency collateral repayment
+func (e *Exchange) RepayMultiCollateraLoan(ctx context.Context, arg *MultiCollateralLoanRepaymentParams) (*MultiCollateralLoanRepayment, error) {
+	if arg.OrderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if len(arg.RepayItems) == 0 {
+		return nil, currency.ErrCurrencyNotSupported
+	}
+	var resp *MultiCollateralLoanRepayment
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "loan/multi_collateral/repay", nil, nil, &resp)
+}
+
+// GetMultiCurrencyCollateralRepaymentRecords query multi-currency collateral repayment records
+func (e *Exchange) GetMultiCurrencyCollateralRepaymentRecords(ctx context.Context, operationType string, borrowCurrency currency.Code, page, limit uint64, from, to time.Time) ([]MultiCurrencyCollateralRepayment, error) {
+	if operationType == "" {
+		return nil, errLoanTypeIsRequired
+	}
+	params := url.Values{}
+	params.Set("type", operationType)
+	if !borrowCurrency.IsEmpty() {
+		params.Set("borrow_currency", borrowCurrency.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if !from.IsZero() && !to.IsZero() {
+		err := common.StartEndTimeCheck(from, to)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	var resp []MultiCurrencyCollateralRepayment
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "loan/multi_collateral/repay", params, nil, &resp)
+}
+
+// AddOrWithdrawCollateral add or withdraw collateral
+func (e *Exchange) AddOrWithdrawCollateral(ctx context.Context, arg *AddOrWithdrawCollateralParams) (*CollateralAddOrRemoveResponse, error) {
+	if arg.OrderID == 0 {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if arg.OperationType == "" {
+		return nil, errLoanTypeIsRequired
+	}
+	var resp *CollateralAddOrRemoveResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "loan/multi_collateral/mortgage", nil, arg, &resp)
 }
