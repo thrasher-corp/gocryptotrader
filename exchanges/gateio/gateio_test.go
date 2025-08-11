@@ -3052,6 +3052,53 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "batch of spot orders with error at end",
+			// This is specifically testing the return responses of WebsocketSpotSubmitOrders
+			// AverageDealPrice is not returned when using this endpoint so purchased and cost fields cannot be set.
+			orders: [][]byte{
+				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"9.98","id":"775453816782","create_time":"1736980695","update_time":"1736980695","text":"t-740","left":"0.047239","currency_pair":"ETH_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"9.932761","fill_price":"9.932761","create_time_ms":1736980695949,"update_time_ms":1736980695949,"succeeded":true}`),
+				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"0.00289718","id":"775453816824","create_time":"1736980695","update_time":"1736980695","text":"t-741","left":"0.00000000962","currency_pair":"LIKE_ETH","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"0.00289717038","fill_price":"0.00289717038","create_time_ms":1736980695956,"update_time_ms":1736980695956,"succeeded":true}`),
+				[]byte(`{"text":"t-742","label":"BALANCE_NOT_ENOUGH","message":"Not enough balance"}`),
+			},
+			expected: []*order.SubmitResponse{
+				{
+					Exchange:        e.Name,
+					OrderID:         "775453816782",
+					AssetType:       asset.Spot,
+					Pair:            currency.NewPair(currency.ETH, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:   "t-740",
+					Date:            time.UnixMilli(1736980695949),
+					LastUpdated:     time.UnixMilli(1736980695949),
+					Amount:          9.98,
+					RemainingAmount: 0.047239,
+					Type:            order.Market,
+					Side:            order.Buy,
+					Status:          order.Filled,
+					TimeInForce:     order.FillOrKill,
+				},
+				{
+					Exchange:        e.Name,
+					OrderID:         "775453816824",
+					AssetType:       asset.Spot,
+					Pair:            currency.NewPair(currency.LIKE, currency.ETH).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:   "t-741",
+					Date:            time.UnixMilli(1736980695956),
+					LastUpdated:     time.UnixMilli(1736980695956),
+					RemainingAmount: 0.00000000962,
+					Amount:          0.00289718,
+					Type:            order.Market,
+					Side:            order.Buy,
+					Status:          order.Filled,
+					TimeInForce:     order.FillOrKill,
+				},
+				{
+					Exchange:        e.Name,
+					ClientOrderID:   "t-742",
+					SubmissionError: order.ErrUnableToPlaceOrder,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -3069,6 +3116,12 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 
 			require.Len(t, got, len(tc.expected))
 			for i := range got {
+				if tc.expected[i].SubmissionError != nil {
+					assert.ErrorIs(t, got[i].SubmissionError, tc.expected[i].SubmissionError)
+					assert.Equal(t, tc.expected[i].Exchange, got[i].Exchange)
+					assert.Equal(t, tc.expected[i].ClientOrderID, got[i].ClientOrderID)
+					continue
+				}
 				assert.Equal(t, tc.expected[i], got[i])
 			}
 		})
@@ -3574,4 +3627,46 @@ func TestGetIntervalString(t *testing.T) {
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "0 should be an invalid interval")
 	_, err = getIntervalString(kline.FiveDay)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "Any other random interval should also be invalid")
+}
+
+func TestWebsocketSubmitOrders(t *testing.T) {
+	t.Parallel()
+
+	_, err := e.WebsocketSubmitOrders(t.Context(), nil)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	sub := &order.Submit{
+		Exchange:    e.Name,
+		AssetType:   asset.Spot,
+		Side:        order.Buy,
+		Type:        order.Market,
+		QuoteAmount: 10,
+	}
+	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub})
+	require.ErrorIs(t, err, order.ErrPairIsEmpty)
+
+	sub.Pair = currency.NewBTCUSD()
+	cpy := *sub
+	cpy.AssetType = asset.Futures
+	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
+	require.ErrorIs(t, err, errSingleAssetRequired)
+
+	cpy.AssetType = asset.Spread
+	sub.AssetType = asset.Spread
+	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	sub.AssetType = asset.USDTMarginedFutures
+	cpy.AssetType = asset.USDTMarginedFutures
+	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
+	require.ErrorIs(t, err, common.ErrNotYetImplemented)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+
+	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+
+	sub.AssetType = asset.Spot
+	cpy.AssetType = asset.Spot
+	_, err = e.WebsocketSubmitOrders(request.WithVerbose(t.Context()), []*order.Submit{sub, &cpy})
+	require.NoError(t, err)
 }
