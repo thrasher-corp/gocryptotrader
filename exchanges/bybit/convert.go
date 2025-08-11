@@ -105,20 +105,6 @@ type RequestAQuoteParams struct {
 	RequestID    string
 }
 
-// RequestAQuotePayload defines the payload for requesting a quote
-type RequestAQuotePayload struct {
-	AccountType  string `json:"accountType"`
-	From         string `json:"fromCoin"`
-	To           string `json:"toCoin"`
-	Amount       string `json:"requestAmount"`
-	RequestCoin  string `json:"requestCoin"`
-	FromCoinType string `json:"fromCoinType,omitempty"`
-	ToCoinType   string `json:"toCoinType,omitempty"`
-	ParamType    string `json:"paramType,omitempty"`
-	ParamValue   string `json:"paramValue,omitempty"`
-	RequestID    string `json:"requestId,omitempty"`
-}
-
 // RequestAQuoteResponse represents a response for a request a quote
 type RequestAQuoteResponse struct {
 	QuoteTxID    string          `json:"quoteTxId"` // Quote transaction ID. It is system generated, and it is used to confirm quote and query the result of transaction
@@ -163,7 +149,18 @@ func (e *Exchange) RequestAQuote(ctx context.Context, params *RequestAQuoteParam
 		return nil, fmt.Errorf("amount %w", order.ErrAmountIsInvalid)
 	}
 
-	payload := &RequestAQuotePayload{
+	payload := &struct {
+		AccountType  string `json:"accountType"`
+		From         string `json:"fromCoin"`
+		To           string `json:"toCoin"`
+		Amount       string `json:"requestAmount"`
+		RequestCoin  string `json:"requestCoin"`
+		FromCoinType string `json:"fromCoinType,omitempty"`
+		ToCoinType   string `json:"toCoinType,omitempty"`
+		ParamType    string `json:"paramType,omitempty"`
+		ParamValue   string `json:"paramValue,omitempty"`
+		RequestID    string `json:"requestId,omitempty"`
+	}{
 		AccountType:  string(params.AccountType),
 		From:         params.From.Upper().String(),
 		To:           params.To.Upper().String(),
