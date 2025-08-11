@@ -1966,7 +1966,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				return err
 			}
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
+				Key:                     key.NewExchangePairAssetKey(e.Name, a, cp),
 				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
 				PriceStepIncrementSize:  btcContracts[x].OrderPriceRound.Float64(),
@@ -1991,7 +1991,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				return err
 			}
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
+				Key:                     key.NewExchangePairAssetKey(e.Name, a, cp),
 				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
 				PriceStepIncrementSize:  btcContracts[x].OrderPriceRound.Float64(),
@@ -2016,7 +2016,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				}
 				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
 				l = append(l, limits.MinMaxLevel{
-					Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
+					Key:                     key.NewExchangePairAssetKey(e.Name, a, cp),
 					MinimumBaseAmount:       float64(contracts[c].OrderSizeMin),
 					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
 					PriceStepIncrementSize:  contracts[c].OrderPriceRound.Float64(),

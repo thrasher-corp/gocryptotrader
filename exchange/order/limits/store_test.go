@@ -15,7 +15,7 @@ var happyKey = key.NewExchangePairAssetKey("test", asset.Spot, currency.NewBTCUS
 
 func TestLoadLimits(t *testing.T) {
 	t.Parallel()
-	e := executionLimits{}
+	e := store{}
 	err := e.loadLimits(nil)
 	require.ErrorIs(t, err, ErrCannotLoadLimit)
 
@@ -105,7 +105,7 @@ func TestLoadLimits(t *testing.T) {
 
 func TestGetOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	e := executionLimits{}
+	e := store{}
 	_, err := e.getOrderExecutionLimits(happyKey)
 	require.ErrorIs(t, err, ErrExchangeLimitNotLoaded)
 
@@ -131,7 +131,7 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 
 func TestCheckLimit(t *testing.T) {
 	t.Parallel()
-	e := executionLimits{}
+	e := store{}
 	err := e.checkOrderExecutionLimits(happyKey, 1337, 1337, order.Limit)
 	require.ErrorIs(t, err, ErrExchangeLimitNotLoaded)
 

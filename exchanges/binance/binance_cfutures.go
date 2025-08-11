@@ -1096,7 +1096,7 @@ func (e *Exchange) FuturesPositionsADLEstimate(ctx context.Context, symbol curre
 }
 
 // FetchCoinMarginExchangeLimits fetches coin margined order execution limits
-func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
+func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]limits.MinMaxLevel, error) {
 	coinFutures, err := e.FuturesExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
@@ -1116,7 +1116,7 @@ func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]order.M
 		}
 
 		l = append(l, limits.MinMaxLevel{
-			Key:                     key.NewExchangePairAssetKey(b.Name, asset.CoinMarginedFutures, cp),
+			Key:                     key.NewExchangePairAssetKey(e.Name, asset.CoinMarginedFutures, cp),
 			MinPrice:                coinFutures.Symbols[x].Filters[0].MinPrice,
 			MaxPrice:                coinFutures.Symbols[x].Filters[0].MaxPrice,
 			PriceStepIncrementSize:  coinFutures.Symbols[x].Filters[0].TickSize,

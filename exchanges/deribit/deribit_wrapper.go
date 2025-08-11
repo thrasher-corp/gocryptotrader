@@ -1225,9 +1225,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		var instrumentsData []*InstrumentData
 		var err error
 		if e.Websocket.IsConnected() {
-			instrumentsData, err = e.WSRetrieveInstrumentsData(ctx, currency.NewCode(x), e.GetAssetKind(a), false)
+			instrumentsData, err = e.WSRetrieveInstrumentsData(ctx, currency.NewCode(bc), e.GetAssetKind(a), false)
 		} else {
-			instrumentsData, err = e.GetInstruments(ctx, currency.NewCode(x), e.GetAssetKind(a), false)
+			instrumentsData, err = e.GetInstruments(ctx, currency.NewCode(bc), e.GetAssetKind(a), false)
 		}
 		if err != nil {
 			return err
@@ -1364,7 +1364,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		}
 		for a := range oi {
 			result = append(result, futures.OpenInterest{
-				Key:          key.NewExchangePairAssetKey(d.Name, k[i].Asset, k[i].Pair()),
+				Key:          key.NewExchangePairAssetKey(e.Name, k[i].Asset, k[i].Pair()),
 				OpenInterest: oi[a].OpenInterest,
 			})
 			break

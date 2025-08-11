@@ -1837,24 +1837,24 @@ func compatibleOrderVars(side, status, orderType string) OrderVars {
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	var limits []order.MinMaxLevel
+	var l []limits.MinMaxLevel
 	var err error
 	switch a {
 	case asset.Spot:
-		limits, err = e.FetchExchangeLimits(ctx, asset.Spot)
+		l, err = e.FetchExchangeLimits(ctx, asset.Spot)
 	case asset.USDTMarginedFutures:
-		limits, err = e.FetchUSDTMarginExchangeLimits(ctx)
+		l, err = e.FetchUSDTMarginExchangeLimits(ctx)
 	case asset.CoinMarginedFutures:
-		limits, err = e.FetchCoinMarginExchangeLimits(ctx)
+		l, err = e.FetchCoinMarginExchangeLimits(ctx)
 	case asset.Margin:
-		limits, err = e.FetchExchangeLimits(ctx, asset.Margin)
+		l, err = e.FetchExchangeLimits(ctx, asset.Margin)
 	default:
 		err = fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
-	return e.LoadLimits(limits)
+	return limits.LoadLimits(l)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
@@ -2984,7 +2984,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				return nil, err
 			}
 			result[i] = futures.OpenInterest{
-				Key:          key.NewExchangePairAssetKey(b.Name, k[i].Asset, k[i].Pair()),
+				Key:          key.NewExchangePairAssetKey(e.Name, k[i].Asset, k[i].Pair()),
 				OpenInterest: oi.OpenInterest,
 			}
 		case asset.CoinMarginedFutures:
@@ -2993,7 +2993,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				return nil, err
 			}
 			result[i] = futures.OpenInterest{
-				Key:          key.NewExchangePairAssetKey(b.Name, k[i].Asset, k[i].Pair()),
+				Key:          key.NewExchangePairAssetKey(e.Name, k[i].Asset, k[i].Pair()),
 				OpenInterest: oi.OpenInterest,
 			}
 		}

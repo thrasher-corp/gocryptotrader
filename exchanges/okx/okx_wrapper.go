@@ -313,15 +313,11 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return common.ErrNoResponse
 		}
 		l := make([]limits.MinMaxLevel, len(insts))
-		for x := range insts {
-			pair, err := currency.NewPairFromString(insts[x].InstrumentID)
-			if err != nil {
-				return err
-			}
-			l[x] = limits.MinMaxLevel{
-				Key:                    key.NewExchangePairAssetKey(e.Name, a, pair),
-				PriceStepIncrementSize: insts[x].TickSize.Float64(),
-				MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
+		for i := range insts {
+			l[i] = limits.MinMaxLevel{
+				Key:                    key.NewExchangePairAssetKey(e.Name, a, insts[i].InstrumentID),
+				PriceStepIncrementSize: insts[i].TickSize.Float64(),
+				MinimumBaseAmount:      insts[i].MinimumOrderSize.Float64(),
 			}
 		}
 		return limits.LoadLimits(l)
@@ -334,16 +330,12 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return common.ErrNoResponse
 		}
 		l := make([]limits.MinMaxLevel, len(insts))
-		for x := range insts {
-			pair, err := currency.NewPairFromString(insts[x].SpreadID)
-			if err != nil {
-				return err
-			}
-			l[x] = limits.MinMaxLevel{
-				Key:                    key.NewExchangePairAssetKey(e.Name, a, pair),
-				PriceStepIncrementSize: insts[x].MinSize.Float64(),
-				MinimumBaseAmount:      insts[x].MinSize.Float64(),
-				QuoteStepIncrementSize: insts[x].TickSize.Float64(),
+		for i := range insts {
+			l[i] = limits.MinMaxLevel{
+				Key:                    key.NewExchangePairAssetKey(e.Name, a, insts[i].SpreadID),
+				PriceStepIncrementSize: insts[i].MinSize.Float64(),
+				MinimumBaseAmount:      insts[i].MinSize.Float64(),
+				QuoteStepIncrementSize: insts[i].TickSize.Float64(),
 			}
 		}
 		return limits.LoadLimits(l)

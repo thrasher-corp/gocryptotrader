@@ -1003,7 +1003,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 
 		l[x] = limits.MinMaxLevel{
-			Key:                     key.NewExchangePairAssetKey(b.Name, asset.Spot, pair),
+			Key:                     key.NewExchangePairAssetKey(e.Name, asset.Spot, pair),
 			MinimumBaseAmount:       markets[x].MinOrderAmount,
 			MaximumBaseAmount:       markets[x].MaxOrderAmount,
 			AmountStepIncrementSize: math.Pow(10, -markets[x].AmountDecimals),

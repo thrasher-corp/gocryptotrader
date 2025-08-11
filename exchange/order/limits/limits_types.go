@@ -34,15 +34,15 @@ var (
 	errInvalidQuoteLevels  = errors.New("invalid quote levels, cannot load limits")
 )
 
-// executionLimits defines minimum and maximum values in relation to
+// store defines minimum and maximum values in relation to
 // order size, order pricing, total notional values, total maximum orders etc
 // for execution on an exchange.
-type executionLimits struct {
+type store struct {
 	epaLimits map[key.ExchangePairAsset]*MinMaxLevel
 	mtx       sync.RWMutex
 }
 
-var executionLimitsManager = executionLimits{
+var executionLimitsManager = store{
 	epaLimits: make(map[key.ExchangePairAsset]*MinMaxLevel),
 }
 

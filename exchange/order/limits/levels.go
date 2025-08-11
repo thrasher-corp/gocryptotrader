@@ -172,9 +172,9 @@ func (m *MinMaxLevel) ConformToPrice(price float64) float64 {
 		return 0
 	}
 
-	dAmount := decimal.NewFromFloat(price)
+	dPrice := decimal.NewFromFloat(price)
 	dStep := decimal.NewFromFloat(m.PriceStepIncrementSize)
-	mod := dAmount.Mod(dStep)
+	mod := dPrice.Mod(dStep)
 	// subtract to get the floor
-	return dAmount.Sub(mod).InexactFloat64()
+	return dPrice.Sub(mod).InexactFloat64()
 }

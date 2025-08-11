@@ -274,11 +274,11 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
-	limits, err := e.GetSiteInfoConfigData(ctx, a)
+	l, err := e.GetSiteInfoConfigData(ctx, a)
 	if err != nil {
 		return err
 	}
-	if err := e.LoadLimits(limits); err != nil {
+	if err := limits.LoadLimits(l); err != nil {
 		return fmt.Errorf("%s Error loading exchange limits: %v", e.Name, err)
 	}
 	return nil

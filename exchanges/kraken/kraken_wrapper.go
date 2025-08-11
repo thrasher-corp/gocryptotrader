@@ -263,7 +263,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 	for pair, info := range pairInfo {
 		l = append(l, limits.MinMaxLevel{
-			Key:                    key.NewExchangePairAssetKey(k.Name, a, pair),
+			Key:                    key.NewExchangePairAssetKey(e.Name, a, pair),
 			PriceStepIncrementSize: info.TickSize,
 			MinimumBaseAmount:      info.OrderMinimum,
 		})

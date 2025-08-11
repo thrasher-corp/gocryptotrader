@@ -227,14 +227,14 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return err
 		}
 		l = append(l, limits.MinMaxLevel{
-			Key:                     key.NewExchangePairAssetKey(b.Name, a, pair),
+			Key:                     key.NewExchangePairAssetKey(e.Name, a, pair),
 			PriceStepIncrementSize:  math.Pow10(-info.CounterDecimals),
 			AmountStepIncrementSize: math.Pow10(-info.BaseDecimals),
 			MinimumQuoteAmount:      info.MinimumOrder,
 		})
 	}
 	if err := limits.LoadLimits(l); err != nil {
-		return fmt.Errorf("%s Error loading exchange limits: %v", b.Name, err)
+		return fmt.Errorf("%s Error loading exchange limits: %v", e.Name, err)
 	}
 	return nil
 }

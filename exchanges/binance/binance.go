@@ -1117,7 +1117,7 @@ func (e *Exchange) MaintainWsAuthStreamKey(ctx context.Context) error {
 }
 
 // FetchExchangeLimits fetches order execution limits filtered by asset
-func (e *Exchange) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]order.MinMaxLevel, error) {
+func (e *Exchange) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]limits.MinMaxLevel, error) {
 	if a != asset.Spot && a != asset.Margin {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
@@ -1142,7 +1142,7 @@ func (e *Exchange) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]ord
 				continue
 			}
 			mml := limits.MinMaxLevel{
-				Key: key.NewExchangePairAssetKey(b.Name, a, cp),
+				Key: key.NewExchangePairAssetKey(e.Name, a, cp),
 			}
 			for _, f := range s.Filters {
 				// TODO: Unhandled filters:

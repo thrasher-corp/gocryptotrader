@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -190,10 +191,10 @@ func (e *Exchange) CreateOrder(ctx context.Context, pair, side string, amount, p
 		return resp, order.ErrSideIsInvalid
 	}
 	if amount <= 0 {
-		return resp, order.ErrAmountBelowMin
+		return resp, limits.ErrAmountBelowMin
 	}
 	if price <= 0 {
-		return resp, order.ErrPriceBelowMin
+		return resp, limits.ErrPriceBelowMin
 	}
 
 	params := url.Values{}
