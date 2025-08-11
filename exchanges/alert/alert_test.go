@@ -1,11 +1,12 @@
 package alert
 
 import (
-	"errors"
 	"log"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestWait(t *testing.T) {
@@ -122,18 +123,14 @@ func getSize() int {
 func TestSetPreAllocationCommsBuffer(t *testing.T) {
 	t.Parallel()
 	err := SetPreAllocationCommsBuffer(-1)
-	if !errors.Is(err, errInvalidBufferSize) {
-		t.Fatalf("received: '%v' but expected '%v'", err, errInvalidBufferSize)
-	}
+	require.ErrorIs(t, err, errInvalidBufferSize)
 
 	if getSize() != 5 {
 		t.Fatal("unexpected amount")
 	}
 
 	err = SetPreAllocationCommsBuffer(7)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if getSize() != 7 {
 		t.Fatal("unexpected amount")

@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Product holds product information
@@ -49,12 +51,17 @@ type Trade struct {
 
 // History holds historic rate information
 type History struct {
-	Time   time.Time
+	Time   types.Time
 	Low    float64
 	High   float64
 	Open   float64
 	Close  float64
 	Volume float64
+}
+
+// UnmarshalJSON deserilizes kline data from a JSON array into History fields.
+func (h *History) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[6]any{&h.Time, &h.Low, &h.High, &h.Open, &h.Close, &h.Volume})
 }
 
 // Stats holds last 24 hr data for coinbasepro
@@ -341,9 +348,9 @@ type OrderbookL3 struct {
 
 // OrderbookResponse is a generalized response for order books
 type OrderbookResponse struct {
-	Sequence int64    `json:"sequence"`
-	Bids     [][3]any `json:"bids"`
-	Asks     [][3]any `json:"asks"`
+	Sequence int64             `json:"sequence"`
+	Bids     [][3]types.Number `json:"bids"`
+	Asks     [][3]types.Number `json:"asks"`
 }
 
 // FillResponse contains fill information from the exchange
@@ -379,41 +386,41 @@ type WsChannel struct {
 
 // wsOrderReceived holds websocket received values
 type wsOrderReceived struct {
-	Type          string    `json:"type"`
-	OrderID       string    `json:"order_id"`
-	OrderType     string    `json:"order_type"`
-	Size          float64   `json:"size,string"`
-	Price         float64   `json:"price,omitempty,string"`
-	Funds         float64   `json:"funds,omitempty,string"`
-	Side          string    `json:"side"`
-	ClientOID     string    `json:"client_oid"`
-	ProductID     string    `json:"product_id"`
-	Sequence      int64     `json:"sequence"`
-	Time          time.Time `json:"time"`
-	RemainingSize float64   `json:"remaining_size,string"`
-	NewSize       float64   `json:"new_size,string"`
-	OldSize       float64   `json:"old_size,string"`
-	Reason        string    `json:"reason"`
-	Timestamp     float64   `json:"timestamp,string"`
-	UserID        string    `json:"user_id"`
-	ProfileID     string    `json:"profile_id"`
-	StopType      string    `json:"stop_type"`
-	StopPrice     float64   `json:"stop_price,string"`
-	TakerFeeRate  float64   `json:"taker_fee_rate,string"`
-	Private       bool      `json:"private"`
-	TradeID       int64     `json:"trade_id"`
-	MakerOrderID  string    `json:"maker_order_id"`
-	TakerOrderID  string    `json:"taker_order_id"`
-	TakerUserID   string    `json:"taker_user_id"`
+	Type          string     `json:"type"`
+	OrderID       string     `json:"order_id"`
+	OrderType     string     `json:"order_type"`
+	Size          float64    `json:"size,string"`
+	Price         float64    `json:"price,omitempty,string"`
+	Funds         float64    `json:"funds,omitempty,string"`
+	Side          string     `json:"side"`
+	ClientOID     string     `json:"client_oid"`
+	ProductID     string     `json:"product_id"`
+	Sequence      int64      `json:"sequence"`
+	Time          time.Time  `json:"time"`
+	RemainingSize float64    `json:"remaining_size,string"`
+	NewSize       float64    `json:"new_size,string"`
+	OldSize       float64    `json:"old_size,string"`
+	Reason        string     `json:"reason"`
+	Timestamp     types.Time `json:"timestamp"`
+	UserID        string     `json:"user_id"`
+	ProfileID     string     `json:"profile_id"`
+	StopType      string     `json:"stop_type"`
+	StopPrice     float64    `json:"stop_price,string"`
+	TakerFeeRate  float64    `json:"taker_fee_rate,string"`
+	Private       bool       `json:"private"`
+	TradeID       int64      `json:"trade_id"`
+	MakerOrderID  string     `json:"maker_order_id"`
+	TakerOrderID  string     `json:"taker_order_id"`
+	TakerUserID   string     `json:"taker_user_id"`
 }
 
 // WebsocketHeartBeat defines JSON response for a heart beat message
 type WebsocketHeartBeat struct {
-	Type        string `json:"type"`
-	Sequence    int64  `json:"sequence"`
-	LastTradeID int64  `json:"last_trade_id"`
-	ProductID   string `json:"product_id"`
-	Time        string `json:"time"`
+	Type        string    `json:"type"`
+	Sequence    int64     `json:"sequence"`
+	LastTradeID int64     `json:"last_trade_id"`
+	ProductID   string    `json:"product_id"`
+	Time        time.Time `json:"time"`
 }
 
 // WebsocketTicker defines ticker websocket response
@@ -437,11 +444,11 @@ type WebsocketTicker struct {
 
 // WebsocketOrderbookSnapshot defines a snapshot response
 type WebsocketOrderbookSnapshot struct {
-	ProductID string      `json:"product_id"`
-	Type      string      `json:"type"`
-	Bids      [][2]string `json:"bids"`
-	Asks      [][2]string `json:"asks"`
-	Time      time.Time   `json:"time"`
+	ProductID string            `json:"product_id"`
+	Type      string            `json:"type"`
+	Bids      [][2]types.Number `json:"bids"`
+	Asks      [][2]types.Number `json:"asks"`
+	Time      time.Time         `json:"time"`
 }
 
 // WebsocketL2Update defines an update on the L2 orderbooks
@@ -488,17 +495,6 @@ type wsStatus struct {
 	} `json:"products"`
 	Type string `json:"type"`
 }
-
-// RequestParamsTimeForceType Time in force
-type RequestParamsTimeForceType string
-
-var (
-	// CoinbaseRequestParamsTimeGTC GTC
-	CoinbaseRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
-
-	// CoinbaseRequestParamsTimeIOC IOC
-	CoinbaseRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
-)
 
 // TransferHistory returns wallet transfer history
 type TransferHistory struct {

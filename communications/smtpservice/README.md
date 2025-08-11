@@ -16,7 +16,7 @@ This smtpservice package is part of the GoCryptoTrader codebase.
 
 You can track ideas, planned features and what's in progress on our [GoCryptoTrader Kanban board](https://github.com/orgs/thrasher-corp/projects/3).
 
-Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g)
 
 ## SMSGlobal Communications package
 
@@ -58,19 +58,6 @@ s.Setup(commsConfig)
 err := s.Connect
 // Handle error
 ```
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
-
-## Contribution
-
-Please feel free to submit any pull requests or suggest any desired features to be added.
-
-When submitting a PR, please abide by our coding guidelines:
-
-+ Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
-+ Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
-+ Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/doc/coding_style.md).
-+ Pull requests need to be based on and opened against the `master` branch.
 
 ## Donations
 

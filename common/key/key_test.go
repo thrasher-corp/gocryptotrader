@@ -10,7 +10,7 @@ import (
 
 func TestMatchesExchangeAsset(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	k := ExchangePairAsset{
 		Exchange: "test",
 		Base:     cp.Base.Item,
@@ -25,7 +25,7 @@ func TestMatchesExchangeAsset(t *testing.T) {
 
 func TestMatchesPairAsset(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	k := ExchangePairAsset{
 		Base:  cp.Base.Item,
 		Quote: cp.Quote.Item,
@@ -50,7 +50,7 @@ func TestMatchesExchange(t *testing.T) {
 
 func TestExchangePairAsset_Pair(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	k := ExchangePairAsset{
 		Base:  currency.BTC.Item,
 		Quote: currency.USD.Item,
@@ -64,7 +64,7 @@ func TestExchangePairAsset_Pair(t *testing.T) {
 
 func TestPairAsset_Pair(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	k := PairAsset{
 		Base:  currency.BTC.Item,
 		Quote: currency.USD.Item,

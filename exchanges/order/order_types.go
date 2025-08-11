@@ -46,11 +46,9 @@ type Submit struct {
 	Pair      currency.Pair
 	AssetType asset.Item
 
-	// Time in force values ------ TODO: Time In Force uint8
-	ImmediateOrCancel bool
-	FillOrKill        bool
+	// TimeInForce holds time in force values
+	TimeInForce TimeInForce
 
-	PostOnly bool
 	// ReduceOnly reduces a position instead of opening an opposing
 	// position; this also equates to closing the position in huobi_wrapper.go
 	// swaps.
@@ -109,19 +107,17 @@ type SubmitResponse struct {
 	Pair      currency.Pair
 	AssetType asset.Item
 
-	ImmediateOrCancel    bool
-	FillOrKill           bool
-	PostOnly             bool
+	TimeInForce          TimeInForce
 	ReduceOnly           bool
 	Leverage             float64
 	Price                float64
-	AverageExecutedPrice float64
 	Amount               float64
 	QuoteAmount          float64
 	RemainingAmount      float64
 	TriggerPrice         float64
 	ClientID             string
 	ClientOrderID        string
+	AverageExecutedPrice float64
 
 	LastUpdated time.Time
 	Date        time.Time
@@ -164,11 +160,10 @@ type Modify struct {
 	Pair          currency.Pair
 
 	// Change fields
-	ImmediateOrCancel bool
-	PostOnly          bool
-	Price             float64
-	Amount            float64
-	TriggerPrice      float64
+	TimeInForce  TimeInForce
+	Price        float64
+	Amount       float64
+	TriggerPrice float64
 
 	// added to represent a unified trigger price type information such as LastPrice, MarkPrice, and IndexPrice
 	// https://bybit-exchange.github.io/docs/v5/order/create-order
@@ -190,11 +185,10 @@ type ModifyResponse struct {
 	AssetType     asset.Item
 
 	// Fields that will be copied over from Modify
-	ImmediateOrCancel bool
-	PostOnly          bool
-	Price             float64
-	Amount            float64
-	TriggerPrice      float64
+	TimeInForce  TimeInForce
+	Price        float64
+	Amount       float64
+	TriggerPrice float64
 
 	// Fields that need to be handled in scope after DeriveModifyResponse()
 	// if applicable
@@ -206,10 +200,8 @@ type ModifyResponse struct {
 // Detail contains all properties of an order
 // Each exchange has their own requirements, so not all fields are required to be populated
 type Detail struct {
-	ImmediateOrCancel    bool
 	HiddenOrder          bool
-	FillOrKill           bool
-	PostOnly             bool
+	TimeInForce          TimeInForce
 	ReduceOnly           bool
 	Leverage             float64
 	Price                float64
@@ -276,6 +268,7 @@ type Cancel struct {
 	AssetType     asset.Item
 	Pair          currency.Pair
 	MarginType    margin.Type
+	TimeInForce   TimeInForce
 }
 
 // CancelAllResponse returns the status from attempting to
@@ -311,12 +304,13 @@ type TradeHistory struct {
 type MultiOrderRequest struct {
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
-	Pairs     currency.Pairs
-	AssetType asset.Item
-	Type      Type
-	Side      Side
-	StartTime time.Time
-	EndTime   time.Time
+	Pairs       currency.Pairs
+	AssetType   asset.Item
+	Type        Type
+	Side        Side
+	TimeInForce TimeInForce
+	StartTime   time.Time
+	EndTime     time.Time
 	// FromOrderID for some APIs require order history searching
 	// from a specific orderID rather than via timestamps
 	FromOrderID string
@@ -354,33 +348,58 @@ const (
 )
 
 // Type enforces a standard for order types across the code base
-type Type uint32
+type Type uint64
+
+// Is checks to see if the Type contains the Type cmp
+func (t Type) Is(cmp Type) bool {
+	return cmp != 0 && t&cmp == cmp
+}
 
 // Defined package order types
 const (
 	UnknownType Type = 0
 	Limit       Type = 1 << iota
 	Market
-	PostOnly
-	ImmediateOrCancel
 	Stop
-	StopLimit
-	StopMarket
 	TakeProfit
-	TakeProfitMarket
 	TrailingStop
-	FillOrKill
 	IOS
 	AnyType
 	Liquidation
 	Trigger
-	OptimalLimitIOC
-	OCO                              // One-cancels-the-other order
-	ConditionalStop                  // One-way stop order
-	MarketMakerProtection            // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
-	MarketMakerProtectionAndPostOnly // market-maker-protection and post-only mode. Used in Okx exchange orders.
-	TWAP                             // time-weighted average price.
-	Chase                            // chase order. See https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
+	OCO             // One-cancels-the-other order
+	ConditionalStop // One-way stop order
+	TWAP            // time-weighted average price
+	Chase           // chase limit order
+	OptimalLimit
+	MarketMakerProtection
+
+	// Hybrid order types
+	StopLimit        = Stop | Limit
+	StopMarket       = Stop | Market
+	TakeProfitMarket = TakeProfit | Market
+)
+
+// order-type string representations
+const (
+	orderStopMarket            = "STOP MARKET"
+	orderStopLimit             = "STOP LIMIT"
+	orderLimit                 = "LIMIT"
+	orderMarket                = "MARKET"
+	orderStop                  = "STOP"
+	orderConditionalStop       = "CONDITIONAL"
+	orderTWAP                  = "TWAP"
+	orderChase                 = "CHASE"
+	orderTakeProfit            = "TAKE PROFIT"
+	orderTakeProfitMarket      = "TAKE PROFIT MARKET"
+	orderTrailingStop          = "TRAILING_STOP"
+	orderIOS                   = "IOS"
+	orderLiquidation           = "LIQUIDATION"
+	orderTrigger               = "TRIGGER"
+	orderOCO                   = "OCO"
+	orderOptimalLimit          = "OPTIMAL_LIMIT"
+	orderMarketMakerProtection = "MMP"
+	orderAnyType               = "ANY"
 )
 
 // Side enforces a standard for order sides across the code base

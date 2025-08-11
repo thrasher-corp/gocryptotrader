@@ -44,7 +44,7 @@ func TestIsEmpty(t *testing.T) {
 	t.Parallel()
 	o := Order{
 		Base: &event.Base{
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			CurrencyPair: currency.NewBTCUSDT(),
 		},
 	}
 	y := o.CurrencyPair
@@ -130,7 +130,7 @@ func TestGetSellLimit(t *testing.T) {
 
 func TestPair(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	k := Order{
 		Base: &event.Base{
 			CurrencyPair: cp,

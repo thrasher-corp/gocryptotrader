@@ -43,7 +43,6 @@ var (
 )
 
 var (
-	errTimeInForceConflict      = errors.New("multiple time in force options applied")
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
 	errExchangeNameUnset        = errors.New("exchange name unset")
@@ -77,7 +76,7 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 	}
 
 	if !s.AssetType.IsValid() {
-		return fmt.Errorf("'%s' %w", s.AssetType, asset.ErrNotSupported)
+		return fmt.Errorf("%q %w", s.AssetType, asset.ErrNotSupported)
 	}
 
 	if !IsValidOrderSubmissionSide(s.Side) {
@@ -88,8 +87,8 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 		return ErrTypeIsInvalid
 	}
 
-	if s.ImmediateOrCancel && s.FillOrKill {
-		return errTimeInForceConflict
+	if !s.TimeInForce.IsValid() {
+		return ErrInvalidTimeInForce
 	}
 
 	if s.Amount == 0 && s.QuoteAmount == 0 {
@@ -159,16 +158,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 
 	var updated bool
-	if d.ImmediateOrCancel != m.ImmediateOrCancel {
-		d.ImmediateOrCancel = m.ImmediateOrCancel
+	if m.TimeInForce != UnknownTIF && d.TimeInForce != m.TimeInForce {
+		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
 	if d.HiddenOrder != m.HiddenOrder {
 		d.HiddenOrder = m.HiddenOrder
-		updated = true
-	}
-	if d.FillOrKill != m.FillOrKill {
-		d.FillOrKill = m.FillOrKill
 		updated = true
 	}
 	if m.Price > 0 && m.Price != d.Price {
@@ -205,10 +200,6 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 	if m.AccountID != "" && m.AccountID != d.AccountID {
 		d.AccountID = m.AccountID
-		updated = true
-	}
-	if m.PostOnly != d.PostOnly {
-		d.PostOnly = m.PostOnly
 		updated = true
 	}
 	if !m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
@@ -322,8 +313,8 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		d.OrderID = m.OrderID
 		updated = true
 	}
-	if d.ImmediateOrCancel != m.ImmediateOrCancel {
-		d.ImmediateOrCancel = m.ImmediateOrCancel
+	if d.TimeInForce != m.TimeInForce && m.TimeInForce != UnknownTIF {
+		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
 	if m.Price > 0 && m.Price != d.Price {
@@ -336,10 +327,6 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	}
 	if m.TriggerPrice > 0 && m.TriggerPrice != d.TriggerPrice {
 		d.TriggerPrice = m.TriggerPrice
-		updated = true
-	}
-	if m.PostOnly != d.PostOnly {
-		d.PostOnly = m.PostOnly
 		updated = true
 	}
 	if !m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
@@ -496,18 +483,16 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		Pair:      s.Pair,
 		AssetType: s.AssetType,
 
-		ImmediateOrCancel: s.ImmediateOrCancel,
-		FillOrKill:        s.FillOrKill,
-		PostOnly:          s.PostOnly,
-		ReduceOnly:        s.ReduceOnly,
-		Leverage:          s.Leverage,
-		Price:             s.Price,
-		Amount:            s.Amount,
-		QuoteAmount:       s.QuoteAmount,
-		TriggerPrice:      s.TriggerPrice,
-		ClientID:          s.ClientID,
-		ClientOrderID:     s.ClientOrderID,
-		MarginType:        s.MarginType,
+		TimeInForce:   s.TimeInForce,
+		ReduceOnly:    s.ReduceOnly,
+		Leverage:      s.Leverage,
+		Price:         s.Price,
+		Amount:        s.Amount,
+		QuoteAmount:   s.QuoteAmount,
+		TriggerPrice:  s.TriggerPrice,
+		ClientID:      s.ClientID,
+		ClientOrderID: s.ClientOrderID,
+		MarginType:    s.MarginType,
 
 		LastUpdated: time.Now(),
 		Date:        time.Now(),
@@ -589,17 +574,15 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		Pair:      s.Pair,
 		AssetType: s.AssetType,
 
-		ImmediateOrCancel: s.ImmediateOrCancel,
-		FillOrKill:        s.FillOrKill,
-		PostOnly:          s.PostOnly,
-		ReduceOnly:        s.ReduceOnly,
-		Leverage:          s.Leverage,
-		Price:             s.Price,
-		Amount:            s.Amount,
-		QuoteAmount:       s.QuoteAmount,
-		TriggerPrice:      s.TriggerPrice,
-		ClientID:          s.ClientID,
-		ClientOrderID:     s.ClientOrderID,
+		TimeInForce:   s.TimeInForce,
+		ReduceOnly:    s.ReduceOnly,
+		Leverage:      s.Leverage,
+		Price:         s.Price,
+		Amount:        s.Amount,
+		QuoteAmount:   s.QuoteAmount,
+		TriggerPrice:  s.TriggerPrice,
+		ClientID:      s.ClientID,
+		ClientOrderID: s.ClientOrderID,
 
 		InternalOrderID: internal,
 
@@ -649,18 +632,17 @@ func (m *Modify) DeriveModifyResponse() (*ModifyResponse, error) {
 		return nil, errOrderDetailIsNil
 	}
 	return &ModifyResponse{
-		Exchange:          m.Exchange,
-		OrderID:           m.OrderID,
-		ClientOrderID:     m.ClientOrderID,
-		Type:              m.Type,
-		Side:              m.Side,
-		AssetType:         m.AssetType,
-		Pair:              m.Pair,
-		ImmediateOrCancel: m.ImmediateOrCancel,
-		PostOnly:          m.PostOnly,
-		Price:             m.Price,
-		Amount:            m.Amount,
-		TriggerPrice:      m.TriggerPrice,
+		Exchange:      m.Exchange,
+		OrderID:       m.OrderID,
+		ClientOrderID: m.ClientOrderID,
+		Type:          m.Type,
+		Side:          m.Side,
+		AssetType:     m.AssetType,
+		Pair:          m.Pair,
+		TimeInForce:   m.TimeInForce,
+		Price:         m.Price,
+		Amount:        m.Amount,
+		TriggerPrice:  m.TriggerPrice,
 	}, nil
 }
 
@@ -685,50 +667,42 @@ func (d *Detail) DeriveCancel() (*Cancel, error) {
 // String implements the stringer interface
 func (t Type) String() string {
 	switch t {
-	case AnyType:
-		return "ANY"
-	case Limit:
-		return "LIMIT"
-	case Market:
-		return "MARKET"
-	case PostOnly:
-		return "POST_ONLY"
-	case ImmediateOrCancel:
-		return "IMMEDIATE_OR_CANCEL"
-	case Stop:
-		return "STOP"
-	case ConditionalStop:
-		return "CONDITIONAL"
-	case MarketMakerProtection:
-		return "MMP"
-	case MarketMakerProtectionAndPostOnly:
-		return "MMP_AND_POST_ONLY"
-	case TWAP:
-		return "TWAP"
-	case Chase:
-		return "CHASE"
-	case StopLimit:
-		return "STOP LIMIT"
 	case StopMarket:
-		return "STOP MARKET"
+		return orderStopMarket
+	case StopLimit:
+		return orderStopLimit
+	case Limit:
+		return orderLimit
+	case Market:
+		return orderMarket
+	case Stop:
+		return orderStop
+	case ConditionalStop:
+		return orderConditionalStop
+	case TWAP:
+		return orderTWAP
+	case Chase:
+		return orderChase
 	case TakeProfit:
-		return "TAKE PROFIT"
+		return orderTakeProfit
 	case TakeProfitMarket:
-		return "TAKE PROFIT MARKET"
+		return orderTakeProfitMarket
 	case TrailingStop:
-		return "TRAILING_STOP"
-	case FillOrKill:
-		return "FOK"
+		return orderTrailingStop
 	case IOS:
-		return "IOS"
+		return orderIOS
 	case Liquidation:
-		return "LIQUIDATION"
+		return orderLiquidation
 	case Trigger:
-		return "TRIGGER"
-	case OptimalLimitIOC:
-		return "OPTIMAL_LIMIT_IOC"
+		return orderTrigger
 	case OCO:
-		return "OCO"
+		return orderOCO
+	case OptimalLimit:
+		return orderOptimalLimit
+	case MarketMakerProtection:
+		return orderMarketMakerProtection
+	case AnyType:
+		return orderAnyType
 	default:
 		return "UNKNOWN"
 	}
@@ -1100,7 +1074,7 @@ func StringToOrderSide(side string) (Side, error) {
 	case AnySide.String():
 		return AnySide, nil
 	default:
-		return UnknownSide, fmt.Errorf("'%s' %w", side, ErrSideIsInvalid)
+		return UnknownSide, fmt.Errorf("%q %w", side, ErrSideIsInvalid)
 	}
 }
 
@@ -1126,49 +1100,41 @@ func (s Side) MarshalJSON() ([]byte, error) {
 func StringToOrderType(oType string) (Type, error) {
 	oType = strings.ToUpper(oType)
 	switch oType {
-	case Limit.String(), "EXCHANGE LIMIT":
+	case orderLimit, "EXCHANGE LIMIT":
 		return Limit, nil
-	case Market.String(), "EXCHANGE MARKET":
+	case orderMarket, "EXCHANGE MARKET":
 		return Market, nil
-	case ImmediateOrCancel.String(), "IMMEDIATE OR CANCEL", "IOC", "EXCHANGE IOC":
-		return ImmediateOrCancel, nil
-	case Stop.String(), "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
+	case orderStop, "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
 		return Stop, nil
-	case StopLimit.String(), "EXCHANGE STOP LIMIT", "STOP_LIMIT":
+	case orderStopLimit, "EXCHANGE STOP LIMIT", "STOP_LIMIT":
 		return StopLimit, nil
-	case StopMarket.String(), "STOP_MARKET":
+	case orderStopMarket, "STOP_MARKET":
 		return StopMarket, nil
-	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP", "MOVE_ORDER_STOP":
+	case orderTrailingStop, "TRAILING STOP", "EXCHANGE TRAILING STOP", "MOVE_ORDER_STOP":
 		return TrailingStop, nil
-	case FillOrKill.String(), "EXCHANGE FOK":
-		return FillOrKill, nil
-	case IOS.String():
+	case orderIOS:
 		return IOS, nil
-	case PostOnly.String():
-		return PostOnly, nil
-	case AnyType.String():
+	case orderAnyType:
 		return AnyType, nil
-	case Trigger.String():
+	case orderTrigger:
 		return Trigger, nil
-	case OptimalLimitIOC.String():
-		return OptimalLimitIOC, nil
-	case OCO.String():
+	case orderOptimalLimit:
+		return OptimalLimit, nil
+	case orderOCO:
 		return OCO, nil
-	case ConditionalStop.String():
+	case orderConditionalStop:
 		return ConditionalStop, nil
-	case MarketMakerProtection.String():
+	case orderMarketMakerProtection:
 		return MarketMakerProtection, nil
-	case MarketMakerProtectionAndPostOnly.String():
-		return MarketMakerProtectionAndPostOnly, nil
-	case TWAP.String():
+	case orderTWAP:
 		return TWAP, nil
-	case Chase.String():
+	case orderChase:
 		return Chase, nil
-	case TakeProfitMarket.String(), "TAKE_PROFIT_MARKET":
+	case orderTakeProfitMarket, "TAKE_PROFIT_MARKET":
 		return TakeProfitMarket, nil
-	case TakeProfit.String(), "TAKE_PROFIT":
+	case orderTakeProfit, "TAKE_PROFIT":
 		return TakeProfit, nil
-	case Liquidation.String():
+	case orderLiquidation:
 		return Liquidation, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
@@ -1223,7 +1189,7 @@ func StringToOrderStatus(status string) (Status, error) {
 	case STP.String(), "STP":
 		return STP, nil
 	default:
-		return UnknownStatus, fmt.Errorf("'%s' %w", status, errUnrecognisedOrderStatus)
+		return UnknownStatus, fmt.Errorf("%q %w", status, errUnrecognisedOrderStatus)
 	}
 }
 

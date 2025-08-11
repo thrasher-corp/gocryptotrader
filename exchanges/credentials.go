@@ -2,11 +2,12 @@ package exchange
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -22,12 +23,11 @@ var (
 	// undertake an authenticated HTTP request.
 	ErrCredentialsAreEmpty = errors.New("credentials are empty")
 	// Errors related to API requirements and failures
-	errRequiresAPIKey            = errors.New("requires API key but default/empty one set")
-	errRequiresAPISecret         = errors.New("requires API secret but default/empty one set")
-	errRequiresAPIPEMKey         = errors.New("requires API PEM key but default/empty one set")
-	errRequiresAPIClientID       = errors.New("requires API Client ID but default/empty one set")
-	errBase64DecodeFailure       = errors.New("base64 decode has failed")
-	errContextCredentialsFailure = errors.New("context credentials type assertion failure")
+	errRequiresAPIKey      = errors.New("requires API key but default/empty one set")
+	errRequiresAPISecret   = errors.New("requires API secret but default/empty one set")
+	errRequiresAPIPEMKey   = errors.New("requires API PEM key but default/empty one set")
+	errRequiresAPIClientID = errors.New("requires API Client ID but default/empty one set")
+	errBase64DecodeFailure = errors.New("base64 decode has failed")
 )
 
 // SetKey sets new key for the default credentials
@@ -115,31 +115,28 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 	if value != nil {
 		ctxCredStore, ok := value.(*account.ContextCredentialsStore)
 		if !ok {
-			// NOTE: Return empty credentials on error to limit panic on
-			// websocket handling.
-			return &account.Credentials{}, errContextCredentialsFailure
+			return nil, common.GetTypeAssertError("*account.ContextCredentialsStore", value)
 		}
 
 		creds := ctxCredStore.Get()
 		if err := b.CheckCredentials(creds, true); err != nil {
-			return creds, fmt.Errorf("context credentials issue: %w", err)
+			return nil, fmt.Errorf("error checking credentials from context: %w", err)
 		}
 		return creds, nil
 	}
 
-	creds := b.API.credentials
-	err := b.CheckCredentials(&creds, false)
-	if err != nil {
-		// NOTE: Return empty credentials on error to limit panic on websocket
-		// handling.
-		return &account.Credentials{}, err
-	}
-	subAccountOverride, ok := ctx.Value(account.ContextSubAccountFlag).(string)
+	// Fallback to exchange loaded credentials
 	b.API.credMu.RLock()
-	defer b.API.credMu.RUnlock()
-	if ok {
+	creds := b.API.credentials
+	b.API.credMu.RUnlock()
+	if err := b.CheckCredentials(&creds, false); err != nil {
+		return nil, fmt.Errorf("error checking credentials: %w", err)
+	}
+
+	if subAccountOverride, ok := ctx.Value(account.ContextSubAccountFlag).(string); ok {
 		creds.SubAccount = subAccountOverride
 	}
+
 	return &creds, nil
 }
 
@@ -171,7 +168,7 @@ func (b *Base) VerifyAPICredentials(creds *account.Credentials) error {
 	}
 
 	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !creds.SecretBase64Decoded {
-		decodedResult, err := crypto.Base64Decode(creds.Secret)
+		decodedResult, err := base64.StdEncoding.DecodeString(creds.Secret)
 		if err != nil {
 			return fmt.Errorf("%s API secret %w: %s", b.Name, errBase64DecodeFailure, err)
 		}
@@ -193,7 +190,7 @@ func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, o
 	b.API.credentials.OneTimePassword = oneTimePassword
 
 	if b.API.CredentialsValidator.RequiresBase64DecodeSecret {
-		result, err := crypto.Base64Decode(apiSecret)
+		result, err := base64.StdEncoding.DecodeString(apiSecret)
 		if err != nil {
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false

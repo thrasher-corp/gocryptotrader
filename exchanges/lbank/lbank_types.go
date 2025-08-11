@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Ticker stores the ticker price data for a currency pair
@@ -20,7 +21,7 @@ type Ticker struct {
 // TickerResponse stores the ticker price data and timestamp for a currency pair
 type TickerResponse struct {
 	Symbol    currency.Pair `json:"symbol"`
-	Timestamp int64         `json:"timestamp"`
+	Timestamp types.Time    `json:"timestamp"`
 	Ticker    Ticker        `json:"ticker"`
 }
 
@@ -28,26 +29,26 @@ type TickerResponse struct {
 type MarketDepthResponse struct {
 	ErrCapture
 	Data struct {
-		Asks      [][2]string `json:"asks"`
-		Bids      [][2]string `json:"bids"`
-		Timestamp int64       `json:"timestamp"`
-	}
+		Asks      [][2]types.Number `json:"asks"`
+		Bids      [][2]types.Number `json:"bids"`
+		Timestamp types.Time        `json:"timestamp"`
+	} `json:"data"`
 }
 
 // TradeResponse stores date_ms, amount, price, type, tid for a currency pair
 type TradeResponse struct {
-	DateMS int64   `json:"date_ms"`
-	Amount float64 `json:"amount"`
-	Price  float64 `json:"price"`
-	Type   string  `json:"type"`
-	TID    string  `json:"tid"`
+	DateMS types.Time `json:"date_ms"`
+	Amount float64    `json:"amount"`
+	Price  float64    `json:"price"`
+	Type   string     `json:"type"`
+	TID    string     `json:"tid"`
 }
 
 // KlineResponse stores kline info for given currency exchange
 type KlineResponse struct {
 	TimeStamp     time.Time `json:"timestamp"`
 	OpenPrice     float64   `json:"openprice"`
-	HigestPrice   float64   `json:"highestprice"`
+	HighestPrice  float64   `json:"highestprice"`
 	LowestPrice   float64   `json:"lowestprice"`
 	ClosePrice    float64   `json:"closeprice"`
 	TradingVolume float64   `json:"tradingvolume"`
@@ -55,9 +56,9 @@ type KlineResponse struct {
 
 // InfoResponse stores info
 type InfoResponse struct {
-	Freeze map[string]string `json:"freeze"`
-	Asset  map[string]string `json:"asset"`
-	Free   map[string]string `json:"Free"`
+	Freeze map[string]types.Number `json:"freeze"`
+	Asset  map[string]types.Number `json:"asset"`
+	Free   map[string]types.Number `json:"Free"`
 }
 
 // InfoFinalResponse stores info
@@ -82,15 +83,15 @@ type RemoveOrderResponse struct {
 
 // OrderResponse stores the data related to the given OrderIDs
 type OrderResponse struct {
-	Symbol     string  `json:"symbol"`
-	Amount     float64 `json:"amount"`
-	CreateTime int64   `json:"created_time"`
-	Price      float64 `json:"price"`
-	AvgPrice   float64 `json:"avg_price"`
-	Type       string  `json:"type"`
-	OrderID    string  `json:"order_id"`
-	DealAmount float64 `json:"deal_amount"`
-	Status     int64   `json:"status"`
+	Symbol     string     `json:"symbol"`
+	Amount     float64    `json:"amount"`
+	CreateTime types.Time `json:"created_time"`
+	Price      float64    `json:"price"`
+	AvgPrice   float64    `json:"avg_price"`
+	Type       string     `json:"type"`
+	OrderID    string     `json:"order_id"`
+	DealAmount float64    `json:"deal_amount"`
+	Status     int64      `json:"status"`
 }
 
 // QueryOrderResponse stores the data from queries
@@ -141,15 +142,15 @@ type PairInfoResponse struct {
 
 // TransactionTemp stores details about transactions
 type TransactionTemp struct {
-	TxUUID       string  `json:"txUuid"`
-	OrderUUID    string  `json:"orderUuid"`
-	TradeType    string  `json:"tradeType"`
-	DealTime     int64   `json:"dealTime"`
-	DealPrice    float64 `json:"dealPrice"`
-	DealQuantity float64 `json:"dealQuantity"`
-	DealVolPrice float64 `json:"dealVolumePrice"`
-	TradeFee     float64 `json:"tradeFee"`
-	TradeFeeRate float64 `json:"tradeFeeRate"`
+	TxUUID       string     `json:"txUuid"`
+	OrderUUID    string     `json:"orderUuid"`
+	TradeType    string     `json:"tradeType"`
+	DealTime     types.Time `json:"dealTime"`
+	DealPrice    float64    `json:"dealPrice"`
+	DealQuantity float64    `json:"dealQuantity"`
+	DealVolPrice float64    `json:"dealVolumePrice"`
+	TradeFee     float64    `json:"tradeFee"`
+	TradeFeeRate float64    `json:"tradeFeeRate"`
 }
 
 // TransactionHistoryResp stores details about past transactions
@@ -183,10 +184,15 @@ type ExchangeRateResponse struct {
 
 // WithdrawConfigResponse stores info about withdrawal configurations
 type WithdrawConfigResponse struct {
-	AssetCode   string `json:"assetCode"`
-	Minimum     string `json:"min"`
-	CanWithDraw bool   `json:"canWithDraw"`
-	Fee         string `json:"fee"`
+	AmountScale         int64         `json:"amountScale,string"`
+	Chain               string        `json:"chain"`
+	AssetCode           currency.Code `json:"assetCode"`
+	Minimum             float64       `json:"min,string"`
+	TransferAmountScale int64         `json:"transferAmtScale,string"`
+	CanWithdraw         bool          `json:"canWithDraw"`
+	Fee                 float64       `json:"fee"`
+	MinimumTransfer     float64       `json:"minTransfer,string"`
+	Type                int64         `json:"type,string"`
 }
 
 // WithdrawResponse stores info about the withdrawal
@@ -205,14 +211,14 @@ type RevokeWithdrawResponse struct {
 // ListDataResponse contains some of withdrawal data
 type ListDataResponse struct {
 	ErrCapture
-	Amount    float64 `json:"amount"`
-	AssetCode string  `json:"assetCode"`
-	Address   string  `json:"address"`
-	Fee       float64 `json:"fee"`
-	ID        int64   `json:"id"`
-	Time      int64   `json:"time"`
-	TXHash    string  `json:"txhash"`
-	Status    string  `json:"status"`
+	Amount    float64    `json:"amount"`
+	AssetCode string     `json:"assetCode"`
+	Address   string     `json:"address"`
+	Fee       float64    `json:"fee"`
+	ID        int64      `json:"id"`
+	Time      types.Time `json:"time"`
+	TXHash    string     `json:"txhash"`
+	Status    string     `json:"status"`
 }
 
 // WithdrawalResponse stores data for withdrawals
@@ -238,7 +244,7 @@ type GetAllOpenIDResp struct {
 
 // TimestampResponse holds timestamp data
 type TimestampResponse struct {
-	Timestamp int64 `json:"data"`
+	Timestamp types.Time `json:"data"`
 }
 
 var errorCodes = map[int64]string{

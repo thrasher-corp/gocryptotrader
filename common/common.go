@@ -318,8 +318,9 @@ func EncodeURLValues(urlPath string, values url.Values) string {
 	return u
 }
 
-// ExtractHost returns the hostname out of a string
-func ExtractHost(address string) string {
+// ExtractHostOrDefault extracts the hostname from an address string.
+// If the host is empty, it defaults to "localhost".
+func ExtractHostOrDefault(address string) string {
 	host, _, _ := net.SplitHostPort(address)
 	if host == "" {
 		return "localhost"
@@ -327,8 +328,9 @@ func ExtractHost(address string) string {
 	return host
 }
 
-// ExtractPort returns the port name out of a string
-func ExtractPort(host string) int {
+// ExtractPortOrDefault returns the port from an address string.
+// If the port is empty, it defaults to 80.
+func ExtractPortOrDefault(host string) int {
 	_, port, _ := net.SplitHostPort(host)
 	if port == "" {
 		return 80
@@ -667,15 +669,15 @@ func SortStrings[S ~[]E, E fmt.Stringer](x S) S {
 
 // Counter is a thread-safe counter.
 type Counter struct {
-	n int64 // privatised so you can't use counter as a value type
+	n atomic.Int64 // private so you can't use counter as a value type
 }
 
 // IncrementAndGet returns the next count after incrementing.
 func (c *Counter) IncrementAndGet() int64 {
-	newID := atomic.AddInt64(&c.n, 1)
+	newID := c.n.Add(1)
 	// Handle overflow by resetting the counter to 1 if it becomes negative
 	if newID < 0 {
-		atomic.StoreInt64(&c.n, 1)
+		c.n.Store(1)
 		return 1
 	}
 	return newID

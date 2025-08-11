@@ -18,11 +18,11 @@ var validCategory = []string{"spot", "linear", "inverse", "option"}
 var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
 
 type orderbookResponse struct {
-	Symbol    string      `json:"s"`
-	Asks      [][2]string `json:"a"`
-	Bids      [][2]string `json:"b"`
-	Timestamp types.Time  `json:"ts"`
-	UpdateID  int64       `json:"u"`
+	Symbol    string            `json:"s"`
+	Asks      [][2]types.Number `json:"a"`
+	Bids      [][2]types.Number `json:"b"`
+	Timestamp types.Time        `json:"ts"`
+	UpdateID  int64             `json:"u"`
 }
 
 // Authenticate stores authentication variables required
@@ -116,59 +116,67 @@ type RestResponse struct {
 
 // KlineResponse represents a kline item list instance as an array of string.
 type KlineResponse struct {
-	Symbol   string     `json:"symbol"`
-	Category string     `json:"category"`
-	List     [][]string `json:"list"`
+	Symbol   string      `json:"symbol"`
+	Category string      `json:"category"`
+	List     []KlineItem `json:"list"`
 }
 
 // KlineItem stores an individual kline data item
 type KlineItem struct {
-	StartTime time.Time
-	Open      float64
-	High      float64
-	Low       float64
-	Close     float64
+	StartTime types.Time
+	Open      types.Number
+	High      types.Number
+	Low       types.Number
+	Close     types.Number
 
 	// not available for mark and index price kline data
-	TradeVolume float64
-	Turnover    float64
+	TradeVolume types.Number
+	Turnover    types.Number
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface for KlineItem
+func (k *KlineItem) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&k.StartTime, &k.Open, &k.High, &k.Low, &k.Close, &k.TradeVolume, &k.Turnover})
 }
 
 // MarkPriceKlineResponse represents a kline data item.
 type MarkPriceKlineResponse struct {
-	Symbol   string     `json:"symbol"`
-	Category string     `json:"category"`
-	List     [][]string `json:"list"`
+	Symbol   string      `json:"symbol"`
+	Category string      `json:"category"`
+	List     []KlineItem `json:"list"`
 }
 
 func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
-	var (
-		s = Orderbook{
-			Symbol:         o.Symbol,
-			UpdateID:       o.UpdateID,
-			GenerationTime: o.Timestamp.Time(),
-		}
-		err error
-	)
-	s.Bids, err = processOB(o.Bids)
-	if err != nil {
-		return nil, err
+	s := Orderbook{
+		Symbol:         o.Symbol,
+		UpdateID:       o.UpdateID,
+		GenerationTime: o.Timestamp.Time(),
 	}
-	s.Asks, err = processOB(o.Asks)
-	if err != nil {
-		return nil, err
-	}
-	return &s, err
+	s.Bids = processOB(o.Bids)
+	s.Asks = processOB(o.Asks)
+	return &s, nil
 }
 
 // TickerData represents a list of ticker detailed information.
 type TickerData struct {
 	Category string       `json:"category"`
-	List     []TickerItem `json:"list"`
+	List     []TickerREST `json:"list"`
 }
 
-// TickerItem represents a ticker item detail
-type TickerItem struct {
+// TickerREST for REST API
+type TickerREST struct {
+	TickerCommon
+	DeliveryTime types.Time `json:"deliveryTime"`
+}
+
+// TickerWebsocket for websocket API
+type TickerWebsocket struct {
+	TickerCommon
+	DeliveryTime time.Time `json:"deliveryTime"` // "2025-03-28T08:00:00Z"
+}
+
+// TickerCommon common ticker fields
+type TickerCommon struct {
 	Symbol                 string       `json:"symbol"`
 	TickDirection          string       `json:"tickDirection"`
 	LastPrice              types.Number `json:"lastPrice"`
@@ -1750,19 +1758,19 @@ type ServerTime struct {
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	UpdateID       int64
-	Bids           []orderbook.Tranche
-	Asks           []orderbook.Tranche
+	Bids           []orderbook.Level
+	Asks           []orderbook.Level
 	Symbol         string
 	GenerationTime time.Time
 }
 
 // WsOrderbookDetail represents an orderbook detail information.
 type WsOrderbookDetail struct {
-	Symbol   string     `json:"s"`
-	Bids     [][]string `json:"b"`
-	Asks     [][]string `json:"a"`
-	UpdateID int64      `json:"u"`
-	Sequence int64      `json:"seq"`
+	Symbol   string            `json:"s"`
+	Bids     [][2]types.Number `json:"b"`
+	Asks     [][2]types.Number `json:"a"`
+	UpdateID int64             `json:"u"`
+	Sequence int64             `json:"seq"`
 }
 
 // SubscriptionResponse represents a subscription response.
@@ -1980,21 +1988,21 @@ type WebsocketWallet struct {
 		TotalInitialMargin     types.Number `json:"totalInitialMargin"`
 		TotalMaintenanceMargin types.Number `json:"totalMaintenanceMargin"`
 		Coin                   []struct {
-			Coin                string       `json:"coin"`
-			Equity              types.Number `json:"equity"`
-			UsdValue            types.Number `json:"usdValue"`
-			WalletBalance       types.Number `json:"walletBalance"`
-			AvailableToWithdraw types.Number `json:"availableToWithdraw"`
-			AvailableToBorrow   types.Number `json:"availableToBorrow"`
-			BorrowAmount        types.Number `json:"borrowAmount"`
-			AccruedInterest     types.Number `json:"accruedInterest"`
-			TotalOrderIM        types.Number `json:"totalOrderIM"`
-			TotalPositionIM     types.Number `json:"totalPositionIM"`
-			TotalPositionMM     types.Number `json:"totalPositionMM"`
-			UnrealisedPnl       types.Number `json:"unrealisedPnl"`
-			CumRealisedPnl      types.Number `json:"cumRealisedPnl"`
-			Bonus               types.Number `json:"bonus"`
-			SpotHedgingQuantity types.Number `json:"spotHedgingQty"`
+			Coin                currency.Code `json:"coin"`
+			Equity              types.Number  `json:"equity"`
+			UsdValue            types.Number  `json:"usdValue"`
+			WalletBalance       types.Number  `json:"walletBalance"`
+			AvailableToWithdraw types.Number  `json:"availableToWithdraw"`
+			AvailableToBorrow   types.Number  `json:"availableToBorrow"`
+			BorrowAmount        types.Number  `json:"borrowAmount"`
+			AccruedInterest     types.Number  `json:"accruedInterest"`
+			TotalOrderIM        types.Number  `json:"totalOrderIM"`
+			TotalPositionIM     types.Number  `json:"totalPositionIM"`
+			TotalPositionMM     types.Number  `json:"totalPositionMM"`
+			UnrealisedPnl       types.Number  `json:"unrealisedPnl"`
+			CumRealisedPnl      types.Number  `json:"cumRealisedPnl"`
+			Bonus               types.Number  `json:"bonus"`
+			SpotHedgingQuantity types.Number  `json:"spotHedgingQty"`
 		} `json:"coin"`
 		AccountType string `json:"accountType"`
 		AccountLTV  string `json:"accountLTV"`
@@ -2007,11 +2015,11 @@ type GreeksResponse struct {
 	Topic        string     `json:"topic"`
 	CreationTime types.Time `json:"creationTime"`
 	Data         []struct {
-		BaseCoin   string       `json:"baseCoin"`
-		TotalDelta types.Number `json:"totalDelta"`
-		TotalGamma types.Number `json:"totalGamma"`
-		TotalVega  types.Number `json:"totalVega"`
-		TotalTheta types.Number `json:"totalTheta"`
+		BaseCoin   currency.Code `json:"baseCoin"`
+		TotalDelta types.Number  `json:"totalDelta"`
+		TotalGamma types.Number  `json:"totalGamma"`
+		TotalVega  types.Number  `json:"totalVega"`
+		TotalTheta types.Number  `json:"totalTheta"`
 	} `json:"data"`
 }
 

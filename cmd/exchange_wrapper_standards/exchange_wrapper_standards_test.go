@@ -99,15 +99,13 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	}
 
 	err = exch.UpdateTradablePairs(ctx, true)
-	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("Cannot setup %v UpdateTradablePairs %v", name, err)
-	}
+	require.Truef(t, errors.Is(err, context.DeadlineExceeded) || err == nil, "Exchange %s UpdateTradablePairs must not error: %s", name, err)
 	b := exch.GetBase()
 
 	assets := b.CurrencyPairs.GetAssetTypes(false)
-	require.NotEmpty(t, assets, "exchange %s must have assets", name)
+	require.NotEmptyf(t, assets, "Exchange %s must have assets", name)
 	for _, a := range assets {
-		require.NoErrorf(t, b.CurrencyPairs.SetAssetEnabled(a, true), "exchange %s SetAssetEnabled must not error for %s", name, a)
+		require.NoErrorf(t, b.CurrencyPairs.SetAssetEnabled(a, true), "Exchange %s SetAssetEnabled must not error for asset %s: %s", name, a, err)
 	}
 
 	// Add +1 to len to verify that exchanges can handle requests with unset pairs and assets
@@ -128,9 +126,7 @@ assets:
 			t.Fatalf("Cannot setup %v asset %v getPairFromPairs %v", name, assets[j], err)
 		}
 		err = b.CurrencyPairs.EnablePair(assets[j], p)
-		if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
-			t.Fatalf("Cannot setup %v asset %v EnablePair %v", name, assets[j], err)
-		}
+		require.Truef(t, errors.Is(err, currency.ErrPairAlreadyEnabled) || err == nil, "Exchange %s EnablePair must not error for %s", name, p)
 		p, err = b.FormatExchangeCurrency(p, assets[j])
 		if err != nil {
 			t.Fatalf("Cannot setup %v asset %v FormatExchangeCurrency %v", name, assets[j], err)
@@ -449,30 +445,30 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 		input = reflect.ValueOf(req)
 	case argGenerator.MethodInputType.AssignableTo(orderSubmitParam):
 		input = reflect.ValueOf(&order.Submit{
-			Exchange:          exchName,
-			Type:              order.Limit,
-			Side:              order.Buy,
-			Pair:              argGenerator.AssetParams.Pair,
-			AssetType:         argGenerator.AssetParams.Asset,
-			Price:             150,
-			Amount:            1,
-			ClientID:          "1337",
-			ClientOrderID:     "13371337",
-			ImmediateOrCancel: true,
-			Leverage:          1,
+			Exchange:      exchName,
+			Type:          order.Limit,
+			Side:          order.Buy,
+			Pair:          argGenerator.AssetParams.Pair,
+			AssetType:     argGenerator.AssetParams.Asset,
+			Price:         150,
+			Amount:        1,
+			ClientID:      "1337",
+			ClientOrderID: "13371337",
+			TimeInForce:   order.ImmediateOrCancel,
+			Leverage:      1,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderModifyParam):
 		input = reflect.ValueOf(&order.Modify{
-			Exchange:          exchName,
-			Type:              order.Limit,
-			Side:              order.Buy,
-			Pair:              argGenerator.AssetParams.Pair,
-			AssetType:         argGenerator.AssetParams.Asset,
-			Price:             150,
-			Amount:            1,
-			ClientOrderID:     "13371337",
-			OrderID:           "1337",
-			ImmediateOrCancel: true,
+			Exchange:      exchName,
+			Type:          order.Limit,
+			Side:          order.Buy,
+			Pair:          argGenerator.AssetParams.Pair,
+			AssetType:     argGenerator.AssetParams.Asset,
+			Price:         150,
+			Amount:        1,
+			ClientOrderID: "13371337",
+			OrderID:       "1337",
+			TimeInForce:   order.ImmediateOrCancel,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderCancelParam):
 		input = reflect.ValueOf(&order.Cancel{
@@ -612,7 +608,6 @@ var unsupportedAssets = []asset.Item{
 
 var unsupportedExchangeNames = []string{
 	"testexch",
-	"alphapoint",
 	"bitflyer",    // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
 	"btse",        // 	TODO rm once timeout issues resolved
 	"poloniex",    // 	outdated API // TODO rm once updated
@@ -676,7 +671,7 @@ func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
 			return p[i], nil
 		}
 	}
-	goodBtc := currency.NewPair(currency.BTC, currency.USDT).Format(pFmt)
+	goodBtc := currency.NewBTCUSDT().Format(pFmt)
 	if p.Contains(goodBtc, true) {
 		return goodBtc, nil
 	}

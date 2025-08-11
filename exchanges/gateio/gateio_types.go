@@ -519,57 +519,32 @@ type Ticker struct {
 
 // OrderbookData holds orderbook ask and bid datas.
 type OrderbookData struct {
-	ID      int64       `json:"id"`
-	Current types.Time  `json:"current"` // The timestamp of the response data being generated (in milliseconds)
-	Update  types.Time  `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
-	Asks    [][2]string `json:"asks"`
-	Bids    [][2]string `json:"bids"`
+	ID      int64             `json:"id"`
+	Current types.Time        `json:"current"` // The timestamp of the response data being generated (in milliseconds)
+	Update  types.Time        `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
+	Asks    [][2]types.Number `json:"asks"`
+	Bids    [][2]types.Number `json:"bids"`
 }
 
-// MakeOrderbook parse Orderbook asks/bids Price and Amount and create an Orderbook Instance with asks and bids data in []OrderbookItem.
-func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
-	ob := &Orderbook{
-		ID:      a.ID,
-		Current: a.Current,
-		Update:  a.Update,
-	}
-	ob.Asks = make([]OrderbookItem, len(a.Asks))
-	ob.Bids = make([]OrderbookItem, len(a.Bids))
+// MakeOrderbook converts OrderbookData into an Orderbook
+func (a *OrderbookData) MakeOrderbook() *Orderbook {
+	asks := make([]OrderbookItem, len(a.Asks))
 	for x := range a.Asks {
-		price, err := strconv.ParseFloat(a.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(a.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		ob.Asks[x] = OrderbookItem{
-			Price:  types.Number(price),
-			Amount: amount,
-		}
+		asks[x].Price = a.Asks[x][0]
+		asks[x].Amount = a.Asks[x][1]
 	}
+	bids := make([]OrderbookItem, len(a.Bids))
 	for x := range a.Bids {
-		price, err := strconv.ParseFloat(a.Bids[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(a.Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		ob.Bids[x] = OrderbookItem{
-			Price:  types.Number(price),
-			Amount: amount,
-		}
+		bids[x].Price = a.Bids[x][0]
+		bids[x].Amount = a.Bids[x][1]
 	}
-	return ob, nil
+	return &Orderbook{ID: a.ID, Current: a.Current, Update: a.Update, Asks: asks, Bids: bids}
 }
 
 // OrderbookItem stores an orderbook item
 type OrderbookItem struct {
 	Price  types.Number `json:"p"`
-	Amount float64      `json:"s"`
+	Amount types.Number `json:"s"`
 }
 
 // Orderbook stores the orderbook data
@@ -598,13 +573,25 @@ type Trade struct {
 
 // Candlestick represents candlestick data point detail.
 type Candlestick struct {
-	Timestamp      time.Time
-	QuoteCcyVolume float64
-	ClosePrice     float64
-	HighestPrice   float64
-	LowestPrice    float64
-	OpenPrice      float64
-	BaseCcyAmount  float64
+	Timestamp      types.Time
+	QuoteCcyVolume types.Number
+	ClosePrice     types.Number
+	HighestPrice   types.Number
+	LowestPrice    types.Number
+	OpenPrice      types.Number
+	BaseCcyAmount  types.Number
+	WindowClosed   bool
+}
+
+// UnmarshalJSON parses kline data from a JSON array into Candlestick fields.
+func (c *Candlestick) UnmarshalJSON(data []byte) error {
+	var windowClosed string
+	err := json.Unmarshal(data, &[8]any{&c.Timestamp, &c.QuoteCcyVolume, &c.ClosePrice, &c.HighestPrice, &c.LowestPrice, &c.OpenPrice, &c.BaseCcyAmount, &windowClosed})
+	if err != nil {
+		return err
+	}
+	c.WindowClosed, err = strconv.ParseBool(windowClosed)
+	return err
 }
 
 // CurrencyChain currency chain detail.
@@ -2050,7 +2037,7 @@ type WsCandlesticks struct {
 type WsOrderbookTickerData struct {
 	UpdateTime    types.Time    `json:"t"`
 	UpdateOrderID int64         `json:"u"`
-	CurrencyPair  currency.Pair `json:"s"`
+	Pair          currency.Pair `json:"s"`
 	BestBidPrice  types.Number  `json:"b"`
 	BestBidAmount types.Number  `json:"B"`
 	BestAskPrice  types.Number  `json:"a"`
@@ -2059,12 +2046,12 @@ type WsOrderbookTickerData struct {
 
 // WsOrderbookUpdate represents websocket orderbook update push data
 type WsOrderbookUpdate struct {
-	UpdateTime              types.Time        `json:"t"`
-	CurrencyPair            currency.Pair     `json:"s"`
-	FirstOrderbookUpdatedID int64             `json:"U"` // First update order book id in this event since last update
-	LastOrderbookUpdatedID  int64             `json:"u"`
-	Bids                    [][2]types.Number `json:"b"`
-	Asks                    [][2]types.Number `json:"a"`
+	UpdateTime    types.Time        `json:"t"`
+	Pair          currency.Pair     `json:"s"`
+	FirstUpdateID int64             `json:"U"` // First update order book id in this event since last update
+	LastUpdateID  int64             `json:"u"`
+	Bids          [][2]types.Number `json:"b"`
+	Asks          [][2]types.Number `json:"a"`
 }
 
 // WsOrderbookSnapshot represents a websocket orderbook snapshot push data
@@ -2225,14 +2212,14 @@ type WsFuturesAndOptionsOrderbookUpdate struct {
 	ContractName   currency.Pair `json:"s"`
 	FirstUpdatedID int64         `json:"U"`
 	LastUpdatedID  int64         `json:"u"`
-	Bids           []struct {
-		Price types.Number `json:"p"`
-		Size  float64      `json:"s"`
-	} `json:"b"`
-	Asks []struct {
-		Price types.Number `json:"p"`
-		Size  float64      `json:"s"`
-	} `json:"a"`
+	Bids           []Level       `json:"b"`
+	Asks           []Level       `json:"a"`
+}
+
+// Level represents a level of orderbook data
+type Level struct {
+	Price types.Number `json:"p"`
+	Size  float64      `json:"s"`
 }
 
 // WsFuturesOrderbookSnapshot represents a futures orderbook snapshot push data
@@ -2240,14 +2227,8 @@ type WsFuturesOrderbookSnapshot struct {
 	Timestamp   types.Time    `json:"t"`
 	Contract    currency.Pair `json:"contract"`
 	OrderbookID int64         `json:"id"`
-	Asks        []struct {
-		Price types.Number `json:"p"`
-		Size  float64      `json:"s"`
-	} `json:"asks"`
-	Bids []struct {
-		Price types.Number `json:"p"`
-		Size  float64      `json:"s"`
-	} `json:"bids"`
+	Asks        []Level       `json:"asks"`
+	Bids        []Level       `json:"bids"`
 }
 
 // WsFuturesOrderbookUpdateEvent represents futures orderbook push data with the event 'update'

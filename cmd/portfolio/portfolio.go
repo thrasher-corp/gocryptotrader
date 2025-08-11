@@ -126,7 +126,7 @@ func main() {
 				pf.Subtotal = y.Balance
 			}
 		} else {
-			bf := bitfinex.Bitfinex{}
+			bf := bitfinex.Exchange{}
 			bf.SetDefaults()
 			bf.Verbose = false
 			pair := "t" + y.Coin.String() + currency.USD.String()

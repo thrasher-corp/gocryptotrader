@@ -119,7 +119,7 @@ type ContractSizeData struct {
 // CurrencyData stores data for currencies
 type CurrencyData struct {
 	CoinType             string  `json:"coin_type"`
-	Currency             string  `json:"currency"`
+	Currency             string  `json:"currency"` // TODO: change to currency.Code
 	CurrencyLong         string  `json:"currency_long"`
 	FeePrecision         int64   `json:"fee_precision"`
 	MinConfirmations     int64   `json:"min_confirmations"`
@@ -165,8 +165,13 @@ type FundingRateHistory struct {
 
 // HistoricalVolatilityData stores volatility data for requested symbols
 type HistoricalVolatilityData struct {
-	Timestamp float64
-	Value     float64
+	Timestamp types.Time
+	Value     types.Number
+}
+
+// UnmarshalJSON  parses volatility data from a JSON array into HistoricalVolatilityData fields.
+func (h *HistoricalVolatilityData) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[2]any{&h.Timestamp, &h.Value})
 }
 
 // IndexPrice holds index price for the instruments
@@ -266,14 +271,7 @@ type MarkPriceHistory struct {
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp.
 func (a *MarkPriceHistory) UnmarshalJSON(data []byte) error {
-	var resp [2]float64
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
-		return err
-	}
-	a.Timestamp = types.Time(time.UnixMilli(int64(resp[0])))
-	a.MarkPriceValue = resp[1]
-	return nil
+	return json.Unmarshal(data, &[2]any{&a.Timestamp, &a.MarkPriceValue})
 }
 
 // Orderbook stores orderbook data
@@ -622,10 +620,10 @@ type MarginsData struct {
 
 // MMPConfigData gets the current configuration data for MMP
 type MMPConfigData struct {
-	Currency      string  `json:"currency"`
-	Interval      int64   `json:"interval"`
-	FrozenTime    int64   `json:"frozen_time"`
-	QuantityLimit float64 `json:"quantity_limit"`
+	Currency      string     `json:"currency"`
+	Interval      int64      `json:"interval"`
+	FrozenTime    types.Time `json:"frozen_time"`
+	QuantityLimit float64    `json:"quantity_limit"`
 }
 
 // UserTradesData stores data of user trades
@@ -967,51 +965,6 @@ type Announcement struct {
 	Action string `json:"action"`
 }
 
-// PortfolioMargin represents public portfolio margins.
-type PortfolioMargin struct {
-	VolumeRange         []float64          `json:"vol_range"`
-	VegaPow2            float64            `json:"vega_pow2"`
-	VegaPow1            float64            `json:"vega_pow1"`
-	Skew                float64            `json:"skew"`
-	PriceRange          float64            `json:"price_range"`
-	OptSumContinguency  float64            `json:"opt_sum_continguency"`
-	OptContinguency     float64            `json:"opt_continguency"`
-	Kurtosis            float64            `json:"kurtosis"`
-	IntRate             float64            `json:"int_rate"`
-	InitialMarginFactor float64            `json:"initial_margin_factor"`
-	FtuContinguency     float64            `json:"ftu_continguency"`
-	AtmRange            float64            `json:"atm_range"`
-	ProjectedMarginPos  float64            `json:"projected_margin_pos"`
-	ProjectedMargin     float64            `json:"projected_margin"`
-	PositionSizes       map[string]float64 `json:"position_sizes"`
-	Pls                 []float64          `json:"pls"`
-	PcoOpt              float64            `json:"pco_opt"`
-	PcoFtu              float64            `json:"pco_ftu"`
-	OptSummary          []any              `json:"opt_summary"`
-	OptPls              []float64          `json:"opt_pls"`
-	OptEntries          []any              `json:"opt_entries"`
-	MarginPos           float64            `json:"margin_pos"`
-	Margin              float64            `json:"margin"`
-	FtuSummary          []struct {
-		ShortTotalCost  float64    `json:"short_total_cost"`
-		PlVec           []float64  `json:"pl_vec"`
-		LongTotalCost   float64    `json:"long_total_cost"`
-		ExpiryTimestamp types.Time `json:"exp_tstamp"`
-	} `json:"ftu_summary"`
-	FtuPls     []float64 `json:"ftu_pls"`
-	FtuEntries []struct {
-		TotalCost       float64    `json:"total_cost"`
-		Size            float64    `json:"size"`
-		PlVec           []float64  `json:"pl_vec"`
-		MarkPrice       float64    `json:"mark_price"`
-		InstrumentName  string     `json:"instrument_name"`
-		ExpiryTimestamp types.Time `json:"exp_tstamp"`
-	} `json:"ftu_entries"`
-	CoOpt                float64    `json:"co_opt"`
-	CoFtu                float64    `json:"co_ftu"`
-	CalculationTimestamp types.Time `json:"calculation_timestamp"`
-}
-
 // AccessLog represents access log information.
 type AccessLog struct {
 	RecordsTotal int64             `json:"records_total"`
@@ -1144,13 +1097,13 @@ type wsOrderbook struct {
 
 // wsCandlestickData represents publicly available market data used to generate a TradingView candle chart.
 type wsCandlestickData struct {
-	Volume float64 `json:"volume"`
-	Tick   int64   `json:"tick"`
-	Open   float64 `json:"open"`
-	Low    float64 `json:"low"`
-	High   float64 `json:"high"`
-	Cost   float64 `json:"cost"`
-	Close  float64 `json:"close"`
+	Volume float64    `json:"volume"`
+	Tick   types.Time `json:"tick"`
+	Open   float64    `json:"open"`
+	Low    float64    `json:"low"`
+	High   float64    `json:"high"`
+	Cost   float64    `json:"cost"`
+	Close  float64    `json:"close"`
 }
 
 // wsIndexPrice represents information about current value (price) for Deribit Index

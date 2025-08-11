@@ -379,13 +379,13 @@ type FWsSubLiquidationOrders struct {
 	Topic      string     `json:"topic"`
 	Timestamp  types.Time `json:"ts"`
 	OrdersData []struct {
-		Symbol       string  `json:"symbol"`
-		ContractCode string  `json:"contract_code"`
-		Direction    string  `json:"direction"`
-		Offset       string  `json:"offset"`
-		Volume       float64 `json:"volume"`
-		Price        float64 `json:"price"`
-		CreatedAt    int64   `json:"created_at"`
+		Symbol       string     `json:"symbol"`
+		ContractCode string     `json:"contract_code"`
+		Direction    string     `json:"direction"`
+		Offset       string     `json:"offset"`
+		Volume       float64    `json:"volume"`
+		Price        float64    `json:"price"`
+		CreatedAt    types.Time `json:"created_at"`
 	} `json:"data"`
 }
 
@@ -475,14 +475,14 @@ type ResponseV2 struct {
 
 // SwapMarketsData stores market data for swaps
 type SwapMarketsData struct {
-	Symbol         string  `json:"symbol"`
-	ContractCode   string  `json:"contract_code"`
-	ContractSize   float64 `json:"contract_size"`
-	PriceTick      float64 `json:"price_tick"`
-	SettlementDate string  `json:"settlement_date"`
-	CreateDate     string  `json:"create_date"`
-	DeliveryTime   string  `json:"delivery_time"`
-	ContractStatus int64   `json:"contract_status"`
+	Symbol         string     `json:"symbol"`
+	ContractCode   string     `json:"contract_code"`
+	ContractSize   float64    `json:"contract_size"`
+	PriceTick      float64    `json:"price_tick"`
+	SettlementDate types.Time `json:"settlement_date"`
+	CreateDate     string     `json:"create_date"`
+	DeliveryTime   types.Time `json:"delivery_time"`
+	ContractStatus int64      `json:"contract_status"`
 }
 
 // KlineItem stores a kline item
@@ -580,7 +580,7 @@ type OrderBookDataRequestParams struct {
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	ID         int64        `json:"id"`
-	Timetstamp int64        `json:"ts"`
+	Timetstamp types.Time   `json:"ts"`
 	Bids       [][2]float64 `json:"bids"`
 	Asks       [][2]float64 `json:"asks"`
 }
@@ -678,39 +678,39 @@ type CancelOrderBatch struct {
 
 // OrderInfo stores the order info
 type OrderInfo struct {
-	ID               int64   `json:"id"`
-	Symbol           string  `json:"symbol"`
-	AccountID        int64   `json:"account-id"`
-	Amount           float64 `json:"amount,string"`
-	Price            float64 `json:"price,string"`
-	CreatedAt        int64   `json:"created-at"`
-	Type             string  `json:"type"`
-	FieldAmount      float64 `json:"field-amount,string"`
-	FieldCashAmount  float64 `json:"field-cash-amount,string"`
-	FilledAmount     float64 `json:"filled-amount,string"`
-	FilledCashAmount float64 `json:"filled-cash-amount,string"`
-	FilledFees       float64 `json:"filled-fees,string"`
-	FinishedAt       int64   `json:"finished-at"`
-	UserID           int64   `json:"user-id"`
-	Source           string  `json:"source"`
-	State            string  `json:"state"`
-	CanceledAt       int64   `json:"canceled-at"`
-	Exchange         string  `json:"exchange"`
-	Batch            string  `json:"batch"`
+	ID               int64      `json:"id"`
+	Symbol           string     `json:"symbol"`
+	AccountID        int64      `json:"account-id"`
+	Amount           float64    `json:"amount,string"`
+	Price            float64    `json:"price,string"`
+	CreatedAt        types.Time `json:"created-at"`
+	Type             string     `json:"type"`
+	FieldAmount      float64    `json:"field-amount,string"`
+	FieldCashAmount  float64    `json:"field-cash-amount,string"`
+	FilledAmount     float64    `json:"filled-amount,string"`
+	FilledCashAmount float64    `json:"filled-cash-amount,string"`
+	FilledFees       float64    `json:"filled-fees,string"`
+	FinishedAt       types.Time `json:"finished-at"`
+	UserID           int64      `json:"user-id"`
+	Source           string     `json:"source"`
+	State            string     `json:"state"`
+	CanceledAt       int64      `json:"canceled-at"`
+	Exchange         string     `json:"exchange"`
+	Batch            string     `json:"batch"`
 }
 
 // OrderMatchInfo stores the order match info
 type OrderMatchInfo struct {
-	ID           int    `json:"id"`
-	OrderID      int    `json:"order-id"`
-	MatchID      int    `json:"match-id"`
-	Symbol       string `json:"symbol"`
-	Type         string `json:"type"`
-	Source       string `json:"source"`
-	Price        string `json:"price"`
-	FilledAmount string `json:"filled-amount"`
-	FilledFees   string `json:"filled-fees"`
-	CreatedAt    int64  `json:"created-at"`
+	ID           int        `json:"id"`
+	OrderID      int        `json:"order-id"`
+	MatchID      int        `json:"match-id"`
+	Symbol       string     `json:"symbol"`
+	Type         string     `json:"type"`
+	Source       string     `json:"source"`
+	Price        string     `json:"price"`
+	FilledAmount string     `json:"filled-amount"`
+	FilledFees   string     `json:"filled-fees"`
+	CreatedAt    types.Time `json:"created-at"`
 }
 
 // MarginOrder stores the margin order info
@@ -980,10 +980,11 @@ type WsTradeUpdate struct {
 
 // OrderVars stores side, status and type for any order/trade
 type OrderVars struct {
-	Side      order.Side
-	Status    order.Status
-	OrderType order.Type
-	Fee       float64
+	Side        order.Side
+	Status      order.Status
+	OrderType   order.Type
+	TimeInForce order.TimeInForce
+	Fee         float64
 }
 
 // Variables below are used to check api requests being sent out

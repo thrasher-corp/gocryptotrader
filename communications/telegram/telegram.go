@@ -268,7 +268,7 @@ func (t *Telegram) SendMessage(text string, chatID int64) error {
 	}
 
 	if t.Verbose {
-		log.Debugf(log.CommunicationMgr, "Telegram: Sent '%s'\n", text)
+		log.Debugf(log.CommunicationMgr, "Telegram: Sent %q\n", text)
 	}
 	return nil
 }

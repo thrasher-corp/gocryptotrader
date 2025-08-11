@@ -3,6 +3,7 @@ package bybit
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -23,12 +24,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// Bybit is the overarching type across this package
-type Bybit struct {
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bybit
+type Exchange struct {
 	exchange.Base
-	account accountTypeHolder
+
+	messageIDSeq common.Counter
+	account      accountTypeHolder
 }
 
 const (
@@ -50,45 +54,43 @@ const (
 )
 
 var (
-	errCategoryNotSet                          = errors.New("category not set")
-	errBaseNotSet                              = errors.New("base coin not set when category is option")
-	errInvalidTriggerDirection                 = errors.New("invalid trigger direction")
-	errInvalidTriggerPriceType                 = errors.New("invalid trigger price type")
-	errNilArgument                             = errors.New("nil argument")
-	errMissingUserID                           = errors.New("sub user id missing")
-	errMissingUsername                         = errors.New("username is missing")
-	errInvalidMemberType                       = errors.New("invalid member type")
-	errMissingTransferID                       = errors.New("transfer ID is required")
-	errMemberIDRequired                        = errors.New("member ID is required")
-	errNonePointerArgument                     = errors.New("argument must be pointer")
-	errEitherOrderIDOROrderLinkIDRequired      = errors.New("either orderId or orderLinkId required")
-	errNoOrderPassed                           = errors.New("no order passed")
-	errSymbolOrSettleCoinRequired              = errors.New("provide symbol or settleCoin at least one")
-	errInvalidTradeModeValue                   = errors.New("invalid trade mode value")
-	errTakeProfitOrStopLossModeMissing         = errors.New("TP/SL mode missing")
-	errMissingAccountType                      = errors.New("account type not specified")
-	errMembersIDsNotSet                        = errors.New("members IDs not set")
-	errMissingChainType                        = errors.New("missing chain type is empty")
-	errMissingChainInformation                 = errors.New("missing transfer chain")
-	errMissingAddressInfo                      = errors.New("address is required")
-	errMissingWithdrawalID                     = errors.New("missing withdrawal id")
-	errTimeWindowRequired                      = errors.New("time window is required")
-	errFrozenPeriodRequired                    = errors.New("frozen period required")
-	errQuantityLimitRequired                   = errors.New("quantity limit required")
-	errInvalidPushData                         = errors.New("invalid push data")
-	errInvalidLeverage                         = errors.New("leverage can't be zero or less then it")
-	errInvalidPositionMode                     = errors.New("position mode is invalid")
-	errInvalidMode                             = errors.New("mode can't be empty or missing")
-	errInvalidOrderFilter                      = errors.New("invalid order filter")
-	errInvalidCategory                         = errors.New("invalid category")
-	errEitherSymbolOrCoinRequired              = errors.New("either symbol or coin required")
-	errOrderLinkIDMissing                      = errors.New("order link id missing")
-	errSymbolMissing                           = errors.New("symbol missing")
-	errInvalidAutoAddMarginValue               = errors.New("invalid add auto margin value")
-	errDisconnectTimeWindowNotSet              = errors.New("disconnect time window not set")
-	errAPIKeyIsNotUnified                      = errors.New("api key is not unified")
-	errEndpointAvailableForNormalAPIKeyHolders = errors.New("endpoint available for normal API key holders only")
-	errInvalidContractLength                   = errors.New("contract length cannot be less than or equal to zero")
+	errCategoryNotSet                     = errors.New("category not set")
+	errBaseNotSet                         = errors.New("base coin not set when category is option")
+	errInvalidTriggerDirection            = errors.New("invalid trigger direction")
+	errInvalidTriggerPriceType            = errors.New("invalid trigger price type")
+	errNilArgument                        = errors.New("nil argument")
+	errMissingUserID                      = errors.New("sub user id missing")
+	errMissingUsername                    = errors.New("username is missing")
+	errInvalidMemberType                  = errors.New("invalid member type")
+	errMissingTransferID                  = errors.New("transfer ID is required")
+	errMemberIDRequired                   = errors.New("member ID is required")
+	errNonePointerArgument                = errors.New("argument must be pointer")
+	errEitherOrderIDOROrderLinkIDRequired = errors.New("either orderId or orderLinkId required")
+	errNoOrderPassed                      = errors.New("no order passed")
+	errSymbolOrSettleCoinRequired         = errors.New("provide symbol or settleCoin at least one")
+	errInvalidTradeModeValue              = errors.New("invalid trade mode value")
+	errTakeProfitOrStopLossModeMissing    = errors.New("TP/SL mode missing")
+	errMissingAccountType                 = errors.New("account type not specified")
+	errMembersIDsNotSet                   = errors.New("members IDs not set")
+	errMissingChainType                   = errors.New("missing chain type is empty")
+	errMissingChainInformation            = errors.New("missing transfer chain")
+	errMissingAddressInfo                 = errors.New("address is required")
+	errMissingWithdrawalID                = errors.New("missing withdrawal id")
+	errTimeWindowRequired                 = errors.New("time window is required")
+	errFrozenPeriodRequired               = errors.New("frozen period required")
+	errQuantityLimitRequired              = errors.New("quantity limit required")
+	errInvalidLeverage                    = errors.New("leverage can't be zero or less then it")
+	errInvalidPositionMode                = errors.New("position mode is invalid")
+	errInvalidMode                        = errors.New("mode can't be empty or missing")
+	errInvalidOrderFilter                 = errors.New("invalid order filter")
+	errInvalidCategory                    = errors.New("invalid category")
+	errEitherSymbolOrCoinRequired         = errors.New("either symbol or coin required")
+	errOrderLinkIDMissing                 = errors.New("order link id missing")
+	errSymbolMissing                      = errors.New("symbol missing")
+	errInvalidAutoAddMarginValue          = errors.New("invalid add auto margin value")
+	errDisconnectTimeWindowNotSet         = errors.New("disconnect time window not set")
+	errAPIKeyIsNotUnified                 = errors.New("api key is not unified")
+	errInvalidContractLength              = errors.New("contract length cannot be less than or equal to zero")
 )
 
 var (
@@ -114,13 +116,13 @@ func stringToInterval(s string) (kline.Interval, error) {
 }
 
 // GetBybitServerTime retrieves bybit server time
-func (by *Bybit) GetBybitServerTime(ctx context.Context) (*ServerTime, error) {
+func (e *Exchange) GetBybitServerTime(ctx context.Context) (*ServerTime, error) {
 	var resp *ServerTime
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, "market/time", defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "market/time", defaultEPL, &resp)
 }
 
 // GetKlines query for historical klines (also known as candles/candlesticks). Charts are returned in groups based on the requested interval.
-func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]KlineItem, error) {
+func (e *Exchange) GetKlines(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]KlineItem, error) {
 	switch category {
 	case "":
 		return nil, errCategoryNotSet
@@ -149,56 +151,15 @@ func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interva
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp KlineResponse
-	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/kline", params), defaultEPL, &resp)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/kline", params), defaultEPL, &resp)
 	if err != nil {
 		return nil, err
 	}
-	return processKlineResponse(resp.List)
-}
-
-func processKlineResponse(in [][]string) ([]KlineItem, error) {
-	klines := make([]KlineItem, len(in))
-	for x := range in {
-		if len(in[x]) < 5 {
-			return nil, errors.New("invalid kline data")
-		}
-		startTimestamp, err := strconv.ParseInt(in[x][0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[x] = KlineItem{StartTime: time.UnixMilli(startTimestamp)}
-		klines[x].Open, err = strconv.ParseFloat(in[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[x].High, err = strconv.ParseFloat(in[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[x].Low, err = strconv.ParseFloat(in[x][3], 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[x].Close, err = strconv.ParseFloat(in[x][4], 64)
-		if err != nil {
-			return nil, err
-		}
-		if len(in[x]) == 7 {
-			klines[x].TradeVolume, err = strconv.ParseFloat(in[x][5], 64)
-			if err != nil {
-				return nil, err
-			}
-			klines[x].Turnover, err = strconv.ParseFloat(in[x][6], 64)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-	return klines, nil
+	return resp.List, nil
 }
 
 // GetInstrumentInfo retrieves the list of instrument details given the category and symbol.
-func (by *Bybit) GetInstrumentInfo(ctx context.Context, category, symbol, status, baseCoin, cursor string, limit int64) (*InstrumentsInfo, error) {
+func (e *Exchange) GetInstrumentInfo(ctx context.Context, category, symbol, status, baseCoin, cursor string, limit int64) (*InstrumentsInfo, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -216,11 +177,11 @@ func (by *Bybit) GetInstrumentInfo(ctx context.Context, category, symbol, status
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *InstrumentsInfo
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/instruments-info", params), defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/instruments-info", params), defaultEPL, &resp)
 }
 
 // GetMarkPriceKline query for historical mark price klines. Charts are returned in groups based on the requested interval.
-func (by *Bybit) GetMarkPriceKline(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
+func (e *Exchange) GetMarkPriceKline(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
 	params, err := fillCategoryAndSymbol(category, symbol)
 	if err != nil {
 		return nil, err
@@ -240,15 +201,15 @@ func (by *Bybit) GetMarkPriceKline(ctx context.Context, category, symbol string,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp MarkPriceKlineResponse
-	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/mark-price-kline", params), defaultEPL, &resp)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/mark-price-kline", params), defaultEPL, &resp)
 	if err != nil {
 		return nil, err
 	}
-	return processKlineResponse(resp.List)
+	return resp.List, nil
 }
 
 // GetIndexPriceKline query for historical index price klines. Charts are returned in groups based on the requested interval.
-func (by *Bybit) GetIndexPriceKline(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
+func (e *Exchange) GetIndexPriceKline(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
 	params, err := fillCategoryAndSymbol(category, symbol)
 	if err != nil {
 		return nil, err
@@ -268,15 +229,15 @@ func (by *Bybit) GetIndexPriceKline(ctx context.Context, category, symbol string
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp KlineResponse
-	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/index-price-kline", params), defaultEPL, &resp)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/index-price-kline", params), defaultEPL, &resp)
 	if err != nil {
 		return nil, err
 	}
-	return processKlineResponse(resp.List)
+	return resp.List, nil
 }
 
 // GetOrderBook retrieves for orderbook depth data.
-func (by *Bybit) GetOrderBook(ctx context.Context, category, symbol string, limit int64) (*Orderbook, error) {
+func (e *Exchange) GetOrderBook(ctx context.Context, category, symbol string, limit int64) (*Orderbook, error) {
 	params, err := fillCategoryAndSymbol(category, symbol)
 	if err != nil {
 		return nil, err
@@ -285,7 +246,7 @@ func (by *Bybit) GetOrderBook(ctx context.Context, category, symbol string, limi
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp orderbookResponse
-	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/orderbook", params), defaultEPL, &resp)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/orderbook", params), defaultEPL, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +270,7 @@ func fillCategoryAndSymbol(category, symbol string, optionalSymbol ...bool) (url
 }
 
 // GetTickers returns the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
-func (by *Bybit) GetTickers(ctx context.Context, category, symbol, baseCoin string, expiryDate time.Time) (*TickerData, error) {
+func (e *Exchange) GetTickers(ctx context.Context, category, symbol, baseCoin string, expiryDate time.Time) (*TickerData, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -324,12 +285,12 @@ func (by *Bybit) GetTickers(ctx context.Context, category, symbol, baseCoin stri
 		params.Set("expData", expiryDate.Format(longDatedFormat))
 	}
 	var resp *TickerData
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/tickers", params), defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/tickers", params), defaultEPL, &resp)
 }
 
 // GetFundingRateHistory retrieves historical funding rates. Each symbol has a different funding interval.
 // For example, if the interval is 8 hours and the current time is UTC 12, then it returns the last funding rate, which settled at UTC 8.
-func (by *Bybit) GetFundingRateHistory(ctx context.Context, category, symbol string, startTime, endTime time.Time, limit int64) (*FundingRateHistory, error) {
+func (e *Exchange) GetFundingRateHistory(ctx context.Context, category, symbol string, startTime, endTime time.Time, limit int64) (*FundingRateHistory, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse {
@@ -351,12 +312,12 @@ func (by *Bybit) GetFundingRateHistory(ctx context.Context, category, symbol str
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *FundingRateHistory
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/funding/history", params), defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/funding/history", params), defaultEPL, &resp)
 }
 
 // GetPublicTradingHistory retrieves recent public trading data.
 // Option type. 'Call' or 'Put'. For option only
-func (by *Bybit) GetPublicTradingHistory(ctx context.Context, category, symbol, baseCoin, optionType string, limit int64) (*TradingHistory, error) {
+func (e *Exchange) GetPublicTradingHistory(ctx context.Context, category, symbol, baseCoin, optionType string, limit int64) (*TradingHistory, error) {
 	params, err := fillCategoryAndSymbol(category, symbol)
 	if err != nil {
 		return nil, err
@@ -374,11 +335,11 @@ func (by *Bybit) GetPublicTradingHistory(ctx context.Context, category, symbol, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *TradingHistory
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/recent-trade", params), defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/recent-trade", params), defaultEPL, &resp)
 }
 
 // GetOpenInterestData retrieves open interest of each symbol.
-func (by *Bybit) GetOpenInterestData(ctx context.Context, category, symbol, intervalTime string, startTime, endTime time.Time, limit int64, cursor string) (*OpenInterest, error) {
+func (e *Exchange) GetOpenInterestData(ctx context.Context, category, symbol, intervalTime string, startTime, endTime time.Time, limit int64, cursor string) (*OpenInterest, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse {
@@ -406,7 +367,7 @@ func (by *Bybit) GetOpenInterestData(ctx context.Context, category, symbol, inte
 		params.Set("cursor", cursor)
 	}
 	var resp *OpenInterest
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/open-interest", params), defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/open-interest", params), defaultEPL, &resp)
 }
 
 // GetHistoricalVolatility retrieves option historical volatility.
@@ -414,7 +375,7 @@ func (by *Bybit) GetOpenInterestData(ctx context.Context, category, symbol, inte
 // If both 'startTime' and 'endTime' are not specified, it will return the most recent 1 hours worth of data.
 // 'startTime' and 'endTime' are a pair of params. Either both are passed or they are not passed at all.
 // This endpoint can query the last 2 years worth of data, but make sure [endTime - startTime] <= 30 days.
-func (by *Bybit) GetHistoricalVolatility(ctx context.Context, category, baseCoin string, period int64, startTime, endTime time.Time) ([]HistoricVolatility, error) {
+func (e *Exchange) GetHistoricalVolatility(ctx context.Context, category, baseCoin string, period int64, startTime, endTime time.Time) ([]HistoricVolatility, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cOption {
@@ -438,21 +399,21 @@ func (by *Bybit) GetHistoricalVolatility(ctx context.Context, category, baseCoin
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []HistoricVolatility
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/historical-volatility", params), defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/historical-volatility", params), defaultEPL, &resp)
 }
 
 // GetInsurance retrieves insurance pool data (BTC/USDT/USDC etc). The data is updated every 24 hours.
-func (by *Bybit) GetInsurance(ctx context.Context, coin string) (*InsuranceHistory, error) {
+func (e *Exchange) GetInsurance(ctx context.Context, coin string) (*InsuranceHistory, error) {
 	params := url.Values{}
 	if coin != "" {
 		params.Set("coin", coin)
 	}
 	var resp *InsuranceHistory
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/insurance", params), defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/insurance", params), defaultEPL, &resp)
 }
 
 // GetRiskLimit retrieves risk limit history
-func (by *Bybit) GetRiskLimit(ctx context.Context, category, symbol string) (*RiskLimitHistory, error) {
+func (e *Exchange) GetRiskLimit(ctx context.Context, category, symbol string) (*RiskLimitHistory, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse {
@@ -464,11 +425,11 @@ func (by *Bybit) GetRiskLimit(ctx context.Context, category, symbol string) (*Ri
 		params.Set("symbol", symbol)
 	}
 	var resp *RiskLimitHistory
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/risk-limit", params), defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/risk-limit", params), defaultEPL, &resp)
 }
 
 // GetDeliveryPrice retrieves delivery price.
-func (by *Bybit) GetDeliveryPrice(ctx context.Context, category, symbol, baseCoin, cursor string, limit int64) (*DeliveryPrice, error) {
+func (e *Exchange) GetDeliveryPrice(ctx context.Context, category, symbol, baseCoin, cursor string, limit int64) (*DeliveryPrice, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse && category != cOption {
@@ -489,7 +450,7 @@ func (by *Bybit) GetDeliveryPrice(ctx context.Context, category, symbol, baseCoi
 		params.Set("cursor", cursor)
 	}
 	var resp *DeliveryPrice
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/delivery-price", params), defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/delivery-price", params), defaultEPL, &resp)
 }
 
 func isValidCategory(category string) error {
@@ -504,7 +465,7 @@ func isValidCategory(category string) error {
 }
 
 // PlaceOrder creates an order for spot, spot margin, USDT perpetual, USDC perpetual, USDC futures, inverse futures and options.
-func (by *Bybit) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderResponse, error) {
+func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -554,11 +515,11 @@ func (by *Bybit) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderR
 	if arg.Category == "spot" {
 		epl = createSpotOrderEPL
 	}
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create", nil, arg, &resp, epl)
+	return &resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create", nil, arg, &resp, epl)
 }
 
 // AmendOrder amends an open unfilled or partially filled orders.
-func (by *Bybit) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderResponse, error) {
+func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -573,11 +534,11 @@ func (by *Bybit) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderR
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *OrderResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/amend", nil, arg, &resp, amendOrderEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/amend", nil, arg, &resp, amendOrderEPL)
 }
 
 // CancelTradeOrder cancels an open unfilled or partially filled order.
-func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (*OrderResponse, error) {
+func (e *Exchange) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (*OrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -607,12 +568,12 @@ func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (
 	if arg.Category == "spot" {
 		epl = cancelSpotEPL
 	}
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel", nil, arg, &resp, epl)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel", nil, arg, &resp, epl)
 }
 
 // GetOpenOrders retrieves unfilled or partially filled orders in real-time. To query older order records, please use the order history interface.
 // orderFilter: possible values are 'Order', 'StopOrder', 'tpslOrder', and 'OcoOrder'
-func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, settleCoin, orderID, orderLinkID, orderFilter, cursor string, openOnly, limit int64) (*TradeOrders, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, settleCoin, orderID, orderLinkID, orderFilter, cursor string, openOnly, limit int64) (*TradeOrders, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -642,11 +603,11 @@ func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, 
 		params.Set("cursor", cursor)
 	}
 	var resp *TradeOrders
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/order/realtime", params, nil, &resp, getOrderEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/order/realtime", params, nil, &resp, getOrderEPL)
 }
 
 // CancelAllTradeOrders cancel all open orders
-func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersParam) ([]OrderResponse, error) {
+func (e *Exchange) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersParam) ([]OrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -662,13 +623,13 @@ func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersP
 	if arg.Category == "spot" {
 		epl = cancelAllSpotEPL
 	}
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-all", nil, arg, &resp, epl)
+	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-all", nil, arg, &resp, epl)
 }
 
 // GetTradeOrderHistory retrieves order history. As order creation/cancellation is asynchronous, the data returned from this endpoint may delay.
 // If you want to get real-time order information, you could query this endpoint or rely on the websocket stream (recommended).
 // orderFilter: possible values are 'Order', 'StopOrder', 'tpslOrder', and 'OcoOrder'
-func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, orderID, orderLinkID,
+func (e *Exchange) GetTradeOrderHistory(ctx context.Context, category, symbol, orderID, orderLinkID,
 	baseCoin, settleCoin, orderFilter, orderStatus, cursor string,
 	startTime, endTime time.Time, limit int64,
 ) (*TradeOrders, error) {
@@ -707,11 +668,11 @@ func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, ord
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *TradeOrders
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/order/history", params, nil, &resp, getOrderHistoryEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/order/history", params, nil, &resp, getOrderHistoryEPL)
 }
 
 // PlaceBatchOrder place batch or trade order.
-func (by *Bybit) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderParam) ([]BatchOrderResponse, error) {
+func (e *Exchange) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderParam) ([]BatchOrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -742,11 +703,11 @@ func (by *Bybit) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderParam)
 		}
 	}
 	var resp BatchOrdersList
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create-batch", nil, arg, &resp, createBatchOrderEPL)
+	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create-batch", nil, arg, &resp, createBatchOrderEPL)
 }
 
 // BatchAmendOrder represents a batch amend order.
-func (by *Bybit) BatchAmendOrder(ctx context.Context, category string, args []BatchAmendOrderParamItem) (*BatchOrderResponse, error) {
+func (e *Exchange) BatchAmendOrder(ctx context.Context, category string, args []BatchAmendOrderParamItem) (*BatchOrderResponse, error) {
 	if len(args) == 0 {
 		return nil, errNilArgument
 	}
@@ -765,14 +726,14 @@ func (by *Bybit) BatchAmendOrder(ctx context.Context, category string, args []Ba
 		}
 	}
 	var resp *BatchOrderResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/amend-batch", nil, &BatchAmendOrderParams{
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/amend-batch", nil, &BatchAmendOrderParams{
 		Category: category,
 		Request:  args,
 	}, &resp, amendBatchOrderEPL)
 }
 
 // CancelBatchOrder cancel more than one open order in a single request.
-func (by *Bybit) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([]CancelBatchResponseItem, error) {
+func (e *Exchange) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([]CancelBatchResponseItem, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -791,11 +752,11 @@ func (by *Bybit) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([
 		}
 	}
 	var resp cancelBatchResponse
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-batch", nil, arg, &resp, cancelBatchOrderEPL)
+	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-batch", nil, arg, &resp, cancelBatchOrderEPL)
 }
 
 // GetBorrowQuota retrieves the qty and amount of borrowable coins in spot account.
-func (by *Bybit) GetBorrowQuota(ctx context.Context, category, symbol, side string) (*BorrowQuota, error) {
+func (e *Exchange) GetBorrowQuota(ctx context.Context, category, symbol, side string) (*BorrowQuota, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cSpot {
@@ -812,23 +773,23 @@ func (by *Bybit) GetBorrowQuota(ctx context.Context, category, symbol, side stri
 	}
 	params.Set("side", side)
 	var resp *BorrowQuota
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/order/spot-borrow-check", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/order/spot-borrow-check", params, nil, &resp, defaultEPL)
 }
 
 // SetDisconnectCancelAll You can use this endpoint to get your current DCP configuration.
 // Your private websocket connection must subscribe "dcp" topic in order to trigger DCP successfully
-func (by *Bybit) SetDisconnectCancelAll(ctx context.Context, arg *SetDCPParams) error {
+func (e *Exchange) SetDisconnectCancelAll(ctx context.Context, arg *SetDCPParams) error {
 	if arg == nil {
 		return errNilArgument
 	}
 	if arg.TimeWindow == 0 {
 		return errDisconnectTimeWindowNotSet
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/disconnected-cancel-all", nil, arg, &struct{}{}, defaultEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/disconnected-cancel-all", nil, arg, &struct{}{}, defaultEPL)
 }
 
 // GetPositionInfo retrieves real-time position data, such as position size, cumulative realizedPNL.
-func (by *Bybit) GetPositionInfo(ctx context.Context, category, symbol, baseCoin, settleCoin, cursor string, limit int64) (*PositionInfoList, error) {
+func (e *Exchange) GetPositionInfo(ctx context.Context, category, symbol, baseCoin, settleCoin, cursor string, limit int64) (*PositionInfoList, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse && category != cOption {
@@ -855,11 +816,11 @@ func (by *Bybit) GetPositionInfo(ctx context.Context, category, symbol, baseCoin
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *PositionInfoList
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/position/list", params, nil, &resp, getPositionListEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/position/list", params, nil, &resp, getPositionListEPL)
 }
 
 // SetLeverageLevel sets a leverage from 0 to max leverage of corresponding risk limit
-func (by *Bybit) SetLeverageLevel(ctx context.Context, arg *SetLeverageParams) error {
+func (e *Exchange) SetLeverageLevel(ctx context.Context, arg *SetLeverageParams) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -879,12 +840,12 @@ func (by *Bybit) SetLeverageLevel(ctx context.Context, arg *SetLeverageParams) e
 	case arg.BuyLeverage != arg.SellLeverage:
 		return fmt.Errorf("%w, buy leverage not equal sell leverage", errInvalidLeverage)
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-leverage", nil, arg, &struct{}{}, postPositionSetLeverageEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-leverage", nil, arg, &struct{}{}, postPositionSetLeverageEPL)
 }
 
 // SwitchTradeMode sets the trade mode value either to 'cross' or 'isolated'.
 // Select cross margin mode or isolated margin mode per symbol level
-func (by *Bybit) SwitchTradeMode(ctx context.Context, arg *SwitchTradeModeParams) error {
+func (e *Exchange) SwitchTradeMode(ctx context.Context, arg *SwitchTradeModeParams) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -905,11 +866,11 @@ func (by *Bybit) SwitchTradeMode(ctx context.Context, arg *SwitchTradeModeParams
 	case arg.TradeMode != 0 && arg.TradeMode != 1:
 		return errInvalidTradeModeValue
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/switch-isolated", nil, arg, &struct{}{}, defaultEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/switch-isolated", nil, arg, &struct{}{}, defaultEPL)
 }
 
 // SetTakeProfitStopLossMode set partial TP/SL mode, you can set the TP/SL size smaller than position size.
-func (by *Bybit) SetTakeProfitStopLossMode(ctx context.Context, arg *TPSLModeParams) (*TPSLModeResponse, error) {
+func (e *Exchange) SetTakeProfitStopLossMode(ctx context.Context, arg *TPSLModeParams) (*TPSLModeResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -927,14 +888,14 @@ func (by *Bybit) SetTakeProfitStopLossMode(ctx context.Context, arg *TPSLModePar
 		return nil, errTakeProfitOrStopLossModeMissing
 	}
 	var resp *TPSLModeResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-tpsl-mode", nil, arg, &resp, setPositionTPLSModeEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-tpsl-mode", nil, arg, &resp, setPositionTPLSModeEPL)
 }
 
 // SwitchPositionMode switch the position mode for USDT perpetual and Inverse futures.
 // If you are in one-way Mode, you can only open one position on Buy or Sell side.
 // If you are in hedge mode, you can open both Buy and Sell side positions simultaneously.
 // switches mode between MergedSingle: One-Way Mode or BothSide: Hedge Mode
-func (by *Bybit) SwitchPositionMode(ctx context.Context, arg *SwitchPositionModeParams) error {
+func (e *Exchange) SwitchPositionMode(ctx context.Context, arg *SwitchPositionModeParams) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -948,14 +909,14 @@ func (by *Bybit) SwitchPositionMode(ctx context.Context, arg *SwitchPositionMode
 	if arg.Symbol.IsEmpty() && arg.Coin.IsEmpty() {
 		return errEitherSymbolOrCoinRequired
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/switch-mode", nil, arg, &struct{}{}, defaultEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/switch-mode", nil, arg, &struct{}{}, defaultEPL)
 }
 
 // SetRiskLimit risk limit will limit the maximum position value you can hold under different margin requirements.
 // If you want to hold a bigger position size, you need more margin. This interface can set the risk limit of a single position.
 // If the order exceeds the current risk limit when placing an order, it will be rejected.
 // '0': one-way mode '1': hedge-mode Buy side '2': hedge-mode Sell side
-func (by *Bybit) SetRiskLimit(ctx context.Context, arg *SetRiskLimitParam) (*RiskLimitResponse, error) {
+func (e *Exchange) SetRiskLimit(ctx context.Context, arg *SetRiskLimitParam) (*RiskLimitResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -973,11 +934,11 @@ func (by *Bybit) SetRiskLimit(ctx context.Context, arg *SetRiskLimitParam) (*Ris
 		return nil, errSymbolMissing
 	}
 	var resp *RiskLimitResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-risk-limit", nil, arg, &resp, setPositionRiskLimitEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-risk-limit", nil, arg, &resp, setPositionRiskLimitEPL)
 }
 
 // SetTradingStop set the take profit, stop loss or trailing stop for the position.
-func (by *Bybit) SetTradingStop(ctx context.Context, arg *TradingStopParams) error {
+func (e *Exchange) SetTradingStop(ctx context.Context, arg *TradingStopParams) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -991,11 +952,11 @@ func (by *Bybit) SetTradingStop(ctx context.Context, arg *TradingStopParams) err
 	if arg.Symbol.IsEmpty() {
 		return errSymbolMissing
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/trading-stop", nil, arg, &struct{}{}, stopTradingPositionEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/trading-stop", nil, arg, &struct{}{}, stopTradingPositionEPL)
 }
 
 // SetAutoAddMargin sets auto add margin
-func (by *Bybit) SetAutoAddMargin(ctx context.Context, arg *AutoAddMarginParam) error {
+func (e *Exchange) SetAutoAddMargin(ctx context.Context, arg *AutoAddMarginParam) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -1015,11 +976,11 @@ func (by *Bybit) SetAutoAddMargin(ctx context.Context, arg *AutoAddMarginParam) 
 	if arg.PositionIndex < 0 || arg.PositionIndex > 2 {
 		return errInvalidPositionMode
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-auto-add-margin", nil, arg, &struct{}{}, defaultEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-auto-add-margin", nil, arg, &struct{}{}, defaultEPL)
 }
 
 // AddOrReduceMargin manually add or reduce margin for isolated margin position
-func (by *Bybit) AddOrReduceMargin(ctx context.Context, arg *AddOrReduceMarginParam) (*AddOrReduceMargin, error) {
+func (e *Exchange) AddOrReduceMargin(ctx context.Context, arg *AddOrReduceMarginParam) (*AddOrReduceMargin, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1040,13 +1001,13 @@ func (by *Bybit) AddOrReduceMargin(ctx context.Context, arg *AddOrReduceMarginPa
 		return nil, errInvalidPositionMode
 	}
 	var resp *AddOrReduceMargin
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/add-margin", nil, arg, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/add-margin", nil, arg, &resp, defaultEPL)
 }
 
 // GetExecution retrieves users' execution records, sorted by execTime in descending order. However, for Normal spot, they are sorted by execId in descending order.
-// Execution Type possible values: 'Trade', 'AdlTrade' Auto-Deleveraging, 'Funding' Funding fee, 'BustTrade' Liquidation, 'Delivery' USDC futures delivery, 'BlockTrade'
+// Execution Type possible values: 'Trade', 'AdlTrade' Auto-Deleveraging, 'Funding' Funding fee, 'BustTrade' Liquidation, 'Delivery' USDC futures delivery, 'BlockTrade'
 // UTA Spot: 'stopOrderType', "" for normal order, "tpslOrder" for TP/SL order, "Stop" for conditional order, "OcoOrder" for OCO order
-func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, stopOrderType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
+func (e *Exchange) GetExecution(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, stopOrderType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -1082,17 +1043,17 @@ func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, or
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *ExecutionResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/execution/list", params, nil, &resp, getExecutionListEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/execution/list", params, nil, &resp, getExecutionListEPL)
 }
 
 // GetClosedPnL retrieves user's closed profit and loss records. The results are sorted by createdTime in descending order.
-func (by *Bybit) GetClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
+func (e *Exchange) GetClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true}, category, symbol, "", "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
 	}
 	var resp *ClosedProfitAndLossResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/position/closed-pnl", params, nil, &resp, getPositionClosedPNLEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/position/closed-pnl", params, nil, &resp, getPositionClosedPNLEPL)
 }
 
 func fillOrderAndExecutionFetchParams(ac paramsConfig, category, symbol, baseCoin, orderID, orderLinkID, orderFilter, orderStatus, cursor string, startTime, endTime time.Time, limit int64) (url.Values, error) {
@@ -1151,7 +1112,7 @@ func fillOrderAndExecutionFetchParams(ac paramsConfig, category, symbol, baseCoi
 // After the user actively adjusts the risk level, this interface is called to try to calculate the adjusted risk level,
 // and if it passes (retCode=0), the system will remove the position reduceOnly mark.
 // You are recommended to call Get Position Info to check isReduceOnly field.
-func (by *Bybit) ConfirmNewRiskLimit(ctx context.Context, category, symbol string) error {
+func (e *Exchange) ConfirmNewRiskLimit(ctx context.Context, category, symbol string) error {
 	if category == "" {
 		return errCategoryNotSet
 	}
@@ -1165,30 +1126,30 @@ func (by *Bybit) ConfirmNewRiskLimit(ctx context.Context, category, symbol strin
 		Category: category,
 		Symbol:   symbol,
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/confirm-pending-mmr", nil, arg, &struct{}{}, defaultEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/confirm-pending-mmr", nil, arg, &struct{}{}, defaultEPL)
 }
 
 // GetPreUpgradeOrderHistory the account is upgraded to a Unified account, you can get the orders which occurred before the upgrade.
-func (by *Bybit) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol, baseCoin, orderID, orderLinkID, orderFilter, orderStatus, cursor string, startTime, endTime time.Time, limit int64) (*TradeOrders, error) {
+func (e *Exchange) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol, baseCoin, orderID, orderLinkID, orderFilter, orderStatus, cursor string, startTime, endTime time.Time, limit int64) (*TradeOrders, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Option: true, Inverse: true}, category, symbol, baseCoin, orderID, orderLinkID, orderFilter, orderStatus, cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
 	}
-	err = by.RequiresUnifiedAccount(ctx)
+	err = e.RequiresUnifiedAccount(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var resp *TradeOrders
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/order/history", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/order/history", params, nil, &resp, defaultEPL)
 }
 
 // GetPreUpgradeTradeHistory retrieves users' execution records which occurred before you upgraded the account to a Unified account, sorted by execTime in descending order
-func (by *Bybit) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
+func (e *Exchange) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Option: false, Inverse: true}, category, symbol, baseCoin, orderID, orderLinkID, "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
 	}
-	err = by.RequiresUnifiedAccount(ctx)
+	err = e.RequiresUnifiedAccount(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1196,30 +1157,30 @@ func (by *Bybit) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol
 		params.Set("executionType", executionType)
 	}
 	var resp *ExecutionResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/execution/list", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/execution/list", params, nil, &resp, defaultEPL)
 }
 
 // GetPreUpgradeClosedPnL retrieves user's closed profit and loss records from before you upgraded the account to a Unified account. The results are sorted by createdTime in descending order.
-func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
+func (e *Exchange) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true, MandatorySymbol: true}, category, symbol, "", "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
 	}
-	err = by.RequiresUnifiedAccount(ctx)
+	err = e.RequiresUnifiedAccount(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var resp *ClosedProfitAndLossResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/position/closed-pnl", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/position/closed-pnl", params, nil, &resp, defaultEPL)
 }
 
 // GetPreUpgradeTransactionLog retrieves transaction logs which occurred in the USDC Derivatives wallet before the account was upgraded to a Unified account.
-func (by *Bybit) GetPreUpgradeTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
+func (e *Exchange) GetPreUpgradeTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true}, category, "", baseCoin, "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
 	}
-	err = by.RequiresUnifiedAccount(ctx)
+	err = e.RequiresUnifiedAccount(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1227,16 +1188,16 @@ func (by *Bybit) GetPreUpgradeTransactionLog(ctx context.Context, category, base
 		params.Set("type", transactionType)
 	}
 	var resp *TransactionLog
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/account/transaction-log", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/account/transaction-log", params, nil, &resp, defaultEPL)
 }
 
 // GetPreUpgradeOptionDeliveryRecord retrieves delivery records of Option before you upgraded the account to a Unified account, sorted by deliveryTime in descending order
-func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*PreUpdateOptionDeliveryRecord, error) {
+func (e *Exchange) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*PreUpdateOptionDeliveryRecord, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{OptionalBaseCoin: true, Option: true}, category, symbol, "", "", "", "", "", cursor, time.Time{}, time.Time{}, limit)
 	if err != nil {
 		return nil, err
 	}
-	err = by.RequiresUnifiedAccount(ctx)
+	err = e.RequiresUnifiedAccount(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1244,28 +1205,28 @@ func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category
 		params.Set("expData", expiryDate.Format(longDatedFormat))
 	}
 	var resp *PreUpdateOptionDeliveryRecord
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/asset/delivery-record", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/asset/delivery-record", params, nil, &resp, defaultEPL)
 }
 
 // GetPreUpgradeUSDCSessionSettlement retrieves session settlement records of USDC perpetual before you upgrade the account to Unified account.
-func (by *Bybit) GetPreUpgradeUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
+func (e *Exchange) GetPreUpgradeUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true}, category, symbol, "", "", "", "", "", cursor, time.Time{}, time.Time{}, limit)
 	if err != nil {
 		return nil, err
 	}
-	err = by.RequiresUnifiedAccount(ctx)
+	err = e.RequiresUnifiedAccount(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var resp *SettlementSession
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/asset/settlement-record", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/asset/settlement-record", params, nil, &resp, defaultEPL)
 }
 
 // GetWalletBalance represents wallet balance, query asset information of each currency, and account risk rate information.
 // By default, currency information with assets or liabilities of 0 is not returned.
 // Unified account: UNIFIED (trade spot/linear/options), CONTRACT(trade inverse)
 // Normal account: CONTRACT, SPOT
-func (by *Bybit) GetWalletBalance(ctx context.Context, accountType, coin string) (*WalletBalance, error) {
+func (e *Exchange) GetWalletBalance(ctx context.Context, accountType, coin string) (*WalletBalance, error) {
 	params := url.Values{}
 	if accountType == "" {
 		return nil, errMissingAccountType
@@ -1275,17 +1236,17 @@ func (by *Bybit) GetWalletBalance(ctx context.Context, accountType, coin string)
 		params.Set("coin", coin)
 	}
 	var resp *WalletBalance
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/wallet-balance", params, nil, &resp, getAccountWalletBalanceEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/wallet-balance", params, nil, &resp, getAccountWalletBalanceEPL)
 }
 
 // UpgradeToUnifiedAccount upgrades the account to unified account.
-func (by *Bybit) UpgradeToUnifiedAccount(ctx context.Context) (*UnifiedAccountUpgradeResponse, error) {
+func (e *Exchange) UpgradeToUnifiedAccount(ctx context.Context) (*UnifiedAccountUpgradeResponse, error) {
 	var resp *UnifiedAccountUpgradeResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/upgrade-to-uta", nil, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/upgrade-to-uta", nil, nil, &resp, defaultEPL)
 }
 
 // GetBorrowHistory retrieves interest records, sorted in reverse order of creation time.
-func (by *Bybit) GetBorrowHistory(ctx context.Context, currency, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
+func (e *Exchange) GetBorrowHistory(ctx context.Context, currency, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("currency", currency)
@@ -1306,11 +1267,11 @@ func (by *Bybit) GetBorrowHistory(ctx context.Context, currency, cursor string, 
 		params.Set("cursor", cursor)
 	}
 	var resp *BorrowHistory
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/borrow-history", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/borrow-history", params, nil, &resp, defaultEPL)
 }
 
 // SetCollateralCoin decide whether the assets in the Unified account needs to be collateral coins.
-func (by *Bybit) SetCollateralCoin(ctx context.Context, coin currency.Code, collateralSwitchON bool) error {
+func (e *Exchange) SetCollateralCoin(ctx context.Context, coin currency.Code, collateralSwitchON bool) error {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -1320,33 +1281,33 @@ func (by *Bybit) SetCollateralCoin(ctx context.Context, coin currency.Code, coll
 	} else {
 		params.Set("collateralSwitch", "OFF")
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/set-collateral-switch", params, nil, &struct{}{}, defaultEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/set-collateral-switch", params, nil, &struct{}{}, defaultEPL)
 }
 
 // GetCollateralInfo retrieves the collateral information of the current unified margin account,
 // including loan interest rate, loanable amount, collateral conversion rate,
 // whether it can be mortgaged as margin, etc.
-func (by *Bybit) GetCollateralInfo(ctx context.Context, currency string) (*CollateralInfo, error) {
+func (e *Exchange) GetCollateralInfo(ctx context.Context, currency string) (*CollateralInfo, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("currency", currency)
 	}
 	var resp *CollateralInfo
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/collateral-info", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/collateral-info", params, nil, &resp, defaultEPL)
 }
 
 // GetCoinGreeks retrieves current account Greeks information
-func (by *Bybit) GetCoinGreeks(ctx context.Context, baseCoin string) (*CoinGreeks, error) {
+func (e *Exchange) GetCoinGreeks(ctx context.Context, baseCoin string) (*CoinGreeks, error) {
 	params := url.Values{}
 	if baseCoin != "" {
 		params.Set("baseCoin", baseCoin)
 	}
 	var resp *CoinGreeks
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/coin-greeks", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/coin-greeks", params, nil, &resp, defaultEPL)
 }
 
 // GetFeeRate retrieves the trading fee rate.
-func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) (*AccountFee, error) {
+func (e *Exchange) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) (*AccountFee, error) {
 	params := url.Values{}
 	if !slices.Contains(validCategory, category) {
 		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
@@ -1361,18 +1322,18 @@ func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin stri
 		params.Set("baseCoin", baseCoin)
 	}
 	var resp *AccountFee
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/fee-rate", params, nil, &resp, getAccountFeeEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/fee-rate", params, nil, &resp, getAccountFeeEPL)
 }
 
 // GetAccountInfo retrieves the margin mode configuration of the account.
 // query the margin mode and the upgraded status of account
-func (by *Bybit) GetAccountInfo(ctx context.Context) (*AccountInfo, error) {
+func (e *Exchange) GetAccountInfo(ctx context.Context) (*AccountInfo, error) {
 	var resp *AccountInfo
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/info", nil, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/info", nil, nil, &resp, defaultEPL)
 }
 
 // GetTransactionLog retrieves transaction logs in Unified account.
-func (by *Bybit) GetTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
+func (e *Exchange) GetTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{OptionalBaseCoin: true, OptionalCategory: true, Linear: true, Option: true, Spot: true}, category, "", baseCoin, "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
@@ -1381,11 +1342,11 @@ func (by *Bybit) GetTransactionLog(ctx context.Context, category, baseCoin, tran
 		params.Set("type", transactionType)
 	}
 	var resp *TransactionLog
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/transaction-log", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/transaction-log", params, nil, &resp, defaultEPL)
 }
 
 // SetMarginMode set margin mode to  either of ISOLATED_MARGIN, REGULAR_MARGIN(i.e. Cross margin), PORTFOLIO_MARGIN
-func (by *Bybit) SetMarginMode(ctx context.Context, marginMode string) (*SetMarginModeResponse, error) {
+func (e *Exchange) SetMarginMode(ctx context.Context, marginMode string) (*SetMarginModeResponse, error) {
 	if marginMode == "" {
 		return nil, fmt.Errorf("%w, margin mode should be either of ISOLATED_MARGIN, REGULAR_MARGIN, or PORTFOLIO_MARGIN", errInvalidMode)
 	}
@@ -1394,21 +1355,21 @@ func (by *Bybit) SetMarginMode(ctx context.Context, marginMode string) (*SetMarg
 	}{SetMarginMode: marginMode}
 
 	var resp *SetMarginModeResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/set-margin-mode", nil, arg, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/set-margin-mode", nil, arg, &resp, defaultEPL)
 }
 
 // SetSpotHedging to turn on/off Spot hedging feature in Portfolio margin for Unified account.
-func (by *Bybit) SetSpotHedging(ctx context.Context, setHedgingModeOn bool) error {
+func (e *Exchange) SetSpotHedging(ctx context.Context, setHedgingModeOn bool) error {
 	resp := struct{}{}
 	setHedgingMode := "OFF"
 	if setHedgingModeOn {
 		setHedgingMode = "ON"
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/set-hedging-mode", nil, &map[string]string{"setHedgingMode": setHedgingMode}, &resp, defaultEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/set-hedging-mode", nil, &map[string]string{"setHedgingMode": setHedgingMode}, &resp, defaultEPL)
 }
 
 // SetMMP Market Maker Protection (MMP) is an automated mechanism designed to protect market makers (MM) against liquidity risks and over-exposure in the market.
-func (by *Bybit) SetMMP(ctx context.Context, arg *MMPRequestParam) error {
+func (e *Exchange) SetMMP(ctx context.Context, arg *MMPRequestParam) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -1427,23 +1388,23 @@ func (by *Bybit) SetMMP(ctx context.Context, arg *MMPRequestParam) error {
 	if arg.DeltaLimit <= 0 {
 		return fmt.Errorf("%w, delta limit is required", errQuantityLimitRequired)
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-modify", nil, arg, &struct{}{}, defaultEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-modify", nil, arg, &struct{}{}, defaultEPL)
 }
 
 // ResetMMP resets MMP.
 // once the mmp triggered, you can unfreeze the account by this endpoint
-func (by *Bybit) ResetMMP(ctx context.Context, baseCoin string) error {
+func (e *Exchange) ResetMMP(ctx context.Context, baseCoin string) error {
 	if baseCoin == "" {
 		return errBaseNotSet
 	}
 	arg := &struct {
 		BaseCoin string `json:"baseCoin"`
 	}{BaseCoin: baseCoin}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-reset", nil, arg, &struct{}{}, defaultEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-reset", nil, arg, &struct{}{}, defaultEPL)
 }
 
 // GetMMPState retrieve Market Maker Protection (MMP) states for different coins.
-func (by *Bybit) GetMMPState(ctx context.Context, baseCoin string) (*MMPStates, error) {
+func (e *Exchange) GetMMPState(ctx context.Context, baseCoin string) (*MMPStates, error) {
 	if baseCoin == "" {
 		return nil, errBaseNotSet
 	}
@@ -1451,11 +1412,11 @@ func (by *Bybit) GetMMPState(ctx context.Context, baseCoin string) (*MMPStates, 
 		BaseCoin string `json:"baseCoin"`
 	}{BaseCoin: baseCoin}
 	var resp *MMPStates
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-state", nil, arg, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-state", nil, arg, &resp, defaultEPL)
 }
 
 // GetCoinExchangeRecords queries the coin exchange records.
-func (by *Bybit) GetCoinExchangeRecords(ctx context.Context, fromCoin, toCoin, cursor string, limit int64) (*CoinExchangeRecords, error) {
+func (e *Exchange) GetCoinExchangeRecords(ctx context.Context, fromCoin, toCoin, cursor string, limit int64) (*CoinExchangeRecords, error) {
 	params := url.Values{}
 	if fromCoin != "" {
 		params.Set("fromCoin", fromCoin)
@@ -1470,11 +1431,11 @@ func (by *Bybit) GetCoinExchangeRecords(ctx context.Context, fromCoin, toCoin, c
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *CoinExchangeRecords
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/order-record", params, nil, &resp, getExchangeOrderRecordEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/order-record", params, nil, &resp, getExchangeOrderRecordEPL)
 }
 
 // GetDeliveryRecord retrieves delivery records of USDC futures and Options, sorted by deliveryTime in descending order
-func (by *Bybit) GetDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*DeliveryRecord, error) {
+func (e *Exchange) GetDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*DeliveryRecord, error) {
 	if !slices.Contains([]string{cLinear, cOption}, category) {
 		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, []string{cLinear, cOption})
 	}
@@ -1493,11 +1454,11 @@ func (by *Bybit) GetDeliveryRecord(ctx context.Context, category, symbol, cursor
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *DeliveryRecord
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/delivery-record", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/delivery-record", params, nil, &resp, defaultEPL)
 }
 
 // GetUSDCSessionSettlement retrieves session settlement records of USDC perpetual and futures
-func (by *Bybit) GetUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
+func (e *Exchange) GetUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
 	if category != cLinear {
 		return nil, fmt.Errorf("%w, valid category value is %v", errInvalidCategory, cLinear)
 	}
@@ -1513,11 +1474,11 @@ func (by *Bybit) GetUSDCSessionSettlement(ctx context.Context, category, symbol,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *SettlementSession
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/settlement-record", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/settlement-record", params, nil, &resp, defaultEPL)
 }
 
 // GetAssetInfo retrieves asset information
-func (by *Bybit) GetAssetInfo(ctx context.Context, accountType, coin string) (*AccountInfos, error) {
+func (e *Exchange) GetAssetInfo(ctx context.Context, accountType, coin string) (*AccountInfos, error) {
 	if accountType == "" {
 		return nil, errMissingAccountType
 	}
@@ -1527,7 +1488,7 @@ func (by *Bybit) GetAssetInfo(ctx context.Context, accountType, coin string) (*A
 		params.Set("coin", coin)
 	}
 	var resp *AccountInfos
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-asset-info", params, nil, &resp, getAssetTransferQueryInfoEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-asset-info", params, nil, &resp, getAssetTransferQueryInfoEPL)
 }
 
 func fillCoinBalanceFetchParams(accountType, memberID, coin string, withBonus int64, coinRequired bool) (url.Values, error) {
@@ -1553,17 +1514,17 @@ func fillCoinBalanceFetchParams(accountType, memberID, coin string, withBonus in
 
 // GetAllCoinBalance retrieves all coin balance of all account types under the master account, and sub account.
 // It is not allowed to get master account coin balance via sub account api key.
-func (by *Bybit) GetAllCoinBalance(ctx context.Context, accountType, memberID, coin string, withBonus int64) (*CoinBalances, error) {
+func (e *Exchange) GetAllCoinBalance(ctx context.Context, accountType, memberID, coin string, withBonus int64) (*CoinBalances, error) {
 	params, err := fillCoinBalanceFetchParams(accountType, memberID, coin, withBonus, false)
 	if err != nil {
 		return nil, err
 	}
 	var resp *CoinBalances
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-account-coins-balance", params, nil, &resp, getAssetAccountCoinBalanceEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-account-coins-balance", params, nil, &resp, getAssetAccountCoinBalanceEPL)
 }
 
 // GetSingleCoinBalance retrieves the balance of a specific coin in a specific account type. Supports querying sub UID's balance.
-func (by *Bybit) GetSingleCoinBalance(ctx context.Context, accountType, coin, memberID string, withBonus, withTransferSafeAmount int64) (*CoinBalance, error) {
+func (e *Exchange) GetSingleCoinBalance(ctx context.Context, accountType, coin, memberID string, withBonus, withTransferSafeAmount int64) (*CoinBalance, error) {
 	params, err := fillCoinBalanceFetchParams(accountType, memberID, coin, withBonus, true)
 	if err != nil {
 		return nil, err
@@ -1572,11 +1533,11 @@ func (by *Bybit) GetSingleCoinBalance(ctx context.Context, accountType, coin, me
 		params.Set("withTransferSafeAmount", strconv.FormatInt(withTransferSafeAmount, 10))
 	}
 	var resp *CoinBalance
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-account-coin-balance", params, nil, &resp, getAssetTransferQueryTransferCoinListEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-account-coin-balance", params, nil, &resp, getAssetTransferQueryTransferCoinListEPL)
 }
 
 // GetTransferableCoin the transferable coin list between each account type
-func (by *Bybit) GetTransferableCoin(ctx context.Context, fromAccountType, toAccountType string) (*TransferableCoins, error) {
+func (e *Exchange) GetTransferableCoin(ctx context.Context, fromAccountType, toAccountType string) (*TransferableCoins, error) {
 	if fromAccountType == "" {
 		return nil, fmt.Errorf("%w, from account type not specified", errMissingAccountType)
 	}
@@ -1587,13 +1548,13 @@ func (by *Bybit) GetTransferableCoin(ctx context.Context, fromAccountType, toAcc
 	params.Set("fromAccountType", fromAccountType)
 	params.Set("toAccountType", toAccountType)
 	var resp *TransferableCoins
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-transfer-coin-list", params, nil, &resp, getAssetTransferQueryTransferCoinListEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-transfer-coin-list", params, nil, &resp, getAssetTransferQueryTransferCoinListEPL)
 }
 
 // CreateInternalTransfer create the internal transfer between different account types under the same UID.
 // Each account type has its own acceptable coins, e.g, you cannot transfer USDC from SPOT to CONTRACT.
 // Please refer to transferable coin list API to find out more.
-func (by *Bybit) CreateInternalTransfer(ctx context.Context, arg *TransferParams) (string, error) {
+func (e *Exchange) CreateInternalTransfer(ctx context.Context, arg *TransferParams) (string, error) {
 	if arg == nil {
 		return "", errNilArgument
 	}
@@ -1615,40 +1576,40 @@ func (by *Bybit) CreateInternalTransfer(ctx context.Context, arg *TransferParams
 	resp := struct {
 		TransferID string `json:"transferId"`
 	}{}
-	return resp.TransferID, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/transfer/inter-transfer", nil, arg, &resp, interTransferEPL)
+	return resp.TransferID, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/transfer/inter-transfer", nil, arg, &resp, interTransferEPL)
 }
 
 // GetInternalTransferRecords retrieves the internal transfer records between different account types under the same UID.
-func (by *Bybit) GetInternalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
+func (e *Exchange) GetInternalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
 	params := fillTransferQueryParams(transferID, coin, status, cursor, startTime, endTime, limit)
 	var resp *TransferResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-inter-transfer-list", params, nil, &resp, getAssetInterTransferListEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-inter-transfer-list", params, nil, &resp, getAssetInterTransferListEPL)
 }
 
 // GetSubUID retrieves the sub UIDs under a main UID
-func (by *Bybit) GetSubUID(ctx context.Context) (*SubUID, error) {
+func (e *Exchange) GetSubUID(ctx context.Context) (*SubUID, error) {
 	var resp *SubUID
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-sub-member-list", nil, nil, &resp, getSubMemberListEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-sub-member-list", nil, nil, &resp, getSubMemberListEPL)
 }
 
 // EnableUniversalTransferForSubUID Transfer between sub-sub or main-sub
 // Use this endpoint to enable a subaccount to take part in a universal transfer. It is a one-time switch which, once thrown, enables a subaccount permanently.
 // If not set, your subaccount cannot use universal transfers.
-func (by *Bybit) EnableUniversalTransferForSubUID(ctx context.Context, subMemberIDs ...string) error {
+func (e *Exchange) EnableUniversalTransferForSubUID(ctx context.Context, subMemberIDs ...string) error {
 	if len(subMemberIDs) == 0 {
 		return errMembersIDsNotSet
 	}
 	arg := map[string][]string{
 		"subMemberIDs": subMemberIDs,
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/transfer/save-transfer-sub-member", nil, &arg, &struct{}{}, saveTransferSubMemberEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/transfer/save-transfer-sub-member", nil, &arg, &struct{}{}, saveTransferSubMemberEPL)
 }
 
 // CreateUniversalTransfer transfer between sub-sub or main-sub. Please make sure you have enabled universal transfer on your sub UID in advance.
 // To use sub acct api key, it must have "SubMemberTransferList" permission
 // When use sub acct api key, it can only transfer to main account
 // You can not transfer between the same UID
-func (by *Bybit) CreateUniversalTransfer(ctx context.Context, arg *TransferParams) (string, error) {
+func (e *Exchange) CreateUniversalTransfer(ctx context.Context, arg *TransferParams) (string, error) {
 	if arg == nil {
 		return "", errNilArgument
 	}
@@ -1676,7 +1637,7 @@ func (by *Bybit) CreateUniversalTransfer(ctx context.Context, arg *TransferParam
 	resp := struct {
 		TransferID string `json:"transferId"`
 	}{}
-	return resp.TransferID, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/transfer/universal-transfer", nil, arg, &resp, universalTransferEPL)
+	return resp.TransferID, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/transfer/universal-transfer", nil, arg, &resp, universalTransferEPL)
 }
 
 func fillTransferQueryParams(transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) url.Values {
@@ -1709,14 +1670,14 @@ func fillTransferQueryParams(transferID, coin, status, cursor string, startTime,
 // Main acct api key or Sub acct api key are both supported
 // Main acct api key needs "SubMemberTransfer" permission
 // Sub acct api key needs "SubMemberTransferList" permission
-func (by *Bybit) GetUniversalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
+func (e *Exchange) GetUniversalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
 	params := fillTransferQueryParams(transferID, coin, status, cursor, startTime, endTime, limit)
 	var resp *TransferResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-universal-transfer-list", params, nil, &resp, getAssetUniversalTransferListEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-universal-transfer-list", params, nil, &resp, getAssetUniversalTransferListEPL)
 }
 
 // GetAllowedDepositCoinInfo retrieves allowed deposit coin information. To find out paired chain of coin, please refer coin info api.
-func (by *Bybit) GetAllowedDepositCoinInfo(ctx context.Context, coin, chain, cursor string, limit int64) (*AllowedDepositCoinInfo, error) {
+func (e *Exchange) GetAllowedDepositCoinInfo(ctx context.Context, coin, chain, cursor string, limit int64) (*AllowedDepositCoinInfo, error) {
 	params := url.Values{}
 	if coin != "" {
 		params.Set("coin", coin)
@@ -1731,13 +1692,13 @@ func (by *Bybit) GetAllowedDepositCoinInfo(ctx context.Context, coin, chain, cur
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *AllowedDepositCoinInfo
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-allowed-list", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-allowed-list", params, nil, &resp, defaultEPL)
 }
 
 // SetDepositAccount sets auto transfer account after deposit. The same function as the setting for Deposit on web GUI
-// account types: CONTRACT Derivatives Account
-// 'SPOT' Spot Account 'INVESTMENT' ByFi Account (The service has been offline) 'OPTION' USDC Account 'UNIFIED' UMA or UTA 'FUND' Funding Account
-func (by *Bybit) SetDepositAccount(ctx context.Context, accountType string) (*StatusResponse, error) {
+// account types: CONTRACT Derivatives Account
+// 'SPOT' Spot Account 'INVESTMENT' ByFi Account (The service has been offline) 'OPTION' USDC Account 'UNIFIED' UMA or UTA 'FUND' Funding Account
+func (e *Exchange) SetDepositAccount(ctx context.Context, accountType string) (*StatusResponse, error) {
 	if accountType == "" {
 		return nil, errMissingAccountType
 	}
@@ -1747,7 +1708,7 @@ func (by *Bybit) SetDepositAccount(ctx context.Context, accountType string) (*St
 		AccountType: accountType,
 	}
 	var resp *StatusResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/deposit/deposit-to-account", nil, &arg, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/deposit/deposit-to-account", nil, &arg, &resp, defaultEPL)
 }
 
 func fillDepositRecordsParams(coin, cursor string, startTime, endTime time.Time, limit int64) url.Values {
@@ -1771,32 +1732,32 @@ func fillDepositRecordsParams(coin, cursor string, startTime, endTime time.Time,
 }
 
 // GetDepositRecords query deposit records.
-func (by *Bybit) GetDepositRecords(ctx context.Context, coin, cursor string, startTime, endTime time.Time, limit int64) (*DepositRecords, error) {
+func (e *Exchange) GetDepositRecords(ctx context.Context, coin, cursor string, startTime, endTime time.Time, limit int64) (*DepositRecords, error) {
 	params := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
 	var resp *DepositRecords
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-record", params, nil, &resp, getAssetDepositRecordsEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-record", params, nil, &resp, getAssetDepositRecordsEPL)
 }
 
 // GetSubDepositRecords query subaccount's deposit records by main UID's API key. on chain
-func (by *Bybit) GetSubDepositRecords(ctx context.Context, subMemberID, coin, cursor string, startTime, endTime time.Time, limit int64) (*DepositRecords, error) {
+func (e *Exchange) GetSubDepositRecords(ctx context.Context, subMemberID, coin, cursor string, startTime, endTime time.Time, limit int64) (*DepositRecords, error) {
 	if subMemberID == "" {
 		return nil, errMembersIDsNotSet
 	}
 	params := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
 	params.Set("subMemberId", subMemberID)
 	var resp *DepositRecords
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-sub-member-record", params, nil, &resp, getAssetDepositSubMemberRecordsEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-sub-member-record", params, nil, &resp, getAssetDepositSubMemberRecordsEPL)
 }
 
 // GetInternalDepositRecordsOffChain retrieves deposit records within the Bybit platform. These transactions are not on the blockchain.
-func (by *Bybit) GetInternalDepositRecordsOffChain(ctx context.Context, coin, cursor string, startTime, endTime time.Time, limit int64) (*InternalDepositRecords, error) {
+func (e *Exchange) GetInternalDepositRecordsOffChain(ctx context.Context, coin, cursor string, startTime, endTime time.Time, limit int64) (*InternalDepositRecords, error) {
 	params := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
 	var resp *InternalDepositRecords
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-internal-record", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-internal-record", params, nil, &resp, defaultEPL)
 }
 
 // GetMasterDepositAddress retrieves the deposit address information of MASTER account.
-func (by *Bybit) GetMasterDepositAddress(ctx context.Context, coin currency.Code, chainType string) (*DepositAddresses, error) {
+func (e *Exchange) GetMasterDepositAddress(ctx context.Context, coin currency.Code, chainType string) (*DepositAddresses, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1806,11 +1767,11 @@ func (by *Bybit) GetMasterDepositAddress(ctx context.Context, coin currency.Code
 		params.Set("chainType", chainType)
 	}
 	var resp *DepositAddresses
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-address", params, nil, &resp, getAssetDepositRecordsEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-address", params, nil, &resp, getAssetDepositRecordsEPL)
 }
 
 // GetSubDepositAddress retrieves the deposit address information of SUB account.
-func (by *Bybit) GetSubDepositAddress(ctx context.Context, coin currency.Code, chainType, subMemberID string) (*DepositAddresses, error) {
+func (e *Exchange) GetSubDepositAddress(ctx context.Context, coin currency.Code, chainType, subMemberID string) (*DepositAddresses, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1825,23 +1786,23 @@ func (by *Bybit) GetSubDepositAddress(ctx context.Context, coin currency.Code, c
 	params.Set("chainType", chainType)
 	params.Set("subMemberId", subMemberID)
 	var resp *DepositAddresses
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-sub-member-address", params, nil, &resp, getAssetDepositSubMemberAddressEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-sub-member-address", params, nil, &resp, getAssetDepositSubMemberAddressEPL)
 }
 
 // GetCoinInfo retrieves coin information, including chain information, withdraw and deposit status.
-func (by *Bybit) GetCoinInfo(ctx context.Context, coin currency.Code) (*CoinInfo, error) {
+func (e *Exchange) GetCoinInfo(ctx context.Context, coin currency.Code) (*CoinInfo, error) {
 	params := url.Values{}
 	if coin.IsEmpty() {
 		params.Set("coin", coin.String())
 	}
 	var resp *CoinInfo
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/coin/query-info", params, nil, &resp, getAssetCoinInfoEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/coin/query-info", params, nil, &resp, getAssetCoinInfoEPL)
 }
 
 // GetWithdrawalRecords query withdrawal records.
 // endTime - startTime should be less than 30 days. Query last 30 days records by default.
 // Can query by the master UID's api key only
-func (by *Bybit) GetWithdrawalRecords(ctx context.Context, coin currency.Code, withdrawalID, withdrawType, cursor string, startTime, endTime time.Time, limit int64) (*WithdrawalRecords, error) {
+func (e *Exchange) GetWithdrawalRecords(ctx context.Context, coin currency.Code, withdrawalID, withdrawType, cursor string, startTime, endTime time.Time, limit int64) (*WithdrawalRecords, error) {
 	params := url.Values{}
 	if withdrawalID != "" {
 		params.Set("withdrawID", withdrawalID)
@@ -1865,22 +1826,22 @@ func (by *Bybit) GetWithdrawalRecords(ctx context.Context, coin currency.Code, w
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *WithdrawalRecords
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/withdraw/query-record", params, nil, &resp, getWithdrawRecordsEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/withdraw/query-record", params, nil, &resp, getWithdrawRecordsEPL)
 }
 
 // GetWithdrawableAmount retrieves withdrawable amount information using currency code
-func (by *Bybit) GetWithdrawableAmount(ctx context.Context, coin currency.Code) (*WithdrawableAmount, error) {
+func (e *Exchange) GetWithdrawableAmount(ctx context.Context, coin currency.Code) (*WithdrawableAmount, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
 	params.Set("coin", coin.String())
 	var resp *WithdrawableAmount
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/withdraw/withdrawable-amount", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/withdraw/withdrawable-amount", params, nil, &resp, defaultEPL)
 }
 
 // WithdrawCurrency Withdraw assets from your Bybit account. You can make an off-chain transfer if the target wallet address is from Bybit. This means that no blockchain fee will be charged.
-func (by *Bybit) WithdrawCurrency(ctx context.Context, arg *WithdrawalParam) (string, error) {
+func (e *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawalParam) (string, error) {
 	if arg == nil {
 		return "", errNilArgument
 	}
@@ -1902,11 +1863,11 @@ func (by *Bybit) WithdrawCurrency(ctx context.Context, arg *WithdrawalParam) (st
 	resp := struct {
 		ID string `json:"id"`
 	}{}
-	return resp.ID, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/withdraw/create", nil, arg, &resp, createWithdrawalEPL)
+	return resp.ID, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/withdraw/create", nil, arg, &resp, createWithdrawalEPL)
 }
 
 // CancelWithdrawal cancel the withdrawal
-func (by *Bybit) CancelWithdrawal(ctx context.Context, id string) (*StatusResponse, error) {
+func (e *Exchange) CancelWithdrawal(ctx context.Context, id string) (*StatusResponse, error) {
 	if id == "" {
 		return nil, errMissingWithdrawalID
 	}
@@ -1916,11 +1877,11 @@ func (by *Bybit) CancelWithdrawal(ctx context.Context, id string) (*StatusRespon
 		ID: id,
 	}
 	var resp *StatusResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/withdraw/cancel", nil, arg, &resp, cancelWithdrawalEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/withdraw/cancel", nil, arg, &resp, cancelWithdrawalEPL)
 }
 
 // CreateNewSubUserID created a new sub user id. Use master user's api key only.
-func (by *Bybit) CreateNewSubUserID(ctx context.Context, arg *CreateSubUserParams) (*SubUserItem, error) {
+func (e *Exchange) CreateNewSubUserID(ctx context.Context, arg *CreateSubUserParams) (*SubUserItem, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1931,11 +1892,11 @@ func (by *Bybit) CreateNewSubUserID(ctx context.Context, arg *CreateSubUserParam
 		return nil, errInvalidMemberType
 	}
 	var resp *SubUserItem
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/create-sub-member", nil, &arg, &resp, userCreateSubMemberEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/create-sub-member", nil, &arg, &resp, userCreateSubMemberEPL)
 }
 
 // CreateSubUIDAPIKey create new API key for those newly created sub UID. Use master user's api key only.
-func (by *Bybit) CreateSubUIDAPIKey(ctx context.Context, arg *SubUIDAPIKeyParam) (*SubUIDAPIResponse, error) {
+func (e *Exchange) CreateSubUIDAPIKey(ctx context.Context, arg *SubUIDAPIKeyParam) (*SubUIDAPIResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1943,19 +1904,19 @@ func (by *Bybit) CreateSubUIDAPIKey(ctx context.Context, arg *SubUIDAPIKeyParam)
 		return nil, fmt.Errorf("%w, subuid", errMissingUserID)
 	}
 	var resp *SubUIDAPIResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/create-sub-api", nil, arg, &resp, userCreateSubAPIKeyEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/create-sub-api", nil, arg, &resp, userCreateSubAPIKeyEPL)
 }
 
 // GetSubUIDList get all sub uid of master account. Use master user's api key only.
-func (by *Bybit) GetSubUIDList(ctx context.Context) ([]SubUserItem, error) {
+func (e *Exchange) GetSubUIDList(ctx context.Context) ([]SubUserItem, error) {
 	resp := struct {
 		SubMembers []SubUserItem `json:"subMembers"`
 	}{}
-	return resp.SubMembers, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/query-sub-members", nil, nil, &resp, userQuerySubMembersEPL)
+	return resp.SubMembers, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/query-sub-members", nil, nil, &resp, userQuerySubMembersEPL)
 }
 
 // FreezeSubUID freeze Sub UID. Use master user's api key only.
-func (by *Bybit) FreezeSubUID(ctx context.Context, subUID string, frozen bool) error {
+func (e *Exchange) FreezeSubUID(ctx context.Context, subUID string, frozen bool) error {
 	if subUID == "" {
 		return fmt.Errorf("%w, subuid", errMissingUserID)
 	}
@@ -1970,19 +1931,19 @@ func (by *Bybit) FreezeSubUID(ctx context.Context, subUID string, frozen bool) e
 	} else {
 		arg.Frozen = 1
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/frozen-sub-member", nil, arg, &struct{}{}, userFrozenSubMemberEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/frozen-sub-member", nil, arg, &struct{}{}, userFrozenSubMemberEPL)
 }
 
 // GetAPIKeyInformation retrieves the information of the api key.
 // Use the api key pending to be checked to call the endpoint.
 // Both master and sub user's api key are applicable.
-func (by *Bybit) GetAPIKeyInformation(ctx context.Context) (*SubUIDAPIResponse, error) {
+func (e *Exchange) GetAPIKeyInformation(ctx context.Context) (*SubUIDAPIResponse, error) {
 	var resp *SubUIDAPIResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/query-api", nil, nil, &resp, userQueryAPIEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/query-api", nil, nil, &resp, userQueryAPIEPL)
 }
 
 // GetSubAccountAllAPIKeys retrieves all api keys information of a sub UID.
-func (by *Bybit) GetSubAccountAllAPIKeys(ctx context.Context, subMemberID, cursor string, limit int64) (*SubAccountAPIKeys, error) {
+func (e *Exchange) GetSubAccountAllAPIKeys(ctx context.Context, subMemberID, cursor string, limit int64) (*SubAccountAPIKeys, error) {
 	if subMemberID == "" {
 		return nil, errMembersIDsNotSet
 	}
@@ -1995,21 +1956,21 @@ func (by *Bybit) GetSubAccountAllAPIKeys(ctx context.Context, subMemberID, curso
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *SubAccountAPIKeys
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "  /v5/user/sub-apikeys", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "  /v5/user/sub-apikeys", params, nil, &resp, defaultEPL)
 }
 
 // GetUIDWalletType retrieves available wallet types for the master account or sub account
-func (by *Bybit) GetUIDWalletType(ctx context.Context, memberIDs string) (*WalletType, error) {
+func (e *Exchange) GetUIDWalletType(ctx context.Context, memberIDs string) (*WalletType, error) {
 	if memberIDs == "" {
 		return nil, errMembersIDsNotSet
 	}
 	var resp *WalletType
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/get-member-type", nil, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/get-member-type", nil, nil, &resp, defaultEPL)
 }
 
 // ModifyMasterAPIKey modify the settings of master api key.
 // Use the api key pending to be modified to call the endpoint. Use master user's api key only.
-func (by *Bybit) ModifyMasterAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdateParam) (*SubUIDAPIResponse, error) {
+func (e *Exchange) ModifyMasterAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdateParam) (*SubUIDAPIResponse, error) {
 	if arg == nil || reflect.DeepEqual(*arg, SubUIDAPIKeyUpdateParam{}) {
 		return nil, errNilArgument
 	}
@@ -2017,11 +1978,11 @@ func (by *Bybit) ModifyMasterAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdate
 		arg.IPs = strings.Join(arg.IPAddresses, ",")
 	}
 	var resp *SubUIDAPIResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/update-api", nil, arg, &resp, userUpdateAPIEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/update-api", nil, arg, &resp, userUpdateAPIEPL)
 }
 
 // ModifySubAPIKey modifies the settings of sub api key. Use the api key pending to be modified to call the endpoint. Use sub user's api key only.
-func (by *Bybit) ModifySubAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdateParam) (*SubUIDAPIResponse, error) {
+func (e *Exchange) ModifySubAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdateParam) (*SubUIDAPIResponse, error) {
 	if arg == nil || reflect.DeepEqual(*arg, SubUIDAPIKeyUpdateParam{}) {
 		return nil, errNilArgument
 	}
@@ -2029,12 +1990,12 @@ func (by *Bybit) ModifySubAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdatePar
 		arg.IPs = strings.Join(arg.IPAddresses, ",")
 	}
 	var resp *SubUIDAPIResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/update-sub-api", nil, &arg, &resp, userUpdateSubAPIEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/update-sub-api", nil, &arg, &resp, userUpdateSubAPIEPL)
 }
 
 // DeleteSubUID delete a sub UID. Before deleting the UID, please make sure there is no asset.
 // Use master user's api key**.
-func (by *Bybit) DeleteSubUID(ctx context.Context, subMemberID string) error {
+func (e *Exchange) DeleteSubUID(ctx context.Context, subMemberID string) error {
 	if subMemberID == "" {
 		return errMemberIDRequired
 	}
@@ -2042,18 +2003,18 @@ func (by *Bybit) DeleteSubUID(ctx context.Context, subMemberID string) error {
 		SubMemberID string `json:"subMemberId"`
 	}{SubMemberID: subMemberID}
 	var resp any
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/del-submember", nil, arg, &resp, defaultEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/del-submember", nil, arg, &resp, defaultEPL)
 }
 
 // DeleteMasterAPIKey delete the api key of master account.
 // Use the api key pending to be delete to call the endpoint. Use master user's api key only.
-func (by *Bybit) DeleteMasterAPIKey(ctx context.Context) error {
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/delete-api", nil, nil, &struct{}{}, userDeleteAPIEPL)
+func (e *Exchange) DeleteMasterAPIKey(ctx context.Context) error {
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/delete-api", nil, nil, &struct{}{}, userDeleteAPIEPL)
 }
 
 // DeleteSubAccountAPIKey delete the api key of sub account.
 // Use the api key pending to be delete to call the endpoint. Use sub user's api key only.
-func (by *Bybit) DeleteSubAccountAPIKey(ctx context.Context, subAccountUID string) error {
+func (e *Exchange) DeleteSubAccountAPIKey(ctx context.Context, subAccountUID string) error {
 	if subAccountUID == "" {
 		return fmt.Errorf("%w, sub-account id missing", errMissingUserID)
 	}
@@ -2062,24 +2023,24 @@ func (by *Bybit) DeleteSubAccountAPIKey(ctx context.Context, subAccountUID strin
 	}{
 		UID: subAccountUID,
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/delete-sub-api", nil, arg, &struct{}{}, userDeleteSubAPIEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/delete-sub-api", nil, arg, &struct{}{}, userDeleteSubAPIEPL)
 }
 
 // GetAffiliateUserInfo the API is used for affiliate to get their users information
 // The master account uid of affiliate's client
-func (by *Bybit) GetAffiliateUserInfo(ctx context.Context, uid string) (*AffiliateCustomerInfo, error) {
+func (e *Exchange) GetAffiliateUserInfo(ctx context.Context, uid string) (*AffiliateCustomerInfo, error) {
 	if uid == "" {
 		return nil, errMissingUserID
 	}
 	params := url.Values{}
 	params.Set("uid", uid)
 	var resp *AffiliateCustomerInfo
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/aff-customer-info", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/aff-customer-info", params, nil, &resp, defaultEPL)
 }
 
 // GetLeverageTokenInfo query leverage token information
 // Abbreviation of the LT, such as BTC3L
-func (by *Bybit) GetLeverageTokenInfo(ctx context.Context, ltCoin currency.Code) ([]LeverageTokenInfo, error) {
+func (e *Exchange) GetLeverageTokenInfo(ctx context.Context, ltCoin currency.Code) ([]LeverageTokenInfo, error) {
 	params := url.Values{}
 	if !ltCoin.IsEmpty() {
 		params.Set("ltCoin", ltCoin.String())
@@ -2087,22 +2048,22 @@ func (by *Bybit) GetLeverageTokenInfo(ctx context.Context, ltCoin currency.Code)
 	resp := struct {
 		List []LeverageTokenInfo `json:"list"`
 	}{}
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-lever-token/info", params, nil, &resp, defaultEPL)
+	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-lever-token/info", params, nil, &resp, defaultEPL)
 }
 
 // GetLeveragedTokenMarket retrieves leverage token market information
-func (by *Bybit) GetLeveragedTokenMarket(ctx context.Context, ltCoin currency.Code) (*LeveragedTokenMarket, error) {
+func (e *Exchange) GetLeveragedTokenMarket(ctx context.Context, ltCoin currency.Code) (*LeveragedTokenMarket, error) {
 	if ltCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("ltCoin", ltCoin.String())
 	var resp *LeveragedTokenMarket
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-lever-token/reference", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-lever-token/reference", params, nil, &resp, defaultEPL)
 }
 
 // PurchaseLeverageToken purcases a leverage token.
-func (by *Bybit) PurchaseLeverageToken(ctx context.Context, ltCoin currency.Code, amount float64, serialNumber string) (*LeverageToken, error) {
+func (e *Exchange) PurchaseLeverageToken(ctx context.Context, ltCoin currency.Code, amount float64, serialNumber string) (*LeverageToken, error) {
 	if ltCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2119,11 +2080,11 @@ func (by *Bybit) PurchaseLeverageToken(ctx context.Context, ltCoin currency.Code
 		SerialNumber: serialNumber,
 	}
 	var resp *LeverageToken
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-lever-token/purchase", nil, arg, &resp, spotLeverageTokenPurchaseEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-lever-token/purchase", nil, arg, &resp, spotLeverageTokenPurchaseEPL)
 }
 
 // RedeemLeverageToken redeem leverage token
-func (by *Bybit) RedeemLeverageToken(ctx context.Context, ltCoin currency.Code, quantity float64, serialNumber string) (*RedeemToken, error) {
+func (e *Exchange) RedeemLeverageToken(ctx context.Context, ltCoin currency.Code, quantity float64, serialNumber string) (*RedeemToken, error) {
 	if ltCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2140,12 +2101,12 @@ func (by *Bybit) RedeemLeverageToken(ctx context.Context, ltCoin currency.Code, 
 		SerialNumber: serialNumber,
 	}
 	var resp *RedeemToken
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-lever-token/redeem", nil, &arg, &resp, spotLeverTokenRedeemEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-lever-token/redeem", nil, &arg, &resp, spotLeverTokenRedeemEPL)
 }
 
 // GetPurchaseAndRedemptionRecords retrieves purchase or redeem history.
 // ltOrderType	false	integer	LT order type. 1: purchase, 2: redemption
-func (by *Bybit) GetPurchaseAndRedemptionRecords(ctx context.Context, ltCoin currency.Code, orderID, serialNo string, startTime, endTime time.Time, ltOrderType, limit int64) ([]RedeemPurchaseRecord, error) {
+func (e *Exchange) GetPurchaseAndRedemptionRecords(ctx context.Context, ltCoin currency.Code, orderID, serialNo string, startTime, endTime time.Time, ltOrderType, limit int64) ([]RedeemPurchaseRecord, error) {
 	params := url.Values{}
 	if !ltCoin.IsEmpty() {
 		params.Set("ltCoin", ltCoin.String())
@@ -2171,13 +2132,13 @@ func (by *Bybit) GetPurchaseAndRedemptionRecords(ctx context.Context, ltCoin cur
 	resp := struct {
 		List []RedeemPurchaseRecord `json:"list"`
 	}{}
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-lever-token/order-record", params, nil, &resp, getSpotLeverageTokenOrderRecordsEPL)
+	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-lever-token/order-record", params, nil, &resp, getSpotLeverageTokenOrderRecordsEPL)
 }
 
 // ToggleMarginTrade turn on / off spot margin trade
 // Your account needs to activate spot margin first; i.e., you must have finished the quiz on web / app.
 // spotMarginMode '1': on, '0': off
-func (by *Bybit) ToggleMarginTrade(ctx context.Context, spotMarginMode bool) (*SpotMarginMode, error) {
+func (e *Exchange) ToggleMarginTrade(ctx context.Context, spotMarginMode bool) (*SpotMarginMode, error) {
 	arg := &SpotMarginMode{}
 	if spotMarginMode {
 		arg.SpotMarginMode = "1"
@@ -2185,19 +2146,19 @@ func (by *Bybit) ToggleMarginTrade(ctx context.Context, spotMarginMode bool) (*S
 		arg.SpotMarginMode = "0"
 	}
 	var resp *SpotMarginMode
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-margin-trade/switch-mode", nil, arg, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-margin-trade/switch-mode", nil, arg, &resp, defaultEPL)
 }
 
 // SetSpotMarginTradeLeverage set the user's maximum leverage in spot cross margin
-func (by *Bybit) SetSpotMarginTradeLeverage(ctx context.Context, leverage float64) error {
+func (e *Exchange) SetSpotMarginTradeLeverage(ctx context.Context, leverage float64) error {
 	if leverage <= 2 {
 		return fmt.Errorf("%w, leverage. value range from [2  to 10]", errInvalidLeverage)
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-margin-trade/set-leverage", nil, &map[string]string{"leverage": strconv.FormatFloat(leverage, 'f', -1, 64)}, &struct{}{}, defaultEPL)
+	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-margin-trade/set-leverage", nil, &map[string]string{"leverage": strconv.FormatFloat(leverage, 'f', -1, 64)}, &struct{}{}, defaultEPL)
 }
 
 // GetVIPMarginData retrieves public VIP Margin data
-func (by *Bybit) GetVIPMarginData(ctx context.Context, vipLevel, currency string) (*VIPMarginData, error) {
+func (e *Exchange) GetVIPMarginData(ctx context.Context, vipLevel, currency string) (*VIPMarginData, error) {
 	params := url.Values{}
 	if vipLevel != "" {
 		params.Set("vipLevel", vipLevel)
@@ -2206,11 +2167,11 @@ func (by *Bybit) GetVIPMarginData(ctx context.Context, vipLevel, currency string
 		params.Set("currency", currency)
 	}
 	var resp *VIPMarginData
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, "spot-cross-margin-trade/data", defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "spot-cross-margin-trade/data", defaultEPL, &resp)
 }
 
 // GetMarginCoinInfo retrieves margin coin information.
-func (by *Bybit) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([]MarginCoinInfo, error) {
+func (e *Exchange) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([]MarginCoinInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -2218,11 +2179,11 @@ func (by *Bybit) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([]M
 	resp := struct {
 		List []MarginCoinInfo `json:"list"`
 	}{}
-	return resp.List, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-cross-margin-trade/pledge-token", params), defaultEPL, &resp)
+	return resp.List, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-cross-margin-trade/pledge-token", params), defaultEPL, &resp)
 }
 
 // GetBorrowableCoinInfo retrieves borrowable coin info list.
-func (by *Bybit) GetBorrowableCoinInfo(ctx context.Context, coin currency.Code) ([]BorrowableCoinInfo, error) {
+func (e *Exchange) GetBorrowableCoinInfo(ctx context.Context, coin currency.Code) ([]BorrowableCoinInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -2230,28 +2191,28 @@ func (by *Bybit) GetBorrowableCoinInfo(ctx context.Context, coin currency.Code) 
 	resp := struct {
 		List []BorrowableCoinInfo `json:"list"`
 	}{}
-	return resp.List, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-cross-margin-trade/borrow-token", params), defaultEPL, &resp)
+	return resp.List, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-cross-margin-trade/borrow-token", params), defaultEPL, &resp)
 }
 
 // GetInterestAndQuota retrieves interest and quota information.
-func (by *Bybit) GetInterestAndQuota(ctx context.Context, coin currency.Code) (*InterestAndQuota, error) {
+func (e *Exchange) GetInterestAndQuota(ctx context.Context, coin currency.Code) (*InterestAndQuota, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
 	params.Set("coin", coin.String())
 	var resp *InterestAndQuota
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/loan-info", params, nil, &resp, getSpotCrossMarginTradeLoanInfoEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/loan-info", params, nil, &resp, getSpotCrossMarginTradeLoanInfoEPL)
 }
 
 // GetLoanAccountInfo retrieves loan account information.
-func (by *Bybit) GetLoanAccountInfo(ctx context.Context) (*AccountLoanInfo, error) {
+func (e *Exchange) GetLoanAccountInfo(ctx context.Context) (*AccountLoanInfo, error) {
 	var resp *AccountLoanInfo
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/account", nil, nil, &resp, getSpotCrossMarginTradeAccountEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/account", nil, nil, &resp, getSpotCrossMarginTradeAccountEPL)
 }
 
 // Borrow borrows a coin.
-func (by *Bybit) Borrow(ctx context.Context, arg *LendArgument) (*BorrowResponse, error) {
+func (e *Exchange) Borrow(ctx context.Context, arg *LendArgument) (*BorrowResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2262,11 +2223,11 @@ func (by *Bybit) Borrow(ctx context.Context, arg *LendArgument) (*BorrowResponse
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *BorrowResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/loan", nil, arg, &resp, spotCrossMarginTradeLoanEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/loan", nil, arg, &resp, spotCrossMarginTradeLoanEPL)
 }
 
 // Repay repay a debt.
-func (by *Bybit) Repay(ctx context.Context, arg *LendArgument) (*RepayResponse, error) {
+func (e *Exchange) Repay(ctx context.Context, arg *LendArgument) (*RepayResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2277,12 +2238,12 @@ func (by *Bybit) Repay(ctx context.Context, arg *LendArgument) (*RepayResponse, 
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *RepayResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/repay", nil, arg, &resp, spotCrossMarginTradeRepayEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/repay", nil, arg, &resp, spotCrossMarginTradeRepayEPL)
 }
 
 // GetBorrowOrderDetail represents the borrow order detail.
 // Status '0'(default)：get all kinds of status '1'：uncleared '2'：cleared
-func (by *Bybit) GetBorrowOrderDetail(ctx context.Context, startTime, endTime time.Time, coin currency.Code, status, limit int64) ([]BorrowOrderDetail, error) {
+func (e *Exchange) GetBorrowOrderDetail(ctx context.Context, startTime, endTime time.Time, coin currency.Code, status, limit int64) ([]BorrowOrderDetail, error) {
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -2302,11 +2263,11 @@ func (by *Bybit) GetBorrowOrderDetail(ctx context.Context, startTime, endTime ti
 	resp := struct {
 		List []BorrowOrderDetail `json:"list"`
 	}{}
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/orders", params, nil, &resp, getSpotCrossMarginTradeOrdersEPL)
+	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/orders", params, nil, &resp, getSpotCrossMarginTradeOrdersEPL)
 }
 
 // GetRepaymentOrderDetail retrieves repayment order detail.
-func (by *Bybit) GetRepaymentOrderDetail(ctx context.Context, startTime, endTime time.Time, coin currency.Code, limit int64) ([]CoinRepaymentResponse, error) {
+func (e *Exchange) GetRepaymentOrderDetail(ctx context.Context, startTime, endTime time.Time, coin currency.Code, limit int64) ([]CoinRepaymentResponse, error) {
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -2323,13 +2284,13 @@ func (by *Bybit) GetRepaymentOrderDetail(ctx context.Context, startTime, endTime
 	resp := struct {
 		List []CoinRepaymentResponse `json:"list"`
 	}{}
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/repay-history", params, nil, &resp, getSpotCrossMarginTradeRepayHistoryEPL)
+	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/repay-history", params, nil, &resp, getSpotCrossMarginTradeRepayHistoryEPL)
 }
 
 // ToggleMarginTradeNormal turn on / off spot margin trade
 // Your account needs to activate spot margin first; i.e., you must have finished the quiz on web / app.
 // spotMarginMode '1': on, '0': off
-func (by *Bybit) ToggleMarginTradeNormal(ctx context.Context, spotMarginMode bool) (*SpotMarginMode, error) {
+func (e *Exchange) ToggleMarginTradeNormal(ctx context.Context, spotMarginMode bool) (*SpotMarginMode, error) {
 	arg := &SpotMarginMode{}
 	if spotMarginMode {
 		arg.SpotMarginMode = "1"
@@ -2337,32 +2298,32 @@ func (by *Bybit) ToggleMarginTradeNormal(ctx context.Context, spotMarginMode boo
 		arg.SpotMarginMode = "0"
 	}
 	var resp *SpotMarginMode
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/switch", nil, arg, &resp, spotCrossMarginTradeSwitchEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/switch", nil, arg, &resp, spotCrossMarginTradeSwitchEPL)
 }
 
 // GetProductInfo represents a product info.
-func (by *Bybit) GetProductInfo(ctx context.Context, productID string) (*InstitutionalProductInfo, error) {
+func (e *Exchange) GetProductInfo(ctx context.Context, productID string) (*InstitutionalProductInfo, error) {
 	params := url.Values{}
 	if productID != "" {
 		params.Set("productId", productID)
 	}
 	var resp *InstitutionalProductInfo
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("ins-loan/product-infos", params), defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("ins-loan/product-infos", params), defaultEPL, &resp)
 }
 
 // GetInstitutionalLengingMarginCoinInfo retrieves institutional lending margin coin information.
 // ProductId. If not passed, then return all product margin coin. For spot, it returns coin that convertRation greater than 0.
-func (by *Bybit) GetInstitutionalLengingMarginCoinInfo(ctx context.Context, productID string) (*InstitutionalMarginCoinInfo, error) {
+func (e *Exchange) GetInstitutionalLengingMarginCoinInfo(ctx context.Context, productID string) (*InstitutionalMarginCoinInfo, error) {
 	params := url.Values{}
 	if productID != "" {
 		params.Set("productId", productID)
 	}
 	var resp *InstitutionalMarginCoinInfo
-	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("ins-loan/ensure-tokens-convert", params), defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("ins-loan/ensure-tokens-convert", params), defaultEPL, &resp)
 }
 
 // GetInstitutionalLoanOrders retrieves institutional loan orders.
-func (by *Bybit) GetInstitutionalLoanOrders(ctx context.Context, orderID string, startTime, endTime time.Time, limit int64) ([]LoanOrderDetails, error) {
+func (e *Exchange) GetInstitutionalLoanOrders(ctx context.Context, orderID string, startTime, endTime time.Time, limit int64) ([]LoanOrderDetails, error) {
 	params := url.Values{}
 	if orderID != "" {
 		params.Set("orderId", orderID)
@@ -2379,11 +2340,11 @@ func (by *Bybit) GetInstitutionalLoanOrders(ctx context.Context, orderID string,
 	resp := struct {
 		Loans []LoanOrderDetails `json:"loanInfo"`
 	}{}
-	return resp.Loans, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/loan-order", params, nil, &resp, defaultEPL)
+	return resp.Loans, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/loan-order", params, nil, &resp, defaultEPL)
 }
 
 // GetInstitutionalRepayOrders retrieves list of repaid order information.
-func (by *Bybit) GetInstitutionalRepayOrders(ctx context.Context, startTime, endTime time.Time, limit int64) ([]OrderRepayInfo, error) {
+func (e *Exchange) GetInstitutionalRepayOrders(ctx context.Context, startTime, endTime time.Time, limit int64) ([]OrderRepayInfo, error) {
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -2397,18 +2358,18 @@ func (by *Bybit) GetInstitutionalRepayOrders(ctx context.Context, startTime, end
 	resp := struct {
 		RepayInfo []OrderRepayInfo `json:"repayInfo"`
 	}{}
-	return resp.RepayInfo, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/repaid-history", params, nil, &resp, defaultEPL)
+	return resp.RepayInfo, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/repaid-history", params, nil, &resp, defaultEPL)
 }
 
 // GetLTV retrieves a loan-to-value(LTV)
-func (by *Bybit) GetLTV(ctx context.Context) (*LTVInfo, error) {
+func (e *Exchange) GetLTV(ctx context.Context) (*LTVInfo, error) {
 	var resp *LTVInfo
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/ltv-convert", nil, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/ltv-convert", nil, nil, &resp, defaultEPL)
 }
 
 // BindOrUnbindUID For the INS loan product, you can bind new UID to risk unit or unbind UID out from risk unit.
 // possible 'operate' values: 0: bind, 1: unbind
-func (by *Bybit) BindOrUnbindUID(ctx context.Context, uid, operate string) (*BindOrUnbindUIDResponse, error) {
+func (e *Exchange) BindOrUnbindUID(ctx context.Context, uid, operate string) (*BindOrUnbindUIDResponse, error) {
 	if uid == "" {
 		return nil, fmt.Errorf("%w, uid is required", errMissingUserID)
 	}
@@ -2420,11 +2381,11 @@ func (by *Bybit) BindOrUnbindUID(ctx context.Context, uid, operate string) (*Bin
 		Operate string `json:"operate"`
 	}{UID: uid, Operate: operate}
 	var resp *BindOrUnbindUIDResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/ins-loan/association-uid", nil, arg, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/ins-loan/association-uid", nil, arg, &resp, defaultEPL)
 }
 
 // GetC2CLendingCoinInfo retrieves C2C basic information of lending coins
-func (by *Bybit) GetC2CLendingCoinInfo(ctx context.Context, coin currency.Code) ([]C2CLendingCoinInfo, error) {
+func (e *Exchange) GetC2CLendingCoinInfo(ctx context.Context, coin currency.Code) ([]C2CLendingCoinInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -2432,11 +2393,11 @@ func (by *Bybit) GetC2CLendingCoinInfo(ctx context.Context, coin currency.Code) 
 	resp := struct {
 		List []C2CLendingCoinInfo `json:"list"`
 	}{}
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/lending/info", params, nil, &resp, defaultEPL)
+	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/lending/info", params, nil, &resp, defaultEPL)
 }
 
 // C2CDepositFunds lending funds to Bybit asset pool
-func (by *Bybit) C2CDepositFunds(ctx context.Context, arg *C2CLendingFundsParams) (*C2CLendingFundResponse, error) {
+func (e *Exchange) C2CDepositFunds(ctx context.Context, arg *C2CLendingFundsParams) (*C2CLendingFundResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2447,11 +2408,11 @@ func (by *Bybit) C2CDepositFunds(ctx context.Context, arg *C2CLendingFundsParams
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *C2CLendingFundResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/lending/purchase", nil, &arg, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/lending/purchase", nil, &arg, &resp, defaultEPL)
 }
 
 // C2CRedeemFunds withdraw funds from the Bybit asset pool.
-func (by *Bybit) C2CRedeemFunds(ctx context.Context, arg *C2CLendingFundsParams) (*C2CLendingFundResponse, error) {
+func (e *Exchange) C2CRedeemFunds(ctx context.Context, arg *C2CLendingFundsParams) (*C2CLendingFundResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2462,11 +2423,11 @@ func (by *Bybit) C2CRedeemFunds(ctx context.Context, arg *C2CLendingFundsParams)
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *C2CLendingFundResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/lending/redeem", nil, &arg, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/lending/redeem", nil, &arg, &resp, defaultEPL)
 }
 
 // GetC2CLendingOrderRecords retrieves lending or redeem history
-func (by *Bybit) GetC2CLendingOrderRecords(ctx context.Context, coin currency.Code, orderID, orderType string, startTime, endTime time.Time, limit int64) ([]C2CLendingFundResponse, error) {
+func (e *Exchange) GetC2CLendingOrderRecords(ctx context.Context, coin currency.Code, orderID, orderType string, startTime, endTime time.Time, limit int64) ([]C2CLendingFundResponse, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -2489,24 +2450,24 @@ func (by *Bybit) GetC2CLendingOrderRecords(ctx context.Context, coin currency.Co
 	resp := struct {
 		List []C2CLendingFundResponse `json:"list"`
 	}{}
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/lending/history-order", params, nil, &resp, defaultEPL)
+	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/lending/history-order", params, nil, &resp, defaultEPL)
 }
 
 // GetC2CLendingAccountInfo retrieves C2C lending account information.
-func (by *Bybit) GetC2CLendingAccountInfo(ctx context.Context, coin currency.Code) (*LendingAccountInfo, error) {
+func (e *Exchange) GetC2CLendingAccountInfo(ctx context.Context, coin currency.Code) (*LendingAccountInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
 	}
 	var resp *LendingAccountInfo
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/lending/account", params, nil, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/lending/account", params, nil, &resp, defaultEPL)
 }
 
 // GetBrokerEarning exchange broker master account to query
 // The data can support up to past 6 months until T-1
 // startTime & endTime are either entered at the same time or not entered
 // Business type. 'SPOT', 'DERIVATIVES', 'OPTIONS'
-func (by *Bybit) GetBrokerEarning(ctx context.Context, businessType, cursor string, startTime, endTime time.Time, limit int64) ([]BrokerEarningItem, error) {
+func (e *Exchange) GetBrokerEarning(ctx context.Context, businessType, cursor string, startTime, endTime time.Time, limit int64) ([]BrokerEarningItem, error) {
 	params := url.Values{}
 	if businessType != "" {
 		params.Set("bizType", businessType)
@@ -2526,28 +2487,21 @@ func (by *Bybit) GetBrokerEarning(ctx context.Context, businessType, cursor stri
 	resp := struct {
 		List []BrokerEarningItem `json:"list"`
 	}{}
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/broker/earning-record", params, nil, &resp, defaultEPL)
+	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/broker/earning-record", params, nil, &resp, defaultEPL)
 }
 
-func processOB(ob [][2]string) ([]orderbook.Tranche, error) {
-	var err error
-	o := make([]orderbook.Tranche, len(ob))
+func processOB(ob [][2]types.Number) []orderbook.Level {
+	o := make([]orderbook.Level, len(ob))
 	for x := range ob {
-		o[x].Amount, err = strconv.ParseFloat(ob[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		o[x].Price, err = strconv.ParseFloat(ob[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
+		o[x].Price = ob[x][0].Float64()
+		o[x].Amount = ob[x][1].Float64()
 	}
-	return o, nil
+	return o
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
-	endpointPath, err := by.API.Endpoints.GetURL(ePath)
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
+	endpointPath, err := e.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
@@ -2558,14 +2512,14 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 	response := &RestResponse{
 		Result: result,
 	}
-	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
+	err = e.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,
 			Path:          endpointPath + bybitAPIVersion + path,
 			Result:        response,
-			Verbose:       by.Verbose,
-			HTTPDebugging: by.HTTPDebugging,
-			HTTPRecording: by.HTTPRecording,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
 		}, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
@@ -2578,25 +2532,25 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 }
 
 // SendAuthHTTPRequestV5 sends an authenticated HTTP request
-func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, arg, result any, f request.EndpointLimit) error {
+func (e *Exchange) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, arg, result any, f request.EndpointLimit) error {
 	val := reflect.ValueOf(result)
 	if val.Kind() != reflect.Ptr {
 		return errNonePointerArgument
 	} else if val.IsNil() {
 		return errNilArgument
 	}
-	creds, err := by.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	endpointPath, err := by.API.Endpoints.GetURL(ePath)
+	endpointPath, err := e.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
 	response := &RestResponse{
 		Result: result,
 	}
-	err = by.SendPayload(ctx, f, func() (*request.Item, error) {
+	err = e.SendPayload(ctx, f, func() (*request.Item, error) {
 		timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		headers := make(map[string]string)
 		headers["X-BAPI-API-KEY"] = creds.Key
@@ -2628,9 +2582,9 @@ func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, 
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &response,
-			Verbose:       by.Verbose,
-			HTTPDebugging: by.HTTPDebugging,
-			HTTPRecording: by.HTTPRecording,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if response.RetCode != 0 && response.RetMsg != "" {
@@ -2701,28 +2655,28 @@ func getSign(sign, secret string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return crypto.HexEncodeToString(hmacSigned), nil
+	return hex.EncodeToString(hmacSigned), nil
 }
 
 // FetchAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.
-func (by *Bybit) FetchAccountType(ctx context.Context) (AccountType, error) {
-	by.account.m.Lock()
-	defer by.account.m.Unlock()
-	if by.account.accountType == 0 {
-		accInfo, err := by.GetAPIKeyInformation(ctx)
+func (e *Exchange) FetchAccountType(ctx context.Context) (AccountType, error) {
+	e.account.m.Lock()
+	defer e.account.m.Unlock()
+	if e.account.accountType == 0 {
+		accInfo, err := e.GetAPIKeyInformation(ctx)
 		if err != nil {
 			return 0, err
 		}
 		// From endpoint 0：regular account; 1：unified trade account
 		// + 1 to make it 1 and 2 so that a zero value can be used to check if the account type has been set or not.
-		by.account.accountType = AccountType(accInfo.IsUnifiedTradeAccount + 1)
+		e.account.accountType = AccountType(accInfo.IsUnifiedTradeAccount + 1)
 	}
-	return by.account.accountType, nil
+	return e.account.accountType, nil
 }
 
 // RequiresUnifiedAccount checks account type and returns error if not unified
-func (by *Bybit) RequiresUnifiedAccount(ctx context.Context) error {
-	at, err := by.FetchAccountType(ctx)
+func (e *Exchange) RequiresUnifiedAccount(ctx context.Context) error {
+	at, err := e.FetchAccountType(ctx)
 	if err != nil {
 		return nil //nolint:nilerr // if we can't get the account type, we can't check if it's unified or not, fail on call
 	}
@@ -2733,7 +2687,7 @@ func (by *Bybit) RequiresUnifiedAccount(ctx context.Context) error {
 }
 
 // GetLongShortRatio retrieves long short ratio of an instrument.
-func (by *Bybit) GetLongShortRatio(ctx context.Context, category, symbol string, interval kline.Interval, limit int64) ([]InstrumentInfoItem, error) {
+func (e *Exchange) GetLongShortRatio(ctx context.Context, category, symbol string, interval kline.Interval, limit int64) ([]InstrumentInfoItem, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse {
@@ -2756,5 +2710,5 @@ func (by *Bybit) GetLongShortRatio(ctx context.Context, category, symbol string,
 	resp := struct {
 		List []InstrumentInfoItem `json:"list"`
 	}{}
-	return resp.List, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/account-ratio", params), defaultEPL, &resp)
+	return resp.List, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/account-ratio", params), defaultEPL, &resp)
 }

@@ -28,8 +28,8 @@ const (
 )
 
 var (
-	currencyPair, _ = currency.NewPairFromString("BTCAUD")
-	testWrapper     = Wrapper{}
+	currencyPair = currency.NewPair(currency.BTC, currency.AUD)
+	testWrapper  = Wrapper{}
 )
 
 func TestWrapper_Exchanges(t *testing.T) {
@@ -78,7 +78,7 @@ func TestWrapper_AccountInformation(t *testing.T) {
 
 func TestWrapper_CancelOrder(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	_, err := testWrapper.CancelOrder(t.Context(),
 		exchName, orderID, cp, assetType)
 	if err != nil {

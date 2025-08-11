@@ -21,13 +21,13 @@ const (
 // Public errors
 var (
 	ErrOrderbookNotFound = errors.New("cannot find orderbook(s)")
+	ErrPriceZero         = errors.New("price cannot be zero")
+	ErrExchangeNameEmpty = errors.New("empty orderbook exchange name")
 )
 
 var (
-	errExchangeNameUnset    = errors.New("orderbook exchange name not set")
 	errPairNotSet           = errors.New("orderbook currency pair not set")
 	errAssetTypeNotSet      = errors.New("orderbook asset type not set")
-	errPriceNotSet          = errors.New("price cannot be zero")
 	errAmountInvalid        = errors.New("amount cannot be less or equal to zero")
 	errPriceOutOfOrder      = errors.New("pricing out of order")
 	errIDOutOfOrder         = errors.New("ID out of order")
@@ -38,27 +38,27 @@ var (
 	errChecksumStringNotSet = errors.New("checksum string not set")
 )
 
-var service = Service{
-	books: make(map[string]Exchange),
-	Mux:   dispatch.GetNewMux(nil),
+var s = store{
+	orderbooks:      make(map[key.ExchangePairAsset]book),
+	exchangeRouters: make(map[string]uuid.UUID),
+	signalMux:       dispatch.GetNewMux(nil),
 }
 
-// Service provides a store for difference exchange orderbooks
-type Service struct {
-	books map[string]Exchange
-	*dispatch.Mux
-	mu sync.Mutex
+type book struct {
+	RouterID uuid.UUID
+	Depth    *Depth
 }
 
-// Exchange defines a holder for the exchange specific depth items with a
-// specific ID associated with that exchange
-type Exchange struct {
-	m  map[key.PairAsset]*Depth
-	ID uuid.UUID
+// store provides a centralised store for orderbooks
+type store struct {
+	orderbooks      map[key.ExchangePairAsset]book
+	exchangeRouters map[string]uuid.UUID
+	signalMux       *dispatch.Mux
+	m               sync.RWMutex
 }
 
-// Tranche defines a segmented portions of an order or options book
-type Tranche struct {
+// Level contains an orderbook price and the aggregated order amount at that price.
+type Level struct {
 	Amount float64
 	// StrAmount is a string representation of the amount. e.g. 0.00000100 this
 	// parsed as a float will constrict comparison to 1e-6 not 1e-8 or
@@ -79,10 +79,10 @@ type Tranche struct {
 	OrderCount        int64
 }
 
-// Base holds the fields for the orderbook base
-type Base struct {
-	Bids Tranches
-	Asks Tranches
+// Book contains an orderbook
+type Book struct {
+	Bids Levels
+	Asks Levels
 
 	Exchange string
 	Pair     currency.Pair
@@ -94,15 +94,15 @@ type Base struct {
 	// which could be stale if there have been no recent changes.
 	LastUpdated time.Time
 
-	// UpdatePushedAt is the time the exchange pushed this update. This helps
+	// LastPushed is the time the exchange pushed this update. This helps
 	// determine factors like distance from exchange (latency) and routing
 	// time, which can affect the time it takes for an update to reach the user
 	// from the exchange.
-	UpdatePushedAt time.Time
+	LastPushed time.Time
 
 	// InsertedAt is the time the update was inserted into the orderbook
 	// management system. This field is used to calculate round-trip times and
-	// processing delays, e.g., InsertedAt.Sub(UpdatePushedAt) represents the
+	// processing delays, e.g., InsertedAt.Sub(LastPushed) represents the
 	// total processing time including network latency.
 	InsertedAt time.Time
 
@@ -111,10 +111,10 @@ type Base struct {
 	// prices in a payload
 	PriceDuplication bool
 	IsFundingRate    bool
-	// VerifyOrderbook allows for a toggle between orderbook verification set by
+	// ValidateOrderbook allows for a toggle between orderbook verification set by
 	// user configuration, this allows for a potential processing boost but
 	// a potential for orderbook integrity being deminished.
-	VerifyOrderbook bool
+	ValidateOrderbook bool
 	// RestSnapshot defines if the depth was applied via the REST protocol thus
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
@@ -136,46 +136,16 @@ type options struct {
 	pair                   currency.Pair
 	asset                  asset.Item
 	lastUpdated            time.Time
-	updatePushedAt         time.Time
+	lastPushed             time.Time
 	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
 	isFundingRate          bool
-	verifyOrderbook        bool
+	validateOrderbook      bool
 	restSnapshot           bool
 	idAligned              bool
 	checksumStringRequired bool
 	maxDepth               int
-}
-
-// Action defines a set of differing states required to implement an incoming
-// orderbook update used in conjunction with UpdateEntriesByID
-type Action uint8
-
-const (
-	// Amend applies amount adjustment by ID
-	Amend Action = iota + 1
-	// Delete removes price level from book by ID
-	Delete
-	// Insert adds price level to book
-	Insert
-	// UpdateInsert on conflict applies amount adjustment or appends new amount
-	// to book
-	UpdateInsert
-)
-
-// Update and things and stuff
-type Update struct {
-	UpdateID       int64 // Used when no time is provided
-	UpdateTime     time.Time
-	UpdatePushedAt time.Time
-	Asset          asset.Item
-	Action
-	Bids []Tranche
-	Asks []Tranche
-	Pair currency.Pair
-	// Checksum defines the expected value when the books have been verified
-	Checksum uint32
 }
 
 // Movement defines orderbook traversal details from either hitting the bids or
@@ -198,7 +168,7 @@ type Movement struct {
 	// Purchases defines the amount of currency purchased.
 	Purchased float64
 	// AverageOrderCost defines the average order cost of position as it slips
-	// through the orderbook tranches.
+	// through the orderbook Levels.
 	AverageOrderCost float64
 	// FullBookSideConsumed defines if the orderbook liquidty has been consumed
 	// by the requested amount. This might not represent the actual book on the
@@ -207,10 +177,10 @@ type Movement struct {
 	FullBookSideConsumed bool
 }
 
-// SideAmounts define the amounts total for the tranches, total value in
+// SideAmounts define the amounts total for the Levels, total value in
 // quotation and the cumulative base amounts.
 type SideAmounts struct {
-	Tranches   int64
+	Levels     int64
 	QuoteValue float64
 	BaseAmount float64
 }

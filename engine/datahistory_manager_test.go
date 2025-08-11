@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -26,43 +28,32 @@ import (
 func TestSetupDataHistoryManager(t *testing.T) {
 	t.Parallel()
 	_, err := SetupDataHistoryManager(nil, nil, nil)
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
-	}
+	assert.ErrorIs(t, err, errNilExchangeManager)
 
 	_, err = SetupDataHistoryManager(NewExchangeManager(), nil, nil)
-	if !errors.Is(err, errNilDatabaseConnectionManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilDatabaseConnectionManager)
-	}
+	assert.ErrorIs(t, err, errNilDatabaseConnectionManager)
 
 	_, err = SetupDataHistoryManager(NewExchangeManager(), &DatabaseConnectionManager{}, nil)
-	if !errors.Is(err, errNilConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
-	}
+	assert.ErrorIs(t, err, errNilConfig)
 
 	_, err = SetupDataHistoryManager(NewExchangeManager(), &DatabaseConnectionManager{}, &config.DataHistoryManager{})
-	if !errors.Is(err, database.ErrNilInstance) {
-		t.Errorf("error '%v', expected '%v'", err, database.ErrNilInstance)
-	}
+	assert.ErrorIs(t, err, database.ErrNilInstance)
 
 	dbInst := &database.Instance{}
 	err = dbInst.SetConfig(&database.Config{Enabled: true})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	dbInst.SetConnected(true)
 	dbCM := &DatabaseConnectionManager{
 		dbConn:  dbInst,
 		started: 1,
 	}
 	err = dbInst.SetSQLiteConnection(&sql.DB{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	m, err := SetupDataHistoryManager(NewExchangeManager(), dbCM, &config.DataHistoryManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m == nil {
 		t.Fatal("expected manager")
 	}
@@ -90,19 +81,14 @@ func TestDataHistoryManagerStart(t *testing.T) {
 	m, _ := createDHM(t)
 	m.started = 0
 	err := m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.Start()
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
+
 	m = nil
 	err = m.Start()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestDataHistoryManagerStop(t *testing.T) {
@@ -110,79 +96,60 @@ func TestDataHistoryManagerStop(t *testing.T) {
 	m, _ := createDHM(t)
 	m.shutdown = make(chan struct{})
 	err := m.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
+
 	m = nil
 	err = m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestUpsertJob(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
 	err := m.UpsertJob(nil, false)
-	if !errors.Is(err, errNilJob) {
-		t.Errorf("error '%v', expected '%v'", err, errNilJob)
-	}
+	assert.ErrorIs(t, err, errNilJob)
+
 	dhj := &DataHistoryJob{}
 	err = m.UpsertJob(dhj, false)
-	if !errors.Is(err, errNicknameUnset) {
-		t.Errorf("error '%v', expected '%v'", err, errNicknameUnset)
-	}
+	assert.ErrorIs(t, err, errNicknameUnset)
+
 	dhj.Nickname = "test1337"
 	err = m.UpsertJob(dhj, false)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("error '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	dhj.Asset = asset.Spot
 	err = m.UpsertJob(dhj, false)
-	if !errors.Is(err, errCurrencyPairUnset) {
-		t.Errorf("error '%v', expected '%v'", err, errCurrencyPairUnset)
-	}
+	assert.ErrorIs(t, err, errCurrencyPairUnset)
 
 	dhj.Exchange = strings.ToLower(testExchange)
 	dhj.Pair = currency.NewPair(currency.BTC, currency.DOGE)
 	err = m.UpsertJob(dhj, false)
-	if !errors.Is(err, errCurrencyNotEnabled) {
-		t.Errorf("error '%v', expected '%v'", err, errCurrencyNotEnabled)
-	}
+	assert.ErrorIs(t, err, errCurrencyNotEnabled)
 
-	dhj.Pair = currency.NewPair(currency.BTC, currency.USD)
+	dhj.Pair = currency.NewBTCUSD()
 	err = m.UpsertJob(dhj, false)
-	if !errors.Is(err, kline.ErrUnsupportedInterval) {
-		t.Errorf("error '%v', expected '%v'", err, kline.ErrUnsupportedInterval)
-	}
+	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
 	dhj.Interval = kline.OneHour
 	err = m.UpsertJob(dhj, false)
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Errorf("error '%v', expected '%v'", err, common.ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, common.ErrDateUnset)
 
 	dhj.StartDate = time.Now().Add(-time.Hour)
 	dhj.EndDate = time.Now()
 	err = m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.UpsertJob(dhj, true)
-	if !errors.Is(err, errNicknameInUse) {
-		t.Errorf("error '%v', expected '%v'", err, errNicknameInUse)
-	}
+	assert.ErrorIs(t, err, errNicknameInUse)
 
 	newJob := &DataHistoryJob{
 		Nickname:                 dhj.Nickname,
 		Exchange:                 testExchange,
 		Asset:                    asset.Spot,
-		Pair:                     currency.NewPair(currency.BTC, currency.USD),
+		Pair:                     currency.NewBTCUSD(),
 		StartDate:                startDate,
 		EndDate:                  time.Now().Add(-time.Minute),
 		Interval:                 kline.FifteenMin,
@@ -199,15 +166,11 @@ func TestUpsertJob(t *testing.T) {
 		PrerequisiteJobNickname:  "hellomoto",
 	}
 	err = m.UpsertJob(newJob, false)
-	if !errors.Is(err, errInvalidDataHistoryDataType) {
-		t.Errorf("error '%v', expected '%v'", err, errInvalidDataHistoryDataType)
-	}
+	assert.ErrorIs(t, err, errInvalidDataHistoryDataType)
 
 	newJob.DataType = dataHistoryTradeDataType
 	err = m.UpsertJob(newJob, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestSetJobStatus(t *testing.T) {
@@ -217,75 +180,52 @@ func TestSetJobStatus(t *testing.T) {
 		Nickname:  "TestSetJobStatus",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
 	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.SetJobStatus("", "", 0)
-	if !errors.Is(err, errNicknameIDUnset) {
-		t.Errorf("error '%v', expected '%v'", err, errNicknameIDUnset)
-	}
+	assert.ErrorIs(t, err, errNicknameIDUnset)
 
 	err = m.SetJobStatus("1337", "1337", 0)
-	if !errors.Is(err, errOnlyNicknameOrID) {
-		t.Errorf("error '%v', expected '%v'", err, errOnlyNicknameOrID)
-	}
+	assert.ErrorIs(t, err, errOnlyNicknameOrID)
 
 	err = m.SetJobStatus(dhj.Nickname, "", dataHistoryStatusRemoved)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.SetJobStatus("", dhj.ID.String(), dataHistoryStatusActive)
-	if !errors.Is(err, errBadStatus) {
-		t.Errorf("error '%v', expected '%v'", err, errBadStatus)
-	}
+	assert.ErrorIs(t, err, errBadStatus)
 
 	j.Status = int64(dataHistoryStatusActive)
 	err = m.SetJobStatus("", dhj.ID.String(), dataHistoryStatusPaused)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.SetJobStatus("", dhj.ID.String(), dataHistoryStatusFailed)
-	if !errors.Is(err, errBadStatus) {
-		t.Errorf("error '%v', expected '%v'", err, errBadStatus)
-	}
+	assert.ErrorIs(t, err, errBadStatus)
 
 	dhj.Status = dataHistoryStatusPaused
 	err = m.SetJobStatus(dhj.Nickname, "", dataHistoryStatusActive)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	dhj.Status = dataHistoryStatusRemoved
 	err = m.SetJobStatus(dhj.Nickname, "", dataHistoryStatusActive)
-	if !errors.Is(err, errBadStatus) {
-		t.Errorf("error '%v', expected '%v'", err, errBadStatus)
-	}
+	assert.ErrorIs(t, err, errBadStatus)
 
 	dhj.Status = dataHistoryStatusPaused
 	err = m.SetJobStatus(dhj.Nickname, "", dataHistoryStatusRemoved)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	atomic.StoreInt32(&m.started, 0)
 	err = m.SetJobStatus("", dhj.ID.String(), 0)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	m = nil
 	err = m.SetJobStatus("", dhj.ID.String(), 0)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestGetByNickname(t *testing.T) {
@@ -295,40 +235,30 @@ func TestGetByNickname(t *testing.T) {
 		Nickname:  "TestGetByNickname",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
 	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	_, err = m.GetByNickname(dhj.Nickname, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	_, err = m.GetByNickname(dhj.Nickname, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = m.GetByNickname(dhj.Nickname, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
+	_, err = m.GetByNickname(dhj.Nickname, true)
+	assert.NoError(t, err)
+
+	_, err = m.GetByNickname(dhj.Nickname, false)
+	assert.NoError(t, err)
 
 	atomic.StoreInt32(&m.started, 0)
 	_, err = m.GetByNickname("test123", false)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	m = nil
 	_, err = m.GetByNickname("test123", false)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestGetByID(t *testing.T) {
@@ -338,41 +268,30 @@ func TestGetByID(t *testing.T) {
 		Nickname:  "TestGetByID",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
 	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = m.GetByID(dhj.ID)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = m.GetByID(uuid.UUID{})
-	if !errors.Is(err, errEmptyID) {
-		t.Errorf("error '%v', expected '%v'", err, errEmptyID)
-	}
+	assert.ErrorIs(t, err, errEmptyID)
 
 	_, err = m.GetByID(dhj.ID)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	atomic.StoreInt32(&m.started, 0)
 	_, err = m.GetByID(dhj.ID)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	m = nil
 	_, err = m.GetByID(dhj.ID)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestRetrieveJobs(t *testing.T) {
@@ -382,35 +301,28 @@ func TestRetrieveJobs(t *testing.T) {
 		Nickname:  "TestRetrieveJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
 	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	jobs, err := m.retrieveJobs()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(jobs) != 1 {
 		t.Error("expected job")
 	}
 
 	atomic.StoreInt32(&m.started, 0)
 	_, err = m.retrieveJobs()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	m = nil
 	_, err = m.retrieveJobs()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestGetActiveJobs(t *testing.T) {
@@ -421,122 +333,93 @@ func TestGetActiveJobs(t *testing.T) {
 		Nickname:  "TestGetActiveJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
 	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	jobs, err := m.GetActiveJobs()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(jobs) != 1 {
 		t.Error("expected 1 job")
 	}
 
 	j.Status = int64(dataHistoryStatusFailed)
 	jobs, err = m.GetActiveJobs()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(jobs) != 0 {
 		t.Error("expected 0 jobs")
 	}
 
 	atomic.StoreInt32(&m.started, 0)
 	_, err = m.GetActiveJobs()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	m = nil
 	_, err = m.GetActiveJobs()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestValidateJob(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
 	err := m.validateJob(nil)
-	if !errors.Is(err, errNilJob) {
-		t.Errorf("error '%v', expected '%v'", err, errNilJob)
-	}
+	assert.ErrorIs(t, err, errNilJob)
+
 	dhj := &DataHistoryJob{}
 	err = m.validateJob(dhj)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("error '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	dhj.Asset = asset.Spot
 	err = m.validateJob(dhj)
-	if !errors.Is(err, errCurrencyPairUnset) {
-		t.Errorf("error '%v', expected '%v'", err, errCurrencyPairUnset)
-	}
+	assert.ErrorIs(t, err, errCurrencyPairUnset)
 
 	dhj.Exchange = testExchange
 	dhj.Pair = currency.NewPair(currency.BTC, currency.XRP)
 	err = m.validateJob(dhj)
-	if !errors.Is(err, errCurrencyNotEnabled) {
-		t.Errorf("error '%v', expected '%v'", err, errCurrencyNotEnabled)
-	}
+	assert.ErrorIs(t, err, errCurrencyNotEnabled)
 
-	dhj.Pair = currency.NewPair(currency.BTC, currency.USD)
+	dhj.Pair = currency.NewBTCUSD()
 	err = m.validateJob(dhj)
-	if !errors.Is(err, kline.ErrUnsupportedInterval) {
-		t.Errorf("error '%v', expected '%v'", err, kline.ErrUnsupportedInterval)
-	}
+	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
 	dhj.Interval = kline.OneMin
 	err = m.validateJob(dhj)
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Errorf("error '%v', expected '%v'", err, common.ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, common.ErrDateUnset)
 
 	dhj.StartDate = time.Now().Add(time.Minute)
 	dhj.EndDate = time.Now().Add(time.Hour)
 	err = m.validateJob(dhj)
-	if !errors.Is(err, common.ErrStartAfterTimeNow) {
-		t.Errorf("error '%v', expected '%v'", err, errInvalidTimes)
-	}
+	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 
 	dhj.StartDate = time.Now().Add(-time.Hour * 60)
 	dhj.EndDate = time.Now().Add(-time.Minute)
 	err = m.validateJob(dhj)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	dhj.DataType = dataHistoryCandleValidationDataType
 	dhj.Interval = kline.OneDay
 	dhj.RequestSizeLimit = 999
 	err = m.validateJob(dhj)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	dhj.DataType = dataHistoryTradeDataType
 	err = m.validateJob(dhj)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	dhj.DataType = dataHistoryCandleValidationSecondarySourceType
 	err = m.validateJob(dhj)
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Errorf("error '%v', expected '%v'", err, errExchangeNameUnset)
-	}
+	assert.ErrorIs(t, err, errExchangeNameUnset)
+
 	dhj.SecondaryExchangeSource = "lol"
 	dhj.Exchange = ""
 	err = m.validateJob(dhj)
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Errorf("error '%v', expected '%v'", err, errExchangeNameUnset)
-	}
+	assert.ErrorIs(t, err, errExchangeNameUnset)
 }
 
 func TestGetAllJobStatusBetween(t *testing.T) {
@@ -547,62 +430,49 @@ func TestGetAllJobStatusBetween(t *testing.T) {
 		Nickname:  "TestGetActiveJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
 	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	jobs, err := m.GetAllJobStatusBetween(time.Now().Add(-time.Minute*5), time.Now().Add(time.Minute))
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(jobs) != 1 {
 		t.Error("expected 1 job")
 	}
 
 	_, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	m.started = 0
 	_, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	m = nil
 	_, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestPrepareJobs(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
 	jobs, err := m.PrepareJobs()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(jobs) != 1 {
 		t.Errorf("expected 1 job, received %v", len(jobs))
 	}
 	m.started = 0
 	_, err = m.PrepareJobs()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
+
 	m = nil
 	_, err = m.PrepareJobs()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestCompareJobsToData(t *testing.T) {
@@ -613,48 +483,37 @@ func TestCompareJobsToData(t *testing.T) {
 		Nickname:           "TestGenerateJobSummary",
 		Exchange:           testExchange,
 		Asset:              asset.Spot,
-		Pair:               currency.NewPair(currency.BTC, currency.USD),
+		Pair:               currency.NewBTCUSD(),
 		StartDate:          tt.Add(-time.Minute * 5),
 		EndDate:            tt,
 		Interval:           kline.OneMin,
 		ConversionInterval: kline.FiveMin,
 	}
 	err := m.compareJobsToData(dhj)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	dhj.DataType = dataHistoryTradeDataType
 	err = m.compareJobsToData(dhj)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	dhj.DataType = 1337
 	err = m.compareJobsToData(dhj)
-	if !errors.Is(err, errUnknownDataType) {
-		t.Errorf("error '%v', expected '%v'", err, errUnknownDataType)
-	}
+	assert.ErrorIs(t, err, errUnknownDataType)
 
 	dhj.DataType = dataHistoryConvertCandlesDataType
 	err = m.compareJobsToData(dhj)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	m.started = 0
 	err = m.compareJobsToData(dhj)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
+
 	m = nil
 	err = m.compareJobsToData(dhj)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
-func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition caused by the DataHistoryJob and it's a big change to fix.
+func TestRunJob(t *testing.T) {
 	t.Parallel()
 	tt := time.Now().Truncate(kline.OneHour.Duration())
 	testCases := []*DataHistoryJob{
@@ -662,7 +521,7 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 			Nickname:  "TestRunJobDataHistoryCandleDataType",
 			Exchange:  testExchange,
 			Asset:     asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 			StartDate: tt.Add(-kline.FifteenMin.Duration()),
 			EndDate:   tt,
 			Interval:  kline.FifteenMin,
@@ -672,7 +531,7 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 			Nickname:  "TestRunJobDataHistoryTradeDataType",
 			Exchange:  testExchange,
 			Asset:     asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 			StartDate: tt.Add(-kline.OneMin.Duration()),
 			EndDate:   tt,
 			Interval:  kline.OneMin,
@@ -682,7 +541,7 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 			Nickname:           "TestRunJobDataHistoryConvertCandlesDataType",
 			Exchange:           testExchange,
 			Asset:              asset.Spot,
-			Pair:               currency.NewPair(currency.BTC, currency.USDT),
+			Pair:               currency.NewBTCUSDT(),
 			StartDate:          tt.Add(-kline.OneHour.Duration()),
 			EndDate:            tt,
 			Interval:           kline.FifteenMin,
@@ -693,7 +552,7 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 			Nickname:           "TestRunJobDataHistoryConvertTradesDataType",
 			Exchange:           testExchange,
 			Asset:              asset.Spot,
-			Pair:               currency.NewPair(currency.BTC, currency.USDT),
+			Pair:               currency.NewBTCUSDT(),
 			StartDate:          tt.Add(-kline.OneHour.Duration()),
 			EndDate:            tt,
 			Interval:           kline.FifteenMin,
@@ -704,7 +563,7 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 			Nickname:  "TestRunJobDataHistoryCandleValidationDataType",
 			Exchange:  testExchange,
 			Asset:     asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 			StartDate: tt.Add(-kline.OneHour.Duration()),
 			EndDate:   tt,
 			Interval:  kline.OneHour,
@@ -714,7 +573,7 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 			Nickname:                "TestRunJobDataHistoryCandleSecondaryValidationDataType",
 			Exchange:                testExchange,
 			Asset:                   asset.Spot,
-			Pair:                    currency.NewPair(currency.BTC, currency.USDT),
+			Pair:                    currency.NewBTCUSDT(),
 			StartDate:               tt.Add(-kline.OneMin.Duration()),
 			EndDate:                 tt,
 			Interval:                kline.OneMin,
@@ -727,44 +586,34 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 	m.tradeSaver = dataHistoryTradeSaver
 	m.candleSaver = dataHistoryCandleSaver
 	m.tradeLoader = dataHistoryTraderLoader
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.Nickname, func(t *testing.T) {
-			err := m.UpsertJob(test, false)
-			if !errors.Is(err, nil) {
-				t.Errorf("error '%v', expected '%v'", err, nil)
-			}
-			test.Status = dataHistoryIntervalIssuesFound
-			err = m.runJob(test)
-			if !errors.Is(err, errJobInvalid) {
-				t.Errorf("error '%v', expected '%v'", err, errJobInvalid)
-			}
+	for _, tc := range testCases {
+		t.Run(tc.Nickname, func(t *testing.T) {
+			t.Parallel()
+			err := m.UpsertJob(tc, false)
+			assert.NoError(t, err)
 
-			rh := test.rangeHolder
-			test.Status = dataHistoryStatusActive
-			test.rangeHolder = nil
-			err = m.runJob(test)
-			if !errors.Is(err, errJobInvalid) {
-				t.Errorf("error '%v', expected '%v'", err, errJobInvalid)
-			}
+			tc.Status = dataHistoryIntervalIssuesFound
+			err = m.runJob(tc)
+			assert.ErrorIs(t, err, errJobInvalid)
 
-			test.rangeHolder = rh
-			err = m.runJob(test)
-			if !errors.Is(err, nil) {
-				t.Errorf("error '%v', expected '%v'", err, nil)
-			}
+			rh := tc.rangeHolder
+			tc.Status = dataHistoryStatusActive
+			tc.rangeHolder = nil
+			err = m.runJob(tc)
+			assert.ErrorIs(t, err, errJobInvalid)
+
+			tc.rangeHolder = rh
+			err = m.runJob(tc)
+			assert.NoError(t, err)
 		})
 	}
 	var badM *DataHistoryManager
 	err := badM.runJob(nil)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
+
 	badM = &DataHistoryManager{}
 	err = badM.runJob(nil)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 }
 
 func TestGenerateJobSummaryTest(t *testing.T) {
@@ -774,75 +623,60 @@ func TestGenerateJobSummaryTest(t *testing.T) {
 		Nickname:  "TestGenerateJobSummary",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
 	}
 	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	summary, err := m.GenerateJobSummary("TestGenerateJobSummary")
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(summary.ResultRanges) == 0 {
 		t.Error("expected result ranges")
 	}
 
 	atomic.StoreInt32(&m.started, 0)
 	_, err = m.GenerateJobSummary("TestGenerateJobSummary")
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	m = nil
 	_, err = m.GenerateJobSummary("TestGenerateJobSummary")
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestRunJobs(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
 	err := m.runJobs()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	atomic.StoreInt32(&m.started, 0)
 	err = m.runJobs()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	m = nil
 	err = m.runJobs()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestConverters(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
 	id, err := uuid.NewV4()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	id2, err := uuid.NewV4()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	dhj := &DataHistoryJob{
 		ID:        id,
 		Nickname:  "TestProcessJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		StartDate: time.Now().Add(-time.Hour * 24),
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
@@ -859,9 +693,8 @@ func TestConverters(t *testing.T) {
 	}
 
 	convertBack, err := m.convertDBModelToJob(dbJob)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if dhj.ID != convertBack.ID ||
 		dhj.Nickname != convertBack.Nickname ||
 		!dhj.StartDate.Equal(convertBack.StartDate) ||
@@ -893,9 +726,8 @@ func TestConverters(t *testing.T) {
 	}
 
 	andBackAgain, err := m.convertDBResultToJobResult(result)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if jr.ID != andBackAgain[dhj.StartDate.Unix()][0].ID ||
 		jr.JobID != andBackAgain[dhj.StartDate.Unix()][0].JobID ||
 		jr.Result != andBackAgain[dhj.StartDate.Unix()][0].Result ||
@@ -912,11 +744,10 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 	t.Helper()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("error '%v', expected '%v'", err, nil)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	cp2 := currency.NewPair(currency.BTC, currency.USDT)
+	require.NoError(t, err)
+
+	cp := currency.NewBTCUSD()
+	cp2 := currency.NewBTCUSDT()
 	exch.SetDefaults()
 	b := exch.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
@@ -926,14 +757,11 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 		AssetEnabled: true,
 	}
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	exch2, err := em.NewExchangeByName("Binance")
-	if !errors.Is(err, nil) {
-		t.Fatalf("error '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	exch2.SetDefaults()
 	b = exch2.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
@@ -946,9 +774,7 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 	}
 
 	err = em.Add(exch2)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	j := &datahistoryjob.DataHistoryJob{
 		ID:               jobID,
@@ -1004,36 +830,30 @@ func TestProcessCandleData(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
 	_, err := m.processCandleData(nil, nil, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, errNilJob) {
-		t.Errorf("received %v expected %v", err, errNilJob)
-	}
+	assert.ErrorIs(t, err, errNilJob)
+
 	j := &DataHistoryJob{
 		Nickname:  "",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2).Truncate(kline.OneHour.Duration()),
 		EndDate:   time.Now().Truncate(kline.OneHour.Duration()),
 		Interval:  kline.OneHour,
 	}
 	_, err = m.processCandleData(j, nil, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	exch.SetDefaults()
 	fakeExchange := dhmExchange{
 		IBotExchange: exch,
 	}
 	_, err = m.processCandleData(j, exch, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, common.ErrDateUnset)
 
 	m.candleSaver = dataHistoryCandleSaver
 	j.rangeHolder, err = kline.CalculateCandleDateRanges(j.StartDate, j.EndDate, j.Interval, 1337)
@@ -1041,16 +861,14 @@ func TestProcessCandleData(t *testing.T) {
 		t.Error(err)
 	}
 	r, err := m.processCandleData(j, fakeExchange, j.StartDate, j.EndDate, 0)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if r.Status != dataHistoryStatusComplete {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusComplete)
 	}
 	r, err = m.processCandleData(j, exch, j.StartDate, j.EndDate, 0)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if r.Status != dataHistoryStatusFailed {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
 	}
@@ -1060,52 +878,45 @@ func TestProcessTradeData(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
 	_, err := m.processTradeData(nil, nil, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, errNilJob) {
-		t.Errorf("received %v expected %v", err, errNilJob)
-	}
+	assert.ErrorIs(t, err, errNilJob)
+
 	j := &DataHistoryJob{
 		Nickname:  "",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2).Truncate(kline.OneHour.Duration()),
 		EndDate:   time.Now().Truncate(kline.OneHour.Duration()),
 		Interval:  kline.OneHour,
 	}
 	_, err = m.processTradeData(j, nil, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	exch.SetDefaults()
 	fakeExchange := dhmExchange{
 		IBotExchange: exch,
 	}
 	_, err = m.processTradeData(j, exch, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+
 	j.rangeHolder, err = kline.CalculateCandleDateRanges(j.StartDate, j.EndDate, j.Interval, 1337)
 	if err != nil {
 		t.Error(err)
 	}
 	m.tradeSaver = dataHistoryTradeSaver
 	r, err := m.processTradeData(j, fakeExchange, j.StartDate, j.EndDate, 0)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if r.Status != dataHistoryStatusFailed {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
 	}
 	r, err = m.processTradeData(j, exch, j.StartDate, j.EndDate, 0)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if r.Status != dataHistoryStatusFailed {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
 	}
@@ -1115,28 +926,25 @@ func TestConvertJobTradesToCandles(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
 	_, err := m.convertTradesToCandles(nil, time.Time{}, time.Time{})
-	if !errors.Is(err, errNilJob) {
-		t.Errorf("received %v expected %v", err, errNilJob)
-	}
+	assert.ErrorIs(t, err, errNilJob)
+
 	j := &DataHistoryJob{
 		Nickname:  "",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2),
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
 	}
 	_, err = m.convertTradesToCandles(j, time.Time{}, time.Time{})
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+
 	m.tradeLoader = dataHistoryTraderLoader
 	m.candleSaver = dataHistoryCandleSaver
 	r, err := m.convertTradesToCandles(j, j.StartDate, j.EndDate)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if r.Status != dataHistoryStatusComplete {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusComplete)
 	}
@@ -1147,28 +955,24 @@ func TestUpscaleJobCandleData(t *testing.T) {
 	m, _ := createDHM(t)
 	m.candleSaver = dataHistoryCandleSaver
 	_, err := m.convertCandleData(nil, time.Time{}, time.Time{})
-	if !errors.Is(err, errNilJob) {
-		t.Errorf("received %v expected %v", err, errNilJob)
-	}
+	assert.ErrorIs(t, err, errNilJob)
+
 	j := &DataHistoryJob{
 		Nickname:           "",
 		Exchange:           testExchange,
 		Asset:              asset.Spot,
-		Pair:               currency.NewPair(currency.BTC, currency.USDT),
+		Pair:               currency.NewBTCUSDT(),
 		StartDate:          time.Now().Add(-kline.OneHour.Duration() * 24),
 		EndDate:            time.Now(),
 		Interval:           kline.OneHour,
 		ConversionInterval: kline.OneDay,
 	}
 	_, err = m.convertCandleData(j, time.Time{}, time.Time{})
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, common.ErrDateUnset)
 
 	r, err := m.convertCandleData(j, j.StartDate, j.EndDate)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if r.Status != dataHistoryStatusComplete {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusComplete)
 	}
@@ -1179,51 +983,44 @@ func TestValidateCandles(t *testing.T) {
 	m, _ := createDHM(t)
 	m.candleSaver = dataHistoryCandleSaver
 	_, err := m.validateCandles(nil, nil, time.Time{}, time.Time{})
-	if !errors.Is(err, errNilJob) {
-		t.Errorf("received %v expected %v", err, errNilJob)
-	}
+	assert.ErrorIs(t, err, errNilJob)
+
 	j := &DataHistoryJob{
 		Nickname:  "",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2),
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
 	}
 	_, err = m.validateCandles(j, nil, time.Time{}, time.Time{})
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received %v expected %v", err, ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	exch.SetDefaults()
 	fakeExchange := dhmExchange{
 		IBotExchange: exch,
 	}
 	_, err = m.validateCandles(j, exch, time.Time{}, time.Time{})
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Errorf("received %v expected %v", err, common.ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+
 	j.rangeHolder, err = kline.CalculateCandleDateRanges(j.StartDate, j.EndDate, j.Interval, 1337)
 	if err != nil {
 		t.Error(err)
 	}
 	r, err := m.validateCandles(j, fakeExchange, j.StartDate, j.EndDate)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if r.Status != dataHistoryIntervalIssuesFound {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryIntervalIssuesFound)
 	}
 	r, err = m.validateCandles(j, exch, j.StartDate, j.EndDate)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if r.Status != dataHistoryStatusFailed {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
 	}
@@ -1233,37 +1030,27 @@ func TestSetJobRelationship(t *testing.T) {
 	t.Parallel()
 	m, j := createDHM(t)
 	err := m.SetJobRelationship("test", "123")
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	jID, err := uuid.NewV4()
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	j.ID = jID.String()
 	j.PrerequisiteJobID = ""
 	j.PrerequisiteJobNickname = ""
 	err = m.SetJobRelationship("", "123")
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.SetJobRelationship("", "")
-	if !errors.Is(err, errNicknameUnset) {
-		t.Errorf("received %v expected %v", err, errNicknameUnset)
-	}
+	assert.ErrorIs(t, err, errNicknameUnset)
+
 	m.started = 0
 	err = m.SetJobRelationship("", "")
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received %v expected %v", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	m = nil
 	err = m.SetJobRelationship("", "")
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received %v expected %v", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestCheckCandleIssue(t *testing.T) {
@@ -1340,40 +1127,34 @@ func TestCompletionCheck(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
 	err := m.completeJob(nil, false, false)
-	if !errors.Is(err, errNilJob) {
-		t.Errorf("received %v expected %v", err, errNilJob)
-	}
+	assert.ErrorIs(t, err, errNilJob)
+
 	j := &DataHistoryJob{
 		Status: dataHistoryStatusActive,
 	}
 	err = m.completeJob(j, false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if j.Status != dataHistoryIntervalIssuesFound {
 		t.Errorf("received %v expected %v", j.Status, dataHistoryIntervalIssuesFound)
 	}
 
 	err = m.completeJob(j, true, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if j.Status != dataHistoryStatusComplete {
 		t.Errorf("received %v expected %v", j.Status, dataHistoryStatusComplete)
 	}
 
 	err = m.completeJob(j, false, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if j.Status != dataHistoryStatusFailed {
 		t.Errorf("received %v expected %v", j.Status, dataHistoryStatusFailed)
 	}
 
 	err = m.completeJob(j, true, true)
-	if !errors.Is(err, errJobInvalid) {
-		t.Errorf("received %v expected %v", err, errJobInvalid)
-	}
+	assert.ErrorIs(t, err, errJobInvalid)
 }
 
 func TestSaveCandlesInBatches(t *testing.T) {
@@ -1382,33 +1163,23 @@ func TestSaveCandlesInBatches(t *testing.T) {
 		candleSaver: dataHistoryCandleSaver,
 	}
 	err := dhm.saveCandlesInBatches(nil, nil, nil)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("received %v expected %v", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	dhm.started = 1
 	err = dhm.saveCandlesInBatches(nil, nil, nil)
-	if !errors.Is(err, errNilJob) {
-		t.Errorf("received %v expected %v", err, errNilJob)
-	}
+	assert.ErrorIs(t, err, errNilJob)
 
 	job := &DataHistoryJob{}
 	err = dhm.saveCandlesInBatches(job, nil, nil)
-	if !errors.Is(err, errNilCandles) {
-		t.Errorf("received %v expected %v", err, errNilCandles)
-	}
+	assert.ErrorIs(t, err, errNilCandles)
 
 	candles := &kline.Item{}
 	err = dhm.saveCandlesInBatches(job, candles, nil)
-	if !errors.Is(err, errNilResult) {
-		t.Errorf("received %v expected %v", err, errNilResult)
-	}
+	assert.ErrorIs(t, err, errNilResult)
 
 	result := &DataHistoryJobResult{}
 	err = dhm.saveCandlesInBatches(job, candles, result)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	for i := range 10000 {
 		candles.Candles = append(candles.Candles, kline.Candle{
@@ -1417,9 +1188,7 @@ func TestSaveCandlesInBatches(t *testing.T) {
 	}
 	dhm.maxResultInsertions = 1337
 	err = dhm.saveCandlesInBatches(job, candles, result)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 // these structs and function implementations are used

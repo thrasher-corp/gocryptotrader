@@ -9,7 +9,7 @@ import (
 )
 
 func TestSimulate(t *testing.T) {
-	b := bitstamp.Bitstamp{}
+	b := bitstamp.Exchange{}
 	b.SetDefaults()
 	b.Verbose = false
 	b.CurrencyPairs = currency.PairsManager{
@@ -24,7 +24,7 @@ func TestSimulate(t *testing.T) {
 		},
 	}
 	o, err := b.UpdateOrderbook(t.Context(),
-		currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+		currency.NewBTCUSD(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}

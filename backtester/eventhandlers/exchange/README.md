@@ -16,7 +16,7 @@ This exchange package is part of the GoCryptoTrader codebase.
 
 You can track ideas, planned features and what's in progress on our [GoCryptoTrader Kanban board](https://github.com/orgs/thrasher-corp/projects/3).
 
-Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g)
 
 ## Exchange package overview
 
@@ -34,20 +34,6 @@ The following steps are taken for the `ExecuteOrder` function:
   - If `RealOrders` is set to `false` it will submit the order with no calls to the exchange's API, use no API credentials and it will always pass
   - If `RealOrders` is set to `true` it will submit the order via the exchange's API and if successful, will be stored in the order manager
  - If an order is successfully placed, a snapshot of all existing orders in the run will be captured and store for statistical purposes
-
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
-
-## Contribution
-
-Please feel free to submit any pull requests or suggest any desired features to be added.
-
-When submitting a PR, please abide by our coding guidelines:
-
-+ Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
-+ Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
-+ Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/doc/coding_style.md).
-+ Pull requests need to be based on and opened against the `master` branch.
 
 ## Donations
 

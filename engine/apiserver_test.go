@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,71 +16,51 @@ import (
 func TestSetupAPIServerManager(t *testing.T) {
 	t.Parallel()
 	_, err := setupAPIServerManager(nil, nil, nil, nil, nil, "")
-	if !errors.Is(err, errNilRemoteConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilRemoteConfig)
-	}
+	assert.ErrorIs(t, err, errNilRemoteConfig)
 
 	_, err = setupAPIServerManager(&config.RemoteControlConfig{}, nil, nil, nil, nil, "")
-	if !errors.Is(err, errNilPProfConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilPProfConfig)
-	}
+	assert.ErrorIs(t, err, errNilPProfConfig)
 
 	_, err = setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, nil, nil, nil, "")
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
-	}
+	assert.ErrorIs(t, err, errNilExchangeManager)
 
 	_, err = setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, nil, nil, "")
-	if !errors.Is(err, errNilBot) {
-		t.Errorf("error '%v', expected '%v'", err, errNilBot)
-	}
+	assert.ErrorIs(t, err, errNilBot)
 
 	_, err = setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, "")
-	if !errors.Is(err, errEmptyConfigPath) {
-		t.Errorf("error '%v', expected '%v'", err, errEmptyConfigPath)
-	}
+	assert.ErrorIs(t, err, errEmptyConfigPath)
 
 	wd, _ := os.Getwd()
 	_, err = setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestStartRESTServer(t *testing.T) {
 	t.Parallel()
 	wd, _ := os.Getwd()
 	m, err := setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StartRESTServer()
-	if !errors.Is(err, errServerDisabled) {
-		t.Errorf("error '%v', expected '%v'", err, errServerDisabled)
-	}
+	assert.ErrorIs(t, err, errServerDisabled)
+
 	m.remoteConfig.DeprecatedRPC.Enabled = true
 	err = m.StartRESTServer()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestStartWebsocketServer(t *testing.T) {
 	t.Parallel()
 	wd, _ := os.Getwd()
 	m, err := setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StartWebsocketServer()
-	if !errors.Is(err, errServerDisabled) {
-		t.Errorf("error '%v', expected '%v'", err, errServerDisabled)
-	}
+	assert.ErrorIs(t, err, errServerDisabled)
+
 	m.remoteConfig.WebsocketRPC.Enabled = true
 	err = m.StartWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestStopRESTServer(t *testing.T) {
@@ -93,32 +72,23 @@ func TestStopRESTServer(t *testing.T) {
 			ListenAddress: "localhost:9051",
 		},
 	}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.StopRESTServer()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	err = m.StartRESTServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StopRESTServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	// do it again to ensure things have reset appropriately and no errors occur starting
 	err = m.StartRESTServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StopRESTServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestWebsocketStop(t *testing.T) {
@@ -130,117 +100,79 @@ func TestWebsocketStop(t *testing.T) {
 			ListenAddress: "localhost:9052",
 		},
 	}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.StopWebsocketServer()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	err = m.StartWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StopWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	// do it again to ensure things have reset appropriately and no errors occur starting
 	err = m.StartWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StopWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestIsRESTServerRunning(t *testing.T) {
 	t.Parallel()
 	m := &apiServerManager{}
-	if m.IsRESTServerRunning() {
-		t.Error("expected false")
-	}
+	assert.False(t, m.IsRESTServerRunning(), "should return correctly with empty type")
 	m.restStarted = 1
-	if !m.IsRESTServerRunning() {
-		t.Error("expected true")
-	}
-	m = nil
-	if m.IsRESTServerRunning() {
-		t.Error("expected false")
-	}
+	assert.True(t, m.IsRESTServerRunning(), "should return correctly with restStarted set")
+	assert.False(t, (*apiServerManager)(nil).IsRESTServerRunning(), "should return correctly on nil type")
 }
 
 func TestIsWebsocketServerRunning(t *testing.T) {
 	t.Parallel()
 	m := &apiServerManager{}
-	if m.IsWebsocketServerRunning() {
-		t.Error("expected false")
-	}
+	assert.False(t, m.IsWebsocketServerRunning(), "should return correctly with empty type")
 	m.websocketStarted = 1
-	if !m.IsWebsocketServerRunning() {
-		t.Error("expected true")
-	}
-	m = nil
-	if m.IsWebsocketServerRunning() {
-		t.Error("expected false")
-	}
+	assert.True(t, m.IsWebsocketServerRunning(), "should return correctly with websocketStarted set")
+	assert.False(t, (*apiServerManager)(nil).IsWebsocketServerRunning(), "should return correctly on nil type")
 }
 
 func TestGetAllActiveOrderbooks(t *testing.T) {
 	man := NewExchangeManager()
 	bs, err := man.NewExchangeByName("Bitstamp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewExchangeByName must not error")
 	bs.SetDefaults()
 	err = man.Add(bs)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp := getAllActiveOrderbooks(man)
-	if resp == nil {
-		t.Error("expected not nil")
-	}
+	assert.NotNil(t, resp)
 }
 
 func TestGetAllActiveTickers(t *testing.T) {
 	t.Parallel()
 	man := NewExchangeManager()
 	bs, err := man.NewExchangeByName("Bitstamp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewExchangeByName must not error")
 	bs.SetDefaults()
 	err = man.Add(bs)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp := getAllActiveTickers(man)
-	if resp == nil {
-		t.Error("expected not nil")
-	}
+	assert.NotNil(t, resp)
 }
 
 func TestGetAllActiveAccounts(t *testing.T) {
 	t.Parallel()
 	man := NewExchangeManager()
 	bs, err := man.NewExchangeByName("Bitstamp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewExchangeByName must not error")
 	bs.SetDefaults()
 	err = man.Add(bs)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp := getAllActiveAccounts(man)
-	if resp == nil {
-		t.Error("expected not nil")
-	}
+	assert.NotNil(t, resp)
 }
 
 func makeHTTPGetRequest(t *testing.T, response any) *http.Response {
@@ -248,9 +180,8 @@ func makeHTTPGetRequest(t *testing.T, response any) *http.Response {
 	w := httptest.NewRecorder()
 
 	err := writeResponse(w, response)
-	if err != nil {
-		t.Error("Failed to make response.", err)
-	}
+	require.NoError(t, err)
+
 	return w.Result()
 }
 

@@ -262,7 +262,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
-	ws.connectionManager[0].setup.Handler = func(context.Context, []byte) error {
+	ws.connectionManager[0].setup.Handler = func(context.Context, Connection, []byte) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
@@ -275,12 +275,12 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.ErrorIs(t, err, errDastardlyReason)
 
 	ws.connectionManager[0].setup.Connector = func(ctx context.Context, conn Connection) error {
-		return conn.DialContext(ctx, gws.DefaultDialer, nil)
+		return conn.Dial(ctx, gws.DefaultDialer, nil)
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.connectionManager[0].setup.Handler = func(context.Context, []byte) error {
+	ws.connectionManager[0].setup.Handler = func(context.Context, Connection, []byte) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
@@ -469,7 +469,7 @@ func TestDial(t *testing.T) {
 			t.Log("Proxy testing not enabled, skipping")
 			continue
 		}
-		err := testCases[i].WC.Dial(&gws.Dialer{}, http.Header{})
+		err := testCases[i].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 		if err != nil {
 			if testCases[i].Error != nil && strings.Contains(err.Error(), testCases[i].Error.Error()) {
 				return
@@ -521,7 +521,7 @@ func TestSendMessage(t *testing.T) {
 			t.Log("Proxy testing not enabled, skipping")
 			continue
 		}
-		err := testCases[x].WC.Dial(&gws.Dialer{}, http.Header{})
+		err := testCases[x].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 		if err != nil {
 			if testCases[x].Error != nil && strings.Contains(err.Error(), testCases[x].Error.Error()) {
 				return
@@ -551,7 +551,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 
-	err := wc.Dial(&gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -676,7 +676,7 @@ func TestSetupPingHandler(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 	wc.shutdown = make(chan struct{})
-	err := wc.Dial(&gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -692,7 +692,7 @@ func TestSetupPingHandler(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = wc.Dial(&gws.Dialer{}, http.Header{})
+	err = wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -769,7 +769,7 @@ func TestGenerateMessageID(t *testing.T) {
 		ids[i] = id
 	}
 
-	wc.bespokeGenerateMessageID = func(bool) int64 { return 42 }
+	wc.requestIDGenerator = func() int64 { return 42 }
 	assert.EqualValues(t, 42, wc.GenerateMessageID(true), "GenerateMessageID should use bespokeGenerateMessageID")
 }
 
@@ -861,7 +861,7 @@ func TestFlushChannels(t *testing.T) {
 
 	newgen := GenSubs{EnabledPairs: []currency.Pair{
 		currency.NewPair(currency.BTC, currency.AUD),
-		currency.NewPair(currency.BTC, currency.USDT),
+		currency.NewBTCUSDT(),
 	}}
 
 	w := NewManager()
@@ -953,12 +953,12 @@ func TestFlushChannels(t *testing.T) {
 	amazingCandidate := &ConnectionSetup{
 		URL: "ws" + mock.URL[len("http"):] + "/ws",
 		Connector: func(ctx context.Context, conn Connection) error {
-			return conn.DialContext(ctx, gws.DefaultDialer, nil)
+			return conn.Dial(ctx, gws.DefaultDialer, nil)
 		},
 		GenerateSubscriptions: newgen.generateSubs,
 		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
 		Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
-		Handler:               func(context.Context, []byte) error { return nil },
+		Handler:               func(context.Context, Connection, []byte) error { return nil },
 	}
 	require.NoError(t, w.SetupNewConnection(amazingCandidate))
 	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "Must error when no subscriptions are added to the subscription store")
@@ -1066,7 +1066,7 @@ func TestSetupNewConnection(t *testing.T) {
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
-	connSetup.Handler = func(context.Context, []byte) error { return nil }
+	connSetup.Handler = func(context.Context, Connection, []byte) error { return nil }
 	connSetup.MessageFilter = []string{"slices are super naughty and not comparable"}
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errMessageFilterNotComparable)
@@ -1090,7 +1090,7 @@ func TestConnectionShutdown(t *testing.T) {
 	err := wc.Shutdown()
 	assert.NoError(t, err, "Shutdown should not error")
 
-	err = wc.Dial(&gws.Dialer{}, nil)
+	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
 	assert.ErrorContains(t, err, "malformed ws or wss URL", "Dial should error correctly")
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
@@ -1098,7 +1098,7 @@ func TestConnectionShutdown(t *testing.T) {
 
 	wc.URL = "ws" + mock.URL[len("http"):] + "/ws"
 
-	err = wc.Dial(&gws.Dialer{}, nil)
+	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
 	require.NoError(t, err, "Dial must not error")
 
 	err = wc.Shutdown()
@@ -1126,7 +1126,7 @@ func TestLatency(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 
-	err := wc.Dial(&gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 	require.NoError(t, err)
 
 	go readMessages(t, wc)
@@ -1335,4 +1335,19 @@ func TestGetConnection(t *testing.T) {
 	conn, err := ws.GetConnection("testURL")
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
+}
+
+func TestWebsocketConnectionRequireMatchWithData(t *testing.T) {
+	t.Parallel()
+	ws := connection{Match: NewMatch()}
+	err := ws.RequireMatchWithData(0, nil)
+	require.ErrorIs(t, err, ErrSignatureNotMatched)
+
+	ch, err := ws.Match.Set(0, 1)
+	require.NoError(t, err)
+
+	err = ws.RequireMatchWithData(0, []byte("test"))
+	require.NoError(t, err)
+	require.Len(t, ch, 1, "must have one item in channel")
+	assert.Equal(t, []byte("test"), <-ch)
 }

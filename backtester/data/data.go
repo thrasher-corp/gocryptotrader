@@ -148,7 +148,7 @@ func (b *Base) SetStream(s []Event) error {
 			if s[x].GetExchange() != b.stream[0].GetExchange() ||
 				s[x].GetAssetType() != b.stream[0].GetAssetType() ||
 				!s[x].Pair().Equal(b.stream[0].Pair()) {
-				return fmt.Errorf("%w cannot set base stream from %v %v %v to %v %v %v", errMisMatchedEvent, s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair(), b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair())
+				return fmt.Errorf("%w cannot set base stream from %v %v %v to %v %v %v", errMismatchedEvent, s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair(), b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair())
 			}
 		}
 		// due to the Next() function, we cannot take
@@ -183,7 +183,7 @@ candles:
 			if s[x].GetExchange() != b.stream[0].GetExchange() ||
 				s[x].GetAssetType() != b.stream[0].GetAssetType() ||
 				!s[x].Pair().Equal(b.stream[0].Pair()) {
-				return fmt.Errorf("%w %v %v %v received  %v %v %v", errMisMatchedEvent, b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair(), s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair())
+				return fmt.Errorf("%w %v %v %v received  %v %v %v", errMismatchedEvent, b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair(), s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair())
 			}
 			// todo change b.stream to map
 			for y := len(b.stream) - 1; y >= 0; y-- {

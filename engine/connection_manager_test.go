@@ -1,23 +1,20 @@
 package engine
 
 import (
-	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
 func TestSetupConnectionManager(t *testing.T) {
 	t.Parallel()
 	_, err := setupConnectionManager(nil)
-	if !errors.Is(err, errNilConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
-	}
+	assert.ErrorIs(t, err, errNilConfig)
 
 	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m == nil {
 		t.Error("expected manager")
 	}
@@ -26,13 +23,11 @@ func TestSetupConnectionManager(t *testing.T) {
 func TestConnectionMonitorIsRunning(t *testing.T) {
 	t.Parallel()
 	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !m.IsRunning() {
 		t.Error("expected true")
 	}
@@ -49,63 +44,49 @@ func TestConnectionMonitorIsRunning(t *testing.T) {
 func TestConnectionMonitorStart(t *testing.T) {
 	t.Parallel()
 	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
+
 	m = nil
 	err = m.Start()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestConnectionMonitorStop(t *testing.T) {
 	t.Parallel()
 	err := (&connectionManager{started: 1}).Stop()
-	if !errors.Is(err, errConnectionCheckerIsNil) {
-		t.Errorf("error '%v', expected '%v'", err, errConnectionCheckerIsNil)
-	}
+	assert.ErrorIs(t, err, errConnectionCheckerIsNil)
+
 	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
+
 	m = nil
 	err = m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestConnectionMonitorIsOnline(t *testing.T) {
 	t.Parallel()
 	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	// If someone runs this offline, who are we to fail them?
 	m.IsOnline()
 	err = m.Stop()

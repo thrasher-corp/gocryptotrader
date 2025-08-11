@@ -249,10 +249,10 @@ type Base struct {
 	*request.Requester
 	Config        *config.Exchange
 	settingsMutex sync.RWMutex
-	// CanVerifyOrderbook determines if the orderbook verification can be bypassed,
+	// ValidateOrderbook determines if the orderbook verification can be bypassed,
 	// increasing potential update speed but decreasing confidence in orderbook
 	// integrity.
-	CanVerifyOrderbook bool
+	ValidateOrderbook bool
 
 	AssetWebsocketSupport
 	*currencystate.States
@@ -271,6 +271,11 @@ const (
 	RestSwap
 	RestSandbox
 	WebsocketSpot
+	WebsocketCoinMargined
+	WebsocketUSDTMargined
+	WebsocketUSDCMargined
+	WebsocketOptions
+	WebsocketPrivate
 	WebsocketSpotSupplementary
 	ChainAnalysis
 	EdgeCase1
@@ -287,6 +292,11 @@ const (
 	restSandboxURL                = "RestSandboxURL"
 	restSwapURL                   = "RestSwapURL"
 	websocketSpotURL              = "WebsocketSpotURL"
+	websocketCoinMarginedURL      = "WebsocketCoinMarginedURL"
+	websocketUSDTMarginedURL      = "WebsocketUSDTMarginedURL"
+	websocketUSDCMarginedURL      = "WebsocketUSDCMarginedURL"
+	websocketOptionsURL           = "WebsocketOptionsURL"
+	websocketPrivateURL           = "WebsocketPrivateURL"
 	websocketSpotSupplementaryURL = "WebsocketSpotSupplementaryURL"
 	chainAnalysisURL              = "ChainAnalysisURL"
 	edgeCase1URL                  = "EdgeCase1URL"
@@ -305,6 +315,11 @@ var keyURLs = []URL{
 	RestSwap,
 	RestSandbox,
 	WebsocketSpot,
+	WebsocketCoinMargined,
+	WebsocketUSDTMargined,
+	WebsocketUSDCMargined,
+	WebsocketOptions,
+	WebsocketPrivate,
 	WebsocketSpotSupplementary,
 	ChainAnalysis,
 	EdgeCase1,

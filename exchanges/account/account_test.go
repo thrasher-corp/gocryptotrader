@@ -1,7 +1,6 @@
 package account
 
 import (
-	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -59,9 +58,7 @@ func TestCollectBalances(t *testing.T) {
 	}
 
 	_, err = CollectBalances(map[string][]Balance{}, asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestGetHoldings(t *testing.T) {
@@ -144,7 +141,7 @@ func TestGetHoldings(t *testing.T) {
 	assert.Equal(t, 20.0, u.Accounts[0].Currencies[0].Hold)
 
 	_, err = SubscribeToExchangeAccount("nonsense")
-	assert.ErrorIs(t, err, errExchangeAccountsNotFound)
+	require.NoError(t, err)
 
 	p, err := SubscribeToExchangeAccount("Test")
 	require.NoError(t, err)
@@ -250,23 +247,18 @@ func TestBalanceInternalWait(t *testing.T) {
 	t.Parallel()
 	var bi *ProtectedBalance
 	_, _, err := bi.Wait(0)
-	if !errors.Is(err, errBalanceIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errBalanceIsNil)
-	}
+	require.ErrorIs(t, err, errBalanceIsNil)
 
 	bi = &ProtectedBalance{}
 	waiter, _, err := bi.Wait(time.Nanosecond)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if !<-waiter {
 		t.Fatal("should been alerted by timeout")
 	}
 
 	waiter, _, err = bi.Wait(0)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	go bi.notice.Alert()
 	if <-waiter {
@@ -409,4 +401,106 @@ func TestSave(t *testing.T) {
 	assert.NotEmpty(t, e.updatedAt)
 	assert.Equal(t, 80.0, e.total)
 	assert.Equal(t, 20.0, e.hold)
+}
+
+func TestUpdate(t *testing.T) {
+	t.Parallel()
+	s := &Service{exchangeAccounts: make(map[string]*Accounts), mux: dispatch.GetNewMux(nil)}
+	err := s.Update("", nil, nil)
+	assert.ErrorIs(t, err, errExchangeNameUnset)
+
+	err = s.Update("test", nil, nil)
+	assert.ErrorIs(t, err, errCredentialsAreNil)
+
+	err = s.Update("test", []Change{
+		{
+			AssetType: 6969,
+			Balance: &Balance{
+				Currency: currency.BTC,
+				Free:     100,
+			},
+		},
+	}, happyCredentials)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	now := time.Now()
+	err = s.Update("test", []Change{
+		{
+			AssetType: asset.Spot,
+			Account:   "1337",
+			Balance: &Balance{
+				Currency:  currency.BTC,
+				Total:     100,
+				Free:      80,
+				UpdatedAt: now,
+			},
+		},
+	}, happyCredentials)
+	require.NoError(t, err)
+
+	acc, ok := s.exchangeAccounts["test"]
+	require.True(t, ok, "Update must add the exchange")
+
+	assets, ok := acc.subAccounts[*happyCredentials][key.SubAccountAsset{
+		SubAccount: "1337",
+		Asset:      asset.Spot,
+	}]
+	require.True(t, ok, "Update must add subAccount for the credentials")
+
+	b, ok := assets[currency.BTC.Item]
+	require.True(t, ok, "Update must add currency to the subAccount")
+
+	assert.Equal(t, 100.0, b.total, "Update should set total correctly")
+	assert.Equal(t, 80.0, b.free, "Update should set free correctly")
+	assert.Equal(t, now, b.updatedAt, "Update should set updatedAt correctly")
+
+	err = s.Update("test", []Change{
+		{
+			AssetType: asset.Spot,
+			Account:   "1337",
+			Balance: &Balance{
+				Currency:  currency.BTC,
+				Total:     100,
+				Free:      100,
+				UpdatedAt: now.Add(-1 * time.Second),
+			},
+		},
+	}, happyCredentials)
+	assert.ErrorIs(t, err, errOutOfSequence)
+
+	err = s.Update("test", []Change{
+		{
+			AssetType: asset.Spot,
+			Account:   "1337",
+			Balance: &Balance{
+				Currency:  currency.BTC,
+				Total:     100,
+				Free:      100,
+				UpdatedAt: now.Add(1 * time.Second),
+			},
+		},
+	}, happyCredentials)
+	require.NoError(t, err)
+
+	assert.Equal(t, 100.0, b.total)
+	assert.Equal(t, 100.0, b.free)
+	assert.Equal(t, now.Add(1*time.Second), b.updatedAt)
+}
+
+func TestTrackNewAccounts(t *testing.T) {
+	t.Parallel()
+	s := &Service{
+		exchangeAccounts: make(map[string]*Accounts),
+		mux:              dispatch.GetNewMux(nil),
+	}
+
+	s.mu.Lock()
+	_, err := s.initAccounts("binance")
+	s.mu.Unlock()
+	require.NoError(t, err)
+
+	s.mu.Lock()
+	_, err = s.initAccounts("binance")
+	s.mu.Unlock()
+	assert.ErrorIs(t, err, errExchangeAlreadyExists)
 }

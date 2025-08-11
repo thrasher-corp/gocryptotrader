@@ -25,25 +25,23 @@ const (
 	// delivery testnet urls
 	deliveryTestNetBTCTradingURL  = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/btc"  //nolint:unused // Can be used for testing
 	deliveryTestNetUSDTTradingURL = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt" //nolint:unused // Can be used for testing
+
+	deliveryFuturesUpdateLimit uint64 = 100
 )
 
 var defaultDeliveryFuturesSubscriptions = []string{
 	futuresTickersChannel,
 	futuresTradesChannel,
-	futuresOrderbookChannel,
+	futuresOrderbookUpdateChannel,
 	futuresCandlesticksChannel,
 }
 
-var fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
-
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
-func (g *Gateio) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Connection) error {
-	err := g.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures)
-	if err != nil {
+func (e *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Connection) error {
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures); err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &gws.Dialer{}, http.Header{})
-	if err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
@@ -64,17 +62,19 @@ func (g *Gateio) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Co
 }
 
 // GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
-func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
-	_, err := g.GetCredentials(context.Background())
+// TODO: Update to use the new subscription template system
+func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
+	ctx := context.TODO()
+	_, err := e.GetCredentials(ctx)
 	if err != nil {
-		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	channelsToSubscribe := defaultDeliveryFuturesSubscriptions
-	if g.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
 
-	pairs, err := g.GetEnabledPairs(asset.DeliveryFutures)
+	pairs, err := e.GetEnabledPairs(asset.DeliveryFutures)
 	if err != nil {
 		if errors.Is(err, asset.ErrNotEnabled) {
 			return nil, nil // no enabled pairs, subscriptions require an associated pair.
@@ -92,8 +92,11 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.Lis
 				params["interval"] = "0"
 			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
+			case futuresOrderbookUpdateChannel:
+				params["frequency"] = kline.HundredMilliseconds
+				params["level"] = strconv.FormatUint(deliveryFuturesUpdateLimit, 10)
 			}
-			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.DeliveryFutures)
+			fPair, err := e.FormatExchangeCurrency(pairs[j], asset.DeliveryFutures)
 			if err != nil {
 				return nil, err
 			}
@@ -109,25 +112,25 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.Lis
 }
 
 // DeliveryFuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) DeliveryFuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, g.generateDeliveryFuturesPayload)
+func (e *Exchange) DeliveryFuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+	return e.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, e.generateDeliveryFuturesPayload)
 }
 
 // DeliveryFuturesUnsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) DeliveryFuturesUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generateDeliveryFuturesPayload)
+func (e *Exchange) DeliveryFuturesUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+	return e.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, e.generateDeliveryFuturesPayload)
 }
 
-func (g *Gateio) generateDeliveryFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
 	var creds *account.Credentials
 	var err error
-	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		creds, err = g.GetCredentials(ctx)
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		creds, err = e.GetCredentials(ctx)
 		if err != nil {
-			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	outbound := make([]WsInput, 0, len(channelsToSubscribe))
@@ -139,7 +142,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(ctx context.Context, conn websoc
 		timestamp := time.Now()
 		var params []string
 		params = []string{channelsToSubscribe[i].Pairs[0].String()}
-		if g.Websocket.CanUseAuthenticatedEndpoints() {
+		if e.Websocket.CanUseAuthenticatedEndpoints() {
 			switch channelsToSubscribe[i].Channel {
 			case futuresOrdersChannel, futuresUserTradesChannel,
 				futuresLiquidatesChannel, futuresAutoDeleveragesChannel,
@@ -151,7 +154,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(ctx context.Context, conn websoc
 					params = append([]string{value}, params...)
 				}
 				var sigTemp string
-				sigTemp, err = g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
+				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
 				if err != nil {
 					return nil, err
 				}
@@ -165,7 +168,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(ctx context.Context, conn websoc
 		frequency, okay := channelsToSubscribe[i].Params["frequency"].(kline.Interval)
 		if okay {
 			var frequencyString string
-			frequencyString, err = g.GetIntervalString(frequency)
+			frequencyString, err = getIntervalString(frequency)
 			if err != nil {
 				return nil, err
 			}
@@ -188,7 +191,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(ctx context.Context, conn websoc
 			interval, okay := channelsToSubscribe[i].Params["interval"].(kline.Interval)
 			if okay {
 				var intervalString string
-				intervalString, err = g.GetIntervalString(interval)
+				intervalString, err = getIntervalString(interval)
 				if err != nil {
 					return nil, err
 				}

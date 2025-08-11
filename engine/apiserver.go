@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,7 +17,6 @@ import (
 	"github.com/gorilla/mux"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -111,11 +112,11 @@ func (m *apiServerManager) StopWebsocketServer() error {
 func (m *apiServerManager) newRouter(isREST bool) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	var routes []Route
-	if common.ExtractPort(m.websocketListenAddress) == 80 {
-		m.websocketListenAddress = common.ExtractHost(m.websocketListenAddress)
+	if common.ExtractPortOrDefault(m.websocketListenAddress) == 80 {
+		m.websocketListenAddress = common.ExtractHostOrDefault(m.websocketListenAddress)
 	} else {
-		m.websocketListenAddress = common.ExtractHost(m.websocketListenAddress) + ":" +
-			strconv.Itoa(common.ExtractPort(m.websocketListenAddress))
+		m.websocketListenAddress = common.ExtractHostOrDefault(m.websocketListenAddress) + ":" +
+			strconv.Itoa(common.ExtractPortOrDefault(m.websocketListenAddress))
 	}
 
 	if isREST {
@@ -135,8 +136,9 @@ func (m *apiServerManager) newRouter(isREST bool) *mux.Router {
 			}
 			log.Debugf(log.RESTSys,
 				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug/pprof/\n",
-				common.ExtractHost(m.websocketListenAddress),
-				common.ExtractPort(m.websocketListenAddress))
+				common.ExtractHostOrDefault(m.websocketListenAddress),
+				common.ExtractPortOrDefault(m.websocketListenAddress),
+			)
 			router.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
 		}
 	} else {
@@ -167,7 +169,9 @@ func (m *apiServerManager) StartRESTServer() error {
 	}
 	log.Debugf(log.RESTSys,
 		"Deprecated RPC handler support enabled. Listen URL: http://%s:%d\n",
-		common.ExtractHost(m.restListenAddress), common.ExtractPort(m.restListenAddress))
+		common.ExtractHostOrDefault(m.restListenAddress),
+		common.ExtractPortOrDefault(m.restListenAddress),
+	)
 	m.restRouter = m.newRouter(true)
 	if m.restHTTPServer == nil {
 		m.restHTTPServer = &http.Server{
@@ -313,7 +317,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 
 	orderbookData := make([]EnabledExchangeOrderbooks, 0, len(exchanges))
 	for _, e := range exchanges {
-		var orderbooks []orderbook.Base
+		var orderbooks []orderbook.Book
 		for _, a := range e.GetAssetTypes(true) {
 			pairs, err := e.GetEnabledPairs(a)
 			if err != nil {
@@ -406,7 +410,9 @@ func (m *apiServerManager) StartWebsocketServer() error {
 	}
 	log.Debugf(log.APIServerMgr,
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
-		common.ExtractHost(m.websocketListenAddress), common.ExtractPort(m.websocketListenAddress))
+		common.ExtractHostOrDefault(m.websocketListenAddress),
+		common.ExtractPortOrDefault(m.websocketListenAddress),
+	)
 	m.websocketRouter = m.newRouter(false)
 	if m.websocketHTTPServer == nil {
 		m.websocketHTTPServer = &http.Server{
@@ -688,13 +694,8 @@ func wsAuth(client *websocketClient, data any) error {
 		return err
 	}
 
-	hash, err := crypto.GetSHA256([]byte(client.password))
-	if err != nil {
-		return err
-	}
-
-	hashPW := crypto.HexEncodeToString(hash)
-	if auth.Username == client.username && auth.Password == hashPW {
+	shasum := sha256.Sum256([]byte(client.password))
+	if auth.Username == client.username && auth.Password == hex.EncodeToString(shasum[:]) {
 		client.Authenticated = true
 		wsResp.Data = WebsocketResponseSuccess
 		log.Debugln(log.APIServerMgr,

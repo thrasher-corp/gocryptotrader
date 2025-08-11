@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -549,7 +548,7 @@ func TestSetPairs(t *testing.T) {
 	t.Parallel()
 	var c Config
 	pairs := currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 		currency.NewPair(currency.BTC, currency.EUR),
 	}
 
@@ -804,7 +803,7 @@ func TestSupportsPair(t *testing.T) {
 					Pairs: map[asset.Item]*currency.PairStore{
 						asset.Spot: {
 							AssetEnabled:  true,
-							Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+							Available:     []currency.Pair{currency.NewBTCUSD()},
 							ConfigFormat:  fmt,
 							RequestFormat: fmt,
 						},
@@ -815,13 +814,13 @@ func TestSupportsPair(t *testing.T) {
 	}
 	assetType := asset.Spot
 	if cfg.SupportsPair("asdf",
-		currency.NewPair(currency.BTC, currency.USD), assetType) {
+		currency.NewBTCUSD(), assetType) {
 		t.Error(
 			"TestSupportsPair. Expected error from Non-existent exchange",
 		)
 	}
 
-	if !cfg.SupportsPair(bfx, currency.NewPair(currency.BTC, currency.USD), assetType) {
+	if !cfg.SupportsPair(bfx, currency.NewBTCUSD(), assetType) {
 		t.Errorf(
 			"expected true",
 		)
@@ -961,7 +960,7 @@ func TestGetAvailablePairs(t *testing.T) {
 	}
 
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 	}
 	_, err = c.GetAvailablePairs(testFakeExchangeName, asset.Spot)
 	if err != nil {
@@ -1004,11 +1003,11 @@ func TestGetEnabledPairs(t *testing.T) {
 	}
 
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 	}
 
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 	}
 
 	_, err = c.GetEnabledPairs(testFakeExchangeName, asset.Spot)
@@ -1129,9 +1128,7 @@ func TestGetExchangeConfig(t *testing.T) {
 			err.Error())
 	}
 	_, err = cfg.GetExchangeConfig("Testy")
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 }
 
 func TestGetForexProviders(t *testing.T) {
@@ -1640,12 +1637,12 @@ func TestCheckConfig(t *testing.T) {
 
 func TestUpdateConfig(t *testing.T) {
 	var c Config
-	require.NoError(t, c.LoadConfig(TestFile, true), "LoadConfig should not error")
+	require.NoError(t, c.LoadConfig(TestFile, true), "LoadConfig must not error")
 	newCfg := c
-	require.NoError(t, c.UpdateConfig(TestFile, &newCfg, true), "UpdateConfig should not error")
+	require.NoError(t, c.UpdateConfig(TestFile, &newCfg, true), "UpdateConfig must not error")
 
 	if isGCTDocker := os.Getenv("GCT_DOCKER_CI"); isGCTDocker != "true" {
-		require.Error(t, c.UpdateConfig("//non-existentpath\\", &newCfg, false), "UpdateConfig should error on non-existent path")
+		require.Error(t, c.UpdateConfig("//non-existentpath\\", &newCfg, false), "UpdateConfig must error on non-existent path")
 	}
 }
 
@@ -1998,7 +1995,7 @@ func TestMigrateConfig(t *testing.T) {
 			} else {
 				require.NoError(t, err, "migrateConfig must not error")
 				require.Equal(t, tt.want, got, "migrateConfig must return the correct file")
-				require.Truef(t, file.Exists(got), "migrateConfig return file `%s` must exist", got)
+				require.Truef(t, file.Exists(got), "migrateConfig return file %q must exist", got)
 			}
 		})
 	}
@@ -2006,14 +2003,10 @@ func TestMigrateConfig(t *testing.T) {
 
 func TestExchangeConfigValidate(t *testing.T) {
 	err := (*Exchange)(nil).Validate()
-	if !errors.Is(err, errExchangeConfigIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigIsNil)
-	}
+	require.ErrorIs(t, err, errExchangeConfigIsNil)
 
 	err = (&Exchange{}).Validate()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetDefaultSyncManagerConfig(t *testing.T) {
