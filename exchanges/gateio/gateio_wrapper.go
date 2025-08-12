@@ -2343,19 +2343,11 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		}
 		return e.deriveSpotWebsocketOrderResponse(resp)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
-		amountWithDirection, err := getFutureOrderSize(s)
+		req, err := getFuturesOrderRequest(s)
 		if err != nil {
 			return nil, err
 		}
-
-		resp, err := e.WebsocketFuturesSubmitOrder(ctx, s.AssetType, &ContractOrderCreateParams{
-			Contract:    s.Pair,
-			Size:        amountWithDirection,
-			Price:       s.Price,
-			ReduceOnly:  s.ReduceOnly,
-			TimeInForce: timeInForceString(s.TimeInForce),
-			Text:        s.ClientOrderID,
-		})
+		resp, err := e.WebsocketFuturesSubmitOrder(ctx, s.AssetType, req)
 		if err != nil {
 			return nil, err
 		}
@@ -2363,6 +2355,22 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	default:
 		return nil, common.ErrNotYetImplemented
 	}
+}
+
+func getFuturesOrderRequest(s *order.Submit) (*ContractOrderCreateParams, error) {
+	amountWithDirection, err := getFutureOrderSize(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContractOrderCreateParams{
+		Contract:    s.Pair,
+		Size:        amountWithDirection,
+		Price:       s.Price,
+		ReduceOnly:  s.ReduceOnly,
+		TimeInForce: timeInForceString(s.TimeInForce),
+		Text:        s.ClientOrderID,
+	}, nil
 }
 
 // timeInForceString returns the most relevant time-in-force exchange string for a TimeInForce
@@ -2397,8 +2405,17 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		return nil, common.ErrNoResponse
 	}
 
-	out := make([]*order.SubmitResponse, 0, len(responses))
-	for _, resp := range responses {
+	out := make([]*order.SubmitResponse, len(responses))
+	for i, resp := range responses {
+		if resp.Label != "" { // batch only, denotes error type in string format
+			out[i] = &order.SubmitResponse{
+				Exchange:        e.Name,
+				ClientOrderID:   resp.Text,
+				SubmissionError: fmt.Errorf("%w reason label:%q message:%q", order.ErrUnableToPlaceOrder, resp.Label, resp.Message),
+			}
+			continue
+		}
+
 		side, err := order.StringToOrderSide(resp.Side)
 		if err != nil {
 			return nil, err
@@ -2430,7 +2447,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, &order.SubmitResponse{
+		out[i] = &order.SubmitResponse{
 			Exchange:             e.Name,
 			OrderID:              resp.ID,
 			AssetType:            resp.Account,
@@ -2441,16 +2458,16 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 			RemainingAmount:      resp.Left.Float64(),
 			Amount:               resp.Amount.Float64(),
 			Price:                resp.Price.Float64(),
-			AverageExecutedPrice: resp.AverageDealPrice.Float64(),
 			Type:                 oType,
 			Side:                 side,
-			Status:               status,
+			Fee:                  resp.Fee.Float64(),
+			FeeAsset:             resp.FeeCurrency,
 			TimeInForce:          tif,
 			Cost:                 cost,
 			Purchased:            purchased,
-			Fee:                  resp.Fee.Float64(),
-			FeeAsset:             resp.FeeCurrency,
-		})
+			Status:               status,
+			AverageExecutedPrice: resp.AverageDealPrice.Float64(),
+		}
 	}
 	return out, nil
 }
@@ -2571,4 +2588,45 @@ func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error)
 		return currency.BTC, nil
 	}
 	return currency.EMPTYCODE, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+}
+
+// WebsocketSubmitOrders submits orders to the exchange through the websocket
+func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) ([]*order.SubmitResponse, error) {
+	var a asset.Item
+	for x := range orders {
+		if err := orders[x].Validate(e.GetTradingRequirements()); err != nil {
+			return nil, err
+		}
+
+		if a == asset.Empty {
+			a = orders[x].AssetType
+			continue
+		}
+
+		if a != orders[x].AssetType {
+			return nil, fmt.Errorf("%w; Passed %q and %q", errSingleAssetRequired, a, orders[x].AssetType)
+		}
+	}
+
+	if !e.CurrencyPairs.IsAssetSupported(a) {
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
+	}
+
+	switch a {
+	case asset.Spot:
+		reqs := make([]*CreateOrderRequest, len(orders))
+		for x := range orders {
+			var err error
+			if reqs[x], err = e.getSpotOrderRequest(orders[x]); err != nil {
+				return nil, err
+			}
+		}
+		resp, err := e.WebsocketSpotSubmitOrders(ctx, reqs...)
+		if err != nil {
+			return nil, err
+		}
+		return e.deriveSpotWebsocketOrderResponses(resp)
+	default:
+		return nil, fmt.Errorf("%w for %s", common.ErrNotYetImplemented, a)
+	}
 }
