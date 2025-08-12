@@ -644,8 +644,9 @@ func TestSortStrings(t *testing.T) {
 
 func TestCounter(t *testing.T) {
 	t.Parallel()
-	c := Counter{n: -5}
-	require.Equal(t, int64(1), c.IncrementAndGet())
+	c := Counter{}
+	c.n.Store(-5)
+	require.Equal(t, int64(1), c.IncrementAndGet(), "Adding to a negative Counter must reset to zero and then increment")
 	require.Equal(t, int64(2), c.IncrementAndGet())
 }
 

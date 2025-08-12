@@ -143,18 +143,18 @@ func (e *Exchange) FuturesUnsubscribe(ctx context.Context, conn websocket.Connec
 }
 
 // WsHandleFuturesData handles futures websocket data
-func (e *Exchange) WsHandleFuturesData(ctx context.Context, respRaw []byte, a asset.Item) error {
+func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Connection, respRaw []byte, a asset.Item) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
 	}
 
 	if push.RequestID != "" {
-		return e.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
+		return conn.RequireMatchWithData(push.RequestID, respRaw)
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		return e.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
+		return conn.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel {

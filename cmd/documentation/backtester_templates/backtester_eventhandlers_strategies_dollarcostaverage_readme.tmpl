@@ -6,8 +6,5 @@ The dollar cost average is a strategy which is designed to purchase on _every_ d
 This strategy supports simultaneous signal processing, aka `config.StrategySettings.SimultaneousSignalProcessing` set to true will use the function `OnSignals(d []data.Handler, p portfolio.Handler) ([]signal.Event, error)`. This function, like the basic `OnSignal` function, will signal to buy on every iteration.
 This strategy does not support customisation
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
-{{template "contributions"}}
 {{template "donations" .}}
 {{end}}

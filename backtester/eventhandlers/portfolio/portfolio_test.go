@@ -786,7 +786,7 @@ func TestCalculatePNL(t *testing.T) {
 		t.Fatalf("expected one position, received '%v'", len(pos))
 	}
 	if len(pos[0].PNLHistory) == 0 {
-		t.Fatal("expected a pnl entry ( ͡° ͜ʖ ͡°)")
+		t.Fatal("expected a pnl entry 😎")
 	}
 	if !pos[0].UnrealisedPNL.Equal(decimal.NewFromInt(26700)) {
 		// 20 orders * $1 difference * 1x leverage

@@ -231,6 +231,13 @@ func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 		require.NoError(t, e.CurrencyPairs.SetAssetEnabled(a, false))
 	}
 
+	// Disable all other asset types to ensure only the specified asset type is used for websocket tests.
+	for _, enabled := range e.GetAssetTypes(true) {
+		if enabled != a {
+			require.NoError(t, e.CurrencyPairs.SetAssetEnabled(enabled, false))
+		}
+	}
+
 	require.NoError(t, e.Websocket.Connect())
 	return e
 }
