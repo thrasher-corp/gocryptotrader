@@ -110,7 +110,7 @@ func RateLimit(ctx context.Context, rateLimiter *RateLimiterWithWeight, verbose 
 	endpointReservations, globalReservations := make(Reservations, rateLimiter.weight), make(Reservations, 0, rateLimiter.weight)
 	// Consume 1 weight at a time as this avoids needing burst capacity in the limiter, which would otherwise allow
 	// the rate limit to be exceeded over short periods.
-	for i := uint8(0); i < rateLimiter.weight; i++ {
+	for i := range rateLimiter.weight {
 		endpointReservation := rateLimiter.endpoint.Reserve()
 		endpointReservations[i] = endpointReservation
 		endpointDelay = endpointReservation.Delay()

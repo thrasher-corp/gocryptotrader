@@ -82,10 +82,10 @@ func TestRateLimit(t *testing.T) {
 
 	r.global = NewRateLimit(time.Millisecond, 1)
 	err = RateLimit(t.Context(), r, true)
-	require.NoError(t, err, "must not error on on global reservation fast path")
+	require.NoError(t, err, "must not error on global reservation fast path")
 
 	err = RateLimit(t.Context(), r, true)
-	require.NoError(t, err, "must not error on on global reservation with time delay")
+	require.NoError(t, err, "must not error on global reservation with time delay")
 }
 
 func TestDescribeLimiter(t *testing.T) {
