@@ -320,7 +320,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				MinimumBaseAmount:      insts[i].MinimumOrderSize.Float64(),
 			}
 		}
-		return limits.LoadLimits(l)
+		return limits.Load(l)
 	case asset.Spread:
 		insts, err := e.GetPublicSpreads(ctx, "", "", "", "live")
 		if err != nil {
@@ -338,7 +338,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				QuoteStepIncrementSize: insts[i].TickSize.Float64(),
 			}
 		}
-		return limits.LoadLimits(l)
+		return limits.Load(l)
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}

@@ -626,9 +626,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	ff := &binance.Exchange{}
 	ff.Name = testExchange
 	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.XRP, currency.DOGE)})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	require.NoError(t, err, "SetCurrencySettingsMap must not error")
 	s, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(testExchange, asset.Spot, cp)]
 	if !ok {
 		t.Fatal("couldn't get settings")

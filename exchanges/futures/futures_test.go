@@ -535,9 +535,8 @@ func TestGetPositionsForExchange(t *testing.T) {
 	c.multiPositionTrackers = make(map[key.ExchangePairAsset]*MultiPositionTracker)
 	c.multiPositionTrackers[key.NewExchangePairAssetKey(testExchange, asset.Futures, p)] = nil
 	_, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)
-	if !errors.Is(err, ErrPositionNotFound) {
-		t.Errorf("received '%v' expected '%v", err, ErrPositionNotFound)
-	}
+	require.ErrorIs(t, err, ErrPositionNotFound, "GetPositionsForExchange must return ErrPositionNotFound")
+
 	c.multiPositionTrackers[key.NewExchangePairAssetKey(testExchange, asset.Futures, p)] = nil
 	_, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)
 	assert.ErrorIs(t, err, ErrPositionNotFound)
@@ -604,9 +603,7 @@ func TestClearPositionsForExchange(t *testing.T) {
 		},
 	}
 	err = c.ClearPositionsForExchange(testExchange, asset.Futures, p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	require.NoError(t, err, "ClearPositionsForExchange must not error")
 	if len(c.multiPositionTrackers[key.NewExchangePairAssetKey(testExchange, asset.Futures, p)].positions) != 0 {
 		t.Fatal("expected 0")
 	}

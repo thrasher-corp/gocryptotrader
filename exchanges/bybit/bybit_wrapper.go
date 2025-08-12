@@ -1700,7 +1700,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
 		})
 	}
-	return limits.LoadLimits(l)
+	return limits.Load(l)
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair

@@ -16,7 +16,7 @@ var happyKey = key.NewExchangePairAssetKey("test", asset.Spot, currency.NewBTCUS
 func TestLoadLimits(t *testing.T) {
 	t.Parallel()
 	e := store{}
-	err := e.loadLimits(nil)
+	err := e.load(nil)
 	require.ErrorIs(t, err, ErrCannotLoadLimit)
 
 	badKeyNoExchange := []MinMaxLevel{
@@ -28,7 +28,7 @@ func TestLoadLimits(t *testing.T) {
 			MaximumBaseAmount: 10,
 		},
 	}
-	err = e.loadLimits(badKeyNoExchange)
+	err = e.load(badKeyNoExchange)
 	assert.ErrorIs(t, err, errExchangeNameEmpty)
 
 	badKeyNoAsset := []MinMaxLevel{
@@ -40,7 +40,7 @@ func TestLoadLimits(t *testing.T) {
 			MaximumBaseAmount: 10,
 		},
 	}
-	err = e.loadLimits(badKeyNoAsset)
+	err = e.load(badKeyNoAsset)
 	assert.ErrorIs(t, err, errAssetInvalid)
 
 	badKeyNoPair := []MinMaxLevel{
@@ -52,7 +52,7 @@ func TestLoadLimits(t *testing.T) {
 			MaximumBaseAmount: 10,
 		},
 	}
-	err = e.loadLimits(badKeyNoPair)
+	err = e.load(badKeyNoPair)
 	assert.ErrorIs(t, err, errPairNotSet)
 
 	happyLimit := []MinMaxLevel{
@@ -65,7 +65,7 @@ func TestLoadLimits(t *testing.T) {
 		},
 	}
 
-	err = e.loadLimits(happyLimit)
+	err = e.load(happyLimit)
 	assert.NoError(t, err)
 
 	badLimit := []MinMaxLevel{
@@ -77,7 +77,7 @@ func TestLoadLimits(t *testing.T) {
 			MaximumBaseAmount: 10,
 		},
 	}
-	err = e.loadLimits(badLimit)
+	err = e.load(badLimit)
 	assert.ErrorIs(t, err, errInvalidPriceLevels)
 
 	badLimit = []MinMaxLevel{
@@ -89,7 +89,7 @@ func TestLoadLimits(t *testing.T) {
 			MaximumBaseAmount: 9,
 		},
 	}
-	err = e.loadLimits(badLimit)
+	err = e.load(badLimit)
 	assert.ErrorIs(t, err, errInvalidAmountLevels)
 
 	badLimit = []MinMaxLevel{
@@ -99,7 +99,7 @@ func TestLoadLimits(t *testing.T) {
 			MaximumQuoteAmount: 10,
 		},
 	}
-	err = e.loadLimits(badLimit)
+	err = e.load(badLimit)
 	assert.ErrorIs(t, err, errInvalidQuoteLevels)
 }
 
@@ -118,7 +118,7 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 			MaximumBaseAmount: 10,
 		},
 	}
-	err = e.loadLimits(newLimits)
+	err = e.load(newLimits)
 	require.NoError(t, err)
 
 	_, err = e.getOrderExecutionLimits(key.NewExchangePairAssetKey("hi", asset.Futures, currency.NewBTCUSDT()))
@@ -144,7 +144,7 @@ func TestCheckLimit(t *testing.T) {
 			MaximumBaseAmount: 10,
 		},
 	}
-	err = e.loadLimits(newLimits)
+	err = e.load(newLimits)
 	assert.NoError(t, err)
 
 	err = e.checkOrderExecutionLimits(key.NewExchangePairAssetKey("test", asset.Futures, currency.NewBTCUSDT()), 1337, 1337, order.Limit)
@@ -171,7 +171,7 @@ func TestCheckLimit(t *testing.T) {
 
 // No parallel, working with global var
 func TestPublicLoadLimits(t *testing.T) {
-	err := LoadLimits(nil)
+	err := Load(nil)
 	assert.ErrorIs(t, err, ErrCannotLoadLimit)
 
 	newLimits := []MinMaxLevel{
@@ -183,7 +183,7 @@ func TestPublicLoadLimits(t *testing.T) {
 			MaximumBaseAmount: 10,
 		},
 	}
-	err = LoadLimits(newLimits)
+	err = Load(newLimits)
 	require.NoError(t, err)
 }
 
@@ -198,7 +198,7 @@ func TestPublicGetOrderExecutionLimits(t *testing.T) {
 			MaximumBaseAmount: 10,
 		},
 	}
-	err := LoadLimits(newLimits)
+	err := Load(newLimits)
 	require.NoError(t, err)
 
 	resp, err := GetOrderExecutionLimits(happyKey)
@@ -217,7 +217,7 @@ func TestPublicCheckOrderExecutionLimits(t *testing.T) {
 			MaximumBaseAmount: 10,
 		},
 	}
-	err := LoadLimits(newLimits)
+	err := Load(newLimits)
 	require.NoError(t, err)
 
 	err = CheckOrderExecutionLimits(happyKey, 1, 1, order.Market)

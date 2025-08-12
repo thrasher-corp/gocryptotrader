@@ -1261,7 +1261,7 @@ func TestGetSymbolDetails(t *testing.T) {
 	}
 }
 
-func TestSetExchangeOrderExecutionLimits(t *testing.T) {
+func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	if err != nil {

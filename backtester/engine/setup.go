@@ -327,7 +327,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 					return err
 				}
 			default:
-				return fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
+				return fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
 			}
 		default:
 			var bFunds, qFunds decimal.Decimal

@@ -233,7 +233,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			MinimumQuoteAmount:      info.MinimumOrder,
 		})
 	}
-	if err := limits.LoadLimits(l); err != nil {
+	if err := limits.Load(l); err != nil {
 		return fmt.Errorf("%s Error loading exchange limits: %v", e.Name, err)
 	}
 	return nil

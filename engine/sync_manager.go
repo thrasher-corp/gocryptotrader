@@ -371,7 +371,7 @@ func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 	k := key.NewExchangePairAssetKey(exchangeName, a, p)
 	c, exists := m.currencyPairs[k]
 	if !exists {
-		return fmt.Errorf("%w for %s %s %s %s %s",
+		return fmt.Errorf("%w for %q %q %q %q %q",
 			errCouldNotSyncNewData,
 			k.Exchange,
 			k.Base,
@@ -393,7 +393,7 @@ func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 		s.IsUsingREST = false
 		if m.config.LogSwitchProtocolEvents {
 			log.Warnf(log.SyncMgr,
-				"%s %s %s: %s Websocket re-enabled, switching from rest to websocket",
+				"%q %q %q: %q Websocket re-enabled, switching from rest to websocket",
 				k.Exchange,
 				m.FormatCurrency(c.Pair),
 				strings.ToUpper(k.Asset.String()),

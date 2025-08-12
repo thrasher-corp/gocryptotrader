@@ -788,7 +788,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item)
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
-	return limits.LoadLimits(l)
+	return limits.Load(l)
 }
 
 // UpdateCurrencyStates updates currency states for exchange

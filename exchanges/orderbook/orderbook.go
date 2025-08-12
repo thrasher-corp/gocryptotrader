@@ -105,7 +105,7 @@ func (s *store) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth
 	ob, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	s.m.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("%w for %s %s %s", ErrOrderbookNotFound, exchange, p, a)
+		return nil, fmt.Errorf("%w for %q %q %q", ErrOrderbookNotFound, exchange, p, a)
 	}
 	return ob.Depth, nil
 }
@@ -123,7 +123,7 @@ func (s *store) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Book,
 	ob, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	s.m.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("%w for %s %s %s", ErrOrderbookNotFound, exchange, p, a)
+		return nil, fmt.Errorf("%w for %q %q %q", ErrOrderbookNotFound, exchange, p, a)
 	}
 	return ob.Depth.Retrieve()
 }

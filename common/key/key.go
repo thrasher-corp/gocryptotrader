@@ -13,9 +13,9 @@ type ExchangePairAsset struct {
 	Asset    asset.Item
 }
 
-// NewExchangePairAssetKey is a helper to reduce the amount of code needed to create a key
-func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) ExchangePairAsset {
-	return ExchangePairAsset{
+// NewExchangePairAssetKey is a helper function to expand a Pair into an ExchangePairAsset
+func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) *ExchangePairAsset {
+	return &ExchangePairAsset{
 		Exchange: exch,
 		Base:     cp.Base.Item,
 		Quote:    cp.Quote.Item,
@@ -24,24 +24,24 @@ func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) Exchan
 }
 
 // Pair combines the base and quote into a pair
-func (k ExchangePairAsset) Pair() currency.Pair {
+func (k *ExchangePairAsset) Pair() currency.Pair {
 	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
 }
 
 // MatchesExchangeAsset checks if the key matches the exchange and asset
-func (k ExchangePairAsset) MatchesExchangeAsset(exch string, item asset.Item) bool {
+func (k *ExchangePairAsset) MatchesExchangeAsset(exch string, item asset.Item) bool {
 	return k.Exchange == exch && k.Asset == item
 }
 
 // MatchesPairAsset checks if the key matches the pair and asset
-func (k ExchangePairAsset) MatchesPairAsset(pair currency.Pair, item asset.Item) bool {
+func (k *ExchangePairAsset) MatchesPairAsset(pair currency.Pair, item asset.Item) bool {
 	return k.Base == pair.Base.Item &&
 		k.Quote == pair.Quote.Item &&
 		k.Asset == item
 }
 
 // MatchesExchange checks if the exchange matches
-func (k ExchangePairAsset) MatchesExchange(exch string) bool {
+func (k *ExchangePairAsset) MatchesExchange(exch string) bool {
 	return k.Exchange == exch
 }
 
@@ -59,7 +59,7 @@ type PairAsset struct {
 }
 
 // Pair combines the base and quote into a pair
-func (k PairAsset) Pair() currency.Pair {
+func (k *PairAsset) Pair() currency.Pair {
 	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
 }
 

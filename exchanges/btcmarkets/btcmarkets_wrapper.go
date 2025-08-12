@@ -1010,7 +1010,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			PriceStepIncrementSize:  math.Pow(10, -markets[x].PriceDecimals),
 		}
 	}
-	return limits.LoadLimits(l)
+	return limits.Load(l)
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type

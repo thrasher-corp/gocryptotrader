@@ -2384,7 +2384,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 	}
 
-	return limits.LoadLimits(l)
+	return limits.Load(l)
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair

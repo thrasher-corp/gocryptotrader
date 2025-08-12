@@ -2568,7 +2568,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		expectedError error
 	}{
 		{assetType: asset.Spot, expectedError: nil},
-		{assetType: asset.Futures, expectedError: nil},
+		{assetType: asset.USDTMarginedFutures, expectedError: nil},
+		{assetType: asset.CoinMarginedFutures, expectedError: nil},
 		{assetType: asset.DeliveryFutures, expectedError: nil},
 		{assetType: asset.Options, expectedError: nil},
 		{assetType: asset.CrossMargin, expectedError: asset.ErrNotSupported},

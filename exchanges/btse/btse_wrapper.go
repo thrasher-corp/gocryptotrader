@@ -1239,7 +1239,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			PriceStepIncrementSize:  marketInfo.MinPriceIncrement,
 		})
 	}
-	if err = limits.LoadLimits(l); err != nil {
+	if err = limits.Load(l); err != nil {
 		errs = common.AppendError(errs, err)
 	}
 	return errs

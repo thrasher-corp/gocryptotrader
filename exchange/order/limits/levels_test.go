@@ -79,35 +79,35 @@ func TestConformToDecimalAmount(t *testing.T) {
 	t.Parallel()
 	tt := &MinMaxLevel{}
 	val := tt.ConformToDecimalAmount(decimal.NewFromFloat(1.001))
-	assert.True(t, val.Equal(decimal.NewFromFloat(1.001)))
+	assert.Equal(t, "1.001", val.String())
 
 	tt = &MinMaxLevel{}
 	val = tt.ConformToDecimalAmount(decimal.NewFromInt(1))
-	assert.True(t, val.Equal(decimal.NewFromFloat(1)))
+	assert.Equal(t, "1", val.String())
 
 	tt.AmountStepIncrementSize = 0.001
 	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(1.001))
-	assert.True(t, val.Equal(decimal.NewFromFloat(1.001)))
+	assert.Equal(t, "1.001", val.String())
 
 	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(0.0001))
-	assert.Equal(t, decimal.Zero, val)
+	assert.Equal(t, "0", val.String())
 
 	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(0.7777))
-	assert.True(t, val.Equal(decimal.NewFromFloat(0.777)))
+	assert.Equal(t, "0.777", val.String())
 
 	tt.AmountStepIncrementSize = 100
 	val = tt.ConformToDecimalAmount(decimal.NewFromInt(100))
-	assert.True(t, val.Equal(decimal.NewFromFloat(100)))
+	assert.Equal(t, "100", val.String())
 
 	val = tt.ConformToDecimalAmount(decimal.NewFromInt(200))
-	assert.True(t, val.Equal(decimal.NewFromFloat(200)))
+	assert.Equal(t, "200", val.String())
 
 	val = tt.ConformToDecimalAmount(decimal.NewFromInt(150))
-	assert.True(t, val.Equal(decimal.NewFromFloat(100)))
+	assert.Equal(t, "100", val.String())
 
 	tt = nil
 	val = tt.ConformToDecimalAmount(decimal.NewFromInt(150))
-	assert.True(t, val.Equal(decimal.NewFromFloat(150)))
+	assert.Equal(t, "150", val.String())
 }
 
 func TestConformToAmount(t *testing.T) {

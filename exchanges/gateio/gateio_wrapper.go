@@ -1948,16 +1948,11 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				MinimumQuoteAmount:      pairsData[i].MinQuoteAmount.Float64(),
 			})
 		}
-	case asset.Futures:
+	case asset.CoinMarginedFutures:
 		btcContracts, err := e.GetAllFutureContracts(ctx, currency.BTC)
 		if err != nil {
 			return err
 		}
-		usdtContracts, err := e.GetAllFutureContracts(ctx, currency.USDT)
-		if err != nil {
-			return err
-		}
-		btcContracts = append(btcContracts, usdtContracts...)
 		l = make([]limits.MinMaxLevel, 0, len(btcContracts))
 		for x := range btcContracts {
 			p := strings.ToUpper(btcContracts[x].Name)
@@ -1970,6 +1965,26 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
 				PriceStepIncrementSize:  btcContracts[x].OrderPriceRound.Float64(),
+				AmountStepIncrementSize: 1,
+			})
+		}
+	case asset.USDTMarginedFutures:
+		usdtContracts, err := e.GetAllFutureContracts(ctx, currency.USDT)
+		if err != nil {
+			return err
+		}
+		l = make([]limits.MinMaxLevel, 0, len(usdtContracts))
+		for x := range usdtContracts {
+			p := strings.ToUpper(usdtContracts[x].Name)
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangePairAssetKey(e.Name, a, cp),
+				MinimumBaseAmount:       float64(usdtContracts[x].OrderSizeMin),
+				MaximumBaseAmount:       float64(usdtContracts[x].OrderSizeMax),
+				PriceStepIncrementSize:  usdtContracts[x].OrderPriceRound.Float64(),
 				AmountStepIncrementSize: 1,
 			})
 		}
@@ -2028,7 +2043,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 
-	return limits.LoadLimits(l)
+	return limits.Load(l)
 }
 
 // GetHistoricalFundingRates returns historical funding rates for a futures contract

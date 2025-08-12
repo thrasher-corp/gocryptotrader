@@ -1248,7 +1248,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				MinimumBaseAmount:      inst.MinimumTradeAmount,
 			}
 		}
-		err = limits.LoadLimits(l)
+		err = limits.Load(l)
 		if err != nil {
 			return err
 		}

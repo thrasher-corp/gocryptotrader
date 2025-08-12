@@ -587,11 +587,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		for _, p := range pairs {
 			l, err := e.GetOrderExecutionLimits(a, p)
 			require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s %s", a, p)
-			assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s %s", a, p)
-			assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount must be positive for %s %s", a, p)
-			assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize must be positive for %s %s", a, p)
-			assert.Positivef(t, l.MinPrice, "MinPrice must be positive for %s %s", a, p)
-			assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s %s", a, p)
+			assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s %s", a, p)
+			assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s %s", a, p)
+			assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s %s", a, p)
+			assert.Positivef(t, l.MinPrice, "MinPrice should be positive for %s %s", a, p)
+			assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s %s", a, p)
 		}
 	}
 }

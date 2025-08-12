@@ -20,10 +20,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -204,10 +205,8 @@ func TestPlaceOrder(t *testing.T) {
 	assert.ErrorIs(t, err, engine.ErrExchangeNameIsEmpty)
 
 	f.Exchange = testExchange
-	err = exch.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, exch.UpdateOrderExecutionLimits(t.Context(), asset.Spot), "UpdateOrderExecutionLimits must not error")
+
 	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
 	assert.ErrorIs(t, err, gctorder.ErrPairIsEmpty)
 
@@ -359,7 +358,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	err = exch.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
 
-	limits, err := exch.GetOrderExecutionLimits(a, p)
+	l, err := exch.GetOrderExecutionLimits(a, p)
 	require.NoError(t, err, "GetOrderExecutionLimits must not error")
 
 	f := &btcmarkets.Exchange{}
@@ -378,7 +377,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 			MaximumSize: decimal.NewFromFloat(0.1),
 		},
 		MaximumSlippageRate: decimal.NewFromInt(1),
-		Limits:              limits,
+		Limits:              l,
 	}
 	e := Exchange{
 		CurrencySettings: []Settings{cs},

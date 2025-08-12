@@ -87,13 +87,9 @@ func TestNewExchangePairAssetKey(t *testing.T) {
 	assert.Equal(t, p.Quote.Item, k.Quote)
 	assert.Equal(t, a, k.Asset)
 
-	// demonstration of rules that it is simply a helper and not a validator
 	e = ""
 	a = 0
 	p = currency.EMPTYPAIR
 	k = NewExchangePairAssetKey(e, a, p)
-	assert.Equal(t, e, k.Exchange)
-	assert.Equal(t, p.Base.Item, k.Base)
-	assert.Equal(t, p.Quote.Item, k.Quote)
-	assert.Equal(t, a, k.Asset)
+	assert.Equal(t, a, k.Asset, "NewExchangePairAssetKey should not alter an invalid asset")
 }

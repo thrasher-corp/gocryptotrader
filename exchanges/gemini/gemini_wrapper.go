@@ -808,7 +808,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			QuoteStepIncrementSize:  details[i].QuoteIncrement,
 		})
 	}
-	return limits.LoadLimits(resp)
+	return limits.Load(resp)
 }
 
 // GetLatestFundingRates returns the latest funding rates data
