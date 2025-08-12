@@ -174,7 +174,7 @@ func TestGetTicker(t *testing.T) {
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOrderbook(t.Context(), getPair(t, asset.Spot).String(), "0.1", 10, false)
-	assert.NoError(t, err, "GetOrderbook should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetMarketTrades(t *testing.T) {
@@ -251,7 +251,7 @@ func TestCreateBatchOrders(t *testing.T) {
 			Type:         "limit",
 		},
 	})
-	assert.NoError(t, err, "CreateBatchOrders should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetSpotOpenOrders(t *testing.T) {
@@ -283,14 +283,14 @@ func TestCreateSpotOrder(t *testing.T) {
 		Account:      e.assetTypeToString(asset.Spot),
 		Type:         "limit",
 	})
-	assert.NoError(t, err, "PlaceSpotOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetSpotOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSpotOrders(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, statusOpen, 0, 0)
-	assert.NoError(t, err, "GetSpotOrders should not error")
+	assert.NoError(t, err)
 }
 
 func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
@@ -399,7 +399,7 @@ func TestGetPriceTriggeredOrderList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetPriceTriggeredOrderList(t.Context(), statusOpen, currency.EMPTYPAIR, asset.Empty, 0, 0)
-	assert.NoError(t, err, "GetPriceTriggeredOrderList should not error")
+	assert.NoError(t, err)
 }
 
 func TestCancelAllOpenOrders(t *testing.T) {
@@ -466,7 +466,7 @@ func TestGetMarginAllLoans(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetMarginAllLoans(t.Context(), statusOpen, "lend", "", currency.BTC, currency.Pair{Base: currency.BTC, Delimiter: currency.UnderscoreDelimiter, Quote: currency.USDT}, false, 0, 0)
-	assert.NoError(t, err, "GetMarginAllLoans should not error")
+	assert.NoError(t, err)
 }
 
 func TestMergeMultipleLendingLoans(t *testing.T) {
@@ -808,7 +808,7 @@ func TestGetPersonalTradingFee(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetPersonalTradingFee(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, currency.EMPTYCODE)
-	assert.NoError(t, err, "GetPersonalTradingFee should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetUsersTotalBalance(t *testing.T) {
@@ -848,140 +848,149 @@ func TestGetAllFutureContracts(t *testing.T) {
 func TestGetFuturesContract(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesContract(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures).String())
-	assert.NoError(t, err, "GetFuturesContract should not error")
+	assert.NoError(t, err)
 	_, err = e.GetFuturesContract(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures).String())
-	assert.NoError(t, err, "GetFuturesContract should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesOrderbook(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures).String(), "", 10, false)
-	assert.NoError(t, err, "GetFuturesOrderbook should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.GetFuturesOrderbook(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures).String(), "", 10, false)
-	assert.NoError(t, err, "GetFuturesOrderbook should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesTradingHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesTradingHistory(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 0, 0, "", time.Time{}, time.Time{})
-	assert.NoError(t, err, "GetFuturesTradingHistory should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.GetFuturesTradingHistory(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 0, 0, "", time.Time{}, time.Time{})
-	assert.NoError(t, err, "GetFuturesTradingHistory should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesCandlesticks(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures).String(), time.Time{}, time.Time{}, 0, kline.OneWeek)
-	assert.NoError(t, err, "GetFuturesCandlesticks should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.GetFuturesCandlesticks(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures).String(), time.Time{}, time.Time{}, 0, kline.OneWeek)
-	assert.NoError(t, err, "GetFuturesCandlesticks should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestPremiumIndexKLine(t *testing.T) {
 	t.Parallel()
 	_, err := e.PremiumIndexKLine(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), time.Time{}, time.Time{}, 0, kline.OneWeek)
-	assert.NoError(t, err, "PremiumIndexKLine should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), time.Time{}, time.Time{}, 0, kline.OneWeek)
-	assert.NoError(t, err, "PremiumIndexKLine should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestGetFutureTickers(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesTickers(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures))
-	assert.NoError(t, err, "GetFutureTickers should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.GetFuturesTickers(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures))
-	assert.NoError(t, err, "GetFutureTickers should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestGetFutureFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFutureFundingRates(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 0)
-	assert.NoError(t, err, "GetFutureFundingRates should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.GetFutureFundingRates(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 0)
-	assert.NoError(t, err, "GetFutureFundingRates should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesInsuranceBalanceHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesInsuranceBalanceHistory(t.Context(), currency.USDT, 0)
-	assert.NoError(t, err, "GetFuturesInsuranceBalanceHistory should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetFutureStats(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFutureStats(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), time.Time{}, 0, 0)
-	assert.NoError(t, err, "GetFutureStats should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.GetFutureStats(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), time.Time{}, 0, 0)
-	assert.NoError(t, err, "GetFutureStats should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestGetIndexConstituent(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIndexConstituent(t.Context(), currency.USDT, currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}.String())
-	assert.NoError(t, err, "GetIndexConstituent should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetLiquidationHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetLiquidationHistory(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), time.Time{}, time.Time{}, 0)
-	assert.NoError(t, err, "GetLiquidationHistory should not error for CoinMarginedFutures")
+	_, err := e.GetLiquidationHistory(t.Context(), currency.BTC, currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, time.Time{}, time.Time{}, 0)
+	assert.NoError(t, err)
 	_, err = e.GetLiquidationHistory(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), time.Time{}, time.Time{}, 0)
-	assert.NoError(t, err, "GetLiquidationHistory should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
+}
+
+func TestGetRiskLimitTiers(t *testing.T) {
+	t.Parallel()
+	e.Verbose = true
+	_, err := e.GetRiskLimitTiers(t.Context(), currency.BTC, currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, 10, 0)
+	assert.NoError(t, err)
+	_, err = e.GetRiskLimitTiers(t.Context(), currency.USDT, currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, 10, 0)
+	assert.NoError(t, err)
 }
 
 func TestQueryFuturesAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.QueryFuturesAccount(t.Context(), currency.USDT)
-	assert.NoError(t, err, "QueryFuturesAccount should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesAccountBooks(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetFuturesAccountBooks(t.Context(), currency.USDT, 0, time.Time{}, time.Time{}, "dnw")
-	assert.NoError(t, err, "GetFuturesAccountBooks should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetAllFuturesPositionsOfUsers(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetAllFuturesPositionsOfUsers(t.Context(), currency.USDT, true)
-	assert.NoError(t, err, "GetAllPositionsOfUsers should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetSinglePosition(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSinglePosition(t.Context(), currency.USDT, currency.Pair{Quote: currency.BTC, Base: currency.USDT})
-	assert.NoError(t, err, "GetSinglePosition should not error")
+	assert.NoError(t, err)
 }
 
 func TestUpdateFuturesPositionMargin(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.UpdateFuturesPositionMargin(t.Context(), currency.BTC, 0.01, getPair(t, asset.CoinMarginedFutures))
-	assert.NoError(t, err, "UpdateFuturesPositionMargin should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.UpdateFuturesPositionMargin(t.Context(), currency.USDT, 0.01, getPair(t, asset.USDTMarginedFutures))
-	assert.NoError(t, err, "UpdateFuturesPositionMargin should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestUpdateFuturesPositionLeverage(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.UpdateFuturesPositionLeverage(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 1, 0)
-	assert.NoError(t, err, "UpdateFuturesPositionLeverage should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.UpdateFuturesPositionLeverage(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 1, 0)
-	assert.NoError(t, err, "UpdateFuturesPositionLeverage should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestUpdateFuturesPositionRiskLimit(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.UpdateFuturesPositionRiskLimit(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 10)
-	assert.NoError(t, err, "UpdateFuturesPositionRiskLimit should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.UpdateFuturesPositionRiskLimit(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 10)
-	assert.NoError(t, err, "UpdateFuturesPositionRiskLimit should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestPlaceDeliveryOrder(t *testing.T) {
@@ -996,21 +1005,21 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 		Settle:      currency.USDT,
 		TimeInForce: gtcTIF,
 	})
-	assert.NoError(t, err, "CreateDeliveryOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetDeliveryOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetDeliveryOrders(t.Context(), getPair(t, asset.DeliveryFutures), statusOpen, currency.USDT, "", 0, 0, 1)
-	assert.NoError(t, err, "GetDeliveryOrders should not error")
+	assert.NoError(t, err)
 }
 
 func TestCancelMultipleDeliveryOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.CancelMultipleDeliveryOrders(t.Context(), getPair(t, asset.DeliveryFutures), "ask", currency.USDT)
-	assert.NoError(t, err, "CancelMultipleDeliveryOrders should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetSingleDeliveryOrder(t *testing.T) {
@@ -1019,42 +1028,42 @@ func TestGetSingleDeliveryOrder(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetSingleDeliveryOrder should return errEmptyOrInvalidSettlementCurrency")
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetSingleDeliveryOrder(t.Context(), currency.USDT, "123456")
-	assert.NoError(t, err, "GetSingleDeliveryOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestCancelSingleDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.CancelSingleDeliveryOrder(t.Context(), currency.USDT, "123456")
-	assert.NoError(t, err, "CancelSingleDeliveryOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetMyDeliveryTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetMyDeliveryTradingHistory(t.Context(), currency.USDT, "", getPair(t, asset.DeliveryFutures), 0, 0, 1, "")
-	assert.NoError(t, err, "GetMyDeliveryTradingHistory should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetDeliveryPositionCloseHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetDeliveryPositionCloseHistory(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), 0, 0, time.Time{}, time.Time{})
-	assert.NoError(t, err, "GetDeliveryPositionCloseHistory should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetDeliveryLiquidationHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetDeliveryLiquidationHistory(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), 0, time.Now())
-	assert.NoError(t, err, "GetDeliveryLiquidationHistory should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetDeliverySettlementHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetDeliverySettlementHistory(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), 0, time.Now())
-	assert.NoError(t, err, "GetDeliverySettlementHistory should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetDeliveryPriceTriggeredOrder(t *testing.T) {
@@ -1072,78 +1081,78 @@ func TestGetDeliveryPriceTriggeredOrder(t *testing.T) {
 			Price:     123400,
 		},
 	})
-	assert.NoError(t, err, "GetDeliveryPriceTriggeredOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetDeliveryAllAutoOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetDeliveryAllAutoOrder(t.Context(), statusOpen, currency.USDT, getPair(t, asset.DeliveryFutures), 0, 1)
-	assert.NoError(t, err, "GetDeliveryAllAutoOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestCancelAllDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.CancelAllDeliveryPriceTriggeredOrder(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures))
-	assert.NoError(t, err, "CancelAllDeliveryPriceTriggeredOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetSingleDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSingleDeliveryPriceTriggeredOrder(t.Context(), currency.USDT, "12345")
-	assert.NoError(t, err, "GetSingleDeliveryPriceTriggeredOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestCancelDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.CancelDeliveryPriceTriggeredOrder(t.Context(), currency.USDT, "12345")
-	assert.NoError(t, err, "CancelDeliveryPriceTriggeredOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestEnableOrDisableDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.EnableOrDisableDualMode(t.Context(), currency.BTC, true)
-	assert.NoError(t, err, "EnableOrDisableDualMode should not error")
+	assert.NoError(t, err)
 }
 
 func TestRetrivePositionDetailInDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.RetrivePositionDetailInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures))
-	assert.NoError(t, err, "RetrivePositionDetailInDualMode should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.RetrivePositionDetailInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures))
-	assert.NoError(t, err, "RetrivePositionDetailInDualMode should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestUpdatePositionMarginInDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.UpdatePositionMarginInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 0.001, "dual_long")
-	assert.NoError(t, err, "UpdatePositionMarginInDualMode should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.UpdatePositionMarginInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 0.001, "dual_long")
-	assert.NoError(t, err, "UpdatePositionMarginInDualMode should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.UpdatePositionLeverageInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 0.001, 0.001)
-	assert.NoError(t, err, "UpdatePositionLeverageInDualMode should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.UpdatePositionLeverageInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 0.001, 0.001)
-	assert.NoError(t, err, "UpdatePositionLeverageInDualMode should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestUpdatePositionRiskLimitInDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.UpdatePositionRiskLimitInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 10)
-	assert.NoError(t, err, "UpdatePositionRiskLimitInDualMode should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.UpdatePositionRiskLimitInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 10)
-	assert.NoError(t, err, "UpdatePositionRiskLimitInDualMode should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestPlaceFuturesOrder(t *testing.T) {
@@ -1158,35 +1167,35 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		Text:        "t-my-custom-id",
 		Settle:      currency.BTC,
 	})
-	assert.NoError(t, err, "PlaceFuturesOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetFuturesOrders(t.Context(), currency.NewBTCUSD(), statusOpen, "", currency.BTC, 0, 0, 1)
-	assert.NoError(t, err, "GetFuturesOrders should not error")
+	assert.NoError(t, err)
 }
 
 func TestCancelMultipleFuturesOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.CancelMultipleFuturesOpenOrders(t.Context(), getPair(t, asset.USDTMarginedFutures), "ask", currency.USDT)
-	assert.NoError(t, err, "CancelMultipleFuturesOpenOrders should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetSingleFuturesPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSingleFuturesPriceTriggeredOrder(t.Context(), currency.BTC, "12345")
-	assert.NoError(t, err, "GetSingleFuturesPriceTriggeredOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestCancelFuturesPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.CancelFuturesPriceTriggeredOrder(t.Context(), currency.USDT, "12345")
-	assert.NoError(t, err, "CancelFuturesPriceTriggeredOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestPlaceBatchFuturesOrders(t *testing.T) {
@@ -1212,21 +1221,21 @@ func TestPlaceBatchFuturesOrders(t *testing.T) {
 			Settle:      currency.BTC,
 		},
 	})
-	assert.NoError(t, err, "PlaceBatchFuturesOrders should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetSingleFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSingleFuturesOrder(t.Context(), currency.BTC, "12345")
-	assert.NoError(t, err, "GetSingleFuturesOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestCancelSingleFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.CancelSingleFuturesOrder(t.Context(), currency.BTC, "12345")
-	assert.NoError(t, err, "CancelSingleFuturesOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestAmendFuturesOrder(t *testing.T) {
@@ -1235,28 +1244,28 @@ func TestAmendFuturesOrder(t *testing.T) {
 	_, err := e.AmendFuturesOrder(t.Context(), currency.BTC, "1234", AmendFuturesOrderParam{
 		Price: 12345.990,
 	})
-	assert.NoError(t, err, "AmendFuturesOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetMyFuturesTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetMyFuturesTradingHistory(t.Context(), currency.BTC, "", "", getPair(t, asset.CoinMarginedFutures), 0, 0, 0)
-	assert.NoError(t, err, "GetMyFuturesTradingHistory should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesPositionCloseHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetFuturesPositionCloseHistory(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 0, 0, time.Time{}, time.Time{})
-	assert.NoError(t, err, "GetFuturesPositionCloseHistory should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesLiquidationHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetFuturesLiquidationHistory(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 0, time.Time{})
-	assert.NoError(t, err, "GetFuturesLiquidationHistory should not error")
+	assert.NoError(t, err)
 }
 
 func TestCountdownCancelOrders(t *testing.T) {
@@ -1265,7 +1274,7 @@ func TestCountdownCancelOrders(t *testing.T) {
 	_, err := e.CountdownCancelOrders(t.Context(), currency.BTC, CountdownParams{
 		Timeout: 8,
 	})
-	assert.NoError(t, err, "CountdownCancelOrders should not error")
+	assert.NoError(t, err)
 }
 
 func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
@@ -1297,16 +1306,16 @@ func TestListAllFuturesAutoOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.ListAllFuturesAutoOrders(t.Context(), statusOpen, currency.BTC, currency.EMPTYPAIR, 0, 0)
-	assert.NoError(t, err, "ListAllFuturesAutoOrders should not error")
+	assert.NoError(t, err)
 }
 
 func TestCancelAllFuturesOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.CancelAllFuturesOpenOrders(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures))
-	assert.NoError(t, err, "CancelAllFuturesOpenOrders should not error for CoinMarginedFutures")
+	assert.NoError(t, err)
 	_, err = e.CancelAllFuturesOpenOrders(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures))
-	assert.NoError(t, err, "CancelAllFuturesOpenOrders should not error for USDTMarginedFutures")
+	assert.NoError(t, err)
 }
 
 func TestGetAllDeliveryContracts(t *testing.T) {
@@ -1325,65 +1334,65 @@ func TestGetAllDeliveryContracts(t *testing.T) {
 func TestGetDeliveryContract(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDeliveryContract(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures))
-	assert.NoError(t, err, "GetDeliveryContract should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetDeliveryOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDeliveryOrderbook(t.Context(), currency.USDT, "0", getPair(t, asset.DeliveryFutures), 0, false)
-	assert.NoError(t, err, "GetDeliveryOrderbook should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetDeliveryTradingHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDeliveryTradingHistory(t.Context(), currency.USDT, "", getPair(t, asset.DeliveryFutures), 0, time.Time{}, time.Time{})
-	assert.NoError(t, err, "GetDeliveryTradingHistory should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetDeliveryFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDeliveryFuturesCandlesticks(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), time.Time{}, time.Time{}, 0, kline.OneWeek)
-	assert.NoError(t, err, "GetDeliveryFuturesCandlesticks should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetDeliveryFutureTickers(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDeliveryFutureTickers(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures))
-	assert.NoError(t, err, "GetDeliveryFutureTickers should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetDeliveryInsuranceBalanceHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDeliveryInsuranceBalanceHistory(t.Context(), currency.BTC, 0)
-	assert.NoError(t, err, "GetDeliveryInsuranceBalanceHistory should not error")
+	assert.NoError(t, err)
 }
 
 func TestQueryDeliveryFuturesAccounts(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetDeliveryFuturesAccounts(t.Context(), currency.USDT)
-	assert.NoError(t, err, "GetDeliveryFuturesAccounts should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetDeliveryAccountBooks(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetDeliveryAccountBooks(t.Context(), currency.USDT, 0, time.Time{}, time.Now(), "dnw")
-	assert.NoError(t, err, "GetDeliveryAccountBooks should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetAllDeliveryPositionsOfUser(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetAllDeliveryPositionsOfUser(t.Context(), currency.USDT)
-	assert.NoError(t, err, "GetAllDeliveryPositionsOfUser should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetSingleDeliveryPosition(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSingleDeliveryPosition(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures))
-	assert.NoError(t, err, "GetSingleDeliveryPosition should not error")
+	assert.NoError(t, err)
 }
 
 func TestUpdateDeliveryPositionMargin(t *testing.T) {
@@ -1393,7 +1402,7 @@ func TestUpdateDeliveryPositionMargin(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.UpdateDeliveryPositionMargin(t.Context(), currency.USDT, 0.001, getPair(t, asset.DeliveryFutures))
-	assert.NoError(t, err, "UpdateDeliveryPositionMargin should not error")
+	assert.NoError(t, err)
 }
 
 func TestUpdateDeliveryPositionLeverage(t *testing.T) {
@@ -1403,7 +1412,7 @@ func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.UpdateDeliveryPositionLeverage(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), 0.001)
-	assert.NoError(t, err, "UpdateDeliveryPositionLeverage should not error")
+	assert.NoError(t, err)
 }
 
 func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
@@ -1412,7 +1421,7 @@ func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.UpdateDeliveryPositionRiskLimit(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), 30)
-	assert.NoError(t, err, "UpdateDeliveryPositionRiskLimit should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetAllOptionsUnderlyings(t *testing.T) {
@@ -1426,7 +1435,7 @@ func TestGetExpirationTime(t *testing.T) {
 	_, err := e.GetExpirationTime(t.Context(), "")
 	assert.ErrorIs(t, err, errInvalidUnderlying)
 	_, err = e.GetExpirationTime(t.Context(), "BTC_USDT")
-	assert.NoError(t, err, "GetExpirationTime should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetAllContractOfUnderlyingWithinExpiryDate(t *testing.T) {
@@ -1546,7 +1555,7 @@ func TestGetSpecifiedContractPosition(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err = e.GetSpecifiedContractPosition(t.Context(), getPair(t, asset.Options))
-	assert.NoError(t, err, "GetSpecifiedContractPosition should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetUsersLiquidationHistoryForSpecifiedUnderlying(t *testing.T) {
@@ -1591,7 +1600,7 @@ func TestGetSingleOptionOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetSingleOptionOrder(t.Context(), "1234")
-	assert.NoError(t, err, "GetSingleOptionOrder should not error")
+	assert.NoError(t, err)
 }
 
 func TestCancelSingleOrder(t *testing.T) {
@@ -1634,7 +1643,7 @@ func TestCancelWithdrawalWithSpecifiedID(t *testing.T) {
 func TestGetOptionsOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOptionsOrderbook(t.Context(), getPair(t, asset.Options), "0.1", 9, true)
-	assert.NoError(t, err, "GetOptionsOrderbook should not error")
+	assert.NoError(t, err)
 }
 
 func TestGetOptionsTickers(t *testing.T) {
@@ -2010,7 +2019,7 @@ func TestFuturesDataHandler(t *testing.T) {
 	assert.Len(t, e.Websocket.DataHandler, 14, "Should see the correct number of messages")
 	for resp := range e.Websocket.DataHandler {
 		if err, isErr := resp.(error); isErr {
-			assert.NoError(t, err, "Should not get any errors down the data handler")
+			assert.NoError(t, err)
 		}
 	}
 }
@@ -2621,7 +2630,7 @@ func TestGetOpenInterest(t *testing.T) {
 	}
 
 	resp, err = e.GetOpenInterest(t.Context())
-	assert.NoError(t, err, "GetOpenInterest should not error")
+	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, "GetOpenInterest should return some items")
 }
 

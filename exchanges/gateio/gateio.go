@@ -2125,7 +2125,29 @@ func (e *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Co
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var histories []LiquidationHistory
-	return histories, e.SendHTTPRequest(ctx, exchange.RestSpot, publicLiquidationHistoryEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/liq_orders", params), &histories)
+	return histories, e.SendHTTPRequest(ctx, exchange.RestSpot, publicLiquidationHistoryEPL, common.EncodeURLValues(futuresPath+settle.String()+"/liq_orders", params), &histories)
+}
+
+// GetRiskLimitTiers retrieves risk limit tiers
+// When the 'contract' parameter is not passed, the default is to query the risk limits for the top 100 markets.
+// 'Limit' and 'offset' correspond to pagination queries at the market level, not to the length of the returned array.
+func (e *Exchange) GetRiskLimitTiers(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64) ([]RiskLimitTier, error) {
+	if settle.IsEmpty() {
+		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if contract.IsInvalid() {
+		return nil, errInvalidOrMissingContractParam
+	}
+	params := url.Values{}
+	params.Set("contract", contract.String())
+	if offset > 0 {
+		params.Set("from", strconv.FormatUint(offset, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []RiskLimitTier
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicLiquidationHistoryEPL, common.EncodeURLValues(futuresPath+settle.String()+"/risk_limit_tiers", params), &resp)
 }
 
 // QueryFuturesAccount retrieves futures account

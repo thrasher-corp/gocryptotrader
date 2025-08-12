@@ -797,6 +797,17 @@ type LiquidationHistory struct {
 	Left             int64        `json:"left"`
 }
 
+// RiskLimitTier holds contracts risk limit tiers
+type RiskLimitTier struct {
+	MaintenanceRate types.Number `json:"maintenance_rate"`
+	Tier            int64        `json:"tier"`
+	InitialRate     types.Number `json:"initial_rate"`
+	LeverageMax     types.Number `json:"leverage_max"`
+	RiskLimit       types.Number `json:"risk_limit"`
+	Contract        string       `json:"contract"`
+	Deduction       string       `json:"deduction"`
+}
+
 // DeliveryContract represents a delivery contract instance detail.
 type DeliveryContract struct {
 	Name                string       `json:"name"`
