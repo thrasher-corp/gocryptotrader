@@ -20,7 +20,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
-	"golang.org/x/time/rate"
 )
 
 const unexpected = "unexpected values"
@@ -37,15 +36,13 @@ func TestMain(m *testing.M) {
 	sm := http.NewServeMux()
 	sm.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, err := io.WriteString(w, `{"response":true}`)
-		if err != nil {
+		if _, err := io.WriteString(w, `{"response":true}`); err != nil {
 			log.Fatal(err)
 		}
 	})
 	sm.HandleFunc("/error", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		_, err := io.WriteString(w, `{"error":true}`)
-		if err != nil {
+		if _, err := io.WriteString(w, `{"error":true}`); err != nil {
 			log.Fatal(err)
 		}
 	})
@@ -54,43 +51,36 @@ func TestMain(m *testing.M) {
 		w.WriteHeader(http.StatusGatewayTimeout)
 	})
 	sm.HandleFunc("/rate", func(w http.ResponseWriter, _ *http.Request) {
-		if !serverLimit.Allow() {
-			http.Error(w,
-				http.StatusText(http.StatusTooManyRequests),
-				http.StatusTooManyRequests)
-			_, err := io.WriteString(w, `{"response":false}`)
-			if err != nil {
+		if !serverLimit.endpoint.Allow() {
+			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+			if _, err := io.WriteString(w, `{"response":false}`); err != nil {
 				log.Fatal(err)
 			}
 			return
 		}
-		_, err := io.WriteString(w, `{"response":true}`)
-		if err != nil {
+		if _, err := io.WriteString(w, `{"response":true}`); err != nil {
 			log.Fatal(err)
 		}
 	})
 	sm.HandleFunc("/rate-retry", func(w http.ResponseWriter, _ *http.Request) {
-		if !serverLimitRetry.Allow() {
+		if !serverLimitRetry.endpoint.Allow() {
 			w.Header().Add("Retry-After", strconv.Itoa(int(math.Round(serverLimitInterval.Seconds()))))
 			http.Error(w,
 				http.StatusText(http.StatusTooManyRequests),
 				http.StatusTooManyRequests)
-			_, err := io.WriteString(w, `{"response":false}`)
-			if err != nil {
+			if _, err := io.WriteString(w, `{"response":false}`); err != nil {
 				log.Fatal(err)
 			}
 			return
 		}
-		_, err := io.WriteString(w, `{"response":true}`)
-		if err != nil {
+		if _, err := io.WriteString(w, `{"response":true}`); err != nil {
 			log.Fatal(err)
 		}
 	})
 	sm.HandleFunc("/always-retry", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Add("Retry-After", time.Now().Format(time.RFC1123))
 		w.WriteHeader(http.StatusTooManyRequests)
-		_, err := io.WriteString(w, `{"response":false}`)
-		if err != nil {
+		if _, err := io.WriteString(w, `{"response":false}`); err != nil {
 			log.Fatal(err)
 		}
 	})
@@ -100,31 +90,6 @@ func TestMain(m *testing.M) {
 	issues := m.Run()
 	server.Close()
 	os.Exit(issues)
-}
-
-func TestNewRateLimitWithWeight(t *testing.T) {
-	t.Parallel()
-	r := NewRateLimitWithWeight(time.Second*10, 5, 1)
-	if r.Limit() != 0.5 {
-		t.Fatal(unexpected)
-	}
-
-	// Ensures rate limiting factor is the same
-	r = NewRateLimitWithWeight(time.Second*2, 1, 1)
-	if r.Limit() != 0.5 {
-		t.Fatal(unexpected)
-	}
-
-	// Test for open rate limit
-	r = NewRateLimitWithWeight(time.Second*2, 0, 1)
-	if r.Limit() != rate.Inf {
-		t.Fatal(unexpected)
-	}
-
-	r = NewRateLimitWithWeight(0, 69, 1)
-	if r.Limit() != rate.Inf {
-		t.Fatal(unexpected)
-	}
 }
 
 func TestCheckRequest(t *testing.T) {
@@ -235,7 +200,7 @@ func TestDoRequest(t *testing.T) {
 
 	// Invalid/missing endpoint limit
 	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &Item{Path: testURL}, nil }, UnauthenticatedRequest)
-	require.ErrorIs(t, err, errSpecificRateLimiterIsNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	// Force debug
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) {
@@ -607,13 +572,4 @@ func TestIsVerbose(t *testing.T) {
 	require.False(t, IsVerbose(context.WithValue(t.Context(), contextVerboseFlag, false), false))
 	require.False(t, IsVerbose(context.WithValue(t.Context(), contextVerboseFlag, "bruh"), false))
 	require.True(t, IsVerbose(context.WithValue(t.Context(), contextVerboseFlag, true), false))
-}
-
-func TestGetRateLimiterDefinitions(t *testing.T) {
-	t.Parallel()
-	require.Equal(t, RateLimitDefinitions(nil), (*Requester)(nil).GetRateLimiterDefinitions())
-	r, err := New("test", new(http.Client), WithLimiter(globalshell))
-	require.NoError(t, err)
-	require.NotEmpty(t, r.GetRateLimiterDefinitions())
-	assert.Equal(t, globalshell, r.GetRateLimiterDefinitions())
 }

@@ -199,10 +199,7 @@ func (e *Exchange) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	if e.Requester, err = request.New(e.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(GetRateLimit()),
-	); err != nil {
+	if e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(rateLimits)); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 

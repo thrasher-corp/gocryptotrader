@@ -150,10 +150,11 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		default:
 		}
 
+		var verbose bool
 		if r.limiter != nil {
 			// Initiate a rate limit reservation and sleep on requested endpoint
-			err := r.InitiateRateLimit(ctx, endpoint)
-			if err != nil {
+			verbose = IsVerbose(ctx, false)
+			if err := r.InitiateRateLimit(ctx, endpoint, verbose); err != nil {
 				return fmt.Errorf("failed to rate limit HTTP request: %w", err)
 			}
 		}
@@ -168,7 +169,9 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			return err
 		}
 
-		verbose := IsVerbose(ctx, p.Verbose)
+		if !verbose {
+			verbose = p.Verbose
+		}
 
 		if verbose {
 			log.Debugf(log.RequestSys, "%s attempt %d request path: %s", r.name, attempt, p.Path)
