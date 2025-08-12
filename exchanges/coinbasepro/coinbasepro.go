@@ -27,85 +27,76 @@ import (
 )
 
 const (
-	coinbaseAPIURL               = "https://api.coinbase.com"
-	coinbaseV1APIURL             = "https://api.exchange.coinbase.com/"
-	coinbaseproSandboxAPIURL     = "https://api-sandbox.coinbase.com"
-	tradeBaseURL                 = "https://www.coinbase.com/advanced-trade/spot/"
-	coinbaseV3                   = "/api/v3/brokerage/"
-	coinbaseAccounts             = "accounts"
-	coinbaseConvert              = "convert"
-	coinbaseTrade                = "trade"
-	coinbaseQuote                = "quote"
-	coinbaseKeyPermissions       = "key_permissions"
-	coinbaseTransactionSummary   = "transaction_summary"
-	coinbaseCFM                  = "cfm"
-	coinbaseSweeps               = "sweeps"
-	coinbaseIntraday             = "intraday"
-	coinbaseCurrentMarginWindow  = "current_margin_window"
-	coinbaseBalanceSummary       = "balance_summary"
-	coinbasePositions            = "positions"
-	coinbaseMarginSetting        = "margin_setting"
-	coinbaseSchedule             = "schedule"
-	coinbaseOrders               = "orders"
-	coinbaseBatchCancel          = "batch_cancel"
-	coinbaseClosePosition        = "close_position"
-	coinbaseEdit                 = "edit"
-	coinbaseEditPreview          = "edit_preview"
-	coinbaseHistorical           = "historical"
-	coinbaseFills                = "fills"
-	coinbaseBatch                = "batch"
-	coinbaseBestBidAsk           = "best_bid_ask"
-	coinbaseProductBook          = "product_book"
-	coinbaseProducts             = "products"
-	coinbaseCandles              = "candles"
-	coinbaseTicker               = "ticker"
-	coinbasePreview              = "preview"
-	coinbasePortfolios           = "portfolios"
-	coinbaseMoveFunds            = "move_funds"
-	coinbaseIntx                 = "intx"
-	coinbaseBalances             = "balances"
-	coinbaseMultiAssetCollateral = "multi_asset_collateral"
-	coinbaseAllocate             = "allocate"
-	coinbasePortfolio            = "portfolio"
-	coinbasePaymentMethods       = "payment_methods"
-	coinbaseV2                   = "/v2/"
-	coinbaseNotifications        = "notifications"
-	coinbaseUser                 = "user"
-	coinbaseAddresses            = "addresses"
-	coinbaseTransactions         = "transactions"
-	coinbaseDeposits             = "deposits"
-	coinbaseCommit               = "commit"
-	coinbaseWithdrawals          = "withdrawals"
-	coinbaseCurrencies           = "currencies"
-	coinbaseCrypto               = "crypto"
-	coinbaseExchangeRates        = "exchange-rates"
-	coinbasePrices               = "prices"
-	coinbaseTime                 = "time"
-	coinbaseVolumeSummary        = "volume-summary"
-	coinbaseBook                 = "book"
-	coinbaseStats                = "stats"
-	coinbaseTrades               = "trades"
-	coinbaseWrappedAssets        = "wrapped-assets"
-	coinbaseConversionRate       = "conversion-rate"
-	coinbaseMarket               = "market"
+	apiURL                   = "https://api.coinbase.com"
+	v1APIURL                 = "https://api.exchange.coinbase.com/"
+	sandboxAPIURL            = "https://api-sandbox.coinbase.com"
+	tradeBaseURL             = "https://www.coinbase.com/advanced-trade/spot/"
+	v3Path                   = "/api/v3/brokerage/"
+	accountsPath             = "accounts"
+	convertPath              = "convert"
+	tradePath                = "trade"
+	quotePath                = "quote"
+	keyPermissionsPath       = "key_permissions"
+	transactionSummaryPath   = "transaction_summary"
+	futuresPath              = "cfm" // Coinbase Financial Markets is the legal name for the Coinbase futures company
+	sweepsPath               = "sweeps"
+	intradayPath             = "intraday"
+	currentMarginWindowPath  = "current_margin_window"
+	balanceSummaryPath       = "balance_summary"
+	positionsPath            = "positions"
+	marginSettingPath        = "margin_setting"
+	schedulePath             = "schedule"
+	ordersPath               = "orders"
+	batchCancelpath          = "batch_cancel"
+	closePositionPath        = "close_position"
+	editPath                 = "edit"
+	editPreviewPath          = "edit_preview"
+	historicalPath           = "historical"
+	fillsPath                = "fills"
+	batchPath                = "batch"
+	bestBidAskPath           = "best_bid_ask"
+	productBookPath          = "product_book"
+	productsPath             = "products"
+	candlesPath              = "candles"
+	tickerPath               = "ticker"
+	previewPath              = "preview"
+	portfoliosPath           = "portfolios"
+	moveFundsPath            = "move_funds"
+	intxPath                 = "intx"
+	balancesPath             = "balances"
+	multiAssetCollateralPath = "multi_asset_collateral"
+	allocatePath             = "allocate"
+	portfolioPath            = "portfolio"
+	paymentMethodsPath       = "payment_methods"
+	v2Path                   = "/v2/"
+	notificationsPath        = "notifications"
+	userPath                 = "user"
+	addressesPath            = "addresses"
+	transactionsPath         = "transactions"
+	depositsPath             = "deposits"
+	commitPath               = "commit"
+	withdrawalsPath          = "withdrawals"
+	currenciesPath           = "currencies"
+	cryptoPath               = "crypto"
+	exchangeRatesPath        = "exchange-rates"
+	pricesPath               = "prices"
+	timePath                 = "time"
+	volumeSummaryPath        = "volume-summary"
+	bookPath                 = "book"
+	statsPath                = "stats"
+	tradesPath               = "trades"
+	wrappedAssetsPath        = "wrapped-assets"
+	conversionRatePath       = "conversion-rate"
+	marketPath               = "market"
 
-	granUnknown     = "UNKNOWN_GRANULARITY"
-	granOneMin      = "ONE_MINUTE"
-	granFiveMin     = "FIVE_MINUTE"
-	granFifteenMin  = "FIFTEEN_MINUTE"
-	granThirtyMin   = "THIRTY_MINUTE"
-	granOneHour     = "ONE_HOUR"
-	granTwoHour     = "TWO_HOUR"
-	granSixHour     = "SIX_HOUR"
-	granOneDay      = "ONE_DAY"
 	startDateString = "start_date"
 	endDateString   = "end_date"
 
 	warnSequenceIssue = "Out of order sequence number. Received %v, expected %v"
 	warnAuth          = "%v authenticated request failed, attempting unauthenticated"
 
-	manyFills = 3000
-	manyOrds  = 2147483647
+	defaultOrderFillCount = 3000       // Largest number of fills the exchange will let one retrieve in a request, found through experimentation
+	defaultOrderCount     = 2147483647 // int32 limit, largest number of orders the exchange will let one retrieve in a request, found through experimentation
 )
 
 // Constants defining whether a transfer is a deposit or withdrawal, used to simplify interactions with a few endpoints
@@ -164,9 +155,19 @@ var (
 	errSettingEmpty             = errors.New("setting cannot be empty")
 	errUnknownTransferType      = errors.New("unknown transfer type")
 
-	allowedGranularities = []string{granOneMin, granFiveMin, granFifteenMin, granThirtyMin, granOneHour, granTwoHour, granSixHour, granOneDay}
-	closedStatuses       = []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
-	openStatus           = []string{"OPEN"}
+	closedStatuses = []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
+	openStatus     = []string{"OPEN"}
+
+	allowedGranularities = map[kline.Interval]string{
+		kline.OneMin:     "ONE_MINUTE",
+		kline.FiveMin:    "FIVE_MINUTE",
+		kline.FifteenMin: "FIFTEEN_MINUTE",
+		kline.ThirtyMin:  "THIRTY_MINUTE",
+		kline.OneHour:    "ONE_HOUR",
+		kline.TwoHour:    "TWO_HOUR",
+		kline.SixHour:    "SIX_HOUR",
+		kline.OneDay:     "ONE_DAY",
+	}
 )
 
 // GetAccountByID returns information for a single account
@@ -174,7 +175,7 @@ func (e *Exchange) GetAccountByID(ctx context.Context, accountID string) (*Accou
 	if accountID == "" {
 		return nil, errAccountIDEmpty
 	}
-	path := coinbaseV3 + coinbaseAccounts + "/" + accountID
+	path := v3Path + accountsPath + "/" + accountID
 	resp := struct {
 		Account Account `json:"account"`
 	}{}
@@ -191,7 +192,7 @@ func (e *Exchange) ListAccounts(ctx context.Context, limit uint8, cursor int64) 
 		vals.Set("cursor", strconv.FormatInt(cursor, 10))
 	}
 	var resp AllAccountsResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseAccounts, vals, nil, true, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+accountsPath, vals, nil, true, &resp)
 }
 
 // CommitConvertTrade commits a conversion between two currencies, using the trade_id returned from CreateConvertQuote
@@ -202,14 +203,12 @@ func (e *Exchange) CommitConvertTrade(ctx context.Context, tradeID, from, to str
 	if from == "" || to == "" {
 		return nil, errAccountIDEmpty
 	}
-	path := coinbaseV3 + coinbaseConvert + "/" + coinbaseTrade + "/" + tradeID
+	path := v3Path + convertPath + "/" + tradePath + "/" + tradeID
 	req := map[string]any{
 		"from_account": from,
 		"to_account":   to,
 	}
-	resp := struct {
-		Trade ConvertResponse `json:"trade"`
-	}{}
+	var resp ConvertWrapper
 	return &resp.Trade, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
@@ -221,20 +220,17 @@ func (e *Exchange) CreateConvertQuote(ctx context.Context, from, to, userIncenti
 	if amount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	path := coinbaseV3 + coinbaseConvert + "/" + coinbaseQuote
-	tIM := map[string]any{
-		"user_incentive_id": userIncentiveID,
-		"code_val":          codeVal,
-	}
+	path := v3Path + convertPath + "/" + quotePath
 	req := map[string]any{
-		"from_account":             from,
-		"to_account":               to,
-		"amount":                   strconv.FormatFloat(amount, 'f', -1, 64),
-		"trade_incentive_metadata": tIM,
+		"from_account": from,
+		"to_account":   to,
+		"amount":       strconv.FormatFloat(amount, 'f', -1, 64),
+		"trade_incentive_metadata": map[string]any{
+			"user_incentive_id": userIncentiveID,
+			"code_val":          codeVal,
+		},
 	}
-	resp := struct {
-		Trade ConvertResponse `json:"trade"`
-	}{}
+	var resp ConvertWrapper
 	return &resp.Trade, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
@@ -246,21 +242,19 @@ func (e *Exchange) GetConvertTradeByID(ctx context.Context, tradeID, from, to st
 	if from == "" || to == "" {
 		return nil, errAccountIDEmpty
 	}
-	path := coinbaseV3 + coinbaseConvert + "/" + coinbaseTrade + "/" + tradeID
+	path := v3Path + convertPath + "/" + tradePath + "/" + tradeID
 	req := map[string]any{
 		"from_account": from,
 		"to_account":   to,
 	}
-	resp := struct {
-		Trade ConvertResponse `json:"trade"`
-	}{}
+	var resp ConvertWrapper
 	return &resp.Trade, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, req, true, &resp)
 }
 
 // GetPermissions returns the permissions associated with the API key
 func (e *Exchange) GetPermissions(ctx context.Context) (*PermissionsResponse, error) {
 	var resp PermissionsResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseKeyPermissions, nil, nil, true, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+keyPermissionsPath, nil, nil, true, &resp)
 }
 
 // GetTransactionSummary returns a summary of transactions with fee tiers, total volume, and fees
@@ -281,15 +275,13 @@ func (e *Exchange) GetTransactionSummary(ctx context.Context, startDate, endDate
 		params.Values.Set("product_venue", productVenue)
 	}
 	var resp TransactionSummary
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseTransactionSummary, params.Values, nil, true, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+transactionSummaryPath, params.Values, nil, true, &resp)
 }
 
 // CancelPendingFuturesSweep cancels a pending sweep request
 func (e *Exchange) CancelPendingFuturesSweep(ctx context.Context) (bool, error) {
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps
-	resp := struct {
-		Success bool `json:"success"`
-	}{}
+	path := v3Path + futuresPath + "/" + sweepsPath
+	var resp SuccessResp
 	return resp.Success, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, true, &resp)
 }
 
@@ -302,7 +294,7 @@ func (e *Exchange) GetCurrentMarginWindow(ctx context.Context, marginProfileType
 	if marginProfileType != "" {
 		vals.Set("margin_profile_type", marginProfileType)
 	}
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseIntraday + "/" + coinbaseCurrentMarginWindow
+	path := v3Path + futuresPath + "/" + intradayPath + "/" + currentMarginWindowPath
 	var resp CurrentMarginWindow
 	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
 }
@@ -312,16 +304,16 @@ func (e *Exchange) GetFuturesBalanceSummary(ctx context.Context) (*FuturesBalanc
 	resp := struct {
 		BalanceSummary FuturesBalanceSummary `json:"balance_summary"`
 	}{}
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseBalanceSummary
+	path := v3Path + futuresPath + "/" + balanceSummaryPath
 	return &resp.BalanceSummary, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
-// GetFuturesPositionByID returns information on a single open position in CFM futures products
+// GetFuturesPositionByID returns information on an open futures position
 func (e *Exchange) GetFuturesPositionByID(ctx context.Context, productID currency.Pair) (*FuturesPosition, error) {
 	if productID.IsEmpty() {
 		return nil, errProductIDEmpty
 	}
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbasePositions + "/" + productID.String()
+	path := v3Path + futuresPath + "/" + positionsPath + "/" + productID.String()
 	resp := struct {
 		Position FuturesPosition `json:"position"`
 	}{}
@@ -333,16 +325,16 @@ func (e *Exchange) GetIntradayMarginSetting(ctx context.Context) (string, error)
 	resp := struct {
 		Setting string `json:"setting"`
 	}{}
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseIntraday + "/" + coinbaseMarginSetting
+	path := v3Path + futuresPath + "/" + intradayPath + "/" + marginSettingPath
 	return resp.Setting, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
-// ListFuturesPositions returns a list of all open positions in CFM futures products
+// ListFuturesPositions returns a list of all open futures positions
 func (e *Exchange) ListFuturesPositions(ctx context.Context) ([]FuturesPosition, error) {
 	resp := struct {
 		Positions []FuturesPosition `json:"positions"`
 	}{}
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbasePositions
+	path := v3Path + futuresPath + "/" + positionsPath
 	return resp.Positions, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
@@ -351,20 +343,18 @@ func (e *Exchange) ListFuturesSweeps(ctx context.Context) ([]SweepData, error) {
 	resp := struct {
 		Sweeps []SweepData `json:"sweeps"`
 	}{}
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps
+	path := v3Path + futuresPath + "/" + sweepsPath
 	return resp.Sweeps, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
 // ScheduleFuturesSweep schedules a sweep of funds from a CFTC-regulated futures account to a Coinbase USD Spot wallet. Request submitted before 5 pm ET are processed the following business day, requests submitted after are processed in 2 business days. Only one sweep request can be pending at a time. Funds transferred depend on the excess available in the futures account. An amount of 0 will sweep all available excess funds
 func (e *Exchange) ScheduleFuturesSweep(ctx context.Context, amount float64) (bool, error) {
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps + "/" + coinbaseSchedule
+	path := v3Path + futuresPath + "/" + sweepsPath + "/" + schedulePath
 	var req map[string]any
 	if amount != 0 {
 		req = map[string]any{"usd_amount": strconv.FormatFloat(amount, 'f', -1, 64)}
 	}
-	resp := struct {
-		Success bool `json:"success"`
-	}{}
+	var resp SuccessResp
 	return resp.Success, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
@@ -373,7 +363,7 @@ func (e *Exchange) SetIntradayMarginSetting(ctx context.Context, setting string)
 	if setting == "" {
 		return errSettingEmpty
 	}
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseIntraday + "/" + coinbaseMarginSetting
+	path := v3Path + futuresPath + "/" + intradayPath + "/" + marginSettingPath
 	req := map[string]any{"setting": setting}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, nil)
 }
@@ -386,7 +376,7 @@ func (e *Exchange) CancelOrders(ctx context.Context, orderIDs []string) ([]Order
 	if len(orderIDs) > 100 {
 		return nil, errCancelLimitExceeded
 	}
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseBatchCancel
+	path := v3Path + ordersPath + "/" + batchCancelpath
 	req := map[string]any{"order_ids": orderIDs}
 	resp := struct {
 		Results []OrderCancelDetail `json:"results"`
@@ -405,7 +395,7 @@ func (e *Exchange) ClosePosition(ctx context.Context, clientOrderID string, prod
 	if size <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseClosePosition
+	path := v3Path + ordersPath + "/" + closePositionPath
 	req := map[string]any{
 		"client_order_id": clientOrderID,
 		"product_id":      productID.String(),
@@ -447,7 +437,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*Succes
 	}
 	var resp SuccessFailureConfig
 	return &resp,
-		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseV3+coinbaseOrders, nil, req, true, &resp)
+		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, v3Path+ordersPath, nil, req, true, &resp)
 }
 
 // EditOrder edits an order to a new size or price. Only limit orders with a good-till-cancelled time in force can be edited
@@ -458,15 +448,13 @@ func (e *Exchange) EditOrder(ctx context.Context, orderID string, size, price fl
 	if size <= 0 && price <= 0 {
 		return false, errSizeAndPriceZero
 	}
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseEdit
+	path := v3Path + ordersPath + "/" + editPath
 	req := map[string]any{
 		"order_id": orderID,
 		"size":     strconv.FormatFloat(size, 'f', -1, 64),
 		"price":    strconv.FormatFloat(price, 'f', -1, 64),
 	}
-	resp := struct {
-		Success bool `json:"success"`
-	}{}
+	var resp SuccessResp
 	return resp.Success, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
@@ -478,7 +466,7 @@ func (e *Exchange) EditOrderPreview(ctx context.Context, orderID string, size, p
 	if size <= 0 && price <= 0 {
 		return nil, errSizeAndPriceZero
 	}
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseEditPreview
+	path := v3Path + ordersPath + "/" + editPreviewPath
 	req := map[string]any{
 		"order_id": orderID,
 		"size":     strconv.FormatFloat(size, 'f', -1, 64),
@@ -500,14 +488,14 @@ func (e *Exchange) GetOrderByID(ctx context.Context, orderID, clientOID string, 
 	if !userNativeCurrency.IsEmpty() {
 		vals.Set("user_native_currency", userNativeCurrency.String())
 	}
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseHistorical + "/" + orderID
+	path := v3Path + ordersPath + "/" + historicalPath + "/" + orderID
 	resp := struct {
 		Order GetOrderResponse `json:"order"`
 	}{}
 	return &resp.Order, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
 }
 
-// ListFills returns information on recent fills
+// ListFills returns information on recent order fills
 func (e *Exchange) ListFills(ctx context.Context, orderIDs, tradeIDs []string, productIDs currency.Pairs, cursor int64, sortBy string, startDate, endDate time.Time, limit uint16) (*FillResponse, error) {
 	var params Params
 	params.Values = url.Values{}
@@ -529,58 +517,57 @@ func (e *Exchange) ListFills(ctx context.Context, orderIDs, tradeIDs []string, p
 	if sortBy != "" {
 		params.Values.Set("sort_by", sortBy)
 	}
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseHistorical + "/" + coinbaseFills
+	path := v3Path + ordersPath + "/" + historicalPath + "/" + fillsPath
 	var resp FillResponse
 	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
 }
 
 // ListOrders lists orders, filtered by their status
-func (e *Exchange) ListOrders(ctx context.Context, orderIDs, orderStatus, timeInForces, orderTypes, assetFilters []string, productIDs currency.Pairs, productType, orderSide, orderPlacementSource, contractExpiryType, retailPortfolioID, sortBy string, cursor int64, limit int32, startDate, endDate time.Time, userNativeCurrency currency.Code) (*ListOrdersResp, error) {
+func (e *Exchange) ListOrders(ctx context.Context, req *ListOrdersReq) (*ListOrdersResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.encodeDateRange(startDate, endDate, startDateString, endDateString)
+	err := params.encodeDateRange(req.StartDate, req.EndDate, startDateString, endDateString)
 	if err != nil {
 		return nil, err
 	}
-	for x := range orderStatus {
-		params.Values.Add("order_status", orderStatus[x])
+	for x := range req.OrderStatus {
+		params.Values.Add("order_status", req.OrderStatus[x])
 	}
-	for x := range orderIDs {
-		params.Values.Add("order_ids", orderIDs[x])
+	for x := range req.OrderIDs {
+		params.Values.Add("order_ids", req.OrderIDs[x])
 	}
-	for x := range timeInForces {
-		params.Values.Add("time_in_forces", timeInForces[x])
+	for x := range req.TimeInForces {
+		params.Values.Add("time_in_forces", req.TimeInForces[x])
 	}
-	for x := range orderTypes {
-		params.Values.Add("order_types", orderTypes[x])
+	for x := range req.OrderTypes {
+		params.Values.Add("order_types", req.OrderTypes[x])
 	}
-	for x := range assetFilters {
-		params.Values.Add("asset_filters", assetFilters[x])
+	for x := range req.AssetFilters {
+		params.Values.Add("asset_filters", req.AssetFilters[x])
 	}
-	for x := range productIDs {
-		params.Values.Add("product_ids", productIDs[x].String())
+	for x := range req.ProductIDs {
+		params.Values.Add("product_ids", req.ProductIDs[x].String())
 	}
-	if productType != "" {
-		params.Values.Set("product_type", productType)
+	if req.ProductType != "" {
+		params.Values.Set("product_type", req.ProductType)
 	}
-	if orderSide != "" {
-		params.Values.Set("order_side", orderSide)
+	if req.OrderSide != "" {
+		params.Values.Set("order_side", req.OrderSide)
 	}
-	if orderPlacementSource != "" {
-		params.Values.Set("order_placement_source", orderPlacementSource)
+	if req.OrderPlacementSource != "" {
+		params.Values.Set("order_placement_source", req.OrderPlacementSource)
 	}
-	if contractExpiryType != "" {
-		params.Values.Set("contract_expiry_type", contractExpiryType)
+	if req.ContractExpiryType != "" {
+		params.Values.Set("contract_expiry_type", req.ContractExpiryType)
 	}
-	if sortBy != "" {
-		params.Values.Set("sort_by", sortBy)
+	if req.SortBy != "" {
+		params.Values.Set("sort_by", req.SortBy)
 	}
-	params.Values.Set("cursor", strconv.FormatInt(cursor, 10))
-	params.Values.Set("limit", strconv.FormatInt(int64(limit), 10))
-	params.Values.Set("user_native_currency", userNativeCurrency.String())
-	// This functionality has been deprecated, and only works for legacy API keys
-	params.Values.Set("retail_portfolio_id", retailPortfolioID)
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseHistorical + "/" + coinbaseBatch
+	params.Values.Set("cursor", strconv.FormatInt(req.Cursor, 10))
+	params.Values.Set("limit", strconv.FormatInt(int64(req.Limit), 10))
+	params.Values.Set("user_native_currency", req.UserNativeCurrency.String())
+	params.Values.Set("retail_portfolio_id", req.RetailPortfolioID) // deprecated and only works for legacy API keys
+	path := v3Path + ordersPath + "/" + historicalPath + "/" + batchPath
 	var resp ListOrdersResp
 	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
 }
@@ -606,7 +593,7 @@ func (e *Exchange) PreviewOrder(ctx context.Context, inf *PreviewOrderInfo) (*Pr
 		req["margin_type"] = mt
 	}
 	var resp *PreviewOrderResp
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbasePreview
+	path := v3Path + ordersPath + "/" + previewPath
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
@@ -615,7 +602,7 @@ func (e *Exchange) GetPaymentMethodByID(ctx context.Context, paymentMethodID str
 	if paymentMethodID == "" {
 		return nil, errPaymentMethodEmpty
 	}
-	path := coinbaseV3 + coinbasePaymentMethods + "/" + paymentMethodID
+	path := v3Path + paymentMethodsPath + "/" + paymentMethodID
 	resp := struct {
 		PaymentMethod PaymentMethodData `json:"payment_method"`
 	}{}
@@ -628,7 +615,7 @@ func (e *Exchange) ListPaymentMethods(ctx context.Context) ([]PaymentMethodData,
 		PaymentMethods []PaymentMethodData `json:"payment_methods"`
 	}{}
 	req := map[string]any{"currency": "BTC"}
-	path := coinbaseV3 + coinbasePaymentMethods
+	path := v3Path + paymentMethodsPath
 	return resp.PaymentMethods, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, req, true, &resp)
 }
 
@@ -652,7 +639,7 @@ func (e *Exchange) AllocatePortfolio(ctx context.Context, portfolioID, productID
 		"currency":       cur,
 		"amount":         strconv.FormatFloat(amount, 'f', -1, 64),
 	}
-	path := coinbaseV3 + coinbaseIntx + "/" + coinbaseAllocate
+	path := v3Path + intxPath + "/" + allocatePath
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, nil)
 }
 
@@ -661,7 +648,7 @@ func (e *Exchange) GetPerpetualsPortfolioSummary(ctx context.Context, portfolioI
 	if portfolioID == "" {
 		return nil, errPortfolioIDEmpty
 	}
-	path := coinbaseV3 + coinbaseIntx + "/" + coinbasePortfolio + "/" + portfolioID
+	path := v3Path + intxPath + "/" + portfolioPath + "/" + portfolioID
 	resp := struct {
 		Summary PerpetualPortfolioResponse `json:"summary"`
 	}{}
@@ -676,7 +663,7 @@ func (e *Exchange) GetPerpetualsPositionByID(ctx context.Context, portfolioID st
 	if productID.IsEmpty() {
 		return nil, errProductIDEmpty
 	}
-	path := coinbaseV3 + coinbaseIntx + "/" + coinbasePositions + "/" + portfolioID + "/" + productID.String()
+	path := v3Path + intxPath + "/" + positionsPath + "/" + portfolioID + "/" + productID.String()
 	resp := struct {
 		Position PerpPositionDetail `json:"position"`
 	}{}
@@ -688,7 +675,7 @@ func (e *Exchange) GetPortfolioBalances(ctx context.Context, portfolioID string)
 	if portfolioID == "" {
 		return nil, errPortfolioIDEmpty
 	}
-	path := coinbaseV3 + coinbaseIntx + "/" + coinbaseBalances + "/" + portfolioID
+	path := v3Path + intxPath + "/" + balancesPath + "/" + portfolioID
 	resp := struct {
 		PortfolioBalances []PortfolioBalancesResponse `json:"portfolio_balances"`
 	}{}
@@ -700,7 +687,7 @@ func (e *Exchange) GetAllPerpetualsPositions(ctx context.Context, portfolioID st
 	if portfolioID == "" {
 		return nil, errPortfolioIDEmpty
 	}
-	path := coinbaseV3 + coinbaseIntx + "/" + coinbasePositions + "/" + portfolioID
+	path := v3Path + intxPath + "/" + positionsPath + "/" + portfolioID
 	var resp *AllPerpPosResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
@@ -714,7 +701,7 @@ func (e *Exchange) MultiAssetCollateralToggle(ctx context.Context, portfolioID s
 		"portfolio_uuid":                 portfolioID,
 		"multi_asset_collateral_enabled": enabled,
 	}
-	path := coinbaseV3 + coinbaseIntx + "/" + coinbaseMultiAssetCollateral
+	path := v3Path + intxPath + "/" + multiAssetCollateralPath
 	var resp struct {
 		Enabled bool `json:"multi_asset_collateral_enabled"`
 	}
@@ -730,7 +717,7 @@ func (e *Exchange) CreatePortfolio(ctx context.Context, name string) (*SimplePor
 	resp := struct {
 		Portfolio SimplePortfolioData `json:"portfolio"`
 	}{}
-	return &resp.Portfolio, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseV3+coinbasePortfolios, nil, req, true, &resp)
+	return &resp.Portfolio, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, v3Path+portfoliosPath, nil, req, true, &resp)
 }
 
 // DeletePortfolio deletes a portfolio
@@ -738,7 +725,7 @@ func (e *Exchange) DeletePortfolio(ctx context.Context, portfolioID string) erro
 	if portfolioID == "" {
 		return errPortfolioIDEmpty
 	}
-	path := coinbaseV3 + coinbasePortfolios + "/" + portfolioID
+	path := v3Path + portfoliosPath + "/" + portfolioID
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, true, nil)
 }
 
@@ -751,7 +738,7 @@ func (e *Exchange) EditPortfolio(ctx context.Context, portfolioID, name string) 
 		return nil, errNameEmpty
 	}
 	req := map[string]any{"name": name}
-	path := coinbaseV3 + coinbasePortfolios + "/" + portfolioID
+	path := v3Path + portfoliosPath + "/" + portfolioID
 	resp := struct {
 		Portfolio SimplePortfolioData `json:"portfolio"`
 	}{}
@@ -763,7 +750,7 @@ func (e *Exchange) GetPortfolioByID(ctx context.Context, portfolioID string) (*D
 	if portfolioID == "" {
 		return nil, errPortfolioIDEmpty
 	}
-	path := coinbaseV3 + coinbasePortfolios + "/" + portfolioID
+	path := v3Path + portfoliosPath + "/" + portfolioID
 	resp := struct {
 		Breakdown DetailedPortfolioResponse `json:"breakdown"`
 	}{}
@@ -779,7 +766,7 @@ func (e *Exchange) GetAllPortfolios(ctx context.Context, portfolioType string) (
 	if portfolioType != "" {
 		vals.Set("portfolio_type", portfolioType)
 	}
-	return resp.Portfolios, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbasePortfolios, vals, nil, true, &resp)
+	return resp.Portfolios, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+portfoliosPath, vals, nil, true, &resp)
 }
 
 // MovePortfolioFunds transfers funds between portfolios
@@ -802,7 +789,7 @@ func (e *Exchange) MovePortfolioFunds(ctx context.Context, cur, from, to string,
 		"target_portfolio_uuid": to,
 		"funds":                 funds,
 	}
-	path := coinbaseV3 + coinbasePortfolios + "/" + coinbaseMoveFunds
+	path := v3Path + portfoliosPath + "/" + moveFundsPath
 	var resp *MovePortfolioFundsResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
@@ -816,7 +803,7 @@ func (e *Exchange) GetBestBidAsk(ctx context.Context, products []string) ([]Prod
 	resp := struct {
 		Pricebooks []ProductBook `json:"pricebooks"`
 	}{}
-	return resp.Pricebooks, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseBestBidAsk, vals, nil, true, &resp)
+	return resp.Pricebooks, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+bestBidAskPath, vals, nil, true, &resp)
 }
 
 // GetTicker returns snapshot information about the last trades (ticks) and best bid/ask. Contrary to documentation, this does not tell you the 24h volume
@@ -834,10 +821,10 @@ func (e *Exchange) GetTicker(ctx context.Context, productID currency.Pair, limit
 	}
 	var resp Ticker
 	if authenticated {
-		path := coinbaseV3 + coinbaseProducts + "/" + productID.String() + "/" + coinbaseTicker
+		path := v3Path + productsPath + "/" + productID.String() + "/" + tickerPath
 		return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
 	}
-	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID.String() + "/" + coinbaseTicker
+	path := v3Path + marketPath + "/" + productsPath + "/" + productID.String() + "/" + tickerPath
 	return &resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
@@ -848,10 +835,10 @@ func (e *Exchange) GetProductByID(ctx context.Context, productID currency.Pair, 
 	}
 	var resp Product
 	if authenticated {
-		path := coinbaseV3 + coinbaseProducts + "/" + productID.String()
+		path := v3Path + productsPath + "/" + productID.String()
 		return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 	}
-	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID.String()
+	path := v3Path + marketPath + "/" + productsPath + "/" + productID.String()
 	return &resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
@@ -870,32 +857,33 @@ func (e *Exchange) GetProductBookV3(ctx context.Context, productID currency.Pair
 	}
 	var resp *ProductBookResp
 	if authenticated {
-		return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProductBook, vals, nil, true, &resp)
+		return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+productBookPath, vals, nil, true, &resp)
 	}
-	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProductBook
+	path := v3Path + marketPath + "/" + productBookPath
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // GetHistoricKlines returns historic candles for a product. Candles are returned in grouped buckets based on requested granularity. Requests that return more than 300 data points are rejected
-func (e *Exchange) GetHistoricKlines(ctx context.Context, productID, granularity string, startDate, endDate time.Time, authenticated bool) ([]Klines, error) {
+func (e *Exchange) GetHistoricKlines(ctx context.Context, productID string, granularity kline.Interval, startDate, endDate time.Time, authenticated bool) ([]Klines, error) {
 	if productID == "" {
 		return nil, errProductIDEmpty
 	}
-	if !common.StringSliceContains(allowedGranularities, granularity) {
+	gran, ok := allowedGranularities[granularity]
+	if !ok {
 		return nil, fmt.Errorf("%w %v, allowed granularities are: %+v", kline.ErrUnsupportedInterval, granularity, allowedGranularities)
 	}
 	vals := url.Values{}
 	vals.Set("start", strconv.FormatInt(startDate.Unix(), 10))
 	vals.Set("end", strconv.FormatInt(endDate.Unix(), 10))
-	vals.Set("granularity", granularity)
+	vals.Set("granularity", gran)
 	resp := struct {
 		Candles []Klines `json:"candles"`
 	}{}
 	if authenticated {
-		path := coinbaseV3 + coinbaseProducts + "/" + productID + "/" + coinbaseCandles
+		path := v3Path + productsPath + "/" + productID + "/" + candlesPath
 		return resp.Candles, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
 	}
-	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID + "/" + coinbaseCandles
+	path := v3Path + marketPath + "/" + productsPath + "/" + productID + "/" + candlesPath
 	return resp.Candles, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
@@ -927,16 +915,16 @@ func (e *Exchange) GetAllProducts(ctx context.Context, limit, offset int32, prod
 	vals.Set("get_all_products", strconv.FormatBool(getAllProducts))
 	var resp AllProducts
 	if authenticated {
-		return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProducts, vals, nil, true, &resp)
+		return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+productsPath, vals, nil, true, &resp)
 	}
-	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts
+	path := v3Path + marketPath + "/" + productsPath
 	return &resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // GetV3Time returns the current server time, calling V3 of the API
 func (e *Exchange) GetV3Time(ctx context.Context) (*ServerTimeV3, error) {
 	var resp *ServerTimeV3
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV3+coinbaseTime, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, v3Path+timePath, nil, &resp)
 }
 
 // SendMoney can send funds to an email or cryptocurrency address (if "traType" is set to "send"), or to another one of the user's wallets or vaults (if "traType" is set to "transfer"). Coinbase may delay or cancel the transaction at their discretion. The "idem" parameter is an optional string for idempotency; a token with a max length of 100 characters, if a previous transaction included the same token as a parameter, the new transaction won't be processed, and information on the previous transaction will be returned instead
@@ -956,7 +944,7 @@ func (e *Exchange) SendMoney(ctx context.Context, traType, walletID, to, cur, de
 	if cur == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseTransactions
+	path := v2Path + accountsPath + "/" + walletID + "/" + transactionsPath
 	req := map[string]any{
 		"type":               traType,
 		"to":                 to,
@@ -980,7 +968,7 @@ func (e *Exchange) CreateAddress(ctx context.Context, walletID, name string) (*A
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
-	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseAddresses
+	path := v2Path + accountsPath + "/" + walletID + "/" + addressesPath
 	req := map[string]any{"name": name}
 	resp := struct {
 		Data AddressData `json:"data"`
@@ -993,7 +981,7 @@ func (e *Exchange) GetAllAddresses(ctx context.Context, walletID string, pag Pag
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
-	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseAddresses
+	path := v2Path + accountsPath + "/" + walletID + "/" + addressesPath
 	var params Params
 	params.Values = url.Values{}
 	if err := params.encodePagination(pag); err != nil {
@@ -1011,7 +999,7 @@ func (e *Exchange) GetAddressByID(ctx context.Context, walletID, addressID strin
 	if addressID == "" {
 		return nil, errAddressIDEmpty
 	}
-	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseAddresses + "/" + addressID
+	path := v2Path + accountsPath + "/" + walletID + "/" + addressesPath + "/" + addressID
 	resp := struct {
 		Data AddressData `json:"data"`
 	}{}
@@ -1026,7 +1014,7 @@ func (e *Exchange) GetAddressTransactions(ctx context.Context, walletID, address
 	if addressID == "" {
 		return nil, errAddressIDEmpty
 	}
-	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseAddresses + "/" + addressID + "/" + coinbaseTransactions
+	path := v2Path + accountsPath + "/" + walletID + "/" + addressesPath + "/" + addressID + "/" + transactionsPath
 	var params Params
 	params.Values = url.Values{}
 	if err := params.encodePagination(pag); err != nil {
@@ -1053,9 +1041,9 @@ func (e *Exchange) FiatTransfer(ctx context.Context, walletID, cur, paymentMetho
 	var path string
 	switch transferType {
 	case FiatDeposit:
-		path = coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseDeposits
+		path = v2Path + accountsPath + "/" + walletID + "/" + depositsPath
 	case FiatWithdrawal:
-		path = coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseWithdrawals
+		path = v2Path + accountsPath + "/" + walletID + "/" + withdrawalsPath
 	}
 	req := map[string]any{
 		"currency":       cur,
@@ -1080,9 +1068,9 @@ func (e *Exchange) CommitTransfer(ctx context.Context, walletID, depositID strin
 	var path string
 	switch transferType {
 	case FiatDeposit:
-		path = coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseDeposits + "/" + depositID + "/" + coinbaseCommit
+		path = v2Path + accountsPath + "/" + walletID + "/" + depositsPath + "/" + depositID + "/" + commitPath
 	case FiatWithdrawal:
-		path = coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseWithdrawals + "/" + depositID + "/" + coinbaseCommit
+		path = v2Path + accountsPath + "/" + walletID + "/" + withdrawalsPath + "/" + depositID + "/" + commitPath
 	}
 	resp := struct {
 		Data DeposWithdrData `json:"data"`
@@ -1098,9 +1086,9 @@ func (e *Exchange) GetAllFiatTransfers(ctx context.Context, walletID string, pag
 	var path string
 	switch transferType {
 	case FiatDeposit:
-		path = coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseDeposits
+		path = v2Path + accountsPath + "/" + walletID + "/" + depositsPath
 	case FiatWithdrawal:
-		path = coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseWithdrawals
+		path = v2Path + accountsPath + "/" + walletID + "/" + withdrawalsPath
 	}
 	var params Params
 	params.Values = url.Values{}
@@ -1126,9 +1114,9 @@ func (e *Exchange) GetFiatTransferByID(ctx context.Context, walletID, depositID 
 	var path string
 	switch transferType {
 	case FiatDeposit:
-		path = coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseDeposits + "/" + depositID
+		path = v2Path + accountsPath + "/" + walletID + "/" + depositsPath + "/" + depositID
 	case FiatWithdrawal:
-		path = coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseWithdrawals + "/" + depositID
+		path = v2Path + accountsPath + "/" + walletID + "/" + withdrawalsPath + "/" + depositID
 	}
 	resp := struct {
 		Data DeposWithdrData `json:"data"`
@@ -1144,7 +1132,7 @@ func (e *Exchange) GetAllWallets(ctx context.Context, pag PaginationInp) (*GetAl
 	if err := params.encodePagination(pag); err != nil {
 		return nil, err
 	}
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseAccounts, params.Values, nil, false, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v2Path+accountsPath, params.Values, nil, false, &resp)
 }
 
 // GetWalletByID returns information about a single wallet. In lieu of a wallet ID, a currency can be provided to get the primary account for that currency
@@ -1154,10 +1142,10 @@ func (e *Exchange) GetWalletByID(ctx context.Context, walletID string, currency 
 	}
 	var path string
 	if walletID != "" {
-		path = coinbaseV2 + coinbaseAccounts + "/" + walletID
+		path = v2Path + accountsPath + "/" + walletID
 	}
 	if !currency.IsEmpty() {
-		path = coinbaseV2 + coinbaseAccounts + "/" + currency.String()
+		path = v2Path + accountsPath + "/" + currency.String()
 	}
 	resp := struct {
 		Data WalletData `json:"data"`
@@ -1170,7 +1158,7 @@ func (e *Exchange) GetAllTransactions(ctx context.Context, walletID string, pag 
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
-	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseTransactions
+	path := v2Path + accountsPath + "/" + walletID + "/" + transactionsPath
 	var params Params
 	params.Values = url.Values{}
 	if err := params.encodePagination(pag); err != nil {
@@ -1188,7 +1176,7 @@ func (e *Exchange) GetTransactionByID(ctx context.Context, walletID, transaction
 	if transactionID == "" {
 		return nil, errTransactionIDEmpty
 	}
-	path := coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseTransactions + "/" + transactionID
+	path := v2Path + accountsPath + "/" + walletID + "/" + transactionsPath + "/" + transactionID
 	resp := struct {
 		Data TransactionData `json:"data"`
 	}{}
@@ -1200,7 +1188,7 @@ func (e *Exchange) GetFiatCurrencies(ctx context.Context) ([]FiatData, error) {
 	resp := struct {
 		Data []FiatData `json:"data"`
 	}{}
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseCurrencies, nil, &resp)
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, v2Path+currenciesPath, nil, &resp)
 }
 
 // GetCryptocurrencies lists cryptocurrencies that Coinbase knows about
@@ -1208,7 +1196,7 @@ func (e *Exchange) GetCryptocurrencies(ctx context.Context) ([]CryptoData, error
 	resp := struct {
 		Data []CryptoData `json:"data"`
 	}{}
-	path := coinbaseV2 + coinbaseCurrencies + "/" + coinbaseCrypto
+	path := v2Path + currenciesPath + "/" + cryptoPath
 	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
@@ -1219,7 +1207,7 @@ func (e *Exchange) GetExchangeRates(ctx context.Context, currency string) (*GetE
 	}{}
 	vals := url.Values{}
 	vals.Set("currency", currency)
-	return &resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseExchangeRates, vals, &resp)
+	return &resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, v2Path+exchangeRatesPath, vals, &resp)
 }
 
 // GetPrice returns the price the spot/buy/sell price for the specified currency pair, including the standard Coinbase fee of 1%, but excluding any other fees
@@ -1227,7 +1215,7 @@ func (e *Exchange) GetPrice(ctx context.Context, currencyPair, priceType string)
 	var path string
 	switch priceType {
 	case "spot", "buy", "sell":
-		path = coinbaseV2 + coinbasePrices + "/" + currencyPair + "/" + priceType
+		path = v2Path + pricesPath + "/" + currencyPair + "/" + priceType
 	default:
 		return nil, errInvalidPriceType
 	}
@@ -1242,7 +1230,7 @@ func (e *Exchange) GetV2Time(ctx context.Context) (*ServerTimeV2, error) {
 	resp := struct {
 		Data ServerTimeV2 `json:"data"`
 	}{}
-	return &resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseTime, nil, &resp)
+	return &resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, v2Path+timePath, nil, &resp)
 }
 
 // GetCurrentUser returns information about the user associated with the API key
@@ -1250,13 +1238,13 @@ func (e *Exchange) GetCurrentUser(ctx context.Context) (*UserResponse, error) {
 	resp := struct {
 		Data UserResponse `json:"data"`
 	}{}
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV2+coinbaseUser, nil, nil, false, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v2Path+userPath, nil, nil, false, &resp)
 }
 
 // GetAllCurrencies returns a list of all currencies that Coinbase knows about. These aren't necessarily tradable
 func (e *Exchange) GetAllCurrencies(ctx context.Context) ([]CurrencyData, error) {
 	var resp []CurrencyData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseCurrencies, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, currenciesPath, nil, &resp)
 }
 
 // GetACurrency returns information on a single currency specified by the user
@@ -1265,7 +1253,7 @@ func (e *Exchange) GetACurrency(ctx context.Context, cur string) (*CurrencyData,
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp *CurrencyData
-	path := coinbaseCurrencies + "/" + cur
+	path := currenciesPath + "/" + cur
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
@@ -1276,13 +1264,13 @@ func (e *Exchange) GetAllTradingPairs(ctx context.Context, pairType string) ([]P
 	if pairType != "" {
 		vals.Set("type", pairType)
 	}
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseProducts, vals, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, productsPath, vals, &resp)
 }
 
 // GetAllPairVolumes returns a list of currency pairs and their associated volumes
 func (e *Exchange) GetAllPairVolumes(ctx context.Context) ([]PairVolumeData, error) {
 	var resp []PairVolumeData
-	path := coinbaseProducts + "/" + coinbaseVolumeSummary
+	path := productsPath + "/" + volumeSummaryPath
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
@@ -1292,7 +1280,7 @@ func (e *Exchange) GetPairDetails(ctx context.Context, pair string) (*PairData, 
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *PairData
-	path := coinbaseProducts + "/" + pair
+	path := productsPath + "/" + pair
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
@@ -1304,7 +1292,7 @@ func (e *Exchange) GetProductBookV1(ctx context.Context, pair string, level uint
 	var resp *OrderBookResp
 	vals := url.Values{}
 	vals.Set("level", strconv.FormatUint(uint64(level), 10))
-	path := coinbaseProducts + "/" + pair + "/" + coinbaseBook
+	path := productsPath + "/" + pair + "/" + bookPath
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, vals, &resp)
 }
 
@@ -1322,7 +1310,7 @@ func (e *Exchange) GetProductCandles(ctx context.Context, pair string, granulari
 	if granularity != 0 {
 		params.Values.Set("granularity", strconv.FormatUint(uint64(granularity), 10))
 	}
-	path := coinbaseProducts + "/" + pair + "/" + coinbaseCandles
+	path := productsPath + "/" + pair + "/" + candlesPath
 	var resp []Candle
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, params.Values, &resp)
 }
@@ -1332,7 +1320,7 @@ func (e *Exchange) GetProductStats(ctx context.Context, pair string) (*ProductSt
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	path := coinbaseProducts + "/" + pair + "/" + coinbaseStats
+	path := productsPath + "/" + pair + "/" + statsPath
 	var resp *ProductStats
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
@@ -1342,7 +1330,7 @@ func (e *Exchange) GetProductTicker(ctx context.Context, pair string) (*ProductT
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	path := coinbaseProducts + "/" + pair + "/" + coinbaseTicker
+	path := productsPath + "/" + pair + "/" + tickerPath
 	var resp *ProductTicker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
@@ -1357,7 +1345,7 @@ func (e *Exchange) GetProductTrades(ctx context.Context, pair, step, direction s
 		vals.Set(direction, step)
 	}
 	vals.Set("limit", strconv.FormatInt(limit, 10))
-	path := coinbaseProducts + "/" + pair + "/" + coinbaseTrades
+	path := productsPath + "/" + pair + "/" + tradesPath
 	var resp []ProductTrades
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, vals, &resp)
 }
@@ -1365,7 +1353,7 @@ func (e *Exchange) GetProductTrades(ctx context.Context, pair, step, direction s
 // GetAllWrappedAssets returns a list of supported wrapped assets
 func (e *Exchange) GetAllWrappedAssets(ctx context.Context) (*AllWrappedAssets, error) {
 	var resp *AllWrappedAssets
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseWrappedAssets, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, wrappedAssetsPath, nil, &resp)
 }
 
 // GetWrappedAssetDetails returns information on a single wrapped asset
@@ -1374,7 +1362,7 @@ func (e *Exchange) GetWrappedAssetDetails(ctx context.Context, wrappedAsset stri
 		return nil, errWrappedAssetEmpty
 	}
 	var resp *WrappedAsset
-	path := coinbaseWrappedAssets + "/" + wrappedAsset
+	path := wrappedAssetsPath + "/" + wrappedAsset
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
@@ -1384,7 +1372,7 @@ func (e *Exchange) GetWrappedAssetConversionRate(ctx context.Context, wrappedAss
 		return nil, errWrappedAssetEmpty
 	}
 	var resp *WrappedAssetConversionRate
-	path := coinbaseWrappedAssets + "/" + wrappedAsset + "/" + coinbaseConversionRate
+	path := wrappedAssetsPath + "/" + wrappedAsset + "/" + conversionRatePath
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
@@ -1395,7 +1383,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		return err
 	}
 	rLim := PubRate
-	if strings.Contains(path, coinbaseV2) {
+	if strings.Contains(path, v2Path) {
 		rLim = V2Rate
 	}
 	path = common.EncodeURLValues(path, vals)
@@ -1727,10 +1715,10 @@ func createOrderConfig(orderType order.Type, timeInForce order.TimeInForce, stop
 
 // FormatMarginType properly formats the margin type for the request
 func FormatMarginType(marginType string) string {
-	if marginType == "ISOLATED" || marginType == "CROSS" {
+	switch marginType {
+	case "ISOLATED", "CROSS":
 		return marginType
-	}
-	if marginType == "MULTI" {
+	case "MULTI":
 		return "CROSS"
 	}
 	return ""
@@ -1747,8 +1735,7 @@ func (f FiatTransferType) String() string {
 // UnmarshalJSON unmarshals the JSON data
 func (o *Orders) UnmarshalJSON(data []byte) error {
 	var alias any
-	temp := [3]any{&o.Price, &o.Size, &alias}
-	err := json.Unmarshal(data, &temp)
+	err := json.Unmarshal(data, &[3]any{&o.Price, &o.Size, &alias})
 	if err != nil {
 		return err
 	}
@@ -1762,15 +1749,14 @@ func (o *Orders) UnmarshalJSON(data []byte) error {
 	case float64:
 		o.OrderCount = uint64(a)
 	default:
-		return common.ErrTypeAssertFailure
+		return common.GetTypeAssertError("string | float64", alias, "Orders[3]")
 	}
 	return nil
 }
 
 // UnmarshalJSON unmarshals the JSON data
 func (c *Candle) UnmarshalJSON(data []byte) error {
-	temp := [6]any{&c.Time, &c.Low, &c.High, &c.Open, &c.Close, &c.Volume}
-	return json.Unmarshal(data, &temp)
+	return json.Unmarshal(data, &[6]any{&c.Time, &c.Low, &c.High, &c.Open, &c.Close, &c.Volume})
 }
 
 // UnmarshalJSON unmarshals the JSON data

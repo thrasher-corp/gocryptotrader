@@ -42,7 +42,7 @@ func (m *MockProvider) GetRates(baseCurrency, symbols string) (map[string]float6
 func TestBackupGetRate(t *testing.T) {
 	var f FXHandler
 	_, err := f.backupGetRate("", nil)
-	assert.ErrorIs(t, err, errNoProviderSet)
+	assert.ErrorIs(t, err, errNoProvider)
 	f.Support = append(f.Support, Provider{
 		SupportedCurrencies: []string{"BTC", "ETH", "XRP"},
 		Provider: &MockProvider{

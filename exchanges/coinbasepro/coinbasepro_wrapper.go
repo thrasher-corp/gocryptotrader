@@ -114,10 +114,10 @@ func (e *Exchange) SetDefaults() {
 	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:              coinbaseAPIURL,
-		exchange.RestSandbox:           coinbaseproSandboxAPIURL,
+		exchange.RestSpot:              apiURL,
+		exchange.RestSandbox:           sandboxAPIURL,
 		exchange.WebsocketSpot:         coinbaseproWebsocketURL,
-		exchange.RestSpotSupplementary: coinbaseV1APIURL,
+		exchange.RestSpotSupplementary: v1APIURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -633,13 +633,13 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 	response := e.getOrderRespToOrderDetail(genOrderDetail, pair, assetItem)
-	fillData, err := e.ListFills(ctx, []string{orderID}, nil, nil, 0, "", time.Time{}, time.Now(), manyFills)
+	fillData, err := e.ListFills(ctx, []string{orderID}, nil, nil, 0, "", time.Time{}, time.Now(), defaultOrderFillCount)
 	if err != nil {
 		return nil, err
 	}
 	cursor := fillData.Cursor
 	for cursor != 0 {
-		tempFillData, err := e.ListFills(ctx, []string{orderID}, nil, nil, int64(cursor), "", time.Time{}, time.Now(), manyFills)
+		tempFillData, err := e.ListFills(ctx, []string{orderID}, nil, nil, int64(cursor), "", time.Time{}, time.Now(), defaultOrderFillCount)
 		if err != nil {
 			return nil, err
 		}
@@ -827,12 +827,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 	}
 	var ord []GetOrderResponse
-	interOrd, err := e.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), closedStatuses, manyOrds, req.StartTime, req.EndTime)
+	interOrd, err := e.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), closedStatuses, defaultOrderCount, req.StartTime, req.EndTime)
 	if err != nil {
 		return nil, err
 	}
 	ord = append(ord, interOrd...)
-	interOrd, err = e.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), openStatus, manyOrds, req.StartTime, req.EndTime)
+	interOrd, err = e.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), openStatus, defaultOrderCount, req.StartTime, req.EndTime)
 	if err != nil {
 		return nil, err
 	}
@@ -1108,7 +1108,17 @@ func (e *Exchange) iterativeGetAllOrders(ctx context.Context, productIDs currenc
 		orderTypeSlice = nil
 	}
 	for hasNext {
-		interResp, err := e.ListOrders(ctx, nil, orderStatus, nil, orderTypeSlice, nil, productIDs, productType, orderSide, "", "", "", "", cursor, limit, startDate, endDate, currency.Code{})
+		interResp, err := e.ListOrders(ctx, &ListOrdersReq{
+			OrderStatus: orderStatus,
+			OrderTypes:  orderTypeSlice,
+			ProductIDs:  productIDs,
+			ProductType: productType,
+			OrderSide:   orderSide,
+			Cursor:      cursor,
+			Limit:       limit,
+			StartDate:   startDate,
+			EndDate:     endDate,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -1117,29 +1127,6 @@ func (e *Exchange) iterativeGetAllOrders(ctx context.Context, productIDs currenc
 		cursor = int64(interResp.Cursor)
 	}
 	return resp, nil
-}
-
-// FormatExchangeKlineIntervalV3 is a helper function used in GetHistoricCandles and GetHistoricCandlesExtended to convert kline.Interval to the string format used by V3 of Coinbase's API
-func FormatExchangeKlineIntervalV3(interval kline.Interval) (string, error) {
-	switch interval {
-	case kline.OneMin:
-		return granOneMin, nil
-	case kline.FiveMin:
-		return granFiveMin, nil
-	case kline.FifteenMin:
-		return granFifteenMin, nil
-	case kline.ThirtyMin:
-		return granThirtyMin, nil
-	case kline.OneHour:
-		return granOneHour, nil
-	case kline.TwoHour:
-		return granTwoHour, nil
-	case kline.SixHour:
-		return granSixHour, nil
-	case kline.OneDay:
-		return granOneDay, nil
-	}
-	return "", kline.ErrUnsupportedInterval
 }
 
 // getOrderRespToOrderDetail is a helper function used in GetOrderInfo, GetActiveOrders, and GetOrderHistory to convert data returned by the Coinbase API into a format suitable for the exchange package
@@ -1285,11 +1272,7 @@ func (e *Exchange) tickerHelper(ctx context.Context, name currency.Pair, assetTy
 
 // CandleHelper handles calling the candle function, and doing preliminary work on the data
 func (e *Exchange) candleHelper(ctx context.Context, pair string, granularity kline.Interval, start, end time.Time, verified bool) ([]kline.Candle, error) {
-	granString, err := FormatExchangeKlineIntervalV3(granularity)
-	if err != nil {
-		return nil, err
-	}
-	history, err := e.GetHistoricKlines(ctx, pair, granString, start, end, verified)
+	history, err := e.GetHistoricKlines(ctx, pair, granularity, start, end, verified)
 	if err != nil {
 		if verified {
 			return e.candleHelper(ctx, pair, granularity, start, end, false)

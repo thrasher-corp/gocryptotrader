@@ -94,7 +94,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	m = NewExchangeManager()
 
 	err = m.RemoveExchange("")
-	require.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	err = m.RemoveExchange("Bitfinex")
 	require.ErrorIs(t, err, ErrExchangeNotFound)
@@ -131,7 +131,7 @@ func TestNewExchangeByName(t *testing.T) {
 
 	m = NewExchangeManager()
 	_, err = m.NewExchangeByName("")
-	require.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	exchanges := exchange.Exchanges
 	exchanges = append(exchanges, "fake")

@@ -81,7 +81,7 @@ func (m *ExchangeManager) RemoveExchange(exchangeName string) error {
 	}
 
 	if exchangeName == "" {
-		return fmt.Errorf("exchange manager: %w", common.ErrExchangeNameUnset)
+		return fmt.Errorf("exchange manager: %w", common.ErrExchangeNameNotSet)
 	}
 
 	m.mtx.Lock()
@@ -105,7 +105,7 @@ func (m *ExchangeManager) GetExchangeByName(exchangeName string) (exchange.IBotE
 		return nil, fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
 	}
 	if exchangeName == "" {
-		return nil, fmt.Errorf("exchange manager: %w", common.ErrExchangeNameUnset)
+		return nil, fmt.Errorf("exchange manager: %w", common.ErrExchangeNameNotSet)
 	}
 	m.mtx.Lock()
 	defer m.mtx.Unlock()

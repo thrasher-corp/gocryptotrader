@@ -426,7 +426,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 func TestGetAssociation(t *testing.T) {
 	_, err := service.getAssociations("")
-	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	service.mux = nil
 
@@ -440,7 +440,7 @@ func TestGetAssociation(t *testing.T) {
 
 func TestGetExchangeTickersPublic(t *testing.T) {
 	_, err := GetExchangeTickers("")
-	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 }
 
 func TestGetExchangeTickers(t *testing.T) {
@@ -451,7 +451,7 @@ func TestGetExchangeTickers(t *testing.T) {
 	}
 
 	_, err := s.getExchangeTickers("")
-	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	_, err = s.getExchangeTickers("test")
 	assert.ErrorIs(t, err, errExchangeNotFound)

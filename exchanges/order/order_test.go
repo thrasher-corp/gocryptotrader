@@ -38,7 +38,7 @@ func TestSubmitValidate(t *testing.T) {
 			Submit:      nil,
 		}, // nil struct
 		{
-			ExpectedErr: common.ErrExchangeNameUnset,
+			ExpectedErr: common.ErrExchangeNameNotSet,
 			Submit:      &Submit{},
 		}, // empty exchange
 		{

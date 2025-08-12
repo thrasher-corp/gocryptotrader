@@ -92,6 +92,11 @@ type MarginWindow struct {
 	EndTime          time.Time `json:"end_time"`
 }
 
+// SuccessResp holds information on the success of an API request, returned by CancelPendingFuturesSweep, ScheduleFuturesSweep, and EditOrder
+type SuccessResp struct {
+	Success bool `json:"success"`
+}
+
 // CurrentMarginWindow holds information on the current margin window, returned by GetCurrentMarginWindow
 type CurrentMarginWindow struct {
 	MarginWindow                                MarginWindow `json:"margin_window"`
@@ -858,6 +863,27 @@ type TransactionSummary struct {
 	CoinbaseProFees         float64             `json:"coinbase_pro_fees"`
 	TotalBalance            types.Number        `json:"total_balance"`
 	HasPromoFee             bool                `json:"has_promo_fee"`
+}
+
+// ListOrdersReq contains the parameters for the ListOrders request
+type ListOrdersReq struct {
+	OrderIDs             []string
+	OrderStatus          []string
+	TimeInForces         []string
+	OrderTypes           []string
+	AssetFilters         []string
+	ProductIDs           currency.Pairs
+	ProductType          string
+	OrderSide            string
+	OrderPlacementSource string
+	ContractExpiryType   string
+	RetailPortfolioID    string
+	SortBy               string
+	Cursor               int64
+	Limit                int32
+	StartDate            time.Time
+	EndDate              time.Time
+	UserNativeCurrency   currency.Code
 }
 
 // ListOrdersResp contains information on a lot of orders, returned by ListOrders
@@ -1765,6 +1791,11 @@ type TradeIncentiveInfo struct {
 	EndsAt              time.Time         `json:"ends_at"`
 	FeeWithoutIncentive ValueWithCurrency `json:"fee_without_incentive"`
 	Redeemed            bool              `json:"redeemed"`
+}
+
+// ConvertWrapper wraps a ConvertResponse, used by CreateConvertQuote, CommitConvertTrade, and GetConvertTradeByID
+type ConvertWrapper struct {
+	Trade ConvertResponse `json:"trade"`
 }
 
 // ConvertResponse contains information on a convert trade, returned by CreateConvertQuote, CommitConvertTrade, and GetConvertTradeByID

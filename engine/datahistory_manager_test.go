@@ -414,12 +414,12 @@ func TestValidateJob(t *testing.T) {
 
 	dhj.DataType = dataHistoryCandleValidationSecondarySourceType
 	err = m.validateJob(dhj)
-	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	dhj.SecondaryExchangeSource = "lol"
 	dhj.Exchange = ""
 	err = m.validateJob(dhj)
-	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 }
 
 func TestGetAllJobStatusBetween(t *testing.T) {

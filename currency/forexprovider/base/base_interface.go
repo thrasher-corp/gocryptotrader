@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	errNoProviderSet         = errors.New("no supporting foreign exchange providers set")
+	errNoProvider            = errors.New("no supporting foreign exchange providers set")
 	errUnsupportedCurrencies = errors.New("currencies not supported by provider")
 )
 
@@ -115,7 +115,7 @@ func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (m
 // backupGetRate uses the currencies that are supported and falls through, and errors when unsupported currency found
 func (f *FXHandler) backupGetRate(base string, currencies []string) (map[string]float64, error) {
 	if f.Support == nil {
-		return nil, errNoProviderSet
+		return nil, errNoProvider
 	}
 	rate := make(map[string]float64)
 	for i := range f.Support {

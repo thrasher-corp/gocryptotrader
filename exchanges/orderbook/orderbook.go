@@ -81,7 +81,7 @@ func (s *store) track(b *Book) (book, error) {
 // DeployDepth used for subsystem deployment creates a depth item in the struct then returns a ptr to that Depth item
 func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	if exchange == "" {
-		return nil, common.ErrExchangeNameUnset
+		return nil, common.ErrExchangeNameNotSet
 	}
 	if p.IsEmpty() {
 		return nil, errPairNotSet
@@ -158,7 +158,7 @@ func (b *Book) TotalAsksAmount() (amountCollated, total float64) {
 // list
 func (b *Book) Process() error {
 	if b.Exchange == "" {
-		return common.ErrExchangeNameUnset
+		return common.ErrExchangeNameNotSet
 	}
 
 	if b.Pair.IsEmpty() {

@@ -86,7 +86,7 @@ func TestMain(m *testing.M) {
 	e.SetDefaults()
 	if testingInSandbox {
 		err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-			exchange.RestSpot: coinbaseproSandboxAPIURL,
+			exchange.RestSpot: sandboxAPIURL,
 		})
 		if err != nil {
 			log.Fatal("failed to set sandbox endpoint", err)
@@ -206,21 +206,7 @@ func TestGetTransactionSummary(t *testing.T) {
 
 func TestCancelPendingFuturesSweep(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	curSweeps, err := e.ListFuturesSweeps(t.Context())
-	assert.NoError(t, err)
-	partialSkip := false
-	if len(curSweeps) > 0 {
-		for i := range curSweeps {
-			if curSweeps[i].Status == "PENDING" {
-				partialSkip = true
-			}
-		}
-	}
-	if !partialSkip {
-		_, err = e.ScheduleFuturesSweep(t.Context(), 0.001337)
-		require.NoError(t, err)
-	}
-	_, err = e.CancelPendingFuturesSweep(t.Context())
+	_, err := e.CancelPendingFuturesSweep(t.Context())
 	assert.NoError(t, err)
 }
 
@@ -273,22 +259,7 @@ func TestListFuturesSweeps(t *testing.T) {
 
 func TestScheduleFuturesSweep(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	curSweeps, err := e.ListFuturesSweeps(t.Context())
-	assert.NoError(t, err)
-	preCancel := false
-	if len(curSweeps) > 0 {
-		for i := range curSweeps {
-			if curSweeps[i].Status == "PENDING" {
-				preCancel = true
-				break
-			}
-		}
-	}
-	if preCancel {
-		_, err = e.CancelPendingFuturesSweep(t.Context())
-		assert.NoError(t, err)
-	}
-	_, err = e.ScheduleFuturesSweep(t.Context(), 0.001337)
+	_, err := e.ScheduleFuturesSweep(t.Context(), 0.001337)
 	assert.NoError(t, err)
 }
 
@@ -404,7 +375,7 @@ func TestGetOrderByID(t *testing.T) {
 	_, err := e.GetOrderByID(t.Context(), "", "", currency.Code{})
 	assert.ErrorIs(t, err, errOrderIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	ordID, err := e.ListOrders(t.Context(), nil, nil, nil, nil, nil, nil, "", "", "", "", "", "", 0, 10, time.Time{}, time.Time{}, currency.Code{})
+	ordID, err := e.ListOrders(t.Context(), &ListOrdersReq{Limit: 10})
 	assert.NoError(t, err)
 	if ordID == nil || len(ordID.Orders) == 0 {
 		t.Skip(skipInsufficientOrders)
@@ -429,23 +400,36 @@ func TestListFills(t *testing.T) {
 
 func TestListOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.ListOrders(t.Context(), nil, nil, nil, nil, nil, nil, "", "", "", "", "", "", 0, 0, time.Unix(2, 2), time.Unix(1, 1), currency.Code{})
+	_, err := e.ListOrders(t.Context(), &ListOrdersReq{
+		StartDate: time.Unix(2, 2),
+		EndDate:   time.Unix(1, 1),
+	})
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	orderStatus := []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
 	orderTypes := []string{"MARKET", "LIMIT", "STOP", "STOP_LIMIT", "BRACKET", "TWAP"}
 	timeInForces := []string{"GOOD_UNTIL_DATE_TIME", "GOOD_UNTIL_CANCELLED", "IMMEDIATE_OR_CANCEL", "FILL_OR_KILL"}
 	productIDs := currency.Pairs{testPairFiat, testPairStable}
-	_, err = e.ListOrders(t.Context(), nil, orderStatus, timeInForces, orderTypes, nil, productIDs, "SPOT", "BUY", "RETAIL_SIMPLE", "PERPETUAL", "", "LAST_FILL_TIME", 0, 0, time.Time{}, time.Time{}, currency.Code{})
+	_, err = e.ListOrders(t.Context(), &ListOrdersReq{
+		OrderStatus:          orderStatus,
+		TimeInForces:         timeInForces,
+		OrderTypes:           orderTypes,
+		ProductIDs:           productIDs,
+		OrderSide:            "BUY",
+		OrderPlacementSource: "RETAIL_SIMPLE",
+		ContractExpiryType:   "PERPETUAL",
+		SortBy:               "LAST_FILL_TIME",
+	})
 	assert.NoError(t, err)
-	emptyString := []string{""}
-	resp, err := e.ListOrders(t.Context(), nil, nil, nil, nil, emptyString, nil, "", "", "", "", "", "", 0, 0, time.Time{}, time.Time{}, currency.Code{})
+	resp, err := e.ListOrders(t.Context(), &ListOrdersReq{})
 	assert.NoError(t, err)
 	if resp == nil || len(resp.Orders) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
 	orderIDs := []string{resp.Orders[0].OrderID}
-	_, err = e.ListOrders(t.Context(), orderIDs, nil, nil, nil, nil, nil, "", "", "", "", "", "", 0, 0, time.Time{}, time.Time{}, currency.Code{})
+	_, err = e.ListOrders(t.Context(), &ListOrdersReq{
+		OrderIDs: orderIDs,
+	})
 	assert.NoError(t, err)
 }
 
@@ -682,16 +666,16 @@ func TestGetProductBookV3(t *testing.T) {
 
 func TestGetHistoricKlines(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetHistoricKlines(t.Context(), "", granUnknown, time.Time{}, time.Time{}, false)
+	_, err := e.GetHistoricKlines(t.Context(), "", kline.Raw, time.Time{}, time.Time{}, false)
 	assert.ErrorIs(t, err, errProductIDEmpty)
-	_, err = e.GetHistoricKlines(t.Context(), testPairFiat.String(), "blorbo", time.Time{}, time.Time{}, false)
+	_, err = e.GetHistoricKlines(t.Context(), testPairFiat.String(), kline.Raw, time.Time{}, time.Time{}, false)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval)
-	resp, err := e.GetHistoricKlines(t.Context(), testPairFiat.String(), granOneMin, time.Now().Add(-5*time.Minute), time.Now(), false)
+	resp, err := e.GetHistoricKlines(t.Context(), testPairFiat.String(), kline.OneMin, time.Now().Add(-5*time.Minute), time.Now(), false)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	resp, err = e.GetHistoricKlines(t.Context(), testPairFiat.String(), granOneMin, time.Now().Add(-5*time.Minute), time.Now(), true)
+	resp, err = e.GetHistoricKlines(t.Context(), testPairFiat.String(), kline.OneMin, time.Now().Add(-5*time.Minute), time.Now(), true)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1311,12 +1295,7 @@ func TestCancelBatchOrders(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	ordID, err := e.ListOrders(t.Context(), nil, nil, nil, nil, nil, currency.Pairs{testPairStable}, asset.Spot.Upper(), "", "", "", "", "", 0, 2, time.Time{}, time.Now(), currency.Code{})
-	require.NoError(t, err)
-	if ordID == nil || len(ordID.Orders) == 0 {
-		t.Skip(skipInsufficientOrders)
-	}
-	resp, err := e.GetOrderInfo(t.Context(), ordID.Orders[0].OrderID, testPairStable, asset.Spot)
+	resp, err := e.GetOrderInfo(t.Context(), "17", testPairStable, asset.Spot)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1335,7 +1314,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
 	req := withdraw.Request{}
 	_, err := e.WithdrawCryptocurrencyFunds(t.Context(), &req)
-	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 	req.Exchange = e.Name
 	req.Currency = testCrypto
 	req.Amount = testAmount
@@ -1537,30 +1516,6 @@ func TestFiatTransferTypeString(t *testing.T) {
 	f = FiatWithdrawal
 	if f.String() != "withdrawal" {
 		t.Errorf(errExpectMismatch, f.String(), "withdrawal")
-	}
-}
-
-func TestFormatExchangeKlineIntervalV3(t *testing.T) {
-	t.Parallel()
-	testSequence := map[kline.Interval]string{
-		kline.OneMin:     granOneMin,
-		kline.FiveMin:    granFiveMin,
-		kline.FifteenMin: granFifteenMin,
-		kline.ThirtyMin:  granThirtyMin,
-		kline.OneHour:    granOneHour,
-		kline.TwoHour:    granTwoHour,
-		kline.SixHour:    granSixHour,
-		kline.OneDay:     granOneDay,
-		kline.OneWeek:    "",
-	}
-	for k := range testSequence {
-		resp, err := FormatExchangeKlineIntervalV3(k)
-		if resp != testSequence[k] {
-			t.Errorf(errExpectMismatch, resp, testSequence[k])
-		}
-		if resp == "" {
-			assert.ErrorIs(t, err, kline.ErrUnsupportedInterval)
-		}
 	}
 }
 
@@ -2027,7 +1982,7 @@ func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
 	t.Parallel()
 	req := withdraw.Request{}
 	_, err := fn(t.Context(), &req)
-	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 	req.Exchange = e.Name
 	req.Currency = testFiat
 	req.Amount = 1

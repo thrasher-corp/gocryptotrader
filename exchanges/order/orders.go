@@ -40,7 +40,6 @@ var (
 	ErrAmountMustBeSet             = errors.New("amount must be set")
 	ErrClientOrderIDMustBeSet      = errors.New("client order ID must be set")
 	ErrUnknownSubmissionAmountType = errors.New("unknown submission amount type")
-	ErrIDNotSet                    = errors.New("ID not set")
 	ErrUnrecognisedOrderType       = errors.New("unrecognised order type")
 )
 
@@ -64,7 +63,7 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 	}
 
 	if s.Exchange == "" {
-		return common.ErrExchangeNameUnset
+		return common.ErrExchangeNameNotSet
 	}
 
 	if s.Pair.IsEmpty() {

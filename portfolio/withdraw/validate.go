@@ -16,7 +16,7 @@ func (r *Request) Validate(opt ...validate.Checker) (err error) {
 	}
 
 	if r.Exchange == "" {
-		return common.ErrExchangeNameUnset
+		return common.ErrExchangeNameNotSet
 	}
 
 	var allErrors []string

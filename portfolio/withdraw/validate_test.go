@@ -152,7 +152,7 @@ func TestExchangeNameUnset(t *testing.T) {
 	r := Request{}
 	err := r.Validate()
 	if err != nil {
-		if err != common.ErrExchangeNameUnset {
+		if err != common.ErrExchangeNameNotSet {
 			t.Fatal(err)
 		}
 	}

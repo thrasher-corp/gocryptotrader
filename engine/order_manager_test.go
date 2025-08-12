@@ -1276,7 +1276,7 @@ func TestSubmitFakeOrder(t *testing.T) {
 
 	ord := &order.Submit{}
 	_, err = o.SubmitFakeOrder(ord, resp, false)
-	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	ord.Exchange = testExchange
 	ord.AssetType = asset.Spot

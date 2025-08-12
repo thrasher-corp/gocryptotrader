@@ -106,7 +106,7 @@ func ProcessChange(exch string, changes []Change, c *Credentials) error {
 // TODO: Add jurisdiction and differentiation between APIKEY holdings.
 func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holdings, error) {
 	if exch == "" {
-		return Holdings{}, common.ErrExchangeNameUnset
+		return Holdings{}, common.ErrExchangeNameNotSet
 	}
 
 	if creds.IsEmpty() {
@@ -170,7 +170,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 // GetBalance returns the internal balance for that asset item.
 func GetBalance(exch, subAccount string, creds *Credentials, a asset.Item, c currency.Code) (*ProtectedBalance, error) {
 	if exch == "" {
-		return nil, fmt.Errorf("cannot get balance: %w", common.ErrExchangeNameUnset)
+		return nil, fmt.Errorf("cannot get balance: %w", common.ErrExchangeNameNotSet)
 	}
 
 	if !a.IsValid() {
@@ -221,7 +221,7 @@ func (s *Service) Save(incoming *Holdings, creds *Credentials) error {
 	}
 
 	if incoming.Exchange == "" {
-		return fmt.Errorf("cannot save holdings: %w", common.ErrExchangeNameUnset)
+		return fmt.Errorf("cannot save holdings: %w", common.ErrExchangeNameNotSet)
 	}
 
 	if creds.IsEmpty() {
@@ -315,7 +315,7 @@ func (s *Service) Save(incoming *Holdings, creds *Credentials) error {
 // Update updates the balance for a specific exchange and credentials
 func (s *Service) Update(exch string, changes []Change, creds *Credentials) error {
 	if exch == "" {
-		return fmt.Errorf("%w: %w", errCannotUpdateBalance, common.ErrExchangeNameUnset)
+		return fmt.Errorf("%w: %w", errCannotUpdateBalance, common.ErrExchangeNameNotSet)
 	}
 
 	if creds.IsEmpty() {

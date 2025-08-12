@@ -224,7 +224,7 @@ func TestBookGetDepth(t *testing.T) {
 func TestDeployDepth(t *testing.T) {
 	pair := currency.NewBTCUSD()
 	_, err := DeployDepth("", pair, asset.Spot)
-	require.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, errPairNotSet)
 	_, err = DeployDepth("test", pair, asset.Empty)
