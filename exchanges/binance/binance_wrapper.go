@@ -237,11 +237,13 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// Spot connection for subscriptions
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   binanceDefaultWebsocketURL,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		Handler:               e.wsHandleData,
+		URL:          binanceDefaultWebsocketURL,
+		Connector:    e.WsConnect,
+		Subscriber:   e.Subscribe,
+		Unsubscriber: e.Unsubscribe,
+		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+			return e.wsHandleData(ctx, incoming)
+		},
 		GenerateSubscriptions: e.generateSubscriptions,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
@@ -253,9 +255,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// Spot connection for API calls
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		MessageFilter:         spotWebsocketAPI,
-		URL:                   binanceWebsocketAPIURL,
-		Handler:               e.wsHandleSpotAPIData,
+		MessageFilter: spotWebsocketAPI,
+		URL:           binanceWebsocketAPIURL,
+		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+			return e.wsHandleSpotAPIData(ctx, incoming)
+		},
 		Connector:             e.WsConnectAPI,
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
@@ -270,9 +274,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// Coin Margined Futures connection
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		MessageFilter:         asset.CoinMarginedFutures,
-		URL:                   binanceCFuturesWebsocketURL,
-		Handler:               e.wsHandleCFuturesData,
+		MessageFilter: asset.CoinMarginedFutures,
+		URL:           binanceCFuturesWebsocketURL,
+		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+			return e.wsHandleCFuturesData(ctx, incoming)
+		},
 		Connector:             e.WsCFutureConnect,
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
@@ -288,7 +294,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		MessageFilter: asset.USDTMarginedFutures,
 		URL:           binanceUFuturesWebsocketURL,
-		Handler: func(ctx context.Context, respRaw []byte) error {
+		Handler: func(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 			return e.wsHandleFuturesData(ctx, respRaw, asset.USDTMarginedFutures)
 		},
 		Connector:             e.WsUFuturesConnect,
@@ -304,9 +310,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// European Options Margined Futures connection
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		MessageFilter:         asset.Options,
-		URL:                   eoptionsWebsocketURL,
-		Handler:               e.wsHandleEOptionsData,
+		MessageFilter: asset.Options,
+		URL:           eoptionsWebsocketURL,
+		Handler: func(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+			return e.wsHandleEOptionsData(ctx, respRaw)
+		},
 		Connector:             e.WsOptionsConnect,
 		Subscriber:            e.OptionSubscribe,
 		Unsubscriber:          e.OptionUnsubscribe,
