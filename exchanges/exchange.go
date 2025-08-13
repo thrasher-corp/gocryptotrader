@@ -1962,6 +1962,11 @@ func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.Submit
 	return nil, common.ErrFunctionNotSupported
 }
 
+// WebsocketSubmitOrders submits multiple orders (batch) via the websocket connection
+func (*Base) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses []*order.SubmitResponse, err error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
 // WebsocketModifyOrder modifies an order via the websocket connection
 func (*Base) WebsocketModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
