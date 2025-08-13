@@ -2904,3 +2904,13 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	_, err := (&Base{}).WebsocketSubmitOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
+
+func TestWebsocketModifyOrder(t *testing.T) {
+	_, err := (&Base{}).WebsocketModifyOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketCancelOrder(t *testing.T) {
+	err := (&Base{}).WebsocketCancelOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
