@@ -11,7 +11,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gofrs/uuid"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -130,7 +129,7 @@ func (e *Exchange) WsConnect() error {
 
 func (e *Exchange) wsStartHeartbeat(ctx context.Context) {
 	msg := wsInput{
-		ID:             uuid.Must(uuid.NewV7()).String(),
+		ID:             e.MessageID(),
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/set_heartbeat",
 		Params: map[string]any{
@@ -171,7 +170,7 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 	req := wsInput{
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/auth",
-		ID:             uuid.Must(uuid.NewV7()).String(),
+		ID:             e.MessageID(),
 		Params: map[string]any{
 			"grant_type": "client_signature",
 			"client_id":  creds.Key,
@@ -328,7 +327,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 
 func (e *Exchange) wsSendHeartbeat(ctx context.Context) {
 	msg := WsSubscriptionInput{
-		ID:             "hb-" + uuid.Must(uuid.NewV7()).String(),
+		ID:             "hb-" + e.MessageID(),
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/test",
 	}
@@ -833,7 +832,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 
 	r := WsSubscriptionInput{
 		JSONRPCVersion: rpcVersion,
-		ID:             uuid.Must(uuid.NewV7()).String(),
+		ID:             e.MessageID(),
 		Method:         method,
 		Params:         map[string][]string{"channels": subs.QualifiedChannels()},
 	}
