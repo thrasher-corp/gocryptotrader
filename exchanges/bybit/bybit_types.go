@@ -321,9 +321,9 @@ type PlaceOrderParams struct {
 	OrderType              string        `json:"orderType"`  // Required // Market, Limit
 	OrderQuantity          float64       `json:"qty,string"` // Required // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
 	Price                  float64       `json:"price,string,omitempty"`
-	TimeInForce            string        `json:"timeInForce,omitempty"`      // IOC and GTC
-	OrderLinkID            string        `json:"orderLinkId,omitempty"`      // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
-	EnableBorrow           bool          `json:"-"`                          // '0' for default spot, '1' for Margin trading.
+	TimeInForce            string        `json:"timeInForce,omitempty"` // IOC and GTC
+	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
+	EnableBorrow           bool          `json:"-"`
 	IsLeverage             int64         `json:"isLeverage,omitempty"`       // Required   // '0' for default spot, '1' for Margin trading.
 	OrderFilter            string        `json:"orderFilter,omitempty"`      // Valid for spot only. Order,tpslOrder. If not passed, Order by default
 	TriggerDirection       int64         `json:"triggerDirection,omitempty"` // Required // Conditional order param. Used to identify the expected direction of the conditional order. '1': triggered when market price rises to triggerPrice '2': triggered when market price falls to triggerPrice
@@ -380,7 +380,10 @@ func (p *PlaceOrderParams) Validate() error {
 	default:
 		return fmt.Errorf("%w, triggerDirection: %d", errInvalidTriggerDirection, p.TriggerDirection)
 	}
-	if p.OrderFilter != "" && p.Category == cSpot {
+	if p.OrderFilter != "" {
+		if p.Category != cSpot {
+			return fmt.Errorf("%w, orderFilter is valid for 'spot' only", errInvalidCategory)
+		}
 		switch p.OrderFilter {
 		case "Order", "tpslOrder", "StopOrder":
 		default:
@@ -414,7 +417,7 @@ type OrderResponse struct {
 type AmendOrderParams struct {
 	Category    string        `json:"category"`              // Required
 	Symbol      currency.Pair `json:"symbol"`                // Required
-	OrderID     string        `json:"orderId,omitempty"`     // This Required or orderLinkID required
+	OrderID     string        `json:"orderId,omitempty"`     // This or OrderLinkID required
 	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
 
 	// At least one of the following fields is required
@@ -523,15 +526,15 @@ func (p *CancelOrderParams) Validate() error {
 		return errEitherOrderIDOROrderLinkIDRequired
 	}
 
-	switch {
-	case p.OrderFilter != "" && p.Category == cSpot:
+	if p.OrderFilter != "" {
+		if p.Category != cSpot {
+			return fmt.Errorf("%w, orderFilter is valid for 'spot' only", errInvalidCategory)
+		}
 		switch p.OrderFilter {
 		case "Order", "tpslOrder", "StopOrder":
 		default:
 			return fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, p.OrderFilter)
 		}
-	case p.OrderFilter != "":
-		return fmt.Errorf("%w, orderFilter is valid for 'spot' only", errInvalidCategory)
 	}
 
 	return nil

@@ -66,7 +66,7 @@ type WebsocketOrderDetails struct {
 	OrderLinkID          string        `json:"orderLinkId"`
 	IsLeverage           string        `json:"isLeverage"` // Whether to borrow. Unified spot only. 0: false, 1: true; Classic spot is not supported, always 0
 	BlockTradeID         string        `json:"blockTradeId"`
-	Symbol               string        `json:"symbol"` // Undelimitered so inbuilt string used.
+	Symbol               string        `json:"symbol"` // Undelimited so inbuilt string used.
 	Price                types.Number  `json:"price"`
 	Qty                  types.Number  `json:"qty"`
 	Side                 order.Side    `json:"side"`
