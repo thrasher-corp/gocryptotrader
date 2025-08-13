@@ -445,7 +445,7 @@ func TestPostOrder(t *testing.T) {
 		Symbol:    spotTradablePair,
 		OrderType: "limit", Size: 0.1,
 	})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.PostOrder(t.Context(), &SpotOrderParam{
 		ClientOrderID: customID.String(), Symbol: spotTradablePair, Side: "buy",
 		OrderType: "limit", Price: 234565,
@@ -493,7 +493,7 @@ func TestPostOrderTest(t *testing.T) {
 		Symbol:    spotTradablePair,
 		OrderType: "limit", Size: 0.1,
 	})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.PostOrderTest(t.Context(), &SpotOrderParam{
 		ClientOrderID: customID.String(), Symbol: spotTradablePair, Side: "buy",
 		OrderType: "limit", Price: 234565,
@@ -592,7 +592,7 @@ func TestPostMarginOrder(t *testing.T) {
 		Symbol:    marginTradablePair,
 		OrderType: "limit", Size: 0.1,
 	})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.PostMarginOrder(t.Context(), &MarginOrderParam{
 		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: marginTradablePair, Side: "buy",
 		OrderType: "limit", Price: 234565,
@@ -644,7 +644,7 @@ func TestPostMarginOrderTest(t *testing.T) {
 		Symbol:    marginTradablePair,
 		OrderType: "limit", Size: 0.1,
 	})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.PostMarginOrderTest(t.Context(), &MarginOrderParam{
 		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: marginTradablePair, Side: "buy",
 		OrderType: "limit", Price: 234565,
@@ -694,7 +694,7 @@ func TestPostBulkOrder(t *testing.T) {
 
 	arg.Side = "Sell"
 	_, err = e.PostBulkOrder(t.Context(), spotTradablePair.String(), []OrderRequest{arg})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.Price = 1000
 	_, err = e.PostBulkOrder(t.Context(), spotTradablePair.String(), []OrderRequest{arg})
@@ -1596,7 +1596,7 @@ func TestPostFuturesOrder(t *testing.T) {
 		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair,
 		OrderType: "limit", Remark: "10", Leverage: 1,
 	})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.PostFuturesOrder(t.Context(), &FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10", Price: 1000, Leverage: 1, VisibleSize: 0})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	result, err = e.PostFuturesOrder(t.Context(), &FuturesOrderParam{
@@ -1672,7 +1672,7 @@ func TestFillFuturesPostOrderArgumentFilter(t *testing.T) {
 		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair,
 		OrderType: "limit", Remark: "10", Leverage: 1,
 	})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	err = e.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy", Symbol: futuresTradablePair, OrderType: "limit", Remark: "10", Price: 1000, Leverage: 1, VisibleSize: 0})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	err = e.FillFuturesPostOrderArgumentFilter(&FuturesOrderParam{
@@ -3700,7 +3700,7 @@ func TestPlaceOCOOrder(t *testing.T) {
 
 	arg.Side = "Sell"
 	_, err = e.PlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.Price = 1000
 	_, err = e.PlaceOCOOrder(t.Context(), arg)
@@ -3708,11 +3708,11 @@ func TestPlaceOCOOrder(t *testing.T) {
 
 	arg.Size = .1
 	_, err = e.PlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.StopPrice = .1
 	_, err = e.PlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.LimitPrice = .1
 	_, err = e.PlaceOCOOrder(t.Context(), arg)
@@ -3830,7 +3830,7 @@ func TestSendPlaceMarginHFOrder(t *testing.T) {
 
 	arg.Symbol = marginTradablePair
 	_, err = e.SendPlaceMarginHFOrder(t.Context(), arg, "")
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.Price = 1000
 	_, err = e.SendPlaceMarginHFOrder(t.Context(), arg, "")
@@ -4123,7 +4123,7 @@ func TestGetMaximumOpenPositionSize(t *testing.T) {
 	_, err := e.GetMaximumOpenPositionSize(t.Context(), "", 1, 1)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	_, err = e.GetMaximumOpenPositionSize(t.Context(), futuresTradablePair.String(), 0., 1)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.GetMaximumOpenPositionSize(t.Context(), futuresTradablePair.String(), 1, 0)
 	require.ErrorIs(t, err, errInvalidLeverage)
 

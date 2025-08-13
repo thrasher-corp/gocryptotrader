@@ -1070,7 +1070,7 @@ func TestStopOrder(t *testing.T) {
 	}
 	arg.OrderType = "conditional"
 	_, err = e.PlaceStopOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.TakeProfitTriggerPrice = 123
 	_, err = e.PlaceStopOrder(contextGenerate(), arg)
@@ -1185,7 +1185,7 @@ func TestPlaceTakeProfitStopLossOrder(t *testing.T) {
 	_, err = e.PlaceTakeProfitStopLossOrder(contextGenerate(), &AlgoOrderParams{ReduceOnly: true})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 	_, err = e.PlaceTakeProfitStopLossOrder(contextGenerate(), &AlgoOrderParams{OrderType: "conditional"})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.PlaceTakeProfitStopLossOrder(contextGenerate(), &AlgoOrderParams{
 		OrderType:                "conditional",
 		StopLossTriggerPrice:     1234,
@@ -1271,7 +1271,7 @@ func TestTriggerAlgoOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	_, err = e.PlaceTriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{AlgoClientOrderID: "1234", OrderType: "trigger"})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	_, err = e.PlaceTriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{AlgoClientOrderID: "1234", OrderType: "trigger", TriggerPrice: 123., TriggerPriceType: "abcd"})
 	require.ErrorIs(t, err, order.ErrUnknownPriceType)
@@ -2937,11 +2937,11 @@ func TestPlaceGridAlgoOrder(t *testing.T) {
 
 	arg.AlgoOrdType = "contract_grid"
 	_, err = e.PlaceGridAlgoOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.MaxPrice = 1000
 	_, err = e.PlaceGridAlgoOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.MinPrice = 1200
 	arg.GridQuantity = -1
@@ -3332,10 +3332,9 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		require.NotEmptyf(t, p, "GetAvailablePairs for asset %s must not return empty pairs", a)
 
 		l, err := e.GetOrderExecutionLimits(a, p[0])
-			if assert.NoError(t, err, "GetOrderExecutionLimits should not error") {
-				assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
-				assert.Positivef(t, l.MinimumBaseAmount, "PriceStepIncrementSize should be positive for %s", p)
-			}
+		if assert.NoError(t, err, "GetOrderExecutionLimits should not error") {
+			assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
+			assert.Positivef(t, l.MinimumBaseAmount, "PriceStepIncrementSize should be positive for %s", p)
 		}
 	}
 }
@@ -3501,7 +3500,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	arg.Type = order.OCO
 	_, err = e.SubmitOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.RiskManagementModes = order.RiskManagementModes{
 		TakeProfit: order.RiskManagement{
@@ -3691,11 +3690,11 @@ func TestModifyOrder(t *testing.T) {
 
 	arg.Type = order.Trigger
 	_, err = e.ModifyOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.Type = order.OCO
 	_, err = e.ModifyOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Modify{
@@ -3716,7 +3715,7 @@ func TestModifyOrder(t *testing.T) {
 
 	arg.Type = order.Trigger
 	_, err = e.ModifyOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.TriggerPrice = 12345678
 	_, err = e.ModifyOrder(contextGenerate(), arg)
@@ -3725,7 +3724,7 @@ func TestModifyOrder(t *testing.T) {
 
 	arg.Type = order.OCO
 	_, err = e.ModifyOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.RiskManagementModes = order.RiskManagementModes{
 		TakeProfit: order.RiskManagement{Price: 12345677},
@@ -4768,7 +4767,7 @@ func TestClosePositionForContractID(t *testing.T) {
 	_, err = e.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false})
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
 	_, err = e.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false, Size: 123})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{
@@ -4817,11 +4816,11 @@ func TestComputeMinInvestment(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	arg.AlgoOrderType = "grid"
 	_, err = e.ComputeMinInvestment(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.MaxPrice = 5000
 	_, err = e.ComputeMinInvestment(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.MinPrice = 5000
 	_, err = e.ComputeMinInvestment(contextGenerate(), arg)
@@ -5391,7 +5390,7 @@ func TestPlaceSpreadOrder(t *testing.T) {
 
 	arg.Size = 1
 	_, err = e.PlaceSpreadOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.Price = 12345
 	_, err = e.PlaceSpreadOrder(contextGenerate(), arg)
@@ -6255,7 +6254,7 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	p.OrderType = order.Market.String()
 	require.ErrorIs(t, p.Validate(), limits.ErrAmountBelowMin)
 	p.Size = 1
-	require.ErrorIs(t, p.Validate(), order.ErrPriceBelowMin)
+	require.ErrorIs(t, p.Validate(), limits.ErrPriceBelowMin)
 	p.Price = 1
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
