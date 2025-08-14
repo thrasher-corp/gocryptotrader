@@ -3330,7 +3330,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			require.NotEmptyf(t, p, "GetAvailablePairs for asset %s must not return empty pairs", a)
 
 			l, err := e.GetOrderExecutionLimits(a, p[0])
-			require.NoError(t, err, "GetOrderExecutionLimits should not error")
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
 			assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
 			assert.Positivef(t, l.MinimumBaseAmount, "PriceStepIncrementSize should be positive for %s", p)
 		})
