@@ -540,7 +540,6 @@ func TestGenerateNewAddress(t *testing.T) {
 	}
 }
 
-// TestWsAuth dials websocket, sends login request.
 // Will receive a message only on failure
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
