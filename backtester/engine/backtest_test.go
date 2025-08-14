@@ -68,7 +68,7 @@ func TestSetupFromConfig(t *testing.T) {
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	assert.ErrorIs(t, err, base.ErrStrategyNotFound)
 
-	const testExchange = "bitfinex"
+	const testExchange = "okx"
 
 	cfg.CurrencySettings = []config.CurrencySettings{
 		{
