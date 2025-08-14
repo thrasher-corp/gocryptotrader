@@ -166,6 +166,7 @@ var (
 	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidText                      = errors.New("invalid text value, requires prefix `t-`")
+	errSingleAssetRequired              = errors.New("single asset type required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -188,8 +189,9 @@ func timeInForceFromString(tif string) (order.TimeInForce, error) {
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with GateIO
 type Exchange struct {
-	Counter common.Counter // Must be first	due to alignment requirements
 	exchange.Base
+
+	messageIDSeq  common.Counter
 	wsOBUpdateMgr *wsOBUpdateManager
 }
 
