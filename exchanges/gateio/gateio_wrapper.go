@@ -2166,11 +2166,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	}
 	resp := make([]fundingrate.LatestRateResponse, 0, len(contracts))
 	for i := range contracts {
-		p := strings.ToUpper(contracts[i].Name)
-		if !e.IsValidPairString(p) {
-			continue
-		}
-		cp, err := currency.NewPairFromString(p)
+		cp, err := currency.NewPairFromString(contracts[i].Name)
 		if err != nil {
 			return nil, err
 		}
