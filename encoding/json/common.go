@@ -13,4 +13,6 @@ type (
 	// An UnmarshalTypeError describes a JSON value that was
 	// not appropriate for a value of a specific Go type.
 	UnmarshalTypeError = json.UnmarshalTypeError
+	// A SyntaxError describes improper JSON
+	SyntaxError = json.SyntaxError
 )

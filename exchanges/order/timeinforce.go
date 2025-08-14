@@ -13,7 +13,7 @@ var (
 )
 
 // TimeInForce enforces a standard for time-in-force values across the code base.
-type TimeInForce uint8
+type TimeInForce uint16
 
 // TimeInForce types
 const (
@@ -25,8 +25,9 @@ const (
 	FillOrKill
 	ImmediateOrCancel
 	PostOnly
+	StopOrReduce
 
-	supportedTimeInForceFlag = GoodTillCancel | GoodTillDay | GoodTillTime | GoodTillCrossing | FillOrKill | ImmediateOrCancel | PostOnly
+	supportedTimeInForceFlag = GoodTillCancel | GoodTillDay | GoodTillTime | GoodTillCrossing | FillOrKill | ImmediateOrCancel | PostOnly | StopOrReduce
 )
 
 // time-in-force string representations
@@ -38,6 +39,7 @@ const (
 	fokStr      = "FOK"
 	iocStr      = "IOC"
 	postonlyStr = "POSTONLY"
+	sorStr      = "SOR"
 )
 
 // Is checks to see if the enum contains the flag
@@ -64,6 +66,8 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 		result = FillOrKill
 	case "POC", "POST_ONLY", "PENDINGORCANCEL", postonlyStr:
 		result = PostOnly
+	case "STOPORREDUCE", "STOP_OR_REDUCE", sorStr:
+		result = StopOrReduce
 	}
 	if result == UnknownTIF && timeInForce != "" {
 		return UnknownTIF, fmt.Errorf("%w: tif=%s", ErrInvalidTimeInForce, timeInForce)
@@ -110,6 +114,9 @@ func (t TimeInForce) String() string {
 	}
 	if t.Is(PostOnly) {
 		tifStrings = append(tifStrings, postonlyStr)
+	}
+	if t.Is(StopOrReduce) {
+		tifStrings = append(tifStrings, sorStr)
 	}
 	if len(tifStrings) == 0 {
 		return "UNKNOWN"

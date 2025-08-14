@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -17,7 +18,6 @@ var (
 	ErrExchangeNotFound      = errors.New("exchange not found")
 	ErrExchangeAlreadyLoaded = errors.New("exchange already loaded")
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
-	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
 
 	errExchangeIsNil = errors.New("exchange is nil")
 )
@@ -81,7 +81,7 @@ func (m *ExchangeManager) RemoveExchange(exchangeName string) error {
 	}
 
 	if exchangeName == "" {
-		return fmt.Errorf("exchange manager: %w", ErrExchangeNameIsEmpty)
+		return fmt.Errorf("exchange manager: %w", common.ErrExchangeNameNotSet)
 	}
 
 	m.mtx.Lock()
@@ -105,7 +105,7 @@ func (m *ExchangeManager) GetExchangeByName(exchangeName string) (exchange.IBotE
 		return nil, fmt.Errorf("exchange manager: %w", ErrNilSubsystem)
 	}
 	if exchangeName == "" {
-		return nil, fmt.Errorf("exchange manager: %w", ErrExchangeNameIsEmpty)
+		return nil, fmt.Errorf("exchange manager: %w", common.ErrExchangeNameNotSet)
 	}
 	m.mtx.Lock()
 	defer m.mtx.Unlock()

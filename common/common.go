@@ -55,6 +55,7 @@ var (
 
 // Public common Errors
 var (
+	ErrExchangeNameNotSet        = errors.New("exchange name not set")
 	ErrNotYetImplemented         = errors.New("not yet implemented")
 	ErrFunctionNotSupported      = errors.New("unsupported wrapper function")
 	ErrAddressIsEmptyOrInvalid   = errors.New("address is empty or invalid")
