@@ -127,7 +127,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:             e.SpotUnsubscribe,
 		GenerateSubscriptions:    e.GenerateDefaultSubscriptionsSpot,
 		Connector:                e.WsConnectSpot,
-		BespokeGenerateMessageID: e.GenerateWebsocketMessageID,
 	}); err != nil {
 		return err
 	}
@@ -143,7 +142,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:             e.FuturesUnsubscribe,
 		GenerateSubscriptions:    func() (subscription.List, error) { return e.GenerateFuturesDefaultSubscriptions(currency.USDT) },
 		Connector:                e.WsFuturesConnect,
-		BespokeGenerateMessageID: e.GenerateWebsocketMessageID,
 	}); err != nil {
 		return err
 	}
