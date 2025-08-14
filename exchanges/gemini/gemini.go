@@ -397,13 +397,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 
 	item := &request.Item{
-		Method:             http.MethodGet,
-		Path:               endpoint + path,
-		Result:             result,
-		Verbose:            e.Verbose,
-		HTTPDebugging:      e.HTTPDebugging,
-		HTTPRecording:      e.HTTPRecording,
-		MockDataSliceLimit: e.MockDataSliceLimit,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
@@ -451,15 +451,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["Cache-Control"] = "no-cache"
 
 		return &request.Item{
-			Method:             method,
-			Path:               endpoint + "/v1/" + path,
-			Headers:            headers,
-			Result:             result,
-			NonceEnabled:       true,
-			Verbose:            e.Verbose,
-			HTTPDebugging:      e.HTTPDebugging,
-			HTTPRecording:      e.HTTPRecording,
-			MockDataSliceLimit: e.MockDataSliceLimit,
+			Method:                 method,
+			Path:                   endpoint + "/v1/" + path,
+			Headers:                headers,
+			Result:                 result,
+			NonceEnabled:           true,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 }

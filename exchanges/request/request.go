@@ -256,7 +256,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		if p.HTTPRecording {
 			// This dumps http responses for future mocking implementations
-			err = mock.HTTPRecord(resp, r.name, contents, p.MockDataSliceLimit)
+			err = mock.HTTPRecord(resp, r.name, contents, p.HTTPMockDataSliceLimit)
 			if err != nil {
 				return fmt.Errorf("mock recording failure %w, request %v: resp: %v", err, req, resp)
 			}

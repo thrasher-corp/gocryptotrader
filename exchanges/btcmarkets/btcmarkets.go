@@ -771,13 +771,13 @@ func (e *Exchange) CancelBatch(ctx context.Context, ids []string) (BatchCancelRe
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any) error {
 	item := &request.Item{
-		Method:             http.MethodGet,
-		Path:               path,
-		Result:             result,
-		Verbose:            e.Verbose,
-		HTTPDebugging:      e.HTTPDebugging,
-		HTTPRecording:      e.HTTPRecording,
-		MockDataSliceLimit: e.MockDataSliceLimit,
+		Method:                 http.MethodGet,
+		Path:                   path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
@@ -828,15 +828,15 @@ func (e *Exchange) SendAuthenticatedRequest(ctx context.Context, method, path st
 		headers["BM-AUTH-SIGNATURE"] = base64.StdEncoding.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:             method,
-			Path:               btcMarketsAPIURL + btcMarketsAPIVersion + path,
-			Headers:            headers,
-			Body:               body,
-			Result:             result,
-			Verbose:            e.Verbose,
-			HTTPDebugging:      e.HTTPDebugging,
-			HTTPRecording:      e.HTTPRecording,
-			MockDataSliceLimit: e.MockDataSliceLimit,
+			Method:                 method,
+			Path:                   btcMarketsAPIURL + btcMarketsAPIVersion + path,
+			Headers:                headers,
+			Body:                   body,
+			Result:                 result,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
 

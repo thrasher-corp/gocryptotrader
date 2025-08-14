@@ -19,6 +19,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
+// defaultDataSliceLimit the mock slice data size limit to a default of 5
+const defaultDataSliceLimit = 5
+
 // HTTPResponse defines expected response from the end point including request
 // data for pathing on the VCR server
 type HTTPResponse struct {
@@ -30,6 +33,7 @@ type HTTPResponse struct {
 
 // HTTPRecord will record the request and response to a default JSON file for
 // mocking purposes
+// mockDataSliceLimit defaults to 5
 func HTTPRecord(res *http.Response, service string, respContents []byte, mockDataSliceLimit int) error {
 	if res == nil {
 		return errors.New("http.Response cannot be nil")
@@ -48,8 +52,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 	}
 	service = strings.ToLower(service)
 	if mockDataSliceLimit == 0 {
-		// Set the mock slice data size limit to a default of 5
-		mockDataSliceLimit = 5
+		mockDataSliceLimit = defaultDataSliceLimit
 	}
 	outputFilePath := filepath.Join(DefaultDirectory, service, service+".json")
 	_, err := os.Stat(outputFilePath)
@@ -295,14 +298,14 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 	if value, ok := data.([]any); ok {
 		var sData []any
 		for i := range value {
-			switch subvalues := value[i].(type) {
+			switch subvalue := value[i].(type) {
 			case []any:
-				if len(subvalues) > 0 {
-					if _, ok := subvalues[0].(map[string]any); ok && len(subvalues) > limit {
-						subvalues = subvalues[:limit]
+				if len(subvalue) > 0 {
+					if _, ok := subvalue[0].(map[string]any); ok && len(subvalue) > limit {
+						subvalue = subvalue[:limit]
 					}
 				}
-				checkedData, err := CheckJSON(subvalues, excluded, limit)
+				checkedData, err := CheckJSON(subvalue, excluded, limit)
 				if err != nil {
 					return nil, err
 				}
@@ -311,7 +314,7 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 					return sData, nil
 				}
 			case map[string]any:
-				checkedData, err := CheckJSON(subvalues, excluded, limit)
+				checkedData, err := CheckJSON(subvalue, excluded, limit)
 				if err != nil {
 					return nil, err
 				}
@@ -321,7 +324,7 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 				}
 			default:
 				// Primitive value doesn't need exclusions applied, e.g. float64 or string
-				sData = append(sData, subvalues)
+				sData = append(sData, subvalue)
 			}
 		}
 		return sData, nil

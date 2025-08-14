@@ -365,14 +365,14 @@ func (e *Exchange) SendFuturesAuthRequest(ctx context.Context, method, path stri
 		}
 
 		return &request.Item{
-			Method:             method,
-			Path:               futuresURL + common.EncodeURLValues(path, data),
-			Headers:            headers,
-			Result:             &interim,
-			Verbose:            e.Verbose,
-			HTTPDebugging:      e.HTTPDebugging,
-			HTTPRecording:      e.HTTPRecording,
-			MockDataSliceLimit: e.MockDataSliceLimit,
+			Method:                 method,
+			Path:                   futuresURL + common.EncodeURLValues(path, data),
+			Headers:                headers,
+			Result:                 &interim,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
 

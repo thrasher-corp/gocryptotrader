@@ -178,13 +178,13 @@ func (e *Exchange) GetInstanceServers(ctx context.Context) (*WSInstanceServers, 
 			return nil, err
 		}
 		return &request.Item{
-			Method:             http.MethodPost,
-			Path:               endpointPath + publicBullets,
-			Result:             &response,
-			Verbose:            e.Verbose,
-			HTTPDebugging:      e.HTTPDebugging,
-			HTTPRecording:      e.HTTPRecording,
-			MockDataSliceLimit: e.MockDataSliceLimit,
+			Method:                 http.MethodPost,
+			Path:                   endpointPath + publicBullets,
+			Result:                 &response,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.UnauthenticatedRequest)
 }

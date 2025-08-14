@@ -425,13 +425,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 
 	item := &request.Item{
-		Method:             http.MethodGet,
-		Path:               endpoint + path,
-		Result:             result,
-		Verbose:            e.Verbose,
-		HTTPDebugging:      e.HTTPDebugging,
-		HTTPRecording:      e.HTTPRecording,
-		MockDataSliceLimit: e.MockDataSliceLimit,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, marketRequests, func() (*request.Item, error) {
@@ -453,14 +453,14 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	headers["Authorization"] = "Basic " + base64.StdEncoding.EncodeToString([]byte(creds.Key+":"+creds.Secret))
 
 	item := &request.Item{
-		Method:             method,
-		Path:               ePoint + "/" + endpoint,
-		Headers:            headers,
-		Result:             result,
-		Verbose:            e.Verbose,
-		HTTPDebugging:      e.HTTPDebugging,
-		HTTPRecording:      e.HTTPRecording,
-		MockDataSliceLimit: e.MockDataSliceLimit,
+		Method:                 method,
+		Path:                   ePoint + "/" + endpoint,
+		Headers:                headers,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, f, func() (*request.Item, error) {

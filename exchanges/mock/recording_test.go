@@ -13,20 +13,20 @@ import (
 func TestGetFilteredHeader(t *testing.T) {
 	items, err := GetExcludedItems()
 	require.NoError(t, err)
-	assert.NotNil(t, items)
+	assert.NotNil(t, items, "GetExcludedItems should not error")
 
 	resp := http.Response{}
 	resp.Request = &http.Request{}
 	resp.Request.Header = http.Header{}
 	resp.Request.Header.Set("Key", "RiskyVals")
 	fMap := GetFilteredHeader(&resp, items)
-	assert.Empty(t, fMap.Get("Key"), "risky vals where not replaced correctly")
+	assert.Empty(t, fMap.Get("Key"), "risky values should be removed")
 }
 
 func TestGetFilteredURLVals(t *testing.T) {
 	items, err := GetExcludedItems()
 	require.NoError(t, err)
-	assert.NotNil(t, items)
+	assert.NotNil(t, items, "GetExcludedItems should not error")
 
 	superSecretData := "Dr Seuss"
 	shadyVals := url.Values{}
@@ -43,7 +43,7 @@ func TestCheckResponsePayload(t *testing.T) {
 	}
 
 	payload, err := json.Marshal(testbody)
-	require.NoErrorf(t, err, "json marshal error %v", err)
+	require.NoError(t, err, "json marshal must not error")
 
 	items, err := GetExcludedItems()
 	require.NoError(t, err)
@@ -160,12 +160,12 @@ func TestCheckJSON(t *testing.T) {
 	assert.NoErrorf(t, err, "GetExcludedItems error: %v", err)
 
 	data, err := json.Marshal(testVal)
-	require.NoError(t, err)
-	assert.NotNil(t, data)
+	require.NoError(t, err, "json.Marshal nust not error")
+	assert.NotNil(t, data, "json.Marshal nust not return nil")
 
 	var input any
 	err = json.Unmarshal(data, &input)
-	require.NoError(t, err)
+	require.NoError(t, err, "json.Unmarshal must not error")
 
 	vals, err := CheckJSON(input, &exclusionList, 4)
 	assert.NoErrorf(t, err, "Check JSON error: %v", err)

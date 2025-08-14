@@ -37,19 +37,19 @@ func TestNewVCRServer(t *testing.T) {
 		Amount:   1,
 		Currency: "bitcoin",
 	})
-	require.NoErrorf(t, err, "marshal error: %v", err)
+	require.NoError(t, err, "json.Marshal must not error")
 
 	testValue := HTTPResponse{Data: rp, QueryString: queryString, BodyParams: queryString}
 	test1.Routes["/test"][http.MethodGet] = []HTTPResponse{testValue}
 
 	payload, err := json.Marshal(test1)
-	require.NoErrorf(t, err, "marshal error: %v", err)
+	require.NoError(t, err, "json.Marshal must not error")
 
 	err = os.WriteFile(testFile, payload, os.ModePerm)
-	require.NoErrorf(t, err, "marshal error: %v", err)
+	require.NoError(t, err, "json.Marshal must not error")
 
 	deets, client, err := NewVCRServer(testFile)
-	assert.NoErrorf(t, err, "NewVCRServer error: %v", err)
+	assert.NoError(t, err, "NewVCRServer should not error")
 
 	err = common.SetHTTPClient(client) // Set common package global HTTP Client
 	require.NoError(t, err)

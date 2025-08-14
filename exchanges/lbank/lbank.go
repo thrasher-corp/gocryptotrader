@@ -490,13 +490,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 
 	item := &request.Item{
-		Method:             http.MethodGet,
-		Path:               endpoint + path,
-		Result:             result,
-		Verbose:            e.Verbose,
-		HTTPDebugging:      e.HTTPDebugging,
-		HTTPRecording:      e.HTTPRecording,
-		MockDataSliceLimit: e.MockDataSliceLimit,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
@@ -569,14 +569,14 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, endpoint str
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	item := &request.Item{
-		Method:             method,
-		Path:               endpoint,
-		Headers:            headers,
-		Result:             result,
-		Verbose:            e.Verbose,
-		HTTPDebugging:      e.HTTPDebugging,
-		HTTPRecording:      e.HTTPRecording,
-		MockDataSliceLimit: e.MockDataSliceLimit,
+		Method:                 method,
+		Path:                   endpoint,
+		Headers:                headers,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {

@@ -883,13 +883,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	var tempResp json.RawMessage
 
 	item := &request.Item{
-		Method:             http.MethodGet,
-		Path:               endpoint + path,
-		Result:             &tempResp,
-		Verbose:            e.Verbose,
-		HTTPDebugging:      e.HTTPDebugging,
-		HTTPRecording:      e.HTTPRecording,
-		MockDataSliceLimit: e.MockDataSliceLimit,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 &tempResp,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
@@ -968,15 +968,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}
 
 		return &request.Item{
-			Method:             method,
-			Path:               ePoint + common.EncodeURLValues(endpoint, values),
-			Headers:            headers,
-			Body:               bytes.NewReader(body),
-			Result:             &interim,
-			Verbose:            e.Verbose,
-			HTTPDebugging:      e.HTTPDebugging,
-			HTTPRecording:      e.HTTPRecording,
-			MockDataSliceLimit: e.MockDataSliceLimit,
+			Method:                 method,
+			Path:                   ePoint + common.EncodeURLValues(endpoint, values),
+			Headers:                headers,
+			Body:                   bytes.NewReader(body),
+			Result:                 &interim,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
 

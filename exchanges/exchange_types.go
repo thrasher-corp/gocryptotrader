@@ -241,6 +241,7 @@ type Base struct {
 	Features                   Features
 	HTTPTimeout                time.Duration
 	HTTPRecording              bool
+	HTTPMockDataSliceLimit     int // Use with HTTPRecording to reduce the size of recorded mock data
 	HTTPDebugging              bool
 	BypassConfigFormatUpgrades bool
 
@@ -256,10 +257,6 @@ type Base struct {
 	// integrity.
 	ValidateOrderbook bool
 	order.ExecutionLimits
-
-	// Used in HTTP recording to limit the number of slices per record,
-	// helping reduce the size of the recorded mock data.
-	MockDataSliceLimit int
 
 	AssetWebsocketSupport
 	*currencystate.States

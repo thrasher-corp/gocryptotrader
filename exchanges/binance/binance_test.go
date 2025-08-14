@@ -2324,7 +2324,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	startTime = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
-	require.NoError(t, err)
+	require.NoError(t, err, "GetEnabledPairs must not error")
 
 	_, err = e.GetHistoricCandles(t.Context(), enabledPairs[0], asset.Spot, kline.Interval(time.Hour*7), startTime, end)
 	require.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
@@ -2766,7 +2766,7 @@ func TestFetchExchangeLimits(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	spotEnabled, err := e.GetEnabledPairs(asset.Spot)
-	require.NoError(t, err)
+	require.NoError(t, err, "GetEnabledPairs must not error")
 
 	tests := map[asset.Item]currency.Pair{
 		asset.Spot:   spotEnabled[0],

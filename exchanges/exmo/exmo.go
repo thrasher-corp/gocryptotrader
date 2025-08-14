@@ -293,13 +293,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, endpoint exchange.URL, p
 	}
 
 	item := &request.Item{
-		Method:             http.MethodGet,
-		Path:               urlPath + path,
-		Result:             result,
-		Verbose:            e.Verbose,
-		HTTPDebugging:      e.HTTPDebugging,
-		HTTPRecording:      e.HTTPRecording,
-		MockDataSliceLimit: e.MockDataSliceLimit,
+		Method:                 http.MethodGet,
+		Path:                   urlPath + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
@@ -336,16 +336,16 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, epath excha
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 		return &request.Item{
-			Method:             method,
-			Path:               path,
-			Headers:            headers,
-			Body:               strings.NewReader(payload),
-			Result:             result,
-			NonceEnabled:       true,
-			Verbose:            e.Verbose,
-			HTTPDebugging:      e.HTTPDebugging,
-			HTTPRecording:      e.HTTPRecording,
-			MockDataSliceLimit: e.MockDataSliceLimit,
+			Method:                 method,
+			Path:                   path,
+			Headers:                headers,
+			Body:                   strings.NewReader(payload),
+			Result:                 result,
+			NonceEnabled:           true,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 }
