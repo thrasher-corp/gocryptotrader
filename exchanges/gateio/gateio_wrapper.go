@@ -669,7 +669,7 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 	case asset.Options:
 		o, err = e.GetOptionsOrderbook(ctx, p, "", limit, true)
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	if err != nil {
 		return nil, err
@@ -1810,7 +1810,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 		return nil, futures.ErrNotFuturesAsset
 	}
 	if !e.SupportsAsset(a) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	settle, err := getSettlementCurrency(currency.EMPTYPAIR, a)
 	if err != nil {
@@ -1906,7 +1906,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 		}
 		return resp, nil
 	}
-	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
@@ -2040,7 +2040,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 		}
 	default:
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 
 	return limits.Load(l)
@@ -2388,7 +2388,7 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		}
 		return tradeBaseURL + futuresPath + settle.String() + "/" + cp.Upper().String(), nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }
 

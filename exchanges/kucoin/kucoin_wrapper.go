@@ -1844,7 +1844,7 @@ func (e *Exchange) GetServerTime(ctx context.Context, a asset.Item) (time.Time, 
 	case asset.Futures:
 		return e.GetFuturesServerTime(ctx)
 	default:
-		return time.Time{}, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return time.Time{}, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }
 
@@ -2327,7 +2327,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 // UpdateOrderExecutionLimits updates order execution limits
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if !e.SupportsAsset(a) {
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 
 	var l []limits.MinMaxLevel
@@ -2444,7 +2444,7 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		cp.Delimiter = ""
 		return tradeBaseURL + tradeFutures + tradeSpot + cp.Upper().String(), nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }
 

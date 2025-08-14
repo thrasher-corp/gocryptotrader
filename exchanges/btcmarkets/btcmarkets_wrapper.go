@@ -179,7 +179,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if a != asset.Spot {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	markets, err := e.GetMarkets(ctx)
 	if err != nil {

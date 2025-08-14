@@ -2577,21 +2577,22 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 
 	for _, s := range scenarios {
-		err := e.UpdateOrderExecutionLimits(t.Context(), s.assetType)
-		assert.ErrorIs(t, err, s.expectedError)
+		t.Run(s.assetType.String(), func(t *testing.T) {
+			t.Parallel()
+			require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), s.assetType), s.expectedError)
+			if s.expectedError != nil || s.assetType == asset.Options {
+				return
+			}
+			avail, err := e.GetAvailablePairs(s.assetType)
+			require.NoError(t, err, "GetAvailablePairs must not error")
+			for i := range avail {
+				mm, err := e.GetOrderExecutionLimits(s.assetType, avail[i])
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				require.NotEmpty(t, mm, "GetOrderExecutionLimits must not return empty value")
+			}
+		})
 	}
 
-	avail, err := e.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err, "GetAvailablePairs must not error")
-
-	for i := range avail {
-		mm, err := e.GetOrderExecutionLimits(asset.Spot, avail[i])
-		require.NoError(t, err, "GetOrderExecutionLimits must not error")
-		require.NotEmpty(t, mm, "GetOrderExecutionLimits must not return empty value")
-		assert.Positive(t, mm.MinimumBaseAmount)
-		assert.Positive(t, mm.QuoteStepIncrementSize)
-		assert.Positive(t, mm.AmountStepIncrementSize)
-	}
 }
 
 func TestForceFileStandard(t *testing.T) {

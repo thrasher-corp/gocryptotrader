@@ -72,7 +72,7 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !a.IsValid() {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	exchange = strings.ToLower(exchange)
 	service.mu.Lock()

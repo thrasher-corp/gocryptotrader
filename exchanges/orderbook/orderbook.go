@@ -117,7 +117,7 @@ func (s *store) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Book,
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !a.IsValid() {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	s.m.RLock()
 	ob, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]

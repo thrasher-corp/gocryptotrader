@@ -456,33 +456,18 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		ConfigFormat: &currency.PairFormat{Delimiter: "~"},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Store must not error")
 	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
 		ConfigFormat: &currency.PairFormat{Delimiter: ":)"},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = b.SetCurrencyPairFormat()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Store must not error")
+	require.NoError(t, b.SetCurrencyPairFormat(), "SetCurrencyPairFormat must not error")
 	spot, err = b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if spot.Delimiter != "~" {
-		t.Error("incorrect pair format delimiter")
-	}
+	assert.Equal(t, "~", spot.Delimiter, "GetPairFormat must return a format with correct delimiter")
+	assert.Equal(t, "~", spot.Delimiter, "GetPairFormat must return a format with correct delimiter")
 	f, err := b.GetPairFormat(asset.Futures, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if f.Delimiter != ":)" {
-		t.Error("incorrect pair format delimiter")
-	}
+	require.NoError(t, err, "GetPairFormat must not error")
+	assert.Equal(t, ":", f.Delimiter, "GetPairFormat must return a format with correct delimiter")
 }
 
 func TestLoadConfigPairs(t *testing.T) {
@@ -2921,10 +2906,10 @@ func TestCheckOrderExecutionLimits(t *testing.T) {
 	err := limits.Load([]limits.MinMaxLevel{
 		l,
 	})
-	require.NoError(t, err)
+	require.NoError(t, err, "limits.Load must not error")
 
 	err = exch.CheckOrderExecutionLimits(asset.Spread, cp, 1338.0, 1.0, order.Market)
-	require.NoError(t, err)
+	require.NoError(t, err, "CheckOrderExecutionLimits must not error")
 }
 
 func TestWebsocketSubmitOrder(t *testing.T) {

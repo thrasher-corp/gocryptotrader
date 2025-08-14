@@ -641,7 +641,7 @@ var acceptableErrors = []error{
 	futures.ErrNotPerpetualFuture,        // Is thrown when a futures function receives a non-perpetual future
 	limits.ErrExchangeLimitNotLoaded,     // Is thrown when the limits aren't loaded for a particular exchange, asset, pair
 	limits.ErrOrderLimitNotFound,         // Is thrown when the order limit isn't found for a particular exchange, asset, pair
-	limits.ErrCannotLoadLimit,            // Is thrown if limits are not provided for the asset
+	limits.ErrEmptyLevels,                // Is thrown if limits are not provided for the asset
 	account.ErrExchangeHoldingsNotFound,
 	ticker.ErrTickerNotFound,
 	orderbook.ErrOrderbookNotFound,

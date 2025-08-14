@@ -2732,33 +2732,36 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 
 	for _, a := range e.GetAssetTypes(false) {
-		err := e.UpdateOrderExecutionLimits(t.Context(), a)
-		require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
+		t.Run(a.String()+"/"+tests[a].String(), func(t *testing.T) {
+			t.Parallel()
+			err := e.UpdateOrderExecutionLimits(t.Context(), a)
+			require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
 
-		p := tests[a]
-		l, err := e.GetOrderExecutionLimits(a, p)
-		require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s pair %s", a, p)
-		assert.Positivef(t, l.MinPrice, "MinPrice should be positive for %s pair %s", a, p)
-		assert.Positivef(t, l.MaxPrice, "MaxPrice should be positive for %s pair %s", a, p)
-		assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s pair %s", a, p)
-		assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s pair %s", a, p)
-		assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s pair %s", a, p)
-		assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s pair %s", a, p)
-		assert.Positivef(t, l.MarketMaxQty, "MarketMaxQty should be positive for %s pair %s", a, p)
-		assert.Positivef(t, l.MaxTotalOrders, "MaxTotalOrders should be positive for %s pair %s", a, p)
-		switch a {
-		case asset.Spot, asset.Margin:
-			assert.Positivef(t, l.MaxIcebergParts, "MaxIcebergParts should be positive for %s pair %s", a, p)
-		case asset.USDTMarginedFutures:
-			assert.Positivef(t, l.MinNotional, "MinNotional should be positive for %s pair %s", a, p)
-			fallthrough
-		case asset.CoinMarginedFutures:
-			assert.Positivef(t, l.MultiplierUp, "MultiplierUp should be positive for %s pair %s", a, p)
-			assert.Positivef(t, l.MultiplierDown, "MultiplierDown should be positive for %s pair %s", a, p)
-			assert.Positivef(t, l.MarketMinQty, "MarketMinQty should be positive for %s pair %s", a, p)
-			assert.Positivef(t, l.MarketStepIncrementSize, "MarketStepIncrementSize should be positive for %s pair %s", a, p)
-			assert.Positivef(t, l.MaxAlgoOrders, "MaxAlgoOrders should be positive for %s pair %s", a, p)
-		}
+			p := tests[a]
+			l, err := e.GetOrderExecutionLimits(a, p)
+			require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s pair %s", a, p)
+			assert.Positivef(t, l.MinPrice, "MinPrice should be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.MaxPrice, "MaxPrice should be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.MarketMaxQty, "MarketMaxQty should be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.MaxTotalOrders, "MaxTotalOrders should be positive for %s pair %s", a, p)
+			switch a {
+			case asset.Spot, asset.Margin:
+				assert.Positivef(t, l.MaxIcebergParts, "MaxIcebergParts should be positive for %s pair %s", a, p)
+			case asset.USDTMarginedFutures:
+				assert.Positivef(t, l.MinNotional, "MinNotional should be positive for %s pair %s", a, p)
+				fallthrough
+			case asset.CoinMarginedFutures:
+				assert.Positivef(t, l.MultiplierUp, "MultiplierUp should be positive for %s pair %s", a, p)
+				assert.Positivef(t, l.MultiplierDown, "MultiplierDown should be positive for %s pair %s", a, p)
+				assert.Positivef(t, l.MarketMinQty, "MarketMinQty should be positive for %s pair %s", a, p)
+				assert.Positivef(t, l.MarketStepIncrementSize, "MarketStepIncrementSize should be positive for %s pair %s", a, p)
+				assert.Positivef(t, l.MaxAlgoOrders, "MaxAlgoOrders should be positive for %s pair %s", a, p)
+			}
+		})
 	}
 }
 

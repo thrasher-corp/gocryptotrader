@@ -229,7 +229,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if !e.SupportsAsset(a) {
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	tickers, err := e.GetMarketSummary(ctx, "", a == asset.Spot)
 	if err != nil {
@@ -266,7 +266,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !e.SupportsAsset(a) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	symbol, err := e.FormatSymbol(p, a)
 	if err != nil {
@@ -895,7 +895,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	switch a {
 	case asset.Spot, asset.Futures:
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	req, err := e.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
@@ -936,7 +936,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	switch a {
 	case asset.Spot, asset.Futures:
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	req, err := e.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
@@ -1299,6 +1299,6 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	case asset.Futures:
 		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }

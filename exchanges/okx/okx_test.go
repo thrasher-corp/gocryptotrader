@@ -3319,23 +3319,21 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
-		err := e.UpdateOrderExecutionLimits(contextGenerate(), a)
-		if !assert.NoError(t, err) {
-			continue
-		}
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(contextGenerate(), a), "UpdateOrderExecutionLimits must not error")
 
-		p, err := e.GetAvailablePairs(a)
-		require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", a)
-		require.NotEmptyf(t, p, "GetAvailablePairs for asset %s must not return empty pairs", a)
+			p, err := e.GetAvailablePairs(a)
+			require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", a)
+			require.NotEmptyf(t, p, "GetAvailablePairs for asset %s must not return empty pairs", a)
 
-		l, err := e.GetOrderExecutionLimits(a, p[0])
-		if assert.NoError(t, err, "GetOrderExecutionLimits should not error") {
+			l, err := e.GetOrderExecutionLimits(a, p[0])
+			require.NoError(t, err, "GetOrderExecutionLimits should not error")
 			assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
 			assert.Positivef(t, l.MinimumBaseAmount, "PriceStepIncrementSize should be positive for %s", p)
-		}
+		})
 	}
 }
 

@@ -508,7 +508,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		}
 
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	return ticker.GetTicker(e.Name, p, a)
 }
@@ -809,7 +809,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 		return nil, err
 	}
 	if a != asset.Spot {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	rFmt, err := e.GetPairFormat(a, true)
 	if err != nil {
@@ -1705,7 +1705,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			})
 		}
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	return req.ProcessResponse(timeSeries)
 }
@@ -1786,7 +1786,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 				})
 			}
 		default:
-			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+			return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -1849,7 +1849,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	case asset.Margin:
 		l, err = e.FetchExchangeLimits(ctx, asset.Margin)
 	default:
-		err = fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		err = fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
@@ -2253,7 +2253,7 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bo
 // SetCollateralMode sets the account's collateral mode for the asset type
 func (e *Exchange) SetCollateralMode(ctx context.Context, a asset.Item, collateralMode collateral.Mode) error {
 	if a != asset.USDTMarginedFutures {
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	if collateralMode != collateral.MultiMode && collateralMode != collateral.SingleMode {
 		return fmt.Errorf("%w %v", order.ErrCollateralInvalid, collateralMode)
@@ -2264,7 +2264,7 @@ func (e *Exchange) SetCollateralMode(ctx context.Context, a asset.Item, collater
 // GetCollateralMode returns the account's collateral mode for the asset type
 func (e *Exchange) GetCollateralMode(ctx context.Context, a asset.Item) (collateral.Mode, error) {
 	if a != asset.USDTMarginedFutures {
-		return collateral.UnknownMode, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return collateral.UnknownMode, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	isMulti, err := e.GetAssetsMode(ctx)
 	if err != nil {
@@ -3061,6 +3061,6 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 	case asset.Margin:
 		return tradeBaseURL + "trade/" + symbol + "?type=cross", nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }

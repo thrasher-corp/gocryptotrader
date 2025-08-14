@@ -17,7 +17,7 @@ func TestLoadLimits(t *testing.T) {
 	t.Parallel()
 	e := store{}
 	err := e.load(nil)
-	require.ErrorIs(t, err, ErrCannotLoadLimit)
+	require.ErrorIs(t, err, ErrEmptyLevels)
 
 	badKeyNoExchange := []MinMaxLevel{
 		{
@@ -172,7 +172,7 @@ func TestCheckLimit(t *testing.T) {
 // No parallel, working with global var
 func TestPublicLoadLimits(t *testing.T) {
 	err := Load(nil)
-	assert.ErrorIs(t, err, ErrCannotLoadLimit)
+	assert.ErrorIs(t, err, ErrEmptyLevels)
 
 	newLimits := []MinMaxLevel{
 		{

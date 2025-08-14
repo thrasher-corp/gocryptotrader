@@ -3837,8 +3837,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		}
 	}
 	require.NotNil(t, instrumentDetail, "instrument required to be found")
-	require.Equalf(t, instrumentDetail.TickSize, l.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %f Got: %f", asset.Spot, spotTradablePair, instrumentDetail.TickSize, l.MinimumBaseAmount)
-	assert.Equalf(t, instrumentDetail.MinimumTradeAmount, l.MinimumBaseAmount, "Pair: %s Expected: %f Got: %f", spotTradablePair, instrumentDetail.MinimumTradeAmount, l.MinimumBaseAmount)
+	require.Equalf(t, instrumentDetail.TickSize, l.PriceStepIncrementSize, "TickSize and PriceStepIncrementSize must match")
+	assert.Equalf(t, instrumentDetail.MinimumTradeAmount, l.MinimumBaseAmount, "MinimumTradeAmount and MinimumBaseAmount should match")
 }
 
 func TestGetLockedStatus(t *testing.T) {

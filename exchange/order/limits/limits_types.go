@@ -10,19 +10,19 @@ import (
 
 // Public errors for order limits
 var (
-	ErrCannotLoadLimit         = errors.New("cannot load limit, levels not supplied")
+	ErrEmptyLevels             = errors.New("cannot load limits, no levels supplied")
 	ErrOrderLimitNotFound      = errors.New("order limit not found")
 	ErrExchangeLimitNotLoaded  = errors.New("exchange limits not loaded")
 	ErrPriceBelowMin           = errors.New("price below minimum limit")
 	ErrPriceExceedsMax         = errors.New("price exceeds maximum limit")
-	ErrPriceExceedsStep        = errors.New("price exceeds step limit") // price is not divisible by its step
+	ErrPriceExceedsStep        = errors.New("price is not divisible by its step")
 	ErrAmountBelowMin          = errors.New("amount below minimum limit")
 	ErrAmountExceedsMax        = errors.New("amount exceeds maximum limit")
-	ErrAmountExceedsStep       = errors.New("amount exceeds step limit") // amount is not divisible by its step
+	ErrAmountExceedsStep       = errors.New("amount is not divisible by its step")
 	ErrNotionalValue           = errors.New("total notional value is under minimum limit")
 	ErrMarketAmountBelowMin    = errors.New("market order amount below minimum limit")
 	ErrMarketAmountExceedsMax  = errors.New("market order amount exceeds maximum limit")
-	ErrMarketAmountExceedsStep = errors.New("market order amount exceeds step limit") // amount is not divisible by its step for a market order
+	ErrMarketAmountExceedsStep = errors.New("amount is not divisible by its step for a market order")
 )
 
 var (
@@ -34,15 +34,13 @@ var (
 	errInvalidQuoteLevels  = errors.New("invalid quote levels, cannot load limits")
 )
 
-// store defines minimum and maximum values in relation to
-// order size, order pricing, total notional values, total maximum orders etc
-// for execution on an exchange.
+// store defines minimum and maximum values for order size, pricing, max orders for exchange order requirements
 type store struct {
 	epaLimits map[key.ExchangePairAsset]*MinMaxLevel
 	mtx       sync.RWMutex
 }
 
-var executionLimitsManager = store{
+var manager = store{
 	epaLimits: make(map[key.ExchangePairAsset]*MinMaxLevel),
 }
 

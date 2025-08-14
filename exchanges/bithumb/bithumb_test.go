@@ -555,11 +555,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	limit, err := e.GetOrderExecutionLimits(asset.Spot, testPair)
 	require.NoError(t, err, "GetOrderExecutionLimits must not error")
 
-	err = limit.Conforms(46241000, 0.00001, order.Limit)
+	err = limit.Validate(46241000, 0.00001, order.Limit)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	err = limit.Conforms(46241000, 0.0001, order.Limit)
-	assert.NoError(t, err, "Conforms should not error")
+	err = limit.Validate(46241000, 0.0001, order.Limit)
+	assert.NoError(t, err, "Validate should not error")
 }
 
 func TestGetAmountMinimum(t *testing.T) {

@@ -7,9 +7,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// Conforms checks outbound parameters
-func (m *MinMaxLevel) Conforms(price, amount float64, orderType order.Type) error {
-	// TODO: Update to take in account Quote amounts as well as Base amounts.
+// Validate ensures MinMaxLevel fields are valid
+func (m *MinMaxLevel) Validate(price, amount float64, orderType order.Type) error {
+	// TODO: Verify Quote as well as Base amounts
 	if m == nil {
 		return nil
 	}
@@ -37,23 +37,25 @@ func (m *MinMaxLevel) Conforms(price, amount float64, orderType order.Type) erro
 		}
 	}
 
-	// ContractMultiplier checking not done due to the fact we need coherence with the
-	// last average price (TODO)
-	// m.multiplierUp will be used to determine how far our price can go up
-	// m.multiplierDown will be used to determine how far our price can go down
-	// m.averagePriceMinutes will be used to determine mean over this period
+	/*
+		ContractMultiplier checking not done due to the fact we need coherence with the
+		 last average price (TODO)
+		 m.multiplierUp will be used to determine how far our price can go up
+		 m.multiplierDown will be used to determine how far our price can go down
+		 m.averagePriceMinutes will be used to determine mean over this period
 
-	// Max iceberg parts checking not done as we do not have that
-	// functionality yet (TODO)
-	// m.maxIcebergParts // How many components in an iceberg order
+		 Max iceberg parts checking not done as we do not have that
+		 functionality yet (TODO)
+		 m.maxIcebergParts // How many components in an iceberg order
 
-	// Max total orders not done due to order manager limitations (TODO)
-	// m.maxTotalOrders
+		 Max total orders not done due to order manager limitations (TODO)
+		 m.maxTotalOrders
 
-	// Max algo orders not done due to order manager limitations (TODO)
-	// m.maxAlgoOrders
+		 Max algo orders not done due to order manager limitations (TODO)
+		 m.maxAlgoOrders
 
-	// If order type is Market we do not need to do price checks
+		 If order type is Market we do not need to do price checks
+	*/
 	if orderType != order.Market {
 		if m.MinPrice != 0 && price < m.MinPrice {
 			return fmt.Errorf("%w min: %.8f supplied %.8f",
@@ -87,24 +89,19 @@ func (m *MinMaxLevel) Conforms(price, amount float64, orderType order.Type) erro
 		return nil
 	}
 
-	if m.MarketMinQty != 0 &&
-		m.MinimumBaseAmount < m.MarketMinQty &&
-		amount < m.MarketMinQty {
+	if m.MarketMinQty != 0 && m.MinimumBaseAmount < m.MarketMinQty && amount < m.MarketMinQty {
 		return fmt.Errorf("%w min: %.8f supplied %.8f",
 			ErrMarketAmountBelowMin,
 			m.MarketMinQty,
 			amount)
 	}
-	if m.MarketMaxQty != 0 &&
-		m.MaximumBaseAmount > m.MarketMaxQty &&
-		amount > m.MarketMaxQty {
+	if m.MarketMaxQty != 0 && m.MaximumBaseAmount > m.MarketMaxQty && amount > m.MarketMaxQty {
 		return fmt.Errorf("%w max: %.8f supplied %.8f",
 			ErrMarketAmountExceedsMax,
 			m.MarketMaxQty,
 			amount)
 	}
-	if m.MarketStepIncrementSize != 0 &&
-		m.AmountStepIncrementSize != m.MarketStepIncrementSize {
+	if m.MarketStepIncrementSize != 0 && m.AmountStepIncrementSize != m.MarketStepIncrementSize {
 		dAmount := decimal.NewFromFloat(amount)
 		dMinMAmount := decimal.NewFromFloat(m.MarketMinQty)
 		dStep := decimal.NewFromFloat(m.MarketStepIncrementSize)
@@ -118,8 +115,8 @@ func (m *MinMaxLevel) Conforms(price, amount float64, orderType order.Type) erro
 	return nil
 }
 
-// ConformToDecimalAmount (POC) conforms amount to its amount interval
-func (m *MinMaxLevel) ConformToDecimalAmount(amount decimal.Decimal) decimal.Decimal {
+// FloorAmountToStepIncrementDecimal floors decimal amount to step increment
+func (m *MinMaxLevel) FloorAmountToStepIncrementDecimal(amount decimal.Decimal) decimal.Decimal {
 	if m == nil {
 		return amount
 	}
@@ -137,8 +134,8 @@ func (m *MinMaxLevel) ConformToDecimalAmount(amount decimal.Decimal) decimal.Dec
 	return amount.Sub(mod)
 }
 
-// ConformToAmount (POC) conforms amount to its amount interval
-func (m *MinMaxLevel) ConformToAmount(amount float64) float64 {
+// FloorAmountToStepIncrement floors float amount to step increment
+func (m *MinMaxLevel) FloorAmountToStepIncrement(amount float64) float64 {
 	if m == nil {
 		return amount
 	}
@@ -158,8 +155,8 @@ func (m *MinMaxLevel) ConformToAmount(amount float64) float64 {
 	return dAmount.Sub(mod).InexactFloat64()
 }
 
-// ConformToPrice (POC) conforms amount to its amount interval
-func (m *MinMaxLevel) ConformToPrice(price float64) float64 {
+// FloorPriceToStepIncrement floors float price to step increment
+func (m *MinMaxLevel) FloorPriceToStepIncrement(price float64) float64 {
 	if m == nil {
 		return price
 	}

@@ -785,7 +785,7 @@ func (e *Exchange) GetFuturesContractDetails(context.Context, asset.Item) ([]fut
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	details, err := e.GetSymbolDetails(ctx, "all")
 	if err != nil {

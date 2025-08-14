@@ -490,7 +490,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if a == asset.MarginFunding {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
@@ -1202,6 +1202,6 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	case asset.Spot:
 		return tradeBaseURL + "/t/" + symbol, nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }

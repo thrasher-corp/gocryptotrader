@@ -10,23 +10,23 @@ import (
 
 // Load loads all limits into private limit holder
 func Load(levels []MinMaxLevel) error {
-	return executionLimitsManager.load(levels)
+	return manager.load(levels)
 }
 
 // GetOrderExecutionLimits returns the order limit matching the key
 func GetOrderExecutionLimits(k key.ExchangePairAsset) (MinMaxLevel, error) {
-	return executionLimitsManager.getOrderExecutionLimits(k)
+	return manager.getOrderExecutionLimits(k)
 }
 
 // CheckOrderExecutionLimits is a convenience method to check if the price and amount conforms
 // to the exchange order limits
 func CheckOrderExecutionLimits(k key.ExchangePairAsset, price, amount float64, orderType order.Type) error {
-	return executionLimitsManager.checkOrderExecutionLimits(k, price, amount, orderType)
+	return manager.checkOrderExecutionLimits(k, price, amount, orderType)
 }
 
 func (e *store) load(levels []MinMaxLevel) error {
 	if len(levels) == 0 {
-		return ErrCannotLoadLimit
+		return ErrEmptyLevels
 	}
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
@@ -109,7 +109,7 @@ func (e *store) checkOrderExecutionLimits(k key.ExchangePairAsset, price, amount
 		return fmt.Errorf("%w for %q %q %q", ErrOrderLimitNotFound, k.Exchange, k.Asset, k.Pair())
 	}
 
-	err := m1.Conforms(price, amount, orderType)
+	err := m1.Validate(price, amount, orderType)
 	if err != nil {
 		return fmt.Errorf("%w for %q %q %q", err, k.Exchange, k.Asset, k.Pair())
 	}

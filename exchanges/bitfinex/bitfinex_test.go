@@ -148,13 +148,14 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		},
 	}
 	for assetItem, pairs := range tests {
+		t.Run(assetItem.String(), func(t *testing.T) {})
 		if assert.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), assetItem), "UpdateOrderExecutionLimits should not error") {
 			continue
 		}
 		for _, pair := range pairs {
 			l, err := e.GetOrderExecutionLimits(assetItem, pair)
 			assert.NoError(t, err)
-			assert.NotZero(t, l.MinimumBaseAmount, "GetOrderExecutionLimits should not return empty minimum base amount")
+			assert.NotZero(t, l.MinimumBaseAmount, "MinimumBaseAmount should not be zero")
 		}
 	}
 }
