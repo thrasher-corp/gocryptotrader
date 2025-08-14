@@ -165,7 +165,7 @@ var (
 	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
 	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
-	errInvalidText                      = errors.New("invalid text value, requires prefix `t-`")
+	errInvalidClientOrderIDTextPrefix   = errors.New("invalid text value, requires prefix `t-`")
 	errSingleAssetRequired              = errors.New("single asset type required")
 )
 
@@ -3626,7 +3626,7 @@ func (c *ContractOrderCreateParams) validate(isRest bool) error {
 		return fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, c.TimeInForce)
 	}
 	if c.Text != "" && !strings.HasPrefix(c.Text, "t-") {
-		return errInvalidText
+		return errInvalidClientOrderIDTextPrefix
 	}
 	if c.AutoSize != "" {
 		if c.AutoSize != "close_long" && c.AutoSize != "close_short" {
