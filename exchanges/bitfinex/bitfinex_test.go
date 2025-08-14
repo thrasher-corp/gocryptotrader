@@ -1116,7 +1116,6 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-// TestWSAuth dials websocket, sends login request.
 func TestWSAuth(t *testing.T) {
 	if !e.Websocket.IsEnabled() {
 		t.Skip(websocket.ErrWebsocketNotEnabled.Error())

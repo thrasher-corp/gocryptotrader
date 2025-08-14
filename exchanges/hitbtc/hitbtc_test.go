@@ -453,7 +453,6 @@ func setupWsAuth(t *testing.T) {
 	wsSetupRan = true
 }
 
-// TestWsCancelOrder dials websocket, sends cancel request.
 func TestWsCancelOrder(t *testing.T) {
 	setupWsAuth(t)
 	if !canManipulateRealOrders {
@@ -465,7 +464,6 @@ func TestWsCancelOrder(t *testing.T) {
 	}
 }
 
-// TestWsPlaceOrder dials websocket, sends order submission.
 func TestWsPlaceOrder(t *testing.T) {
 	setupWsAuth(t)
 	if !canManipulateRealOrders {
@@ -477,7 +475,6 @@ func TestWsPlaceOrder(t *testing.T) {
 	}
 }
 
-// TestWsReplaceOrder dials websocket, sends replace order request.
 func TestWsReplaceOrder(t *testing.T) {
 	setupWsAuth(t)
 	if !canManipulateRealOrders {
@@ -489,7 +486,6 @@ func TestWsReplaceOrder(t *testing.T) {
 	}
 }
 
-// TestWsGetActiveOrders dials websocket, sends get active orders request.
 func TestWsGetActiveOrders(t *testing.T) {
 	setupWsAuth(t)
 	if _, err := e.wsGetActiveOrders(t.Context()); err != nil {
@@ -497,7 +493,6 @@ func TestWsGetActiveOrders(t *testing.T) {
 	}
 }
 
-// TestWsGetTradingBalance dials websocket, sends get trading balance request.
 func TestWsGetTradingBalance(t *testing.T) {
 	setupWsAuth(t)
 	if _, err := e.wsGetTradingBalance(t.Context()); err != nil {
@@ -505,7 +500,6 @@ func TestWsGetTradingBalance(t *testing.T) {
 	}
 }
 
-// TestWsGetTradingBalance dials websocket, sends get trading balance request.
 func TestWsGetTrades(t *testing.T) {
 	setupWsAuth(t)
 	_, err := e.wsGetTrades(t.Context(), currency.NewPair(currency.ETH, currency.BTC), 1000, "ASC", "id")
@@ -514,7 +508,6 @@ func TestWsGetTrades(t *testing.T) {
 	}
 }
 
-// TestWsGetTradingBalance dials websocket, sends get trading balance request.
 func TestWsGetSymbols(t *testing.T) {
 	setupWsAuth(t)
 	_, err := e.wsGetSymbols(t.Context(), currency.NewPair(currency.ETH, currency.BTC))
@@ -523,7 +516,6 @@ func TestWsGetSymbols(t *testing.T) {
 	}
 }
 
-// TestWsGetCurrencies dials websocket, sends get trading balance request.
 func TestWsGetCurrencies(t *testing.T) {
 	setupWsAuth(t)
 	_, err := e.wsGetCurrencies(t.Context(), currency.BTC)
