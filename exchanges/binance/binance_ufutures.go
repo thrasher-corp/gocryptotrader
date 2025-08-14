@@ -1008,7 +1008,6 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.
 	if err != nil {
 		return nil, err
 	}
- 
 	l := make([]limits.MinMaxLevel, 0, len(usdtFutures.Symbols))
 	for x := range usdtFutures.Symbols {
 		var cp currency.Pair

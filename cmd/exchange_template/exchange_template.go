@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -241,7 +242,7 @@ func saveConfig(exchangeDirectory string, configTestFile *config.Config, newExch
 }
 
 func runCommand(dir, param string) error {
-	cmd := exec.Command("go", param)
+	cmd := exec.CommandContext(context.TODO(), "go", param)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

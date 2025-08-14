@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -95,9 +96,9 @@ func (p *pgTester) setup() error {
 			return err
 		}
 
-		dumpCmd := exec.Command("pg_dump", "--schema-only", p.dbName)
+		dumpCmd := exec.CommandContext(context.TODO(),"pg_dump", "--schema-only", p.dbName)
 		dumpCmd.Env = append(os.Environ(), p.pgEnv()...)
-		createCmd := exec.Command("psql", p.testDBName)
+		createCmd := exec.CommandContext(context.TODO(),"psql", p.testDBName)
 		createCmd.Env = append(os.Environ(), p.pgEnv()...)
 
 		r, w := io.Pipe()
@@ -136,7 +137,7 @@ func (p *pgTester) setup() error {
 }
 
 func (p *pgTester) runCmd(stdin, command string, args ...string) error {
-	cmd := exec.Command(command, args...)
+	cmd := exec.CommandContext(context.TODO(),command, args...)
 	cmd.Env = append(os.Environ(), p.pgEnv()...)
 
 	if len(stdin) != 0 {
