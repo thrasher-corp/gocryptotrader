@@ -916,14 +916,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	require.NoError(t, err)
+	require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
 
-	lim, err := e.ExecutionLimits.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.BTC, currency.AUD))
-	require.NoError(t, err)
-
-	if lim == (order.MinMaxLevel{}) {
-		t.Fatal("expected value return")
-	}
+	lim, err := e.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.BTC, currency.AUD))
+	require.NoError(t, err, "GetOrderExecutionLimits must not error")
+	require.NotEmpty(t, lim, "limit must be populated")
 }
 
 func TestGetWithdrawalsHistory(t *testing.T) {

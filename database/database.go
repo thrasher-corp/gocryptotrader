@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -46,7 +47,7 @@ func (i *Instance) SetPostgresConnection(con *sql.DB) error {
 	if con == nil {
 		return errNilSQL
 	}
-	if err := con.Ping(); err != nil {
+	if err := con.PingContext(context.TODO()); err != nil {
 		return fmt.Errorf("%w %s", errFailedPing, err)
 	}
 	i.m.Lock()
@@ -117,7 +118,7 @@ func (i *Instance) Ping() error {
 	if i.SQL == nil {
 		return errNilSQL
 	}
-	return i.SQL.Ping()
+	return i.SQL.PingContext(context.TODO())
 }
 
 // GetSQL returns the sql connection

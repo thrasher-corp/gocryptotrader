@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -554,11 +555,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	limit, err := e.GetOrderExecutionLimits(asset.Spot, testPair)
 	require.NoError(t, err, "GetOrderExecutionLimits must not error")
 
-	err = limit.Conforms(46241000, 0.00001, order.Limit)
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	err = limit.Validate(46241000, 0.00001, order.Limit)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	err = limit.Conforms(46241000, 0.0001, order.Limit)
-	assert.NoError(t, err, "Conforms should not error")
+	err = limit.Validate(46241000, 0.0001, order.Limit)
+	assert.NoError(t, err, "Validate should not error")
 }
 
 func TestGetAmountMinimum(t *testing.T) {

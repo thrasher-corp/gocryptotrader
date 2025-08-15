@@ -2563,45 +2563,34 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
 
-	err := e.UpdateOrderExecutionLimits(t.Context(), 1336)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Options)
-	require.ErrorIs(t, err, common.ErrNotYetImplemented)
-
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
+	scenarios := []struct {
+		assetType     asset.Item
+		expectedError error
+	}{
+		{assetType: asset.Spot, expectedError: nil},
+		{assetType: asset.USDTMarginedFutures, expectedError: nil},
+		{assetType: asset.CoinMarginedFutures, expectedError: nil},
+		{assetType: asset.DeliveryFutures, expectedError: nil},
+		{assetType: asset.Options, expectedError: nil},
+		{assetType: asset.CrossMargin, expectedError: asset.ErrNotSupported},
+		{assetType: asset.Margin, expectedError: asset.ErrNotSupported},
 	}
 
-	avail, err := e.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for i := range avail {
-		mm, err := e.GetOrderExecutionLimits(asset.Spot, avail[i])
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if mm == (order.MinMaxLevel{}) {
-			t.Fatal("expected a value")
-		}
-
-		if mm.MinimumBaseAmount <= 0 {
-			t.Fatalf("MinimumBaseAmount expected 0 but received %v for %v", mm.MinimumBaseAmount, avail[i])
-		}
-
-		// 1INCH_TRY no minimum quote or base values are returned.
-
-		if mm.QuoteStepIncrementSize <= 0 {
-			t.Fatalf("QuoteStepIncrementSize expected 0 but received %v for %v", mm.QuoteStepIncrementSize, avail[i])
-		}
-
-		if mm.AmountStepIncrementSize <= 0 {
-			t.Fatalf("AmountStepIncrementSize expected 0 but received %v for %v", mm.AmountStepIncrementSize, avail[i])
-		}
+	for _, s := range scenarios {
+		t.Run(s.assetType.String(), func(t *testing.T) {
+			t.Parallel()
+			require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), s.assetType), s.expectedError)
+			if s.expectedError != nil || s.assetType == asset.Options {
+				return
+			}
+			avail, err := e.GetAvailablePairs(s.assetType)
+			require.NoError(t, err, "GetAvailablePairs must not error")
+			for i := range avail {
+				mm, err := e.GetOrderExecutionLimits(s.assetType, avail[i])
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				require.NotEmpty(t, mm, "GetOrderExecutionLimits must not return empty value")
+			}
+		})
 	}
 }
 

@@ -879,6 +879,6 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	case asset.Futures:
 		return tradeBaseURL + tradeFutures + cp.Lower().String(), nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }

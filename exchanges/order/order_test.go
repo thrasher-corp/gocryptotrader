@@ -1569,24 +1569,25 @@ func TestGetOrdersRequest_Filter(t *testing.T) {
 	request.AssetType = asset.Spot
 	request.Type = AnyType
 	request.Side = AnySide
-
+	BTCUSD := currency.NewBTCUSD()
+	LTCUSD := currency.NewPair(currency.LTC, currency.USD)
 	orders := []Detail{
-		{OrderID: "0", Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Buy},
-		{OrderID: "1", Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Sell},
-		{OrderID: "2", Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Buy},
-		{OrderID: "3", Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Sell},
-		{OrderID: "4", Pair: btcusd, AssetType: asset.Futures, Type: Limit, Side: Buy},
-		{OrderID: "5", Pair: btcusd, AssetType: asset.Futures, Type: Limit, Side: Sell},
-		{OrderID: "6", Pair: btcusd, AssetType: asset.Futures, Type: Market, Side: Buy},
-		{OrderID: "7", Pair: btcusd, AssetType: asset.Futures, Type: Market, Side: Sell},
-		{OrderID: "8", Pair: btcltc, AssetType: asset.Spot, Type: Limit, Side: Buy},
-		{OrderID: "9", Pair: btcltc, AssetType: asset.Spot, Type: Limit, Side: Sell},
-		{OrderID: "10", Pair: btcltc, AssetType: asset.Spot, Type: Market, Side: Buy},
-		{OrderID: "11", Pair: btcltc, AssetType: asset.Spot, Type: Market, Side: Sell},
-		{OrderID: "12", Pair: btcltc, AssetType: asset.Futures, Type: Limit, Side: Buy},
-		{OrderID: "13", Pair: btcltc, AssetType: asset.Futures, Type: Limit, Side: Sell},
-		{OrderID: "14", Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Buy},
-		{OrderID: "15", Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Sell},
+		{OrderID: "0", Pair: BTCUSD, AssetType: asset.Spot, Type: Limit, Side: Buy},
+		{OrderID: "1", Pair: BTCUSD, AssetType: asset.Spot, Type: Limit, Side: Sell},
+		{OrderID: "2", Pair: BTCUSD, AssetType: asset.Spot, Type: Market, Side: Buy},
+		{OrderID: "3", Pair: BTCUSD, AssetType: asset.Spot, Type: Market, Side: Sell},
+		{OrderID: "4", Pair: BTCUSD, AssetType: asset.Futures, Type: Limit, Side: Buy},
+		{OrderID: "5", Pair: BTCUSD, AssetType: asset.Futures, Type: Limit, Side: Sell},
+		{OrderID: "6", Pair: BTCUSD, AssetType: asset.Futures, Type: Market, Side: Buy},
+		{OrderID: "7", Pair: BTCUSD, AssetType: asset.Futures, Type: Market, Side: Sell},
+		{OrderID: "8", Pair: LTCUSD, AssetType: asset.Spot, Type: Limit, Side: Buy},
+		{OrderID: "9", Pair: LTCUSD, AssetType: asset.Spot, Type: Limit, Side: Sell},
+		{OrderID: "10", Pair: LTCUSD, AssetType: asset.Spot, Type: Market, Side: Buy},
+		{OrderID: "11", Pair: LTCUSD, AssetType: asset.Spot, Type: Market, Side: Sell},
+		{OrderID: "12", Pair: LTCUSD, AssetType: asset.Futures, Type: Limit, Side: Buy},
+		{OrderID: "13", Pair: LTCUSD, AssetType: asset.Futures, Type: Limit, Side: Sell},
+		{OrderID: "14", Pair: LTCUSD, AssetType: asset.Futures, Type: Market, Side: Buy},
+		{OrderID: "15", Pair: LTCUSD, AssetType: asset.Futures, Type: Market, Side: Sell},
 	}
 
 	shinyAndClean := request.Filter("test", orders)
@@ -1596,7 +1597,7 @@ func TestGetOrdersRequest_Filter(t *testing.T) {
 		require.Equal(t, strconv.FormatInt(int64(x), 10), shinyAndClean[x].OrderID)
 	}
 
-	request.Pairs = []currency.Pair{btcltc}
+	request.Pairs = []currency.Pair{LTCUSD}
 
 	// Kicks off time error
 	request.EndTime = time.Unix(1336, 0)

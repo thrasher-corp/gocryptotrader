@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -783,16 +784,12 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	assert.NoError(t, err)
 	availablePairs, err := e.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal("Bybit GetAvailablePairs() error", err)
-	}
+	require.NoError(t, err, "GetAvailablePairs must not error")
 	for x := range availablePairs {
-		var limits order.MinMaxLevel
-		limits, err = e.GetOrderExecutionLimits(asset.Spot, availablePairs[x])
+		var l limits.MinMaxLevel
+		l, err = e.GetOrderExecutionLimits(asset.Spot, availablePairs[x])
 		require.NoError(t, err)
-		if limits == (order.MinMaxLevel{}) {
-			t.Fatal("Bybit GetOrderExecutionLimits() error cannot be nil")
-		}
+		require.NotEmpty(t, l, "response must not be empty")
 	}
 }
 
@@ -838,7 +835,7 @@ func TestPlaceOrder(t *testing.T) {
 		Side:      "buy",
 		OrderType: "limit",
 	})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.PlaceOrder(ctx, &PlaceOrderParams{
 		Category:         "spot",
@@ -2297,7 +2294,7 @@ func TestWithdrawCurrency(t *testing.T) {
 	require.ErrorIs(t, err, errMissingAddressInfo)
 
 	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234"})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234", Amount: 123})
 	if err != nil {
@@ -2664,7 +2661,7 @@ func TestBorrow(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.Borrow(t.Context(), &LendArgument{Coin: currency.BTC})
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.Borrow(t.Context(), &LendArgument{Coin: currency.BTC, AmountToBorrow: 0.1})
 	if err != nil {
@@ -2685,7 +2682,7 @@ func TestRepay(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.Repay(t.Context(), &LendArgument{Coin: currency.BTC})
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.Repay(t.Context(), &LendArgument{Coin: currency.BTC, AmountToBorrow: 0.1})
 	if err != nil {
@@ -2806,7 +2803,7 @@ func TestC2CDepositFunds(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.C2CDepositFunds(t.Context(), &C2CLendingFundsParams{Coin: currency.BTC})
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.C2CDepositFunds(t.Context(), &C2CLendingFundsParams{Coin: currency.BTC, Quantity: 1232})
 	if err != nil {
@@ -2827,7 +2824,7 @@ func TestC2CRedeemFunds(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.C2CRedeemFunds(t.Context(), &C2CLendingFundsParams{Coin: currency.BTC})
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.C2CRedeemFunds(t.Context(), &C2CLendingFundsParams{Coin: currency.BTC, Quantity: 1232})
 	if err != nil {

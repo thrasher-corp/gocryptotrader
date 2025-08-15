@@ -103,12 +103,7 @@ func TestCreatePNLCharts(t *testing.T) {
 	var d Data
 	d.Statistics = &statistics.Statistic{}
 	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     currency.BTC.Item,
-		Quote:    currency.USDT.Item,
-		Asset:    asset.Spot,
-	}] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(testExchange, asset.Spot, currency.NewBTCUSDT())] = &statistics.CurrencyPairStatistic{
 		Events: []statistics.DataAtOffset{
 			{
 				PNL: &portfolio.PNLSummary{
@@ -162,12 +157,7 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 	var d Data
 	d.Statistics = &statistics.Statistic{}
 	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     currency.BTC.Item,
-		Quote:    currency.USD.Item,
-		Asset:    asset.Spot,
-	}] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(testExchange, asset.Spot, currency.NewBTCUSD())] = &statistics.CurrencyPairStatistic{
 		Currency: cp,
 		Events: []statistics.DataAtOffset{
 			{
@@ -187,12 +177,7 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 			},
 		},
 	}
-	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     currency.BTC.Item,
-		Quote:    currency.DOGE.Item,
-		Asset:    asset.Futures,
-	}] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(testExchange, asset.Futures, currency.NewPair(currency.BTC, currency.DOGE))] = &statistics.CurrencyPairStatistic{
 		UnderlyingPair: cp,
 		Currency:       cp2,
 		Events: []statistics.DataAtOffset{
