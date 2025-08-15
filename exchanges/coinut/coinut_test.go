@@ -448,7 +448,7 @@ func TestWsAuthSubmitOrder(t *testing.T) {
 	}
 }
 
-// TestWsAuthCancelOrders dials websocket, submit orders
+// TestWsAuthSubmitOrders dials websocket, submit orders
 func TestWsAuthSubmitOrders(t *testing.T) {
 	setupWSTestAuth(t)
 	if !canManipulateRealOrders {
@@ -498,7 +498,7 @@ func TestWsAuthCancelOrders(t *testing.T) {
 	}
 }
 
-// TestWsAuthCancelOrders dials websocket, cancels orders
+// TestWsAuthCancelOrdersWrapper dials websocket, cancels orders
 // Checks that the wrapper oversight works
 func TestWsAuthCancelOrdersWrapper(t *testing.T) {
 	setupWSTestAuth(t)
