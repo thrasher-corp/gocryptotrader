@@ -1,7 +1,9 @@
 package types
 
 import (
+	"errors"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -84,7 +86,10 @@ func TestDateTimeUnmarshalJSON(t *testing.T) {
 		jsonError  *json.UnmarshalTypeError
 		parseError *time.ParseError
 	)
-	require.ErrorAs(t, json.Unmarshal([]byte(`69`), &testTime), &jsonError)
+	err := json.Unmarshal([]byte(`69`), &testTime)
+	require.Truef(t, errors.As(err, &jsonError) || strings.Contains(err.Error(), "Mismatch type"),
+		"Unmarshal must return an UnmarshalTypeError or sonic mismatch error, got: %v", err,
+	)
 	require.ErrorAs(t, json.Unmarshal([]byte(`"2025"`), &testTime), &parseError)
 	require.NoError(t, json.Unmarshal([]byte(`"2018-08-20 19:20:46"`), &testTime))
 	assert.Equal(t, time.Date(2018, 8, 20, 19, 20, 46, 0, time.UTC), testTime.Time())
