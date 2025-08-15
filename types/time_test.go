@@ -87,7 +87,7 @@ func TestDateTimeUnmarshalJSON(t *testing.T) {
 		parseError *time.ParseError
 	)
 	err := json.Unmarshal([]byte(`69`), &testTime)
-	require.Truef(t, errors.As(err, &jsonError) || strings.Contains(err.Error(), "Mismatch type"),
+	require.Truef(t, errors.As(err, &jsonError) || strings.Contains(err.Error(), "Mismatch type string with value number"),
 		"Unmarshal must return an UnmarshalTypeError or sonic mismatch error, got: %v", err,
 	)
 	require.ErrorAs(t, json.Unmarshal([]byte(`"2025"`), &testTime), &parseError)
