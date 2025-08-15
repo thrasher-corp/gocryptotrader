@@ -4,10 +4,13 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestMatchURLVals(t *testing.T) {
+	t.Parallel()
 	testVal, testVal2, testVal3, emptyVal := url.Values{}, url.Values{}, url.Values{}, url.Values{}
 	testVal.Add("test", "test")
 	testVal2.Add("test2", "test2")
@@ -17,69 +20,24 @@ func TestMatchURLVals(t *testing.T) {
 	nonceVal1.Add("nonce", "012349723587")
 	nonceVal2.Add("nonce", "9327373874")
 
-	expected := false
-	received := MatchURLVals(testVal, emptyVal)
-	if received != expected {
-		t.Errorf("MatchURLVals error expected %v received %v",
-			expected,
-			received)
+	tests := []struct {
+		a   url.Values
+		b   url.Values
+		exp bool
+	}{
+		{testVal, emptyVal, false},
+		{emptyVal, testVal, false},
+		{testVal, testVal2, false},
+		{testVal2, testVal, false},
+		{testVal, testVal3, false},
+		{nonceVal1, testVal2, false},
+		{emptyVal, emptyVal, true},
+		{testVal, testVal, true},
+		{nonceVal1, nonceVal2, true},
 	}
-
-	received = MatchURLVals(emptyVal, testVal)
-	if received != expected {
-		t.Errorf("MatchURLVals error expected %v received %v",
-			expected,
-			received)
-	}
-
-	received = MatchURLVals(testVal, testVal2)
-	if received != expected {
-		t.Errorf("MatchURLVals error expected %v received %v",
-			expected,
-			received)
-	}
-
-	received = MatchURLVals(testVal2, testVal)
-	if received != expected {
-		t.Errorf("MatchURLVals error expected %v received %v",
-			expected,
-			received)
-	}
-
-	received = MatchURLVals(testVal, testVal3)
-	if received != expected {
-		t.Errorf("MatchURLVals error expected %v received %v",
-			expected,
-			received)
-	}
-
-	received = MatchURLVals(nonceVal1, testVal2)
-	if received != expected {
-		t.Errorf("MatchURLVals error expected %v received %v",
-			expected,
-			received)
-	}
-
-	expected = true
-	received = MatchURLVals(emptyVal, emptyVal)
-	if received != expected {
-		t.Errorf("MatchURLVals error expected %v received %v",
-			expected,
-			received)
-	}
-
-	received = MatchURLVals(testVal, testVal)
-	if received != expected {
-		t.Errorf("MatchURLVals error expected %v received %v",
-			expected,
-			received)
-	}
-
-	received = MatchURLVals(nonceVal1, nonceVal2)
-	if received != expected {
-		t.Errorf("MatchURLVals error expected %v received %v",
-			expected,
-			received)
+	for _, tc := range tests {
+		got := MatchURLVals(tc.a, tc.b)
+		assert.Equalf(t, tc.exp, got, "MatchURLVals should return correctly for (%q, %q)", tc.a, tc.b)
 	}
 }
 
@@ -105,14 +63,10 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	}
 
 	payload, err := json.Marshal(test1)
-	if err != nil {
-		t.Error("marshal error", err)
-	}
+	require.NoError(t, err, "json.Marshal must not error")
 
 	_, err = DeriveURLValsFromJSONMap(payload)
-	if err != nil {
-		t.Error("DeriveURLValsFromJSON error", err)
-	}
+	assert.NoError(t, err, "DeriveURLValsFromJSON error should not error")
 
 	test2 := map[string]string{
 		"val":  "1",
@@ -125,17 +79,13 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	}
 
 	payload, err = json.Marshal(test2)
-	if err != nil {
-		t.Error("marshal error", err)
-	}
+	require.NoError(t, err, "json.Marshal must not error")
 
-	vals, err := DeriveURLValsFromJSONMap(payload)
-	if err != nil {
-		t.Error("DeriveURLValsFromJSON error", err)
-	}
-
-	if vals["val"][0] != "1" {
-		t.Error("DeriveURLValsFromJSON unexpected value",
-			vals["val"][0])
+	values, err := DeriveURLValsFromJSONMap(payload)
+	require.NoError(t, err, "DeriveURLValsFromJSON error must not error")
+	require.Equal(t, 7, len(values), "DeriveURLValsFromJSONMap must return the correct number of values")
+	for key, val := range values {
+		require.Len(t, val, 1)
+		assert.Equalf(t, val[0], test2[key], "DeriveURLValsFromJSON unexpected value: ^%v", val[0])
 	}
 }
