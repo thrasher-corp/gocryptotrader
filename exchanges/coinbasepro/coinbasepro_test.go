@@ -243,7 +243,6 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	feeBuilder := setFeeBuilder()
 	_, err := e.GetFeeByType(t.Context(), feeBuilder)
@@ -673,7 +672,6 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-// TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	if !e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
 		t.Skip(websocket.ErrWebsocketNotEnabled.Error())

@@ -112,7 +112,6 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 
@@ -540,7 +539,6 @@ func TestGenerateNewAddress(t *testing.T) {
 	}
 }
 
-// TestWsAuth dials websocket, sends login request.
 // Will receive a message only on failure
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
