@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -29,9 +30,9 @@ type TickerResponse struct {
 type MarketDepthResponse struct {
 	ErrCapture
 	Data struct {
-		Asks      [][2]types.Number `json:"asks"`
-		Bids      [][2]types.Number `json:"bids"`
-		Timestamp types.Time        `json:"timestamp"`
+		Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
+		Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
+		Timestamp types.Time                       `json:"timestamp"`
 	} `json:"data"`
 }
 

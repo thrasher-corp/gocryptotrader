@@ -318,37 +318,21 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Book{
+
+	orderbookNew, err := e.GetOrderBookDepth(ctx, pair, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := (&orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              pair,
 		Asset:             assetType,
 		ValidateOrderbook: e.ValidateOrderbook,
-	}
-
-	orderbookNew, err := e.GetOrderBookDepth(ctx, &OrderBookDataRequestParams{
-		Symbol: pair,
-		Limit:  1000,
-	})
-	if err != nil {
-		return book, err
-	}
-	book.Bids = make([]orderbook.Level, len(orderbookNew.Bids))
-	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Level{
-			Amount: orderbookNew.Bids[x].Quantity,
-			Price:  orderbookNew.Bids[x].Price,
-		}
-	}
-	book.Asks = make([]orderbook.Level, len(orderbookNew.Asks))
-	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Level{
-			Amount: orderbookNew.Asks[x].Quantity,
-			Price:  orderbookNew.Asks[x].Price,
-		}
-	}
-	err = book.Process()
-	if err != nil {
-		return book, err
+		Bids:              orderbookNew.Bids,
+		Asks:              orderbookNew.Asks,
+	}).Process(); err != nil {
+		return nil, err
 	}
 	return orderbook.Get(e.Name, pair, assetType)
 }

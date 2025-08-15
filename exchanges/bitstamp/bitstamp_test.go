@@ -198,7 +198,7 @@ func TestGetOrderbook(t *testing.T) {
 	ob, err := e.GetOrderbook(t.Context(), currency.BTC.String()+currency.USD.String())
 	require.NoError(t, err, "GetOrderbook must not error")
 	assert.NotEmpty(t, ob.Timestamp, "Timestamp should not be empty")
-	for i, o := range [][]OrderbookBase{ob.Asks, ob.Bids} {
+	for i, o := range [][]orderbook.Level{ob.Asks, ob.Bids} {
 		s := []string{"Ask", "Bid"}[i]
 		if assert.NotEmptyf(t, o, "Should have items in %ss", s) {
 			a := o[0]
