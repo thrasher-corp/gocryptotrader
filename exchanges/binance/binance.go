@@ -1033,9 +1033,9 @@ func (e *Exchange) WithdrawHistory(ctx context.Context, c currency.Code, status 
 }
 
 // GetDepositAddressForCurrency retrieves the wallet address for a given currency
-func (e *Exchange) GetDepositAddressForCurrency(ctx context.Context, currency, chain string) (*DepositAddress, error) {
+func (e *Exchange) GetDepositAddressForCurrency(ctx context.Context, coin, chain string) (*DepositAddress, error) {
 	params := url.Values{}
-	params.Set("coin", currency)
+	params.Set("coin", coin)
 	if chain != "" {
 		params.Set("network", chain)
 	}

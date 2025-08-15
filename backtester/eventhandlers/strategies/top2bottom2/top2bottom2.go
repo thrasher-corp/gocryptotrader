@@ -251,12 +251,12 @@ func (s *Strategy) SetDefaults() {
 // this will ensure that mfi can be calculated correctly
 // the decision to handle missing data occurs at the strategy level, not all strategies
 // may wish to modify data
-func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]float64, error) {
-	resp := make([]float64, len(data))
+func (s *Strategy) massageMissingData(d []decimal.Decimal, t time.Time) ([]float64, error) {
+	resp := make([]float64, len(d))
 	var missingDataStreak int64
-	for i := range data {
-		if data[i].IsZero() && i > int(s.mfiPeriod.IntPart()) {
-			data[i] = data[i-1]
+	for i := range d {
+		if d[i].IsZero() && i > int(s.mfiPeriod.IntPart()) {
+			d[i] = d[i-1]
 			missingDataStreak++
 		} else {
 			missingDataStreak = 0
@@ -267,7 +267,7 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 				t.Format(time.DateTime),
 				base.ErrTooMuchBadData)
 		}
-		resp[i] = data[i].InexactFloat64()
+		resp[i] = d[i].InexactFloat64()
 	}
 	return resp, nil
 }

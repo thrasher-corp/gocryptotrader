@@ -475,13 +475,9 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	if spot.Delimiter != "~" {
 		t.Error("incorrect pair format delimiter")
 	}
-	futures, err := b.GetPairFormat(asset.Futures, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if futures.Delimiter != ":)" {
-		t.Error("incorrect pair format delimiter")
-	}
+	f, err := b.GetPairFormat(asset.Futures, false)
+	require.NoError(t, err, "GetPairFormat must not error")
+	assert.Equal(t, ":)", f.Delimiter, "Delimiter should be set correctly")
 }
 
 func TestLoadConfigPairs(t *testing.T) {
