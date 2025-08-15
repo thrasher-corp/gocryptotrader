@@ -15,6 +15,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -1961,4 +1962,10 @@ func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.Submit
 // WebsocketSubmitOrders submits multiple orders (batch) via the websocket connection
 func (*Base) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses []*order.SubmitResponse, err error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// MessageID returns a universally unique id using UUID V7
+// Additional parameters may be added to provide context for the message id
+func (b *Base) MessageID() string {
+	return uuid.Must(uuid.NewV7()).String()
 }
