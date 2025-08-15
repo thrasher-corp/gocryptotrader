@@ -92,11 +92,11 @@ func (i *Item) Equal(item *Item) bool {
 }
 
 // BasicEqual checks for equality via passed in values
-func (i *Item) BasicEqual(exch string, a asset.Item, currency, pairedCurrency currency.Code) bool {
+func (i *Item) BasicEqual(exch string, a asset.Item, ccy, pairedCurrency currency.Code) bool {
 	return i != nil &&
 		i.exchange == exch &&
 		i.asset == a &&
-		i.currency.Equal(currency) &&
+		i.currency.Equal(ccy) &&
 		(i.pairedWith == nil ||
 			(i.pairedWith != nil && i.pairedWith.currency.Equal(pairedCurrency)))
 }

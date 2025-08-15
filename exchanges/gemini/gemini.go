@@ -335,15 +335,15 @@ func (e *Exchange) GetBalances(ctx context.Context) ([]Balance, error) {
 }
 
 // GetCryptoDepositAddress returns a deposit address
-func (e *Exchange) GetCryptoDepositAddress(ctx context.Context, depositAddlabel, currency string) (DepositAddress, error) {
+func (e *Exchange) GetCryptoDepositAddress(ctx context.Context, depositAddLabel, ccy string) (DepositAddress, error) {
 	response := DepositAddress{}
 	req := make(map[string]any)
 
-	if depositAddlabel != "" {
-		req["label"] = depositAddlabel
+	if depositAddLabel != "" {
+		req["label"] = depositAddLabel
 	}
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, geminiDeposit+"/"+currency+"/"+geminiNewAddress, req, &response)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, geminiDeposit+"/"+ccy+"/"+geminiNewAddress, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -354,13 +354,13 @@ func (e *Exchange) GetCryptoDepositAddress(ctx context.Context, depositAddlabel,
 }
 
 // WithdrawCrypto withdraws crypto currency to a whitelisted address
-func (e *Exchange) WithdrawCrypto(ctx context.Context, address, currency string, amount float64) (WithdrawalAddress, error) {
+func (e *Exchange) WithdrawCrypto(ctx context.Context, address, ccy string, amount float64) (WithdrawalAddress, error) {
 	response := WithdrawalAddress{}
 	req := make(map[string]any)
 	req["address"] = address
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, geminiWithdraw+strings.ToLower(currency), req, &response)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, geminiWithdraw+strings.ToLower(ccy), req, &response)
 	if err != nil {
 		return response, err
 	}

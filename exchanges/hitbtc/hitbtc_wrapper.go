@@ -566,8 +566,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (e *Exchange) GetDepositAddress(ctx context.Context, currency currency.Code, _, _ string) (*deposit.Address, error) {
-	resp, err := e.GetDepositAddresses(ctx, currency.String())
+func (e *Exchange) GetDepositAddress(ctx context.Context, ccy currency.Code, _, _ string) (*deposit.Address, error) {
+	resp, err := e.GetDepositAddresses(ctx, ccy.String())
 	if err != nil {
 		return nil, err
 	}

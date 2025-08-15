@@ -15,7 +15,7 @@ import (
 )
 
 // Event inserts a new script event into database with execution details (script name time status hash of script)
-func Event(id, name, path string, data null.Bytes, executionType, status string, time time.Time) {
+func Event(id, name, path string, data null.Bytes, executionType, status string, tm time.Time) {
 	if database.DB.SQL == nil {
 		return
 	}
@@ -68,7 +68,7 @@ func Event(id, name, path string, data null.Bytes, executionType, status string,
 
 		tempScriptExecution := &modelSQLite.ScriptExecution{
 			ScriptID:        id,
-			ExecutionTime:   time.UTC().String(),
+			ExecutionTime:   tm.UTC().String(),
 			ExecutionStatus: status,
 			ExecutionType:   executionType,
 		}
@@ -99,7 +99,7 @@ func Event(id, name, path string, data null.Bytes, executionType, status string,
 		}
 
 		tempScriptExecution := &modelPSQL.ScriptExecution{
-			ExecutionTime:   time.UTC(),
+			ExecutionTime:   tm.UTC(),
 			ExecutionStatus: status,
 			ExecutionType:   executionType,
 		}

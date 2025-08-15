@@ -314,23 +314,23 @@ func (e *Exchange) wsProcessOwnTrades(ownOrdersRaw json.RawMessage) error {
 				Err:      err,
 			}
 		}
-		trade := order.TradeHistory{
-			Price:     val.Price,
-			Amount:    val.Vol,
-			Fee:       val.Fee,
-			Exchange:  e.Name,
-			TID:       key,
-			Type:      oType,
-			Side:      oSide,
-			Timestamp: val.Time.Time(),
-		}
 		e.Websocket.DataHandler <- &order.Detail{
 			Exchange: e.Name,
 			OrderID:  val.OrderTransactionID,
-			Trades:   []order.TradeHistory{trade},
+			Trades: []order.TradeHistory{
+				{
+					Price:     val.Price,
+					Amount:    val.Vol,
+					Fee:       val.Fee,
+					Exchange:  e.Name,
+					TID:       key,
+					Type:      oType,
+					Side:      oSide,
+					Timestamp: val.Time.Time(),
+				},
+			},
 		}
 	}
-
 	return nil
 }
 

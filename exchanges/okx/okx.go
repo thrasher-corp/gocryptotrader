@@ -1360,9 +1360,9 @@ func (e *Exchange) GetDepositWithdrawalStatus(ctx context.Context, ccy currency.
 }
 
 // SmallAssetsConvert Convert small assets in funding account to OKB. Only one convert is allowed within 24 hours
-func (e *Exchange) SmallAssetsConvert(ctx context.Context, currency []string) (*SmallAssetConvertResponse, error) {
+func (e *Exchange) SmallAssetsConvert(ctx context.Context, currencies []string) (*SmallAssetConvertResponse, error) {
 	var resp *SmallAssetConvertResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, smallAssetsConvertEPL, http.MethodPost, "asset/convert-dust-assets", map[string][]string{"ccy": currency}, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, smallAssetsConvertEPL, http.MethodPost, "asset/convert-dust-assets", map[string][]string{"ccy": currencies}, &resp, request.AuthenticatedRequest)
 }
 
 // GetPublicExchangeList retrieves exchanges

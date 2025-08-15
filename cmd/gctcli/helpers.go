@@ -22,11 +22,11 @@ var (
 func clearScreen() error {
 	switch runtime.GOOS {
 	case "windows":
-		cmd := exec.Command("cmd", "/c", "cls")
+		cmd := exec.CommandContext(context.TODO(), "cmd", "/c", "cls")
 		cmd.Stdout = os.Stdout
 		return cmd.Run()
 	default:
-		cmd := exec.Command("clear")
+		cmd := exec.CommandContext(context.TODO(), "clear")
 		cmd.Stdout = os.Stdout
 		return cmd.Run()
 	}

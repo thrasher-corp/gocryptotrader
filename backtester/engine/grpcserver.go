@@ -67,7 +67,7 @@ func StartRPCServer(server *GRPCServer) error {
 		return err
 	}
 	log.Debugf(log.GRPCSys, "Backtester GRPC server enabled. Starting GRPC server on https://%v.\n", server.config.GRPC.ListenAddress)
-	lis, err := net.Listen("tcp", server.config.GRPC.ListenAddress)
+	lis, err := net.Listen("tcp", server.config.GRPC.ListenAddress) //nolint:noctx // TODO: Replace with (*net.ListenConfig).Listen
 	if err != nil {
 		return err
 	}

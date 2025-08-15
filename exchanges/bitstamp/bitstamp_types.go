@@ -180,6 +180,29 @@ type CryptoWithdrawalResponse struct {
 	ID int64 `json:"withdrawal_id"`
 }
 
+// OpenBankWithdrawalRequest holds the request information for sending a bank withdrawal request
+type OpenBankWithdrawalRequest struct {
+	Amount         float64
+	Currency       string
+	Name           string
+	IBAN           string
+	BIC            string
+	Address        string
+	PostalCode     string
+	City           string
+	Country        string
+	WithdrawalType string
+	Comment        string
+
+	// International bank account details
+	InternationalCurrency string
+	BankName              string
+	BankAddress           string
+	BankPostalCode        string
+	BankCity              string
+	BankCountry           string
+}
+
 // FIATWithdrawalResponse response from a fiat withdrawal request
 type FIATWithdrawalResponse struct {
 	ID int64 `json:"withdrawal_id"`

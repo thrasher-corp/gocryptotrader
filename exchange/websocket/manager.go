@@ -739,51 +739,51 @@ func (m *Manager) CanUseAuthenticatedWebsocketForWrapper() bool {
 }
 
 // SetWebsocketURL sets websocket URL and can refresh underlying connections
-func (m *Manager) SetWebsocketURL(url string, auth, reconnect bool) error {
+func (m *Manager) SetWebsocketURL(wsURL string, auth, reconnect bool) error {
 	if m.useMultiConnectionManagement {
 		// TODO: Add functionality for multi-connection management to change URL
 		return fmt.Errorf("%s: %w", m.exchangeName, errCannotChangeConnectionURL)
 	}
-	defaultVals := url == "" || url == config.WebsocketURLNonDefaultMessage
+	defaultVals := wsURL == "" || wsURL == config.WebsocketURLNonDefaultMessage
 	if auth {
 		if defaultVals {
-			url = m.defaultURLAuth
+			wsURL = m.defaultURLAuth
 		}
 
-		err := checkWebsocketURL(url)
+		err := checkWebsocketURL(wsURL)
 		if err != nil {
 			return err
 		}
-		m.runningURLAuth = url
+		m.runningURLAuth = wsURL
 
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, url)
+			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, wsURL)
 		}
 
 		if m.AuthConn != nil {
-			m.AuthConn.SetURL(url)
+			m.AuthConn.SetURL(wsURL)
 		}
 	} else {
 		if defaultVals {
-			url = m.defaultURL
+			wsURL = m.defaultURL
 		}
-		err := checkWebsocketURL(url)
+		err := checkWebsocketURL(wsURL)
 		if err != nil {
 			return err
 		}
-		m.runningURL = url
+		m.runningURL = wsURL
 
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, url)
+			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, wsURL)
 		}
 
 		if m.Conn != nil {
-			m.Conn.SetURL(url)
+			m.Conn.SetURL(wsURL)
 		}
 	}
 
 	if m.IsConnected() && reconnect {
-		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, url)
+		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, wsURL)
 		return m.Shutdown()
 	}
 	return nil

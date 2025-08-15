@@ -244,9 +244,9 @@ func (e *Exchange) GetTimestamp(ctx context.Context) (time.Time, error) {
 
 // GetLoanOrders returns the list of loan offers and demands for a given
 // currency, specified by the "currency" GET parameter.
-func (e *Exchange) GetLoanOrders(ctx context.Context, currency string) (LoanOrders, error) {
+func (e *Exchange) GetLoanOrders(ctx context.Context, ccy string) (LoanOrders, error) {
 	resp := LoanOrders{}
-	path := "/public?command=returnLoanOrders&currency=" + currency
+	path := "/public?command=returnLoanOrders&currency=" + ccy
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
@@ -365,9 +365,9 @@ func (e *Exchange) GetDepositsWithdrawals(ctx context.Context, start, end string
 }
 
 // GetOpenOrders returns current unfilled opened orders
-func (e *Exchange) GetOpenOrders(ctx context.Context, currency string) (OpenOrdersResponse, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context, ccy string) (OpenOrdersResponse, error) {
 	values := url.Values{}
-	values.Set("currencyPair", currency)
+	values.Set("currencyPair", ccy)
 	result := OpenOrdersResponse{}
 	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexOrders, values, &result.Data)
 }
@@ -381,7 +381,7 @@ func (e *Exchange) GetOpenOrdersForAllCurrencies(ctx context.Context) (OpenOrder
 }
 
 // GetAuthenticatedTradeHistoryForCurrency returns account trade history
-func (e *Exchange) GetAuthenticatedTradeHistoryForCurrency(ctx context.Context, currency string, start, end, limit int64) (AuthenticatedTradeHistoryResponse, error) {
+func (e *Exchange) GetAuthenticatedTradeHistoryForCurrency(ctx context.Context, currencyPair string, start, end, limit int64) (AuthenticatedTradeHistoryResponse, error) {
 	values := url.Values{}
 
 	if start > 0 {
@@ -396,7 +396,7 @@ func (e *Exchange) GetAuthenticatedTradeHistoryForCurrency(ctx context.Context, 
 		values.Set("end", strconv.FormatInt(end, 10))
 	}
 
-	values.Set("currencyPair", currency)
+	values.Set("currencyPair", currencyPair)
 	result := AuthenticatedTradeHistoryResponse{}
 	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexTradeHistory, values, &result.Data)
 }
@@ -512,7 +512,7 @@ func (e *Exchange) GetAuthenticatedOrderTrades(ctx context.Context, orderID stri
 }
 
 // PlaceOrder places a new order on the exchange
-func (e *Exchange) PlaceOrder(ctx context.Context, currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
+func (e *Exchange) PlaceOrder(ctx context.Context, currencyPair string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
 	result := OrderResponse{}
 	values := url.Values{}
 
@@ -523,7 +523,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, currency string, rate, amount
 		orderType = order.Sell.Lower()
 	}
 
-	values.Set("currencyPair", currency)
+	values.Set("currencyPair", currencyPair)
 	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
@@ -603,11 +603,11 @@ func (e *Exchange) MoveOrder(ctx context.Context, orderID int64, rate, amount fl
 // For currencies where there are multiple networks to choose from (like USDT or BTC),
 // you can specify the chain by setting the "currency" parameter to be a multiChain currency
 // name, like USDTTRON, USDTETH, or BTCTRON
-func (e *Exchange) Withdraw(ctx context.Context, currency, address string, amount float64) (*Withdraw, error) {
+func (e *Exchange) Withdraw(ctx context.Context, ccy, address string, amount float64) (*Withdraw, error) {
 	result := &Withdraw{}
 	values := url.Values{}
 
-	values.Set("currency", strings.ToUpper(currency))
+	values.Set("currency", strings.ToUpper(ccy))
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	values.Set("address", address)
 
@@ -662,11 +662,11 @@ func (e *Exchange) GetTradableBalances(ctx context.Context) (map[string]map[stri
 }
 
 // TransferBalance transfers balances between your accounts
-func (e *Exchange) TransferBalance(ctx context.Context, currency, from, to string, amount float64) (bool, error) {
+func (e *Exchange) TransferBalance(ctx context.Context, ccy, from, to string, amount float64) (bool, error) {
 	values := url.Values{}
 	result := GenericResponse{}
 
-	values.Set("currency", currency)
+	values.Set("currency", ccy)
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	values.Set("fromAccount", from)
 	values.Set("toAccount", to)
@@ -690,7 +690,7 @@ func (e *Exchange) GetMarginAccountSummary(ctx context.Context) (Margin, error) 
 }
 
 // PlaceMarginOrder places a margin order
-func (e *Exchange) PlaceMarginOrder(ctx context.Context, currency string, rate, amount, lendingRate float64, buy bool) (OrderResponse, error) {
+func (e *Exchange) PlaceMarginOrder(ctx context.Context, currencyPair string, rate, amount, lendingRate float64, buy bool) (OrderResponse, error) {
 	result := OrderResponse{}
 	values := url.Values{}
 
@@ -701,7 +701,7 @@ func (e *Exchange) PlaceMarginOrder(ctx context.Context, currency string, rate, 
 		orderType = poloniexMarginSell
 	}
 
-	values.Set("currencyPair", currency)
+	values.Set("currencyPair", currencyPair)
 	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
@@ -713,11 +713,11 @@ func (e *Exchange) PlaceMarginOrder(ctx context.Context, currency string, rate, 
 }
 
 // GetMarginPosition returns a position on a margin order
-func (e *Exchange) GetMarginPosition(ctx context.Context, currency string) (any, error) {
+func (e *Exchange) GetMarginPosition(ctx context.Context, currencyPair string) (any, error) {
 	values := url.Values{}
 
-	if currency != "" && currency != "all" {
-		values.Set("currencyPair", currency)
+	if currencyPair != "" && currencyPair != "all" {
+		values.Set("currencyPair", currencyPair)
 		result := MarginPosition{}
 		return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexMarginPosition, values, &result)
 	}
@@ -731,9 +731,9 @@ func (e *Exchange) GetMarginPosition(ctx context.Context, currency string) (any,
 }
 
 // CloseMarginPosition closes a current margin position
-func (e *Exchange) CloseMarginPosition(ctx context.Context, currency string) (bool, error) {
+func (e *Exchange) CloseMarginPosition(ctx context.Context, currencyPair string) (bool, error) {
 	values := url.Values{}
-	values.Set("currencyPair", currency)
+	values.Set("currencyPair", currencyPair)
 	result := GenericResponse{}
 
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexMarginPositionClose, values, &result)
@@ -749,9 +749,9 @@ func (e *Exchange) CloseMarginPosition(ctx context.Context, currency string) (bo
 }
 
 // CreateLoanOffer places a loan offer on the exchange
-func (e *Exchange) CreateLoanOffer(ctx context.Context, currency string, amount, rate float64, duration int, autoRenew bool) (int64, error) {
+func (e *Exchange) CreateLoanOffer(ctx context.Context, ccy string, amount, rate float64, duration int, autoRenew bool) (int64, error) {
 	values := url.Values{}
-	values.Set("currency", currency)
+	values.Set("currency", ccy)
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	values.Set("duration", strconv.Itoa(duration))
 
