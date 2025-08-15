@@ -1793,12 +1793,19 @@ type DualModeResponse struct {
 	} `json:"history"`
 }
 
+// number represents a number type for JSON marshaling with zero value as "0"
+type number float64
+
+func (n number) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strconv.FormatFloat(float64(n), 'f', -1, 64) + `"`), nil
+}
+
 // ContractOrderCreateParams represents future order creation parameters
 type ContractOrderCreateParams struct {
 	Contract                  currency.Pair `json:"contract"`
 	Size                      float64       `json:"size"`    // positive long, negative short
 	Iceberg                   int64         `json:"iceberg"` // required; can be zero
-	Price                     string        `json:"price"`   // NOTE: Market orders require string "0"
+	Price                     number        `json:"price"`   // NOTE: Market orders require string "0"
 	TimeInForce               string        `json:"tif"`
 	Text                      string        `json:"text,omitempty"`  // errors when empty; Either populated or omitted
 	ClosePosition             bool          `json:"close,omitempty"` // Size needs to be zero if true
