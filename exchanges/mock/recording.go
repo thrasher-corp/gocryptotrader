@@ -300,7 +300,7 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 		for i := range value {
 			switch subvalue := value[i].(type) {
 			case []any:
-				if len(subvalue) > 0 {
+				if limit > 0 && len(subvalue) > 0 {
 					if _, ok := subvalue[0].(map[string]any); ok && len(subvalue) > limit {
 						subvalue = subvalue[:limit]
 					}

@@ -12,8 +12,8 @@ import (
 
 func TestGetFilteredHeader(t *testing.T) {
 	items, err := GetExcludedItems()
-	require.NoError(t, err)
-	assert.NotNil(t, items, "GetExcludedItems should not error")
+	require.NoError(t, err, "GetExcludedItems should not error")
+	assert.NotNil(t, items)
 
 	resp := http.Response{}
 	resp.Request = &http.Request{}
@@ -25,14 +25,14 @@ func TestGetFilteredHeader(t *testing.T) {
 
 func TestGetFilteredURLVals(t *testing.T) {
 	items, err := GetExcludedItems()
-	require.NoError(t, err)
-	assert.NotNil(t, items, "GetExcludedItems should not error")
+	require.NoError(t, err, "GetExcludedItems should not error")
+	assert.NotNil(t, items)
 
 	superSecretData := "Dr Seuss"
 	shadyVals := url.Values{}
 	shadyVals.Set("real_name", superSecretData)
 	cleanVals := GetFilteredURLVals(shadyVals, items)
-	assert.NotContains(t, cleanVals, superSecretData, "Super secret data found")
+	assert.NotContains(t, cleanVals, superSecretData, "exclusion real_name should be removed")
 }
 
 func TestCheckResponsePayload(t *testing.T) {
@@ -47,7 +47,7 @@ func TestCheckResponsePayload(t *testing.T) {
 
 	items, err := GetExcludedItems()
 	require.NoError(t, err)
-	assert.NotNil(t, items)
+	assert.NotNil(t, items, "GetExcludedItems should not return nil")
 
 	data, err := CheckResponsePayload(payload, items, 5)
 	assert.NoError(t, err)
