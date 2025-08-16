@@ -16,6 +16,7 @@ const (
 	TwentyMilliseconds             = 2 * TenMilliseconds
 	HundredMilliseconds            = Interval(100 * time.Millisecond)
 	TwoHundredAndFiftyMilliseconds = Interval(250 * time.Millisecond)
+	FiveHundredMilliseconds        = 5 * HundredMilliseconds
 	ThousandMilliseconds           = 10 * HundredMilliseconds
 	TenSecond                      = Interval(10 * time.Second)
 	FifteenSecond                  = Interval(15 * time.Second)
@@ -93,6 +94,7 @@ var (
 
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{
+		FiveHundredMilliseconds,
 		HundredMilliseconds,
 		ThousandMilliseconds,
 		TenSecond,
