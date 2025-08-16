@@ -372,7 +372,7 @@ func TestSpotOrderStringFromOrderTypeAndTimeInForce(t *testing.T) {
 		t.Run(orderTypeAndTimeInForceToOrderTypeString[x].String, func(t *testing.T) {
 			t.Parallel()
 			result, err := SpotOrderStringFromOrderTypeAndTimeInForce(orderTypeAndTimeInForceToOrderTypeString[x].OType, orderTypeAndTimeInForceToOrderTypeString[x].TimeInForce)
-			assert.ErrorIs(t, err, orderTypeAndTimeInForceToOrderTypeString[x].Error)
+			require.ErrorIs(t, err, orderTypeAndTimeInForceToOrderTypeString[x].Error)
 			assert.Equal(t, orderTypeAndTimeInForceToOrderTypeString[x].String, result)
 		})
 	}
@@ -399,7 +399,7 @@ func TestStringToOrderTypeAndTimeInForce(t *testing.T) {
 		t.Run(orderTypeAndTimeInForceFromOrderTypeString[x].String, func(t *testing.T) {
 			t.Parallel()
 			oType, tif, err := e.StringToOrderTypeAndTimeInForce(orderTypeAndTimeInForceFromOrderTypeString[x].String)
-			assert.ErrorIs(t, err, orderTypeAndTimeInForceFromOrderTypeString[x].Error)
+			require.ErrorIs(t, err, orderTypeAndTimeInForceFromOrderTypeString[x].Error)
 			assert.Equal(t, orderTypeAndTimeInForceFromOrderTypeString[x].Type, oType)
 			assert.Equal(t, orderTypeAndTimeInForceFromOrderTypeString[x].TimeInForce, tif)
 		})
@@ -491,7 +491,7 @@ func TestOrderTypeString(t *testing.T) {
 		t.Run(typesMap[a].String, func(t *testing.T) {
 			t.Parallel()
 			value, err := e.OrderTypeStringFromOrderTypeAndTimeInForce(a.Type, a.TimeInForce)
-			assert.Equal(t, typesMap[a].String, value)
+			require.Equal(t, typesMap[a].String, value)
 			assert.ErrorIs(t, err, typesMap[a].Error)
 		})
 	}
@@ -892,12 +892,12 @@ func TestUnmarshalJSON(t *testing.T) {
 	details := `[` + detail + ",{}]"
 	var target FuturesContractsList
 	err := json.Unmarshal([]byte(detail), &target)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, target, 1)
 
 	var targets FuturesContractsList
 	err = json.Unmarshal([]byte(details), &targets)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, targets, 2)
 }
 
@@ -1285,7 +1285,6 @@ func TestChangePositionMode(t *testing.T) {
 	require.ErrorIs(t, err, errPositionModeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-
 	result, err := e.ChangePositionMode(t.Context(), 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1667,7 +1666,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
 	result, err := e.IsPerpetualFutureCurrency(asset.Futures, futuresTradablePair)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, result)
 }
 
@@ -1884,7 +1883,7 @@ func TestSubmitOrder(t *testing.T) {
 		Side:      order.Long,
 	}
 	_, err = e.SubmitOrder(t.Context(), arg)
-	assert.ErrorIs(t, err, currency.ErrAssetNotFound)
+	require.ErrorIs(t, err, currency.ErrAssetNotFound)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	arg.Pair = spotTradablePair
@@ -1894,7 +1893,7 @@ func TestSubmitOrder(t *testing.T) {
 	arg.Pair = spotTradablePair
 	arg.AssetType = asset.Spot
 	_, err = e.SubmitOrder(t.Context(), arg)
-	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
 	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1910,7 +1909,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	arg.Price = 1234567
 	result, err := e.SubmitOrder(t.Context(), arg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	// Futures orders test
@@ -1923,7 +1922,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	arg.MarginType = margin.Multi
 	result, err = e.SubmitOrder(t.Context(), arg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
@@ -1965,10 +1964,10 @@ func TestCancelAllOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345", AssetType: asset.Spot, Pair: spotTradablePair})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345", AssetType: asset.Futures, Pair: futuresTradablePair})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
