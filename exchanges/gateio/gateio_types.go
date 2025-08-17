@@ -1737,6 +1737,98 @@ type InitFlashSwapOrderPreviewResponse struct {
 	Price        types.Number `json:"price"`
 }
 
+// SwapETHParam holds an ETH2 swap parameter
+type SwapETHParam struct {
+	Side   string  `json:"side"`
+	Amount float64 `json:"amount,string"`
+}
+
+// ETH2ReturnRate holds a historical return rate
+type ETH2ReturnRate struct {
+	DateTime types.Time `json:"date_time"`
+	Date     string     `json:"date"`
+	Rate     string     `json:"rate"`
+}
+
+// DualInvestmentPlan holds an earn dual investment plan detail
+type DualInvestmentPlan struct {
+	ID               int          `json:"id"`
+	InstrumentName   string       `json:"instrument_name"`
+	Type             string       `json:"type"`
+	InvestCurrency   string       `json:"invest_currency"`
+	ExerciseCurrency string       `json:"exercise_currency"`
+	ExercisePrice    float64      `json:"exercise_price"`
+	DeliveryTime     types.Time   `json:"delivery_time"`
+	MinCopies        int64        `json:"min_copies"`
+	MaxCopies        int64        `json:"max_copies"`
+	StartTime        types.Time   `json:"start_time"`
+	EndTime          types.Time   `json:"end_time"`
+	Status           string       `json:"status"`
+	ApyDisplay       string       `json:"apy_display"`
+	PerValue         types.Number `json:"per_value"`
+}
+
+// DualInvestmentOrderDetail holds a dual investment order item detail
+type DualInvestmentOrderDetail struct {
+	ID                 int64        `json:"id"`
+	PlanID             int64        `json:"plan_id"`
+	Copies             string       `json:"copies"`
+	InvestAmount       types.Number `json:"invest_amount"`
+	SettlementAmount   types.Number `json:"settlement_amount"`
+	CreateTime         types.Time   `json:"create_time"`
+	CompleteTime       types.Time   `json:"complete_time"`
+	Status             string       `json:"status"`
+	InvestCurrency     string       `json:"invest_currency"`
+	ExerciseCurrency   string       `json:"exercise_currency"`
+	SettlementCurrency string       `json:"settlement_currency"`
+	ExercisePrice      types.Number `json:"exercise_price"`
+	SettlementPrice    types.Number `json:"settlement_price"`
+	DeliveryTime       types.Time   `json:"delivery_time"`
+	ApyDisplay         string       `json:"apy_display"`
+	ApySettlement      string       `json:"apy_settlement"`
+	Text               string       `json:"text"`
+}
+
+// DualInvestmentOrderParam holds a dual investment order parameter
+type DualInvestmentOrderParam struct {
+	PlanID string  `json:"plan_id"`
+	Amount float64 `json:"amount,string"`
+	Text   string  `json:"text,omitempty"`
+}
+
+// StructuredProductDetail holds structured product detail
+type StructuredProductDetail struct {
+	ID               int64        `json:"id"`
+	Type             string       `json:"type"`
+	NameEn           string       `json:"name_en"`
+	InvestmentPeriod int64        `json:"investment_period"`
+	MinAnnualRate    types.Number `json:"min_annual_rate"`
+	MidAnnualRate    types.Number `json:"mid_annual_rate"`
+	MaxAnnualRate    types.Number `json:"max_annual_rate"`
+	WatchMarket      string       `json:"watch_market"`
+	InvestmentCoin   string       `json:"investment_coin"`
+	StartTime        types.Time   `json:"start_time"`
+	EndTime          types.Time   `json:"end_time"`
+	Status           string       `json:"status"`
+}
+
+// StructuredProductOrderDetail holds a structured product list detail
+type StructuredProductOrderDetail struct {
+	ID         int64        `json:"id"`
+	Pid        string       `json:"pid"`
+	LockCoin   string       `json:"lock_coin"`
+	Amount     types.Number `json:"amount"`
+	Status     string       `json:"status"`
+	Income     string       `json:"income"`
+	CreateTime types.Time   `json:"create_time"`
+}
+
+// StructuredOrder holds a structured order info
+type StructuredOrder struct {
+	ProductID string  `json:"pid,omitempty"`
+	Amount    float64 `json:"amount,omitempty,string"`
+}
+
 // FuturesAccount represents futures account detail
 type FuturesAccount struct {
 	User                   int64        `json:"user"`
@@ -2764,6 +2856,21 @@ type UserTransactionRateLimitInfo struct {
 	UpdatedAt types.Time   `json:"updated_at"`
 }
 
+// STPUserGroup holds self-trade prevention user group
+type STPUserGroup struct {
+	ID         uint64 `json:"id,omitempty"`
+	Name       string `json:"name"`
+	CreatorID  uint64 `json:"creator_id,omitempty"`
+	CreateTime uint64 `json:"create_time,omitempty"`
+}
+
+// STPUserGroupMember holds STP user group mamber detail
+type STPUserGroupMember struct {
+	UserID     uint64     `json:"user_id"`
+	STPID      uint64     `json:"stp_id"`
+	CreateTime types.Time `json:"create_time"`
+}
+
 // SubAccountMode holds a sub-account mode detail
 type SubAccountMode struct {
 	UserID    int    `json:"user_id"`
@@ -2899,4 +3006,117 @@ type CollateralAddOrRemoveResponse struct {
 		Currency  string       `json:"currency"`
 		Amount    types.Number `json:"amount"`
 	} `json:"collateral_currencies"`
+}
+
+// BrokerTransactionItem broker obtains transaction history of recommended users
+type BrokerTransactionItem struct {
+	TransactionTime types.Time   `json:"transaction_time"`
+	UserID          uint64       `json:"user_id"`
+	GroupName       string       `json:"group_name"`
+	Fee             string       `json:"fee"`
+	FeeAsset        string       `json:"fee_asset"`
+	CurrencyPair    string       `json:"currency_pair"`
+	Amount          types.Number `json:"amount"`
+	Source          string       `json:"source"`
+	AmountAsset     string       `json:"amount_asset"`
+}
+
+// BrokerRebateTransactionHistory holds transaction history of recommended users
+type BrokerRebateTransactionHistory struct {
+	Total       int64                   `json:"total"`
+	Trasactions []BrokerTransactionItem `json:"list"`
+}
+
+// BrokerRebateHistory holds list of brokers rebate history
+type BrokerRebateHistory struct {
+	Total       int64              `json:"total"`
+	Trasactions []BrokerRebateItem `json:"list"`
+}
+
+// BrokerRebateItem holds a rebate history item
+type BrokerRebateItem struct {
+	CommissionTime   types.Time   `json:"commission_time"`
+	UserID           uint64       `json:"user_id"`
+	GroupName        string       `json:"group_name"`
+	CommissionAmount types.Number `json:"commission_amount"`
+	Source           string       `json:"source"`
+	CommissionAsset  string       `json:"commission_asset"`
+}
+
+// UsersRebateRecords holds rebate records of recommended users
+type UsersRebateRecords struct {
+	Total int `json:"total"`
+	List  []struct {
+		UserID           uint64       `json:"user_id"`
+		CommissionTime   types.Time   `json:"commission_time"`
+		CommissionAmount types.Number `json:"commission_amount"`
+		CommissionAsset  string       `json:"commission_asset"`
+		Source           string       `json:"source"`
+		GroupName        string       `json:"group_name"`
+	} `json:"list"`
+}
+
+// PartnerSubordinateList holds partner subordinate list
+type PartnerSubordinateList struct {
+	Total int64 `json:"total"`
+	List  []struct {
+		UserID       uint64     `json:"user_id"`
+		UserJoinTime types.Time `json:"user_join_time"`
+		Type         uint64     `json:"type"`
+	} `json:"list"`
+}
+
+// BrokerCommissionHistory holds brokers commission history
+type BrokerCommissionHistory struct {
+	List []struct {
+		UserID         int64        `json:"user_id"`
+		GroupName      string       `json:"group_name"`
+		CommissionTime types.Time   `json:"commission_time"`
+		Fee            types.Number `json:"fee"`
+		Source         string       `json:"source"`
+		Amount         types.Number `json:"amount"`
+		RebateFee      types.Number `json:"rebate_fee"`
+		FeeAsset       string       `json:"fee_asset"`
+		CurrencyPair   string       `json:"currency_pair"`
+		SubBrokerInfo  struct {
+			UserID                 uint64       `json:"user_id"`
+			OriginalCommissionRate types.Number `json:"original_commission_rate"`
+			RelativeCommissionRate types.Number `json:"relative_commission_rate"`
+			CommissionRate         types.Number `json:"commission_rate"`
+		} `json:"sub_broker_info"`
+		AlphaContractAddr string `json:"alpha_contract_addr"`
+	} `json:"list"`
+	Total int64 `json:"total"`
+}
+
+// BrokerRebateUserTradingHistory holds rebate broker user's trading history
+type BrokerRebateUserTradingHistory struct {
+	List []struct {
+		UserID          uint64       `json:"user_id"`
+		Fee             types.Number `json:"fee"`
+		GroupName       string       `json:"group_name"`
+		TransactionTime types.Time   `json:"transaction_time"`
+		Amount          types.Number `json:"amount"`
+		CurrencyPair    string       `json:"currency_pair"`
+		Source          string       `json:"source"`
+		FeeAsset        string       `json:"fee_asset"`
+		SubBrokerInfo   struct {
+			UserID                 uint64       `json:"user_id"`
+			OriginalCommissionRate types.Number `json:"original_commission_rate"`
+			RelativeCommissionRate types.Number `json:"relative_commission_rate"`
+			CommissionRate         types.Number `json:"commission_rate"`
+		} `json:"sub_broker_info"`
+		AlphaContractAddr string `json:"alpha_contract_addr"`
+	} `json:"list"`
+	Total int64 `json:"total"`
+}
+
+// UserRebaseSubRelation holds s user subordinate relationship
+type UserRebaseSubRelation struct {
+	List []struct {
+		Belong string `json:"belong"`
+		RefUID uint64 `json:"ref_uid"`
+		Type   uint64 `json:"type"`
+		UID    uint64 `json:"uid"`
+	} `json:"list"`
 }

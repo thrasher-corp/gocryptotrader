@@ -1519,6 +1519,87 @@ func TestInitiateFlashSwapOrderReview(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestSwapETH2(t *testing.T) {
+	t.Parallel()
+	err := e.SwapETH2(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	err = e.SwapETH2(t.Context(), &SwapETHParam{
+		Side:   "",
+		Amount: 231,
+	})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	err = e.SwapETH2(t.Context(), &SwapETHParam{
+		Side:   "1",
+		Amount: 0,
+	})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.SwapETH2(t.Context(), &SwapETHParam{
+		Side:   "1",
+		Amount: 231,
+	})
+	require.NoError(t, err)
+}
+
+func TestGetETH2HistoricalReturnRate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetETH2HistoricalReturnRate(t.Context())
+	require.NoError(t, err)
+}
+
+func TestGetDualInvestmentProductList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetDualInvestmentProductList(t.Context(), 123123412341)
+	require.NoError(t, err)
+}
+
+func TestGetDualInvestmentOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetDualInvestmentOrderList(t.Context(), time.Now().Add(-time.Hour*50), time.Now(), 0, 100)
+	require.NoError(t, err)
+}
+
+func TestPlaceDualInvestmentOrder(t *testing.T) {
+	t.Parallel()
+	err := e.PlaceDualInvestmentOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	err = e.PlaceDualInvestmentOrder(t.Context(), &DualInvestmentOrderParam{Text: "abc"})
+	require.ErrorIs(t, err, errPlanIDRequired)
+
+	err = e.PlaceDualInvestmentOrder(t.Context(), &DualInvestmentOrderParam{PlanID: "12321"})
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.PlaceDualInvestmentOrder(t.Context(), &DualInvestmentOrderParam{
+		PlanID: "12321",
+		Amount: 1223.213,
+	})
+	require.NoError(t, err)
+}
+
+func TestGetStructuredProductList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetStructuredProductList(t.Context(), "", "in_process", 10, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetStructuredProductOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetStructuredProductOrderList(t.Context(), time.Now().Add(-time.Hour*50), time.Now(), 0, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetMyOptionsSettlements(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -3275,7 +3356,85 @@ func TestGetUserTransactionRateLimitInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	got, err := e.GetUserTransactionRateLimitInfo(t.Context())
 	require.NoError(t, err)
-	require.NotEmpty(t, got)
+	assert.NotEmpty(t, got)
+}
+
+func TestCreateSelfTradePreventionUserGroup(t *testing.T) {
+	t.Parallel()
+	_, err := e.CreateSelfTradePreventionUserGroup(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CreateSelfTradePreventionUserGroup(t.Context(), &STPUserGroup{Name: "", ID: 234235664353})
+	require.ErrorIs(t, err, errSTPGroupNameRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.CreateSelfTradePreventionUserGroup(t.Context(), &STPUserGroup{
+		Name:      "stp_groups",
+		CreatorID: 879868760123,
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestGetUserSelfTradePreventionGroups(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUserSelfTradePreventionGroups(t.Context(), "")
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestGetUsersInSTPUserGroup(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetUsersInSTPUserGroup(t.Context(), "")
+	require.ErrorIs(t, err, errSTPGroupIDRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUsersInSTPUserGroup(t.Context(), "1")
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestAddUsersToSTPUserGroup(t *testing.T) {
+	t.Parallel()
+	_, err := e.AddUsersToSTPUserGroup(t.Context(), "", nil)
+	require.ErrorIs(t, err, errSTPGroupIDRequired)
+
+	_, err = e.AddUsersToSTPUserGroup(t.Context(), "2123", nil)
+	require.ErrorIs(t, err, errUserIDRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.AddUsersToSTPUserGroup(t.Context(), "1", []uint64{12312312, 2132234232})
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestDeleteUserFromSTPUserGroup(t *testing.T) {
+	t.Parallel()
+	_, err := e.DeleteUserFromSTPUserGroup(t.Context(), "", 0)
+	require.ErrorIs(t, err, errSTPGroupIDRequired)
+
+	_, err = e.DeleteUserFromSTPUserGroup(t.Context(), "2123", 0)
+	require.ErrorIs(t, err, errUserIDRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.DeleteUserFromSTPUserGroup(t.Context(), "1", 12312312)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestConfigureGTFeeDeduction(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	err := e.ConfigureGTFeeDeduction(t.Context(), false)
+	assert.NoError(t, err)
+}
+
+func TestGetGTFeeDeductionConfiguration(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetGTFeeDeductionConfiguration(t.Context())
+	assert.NoError(t, err)
 }
 
 func TestPlaceMultiCollateralLoanOrder(t *testing.T) {
@@ -3713,4 +3872,71 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	cpy.AssetType = asset.Spot
 	_, err = e.WebsocketSubmitOrders(request.WithVerbose(t.Context()), []*order.Submit{sub, &cpy})
 	require.NoError(t, err)
+}
+
+func TestGetBrokerTransactionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetBrokerTransactionHistory(t.Context(), "", 0, time.Time{}, time.Time{}, 10, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBrokerRebateHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetBrokerRebateHistory(t.Context(), currency.USDT, 0, time.Now().Add(-time.Hour*72), time.Now(), 10, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPartnerRebateRecordsRecommendedUsers(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetPartnerRebateRecordsRecommendedUsers(t.Context(), currency.USDT, 0, time.Now().Add(-time.Hour*72), time.Now(), 10, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPartnerSubordinateList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetPartnerSubordinateList(t.Context(), 0, 100, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestBrokerObtainsUserRebateRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.BrokerObtainsUserRebateRecords(t.Context(), 12312312, time.Now().Add(-time.Hour*240), time.Now(), 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetRebateBrokerTransactionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetRebateBrokerTransactionHistory(t.Context(), 12312312, time.Now().Add(-time.Hour*240), time.Now(), 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserRebateInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUserRebateInformation(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserSubordinateRelationship(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetUserSubordinateRelationship(t.Context(), nil)
+	require.ErrorIs(t, err, errUserIDRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUserSubordinateRelationship(t.Context(), []string{"12342", "21312312312"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }

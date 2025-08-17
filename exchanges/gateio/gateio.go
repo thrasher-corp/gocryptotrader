@@ -110,6 +110,10 @@ var (
 	errInvalidTextValue              = errors.New("invalid text value, requires prefix `t-`")
 	errSingleAssetRequired           = errors.New("single asset type required")
 	errLoanTypeIsRequired            = errors.New("loan type is required")
+	errUserIDRequired                = errors.New("user id is required")
+	errSTPGroupNameRequired          = errors.New("self-trade prevention group name required")
+	errSTPGroupIDRequired            = errors.New("self-trade prevention group id required")
+	errPlanIDRequired                = errors.New("plan ID required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -3681,6 +3685,121 @@ func (e *Exchange) IsValidPairString(currencyPair string) bool {
 	return false
 }
 
+// SwapETH2 swaps ETH2
+// 1-Forward Swap (ETH -> ETH2), 2-Reverse Swap (ETH2 -> ETH
+func (e *Exchange) SwapETH2(ctx context.Context, arg *SwapETHParam) error {
+	if arg == nil {
+		return common.ErrNilPointer
+	}
+	if arg.Side == "" {
+		return order.ErrSideIsInvalid
+	}
+	if arg.Amount <= 0 {
+		return order.ErrAmountBelowMin
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/staking/eth2/swap", nil, arg, nil)
+}
+
+// GetETH2HistoricalReturnRate gets ETH2 historical return rate
+// Query ETH earnings rate records for the last 31 days
+func (e *Exchange) GetETH2HistoricalReturnRate(ctx context.Context) ([]ETH2ReturnRate, error) {
+	var resp []ETH2ReturnRate
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/eth2/rate_records", nil, nil, &resp)
+}
+
+// GetDualInvestmentProductList dual Investment product list
+func (e *Exchange) GetDualInvestmentProductList(ctx context.Context, planID uint64) ([]DualInvestmentPlan, error) {
+	params := url.Values{}
+	if planID != 0 {
+		params.Set("plan_id", strconv.FormatUint(planID, 10))
+	}
+	var resp []DualInvestmentPlan
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/dual/investment_plan", params, nil, &resp)
+}
+
+// GetDualInvestmentOrderList dual Investment order list
+func (e *Exchange) GetDualInvestmentOrderList(ctx context.Context, from, to time.Time, page, limit int64) ([]DualInvestmentOrderDetail, error) {
+	params := url.Values{}
+	if !from.IsZero() && !to.IsZero() {
+		err := common.StartEndTimeCheck(from, to)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	var resp []DualInvestmentOrderDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/dual/orders", params, nil, &resp)
+}
+
+// PlaceDualInvestmentOrder place a dual investment order
+func (e *Exchange) PlaceDualInvestmentOrder(ctx context.Context, arg *DualInvestmentOrderParam) error {
+	if arg == nil {
+		return common.ErrNilPointer
+	}
+	if arg.PlanID == "" {
+		return errPlanIDRequired
+	}
+	if arg.Amount <= 0 {
+		return order.ErrAmountBelowMin
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/dual/orders", nil, arg, nil)
+}
+
+// GetStructuredProductList retrieves a structured Product List
+func (e *Exchange) GetStructuredProductList(ctx context.Context, productType, status string, page, limit int64) ([]StructuredProductDetail, error) {
+	params := url.Values{}
+	if productType != "" {
+		params.Set("type", productType)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []StructuredProductDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/structured/products", params, nil, &resp)
+}
+
+// GetStructuredProductOrderList retrieves structured product order list
+func (e *Exchange) GetStructuredProductOrderList(ctx context.Context, from, to time.Time, page, limit int64) ([]StructuredProductOrderDetail, error) {
+	params := url.Values{}
+	if !from.IsZero() && !to.IsZero() {
+		err := common.StartEndTimeCheck(from, to)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []StructuredProductOrderDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/structured/orders", params, nil, &resp)
+}
+
+func (e *Exchange) PlaceStructuredProductOrder(ctx context.Context, arg *StructuredOrder) (*StructuredOrder, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
+	var resp *StructuredOrder
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/structured/orders", nil, arg, &resp)
+}
+
 // ********************************* Trading Fee calculation ********************************
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -3744,6 +3863,84 @@ func (e *Exchange) GetAccountDetails(ctx context.Context) (*AccountDetails, erro
 func (e *Exchange) GetUserTransactionRateLimitInfo(ctx context.Context) ([]UserTransactionRateLimitInfo, error) {
 	var resp []UserTransactionRateLimitInfo
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/rate_limit", nil, nil, &resp)
+}
+
+// CreateSelfTradePreventionUserGroup create STP user group
+// only the main account is allowed to create a new STP user group
+func (e *Exchange) CreateSelfTradePreventionUserGroup(ctx context.Context, arg *STPUserGroup) (*STPUserGroup, error) {
+	if arg == nil || *arg == (STPUserGroup{}) {
+		return nil, common.ErrNilPointer
+	}
+	if arg.Name == "" {
+		return nil, errSTPGroupNameRequired
+	}
+	var resp *STPUserGroup
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "account/stp_groups", nil, arg, &resp)
+}
+
+// GetUserSelfTradePreventionGroups query STP user groups created by the user
+// Only query STP user groups created by the current main account
+func (e *Exchange) GetUserSelfTradePreventionGroups(ctx context.Context, name string) ([]STPUserGroup, error) {
+	params := url.Values{}
+	if name != "" {
+		params.Set("name", name)
+	}
+	var resp []STPUserGroup
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/stp_groups", params, nil, &resp)
+}
+
+// GetUsersInSTPUserGroup query users in the STP user group
+// Only the main account that created this STP group can query the account ID list in the current STP group
+func (e *Exchange) GetUsersInSTPUserGroup(ctx context.Context, stpID string) ([]STPUserGroupMember, error) {
+	if stpID == "" {
+		return nil, errSTPGroupIDRequired
+	}
+	var resp []STPUserGroupMember
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/stp_groups/"+stpID+"/users", nil, nil, &resp)
+}
+
+// AddUsersToSTPUserGroup add users to the STP user group
+// Only the main account that created this STP group can add users to the STP user group
+// Only accounts under the current main account are allowed, cross-main account is not permitted
+func (e *Exchange) AddUsersToSTPUserGroup(ctx context.Context, stpID string, usersID []uint64) ([]STPUserGroupMember, error) {
+	if stpID == "" {
+		return nil, errSTPGroupIDRequired
+	}
+	if len(usersID) == 0 {
+		return nil, errUserIDRequired
+	}
+	var resp []STPUserGroupMember
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "account/stp_groups/"+stpID+"/users", nil, usersID, &resp)
+}
+
+// DeleteUserFromSTPUserGroup delete users from the STP user group
+// Only the main account that created this STP group is allowed to delete users from the STP user group
+func (e *Exchange) DeleteUserFromSTPUserGroup(ctx context.Context, stpID string, userID uint64) ([]STPUserGroupMember, error) {
+	if stpID == "" {
+		return nil, errSTPGroupIDRequired
+	}
+	if userID == 0 {
+		return nil, errUserIDRequired
+	}
+	params := url.Values{}
+	params.Set("user_id", strconv.FormatUint(userID, 10))
+	var resp []STPUserGroupMember
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodDelete, "account/stp_groups/"+stpID+"/users", params, nil, &resp)
+}
+
+// ConfigureGTFeeDeduction configure GT fee deduction
+// enable or disable GT fee deduction for the current account
+func (e *Exchange) ConfigureGTFeeDeduction(ctx context.Context, setEnabled bool) error {
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "account/debit_fee", nil, &map[string]bool{"enabled": setEnabled}, nil)
+}
+
+// GetGTFeeDeductionConfiguration query GT fee deduction configuration
+// Query the GT fee deduction configuration for the current account
+func (e *Exchange) GetGTFeeDeductionConfiguration(ctx context.Context) (bool, error) {
+	resp := &struct {
+		Enabled bool `json:"enabled"`
+	}{}
+	return resp.Enabled, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/debit_fee", nil, nil, &resp)
 }
 
 // PlaceMultiCollateralLoanOrder place multi-currency collateral order
@@ -3822,4 +4019,176 @@ func (e *Exchange) AddOrWithdrawCollateral(ctx context.Context, arg *AddOrWithdr
 	}
 	var resp *CollateralAddOrRemoveResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "loan/multi_collateral/mortgage", nil, arg, &resp)
+}
+
+// ------------------------ Broker Rebate Endpoints ------------------------
+
+// GetBrokerTransactionHistory retrieves broker obtains transaction history of recommended users
+// Record query time range cannot exceed 30 days
+func (e *Exchange) GetBrokerTransactionHistory(ctx context.Context, currencyPair string, userID uint64, from, to time.Time, limit, offset int) (*BrokerRebateTransactionHistory, error) {
+	params := url.Values{}
+	if currencyPair != "" {
+		params.Set("currency_pair", currencyPair)
+	}
+	if userID != 0 {
+		params.Set("user_id", strconv.FormatUint(userID, 10))
+	}
+	if !from.IsZero() && !to.IsZero() {
+		err := common.StartEndTimeCheck(from, to)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+	var resp *BrokerRebateTransactionHistory
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/agency/transaction_history", params, nil, &resp)
+}
+
+// GetBrokerRebateHistory broker obtains rebate history of recommended users
+// Record query time range cannot exceed 30 days
+func (e *Exchange) GetBrokerRebateHistory(ctx context.Context, ccy currency.Code, userID uint64, from, to time.Time, limit, offset int) (*BrokerRebateHistory, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if userID != 0 {
+		params.Set("user_id", strconv.FormatUint(userID, 10))
+	}
+	if !from.IsZero() && !to.IsZero() {
+		err := common.StartEndTimeCheck(from, to)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+	var resp *BrokerRebateHistory
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/agency/commission_history", params, nil, &resp)
+}
+
+// GetPartnerRebateRecordsRecommendedUsers partner obtains rebate records of recommended users
+// Record query time range cannot exceed 30 days
+func (e *Exchange) GetPartnerRebateRecordsRecommendedUsers(ctx context.Context, ccy currency.Code, userID uint64, from, to time.Time, limit, offset int) (*UsersRebateRecords, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if userID != 0 {
+		params.Set("user_id", strconv.FormatUint(userID, 10))
+	}
+	if !from.IsZero() && !to.IsZero() {
+		err := common.StartEndTimeCheck(from, to)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.Itoa(offset))
+	}
+	var resp *UsersRebateRecords
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/partner/commission_history", params, nil, &resp)
+}
+
+// GetPartnerSubordinateList partner subordinate list
+// Including sub-agents, direct customers, and indirect customers
+func (e *Exchange) GetPartnerSubordinateList(ctx context.Context, userID uint64, limit, offset int64) (*PartnerSubordinateList, error) {
+	params := url.Values{}
+	if userID != 0 {
+		params.Set("user_id", strconv.FormatUint(userID, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	var resp *PartnerSubordinateList
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/partner/sub_list", params, nil, &resp)
+}
+
+// BrokerObtainsUserRebateRecords broker obtains user's rebate records
+// Record query time range cannot exceed 30 days
+func (e *Exchange) BrokerObtainsUserRebateRecords(ctx context.Context, userID uint64, from, to time.Time, limit, offset int64) (*BrokerCommissionHistory, error) {
+	params := url.Values{}
+	if userID != 0 {
+		params.Set("user_id", strconv.FormatUint(userID, 10))
+	}
+	if !from.IsZero() && !to.IsZero() {
+		err := common.StartEndTimeCheck(from, to)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	var resp *BrokerCommissionHistory
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/broker/commission_history", params, nil, &resp)
+}
+
+// GetRebateBrokerTransactionHistory retrieves broker obtains user's trading history
+// Record query time range cannot exceed 30 days
+func (e *Exchange) GetRebateBrokerTransactionHistory(ctx context.Context, userID uint64, from, to time.Time, limit, offset int64) (*BrokerRebateUserTradingHistory, error) {
+	params := url.Values{}
+	if userID != 0 {
+		params.Set("user_id", strconv.FormatUint(userID, 10))
+	}
+	if !from.IsZero() && !to.IsZero() {
+		err := common.StartEndTimeCheck(from, to)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	var resp *BrokerRebateUserTradingHistory
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/broker/transaction_history", params, nil, &resp)
+}
+
+// GetUserRebateInformation retrieves user obtains rebate information
+func (e *Exchange) GetUserRebateInformation(ctx context.Context) (uint64, error) {
+	resp := &struct {
+		InviteUID uint64 `json:"invite_uid"`
+	}{}
+	return resp.InviteUID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/user/info", nil, nil, resp)
+}
+
+// GetUserSubordinateRelationship retrieves user subordinate relationships
+func (e *Exchange) GetUserSubordinateRelationship(ctx context.Context, userIDList []string) (*UserRebaseSubRelation, error) {
+	if len(userIDList) == 0 {
+		return nil, errUserIDRequired
+	}
+	params := url.Values{}
+	params.Set("user_id_list", strings.Join(userIDList, ","))
+	var resp *UserRebaseSubRelation
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/user/sub_relation", params, nil, &resp)
 }
