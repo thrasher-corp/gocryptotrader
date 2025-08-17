@@ -12,7 +12,7 @@ import (
 
 func TestGetFilteredHeader(t *testing.T) {
 	items, err := GetExcludedItems()
-	require.NoError(t, err, "GetExcludedItems should not error")
+	require.NoError(t, err, "GetExcludedItems must not error")
 	assert.NotNil(t, items)
 
 	resp := http.Response{}
@@ -25,7 +25,7 @@ func TestGetFilteredHeader(t *testing.T) {
 
 func TestGetFilteredURLVals(t *testing.T) {
 	items, err := GetExcludedItems()
-	require.NoError(t, err, "GetExcludedItems should not error")
+	require.NoError(t, err, "GetExcludedItems must not error")
 	assert.NotNil(t, items)
 
 	superSecretData := "Dr Seuss"
@@ -46,8 +46,8 @@ func TestCheckResponsePayload(t *testing.T) {
 	require.NoError(t, err, "json marshal must not error")
 
 	items, err := GetExcludedItems()
-	require.NoError(t, err)
-	assert.NotNil(t, items, "GetExcludedItems should not return nil")
+	require.NoError(t, err, "GetExcludedItems must not error")
+	assert.NotNil(t, items)
 
 	data, err := CheckResponsePayload(payload, items, 5)
 	assert.NoError(t, err)
