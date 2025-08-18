@@ -2,6 +2,7 @@ package quickspy
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -17,9 +18,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-var bookNames = []string{"book", "depth", "ob", "orderbook"}
+var errKeyNotFound = errors.New("key not found")
 
-type CredKey struct {
+type Key struct {
 	Exchange    string               `json:"exchange"`
 	Pair        currency.Pair        `json:"pair"`
 	Asset       asset.Item           `json:"asset"`
@@ -35,9 +36,9 @@ type QuickSpy struct {
 	// Exch is the exchange interface
 	Exch exchange.IBotExchange
 	// Key contains exchange, pair, and asset information
-	CredKey *CredKey
+	Key *Key
 	// Focuses is a map of focus types to focus options
-	Focuses map[FocusType]FocusData
+	Focuses map[FocusType]*FocusData
 	// shutUP is a channel for shutdown signaling
 	shutUP chan any
 	// dataHandlerChannel is used for receiving data from websockets
@@ -68,7 +69,7 @@ type OrderBookEntry struct {
 }
 
 type Data struct {
-	Key *CredKey
+	Key *Key
 	//  contract stuff
 	UnderlyingBase         *currency.Item
 	UnderlyingQuote        *currency.Item
