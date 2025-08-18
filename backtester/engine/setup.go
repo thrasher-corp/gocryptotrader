@@ -636,8 +636,8 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 	return resp, nil
 }
 
-func (bt *BackTest) loadExchangePairAssetBase(exch string, baseCode, quoteCode currency.Code, ai asset.Item) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
-	e, err := bt.exchangeManager.GetExchangeByName(exch)
+func (bt *BackTest) loadExchangePairAssetBase(exchName string, baseCode, quoteCode currency.Code, a asset.Item) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
+	e, err := bt.exchangeManager.GetExchangeByName(exchName)
 	if err != nil {
 		return nil, currency.EMPTYPAIR, asset.Empty, err
 	}
@@ -646,11 +646,11 @@ func (bt *BackTest) loadExchangePairAssetBase(exch string, baseCode, quoteCode c
 	cp = currency.NewPair(baseCode, quoteCode)
 
 	exchangeBase := e.GetBase()
-	fPair, err = exchangeBase.FormatExchangeCurrency(cp, ai)
+	fPair, err = exchangeBase.FormatExchangeCurrency(cp, a)
 	if err != nil {
 		return nil, currency.EMPTYPAIR, asset.Empty, err
 	}
-	return e, fPair, ai, nil
+	return e, fPair, a, nil
 }
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
