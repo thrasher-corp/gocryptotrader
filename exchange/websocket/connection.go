@@ -374,8 +374,8 @@ func (c *connection) Shutdown() error {
 }
 
 // SetURL sets connection URL
-func (c *connection) SetURL(connURL string) {
-	c.URL = connURL
+func (c *connection) SetURL(u string) {
+	c.URL = u
 }
 
 // SetProxy sets connection proxy

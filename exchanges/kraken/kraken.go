@@ -338,10 +338,10 @@ func (e *Exchange) GetBalance(ctx context.Context) (map[string]Balance, error) {
 }
 
 // GetWithdrawInfo gets withdrawal fees
-func (e *Exchange) GetWithdrawInfo(ctx context.Context, withdrawAsset, key string, amount float64) (*WithdrawInformation, error) {
+func (e *Exchange) GetWithdrawInfo(ctx context.Context, withdrawalAsset, withdrawalKey string, amount float64) (*WithdrawInformation, error) {
 	params := url.Values{}
-	params.Set("asset", withdrawAsset)
-	params.Set("key", key)
+	params.Set("asset", withdrawalAsset)
+	params.Set("key", withdrawalKey)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var result *WithdrawInformation
@@ -349,11 +349,11 @@ func (e *Exchange) GetWithdrawInfo(ctx context.Context, withdrawAsset, key strin
 }
 
 // Withdraw withdraws funds
-func (e *Exchange) Withdraw(ctx context.Context, withdrawAsset, key string, amount float64) (string, error) {
+func (e *Exchange) Withdraw(ctx context.Context, withdrawalAsset, withdrawalKey string, amount float64) (string, error) {
 	params := url.Values{}
-	params.Set("asset", withdrawAsset)
-	params.Set("key", key)
-	params.Set("amount", fmt.Sprintf("%f", amount))
+	params.Set("asset", withdrawalAsset)
+	params.Set("key", withdrawalKey)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var referenceID string
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenWithdraw, params, &referenceID); err != nil {

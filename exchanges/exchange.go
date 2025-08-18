@@ -62,6 +62,7 @@ var (
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
+	errInvalidEndpointKey                = errors.New("invalid endpoint key")
 )
 
 // SetRequester sets the instance of the requester
@@ -1253,18 +1254,11 @@ func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
 func (e *Endpoints) SetRunningURL(endpoint, val string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	err := validateKey(endpoint)
-	if err != nil {
+	if err := validateKey(endpoint); err != nil {
 		return err
 	}
-	_, err = url.ParseRequestURI(val)
-	if err != nil {
-		log.Warnf(log.ExchangeSys,
-			"Could not set custom URL for %s to %s for exchange %s. invalid URI for request.",
-			endpoint,
-			val,
-			e.Exchange)
-		return nil
+	if _, err := url.ParseRequestURI(val); err != nil {
+		return fmt.Errorf("parse request URI for %s=%q (exchange %s): %w", endpoint, val, e.Exchange, err)
 	}
 	e.defaults[endpoint] = val
 	return nil
@@ -1276,7 +1270,7 @@ func validateKey(keyVal string) error {
 			return nil
 		}
 	}
-	return errors.New("keyVal invalid")
+	return errInvalidEndpointKey
 }
 
 // GetURL gets default url from URLs map

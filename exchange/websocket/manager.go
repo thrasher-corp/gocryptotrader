@@ -739,51 +739,51 @@ func (m *Manager) CanUseAuthenticatedWebsocketForWrapper() bool {
 }
 
 // SetWebsocketURL sets websocket URL and can refresh underlying connections
-func (m *Manager) SetWebsocketURL(wsURL string, auth, reconnect bool) error {
+func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 	if m.useMultiConnectionManagement {
 		// TODO: Add functionality for multi-connection management to change URL
 		return fmt.Errorf("%s: %w", m.exchangeName, errCannotChangeConnectionURL)
 	}
-	defaultVals := wsURL == "" || wsURL == config.WebsocketURLNonDefaultMessage
+	defaultVals := u == "" || u == config.WebsocketURLNonDefaultMessage
 	if auth {
 		if defaultVals {
-			wsURL = m.defaultURLAuth
+			u = m.defaultURLAuth
 		}
 
-		err := checkWebsocketURL(wsURL)
+		err := checkWebsocketURL(u)
 		if err != nil {
 			return err
 		}
-		m.runningURLAuth = wsURL
+		m.runningURLAuth = u
 
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, wsURL)
+			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, u)
 		}
 
 		if m.AuthConn != nil {
-			m.AuthConn.SetURL(wsURL)
+			m.AuthConn.SetURL(u)
 		}
 	} else {
 		if defaultVals {
-			wsURL = m.defaultURL
+			u = m.defaultURL
 		}
-		err := checkWebsocketURL(wsURL)
+		err := checkWebsocketURL(u)
 		if err != nil {
 			return err
 		}
-		m.runningURL = wsURL
+		m.runningURL = u
 
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, wsURL)
+			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, u)
 		}
 
 		if m.Conn != nil {
-			m.Conn.SetURL(wsURL)
+			m.Conn.SetURL(u)
 		}
 	}
 
 	if m.IsConnected() && reconnect {
-		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, wsURL)
+		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, u)
 		return m.Shutdown()
 	}
 	return nil

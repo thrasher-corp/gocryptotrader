@@ -381,7 +381,7 @@ func (e *Exchange) CryptoWithdrawal(ctx context.Context, amount float64, address
 func (e *Exchange) OpenBankWithdrawal(ctx context.Context, req *OpenBankWithdrawalRequest) (FIATWithdrawalResponse, error) {
 	v := url.Values{}
 	v.Add("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
-	v.Add("account_currency", req.Currency)
+	v.Add("account_currency", req.Currency.String())
 	v.Add("name", req.Name)
 	v.Add("iban", req.IBAN)
 	v.Add("bic", req.BIC)
@@ -399,7 +399,7 @@ func (e *Exchange) OpenBankWithdrawal(ctx context.Context, req *OpenBankWithdraw
 func (e *Exchange) OpenInternationalBankWithdrawal(ctx context.Context, req *OpenBankWithdrawalRequest) (FIATWithdrawalResponse, error) {
 	v := url.Values{}
 	v.Add("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
-	v.Add("account_currency", req.Currency)
+	v.Add("account_currency", req.Currency.String())
 	v.Add("name", req.Name)
 	v.Add("iban", req.IBAN)
 	v.Add("bic", req.BIC)

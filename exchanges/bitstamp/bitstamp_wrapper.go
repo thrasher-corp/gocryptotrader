@@ -586,7 +586,7 @@ func (e *Exchange) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withd
 
 	resp, err := e.OpenBankWithdrawal(ctx, &OpenBankWithdrawalRequest{
 		Amount:         withdrawRequest.Amount,
-		Currency:       withdrawRequest.Currency.String(),
+		Currency:       withdrawRequest.Currency,
 		Name:           withdrawRequest.Fiat.Bank.AccountName,
 		IBAN:           withdrawRequest.Fiat.Bank.IBAN,
 		BIC:            withdrawRequest.Fiat.Bank.SWIFTCode,
@@ -614,7 +614,7 @@ func (e *Exchange) WithdrawFiatFundsToInternationalBank(ctx context.Context, wit
 	}
 	resp, err := e.OpenInternationalBankWithdrawal(ctx, &OpenBankWithdrawalRequest{
 		Amount:                withdrawRequest.Amount,
-		Currency:              withdrawRequest.Currency.String(),
+		Currency:              withdrawRequest.Currency,
 		Name:                  withdrawRequest.Fiat.Bank.AccountName,
 		IBAN:                  withdrawRequest.Fiat.Bank.IBAN,
 		BIC:                   withdrawRequest.Fiat.Bank.SWIFTCode,

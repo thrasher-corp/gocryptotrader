@@ -183,7 +183,7 @@ type CryptoWithdrawalResponse struct {
 // OpenBankWithdrawalRequest holds the request information for sending a bank withdrawal request
 type OpenBankWithdrawalRequest struct {
 	Amount         float64
-	Currency       string
+	Currency       currency.Code
 	Name           string
 	IBAN           string
 	BIC            string
