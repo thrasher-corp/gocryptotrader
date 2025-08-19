@@ -110,12 +110,11 @@ type Submit struct {
 
 // SubmitResponse is what is returned after submitting an order to an exchange
 type SubmitResponse struct {
-	Exchange  string
-	Type      Type
-	Side      Side
-	Pair      currency.Pair
-	AssetType asset.Item
-
+	Exchange             string
+	Type                 Type
+	Side                 Side
+	Pair                 currency.Pair
+	AssetType            asset.Item
 	TimeInForce          TimeInForce
 	ReduceOnly           bool
 	Leverage             float64
@@ -127,21 +126,19 @@ type SubmitResponse struct {
 	ClientID             string
 	ClientOrderID        string
 	AverageExecutedPrice float64
-
-	LastUpdated time.Time
-	Date        time.Time
-	Status      Status
-	OrderID     string
-	Trades      []TradeHistory
-	Fee         float64
-	FeeAsset    currency.Code
-
-	Cost      float64
-	Purchased float64 // Buy in base currency, Sell in quote
-
-	BorrowSize  float64
-	LoanApplyID string
-	MarginType  margin.Type
+	LastUpdated          time.Time
+	Date                 time.Time
+	Status               Status
+	OrderID              string
+	Trades               []TradeHistory
+	Fee                  float64
+	FeeAsset             currency.Code
+	Cost                 float64
+	Purchased            float64 // Buy in base currency, Sell in quote
+	BorrowSize           float64
+	LoanApplyID          string
+	MarginType           margin.Type
+	SubmissionError      error
 }
 
 // TrackingMode defines how the stop price follows the market price.

@@ -88,6 +88,22 @@ func TestGetOrderBook(t *testing.T) {
 	assert.NotEmpty(t, ob.Data.PaymentCurrency, "PaymentCurrency should not be empty")
 }
 
+func TestOrderbookLevelsFilterZeroQuantities(t *testing.T) {
+	t.Parallel()
+	bids := OrderbookLevels{
+		{Price: 99, Quantity: 0},
+		{Price: 98, Quantity: 2},
+	}
+	asks := OrderbookLevels{
+		{Price: 100, Quantity: 0},
+		{Price: 101, Quantity: 1},
+	}
+	bids.FilterZeroQuantities()
+	asks.FilterZeroQuantities()
+	assert.Len(t, asks, 1, "Asks should have 1 item")
+	assert.Len(t, bids, 1, "Bids should have 1 item")
+}
+
 func TestGetTransactionHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -247,7 +263,6 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	feeBuilder := setFeeBuilder()
