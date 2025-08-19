@@ -1243,8 +1243,7 @@ func (b *Base) NewEndpoints() *Endpoints {
 // SetDefaultEndpoints declares and sets the default URLs map
 func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
 	for k, v := range m {
-		err := e.SetRunningURL(k.String(), v)
-		if err != nil {
+		if err := e.SetRunningURL(k.String(), v); err != nil {
 			return err
 		}
 	}
@@ -1381,6 +1380,16 @@ func (u URL) String() string {
 		return restSwapURL
 	case WebsocketSpot:
 		return websocketSpotURL
+	case WebsocketCoinMargined:
+		return websocketCoinMarginedURL
+	case WebsocketUSDTMargined:
+		return websocketUSDTMarginedURL
+	case WebsocketUSDCMargined:
+		return websocketUSDCMarginedURL
+	case WebsocketOptions:
+		return websocketOptionsURL
+	case WebsocketPrivate:
+		return websocketPrivateURL
 	case WebsocketSpotSupplementary:
 		return websocketSpotSupplementaryURL
 	case ChainAnalysis:
@@ -1419,6 +1428,16 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return RestSwap, nil
 	case websocketSpotURL:
 		return WebsocketSpot, nil
+	case websocketCoinMarginedURL:
+		return WebsocketCoinMargined, nil
+	case websocketUSDTMarginedURL:
+		return WebsocketUSDTMargined, nil
+	case websocketUSDCMarginedURL:
+		return WebsocketUSDCMargined, nil
+	case websocketOptionsURL:
+		return WebsocketOptions, nil
+	case websocketPrivateURL:
+		return WebsocketPrivate, nil
 	case websocketSpotSupplementaryURL:
 		return WebsocketSpotSupplementary, nil
 	case chainAnalysisURL:
@@ -1932,5 +1951,10 @@ func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (
 
 // WebsocketSubmitOrder submits an order to the exchange via a websocket connection
 func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketSubmitOrders submits multiple orders (batch) via the websocket connection
+func (*Base) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses []*order.SubmitResponse, err error) {
 	return nil, common.ErrFunctionNotSupported
 }

@@ -93,12 +93,7 @@ Follow our progress as we continuously improve GoCryptoTrader.
 
 Please feel free to submit any pull requests or suggest any desired features to be added.
 
-When submitting a PR, please abide by our coding guidelines:
-
-+ Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
-+ Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
-+ Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
-+ Pull requests need to be based on and opened against the `master` branch.
+When submitting a PR, please abide by our [coding guidelines](/docs/CODING_GUIDELINES.md).
 
 ## Compiling and Running instructions
 
@@ -156,41 +151,43 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 711 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 369 |
-| [shazbert](https://github.com/shazbert) | 362 |
+| [thrasher-](https://github.com/thrasher-) | 731 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 386 |
+| [shazbert](https://github.com/shazbert) | 374 |
 | [gloriousCode](https://github.com/gloriousCode) | 237 |
-| [gbjk](https://github.com/gbjk) | 125 |
+| [gbjk](https://github.com/gbjk) | 133 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
 | [Beadko](https://github.com/Beadko) | 24 |
+| [samuael](https://github.com/samuael) | 15 |
 | [ydm](https://github.com/ydm) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [Rots](https://github.com/Rots) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
-| [samuael](https://github.com/samuael) | 11 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
+| [junnplus](https://github.com/junnplus) | 9 |
 | [geseq](https://github.com/geseq) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [140am](https://github.com/140am) | 8 |
-| [junnplus](https://github.com/junnplus) | 8 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
 | [cranktakular](https://github.com/cranktakular) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
 | [yangrq1018](https://github.com/yangrq1018) | 4 |
-| [woshidama323](https://github.com/woshidama323) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
-| [azhang](https://github.com/azhang) | 2 |
-| [if1live](https://github.com/if1live) | 2 |
-| [lozdog245](https://github.com/lozdog245) | 2 |
-| [Asalei](https://github.com/Asalei) | 2 |
-| [soxipy](https://github.com/soxipy) | 2 |
-| [tk42](https://github.com/tk42) | 2 |
-| [herenow](https://github.com/herenow) | 2 |
+| [romanornr](https://github.com/romanornr) | 3 |
+| [woshidama323](https://github.com/woshidama323) | 3 |
+| [Copilot](https://github.com/apps/copilot-swe-agent) | 3 |
 | [mshogin](https://github.com/mshogin) | 2 |
+| [herenow](https://github.com/herenow) | 2 |
+| [tk42](https://github.com/tk42) | 2 |
+| [soxipy](https://github.com/soxipy) | 2 |
+| [Asalei](https://github.com/Asalei) | 2 |
+| [lozdog245](https://github.com/lozdog245) | 2 |
+| [if1live](https://github.com/if1live) | 2 |
+| [azhang](https://github.com/azhang) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
@@ -198,7 +195,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [cornelk](https://github.com/cornelk) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
-| [romanornr](https://github.com/romanornr) | 2 |
 | [mortensorensen](https://github.com/mortensorensen) | 1 |
 | [cavapoo2](https://github.com/cavapoo2) | 1 |
 | [tongxiaofeng](https://github.com/tongxiaofeng) | 1 |
@@ -210,20 +206,23 @@ Binaries will be published once the codebase reaches a stable condition.
 | [arttobe](https://github.com/arttobe) | 1 |
 | [shoman4eg](https://github.com/shoman4eg) | 1 |
 | [cangqiaoyuzhuo](https://github.com/cangqiaoyuzhuo) | 1 |
-| [whilei](https://github.com/whilei) | 1 |
+| [gcmutator](https://github.com/gcmutator) | 1 |
+| [gopherorg](https://github.com/gopherorg) | 1 |
 | [yuhangcangqian](https://github.com/yuhangcangqian) | 1 |
+| [whilei](https://github.com/whilei) | 1 |
+| [xiiiew](https://github.com/xiiiew) | 1 |
 | [phieudu241](https://github.com/phieudu241) | 1 |
 | [snipesjr](https://github.com/snipesjr) | 1 |
 | [snussik](https://github.com/snussik) | 1 |
 | [taewdy](https://github.com/taewdy) | 1 |
 | [threehonor](https://github.com/threehonor) | 1 |
-| [xiiiew](https://github.com/xiiiew) | 1 |
+| [aidan-bailey](https://github.com/aidan-bailey) | 1 |
 | [antonzhukov](https://github.com/antonzhukov) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
 | [Daanikus](https://github.com/Daanikus) | 1 |
-| [daniel-cohen](https://github.com/daniel-cohen) | 1 |
+| [daniel-cohen-deltatre](https://github.com/daniel-cohen-deltatre) | 1 |
 | [merkeld](https://github.com/merkeld) | 1 |
 | [shanhuhai5739](https://github.com/shanhuhai5739) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
@@ -236,6 +235,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [jimexist](https://github.com/jimexist) | 1 |
 | [lookfirst](https://github.com/lookfirst) | 1 |
 | [zeldrinn](https://github.com/zeldrinn) | 1 |
+| [roskee](https://github.com/roskee) | 1 |
 | [mattkanwisher](https://github.com/mattkanwisher) | 1 |
 | [mgravitt](https://github.com/mgravitt) | 1 |
 | [mKurrels](https://github.com/mKurrels) | 1 |

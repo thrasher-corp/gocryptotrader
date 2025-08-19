@@ -1285,7 +1285,6 @@ func TestAllOrders(t *testing.T) {
 	}
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 
