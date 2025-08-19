@@ -110,10 +110,8 @@ type Request struct {
 	Amount      float64       `json:"amount"`
 	Type        RequestType   `json:"type"`
 
-	// Used exclusively in Binance.US
 	ClientOrderID string `json:"clientID"`
 
-	// Currently used exclusively in Coinbase
 	WalletID string `json:"walletID"`
 
 	// Used exclusively in OKX to classify internal represented by '3' or on chain represented by '4'

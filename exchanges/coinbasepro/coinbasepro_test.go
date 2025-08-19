@@ -1908,6 +1908,13 @@ func TestProcessFundingData(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
+func TestChannelName(t *testing.T) {
+	_, err := channelName(&subscription.Subscription{})
+	assert.ErrorIs(t, err, subscription.ErrNotSupported)
+	_, err = channelName(&subscription.Subscription{Channel: subscription.HeartbeatChannel})
+	assert.NoError(t, err)
+}
+
 func exchangeBaseHelper(e *Exchange) error {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
