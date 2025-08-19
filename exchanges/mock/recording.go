@@ -285,7 +285,6 @@ func CheckResponsePayload(data []byte, items Exclusion, mockDataSliceLimit int) 
 
 // Reflection consts
 const (
-	Int64   = "int64"
 	Float64 = "float64"
 	Slice   = "slice"
 	String  = "string"
@@ -299,21 +298,7 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 		var sData []any
 		for i := range value {
 			switch subvalue := value[i].(type) {
-			case []any:
-				if limit > 0 && len(subvalue) > 0 {
-					if _, ok := subvalue[0].(map[string]any); ok && len(subvalue) > limit {
-						subvalue = subvalue[:limit]
-					}
-				}
-				checkedData, err := CheckJSON(subvalue, excluded, limit)
-				if err != nil {
-					return nil, err
-				}
-				sData = append(sData, checkedData)
-				if limit > 0 && len(sData) >= limit {
-					return sData, nil
-				}
-			case map[string]any:
+			case []any, map[string]any:
 				checkedData, err := CheckJSON(subvalue, excluded, limit)
 				if err != nil {
 					return nil, err
@@ -343,7 +328,7 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 
 	if len(context) == 0 {
 		// Nil for some reason, should error out before in json.Unmarshal
-		return nil, nil
+		return context, nil
 	}
 
 	for key, val := range context {
@@ -351,10 +336,6 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 		case String:
 			if IsExcluded(key, excluded.Variables) {
 				context[key] = "" // Zero val string
-			}
-		case Int64:
-			if IsExcluded(key, excluded.Variables) {
-				context[key] = 0 // Zero val int
 			}
 		case Float64:
 			if IsExcluded(key, excluded.Variables) {
@@ -365,36 +346,25 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 			if !ok {
 				return nil, common.GetTypeAssertError("[]any", val)
 			}
-			if len(slice) < 1 {
+			switch {
+			case len(slice) == 0:
 				// Empty slice found
 				context[key] = slice
-			} else {
-				if _, ok := slice[0].(map[string]any); ok {
-					if len(slice) > limit {
-						slice = slice[:limit]
-					}
-					var cleanSlice []any
-					for i := range slice {
-						cleanMap, sErr := CheckJSON(slice[i], excluded, limit)
-						if sErr != nil {
-							return nil, sErr
-						}
-						cleanSlice = append(cleanSlice, cleanMap)
-					}
-					context[key] = cleanSlice
-				} else if IsExcluded(key, excluded.Variables) {
-					context[key] = nil // Zero val slice
+			case IsExcluded(key, excluded.Variables):
+				context[key] = nil // Zero val slice
+			default:
+				context[key], err = CheckJSON(slice, excluded, limit)
+				if err != nil {
+					return nil, err
 				}
 			}
-
 		case Bool, Invalid: // Skip these bad boys for now
 		default:
 			// Recursively check map data
-			contextValue, err := CheckJSON(val, excluded, limit)
+			context[key], err = CheckJSON(val, excluded, limit)
 			if err != nil {
 				return nil, err
 			}
-			context[key] = contextValue
 		}
 	}
 

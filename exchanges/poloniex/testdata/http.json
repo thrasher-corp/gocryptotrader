@@ -4335,27 +4335,27 @@
     {
      "data": [
       {
-       "amount": "1.01999999",
-       "date": "2020-09-14 04:24:31",
-       "globalTradeID": "487261525",
-       "orderNumber": "494135055429",
-       "rate": "0.00822633",
-       "total": "0.00839085",
-       "tradeID": "20587658",
+       "amount": "3.21720471",
+       "date": "2020-06-06 00:59:21",
+       "globalTradeID": "469013857",
+       "orderNumber": 475804187646,
+       "rate": "0.00702980",
+       "total": "0.02261630",
+       "tradeID": "20409261",
        "type": "sell"
       },
       {
-       "amount": "1.19452554",
-       "date": "2020-09-14 02:23:48",
-       "globalTradeID": "487248328",
-       "orderNumber": 494120664834,
-       "rate": "0.00822000",
-       "total": "0.00981899",
-       "tradeID": "20587459",
-       "type": "buy"
+       "amount": "0.00002285",
+       "date": "2020-06-06 00:00:43",
+       "globalTradeID": "469004013",
+       "orderNumber": 475797933906,
+       "rate": "0.00700206",
+       "total": "0.00000015",
+       "tradeID": "20409224",
+       "type": "sell"
       }
      ],
-     "queryString": "command=returnTradeHistory\u0026currencyPair=BTC_XMR",
+     "queryString": "command=returnTradeHistory\u0026currencyPair=BTC_XMR\u0026end=1591405200\u0026start=1591401600",
      "bodyParams": "",
      "headers": {}
     },
@@ -4382,7 +4382,7 @@
        "type": "sell"
       }
      ],
-     "queryString": "command=returnTradeHistory\u0026currencyPair=BTC_XMR\u0026end=1591405200\u0026start=1591401600",
+     "queryString": "command=returnTradeHistory\u0026currencyPair=BTC_XMR\u0026end=1591405200\u0026start=1591401643",
      "bodyParams": "",
      "headers": {}
     },
@@ -4493,27 +4493,27 @@
     {
      "data": [
       {
-       "amount": "3.21720471",
-       "date": "2020-06-06 00:59:21",
-       "globalTradeID": "469013857",
-       "orderNumber": 475804187646,
-       "rate": "0.00702980",
-       "total": "0.02261630",
-       "tradeID": "20409261",
+       "amount": "1.01999999",
+       "date": "2020-09-14 04:24:31",
+       "globalTradeID": "487261525",
+       "orderNumber": "494135055429",
+       "rate": "0.00822633",
+       "total": "0.00839085",
+       "tradeID": "20587658",
        "type": "sell"
       },
       {
-       "amount": "0.00002285",
-       "date": "2020-06-06 00:00:43",
-       "globalTradeID": "469004013",
-       "orderNumber": 475797933906,
-       "rate": "0.00700206",
-       "total": "0.00000015",
-       "tradeID": "20409224",
-       "type": "sell"
+       "amount": "1.19452554",
+       "date": "2020-09-14 02:23:48",
+       "globalTradeID": "487248328",
+       "orderNumber": 494120664834,
+       "rate": "0.00822000",
+       "total": "0.00981899",
+       "tradeID": "20587459",
+       "type": "buy"
       }
      ],
-     "queryString": "command=returnTradeHistory\u0026currencyPair=BTC_XMR\u0026end=1591405200\u0026start=1591401643",
+     "queryString": "command=returnTradeHistory\u0026currencyPair=BTC_XMR",
      "bodyParams": "",
      "headers": {}
     },
@@ -14754,419 +14754,6 @@
     },
     {
      "data": {
-      "asks": [
-       [
-        "0.01087421",
-        7.14432824
-       ],
-       [
-        "0.01087422",
-        0.22865644
-       ],
-       [
-        "0.01087442",
-        1.9545156
-       ],
-       [
-        "0.01090127",
-        115.93784476
-       ],
-       [
-        "0.01090131",
-        61.893
-       ],
-       [
-        "0.01090133",
-        61.325
-       ],
-       [
-        "0.01090196",
-        50.36
-       ],
-       [
-        "0.01090218",
-        5.05268287
-       ],
-       [
-        "0.01091700",
-        48.8702
-       ],
-       [
-        "0.01091999",
-        21.12523711
-       ],
-       [
-        "0.01092000",
-        162.46658193
-       ],
-       [
-        "0.01092040",
-        1008.518
-       ],
-       [
-        "0.01092042",
-        497.15
-       ],
-       [
-        "0.01092044",
-        71.25
-       ],
-       [
-        "0.01094817",
-        8.77
-       ],
-       [
-        "0.01095034",
-        0.01220759
-       ],
-       [
-        "0.01095757",
-        29.94
-       ],
-       [
-        "0.01097007",
-        7.77
-       ],
-       [
-        "0.01097660",
-        5.84
-       ],
-       [
-        "0.01098948",
-        300.394
-       ],
-       [
-        "0.01098949",
-        137.05136069
-       ],
-       [
-        "0.01098955",
-        0.0425
-       ],
-       [
-        "0.01099201",
-        4.77
-       ],
-       [
-        "0.01100551",
-        0.01411744
-       ],
-       [
-        "0.01102293",
-        0.05364355
-       ],
-       [
-        "0.01102299",
-        0.52734657
-       ],
-       [
-        "0.01102301",
-        243.03
-       ],
-       [
-        "0.01102578",
-        1.50994843
-       ],
-       [
-        "0.01102849",
-        0.0425
-       ],
-       [
-        "0.01102990",
-        0.06737554
-       ],
-       [
-        "0.01103094",
-        0.18264761
-       ],
-       [
-        "0.01103900",
-        0.01356688
-       ],
-       [
-        "0.01104080",
-        0.01415803
-       ],
-       [
-        "0.01104996",
-        0.1
-       ],
-       [
-        "0.01105139",
-        0.0169
-       ],
-       [
-        "0.01105321",
-        0.19908589
-       ],
-       [
-        "0.01105708",
-        0.01
-       ],
-       [
-        "0.01105960",
-        0.01355974
-       ],
-       [
-        "0.01106046",
-        0.04658219
-       ],
-       [
-        "0.01106054",
-        0.01404622
-       ],
-       [
-        "0.01107000",
-        0.08953913
-       ],
-       [
-        "0.01107290",
-        0.01353714
-       ],
-       [
-        "0.01107547",
-        0.21700362
-       ],
-       [
-        "0.01108019",
-        5.01253132
-       ],
-       [
-        "0.01108973",
-        0.74490566
-       ],
-       [
-        "0.01108979",
-        210.746
-       ],
-       [
-        "0.01108980",
-        0.01026208
-       ],
-       [
-        "0.01109000",
-        0.01329155
-       ],
-       [
-        "0.01109527",
-        0.01830431
-       ],
-       [
-        "0.01109558",
-        4.9875
-       ]
-      ],
-      "bids": [
-       [
-        "0.01086991",
-        4.52422513
-       ],
-       [
-        "0.01086990",
-        0.08398054
-       ],
-       [
-        "0.01085138",
-        0.1145743
-       ],
-       [
-        "0.01085028",
-        7.125
-       ],
-       [
-        "0.01085000",
-        72.53101291
-       ],
-       [
-        "0.01084788",
-        0.15106432
-       ],
-       [
-        "0.01084205",
-        52.38273012
-       ],
-       [
-        "0.01084204",
-        0.01433001
-       ],
-       [
-        "0.01083991",
-        0.0323
-       ],
-       [
-        "0.01083501",
-        7.72480323
-       ],
-       [
-        "0.01083192",
-        0.05157812
-       ],
-       [
-        "0.01082740",
-        0.01375269
-       ],
-       [
-        "0.01082612",
-        1.012434
-       ],
-       [
-        "0.01082240",
-        0.01374712
-       ],
-       [
-        "0.01082000",
-        0.1889159
-       ],
-       [
-        "0.01080831",
-        50.37
-       ],
-       [
-        "0.01080830",
-        0.01382319
-       ],
-       [
-        "0.01080824",
-        0.0323
-       ],
-       [
-        "0.01080701",
-        0.555
-       ],
-       [
-        "0.01080698",
-        0.165
-       ],
-       [
-        "0.01080670",
-        4.16190881
-       ],
-       [
-        "0.01080560",
-        0.01377585
-       ],
-       [
-        "0.01079702",
-        146.76028561
-       ],
-       [
-        "0.01079701",
-        497.16
-       ],
-       [
-        "0.01079613",
-        9.77
-       ],
-       [
-        "0.01079500",
-        0.03233627
-       ],
-       [
-        "0.01079000",
-        0.56624022
-       ],
-       [
-        "0.01078951",
-        0.01187171
-       ],
-       [
-        "0.01078796",
-        0.01440185
-       ],
-       [
-        "0.01078733",
-        0.02321905
-       ],
-       [
-        "0.01078675",
-        5.10102765
-       ],
-       [
-        "0.01078674",
-        0.2
-       ],
-       [
-        "0.01078289",
-        0.0349632
-       ],
-       [
-        "0.01078102",
-        0.0101
-       ],
-       [
-        "0.01077950",
-        0.01428874
-       ],
-       [
-        "0.01077850",
-        120.98761144
-       ],
-       [
-        "0.01077790",
-        0.01420192
-       ],
-       [
-        "0.01077688",
-        0.01312173
-       ],
-       [
-        "0.01077630",
-        0.01433467
-       ],
-       [
-        "0.01077440",
-        0.01423717
-       ],
-       [
-        "0.01077401",
-        0.01052533
-       ],
-       [
-        "0.01076460",
-        0.01422698
-       ],
-       [
-        "0.01076327",
-        2.34474921
-       ],
-       [
-        "0.01076310",
-        0.01420384
-       ],
-       [
-        "0.01075664",
-        0.42659413
-       ],
-       [
-        "0.01075558",
-        0.01105659
-       ],
-       [
-        "0.01075461",
-        243.04
-       ],
-       [
-        "0.01075380",
-        0.05008624
-       ],
-       [
-        "0.01075310",
-        500.9246824
-       ],
-       [
-        "0.01075307",
-        3.77
-       ]
-      ],
-      "isFrozen": "0",
-      "seq": 445571843
-     },
-     "queryString": "command=returnOrderBook\u0026currencyPair=BTC_XMR\u0026depth=50",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
-     "data": {
       "BTC_ARDR": {
        "ARDR": "238083.87187020",
        "BTC": "3.03108905"
@@ -15643,6 +15230,59 @@
       "totalXUSD": "0.00000000"
      },
      "queryString": "command=return24hVolume",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "asks": [
+       [
+        "0.01087421",
+        7.14432824
+       ],
+       [
+        "0.01087422",
+        0.22865644
+       ],
+       [
+        "0.01087442",
+        1.9545156
+       ],
+       [
+        "0.01090127",
+        115.93784476
+       ],
+       [
+        "0.01090131",
+        61.893
+       ]
+      ],
+      "bids": [
+       [
+        "0.01086991",
+        4.52422513
+       ],
+       [
+        "0.01086990",
+        0.08398054
+       ],
+       [
+        "0.01085138",
+        0.1145743
+       ],
+       [
+        "0.01085028",
+        7.125
+       ],
+       [
+        "0.01085000",
+        72.53101291
+       ]
+      ],
+      "isFrozen": "0",
+      "seq": 445571843
+     },
+     "queryString": "command=returnOrderBook\u0026currencyPair=BTC_XMR\u0026depth=50",
      "bodyParams": "",
      "headers": {}
     },
@@ -19518,7 +19158,7 @@
       }
      },
      "queryString": "",
-     "bodyParams": "account=all\u0026command=returnCompleteBalances\u0026nonce=1754422159102393000",
+     "bodyParams": "account=all\u0026command=returnCompleteBalances\u0026nonce=1755565288536153000",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -19527,7 +19167,7 @@
        ""
       ],
       "Sign": [
-       "1729e0e004e40c6ef656473b32093f5025d25cfd2fb971efc2f9e9179e61d708d6d865994726899302025eed5fbfceb0d33b71cd838cdd053ac5edbbb44d9922"
+       "19170bbc1f7f8101aa50a857daa0702f8f40d6487621ec4defccd81ffa001a561fb172b796c274b739cc9a978683b13c326f266b8d511d9b9b83dbc50c78d06b"
       ]
      }
     },
@@ -19546,7 +19186,7 @@
       "XRP": "1083644748"
      },
      "queryString": "",
-     "bodyParams": "command=returnDepositAddresses\u0026nonce=1754422159102393001",
+     "bodyParams": "command=returnDepositAddresses\u0026nonce=1755565288536153001",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -19555,7 +19195,7 @@
        ""
       ],
       "Sign": [
-       "8ab970bf93b282accfd4833b981ba599d7748626f63c27819a8e8123eeb5bbd281e257d5a20036bcd11a1ce1b3efc99b5b3c1a4cf2a5bf65ec957c538a3aa94f"
+       "23c29f815b29e8116ee36857606c83633f3938d0ee149c565b9bdc58353f0fb7b7e53abe505346b92c32941013d5bca68edf4af88789f36cbf8f9dd3e62607da"
       ]
      }
     },
@@ -19568,7 +19208,7 @@
       "success": 1
      },
      "queryString": "",
-     "bodyParams": "command=moveOrder\u0026nonce=1754422159102393002\u0026orderNumber=1337\u0026rate=1337",
+     "bodyParams": "command=moveOrder\u0026nonce=1755565288536153002\u0026orderNumber=1337\u0026rate=1337",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -19577,7 +19217,7 @@
        ""
       ],
       "Sign": [
-       "7a993ebe8809b3ebde05457e7fc72dd9d35e6bbc26696be7b1122c0df6bcc78a4d99e8a186197903ca2c5e81346f91d0ebe58aeb890c84ad806503bd460a3325"
+       "83c9fd8c4cfcf63e76d44b824ad381261b17b572e5eab1f1ead8de7206cfaaf153f2e25c8f12ce2ba88b2641e8bc51e500ca762fa562ed482a1063b7ddfb77cf"
       ]
      }
     },
@@ -19588,7 +19228,7 @@
       "success": 1
      },
      "queryString": "",
-     "bodyParams": "command=cancelOrder\u0026nonce=1754422159102393004\u0026orderNumber=1",
+     "bodyParams": "command=cancelOrder\u0026nonce=1755565288536153004\u0026orderNumber=1",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -19597,7 +19237,7 @@
        ""
       ],
       "Sign": [
-       "0df003b16ebbc66c85a0b12248d2cb4c28fc450cd1d09dd6f7cb083b5282f97ff9274278fe469a31c3f14b57ce44acbc8a4e175a917aec7a24eb5e86cdfd68b4"
+       "8f408258738ba7d66d3003bd920fd0d6dad78cfcb7c013b5344d61b029af52e45b82f540e1f588cde725e371ec7d0e58e85a9159c520f3c748969a8344a6a16e"
       ]
      }
     },
@@ -19618,7 +19258,7 @@
       ]
      },
      "queryString": "",
-     "bodyParams": "amount=10000000\u0026command=buy\u0026currencyPair=BTC_LTC\u0026fillOrKill=1\u0026nonce=1754422159102393005\u0026rate=10",
+     "bodyParams": "amount=10000000\u0026command=buy\u0026currencyPair=BTC_LTC\u0026fillOrKill=1\u0026nonce=1755565288536153005\u0026rate=10",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -19627,7 +19267,7 @@
        ""
       ],
       "Sign": [
-       "2d32ae6ab861c54dccad12c4ab5c31b9f3e13eb99f675963ad006eb92271fc2a259d900282b3dbacf25ea0a4f8881e9c472e14cb55edfdd694fa3c98f30b0b11"
+       "867fc355a1ae6aadba12539a804d90dc4a334609a0d001740bf251df21020a4acdb789e4c45090639e9923258977ab03cfcef3f35dbbd348fe0c0828798f736c"
       ]
      }
     },
@@ -19687,7 +19327,7 @@
       ]
      },
      "queryString": "",
-     "bodyParams": "command=returnTradeHistory\u0026currencyPair=all\u0026limit=10000\u0026nonce=1754422159102393006",
+     "bodyParams": "command=returnTradeHistory\u0026currencyPair=all\u0026limit=10000\u0026nonce=1755565288536153006",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -19696,7 +19336,7 @@
        ""
       ],
       "Sign": [
-       "c12ac4798e248ec4527a57a6ba5b879a3e593794da63a304bf462ad356de8762e24d0a9ad738de6d34358498af0c4d81f7199b200163a437970244e853478bc4"
+       "42a72ed6889765e4312900d30fb5ae3a0b696d986950289cc7e6334fd26f880955f8e4874a687595d226af697ef4f3f4626982e55ad43f1ba3a34f0659f06a6c"
       ]
      }
     },
@@ -19821,7 +19461,7 @@
       "XMR_ZEC": []
      },
      "queryString": "",
-     "bodyParams": "command=returnOpenOrders\u0026currencyPair=all\u0026nonce=1754422159102393007",
+     "bodyParams": "command=returnOpenOrders\u0026currencyPair=all\u0026nonce=1755565288536153007",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -19830,7 +19470,7 @@
        ""
       ],
       "Sign": [
-       "5dfa2d0efcbd2126021aac4eb10cb78b609792df5869664730ad98d3ffe3346ce96a47ba8e305db313c2cdfd495f6633193b4a213f1b098ba9ae7ca85b5e6311"
+       "742cb0956a106fe1ca603f3bb39a7bc9aefcda08e88e080f2f2fdfd747083937b5abfae98f9aa19ee48842f185fe33bef0c9034355d8a5e6ab1b56fcb92628f5"
       ]
      }
     },
@@ -19842,7 +19482,7 @@
       "thirtyDayVolume": "0.00000000"
      },
      "queryString": "",
-     "bodyParams": "command=returnFeeInfo\u0026nonce=1754422159102393010",
+     "bodyParams": "command=returnFeeInfo\u0026nonce=1755565288536153010",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -19851,7 +19491,7 @@
        ""
       ],
       "Sign": [
-       "fa8573c1c425db18f01922d5fac6428c056802fb620f4b515ad788c7c16ee530af60ebc3157dd166a75baf9216a451b662b4fea86469e84478a835a81b6f2eb2"
+       "986e6d790642778cf26b2db7adeb1d6baedafd168c4b44c81295622473ab0a9c730e53673a68637461f7b90c398de9577ca8c052d8e93ae2c311f5e728ecabef"
       ]
      }
     },
@@ -19881,7 +19521,7 @@
       }
      ],
      "queryString": "",
-     "bodyParams": "command=returnOrderTrades\u0026nonce=1754422159102393011\u0026orderNumber=96238912841",
+     "bodyParams": "command=returnOrderTrades\u0026nonce=1755565288536153011\u0026orderNumber=96238912841",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -19890,7 +19530,7 @@
        ""
       ],
       "Sign": [
-       "75575f2d3e900e298de2643d0e8a6ba5d184186ca11336553c4146949c4254f3da15fccbbab10051e3cd7c24a2af20a7412a7a47a2b9aa92856a048c446e9349"
+       "b58dd7f5192a71ca093bb05c0865e95d80234e18401df98ce7e9454acfd579cf91185b4bbcb6f1338676e8c727c410212c5cf53d54da96fc40bbb877047d181f"
       ]
      }
     },
@@ -19899,7 +19539,7 @@
       "error": "Order not found, or you are not the person who placed it."
      },
      "queryString": "",
-     "bodyParams": "command=returnOrderTrades\u0026nonce=1754422159102393012\u0026orderNumber=96238912842",
+     "bodyParams": "command=returnOrderTrades\u0026nonce=1755565288536153012\u0026orderNumber=96238912842",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -19908,7 +19548,7 @@
        ""
       ],
       "Sign": [
-       "c396700d3d63ea3034867216fd9fb8077f6a5a16d1c2fc0337890dacdba8df1ffbdb4c5adf3e9a521cad903f5ffc8f02d93085415c7e488a57d61a703ba5549b"
+       "39461ee3dd630b4ac93c9c447954a10ea77f80620715ca83cb204ccb899c2db7c2a714a96d80026772203bbc4335a3bea80c67f89fbcf7f0f9458eb8d5101645"
       ]
      }
     },
@@ -19929,7 +19569,7 @@
       "success": 1
      },
      "queryString": "",
-     "bodyParams": "command=returnOrderStatus\u0026nonce=1754422159102393013\u0026orderNumber=96238912841",
+     "bodyParams": "command=returnOrderStatus\u0026nonce=1755565288536153013\u0026orderNumber=96238912841",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -19938,7 +19578,7 @@
        ""
       ],
       "Sign": [
-       "fb6e0c7a2d1e2cc381c332b2b1bf4104dfe74f0a8a5a9c9bc48aa54f3a35d0bcc4add9d0c81c6b38bca62a1b04440abc1d0f28435be0e4a5f4041877f7e57151"
+       "644f9473efac53493f2e840b7e1517ab8dd70306da17000baedc0d553febd6a0f7cba4510a5f48767860d63f63ae3a86f5110f88a88fb221b3090931e20ad8cf"
       ]
      }
     },
@@ -19949,7 +19589,7 @@
       }
      },
      "queryString": "",
-     "bodyParams": "command=returnOrderStatus\u0026nonce=1754422159102393014\u0026orderNumber=96238912842",
+     "bodyParams": "command=returnOrderStatus\u0026nonce=1755565288536153014\u0026orderNumber=96238912842",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -19958,7 +19598,7 @@
        ""
       ],
       "Sign": [
-       "ae108f9f240733ac4ded5fdcea77c985ab6eb9d0efe4f9922026a7f658f728eee5fbeefa4c404841939a81ed45f9c06d4a54788c904c277cb39926aaace702a2"
+       "05b05626d86d031433502df8bd3bb5447ecdd86ce37a2ca986b107a06a657f8bdd8e0f945702e97515c562dd0a14590190318fbd12e32c8a05d221e6c42f33ff"
       ]
      }
     }
