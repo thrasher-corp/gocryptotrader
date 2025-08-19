@@ -117,7 +117,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 #### Add exchange to the [root README template](/cmd/documentation/root_templates/root_readme.tmpl) file
 
 ```go
-| Exchange | REST API | Streaming API | FIX API |
+| Exchange | REST API | Websocket | FIX API |
 |----------|------|-----------|-----|
 | Binance| Yes  | Yes        | NA  | // <-------- new exchange
 | Bitfinex | Yes  | Yes        | NA  |

@@ -16,7 +16,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Exchange Support Table
 
-| Exchange | REST API | Streaming API | FIX API |
+| Exchange | REST API | Websocket | FIX API |
 |----------|------|-----------|-----|
 | Binance.US| Yes  | Yes        | NA  |
 | Binance| Yes  | Yes        | NA  |
