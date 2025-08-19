@@ -13,8 +13,8 @@ import (
 )
 
 func TestGetFilteredHeader(t *testing.T) {
-	items, err := GetExcludedItems()
-	require.NoError(t, err, "GetExcludedItems must not error")
+	items, err := getExcludedItems()
+	require.NoError(t, err, "getExcludedItems must not error")
 	assert.NotNil(t, items)
 
 	resp := http.Response{}
@@ -26,8 +26,8 @@ func TestGetFilteredHeader(t *testing.T) {
 }
 
 func TestGetFilteredURLVals(t *testing.T) {
-	items, err := GetExcludedItems()
-	require.NoError(t, err, "GetExcludedItems must not error")
+	items, err := getExcludedItems()
+	require.NoError(t, err, "getExcludedItems must not error")
 	assert.NotNil(t, items)
 
 	superSecretData := "Dr Seuss"
@@ -47,8 +47,8 @@ func TestCheckResponsePayload(t *testing.T) {
 	payload, err := json.Marshal(testbody)
 	require.NoError(t, err, "json marshal must not error")
 
-	items, err := GetExcludedItems()
-	require.NoError(t, err, "GetExcludedItems must not error")
+	items, err := getExcludedItems()
+	require.NoError(t, err, "getExcludedItems must not error")
 	assert.NotNil(t, items)
 
 	data, err := CheckResponsePayload(payload, items, 5)
@@ -61,10 +61,10 @@ func TestCheckResponsePayload(t *testing.T) {
 }
 
 func TestGetExcludedItems(t *testing.T) {
-	exclusionList, err := GetExcludedItems()
-	require.NoErrorf(t, err, "GetExcludedItems error: %v", err)
-	assert.NotEmpty(t, exclusionList.Headers)
-	assert.NotEmpty(t, exclusionList.Variables)
+	exclusionList, err := getExcludedItems()
+	require.NoError(t, err, "getExcludedItems must not error")
+	assert.NotEmpty(t, exclusionList.Headers, "Headers must not be empty")
+	assert.NotEmpty(t, exclusionList.Variables, "Variables must not be empty")
 }
 
 type TestStructLevel0 struct {
@@ -117,7 +117,7 @@ var testVal = []TestStructLevel0{
 		},
 		MixedSlice: []any{
 			[]map[string]any{{"id": 0}, {"id": 2}, {"id": 3}, {"id": 4}, {"id": 5}, {"id": 6}, {}},
-			[]any{float64(1586994000000), "6615.23000000", 'a', 1234, false, 17866372632, 0},
+			[]any{float64(1586994000000), "6615.23000000", 'a', 1234, false, int64(17866372632), 0},
 			"abcd",
 		},
 	},
@@ -140,8 +140,8 @@ var testVal = []TestStructLevel0{
 }
 
 func TestCheckJSON(t *testing.T) {
-	exclusionList, err := GetExcludedItems()
-	assert.NoErrorf(t, err, "GetExcludedItems error: %v", err)
+	exclusionList, err := getExcludedItems()
+	require.NoError(t, err, "getExcludedItems must not error")
 
 	data, err := json.Marshal(testVal)
 	require.NoError(t, err, "json.Marshal nust not error")
@@ -164,8 +164,8 @@ func TestCheckJSON(t *testing.T) {
 	assert.Len(t, newStruct, 4)
 	assert.Empty(t, newStruct[0].StructVal.BadVal, "Value not wiped correctly")
 	assert.Empty(t, newStruct[0].StructVal.BadVal2, "Value not wiped correctly")
-	assert.Empty(t, newStruct[0].StructVal.OtherData.BadVal, "Value not wiped correctly")
-	assert.Empty(t, newStruct[0].StructVal.OtherData.BadVal2, "Value not wiped correctly")
+	assert.Empty(t, newStruct[0].StructVal.OtherData.BadVal, "BadVal should be removed")
+	assert.Empty(t, newStruct[0].StructVal.OtherData.BadVal2, "BadVal2 should be removed")
 	assert.Len(t, newStruct[0].MixedSlice[0], 4)
 	assert.Len(t, newStruct[0].MixedSlice[1], 7)
 }
@@ -186,13 +186,13 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, err, "file not created properly")
 
 	defer func() {
-		_ = os.Remove(filePath)
-		_ = os.Remove(outputDirPath)
+		require.NoErrorf(t, os.Remove(filePath), "Remove test exclusion file %q must not error", filePath)
+		require.NoErrorf(t, os.Remove(outputDirPath), "Remove test exclusion dir %q must not error", outputDirPath)
 	}()
 
 	content, err := json.Marshal(testVal)
-	require.NoError(t, err, "json.Marshal nust not error")
-	assert.NotNil(t, content, "json.Marshal nust not return nil")
+	require.NoError(t, err, "json.Marshal must not error")
+	require.NotNil(t, content, "json.Marshal must not return nil")
 
 	response := &http.Response{
 		Request: &http.Request{

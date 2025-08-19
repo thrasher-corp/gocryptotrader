@@ -83,7 +83,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 		m.Routes = make(map[string]map[string][]HTTPResponse)
 	}
 
-	items, err := GetExcludedItems()
+	items, err := getExcludedItems()
 	if err != nil {
 		return err
 	}
@@ -414,9 +414,9 @@ type Exclusion struct {
 	Variables []string `json:"variables"`
 }
 
-// GetExcludedItems checks to see if the variable is in the exclusion list as to
+// getExcludedItems checks to see if the variable is in the exclusion list as to
 // not display secure items in mock file generator output
-func GetExcludedItems() (Exclusion, error) {
+func getExcludedItems() (Exclusion, error) {
 	m.Lock()
 	defer m.Unlock()
 	if !set {

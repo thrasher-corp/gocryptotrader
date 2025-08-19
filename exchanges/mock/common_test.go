@@ -42,17 +42,17 @@ func TestMatchURLVals(t *testing.T) {
 }
 
 func TestDeriveURLValsFromJSON(t *testing.T) {
-	type data struct {
+	type class struct {
 		Numbers    []int   `json:"numbers"`
 		Number     float64 `json:"number"`
 		SomeString string  `json:"somestring"`
 	}
 	test1 := struct {
 		Things []string `json:"things"`
-		Data   data     `json:"data"`
+		Data   class    `json:"data"`
 	}{
 		Things: []string{"hello", "world"},
-		Data: data{
+		Data: class{
 			Numbers:    []int{1, 3, 3, 7},
 			Number:     3.14,
 			SomeString: "hello, peoples",
