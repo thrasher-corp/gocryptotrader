@@ -507,21 +507,23 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 	}
 	resp, err := e.PlaceOrder(ctx, &PlaceOrderInfo{
-		ClientOID:     s.ClientOrderID,
-		ProductID:     fPair.String(),
-		Side:          s.Side.String(),
-		StopDirection: stopDir,
-		OrderType:     s.Type,
-		TimeInForce:   s.TimeInForce,
-		MarginType:    s.MarginType.Upper(),
-		BaseAmount:    s.Amount,
-		QuoteAmount:   s.QuoteAmount,
-		LimitPrice:    s.Price,
-		StopPrice:     s.TriggerPrice,
-		Leverage:      s.Leverage,
-		PostOnly:      s.TimeInForce.Is(order.PostOnly),
-		RFQDisabled:   s.RFQDisabled,
-		EndTime:       s.EndTime,
+		ClientOID:  s.ClientOrderID,
+		ProductID:  fPair.String(),
+		Side:       s.Side.String(),
+		MarginType: s.MarginType.Upper(),
+		Leverage:   s.Leverage,
+		SharedOrderConfig: SharedOrderConfig{
+			StopDirection: stopDir,
+			OrderType:     s.Type,
+			TimeInForce:   s.TimeInForce,
+			BaseAmount:    s.Amount,
+			QuoteAmount:   s.QuoteAmount,
+			LimitPrice:    s.Price,
+			StopPrice:     s.TriggerPrice,
+			PostOnly:      s.TimeInForce.Is(order.PostOnly),
+			RFQDisabled:   s.RFQDisabled,
+			EndTime:       s.EndTime,
+		},
 	})
 	if err != nil {
 		return nil, err

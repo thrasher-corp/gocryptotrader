@@ -325,13 +325,15 @@ func TestPlaceOrder(t *testing.T) {
 		ClientOID:  id.String(),
 		ProductID:  testPairStable.String(),
 		Side:       order.Buy.String(),
-		OrderType:  order.Limit,
 		MarginType: "CROSS",
-		BaseAmount: testAmount,
-		LimitPrice: testPrice2,
 		Leverage:   9999,
-		PostOnly:   false,
-		EndTime:    time.Now().Add(time.Hour),
+		SharedOrderConfig: SharedOrderConfig{
+			PostOnly:   false,
+			EndTime:    time.Now().Add(time.Hour),
+			OrderType:  order.Limit,
+			BaseAmount: testAmount,
+			LimitPrice: testPrice2,
+		},
 	}
 	resp, err := e.PlaceOrder(t.Context(), ord)
 	if assert.NoError(t, err) {
@@ -1622,7 +1624,7 @@ func TestWsHandleData(t *testing.T) {
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": false}]}`)
 	_, err = e.wsHandleData(mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"limit_price": "2.2", "total_fees": "1.1"}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"limit_price": "2.2", "total_fees": "1.1", "post_only": true}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
 	_, err = e.wsHandleData(mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "fakechan", "events": [{"type": ""}]}`)
@@ -1758,35 +1760,55 @@ func TestEncodePagination(t *testing.T) {
 
 func TestCreateOrderConfig(t *testing.T) {
 	t.Parallel()
-	_, err := createOrderConfig(order.UnknownType, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Time{}, false, false, 0, 0)
+	_, err := createOrderConfig(nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+	params := &SharedOrderConfig{}
+	_, err = createOrderConfig(params)
 	assert.ErrorIs(t, err, errInvalidOrderType)
-	_, err = createOrderConfig(order.Market, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
+	params.BaseAmount = 1
+	params.QuoteAmount = 2
+	params.OrderType = order.Market
+	_, err = createOrderConfig(params)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Limit, order.StopOrReduce, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
+	params.OrderType = order.Limit
+	params.TimeInForce = order.StopOrReduce
+	_, err = createOrderConfig(params)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Limit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
+	params.TimeInForce = order.FillOrKill
+	_, err = createOrderConfig(params)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Limit, order.FillOrKill, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
+	params.TimeInForce = order.UnknownTIF
+	_, err = createOrderConfig(params)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Limit, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Unix(1, 1), false, false, 0, 0)
+	params.EndTime = time.Unix(1, 1)
+	_, err = createOrderConfig(params)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.Limit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, false, 0, 0)
+	params.EndTime = time.Now().Add(time.Hour)
+	_, err = createOrderConfig(params)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.TWAP, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
+	params.OrderType = order.TWAP
+	_, err = createOrderConfig(params)
+	assert.NoError(t, err)
+	params.EndTime = time.Time{}
+	_, err = createOrderConfig(params)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.TWAP, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, false, 0, 0)
+	params.OrderType = order.StopLimit
+	_, err = createOrderConfig(params)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.StopLimit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
-	assert.NoError(t, err)
-	_, err = createOrderConfig(order.StopLimit, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Unix(1, 1), false, false, 0, 0)
+	params.EndTime = time.Unix(1, 1)
+	_, err = createOrderConfig(params)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.StopLimit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, false, 0, 0)
+	params.EndTime = time.Now().Add(time.Hour)
+	_, err = createOrderConfig(params)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Bracket, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, false, 0, 0)
+	params.OrderType = order.Bracket
+	_, err = createOrderConfig(params)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Bracket, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Unix(1, 1), false, false, 0, 0)
+	params.EndTime = time.Unix(1, 1)
+	_, err = createOrderConfig(params)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.Bracket, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, false, 0, 0)
+	params.EndTime = time.Time{}
+	_, err = createOrderConfig(params)
 	assert.NoError(t, err)
 }
 

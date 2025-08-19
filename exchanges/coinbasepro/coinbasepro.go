@@ -92,8 +92,7 @@ const (
 	startDateString = "start_date"
 	endDateString   = "end_date"
 
-	warnSequenceIssue = "Out of order sequence number. Received %v, expected %v"
-	warnAuth          = "%v authenticated request failed, attempting unauthenticated"
+	warnAuth = "%v authenticated request failed, attempting unauthenticated"
 
 	defaultOrderFillCount = 3000       // Largest number of fills the exchange will let one retrieve in a request, found through experimentation
 	defaultOrderCount     = 2147483647 // int32 limit, largest number of orders the exchange will let one retrieve in a request, found through experimentation
@@ -154,6 +153,7 @@ var (
 	errMarginProfileTypeEmpty   = errors.New("margin profile type cannot be empty")
 	errSettingEmpty             = errors.New("setting cannot be empty")
 	errUnknownTransferType      = errors.New("unknown transfer type")
+	errOutOfSequence            = errors.New("out of order sequence number")
 
 	closedStatuses = []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
 	openStatus     = []string{"OPEN"}
@@ -416,7 +416,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*Succes
 	if ord.BaseAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(ord.OrderType, ord.TimeInForce, ord.StopDirection, ord.BaseAmount, ord.QuoteAmount, ord.LimitPrice, ord.StopPrice, ord.BucketSize, ord.EndTime, ord.PostOnly, ord.RFQDisabled, ord.BucketNumber, ord.BucketDuration)
+	orderConfig, err := createOrderConfig(&ord.SharedOrderConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +577,7 @@ func (e *Exchange) PreviewOrder(ctx context.Context, inf *PreviewOrderInfo) (*Pr
 	if inf.BaseAmount <= 0 && inf.QuoteAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(inf.OrderType, inf.TimeInForce, inf.StopDirection, inf.BaseAmount, inf.QuoteAmount, inf.LimitPrice, inf.StopPrice, inf.BucketSize, inf.EndTime, inf.PostOnly, inf.RFQDisabled, inf.BucketNumber, inf.BucketDuration)
+	orderConfig, err := createOrderConfig(&inf.SharedOrderConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -1636,76 +1636,79 @@ func (p *Params) encodePagination(pag PaginationInp) error {
 }
 
 // createOrderConfig populates the OrderConfiguration struct
-func createOrderConfig(orderType order.Type, timeInForce order.TimeInForce, stopDirection string, baseAmount, quoteAmount, limitPrice, stopPrice, bucketSize float64, endTime time.Time, postOnly, rfqDisabled bool, bucketNumber int64, bucketDuration time.Duration) (OrderConfiguration, error) {
+func createOrderConfig(sharedParams *SharedOrderConfig) (OrderConfiguration, error) {
+	if sharedParams == nil {
+		return OrderConfiguration{}, fmt.Errorf("%T %w", sharedParams, common.ErrNilPointer)
+	}
 	var orderConfig OrderConfiguration
-	switch orderType {
+	switch sharedParams.OrderType {
 	case order.Market:
-		if baseAmount != 0 {
-			orderConfig.MarketMarketIOC = &MarketMarketIOC{BaseSize: types.Number(baseAmount), RFQDisabled: rfqDisabled}
+		if sharedParams.BaseAmount != 0 {
+			orderConfig.MarketMarketIOC = &MarketMarketIOC{BaseSize: types.Number(sharedParams.BaseAmount), RFQDisabled: sharedParams.RFQDisabled}
 		}
-		if quoteAmount != 0 {
-			orderConfig.MarketMarketIOC = &MarketMarketIOC{QuoteSize: types.Number(quoteAmount), RFQDisabled: rfqDisabled}
+		if sharedParams.QuoteAmount != 0 {
+			orderConfig.MarketMarketIOC = &MarketMarketIOC{QuoteSize: types.Number(sharedParams.QuoteAmount), RFQDisabled: sharedParams.RFQDisabled}
 		}
 	case order.Limit:
 		switch {
-		case timeInForce == order.StopOrReduce:
-			orderConfig.SORLimitIOC = &QuoteBaseLimit{BaseSize: types.Number(baseAmount), QuoteSize: types.Number(quoteAmount), LimitPrice: types.Number(limitPrice), RFQDisabled: rfqDisabled}
-		case timeInForce == order.FillOrKill:
-			orderConfig.LimitLimitFOK = &QuoteBaseLimit{BaseSize: types.Number(baseAmount), QuoteSize: types.Number(quoteAmount), LimitPrice: types.Number(limitPrice), RFQDisabled: rfqDisabled}
-		case endTime.IsZero():
-			orderConfig.LimitLimitGTC = &LimitLimitGTC{LimitPrice: types.Number(limitPrice), PostOnly: postOnly, RFQDisabled: rfqDisabled}
-			if baseAmount != 0 {
-				orderConfig.LimitLimitGTC.BaseSize = types.Number(baseAmount)
+		case sharedParams.TimeInForce == order.StopOrReduce:
+			orderConfig.SORLimitIOC = &QuoteBaseLimit{BaseSize: types.Number(sharedParams.BaseAmount), QuoteSize: types.Number(sharedParams.QuoteAmount), LimitPrice: types.Number(sharedParams.LimitPrice), RFQDisabled: sharedParams.RFQDisabled}
+		case sharedParams.TimeInForce == order.FillOrKill:
+			orderConfig.LimitLimitFOK = &QuoteBaseLimit{BaseSize: types.Number(sharedParams.BaseAmount), QuoteSize: types.Number(sharedParams.QuoteAmount), LimitPrice: types.Number(sharedParams.LimitPrice), RFQDisabled: sharedParams.RFQDisabled}
+		case sharedParams.EndTime.IsZero():
+			orderConfig.LimitLimitGTC = &LimitLimitGTC{LimitPrice: types.Number(sharedParams.LimitPrice), PostOnly: sharedParams.PostOnly, RFQDisabled: sharedParams.RFQDisabled}
+			if sharedParams.BaseAmount != 0 {
+				orderConfig.LimitLimitGTC.BaseSize = types.Number(sharedParams.BaseAmount)
 			}
-			if quoteAmount != 0 {
-				orderConfig.LimitLimitGTC.QuoteSize = types.Number(quoteAmount)
+			if sharedParams.QuoteAmount != 0 {
+				orderConfig.LimitLimitGTC.QuoteSize = types.Number(sharedParams.QuoteAmount)
 			}
 		default:
-			if endTime.Before(time.Now()) {
+			if sharedParams.EndTime.Before(time.Now()) {
 				return orderConfig, errEndTimeInPast
 			}
-			orderConfig.LimitLimitGTD = &LimitLimitGTD{LimitPrice: types.Number(limitPrice), PostOnly: postOnly, EndTime: endTime, RFQDisabled: rfqDisabled}
-			if baseAmount != 0 {
-				orderConfig.LimitLimitGTD.BaseSize = types.Number(baseAmount)
+			orderConfig.LimitLimitGTD = &LimitLimitGTD{LimitPrice: types.Number(sharedParams.LimitPrice), PostOnly: sharedParams.PostOnly, EndTime: sharedParams.EndTime, RFQDisabled: sharedParams.RFQDisabled}
+			if sharedParams.BaseAmount != 0 {
+				orderConfig.LimitLimitGTD.BaseSize = types.Number(sharedParams.BaseAmount)
 			}
-			if quoteAmount != 0 {
-				orderConfig.LimitLimitGTD.QuoteSize = types.Number(quoteAmount)
+			if sharedParams.QuoteAmount != 0 {
+				orderConfig.LimitLimitGTD.QuoteSize = types.Number(sharedParams.QuoteAmount)
 			}
 		}
 	case order.TWAP:
-		if endTime.Before(time.Now()) {
+		if sharedParams.EndTime.Before(time.Now()) {
 			return orderConfig, errEndTimeInPast
 		}
-		orderConfig.TWAPLimitGTD = &TWAPLimitGTD{StartTime: time.Now(), EndTime: endTime, LimitPrice: types.Number(limitPrice), NumberBuckets: bucketNumber, BucketSize: types.Number(bucketSize), BucketDuration: strconv.FormatFloat(bucketDuration.Seconds(), 'f', -1, 64) + "s"}
+		orderConfig.TWAPLimitGTD = &TWAPLimitGTD{StartTime: time.Now(), EndTime: sharedParams.EndTime, LimitPrice: types.Number(sharedParams.LimitPrice), NumberBuckets: sharedParams.BucketNumber, BucketSize: types.Number(sharedParams.BucketSize), BucketDuration: strconv.FormatFloat(sharedParams.BucketDuration.Seconds(), 'f', -1, 64) + "s"}
 	case order.StopLimit:
-		if endTime.IsZero() {
-			orderConfig.StopLimitStopLimitGTC = &StopLimitStopLimitGTC{LimitPrice: types.Number(limitPrice), StopPrice: types.Number(stopPrice), StopDirection: stopDirection}
-			if baseAmount != 0 {
-				orderConfig.StopLimitStopLimitGTC.BaseSize = types.Number(baseAmount)
+		if sharedParams.EndTime.IsZero() {
+			orderConfig.StopLimitStopLimitGTC = &StopLimitStopLimitGTC{LimitPrice: types.Number(sharedParams.LimitPrice), StopPrice: types.Number(sharedParams.StopPrice), StopDirection: sharedParams.StopDirection}
+			if sharedParams.BaseAmount != 0 {
+				orderConfig.StopLimitStopLimitGTC.BaseSize = types.Number(sharedParams.BaseAmount)
 			}
-			if quoteAmount != 0 {
-				orderConfig.StopLimitStopLimitGTC.QuoteSize = types.Number(quoteAmount)
+			if sharedParams.QuoteAmount != 0 {
+				orderConfig.StopLimitStopLimitGTC.QuoteSize = types.Number(sharedParams.QuoteAmount)
 			}
 		} else {
-			if endTime.Before(time.Now()) {
+			if sharedParams.EndTime.Before(time.Now()) {
 				return orderConfig, errEndTimeInPast
 			}
-			orderConfig.StopLimitStopLimitGTD = &StopLimitStopLimitGTD{LimitPrice: types.Number(limitPrice), StopPrice: types.Number(stopPrice), StopDirection: stopDirection, EndTime: endTime}
-			if baseAmount != 0 {
-				orderConfig.StopLimitStopLimitGTD.BaseSize = types.Number(baseAmount)
+			orderConfig.StopLimitStopLimitGTD = &StopLimitStopLimitGTD{LimitPrice: types.Number(sharedParams.LimitPrice), StopPrice: types.Number(sharedParams.StopPrice), StopDirection: sharedParams.StopDirection, EndTime: sharedParams.EndTime}
+			if sharedParams.BaseAmount != 0 {
+				orderConfig.StopLimitStopLimitGTD.BaseSize = types.Number(sharedParams.BaseAmount)
 			}
-			if quoteAmount != 0 {
-				orderConfig.StopLimitStopLimitGTD.QuoteSize = types.Number(quoteAmount)
+			if sharedParams.QuoteAmount != 0 {
+				orderConfig.StopLimitStopLimitGTD.QuoteSize = types.Number(sharedParams.QuoteAmount)
 			}
 		}
 	case order.Bracket:
-		if endTime.IsZero() {
-			orderConfig.TriggerBracketGTC = &TriggerBracketGTC{BaseSize: types.Number(baseAmount), LimitPrice: types.Number(limitPrice), StopTriggerPrice: types.Number(stopPrice)}
+		if sharedParams.EndTime.IsZero() {
+			orderConfig.TriggerBracketGTC = &TriggerBracketGTC{BaseSize: types.Number(sharedParams.BaseAmount), LimitPrice: types.Number(sharedParams.LimitPrice), StopTriggerPrice: types.Number(sharedParams.StopPrice)}
 		} else {
-			if endTime.Before(time.Now()) {
+			if sharedParams.EndTime.Before(time.Now()) {
 				return orderConfig, errEndTimeInPast
 			}
-			orderConfig.TriggerBracketGTD = &TriggerBracketGTD{BaseSize: types.Number(baseAmount), LimitPrice: types.Number(limitPrice), StopTriggerPrice: types.Number(stopPrice), EndTime: endTime}
+			orderConfig.TriggerBracketGTD = &TriggerBracketGTD{BaseSize: types.Number(sharedParams.BaseAmount), LimitPrice: types.Number(sharedParams.LimitPrice), StopTriggerPrice: types.Number(sharedParams.StopPrice), EndTime: sharedParams.EndTime}
 		}
 	default:
 		return orderConfig, errInvalidOrderType

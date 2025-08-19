@@ -365,29 +365,34 @@ type ErrorResponse struct {
 	NewOrderFailureReason string `json:"new_order_failure_reason"`
 }
 
+// SharedOrderConfig contains order configuration information used in both PlaceOrderInfo and PreviewOrderInfo
+type SharedOrderConfig struct {
+	OrderType      order.Type
+	TimeInForce    order.TimeInForce
+	StopDirection  string
+	BaseAmount     float64
+	QuoteAmount    float64
+	LimitPrice     float64
+	StopPrice      float64
+	BucketSize     float64
+	EndTime        time.Time
+	PostOnly       bool
+	RFQDisabled    bool
+	BucketNumber   int64
+	BucketDuration time.Duration
+}
+
 // PlaceOrderInfo is a struct used in the formation of requests in PlaceOrder
 type PlaceOrderInfo struct {
 	ClientOID                  string
 	ProductID                  string
 	Side                       string
-	StopDirection              string
-	OrderType                  order.Type
-	TimeInForce                order.TimeInForce
 	MarginType                 string
 	RetailPortfolioID          string
 	PreviewID                  string
-	BaseAmount                 float64
-	QuoteAmount                float64
-	LimitPrice                 float64
-	StopPrice                  float64
 	Leverage                   float64
-	PostOnly                   bool
-	RFQDisabled                bool
-	EndTime                    time.Time
-	BucketSize                 float64
-	BucketNumber               int64
-	BucketDuration             time.Duration
 	AttachedOrderConfiguration OrderConfiguration
+	SharedOrderConfig
 }
 
 // SuccessFailureConfig contains information on an order, returned by PlaceOrder
@@ -499,23 +504,11 @@ type FillResponse struct {
 type PreviewOrderInfo struct {
 	ProductID                  string
 	Side                       string
-	OrderType                  order.Type
-	TimeInForce                order.TimeInForce
-	StopDirection              string
 	MarginType                 string
 	RetailPortfolioID          string
-	BaseAmount                 float64
-	QuoteAmount                float64
-	LimitPrice                 float64
-	StopPrice                  float64
 	Leverage                   float64
-	BucketSize                 float64
-	BucketNumber               int64
-	BucketDuration             time.Duration
-	PostOnly                   bool
-	RFQDisabled                bool
-	EndTime                    time.Time
 	AttachedOrderConfiguration OrderConfiguration
+	SharedOrderConfig
 }
 
 // TriggerBracketPNL is a sub-struct used in the type PreviewOrderResp
