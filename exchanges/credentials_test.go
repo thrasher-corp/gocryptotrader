@@ -407,7 +407,6 @@ func TestSetAPICredentialDefaults(t *testing.T) {
 	}
 }
 
-// TestGetAuthenticatedAPISupport logic test
 func TestGetAuthenticatedAPISupport(t *testing.T) {
 	t.Parallel()
 
