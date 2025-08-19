@@ -63,8 +63,8 @@ func TestCheckResponsePayload(t *testing.T) {
 func TestGetExcludedItems(t *testing.T) {
 	exclusionList, err := getExcludedItems()
 	require.NoError(t, err, "getExcludedItems must not error")
-	assert.NotEmpty(t, exclusionList.Headers, "Headers must not be empty")
-	assert.NotEmpty(t, exclusionList.Variables, "Variables must not be empty")
+	require.NotEmpty(t, exclusionList.Headers, "Headers must not be empty")
+	require.NotEmpty(t, exclusionList.Variables, "Variables must not be empty")
 }
 
 type TestStructLevel0 struct {
