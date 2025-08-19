@@ -694,8 +694,8 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, 
 }
 
 // GetAllExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
-func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map[string][]deposit.Address {
-	result := make(map[string]map[string][]deposit.Address)
+func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]ExchangeDepositAddresses {
+	result := make(map[string]ExchangeDepositAddresses)
 	exchanges := bot.GetExchanges()
 	var depositSyncer sync.WaitGroup
 	depositSyncer.Add(len(exchanges))
