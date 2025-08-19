@@ -20,6 +20,9 @@ var (
 	errSpecificRateLimiterIsNil = errors.New("specific rate limiter is nil")
 )
 
+// RateLimitNotRequired is a no-op rate limiter
+var RateLimitNotRequired *RateLimiterWithWeight
+
 // Const here define individual functionality sub types for rate limiting
 const (
 	Unset EndpointLimit = iota
