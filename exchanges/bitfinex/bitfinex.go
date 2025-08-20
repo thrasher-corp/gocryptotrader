@@ -295,11 +295,11 @@ func (e *Exchange) GetV2MarginFunding(ctx context.Context, symbol, amount string
 }
 
 // GetV2FundingInfo gets funding info for margin pairs
-func (e *Exchange) GetV2FundingInfo(ctx context.Context, key string) (MarginFundingDataV2, error) {
+func (e *Exchange) GetV2FundingInfo(ctx context.Context, k string) (MarginFundingDataV2, error) {
 	var resp []any
 	var response MarginFundingDataV2
 	err := e.SendAuthenticatedHTTPRequestV2(ctx, exchange.RestSpot, http.MethodPost,
-		fmt.Sprintf(bitfinexV2FundingInfo, key),
+		fmt.Sprintf(bitfinexV2FundingInfo, k),
 		nil,
 		&resp,
 		getAccountFees)
@@ -456,9 +456,9 @@ func (e *Exchange) GetPairs(ctx context.Context, a asset.Item) ([]string, error)
 			return nil, err
 		}
 		var pairs []string
-		for key := range funding {
-			symbol := key[1:]
-			if key[0] != 'f' || strings.Contains(symbol, ":") || len(symbol) > 6 {
+		for k := range funding {
+			symbol := k[1:]
+			if k[0] != 'f' || strings.Contains(symbol, ":") || len(symbol) > 6 {
 				continue
 			}
 			pairs = append(pairs, symbol)
@@ -992,7 +992,7 @@ func (e *Exchange) GetLiquidationFeed() error {
 // profit
 // Allowed time frames are 3h, 1w and 1M
 // Allowed symbols are trading pairs (e.g. tBTCUSD, tETHUSD and tGLOBAL:USD)
-func (e *Exchange) GetLeaderboard(ctx context.Context, key, timeframe, symbol string, sort, limit int, start, end string) ([]LeaderboardEntry, error) {
+func (e *Exchange) GetLeaderboard(ctx context.Context, k, timeframe, symbol string, sort, limit int, start, end string) ([]LeaderboardEntry, error) {
 	validLeaderboardKey := func(input string) bool {
 		switch input {
 		case LeaderboardUnrealisedProfitPeriodDelta,
@@ -1005,12 +1005,12 @@ func (e *Exchange) GetLeaderboard(ctx context.Context, key, timeframe, symbol st
 		}
 	}
 
-	if !validLeaderboardKey(key) {
+	if !validLeaderboardKey(k) {
 		return nil, errors.New("invalid leaderboard key")
 	}
 
 	path := fmt.Sprintf("%s/%s:%s:%s/hist", bitfinexAPIVersion2+bitfinexLeaderboard,
-		key,
+		k,
 		timeframe,
 		symbol)
 	vals := url.Values{}
