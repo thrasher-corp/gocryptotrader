@@ -449,7 +449,7 @@ func GetExcludedItems() (Exclusion, error) {
 	m.Lock()
 	defer m.Unlock()
 	if !set {
-		file, err := os.ReadFile(exclusionFile)
+		f, err := os.ReadFile(exclusionFile)
 		if err != nil {
 			if !strings.Contains(err.Error(), "no such file or directory") {
 				return excludedList, err
@@ -468,7 +468,7 @@ func GetExcludedItems() (Exclusion, error) {
 				return excludedList, mErr
 			}
 		} else {
-			err = json.Unmarshal(file, &excludedList)
+			err = json.Unmarshal(f, &excludedList)
 			if err != nil {
 				return excludedList, err
 			}

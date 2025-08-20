@@ -254,11 +254,12 @@ func runCommand(dir, param string) error {
 
 func newFile(path string) {
 	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		file, err := os.Create(path)
-		if err != nil {
-			log.Fatal(err)
-		}
-		file.Close()
+	if !os.IsNotExist(err) {
+		return
 	}
+	f, err := os.Create(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	f.Close()
 }

@@ -325,7 +325,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	assert.Equal(t, exchange.NoAPIWithdrawalMethodsText, e.FormatWithdrawPermissions(), "FormatWithdrawPermissions should return correct format")
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	feeBuilder := &exchange.FeeBuilder{
 		FeeType:       exchange.CryptocurrencyTradeFee,

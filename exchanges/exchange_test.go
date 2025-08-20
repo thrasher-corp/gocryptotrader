@@ -60,53 +60,26 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	}
 }
 
-func TestCreateMap(t *testing.T) {
+func TestSetRunningURL(t *testing.T) {
 	t.Parallel()
-	b := Base{
-		Name: "HELOOOOOOOO",
-	}
+	b := Base{Name: "HELOOOOOOOO"}
 	b.API.Endpoints = b.NewEndpoints()
-	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
-		EdgeCase1: "http://test1url.com/",
-		EdgeCase2: "http://test2url.com/",
-	})
-	if err != nil {
-		t.Error(err)
-	}
-	val, ok := b.API.Endpoints.defaults[EdgeCase1.String()]
-	if !ok || val != "http://test1url.com/" {
-		t.Errorf("CreateMap failed, incorrect value received for the given key")
-	}
-}
+	assert.ErrorIs(t, b.API.Endpoints.SetRunningURL("meep", "http://google.com/"), errInvalidEndpointKey)
 
-func TestSet(t *testing.T) {
-	t.Parallel()
-	b := Base{
-		Name: "HELOOOOOOOO",
-	}
-	b.API.Endpoints = b.NewEndpoints()
 	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1url.com/",
 		EdgeCase2: "http://test2url.com/",
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "SetDefaultEndpoints should not error")
 	err = b.API.Endpoints.SetRunningURL(EdgeCase2.String(), "http://google.com/")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "SetRunningURL should not error")
+
 	val, ok := b.API.Endpoints.defaults[EdgeCase2.String()]
-	if !ok {
-		t.Error("set method or createmap failed")
-	}
-	if val != "http://google.com/" {
-		t.Errorf("vals didn't match. expecting: %s, got: %s\n", "http://google.com/", val)
-	}
+	assert.True(t, ok, "SetRunningURL should have set the value in defaults")
+	assert.Equal(t, "http://google.com/", val)
+
 	err = b.API.Endpoints.SetRunningURL(EdgeCase3.String(), "Added Edgecase3")
-	if err != nil {
-		t.Errorf("not expecting an error since invalid url val err should be logged but received: %v", err)
-	}
+	assert.ErrorContains(t, err, "invalid URI for request", "SetRunningURL should error on invalid endpoint key")
 }
 
 func TestGetURL(t *testing.T) {
@@ -167,30 +140,22 @@ func TestGetAll(t *testing.T) {
 
 func TestSetDefaultEndpoints(t *testing.T) {
 	t.Parallel()
-	b := Base{
-		Name: "HELLLLLLO",
-	}
+	b := Base{Name: "HELLLLLLO"}
 	b.API.Endpoints = b.NewEndpoints()
 	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1.com.au/",
 		EdgeCase2: "http://test2.com.au/",
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "SetDefaultEndpoints should not error")
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		URL(1337): "http://test2.com.au/",
 	})
-	if err == nil {
-		t.Error("expecting an error due to invalid url key")
-	}
+	assert.ErrorIs(t, err, errInvalidEndpointKey, "SetDefaultEndpoints should error on invalid endpoint key")
 	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "",
 	})
-	if err != nil {
-		t.Errorf("expecting a warning due to invalid url value but got an error: %v", err)
-	}
+	assert.ErrorContains(t, err, "empty url")
 }
 
 func TestSetClientProxyAddress(t *testing.T) {
@@ -1772,10 +1737,8 @@ func TestSetAPIURL(t *testing.T) {
 	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
 	b.API.Endpoints = b.NewEndpoints()
 	b.Config.API.OldEndPoints.URL = "heloo"
-	err = b.SetAPIURL()
-	if err != nil {
-		t.Errorf("expecting a warning since invalid oldendpoints url but got an error: %v", err)
-	}
+	assert.ErrorContains(t, b.SetAPIURL(), "invalid URI for request")
+
 	mappy.Mappymap = make(map[string]string)
 	b.Config.API.OldEndPoints = &config.APIEndpointsConfig{}
 	b.Config.API.Endpoints = mappy.Mappymap
@@ -1800,17 +1763,6 @@ func TestSetAPIURL(t *testing.T) {
 	}
 	if urlData != "https://www.bitstamp.net/" {
 		t.Error("oldendpoints url setting failed")
-	}
-}
-
-func TestSetRunningURL(t *testing.T) {
-	b := Base{
-		Name: "HELOOOOOOOO",
-	}
-	b.API.Endpoints = b.NewEndpoints()
-	err := b.API.Endpoints.SetRunningURL(EdgeCase1.String(), "http://google.com/")
-	if err != nil {
-		t.Error(err)
 	}
 }
 

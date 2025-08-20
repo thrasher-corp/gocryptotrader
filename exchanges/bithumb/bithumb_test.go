@@ -264,7 +264,6 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	feeBuilder := setFeeBuilder()

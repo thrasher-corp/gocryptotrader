@@ -1285,7 +1285,6 @@ func TestAllOrders(t *testing.T) {
 	}
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 
@@ -2257,7 +2256,7 @@ func TestWsOCO(t *testing.T) {
 }
 
 func TestGetWsAuthStreamKey(t *testing.T) {
-	key, err := e.GetWsAuthStreamKey(t.Context())
+	authKey, err := e.GetWsAuthStreamKey(t.Context())
 	switch {
 	case mockTests && err != nil,
 		!mockTests && sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
@@ -2266,7 +2265,7 @@ func TestGetWsAuthStreamKey(t *testing.T) {
 		t.Fatal("Expected error")
 	}
 
-	if key == "" && (sharedtestvalues.AreAPICredentialsSet(e) || mockTests) {
+	if authKey == "" && (sharedtestvalues.AreAPICredentialsSet(e) || mockTests) {
 		t.Error("Expected key")
 	}
 }

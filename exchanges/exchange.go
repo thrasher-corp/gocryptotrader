@@ -60,6 +60,7 @@ var (
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
+	errInvalidEndpointKey                = errors.New("invalid endpoint key")
 )
 
 // SetRequester sets the instance of the requester
@@ -1007,12 +1008,12 @@ func (b *Base) SetAssetPairStore(a asset.Item, f currency.PairStore) error {
 }
 
 // SetGlobalPairsManager sets defined asset and pairs management system with global formatting
-func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, assets ...asset.Item) error {
-	if request == nil {
+func (b *Base) SetGlobalPairsManager(reqFmt, cfgFmt *currency.PairFormat, assets ...asset.Item) error {
+	if reqFmt == nil {
 		return fmt.Errorf("%s cannot set pairs manager, request pair format not provided", b.Name)
 	}
 
-	if config == nil {
+	if cfgFmt == nil {
 		return fmt.Errorf("%s cannot set pairs manager, config pair format not provided",
 			b.Name)
 	}
@@ -1022,14 +1023,14 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 			b.Name)
 	}
 
-	if config.Delimiter == "" {
+	if cfgFmt.Delimiter == "" {
 		return fmt.Errorf("exchange %s cannot set global pairs manager %w for assets %s",
 			b.Name, errConfigPairFormatRequiresDelimiter, assets)
 	}
 
 	b.CurrencyPairs.UseGlobalFormat = true
-	b.CurrencyPairs.RequestFormat = request
-	b.CurrencyPairs.ConfigFormat = config
+	b.CurrencyPairs.RequestFormat = reqFmt
+	b.CurrencyPairs.ConfigFormat = cfgFmt
 
 	if b.CurrencyPairs.Pairs != nil {
 		return fmt.Errorf("%s cannot set pairs manager, pairs already set",
@@ -1045,8 +1046,8 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 		}
 		b.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
 		b.CurrencyPairs.Pairs[assets[i]].AssetEnabled = true
-		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
-		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
+		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = cfgFmt
+		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = reqFmt
 	}
 
 	return nil
@@ -1248,23 +1249,16 @@ func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
 }
 
 // SetRunningURL populates running URLs map
-func (e *Endpoints) SetRunningURL(key, val string) error {
+func (e *Endpoints) SetRunningURL(endpoint, val string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	err := validateKey(key)
-	if err != nil {
+	if err := validateKey(endpoint); err != nil {
 		return err
 	}
-	_, err = url.ParseRequestURI(val)
-	if err != nil {
-		log.Warnf(log.ExchangeSys,
-			"Could not set custom URL for %s to %s for exchange %s. invalid URI for request.",
-			key,
-			val,
-			e.Exchange)
-		return nil
+	if _, err := url.ParseRequestURI(val); err != nil {
+		return fmt.Errorf("parse request URI for %s=%q (exchange %s): %w", endpoint, val, e.Exchange, err)
 	}
-	e.defaults[key] = val
+	e.defaults[endpoint] = val
 	return nil
 }
 
@@ -1274,16 +1268,16 @@ func validateKey(keyVal string) error {
 			return nil
 		}
 	}
-	return errors.New("keyVal invalid")
+	return errInvalidEndpointKey
 }
 
 // GetURL gets default url from URLs map
-func (e *Endpoints) GetURL(key URL) (string, error) {
+func (e *Endpoints) GetURL(endpoint URL) (string, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	val, ok := e.defaults[key.String()]
+	val, ok := e.defaults[endpoint.String()]
 	if !ok {
-		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
+		return "", fmt.Errorf("no endpoint path found for the given key: %v", endpoint)
 	}
 	return val, nil
 }
