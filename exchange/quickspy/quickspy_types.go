@@ -38,19 +38,24 @@ type QuickSpy struct {
 	// Key contains exchange, pair, and asset information
 	Key *Key
 	// Focuses is a map of focus types to focus options
-	Focuses map[FocusType]*FocusData
+	Focuses *FocusStore
 	// shutUP is a channel for shutdown signaling
 	shutUP chan any
 	// dataHandlerChannel is used for receiving data from websockets
 	dataHandlerChannel chan any
-	// RWMutex is used for concurrent read/write operations
-	RWMutex *sync.RWMutex
+	// m is used for concurrent read/write operations
+	m *sync.RWMutex
 	// wg is used for synchronizing goroutines
 	wg sync.WaitGroup
 	// alert is used for notifications
 	alert alert.Notice
 	// Data contains all the market data
 	Data Data
+}
+
+type FocusStore struct {
+	s map[FocusType]*FocusData
+	m *sync.RWMutex
 }
 
 type KlineChartData struct {
@@ -68,6 +73,8 @@ type OrderBookEntry struct {
 	ContractDecimals float64
 }
 
+// TODO: update this to be more inline with GCT types than just your own.
+// ensure most of it is pointer based to avoid copying large structs
 type Data struct {
 	Key *Key
 	//  contract stuff

@@ -36,7 +36,7 @@ var focusToSub = map[FocusType]string{
 // NewQuickSpy creates a new QuickSpy
 func NewQuickSpy(k Key, focuses []FocusData) (*QuickSpy, error) {
 	k.Exchange = strings.ToLower(k.Exchange)
-	sm := make(map[FocusType]*FocusData)
+	sm := NewFocusStore()
 	for i := range focuses {
 		if !focuses[i].Enabled {
 			log.Warnf(log.QuickSpy, "skipping focustype %q since its disabled", focuses[i].Type)
@@ -48,10 +48,9 @@ func NewQuickSpy(k Key, focuses []FocusData) (*QuickSpy, error) {
 				continue
 			}
 		}
-		focus := focuses[i]
-		focus.m = &sync.RWMutex{}
-		focus.HasBeenSuccessfulChan = make(chan any)
-		sm[focuses[i].Type] =&focus
+
+		focuses[i].Init()
+		sm.Upsert(focuses[i].Type, &focuses[i])
 	}
 	credContext := context.Background()
 	q := &QuickSpy{
@@ -61,7 +60,7 @@ func NewQuickSpy(k Key, focuses []FocusData) (*QuickSpy, error) {
 		Focuses:            sm,
 		credContext:        credContext,
 		Data:               Data{Key: &k},
-		RWMutex:            &sync.RWMutex{},
+		m:                  &sync.RWMutex{},
 	}
 	err := q.setupExchange(k)
 	if err != nil {
@@ -78,9 +77,9 @@ func NewQuickSpy(k Key, focuses []FocusData) (*QuickSpy, error) {
 }
 
 func (q *QuickSpy) RequiresWebsocket() bool {
-	q.RWMutex.RLock()
-	defer q.RWMutex.RUnlock()
-	for _, focus := range q.Focuses {
+	q.m.RLock()
+	defer q.m.RUnlock()
+	for _, focus := range q.Focuses.List() {
 		if focus.UseWebsocket {
 			return true
 		}
@@ -98,9 +97,9 @@ func (q *QuickSpy) Error() error {
 }
 
 func (q *QuickSpy) RequiresAuth() bool {
-	q.RWMutex.RLock()
-	defer q.RWMutex.RUnlock()
-	for _, focus := range q.Focuses {
+	q.m.RLock()
+	defer q.m.RUnlock()
+	for _, focus := range q.Focuses.List() {
 		if focus.Type == AccountHoldingsFocusType || focus.Type == OrdersFocusType || focus.Type == OrderPlacementFocusType {
 			return true
 		}
@@ -109,18 +108,18 @@ func (q *QuickSpy) RequiresAuth() bool {
 }
 
 func (q *QuickSpy) FocusRequiresWebsocket(focusType FocusType) bool {
-	q.RWMutex.RLock()
-	defer q.RWMutex.RUnlock()
-	focus, ok := q.Focuses[focusType]
-	if !ok {
+	q.m.RLock()
+	defer q.m.RUnlock()
+	focus := q.Focuses.GetByKey(focusType)
+	if focus == nil {
 		return false
 	}
 	return focus.UseWebsocket
 }
 
 func (q *QuickSpy) GetAndWaitForFocusByKey(focusType FocusType) (*FocusData, error) {
-	q.RWMutex.RLock()
-	defer q.RWMutex.RUnlock()
+	q.m.RLock()
+	defer q.m.RUnlock()
 	focus, err := q.GetFocusByKey(focusType)
 	if err != nil {
 		return nil, err
@@ -130,8 +129,8 @@ func (q *QuickSpy) GetAndWaitForFocusByKey(focusType FocusType) (*FocusData, err
 }
 
 func (q *QuickSpy) GetFocusByKey(focusType FocusType) (*FocusData, error) {
-	focus, ok := q.Focuses[focusType]
-	if !ok {
+	focus := q.Focuses.GetByKey(focusType)
+	if focus == nil {
 		return nil, fmt.Errorf("%w %q", errKeyNotFound, focusType)
 	}
 	return focus, nil
@@ -207,7 +206,7 @@ func (q *QuickSpy) setupExchange(k Key) error {
 		}
 		b.Config.Features.Subscriptions = newSubs
 		if err := b.Websocket.Connect(); err != nil {
-			return fmt.Errorf("failed to connect websocket for %s: %w", k.Key.Exchange, err)
+			return fmt.Errorf("failed to connect websocket for %s: %w", k.Exchange, err)
 		}
 	}
 	q.Exch = e
@@ -225,7 +224,7 @@ func (q *QuickSpy) Run() error {
 			}
 		}()
 	}
-	for i, focus := range q.Focuses {
+	for i, focus := range q.Focuses.List() {
 		if focus.UseWebsocket {
 			continue
 		}
@@ -250,50 +249,53 @@ func (q *QuickSpy) HandleWS() error {
 		case d := <-q.dataHandlerChannel:
 			switch data := d.(type) {
 			case *ticker.Price:
-				focus, ok := q.Focuses[TickerFocusType]
-				if !ok {
+				focus := q.Focuses.GetByKey(TickerFocusType)
+				if focus == nil {
 					log.Errorf(log.QuickSpy, "Quickspy data attempt: %q %q %q failed, focus type: %s not found",)
 					continue
 				}
-				focus.m.Lock()
+				q.m.Lock()
 				focus.Stream <- data
-				focus.m.Unlock()
+				q.Data.
+				q.m.Unlock()
 				focus.SetSuccessful()
 			case *orderbook.Depth:
-				focus, ok := q.Focuses[OrderBookFocusType]
-				if !ok {
+				focus := q.Focuses.GetByKey(OrderBookFocusType)
+				if focus == nil {
 					log.Errorf(log.QuickSpy, "Quickspy data attempt: %q %q %q failed, focus type: %s not found",)
 					continue
 				}
 				focus.m.RLock()
 				if q.Data.OB != nil {
-					q.RWMutex.RUnlock()
+					q.m.RUnlock()
 					continue
 				}
-				q.RWMutex.RUnlock()
-				q.RWMutex.Lock()
+				q.m.RUnlock()
+				q.m.Lock()
 				q.Data.OB = data
-				q.RWMutex.Unlock()
+				q.m.Unlock()
 				focus.SetSuccessful()
 			case []trade.Data:
-				focus, _, err := q.Focuses.GetByKey(TradesFocusType)
-				if err != nil {
-					return err
+				focus := q.Focuses.GetByKey(TradesFocusType)
+				if focus == nil {
+					log.Errorf(log.QuickSpy, "Quickspy data attempt: %q %q %q failed, focus type: %s not found", q.Key.Exchange, q.Key.Asset, q.Key.Pair(), TradesFocusType)
+					continue
 				}
-				focus.m.Lock()
-				q.Data.LastTradePrice, _ = data[len(data)-1].Price)
-				q.Data.LastTradeSize, _ = data[len(data)-1].Amount)
-				focus.m.Unlock()
+				q.m.Lock()
+				q.Data.LastTradePrice = data[len(data)-1].Price)
+				q.Data.LastTradeSize = data[len(data)-1].Amount)
+				q.m.Unlock()
 				focus.SetSuccessful()
 			}
 		}
 	}
 }
 
+
 func (q *QuickSpy) RunRESTFocus(focusType FocusType) error {
-	focus, _, err := q.Focuses.GetByKey(focusType)
-	if err != nil {
-		return err
+	focus, ok := q.Focuses[focusType]
+	if !ok {
+		return fmt.Errorf("%w %q", errKeyNotFound, focusType)
 	}
 	if !focus.Enabled {
 		return fmt.Errorf("focus type %v is not enabled", focusType)
@@ -747,8 +749,8 @@ func (f *FocusData) SetSuccessful() {
 }
 
 func (q *QuickSpy) Dump() (*ExportedData, error) {
-	q.RWMutex.RLock()
-	defer q.RWMutex.RUnlock()
+	q.m.RLock()
+	defer q.m.RUnlock()
 	return q.Data.Dump(key.ExchangePairAsset{
 		Exchange: q.Key.Exchange,
 		Asset:    q.Key.Asset,
