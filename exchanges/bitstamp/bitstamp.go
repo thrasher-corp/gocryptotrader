@@ -170,35 +170,18 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol string, hourly bool) (*
 // the amount.
 func (e *Exchange) GetOrderbook(ctx context.Context, symbol string) (*Orderbook, error) {
 	type response struct {
-		Timestamp types.Time        `json:"timestamp"`
-		Bids      [][2]types.Number `json:"bids"`
-		Asks      [][2]types.Number `json:"asks"`
+		Timestamp types.Time                       `json:"timestamp"`
+		Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
+		Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
 	}
 
 	path := "/v" + bitstampAPIVersion + "/" + bitstampAPIOrderbook + "/" + strings.ToLower(symbol) + "/"
 	var resp response
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
-	if err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp); err != nil {
 		return nil, err
 	}
 
-	ob := &Orderbook{
-		Timestamp: resp.Timestamp.Time(),
-		Bids:      make([]OrderbookBase, len(resp.Bids)),
-		Asks:      make([]OrderbookBase, len(resp.Asks)),
-	}
-
-	for x := range resp.Bids {
-		ob.Bids[x].Price = resp.Bids[x][0].Float64()
-		ob.Bids[x].Amount = resp.Bids[x][1].Float64()
-	}
-
-	for x := range resp.Asks {
-		ob.Asks[x].Price = resp.Asks[x][0].Float64()
-		ob.Asks[x].Amount = resp.Asks[x][1].Float64()
-	}
-
-	return ob, nil
+	return &Orderbook{Timestamp: resp.Timestamp.Time(), Bids: resp.Bids.Levels(), Asks: resp.Asks.Levels()}, nil
 }
 
 // GetTradingPairs returns a list of trading pairs which Bitstamp

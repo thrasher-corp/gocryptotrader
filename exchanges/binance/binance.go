@@ -121,36 +121,20 @@ func (e *Exchange) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 // OrderBookDataRequestParams contains the following members
 // symbol: string of currency pair
 // limit: returned limit amount
-func (e *Exchange) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*OrderBook, error) {
+func (e *Exchange) GetOrderBook(ctx context.Context, pair currency.Pair, limit int) (*OrderBookResponse, error) {
 	params := url.Values{}
-	symbol, err := e.FormatSymbol(obd.Symbol, asset.Spot)
+	symbol, err := e.FormatSymbol(pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.Itoa(obd.Limit))
+	params.Set("limit", strconv.Itoa(limit))
 
-	var resp *OrderBookData
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(obd.Limit), &resp); err != nil {
+	var resp *OrderBookResponse
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(limit), &resp); err != nil {
 		return nil, err
 	}
-
-	ob := &OrderBook{
-		Bids:         make([]OrderbookItem, len(resp.Bids)),
-		Asks:         make([]OrderbookItem, len(resp.Asks)),
-		LastUpdateID: resp.LastUpdateID,
-	}
-	for x := range resp.Bids {
-		ob.Bids[x].Price = resp.Bids[x][0].Float64()
-		ob.Bids[x].Quantity = resp.Bids[x][1].Float64()
-	}
-
-	for x := range resp.Asks {
-		ob.Asks[x].Price = resp.Asks[x][0].Float64()
-		ob.Asks[x].Quantity = resp.Asks[x][1].Float64()
-	}
-
-	return ob, nil
+	return resp, nil
 }
 
 // GetMostRecentTrades returns recent trade activity
