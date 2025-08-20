@@ -134,7 +134,7 @@ func StartRPCServer(engine *Engine) {
 		return
 	}
 	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", engine.Config.RemoteControl.GRPC.ListenAddress)
-	lis, err := net.Listen("tcp", engine.Config.RemoteControl.GRPC.ListenAddress)
+	lis, err := net.Listen("tcp", engine.Config.RemoteControl.GRPC.ListenAddress) //nolint:noctx // TODO: #2006 Replace net.Listen with (*net.ListenConfig).Listen
 	if err != nil {
 		log.Errorf(log.GRPCSys, "gRPC server failed to bind to port: %s", err)
 		return

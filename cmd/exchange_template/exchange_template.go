@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -241,7 +242,7 @@ func saveConfig(exchangeDirectory string, configTestFile *config.Config, newExch
 }
 
 func runCommand(dir, param string) error {
-	cmd := exec.Command("go", param)
+	cmd := exec.CommandContext(context.TODO(), "go", param)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -253,11 +254,12 @@ func runCommand(dir, param string) error {
 
 func newFile(path string) {
 	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		file, err := os.Create(path)
-		if err != nil {
-			log.Fatal(err)
-		}
-		file.Close()
+	if !os.IsNotExist(err) {
+		return
 	}
+	f, err := os.Create(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	f.Close()
 }

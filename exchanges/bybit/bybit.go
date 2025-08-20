@@ -1245,10 +1245,10 @@ func (e *Exchange) UpgradeToUnifiedAccount(ctx context.Context) (*UnifiedAccount
 }
 
 // GetBorrowHistory retrieves interest records, sorted in reverse order of creation time.
-func (e *Exchange) GetBorrowHistory(ctx context.Context, currency, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
+func (e *Exchange) GetBorrowHistory(ctx context.Context, ccy, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
 	params := url.Values{}
-	if currency != "" {
-		params.Set("currency", currency)
+	if ccy != "" {
+		params.Set("currency", ccy)
 	}
 	if cursor != "" {
 		params.Set("cursor", cursor)
@@ -1286,10 +1286,10 @@ func (e *Exchange) SetCollateralCoin(ctx context.Context, coin currency.Code, co
 // GetCollateralInfo retrieves the collateral information of the current unified margin account,
 // including loan interest rate, loanable amount, collateral conversion rate,
 // whether it can be mortgaged as margin, etc.
-func (e *Exchange) GetCollateralInfo(ctx context.Context, currency string) (*CollateralInfo, error) {
+func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy string) (*CollateralInfo, error) {
 	params := url.Values{}
-	if currency != "" {
-		params.Set("currency", currency)
+	if ccy != "" {
+		params.Set("currency", ccy)
 	}
 	var resp *CollateralInfo
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/collateral-info", params, nil, &resp, defaultEPL)
@@ -2157,13 +2157,13 @@ func (e *Exchange) SetSpotMarginTradeLeverage(ctx context.Context, leverage floa
 }
 
 // GetVIPMarginData retrieves public VIP Margin data
-func (e *Exchange) GetVIPMarginData(ctx context.Context, vipLevel, currency string) (*VIPMarginData, error) {
+func (e *Exchange) GetVIPMarginData(ctx context.Context, vipLevel, ccy string) (*VIPMarginData, error) {
 	params := url.Values{}
 	if vipLevel != "" {
 		params.Set("vipLevel", vipLevel)
 	}
-	if currency != "" {
-		params.Set("currency", currency)
+	if ccy != "" {
+		params.Set("currency", ccy)
 	}
 	var resp *VIPMarginData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "spot-cross-margin-trade/data", defaultEPL, &resp)
