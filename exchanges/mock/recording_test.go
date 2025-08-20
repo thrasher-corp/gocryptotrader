@@ -15,7 +15,7 @@ import (
 func TestGetFilteredHeader(t *testing.T) {
 	items, err := getExcludedItems()
 	require.NoError(t, err, "getExcludedItems must not error")
-	assert.NotNil(t, items)
+	assert.NotNil(t, items, "getExcludedItems should not return nil")
 
 	resp := http.Response{}
 	resp.Request = &http.Request{}
@@ -28,7 +28,7 @@ func TestGetFilteredHeader(t *testing.T) {
 func TestGetFilteredURLVals(t *testing.T) {
 	items, err := getExcludedItems()
 	require.NoError(t, err, "getExcludedItems must not error")
-	assert.NotNil(t, items)
+	assert.NotNil(t, items, "getExcludedItems should not return nil")
 
 	superSecretData := "Dr Seuss"
 	shadyVals := url.Values{}
@@ -49,10 +49,10 @@ func TestCheckResponsePayload(t *testing.T) {
 
 	items, err := getExcludedItems()
 	require.NoError(t, err, "getExcludedItems must not error")
-	assert.NotNil(t, items)
+	assert.NotNil(t, items, "getExcludedItems should not return nil")
 
 	data, err := CheckResponsePayload(payload, items, 5)
-	assert.NoError(t, err)
+	assert.NoError(t, err, "CheckResponsePayload should not error")
 
 	expected := `{
  "stuff": "REAAAAHHHHH"
@@ -142,24 +142,25 @@ var testVal = []TestStructLevel0{
 func TestCheckJSON(t *testing.T) {
 	exclusionList, err := getExcludedItems()
 	require.NoError(t, err, "getExcludedItems must not error")
+	assert.NotNil(t, exclusionList, "getExcludedItems should not return nil")
 
 	data, err := json.Marshal(testVal)
-	require.NoError(t, err, "json.Marshal nust not error")
-	assert.NotNil(t, data, "json.Marshal nust not return nil")
+	require.NoError(t, err, "json.Marshal must not error")
+	assert.NotNil(t, data, "json.Marshal must not return nil")
 
 	var input any
 	err = json.Unmarshal(data, &input)
 	require.NoError(t, err, "json.Unmarshal must not error")
 
 	vals, err := CheckJSON(input, &exclusionList, 4)
-	assert.NoErrorf(t, err, "Check JSON error: %v", err)
+	assert.NoError(t, err, "CheckJSON should not error")
 
 	payload, err := json.Marshal(vals)
-	require.NoErrorf(t, err, "json marshal error: %v", err)
+	require.NoError(t, err, "Marshal json must not error")
 
 	newStruct := []TestStructLevel0{}
 	err = json.Unmarshal(payload, &newStruct)
-	require.NoErrorf(t, err, "Umarshal error: %v", err)
+	require.NoError(t, err, "Umarshal json must not error")
 
 	assert.Len(t, newStruct, 4)
 	assert.Empty(t, newStruct[0].StructVal.BadVal, "Value not wiped correctly")
@@ -191,7 +192,7 @@ func TestHTTPRecord(t *testing.T) {
 	}()
 
 	content, err := json.Marshal(testVal)
-	require.NoError(t, err, "json.Marshal must not error")
+	require.NoError(t, err, "WriteFile must not error")
 	require.NotNil(t, content, "json.Marshal must not return nil")
 
 	response := &http.Response{
@@ -201,5 +202,5 @@ func TestHTTPRecord(t *testing.T) {
 		},
 	}
 	err = HTTPRecord(response, "mock", content, 4)
-	require.NoError(t, err)
+	require.NoError(t, err, "HTTPRecord must not error")
 }

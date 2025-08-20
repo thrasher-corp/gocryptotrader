@@ -60,10 +60,10 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	}
 
 	payload, err := json.Marshal(test1)
-	require.NoError(t, err, "json.Marshal must not error")
+	require.NoError(t, err, "WriteFile must not error")
 
 	values, err := DeriveURLValsFromJSONMap(payload)
-	assert.NoError(t, err, "DeriveURLValsFromJSON error should not error")
+	assert.NoError(t, err, "DeriveURLValsFromJSONMap should not error")
 	assert.Len(t, values, 2)
 
 	test2 := map[string]string{
@@ -77,10 +77,10 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	}
 
 	payload, err = json.Marshal(test2)
-	require.NoError(t, err, "json.Marshal must not error")
+	require.NoError(t, err, "WriteFile must not error")
 
 	values, err = DeriveURLValsFromJSONMap(payload)
-	require.NoError(t, err, "DeriveURLValsFromJSON error must not error")
+	require.NoError(t, err, "DeriveURLValsFromJSONMap must not error")
 	require.Equal(t, 7, len(values), "DeriveURLValsFromJSONMap must return the correct number of values")
 	for key, val := range values {
 		require.Len(t, val, 1)
