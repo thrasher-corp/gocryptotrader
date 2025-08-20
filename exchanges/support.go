@@ -34,6 +34,7 @@ var Exchanges = []string{
 	"huobi",
 	"kraken",
 	"kucoin",
+	"mexc",
 	"lbank",
 	"okx",
 	"poloniex",
