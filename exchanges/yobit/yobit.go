@@ -235,9 +235,9 @@ func (e *Exchange) WithdrawCoinsToAddress(ctx context.Context, coin string, amou
 }
 
 // CreateCoupon creates an exchange coupon for a specific currency
-func (e *Exchange) CreateCoupon(ctx context.Context, currency string, amount float64) (CreateCoupon, error) {
+func (e *Exchange) CreateCoupon(ctx context.Context, ccy string, amount float64) (CreateCoupon, error) {
 	req := url.Values{}
-	req.Add("currency", currency)
+	req.Add("currency", ccy)
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var result CreateCoupon

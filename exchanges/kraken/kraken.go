@@ -338,26 +338,22 @@ func (e *Exchange) GetBalance(ctx context.Context) (map[string]Balance, error) {
 }
 
 // GetWithdrawInfo gets withdrawal fees
-func (e *Exchange) GetWithdrawInfo(ctx context.Context, currency string, amount float64) (*WithdrawInformation, error) {
+func (e *Exchange) GetWithdrawInfo(ctx context.Context, withdrawalAsset, withdrawalKey string, amount float64) (*WithdrawInformation, error) {
 	params := url.Values{}
-	params.Set("asset", currency)
-	params.Set("key", "")
+	params.Set("asset", withdrawalAsset)
+	params.Set("key", withdrawalKey)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
-	var result WithdrawInformation
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenWithdrawInfo, params, &result); err != nil {
-		return nil, err
-	}
-
-	return &result, nil
+	var result *WithdrawInformation
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenWithdrawInfo, params, &result)
 }
 
 // Withdraw withdraws funds
-func (e *Exchange) Withdraw(ctx context.Context, asset, key string, amount float64) (string, error) {
+func (e *Exchange) Withdraw(ctx context.Context, withdrawalAsset, withdrawalKey string, amount float64) (string, error) {
 	params := url.Values{}
-	params.Set("asset", asset)
-	params.Set("key", key)
-	params.Set("amount", fmt.Sprintf("%f", amount))
+	params.Set("asset", withdrawalAsset)
+	params.Set("key", withdrawalKey)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var referenceID string
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenWithdraw, params, &referenceID); err != nil {
@@ -367,10 +363,10 @@ func (e *Exchange) Withdraw(ctx context.Context, asset, key string, amount float
 	return referenceID, nil
 }
 
-// GetDepositMethods gets withdrawal fees
-func (e *Exchange) GetDepositMethods(ctx context.Context, currency string) ([]DepositMethods, error) {
+// GetDepositMethods gets withdrawal fees for a specific asset
+func (e *Exchange) GetDepositMethods(ctx context.Context, a string) ([]DepositMethods, error) {
 	params := url.Values{}
-	params.Set("asset", currency)
+	params.Set("asset", a)
 
 	var result []DepositMethods
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenDepositMethods, params, &result)
@@ -901,8 +897,8 @@ func getCryptocurrencyDepositFee(c currency.Code) float64 {
 	return DepositFees[c]
 }
 
-func calculateTradingFee(currency string, feePair map[string]TradeVolumeFee, purchasePrice, amount float64) float64 {
-	return (feePair[currency].Fee / 100) * purchasePrice * amount
+func calculateTradingFee(ccy string, feePair map[string]TradeVolumeFee, purchasePrice, amount float64) float64 {
+	return (feePair[ccy].Fee / 100) * purchasePrice * amount
 }
 
 // GetCryptoDepositAddress returns a deposit address for a cryptocurrency

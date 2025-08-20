@@ -537,7 +537,7 @@ func (e *Exchange) GetOrderMatchResults(ctx context.Context, orderID int64) ([]O
 }
 
 // GetOrders returns a list of orders
-func (e *Exchange) GetOrders(ctx context.Context, symbol currency.Pair, types, start, end, states, from, direct, size string) ([]OrderInfo, error) {
+func (e *Exchange) GetOrders(ctx context.Context, symbol currency.Pair, orderTypes, start, end, states, from, direct, size string) ([]OrderInfo, error) {
 	resp := struct {
 		Orders []OrderInfo `json:"data"`
 	}{}
@@ -550,8 +550,8 @@ func (e *Exchange) GetOrders(ctx context.Context, symbol currency.Pair, types, s
 	vals.Set("symbol", symbolValue)
 	vals.Set("states", states)
 
-	if types != "" {
-		vals.Set("types", types)
+	if orderTypes != "" {
+		vals.Set("types", orderTypes)
 	}
 
 	if start != "" {
@@ -601,7 +601,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, acco
 }
 
 // GetOrdersMatch returns a list of matched orders
-func (e *Exchange) GetOrdersMatch(ctx context.Context, symbol currency.Pair, types, start, end, from, direct, size string) ([]OrderMatchInfo, error) {
+func (e *Exchange) GetOrdersMatch(ctx context.Context, symbol currency.Pair, orderTypes, start, end, from, direct, size string) ([]OrderMatchInfo, error) {
 	resp := struct {
 		Orders []OrderMatchInfo `json:"data"`
 	}{}
@@ -613,8 +613,8 @@ func (e *Exchange) GetOrdersMatch(ctx context.Context, symbol currency.Pair, typ
 	}
 	vals.Set("symbol", symbolValue)
 
-	if types != "" {
-		vals.Set("types", types)
+	if orderTypes != "" {
+		vals.Set("types", orderTypes)
 	}
 
 	if start != "" {
@@ -642,7 +642,7 @@ func (e *Exchange) GetOrdersMatch(ctx context.Context, symbol currency.Pair, typ
 }
 
 // MarginTransfer transfers assets into or out of the margin account
-func (e *Exchange) MarginTransfer(ctx context.Context, symbol currency.Pair, currency string, amount float64, in bool) (int64, error) {
+func (e *Exchange) MarginTransfer(ctx context.Context, symbol currency.Pair, ccy string, amount float64, in bool) (int64, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return 0, err
@@ -653,7 +653,7 @@ func (e *Exchange) MarginTransfer(ctx context.Context, symbol currency.Pair, cur
 		Amount   string `json:"amount"`
 	}{
 		Symbol:   symbolValue,
-		Currency: currency,
+		Currency: ccy,
 		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 
@@ -670,7 +670,7 @@ func (e *Exchange) MarginTransfer(ctx context.Context, symbol currency.Pair, cur
 }
 
 // MarginOrder submits a margin order application
-func (e *Exchange) MarginOrder(ctx context.Context, symbol currency.Pair, currency string, amount float64) (int64, error) {
+func (e *Exchange) MarginOrder(ctx context.Context, symbol currency.Pair, ccy string, amount float64) (int64, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return 0, err
@@ -681,7 +681,7 @@ func (e *Exchange) MarginOrder(ctx context.Context, symbol currency.Pair, curren
 		Amount   string `json:"amount"`
 	}{
 		Symbol:   symbolValue,
-		Currency: currency,
+		Currency: ccy,
 		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 
@@ -710,14 +710,14 @@ func (e *Exchange) MarginRepayment(ctx context.Context, orderID int64, amount fl
 }
 
 // GetMarginLoanOrders returns the margin loan orders
-func (e *Exchange) GetMarginLoanOrders(ctx context.Context, symbol currency.Pair, currency, start, end, states, from, direct, size string) ([]MarginOrder, error) {
+func (e *Exchange) GetMarginLoanOrders(ctx context.Context, symbol currency.Pair, ccy, start, end, states, from, direct, size string) ([]MarginOrder, error) {
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	vals.Set("symbol", symbolValue)
-	vals.Set("currency", currency)
+	vals.Set("currency", ccy)
 
 	if start != "" {
 		vals.Set("start-date", start)
