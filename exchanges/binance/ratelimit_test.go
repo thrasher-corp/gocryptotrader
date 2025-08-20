@@ -51,7 +51,7 @@ func TestRateLimit_Limit(t *testing.T) {
 				defer cancel()
 			}
 
-			err := rl.InitiateRateLimit(ctx, tt.Limit)
+			err := rl.InitiateRateLimit(ctx, tt.Limit, false)
 			require.Truef(t, err == nil || errors.Is(err, context.DeadlineExceeded), "InitiateRateLimit must not error: %s", err)
 		})
 	}
@@ -73,7 +73,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			if err := rl.InitiateRateLimit(t.Context(), tt); err != nil {
+			if err := rl.InitiateRateLimit(t.Context(), tt, false); err != nil {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})
