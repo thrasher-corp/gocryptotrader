@@ -59,7 +59,7 @@ func TestNewVCRServer(t *testing.T) {
 		"http://localhost:300/somethingElse?"+queryString,
 		nil,
 		bytes.NewBufferString(""), true)
-	assert.Error(t, err, "SendHTTPRequest must return a connection refused error")
+	assert.Error(t, err, "SendHTTPRequest should return a connection refused error")
 
 	// Expected good outcome
 	r, err := common.SendHTTPRequest(t.Context(),

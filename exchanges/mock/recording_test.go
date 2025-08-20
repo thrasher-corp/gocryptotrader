@@ -146,7 +146,7 @@ func TestCheckJSON(t *testing.T) {
 
 	data, err := json.Marshal(testVal)
 	require.NoError(t, err, "json.Marshal must not error")
-	assert.NotNil(t, data, "json.Marshal must not return nil")
+	require.NotNil(t, data, "json.Marshal must not return nil")
 
 	var input any
 	err = json.Unmarshal(data, &input)
