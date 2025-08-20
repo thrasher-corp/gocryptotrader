@@ -17,9 +17,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -359,24 +359,15 @@ func (e *Exchange) processFuturesAccountBalanceEvent(ctx context.Context, respDa
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	changes := []account.Change{
-		{
-			AssetType: asset.Futures,
-			Balance: &account.Balance{
-				Currency:  currency.NewCode(resp.Currency),
-				Total:     resp.AvailableBalance + resp.HoldBalance,
-				Hold:      resp.HoldBalance,
-				Free:      resp.AvailableBalance,
-				UpdatedAt: resp.Timestamp.Time(),
-			},
-		},
-	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "")}
+	subAccts[0].Balances.Set(resp.Currency, accounts.Balance{
+		Total:     resp.AvailableBalance + resp.HoldBalance,
+		Hold:      resp.HoldBalance,
+		Free:      resp.AvailableBalance,
+		UpdatedAt: resp.Timestamp.Time(),
+	})
+	e.Websocket.DataHandler <- subAccts
+	return e.Accounts.Save(ctx, subAccts, false)
 }
 
 // processFuturesStopOrderLifecycleEvent processes futures stop orders lifecycle events.
@@ -689,29 +680,19 @@ func (e *Exchange) processMarginLendingTradeOrderEvent(respData []byte) error {
 
 // processAccountBalanceChange processes an account balance change
 func (e *Exchange) processAccountBalanceChange(ctx context.Context, respData []byte) error {
-	response := WsAccountBalance{}
-	err := json.Unmarshal(respData, &response)
-	if err != nil {
+	resp := WsAccountBalance{}
+	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	changes := []account.Change{
-		{
-			AssetType: asset.Futures,
-			Balance: &account.Balance{
-				Currency:  currency.NewCode(response.Currency),
-				Total:     response.Total,
-				Hold:      response.Hold,
-				Free:      response.Available,
-				UpdatedAt: response.Time.Time(),
-			},
-		},
-	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "")}
+	subAccts[0].Balances.Set(resp.Currency, accounts.Balance{
+		Total:     resp.Total,
+		Hold:      resp.Hold,
+		Free:      resp.Available,
+		UpdatedAt: resp.Time.Time(),
+	})
+	e.Websocket.DataHandler <- subAccts
+	return e.Accounts.Save(ctx, subAccts, false)
 }
 
 // processOrderChangeEvent processes order update events.

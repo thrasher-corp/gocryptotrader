@@ -10,10 +10,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -215,44 +215,24 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 	return e.EnsureOnePairEnabled()
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// coinbasepro exchange
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
-	response.Exchange = e.Name
-	accountBalance, err := e.GetAccounts(ctx)
+// UpdateAccountBalances retrieves balances for all enabled currencies
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
+	resp, err := e.GetAccounts(ctx)
 	if err != nil {
-		return response, err
+		return subAccts, err
 	}
-
-	accountCurrencies := make(map[string][]account.Balance)
-	for i := range accountBalance {
-		profileID := accountBalance[i].ProfileID
-		currencies := accountCurrencies[profileID]
-		accountCurrencies[profileID] = append(currencies, account.Balance{
-			Currency:               currency.NewCode(accountBalance[i].Currency),
-			Total:                  accountBalance[i].Balance,
-			Hold:                   accountBalance[i].Hold,
-			Free:                   accountBalance[i].Available,
-			AvailableWithoutBorrow: accountBalance[i].Available - accountBalance[i].FundedAmount,
-			Borrowed:               accountBalance[i].FundedAmount,
+	for i := range resp {
+		a := accounts.NewSubAccount(assetType, resp[i].ProfileID)
+		a.Balances.Set(resp[i].Currency, accounts.Balance{
+			Total:                  resp[i].Balance,
+			Hold:                   resp[i].Hold,
+			Free:                   resp[i].Available,
+			Borrowed:               resp[i].FundedAmount,
+			AvailableWithoutBorrow: resp[i].Available - resp[i].FundedAmount,
 		})
+		subAccts = subAccts.Merge(a)
 	}
-
-	if response.Accounts, err = account.CollectBalances(accountCurrencies, assetType); err != nil {
-		return account.Holdings{}, err
-	}
-
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	err = account.Process(&response, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return response, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -831,10 +811,9 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	return req.ProcessResponse(timeSeries)
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

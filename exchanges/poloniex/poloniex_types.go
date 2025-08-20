@@ -151,7 +151,7 @@ type LoanOrders struct {
 
 // Balance holds data for a range of currencies
 type Balance struct {
-	Currency map[string]float64
+	Currency map[currency.Code]float64
 }
 
 // CompleteBalance contains the complete balance with a btcvalue

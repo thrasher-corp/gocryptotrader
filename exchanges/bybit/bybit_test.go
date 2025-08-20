@@ -19,9 +19,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -2871,41 +2871,47 @@ func TestGetBrokerEarning(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 
-	r, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
-	require.NoError(t, err, "UpdateAccountInfo must not error")
-	require.NotEmpty(t, r, "UpdateAccountInfo must return account info")
+	e := testInstance() //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+
+	subAccts, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	require.NotEmpty(t, subAccts, "UpdateAccountBalances must return account info")
 
 	if mockTests {
-		require.Len(t, r.Accounts, 1, "Accounts must have 1 item")
-		require.Len(t, r.Accounts[0].Currencies, 3, "Accounts currencies must have 3 currency items")
+		require.Len(t, subAccts, 1, "Accounts must have 1 item")
+		subAcct := subAccts[0]
+		require.Len(t, subAccts[0].Balances, 3, "Accounts currencies must have 3 currency items")
 
-		for x := range r.Accounts[0].Currencies {
-			switch x {
-			case 0:
-				assert.Equal(t, currency.USDC, r.Accounts[0].Currencies[x].Currency, "Currency should be USDC")
-				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Total, "Total amount should be correct")
-				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Hold, "Hold amount should be correct")
-				assert.Equal(t, 30723.630216383714, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
-			case 1:
-				assert.Equal(t, currency.AVAX, r.Accounts[0].Currencies[x].Currency, "Currency should be AVAX")
-				assert.Equal(t, 2473.9, r.Accounts[0].Currencies[x].Total, "Total amount should be correct")
-				assert.Equal(t, 1468.10808813, r.Accounts[0].Currencies[x].Hold, "Hold amount should be correct")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
-				assert.Equal(t, 1005.79191187, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
-			case 2:
-				assert.Equal(t, currency.USDT, r.Accounts[0].Currencies[x].Currency, "Currency should be USDT")
-				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Total, "Total amount should be correct")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Hold, "Hold amount should be correct")
-				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
-			}
+		for _, curr := range []currency.Code{currency.USDC, currency.AVAX, currency.USDT} {
+			t.Run(curr.String(), func(t *testing.T) {
+				t.Parallel()
+				require.Contains(t, subAcct.Balances, curr, "Balances must contain currency")
+				bal := subAcct.Balances[curr]
+				assert.Equal(t, curr, bal.Currency, "Balance Currency should be set")
+				switch curr {
+				case currency.USDC:
+					assert.Equal(t, -30723.63021638, bal.Total, "Total amount should be correct")
+					assert.Equal(t, -30723.63021638, bal.Hold, "Hold amount should be correct")
+					assert.Equal(t, 30723.630216383714, bal.Borrowed, "Borrowed amount should be correct")
+					assert.Equal(t, 0.0, bal.Free, "Free amount should be correct")
+				case currency.AVAX:
+					assert.Equal(t, 2473.9, bal.Total, "Total amount should be correct")
+					assert.Equal(t, 1468.10808813, bal.Hold, "Hold amount should be correct")
+					assert.Equal(t, 0.0, bal.Borrowed, "Borrowed amount should be correct")
+					assert.Equal(t, 1005.79191187, bal.Free, "Free amount should be correct")
+				case currency.USDT:
+					assert.Equal(t, 935.1415, bal.Total, "Total amount should be correct")
+					assert.Equal(t, 0.0, bal.Borrowed, "Borrowed amount should be correct")
+					assert.Equal(t, 0.0, bal.Hold, "Hold amount should be correct")
+					assert.Equal(t, 935.1415, bal.Free, "Free amount should be correct")
+				}
+			})
 		}
 	}
 }
@@ -3067,8 +3073,10 @@ var pushDataMap = map[string]string{
 	"unhandled":            `{"topic": "unhandled"}`,
 }
 
-func TestPushDataPublic(t *testing.T) {
+func TestWSHandleData(t *testing.T) {
 	t.Parallel()
+
+	e := testInstance() //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	keys := slices.Collect(maps.Keys(pushDataMap))
 	slices.Sort(keys)
@@ -3169,7 +3177,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, 0.358635, v[0].Fee, "fee should be correct")
 			assert.Equal(t, time.UnixMilli(1672364262444), v[0].Date, "Created time should be correct")
 			assert.Equal(t, time.UnixMilli(1672364262457), v[0].LastUpdated, "Updated time should be correct")
-		case []account.Change:
+		case []accounts.Change:
 			require.Len(t, v, 6, "must see 6 items")
 			for i, change := range v {
 				assert.Empty(t, change.Account, "Account type should be empty")
@@ -3258,11 +3266,11 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 func TestWsTicker(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	assetRouting := []asset.Item{
 		asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDTMarginedFutures,
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
 	}
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
 		defer slices.Delete(assetRouting, 0, 1)
 		return e.wsHandleData(nil, assetRouting[0], r)
@@ -3818,7 +3826,7 @@ func TestWebsocketAuthenticateConnection(t *testing.T) {
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "dummy", Secret: "dummy"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "dummy", Secret: "dummy"})
 	err = e.WebsocketAuthenticateConnection(ctx, &FixtureConnection{})
 	require.NoError(t, err)
 	err = e.WebsocketAuthenticateConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":false,"ret_msg":"failed auth","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`)})

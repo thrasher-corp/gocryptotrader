@@ -202,7 +202,7 @@ func (e *Exchange) GetCandles(ctx context.Context, currencyPair, limit, period s
 // https://api.hitbtc.com/?python#market-data
 
 // GetBalances returns full balance for your account
-func (e *Exchange) GetBalances(ctx context.Context) (map[string]Balance, error) {
+func (e *Exchange) GetBalances(ctx context.Context) (map[currency.Code]Balance, error) {
 	var result []Balance
 	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
@@ -211,7 +211,7 @@ func (e *Exchange) GetBalances(ctx context.Context) (map[string]Balance, error) 
 		url.Values{},
 		otherRequests,
 		&result)
-	ret := make(map[string]Balance)
+	ret := make(map[currency.Code]Balance)
 
 	if err != nil {
 		return ret, err

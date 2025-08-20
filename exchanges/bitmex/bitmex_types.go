@@ -3,6 +3,7 @@ package bitmex
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -648,31 +649,31 @@ type MinWithdrawalFee struct {
 
 // WalletInfo wallet information
 type WalletInfo struct {
-	Account          int64     `json:"account"`
-	Addr             string    `json:"addr"`
-	Amount           float64   `json:"amount"`
-	ConfirmedDebit   int64     `json:"confirmedDebit"`
-	Currency         string    `json:"currency"`
-	DeltaAmount      int64     `json:"deltaAmount"`
-	DeltaDeposited   int64     `json:"deltaDeposited"`
-	DeltaTransferIn  int64     `json:"deltaTransferIn"`
-	DeltaTransferOut int64     `json:"deltaTransferOut"`
-	DeltaWithdrawn   int64     `json:"deltaWithdrawn"`
-	Deposited        int64     `json:"deposited"`
-	PendingCredit    int64     `json:"pendingCredit"`
-	PendingDebit     int64     `json:"pendingDebit"`
-	PrevAmount       int64     `json:"prevAmount"`
-	PrevDeposited    int64     `json:"prevDeposited"`
-	PrevTimestamp    time.Time `json:"prevTimestamp"`
-	PrevTransferIn   int64     `json:"prevTransferIn"`
-	PrevTransferOut  int64     `json:"prevTransferOut"`
-	PrevWithdrawn    int64     `json:"prevWithdrawn"`
-	Script           string    `json:"script"`
-	Timestamp        time.Time `json:"timestamp"`
-	TransferIn       int64     `json:"transferIn"`
-	TransferOut      int64     `json:"transferOut"`
-	WithdrawalLock   []string  `json:"withdrawalLock"`
-	Withdrawn        int64     `json:"withdrawn"`
+	Account          int64         `json:"account"`
+	Addr             string        `json:"addr"`
+	Amount           float64       `json:"amount"`
+	ConfirmedDebit   int64         `json:"confirmedDebit"`
+	Currency         currency.Code `json:"currency"`
+	DeltaAmount      int64         `json:"deltaAmount"`
+	DeltaDeposited   int64         `json:"deltaDeposited"`
+	DeltaTransferIn  int64         `json:"deltaTransferIn"`
+	DeltaTransferOut int64         `json:"deltaTransferOut"`
+	DeltaWithdrawn   int64         `json:"deltaWithdrawn"`
+	Deposited        int64         `json:"deposited"`
+	PendingCredit    int64         `json:"pendingCredit"`
+	PendingDebit     int64         `json:"pendingDebit"`
+	PrevAmount       int64         `json:"prevAmount"`
+	PrevDeposited    int64         `json:"prevDeposited"`
+	PrevTimestamp    time.Time     `json:"prevTimestamp"`
+	PrevTransferIn   int64         `json:"prevTransferIn"`
+	PrevTransferOut  int64         `json:"prevTransferOut"`
+	PrevWithdrawn    int64         `json:"prevWithdrawn"`
+	Script           string        `json:"script"`
+	Timestamp        time.Time     `json:"timestamp"`
+	TransferIn       int64         `json:"transferIn"`
+	TransferOut      int64         `json:"transferOut"`
+	WithdrawalLock   []string      `json:"withdrawalLock"`
+	Withdrawn        int64         `json:"withdrawn"`
 }
 
 // orderTypeMap holds order type info based on Bitmex data
