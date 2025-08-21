@@ -114,8 +114,6 @@ func TestConformToAmount(t *testing.T) {
 	t.Parallel()
 	tt := &MinMaxLevel{}
 	require.Equal(t, 1.001, tt.FloorAmountToStepIncrement(1.001))
-		t.Fatal("value should not be changed")
-	}
 
 	tt = &MinMaxLevel{}
 	val := tt.FloorAmountToStepIncrement(1.0)
