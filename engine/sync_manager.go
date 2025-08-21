@@ -393,7 +393,7 @@ func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 		s.IsUsingREST = false
 		if m.config.LogSwitchProtocolEvents {
 			log.Warnf(log.SyncMgr,
-				"%s %s %s: %q Websocket re-enabled, switching from rest to websocket",
+				"%s %s %s: %s Websocket re-enabled, switching from rest to websocket",
 				k.Exchange,
 				m.FormatCurrency(c.Pair),
 				strings.ToUpper(k.Asset.String()),
