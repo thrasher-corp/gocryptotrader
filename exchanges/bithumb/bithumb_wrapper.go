@@ -783,7 +783,10 @@ func (e *Exchange) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
-func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) error {
+func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !e.CurrencyPairs.IsAssetSupported(a) {
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
 	l, err := e.FetchExchangeLimits(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)

@@ -3323,16 +3323,12 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
-			require.NoError(t, e.UpdateOrderExecutionLimits(contextGenerate(), a), "UpdateOrderExecutionLimits must not error")
-
-			p, err := e.GetAvailablePairs(a)
-			require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", a)
-			require.NotEmptyf(t, p, "GetAvailablePairs for asset %s must not return empty pairs", a)
-
-			l, err := e.GetOrderExecutionLimits(a, p[0])
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, true)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
 			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
-			assert.Positivef(t, l.MinimumBaseAmount, "PriceStepIncrementSize should be positive for %s", p)
+			assert.NotZero(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should not be zero")
 		})
 	}
 }

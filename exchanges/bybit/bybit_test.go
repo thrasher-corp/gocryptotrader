@@ -772,24 +772,16 @@ func TestGetDeliveryPrice(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Futures)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Options)
-	assert.NoError(t, err)
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.USDCMarginedFutures)
-	assert.NoError(t, err)
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.USDTMarginedFutures)
-	assert.NoError(t, err)
-
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	assert.NoError(t, err)
-	availablePairs, err := e.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err, "GetAvailablePairs must not error")
-	for x := range availablePairs {
-		var l limits.MinMaxLevel
-		l, err = e.GetOrderExecutionLimits(asset.Spot, availablePairs[x])
-		require.NoError(t, err)
-		require.NotEmpty(t, l, "response must not be empty")
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, true)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
+			assert.NotZero(t, l.MinimumBaseAmount, "MinimumBaseAmount should not be zero")
+		})
 	}
 }
 

@@ -77,20 +77,23 @@ func TestWrapperGetServerTime(t *testing.T) {
 	assert.WithinRange(t, st, time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
 }
 
-// TestUpdateOrderExecutionLimits exercises UpdateOrderExecutionLimits and GetOrderExecutionLimits
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-
-	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
-	for _, p := range []currency.Pair{
-		currency.NewPair(currency.ETH, currency.USDT),
-		currency.NewPair(currency.XBT, currency.USDT),
-	} {
-		l, err := e.GetOrderExecutionLimits(asset.Spot, p)
-		require.NoErrorf(t, err, "%s GetOrderExecutionLimits must not error", p)
-		assert.Positivef(t, l.PriceStepIncrementSize, "%s PriceStepIncrementSize should be positive", p)
-		assert.Positivef(t, l.MinimumBaseAmount, "%s MinimumBaseAmount should be positive", p)
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			switch a {
+			case asset.Futures:
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), common.ErrNotYetImplemented)
+			default:
+				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+				pairs, err := e.CurrencyPairs.GetPairs(a, false)
+				require.NoError(t, err, "GetPairs must not error")
+				l, err := e.GetOrderExecutionLimits(a, pairs[0])
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.NotZero(t, l.MinimumBaseAmount, "MinimumBaseAmount should not be zero")
+			}
+		})
 	}
 }
 

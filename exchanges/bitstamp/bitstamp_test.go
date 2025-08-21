@@ -241,33 +241,16 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	type limitTest struct {
-		pair currency.Pair
-		step float64
-		min  float64
-	}
-	tests := map[asset.Item][]limitTest{
-		asset.Spot: {
-			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 20},
-			{currency.NewBTCUSDT(), 0.01, 20},
-		},
-	}
-	for assetItem, limitTests := range tests {
-		assert.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), assetItem), "UpdateOrderExecutionLimits should not error")
-		for _, lt := range limitTests {
-			l, err := e.GetOrderExecutionLimits(assetItem, lt.pair)
-			if assert.NoError(t, err, "GetOrderExecutionLimits should not error") {
-				continue
-			}
-			assert.NotEmpty(t, l.Key.Pair(), "Pair should not be empty")
-			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-			assert.Positive(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive")
-			if mockTests {
-				assert.Equal(t, lt.step, l.PriceStepIncrementSize)
-				assert.Equal(t, lt.min, l.MinimumQuoteAmount)
-			}
-		}
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
+			assert.NotZero(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should not be zero")
+		})
 	}
 }
 

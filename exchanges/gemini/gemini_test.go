@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1261,24 +1260,16 @@ func TestGetSymbolDetails(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Futures)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-
-	availPairs, err := e.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err)
-	for x := range availPairs {
-		var l limits.MinMaxLevel
-		l, err = e.GetOrderExecutionLimits(asset.Spot, availPairs[x])
-		if err != nil {
-			t.Fatal(err, availPairs[x])
-		}
-		if l == (limits.MinMaxLevel{}) {
-			t.Fatal("exchange limit should be loaded")
-		}
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
+			assert.NotZero(t, l.MinimumBaseAmount, "MinimumBaseAmount should not be zero")
+		})
 	}
 }
 

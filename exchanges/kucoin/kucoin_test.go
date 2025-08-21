@@ -3278,22 +3278,17 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Binary)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	assets := []asset.Item{asset.Spot, asset.Futures, asset.Margin}
-	for x := range assets {
-		err = e.UpdateOrderExecutionLimits(t.Context(), assets[x])
-		assert.NoError(t, err)
-
-		enabled, err := e.GetEnabledPairs(assets[x])
-		assert.NoError(t, err)
-
-		for y := range enabled {
-			lim, err := e.GetOrderExecutionLimits(assets[x], enabled[y])
-			assert.NoErrorf(t, err, "%v %s %v", err, enabled[y], assets[x])
-			assert.NotEmptyf(t, lim, "limit cannot be empty")
-		}
+	testexch.UpdatePairsOnce(t, e)
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, true)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
+			assert.NotZero(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should not be zero")
+		})
 	}
 }
 

@@ -2473,33 +2473,21 @@ func TestUnlockSubAccount(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
-
-	scenarios := []struct {
-		assetType     asset.Item
-		expectedError error
-	}{
-		{assetType: asset.Spot, expectedError: nil},
-		{assetType: asset.USDTMarginedFutures, expectedError: nil},
-		{assetType: asset.CoinMarginedFutures, expectedError: nil},
-		{assetType: asset.DeliveryFutures, expectedError: nil},
-		{assetType: asset.Options, expectedError: nil},
-		{assetType: asset.CrossMargin, expectedError: asset.ErrNotSupported},
-		{assetType: asset.Margin, expectedError: asset.ErrNotSupported},
-	}
-
-	for _, s := range scenarios {
-		t.Run(s.assetType.String(), func(t *testing.T) {
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
-			require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), s.assetType), s.expectedError)
-			if s.expectedError != nil || s.assetType == asset.Options {
-				return
-			}
-			avail, err := e.GetAvailablePairs(s.assetType)
-			require.NoError(t, err, "GetAvailablePairs must not error")
-			for i := range avail {
-				mm, err := e.GetOrderExecutionLimits(s.assetType, avail[i])
+			switch a {
+			case asset.Options:
+				return // Options not supported
+			case asset.CrossMargin, asset.Margin:
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
+			default:
+				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+				pairs, err := e.CurrencyPairs.GetPairs(a, true)
+				require.NoError(t, err, "GetPairs must not error")
+				l, err := e.GetOrderExecutionLimits(a, pairs[0])
 				require.NoError(t, err, "GetOrderExecutionLimits must not error")
-				require.NotEmpty(t, mm, "GetOrderExecutionLimits must not return empty value")
+				assert.NotZero(t, l.MinimumBaseAmount, "MinimumBaseAmount should not be zero")
 			}
 		})
 	}

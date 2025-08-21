@@ -141,20 +141,19 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	tests := map[asset.Item][]currency.Pair{
-		asset.Spot: {
-			currency.NewPair(currency.ETH, currency.UST),
-			currency.NewPair(currency.BTC, currency.UST),
-		},
-	}
-	for assetItem, pairs := range tests {
-		t.Run(assetItem.String(), func(t *testing.T) {
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
-			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), assetItem), "UpdateOrderExecutionLimits must not error")
-			for _, pair := range pairs {
-				l, err := e.GetOrderExecutionLimits(assetItem, pair)
-				assert.NoError(t, err)
+			switch a {
+			case asset.Spot:
+				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+				pairs, err := e.CurrencyPairs.GetPairs(a, false)
+				require.NoError(t, err, "GetPairs must not error")
+				l, err := e.GetOrderExecutionLimits(a, pairs[0])
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
 				assert.NotZero(t, l.MinimumBaseAmount, "MinimumBaseAmount should not be zero")
+			default:
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), common.ErrNotYetImplemented)
 			}
 		})
 	}

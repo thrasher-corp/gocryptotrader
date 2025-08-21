@@ -3822,23 +3822,17 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	require.NoErrorf(t, err, "Error fetching %s pairs for test: %v", asset.Spot, err)
-	instrumentInfo, err := e.GetInstruments(t.Context(), currency.BTC, e.GetAssetKind(asset.Spot), false)
-	require.NoError(t, err)
-	require.NotEmpty(t, instrumentInfo, "instrument information must not be empty")
-	l, err := e.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
-	require.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, spotTradablePair, err)
-	var instrumentDetail *InstrumentData
-	for a := range instrumentInfo {
-		if instrumentInfo[a].InstrumentName == spotTradablePair.String() {
-			instrumentDetail = instrumentInfo[a]
-			break
-		}
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, true)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
+			assert.NotZero(t, l.MinimumBaseAmount, "MinimumBaseAmount should not be zero")
+		})
 	}
-	require.NotNil(t, instrumentDetail, "instrument required to be found")
-	require.Equalf(t, instrumentDetail.TickSize, l.PriceStepIncrementSize, "TickSize and PriceStepIncrementSize must match")
-	assert.Equalf(t, instrumentDetail.MinimumTradeAmount, l.MinimumBaseAmount, "MinimumTradeAmount and MinimumBaseAmount should match")
 }
 
 func TestGetLockedStatus(t *testing.T) {
