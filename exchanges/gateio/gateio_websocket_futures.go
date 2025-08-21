@@ -659,7 +659,7 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 			AssetType: assetType,
 			Account:   bal.User,
 			Balance: &account.Balance{
-				Currency:               bal.Currency,
+				Currency:               c,
 				Total:                  bal.Balance,
 				Free:                   bal.Balance,
 				AvailableWithoutBorrow: bal.Balance,
