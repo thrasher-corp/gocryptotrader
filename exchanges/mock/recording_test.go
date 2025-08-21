@@ -63,8 +63,8 @@ func TestCheckResponsePayload(t *testing.T) {
 func TestGetExcludedItems(t *testing.T) {
 	exclusionList, err := getExcludedItems()
 	require.NoError(t, err, "getExcludedItems must not error")
-	require.NotEmpty(t, exclusionList.Headers, "Headers must not be empty")
-	require.NotEmpty(t, exclusionList.Variables, "Variables must not be empty")
+	assert.NotEmpty(t, exclusionList.Headers, "Headers should not be empty")
+	assert.NotEmpty(t, exclusionList.Variables, "Variables should not be empty")
 }
 
 type TestStructLevel0 struct {
@@ -145,22 +145,22 @@ func TestCheckJSON(t *testing.T) {
 	assert.NotNil(t, exclusionList, "getExcludedItems should not return nil")
 
 	data, err := json.Marshal(testVal)
-	require.NoError(t, err, "json.Marshal must not error")
-	require.NotNil(t, data, "json.Marshal must not return nil")
+	require.NoError(t, err, "Marshal must not error")
+	require.NotNil(t, data, "Marshal must not return nil")
 
 	var input any
 	err = json.Unmarshal(data, &input)
-	require.NoError(t, err, "json.Unmarshal must not error")
+	require.NoError(t, err, "Unmarshal must not error")
 
 	vals, err := CheckJSON(input, &exclusionList, 4)
 	assert.NoError(t, err, "CheckJSON should not error")
 
 	payload, err := json.Marshal(vals)
-	require.NoError(t, err, "Marshal json must not error")
+	require.NoError(t, err, "Marshal must not error")
 
 	newStruct := []TestStructLevel0{}
 	err = json.Unmarshal(payload, &newStruct)
-	require.NoError(t, err, "Umarshal json must not error")
+	require.NoError(t, err, "Umarshal must not error")
 
 	assert.Len(t, newStruct, 4)
 	assert.Empty(t, newStruct[0].StructVal.BadVal, "Value not wiped correctly")
@@ -192,8 +192,8 @@ func TestHTTPRecord(t *testing.T) {
 	}()
 
 	content, err := json.Marshal(testVal)
-	require.NoError(t, err, "WriteFile must not error")
-	require.NotNil(t, content, "json.Marshal must not return nil")
+	require.NoError(t, err, "Marshal must not error")
+	require.NotNil(t, content, "Marshal must not return nil")
 
 	response := &http.Response{
 		Request: &http.Request{

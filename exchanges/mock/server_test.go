@@ -37,13 +37,13 @@ func TestNewVCRServer(t *testing.T) {
 		Amount:   1,
 		Currency: "bitcoin",
 	})
-	require.NoError(t, err, "WriteFile must not error")
+	require.NoError(t, err, "Marshal must not error")
 
 	testValue := HTTPResponse{Data: rp, QueryString: queryString, BodyParams: queryString}
 	test1.Routes["/test"][http.MethodGet] = []HTTPResponse{testValue}
 
 	payload, err := json.Marshal(test1)
-	require.NoError(t, err, "WriteFile must not error")
+	require.NoError(t, err, "Marshal must not error")
 
 	err = os.WriteFile(testFile, payload, os.ModePerm)
 	require.NoError(t, err, "WriteFile must not error")

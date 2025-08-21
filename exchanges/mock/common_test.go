@@ -60,7 +60,7 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	}
 
 	payload, err := json.Marshal(test1)
-	require.NoError(t, err, "WriteFile must not error")
+	require.NoError(t, err, "Marshal must not error")
 
 	values, err := DeriveURLValsFromJSONMap(payload)
 	assert.NoError(t, err, "DeriveURLValsFromJSONMap should not error")
@@ -77,7 +77,7 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	}
 
 	payload, err = json.Marshal(test2)
-	require.NoError(t, err, "WriteFile must not error")
+	require.NoError(t, err, "Marshal must not error")
 
 	values, err = DeriveURLValsFromJSONMap(payload)
 	require.NoError(t, err, "DeriveURLValsFromJSONMap must not error")

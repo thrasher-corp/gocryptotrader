@@ -230,21 +230,20 @@ type API struct {
 
 // Base stores the individual exchange information
 type Base struct {
-	Name                       string
-	Enabled                    bool
-	Verbose                    bool
-	LoadedByConfig             bool
-	SkipAuthCheck              bool
-	API                        API
-	BaseCurrencies             currency.Currencies
-	CurrencyPairs              currency.PairsManager
-	Features                   Features
-	HTTPTimeout                time.Duration
-	HTTPRecording              bool
-	HTTPMockDataSliceLimit     int // Use with HTTPRecording to reduce the size of recorded mock data
-	HTTPDebugging              bool
-	BypassConfigFormatUpgrades bool
-
+	Name                          string
+	Enabled                       bool
+	Verbose                       bool
+	LoadedByConfig                bool
+	SkipAuthCheck                 bool
+	API                           API
+	BaseCurrencies                currency.Currencies
+	CurrencyPairs                 currency.PairsManager
+	Features                      Features
+	HTTPTimeout                   time.Duration
+	HTTPRecording                 bool
+	HTTPMockDataSliceLimit        int // Use with HTTPRecording to reduce the size of recorded mock data
+	HTTPDebugging                 bool
+	BypassConfigFormatUpgrades    bool
 	WebsocketResponseCheckTimeout time.Duration
 	WebsocketResponseMaxLimit     time.Duration
 	WebsocketOrderbookBufferLimit int64
