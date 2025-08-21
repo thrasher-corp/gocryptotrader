@@ -113,7 +113,7 @@ func TestConformToDecimalAmount(t *testing.T) {
 func TestConformToAmount(t *testing.T) {
 	t.Parallel()
 	tt := &MinMaxLevel{}
-	if tt.FloorAmountToStepIncrement(1.001) != 1.001 {
+	require.Equal(t, 1.001, tt.FloorAmountToStepIncrement(1.001))
 		t.Fatal("value should not be changed")
 	}
 
