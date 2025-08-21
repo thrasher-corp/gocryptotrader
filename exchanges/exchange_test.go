@@ -430,7 +430,6 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	spot, err = b.GetPairFormat(asset.Spot, false)
 	require.NoError(t, err, "GetPairFormat must not error")
 	assert.Equal(t, "~", spot.Delimiter, "GetPairFormat should return a format with correct delimiter")
-	assert.Equal(t, "~", spot.Delimiter, "GetPairFormat should return a format with correct delimiter")
 	f, err := b.GetPairFormat(asset.Futures, false)
 	require.NoError(t, err, "GetPairFormat must not error")
 	assert.Equal(t, ":)", f.Delimiter, "GetPairFormat should return a format with correct delimiter")
