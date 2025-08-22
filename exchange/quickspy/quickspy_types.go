@@ -68,53 +68,55 @@ type Data struct {
 	Orderbook       *orderbook.Book
 	Ticker          *ticker.Price
 	Kline           []websocket.KlineData
-	Account         []account.Holdings
+	Account         *account.Holdings
 	Orders          []order.Detail
-	FundingRate     *fundingrate.Rate
-	LastTrade       *trade.Data
+	FundingRate     *fundingrate.LatestRateResponse
+	Trades          []trade.Data
 	ExecutionLimits *order.MinMaxLevel
 	URL             string
+	OpenInterest    float64
 }
 
+// ExportedData is a struct that collates
+// all important data from focus types
 type ExportedData struct {
 	Key                    key.ExchangePairAsset `json:"Key"`
-	UnderlyingBase         *currency.Item        `json:"UnderlyingBase,omitempty"`
-	UnderlyingQuote        *currency.Item        `json:"underlyingQuote,omitempty"`
-	ContractExpirationTime time.Time             `json:"contractExpirationTime,omitempty"`
-	ContractType           string                `json:"contractType,omitempty"`
-	ContractDecimals       float64               `json:"contractDecimals,omitempty"`
+	UnderlyingBase         *currency.Item        `json:"UnderlyingBase,omitzero"`
+	UnderlyingQuote        *currency.Item        `json:"underlyingQuote,omitzero"`
+	ContractExpirationTime time.Time             `json:"contractExpirationTime,omitzero"`
+	ContractType           string                `json:"contractType,omitzero"`
+	ContractDecimals       float64               `json:"contractDecimals,omitzero"`
+	ContractSettlement     string                `json:"contractSettlement,omitzero"`
 	HasValidCredentials    bool                  `json:"hasValidCredentials"`
-	LastPrice              float64               `json:"lastPrice,omitempty"`
-	IndexPrice             float64               `json:"indexPrice,omitempty"`
-	MarkPrice              float64               `json:"markPrice,omitempty"`
-	Volume                 float64               `json:"volume,omitempty"`
-	AskLiquidity           float64               `json:"askLiquidity,omitempty"`
-	AskValue               float64               `json:"askValue,omitempty"`
-	BidLiquidity           float64               `json:"bidLiquidity,omitempty"`
-	BidValue               float64               `json:"bidValue,omitempty"`
-	Spread                 float64               `json:"spread,omitempty"`
-	SpreadPercent          float64               `json:"spreadPercent,omitempty"`
-	FundingRate            float64               `json:"fundingRate,omitempty"`
-	EstimatedFundingRate   float64               `json:"estimatedFundingRate,omitempty"`
-	LastTradePrice         float64               `json:"lastTradePrice,omitempty"`
-	LastTradeSize          float64               `json:"lastTradeSize,omitempty"`
-	Holdings               []account.Holdings    `json:"holdings,omitempty"`
-	Orders                 []order.Detail        `json:"orders,omitempty"`
-	Bids                   orderbook.Levels      `json:"bids,omitempty"`
-	Asks                   orderbook.Levels      `json:"asks,omitempty"`
-	OpenInterest           float64               `json:"openInterest,omitempty"`
-	NextFundingRateTime    time.Time             `json:"nextFundingRateTime,omitempty"`
-	CurrentFundingRateTime time.Time             `json:"currentFundingRateTime,omitempty"`
-	ExecutionLimits        order.MinMaxLevel     `json:"executionLimits,omitempty"`
-	URL                    string                `json:"url,omitempty"`
-	ContractDenomination   string                `json:"contractValueDenomination,omitempty"`
+	LastPrice              float64               `json:"lastPrice,omitzero"`
+	IndexPrice             float64               `json:"indexPrice,omitzero"`
+	MarkPrice              float64               `json:"markPrice,omitzero"`
+	Volume                 float64               `json:"volume,omitzero"`
+	AskLiquidity           float64               `json:"askLiquidity,omitzero"`
+	AskValue               float64               `json:"askValue,omitzero"`
+	BidLiquidity           float64               `json:"bidLiquidity,omitzero"`
+	BidValue               float64               `json:"bidValue,omitzero"`
+	Spread                 float64               `json:"spread,omitzero"`
+	SpreadPercent          float64               `json:"spreadPercent,omitzero"`
+	FundingRate            float64               `json:"fundingRate,omitzero"`
+	EstimatedFundingRate   float64               `json:"estimatedFundingRate,omitzero"`
+	LastTradePrice         float64               `json:"lastTradePrice,omitzero"`
+	LastTradeSize          float64               `json:"lastTradeSize,omitzero"`
+	Holdings               []account.Holdings    `json:"holdings,omitzero"`
+	Orders                 []order.Detail        `json:"orders,omitzero"`
+	Bids                   orderbook.Levels      `json:"bids,omitzero"`
+	Asks                   orderbook.Levels      `json:"asks,omitzero"`
+	OpenInterest           float64               `json:"openInterest,omitzero"`
+	NextFundingRateTime    time.Time             `json:"nextFundingRateTime,omitzero"`
+	CurrentFundingRateTime time.Time             `json:"currentFundingRateTime,omitzero"`
+	ExecutionLimits        order.MinMaxLevel     `json:"executionLimits,omitzero"`
+	URL                    string                `json:"url,omitzero"`
 }
 
 type FocusType int
 
 type FocusData struct {
 	Type                  FocusType
-	Enabled               bool
 	UseWebsocket          bool
 	RESTPollTime          time.Duration
 	m                     *sync.RWMutex
@@ -133,13 +135,12 @@ const (
 	FundingRateFocusType
 	TradesFocusType
 	AccountHoldingsFocusType
-	OrdersFocusType
+	ActiveOrdersFocusType
 	OrderPlacementFocusType
 	KlineFocusType
 	ContractFocusType
 	OrderExecutionFocusType
 	URLFocusType
-	HistoricalContractKlineFocusType
 )
 
 func (f FocusType) String() string {
@@ -156,8 +157,8 @@ func (f FocusType) String() string {
 		return "TradesFocusType"
 	case AccountHoldingsFocusType:
 		return "AccountHoldingsFocusType"
-	case OrdersFocusType:
-		return "OrdersFocusType"
+	case ActiveOrdersFocusType:
+		return "ActiveOrdersFocusType"
 	case OrderPlacementFocusType:
 		return "OrderPlacementFocusType"
 	case KlineFocusType:
