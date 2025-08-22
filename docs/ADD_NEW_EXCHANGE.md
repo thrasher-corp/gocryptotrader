@@ -358,6 +358,12 @@ Alternatively you can use `request.WithVerbose(context.Background())` as the `co
 
 Ensure each endpoint is implemented and has an associated test to improve test coverage and increase confidence
 
+#### Message IDs
+
+If the exchange uses unique string message IDs, then your API functions can call e.MessageID() to get a UUID V7 message ID.
+However if the exchange does not support that format then you should override MessageID with an appropriate implementation.
+For Example: Consider `common.Counter` if universal uniqueness is not a requirement and you need an integer id.
+
 #### Authenticated functions
 
 Authenticated request function is created based on the way the exchange documentation specifies. For example, see the [Binance Spot API - Endpoint Security Types](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/endpoint-security-type).

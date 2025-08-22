@@ -30,8 +30,7 @@ import (
 type Exchange struct {
 	exchange.Base
 
-	messageIDSeq common.Counter
-	account      accountTypeHolder
+	account accountTypeHolder
 }
 
 const (
