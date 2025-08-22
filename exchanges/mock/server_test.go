@@ -59,7 +59,7 @@ func TestNewVCRServer(t *testing.T) {
 		"http://localhost:300/somethingElse?"+queryString,
 		nil,
 		bytes.NewBufferString(""), true)
-	assert.Error(t, err, "SendHTTPRequest should return a connection refused error")
+	assert.ErrorContains(t, err, "connection refused", "SendHTTPRequest should return the correct error")
 
 	// Expected good outcome
 	r, err := common.SendHTTPRequest(t.Context(),
@@ -68,7 +68,7 @@ func TestNewVCRServer(t *testing.T) {
 		nil,
 		bytes.NewBufferString(""), true)
 	assert.NoError(t, err, "SendHTTPRequest should not error")
-	assert.Containsf(t, string(r), "404 page not found", "SendHTTPRequest return should only contain 404")
+	assert.Contains(t, string(r), "404 page not found", "SendHTTPRequest return should only contain 404")
 
 	r, err = common.SendHTTPRequest(t.Context(),
 		http.MethodGet,
