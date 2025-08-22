@@ -8,14 +8,17 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 var errKeyNotFound = errors.New("key not found")
@@ -39,8 +42,8 @@ type QuickSpy struct {
 	Key *Key
 	// Focuses is a map of focus types to focus options
 	Focuses *FocusStore
-	// shutUP is a channel for shutdown signaling
-	shutUP chan any
+	// shutdown is a channel for shutdown signaling
+	shutdown chan any
 	// dataHandlerChannel is used for receiving data from websockets
 	dataHandlerChannel chan any
 	// m is used for concurrent read/write operations
@@ -50,7 +53,7 @@ type QuickSpy struct {
 	// alert is used for notifications
 	alert alert.Notice
 	// Data contains all the market data
-	Data Data
+	Data *Data
 }
 
 type FocusStore struct {
@@ -58,67 +61,19 @@ type FocusStore struct {
 	m *sync.RWMutex
 }
 
-type KlineChartData struct {
-	ChartName   string
-	ChartColour string
-	CandleData  []kline.Candle
-	VolumeData  []kline.Candle
-}
-
-type OrderBookEntry struct {
-	Price            float64
-	Amount           float64
-	OrderAmount      int64
-	Total            float64
-	ContractDecimals float64
-}
-
-// TODO: update this to be more inline with GCT types than just your own.
-// ensure most of it is pointer based to avoid copying large structs
 type Data struct {
 	Key *Key
 	//  contract stuff
-	UnderlyingBase         *currency.Item
-	UnderlyingQuote        *currency.Item
-	ContractExpirationTime time.Time
-	ContractDecimals       float64
-	ContractType           futures.ContractType
-	//open interest
-	OpenInterest float64
-	// ticker stuff
-	LastPrice   float64
-	MarkPrice   float64
-	IndexPrice  float64
-	QuoteVolume float64
-	Volume      float64
-	// ob stuff
-	OB            *orderbook.Depth
-	AskLiquidity  float64
-	AskValue      float64
-	BidLiquidity  float64
-	BidValue      float64
-	Spread        float64
-	SpreadPercent float64
-	// fr stuff
-	FundingRate            float64
-	NextFundingRateTime    time.Time
-	CurrentFundingRateTime time.Time
-	EstimatedFundingRate   float64
-	// trade stuff
-	LastTradePrice float64
-	LastTradeSize  float64
-	// account stuff
-	Holdings []account.Holdings
-	// orders stuff
-	Orders []order.Detail
-	// kline stuff
-	Klines []kline.Candle
-	Bids   orderbook.Levels
-	Asks   orderbook.Levels
-	// order execution limits
-	ExecutionLimits order.MinMaxLevel
-	// url stuff
-	Url string
+	Contract        *futures.Contract
+	Orderbook       *orderbook.Book
+	Ticker          *ticker.Price
+	Kline           []websocket.KlineData
+	Account         []account.Holdings
+	Orders          []order.Detail
+	FundingRate     *fundingrate.Rate
+	LastTrade       *trade.Data
+	ExecutionLimits *order.MinMaxLevel
+	URL             string
 }
 
 type ExportedData struct {
@@ -145,8 +100,8 @@ type ExportedData struct {
 	LastTradeSize          float64               `json:"lastTradeSize,omitempty"`
 	Holdings               []account.Holdings    `json:"holdings,omitempty"`
 	Orders                 []order.Detail        `json:"orders,omitempty"`
-	Bids                   []OrderBookEntry      `json:"bids,omitempty"`
-	Asks                   []OrderBookEntry      `json:"asks,omitempty"`
+	Bids                   orderbook.Levels      `json:"bids,omitempty"`
+	Asks                   orderbook.Levels      `json:"asks,omitempty"`
 	OpenInterest           float64               `json:"openInterest,omitempty"`
 	NextFundingRateTime    time.Time             `json:"nextFundingRateTime,omitempty"`
 	CurrentFundingRateTime time.Time             `json:"currentFundingRateTime,omitempty"`

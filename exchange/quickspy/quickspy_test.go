@@ -43,7 +43,7 @@ func TestNewQuickSpy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	focus, _, err := qs.Focuses.GetByKey(OrderBookFocusType)
+	focus, _, err := qs.Focuses.GetByFocusType(OrderBookFocusType)
 	if err != nil {
 		t.Fatal(err)
 	}
