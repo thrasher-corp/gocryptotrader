@@ -732,11 +732,9 @@ func (bot *Engine) LoadExchange(name string) error {
 	}
 
 	var localWG sync.WaitGroup
-	localWG.Add(1)
-	go func() {
+	localWG.Go(func() {
 		exch.SetDefaults()
-		localWG.Done()
-	}()
+	})
 	exchCfg, err := bot.Config.GetExchangeConfig(name)
 	if err != nil {
 		return err

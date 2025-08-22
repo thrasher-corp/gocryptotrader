@@ -362,8 +362,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 			break
 		}
 
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			//nolint:gosec // no need to import crypo/rand for testing
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
 			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10), //nolint:gosec // no need to import crypo/rand for testing
@@ -389,8 +388,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 			testArray = append(testArray, quick{Name: newName, P: newPairs, TP: tp})
 			sm.Unlock()
-			wg.Done()
-		}()
+		})
 	}
 
 	if catastrophicFailure {

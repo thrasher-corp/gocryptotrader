@@ -6,6 +6,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+          go-version: 1.25.x
+          
     - name: Check for currency.NewPair(BTC, USD) used instead of currency.NewBTCUSD
       run: |
         grep -r -n --color=always -E "currency.NewPair\(currency.BTC, currency.USDT?\)" * || exit 0
@@ -62,4 +67,27 @@ jobs:
         grep -r -n -I --color=always --exclude-dir=.git -P "$PATTERN" . || exit 0
         echo "::error::Remove zero-width/format, separator or combining-mark characters"
         exit 1
+        
+    - name: Check configs JSON format
+      run: |
+        files=("config_example.json" "testdata/configtest.json")
+        for file in "${files[@]}"; do
+          processed_file="${file%.*}_processed.${file##*.}"
+          jq '.exchanges |= sort_by(.name)' --indent 1 $file > $processed_file
+          if ! diff $file $processed_file; then
+            echo "jq differences found in $file! Please run 'make lint_configs'"
+            exit 1
+          else
+            rm $processed_file
+            echo "No differences found in $file 🌞"
+          fi
+        done
+    
+    - name: Check config versions are continuous
+      run: go test ./config/versions/ -tags config_versions -run Continuity
+
+    - name: Check Go modernise tool issues
+      run: |
+        go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -test ./...
+    
 

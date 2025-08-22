@@ -71,10 +71,7 @@ func (e *Exchange) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, erro
 			errC <- err
 			break
 		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			if tick, err2 := e.GetFuturesTicker(ctx, p.String()); err2 != nil {
 				errC <- err2
 			} else {
@@ -91,7 +88,7 @@ func (e *Exchange) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, erro
 					AssetType:    asset.Futures,
 				}
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
