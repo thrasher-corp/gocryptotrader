@@ -81,25 +81,20 @@ func (bt *BackTest) RunLive() error {
 	if bt.LiveDataHandler == nil {
 		return errLiveOnly
 	}
-	var err error
 	if bt.LiveDataHandler.IsRealOrders() {
-		err = bt.LiveDataHandler.UpdateFunding(false)
-		if err != nil {
+		if err := bt.LiveDataHandler.UpdateFunding(false); err != nil {
 			return err
 		}
 	}
-	err = bt.LiveDataHandler.Start()
-	if err != nil {
+	if err := bt.LiveDataHandler.Start(); err != nil {
 		return err
 	}
-	bt.wg.Add(1)
-	go func() {
-		err = bt.liveCheck()
-		if err != nil {
+
+	bt.wg.Go(func() {
+		if err := bt.liveCheck(); err != nil {
 			log.Errorln(common.LiveStrategy, err)
 		}
-		bt.wg.Done()
-	}()
+	})
 
 	return nil
 }

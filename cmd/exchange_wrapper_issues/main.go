@@ -74,13 +74,11 @@ func main() {
 			wrapperConfig.Exchanges[strings.ToLower(name)] = &config.APICredentialsConfig{}
 		}
 		if shouldLoadExchange(name) {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				if err = bot.LoadExchange(name); err != nil {
 					log.Printf("Failed to load exchange %s. Err: %s", name, err)
 				}
-			}()
+			})
 		}
 	}
 	wg.Wait()

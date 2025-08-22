@@ -179,13 +179,21 @@ Run the following after completing changes:
 
 This ensures proper formatting across the codebase.
 
-## Linters
+## Linters and other miscellaneous checks
 
 Run the following to check for linting issues:
 
 ```console
     golangci-lint run ./... (or make lint)
 ```
+
+Run the following tool to check for Go modernise issues:
+
+```console
+    make modernise
+```
+
+Several other miscellaneous checks will be ran via [GitHub actions](/.github/workflows/misc.yml).
 
 - All lint warnings and errors must be resolved before merging.
 - Use `//nolint:linter-name` sparingly and always explain the reason in a comment next to the code.

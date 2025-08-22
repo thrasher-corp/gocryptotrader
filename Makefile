@@ -11,7 +11,7 @@ DRIVER ?= psql
 RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
 CONFIG_FLAG = $(if $(CONFIG),-config $(CONFIG),)
 
-.PHONY: all lint lint_docker check test build install fmt gofumpt update_deps
+.PHONY: all lint lint_docker check test build install fmt gofumpt update_deps modernise
 
 all: check build
 
@@ -40,6 +40,10 @@ fmt:
 gofumpt:
 	@command -v gofumpt >/dev/null 2>&1 || go install mvdan.cc/gofumpt@latest
 	$(GOFUMPTBIN) -l -w $(GO_FILES_TO_FORMAT)
+
+modernise:
+	@command -v modernize >/dev/null 2>&1 || go install golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest
+	modernize -test ./...
 
 update_deps:
 	go mod verify
