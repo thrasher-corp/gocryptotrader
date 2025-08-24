@@ -412,15 +412,15 @@ func (e *Exchange) PlaceTrade(ctx context.Context, orderCurrency, transactionTyp
 //
 // orderID: Order number registered for purchase/sales
 // transactionType: Transaction type(bid : purchase, ask : sales)
-// currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
+// ccy: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
 // (default value: BTC)
-func (e *Exchange) GetOrderDetails(ctx context.Context, orderID, transactionType, currency string) (OrderDetails, error) {
+func (e *Exchange) GetOrderDetails(ctx context.Context, orderID, transactionType, ccy string) (OrderDetails, error) {
 	response := OrderDetails{}
 
 	params := url.Values{}
 	params.Set("order_id", strings.ToUpper(orderID))
 	params.Set("type", transactionType)
-	params.Set("currency", strings.ToUpper(currency))
+	params.Set("currency", strings.ToUpper(ccy))
 
 	return response,
 		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateOrderDetail, params, &response)
@@ -429,15 +429,15 @@ func (e *Exchange) GetOrderDetails(ctx context.Context, orderID, transactionType
 // CancelTrade cancels a customer purchase/sales transaction
 // transactionType: Transaction type(bid : purchase, ask : sales)
 // orderID: Order number registered for purchase/sales
-// currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
+// ccy: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
 // (default value: BTC)
-func (e *Exchange) CancelTrade(ctx context.Context, transactionType, orderID, currency string) (ActionStatus, error) {
+func (e *Exchange) CancelTrade(ctx context.Context, transactionType, orderID, ccy string) (ActionStatus, error) {
 	response := ActionStatus{}
 
 	params := url.Values{}
 	params.Set("order_id", strings.ToUpper(orderID))
 	params.Set("type", strings.ToUpper(transactionType))
-	params.Set("currency", strings.ToUpper(currency))
+	params.Set("currency", strings.ToUpper(ccy))
 
 	return response,
 		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateCancelTrade, nil, &response)
@@ -451,7 +451,7 @@ func (e *Exchange) CancelTrade(ctx context.Context, transactionType, orderID, cu
 // currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM
 // (default value: BTC)
 // units: Quantity to withdraw currency
-func (e *Exchange) WithdrawCrypto(ctx context.Context, address, destination, currency string, units float64) (ActionStatus, error) {
+func (e *Exchange) WithdrawCrypto(ctx context.Context, address, destination, ccy string, units float64) (ActionStatus, error) {
 	response := ActionStatus{}
 
 	params := url.Values{}
@@ -459,7 +459,7 @@ func (e *Exchange) WithdrawCrypto(ctx context.Context, address, destination, cur
 	if destination != "" {
 		params.Set("destination", destination)
 	}
-	params.Set("currency", strings.ToUpper(currency))
+	params.Set("currency", strings.ToUpper(ccy))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 
 	return response,
