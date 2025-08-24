@@ -2635,7 +2635,6 @@ func TestNewOrderUsingSORTest(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFeeByType(t.Context(), nil)
