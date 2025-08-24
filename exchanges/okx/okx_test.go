@@ -295,13 +295,13 @@ func TestGetBlockTrade(t *testing.T) {
 	trades, err := e.GetPublicBlockTrades(contextGenerate(), mainPair.String())
 	require.NoError(t, err)
 	if assert.NotEmpty(t, trades, "Should get some block trades") {
-		trade := trades[0]
-		assert.Equal(t, mainPair.String(), trade.InstrumentID, "InstrumentID should have correct value")
-		assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
-		assert.Positive(t, trade.Price.Float64(), "Price should have a positive value")
-		assert.Positive(t, trade.Size.Float64(), "Size should have a positive value")
-		assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
-		assert.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*90), time.Now(), "Timestamp should be within last 90 days")
+		blockTrade := trades[0]
+		assert.Equal(t, mainPair.String(), blockTrade.InstrumentID, "InstrumentID should have correct value")
+		assert.NotEmpty(t, blockTrade.TradeID, "TradeID should not be empty")
+		assert.Positive(t, blockTrade.Price.Float64(), "Price should have a positive value")
+		assert.Positive(t, blockTrade.Size.Float64(), "Size should have a positive value")
+		assert.Contains(t, []order.Side{order.Buy, order.Sell}, blockTrade.Side, "Side should be a side")
+		assert.WithinRange(t, blockTrade.Timestamp.Time(), time.Now().Add(time.Hour*-24*90), time.Now(), "Timestamp should be within last 90 days")
 	}
 
 	testexch.UpdatePairsOnce(t, e)
