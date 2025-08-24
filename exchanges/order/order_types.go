@@ -364,6 +364,7 @@ const (
 	AnyType
 	Liquidation
 	Trigger
+	LimitMaker
 	OCO             // One-cancels-the-other order
 	ConditionalStop // One-way stop order
 	TWAP            // time-weighted average price
@@ -372,9 +373,10 @@ const (
 	MarketMakerProtection
 
 	// Hybrid order types
-	StopLimit        = Stop | Limit
-	StopMarket       = Stop | Market
-	TakeProfitMarket = TakeProfit | Market
+	StopLimit         = Stop | Limit
+	StopMarket        = Stop | Market
+	TakeProfitMarket  = TakeProfit | Market
+	TrailingStopLimit = TakeProfit | Limit
 )
 
 // order-type string representations
@@ -393,6 +395,7 @@ const (
 	orderIOS                   = "IOS"
 	orderLiquidation           = "LIQUIDATION"
 	orderTrigger               = "TRIGGER"
+	orderLimitMaker            = "LIMIT_MAKER"
 	orderOCO                   = "OCO"
 	orderOptimalLimit          = "OPTIMAL_LIMIT"
 	orderMarketMakerProtection = "MMP"
