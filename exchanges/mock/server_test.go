@@ -60,8 +60,6 @@ func TestNewVCRServer(t *testing.T) {
 		"http://localhost:300/somethingElse?"+queryString,
 		nil,
 		bytes.NewBufferString(""), true)
-	assert.Error(t, err, "SendHTTPRequest should return the correct error")
-
 	var netErr *net.OpError
 	assert.ErrorAs(t, err, &netErr, "SendHTTPRequest should return a net.OpError for an invalid host")
 
