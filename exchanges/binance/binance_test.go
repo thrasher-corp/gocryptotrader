@@ -1274,7 +1274,7 @@ func TestOpenOrders(t *testing.T) {
 func TestAllOrders(t *testing.T) {
 	t.Parallel()
 
-	_, err := e.AllOrders(t.Context(), currency.NewBTCUSDT(), "", "")
+	_, err := e.AllOrders(t.Context(), currency.NewBTCUSDT(), 0, 1000)
 	switch {
 	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
 		t.Error("AllOrders() error", err)

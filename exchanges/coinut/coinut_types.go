@@ -70,7 +70,7 @@ type Orderbook struct {
 type TradeBase struct {
 	Price         float64    `json:"price,string"`
 	Quantity      float64    `json:"qty,string"`
-	Side          string     `json:"side"`
+	Side          order.Side `json:"side"`
 	Timestamp     types.Time `json:"timestamp"`
 	TransactionID int64      `json:"trans_id"`
 }
@@ -121,7 +121,7 @@ type OrderResponse struct {
 	ClientOrderID int64      `json:"client_ord_id"`
 	Timestamp     types.Time `json:"timestamp"`
 	OrderPrice    float64    `json:"order_price,string"`
-	Side          string     `json:"side"`
+	Side          order.Side `json:"side"`
 }
 
 // Commission holds trade commission structure
@@ -352,7 +352,7 @@ type WsTradeData struct {
 	TransID   int64      `json:"trans_id"`
 	Price     float64    `json:"price,string"`
 	Quantity  float64    `json:"qty,string"`
-	Side      string     `json:"side"`
+	Side      order.Side `json:"side"`
 	Timestamp types.Time `json:"timestamp"`
 }
 
@@ -362,7 +362,7 @@ type WsTradeUpdate struct {
 	TransID   int64      `json:"trans_id"`
 	Price     float64    `json:"price,string"`
 	Quantity  float64    `json:"qty,string"`
-	Side      string     `json:"side"`
+	Side      order.Side `json:"side"`
 	Timestamp types.Time `json:"timestamp"`
 	Reply     string     `json:"reply"`
 }
@@ -539,7 +539,7 @@ type WsOrderData struct {
 	OrderID       int64      `json:"order_id"`
 	Price         float64    `json:"price,string"`
 	Quantity      float64    `json:"qty,string"`
-	Side          string     `json:"side"`
+	Side          order.Side `json:"side"`
 	Timestamp     types.Time `json:"timestamp"`
 	Status        []string   `json:"status"`
 }
@@ -693,7 +693,7 @@ type wsOrderContainer struct {
 	FillQuantity  float64    `json:"fill_qty,string"`
 	Price         float64    `json:"price,string"`
 	Reply         string     `json:"reply"`
-	Side          string     `json:"side"`
+	Side          order.Side `json:"side"`
 	Status        []string   `json:"status"`
 	Reasons       []string   `json:"reasons"`
 	Order         struct {
@@ -704,7 +704,7 @@ type wsOrderContainer struct {
 		Price         float64    `json:"price,string"`
 		Quantity      float64    `json:"qty,string"`
 		OpenQuantity  float64    `json:"open_qty,string"`
-		Side          string     `json:"side"`
+		Side          order.Side `json:"side"`
 	} `json:"order"`
 	Commission struct {
 		Amount   float64 `json:"amount,string"`

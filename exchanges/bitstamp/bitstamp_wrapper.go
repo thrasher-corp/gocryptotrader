@@ -390,7 +390,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 			resp = append(resp, exchange.WithdrawalHistory{
 				Status:          strconv.FormatInt(withdrawals[i].Status, 10),
 				Timestamp:       withdrawals[i].Date.Time(),
-				Currency:        withdrawals[i].Currency.String(),
+				Currency:        withdrawals[i].Currency,
 				Amount:          withdrawals[i].Amount,
 				TransferType:    strconv.FormatInt(withdrawals[i].Type, 10),
 				CryptoToAddress: withdrawals[i].Address,
@@ -526,16 +526,12 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			Amount: o.Transactions[i].ToCurrency,
 		}
 	}
-	status, err := order.StringToOrderStatus(o.Status)
-	if err != nil {
-		return nil, err
-	}
 	return &order.Detail{
 		RemainingAmount: o.AmountRemaining,
 		OrderID:         o.ID,
 		Date:            o.DateTime.Time(),
 		Trades:          th,
-		Status:          status,
+		Status:          o.Status,
 	}, nil
 }
 
