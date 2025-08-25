@@ -1493,93 +1493,95 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 }
 
+// TestGetAggregatedTradesBatched exercises TestGetAggregatedTradesBatched to ensure our date and limit scanning works correctly
+// This test is susceptible to failure if volumes change a lot, during wash trading or zero-fee periods
+// In live tests, 45 minutes is expected to return more than 1000 records
 func TestGetAggregatedTradesBatched(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
+	type testCase struct {
+		name    string
+		args    *AggregatedTradeRequestParams
+		expFunc func(*testing.T, []AggregatedTrade)
 	}
 
-	start := time.Date(2020, 1, 2, 15, 4, 5, 0, time.UTC)
-	expectTime := time.Date(2020, 1, 2, 16, 19, 4, 831_000_000, time.UTC)
-	tests := []struct {
-		name string
-		// mock test or live test
-		mock         bool
-		args         *AggregatedTradeRequestParams
-		numExpected  int
-		lastExpected time.Time
-	}{
-		{
-			name: "mock batch with timerange",
-			mock: true,
-			args: &AggregatedTradeRequestParams{
-				Symbol:    currencyPair,
-				StartTime: start,
-				EndTime:   start.Add(75 * time.Minute),
+	var tests []testCase
+	if mockTests {
+		start := time.Date(2020, 1, 2, 15, 4, 5, 0, time.UTC)
+		tests = []testCase{
+			{
+				name: "mock batch with timerange",
+				args: &AggregatedTradeRequestParams{StartTime: start, EndTime: start.Add(75 * time.Minute)},
+				expFunc: func(t *testing.T, results []AggregatedTrade) {
+					t.Helper()
+					require.Equal(t, 1012, len(results), "must return correct number of records")
+					assert.Equal(t,
+						time.Date(2020, 1, 2, 16, 18, 31, int(919*time.Millisecond), time.UTC),
+						results[len(results)-1].TimeStamp.Time().UTC(),
+						"should return the correct time for the last record",
+					)
+				},
 			},
-			numExpected:  1012,
-			lastExpected: time.Date(2020, 1, 2, 16, 18, 31, int(919*time.Millisecond), time.UTC),
-		},
-		{
-			name: "batch with timerange",
-			args: &AggregatedTradeRequestParams{
-				Symbol:    currencyPair,
-				StartTime: start,
-				EndTime:   start.Add(75 * time.Minute),
+			{
+				name: "mock custom limit with start time set, no end time",
+				args: &AggregatedTradeRequestParams{StartTime: start, Limit: 1001},
+				expFunc: func(t *testing.T, results []AggregatedTrade) {
+					t.Helper()
+					require.Equal(t, 1001, len(results), "must return correct number of records")
+					assert.Equal(t,
+						time.Date(2020, 1, 2, 15, 18, 39, int(226*time.Millisecond), time.UTC),
+						results[len(results)-1].TimeStamp.Time().UTC(),
+						"should return the correct time for the last record",
+					)
+				},
 			},
-			numExpected:  12130,
-			lastExpected: expectTime,
-		},
-		{
-			name: "mock custom limit with start time set, no end time",
-			mock: true,
-			args: &AggregatedTradeRequestParams{
-				Symbol:    currency.NewBTCUSDT(),
-				StartTime: start,
-				Limit:     1001,
+			{
+				name: "mock limit less than returned",
+				args: &AggregatedTradeRequestParams{Limit: 3},
+				expFunc: func(t *testing.T, results []AggregatedTrade) {
+					t.Helper()
+					require.Equal(t, 3, len(results), "must return correct number of records")
+					assert.Equal(t,
+						time.Date(2020, 1, 2, 16, 19, 5, int(200*time.Millisecond), time.UTC),
+						results[len(results)-1].TimeStamp.Time().UTC(),
+						"should return the correct time for the last record",
+					)
+				},
 			},
-			numExpected:  1001,
-			lastExpected: time.Date(2020, 1, 2, 15, 18, 39, int(226*time.Millisecond), time.UTC),
-		},
-		{
-			name: "custom limit with start time set, no end time",
-			args: &AggregatedTradeRequestParams{
-				Symbol:    currency.NewBTCUSDT(),
-				StartTime: time.Date(2020, 11, 18, 23, 0, 28, 921, time.UTC),
-				Limit:     1001,
+		}
+	} else {
+		start := time.Now().Add(-time.Hour * 24 * 90).Truncate(time.Minute) // 3 months ago
+		tests = []testCase{
+			{
+				name: "batch with timerange",
+				args: &AggregatedTradeRequestParams{StartTime: start, EndTime: start.Add(20 * time.Minute)},
+				expFunc: func(t *testing.T, results []AggregatedTrade) {
+					t.Helper()
+					// 2000-50000 records range was valid in 2025; Adjust if Binance enters a phase of zero-fees or low-volume
+					require.Greater(t, len(results), 2000, "must return a quantity above a sane threshold of records")
+					assert.Less(t, len(results), 50000, "should return a quantity below a sane threshold of records")
+					assert.WithinDuration(t, results[len(results)-1].TimeStamp.Time(), start, 20*time.Minute, "last record should be within range of start time")
+				},
 			},
-			numExpected:  1001,
-			lastExpected: time.Date(2020, 11, 18, 23, 1, 33, int(62*time.Millisecond*10), time.UTC),
-		},
-		{
-			name: "mock recent trades",
-			mock: true,
-			args: &AggregatedTradeRequestParams{
-				Symbol: currency.NewBTCUSDT(),
-				Limit:  3,
+			{
+				name: "custom limit with start time set, no end time",
+				args: &AggregatedTradeRequestParams{StartTime: start, Limit: 2042},
+				expFunc: func(t *testing.T, results []AggregatedTrade) {
+					t.Helper()
+					// 2000 records in was about 6 minutes in 2025; Adjust if Binance enters a phase of zero-fees or low-volume
+					require.Equal(t, 2042, len(results), "must return exactly the limit number of records")
+					assert.WithinDuration(t, results[len(results)-1].TimeStamp.Time(), start, 20*time.Minute, "last record should be within 20 minutes of start time")
+				},
 			},
-			numExpected:  3,
-			lastExpected: time.Date(2020, 1, 2, 16, 19, 5, int(200*time.Millisecond), time.UTC),
-		},
+		}
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if tt.mock != mockTests {
-				t.Skip("mock mismatch, skipping")
-			}
-			result, err := e.GetAggregatedTrades(t.Context(), tt.args)
-			if err != nil {
-				t.Error(err)
-			}
-			if len(result) != tt.numExpected {
-				t.Errorf("GetAggregatedTradesBatched() expected %v entries, got %v", tt.numExpected, len(result))
-			}
-			lastTradeTime := result[len(result)-1].TimeStamp
-			if !lastTradeTime.Time().Equal(tt.lastExpected) {
-				t.Errorf("last trade expected %v, got %v", tt.lastExpected.UTC(), lastTradeTime.Time().UTC())
-			}
+			tt.args.Symbol = currency.NewBTCUSDT()
+			results, err := e.GetAggregatedTrades(t.Context(), tt.args)
+			require.NoError(t, err)
+			tt.expFunc(t, results)
 		})
 	}
 }
