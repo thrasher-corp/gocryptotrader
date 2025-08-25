@@ -21,7 +21,7 @@ func TestProcessSpotBalances(t *testing.T) {
 
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
 
-	// t.Parallel() not required below as this is sequenced. Some timestamps are identical from trading activity.
+	// Sequential tests, do not use t.Run(); Some timestamps are deliberately identical from trading activity
 	for _, tc := range []struct {
 		input    []byte
 		err      error
