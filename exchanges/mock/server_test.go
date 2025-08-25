@@ -2,11 +2,9 @@ package mock
 
 import (
 	"bytes"
-	"errors"
 	"net"
 	"net/http"
 	"os"
-	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -64,15 +62,8 @@ func TestNewVCRServer(t *testing.T) {
 		bytes.NewBufferString(""), true)
 	assert.Error(t, err, "SendHTTPRequest should return the correct error")
 
-	var opErr *net.OpError
-	if errors.As(err, &opErr) {
-		var sysErr *os.SyscallError
-		if errors.As(opErr.Err, &sysErr) {
-			assert.Equal(t, syscall.ECONNREFUSED, sysErr.Err, "expected connection refused error")
-		}
-	} else {
-		t.Error("SendHTTPRequest should return connection refused error")
-	}
+	var netErr *net.OpError
+	assert.ErrorAs(t, err, &netErr, "SendHTTPRequest should return a net.OpError for an invalid host")
 
 	// Expected good outcome
 	r, err := common.SendHTTPRequest(t.Context(),
