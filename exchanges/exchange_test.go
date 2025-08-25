@@ -2838,7 +2838,7 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 		MaxPrice: 1337,
 	}
 	err := limits.Load([]limits.MinMaxLevel{l})
-	require.NoError(t, err)
+	require.NoError(t, err, "Load must not error")
 
 	_, err = exch.GetOrderExecutionLimits(asset.Spread, cp)
 	require.NoError(t, err)
@@ -2858,7 +2858,7 @@ func TestCheckOrderExecutionLimits(t *testing.T) {
 	err := limits.Load([]limits.MinMaxLevel{
 		l,
 	})
-	require.NoError(t, err, "limits.Load must not error")
+	require.NoError(t, err, "Load must not error")
 
 	err = exch.CheckOrderExecutionLimits(asset.Spread, cp, 1338.0, 1.0, order.Market)
 	require.NoError(t, err, "CheckOrderExecutionLimits must not error")

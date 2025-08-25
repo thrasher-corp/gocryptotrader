@@ -91,7 +91,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				require.NoError(t, err, "GetPairs must not error")
 				l, err := e.GetOrderExecutionLimits(a, pairs[0])
 				require.NoError(t, err, "GetOrderExecutionLimits must not error")
-				assert.NotZero(t, l.MinimumBaseAmount, "MinimumBaseAmount should not be zero")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 			}
 		})
 	}

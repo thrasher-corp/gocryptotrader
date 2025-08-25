@@ -3287,7 +3287,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			require.NoError(t, err, "GetPairs must not error")
 			l, err := e.GetOrderExecutionLimits(a, pairs[0])
 			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.NotZero(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should not be zero")
+			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should not be zero")
 		})
 	}
 }
