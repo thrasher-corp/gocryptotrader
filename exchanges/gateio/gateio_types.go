@@ -2120,7 +2120,7 @@ type WsSpotBalance struct {
 	Available    types.Number  `json:"available"`
 	Freeze       types.Number  `json:"freeze"`
 	FreezeChange types.Number  `json:"freeze_change"`
-	ChangeType   string        `json:"change_type"` // Type of change, e.g. "order-create", "order-match"
+	ChangeType   string        `json:"change_type"` // e.g. "order-create", "order-match"
 }
 
 // WsMarginBalance represents margin account balance push data
