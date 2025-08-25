@@ -2513,12 +2513,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path
 	}
 	err = e.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpointPath + bybitAPIVersion + path,
-			Result:        response,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 http.MethodGet,
+			Path:                   endpointPath + bybitAPIVersion + path,
+			Result:                 response,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
@@ -2576,14 +2577,15 @@ func (e *Exchange) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL
 		}
 		headers["X-BAPI-SIGN"] = hmacSignedStr
 		return &request.Item{
-			Method:        method,
-			Path:          endpointPath + common.EncodeURLValues(path, params),
-			Headers:       headers,
-			Body:          bytes.NewBuffer(payload),
-			Result:        &response,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   endpointPath + common.EncodeURLValues(path, params),
+			Headers:                headers,
+			Body:                   bytes.NewBuffer(payload),
+			Result:                 &response,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if response.RetCode != 0 && response.RetMsg != "" {

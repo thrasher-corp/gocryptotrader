@@ -1091,7 +1091,7 @@ func TestGetExchangeInfo(t *testing.T) {
 	info, err := e.GetExchangeInfo(t.Context())
 	require.NoError(t, err, "GetExchangeInfo must not error")
 	if mockTests {
-		exp := time.Date(2024, 5, 10, 6, 8, 1, int(707*time.Millisecond), time.UTC)
+		exp := time.Date(2025, 8, 7, 21, 55, 41, int(167*time.Millisecond), time.UTC)
 		assert.Truef(t, info.ServerTime.Time().Equal(exp), "expected %v received %v", exp.UTC(), info.ServerTime.Time().UTC())
 	} else {
 		assert.WithinRange(t, info.ServerTime.Time(), time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
@@ -2034,7 +2034,7 @@ func TestSubscribeBadResp(t *testing.T) {
 
 func TestWsTickerUpdate(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"BTCUSDT","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
+	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"ETHBTC","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
 	err := e.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -2046,7 +2046,7 @@ func TestWsKlineUpdate(t *testing.T) {
 	pressXToJSON := []byte(`{"stream":"btcusdt@kline_1m","data":{
 	  "e": "kline",
 	  "E": 1234567891,   
-	  "s": "BTCUSDT",    
+	  "s": "ETHBTC",    
 	  "k": {
 		"t": 1234000001, 
 		"T": 1234600001, 
@@ -2079,7 +2079,7 @@ func TestWsTradeUpdate(t *testing.T) {
 	pressXToJSON := []byte(`{"stream":"btcusdt@trade","data":{
 	  "e": "trade",     
 	  "E": 1234567891,   
-	  "s": "BTCUSDT",    
+	  "s": "ETHBTC",    
 	  "t": 12345,       
 	  "p": "0.001",     
 	  "q": "100",       
@@ -2321,7 +2321,11 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 
 	startTime = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	_, err := e.GetHistoricCandles(t.Context(), currency.NewBTCUSDT(), asset.Spot, kline.Interval(time.Hour*7), startTime, end)
+
+	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+
+	_, err = e.GetHistoricCandles(t.Context(), enabledPairs[0], asset.Spot, kline.Interval(time.Hour*7), startTime, end)
 	require.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
 }
 
@@ -2760,9 +2764,11 @@ func TestFetchExchangeLimits(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+	spotEnabled, err := e.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
 
 	tests := map[asset.Item]currency.Pair{
-		asset.Spot:   currency.NewBTCUSDT(),
+		asset.Spot:   spotEnabled[0],
 		asset.Margin: currency.NewPair(currency.ETH, currency.BTC),
 	}
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures} {

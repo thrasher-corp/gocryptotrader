@@ -295,15 +295,16 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequ
 		headers["Content-Type"] = "application/json"
 
 		return &request.Item{
-			Method:        http.MethodPost,
-			Path:          endpoint,
-			Headers:       headers,
-			Body:          bytes.NewBuffer(payload),
-			Result:        &rawMsg,
-			NonceEnabled:  true,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 http.MethodPost,
+			Path:                   endpoint,
+			Headers:                headers,
+			Body:                   bytes.NewBuffer(payload),
+			Result:                 &rawMsg,
+			NonceEnabled:           true,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, requestType)
 	if err != nil {

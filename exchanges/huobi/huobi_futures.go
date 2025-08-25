@@ -1185,14 +1185,15 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		}
 
 		return &request.Item{
-			Method:        method,
-			Path:          common.EncodeURLValues(ePoint+endpoint, values),
-			Headers:       headers,
-			Body:          body,
-			Result:        &tempResp,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   common.EncodeURLValues(ePoint+endpoint, values),
+			Headers:                headers,
+			Body:                   body,
+			Result:                 &tempResp,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
 

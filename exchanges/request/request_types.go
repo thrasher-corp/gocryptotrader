@@ -41,16 +41,17 @@ type Requester struct {
 
 // Item is a temp item for requests
 type Item struct {
-	Method        string
-	Path          string
-	Headers       map[string]string
-	Body          io.Reader
-	Result        any
-	NonceEnabled  bool
-	Verbose       bool
-	HTTPDebugging bool
-	HTTPRecording bool
-	IsReserved    bool
+	Method                 string
+	Path                   string
+	Headers                map[string]string
+	Body                   io.Reader
+	Result                 any
+	NonceEnabled           bool
+	Verbose                bool
+	HTTPDebugging          bool
+	HTTPRecording          bool
+	HTTPMockDataSliceLimit int // Limits slices per HTTP record to reduce mock data size.
+	IsReserved             bool
 	// HeaderResponse for inspection of header contents package side useful for
 	// pagination
 	HeaderResponse *http.Header

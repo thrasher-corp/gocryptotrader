@@ -838,12 +838,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          path,
-		Result:        &respCheck,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   path,
+		Result:                 &respCheck,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	err = e.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
@@ -896,14 +897,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["api-signature"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:        verb,
-			Path:          endpoint + path,
-			Headers:       headers,
-			Body:          strings.NewReader(payload),
-			Result:        &respCheck,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 verb,
+			Path:                   endpoint + path,
+			Headers:                headers,
+			Body:                   strings.NewReader(payload),
+			Result:                 &respCheck,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
 	err = e.SendPayload(ctx, request.Auth, newRequest, request.AuthenticatedRequest)
