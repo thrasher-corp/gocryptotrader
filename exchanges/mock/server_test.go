@@ -2,9 +2,11 @@ package mock
 
 import (
 	"bytes"
+	"errors"
+	"net"
 	"net/http"
 	"os"
-	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,22 +25,6 @@ const (
 	queryString = "currency=btc&command=getprice"
 	testFile    = "test.json"
 )
-
-func containsAny(haystack string, needles []string) bool {
-	for _, n := range needles {
-		if strings.Contains(haystack, n) {
-			return true
-		}
-	}
-	return false
-}
-
-func TestContainsAny(t *testing.T) {
-	t.Parallel()
-	theList := []string{"a", "b", "c"}
-	assert.False(t, containsAny("efg", theList))
-	assert.True(t, containsAny("efa", theList))
-}
 
 func TestNewVCRServer(t *testing.T) {
 	_, _, err := NewVCRServer("")
@@ -77,16 +63,16 @@ func TestNewVCRServer(t *testing.T) {
 		nil,
 		bytes.NewBufferString(""), true)
 	assert.Error(t, err, "SendHTTPRequest should return the correct error")
-	expectedSubstrings := []string{
-		"No connection could be made because the target machine actively refused it",
-		"connection refused",
-	}
 
-	assert.Truef(t,
-		containsAny(err.Error(), expectedSubstrings),
-		"error %q does not contain any of %v",
-		err.Error(), expectedSubstrings,
-	)
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		var sysErr *os.SyscallError
+		if errors.As(opErr.Err, &sysErr) {
+			assert.Equal(t, syscall.ECONNREFUSED, sysErr.Err, "expected connection refused error")
+		}
+	} else {
+		t.Error("SendHTTPRequest should return connection refused error")
+	}
 
 	// Expected good outcome
 	r, err := common.SendHTTPRequest(t.Context(),
