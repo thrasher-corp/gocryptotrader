@@ -320,26 +320,26 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 		return nil, err
 	}
 
-	var context map[string]any
-	err = json.Unmarshal(conv, &context)
+	var contextValue map[string]any
+	err = json.Unmarshal(conv, &contextValue)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(context) == 0 {
+	if len(contextValue) == 0 {
 		// Nil for some reason, should error out before in json.Unmarshal
-		return context, nil
+		return contextValue, nil
 	}
 
-	for key, val := range context {
+	for key, val := range contextValue {
 		switch reflect.ValueOf(val).Kind().String() {
 		case String:
 			if IsExcluded(key, excluded.Variables) {
-				context[key] = "" // Zero val string
+				contextValue[key] = "" // Zero val string
 			}
 		case Float64:
 			if IsExcluded(key, excluded.Variables) {
-				context[key] = 0.0 // Zero val float
+				contextValue[key] = 0.0 // Zero val float
 			}
 		case Slice:
 			slice, ok := val.([]any)
@@ -349,11 +349,11 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 			switch {
 			case len(slice) == 0:
 				// Empty slice found
-				context[key] = slice
+				contextValue[key] = slice
 			case IsExcluded(key, excluded.Variables):
-				context[key] = nil // Zero val slice
+				contextValue[key] = nil // Zero val slice
 			default:
-				context[key], err = CheckJSON(slice, excluded, limit)
+				contextValue[key], err = CheckJSON(slice, excluded, limit)
 				if err != nil {
 					return nil, err
 				}
@@ -361,14 +361,14 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 		case Bool, Invalid: // Skip these bad boys for now
 		default:
 			// Recursively check map data
-			context[key], err = CheckJSON(val, excluded, limit)
+			contextValue[key], err = CheckJSON(val, excluded, limit)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	return context, nil
+	return contextValue, nil
 }
 
 // IsExcluded cross references the key with the excluded variables
