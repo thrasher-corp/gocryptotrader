@@ -119,9 +119,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, dh data.Handler, om *engine.Order
 	}
 
 	if cs.CanUseExchangeLimits || cs.UseRealOrders {
-		// Conforms the amount to the exchange order defined step amount
-		// reducing it when needed
-		adjustedAmount = cs.Limits.ConformToDecimalAmount(amount)
+		adjustedAmount = cs.Limits.FloorAmountToStepIncrementDecimal(amount)
 		if !adjustedAmount.Equal(amount) && !adjustedAmount.IsZero() {
 			f.AppendReasonf("Order size shrunk from %v to %v to remain within exchange step amount limits",
 				amount,

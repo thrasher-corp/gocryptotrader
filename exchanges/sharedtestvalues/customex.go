@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -322,8 +323,8 @@ func (c *CustomEx) AuthenticateWebsocket(_ context.Context) error {
 }
 
 // GetOrderExecutionLimits is a mock method for CustomEx
-func (c *CustomEx) GetOrderExecutionLimits(_ asset.Item, _ currency.Pair) (order.MinMaxLevel, error) {
-	return order.MinMaxLevel{}, nil
+func (c *CustomEx) GetOrderExecutionLimits(_ asset.Item, _ currency.Pair) (limits.MinMaxLevel, error) {
+	return limits.MinMaxLevel{}, nil
 }
 
 // CheckOrderExecutionLimits is a mock method for CustomEx
