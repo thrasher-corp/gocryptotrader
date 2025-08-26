@@ -249,8 +249,8 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 			if wsUser[i].Orders[j].LimitPrice != 0 {
 				price = wsUser[i].Orders[j].LimitPrice
 			}
-			var asset asset.Item
-			asset, err = stringToStandardAsset(wsUser[i].Orders[j].ProductType)
+			var assetType asset.Item
+			assetType, err = stringToStandardAsset(wsUser[i].Orders[j].ProductType)
 			if err != nil {
 				e.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: e.Name,
@@ -278,7 +278,7 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 				Side:            oSide,
 				Type:            oType,
 				Pair:            wsUser[i].Orders[j].ProductID,
-				AssetType:       asset,
+				AssetType:       assetType,
 				Status:          oStatus,
 				TriggerPrice:    wsUser[i].Orders[j].StopPrice.Float64(),
 				TimeInForce:     tif,

@@ -1136,16 +1136,16 @@ func (e *Exchange) GetAllWallets(ctx context.Context, pag PaginationInp) (*GetAl
 }
 
 // GetWalletByID returns information about a single wallet. In lieu of a wallet ID, a currency can be provided to get the primary account for that currency
-func (e *Exchange) GetWalletByID(ctx context.Context, walletID string, currency currency.Code) (*WalletData, error) {
-	if (walletID == "" && currency.IsEmpty()) || (walletID != "" && !currency.IsEmpty()) {
+func (e *Exchange) GetWalletByID(ctx context.Context, walletID string, cur currency.Code) (*WalletData, error) {
+	if (walletID == "" && cur.IsEmpty()) || (walletID != "" && !cur.IsEmpty()) {
 		return nil, errCurrWalletConflict
 	}
 	var path string
 	if walletID != "" {
 		path = v2Path + accountsPath + "/" + walletID
 	}
-	if !currency.IsEmpty() {
-		path = v2Path + accountsPath + "/" + currency.String()
+	if !cur.IsEmpty() {
+		path = v2Path + accountsPath + "/" + cur.String()
 	}
 	resp := struct {
 		Data WalletData `json:"data"`
@@ -1201,12 +1201,12 @@ func (e *Exchange) GetCryptocurrencies(ctx context.Context) ([]CryptoData, error
 }
 
 // GetExchangeRates returns exchange rates for the specified currency. If none is specified, it defaults to USD
-func (e *Exchange) GetExchangeRates(ctx context.Context, currency string) (*GetExchangeRatesResp, error) {
+func (e *Exchange) GetExchangeRates(ctx context.Context, cur string) (*GetExchangeRatesResp, error) {
 	resp := struct {
 		Data GetExchangeRatesResp `json:"data"`
 	}{}
 	vals := url.Values{}
-	vals.Set("currency", currency)
+	vals.Set("currency", cur)
 	return &resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, v2Path+exchangeRatesPath, vals, &resp)
 }
 
@@ -1494,7 +1494,7 @@ func (e *Exchange) GetJWT(ctx context.Context, uri string) (string, time.Time, e
 	if block == nil {
 		return "", time.Time{}, errCantDecodePrivKey
 	}
-	key, err := x509.ParseECPrivateKey(block.Bytes)
+	privateKey, err := x509.ParseECPrivateKey(block.Bytes)
 	if err != nil {
 		return "", time.Time{}, err
 	}
@@ -1515,7 +1515,7 @@ func (e *Exchange) GetJWT(ctx context.Context, uri string) (string, time.Time, e
 	tok := jwt.NewWithClaims(jwt.SigningMethodES256, mapClaims)
 	tok.Header["kid"] = creds.Key
 	tok.Header["nonce"] = nonce
-	sign, err := tok.SignedString(key)
+	sign, err := tok.SignedString(privateKey)
 	return sign, regTime.Add(time.Minute * 2), err
 	// The code below mostly works, but seems to lead to bad results on the signature step. Deferring until later
 	// head := map[string]any{"kid": creds.Key, "typ": "JWT", "alg": "ES256", "nonce": nonce}
