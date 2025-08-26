@@ -671,7 +671,7 @@ func TestMovementHistoryUnmarshalJSON(t *testing.T) {
 	}
 	exp := MovementHistory{
 		ID:                 13105603,
-		Currency:           "ETH",
+		Currency:           currency.ETH,
 		CurrencyName:       "ETHEREUM",
 		MTSStarted:         types.Time(time.Unix(1569348774, 0)),
 		MTSUpdated:         types.Time(time.Unix(1569348774, 0)),
@@ -687,7 +687,7 @@ func TestMovementHistoryUnmarshalJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal(withdrawal, &result))
 	exp = MovementHistory{
 		ID:                 13293039,
-		Currency:           "ETH",
+		Currency:           currency.ETH,
 		CurrencyName:       "ETHEREUM",
 		MTSStarted:         types.Time(time.Unix(1574175052, 0)),
 		MTSUpdated:         types.Time(time.Unix(1574181326, 0)),
