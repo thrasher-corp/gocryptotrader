@@ -28,7 +28,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | BTCMarkets | Yes | Yes       | NA  |
 | BTSE | Yes | Yes | NA |
 | Bybit | Yes | Yes | NA |
-| CoinbasePro | Yes | Yes | No|
+| Coinbase | Yes | Yes | No|
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | No |
 | Exmo | Yes | NA | NA |

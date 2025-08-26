@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
@@ -15,7 +16,7 @@ func (r *Request) Validate(opt ...validate.Checker) (err error) {
 	}
 
 	if r.Exchange == "" {
-		return ErrExchangeNameUnset
+		return common.ErrExchangeNameNotSet
 	}
 
 	var allErrors []string

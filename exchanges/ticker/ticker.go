@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -15,9 +16,8 @@ import (
 
 // Public errors
 var (
-	ErrTickerNotFound      = errors.New("no ticker found")
-	ErrBidEqualsAsk        = errors.New("bid equals ask this is a crossed or locked market")
-	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
+	ErrTickerNotFound = errors.New("no ticker found")
+	ErrBidEqualsAsk   = errors.New("bid equals ask this is a crossed or locked market")
 )
 
 var (
@@ -66,7 +66,7 @@ func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
 // GetTicker checks and returns a requested ticker if it exists
 func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 	if exchange == "" {
-		return nil, ErrExchangeNameIsEmpty
+		return nil, common.ErrExchangeNameNotSet
 	}
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -93,7 +93,7 @@ func GetExchangeTickers(exchange string) ([]*Price, error) {
 
 func (s *Service) getExchangeTickers(exchange string) ([]*Price, error) {
 	if exchange == "" {
-		return nil, ErrExchangeNameIsEmpty
+		return nil, common.ErrExchangeNameNotSet
 	}
 	exchange = strings.ToLower(exchange)
 	s.mu.Lock()
@@ -136,7 +136,7 @@ func ProcessTicker(p *Price) error {
 	}
 
 	if p.ExchangeName == "" {
-		return ErrExchangeNameIsEmpty
+		return common.ErrExchangeNameNotSet
 	}
 
 	if p.Pair.IsEmpty() {
@@ -223,7 +223,7 @@ func (s *Service) setItemID(t *Ticker, p *Price, exch string) error {
 // getAssociations links a singular book with its dispatch associations
 func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 	if exch == "" {
-		return nil, ErrExchangeNameIsEmpty
+		return nil, common.ErrExchangeNameNotSet
 	}
 	var ids []uuid.UUID
 	exchangeID, ok := s.Exchange[exch]
