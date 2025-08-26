@@ -654,21 +654,9 @@ func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 
 // ProcessOrderbookUpdate processes the websocket orderbook update
 func (e *Exchange) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, wsDSUpdate *WebsocketDepthStream) error {
-	updateBid := make([]orderbook.Level, len(wsDSUpdate.UpdateBids))
-	for i := range wsDSUpdate.UpdateBids {
-		updateBid[i].Price = wsDSUpdate.UpdateBids[i][0].Float64()
-		updateBid[i].Amount = wsDSUpdate.UpdateBids[i][1].Float64()
-	}
-
-	updateAsk := make([]orderbook.Level, len(wsDSUpdate.UpdateAsks))
-	for i := range wsDSUpdate.UpdateAsks {
-		updateAsk[i].Price = wsDSUpdate.UpdateAsks[i][0].Float64()
-		updateAsk[i].Amount = wsDSUpdate.UpdateAsks[i][1].Float64()
-	}
-
 	return e.Websocket.Orderbook.Update(&orderbook.Update{
-		Bids:       updateBid,
-		Asks:       updateAsk,
+		Bids:       wsDSUpdate.UpdateBids.Levels(),
+		Asks:       wsDSUpdate.UpdateAsks.Levels(),
 		Pair:       cp,
 		UpdateID:   wsDSUpdate.LastUpdateID,
 		UpdateTime: wsDSUpdate.Timestamp.Time(),
@@ -789,11 +777,7 @@ func (e *Exchange) processJob(ctx context.Context, p currency.Pair) error {
 
 // SeedLocalCache seeds depth data
 func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
-	ob, err := e.GetOrderBookDepth(ctx,
-		&OrderBookDataRequestParams{
-			Symbol: p,
-			Limit:  1000,
-		})
+	ob, err := e.GetOrderBookDepth(ctx, p, 1000)
 	if err != nil {
 		return err
 	}
@@ -802,29 +786,16 @@ func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
-	newOrderBook := orderbook.Book{
+	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Pair:              p,
 		Asset:             asset.Spot,
 		Exchange:          e.Name,
 		LastUpdateID:      orderbookNew.LastUpdateID,
 		ValidateOrderbook: e.ValidateOrderbook,
-		Bids:              make(orderbook.Levels, len(orderbookNew.Bids)),
-		Asks:              make(orderbook.Levels, len(orderbookNew.Asks)),
+		Bids:              orderbookNew.Bids,
+		Asks:              orderbookNew.Asks,
 		LastUpdated:       time.Now(), // Time not provided in REST book.
-	}
-	for i := range orderbookNew.Bids {
-		newOrderBook.Bids[i] = orderbook.Level{
-			Amount: orderbookNew.Bids[i].Quantity,
-			Price:  orderbookNew.Bids[i].Price,
-		}
-	}
-	for i := range orderbookNew.Asks {
-		newOrderBook.Asks[i] = orderbook.Level{
-			Amount: orderbookNew.Asks[i].Quantity,
-			Price:  orderbookNew.Asks[i].Price,
-		}
-	}
-	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	})
 }
 
 // handleFetchingBook checks if a full book is being fetched or needs to be
