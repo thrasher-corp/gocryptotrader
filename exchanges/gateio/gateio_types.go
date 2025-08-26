@@ -641,7 +641,7 @@ type FuturesContract struct {
 	InDelisting           bool         `json:"in_delisting"`
 	RiskLimitBase         string       `json:"risk_limit_base"`
 	InterestRate          string       `json:"interest_rate"`
-	OrderPriceRound       string       `json:"order_price_round"`
+	OrderPriceRound       types.Number `json:"order_price_round"`
 	OrderSizeMin          int64        `json:"order_size_min"`
 	RefRebateRate         string       `json:"ref_rebate_rate"`
 	FundingInterval       int64        `json:"funding_interval"`
@@ -845,7 +845,7 @@ type OptionContract struct {
 	Underlying        string       `json:"underlying"`
 	UnderlyingPrice   types.Number `json:"underlying_price"`
 	Multiplier        string       `json:"multiplier"`
-	OrderPriceRound   string       `json:"order_price_round"`
+	OrderPriceRound   types.Number `json:"order_price_round"`
 	MarkPriceRound    string       `json:"mark_price_round"`
 	MakerFeeRate      string       `json:"maker_fee_rate"`
 	TakerFeeRate      string       `json:"taker_fee_rate"`

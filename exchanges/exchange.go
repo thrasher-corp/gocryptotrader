@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1310,12 +1311,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: b.Name,
-					Base:     ticks[i].Pair.Base.Item,
-					Quote:    ticks[i].Pair.Quote.Item,
-					Asset:    ticks[i].AssetType,
-				},
+				Key:          key.NewExchangeAssetPair(b.Name, ticks[i].AssetType, ticks[i].Pair),
 				OpenInterest: ticks[i].OpenInterest,
 			})
 		}
@@ -1331,12 +1327,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 			return nil, err
 		}
 		resp[i] = futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: b.Name,
-				Base:     t.Pair.Base.Item,
-				Quote:    t.Pair.Quote.Item,
-				Asset:    t.AssetType,
-			},
+			Key:          key.NewExchangeAssetPair(b.Name, t.AssetType, t.Pair),
 			OpenInterest: t.OpenInterest,
 		}
 	}
@@ -1946,6 +1937,21 @@ func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (
 		return account.Holdings{}, err
 	}
 	return account.GetHoldings(b.Name, creds, assetType)
+}
+
+// GetOrderExecutionLimits returns a limit based on the exchange, asset and pair from storage
+func (b *Base) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error) {
+	return limits.GetOrderExecutionLimits(key.NewExchangeAssetPair(b.Name, a, cp))
+}
+
+// CheckOrderExecutionLimits checks if the order execution limits are within the defined limits from storage
+func (b *Base) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, amount, price float64, orderType order.Type) error {
+	return limits.CheckOrderExecutionLimits(
+		key.NewExchangeAssetPair(b.Name, a, cp),
+		amount,
+		price,
+		orderType,
+	)
 }
 
 // WebsocketSubmitOrder submits an order to the exchange via a websocket connection

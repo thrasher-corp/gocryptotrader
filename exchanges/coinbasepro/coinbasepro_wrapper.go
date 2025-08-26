@@ -10,8 +10,10 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -999,11 +1001,10 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return err
 		}
 	}
-	limits := make([]order.MinMaxLevel, len(data.Products))
+	lim := make([]limits.MinMaxLevel, len(data.Products))
 	for i := range data.Products {
-		limits[i] = order.MinMaxLevel{
-			Pair:                    data.Products[i].ID,
-			Asset:                   a,
+		lim[i] = limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, a, data.Products[i].ID),
 			MinPrice:                data.Products[i].QuoteMinSize.Float64(),
 			MaxPrice:                data.Products[i].QuoteMaxSize.Float64(),
 			PriceStepIncrementSize:  data.Products[i].PriceIncrement.Float64(),
@@ -1016,7 +1017,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			MaxTotalOrders:          1000,
 		}
 	}
-	return e.LoadLimits(limits)
+	return limits.Load(lim)
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair

@@ -3582,22 +3582,6 @@ func (e *Exchange) InitiateFlashSwapOrderReview(ctx context.Context, arg FlashSw
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, flashOrderReviewEPL, http.MethodPost, gateioFlashSwapOrdersPreview, nil, &arg, &response)
 }
 
-// IsValidPairString returns true if the string represents a valid currency pair
-func (e *Exchange) IsValidPairString(currencyPair string) bool {
-	if len(currencyPair) < 3 {
-		return false
-	}
-	pf, err := e.CurrencyPairs.GetFormat(asset.Spot, true)
-	if err != nil {
-		return false
-	}
-	if strings.Contains(currencyPair, pf.Delimiter) {
-		result := strings.Split(currencyPair, pf.Delimiter)
-		return len(result) >= 2
-	}
-	return false
-}
-
 // ********************************* Trading Fee calculation ********************************
 
 // GetFee returns an estimate of fee based on type of transaction

@@ -532,34 +532,19 @@ func TestGetPositionsForExchange(t *testing.T) {
 	if len(pos) != 0 {
 		t.Error("expected zero")
 	}
-	c.multiPositionTrackers = make(map[key.ExchangePairAsset]*MultiPositionTracker)
-	c.multiPositionTrackers[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    asset.Futures,
-	}] = nil
+	c.multiPositionTrackers = make(map[key.ExchangeAssetPair]*MultiPositionTracker)
+	c.multiPositionTrackers[key.NewExchangeAssetPair(testExchange, asset.Futures, p)] = nil
 	_, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)
-	assert.ErrorIs(t, err, ErrPositionNotFound)
+	require.ErrorIs(t, err, ErrPositionNotFound, "GetPositionsForExchange must return ErrPositionNotFound")
 
-	c.multiPositionTrackers[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    asset.Futures,
-	}] = nil
+	c.multiPositionTrackers[key.NewExchangeAssetPair(testExchange, asset.Futures, p)] = nil
 	_, err = c.GetPositionsForExchange(testExchange, asset.Futures, p)
 	assert.ErrorIs(t, err, ErrPositionNotFound)
 
 	_, err = c.GetPositionsForExchange(testExchange, asset.Spot, p)
 	assert.ErrorIs(t, err, ErrNotFuturesAsset)
 
-	c.multiPositionTrackers[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    asset.Futures,
-	}] = &MultiPositionTracker{
+	c.multiPositionTrackers[key.NewExchangeAssetPair(testExchange, asset.Futures, p)] = &MultiPositionTracker{
 		exchange: testExchange,
 	}
 
@@ -569,12 +554,7 @@ func TestGetPositionsForExchange(t *testing.T) {
 	if len(pos) != 0 {
 		t.Fatal("expected zero")
 	}
-	c.multiPositionTrackers[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    asset.Futures,
-	}] = &MultiPositionTracker{
+	c.multiPositionTrackers[key.NewExchangeAssetPair(testExchange, asset.Futures, p)] = &MultiPositionTracker{
 		exchange: testExchange,
 		positions: []*PositionTracker{
 			{
@@ -606,19 +586,14 @@ func TestClearPositionsForExchange(t *testing.T) {
 	err = c.ClearPositionsForExchange(testExchange, asset.Futures, p)
 	assert.ErrorIs(t, err, ErrPositionNotFound)
 
-	c.multiPositionTrackers = make(map[key.ExchangePairAsset]*MultiPositionTracker)
+	c.multiPositionTrackers = make(map[key.ExchangeAssetPair]*MultiPositionTracker)
 	err = c.ClearPositionsForExchange(testExchange, asset.Futures, p)
 	assert.ErrorIs(t, err, ErrPositionNotFound)
 
 	err = c.ClearPositionsForExchange(testExchange, asset.Spot, p)
 	assert.ErrorIs(t, err, ErrNotFuturesAsset)
 
-	c.multiPositionTrackers[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    asset.Futures,
-	}] = &MultiPositionTracker{
+	c.multiPositionTrackers[key.NewExchangeAssetPair(testExchange, asset.Futures, p)] = &MultiPositionTracker{
 		exchange:   testExchange,
 		underlying: currency.DOGE,
 		positions: []*PositionTracker{
@@ -628,14 +603,8 @@ func TestClearPositionsForExchange(t *testing.T) {
 		},
 	}
 	err = c.ClearPositionsForExchange(testExchange, asset.Futures, p)
-	assert.NoError(t, err)
-
-	if len(c.multiPositionTrackers[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    asset.Futures,
-	}].positions) != 0 {
+	require.NoError(t, err, "ClearPositionsForExchange must not error")
+	if len(c.multiPositionTrackers[key.NewExchangeAssetPair(testExchange, asset.Futures, p)].positions) != 0 {
 		t.Fatal("expected 0")
 	}
 	c = nil
@@ -840,20 +809,14 @@ func TestSetCollateralCurrency(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNotFuturesAsset)
 
 	p := currency.NewBTCUSDT()
-	pc.multiPositionTrackers = make(map[key.ExchangePairAsset]*MultiPositionTracker)
+	pc.multiPositionTrackers = make(map[key.ExchangeAssetPair]*MultiPositionTracker)
 	err = pc.SetCollateralCurrency("hi", asset.Futures, p, currency.DOGE)
 	require.ErrorIs(t, err, ErrPositionNotFound)
 
 	err = pc.SetCollateralCurrency("hi", asset.Futures, p, currency.DOGE)
 	require.ErrorIs(t, err, ErrPositionNotFound)
 
-	mapKey := key.ExchangePairAsset{
-		Exchange: "hi",
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    asset.Futures,
-	}
-
+	mapKey := key.NewExchangeAssetPair("hi", asset.Futures, p)
 	pc.multiPositionTrackers[mapKey] = &MultiPositionTracker{
 		exchange:       "hi",
 		asset:          asset.Futures,
@@ -904,13 +867,7 @@ func TestMPTUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	mapKey := key.ExchangePairAsset{
-		Exchange: "hi",
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    asset.Futures,
-	}
-
+	mapKey := key.NewExchangeAssetPair("hi", asset.Futures, p)
 	result, err := pc.multiPositionTrackers[mapKey].UpdateOpenPositionUnrealisedPNL(1337, time.Now())
 	require.NoError(t, err)
 
@@ -1125,13 +1082,7 @@ func TestPCTrackFundingDetails(t *testing.T) {
 		},
 	}
 
-	mapKey := key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    asset.Futures,
-	}
-
+	mapKey := key.NewExchangeAssetPair(testExchange, asset.Futures, p)
 	pc.multiPositionTrackers[mapKey].orderPositions["lol"].openingDate = tn.Add(-time.Hour)
 	pc.multiPositionTrackers[mapKey].orderPositions["lol"].lastUpdated = tn
 	err = pc.TrackFundingDetails(rates)
