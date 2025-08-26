@@ -241,6 +241,7 @@ type Base struct {
 	Features                      Features
 	HTTPTimeout                   time.Duration
 	HTTPRecording                 bool
+	HTTPMockDataSliceLimit        int // Use with HTTPRecording to reduce the size of recorded mock data
 	HTTPDebugging                 bool
 	BypassConfigFormatUpgrades    bool
 	WebsocketResponseCheckTimeout time.Duration
