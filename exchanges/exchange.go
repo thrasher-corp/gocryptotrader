@@ -1280,11 +1280,7 @@ func (e *Endpoints) GetURL(endpoint URL) (string, error) {
 	defer e.mu.RUnlock()
 	val, ok := e.defaults[endpoint.String()]
 	if !ok {
-<<<<<<< HEAD
-		return "", fmt.Errorf("%w %v", ErrEndpointPathNotFound, key)
-=======
-		return "", fmt.Errorf("no endpoint path found for the given key: %v", endpoint)
->>>>>>> master
+		return "", fmt.Errorf("%w %v", ErrEndpointPathNotFound, endpoint)
 	}
 	return val, nil
 }
