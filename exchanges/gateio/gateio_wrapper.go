@@ -1834,7 +1834,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				MaxLeverage:          contracts[i].LeverageMax.Float64(),
 			}
 			c.LatestRate = fundingrate.Rate{
-				Time: contracts[i].FundingNextApply.Time().Add(-contracts[i].FundingIntervalSeconds * time.Second),
+				Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
 				Rate: contracts[i].FundingRate.Decimal(),
 			}
 			resp[i] = c
@@ -2154,7 +2154,7 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 		Asset:    item,
 		Pair:     fPair,
 		LatestRate: fundingrate.Rate{
-			Time: contract.FundingNextApply.Time().Add(-contract.FundingIntervalSeconds * time.Second),
+			Time: contract.FundingNextApply.Time().Add(-time.Duration(contract.FundingInterval) * time.Second),
 			Rate: contract.FundingRate.Decimal(),
 		},
 		TimeOfNextRate: contract.FundingNextApply.Time(),
