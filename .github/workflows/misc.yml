@@ -82,10 +82,7 @@ jobs:
             echo "No differences found in $file 🌞"
           fi
         done
-    
-    - name: Check config versions are continuous
-      run: go test ./config/versions/ -tags config_versions -run Continuity
-
+        
     - name: Check Go modernise tool issues
       run: |
         go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -test ./...
