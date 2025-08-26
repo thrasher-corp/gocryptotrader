@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -51,7 +51,7 @@ type IFundingManager interface {
 	HasFutures() bool
 	HasExchangeBeenLiquidated(handler common.Event) bool
 	RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error
-	SetFunding(string, asset.Item, *account.Balance, bool) error
+	SetFunding(string, asset.Item, *accounts.Balance, bool) error
 }
 
 // IFundingTransferer allows for funding amounts to be transferred

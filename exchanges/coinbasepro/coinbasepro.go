@@ -201,8 +201,7 @@ func (e *Exchange) GetAccounts(ctx context.Context) ([]AccountResponse, error) {
 		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproAccounts, nil, &resp)
 }
 
-// GetAccount returns information for a single account. Use this endpoint when
-// account_id is known
+// GetAccount returns information for a single account. Use this endpoint when account_id is known
 func (e *Exchange) GetAccount(ctx context.Context, accountID string) (AccountResponse, error) {
 	resp := AccountResponse{}
 	path := fmt.Sprintf("%s/%s", coinbaseproAccounts, accountID)
@@ -500,8 +499,8 @@ func (e *Exchange) DepositViaPaymentMethod(ctx context.Context, amount float64, 
 
 // DepositViaCoinbase deposits funds from a coinbase account. Move funds between
 // a Coinbase account and coinbasepro trading account within daily limits. Moving
-// funds between Coinbase and coinbasepro is instant and free. See the Coinbase
-// Accounts section for retrieving your Coinbase accounts.
+// funds between Coinbase and coinbasepro is instant and free.
+// See the Coinbase Accounts section for retrieving your Coinbase accounts.
 //
 // amount - The amount to deposit
 // currency - The type of currency

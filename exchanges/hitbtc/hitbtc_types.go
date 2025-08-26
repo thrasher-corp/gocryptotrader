@@ -96,9 +96,9 @@ type LoanOrders struct {
 
 // Balance is a simple balance type
 type Balance struct {
-	Currency  string  `json:"currency"`
-	Available float64 `json:"available,string"` // Amount available for trading or transfer to main account
-	Reserved  float64 `json:"reserved,string"`  // Amount reserved for active orders or incomplete transfers to main account
+	Currency  currency.Code `json:"currency"`
+	Available float64       `json:"available,string"` // Amount available for trading or transfer to main account
+	Reserved  float64       `json:"reserved,string"`  // Amount reserved for active orders or incomplete transfers to main account
 }
 
 // DepositCryptoAddresses contains address information
