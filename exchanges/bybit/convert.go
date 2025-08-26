@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -235,12 +236,17 @@ type ConvertHistoryResponse struct {
 // GetConvertHistory retrieves the conversion history for the specified account types.
 // All params are optional
 func (e *Exchange) GetConvertHistory(ctx context.Context, accountTypes []WalletAccountType, index, limit uint64) ([]ConvertHistoryResponse, error) {
-	params := url.Values{}
+	atOut := make([]string, 0, len(accountTypes))
 	for _, accountType := range accountTypes {
 		if !slices.Contains(supportedAccountTypes, accountType) {
 			return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, accountType)
 		}
-		params.Add("accountType", string(accountType))
+		atOut = append(atOut, string(accountType))
+	}
+
+	params := url.Values{}
+	if len(atOut) > 0 {
+		params.Add("accountType", strings.Join(atOut, ","))
 	}
 
 	if index != 0 {
