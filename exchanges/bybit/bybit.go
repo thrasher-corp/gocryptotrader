@@ -29,7 +29,9 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bybit
 type Exchange struct {
 	exchange.Base
-	account accountTypeHolder
+
+	messageIDSeq common.Counter
+	account      accountTypeHolder
 }
 
 const (
@@ -76,7 +78,6 @@ var (
 	errTimeWindowRequired                 = errors.New("time window is required")
 	errFrozenPeriodRequired               = errors.New("frozen period required")
 	errQuantityLimitRequired              = errors.New("quantity limit required")
-	errInvalidPushData                    = errors.New("invalid push data")
 	errInvalidLeverage                    = errors.New("leverage can't be zero or less then it")
 	errInvalidPositionMode                = errors.New("position mode is invalid")
 	errInvalidMode                        = errors.New("mode can't be empty or missing")
@@ -1003,7 +1004,7 @@ func (e *Exchange) AddOrReduceMargin(ctx context.Context, arg *AddOrReduceMargin
 }
 
 // GetExecution retrieves users' execution records, sorted by execTime in descending order. However, for Normal spot, they are sorted by execId in descending order.
-// Execution Type possible values: 'Trade', 'AdlTrade' Auto-Deleveraging, 'Funding' Funding fee, 'BustTrade' Liquidation, 'Delivery' USDC futures delivery, 'BlockTrade'
+// Execution Type possible values: 'Trade', 'AdlTrade' Auto-Deleveraging, 'Funding' Funding fee, 'BustTrade' Liquidation, 'Delivery' USDC futures delivery, 'BlockTrade'
 // UTA Spot: 'stopOrderType', "" for normal order, "tpslOrder" for TP/SL order, "Stop" for conditional order, "OcoOrder" for OCO order
 func (e *Exchange) GetExecution(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, stopOrderType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
@@ -1244,10 +1245,10 @@ func (e *Exchange) UpgradeToUnifiedAccount(ctx context.Context) (*UnifiedAccount
 }
 
 // GetBorrowHistory retrieves interest records, sorted in reverse order of creation time.
-func (e *Exchange) GetBorrowHistory(ctx context.Context, currency, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
+func (e *Exchange) GetBorrowHistory(ctx context.Context, ccy, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
 	params := url.Values{}
-	if currency != "" {
-		params.Set("currency", currency)
+	if ccy != "" {
+		params.Set("currency", ccy)
 	}
 	if cursor != "" {
 		params.Set("cursor", cursor)
@@ -1285,10 +1286,10 @@ func (e *Exchange) SetCollateralCoin(ctx context.Context, coin currency.Code, co
 // GetCollateralInfo retrieves the collateral information of the current unified margin account,
 // including loan interest rate, loanable amount, collateral conversion rate,
 // whether it can be mortgaged as margin, etc.
-func (e *Exchange) GetCollateralInfo(ctx context.Context, currency string) (*CollateralInfo, error) {
+func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy string) (*CollateralInfo, error) {
 	params := url.Values{}
-	if currency != "" {
-		params.Set("currency", currency)
+	if ccy != "" {
+		params.Set("currency", ccy)
 	}
 	var resp *CollateralInfo
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/collateral-info", params, nil, &resp, defaultEPL)
@@ -1694,8 +1695,8 @@ func (e *Exchange) GetAllowedDepositCoinInfo(ctx context.Context, coin, chain, c
 }
 
 // SetDepositAccount sets auto transfer account after deposit. The same function as the setting for Deposit on web GUI
-// account types: CONTRACT Derivatives Account
-// 'SPOT' Spot Account 'INVESTMENT' ByFi Account (The service has been offline) 'OPTION' USDC Account 'UNIFIED' UMA or UTA 'FUND' Funding Account
+// account types: CONTRACT Derivatives Account
+// 'SPOT' Spot Account 'INVESTMENT' ByFi Account (The service has been offline) 'OPTION' USDC Account 'UNIFIED' UMA or UTA 'FUND' Funding Account
 func (e *Exchange) SetDepositAccount(ctx context.Context, accountType string) (*StatusResponse, error) {
 	if accountType == "" {
 		return nil, errMissingAccountType
@@ -2156,13 +2157,13 @@ func (e *Exchange) SetSpotMarginTradeLeverage(ctx context.Context, leverage floa
 }
 
 // GetVIPMarginData retrieves public VIP Margin data
-func (e *Exchange) GetVIPMarginData(ctx context.Context, vipLevel, currency string) (*VIPMarginData, error) {
+func (e *Exchange) GetVIPMarginData(ctx context.Context, vipLevel, ccy string) (*VIPMarginData, error) {
 	params := url.Values{}
 	if vipLevel != "" {
 		params.Set("vipLevel", vipLevel)
 	}
-	if currency != "" {
-		params.Set("currency", currency)
+	if ccy != "" {
+		params.Set("currency", ccy)
 	}
 	var resp *VIPMarginData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "spot-cross-margin-trade/data", defaultEPL, &resp)
