@@ -1360,9 +1360,9 @@ func (e *Exchange) GetDepositWithdrawalStatus(ctx context.Context, ccy currency.
 }
 
 // SmallAssetsConvert Convert small assets in funding account to OKB. Only one convert is allowed within 24 hours
-func (e *Exchange) SmallAssetsConvert(ctx context.Context, currency []string) (*SmallAssetConvertResponse, error) {
+func (e *Exchange) SmallAssetsConvert(ctx context.Context, currencies []string) (*SmallAssetConvertResponse, error) {
 	var resp *SmallAssetConvertResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, smallAssetsConvertEPL, http.MethodPost, "asset/convert-dust-assets", map[string][]string{"ccy": currency}, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, smallAssetsConvertEPL, http.MethodPost, "asset/convert-dust-assets", map[string][]string{"ccy": currencies}, &resp, request.AuthenticatedRequest)
 }
 
 // GetPublicExchangeList retrieves exchanges
@@ -5919,14 +5919,15 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 			headers["OK-ACCESS-PASSPHRASE"] = creds.ClientID
 		}
 		return &request.Item{
-			Method:        strings.ToUpper(httpMethod),
-			Path:          endpoint + requestPath,
-			Headers:       headers,
-			Body:          bytes.NewBuffer(payload),
-			Result:        &resp,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 strings.ToUpper(httpMethod),
+			Path:                   endpoint + requestPath,
+			Headers:                headers,
+			Body:                   bytes.NewBuffer(payload),
+			Result:                 &resp,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
 	if err := e.SendPayload(ctx, f, newRequest, requestType); err != nil {

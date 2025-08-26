@@ -402,7 +402,7 @@ func (e *Exchange) GetV2Balances(ctx context.Context) ([]WalletDataV2, error) {
 		if !ok {
 			return resp, common.GetTypeAssertError("string", data[x][0], "Wallets.WalletType")
 		}
-		currency, ok := data[x][1].(string)
+		ccy, ok := data[x][1].(string)
 		if !ok {
 			return resp, common.GetTypeAssertError("string", data[x][1], "Wallets.Currency")
 		}
@@ -416,7 +416,7 @@ func (e *Exchange) GetV2Balances(ctx context.Context) ([]WalletDataV2, error) {
 		}
 		resp[x] = WalletDataV2{
 			WalletType:        walletType,
-			Currency:          currency,
+			Currency:          ccy,
 			Balance:           balance,
 			UnsettledInterest: unsettledInterest,
 		}
@@ -500,10 +500,9 @@ func (e *Exchange) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 	default:
 		return nil, fmt.Errorf("invalid asset type for GetSiteInfoConfigData: %s", assetType)
 	}
-	url := bitfinexAPIVersion2 + path
-	var resp [][][]any
 
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, url, &resp, status)
+	var resp [][][]any
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, bitfinexAPIVersion2+path, &resp, status)
 	if err != nil {
 		return nil, err
 	}
@@ -1231,11 +1230,11 @@ func (e *Exchange) GetAccountBalance(ctx context.Context) ([]Balance, error) {
 // Currency -  example "BTC"
 // WalletFrom - example "exchange"
 // WalletTo -  example "deposit"
-func (e *Exchange) WalletTransfer(ctx context.Context, amount float64, currency, walletFrom, walletTo string) (WalletTransfer, error) {
+func (e *Exchange) WalletTransfer(ctx context.Context, amount float64, ccy, walletFrom, walletTo string) (WalletTransfer, error) {
 	var response []WalletTransfer
 	req := make(map[string]any)
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	req["currency"] = currency
+	req["currency"] = ccy
 	req["walletfrom"] = walletFrom
 	req["walletto"] = walletTo
 
@@ -1863,12 +1862,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		return err
 	}
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
@@ -1914,14 +1914,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["X-BFX-SIGNATURE"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:        method,
-			Path:          fullPath,
-			Headers:       headers,
-			Result:        result,
-			NonceEnabled:  true,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   fullPath,
+			Headers:                headers,
+			Result:                 result,
+			NonceEnabled:           true,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 }
@@ -1963,15 +1964,16 @@ func (e *Exchange) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchan
 		headers["bfx-signature"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:        method,
-			Path:          ePoint + bitfinexAPIVersion2 + path,
-			Headers:       headers,
-			Body:          body,
-			Result:        result,
-			NonceEnabled:  true,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   ePoint + bitfinexAPIVersion2 + path,
+			Headers:                headers,
+			Body:                   body,
+			Result:                 result,
+			NonceEnabled:           true,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 }

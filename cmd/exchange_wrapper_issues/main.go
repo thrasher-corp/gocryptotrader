@@ -285,10 +285,10 @@ func parseOrderType(orderType string) order.Type {
 	}
 }
 
-func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) []ExchangeAssetPairResponses {
+func testWrappers(e exchange.IBotExchange, base *exchange.Base, cfg *Config) []ExchangeAssetPairResponses {
 	response := make([]ExchangeAssetPairResponses, 0)
-	testOrderSide := parseOrderSide(config.OrderSubmission.OrderSide)
-	testOrderType := parseOrderType(config.OrderSubmission.OrderType)
+	testOrderSide := parseOrderSide(cfg.OrderSubmission.OrderSide)
+	testOrderType := parseOrderType(cfg.OrderSubmission.OrderType)
 	assetTypes := base.GetAssetTypes(false)
 	if assetTypeOverride != "" {
 		a, err := asset.New(assetTypeOverride)
@@ -577,8 +577,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		feeType := exchange.FeeBuilder{
 			FeeType:       exchange.CryptocurrencyTradeFee,
 			Pair:          p,
-			PurchasePrice: config.OrderSubmission.Price,
-			Amount:        config.OrderSubmission.Amount,
+			PurchasePrice: cfg.OrderSubmission.Price,
+			Amount:        cfg.OrderSubmission.Amount,
 		}
 		var getFeeByTypeResponse float64
 		getFeeByTypeResponse, err = e.GetFeeByType(context.TODO(), &feeType)
@@ -599,9 +599,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Pair:      p,
 			Side:      testOrderSide,
 			Type:      testOrderType,
-			Amount:    config.OrderSubmission.Amount,
-			Price:     config.OrderSubmission.Price,
-			ClientID:  config.OrderSubmission.OrderID,
+			Amount:    cfg.OrderSubmission.Amount,
+			Price:     cfg.OrderSubmission.Price,
+			ClientID:  cfg.OrderSubmission.OrderID,
 			AssetType: assetTypes[i],
 		}
 		var submitOrderResponse *order.SubmitResponse
@@ -619,12 +619,12 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		modifyRequest := order.Modify{
-			OrderID:   config.OrderSubmission.OrderID,
+			OrderID:   cfg.OrderSubmission.OrderID,
 			Type:      testOrderType,
 			Side:      testOrderSide,
 			Pair:      p,
-			Price:     config.OrderSubmission.Price,
-			Amount:    config.OrderSubmission.Amount,
+			Price:     cfg.OrderSubmission.Price,
+			Amount:    cfg.OrderSubmission.Amount,
 			AssetType: assetTypes[i],
 		}
 		modifyOrderResponse, err := e.ModifyOrder(context.TODO(), &modifyRequest)
@@ -643,7 +643,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		cancelRequest := order.Cancel{
 			Side:      testOrderSide,
 			Pair:      p,
-			OrderID:   config.OrderSubmission.OrderID,
+			OrderID:   cfg.OrderSubmission.OrderID,
 			AssetType: assetTypes[i],
 		}
 		err = e.CancelOrder(context.TODO(), &cancelRequest)
@@ -663,7 +663,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		request = append(request, order.Cancel{
 			Side:      testOrderSide,
 			Pair:      p,
-			OrderID:   config.OrderSubmission.OrderID,
+			OrderID:   cfg.OrderSubmission.OrderID,
 			AssetType: assetTypes[i],
 		})
 
@@ -696,14 +696,14 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var r15 *order.Detail
-		r15, err = e.GetOrderInfo(context.TODO(), config.OrderSubmission.OrderID, p, assetTypes[i])
+		r15, err = e.GetOrderInfo(context.TODO(), cfg.OrderSubmission.OrderID, p, assetTypes[i])
 		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			SentParams: jsonifyInterface([]any{config.OrderSubmission.OrderID, p, assetTypes[i]}),
+			SentParams: jsonifyInterface([]any{cfg.OrderSubmission.OrderID, p, assetTypes[i]}),
 			Function:   "GetOrderInfo",
 			Error:      msg,
 			Response:   jsonifyInterface([]any{r15}),
@@ -770,8 +770,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		feeType = exchange.FeeBuilder{
 			FeeType:       exchange.CryptocurrencyWithdrawalFee,
 			Pair:          p,
-			PurchasePrice: config.OrderSubmission.Price,
-			Amount:        config.OrderSubmission.Amount,
+			PurchasePrice: cfg.OrderSubmission.Price,
+			Amount:        cfg.OrderSubmission.Amount,
 		}
 		var GetFeeByTypeResponse float64
 		GetFeeByTypeResponse, err = e.GetFeeByType(context.TODO(), &feeType)
@@ -792,7 +792,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Crypto: withdraw.CryptoRequest{
 				Address: withdrawAddressOverride,
 			},
-			Amount: config.OrderSubmission.Amount,
+			Amount: cfg.OrderSubmission.Amount,
 		}
 		msg = ""
 		err = withdrawRequest.Validate()
@@ -815,8 +815,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		feeType = exchange.FeeBuilder{
 			FeeType:             exchange.InternationalBankWithdrawalFee,
 			Pair:                p,
-			PurchasePrice:       config.OrderSubmission.Price,
-			Amount:              config.OrderSubmission.Amount,
+			PurchasePrice:       cfg.OrderSubmission.Price,
+			Amount:              cfg.OrderSubmission.Amount,
 			FiatCurrency:        currency.AUD,
 			BankTransactionType: exchange.WireTransfer,
 		}
@@ -836,32 +836,32 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 
 		withdrawRequestFiat := withdraw.Request{
 			Currency: p.Quote,
-			Amount:   config.OrderSubmission.Amount,
+			Amount:   cfg.OrderSubmission.Amount,
 			Fiat: withdraw.FiatRequest{
 				Bank: banking.Account{
-					AccountName:    config.BankDetails.BankAccountName,
-					AccountNumber:  config.BankDetails.BankAccountNumber,
-					SWIFTCode:      config.BankDetails.SwiftCode,
-					IBAN:           config.BankDetails.Iban,
-					BankPostalCity: config.BankDetails.BankCity,
-					BankName:       config.BankDetails.BankName,
-					BankAddress:    config.BankDetails.BankAddress,
-					BankCountry:    config.BankDetails.BankCountry,
-					BankPostalCode: config.BankDetails.BankPostalCode,
-					BankCode:       config.BankDetails.BankCode,
+					AccountName:    cfg.BankDetails.BankAccountName,
+					AccountNumber:  cfg.BankDetails.BankAccountNumber,
+					SWIFTCode:      cfg.BankDetails.SwiftCode,
+					IBAN:           cfg.BankDetails.Iban,
+					BankPostalCity: cfg.BankDetails.BankCity,
+					BankName:       cfg.BankDetails.BankName,
+					BankAddress:    cfg.BankDetails.BankAddress,
+					BankCountry:    cfg.BankDetails.BankCountry,
+					BankPostalCode: cfg.BankDetails.BankPostalCode,
+					BankCode:       cfg.BankDetails.BankCode,
 				},
 
-				IsExpressWire:                 config.BankDetails.IsExpressWire,
-				RequiresIntermediaryBank:      config.BankDetails.RequiresIntermediaryBank,
-				IntermediaryBankName:          config.BankDetails.IntermediaryBankName,
-				IntermediaryBankAccountNumber: config.BankDetails.IntermediaryBankAccountNumber,
-				IntermediarySwiftCode:         config.BankDetails.IntermediarySwiftCode,
-				IntermediaryIBAN:              config.BankDetails.IntermediaryIban,
-				IntermediaryBankCity:          config.BankDetails.IntermediaryBankCity,
-				IntermediaryBankAddress:       config.BankDetails.IntermediaryBankAddress,
-				IntermediaryBankCountry:       config.BankDetails.IntermediaryBankCountry,
-				IntermediaryBankPostalCode:    config.BankDetails.IntermediaryBankPostalCode,
-				IntermediaryBankCode:          config.BankDetails.IntermediaryBankCode,
+				IsExpressWire:                 cfg.BankDetails.IsExpressWire,
+				RequiresIntermediaryBank:      cfg.BankDetails.RequiresIntermediaryBank,
+				IntermediaryBankName:          cfg.BankDetails.IntermediaryBankName,
+				IntermediaryBankAccountNumber: cfg.BankDetails.IntermediaryBankAccountNumber,
+				IntermediarySwiftCode:         cfg.BankDetails.IntermediarySwiftCode,
+				IntermediaryIBAN:              cfg.BankDetails.IntermediaryIban,
+				IntermediaryBankCity:          cfg.BankDetails.IntermediaryBankCity,
+				IntermediaryBankAddress:       cfg.BankDetails.IntermediaryBankAddress,
+				IntermediaryBankCountry:       cfg.BankDetails.IntermediaryBankCountry,
+				IntermediaryBankPostalCode:    cfg.BankDetails.IntermediaryBankPostalCode,
+				IntermediaryBankCode:          cfg.BankDetails.IntermediaryBankCode,
 			},
 		}
 		withdrawFiatFundsResponse, err := e.WithdrawFiatFunds(context.TODO(), &withdrawRequestFiat)
@@ -1038,9 +1038,9 @@ func loadConfig() (Config, error) {
 	return cfg, err
 }
 
-func saveConfig(config *Config) {
+func saveConfig(cfg *Config) {
 	log.Println("JSONifying config...")
-	jsonOutput, err := json.MarshalIndent(config, "", " ")
+	jsonOutput, err := json.MarshalIndent(cfg, "", " ")
 	if err != nil {
 		log.Fatalf("Encountered error encoding JSON: %v", err)
 	}

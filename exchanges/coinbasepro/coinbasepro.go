@@ -1388,12 +1388,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 	path = common.EncodeURLValues(path, vals)
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, rLim, func() (*request.Item, error) {
 		return item, nil
@@ -1428,14 +1429,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["CB-VERSION"] = "2025-03-26"
 		headers["Authorization"] = "Bearer " + jwt
 		return &request.Item{
-			Method:        method,
-			Path:          endpoint + common.EncodeURLValues(path, queryParams),
-			Headers:       headers,
-			Body:          bytes.NewBuffer(payload),
-			Result:        &interim,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   endpoint + common.EncodeURLValues(path, queryParams),
+			Headers:                headers,
+			Body:                   bytes.NewBuffer(payload),
+			Result:                 &interim,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
 	rateLim := V2Rate
