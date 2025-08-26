@@ -461,6 +461,8 @@ func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBo
 	t := orderbookNew.Timestamp.Time()
 	if t.IsZero() {
 		t = time.Now() // Time not provided for this REST book.
+	} else {
+		fmt.Println("Using server time for orderbook", p)
 	}
 	newOrderBook := orderbook.Book{
 		Pair:              p,

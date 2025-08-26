@@ -318,12 +318,10 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-
 	orderbookNew, err := e.GetOrderBookDepth(ctx, pair, 1000)
 	if err != nil {
 		return nil, err
 	}
-
 	if err := (&orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              pair,

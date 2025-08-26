@@ -52,12 +52,6 @@ type tempOrderbook struct {
 	Bids       orderbook.LevelsArrayPriceAmount `json:"bids"`
 }
 
-// OBData stores orderbook data
-type OBData struct {
-	Price  float64
-	Volume float64
-}
-
 // Orderbook holds current orderbook information returned from the exchange
 type Orderbook struct {
 	MarketID   currency.Pair

@@ -41,12 +41,6 @@ type OrderbookResponse struct {
 	Seq      int64                            `json:"seq"`
 }
 
-// OrderbookItem holds data on an individual item
-type OrderbookItem struct {
-	Price  float64
-	Amount float64
-}
-
 // OrderbookAll contains the full range of orderbooks
 type OrderbookAll struct {
 	Data map[string]Orderbook

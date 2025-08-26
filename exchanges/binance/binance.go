@@ -118,10 +118,6 @@ func (e *Exchange) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 }
 
 // GetOrderBook returns full orderbook information
-//
-// OrderBookDataRequestParams contains the following members
-// symbol: string of currency pair
-// limit: returned limit amount
 func (e *Exchange) GetOrderBook(ctx context.Context, pair currency.Pair, limit int) (*OrderBookResponse, error) {
 	params := url.Values{}
 	symbol, err := e.FormatSymbol(pair, asset.Spot)

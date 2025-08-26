@@ -162,12 +162,6 @@ func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType as
 	}
 }
 
-// OrderbookItem stores an individual orderbook item
-type OrderbookItem struct {
-	Price    float64
-	Quantity float64
-}
-
 // OrderBookData is resp data from orderbook endpoint
 type OrderBookData struct {
 	LastUpdateID int64                            `json:"lastUpdateId"`

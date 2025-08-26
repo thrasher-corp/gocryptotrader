@@ -678,7 +678,7 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 		Exchange:          e.Name,
 		Asset:             a,
 		ValidateOrderbook: e.ValidateOrderbook,
-		Pair:              p.Upper(),
+		Pair:              p,
 		LastUpdateID:      o.ID,
 		LastUpdated:       o.Update.Time(),
 		LastPushed:        o.Current.Time(),

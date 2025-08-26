@@ -566,7 +566,7 @@ func TestLevelsArrayPriceAmountUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 
 	var asks LevelsArrayPriceAmount
-	err := asks.UnmarshalJSON([]byte(`[[1,2],[3,4]]`))
+	err := asks.UnmarshalJSON([]byte(`[[1,2],["3","4"]]`))
 	require.NoError(t, err)
 	assert.Len(t, asks, 2)
 	assert.Equal(t, 1.0, asks[0].Price)
