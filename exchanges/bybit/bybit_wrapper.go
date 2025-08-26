@@ -678,16 +678,16 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	}
 	currencyBalance := []account.Balance{}
 	for i := range balances.List {
-		for c := range balances.List[i].Coin {
+		for _, b := range balances.List[i].Coin {
 			balance := account.Balance{
-				Currency: balances.List[i].Coin[c].Coin,
-				Total:    balances.List[i].Coin[c].WalletBalance.Float64(),
-				Free:     (balances.List[i].Coin[c].BorrowAmount.Float64() + balances.List[i].Coin[c].WalletBalance.Float64()) - balances.List[i].Coin[c].Locked.Float64(),
-				Borrowed: balances.List[i].Coin[c].BorrowAmount.Float64(),
-				Hold:     balances.List[i].Coin[c].Locked.Float64(),
+				Currency: b.Coin,
+				Total:    b.WalletBalance.Float64(),
+				Free:     b.BorrowAmount.Float64() + b.WalletBalance.Float64() - b.Locked.Float64(),
+				Borrowed: b.BorrowAmount.Float64(),
+				Hold:     b.Locked.Float64(),
 			}
-			if assetType == asset.Spot && balances.List[i].Coin[c].AvailableBalanceForSpot.Float64() != 0 {
-				balance.Free = balances.List[i].Coin[c].AvailableBalanceForSpot.Float64()
+			if assetType == asset.Spot && b.AvailableBalanceForSpot.Float64() != 0 {
+				balance.Free = b.AvailableBalanceForSpot.Float64()
 			}
 			currencyBalance = append(currencyBalance, balance)
 		}
