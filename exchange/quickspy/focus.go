@@ -4,6 +4,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 var (
@@ -14,7 +16,13 @@ var (
 	ErrCredentialsRequiredForFocusType = errors.New("credentials required for this focus type")
 )
 
-func (f *FocusData) Validate(k *Key) error {
+var focusToSub = map[FocusType]string{
+	OrderBookFocusType: subscription.OrderbookChannel,
+	TickerFocusType:    subscription.TickerChannel,
+	KlineFocusType:     subscription.CandlesChannel,
+}
+
+func (f *FocusData) Validate(k *CredentialsKey) error {
 	if f == nil {
 		return ErrNilFocusData
 	}
@@ -24,7 +32,7 @@ func (f *FocusData) Validate(k *Key) error {
 	if f.RESTPollTime <= 0 && !f.UseWebsocket {
 		return ErrInvalidRESTPollTime
 	}
-	if !k.Asset.IsFutures() {
+	if !k.Key.Asset.IsFutures() {
 		switch f.Type {
 		case OpenInterestFocusType, FundingRateFocusType, ContractFocusType, OrderExecutionFocusType:
 			return ErrInvalidAssetForFocusType

@@ -13,34 +13,33 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var focusToSub = map[FocusType]string{
-	OrderBookFocusType: subscription.OrderbookChannel,
-	TickerFocusType:    subscription.TickerChannel,
-	KlineFocusType:     subscription.CandlesChannel,
-}
-
 // NewQuickSpy creates a new QuickSpy
-func NewQuickSpy(k *Key, focuses []FocusData) (*QuickSpy, error) {
+func NewQuickSpy(k *CredentialsKey, focuses []FocusData) (*QuickSpy, error) {
+	if k == nil {
+		return nil, errNoKey
+	}
+	if len(focuses) == 0 {
+		return nil, errNoFocus
+	}
+
 	k.Exchange = strings.ToLower(k.Exchange)
 	sm := NewFocusStore()
 	for i := range focuses {
 		focuses[i].Init()
 		if err := focuses[i].Validate(k); err != nil {
-			return nil, fmt.Errorf("focus %q validation failed: %w", focuses[i].Type, err)
+			return nil, fmt.Errorf("focus %q %w: %w", focuses[i].Type, errValidationFailed, err)
 		}
 		sm.Upsert(focuses[i].Type, &focuses[i])
 	}
@@ -59,6 +58,9 @@ func NewQuickSpy(k *Key, focuses []FocusData) (*QuickSpy, error) {
 		return nil, err
 	}
 	if q.RequiresAuth() {
+		if k.Credentials.IsEmpty() {
+			return nil, fmt.Errorf("%w for %q %q %q", errNoCredentials, k.Exchange, k.Asset, k.Pair)
+		}
 		q.credContext = account.DeployCredentialsToContext(context.Background(), k.Credentials)
 		b := q.Exch.GetBase()
 		b.API.AuthenticatedSupport = true
@@ -119,7 +121,7 @@ func (q *QuickSpy) GetFocusByKey(focusType FocusType) (*FocusData, error) {
 	return focus, nil
 }
 
-func (q *QuickSpy) setupExchange(k *Key) error {
+func (q *QuickSpy) setupExchange(k *CredentialsKey) error {
 	e, err := engine.NewSupportedExchangeByName(k.Exchange)
 	if err != nil {
 		return err
@@ -138,12 +140,12 @@ func (q *QuickSpy) setupExchange(k *Key) error {
 	if err != nil {
 		return err
 	}
+	if len(b.GetRateLimiterDefinitions()) == 0 {
+		return fmt.Errorf("exchange %s has no rate limits. Quickspy requires rate limits to be set", k.Exchange)
+	}
 	if q.RequiresWebsocket() && !e.SupportsWebsocket() {
 		return fmt.Errorf("exchange %s has no websocket. Websocket requirement was enabled", k.Exchange)
 	}
-	b.Requester, err = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(e.GetRateLimits()))
 
 	var rFmt, cFmt *currency.PairFormat
 	if b.CurrencyPairs.UseGlobalFormat {
@@ -642,20 +644,15 @@ func (q *QuickSpy) Shutdown() {
 func (q *QuickSpy) Dump() (*ExportedData, error) {
 	q.m.RLock()
 	defer q.m.RUnlock()
-	return q.Data.Dump(key.ExchangePairAsset{
-		Exchange: q.Key.Exchange,
-		Asset:    q.Key.Asset,
-		Base:     q.Key.Pair.Base.Item,
-		Quote:    q.Key.Pair.Quote.Item,
-	}, !q.Key.Credentials.IsEmpty())
+	return q.Data.Dump(key.NewExchangeAssetPair(q.Key.Exchange, q.Key.Asset, q.Key.Pair), !q.Key.Credentials.IsEmpty())
 }
 
-func (d *Data) Dump(k key.ExchangePairAsset, hasCredentials bool) (*ExportedData, error) {
+func (d *Data) Dump(k key.ExchangeAssetPair, hasCredentials bool) (*ExportedData, error) {
 	var (
 		underlyingBase, underlyingQuote *currency.Item
 		contractExpirationTime          time.Time
 		contractType                    string
-		contractSetlement               string
+		contractSettlement              string
 		contractDecimals                float64
 	)
 	if d.Contract != nil {
@@ -664,13 +661,12 @@ func (d *Data) Dump(k key.ExchangePairAsset, hasCredentials bool) (*ExportedData
 		contractExpirationTime = d.Contract.EndDate
 		contractType = d.Contract.Type.String()
 		contractDecimals = d.Contract.Multiplier
-		contractSetlement = d.Contract.SettlementCurrencies.Strings()
+		contractSettlement = d.Contract.SettlementCurrencies.Join()
 	}
 	var (
 		lastPrice, indexPrice, markPrice, volume,
-		askLiquidity, askValue, bidLiquidity, bidValue,
 		spread, spreadPercent, fundingRate, estimatedFundingRate,
-		lastTradePrice, lastTradeSize, openInterest float64
+		lastTradePrice, lastTradeSize float64
 		bids, asks orderbook.Levels
 	)
 	if d.Ticker != nil {
@@ -682,16 +678,10 @@ func (d *Data) Dump(k key.ExchangePairAsset, hasCredentials bool) (*ExportedData
 	if d.Orderbook != nil {
 		bids = d.Orderbook.Bids
 		asks = d.Orderbook.Asks
-		askLiquidity = d.Orderbook.AskLiquidity
-		askValue = d.Orderbook.AskValue
-		bidLiquidity = d.Orderbook.BidLiquidity
-		bidValue = d.Orderbook.BidValue
-		spread = d.Orderbook.Spread
-		spreadPercent = d.Orderbook.SpreadPercentage
 	}
 	if d.FundingRate != nil {
-		fundingRate = d.FundingRate.Rate
-		estimatedFundingRate = d.FundingRate.EstimatedRate
+		fundingRate = d.FundingRate.LatestRate.Rate.InexactFloat64()
+		estimatedFundingRate = d.FundingRate.PredictedUpcomingRate.Rate.InexactFloat64()
 	}
 	if len(d.Trades) > 0 {
 		lastTrade := d.Trades[len(d.Trades)-1]
@@ -705,14 +695,6 @@ func (d *Data) Dump(k key.ExchangePairAsset, hasCredentials bool) (*ExportedData
 	var (
 		nextFundingRateTime, currentFundingRateTime time.Time
 	)
-	if d.FundingRate != nil {
-		nextFundingRateTime = d.FundingRate.NextFundingTime
-		currentFundingRateTime = d.FundingRate.Timestamp
-	}
-	var executionLimits order.MinMaxLevel
-	if d.ExecutionLimits != nil {
-		executionLimits = *d.ExecutionLimits
-	}
 	return &ExportedData{
 		Key:                    k,
 		UnderlyingBase:         underlyingBase,
@@ -725,10 +707,6 @@ func (d *Data) Dump(k key.ExchangePairAsset, hasCredentials bool) (*ExportedData
 		IndexPrice:             indexPrice,
 		MarkPrice:              markPrice,
 		Volume:                 volume,
-		AskLiquidity:           askLiquidity,
-		AskValue:               askValue,
-		BidLiquidity:           bidLiquidity,
-		BidValue:               bidValue,
 		Spread:                 spread,
 		SpreadPercent:          spreadPercent,
 		FundingRate:            fundingRate,
@@ -742,9 +720,9 @@ func (d *Data) Dump(k key.ExchangePairAsset, hasCredentials bool) (*ExportedData
 		OpenInterest:           d.OpenInterest,
 		NextFundingRateTime:    nextFundingRateTime,
 		CurrentFundingRateTime: currentFundingRateTime,
-		ExecutionLimits:        executionLimits,
+		ExecutionLimits:        *d.ExecutionLimits,
 		URL:                    d.URL,
-		ContractSettlement:     contractSetlement,
+		ContractSettlement:     contractSettlement,
 	}, nil
 }
 

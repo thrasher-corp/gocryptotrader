@@ -8,11 +8,11 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -21,13 +21,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
-var errKeyNotFound = errors.New("key not found")
+var (
+	errKeyNotFound      = errors.New("key not found")
+	errNoKey            = errors.New("no key provided")
+	errNoFocus          = errors.New("no focuses provided")
+	errValidationFailed = errors.New("validation failed")
+	errNoCredentials    = errors.New("credentials required but none provided")
+)
 
-type Key struct {
-	Exchange    string               `json:"exchange"`
-	Pair        currency.Pair        `json:"pair"`
-	Asset       asset.Item           `json:"asset"`
-	Credentials *account.Credentials `json:"credentials"`
+type CredentialsKey struct {
+	Credentials *account.Credentials  `json:"credentials"`
+	Key         key.ExchangeAssetPair `json:"exchangeAssetPair"`
 }
 
 // QuickSpy is a struct that holds data on a single exchange pair asset
@@ -39,7 +43,7 @@ type QuickSpy struct {
 	// Exch is the exchange interface
 	Exch exchange.IBotExchange
 	// Key contains exchange, pair, and asset information
-	Key *Key
+	Key *CredentialsKey
 	// Focuses is a map of focus types to focus options
 	Focuses *FocusStore
 	// shutdown is a channel for shutdown signaling
@@ -62,8 +66,7 @@ type FocusStore struct {
 }
 
 type Data struct {
-	Key *Key
-	//  contract stuff
+	Key             *CredentialsKey
 	Contract        *futures.Contract
 	Orderbook       *orderbook.Book
 	Ticker          *ticker.Price
@@ -72,7 +75,7 @@ type Data struct {
 	Orders          []order.Detail
 	FundingRate     *fundingrate.LatestRateResponse
 	Trades          []trade.Data
-	ExecutionLimits *order.MinMaxLevel
+	ExecutionLimits *limits.MinMaxLevel
 	URL             string
 	OpenInterest    float64
 }
@@ -80,7 +83,7 @@ type Data struct {
 // ExportedData is a struct that collates
 // all important data from focus types
 type ExportedData struct {
-	Key                    key.ExchangePairAsset `json:"Key"`
+	Key                    key.ExchangeAssetPair `json:"CredentialsKey"`
 	UnderlyingBase         *currency.Item        `json:"UnderlyingBase,omitzero"`
 	UnderlyingQuote        *currency.Item        `json:"underlyingQuote,omitzero"`
 	ContractExpirationTime time.Time             `json:"contractExpirationTime,omitzero"`
@@ -109,7 +112,7 @@ type ExportedData struct {
 	OpenInterest           float64               `json:"openInterest,omitzero"`
 	NextFundingRateTime    time.Time             `json:"nextFundingRateTime,omitzero"`
 	CurrentFundingRateTime time.Time             `json:"currentFundingRateTime,omitzero"`
-	ExecutionLimits        order.MinMaxLevel     `json:"executionLimits,omitzero"`
+	ExecutionLimits        limits.MinMaxLevel    `json:"executionLimits,omitzero"`
 	URL                    string                `json:"url,omitzero"`
 }
 
