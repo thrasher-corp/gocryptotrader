@@ -166,6 +166,7 @@ var (
 	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
+	errSingleAssetRequired              = errors.New("single asset type required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -188,8 +189,9 @@ func timeInForceFromString(tif string) (order.TimeInForce, error) {
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with GateIO
 type Exchange struct {
-	Counter common.Counter // Must be first	due to alignment requirements
 	exchange.Base
+
+	messageIDSeq  common.Counter
 	wsOBUpdateMgr *wsOBUpdateManager
 }
 
@@ -942,14 +944,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			payload = string(byteData)
 		}
 		return &request.Item{
-			Method:        method,
-			Path:          urlPath,
-			Headers:       headers,
-			Body:          strings.NewReader(payload),
-			Result:        &intermediary,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   urlPath,
+			Headers:                headers,
+			Body:                   strings.NewReader(payload),
+			Result:                 &intermediary,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
@@ -980,12 +983,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 		return err
 	}
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil
@@ -3576,22 +3580,6 @@ func (e *Exchange) InitiateFlashSwapOrderReview(ctx context.Context, arg FlashSw
 	}
 	var response *InitFlashSwapOrderPreviewResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, flashOrderReviewEPL, http.MethodPost, gateioFlashSwapOrdersPreview, nil, &arg, &response)
-}
-
-// IsValidPairString returns true if the string represents a valid currency pair
-func (e *Exchange) IsValidPairString(currencyPair string) bool {
-	if len(currencyPair) < 3 {
-		return false
-	}
-	pf, err := e.CurrencyPairs.GetFormat(asset.Spot, true)
-	if err != nil {
-		return false
-	}
-	if strings.Contains(currencyPair, pf.Delimiter) {
-		result := strings.Split(currencyPair, pf.Delimiter)
-		return len(result) >= 2
-	}
-	return false
 }
 
 // ********************************* Trading Fee calculation ********************************

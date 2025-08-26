@@ -13,6 +13,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -70,10 +71,7 @@ func (e *Exchange) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, erro
 			errC <- err
 			break
 		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			if tick, err2 := e.GetFuturesTicker(ctx, p.String()); err2 != nil {
 				errC <- err2
 			} else {
@@ -90,7 +88,7 @@ func (e *Exchange) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, erro
 					AssetType:    asset.Futures,
 				}
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -372,23 +370,23 @@ func (e *Exchange) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) er
 			return errInvalidStopPriceType
 		}
 		if arg.StopPrice <= 0 {
-			return fmt.Errorf("%w, stopPrice is required", order.ErrPriceBelowMin)
+			return fmt.Errorf("%w, stopPrice is required", limits.ErrPriceBelowMin)
 		}
 	}
 	switch arg.OrderType {
 	case "limit", "":
 		if arg.Price <= 0 {
-			return fmt.Errorf("%w %f", order.ErrPriceBelowMin, arg.Price)
+			return fmt.Errorf("%w %f", limits.ErrPriceBelowMin, arg.Price)
 		}
 		if arg.Size <= 0 {
-			return fmt.Errorf("%w, must be non-zero positive value", order.ErrAmountBelowMin)
+			return fmt.Errorf("%w, must be non-zero positive value", limits.ErrAmountBelowMin)
 		}
 		if arg.VisibleSize < 0 {
-			return fmt.Errorf("%w, visible size must be non-zero positive value", order.ErrAmountBelowMin)
+			return fmt.Errorf("%w, visible size must be non-zero positive value", limits.ErrAmountBelowMin)
 		}
 	case "market":
 		if arg.Size <= 0 {
-			return fmt.Errorf("%w, market size must be > 0", order.ErrAmountBelowMin)
+			return fmt.Errorf("%w, market size must be > 0", limits.ErrAmountBelowMin)
 		}
 	default:
 		return fmt.Errorf("%w, order type= %s", order.ErrTypeIsInvalid, arg.OrderType)
@@ -632,7 +630,7 @@ func (e *Exchange) RemoveMarginManually(ctx context.Context, arg *WithdrawMargin
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if arg.WithdrawAmount <= 0 {
-		return nil, fmt.Errorf("%w, withdrawAmount must be greater than 0", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w, withdrawAmount must be greater than 0", limits.ErrAmountBelowMin)
 	}
 	var resp *MarginRemovingResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, removeMarginManuallyEPL, http.MethodPost, "/v1/margin/withdrawMargin", arg, &resp)
@@ -767,7 +765,7 @@ func (e *Exchange) CreateFuturesSubAccountAPIKey(ctx context.Context, ipWhitelis
 // TransferFuturesFundsToMainAccount helps in transferring funds from futures to main/trade account
 func (e *Exchange) TransferFuturesFundsToMainAccount(ctx context.Context, amount float64, ccy currency.Code, recAccountType string) (*TransferRes, error) {
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -786,7 +784,7 @@ func (e *Exchange) TransferFuturesFundsToMainAccount(ctx context.Context, amount
 // TransferFundsToFuturesAccount helps in transferring funds from payee account to futures account
 func (e *Exchange) TransferFundsToFuturesAccount(ctx context.Context, amount float64, ccy currency.Code, payAccountType string) error {
 	if amount <= 0 {
-		return order.ErrAmountBelowMin
+		return limits.ErrAmountBelowMin
 	}
 	if ccy.IsEmpty() {
 		return currency.ErrCurrencyCodeEmpty
@@ -865,7 +863,7 @@ func (e *Exchange) GetMaximumOpenPositionSize(ctx context.Context, symbol string
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	if leverage <= 0 {
 		return nil, fmt.Errorf("%w, leverage is required", errInvalidLeverage)

@@ -196,7 +196,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !e.SupportsAsset(a) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	info, err := e.GetExchangeInfo(ctx)
 	if err != nil {
@@ -268,7 +268,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 // UpdateTickers updates all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	tick, err := e.GetTickers(ctx)
 	if err != nil {
@@ -382,7 +382,7 @@ func (e *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.Fundi
 // GetWithdrawalsHistory returns previous withdrawals data
 func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	if a != asset.Spot {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	withdrawals, err := e.WithdrawalHistory(ctx, c, "", time.Time{}, time.Time{}, 0, 10000)
 	if err != nil {

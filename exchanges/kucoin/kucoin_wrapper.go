@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -1841,7 +1842,7 @@ func (e *Exchange) GetServerTime(ctx context.Context, a asset.Item) (time.Time, 
 	case asset.Futures:
 		return e.GetFuturesServerTime(ctx)
 	default:
-		return time.Time{}, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return time.Time{}, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }
 
@@ -2324,17 +2325,17 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 // UpdateOrderExecutionLimits updates order execution limits
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if !e.SupportsAsset(a) {
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 
-	var limits []order.MinMaxLevel
+	var l []limits.MinMaxLevel
 	switch a {
 	case asset.Spot, asset.Margin:
 		symbols, err := e.GetSymbols(ctx, "")
 		if err != nil {
 			return err
 		}
-		limits = make([]order.MinMaxLevel, 0, len(symbols))
+		l = make([]limits.MinMaxLevel, 0, len(symbols))
 		for x := range symbols {
 			if a == asset.Margin && !symbols[x].IsMarginEnabled {
 				continue
@@ -2346,9 +2347,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			if !enabled {
 				continue
 			}
-			limits = append(limits, order.MinMaxLevel{
-				Pair:                    pair,
-				Asset:                   a,
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 				AmountStepIncrementSize: symbols[x].BaseIncrement,
 				QuoteStepIncrementSize:  symbols[x].QuoteIncrement,
 				PriceStepIncrementSize:  symbols[x].PriceIncrement,
@@ -2363,7 +2363,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-		limits = make([]order.MinMaxLevel, 0, len(contract))
+		l = make([]limits.MinMaxLevel, 0, len(contract))
 		for x := range contract {
 			pair, enabled, err := e.MatchSymbolCheckEnabled(contract[x].Symbol, a, false)
 			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
@@ -2372,9 +2372,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			if !enabled {
 				continue
 			}
-			limits = append(limits, order.MinMaxLevel{
-				Pair:                    pair,
-				Asset:                   a,
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 				AmountStepIncrementSize: contract[x].LotSize,
 				QuoteStepIncrementSize:  contract[x].TickSize,
 				MaximumBaseAmount:       contract[x].MaxOrderQty,
@@ -2383,7 +2382,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 	}
 
-	return e.LoadLimits(limits)
+	return limits.Load(l)
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
@@ -2420,12 +2419,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			continue
 		}
 		resp = append(resp, futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: e.Name,
-				Base:     symbol.Base.Item,
-				Quote:    symbol.Quote.Item,
-				Asset:    asset.Futures,
-			},
+			Key:          key.NewExchangeAssetPair(e.Name, asset.Futures, symbol),
 			OpenInterest: contracts[i].OpenInterest.Float64(),
 		})
 	}
@@ -2448,7 +2442,7 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		cp.Delimiter = ""
 		return tradeBaseURL + tradeFutures + tradeSpot + cp.Upper().String(), nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }
 

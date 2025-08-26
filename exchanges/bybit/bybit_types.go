@@ -149,11 +149,23 @@ type MarkPriceKlineResponse struct {
 // TickerData represents a list of ticker detailed information.
 type TickerData struct {
 	Category string       `json:"category"`
-	List     []TickerItem `json:"list"`
+	List     []TickerREST `json:"list"`
 }
 
-// TickerItem represents a ticker item detail
-type TickerItem struct {
+// TickerREST for REST API
+type TickerREST struct {
+	TickerCommon
+	DeliveryTime types.Time `json:"deliveryTime"`
+}
+
+// TickerWebsocket for websocket API
+type TickerWebsocket struct {
+	TickerCommon
+	DeliveryTime time.Time `json:"deliveryTime"` // "2025-03-28T08:00:00Z"
+}
+
+// TickerCommon common ticker fields
+type TickerCommon struct {
 	Symbol                 string       `json:"symbol"`
 	TickDirection          string       `json:"tickDirection"`
 	LastPrice              types.Number `json:"lastPrice"`
@@ -1965,21 +1977,21 @@ type WebsocketWallet struct {
 		TotalInitialMargin     types.Number `json:"totalInitialMargin"`
 		TotalMaintenanceMargin types.Number `json:"totalMaintenanceMargin"`
 		Coin                   []struct {
-			Coin                string       `json:"coin"`
-			Equity              types.Number `json:"equity"`
-			UsdValue            types.Number `json:"usdValue"`
-			WalletBalance       types.Number `json:"walletBalance"`
-			AvailableToWithdraw types.Number `json:"availableToWithdraw"`
-			AvailableToBorrow   types.Number `json:"availableToBorrow"`
-			BorrowAmount        types.Number `json:"borrowAmount"`
-			AccruedInterest     types.Number `json:"accruedInterest"`
-			TotalOrderIM        types.Number `json:"totalOrderIM"`
-			TotalPositionIM     types.Number `json:"totalPositionIM"`
-			TotalPositionMM     types.Number `json:"totalPositionMM"`
-			UnrealisedPnl       types.Number `json:"unrealisedPnl"`
-			CumRealisedPnl      types.Number `json:"cumRealisedPnl"`
-			Bonus               types.Number `json:"bonus"`
-			SpotHedgingQuantity types.Number `json:"spotHedgingQty"`
+			Coin                currency.Code `json:"coin"`
+			Equity              types.Number  `json:"equity"`
+			UsdValue            types.Number  `json:"usdValue"`
+			WalletBalance       types.Number  `json:"walletBalance"`
+			AvailableToWithdraw types.Number  `json:"availableToWithdraw"`
+			AvailableToBorrow   types.Number  `json:"availableToBorrow"`
+			BorrowAmount        types.Number  `json:"borrowAmount"`
+			AccruedInterest     types.Number  `json:"accruedInterest"`
+			TotalOrderIM        types.Number  `json:"totalOrderIM"`
+			TotalPositionIM     types.Number  `json:"totalPositionIM"`
+			TotalPositionMM     types.Number  `json:"totalPositionMM"`
+			UnrealisedPnl       types.Number  `json:"unrealisedPnl"`
+			CumRealisedPnl      types.Number  `json:"cumRealisedPnl"`
+			Bonus               types.Number  `json:"bonus"`
+			SpotHedgingQuantity types.Number  `json:"spotHedgingQty"`
 		} `json:"coin"`
 		AccountType string `json:"accountType"`
 		AccountLTV  string `json:"accountLTV"`
@@ -1992,11 +2004,11 @@ type GreeksResponse struct {
 	Topic        string     `json:"topic"`
 	CreationTime types.Time `json:"creationTime"`
 	Data         []struct {
-		BaseCoin   string       `json:"baseCoin"`
-		TotalDelta types.Number `json:"totalDelta"`
-		TotalGamma types.Number `json:"totalGamma"`
-		TotalVega  types.Number `json:"totalVega"`
-		TotalTheta types.Number `json:"totalTheta"`
+		BaseCoin   currency.Code `json:"baseCoin"`
+		TotalDelta types.Number  `json:"totalDelta"`
+		TotalGamma types.Number  `json:"totalGamma"`
+		TotalVega  types.Number  `json:"totalVega"`
+		TotalTheta types.Number  `json:"totalTheta"`
 	} `json:"data"`
 }
 

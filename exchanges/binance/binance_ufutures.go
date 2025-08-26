@@ -10,12 +10,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -986,13 +987,12 @@ func (e *Exchange) GetPerpMarkets(ctx context.Context) (PerpsExchangeInfo, error
 }
 
 // FetchUSDTMarginExchangeLimits fetches USDT margined order execution limits
-func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
+func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.MinMaxLevel, error) {
 	usdtFutures, err := e.UExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	limits := make([]order.MinMaxLevel, 0, len(usdtFutures.Symbols))
+	l := make([]limits.MinMaxLevel, 0, len(usdtFutures.Symbols))
 	for x := range usdtFutures.Symbols {
 		var cp currency.Pair
 		cp, err = currency.NewPairFromStrings(usdtFutures.Symbols[x].BaseAsset,
@@ -1005,9 +1005,8 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.M
 			continue
 		}
 
-		limits = append(limits, order.MinMaxLevel{
-			Pair:                    cp,
-			Asset:                   asset.USDTMarginedFutures,
+		l = append(l, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, cp),
 			MinPrice:                usdtFutures.Symbols[x].Filters[0].MinPrice,
 			MaxPrice:                usdtFutures.Symbols[x].Filters[0].MaxPrice,
 			PriceStepIncrementSize:  usdtFutures.Symbols[x].Filters[0].TickSize,
@@ -1025,7 +1024,7 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.M
 			MultiplierDecimal:       usdtFutures.Symbols[x].Filters[6].MultiplierDecimal,
 		})
 	}
-	return limits, nil
+	return l, nil
 }
 
 // SetAssetsMode sets the current asset margin type, true for multi, false for single

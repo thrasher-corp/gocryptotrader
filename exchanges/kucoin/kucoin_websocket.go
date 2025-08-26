@@ -178,12 +178,13 @@ func (e *Exchange) GetInstanceServers(ctx context.Context) (*WSInstanceServers, 
 			return nil, err
 		}
 		return &request.Item{
-			Method:        http.MethodPost,
-			Path:          endpointPath + publicBullets,
-			Result:        &response,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 http.MethodPost,
+			Path:                   endpointPath + publicBullets,
+			Result:                 &response,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.UnauthenticatedRequest)
 }
@@ -1229,9 +1230,7 @@ func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair, assetType as
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
 func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
-	e.Websocket.Wg.Add(1)
-	go func() {
-		defer e.Websocket.Wg.Done()
+	e.Websocket.Wg.Go(func() {
 		for {
 			select {
 			case <-e.Websocket.ShutdownC:
@@ -1243,15 +1242,12 @@ func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 					}
 				}
 			case j := <-e.obm.jobs:
-				err := e.processJob(ctx, j.Pair, j.AssetType)
-				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%s processing websocket orderbook error %v",
-						e.Name, err)
+				if err := e.processJob(ctx, j.Pair, j.AssetType); err != nil {
+					log.Errorf(log.WebsocketMgr, "%s processing websocket orderbook error: %v", e.Name, err)
 				}
 			}
 		}
-	}()
+	})
 }
 
 // SeedLocalCache seeds depth data

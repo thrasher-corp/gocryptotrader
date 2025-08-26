@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -208,17 +209,17 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 	// Spot connection
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      gateioWebsocketEndpoint,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		Handler:                  e.WsHandleSpotData,
-		Subscriber:               e.Subscribe,
-		Unsubscriber:             e.Unsubscribe,
-		GenerateSubscriptions:    e.generateSubscriptionsSpot,
-		Connector:                e.WsConnectSpot,
-		Authenticate:             e.authenticateSpot,
-		MessageFilter:            asset.Spot,
-		BespokeGenerateMessageID: e.GenerateWebsocketMessageID,
+		URL:                   gateioWebsocketEndpoint,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Handler:               e.WsHandleSpotData,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		GenerateSubscriptions: e.generateSubscriptionsSpot,
+		Connector:             e.WsConnectSpot,
+		Authenticate:          e.authenticateSpot,
+		MessageFilter:         asset.Spot,
+		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
@@ -228,18 +229,18 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  usdtFuturesWebsocketURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return e.WsHandleFuturesData(ctx, incoming, asset.USDTMarginedFutures)
+		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+			return e.WsHandleFuturesData(ctx, conn, incoming, asset.USDTMarginedFutures)
 		},
 		Subscriber:   e.FuturesSubscribe,
 		Unsubscriber: e.FuturesUnsubscribe,
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
 		},
-		Connector:                e.WsFuturesConnect,
-		Authenticate:             e.authenticateFutures,
-		MessageFilter:            asset.USDTMarginedFutures,
-		BespokeGenerateMessageID: e.GenerateWebsocketMessageID,
+		Connector:          e.WsFuturesConnect,
+		Authenticate:       e.authenticateFutures,
+		MessageFilter:      asset.USDTMarginedFutures,
+		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
@@ -250,17 +251,17 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  btcFuturesWebsocketURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return e.WsHandleFuturesData(ctx, incoming, asset.CoinMarginedFutures)
+		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+			return e.WsHandleFuturesData(ctx, conn, incoming, asset.CoinMarginedFutures)
 		},
 		Subscriber:   e.FuturesSubscribe,
 		Unsubscriber: e.FuturesUnsubscribe,
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 		},
-		Connector:                e.WsFuturesConnect,
-		MessageFilter:            asset.CoinMarginedFutures,
-		BespokeGenerateMessageID: e.GenerateWebsocketMessageID,
+		Connector:          e.WsFuturesConnect,
+		MessageFilter:      asset.CoinMarginedFutures,
+		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
@@ -272,15 +273,15 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  deliveryRealUSDTTradingURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return e.WsHandleFuturesData(ctx, incoming, asset.DeliveryFutures)
+		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+			return e.WsHandleFuturesData(ctx, conn, incoming, asset.DeliveryFutures)
 		},
-		Subscriber:               e.DeliveryFuturesSubscribe,
-		Unsubscriber:             e.DeliveryFuturesUnsubscribe,
-		GenerateSubscriptions:    e.GenerateDeliveryFuturesDefaultSubscriptions,
-		Connector:                e.WsDeliveryFuturesConnect,
-		MessageFilter:            asset.DeliveryFutures,
-		BespokeGenerateMessageID: e.GenerateWebsocketMessageID,
+		Subscriber:            e.DeliveryFuturesSubscribe,
+		Unsubscriber:          e.DeliveryFuturesUnsubscribe,
+		GenerateSubscriptions: e.GenerateDeliveryFuturesDefaultSubscriptions,
+		Connector:             e.WsDeliveryFuturesConnect,
+		MessageFilter:         asset.DeliveryFutures,
+		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
@@ -288,16 +289,16 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// Futures connection - Options
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      optionsWebsocketURL,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		Handler:                  e.WsHandleOptionsData,
-		Subscriber:               e.OptionsSubscribe,
-		Unsubscriber:             e.OptionsUnsubscribe,
-		GenerateSubscriptions:    e.GenerateOptionsDefaultSubscriptions,
-		Connector:                e.WsOptionsConnect,
-		MessageFilter:            asset.Options,
-		BespokeGenerateMessageID: e.GenerateWebsocketMessageID,
+		URL:                   optionsWebsocketURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Handler:               e.WsHandleOptionsData,
+		Subscriber:            e.OptionsSubscribe,
+		Unsubscriber:          e.OptionsUnsubscribe,
+		GenerateSubscriptions: e.GenerateOptionsDefaultSubscriptions,
+		Connector:             e.WsOptionsConnect,
+		MessageFilter:         asset.Options,
+		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
 	})
 }
 
@@ -422,9 +423,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				continue
 			}
 			p := strings.ToUpper(tradables[x].ID)
-			if !e.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -443,9 +441,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				continue
 			}
 			p := strings.ToUpper(tradables[x].Base + currency.UnderscoreDelimiter + tradables[x].Quote)
-			if !e.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -468,9 +463,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				continue
 			}
 			p := strings.ToUpper(contracts[i].Name)
-			if !e.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -489,9 +481,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				continue
 			}
 			p := strings.ToUpper(contracts[i].Name)
-			if !e.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -511,9 +500,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				return nil, err
 			}
 			for c := range contracts {
-				if !e.IsValidPairString(contracts[c].Name) {
-					continue
-				}
 				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
 				if err != nil {
 					return nil, err
@@ -683,7 +669,7 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 	case asset.Options:
 		o, err = e.GetOptionsOrderbook(ctx, p, "", limit, true)
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	if err != nil {
 		return nil, err
@@ -1810,7 +1796,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 		return nil, futures.ErrNotFuturesAsset
 	}
 	if !e.SupportsAsset(a) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	settle, err := getSettlementCurrency(currency.EMPTYPAIR, a)
 	if err != nil {
@@ -1906,7 +1892,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 		}
 		return resp, nil
 	}
-	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
@@ -1915,7 +1901,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	var limits []order.MinMaxLevel
+	var l []limits.MinMaxLevel
 	switch a {
 	case asset.Spot:
 		pairsData, err := e.ListSpotCurrencyPairs(ctx)
@@ -1923,7 +1909,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return err
 		}
 
-		limits = make([]order.MinMaxLevel, 0, len(pairsData))
+		l = make([]limits.MinMaxLevel, 0, len(pairsData))
 		for i := range pairsData {
 			if pairsData[i].TradeStatus == "untradable" {
 				continue
@@ -1940,21 +1926,110 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
 			}
 
-			limits = append(limits, order.MinMaxLevel{
-				Asset:                   a,
-				Pair:                    pair,
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[i].Precision)),
 				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
 				MinimumBaseAmount:       minBaseAmount,
 				MinimumQuoteAmount:      pairsData[i].MinQuoteAmount.Float64(),
 			})
 		}
+	case asset.CoinMarginedFutures:
+		btcContracts, err := e.GetAllFutureContracts(ctx, currency.BTC)
+		if err != nil {
+			return err
+		}
+		l = make([]limits.MinMaxLevel, 0, len(btcContracts))
+		for x := range btcContracts {
+			p := strings.ToUpper(btcContracts[x].Name)
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
+				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
+				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
+				PriceStepIncrementSize:  btcContracts[x].OrderPriceRound.Float64(),
+				AmountStepIncrementSize: 1,
+			})
+		}
+	case asset.USDTMarginedFutures:
+		usdtContracts, err := e.GetAllFutureContracts(ctx, currency.USDT)
+		if err != nil {
+			return err
+		}
+		l = make([]limits.MinMaxLevel, 0, len(usdtContracts))
+		for x := range usdtContracts {
+			p := strings.ToUpper(usdtContracts[x].Name)
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
+				MinimumBaseAmount:       float64(usdtContracts[x].OrderSizeMin),
+				MaximumBaseAmount:       float64(usdtContracts[x].OrderSizeMax),
+				PriceStepIncrementSize:  usdtContracts[x].OrderPriceRound.Float64(),
+				AmountStepIncrementSize: 1,
+			})
+		}
+	case asset.DeliveryFutures:
+		btcContracts, err := e.GetAllDeliveryContracts(ctx, currency.BTC)
+		if err != nil {
+			return err
+		}
+		usdtContracts, err := e.GetAllDeliveryContracts(ctx, currency.USDT)
+		if err != nil {
+			return err
+		}
+		btcContracts = append(btcContracts, usdtContracts...)
+		l = make([]limits.MinMaxLevel, 0, len(btcContracts))
+		for x := range btcContracts {
+			p := strings.ToUpper(btcContracts[x].Name)
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
+				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
+				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
+				PriceStepIncrementSize:  btcContracts[x].OrderPriceRound.Float64(),
+				AmountStepIncrementSize: 1,
+			})
+		}
+	case asset.Options:
+		underlyings, err := e.GetAllOptionsUnderlyings(ctx)
+		if err != nil {
+			return err
+		}
+		for x := range underlyings {
+			contracts, err := e.GetAllContractOfUnderlyingWithinExpiryDate(ctx, underlyings[x].Name, time.Time{})
+			if err != nil {
+				return err
+			}
+			l = make([]limits.MinMaxLevel, 0, len(contracts))
+			for c := range contracts {
+				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
+				if err != nil {
+					return err
+				}
+				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
+				l = append(l, limits.MinMaxLevel{
+					Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
+					MinimumBaseAmount:       float64(contracts[c].OrderSizeMin),
+					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
+					PriceStepIncrementSize:  contracts[c].OrderPriceRound.Float64(),
+					AmountStepIncrementSize: 1,
+				})
+			}
+		}
 	default:
-		// TODO: Add in other assets
-		return fmt.Errorf("%s %w", a, common.ErrNotYetImplemented)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 
-	return e.LoadLimits(limits)
+	return limits.Load(l)
 }
 
 // GetHistoricalFundingRates returns historical funding rates for a futures contract
@@ -2077,11 +2152,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	}
 	resp := make([]fundingrate.LatestRateResponse, 0, len(contracts))
 	for i := range contracts {
-		p := strings.ToUpper(contracts[i].Name)
-		if !e.IsValidPairString(p) {
-			continue
-		}
-		cp, err := currency.NewPairFromString(p)
+		cp, err := currency.NewPairFromString(contracts[i].Name)
 		if err != nil {
 			return nil, err
 		}
@@ -2169,7 +2240,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 				}
 			}
 			resp = append(resp, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
+				Key: key.ExchangeAssetPair{
 					Exchange: e.Name,
 					Base:     p.Base.Item,
 					Quote:    p.Quote.Item,
@@ -2299,7 +2370,7 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		}
 		return tradeBaseURL + futuresPath + settle.String() + "/" + cp.Upper().String(), nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }
 
@@ -2330,19 +2401,11 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		}
 		return e.deriveSpotWebsocketOrderResponse(resp)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
-		amountWithDirection, err := getFutureOrderSize(s)
+		req, err := getFuturesOrderRequest(s)
 		if err != nil {
 			return nil, err
 		}
-
-		resp, err := e.WebsocketFuturesSubmitOrder(ctx, s.AssetType, &ContractOrderCreateParams{
-			Contract:    s.Pair,
-			Size:        amountWithDirection,
-			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
-			ReduceOnly:  s.ReduceOnly,
-			TimeInForce: timeInForceString(s.TimeInForce),
-			Text:        s.ClientOrderID,
-		})
+		resp, err := e.WebsocketFuturesSubmitOrder(ctx, s.AssetType, req)
 		if err != nil {
 			return nil, err
 		}
@@ -2350,6 +2413,22 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	default:
 		return nil, common.ErrNotYetImplemented
 	}
+}
+
+func getFuturesOrderRequest(s *order.Submit) (*ContractOrderCreateParams, error) {
+	amountWithDirection, err := getFutureOrderSize(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContractOrderCreateParams{
+		Contract:    s.Pair,
+		Size:        amountWithDirection,
+		Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
+		ReduceOnly:  s.ReduceOnly,
+		TimeInForce: timeInForceString(s.TimeInForce),
+		Text:        s.ClientOrderID,
+	}, nil
 }
 
 // timeInForceString returns the most relevant time-in-force exchange string for a TimeInForce
@@ -2384,8 +2463,17 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		return nil, common.ErrNoResponse
 	}
 
-	out := make([]*order.SubmitResponse, 0, len(responses))
-	for _, resp := range responses {
+	out := make([]*order.SubmitResponse, len(responses))
+	for i, resp := range responses {
+		if resp.Label != "" { // batch only, denotes error type in string format
+			out[i] = &order.SubmitResponse{
+				Exchange:        e.Name,
+				ClientOrderID:   resp.Text,
+				SubmissionError: fmt.Errorf("%w reason label:%q message:%q", order.ErrUnableToPlaceOrder, resp.Label, resp.Message),
+			}
+			continue
+		}
+
 		side, err := order.StringToOrderSide(resp.Side)
 		if err != nil {
 			return nil, err
@@ -2417,7 +2505,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, &order.SubmitResponse{
+		out[i] = &order.SubmitResponse{
 			Exchange:             e.Name,
 			OrderID:              resp.ID,
 			AssetType:            resp.Account,
@@ -2428,16 +2516,16 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 			RemainingAmount:      resp.Left.Float64(),
 			Amount:               resp.Amount.Float64(),
 			Price:                resp.Price.Float64(),
-			AverageExecutedPrice: resp.AverageDealPrice.Float64(),
 			Type:                 oType,
 			Side:                 side,
-			Status:               status,
+			Fee:                  resp.Fee.Float64(),
+			FeeAsset:             resp.FeeCurrency,
 			TimeInForce:          tif,
 			Cost:                 cost,
 			Purchased:            purchased,
-			Fee:                  resp.Fee.Float64(),
-			FeeAsset:             resp.FeeCurrency,
-		})
+			Status:               status,
+			AverageExecutedPrice: resp.AverageDealPrice.Float64(),
+		}
 	}
 	return out, nil
 }
@@ -2558,4 +2646,45 @@ func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error)
 		return currency.BTC, nil
 	}
 	return currency.EMPTYCODE, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+}
+
+// WebsocketSubmitOrders submits orders to the exchange through the websocket
+func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) ([]*order.SubmitResponse, error) {
+	var a asset.Item
+	for x := range orders {
+		if err := orders[x].Validate(e.GetTradingRequirements()); err != nil {
+			return nil, err
+		}
+
+		if a == asset.Empty {
+			a = orders[x].AssetType
+			continue
+		}
+
+		if a != orders[x].AssetType {
+			return nil, fmt.Errorf("%w; Passed %q and %q", errSingleAssetRequired, a, orders[x].AssetType)
+		}
+	}
+
+	if !e.CurrencyPairs.IsAssetSupported(a) {
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
+	}
+
+	switch a {
+	case asset.Spot:
+		reqs := make([]*CreateOrderRequest, len(orders))
+		for x := range orders {
+			var err error
+			if reqs[x], err = e.getSpotOrderRequest(orders[x]); err != nil {
+				return nil, err
+			}
+		}
+		resp, err := e.WebsocketSpotSubmitOrders(ctx, reqs...)
+		if err != nil {
+			return nil, err
+		}
+		return e.deriveSpotWebsocketOrderResponses(resp)
+	default:
+		return nil, fmt.Errorf("%w for %s", common.ErrNotYetImplemented, a)
+	}
 }

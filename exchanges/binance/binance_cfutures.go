@@ -11,12 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -1079,13 +1080,13 @@ func (e *Exchange) FuturesPositionsADLEstimate(ctx context.Context, symbol curre
 }
 
 // FetchCoinMarginExchangeLimits fetches coin margined order execution limits
-func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
+func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]limits.MinMaxLevel, error) {
 	coinFutures, err := e.FuturesExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	limits := make([]order.MinMaxLevel, 0, len(coinFutures.Symbols))
+	l := make([]limits.MinMaxLevel, 0, len(coinFutures.Symbols))
 	for x := range coinFutures.Symbols {
 		symbol := strings.Split(coinFutures.Symbols[x].Symbol, currency.UnderscoreDelimiter)
 		var cp currency.Pair
@@ -1098,9 +1099,8 @@ func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]order.M
 			continue
 		}
 
-		limits = append(limits, order.MinMaxLevel{
-			Pair:                    cp,
-			Asset:                   asset.CoinMarginedFutures,
+		l = append(l, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, cp),
 			MinPrice:                coinFutures.Symbols[x].Filters[0].MinPrice,
 			MaxPrice:                coinFutures.Symbols[x].Filters[0].MaxPrice,
 			PriceStepIncrementSize:  coinFutures.Symbols[x].Filters[0].TickSize,
@@ -1117,5 +1117,5 @@ func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]order.M
 			MultiplierDecimal:       coinFutures.Symbols[x].Filters[5].MultiplierDecimal,
 		})
 	}
-	return limits, nil
+	return l, nil
 }

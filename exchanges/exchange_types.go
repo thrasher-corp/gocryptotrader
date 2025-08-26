@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -241,6 +240,7 @@ type Base struct {
 	Features                      Features
 	HTTPTimeout                   time.Duration
 	HTTPRecording                 bool
+	HTTPMockDataSliceLimit        int // Use with HTTPRecording to reduce the size of recorded mock data
 	HTTPDebugging                 bool
 	BypassConfigFormatUpgrades    bool
 	WebsocketResponseCheckTimeout time.Duration
@@ -254,7 +254,6 @@ type Base struct {
 	// increasing potential update speed but decreasing confidence in orderbook
 	// integrity.
 	ValidateOrderbook bool
-	order.ExecutionLimits
 
 	AssetWebsocketSupport
 	*currencystate.States
@@ -273,6 +272,11 @@ const (
 	RestSwap
 	RestSandbox
 	WebsocketSpot
+	WebsocketCoinMargined
+	WebsocketUSDTMargined
+	WebsocketUSDCMargined
+	WebsocketOptions
+	WebsocketPrivate
 	WebsocketSpotSupplementary
 	ChainAnalysis
 	EdgeCase1
@@ -289,6 +293,11 @@ const (
 	restSandboxURL                = "RestSandboxURL"
 	restSwapURL                   = "RestSwapURL"
 	websocketSpotURL              = "WebsocketSpotURL"
+	websocketCoinMarginedURL      = "WebsocketCoinMarginedURL"
+	websocketUSDTMarginedURL      = "WebsocketUSDTMarginedURL"
+	websocketUSDCMarginedURL      = "WebsocketUSDCMarginedURL"
+	websocketOptionsURL           = "WebsocketOptionsURL"
+	websocketPrivateURL           = "WebsocketPrivateURL"
 	websocketSpotSupplementaryURL = "WebsocketSpotSupplementaryURL"
 	chainAnalysisURL              = "ChainAnalysisURL"
 	edgeCase1URL                  = "EdgeCase1URL"
@@ -307,6 +316,11 @@ var keyURLs = []URL{
 	RestSwap,
 	RestSandbox,
 	WebsocketSpot,
+	WebsocketCoinMargined,
+	WebsocketUSDTMargined,
+	WebsocketUSDCMargined,
+	WebsocketOptions,
+	WebsocketPrivate,
 	WebsocketSpotSupplementary,
 	ChainAnalysis,
 	EdgeCase1,

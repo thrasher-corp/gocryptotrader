@@ -77,20 +77,24 @@ func TestWrapperGetServerTime(t *testing.T) {
 	assert.WithinRange(t, st, time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
 }
 
-// TestUpdateOrderExecutionLimits exercises UpdateOrderExecutionLimits and GetOrderExecutionLimits
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-
-	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
-	for _, p := range []currency.Pair{
-		currency.NewPair(currency.ETH, currency.USDT),
-		currency.NewPair(currency.XBT, currency.USDT),
-	} {
-		limits, err := e.GetOrderExecutionLimits(asset.Spot, p)
-		require.NoErrorf(t, err, "%s GetOrderExecutionLimits must not error", p)
-		assert.Positivef(t, limits.PriceStepIncrementSize, "%s PriceStepIncrementSize should be positive", p)
-		assert.Positivef(t, limits.MinimumBaseAmount, "%s MinimumBaseAmount should be positive", p)
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			switch a {
+			case asset.Futures:
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), common.ErrNotYetImplemented)
+			default:
+				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+				pairs, err := e.CurrencyPairs.GetPairs(a, false)
+				require.NoError(t, err, "GetPairs must not error")
+				l, err := e.GetOrderExecutionLimits(a, pairs[0])
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+			}
+		})
 	}
 }
 
@@ -306,7 +310,6 @@ func TestGetFuturesTradeHistory(t *testing.T) {
 	assert.NoError(t, err, "GetFuturesTradeHistory should not error")
 }
 
-// TestGetAssets API endpoint test
 func TestGetAssets(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAssets(t.Context())
@@ -344,7 +347,6 @@ func TestLookupCurrency(t *testing.T) {
 	assert.Empty(t, a.LookupCurrency("EUR"), "LookupCurrency should still not return an unseeded key")
 }
 
-// TestGetAssetPairs API endpoint test
 func TestGetAssetPairs(t *testing.T) {
 	t.Parallel()
 	for _, v := range []string{"fees", "leverage", "margin", ""} {
@@ -353,28 +355,24 @@ func TestGetAssetPairs(t *testing.T) {
 	}
 }
 
-// TestGetTicker API endpoint test
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTicker(t.Context(), spotTestPair)
 	assert.NoError(t, err, "GetTicker should not error")
 }
 
-// TestGetTickers API endpoint test
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTickers(t.Context(), "LTCUSD,ETCUSD")
 	assert.NoError(t, err, "GetTickers should not error")
 }
 
-// TestGetOHLC API endpoint test
 func TestGetOHLC(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOHLC(t.Context(), currency.NewPairWithDelimiter("XXBT", "ZUSD", ""), "1440")
 	assert.NoError(t, err, "GetOHLC should not error")
 }
 
-// TestGetDepth API endpoint test
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDepth(t.Context(), spotTestPair)
@@ -401,7 +399,6 @@ func TestGetSpread(t *testing.T) {
 	assert.NotEmpty(t, v, "GetSpread should return some spread data for the given pair")
 }
 
-// TestGetBalance API endpoint test
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -416,7 +413,6 @@ func TestGetDepositMethods(t *testing.T) {
 	assert.NoError(t, err, "GetDepositMethods should not error")
 }
 
-// TestGetTradeBalance API endpoint test
 func TestGetTradeBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -425,7 +421,6 @@ func TestGetTradeBalance(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestGetOpenOrders API endpoint test
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -434,7 +429,6 @@ func TestGetOpenOrders(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestGetClosedOrders API endpoint test
 func TestGetClosedOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -443,7 +437,6 @@ func TestGetClosedOrders(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestQueryOrdersInfo API endpoint test
 func TestQueryOrdersInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -452,7 +445,6 @@ func TestQueryOrdersInfo(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestGetTradesHistory API endpoint test
 func TestGetTradesHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -461,7 +453,6 @@ func TestGetTradesHistory(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestQueryTrades API endpoint test
 func TestQueryTrades(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -469,7 +460,6 @@ func TestQueryTrades(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestOpenPositions API endpoint test
 func TestOpenPositions(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -477,7 +467,6 @@ func TestOpenPositions(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestGetLedgers API endpoint test
 // TODO: Needs a positive test
 func TestGetLedgers(t *testing.T) {
 	t.Parallel()
@@ -488,7 +477,6 @@ func TestGetLedgers(t *testing.T) {
 	assert.ErrorContains(t, err, "EQuery:Unknown asset pair", "GetLedger should error on imaginary ledgers")
 }
 
-// TestQueryLedgers API endpoint test
 func TestQueryLedgers(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -496,7 +484,6 @@ func TestQueryLedgers(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestGetTradeVolume API endpoint test
 func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -526,7 +513,6 @@ func TestOrders(t *testing.T) {
 	}
 }
 
-// TestCancelExistingOrder API endpoint test
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -547,7 +533,6 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	feeBuilder := setFeeBuilder()
@@ -616,7 +601,6 @@ func TestGetFee(t *testing.T) {
 	assert.NoError(t, err, "InternationalBankWithdrawalFee Basic GetFee should not error")
 }
 
-// TestFormatWithdrawPermissions logic test
 func TestFormatWithdrawPermissions(t *testing.T) {
 	t.Parallel()
 	exp := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawCryptoWith2FAText + " & " + exchange.AutoWithdrawFiatWithSetupText + " & " + exchange.WithdrawFiatWith2FAText
@@ -624,7 +608,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	assert.Equal(t, exp, withdrawPermissions, "FormatWithdrawPermissions should return correct value")
 }
 
-// TestGetActiveOrders wrapper test
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -640,7 +623,6 @@ func TestGetActiveOrders(t *testing.T) {
 	assert.NoError(t, err, "GetActiveOrders should not error")
 }
 
-// TestGetOrderHistory wrapper test
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -666,7 +648,6 @@ func TestGetOrderInfo(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 
-// TestSubmitOrder wrapper test
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
@@ -690,7 +671,6 @@ func TestSubmitOrder(t *testing.T) {
 	}
 }
 
-// TestCancelExchangeOrder wrapper test
 func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
 
@@ -734,7 +714,6 @@ func TestCancelBatchExchangeOrder(t *testing.T) {
 	}
 }
 
-// TestCancelAllExchangeOrders wrapper test
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
@@ -765,7 +744,6 @@ func TestUpdateAccountInfo(t *testing.T) {
 	}
 }
 
-// TestModifyOrder wrapper test
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 
@@ -773,7 +751,6 @@ func TestModifyOrder(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "ModifyOrder should error correctly")
 }
 
-// TestWithdraw wrapper test
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
@@ -799,7 +776,6 @@ func TestWithdraw(t *testing.T) {
 	}
 }
 
-// TestWithdrawFiat wrapper test
 func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
@@ -820,7 +796,6 @@ func TestWithdrawFiat(t *testing.T) {
 	}
 }
 
-// TestWithdrawInternationalBank wrapper test
 func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
@@ -859,7 +834,6 @@ func TestGetCryptoDepositAddress(t *testing.T) {
 	}
 }
 
-// TestGetDepositAddress wrapper test
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	if sharedtestvalues.AreAPICredentialsSet(e) {
@@ -875,7 +849,6 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-// TestWithdrawStatus wrapper test
 func TestWithdrawStatus(t *testing.T) {
 	t.Parallel()
 	if sharedtestvalues.AreAPICredentialsSet(e) {
@@ -891,7 +864,6 @@ func TestWithdrawStatus(t *testing.T) {
 	}
 }
 
-// TestWithdrawCancel wrapper test
 func TestWithdrawCancel(t *testing.T) {
 	t.Parallel()
 	_, err := e.WithdrawCancel(t.Context(), currency.BTC, "")

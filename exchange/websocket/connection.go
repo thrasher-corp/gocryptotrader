@@ -55,6 +55,8 @@ type Connection interface {
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
+	// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
+	RequireMatchWithData(signature any, incoming []byte) error
 }
 
 // ConnectionSetup defines variables for an individual stream connection
@@ -85,12 +87,12 @@ type ConnectionSetup struct {
 	// Handler defines the function that will be called when a message is
 	// received from the exchange's websocket server. This function should
 	// handle the incoming message and pass it to the appropriate data handler.
-	Handler func(ctx context.Context, incoming []byte) error
-	// BespokeGenerateMessageID is a function that returns a unique message ID.
+	Handler func(ctx context.Context, conn Connection, incoming []byte) error
+	// RequestIDGenerator is a function that returns a unique message ID.
 	// This is useful for when an exchange connection requires a unique or
 	// structured message ID for each message sent.
-	BespokeGenerateMessageID func(highPrecision bool) int64
-	Authenticate             func(ctx context.Context, conn Connection) error
+	RequestIDGenerator func() int64
+	Authenticate       func(ctx context.Context, conn Connection) error
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.
 	MessageFilter any
@@ -110,23 +112,23 @@ type Response struct {
 
 // connection contains all the data needed to send a message to a websocket connection
 type connection struct {
-	Verbose                  bool
-	connected                int32
-	writeControl             sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
-	RateLimit                *request.RateLimiterWithWeight // RateLimit is a rate limiter for the connection itself
-	RateLimitDefinitions     request.RateLimitDefinitions   // RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections
-	Reporter                 Reporter
-	ExchangeName             string
-	URL                      string
-	ProxyURL                 string
-	Wg                       *sync.WaitGroup
-	Connection               *gws.Conn
-	shutdown                 chan struct{}
-	Match                    *Match
-	ResponseMaxLimit         time.Duration
-	Traffic                  chan struct{}
-	readMessageErrors        chan error
-	bespokeGenerateMessageID func(highPrecision bool) int64
+	Verbose              bool
+	connected            int32
+	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
+	RateLimit            *request.RateLimiterWithWeight // RateLimit is a rate limiter for the connection itself
+	RateLimitDefinitions request.RateLimitDefinitions   // RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections
+	Reporter             Reporter
+	ExchangeName         string
+	URL                  string
+	ProxyURL             string
+	Wg                   *sync.WaitGroup
+	Connection           *gws.Conn
+	shutdown             chan struct{}
+	Match                *Match
+	ResponseMaxLimit     time.Duration
+	Traffic              chan struct{}
+	readMessageErrors    chan error
+	requestIDGenerator   func() int64
 }
 
 // Dial sets proxy urls and then connects to the websocket
@@ -231,9 +233,7 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 		})
 		return
 	}
-	c.Wg.Add(1)
-	go func() {
-		defer c.Wg.Done()
+	c.Wg.Go(func() {
 		ticker := time.NewTicker(handler.Delay)
 		for {
 			select {
@@ -248,7 +248,7 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 				}
 			}
 		}
-	}()
+	})
 }
 
 // setConnectedStatus sets connection status if changed it will return true.
@@ -337,8 +337,8 @@ func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
 // If a bespoke function is set (by using SetupNewConnection) it will use that,
 // otherwise it will use the defaultGenerateMessageID function.
 func (c *connection) GenerateMessageID(highPrec bool) int64 {
-	if c.bespokeGenerateMessageID != nil {
-		return c.bespokeGenerateMessageID(highPrec)
+	if c.requestIDGenerator != nil {
+		return c.requestIDGenerator()
 	}
 	return c.defaultGenerateMessageID(highPrec)
 }
@@ -372,8 +372,8 @@ func (c *connection) Shutdown() error {
 }
 
 // SetURL sets connection URL
-func (c *connection) SetURL(url string) {
-	c.URL = url
+func (c *connection) SetURL(u string) {
+	c.URL = u
 }
 
 // SetProxy sets connection proxy
@@ -467,9 +467,14 @@ inspection:
 	return resps, nil
 }
 
-func removeURLQueryString(url string) string {
-	if index := strings.Index(url, "?"); index != -1 {
-		return url[:index]
+func removeURLQueryString(u string) string {
+	if index := strings.Index(u, "?"); index != -1 {
+		return u[:index]
 	}
-	return url
+	return u
+}
+
+// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
+func (c *connection) RequireMatchWithData(signature any, incoming []byte) error {
+	return c.Match.RequireMatchWithData(signature, incoming)
 }

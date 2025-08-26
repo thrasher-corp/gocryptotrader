@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -177,7 +179,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if a != asset.Spot {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	markets, err := e.GetMarkets(ctx)
 	if err != nil {
@@ -977,7 +979,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return err
 	}
 
-	limits := make([]order.MinMaxLevel, len(markets))
+	l := make([]limits.MinMaxLevel, len(markets))
 	for x := range markets {
 		var pair currency.Pair
 		pair, err = currency.NewPairFromStrings(markets[x].BaseAsset, markets[x].QuoteAsset)
@@ -985,16 +987,15 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return err
 		}
 
-		limits[x] = order.MinMaxLevel{
-			Pair:                    pair,
-			Asset:                   asset.Spot,
+		l[x] = limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, asset.Spot, pair),
 			MinimumBaseAmount:       markets[x].MinOrderAmount,
 			MaximumBaseAmount:       markets[x].MaxOrderAmount,
 			AmountStepIncrementSize: math.Pow(10, -markets[x].AmountDecimals),
 			PriceStepIncrementSize:  math.Pow(10, -markets[x].PriceDecimals),
 		}
 	}
-	return e.LoadLimits(limits)
+	return limits.Load(l)
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type

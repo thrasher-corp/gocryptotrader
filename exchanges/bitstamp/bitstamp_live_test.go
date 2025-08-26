@@ -24,6 +24,6 @@ func TestMain(m *testing.M) {
 		e.API.AuthenticatedSupport = true
 		e.SetCredentials(apiKey, apiSecret, customerID, "", "", "")
 	}
-	log.Printf(sharedtestvalues.LiveTesting, b.Name)
+	log.Printf(sharedtestvalues.LiveTesting, e.Name)
 	os.Exit(m.Run())
 }
