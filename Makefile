@@ -1,6 +1,6 @@
 LDFLAGS = -ldflags "-w -s"
 GCTPKG = github.com/thrasher-corp/gocryptotrader
-LINTPKG = github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
+LINTPKG = github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0
 GOPATH ?= $(shell go env GOPATH)
 LINTBIN = $(GOPATH)/bin/golangci-lint
 GOFUMPTBIN = $(GOPATH)/bin/gofumpt
@@ -11,7 +11,7 @@ DRIVER ?= psql
 RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
 CONFIG_FLAG = $(if $(CONFIG),-config $(CONFIG),)
 
-.PHONY: all lint lint_docker check test build install fmt gofumpt update_deps
+.PHONY: all lint lint_docker check test build install fmt gofumpt update_deps modernise
 
 all: check build
 
@@ -21,7 +21,7 @@ lint:
 
 lint_docker:
 	@command -v docker >/dev/null 2>&1 || (echo "Docker not found. Please install Docker to run this target." && exit 1)
-	docker run --rm -t -v $(CURDIR):/app -w /app golangci/golangci-lint:v2.1.6 golangci-lint run --verbose
+	docker run --rm -t -v $(CURDIR):/app -w /app golangci/golangci-lint:v2.4.0 golangci-lint run --verbose
 
 check: lint test
 
@@ -40,6 +40,10 @@ fmt:
 gofumpt:
 	@command -v gofumpt >/dev/null 2>&1 || go install mvdan.cc/gofumpt@latest
 	$(GOFUMPTBIN) -l -w $(GO_FILES_TO_FORMAT)
+
+modernise:
+	@command -v modernize >/dev/null 2>&1 || go install golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest
+	modernize -test ./...
 
 update_deps:
 	go mod verify

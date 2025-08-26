@@ -295,10 +295,10 @@ func (e *Exchange) FuturesRecentOrders(ctx context.Context, symbol currency.Pair
 }
 
 // FuturesWithdrawToSpotWallet withdraws currencies from futures wallet to spot wallet
-func (e *Exchange) FuturesWithdrawToSpotWallet(ctx context.Context, currency string, amount float64) (GenericResponse, error) {
+func (e *Exchange) FuturesWithdrawToSpotWallet(ctx context.Context, ccy string, amount float64) (GenericResponse, error) {
 	var resp GenericResponse
 	params := url.Values{}
-	params.Set("currency", currency)
+	params.Set("currency", ccy)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	return resp, e.SendFuturesAuthRequest(ctx, http.MethodPost, futuresWithdraw, params, &resp)
 }
@@ -365,13 +365,14 @@ func (e *Exchange) SendFuturesAuthRequest(ctx context.Context, method, path stri
 		}
 
 		return &request.Item{
-			Method:        method,
-			Path:          futuresURL + common.EncodeURLValues(path, data),
-			Headers:       headers,
-			Result:        &interim,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   futuresURL + common.EncodeURLValues(path, data),
+			Headers:                headers,
+			Result:                 &interim,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
 

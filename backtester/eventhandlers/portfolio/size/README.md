@@ -25,20 +25,6 @@ The sizing package ensures that all potential orders raised are within both the 
 - When an order is sized under the limits, an order event cannot be raised an no order will be submitted by the exchange
 - The portfolio manager's sizing rules override any CurrencySettings' rules if the sizing is outside the portfolio manager's
 
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
-
-## Contribution
-
-Please feel free to submit any pull requests or suggest any desired features to be added.
-
-When submitting a PR, please abide by our coding guidelines:
-
-+ Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
-+ Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
-+ Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/doc/coding_style.md).
-+ Pull requests need to be based on and opened against the `master` branch.
-
 ## Donations
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
