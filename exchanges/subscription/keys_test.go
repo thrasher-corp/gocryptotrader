@@ -164,9 +164,9 @@ func TestChannelKeyMatch(t *testing.T) {
 	try := &DummyKey{&Subscription{Channel: OrderbookChannel}, t}
 
 	require.Panics(t, func() { key.Match(nil) }, "Match on a nil must panic")
-	require.False(t, key.Match(try), "Gate 1: Match must reject a bad Channel")
+	require.False(t, key.Match(try), "Match must reject a different channel")
 	try.Channel = TickerChannel
-	require.True(t, key.Match(try), "Gate 1: Match must accept a good Channel")
+	require.True(t, key.Match(try), "Match must accept an identical channel")
 }
 
 func TestChannelKeyGetSubscription(t *testing.T) {

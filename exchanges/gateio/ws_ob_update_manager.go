@@ -71,7 +71,7 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 		return applyOrderbookUpdate(e, update)
 	}
 
-	// Orderbook is behind notifications, therefore Invalidate store
+	// Orderbook notifications are desynced, therefore invalidate store.
 	if err := e.Websocket.Orderbook.InvalidateOrderbook(update.Pair, update.Asset); err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
 		return err
 	}
@@ -120,8 +120,8 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair curre
 	case <-time.After(delay):
 	}
 
-	// prevents rate limiter from blocking across multiple enabled pairs and connections, which consumes resources
-	// when appending to the update cache.
+	// Setting deadline to error out instead of waiting for rate limiter delay
+	// which excessively builds a backlog of pending updates.
 	ctxWDeadline, cancel := context.WithDeadline(ctx, time.Now().Add(deadline))
 	defer cancel()
 
@@ -136,7 +136,7 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair curre
 		return err
 	}
 
-	c.mtx.Lock() // lock here to prevent ws handle data interference with REST request above
+	c.mtx.Lock() // Lock here to prevent ws handle data interference with REST request above.
 	defer func() {
 		c.clearNoLock()
 		c.mtx.Unlock()
@@ -183,9 +183,9 @@ func (c *updateCache) extractOrderbookLimit(e *Exchange, a asset.Item) (uint64, 
 	}
 }
 
-// waitForUpdate waits for the next update with the specified ID to be available in the cache that exceeds the next
-// update ID, this ensures that an update can be applied to the orderbook. This is needed for illiquid pairs and the
-// REST book ID's are out of sync.
+// waitForUpdate waits for an update to be available in the cache with an ID
+// that exceeds the specified next update ID. This is needed when the REST book
+// IDs are out of sync and for illiquid pairs.
 func (c *updateCache) waitForUpdate(ctx context.Context, nextUpdateID int64) error {
 	var updateListLastUpdateID int64
 	c.mtx.Lock()
@@ -214,31 +214,31 @@ func (c *updateCache) applyPendingUpdates(e *Exchange) error {
 	for _, data := range c.updates {
 		bookLastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(data.update.Pair, data.update.Asset)
 		if err != nil {
-			return fmt.Errorf("applying pending updates: %w", err)
+			return err
 		}
 
-		nextUpdateID := bookLastUpdateID + 1 // `baseId+1`
+		nextUpdateID := bookLastUpdateID + 1 // From docs: `baseId+1`
 
-		// Dump all notifications which satisfy `u` < `baseId+1`
+		// From docs: Dump all notifications which satisfy `u` < `baseId+1`
 		if data.update.UpdateID < nextUpdateID {
 			continue
 		}
 
 		pendingFirstUpdateID := data.firstUpdateID // `U`
-		// `baseID+1`` < first notification `U` current base order book falls behind notifications
+		// From docs: `baseID+1` < first notification `U` current base order book falls behind notifications
 		if nextUpdateID < pendingFirstUpdateID {
-			return fmt.Errorf("applying pending updates: %w", errOrderbookSnapshotOutdated)
+			return errOrderbookSnapshotOutdated
 		}
 
 		if err := applyOrderbookUpdate(e, data.update); err != nil {
-			return fmt.Errorf("applying pending updates: %w", err)
+			return err
 		}
 
 		updateApplied = true
 	}
 
 	if !updateApplied {
-		return fmt.Errorf("applying pending updates: %w", errPendingUpdatesNotApplied)
+		return errPendingUpdatesNotApplied
 	}
 
 	return nil
