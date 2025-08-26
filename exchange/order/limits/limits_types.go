@@ -36,19 +36,19 @@ var (
 
 // store defines minimum and maximum values for order size, pricing, max orders for exchange order requirements
 type store struct {
-	epaLimits map[key.ExchangePairAsset]*MinMaxLevel
+	epaLimits map[key.ExchangeAssetPair]*MinMaxLevel
 	mtx       sync.RWMutex
 }
 
 var manager = store{
-	epaLimits: make(map[key.ExchangePairAsset]*MinMaxLevel),
+	epaLimits: make(map[key.ExchangeAssetPair]*MinMaxLevel),
 }
 
 // MinMaxLevel defines the minimum and maximum parameters for a currency pair
 // for outbound exchange execution
 type MinMaxLevel struct {
 	UpdatedAt               time.Time
-	Key                     key.ExchangePairAsset
+	Key                     key.ExchangeAssetPair
 	MinPrice                float64
 	MaxPrice                float64
 	PriceStepIncrementSize  float64

@@ -802,7 +802,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return err
 		}
 		resp = append(resp, limits.MinMaxLevel{
-			Key:                     key.NewExchangePairAssetKey(e.Name, a, cp),
+			Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
 			AmountStepIncrementSize: details[i].TickSize,
 			MinimumBaseAmount:       details[i].MinOrderSize.Float64(),
 			QuoteStepIncrementSize:  details[i].QuoteIncrement,

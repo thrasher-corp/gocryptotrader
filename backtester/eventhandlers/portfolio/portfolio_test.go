@@ -36,7 +36,7 @@ var leet = decimal.NewFromInt(1337)
 func TestReset(t *testing.T) {
 	t.Parallel()
 	p := &Portfolio{
-		exchangeAssetPairPortfolioSettings: make(map[key.ExchangePairAsset]*Settings),
+		exchangeAssetPairPortfolioSettings: make(map[key.ExchangeAssetPair]*Settings),
 	}
 	err := p.Reset()
 	assert.NoError(t, err)
@@ -578,7 +578,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	assert.NoError(t, err)
 
 	tt := time.Now()
-	s, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(testExchange, asset.Spot, cp)]
+	s, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangeAssetPair(testExchange, asset.Spot, cp)]
 	if !ok {
 		t.Fatal("couldn't get settings")
 	}
@@ -627,7 +627,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	ff.Name = testExchange
 	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewPair(currency.XRP, currency.DOGE)})
 	require.NoError(t, err, "SetCurrencySettingsMap must not error")
-	s, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(testExchange, asset.Spot, cp)]
+	s, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangeAssetPair(testExchange, asset.Spot, cp)]
 	if !ok {
 		t.Fatal("couldn't get settings")
 	}
@@ -729,8 +729,8 @@ func TestCalculatePNL(t *testing.T) {
 		FuturesTracker: mpt,
 	}
 
-	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
-	p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(testExchange, a, pair)] = s
+	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangeAssetPair]*Settings)
+	p.exchangeAssetPairPortfolioSettings[key.NewExchangeAssetPair(testExchange, a, pair)] = s
 	ev.Close = leet
 	err = s.ComplianceManager.AddSnapshot(&compliance.Snapshot{
 		Timestamp: tt0,
@@ -958,8 +958,8 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 		FuturesTracker: mpt,
 	}
 
-	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
-	p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(testExchange, asset.Futures, ev.Pair())] = s
+	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangeAssetPair]*Settings)
+	p.exchangeAssetPairPortfolioSettings[key.NewExchangeAssetPair(testExchange, asset.Futures, ev.Pair())] = s
 	err = s.FuturesTracker.TrackNewOrder(&gctorder.Detail{
 		Exchange:  ev.GetExchange(),
 		AssetType: ev.AssetType,
@@ -1253,8 +1253,8 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 	err = settings.FuturesTracker.TrackNewOrder(od)
 	assert.NoError(t, err)
 
-	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
-	p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(testExchange, asset.Spot, ev.Pair())] = settings
+	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangeAssetPair]*Settings)
+	p.exchangeAssetPairPortfolioSettings[key.NewExchangeAssetPair(testExchange, asset.Spot, ev.Pair())] = settings
 
 	ev.Exchange = ff.Name
 	ev.AssetType = asset.Futures
@@ -1362,8 +1362,8 @@ func TestCheckLiquidationStatus(t *testing.T) {
 	err = settings.FuturesTracker.TrackNewOrder(od)
 	assert.NoError(t, err)
 
-	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
-	p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(testExchange, asset.Futures, ev.Pair())] = settings
+	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangeAssetPair]*Settings)
+	p.exchangeAssetPairPortfolioSettings[key.NewExchangeAssetPair(testExchange, asset.Futures, ev.Pair())] = settings
 	err = p.CheckLiquidationStatus(ev, collat, pnl)
 	assert.NoError(t, err)
 }

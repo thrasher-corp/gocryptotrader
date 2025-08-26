@@ -2984,7 +2984,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				return nil, err
 			}
 			result[i] = futures.OpenInterest{
-				Key:          key.NewExchangePairAssetKey(e.Name, k[i].Asset, k[i].Pair()),
+				Key:          key.NewExchangeAssetPair(e.Name, k[i].Asset, k[i].Pair()),
 				OpenInterest: oi.OpenInterest,
 			}
 		case asset.CoinMarginedFutures:
@@ -2993,7 +2993,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				return nil, err
 			}
 			result[i] = futures.OpenInterest{
-				Key:          key.NewExchangePairAssetKey(e.Name, k[i].Asset, k[i].Pair()),
+				Key:          key.NewExchangeAssetPair(e.Name, k[i].Asset, k[i].Pair()),
 				OpenInterest: oi.OpenInterest,
 			}
 		}

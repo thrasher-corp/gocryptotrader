@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var happyKey = key.NewExchangePairAssetKey("test", asset.Spot, currency.NewBTCUSDT())
+var happyKey = key.NewExchangeAssetPair("test", asset.Spot, currency.NewBTCUSDT())
 
 func TestLoadLimits(t *testing.T) {
 	t.Parallel()
@@ -21,7 +21,7 @@ func TestLoadLimits(t *testing.T) {
 
 	badKeyNoExchange := []MinMaxLevel{
 		{
-			Key:               key.NewExchangePairAssetKey("", asset.Spot, currency.NewBTCUSDT()),
+			Key:               key.NewExchangeAssetPair("", asset.Spot, currency.NewBTCUSDT()),
 			MinPrice:          100000,
 			MaxPrice:          1000000,
 			MinimumBaseAmount: 1,
@@ -33,7 +33,7 @@ func TestLoadLimits(t *testing.T) {
 
 	badKeyNoAsset := []MinMaxLevel{
 		{
-			Key:               key.NewExchangePairAssetKey("hi", 0, currency.NewBTCUSDT()),
+			Key:               key.NewExchangeAssetPair("hi", 0, currency.NewBTCUSDT()),
 			MinPrice:          100000,
 			MaxPrice:          1000000,
 			MinimumBaseAmount: 1,
@@ -45,7 +45,7 @@ func TestLoadLimits(t *testing.T) {
 
 	badKeyNoPair := []MinMaxLevel{
 		{
-			Key:               key.NewExchangePairAssetKey("hi", asset.Spot, currency.EMPTYPAIR),
+			Key:               key.NewExchangeAssetPair("hi", asset.Spot, currency.EMPTYPAIR),
 			MinPrice:          100000,
 			MaxPrice:          1000000,
 			MinimumBaseAmount: 1,
@@ -121,7 +121,7 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 	err = e.load(newLimits)
 	require.NoError(t, err)
 
-	_, err = e.getOrderExecutionLimits(key.NewExchangePairAssetKey("hi", asset.Futures, currency.NewBTCUSDT()))
+	_, err = e.getOrderExecutionLimits(key.NewExchangeAssetPair("hi", asset.Futures, currency.NewBTCUSDT()))
 	assert.ErrorIs(t, err, ErrOrderLimitNotFound)
 
 	tt, err := e.getOrderExecutionLimits(happyKey)
@@ -147,7 +147,7 @@ func TestCheckLimit(t *testing.T) {
 	err = e.load(newLimits)
 	assert.NoError(t, err)
 
-	err = e.checkOrderExecutionLimits(key.NewExchangePairAssetKey("test", asset.Futures, currency.NewBTCUSDT()), 1337, 1337, order.Limit)
+	err = e.checkOrderExecutionLimits(key.NewExchangeAssetPair("test", asset.Futures, currency.NewBTCUSDT()), 1337, 1337, order.Limit)
 	assert.ErrorIs(t, err, ErrOrderLimitNotFound)
 
 	err = e.checkOrderExecutionLimits(happyKey, 1337, 9, order.Limit)

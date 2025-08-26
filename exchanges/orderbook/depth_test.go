@@ -764,6 +764,6 @@ func TestKey(t *testing.T) {
 	depth.pair = currency.NewPair(currency.BTC, currency.WABI)
 	depth.asset = asset.Spot
 	require.Equal(t,
-		key.NewExchangePairAssetKey(depth.exchange, depth.asset, depth.pair),
+		key.NewExchangeAssetPair(depth.exchange, depth.asset, depth.pair),
 		depth.Key())
 }

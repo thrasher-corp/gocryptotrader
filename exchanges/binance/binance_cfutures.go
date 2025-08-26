@@ -1116,7 +1116,7 @@ func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]limits.
 		}
 
 		l = append(l, limits.MinMaxLevel{
-			Key:                     key.NewExchangePairAssetKey(e.Name, asset.CoinMarginedFutures, cp),
+			Key:                     key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, cp),
 			MinPrice:                coinFutures.Symbols[x].Filters[0].MinPrice,
 			MaxPrice:                coinFutures.Symbols[x].Filters[0].MaxPrice,
 			PriceStepIncrementSize:  coinFutures.Symbols[x].Filters[0].TickSize,

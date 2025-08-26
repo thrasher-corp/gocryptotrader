@@ -666,8 +666,8 @@ func (d *Depth) Exchange() string {
 }
 
 // Key returns a combined key for the depth
-func (d *Depth) Key() key.ExchangePairAsset {
+func (d *Depth) Key() key.ExchangeAssetPair {
 	d.m.RLock()
 	defer d.m.RUnlock()
-	return key.NewExchangePairAssetKey(d.exchange, d.asset, d.pair)
+	return key.NewExchangeAssetPair(d.exchange, d.asset, d.pair)
 }

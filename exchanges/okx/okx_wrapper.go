@@ -315,7 +315,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		l := make([]limits.MinMaxLevel, len(insts))
 		for i := range insts {
 			l[i] = limits.MinMaxLevel{
-				Key:                    key.NewExchangePairAssetKey(e.Name, a, insts[i].InstrumentID),
+				Key:                    key.NewExchangeAssetPair(e.Name, a, insts[i].InstrumentID),
 				PriceStepIncrementSize: insts[i].TickSize.Float64(),
 				MinimumBaseAmount:      insts[i].MinimumOrderSize.Float64(),
 			}
@@ -332,7 +332,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		l := make([]limits.MinMaxLevel, len(insts))
 		for i := range insts {
 			l[i] = limits.MinMaxLevel{
-				Key:                    key.NewExchangePairAssetKey(e.Name, a, insts[i].SpreadID),
+				Key:                    key.NewExchangeAssetPair(e.Name, a, insts[i].SpreadID),
 				PriceStepIncrementSize: insts[i].MinSize.Float64(),
 				MinimumBaseAmount:      insts[i].MinSize.Float64(),
 				QuoteStepIncrementSize: insts[i].TickSize.Float64(),
@@ -2932,7 +2932,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 					continue
 				}
 				resp = append(resp, futures.OpenInterest{
-					Key:          key.NewExchangePairAssetKey(e.Name, v, p),
+					Key:          key.NewExchangeAssetPair(e.Name, v, p),
 					OpenInterest: oid[j].OpenInterest.Float64(),
 				})
 			}
@@ -2979,7 +2979,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			continue
 		}
 		resp[0] = futures.OpenInterest{
-			Key:          key.NewExchangePairAssetKey(e.Name, k[0].Asset, p),
+			Key:          key.NewExchangeAssetPair(e.Name, k[0].Asset, p),
 			OpenInterest: oid[i].OpenInterest.Float64(),
 		}
 	}

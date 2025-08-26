@@ -149,7 +149,7 @@ func (d *Data) enhanceCandles() error {
 			Watermark: fmt.Sprintf("%s - %s - %s", cases.Title(language.English).String(lookup.Exchange), lookup.Asset.String(), lookup.Pair.Upper()),
 		}
 
-		statsForCandles := d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(lookup.Exchange, lookup.Asset, lookup.Pair)]
+		statsForCandles := d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(lookup.Exchange, lookup.Asset, lookup.Pair)]
 		if statsForCandles == nil {
 			continue
 		}

@@ -263,7 +263,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 	for pair, info := range pairInfo {
 		l = append(l, limits.MinMaxLevel{
-			Key:                    key.NewExchangePairAssetKey(e.Name, a, pair),
+			Key:                    key.NewExchangeAssetPair(e.Name, a, pair),
 			PriceStepIncrementSize: info.TickSize,
 			MinimumBaseAmount:      info.OrderMinimum,
 		})
@@ -1708,7 +1708,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 			continue
 		}
 		resp = append(resp, futures.OpenInterest{
-			Key:          key.NewExchangePairAssetKey(e.Name, asset.Futures, p),
+			Key:          key.NewExchangeAssetPair(e.Name, asset.Futures, p),
 			OpenInterest: futuresTickersData.Tickers[i].OpenInterest,
 		})
 	}

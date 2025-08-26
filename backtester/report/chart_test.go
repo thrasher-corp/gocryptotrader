@@ -102,8 +102,8 @@ func TestCreatePNLCharts(t *testing.T) {
 	tt := time.Now()
 	var d Data
 	d.Statistics = &statistics.Statistic{}
-	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(testExchange, asset.Spot, currency.NewBTCUSDT())] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Spot, currency.NewBTCUSDT())] = &statistics.CurrencyPairStatistic{
 		Events: []statistics.DataAtOffset{
 			{
 				PNL: &portfolio.PNLSummary{
@@ -156,8 +156,8 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 	cp2 := currency.NewPair(currency.BTC, currency.DOGE)
 	var d Data
 	d.Statistics = &statistics.Statistic{}
-	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(testExchange, asset.Spot, currency.NewBTCUSD())] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Spot, currency.NewBTCUSD())] = &statistics.CurrencyPairStatistic{
 		Currency: cp,
 		Events: []statistics.DataAtOffset{
 			{
@@ -177,7 +177,7 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 			},
 		},
 	}
-	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(testExchange, asset.Futures, currency.NewPair(currency.BTC, currency.DOGE))] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Futures, currency.NewPair(currency.BTC, currency.DOGE))] = &statistics.CurrencyPairStatistic{
 		UnderlyingPair: cp,
 		Currency:       cp2,
 		Events: []statistics.DataAtOffset{

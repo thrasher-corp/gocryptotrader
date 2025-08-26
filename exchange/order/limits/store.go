@@ -14,13 +14,13 @@ func Load(levels []MinMaxLevel) error {
 }
 
 // GetOrderExecutionLimits returns the order limit matching the key
-func GetOrderExecutionLimits(k key.ExchangePairAsset) (MinMaxLevel, error) {
+func GetOrderExecutionLimits(k key.ExchangeAssetPair) (MinMaxLevel, error) {
 	return manager.getOrderExecutionLimits(k)
 }
 
 // CheckOrderExecutionLimits is a convenience method to check if the price and amount conforms
 // to the exchange order limits
-func CheckOrderExecutionLimits(k key.ExchangePairAsset, price, amount float64, orderType order.Type) error {
+func CheckOrderExecutionLimits(k key.ExchangeAssetPair, price, amount float64, orderType order.Type) error {
 	return manager.checkOrderExecutionLimits(k, price, amount, orderType)
 }
 
@@ -31,7 +31,7 @@ func (e *store) load(levels []MinMaxLevel) error {
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 	if e.epaLimits == nil {
-		e.epaLimits = make(map[key.ExchangePairAsset]*MinMaxLevel)
+		e.epaLimits = make(map[key.ExchangeAssetPair]*MinMaxLevel)
 	}
 
 	for x := range levels {
@@ -85,7 +85,7 @@ func (e *store) load(levels []MinMaxLevel) error {
 	return nil
 }
 
-func (e *store) getOrderExecutionLimits(k key.ExchangePairAsset) (MinMaxLevel, error) {
+func (e *store) getOrderExecutionLimits(k key.ExchangeAssetPair) (MinMaxLevel, error) {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
 	if e.epaLimits == nil {
@@ -98,7 +98,7 @@ func (e *store) getOrderExecutionLimits(k key.ExchangePairAsset) (MinMaxLevel, e
 	return *el, nil
 }
 
-func (e *store) checkOrderExecutionLimits(k key.ExchangePairAsset, price, amount float64, orderType order.Type) error {
+func (e *store) checkOrderExecutionLimits(k key.ExchangeAssetPair, price, amount float64, orderType order.Type) error {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
 	if e.epaLimits == nil {

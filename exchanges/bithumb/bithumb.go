@@ -709,7 +709,7 @@ func (e *Exchange) FetchExchangeLimits(ctx context.Context) ([]limits.MinMaxLeve
 	l := make([]limits.MinMaxLevel, 0, len(ticks))
 	for code, data := range ticks {
 		l = append(l, limits.MinMaxLevel{
-			Key:               key.NewExchangePairAssetKey(e.Name, asset.Spot, currency.NewPair(currency.NewCode(code), currency.KRW)),
+			Key:               key.NewExchangeAssetPair(e.Name, asset.Spot, currency.NewPair(currency.NewCode(code), currency.KRW)),
 			MinimumBaseAmount: getAmountMinimum(data.ClosingPrice),
 		})
 	}

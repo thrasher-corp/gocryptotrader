@@ -5,17 +5,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// ExchangePairAsset is a unique map key signature for exchange, currency pair and asset
-type ExchangePairAsset struct {
+// ExchangeAssetPair is a unique map key signature for exchange, currency pair and asset
+type ExchangeAssetPair struct {
 	Exchange string
+	Asset    asset.Item
 	Base     *currency.Item
 	Quote    *currency.Item
-	Asset    asset.Item
 }
 
-// NewExchangePairAssetKey is a helper function to expand a Pair into an ExchangePairAsset
-func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) ExchangePairAsset {
-	return ExchangePairAsset{
+// NewExchangeAssetPair is a helper function to expand a Pair into an ExchangeAssetPair
+func NewExchangeAssetPair(exch string, a asset.Item, cp currency.Pair) ExchangeAssetPair {
+	return ExchangeAssetPair{
 		Exchange: exch,
 		Base:     cp.Base.Item,
 		Quote:    cp.Quote.Item,
@@ -24,24 +24,24 @@ func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) Exchan
 }
 
 // Pair combines the base and quote into a pair
-func (k ExchangePairAsset) Pair() currency.Pair {
+func (k ExchangeAssetPair) Pair() currency.Pair {
 	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
 }
 
 // MatchesExchangeAsset checks if the key matches the exchange and asset
-func (k ExchangePairAsset) MatchesExchangeAsset(exch string, item asset.Item) bool {
+func (k ExchangeAssetPair) MatchesExchangeAsset(exch string, item asset.Item) bool {
 	return k.Exchange == exch && k.Asset == item
 }
 
 // MatchesPairAsset checks if the key matches the pair and asset
-func (k ExchangePairAsset) MatchesPairAsset(pair currency.Pair, item asset.Item) bool {
+func (k ExchangeAssetPair) MatchesPairAsset(pair currency.Pair, item asset.Item) bool {
 	return k.Base == pair.Base.Item &&
 		k.Quote == pair.Quote.Item &&
 		k.Asset == item
 }
 
 // MatchesExchange checks if the exchange matches
-func (k ExchangePairAsset) MatchesExchange(exch string) bool {
+func (k ExchangeAssetPair) MatchesExchange(exch string) bool {
 	return k.Exchange == exch
 }
 

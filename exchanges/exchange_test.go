@@ -2649,7 +2649,7 @@ type FakeBase struct{ Base }
 func (f *FakeBase) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	return []futures.OpenInterest{
 		{
-			Key:          key.NewExchangePairAssetKey(f.Name, asset.Futures, currency.NewPair(currency.BTC, currency.BONK)),
+			Key:          key.NewExchangeAssetPair(f.Name, asset.Futures, currency.NewPair(currency.BTC, currency.BONK)),
 			OpenInterest: 1337,
 		},
 	}, nil
@@ -2832,7 +2832,7 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 		Name: "TESTNAME",
 	}
 	cp := currency.NewBTCUSDT()
-	k := key.NewExchangePairAssetKey("TESTNAME", asset.Spread, cp)
+	k := key.NewExchangeAssetPair("TESTNAME", asset.Spread, cp)
 	l := limits.MinMaxLevel{
 		Key:      k,
 		MaxPrice: 1337,
@@ -2850,7 +2850,7 @@ func TestCheckOrderExecutionLimits(t *testing.T) {
 		Name: "TESTNAME",
 	}
 	cp := currency.NewBTCUSDT()
-	k := key.NewExchangePairAssetKey("TESTNAME", asset.Spread, cp)
+	k := key.NewExchangeAssetPair("TESTNAME", asset.Spread, cp)
 	l := limits.MinMaxLevel{
 		Key:      k,
 		MaxPrice: 1337,

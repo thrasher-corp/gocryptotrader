@@ -544,7 +544,7 @@ func (e *Exchange) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 			return nil, err
 		}
 		l = append(l, limits.MinMaxLevel{
-			Key:               key.NewExchangePairAssetKey(e.Name, assetType, pair),
+			Key:               key.NewExchangeAssetPair(e.Name, assetType, pair),
 			MinimumBaseAmount: minOrder,
 			MaximumBaseAmount: maxOrder,
 		})

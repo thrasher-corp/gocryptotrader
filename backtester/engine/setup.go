@@ -194,7 +194,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	}
 
 	portfolioRisk := &risk.Risk{
-		CurrencySettings: make(map[key.ExchangePairAsset]*risk.CurrencySettings),
+		CurrencySettings: make(map[key.ExchangeAssetPair]*risk.CurrencySettings),
 	}
 
 	bt.Funding = funds
@@ -234,7 +234,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				err)
 		}
 		if portfolioRisk.CurrencySettings == nil {
-			portfolioRisk.CurrencySettings = make(map[key.ExchangePairAsset]*risk.CurrencySettings)
+			portfolioRisk.CurrencySettings = make(map[key.ExchangeAssetPair]*risk.CurrencySettings)
 		}
 
 		var curr currency.Pair
@@ -261,7 +261,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			portSet.MaximumOrdersWithLeverageRatio = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio
 			portSet.MaxLeverageRate = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrderLeverageRate
 		}
-		portfolioRisk.CurrencySettings[key.NewExchangePairAssetKey(cfg.CurrencySettings[i].ExchangeName, a, curr)] = portSet
+		portfolioRisk.CurrencySettings[key.NewExchangeAssetPair(cfg.CurrencySettings[i].ExchangeName, a, curr)] = portSet
 		if cfg.CurrencySettings[i].MakerFee != nil &&
 			cfg.CurrencySettings[i].TakerFee != nil &&
 			cfg.CurrencySettings[i].MakerFee.GreaterThan(*cfg.CurrencySettings[i].TakerFee) {
@@ -393,7 +393,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		StrategyNickname:            cfg.Nickname,
 		StrategyDescription:         bt.Strategy.Description(),
 		StrategyGoal:                cfg.Goal,
-		ExchangeAssetPairStatistics: make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic),
+		ExchangeAssetPairStatistics: make(map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic),
 		RiskFreeRate:                cfg.StatisticSettings.RiskFreeRate,
 		CandleInterval:              cfg.DataSettings.Interval,
 		FundManager:                 bt.Funding,

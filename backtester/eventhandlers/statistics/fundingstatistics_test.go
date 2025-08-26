@@ -66,7 +66,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	err = f.AddUSDTrackingData(dfk)
 	assert.ErrorIs(t, err, funding.ErrUSDTrackingDisabled)
 
-	cs := make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
+	cs := make(map[key.ExchangeAssetPair]*CurrencyPairStatistic)
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	assert.NoError(t, err)
 
@@ -82,7 +82,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	err = f.AddUSDTrackingData(dfk)
 	require.NoError(t, err, "AddUSDTrackingData must not error")
 
-	cs[key.NewExchangePairAssetKey("binance", asset.Spot, currency.NewPair(currency.LTC, currency.USD))] = &CurrencyPairStatistic{}
+	cs[key.NewExchangeAssetPair("binance", asset.Spot, currency.NewPair(currency.LTC, currency.USD))] = &CurrencyPairStatistic{}
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	assert.ErrorIs(t, err, errMissingSnapshots)
 
@@ -92,7 +92,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	err = f.CreateSnapshot(usdKline.Candles[1].Time)
 	require.NoError(t, err, "CreateSnapshot must not error")
 
-	cs[key.NewExchangePairAssetKey("binance", asset.Spot, currency.NewPair(currency.LTC, currency.USD))] = &CurrencyPairStatistic{}
+	cs[key.NewExchangeAssetPair("binance", asset.Spot, currency.NewPair(currency.LTC, currency.USD))] = &CurrencyPairStatistic{}
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	assert.NoError(t, err)
 }

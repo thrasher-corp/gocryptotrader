@@ -2350,7 +2350,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				continue
 			}
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangePairAssetKey(e.Name, a, pair),
+				Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 				AmountStepIncrementSize: symbols[x].BaseIncrement,
 				QuoteStepIncrementSize:  symbols[x].QuoteIncrement,
 				PriceStepIncrementSize:  symbols[x].PriceIncrement,
@@ -2375,7 +2375,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				continue
 			}
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangePairAssetKey(e.Name, a, pair),
+				Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 				AmountStepIncrementSize: contract[x].LotSize,
 				QuoteStepIncrementSize:  contract[x].TickSize,
 				MaximumBaseAmount:       contract[x].MaxOrderQty,
@@ -2421,7 +2421,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			continue
 		}
 		resp = append(resp, futures.OpenInterest{
-			Key:          key.NewExchangePairAssetKey(e.Name, asset.Futures, symbol),
+			Key:          key.NewExchangeAssetPair(e.Name, asset.Futures, symbol),
 			OpenInterest: contracts[i].OpenInterest.Float64(),
 		})
 	}

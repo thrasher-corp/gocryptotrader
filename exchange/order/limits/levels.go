@@ -15,25 +15,16 @@ func (m *MinMaxLevel) Validate(price, amount float64, orderType order.Type) erro
 	}
 
 	if m.MinimumBaseAmount != 0 && amount < m.MinimumBaseAmount {
-		return fmt.Errorf("%w min: %.8f supplied %.8f",
-			ErrAmountBelowMin,
-			m.MinimumBaseAmount,
-			amount)
+		return fmt.Errorf("%w min: %.8f supplied %.8f", ErrAmountBelowMin, m.MinimumBaseAmount, amount)
 	}
 	if m.MaximumBaseAmount != 0 && amount > m.MaximumBaseAmount {
-		return fmt.Errorf("%w min: %.8f supplied %.8f",
-			ErrAmountExceedsMax,
-			m.MaximumBaseAmount,
-			amount)
+		return fmt.Errorf("%w min: %.8f supplied %.8f", ErrAmountExceedsMax, m.MaximumBaseAmount, amount)
 	}
 	if m.AmountStepIncrementSize != 0 {
 		dAmount := decimal.NewFromFloat(amount)
 		dStep := decimal.NewFromFloat(m.AmountStepIncrementSize)
 		if !dAmount.Mod(dStep).IsZero() {
-			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
-				ErrAmountExceedsStep,
-				m.AmountStepIncrementSize,
-				amount)
+			return fmt.Errorf("%w stepSize: %.8f supplied %.8f", ErrAmountExceedsStep, m.AmountStepIncrementSize, amount)
 		}
 	}
 
@@ -58,58 +49,37 @@ func (m *MinMaxLevel) Validate(price, amount float64, orderType order.Type) erro
 	*/
 	if orderType != order.Market {
 		if m.MinPrice != 0 && price < m.MinPrice {
-			return fmt.Errorf("%w min: %.8f supplied %.8f",
-				ErrPriceBelowMin,
-				m.MinPrice,
-				price)
+			return fmt.Errorf("%w min: %.8f supplied %.8f", ErrPriceBelowMin, m.MinPrice, price)
 		}
 		if m.MaxPrice != 0 && price > m.MaxPrice {
-			return fmt.Errorf("%w max: %.8f supplied %.8f",
-				ErrPriceExceedsMax,
-				m.MaxPrice,
-				price)
+			return fmt.Errorf("%w max: %.8f supplied %.8f", ErrPriceExceedsMax, m.MaxPrice, price)
 		}
 		if m.MinNotional != 0 && (amount*price) < m.MinNotional {
-			return fmt.Errorf("%w minimum notional: %.8f value of order %.8f",
-				ErrNotionalValue,
-				m.MinNotional,
-				amount*price)
+			return fmt.Errorf("%w minimum notional: %.8f value of order %.8f", ErrNotionalValue, m.MinNotional, amount*price)
 		}
 		if m.PriceStepIncrementSize != 0 {
 			dPrice := decimal.NewFromFloat(price)
 			dMinPrice := decimal.NewFromFloat(m.MinPrice)
 			dStep := decimal.NewFromFloat(m.PriceStepIncrementSize)
 			if !dPrice.Sub(dMinPrice).Mod(dStep).IsZero() {
-				return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
-					ErrPriceExceedsStep,
-					m.PriceStepIncrementSize,
-					price)
+				return fmt.Errorf("%w stepSize: %.8f supplied %.8f", ErrPriceExceedsStep, m.PriceStepIncrementSize, price)
 			}
 		}
 		return nil
 	}
 
 	if m.MarketMinQty != 0 && m.MinimumBaseAmount < m.MarketMinQty && amount < m.MarketMinQty {
-		return fmt.Errorf("%w min: %.8f supplied %.8f",
-			ErrMarketAmountBelowMin,
-			m.MarketMinQty,
-			amount)
+		return fmt.Errorf("%w min: %.8f supplied %.8f", ErrMarketAmountBelowMin, m.MarketMinQty, amount)
 	}
 	if m.MarketMaxQty != 0 && m.MaximumBaseAmount > m.MarketMaxQty && amount > m.MarketMaxQty {
-		return fmt.Errorf("%w max: %.8f supplied %.8f",
-			ErrMarketAmountExceedsMax,
-			m.MarketMaxQty,
-			amount)
+		return fmt.Errorf("%w max: %.8f supplied %.8f", ErrMarketAmountExceedsMax, m.MarketMaxQty, amount)
 	}
 	if m.MarketStepIncrementSize != 0 && m.AmountStepIncrementSize != m.MarketStepIncrementSize {
 		dAmount := decimal.NewFromFloat(amount)
 		dMinMAmount := decimal.NewFromFloat(m.MarketMinQty)
 		dStep := decimal.NewFromFloat(m.MarketStepIncrementSize)
 		if !dAmount.Sub(dMinMAmount).Mod(dStep).IsZero() {
-			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
-				ErrMarketAmountExceedsStep,
-				m.MarketStepIncrementSize,
-				amount)
+			return fmt.Errorf("%w stepSize: %.8f supplied %.8f", ErrMarketAmountExceedsStep, m.MarketStepIncrementSize, amount)
 		}
 	}
 	return nil

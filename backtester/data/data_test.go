@@ -40,7 +40,7 @@ func TestSetDataForCurrency(t *testing.T) {
 	if d.data == nil {
 		t.Error("expected not nil")
 	}
-	if d.data[key.NewExchangePairAssetKey(exch, a, p)] != nil {
+	if d.data[key.NewExchangeAssetPair(exch, a, p)] != nil {
 		t.Error("expected nil")
 	}
 }

@@ -1147,7 +1147,7 @@ func (e *Exchange) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]lim
 				continue
 			}
 			mml := limits.MinMaxLevel{
-				Key: key.NewExchangePairAssetKey(e.Name, a, cp),
+				Key: key.NewExchangeAssetPair(e.Name, a, cp),
 			}
 			for _, f := range s.Filters {
 				// TODO: Unhandled filters:

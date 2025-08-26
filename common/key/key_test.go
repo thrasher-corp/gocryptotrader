@@ -11,7 +11,7 @@ import (
 func TestMatchesExchangeAsset(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewBTCUSD()
-	k := ExchangePairAsset{
+	k := ExchangeAssetPair{
 		Exchange: "test",
 		Base:     cp.Base.Item,
 		Quote:    cp.Quote.Item,
@@ -26,7 +26,7 @@ func TestMatchesExchangeAsset(t *testing.T) {
 func TestMatchesPairAsset(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewBTCUSD()
-	k := ExchangePairAsset{
+	k := ExchangeAssetPair{
 		Base:  cp.Base.Item,
 		Quote: cp.Quote.Item,
 		Asset: asset.Spot,
@@ -39,7 +39,7 @@ func TestMatchesPairAsset(t *testing.T) {
 
 func TestMatchesExchange(t *testing.T) {
 	t.Parallel()
-	k := ExchangePairAsset{
+	k := ExchangeAssetPair{
 		Exchange: "test",
 	}
 	assert.True(t, k.MatchesExchange("test"))
@@ -51,7 +51,7 @@ func TestMatchesExchange(t *testing.T) {
 func TestExchangePairAsset_Pair(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewBTCUSD()
-	k := ExchangePairAsset{
+	k := ExchangeAssetPair{
 		Base:  currency.BTC.Item,
 		Quote: currency.USD.Item,
 		Asset: asset.Spot,
@@ -81,7 +81,7 @@ func TestNewExchangePairAssetKey(t *testing.T) {
 	e := "test"
 	a := asset.Spot
 	p := currency.NewBTCUSDT()
-	k := NewExchangePairAssetKey(e, a, p)
+	k := NewExchangeAssetPair(e, a, p)
 	assert.Equal(t, e, k.Exchange)
 	assert.Equal(t, p.Base.Item, k.Base)
 	assert.Equal(t, p.Quote.Item, k.Quote)
@@ -90,6 +90,6 @@ func TestNewExchangePairAssetKey(t *testing.T) {
 	e = ""
 	a = 0
 	p = currency.EMPTYPAIR
-	k = NewExchangePairAssetKey(e, a, p)
-	assert.Equal(t, a, k.Asset, "NewExchangePairAssetKey should not alter an invalid asset")
+	k = NewExchangeAssetPair(e, a, p)
+	assert.Equal(t, a, k.Asset, "NewExchangeAssetPair should not alter an invalid asset")
 }

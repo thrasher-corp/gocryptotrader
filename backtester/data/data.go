@@ -15,7 +15,7 @@ import (
 // NewHandlerHolder returns a new HandlerHolder
 func NewHandlerHolder() *HandlerHolder {
 	return &HandlerHolder{
-		data: make(map[key.ExchangePairAsset]Handler),
+		data: make(map[key.ExchangeAssetPair]Handler),
 	}
 }
 
@@ -27,10 +27,10 @@ func (h *HandlerHolder) SetDataForCurrency(e string, a asset.Item, p currency.Pa
 	h.m.Lock()
 	defer h.m.Unlock()
 	if h.data == nil {
-		h.data = make(map[key.ExchangePairAsset]Handler)
+		h.data = make(map[key.ExchangeAssetPair]Handler)
 	}
 	e = strings.ToLower(e)
-	h.data[key.NewExchangePairAssetKey(e, a, p)] = k
+	h.data[key.NewExchangeAssetPair(e, a, p)] = k
 	return nil
 }
 
@@ -61,7 +61,7 @@ func (h *HandlerHolder) GetDataForCurrency(ev common.Event) (Handler, error) {
 	exch := ev.GetExchange()
 	a := ev.GetAssetType()
 	p := ev.Pair()
-	handler, ok := h.data[key.NewExchangePairAssetKey(exch, a, p)]
+	handler, ok := h.data[key.NewExchangeAssetPair(exch, a, p)]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %w", exch, a, p, ErrHandlerNotFound)
 	}
@@ -75,7 +75,7 @@ func (h *HandlerHolder) Reset() error {
 	}
 	h.m.Lock()
 	defer h.m.Unlock()
-	h.data = make(map[key.ExchangePairAsset]Handler)
+	h.data = make(map[key.ExchangeAssetPair]Handler)
 	return nil
 }
 

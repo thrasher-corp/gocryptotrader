@@ -258,7 +258,7 @@ func TestSyncManagerWebsocketUpdate(t *testing.T) {
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, nil)
 	require.ErrorIs(t, err, errCouldNotSyncNewData)
 
-	m.add(key.NewExchangePairAssetKey("", asset.Spot, currency.EMPTYPAIR), syncBase{})
+	m.add(key.NewExchangeAssetPair("", asset.Spot, currency.EMPTYPAIR), syncBase{})
 	m.initSyncWG.Add(3)
 	// orderbook match
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, errors.New("test"))

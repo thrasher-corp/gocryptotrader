@@ -1941,7 +1941,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangePairAssetKey(e.Name, a, pair),
+				Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[i].Precision)),
 				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
 				MinimumBaseAmount:       minBaseAmount,
@@ -1961,7 +1961,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				return err
 			}
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangePairAssetKey(e.Name, a, cp),
+				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
 				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
 				PriceStepIncrementSize:  btcContracts[x].OrderPriceRound.Float64(),
@@ -1981,7 +1981,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				return err
 			}
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangePairAssetKey(e.Name, a, cp),
+				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
 				MinimumBaseAmount:       float64(usdtContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(usdtContracts[x].OrderSizeMax),
 				PriceStepIncrementSize:  usdtContracts[x].OrderPriceRound.Float64(),
@@ -2006,7 +2006,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				return err
 			}
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangePairAssetKey(e.Name, a, cp),
+				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
 				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
 				PriceStepIncrementSize:  btcContracts[x].OrderPriceRound.Float64(),
@@ -2031,7 +2031,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				}
 				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
 				l = append(l, limits.MinMaxLevel{
-					Key:                     key.NewExchangePairAssetKey(e.Name, a, cp),
+					Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
 					MinimumBaseAmount:       float64(contracts[c].OrderSizeMin),
 					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
 					PriceStepIncrementSize:  contracts[c].OrderPriceRound.Float64(),
@@ -2254,7 +2254,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 				}
 			}
 			resp = append(resp, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
+				Key: key.ExchangeAssetPair{
 					Exchange: e.Name,
 					Base:     p.Base.Item,
 					Quote:    p.Quote.Item,

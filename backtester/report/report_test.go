@@ -235,7 +235,7 @@ func TestGenerateReport(t *testing.T) {
 			},
 			StrategyName: "testStrat",
 			RiskFreeRate: decimal.NewFromFloat(0.03),
-			ExchangeAssetPairStatistics: map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic{
+			ExchangeAssetPairStatistics: map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic{
 				{
 					Base:     p.Base.Item,
 					Quote:    p.Quote.Item,
@@ -334,8 +334,8 @@ func TestEnhanceCandles(t *testing.T) {
 	err = d.enhanceCandles()
 	assert.NoError(t, err)
 
-	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(testExchange, asset.Spot, currency.NewBTCUSDT())] = &statistics.CurrencyPairStatistic{}
+	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Spot, currency.NewBTCUSDT())] = &statistics.CurrencyPairStatistic{}
 
 	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
@@ -387,7 +387,7 @@ func TestEnhanceCandles(t *testing.T) {
 	err = d.enhanceCandles()
 	assert.NoError(t, err)
 
-	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(testExchange, asset.Spot, currency.NewBTCUSDT())].FinalOrders = compliance.Snapshot{
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Spot, currency.NewBTCUSDT())].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          decimal.NewFromInt(1335),
@@ -402,7 +402,7 @@ func TestEnhanceCandles(t *testing.T) {
 	err = d.enhanceCandles()
 	assert.NoError(t, err)
 
-	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(testExchange, asset.Spot, currency.NewBTCUSDT())].FinalOrders = compliance.Snapshot{
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Spot, currency.NewBTCUSDT())].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          decimal.NewFromInt(1335),
@@ -420,7 +420,7 @@ func TestEnhanceCandles(t *testing.T) {
 	err = d.enhanceCandles()
 	assert.NoError(t, err)
 
-	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(testExchange, asset.Spot, currency.NewBTCUSDT())].FinalOrders = compliance.Snapshot{
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Spot, currency.NewBTCUSDT())].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          decimal.NewFromInt(1335),
