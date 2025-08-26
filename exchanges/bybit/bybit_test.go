@@ -2880,8 +2880,8 @@ func TestUpdateAccountInfo(t *testing.T) {
 				assert.Equal(t, currency.USDC, r.Accounts[0].Currencies[x].Currency, "Currency should be USDC")
 				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Total, "Total amount should be correct")
 				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Hold, "Hold amount should be correct")
-				assert.Equal(t, 30723.630216383714, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
-				assert.Equal(t, 3.714376362040639e-09, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
+				assert.Equal(t, 30723.63021638, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
+				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
 			case 1:
 				assert.Equal(t, currency.AVAX, r.Accounts[0].Currencies[x].Currency, "Currency should be AVAX")
 				assert.Equal(t, 2473.9, r.Accounts[0].Currencies[x].Total, "Total amount should be correct")
