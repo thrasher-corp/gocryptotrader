@@ -225,7 +225,7 @@ func (e *Exchange) CreateConvertQuote(ctx context.Context, from, to, userIncenti
 		"from_account": from,
 		"to_account":   to,
 		"amount":       strconv.FormatFloat(amount, 'f', -1, 64),
-		"trade_incentive_metadata": map[string]any{
+		"trade_incentive_metadata": map[string]string{
 			"user_incentive_id": userIncentiveID,
 			"code_val":          codeVal,
 		},
@@ -416,7 +416,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*Succes
 	if ord.BaseAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(&ord.SharedOrderConfig)
+	orderConfig, err := createOrderConfig(&ord.OrderInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +577,7 @@ func (e *Exchange) PreviewOrder(ctx context.Context, inf *PreviewOrderInfo) (*Pr
 	if inf.BaseAmount <= 0 && inf.QuoteAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(&inf.SharedOrderConfig)
+	orderConfig, err := createOrderConfig(&inf.OrderInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -1636,7 +1636,7 @@ func (p *Params) encodePagination(pag PaginationInp) error {
 }
 
 // createOrderConfig populates the OrderConfiguration struct
-func createOrderConfig(sharedParams *SharedOrderConfig) (OrderConfiguration, error) {
+func createOrderConfig(sharedParams *OrderInfo) (OrderConfiguration, error) {
 	if sharedParams == nil {
 		return OrderConfiguration{}, fmt.Errorf("%T %w", sharedParams, common.ErrNilPointer)
 	}

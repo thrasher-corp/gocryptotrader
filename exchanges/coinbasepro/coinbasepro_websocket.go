@@ -96,8 +96,8 @@ func (e *Exchange) wsReadData() {
 	}
 }
 
-// tickerDataHandler handles ticker data from the websocket
-func (e *Exchange) tickerDataHandler(resp *StandardWebsocketResponse) error {
+// wsProcessTicker handles ticker data from the websocket
+func (e *Exchange) wsProcessTicker(resp *StandardWebsocketResponse) error {
 	var wsTickers []WebsocketTickerHolder
 	if err := json.Unmarshal(resp.Events, &wsTickers); err != nil {
 		return err
@@ -136,8 +136,8 @@ func (e *Exchange) tickerDataHandler(resp *StandardWebsocketResponse) error {
 	return nil
 }
 
-// candleDataHandler handles candle data from the websocket
-func (e *Exchange) candleDataHandler(resp *StandardWebsocketResponse) error {
+// wsProcessCandle handles candle data from the websocket
+func (e *Exchange) wsProcessCandle(resp *StandardWebsocketResponse) error {
 	var wsCandles []WebsocketCandleHolder
 	if err := json.Unmarshal(resp.Events, &wsCandles); err != nil {
 		return err
@@ -163,8 +163,8 @@ func (e *Exchange) candleDataHandler(resp *StandardWebsocketResponse) error {
 	return nil
 }
 
-// marketTradesDataHandler handles market trades data from the websocket
-func (e *Exchange) marketTradesDataHandler(resp *StandardWebsocketResponse) error {
+// wsProcessMarketTrades handles market trades data from the websocket
+func (e *Exchange) wsProcessMarketTrades(resp *StandardWebsocketResponse) error {
 	var wsTrades []WebsocketMarketTradeHolder
 	if err := json.Unmarshal(resp.Events, &wsTrades); err != nil {
 		return err
@@ -188,8 +188,8 @@ func (e *Exchange) marketTradesDataHandler(resp *StandardWebsocketResponse) erro
 	return nil
 }
 
-// l2DataHandler handles l2 orderbook data from the websocket
-func (e *Exchange) l2DataHandler(resp *StandardWebsocketResponse) error {
+// wsProcessL2 handles l2 orderbook data from the websocket
+func (e *Exchange) wsProcessL2(resp *StandardWebsocketResponse) error {
 	var wsL2 []WebsocketOrderbookDataHolder
 	err := json.Unmarshal(resp.Events, &wsL2)
 	if err != nil {
@@ -211,8 +211,8 @@ func (e *Exchange) l2DataHandler(resp *StandardWebsocketResponse) error {
 	return nil
 }
 
-// userDataHandler handles user data from the websocket
-func (e *Exchange) userDataHandler(resp *StandardWebsocketResponse) error {
+// wsProcessUser handles user data from the websocket
+func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 	var wsUser []WebsocketOrderDataHolder
 	err := json.Unmarshal(resp.Events, &wsUser)
 	if err != nil {
@@ -355,27 +355,27 @@ func (e *Exchange) wsHandleData(respRaw []byte) (*uint64, error) {
 		}
 		e.Websocket.DataHandler <- wsStatus
 	case "ticker", "ticker_batch":
-		err := e.tickerDataHandler(&resp)
+		err := e.wsProcessTicker(&resp)
 		if err != nil {
 			return &resp.Sequence, err
 		}
 	case "candles":
-		err := e.candleDataHandler(&resp)
+		err := e.wsProcessCandle(&resp)
 		if err != nil {
 			return &resp.Sequence, err
 		}
 	case "market_trades":
-		err := e.marketTradesDataHandler(&resp)
+		err := e.wsProcessMarketTrades(&resp)
 		if err != nil {
 			return &resp.Sequence, err
 		}
 	case "l2_data":
-		err := e.l2DataHandler(&resp)
+		err := e.wsProcessL2(&resp)
 		if err != nil {
 			return &resp.Sequence, err
 		}
 	case "user":
-		err := e.userDataHandler(&resp)
+		err := e.wsProcessUser(&resp)
 		if err != nil {
 			return &resp.Sequence, err
 		}

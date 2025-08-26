@@ -512,7 +512,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		Side:       s.Side.String(),
 		MarginType: s.MarginType.Upper(),
 		Leverage:   s.Leverage,
-		SharedOrderConfig: SharedOrderConfig{
+		OrderInfo: OrderInfo{
 			StopDirection: stopDir,
 			OrderType:     s.Type,
 			TimeInForce:   s.TimeInForce,

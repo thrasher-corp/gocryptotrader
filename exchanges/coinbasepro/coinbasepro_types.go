@@ -365,8 +365,8 @@ type ErrorResponse struct {
 	NewOrderFailureReason string `json:"new_order_failure_reason"`
 }
 
-// SharedOrderConfig contains order configuration information used in both PlaceOrderInfo and PreviewOrderInfo
-type SharedOrderConfig struct {
+// OrderInfo contains order configuration information used in both PlaceOrderInfo and PreviewOrderInfo
+type OrderInfo struct {
 	OrderType      order.Type
 	TimeInForce    order.TimeInForce
 	StopDirection  string
@@ -392,7 +392,7 @@ type PlaceOrderInfo struct {
 	PreviewID                  string
 	Leverage                   float64
 	AttachedOrderConfiguration OrderConfiguration
-	SharedOrderConfig
+	OrderInfo
 }
 
 // SuccessFailureConfig contains information on an order, returned by PlaceOrder
@@ -508,7 +508,7 @@ type PreviewOrderInfo struct {
 	RetailPortfolioID          string
 	Leverage                   float64
 	AttachedOrderConfiguration OrderConfiguration
-	SharedOrderConfig
+	OrderInfo
 }
 
 // TriggerBracketPNL is a sub-struct used in the type PreviewOrderResp

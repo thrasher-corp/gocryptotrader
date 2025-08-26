@@ -327,7 +327,7 @@ func TestPlaceOrder(t *testing.T) {
 		Side:       order.Buy.String(),
 		MarginType: "CROSS",
 		Leverage:   9999,
-		SharedOrderConfig: SharedOrderConfig{
+		OrderInfo: OrderInfo{
 			PostOnly:   false,
 			EndTime:    time.Now().Add(time.Hour),
 			OrderType:  order.Limit,
@@ -1762,7 +1762,7 @@ func TestCreateOrderConfig(t *testing.T) {
 	t.Parallel()
 	_, err := createOrderConfig(nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
-	params := &SharedOrderConfig{}
+	params := &OrderInfo{}
 	_, err = createOrderConfig(params)
 	assert.ErrorIs(t, err, errInvalidOrderType)
 	params.BaseAmount = 1

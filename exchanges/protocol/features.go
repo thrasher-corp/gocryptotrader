@@ -3,7 +3,6 @@ package protocol
 // Features holds all variables for the exchanges supported features
 // for a protocol (e.g REST or Websocket)
 type Features struct {
-	// TickerBatching allows the REST endpoint to fetch the entire ticker list available to the exchange
 	TickerBatching                    bool `json:"tickerBatching,omitempty"`
 	AutoPairUpdates                   bool `json:"autoPairUpdates,omitempty"`
 	AccountBalance                    bool `json:"accountBalance,omitempty"`
