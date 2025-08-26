@@ -1,6 +1,6 @@
-{{define "exchanges coinbasepro" -}}
+{{define "exchanges coinbase" -}}
 {{template "header" .}}
-## CoinbasePro Exchange
+## Coinbase Exchange
 
 ### Current Features
 
@@ -31,7 +31,7 @@ main.go
 var c exchange.IBotExchange
 
 for i := range bot.Exchanges {
-	if bot.Exchanges[i].GetName() == "CoinbasePro" {
+	if bot.Exchanges[i].GetName() == "Coinbase" {
 		c = bot.Exchanges[i]
 	}
 }
