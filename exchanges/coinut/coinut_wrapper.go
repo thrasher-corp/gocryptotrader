@@ -305,7 +305,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !e.SupportsAsset(a) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	err := e.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
