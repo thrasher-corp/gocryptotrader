@@ -94,7 +94,6 @@ type RequestAQuoteParams struct {
 	From        currency.Code // Convert from coin (coin to sell)
 	To          currency.Code // Convert to coin (coin to buy)
 	Amount      float64       // Convert amount
-
 	// Optional fields
 	RequestCoin  currency.Code // This will default to FromCoin
 	FromCoinType string        // "crypto"
