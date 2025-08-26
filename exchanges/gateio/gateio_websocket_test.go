@@ -13,6 +13,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+type websocketBalancesTest struct {
+	input    []byte
+	err      error
+	ctx      context.Context //nolint:containedctx // context is passed explicitly for testing
+	expected []account.Change
+}
+
 func TestProcessSpotBalances(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange) //nolint:govet // Intentional shadow
@@ -22,12 +29,7 @@ func TestProcessSpotBalances(t *testing.T) {
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
 
 	// Sequential tests, do not use t.Run(); Some timestamps are deliberately identical from trading activity
-	for _, tc := range []struct {
-		input    []byte
-		err      error
-		ctx      context.Context
-		expected []account.Change
-	}{
+	for _, tc := range []websocketBalancesTest{
 		{
 			ctx:   t.Context(),
 			input: []byte(`[{"timestamp":"1755718222"}]`),
@@ -76,11 +78,7 @@ func TestProcessSpotBalances(t *testing.T) {
 			continue
 		}
 		require.NoError(t, err, "processSpotBalances must not error")
-		require.Len(t, e.Websocket.DataHandler, 1)
-		payload := <-e.Websocket.DataHandler
-		got, ok := payload.([]account.Change)
-		require.Truef(t, ok, "Expected account changes, got %T", payload)
-		checkAccountChange(t, tc.expected, got, e, tc.ctx)
+		checkAccountChange(t, e, &tc)
 	}
 }
 
@@ -92,12 +90,7 @@ func TestProcessBalancePushData(t *testing.T) {
 
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
 
-	for _, tc := range []struct {
-		input    []byte
-		err      error
-		ctx      context.Context
-		expected []account.Change
-	}{
+	for _, tc := range []websocketBalancesTest{
 		{
 			ctx:   t.Context(),
 			input: []byte(`[{"timestamp":"1755718222"}]`),
@@ -145,32 +138,34 @@ func TestProcessBalancePushData(t *testing.T) {
 		}
 		require.NoError(t, err, "processBalancePushData must not error")
 		require.Len(t, e.Websocket.DataHandler, 1)
-		payload := <-e.Websocket.DataHandler
-		got, ok := payload.([]account.Change)
-		require.Truef(t, ok, "Expected account changes, got %T", payload)
-		checkAccountChange(t, tc.expected, got, e, tc.ctx)
+		checkAccountChange(t, e, &tc)
 	}
 }
 
-func checkAccountChange(t *testing.T, expected []account.Change, received []account.Change, exch *Exchange, ctx context.Context) {
+func checkAccountChange(t *testing.T, exch *Exchange, tc *websocketBalancesTest) {
 	t.Helper()
 
-	require.Lenf(t, received, len(expected), "Expected %d changes, got %d", len(expected), len(received))
-	for i := range received {
-		assert.Equal(t, expected[i].Account, received[i].Account, "account should equal")
-		assert.Equal(t, expected[i].AssetType, received[i].AssetType, "asset type should equal")
-		assert.True(t, expected[i].Balance.Currency.Equal(received[i].Balance.Currency), "currency should equal")
-		assert.Equal(t, expected[i].Balance.Total, received[i].Balance.Total, "total should equal")
-		assert.Equal(t, expected[i].Balance.Hold, received[i].Balance.Hold, "hold should equal")
-		assert.Equal(t, expected[i].Balance.Free, received[i].Balance.Free, "free should equal")
-		assert.Equal(t, expected[i].Balance.AvailableWithoutBorrow, received[i].Balance.AvailableWithoutBorrow, "available without borrow should equal")
-		assert.Equal(t, expected[i].Balance.Borrowed, received[i].Balance.Borrowed, "borrowed should equal")
-		assert.Equal(t, expected[i].Balance.UpdatedAt, received[i].Balance.UpdatedAt, "updated at should equal")
+	require.Len(t, exch.Websocket.DataHandler, 1)
+	payload := <-exch.Websocket.DataHandler
+	received, ok := payload.([]account.Change)
+	require.Truef(t, ok, "Expected account changes, got %T", payload)
 
-		creds, err := exch.GetCredentials(ctx)
+	require.Lenf(t, received, len(tc.expected), "Expected %d changes, got %d", len(tc.expected), len(received))
+	for i, change := range received {
+		assert.Equal(t, tc.expected[i].Account, change.Account, "account should equal")
+		assert.Equal(t, tc.expected[i].AssetType, change.AssetType, "asset type should equal")
+		assert.True(t, tc.expected[i].Balance.Currency.Equal(change.Balance.Currency), "currency should equal")
+		assert.Equal(t, tc.expected[i].Balance.Total, change.Balance.Total, "total should equal")
+		assert.Equal(t, tc.expected[i].Balance.Hold, change.Balance.Hold, "hold should equal")
+		assert.Equal(t, tc.expected[i].Balance.Free, change.Balance.Free, "free should equal")
+		assert.Equal(t, tc.expected[i].Balance.AvailableWithoutBorrow, change.Balance.AvailableWithoutBorrow, "available without borrow should equal")
+		assert.Equal(t, tc.expected[i].Balance.Borrowed, change.Balance.Borrowed, "borrowed should equal")
+		assert.Equal(t, tc.expected[i].Balance.UpdatedAt, change.Balance.UpdatedAt, "updated at should equal")
+
+		creds, err := exch.GetCredentials(tc.ctx)
 		require.NoError(t, err, "GetCredentials must not error")
-		stored, err := account.GetBalance(exch.Name, expected[i].Account, creds, expected[i].AssetType, expected[i].Balance.Currency)
+		stored, err := account.GetBalance(exch.Name, tc.expected[i].Account, creds, tc.expected[i].AssetType, tc.expected[i].Balance.Currency)
 		require.NoError(t, err, "GetBalance must not error")
-		assert.Equal(t, expected[i].Balance.Free, stored.GetFree(), "free balance should equal with accounts stored value")
+		assert.Equal(t, tc.expected[i].Balance.Free, stored.GetFree(), "free balance should equal with accounts stored value")
 	}
 }
