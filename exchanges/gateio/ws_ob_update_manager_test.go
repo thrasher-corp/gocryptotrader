@@ -192,11 +192,9 @@ func TestWaitForUpdate(t *testing.T) {
 
 	cache.ch = make(chan int64, 1) // Reset channel to avoid deadlock
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		err = cache.waitForUpdate(t.Context(), 1338)
-	}()
+	})
 	cache.ch <- 1338
 	wg.Wait()
 	require.NoError(t, err)
