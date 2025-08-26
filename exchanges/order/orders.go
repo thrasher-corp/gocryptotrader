@@ -826,6 +826,10 @@ func (s Status) String() string {
 		return "LIQUIDATED"
 	case STP:
 		return "SELF_TRADE_PREVENTION"
+	case Holding:
+		return "HOLDING"
+	case SystemHolding:
+		return "SYSTEM_HOLDING"
 	default:
 		return "UNKNOWN"
 	}
@@ -1156,7 +1160,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return PartiallyFilled, nil
 	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED", "EFFECTIVE":
 		return Filled, nil
-	case PartiallyCancelled.String(), "PARTIAL-CANCELED", "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
+	case PartiallyCancelled.String(), "PARTIAL-CANCELED", "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED", "PARTIALLY_CANCELED":
 		return PartiallyCancelled, nil
 	case PartiallyFilledCancelled.String(), "PARTIALLYFILLEDCANCELED":
 		return PartiallyFilledCancelled, nil
@@ -1188,6 +1192,10 @@ func StringToOrderStatus(status string) (Status, error) {
 		return AutoDeleverage, nil
 	case STP.String(), "STP":
 		return STP, nil
+	case Holding.String():
+		return Holding, nil
+	case SystemHolding.String():
+		return SystemHolding, nil
 	default:
 		return UnknownStatus, fmt.Errorf("%q %w", status, errUnrecognisedOrderStatus)
 	}
