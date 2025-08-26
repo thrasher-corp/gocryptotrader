@@ -1826,7 +1826,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				Name:                 contracts[i].Name,
 				Underlying:           contracts[i].Name,
 				Asset:                a,
-				IsActive:             !contracts[i].DelistedTime.Time().IsZero(),
+				IsActive:             contracts[i].DelistedTime.Time().IsZero(),
 				Type:                 futures.Perpetual,
 				SettlementType:       contractSettlementType,
 				SettlementCurrencies: currency.Currencies{settle},
