@@ -51,7 +51,6 @@ type Coin struct {
 	SingleFromMaxLimit types.Number  `json:"singleFromMaxLimit"` // The maximum amount of fromCoin per transaction
 	DisableFrom        bool          `json:"disableFrom"`        // true: the coin is disabled to be fromCoin, false: the coin is allowed to be fromCoin
 	DisableTo          bool          `json:"disableTo"`          // true: the coin is disabled to be toCoin, false: the coin is allowed to be toCoin
-
 	// Reserved fields, ignored for now
 	TimePeriod        int          `json:"timePeriod"`
 	SingleToMinLimit  types.Number `json:"singleToMinLimit"`
