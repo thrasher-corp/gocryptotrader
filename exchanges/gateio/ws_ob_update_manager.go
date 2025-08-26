@@ -20,7 +20,7 @@ var (
 	errPendingUpdatesNotApplied  = errors.New("pending updates not applied")
 
 	defaultWSOrderbookUpdateDeadline  = time.Minute * 2
-	defaultWsOrderbookUpdateTimeDelay = time.Second
+	defaultWsOrderbookUpdateTimeDelay = time.Second * 2
 	spotOrderbookUpdateKey            = subscription.MustChannelKey(subscription.OrderbookChannel)
 )
 
