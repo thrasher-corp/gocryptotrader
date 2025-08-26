@@ -632,9 +632,7 @@ func (e *Exchange) setupOrderbookManager(ctx context.Context) {
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair asset
 func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
-	e.Websocket.Wg.Add(1)
-	go func() {
-		defer e.Websocket.Wg.Done()
+	e.Websocket.Wg.Go(func() {
 		for {
 			select {
 			case <-e.Websocket.ShutdownC:
@@ -646,15 +644,12 @@ func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 					}
 				}
 			case j := <-e.obm.jobs:
-				err := e.processJob(ctx, j.Pair)
-				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%s processing websocket orderbook error %v",
-						e.Name, err)
+				if err := e.processJob(ctx, j.Pair); err != nil {
+					log.Errorf(log.WebsocketMgr, "%s processing websocket orderbook error: %v", e.Name, err)
 				}
 			}
 		}
-	}()
+	})
 }
 
 // ProcessOrderbookUpdate processes the websocket orderbook update

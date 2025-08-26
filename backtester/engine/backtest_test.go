@@ -1321,37 +1321,27 @@ func TestLiveLoop(t *testing.T) {
 
 	// dataUpdated case
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		err = bt.liveCheck()
-		assert.NoError(t, err)
-
-		wg.Done()
-	}()
+	wg.Go(func() {
+		assert.NoError(t, bt.liveCheck())
+	})
 	dc.dataUpdated <- true
 	dc.shutdown <- true
 	wg.Wait()
 
 	// shutdown from error case
-	wg.Add(1)
 	dc.started = 0
-	go func() {
-		defer wg.Done()
-		err = bt.liveCheck()
-		assert.NoError(t, err)
-	}()
+	wg.Go(func() {
+		assert.NoError(t, bt.liveCheck())
+	})
 	dc.shutdownErr <- true
 	wg.Wait()
 
 	// shutdown case
 	dc.started = 1
 	bt.shutdown = make(chan struct{})
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err = bt.liveCheck()
-		assert.NoError(t, err)
-	}()
+	wg.Go(func() {
+		assert.NoError(t, bt.liveCheck())
+	})
 	dc.shutdown <- true
 	wg.Wait()
 
