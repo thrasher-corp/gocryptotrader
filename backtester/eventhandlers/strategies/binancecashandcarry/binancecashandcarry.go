@@ -125,25 +125,25 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 
 // CloseAllPositions is this strategy's implementation on how to
 // unwind all positions in the event of a closure
-func (s *Strategy) CloseAllPositions(holdings []holdings.Holding, prices []data.Event) ([]signal.Event, error) {
+func (s *Strategy) CloseAllPositions(h []holdings.Holding, prices []data.Event) ([]signal.Event, error) {
 	var spotSignals, futureSignals []signal.Event
 	signalTime := time.Now().UTC()
-	for i := range holdings {
+	for i := range h {
 		for j := range prices {
-			if prices[j].GetExchange() != holdings[i].Exchange ||
-				prices[j].GetAssetType() != holdings[i].Asset ||
-				!prices[j].Pair().Equal(holdings[i].Pair) {
+			if prices[j].GetExchange() != h[i].Exchange ||
+				prices[j].GetAssetType() != h[i].Asset ||
+				!prices[j].Pair().Equal(h[i].Pair) {
 				continue
 			}
 			sig := &signal.Signal{
 				Base: &event.Base{
-					Offset:         holdings[i].Offset + 1,
-					Exchange:       holdings[i].Exchange,
+					Offset:         h[i].Offset + 1,
+					Exchange:       h[i].Exchange,
 					Time:           signalTime,
 					Interval:       prices[j].GetInterval(),
-					CurrencyPair:   holdings[i].Pair,
+					CurrencyPair:   h[i].Pair,
 					UnderlyingPair: prices[j].GetUnderlyingPair(),
-					AssetType:      holdings[i].Asset,
+					AssetType:      h[i].Asset,
 					Reasons:        []string{"closing position on close"},
 				},
 				OpenPrice:          prices[j].GetOpenPrice(),
@@ -151,9 +151,9 @@ func (s *Strategy) CloseAllPositions(holdings []holdings.Holding, prices []data.
 				LowPrice:           prices[j].GetLowPrice(),
 				ClosePrice:         prices[j].GetClosePrice(),
 				Volume:             prices[j].GetVolume(),
-				Amount:             holdings[i].BaseSize,
+				Amount:             h[i].BaseSize,
 				Direction:          order.ClosePosition,
-				CollateralCurrency: holdings[i].Pair.Base,
+				CollateralCurrency: h[i].Pair.Base,
 			}
 			if prices[j].GetAssetType().IsFutures() {
 				futureSignals = append(futureSignals, sig)

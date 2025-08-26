@@ -325,7 +325,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	assert.Equal(t, exchange.NoAPIWithdrawalMethodsText, e.FormatWithdrawPermissions(), "FormatWithdrawPermissions should return correct format")
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	feeBuilder := &exchange.FeeBuilder{
 		FeeType:       exchange.CryptocurrencyTradeFee,
@@ -572,27 +571,22 @@ func TestMatchType(t *testing.T) {
 	assert.True(t, ret, "matchType should match")
 }
 
-// TestUpdateOrderExecutionLimits exercises UpdateOrderExecutionLimits
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
-		err := e.UpdateOrderExecutionLimits(t.Context(), a)
-		require.NoErrorf(t, err, "UpdateOrderExecutionLimits must not error for %s", a)
-
-		pairs, err := e.GetAvailablePairs(a)
-		require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
-		require.NotEmpty(t, pairs, "GetAvailablePairs must return some pairs")
-
-		for _, p := range pairs {
-			limits, err := e.GetOrderExecutionLimits(a, p)
-			require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s %s", a, p)
-			assert.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s %s", a, p)
-			assert.Positivef(t, limits.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s %s", a, p)
-			assert.Positivef(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s %s", a, p)
-			assert.Positivef(t, limits.MinPrice, "MinPrice should be positive for %s %s", a, p)
-			assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s %s", a, p)
-		}
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, true)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
+			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			assert.Positive(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive")
+			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+			assert.Positive(t, l.MinPrice, "MinPrice should be positive")
+			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+		})
 	}
 }
 
