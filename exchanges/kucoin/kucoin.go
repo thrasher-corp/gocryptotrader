@@ -2439,12 +2439,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, epl 
 	}
 	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpointPath + path,
-			Result:        resp,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 http.MethodGet,
+			Path:                   endpointPath + path,
+			Result:                 resp,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
@@ -2508,14 +2509,15 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, 
 			"Content-Type":       "application/json",
 		}
 		return &request.Item{
-			Method:        method,
-			Path:          endpointPath + path,
-			Headers:       headers,
-			Body:          body,
-			Result:        &resp,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   endpointPath + path,
+			Headers:                headers,
+			Body:                   body,
+			Result:                 &resp,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
