@@ -445,7 +445,7 @@ func TestGetExchangeTickersPublic(t *testing.T) {
 func TestGetExchangeTickers(t *testing.T) {
 	t.Parallel()
 	s := Service{
-		Tickers:  make(map[key.ExchangePairAsset]*Ticker),
+		Tickers:  make(map[key.ExchangeAssetPair]*Ticker),
 		Exchange: make(map[string]uuid.UUID),
 	}
 
@@ -455,12 +455,7 @@ func TestGetExchangeTickers(t *testing.T) {
 	_, err = s.getExchangeTickers("test")
 	assert.ErrorIs(t, err, errExchangeNotFound)
 
-	s.Tickers[key.ExchangePairAsset{
-		Exchange: "test",
-		Base:     currency.XBT.Item,
-		Quote:    currency.DOGE.Item,
-		Asset:    asset.Futures,
-	}] = &Ticker{
+	s.Tickers[key.NewExchangeAssetPair("test", asset.Spot, currency.NewPair(currency.XBT, currency.DOGE))] = &Ticker{
 		Price: Price{
 			Pair:         currency.NewPair(currency.XBT, currency.DOGE),
 			ExchangeName: "test",

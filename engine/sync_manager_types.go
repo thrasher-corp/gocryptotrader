@@ -20,7 +20,7 @@ type syncBase struct {
 
 // currencyPairSyncAgent stores the sync agent info
 type currencyPairSyncAgent struct {
-	Key      key.ExchangePairAsset
+	Key      key.ExchangeAssetPair
 	Pair     currency.Pair
 	Created  time.Time
 	trackers []*syncBase
@@ -41,7 +41,7 @@ type SyncManager struct {
 	initSyncWG                     sync.WaitGroup
 	inService                      sync.WaitGroup
 
-	currencyPairs            map[key.ExchangePairAsset]*currencyPairSyncAgent
+	currencyPairs            map[key.ExchangeAssetPair]*currencyPairSyncAgent
 	tickerBatchLastRequested map[key.ExchangeAsset]time.Time
 
 	remoteConfig    *config.RemoteControlConfig
