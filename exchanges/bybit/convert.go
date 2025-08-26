@@ -28,17 +28,17 @@ const (
 var supportedAccountTypes = []WalletAccountType{Funding, Uta, Spot, Contract, Inverse}
 
 var (
-	errUnsupportedAccountType = errors.New("unsupported account type")
-	errCurrencyCodesEqual     = errors.New("from and to currency codes cannot be equal")
-	errRequestCoinInvalid     = errors.New("request coin must match from coin if provided")
-	errQuoteTxIDEmpty         = errors.New("quoteTxID cannot be empty")
+	errUnsupportedAccountType  = errors.New("unsupported account type")
+	errCurrencyCodesEqual      = errors.New("from and to currency codes cannot be equal")
+	errRequestCoinInvalid      = errors.New("request coin must match from coin if provided")
+	errQuoteTransactionIDEmpty = errors.New("quoteTransactionID cannot be empty")
 )
 
 // WalletAccountType represents the different types of wallet accounts
 type WalletAccountType string
 
-// Coin represents a coin that can be converted
-type Coin struct {
+// CoinResponse represents a coin that can be converted
+type CoinResponse struct {
 	Coin               currency.Code `json:"coin"`
 	FullName           string        `json:"fullName"`
 	Icon               string        `json:"icon"`
@@ -62,7 +62,7 @@ type Coin struct {
 }
 
 // GetConvertCoinList returns a list of coins you can convert to/from
-func (e *Exchange) GetConvertCoinList(ctx context.Context, accountType WalletAccountType, coin currency.Code, isCoinToBuy bool) ([]Coin, error) {
+func (e *Exchange) GetConvertCoinList(ctx context.Context, accountType WalletAccountType, coin currency.Code, isCoinToBuy bool) ([]CoinResponse, error) {
 	if !slices.Contains(supportedAccountTypes, accountType) {
 		return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, accountType)
 	}
@@ -81,14 +81,14 @@ func (e *Exchange) GetConvertCoinList(ctx context.Context, accountType WalletAcc
 	}
 
 	var resp struct {
-		List []Coin `json:"coins"`
+		List []CoinResponse `json:"coins"`
 	}
 
 	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/query-coin-list", params, nil, &resp, defaultEPL)
 }
 
-// RequestAQuoteParams holds the parameters for requesting a quote
-type RequestAQuoteParams struct {
+// RequestAQuoteRequest holds the parameters for requesting a quote
+type RequestAQuoteRequest struct {
 	// Required fields
 	AccountType WalletAccountType
 	From        currency.Code // Convert from coin (coin to sell)
@@ -105,21 +105,21 @@ type RequestAQuoteParams struct {
 
 // RequestAQuoteResponse represents a response for a request a quote
 type RequestAQuoteResponse struct {
-	QuoteTxID    string          `json:"quoteTxId"` // Quote transaction ID. It is system generated, and it is used to confirm quote and query the result of transaction
-	ExchangeRate types.Number    `json:"exchangeRate"`
-	FromCoin     currency.Code   `json:"fromCoin"`
-	FromCoinType string          `json:"fromCoinType"`
-	ToCoin       currency.Code   `json:"toCoin"`
-	ToCoinType   string          `json:"toCoinType"`
-	FromAmount   types.Number    `json:"fromAmount"`
-	ToAmount     types.Number    `json:"toAmount"`
-	ExpiredTime  types.Time      `json:"expiredTime"` // The expiry time for this quote (15 seconds)
-	RequestID    string          `json:"requestId"`
-	ExtTaxAndFee json.RawMessage `json:"extTaxAndFee"` // Compliance-related field. Currently returns an empty array, which may be used in the future
+	QuoteTransactionID string          `json:"quoteTxId"` // Quote transaction ID. It is system generated, and it is used to confirm quote and query the result of transaction
+	ExchangeRate       types.Number    `json:"exchangeRate"`
+	FromCoin           currency.Code   `json:"fromCoin"`
+	FromCoinType       string          `json:"fromCoinType"`
+	ToCoin             currency.Code   `json:"toCoin"`
+	ToCoinType         string          `json:"toCoinType"`
+	FromAmount         types.Number    `json:"fromAmount"`
+	ToAmount           types.Number    `json:"toAmount"`
+	ExpiredTime        types.Time      `json:"expiredTime"` // The expiry time for this quote (15 seconds)
+	RequestID          string          `json:"requestId"`
+	ExtTaxAndFee       json.RawMessage `json:"extTaxAndFee"` // Compliance-related field. Currently returns an empty array, which may be used in the future
 }
 
 // RequestAQuote requests a conversion quote between two coins with the specified parameters.
-func (e *Exchange) RequestAQuote(ctx context.Context, params *RequestAQuoteParams) (*RequestAQuoteResponse, error) {
+func (e *Exchange) RequestAQuote(ctx context.Context, params *RequestAQuoteRequest) (*RequestAQuoteResponse, error) {
 	if !slices.Contains(supportedAccountTypes, params.AccountType) {
 		return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, params.AccountType)
 	}
@@ -147,50 +147,30 @@ func (e *Exchange) RequestAQuote(ctx context.Context, params *RequestAQuoteParam
 		return nil, fmt.Errorf("amount %w", order.ErrAmountIsInvalid)
 	}
 
-	payload := &struct {
-		AccountType  string `json:"accountType"`
-		From         string `json:"fromCoin"`
-		To           string `json:"toCoin"`
-		Amount       string `json:"requestAmount"`
-		RequestCoin  string `json:"requestCoin"`
-		FromCoinType string `json:"fromCoinType,omitempty"`
-		ToCoinType   string `json:"toCoinType,omitempty"`
-		ParamType    string `json:"paramType,omitempty"`
-		ParamValue   string `json:"paramValue,omitempty"`
-		RequestID    string `json:"requestId,omitempty"`
-	}{
-		AccountType:  string(params.AccountType),
-		From:         params.From.Upper().String(),
-		To:           params.To.Upper().String(),
-		Amount:       strconv.FormatFloat(params.Amount, 'f', -1, 64),
-		RequestCoin:  params.RequestCoin.Upper().String(),
-		FromCoinType: params.FromCoinType,
-		ToCoinType:   params.ToCoinType,
-		ParamType:    params.ParamType,
-		ParamValue:   params.ParamValue,
-		RequestID:    params.RequestID,
-	}
+	params.From = params.From.Upper()
+	params.To = params.To.Upper()
+	params.RequestCoin = params.RequestCoin.Upper()
 
 	var resp *RequestAQuoteResponse
-	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/exchange/quote-apply", nil, payload, &resp, defaultEPL)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/exchange/quote-apply", nil, params, &resp, defaultEPL)
 }
 
 // ConfirmAQuoteResponse represents a response for confirming a quote
 type ConfirmAQuoteResponse struct {
-	ExchangeStatus string `json:"exchangeStatus"`
-	QuoteTxID      string `json:"quoteTxId"`
+	ExchangeStatus     string `json:"exchangeStatus"`
+	QuoteTransactionID string `json:"quoteTxId"`
 }
 
 // ConfirmAQuote confirms a quote transaction and executes the conversion
-func (e *Exchange) ConfirmAQuote(ctx context.Context, quoteTxID string) (*ConfirmAQuoteResponse, error) {
-	if quoteTxID == "" {
-		return nil, errQuoteTxIDEmpty
+func (e *Exchange) ConfirmAQuote(ctx context.Context, quoteTransactionID string) (*ConfirmAQuoteResponse, error) {
+	if quoteTransactionID == "" {
+		return nil, errQuoteTransactionIDEmpty
 	}
 
 	payload := struct {
-		QuoteTxID string `json:"quoteTxId"`
+		QuoteTransactionID string `json:"quoteTxId"`
 	}{
-		QuoteTxID: quoteTxID,
+		QuoteTransactionID: quoteTransactionID,
 	}
 
 	var resp *ConfirmAQuoteResponse
@@ -200,33 +180,33 @@ func (e *Exchange) ConfirmAQuote(ctx context.Context, quoteTxID string) (*Confir
 
 // ConvertStatusResponse represents the response for a conversion status query
 type ConvertStatusResponse struct {
-	AccountType    WalletAccountType `json:"accountType"`
-	ExchangeTxID   string            `json:"exchangeTxId"`
-	UserID         string            `json:"userId"`
-	FromCoin       currency.Code     `json:"fromCoin"`
-	FromCoinType   string            `json:"fromCoinType"`
-	FromAmount     types.Number      `json:"fromAmount"`
-	ToCoin         currency.Code     `json:"toCoin"`
-	ToCoinType     string            `json:"toCoinType"`
-	ToAmount       types.Number      `json:"toAmount"`
-	ExchangeStatus string            `json:"exchangeStatus"`
-	ExtInfo        json.RawMessage   `json:"extInfo"` // Reserved field, ignored for now
-	ConvertRate    types.Number      `json:"convertRate"`
-	CreatedAt      types.Time        `json:"createdAt"`
+	AccountType           WalletAccountType `json:"accountType"`
+	ExchangeTransactionID string            `json:"exchangeTxId"`
+	UserID                string            `json:"userId"`
+	FromCoin              currency.Code     `json:"fromCoin"`
+	FromCoinType          string            `json:"fromCoinType"`
+	FromAmount            types.Number      `json:"fromAmount"`
+	ToCoin                currency.Code     `json:"toCoin"`
+	ToCoinType            string            `json:"toCoinType"`
+	ToAmount              types.Number      `json:"toAmount"`
+	ExchangeStatus        string            `json:"exchangeStatus"`
+	ExtInfo               json.RawMessage   `json:"extInfo"` // Reserved field, ignored for now
+	ConvertRate           types.Number      `json:"convertRate"`
+	CreatedAt             types.Time        `json:"createdAt"`
 }
 
 // GetConvertStatus retrieves the status of a conversion transaction
-func (e *Exchange) GetConvertStatus(ctx context.Context, accountType WalletAccountType, quoteTxID string) (*ConvertStatusResponse, error) {
+func (e *Exchange) GetConvertStatus(ctx context.Context, accountType WalletAccountType, quoteTransactionID string) (*ConvertStatusResponse, error) {
 	if !slices.Contains(supportedAccountTypes, accountType) {
 		return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, accountType)
 	}
 
-	if quoteTxID == "" {
-		return nil, errQuoteTxIDEmpty
+	if quoteTransactionID == "" {
+		return nil, errQuoteTransactionIDEmpty
 	}
 
 	params := url.Values{}
-	params.Set("quoteTxId", quoteTxID)
+	params.Set("quoteTxId", quoteTransactionID)
 	params.Set("accountType", string(accountType))
 
 	var resp struct {
@@ -237,19 +217,19 @@ func (e *Exchange) GetConvertStatus(ctx context.Context, accountType WalletAccou
 
 // ConvertHistoryResponse represents a response for conversion history
 type ConvertHistoryResponse struct {
-	AccountType    WalletAccountType `json:"accountType"`
-	ExchangeTxID   string            `json:"exchangeTxId"`
-	UserID         string            `json:"userId"`
-	FromCoin       currency.Code     `json:"fromCoin"`
-	FromCoinType   string            `json:"fromCoinType"`
-	FromAmount     types.Number      `json:"fromAmount"`
-	ToCoin         currency.Code     `json:"toCoin"`
-	ToCoinType     string            `json:"toCoinType"`
-	ToAmount       types.Number      `json:"toAmount"`
-	ExchangeStatus string            `json:"exchangeStatus"`
-	ExtInfo        json.RawMessage   `json:"extInfo"`
-	ConvertRate    types.Number      `json:"convertRate"`
-	CreatedAt      types.Time        `json:"createdAt"`
+	AccountType           WalletAccountType `json:"accountType"`
+	ExchangeTransactionID string            `json:"exchangeTxId"`
+	UserID                string            `json:"userId"`
+	FromCoin              currency.Code     `json:"fromCoin"`
+	FromCoinType          string            `json:"fromCoinType"`
+	FromAmount            types.Number      `json:"fromAmount"`
+	ToCoin                currency.Code     `json:"toCoin"`
+	ToCoinType            string            `json:"toCoinType"`
+	ToAmount              types.Number      `json:"toAmount"`
+	ExchangeStatus        string            `json:"exchangeStatus"`
+	ExtInfo               json.RawMessage   `json:"extInfo"`
+	ConvertRate           types.Number      `json:"convertRate"`
+	CreatedAt             types.Time        `json:"createdAt"`
 }
 
 // GetConvertHistory retrieves the conversion history for the specified account types.

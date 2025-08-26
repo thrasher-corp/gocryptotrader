@@ -32,23 +32,23 @@ func TestGetConvertCoinList(t *testing.T) {
 func TestRequestAQuote(t *testing.T) {
 	t.Parallel()
 
-	_, err := e.RequestAQuote(t.Context(), &RequestAQuoteParams{})
+	_, err := e.RequestAQuote(t.Context(), &RequestAQuoteRequest{})
 	assert.ErrorIs(t, err, errUnsupportedAccountType)
 
-	_, err = e.RequestAQuote(t.Context(), &RequestAQuoteParams{AccountType: Uta})
+	_, err = e.RequestAQuote(t.Context(), &RequestAQuoteRequest{AccountType: Uta})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.RequestAQuote(t.Context(), &RequestAQuoteParams{AccountType: Uta, From: currency.BTC})
+	_, err = e.RequestAQuote(t.Context(), &RequestAQuoteRequest{AccountType: Uta, From: currency.BTC})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.RequestAQuote(t.Context(), &RequestAQuoteParams{
+	_, err = e.RequestAQuote(t.Context(), &RequestAQuoteRequest{
 		AccountType: Uta,
 		From:        currency.BTC,
 		To:          currency.BTC,
 	})
 	assert.ErrorIs(t, err, errCurrencyCodesEqual)
 
-	_, err = e.RequestAQuote(t.Context(), &RequestAQuoteParams{
+	_, err = e.RequestAQuote(t.Context(), &RequestAQuoteRequest{
 		AccountType: Uta,
 		From:        currency.BTC,
 		To:          currency.USDT,
@@ -56,7 +56,7 @@ func TestRequestAQuote(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, errRequestCoinInvalid)
 
-	_, err = e.RequestAQuote(t.Context(), &RequestAQuoteParams{
+	_, err = e.RequestAQuote(t.Context(), &RequestAQuoteRequest{
 		AccountType: Uta,
 		From:        currency.BTC,
 		To:          currency.USDT,
@@ -68,21 +68,21 @@ func TestRequestAQuote(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	quote, err := e.RequestAQuote(t.Context(), &RequestAQuoteParams{
+	quote, err := e.RequestAQuote(t.Context(), &RequestAQuoteRequest{
 		AccountType: Uta,
 		From:        currency.BTC,
 		To:          currency.USDT,
 		Amount:      69.420,
 	})
 	require.NoError(t, err)
-	assert.NotEmpty(t, quote.QuoteTxID)
+	assert.NotEmpty(t, quote.QuoteTransactionID)
 }
 
 func TestConfirmAQuote(t *testing.T) {
 	t.Parallel()
 
 	_, err := e.ConfirmAQuote(t.Context(), "")
-	assert.ErrorIs(t, err, errQuoteTxIDEmpty)
+	assert.ErrorIs(t, err, errQuoteTransactionIDEmpty)
 
 	if mockTests {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
@@ -91,7 +91,7 @@ func TestConfirmAQuote(t *testing.T) {
 
 	quote, err := e.ConfirmAQuote(t.Context(), "10414247553864074960678912")
 	require.NoError(t, err)
-	assert.NotEmpty(t, quote.QuoteTxID)
+	assert.NotEmpty(t, quote.QuoteTransactionID)
 }
 
 func TestGetConvertStatus(t *testing.T) {
@@ -101,7 +101,7 @@ func TestGetConvertStatus(t *testing.T) {
 	assert.ErrorIs(t, err, errUnsupportedAccountType)
 
 	_, err = e.GetConvertStatus(t.Context(), Uta, "")
-	assert.ErrorIs(t, err, errQuoteTxIDEmpty)
+	assert.ErrorIs(t, err, errQuoteTransactionIDEmpty)
 
 	if mockTests {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
