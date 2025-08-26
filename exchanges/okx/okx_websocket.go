@@ -1121,22 +1121,23 @@ func (e *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (u
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.
 func (e *Exchange) wsHandleMarkPriceCandles(data []byte) error {
-	tempo := &struct {
+	m := &struct {
 		Argument SubscriptionInfo  `json:"arg"`
 		Data     [][5]types.Number `json:"data"`
 	}{}
-	err := json.Unmarshal(data, tempo)
+	err := json.Unmarshal(data, m)
 	if err != nil {
 		return err
 	}
-	candles := make([]CandlestickMarkPrice, len(tempo.Data))
-	for x := range tempo.Data {
+	candles := make([]CandlestickMarkPrice, len(m.Data))
+	for x := range m.Data {
 		candles[x] = CandlestickMarkPrice{
-			Timestamp:    time.UnixMilli(tempo.Data[x][0].Int64()),
-			OpenPrice:    tempo.Data[x][1].Float64(),
-			HighestPrice: tempo.Data[x][2].Float64(),
-			LowestPrice:  tempo.Data[x][3].Float64(),
-			ClosePrice:   tempo.Data[x][4].Float64(),
+			Pair:         m.Argument.InstrumentID,
+			Timestamp:    time.UnixMilli(m.Data[x][0].Int64()),
+			OpenPrice:    m.Data[x][1].Float64(),
+			HighestPrice: m.Data[x][2].Float64(),
+			LowestPrice:  m.Data[x][3].Float64(),
+			ClosePrice:   m.Data[x][4].Float64(),
 		}
 	}
 	e.Websocket.DataHandler <- candles
