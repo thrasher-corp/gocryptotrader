@@ -1,4 +1,4 @@
-package coinbasepro
+package coinbase
 
 import (
 	"context"
@@ -74,11 +74,11 @@ const (
 
 	errExpectMismatch          = "received: '%v' but expected: '%v'"
 	errExpectedNonEmpty        = "expected non-empty response"
-	errPortfolioNameDuplicate  = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"A portfolio with this name already exists.","message":"A portfolio with this name already exists."}, authenticated request failed`
-	errPortTransferInsufFunds  = `CoinbasePro unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
-	errInvalidProductID        = `CoinbasePro unsuccessful HTTP status code: 404 raw response: {"error":"NOT_FOUND","error_details":"valid product_id is required","message":"valid product_id is required"}`
+	errPortfolioNameDuplicate  = `Coinbase unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"A portfolio with this name already exists.","message":"A portfolio with this name already exists."}, authenticated request failed`
+	errPortTransferInsufFunds  = `Coinbase unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
+	errInvalidProductID        = `Coinbase unsuccessful HTTP status code: 404 raw response: {"error":"NOT_FOUND","error_details":"valid product_id is required","message":"valid product_id is required"}`
 	errExpectedFeeRange        = "expected fee range of %v and %v, received %v"
-	errOptionInvalid           = `CoinbasePro unsuccessful HTTP status code: 400 raw response: {"error":"unknown","error_details":"parsing field \"product_type\": \"OPTIONS\" is not a valid value","message":"parsing field \"product_type\": \"OPTIONS\" is not a valid value"}`
+	errOptionInvalid           = `Coinbase unsuccessful HTTP status code: 400 raw response: {"error":"unknown","error_details":"parsing field \"product_type\": \"OPTIONS\" is not a valid value","message":"parsing field \"product_type\": \"OPTIONS\" is not a valid value"}`
 	errJSONUnmarshalUnexpected = "JSON umarshalling did not return expected error"
 )
 
@@ -1483,7 +1483,7 @@ func TestGetOrderRespToOrderDetail(t *testing.T) {
 		EditHistory: []EditHistory{(EditHistory{})},
 	}
 	resp := e.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
-	expected := &order.Detail{TimeInForce: order.ImmediateOrCancel, Exchange: "CoinbasePro", Type: order.StopLimit, Side: order.Buy, Status: order.Open, AssetType: asset.Spot, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPairStable}
+	expected := &order.Detail{TimeInForce: order.ImmediateOrCancel, Exchange: "Coinbase", Type: order.StopLimit, Side: order.Buy, Status: order.Open, AssetType: asset.Spot, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPairStable}
 	assert.Equal(t, expected, resp)
 	mockData.Side = "SELL"
 	mockData.Status = "FILLED"
@@ -1921,7 +1921,7 @@ func exchangeBaseHelper(e *Exchange) error {
 	if err != nil {
 		return err
 	}
-	gdxConfig, err := cfg.GetExchangeConfig("CoinbasePro")
+	gdxConfig, err := cfg.GetExchangeConfig("Coinbase")
 	if err != nil {
 		return err
 	}
@@ -2017,7 +2017,7 @@ func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
 	req.Amount = 1
 	req.Type = withdraw.Fiat
 	req.Fiat.Bank.Enabled = true
-	req.Fiat.Bank.SupportedExchanges = "CoinbasePro"
+	req.Fiat.Bank.SupportedExchanges = "Coinbase"
 	req.Fiat.Bank.SupportedCurrencies = testFiat.String()
 	req.Fiat.Bank.AccountNumber = "123"
 	req.Fiat.Bank.SWIFTCode = "456"

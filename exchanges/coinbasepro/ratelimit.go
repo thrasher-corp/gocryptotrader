@@ -1,4 +1,4 @@
-package coinbasepro
+package coinbase
 
 import (
 	"time"

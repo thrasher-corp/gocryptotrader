@@ -1,4 +1,4 @@
-package coinbasepro
+package coinbase
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	coinbaseproWebsocketURL = "wss://advanced-trade-ws.coinbase.com"
+	coinbaseWebsocketURL = "wss://advanced-trade-ws.coinbase.com"
 )
 
 var subscriptionNames = map[string]string{

@@ -1,4 +1,4 @@
-package coinbasepro
+package coinbase
 
 import (
 	"context"
@@ -35,7 +35,7 @@ import (
 
 // SetDefaults sets default values for the exchange
 func (e *Exchange) SetDefaults() {
-	e.Name = "CoinbasePro"
+	e.Name = "Coinbase"
 	e.Enabled = true
 	e.API.CredentialsValidator.RequiresKey = true
 	e.API.CredentialsValidator.RequiresSecret = true
@@ -118,7 +118,7 @@ func (e *Exchange) SetDefaults() {
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              apiURL,
 		exchange.RestSandbox:           sandboxAPIURL,
-		exchange.WebsocketSpot:         coinbaseproWebsocketURL,
+		exchange.WebsocketSpot:         coinbaseWebsocketURL,
 		exchange.RestSpotSupplementary: v1APIURL,
 	})
 	if err != nil {
@@ -152,7 +152,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            coinbaseproWebsocketURL,
+		DefaultURL:            coinbaseWebsocketURL,
 		RunningURL:            wsRunningURL,
 		Connector:             e.WsConnect,
 		Subscriber:            e.Subscribe,
@@ -233,7 +233,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 	return e.EnsureOnePairEnabled()
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the coinbasepro exchange
+// UpdateAccountInfo retrieves balances for all enabled currencies for the coinbase exchange
 func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var (
 		response       account.Holdings

@@ -1,4 +1,4 @@
-package coinbasepro
+package coinbase
 
 import (
 	"net/url"
@@ -24,7 +24,7 @@ type pairAliases struct {
 	m                 sync.RWMutex
 }
 
-// Exchange is the overarching type across the coinbasepro package
+// Exchange is the overarching type across the coinbase package
 type Exchange struct {
 	exchange.Base
 	jwt         jwtManager
