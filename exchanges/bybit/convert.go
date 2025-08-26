@@ -44,7 +44,7 @@ type CoinResponse struct {
 	FullName           string        `json:"fullName"`
 	Icon               string        `json:"icon"`
 	IconNight          string        `json:"iconNight"`
-	AccuracyLength     int           `json:"accuracyLength"`
+	AccuracyLength     int64         `json:"accuracyLength"`
 	CoinType           string        `json:"coinType"`
 	Balance            types.Number  `json:"balance"`
 	BalanceInUSDT      types.Number  `json:"uBalance"`
@@ -53,7 +53,7 @@ type CoinResponse struct {
 	DisableFrom        bool          `json:"disableFrom"`        // true: the coin is disabled to be fromCoin, false: the coin is allowed to be fromCoin
 	DisableTo          bool          `json:"disableTo"`          // true: the coin is disabled to be toCoin, false: the coin is allowed to be toCoin
 	// Reserved fields, ignored for now
-	TimePeriod        int          `json:"timePeriod"`
+	TimePeriod        int64        `json:"timePeriod"`
 	SingleToMinLimit  types.Number `json:"singleToMinLimit"`
 	SingleToMaxLimit  types.Number `json:"singleToMaxLimit"`
 	DailyFromMinLimit types.Number `json:"dailyFromMinLimit"`
