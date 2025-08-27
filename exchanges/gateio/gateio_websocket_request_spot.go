@@ -25,20 +25,20 @@ func (e *Exchange) authenticateSpot(ctx context.Context, conn websocket.Connecti
 }
 
 // WebsocketSpotSubmitOrder submits an order via the websocket connection
-func (e *Exchange) WebsocketSpotSubmitOrder(ctx context.Context, order *CreateOrderRequest) (*WebsocketOrderResponse, error) {
-	resps, err := e.WebsocketSpotSubmitOrders(ctx, order)
+func (e *Exchange) WebsocketSpotSubmitOrder(ctx context.Context, o *CreateOrderRequest) (*WebsocketOrderResponse, error) {
+	resps, err := e.WebsocketSpotSubmitOrders(ctx, o)
 	if err != nil {
 		return nil, err
 	}
 	if len(resps) != 1 {
 		return nil, common.ErrInvalidResponse
 	}
-	return &resps[0], nil
+	return resps[0], nil
 }
 
 // WebsocketSpotSubmitOrders submits orders via the websocket connection. You can
 // send multiple orders in a single request. But only for one asset route.
-func (e *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*CreateOrderRequest) ([]WebsocketOrderResponse, error) {
+func (e *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*CreateOrderRequest) ([]*WebsocketOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
@@ -46,7 +46,7 @@ func (e *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*Cre
 	for i := range orders {
 		if orders[i].Text == "" {
 			// API requires Text field, or it will be rejected
-			orders[i].Text = "t-" + strconv.FormatInt(e.Counter.IncrementAndGet(), 10)
+			orders[i].Text = "t-" + strconv.FormatInt(e.messageIDSeq.IncrementAndGet(), 10)
 		}
 		if orders[i].CurrencyPair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
@@ -63,10 +63,10 @@ func (e *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*Cre
 	}
 
 	if len(orders) == 1 {
-		var singleResponse WebsocketOrderResponse
-		return []WebsocketOrderResponse{singleResponse}, e.SendWebsocketRequest(ctx, spotPlaceOrderEPL, "spot.order_place", asset.Spot, orders[0], &singleResponse, 2)
+		var singleResponse *WebsocketOrderResponse
+		return []*WebsocketOrderResponse{singleResponse}, e.SendWebsocketRequest(ctx, spotPlaceOrderEPL, "spot.order_place", asset.Spot, orders[0], &singleResponse, 2)
 	}
-	var resp []WebsocketOrderResponse
+	var resp []*WebsocketOrderResponse
 	return resp, e.SendWebsocketRequest(ctx, spotBatchOrdersEPL, "spot.order_place", asset.Spot, orders, &resp, 2)
 }
 

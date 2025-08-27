@@ -23,7 +23,7 @@ func (d *DummyConnection) GetURL() string {
 	return "ws://test"
 }
 
-func ProcessWithSomeSweetLag(context.Context, []byte) error {
+func ProcessWithSomeSweetLag(context.Context, Connection, []byte) error {
 	time.Sleep(time.Millisecond)
 	return nil
 }

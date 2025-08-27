@@ -273,6 +273,11 @@ const (
 	RestSwap
 	RestSandbox
 	WebsocketSpot
+	WebsocketCoinMargined
+	WebsocketUSDTMargined
+	WebsocketUSDCMargined
+	WebsocketOptions
+	WebsocketPrivate
 	WebsocketSpotSupplementary
 	ChainAnalysis
 	EdgeCase1
@@ -289,6 +294,11 @@ const (
 	restSandboxURL                = "RestSandboxURL"
 	restSwapURL                   = "RestSwapURL"
 	websocketSpotURL              = "WebsocketSpotURL"
+	websocketCoinMarginedURL      = "WebsocketCoinMarginedURL"
+	websocketUSDTMarginedURL      = "WebsocketUSDTMarginedURL"
+	websocketUSDCMarginedURL      = "WebsocketUSDCMarginedURL"
+	websocketOptionsURL           = "WebsocketOptionsURL"
+	websocketPrivateURL           = "WebsocketPrivateURL"
 	websocketSpotSupplementaryURL = "WebsocketSpotSupplementaryURL"
 	chainAnalysisURL              = "ChainAnalysisURL"
 	edgeCase1URL                  = "EdgeCase1URL"
@@ -307,6 +317,11 @@ var keyURLs = []URL{
 	RestSwap,
 	RestSandbox,
 	WebsocketSpot,
+	WebsocketCoinMargined,
+	WebsocketUSDTMargined,
+	WebsocketUSDCMargined,
+	WebsocketOptions,
+	WebsocketPrivate,
 	WebsocketSpotSupplementary,
 	ChainAnalysis,
 	EdgeCase1,

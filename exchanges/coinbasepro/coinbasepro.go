@@ -442,12 +442,12 @@ func (e *Exchange) GetFills(ctx context.Context, orderID, currencyPair string) (
 // transferType - either "deposit" or "withdraw"
 // profileID - The id of the margin profile to deposit or withdraw from
 // currency - currency to transfer, currently on "BTC" or "USD"
-func (e *Exchange) MarginTransfer(ctx context.Context, amount float64, transferType, profileID, currency string) (MarginTransfer, error) {
+func (e *Exchange) MarginTransfer(ctx context.Context, amount float64, transferType, profileID, ccy string) (MarginTransfer, error) {
 	resp := MarginTransfer{}
 	req := make(map[string]any)
 	req["type"] = transferType
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	req["currency"] = currency
+	req["currency"] = ccy
 	req["margin_profile_id"] = profileID
 
 	return resp,
@@ -487,11 +487,11 @@ func (e *Exchange) GetPayMethods(ctx context.Context) ([]PaymentMethod, error) {
 // amount - The amount to deposit
 // currency - The type of currency
 // paymentID - ID of the payment method
-func (e *Exchange) DepositViaPaymentMethod(ctx context.Context, amount float64, currency, paymentID string) (DepositWithdrawalInfo, error) {
+func (e *Exchange) DepositViaPaymentMethod(ctx context.Context, amount float64, ccy, paymentID string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
 	req := make(map[string]any)
 	req["amount"] = amount
-	req["currency"] = currency
+	req["currency"] = ccy
 	req["payment_method_id"] = paymentID
 
 	return resp,
@@ -506,11 +506,11 @@ func (e *Exchange) DepositViaPaymentMethod(ctx context.Context, amount float64, 
 // amount - The amount to deposit
 // currency - The type of currency
 // accountID - ID of the coinbase account
-func (e *Exchange) DepositViaCoinbase(ctx context.Context, amount float64, currency, accountID string) (DepositWithdrawalInfo, error) {
+func (e *Exchange) DepositViaCoinbase(ctx context.Context, amount float64, ccy, accountID string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
 	req := make(map[string]any)
 	req["amount"] = amount
-	req["currency"] = currency
+	req["currency"] = ccy
 	req["coinbase_account_id"] = accountID
 
 	return resp,
@@ -522,11 +522,11 @@ func (e *Exchange) DepositViaCoinbase(ctx context.Context, amount float64, curre
 // amount - The amount to withdraw
 // currency - The type of currency
 // paymentID - ID of the payment method
-func (e *Exchange) WithdrawViaPaymentMethod(ctx context.Context, amount float64, currency, paymentID string) (DepositWithdrawalInfo, error) {
+func (e *Exchange) WithdrawViaPaymentMethod(ctx context.Context, amount float64, ccy, paymentID string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
 	req := make(map[string]any)
 	req["amount"] = amount
-	req["currency"] = currency
+	req["currency"] = ccy
 	req["payment_method_id"] = paymentID
 
 	return resp,
@@ -555,11 +555,11 @@ func (e *Exchange) WithdrawViaPaymentMethod(ctx context.Context, amount float64,
 // amount - The amount to withdraw
 // currency - The type of currency
 // cryptoAddress - 	A crypto address of the recipient
-func (e *Exchange) WithdrawCrypto(ctx context.Context, amount float64, currency, cryptoAddress string) (DepositWithdrawalInfo, error) {
+func (e *Exchange) WithdrawCrypto(ctx context.Context, amount float64, ccy, cryptoAddress string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
 	req := make(map[string]any)
 	req["amount"] = amount
-	req["currency"] = currency
+	req["currency"] = ccy
 	req["crypto_address"] = cryptoAddress
 
 	return resp,

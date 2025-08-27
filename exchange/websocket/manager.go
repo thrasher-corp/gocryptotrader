@@ -314,12 +314,7 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		return err
 	}
 
-	if c == nil || c.ResponseCheckTimeout == 0 &&
-		c.ResponseMaxLimit == 0 &&
-		c.RateLimit == nil &&
-		c.URL == "" &&
-		c.ConnectionLevelReporter == nil &&
-		c.BespokeGenerateMessageID == nil {
+	if c.ResponseCheckTimeout == 0 && c.ResponseMaxLimit == 0 && c.RateLimit == nil && c.URL == "" && c.ConnectionLevelReporter == nil && c.RequestIDGenerator == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigEmpty)
 	}
 
@@ -396,21 +391,27 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 	if c.URL != "" {
 		connectionURL = c.URL
 	}
+	match := m.Match
+	if m.useMultiConnectionManagement {
+		// If we are using multi connection management, we can decouple
+		// the match from the global match and have a match per connection.
+		match = NewMatch()
+	}
 	return &connection{
-		ExchangeName:             m.exchangeName,
-		URL:                      connectionURL,
-		ProxyURL:                 m.GetProxyAddress(),
-		Verbose:                  m.verbose,
-		ResponseMaxLimit:         c.ResponseMaxLimit,
-		Traffic:                  m.TrafficAlert,
-		readMessageErrors:        m.ReadMessageErrors,
-		shutdown:                 m.ShutdownC,
-		Wg:                       &m.Wg,
-		Match:                    m.Match,
-		RateLimit:                c.RateLimit,
-		Reporter:                 c.ConnectionLevelReporter,
-		bespokeGenerateMessageID: c.BespokeGenerateMessageID,
-		RateLimitDefinitions:     m.rateLimitDefinitions,
+		ExchangeName:         m.exchangeName,
+		URL:                  connectionURL,
+		ProxyURL:             m.GetProxyAddress(),
+		Verbose:              m.verbose,
+		ResponseMaxLimit:     c.ResponseMaxLimit,
+		Traffic:              m.TrafficAlert,
+		readMessageErrors:    m.ReadMessageErrors,
+		shutdown:             m.ShutdownC,
+		Wg:                   &m.Wg,
+		Match:                match,
+		RateLimit:            c.RateLimit,
+		Reporter:             c.ConnectionLevelReporter,
+		requestIDGenerator:   c.RequestIDGenerator,
+		RateLimitDefinitions: m.rateLimitDefinitions,
 	}
 }
 
@@ -747,51 +748,51 @@ func (m *Manager) CanUseAuthenticatedWebsocketForWrapper() bool {
 }
 
 // SetWebsocketURL sets websocket URL and can refresh underlying connections
-func (m *Manager) SetWebsocketURL(url string, auth, reconnect bool) error {
+func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 	if m.useMultiConnectionManagement {
 		// TODO: Add functionality for multi-connection management to change URL
 		return fmt.Errorf("%s: %w", m.exchangeName, errCannotChangeConnectionURL)
 	}
-	defaultVals := url == "" || url == config.WebsocketURLNonDefaultMessage
+	defaultVals := u == "" || u == config.WebsocketURLNonDefaultMessage
 	if auth {
 		if defaultVals {
-			url = m.defaultURLAuth
+			u = m.defaultURLAuth
 		}
 
-		err := checkWebsocketURL(url)
+		err := checkWebsocketURL(u)
 		if err != nil {
 			return err
 		}
-		m.runningURLAuth = url
+		m.runningURLAuth = u
 
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, url)
+			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, u)
 		}
 
 		if m.AuthConn != nil {
-			m.AuthConn.SetURL(url)
+			m.AuthConn.SetURL(u)
 		}
 	} else {
 		if defaultVals {
-			url = m.defaultURL
+			u = m.defaultURL
 		}
-		err := checkWebsocketURL(url)
+		err := checkWebsocketURL(u)
 		if err != nil {
 			return err
 		}
-		m.runningURL = url
+		m.runningURL = u
 
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, url)
+			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, u)
 		}
 
 		if m.Conn != nil {
-			m.Conn.SetURL(url)
+			m.Conn.SetURL(u)
 		}
 	}
 
 	if m.IsConnected() && reconnect {
-		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, url)
+		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, u)
 		return m.Shutdown()
 	}
 	return nil
@@ -876,7 +877,7 @@ func checkWebsocketURL(s string) error {
 }
 
 // Reader reads and handles data from a specific connection
-func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, message []byte) error) {
+func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error) {
 	defer m.Wg.Done()
 	var reporter ProcessReporter
 	if m.processReporter != nil {
@@ -896,7 +897,7 @@ func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx 
 			}
 			return // Connection has been closed
 		}
-		err := handler(ctx, resp.Raw)
+		err := handler(ctx, conn, resp.Raw)
 		if err != nil {
 			m.DataHandler <- fmt.Errorf("connection URL:[%v] error: %w", conn.GetURL(), err)
 		}
