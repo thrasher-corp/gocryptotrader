@@ -70,7 +70,7 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID:      conn.GenerateMessageID(false),
+		ID:      e.MessageSequence(),
 		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
 		Channel: futuresPingChannel,
 	})
@@ -201,7 +201,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	}
 }
 
-func (e *Exchange) generateFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -287,7 +287,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, conn websocket.Co
 			}
 		}
 		outbound = append(outbound, WsInput{
-			ID:      conn.GenerateMessageID(false),
+			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,

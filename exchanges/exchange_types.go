@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -257,6 +258,7 @@ type Base struct {
 
 	AssetWebsocketSupport
 	*currencystate.States
+	messageSequence common.Counter
 }
 
 // url lookup consts
