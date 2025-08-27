@@ -381,8 +381,8 @@ func (c *connection) Shutdown() error {
 }
 
 // SetURL sets connection URL
-func (c *connection) SetURL(url string) {
-	c.URL = url
+func (c *connection) SetURL(u string) {
+	c.URL = u
 }
 
 // SetProxy sets connection proxy
@@ -502,11 +502,11 @@ func (c *connection) MatchReturnResponses(ctx context.Context, signature any, ex
 	return out, nil
 }
 
-func removeURLQueryString(url string) string {
-	if index := strings.Index(url, "?"); index != -1 {
-		return url[:index]
+func removeURLQueryString(u string) string {
+	if index := strings.Index(u, "?"); index != -1 {
+		return u[:index]
 	}
-	return url
+	return u
 }
 
 // RequireMatchWithData routes incoming data using the connection specific match system to the correct handler

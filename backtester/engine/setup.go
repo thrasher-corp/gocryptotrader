@@ -636,21 +636,21 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 	return resp, nil
 }
 
-func (bt *BackTest) loadExchangePairAssetBase(exch string, base, quote currency.Code, ai asset.Item) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
-	e, err := bt.exchangeManager.GetExchangeByName(exch)
+func (bt *BackTest) loadExchangePairAssetBase(exchName string, baseCode, quoteCode currency.Code, a asset.Item) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
+	e, err := bt.exchangeManager.GetExchangeByName(exchName)
 	if err != nil {
 		return nil, currency.EMPTYPAIR, asset.Empty, err
 	}
 
 	var cp, fPair currency.Pair
-	cp = currency.NewPair(base, quote)
+	cp = currency.NewPair(baseCode, quoteCode)
 
 	exchangeBase := e.GetBase()
-	fPair, err = exchangeBase.FormatExchangeCurrency(cp, ai)
+	fPair, err = exchangeBase.FormatExchangeCurrency(cp, a)
 	if err != nil {
 		return nil, currency.EMPTYPAIR, asset.Empty, err
 	}
-	return e, fPair, ai, nil
+	return e, fPair, a, nil
 }
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
@@ -929,8 +929,8 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	}, nil
 }
 
-func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
-	if cfg == nil || base == nil || cfg.DataSettings.LiveData == nil {
+func setExchangeCredentials(cfg *config.Config, exch *gctexchange.Base) error {
+	if cfg == nil || exch == nil || cfg.DataSettings.LiveData == nil {
 		return gctcommon.ErrNilPointer
 	}
 	if !cfg.DataSettings.LiveData.RealOrders {
@@ -942,15 +942,15 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 	if len(cfg.DataSettings.LiveData.ExchangeCredentials) == 0 {
 		return errNoCredsNoLive
 	}
-	name := strings.ToLower(base.Name)
+	name := strings.ToLower(exch.Name)
 	for i := range cfg.DataSettings.LiveData.ExchangeCredentials {
 		if !strings.EqualFold(cfg.DataSettings.LiveData.ExchangeCredentials[i].Exchange, name) ||
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.IsEmpty() {
-			return fmt.Errorf("%v %w, please review your live, real order config", base.GetName(), gctexchange.ErrCredentialsAreEmpty)
+			return fmt.Errorf("%v %w, please review your live, real order config", exch.GetName(), gctexchange.ErrCredentialsAreEmpty)
 		}
-		base.API.AuthenticatedSupport = true
-		base.API.AuthenticatedWebsocketSupport = true
-		base.SetCredentials(
+		exch.API.AuthenticatedSupport = true
+		exch.API.AuthenticatedWebsocketSupport = true
+		exch.SetCredentials(
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.Key,
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.Secret,
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.ClientID,
@@ -958,7 +958,7 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
 		)
-		_, err := base.GetCredentials(context.TODO())
+		_, err := exch.GetCredentials(context.TODO())
 		if err != nil {
 			return err
 		}

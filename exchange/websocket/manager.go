@@ -744,51 +744,51 @@ func (m *Manager) CanUseAuthenticatedWebsocketForWrapper() bool {
 }
 
 // SetWebsocketURL sets websocket URL and can refresh underlying connections
-func (m *Manager) SetWebsocketURL(url string, auth, reconnect bool) error {
+func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 	if m.useMultiConnectionManagement {
 		// TODO: Add functionality for multi-connection management to change URL
 		return fmt.Errorf("%s: %w", m.exchangeName, errCannotChangeConnectionURL)
 	}
-	defaultVals := url == "" || url == config.WebsocketURLNonDefaultMessage
+	defaultVals := u == "" || u == config.WebsocketURLNonDefaultMessage
 	if auth {
 		if defaultVals {
-			url = m.defaultURLAuth
+			u = m.defaultURLAuth
 		}
 
-		err := checkWebsocketURL(url)
+		err := checkWebsocketURL(u)
 		if err != nil {
 			return err
 		}
-		m.runningURLAuth = url
+		m.runningURLAuth = u
 
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, url)
+			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, u)
 		}
 
 		if m.AuthConn != nil {
-			m.AuthConn.SetURL(url)
+			m.AuthConn.SetURL(u)
 		}
 	} else {
 		if defaultVals {
-			url = m.defaultURL
+			u = m.defaultURL
 		}
-		err := checkWebsocketURL(url)
+		err := checkWebsocketURL(u)
 		if err != nil {
 			return err
 		}
-		m.runningURL = url
+		m.runningURL = u
 
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, url)
+			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, u)
 		}
 
 		if m.Conn != nil {
-			m.Conn.SetURL(url)
+			m.Conn.SetURL(u)
 		}
 	}
 
 	if m.IsConnected() && reconnect {
-		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, url)
+		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, u)
 		return m.Shutdown()
 	}
 	return nil
