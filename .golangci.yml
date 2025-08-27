@@ -14,6 +14,7 @@ linters:
     - unused
 
 # disabled by default linters
+#   - arangolint
 #   - asasalint
     - asciicheck
     - bidichk
@@ -29,6 +30,7 @@ linters:
 #   - dupl
     - dupword
     - durationcheck
+#   - embeddedstructfieldcheck
 #   - err113
     - errchkjson
     - errname
@@ -39,6 +41,7 @@ linters:
     - fatcontext
 #   - forbidigo
     - forcetypeassert
+#   - funcorder
 #   - funlen
 #   - ginkgolinter
     - gocheckcompilerdirectives
@@ -79,6 +82,7 @@ linters:
 #   - nilnil
 #   - nlreturn
     - noctx
+#   - noinlineerr
     - nolintlint
 #   - nonamedreturns
     - nosprintfhostport
@@ -110,8 +114,9 @@ linters:
     - wastedassign
     - whitespace
 #   - wrapcheck
-#   - wsl
+#   - wsl_v5
 #   - zerologlint
+#   - wsl // Deprecated 
 
   settings:
     depguard:
@@ -130,7 +135,6 @@ linters:
     gocritic:
       disabled-checks:
         - wrapperFunc
-        - importShadow
         - methodExprCall
         - evalOrder
       enabled-tags:
@@ -171,6 +175,9 @@ linters:
       - linters:
           - revive
         text: 'should have a package comment'
+      - linters:
+          - revive
+        text: "var-naming: avoid meaningless package names"
     paths:
       - vendor
       - web/

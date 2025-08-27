@@ -2326,8 +2326,8 @@ func (e *Exchange) CreateCombo(ctx context.Context, args []ComboParam) (*ComboDe
 // ExecuteBlockTrade executes a block trade request
 // The whole request have to be exact the same as in private/verify_block_trade, only role field should be set appropriately - it basically means that both sides have to agree on the same timestamp, nonce, trades fields and server will assure that role field is different between sides (each party accepted own role).
 // Using the same timestamp and nonce by both sides in private/verify_block_trade assures that even if unintentionally both sides execute given block trade with valid counterparty_signature, the given block trade will be executed only once
-func (e *Exchange) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) ([]BlockTradeResponse, error) {
-	if nonce == "" {
+func (e *Exchange) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, tradeNonce, role string, ccy currency.Code, trades []BlockTradeParam) ([]BlockTradeResponse, error) {
+	if tradeNonce == "" {
 		return nil, errMissingNonce
 	}
 	if role != roleMaker && role != roleTaker {
@@ -2351,7 +2351,7 @@ func (e *Exchange) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time,
 			return nil, fmt.Errorf("%w, trade price can't be negative", errInvalidPrice)
 		}
 	}
-	signature, err := e.VerifyBlockTrade(ctx, timestampMS, nonce, role, ccy, trades)
+	signature, err := e.VerifyBlockTrade(ctx, timestampMS, tradeNonce, role, ccy, trades)
 	if err != nil {
 		return nil, err
 	}
@@ -2364,7 +2364,7 @@ func (e *Exchange) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time,
 		params.Set("currency", ccy.String())
 	}
 	params.Set("trades", string(values))
-	params.Set("nonce", nonce)
+	params.Set("nonce", tradeNonce)
 	params.Set("role", role)
 	params.Set("counterparty_signature", signature)
 	params.Set("timestamp", strconv.FormatInt(timestampMS.UnixMilli(), 10))
@@ -2373,8 +2373,8 @@ func (e *Exchange) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time,
 }
 
 // VerifyBlockTrade verifies and creates block trade signature
-func (e *Exchange) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) (string, error) {
-	if nonce == "" {
+func (e *Exchange) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, tradeNonce, role string, ccy currency.Code, trades []BlockTradeParam) (string, error) {
+	if tradeNonce == "" {
 		return "", errMissingNonce
 	}
 	if role != roleMaker && role != roleTaker {
@@ -2410,7 +2410,7 @@ func (e *Exchange) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, 
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	params.Set("nonce", nonce)
+	params.Set("nonce", tradeNonce)
 	params.Set("role", role)
 	params.Set("trades", string(values))
 	resp := &struct {
