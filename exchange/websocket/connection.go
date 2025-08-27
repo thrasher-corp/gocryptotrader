@@ -240,9 +240,7 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 		})
 		return
 	}
-	c.Wg.Add(1)
-	go func() {
-		defer c.Wg.Done()
+	c.Wg.Go(func() {
 		ticker := time.NewTicker(handler.Delay)
 		for {
 			select {
@@ -257,7 +255,7 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 				}
 			}
 		}
-	}()
+	})
 }
 
 // setConnectedStatus sets connection status if changed it will return true.

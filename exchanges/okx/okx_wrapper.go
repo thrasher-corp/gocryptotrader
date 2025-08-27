@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -311,16 +312,15 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if len(insts) == 0 {
 			return common.ErrNoResponse
 		}
-		limits := make([]order.MinMaxLevel, len(insts))
-		for x := range insts {
-			limits[x] = order.MinMaxLevel{
-				Pair:                   insts[x].InstrumentID,
-				Asset:                  a,
-				PriceStepIncrementSize: insts[x].TickSize.Float64(),
-				MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
+		l := make([]limits.MinMaxLevel, len(insts))
+		for i := range insts {
+			l[i] = limits.MinMaxLevel{
+				Key:                    key.NewExchangeAssetPair(e.Name, a, insts[i].InstrumentID),
+				PriceStepIncrementSize: insts[i].TickSize.Float64(),
+				MinimumBaseAmount:      insts[i].MinimumOrderSize.Float64(),
 			}
 		}
-		return e.LoadLimits(limits)
+		return limits.Load(l)
 	case asset.Spread:
 		insts, err := e.GetPublicSpreads(ctx, "", "", "", "live")
 		if err != nil {
@@ -329,19 +329,18 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if len(insts) == 0 {
 			return common.ErrNoResponse
 		}
-		limits := make([]order.MinMaxLevel, len(insts))
-		for x := range insts {
-			limits[x] = order.MinMaxLevel{
-				Pair:                   insts[x].SpreadID,
-				Asset:                  a,
-				PriceStepIncrementSize: insts[x].MinSize.Float64(),
-				MinimumBaseAmount:      insts[x].MinSize.Float64(),
-				QuoteStepIncrementSize: insts[x].TickSize.Float64(),
+		l := make([]limits.MinMaxLevel, len(insts))
+		for i := range insts {
+			l[i] = limits.MinMaxLevel{
+				Key:                    key.NewExchangeAssetPair(e.Name, a, insts[i].SpreadID),
+				PriceStepIncrementSize: insts[i].MinSize.Float64(),
+				MinimumBaseAmount:      insts[i].MinSize.Float64(),
+				QuoteStepIncrementSize: insts[i].TickSize.Float64(),
 			}
 		}
-		return e.LoadLimits(limits)
+		return limits.Load(l)
 	default:
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }
 
@@ -858,7 +857,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	if s.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	pairFormat, err := e.GetPairFormat(s.AssetType, true)
 	if err != nil {
@@ -987,7 +986,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
 		if s.TrackingValue == 0 {
-			return nil, fmt.Errorf("%w, tracking value required", order.ErrAmountBelowMin)
+			return nil, fmt.Errorf("%w, tracking value required", limits.ErrAmountBelowMin)
 		}
 		result, err = e.PlaceChaseAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:  pairString,
@@ -1051,9 +1050,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	case orderOCO:
 		switch {
 		case s.RiskManagementModes.TakeProfit.Price <= 0:
-			return nil, fmt.Errorf("%w, take profit price is required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, take profit price is required", limits.ErrPriceBelowMin)
 		case s.RiskManagementModes.StopLoss.Price <= 0:
-			return nil, fmt.Errorf("%w, stop loss price is required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, stop loss price is required", limits.ErrPriceBelowMin)
 		}
 		result, err = e.PlaceAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID: pairString,
@@ -1159,7 +1158,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		}
 	case order.Trigger:
 		if action.TriggerPrice == 0 {
-			return nil, fmt.Errorf("%w, trigger price required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, trigger price required", limits.ErrPriceBelowMin)
 		}
 		var postTriggerTPSLOrders []SubTPSLParams
 		if action.RiskManagementModes.StopLoss.Price > 0 && action.RiskManagementModes.TakeProfit.Price > 0 {
@@ -1194,10 +1193,10 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		switch {
 		case action.RiskManagementModes.TakeProfit.Price <= 0 &&
 			action.RiskManagementModes.TakeProfit.LimitPrice <= 0:
-			return nil, fmt.Errorf("%w, either take profit trigger price or order price is required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, either take profit trigger price or order price is required", limits.ErrPriceBelowMin)
 		case action.RiskManagementModes.StopLoss.Price <= 0 &&
 			action.RiskManagementModes.StopLoss.LimitPrice <= 0:
-			return nil, fmt.Errorf("%w, either stop loss trigger price or order price is required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, either stop loss trigger price or order price is required", limits.ErrPriceBelowMin)
 		}
 		_, err = e.AmendAlgoOrder(ctx, &AmendAlgoOrderParam{
 			InstrumentID:              pairFormat.Format(action.Pair),
@@ -2933,12 +2932,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 					continue
 				}
 				resp = append(resp, futures.OpenInterest{
-					Key: key.ExchangePairAsset{
-						Exchange: e.Name,
-						Base:     p.Base.Item,
-						Quote:    p.Quote.Item,
-						Asset:    v,
-					},
+					Key:          key.NewExchangeAssetPair(e.Name, v, p),
 					OpenInterest: oid[j].OpenInterest.Float64(),
 				})
 			}
@@ -2985,12 +2979,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			continue
 		}
 		resp[0] = futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: e.Name,
-				Base:     p.Base.Item,
-				Quote:    p.Quote.Item,
-				Asset:    k[0].Asset,
-			},
+			Key:          key.NewExchangeAssetPair(e.Name, k[0].Asset, p),
 			OpenInterest: oid[i].OpenInterest.Float64(),
 		}
 	}
@@ -3047,6 +3036,6 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 		}
 		return baseURL + "trade-futures/" + strings.ToLower(insts[0].Underlying) + ct, nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }

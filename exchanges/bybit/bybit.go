@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -626,7 +627,7 @@ func (e *Exchange) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderPara
 			return nil, order.ErrTypeIsInvalid
 		}
 		if arg.Request[a].OrderQuantity <= 0 {
-			return nil, order.ErrAmountBelowMin
+			return nil, limits.ErrAmountBelowMin
 		}
 	}
 	var resp BatchOrdersList
@@ -1782,7 +1783,7 @@ func (e *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawalParam) (
 		return "", errMissingAddressInfo
 	}
 	if arg.Amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", limits.ErrAmountBelowMin
 	}
 	if arg.Timestamp == 0 {
 		arg.Timestamp = time.Now().UnixMilli()
@@ -1995,7 +1996,7 @@ func (e *Exchange) PurchaseLeverageToken(ctx context.Context, ltCoin currency.Co
 		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	arg := &struct {
 		LTCoin       string  `json:"ltCoin"`
@@ -2016,7 +2017,7 @@ func (e *Exchange) RedeemLeverageToken(ctx context.Context, ltCoin currency.Code
 		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if quantity <= 0 {
-		return nil, fmt.Errorf("%w, quantity=%f", order.ErrAmountBelowMin, quantity)
+		return nil, fmt.Errorf("%w, quantity=%f", limits.ErrAmountBelowMin, quantity)
 	}
 	arg := &struct {
 		LTCoin       string  `json:"ltCoin"`
@@ -2147,7 +2148,7 @@ func (e *Exchange) Borrow(ctx context.Context, arg *LendArgument) (*BorrowRespon
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.AmountToBorrow <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *BorrowResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/loan", nil, arg, &resp, spotCrossMarginTradeLoanEPL)
@@ -2162,7 +2163,7 @@ func (e *Exchange) Repay(ctx context.Context, arg *LendArgument) (*RepayResponse
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.AmountToBorrow <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *RepayResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/repay", nil, arg, &resp, spotCrossMarginTradeRepayEPL)
@@ -2332,7 +2333,7 @@ func (e *Exchange) C2CDepositFunds(ctx context.Context, arg *C2CLendingFundsPara
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *C2CLendingFundResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/lending/purchase", nil, &arg, &resp, defaultEPL)
@@ -2347,7 +2348,7 @@ func (e *Exchange) C2CRedeemFunds(ctx context.Context, arg *C2CLendingFundsParam
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *C2CLendingFundResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/lending/redeem", nil, &arg, &resp, defaultEPL)
@@ -2441,12 +2442,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path
 	}
 	err = e.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpointPath + bybitAPIVersion + path,
-			Result:        response,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 http.MethodGet,
+			Path:                   endpointPath + bybitAPIVersion + path,
+			Result:                 response,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
@@ -2504,14 +2506,15 @@ func (e *Exchange) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL
 		}
 		headers["X-BAPI-SIGN"] = hmacSignedStr
 		return &request.Item{
-			Method:        method,
-			Path:          endpointPath + common.EncodeURLValues(path, params),
-			Headers:       headers,
-			Body:          bytes.NewBuffer(payload),
-			Result:        &response,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   endpointPath + common.EncodeURLValues(path, params),
+			Headers:                headers,
+			Body:                   bytes.NewBuffer(payload),
+			Result:                 &response,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if response.RetCode != 0 && response.RetMsg != "" {
