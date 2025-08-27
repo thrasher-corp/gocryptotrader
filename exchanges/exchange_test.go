@@ -2867,21 +2867,25 @@ func TestCheckOrderExecutionLimits(t *testing.T) {
 }
 
 func TestWebsocketSubmitOrder(t *testing.T) {
+	t.Parallel()
 	_, err := (&Base{}).WebsocketSubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestWebsocketSubmitOrders(t *testing.T) {
+	t.Parallel()
 	_, err := (&Base{}).WebsocketSubmitOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestWebsocketModifyOrder(t *testing.T) {
+	t.Parallel()
 	_, err := (&Base{}).WebsocketModifyOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestWebsocketCancelOrder(t *testing.T) {
+	t.Parallel()
 	err := (&Base{}).WebsocketCancelOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
