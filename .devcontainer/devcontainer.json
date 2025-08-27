@@ -1,8 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.241.1/containers/docker-existing-docker-compose
 // If you want to run as a non-root user in the container, see .devcontainer/docker-compose.yml.
 {
-	"name": "Existing Docker Compose (Extend)",
+	"name": "GoCryptoTrader Dev Container",
 
 	// Update the 'dockerComposeFile' list if you have more compose files or use different names.
 	// The .devcontainer/docker-compose.yml file contains any overrides you need/want to make.
@@ -28,14 +27,16 @@
 	// "shutdownAction": "none",
 
 	// Uncomment the next line to run commands after the container is created - for example installing curl.
-	// "postCreateCommand": "apt-get update && apt-get install -y curl",
+	"postCreateCommand": "go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0 && go install mvdan.cc/gofumpt@latest && go install golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest",
 
-	// Uncomment to connect as a non-root user if you've added one. See https://aka.ms/vscode-remote/containers/non-root.
+	// Uncomment to connect as a non-root user if you've added one. See https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user.
 	"remoteUser": "vscode",
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"golang.go"
+				"golang.go",
+				"eamodio.gitlens",
+				"github.vscode-pull-request-github"
 			]
 		}
 	}
