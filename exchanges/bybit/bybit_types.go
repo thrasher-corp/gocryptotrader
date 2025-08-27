@@ -2,25 +2,18 @@ package bybit
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-var (
-	errAmendArgumentsRequired = errors.New("at least one of the following fields is required: orderIv, triggerPrice, qty, price, takeProfit, stopLoss")
-	errInvalidLeverageValue   = errors.New("please provide a valid isLeverage value; must be 0 for unified spot and 1 for margin trading")
-	validCategory             = []string{"spot", "linear", "inverse", "option"}
-)
+var errAmendArgumentsRequired = errors.New("at least one of the following fields is required: orderIv, triggerPrice, qty, price, takeProfit, stopLoss")
 
 // supportedOptionsTypes Bybit does not offer a way to retrieve option denominations via its API
 var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
@@ -142,27 +135,11 @@ type KlineItem struct {
 	Turnover    types.Number
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface for KlineItem
-func (k *KlineItem) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[7]any{&k.StartTime, &k.Open, &k.High, &k.Low, &k.Close, &k.TradeVolume, &k.Turnover})
-}
-
 // MarkPriceKlineResponse represents a kline data item.
 type MarkPriceKlineResponse struct {
 	Symbol   string      `json:"symbol"`
 	Category string      `json:"category"`
 	List     []KlineItem `json:"list"`
-}
-
-func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
-	s := Orderbook{
-		Symbol:         o.Symbol,
-		UpdateID:       o.UpdateID,
-		GenerationTime: o.Timestamp.Time(),
-	}
-	s.Bids = processOB(o.Bids)
-	s.Asks = processOB(o.Asks)
-	return &s, nil
 }
 
 // TickerData represents a list of ticker detailed information.
@@ -314,8 +291,8 @@ type DeliveryPrice struct {
 	} `json:"list"`
 }
 
-// PlaceOrderParams represents
-type PlaceOrderParams struct {
+// PlaceOrderRequest represents
+type PlaceOrderRequest struct {
 	Category               string        `json:"category"`   // Required
 	Symbol                 currency.Pair `json:"symbol"`     // Required
 	Side                   string        `json:"side"`       // Required
@@ -351,71 +328,14 @@ type PlaceOrderParams struct {
 	SlLimitPrice float64 `json:"slLimitPrice,omitempty,string"`
 }
 
-// Validate checks the input parameters and returns an error if they are invalid.
-func (p *PlaceOrderParams) Validate() error {
-	err := isValidCategory(p.Category)
-	if err != nil {
-		return err
-	}
-	if p.Symbol.IsEmpty() {
-		return currency.ErrCurrencyPairEmpty
-	}
-	if p.EnableBorrow {
-		p.IsLeverage = 1
-	}
-	// specifies whether to borrow or to trade.
-	if p.IsLeverage != 0 && p.IsLeverage != 1 {
-		return errInvalidLeverageValue
-	}
-	if p.Side == "" {
-		return order.ErrSideIsInvalid
-	}
-	if p.OrderType == "" { // Market and Limit order types are allowed
-		return order.ErrTypeIsInvalid
-	}
-	if p.OrderQuantity <= 0 {
-		return limits.ErrAmountBelowMin
-	}
-	switch p.TriggerDirection {
-	case 0, 1, 2: // 0: None, 1: triggered when market price rises to triggerPrice, 2: triggered when market price falls to triggerPrice
-	default:
-		return fmt.Errorf("%w, triggerDirection: %d", errInvalidTriggerDirection, p.TriggerDirection)
-	}
-	if p.OrderFilter != "" {
-		if p.Category != cSpot {
-			return fmt.Errorf("%w, orderFilter is valid for 'spot' only", errInvalidCategory)
-		}
-		switch p.OrderFilter {
-		case "Order", "tpslOrder", "StopOrder":
-		default:
-			return fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, p.OrderFilter)
-		}
-	}
-	switch p.TriggerPriceType {
-	case "", "LastPrice", "IndexPrice", "MarkPrice":
-	default:
-		return errInvalidTriggerPriceType
-	}
-
-	return nil
-}
-
-// LoadID loads the order link ID into the parameter, only if it is not already set
-func (p *PlaceOrderParams) LoadID(id string) string {
-	if p.OrderLinkID == "" {
-		p.OrderLinkID = id
-	}
-	return p.OrderLinkID
-}
-
 // OrderResponse holds newly placed order information.
 type OrderResponse struct {
 	OrderID     string `json:"orderId"`
 	OrderLinkID string `json:"orderLinkId"`
 }
 
-// AmendOrderParams represents a parameter for amending order.
-type AmendOrderParams struct {
+// AmendOrderRequest represents a parameter for amending order.
+type AmendOrderRequest struct {
 	Category    string        `json:"category"`              // Required
 	Symbol      currency.Pair `json:"symbol"`                // Required
 	OrderID     string        `json:"orderId,omitempty"`     // This or OrderLinkID required
@@ -445,108 +365,13 @@ type AmendOrderParams struct {
 	TPSLMode string `json:"tpslMode,omitempty"`
 }
 
-// Validate checks the input parameters and returns an error if they are invalid
-func (p *AmendOrderParams) Validate() error {
-	err := isValidCategory(p.Category)
-	if err != nil {
-		return err
-	}
-
-	if p.Symbol.IsEmpty() {
-		return currency.ErrCurrencyPairEmpty
-	}
-
-	if p.OrderID == "" && p.OrderLinkID == "" {
-		return errEitherOrderIDOROrderLinkIDRequired
-	}
-
-	if AllZero(p.OrderImpliedVolatility,
-		p.TriggerPrice,
-		p.OrderQuantity,
-		p.Price,
-		p.TakeProfitPrice,
-		p.StopLossPrice,
-		p.TakeProfitTriggerBy,
-		p.StopLossTriggerBy,
-		p.TriggerPriceType,
-		p.TakeProfitLimitPrice,
-		p.StopLossLimitPrice,
-		p.TPSLMode) {
-		return errAmendArgumentsRequired
-	}
-
-	return nil
-}
-
-// LoadID loads the order link ID into the parameter, only if it is not already set
-func (p *AmendOrderParams) LoadID(id string) string {
-	if p.OrderLinkID == "" {
-		p.OrderLinkID = id
-	}
-	return p.OrderLinkID
-}
-
-// AllZero checks if all the arguments are a zero value
-func AllZero(args ...any) bool {
-	for _, v := range args {
-		switch val := v.(type) {
-		case float64:
-			if val != 0 {
-				return false
-			}
-		case string:
-			if val != "" {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-// CancelOrderParams represents a cancel order parameters.
-type CancelOrderParams struct {
+// CancelOrderRequest represents a cancel order parameters.
+type CancelOrderRequest struct {
 	Category    string        `json:"category"`
 	Symbol      currency.Pair `json:"symbol"`
 	OrderID     string        `json:"orderId,omitempty"`
 	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
 	OrderFilter string        `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
-}
-
-// Validate checks the input parameters and returns an error if they are invalid
-func (p *CancelOrderParams) Validate() error {
-	err := isValidCategory(p.Category)
-	if err != nil {
-		return err
-	}
-
-	if p.Symbol.IsEmpty() {
-		return currency.ErrCurrencyPairEmpty
-	}
-
-	if p.OrderID == "" && p.OrderLinkID == "" {
-		return errEitherOrderIDOROrderLinkIDRequired
-	}
-
-	if p.OrderFilter != "" {
-		if p.Category != cSpot {
-			return fmt.Errorf("%w, orderFilter is valid for 'spot' only", errInvalidCategory)
-		}
-		switch p.OrderFilter {
-		case "Order", "tpslOrder", "StopOrder":
-		default:
-			return fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, p.OrderFilter)
-		}
-	}
-
-	return nil
-}
-
-// LoadID loads the order link ID into the parameter, only if it is not already set
-func (p *CancelOrderParams) LoadID(id string) string {
-	if p.OrderLinkID == "" {
-		p.OrderLinkID = id
-	}
-	return p.OrderLinkID
 }
 
 // TradeOrders represents category and list of trade orders of the category.
@@ -709,8 +534,8 @@ type BatchAmendOrderParamItem struct {
 
 // CancelBatchOrder represents a batch cancel request parameters.
 type CancelBatchOrder struct {
-	Category string              `json:"category"`
-	Request  []CancelOrderParams `json:"request"`
+	Category string               `json:"category"`
+	Request  []CancelOrderRequest `json:"request"`
 }
 
 // CancelBatchResponseItem represents a batch cancel response item.
@@ -2216,17 +2041,3 @@ type accountTypeHolder struct {
 
 // AccountType constants
 type AccountType uint8
-
-// String returns the account type as a string
-func (a AccountType) String() string {
-	switch a {
-	case 0:
-		return "unset"
-	case accountTypeNormal:
-		return "normal"
-	case accountTypeUnified:
-		return "unified"
-	default:
-		return "unknown"
-	}
-}

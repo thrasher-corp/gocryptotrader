@@ -795,33 +795,33 @@ func TestPlaceOrder(t *testing.T) {
 	_, err := e.PlaceOrder(ctx, nil)
 	require.ErrorIs(t, err, errNilArgument)
 
-	_, err = e.PlaceOrder(ctx, &PlaceOrderParams{})
+	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{})
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	_, err = e.PlaceOrder(ctx, &PlaceOrderParams{
+	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
 		Category: "my-category",
 	})
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.PlaceOrder(ctx, &PlaceOrderParams{
+	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
 		Category: "spot",
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.PlaceOrder(ctx, &PlaceOrderParams{
+	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
 		Category: "spot",
 		Symbol:   currency.Pair{Delimiter: "", Base: currency.BTC, Quote: currency.USDT},
 	})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	_, err = e.PlaceOrder(ctx, &PlaceOrderParams{
+	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
 		Category: "spot",
 		Symbol:   spotTradablePair,
 		Side:     "buy",
 	})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
-	_, err = e.PlaceOrder(ctx, &PlaceOrderParams{
+	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
 		Category:  "spot",
 		Symbol:    spotTradablePair,
 		Side:      "buy",
@@ -829,7 +829,7 @@ func TestPlaceOrder(t *testing.T) {
 	})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	_, err = e.PlaceOrder(ctx, &PlaceOrderParams{
+	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
 		Category:         "spot",
 		Symbol:           spotTradablePair,
 		Side:             "buy",
@@ -839,7 +839,7 @@ func TestPlaceOrder(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errInvalidTriggerDirection)
 
-	_, err = e.PlaceOrder(t.Context(), &PlaceOrderParams{
+	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{
 		Category:         "spot",
 		Symbol:           spotTradablePair,
 		Side:             "buy",
@@ -852,13 +852,13 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	// Spot post only normal order
-	arg := &PlaceOrderParams{Category: "spot", Symbol: spotTradablePair, Side: "Buy", OrderType: "Limit", OrderQuantity: 0.1, Price: 15600, TimeInForce: "PostOnly", OrderLinkID: "spot-test-01", IsLeverage: 0, OrderFilter: "Order"}
+	arg := &PlaceOrderRequest{Category: "spot", Symbol: spotTradablePair, Side: "Buy", OrderType: "Limit", OrderQuantity: 0.1, Price: 15600, TimeInForce: "PostOnly", OrderLinkID: "spot-test-01", IsLeverage: 0, OrderFilter: "Order"}
 	_, err = e.PlaceOrder(t.Context(), arg)
 	if err != nil {
 		t.Error(err)
 	}
 	// Spot TP/SL order
-	arg = &PlaceOrderParams{
+	arg = &PlaceOrderRequest{
 		Category: "spot",
 		Symbol:   spotTradablePair,
 		Side:     "Buy", OrderType: "Limit",
@@ -870,7 +870,7 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	// Spot margin normal order (UTA)
-	arg = &PlaceOrderParams{
+	arg = &PlaceOrderRequest{
 		Category: "spot", Symbol: spotTradablePair, Side: "Buy", OrderType: "Limit",
 		OrderQuantity: 0.1, Price: 15600, TimeInForce: "IOC", OrderLinkID: "spot-test-limit", IsLeverage: 1, OrderFilter: "Order",
 	}
@@ -878,7 +878,7 @@ func TestPlaceOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	arg = &PlaceOrderParams{
+	arg = &PlaceOrderRequest{
 		Category: "spot",
 		Symbol:   spotTradablePair,
 		Side:     "Buy", OrderType: "Market", OrderQuantity: 200,
@@ -890,7 +890,7 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	// USDT Perp open long position (one-way mode)
-	arg = &PlaceOrderParams{
+	arg = &PlaceOrderRequest{
 		Category: "linear",
 		Symbol:   usdcMarginedTradablePair, Side: "Buy", OrderType: "Limit", OrderQuantity: 1, Price: 25000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-01", ReduceOnly: false, TakeProfitPrice: 28000, StopLossPrice: 20000, TpslMode: "Partial", TpOrderType: "Limit", SlOrderType: "Limit", TpLimitPrice: 27500, SlLimitPrice: 20500,
 	}
@@ -899,7 +899,7 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	// USDT Perp close long position (one-way mode)
-	arg = &PlaceOrderParams{
+	arg = &PlaceOrderRequest{
 		Category: "linear", Symbol: usdtMarginedTradablePair, Side: "Sell",
 		OrderType: "Limit", OrderQuantity: 1, Price: 3000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-02", ReduceOnly: true,
 	}
@@ -918,27 +918,27 @@ func TestAmendOrder(t *testing.T) {
 	_, err := e.AmendOrder(t.Context(), nil)
 	require.ErrorIs(t, err, errNilArgument)
 
-	_, err = e.AmendOrder(t.Context(), &AmendOrderParams{})
+	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{})
 	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired)
 
-	_, err = e.AmendOrder(t.Context(), &AmendOrderParams{
+	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{
 		OrderID: "c6f055d9-7f21-4079-913d-e6523a9cfffa",
 	})
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	_, err = e.AmendOrder(t.Context(), &AmendOrderParams{
+	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
 		Category: "mycat",
 	})
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.AmendOrder(t.Context(), &AmendOrderParams{
+	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
 		Category: "option",
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.AmendOrder(t.Context(), &AmendOrderParams{
+	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{
 		OrderID:         "c6f055d9-7f21-4079-913d-e6523a9cfffa",
 		Category:        cSpot,
 		Symbol:          spotTradablePair,
@@ -962,27 +962,27 @@ func TestCancelTradeOrder(t *testing.T) {
 	_, err := e.CancelTradeOrder(t.Context(), nil)
 	require.ErrorIs(t, err, errNilArgument)
 
-	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderParams{})
+	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderRequest{})
 	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired)
 
-	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderParams{
+	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderRequest{
 		OrderID: "c6f055d9-7f21-4079-913d-e6523a9cfffa",
 	})
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderParams{
+	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderRequest{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
 		Category: "mycat",
 	})
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderParams{
+	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderRequest{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
 		Category: "option",
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderParams{
+	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderRequest{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
 		Category: "option",
 		Symbol:   optionsTradablePair,
@@ -1174,7 +1174,7 @@ func TestCancelBatchOrder(t *testing.T) {
 
 	_, err = e.CancelBatchOrder(t.Context(), &CancelBatchOrder{
 		Category: "option",
-		Request: []CancelOrderParams{
+		Request: []CancelOrderRequest{
 			{
 				Symbol:  optionsTradablePair,
 				OrderID: "b551f227-7059-4fb5-a6a6-699c04dbd2f2",
@@ -3011,7 +3011,7 @@ func TestCancelBatchOrders(t *testing.T) {
 type FixtureConnection struct {
 	dialError                         error
 	sendMessageReturnResponseOverride []byte
-	match                             websocket.Match
+	match                             *websocket.Match
 	websocket.Connection
 }
 
@@ -3093,7 +3093,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 		if bytes.Contains(r, []byte("%s")) {
 			r = fmt.Appendf(nil, string(r), optionsTradablePair.String())
 		}
-		return e.wsHandleAuthenticatedData(ctx, &FixtureConnection{}, r)
+		return e.wsHandleAuthenticatedData(ctx, &FixtureConnection{match: websocket.NewMatch()}, r)
 	})
 	close(e.Websocket.DataHandler)
 	require.Len(t, e.Websocket.DataHandler, 6, "Should see correct number of messages")
@@ -3946,7 +3946,7 @@ func TestHandleNoTopicWebsocketResponse(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("operation: %s, requestID: %s", tc.operation, tc.requestID), func(t *testing.T) {
 			t.Parallel()
-			err := e.handleNoTopicWebsocketResponse(&FixtureConnection{}, &WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
+			err := e.handleNoTopicWebsocketResponse(&FixtureConnection{match: websocket.NewMatch()}, &WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
 			assert.ErrorIs(t, err, tc.error, "handleNoTopicWebsocketResponse should return expected error")
 		})
 	}

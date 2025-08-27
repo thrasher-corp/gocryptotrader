@@ -934,90 +934,6 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	return resp, nil
 }
 
-// DeriveSubmitOrderArguments returns a derived order arguments struct from an order.Submit for use in this package.
-func (e *Exchange) DeriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderParams, error) {
-	if err := s.Validate(e.GetTradingRequirements()); err != nil {
-		return nil, err
-	}
-
-	switch s.AssetType {
-	case asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
-	default:
-		return nil, fmt.Errorf("%s %w", s.AssetType, asset.ErrNotSupported)
-	}
-
-	formattedPair, err := e.FormatExchangeCurrency(s.Pair, s.AssetType)
-	if err != nil {
-		return nil, err
-	}
-	var sideType string
-	switch {
-	case s.Side.IsLong():
-		sideType = sideBuy
-	case s.Side.IsShort():
-		sideType = sideSell
-	default:
-		return nil, order.ErrSideIsInvalid
-	}
-
-	if s.AssetType == asset.USDCMarginedFutures && !formattedPair.Quote.Equal(currency.PERP) {
-		formattedPair.Delimiter = currency.DashDelimiter
-	}
-
-	timeInForce := "GTC"
-	if s.Type == order.Market {
-		timeInForce = "IOC"
-	} else {
-		switch {
-		case s.TimeInForce.Is(order.FillOrKill):
-			timeInForce = "FOK"
-		case s.TimeInForce.Is(order.PostOnly):
-			timeInForce = "PostOnly"
-		case s.TimeInForce.Is(order.ImmediateOrCancel):
-			timeInForce = "IOC"
-		}
-	}
-
-	arg := &PlaceOrderParams{
-		Category:      getCategoryName(s.AssetType),
-		Symbol:        formattedPair,
-		Side:          sideType,
-		OrderType:     orderTypeToString(s.Type),
-		OrderQuantity: s.Amount,
-		Price:         s.Price,
-		OrderLinkID:   s.ClientOrderID,
-		EnableBorrow:  s.AssetType == asset.Margin,
-		ReduceOnly:    s.ReduceOnly,
-		OrderFilter: func() string {
-			if s.RiskManagementModes.TakeProfit.Price != 0 || s.RiskManagementModes.TakeProfit.LimitPrice != 0 ||
-				s.RiskManagementModes.StopLoss.Price != 0 || s.RiskManagementModes.StopLoss.LimitPrice != 0 {
-				return ""
-			} else if s.TriggerPrice != 0 {
-				return "tpslOrder"
-			}
-			return "Order"
-		}(),
-		TriggerPrice: s.TriggerPrice,
-		TimeInForce:  timeInForce,
-	}
-	if arg.TriggerPrice != 0 {
-		arg.TriggerPriceType = s.TriggerPriceType.String()
-	}
-	if s.RiskManagementModes.TakeProfit.Price != 0 {
-		arg.TakeProfitPrice = s.RiskManagementModes.TakeProfit.Price
-		arg.TakeProfitTriggerBy = s.RiskManagementModes.TakeProfit.TriggerPriceType.String()
-		arg.TpOrderType = getOrderTypeString(s.RiskManagementModes.TakeProfit.OrderType)
-		arg.TpLimitPrice = s.RiskManagementModes.TakeProfit.LimitPrice
-	}
-	if s.RiskManagementModes.StopLoss.Price != 0 {
-		arg.StopLossPrice = s.RiskManagementModes.StopLoss.Price
-		arg.StopLossTriggerBy = s.RiskManagementModes.StopLoss.TriggerPriceType.String()
-		arg.SlOrderType = getOrderTypeString(s.RiskManagementModes.StopLoss.OrderType)
-		arg.SlLimitPrice = s.RiskManagementModes.StopLoss.LimitPrice
-	}
-	return arg, nil
-}
-
 func getOrderTypeString(oType order.Type) string {
 	switch oType {
 	case order.UnknownType:
@@ -1067,45 +983,6 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	return resp, nil
 }
 
-// DeriveAmendOrderArguments returns a derived order arguments struct from an order.Modify for use in this package.
-func (e *Exchange) DeriveAmendOrderArguments(action *order.Modify) (*AmendOrderParams, error) {
-	err := action.Validate()
-	if err != nil {
-		return nil, err
-	}
-
-	switch action.AssetType {
-	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
-	default:
-		return nil, fmt.Errorf("%s %w", action.AssetType, asset.ErrNotSupported)
-	}
-
-	action.Pair, err = e.FormatExchangeCurrency(action.Pair, action.AssetType)
-	if err != nil {
-		return nil, err
-	}
-	if action.AssetType == asset.USDCMarginedFutures && !action.Pair.Quote.Equal(currency.PERP) {
-		action.Pair.Delimiter = currency.DashDelimiter
-	}
-
-	return &AmendOrderParams{
-		Category:             getCategoryName(action.AssetType),
-		Symbol:               action.Pair,
-		OrderID:              action.OrderID,
-		OrderLinkID:          action.ClientOrderID,
-		OrderQuantity:        action.Amount,
-		Price:                action.Price,
-		TriggerPrice:         action.TriggerPrice,
-		TriggerPriceType:     action.TriggerPriceType.String(),
-		TakeProfitPrice:      action.RiskManagementModes.TakeProfit.Price,
-		TakeProfitTriggerBy:  getOrderTypeString(action.RiskManagementModes.TakeProfit.OrderType),
-		TakeProfitLimitPrice: action.RiskManagementModes.TakeProfit.LimitPrice,
-		StopLossPrice:        action.RiskManagementModes.StopLoss.Price,
-		StopLossTriggerBy:    action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
-		StopLossLimitPrice:   action.RiskManagementModes.StopLoss.LimitPrice,
-	}, nil
-}
-
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	arg, err := e.DeriveCancelOrderArguments(ord)
@@ -1126,38 +1003,12 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	return err
 }
 
-// DeriveCancelOrderArguments returns a derived order arguments struct from an order.Cancel for use in this package.
-func (e *Exchange) DeriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderParams, error) {
-	err := ord.Validate(ord.StandardCancel())
-	if err != nil {
-		return nil, err
-	}
-	ord.Pair, err = e.FormatExchangeCurrency(ord.Pair, ord.AssetType)
-	if err != nil {
-		return nil, err
-	}
-	if ord.AssetType == asset.USDCMarginedFutures && !ord.Pair.Quote.Equal(currency.PERP) {
-		ord.Pair.Delimiter = currency.DashDelimiter
-	}
-	switch ord.AssetType {
-	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
-	default:
-		return nil, fmt.Errorf("%s %w", ord.AssetType, asset.ErrNotSupported)
-	}
-	return &CancelOrderParams{
-		Category:    getCategoryName(ord.AssetType),
-		Symbol:      ord.Pair,
-		OrderID:     ord.OrderID,
-		OrderLinkID: ord.ClientOrderID,
-	}, nil
-}
-
 // CancelBatchOrders cancels orders by their corresponding ID numbers
 func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(o) == 0 {
 		return nil, order.ErrCancelOrderIsNil
 	}
-	requests := make([]CancelOrderParams, len(o))
+	requests := make([]CancelOrderRequest, len(o))
 	category := asset.Options
 	var err error
 	for i := range o {
@@ -1176,7 +1027,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			if err != nil {
 				return nil, err
 			}
-			requests[i] = CancelOrderParams{
+			requests[i] = CancelOrderRequest{
 				OrderID:     o[i].OrderID,
 				OrderLinkID: o[i].ClientOrderID,
 				Symbol:      o[i].Pair,

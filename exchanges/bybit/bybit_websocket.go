@@ -221,7 +221,7 @@ func (e *Exchange) wsHandleTradeData(conn websocket.Connection, respRaw []byte) 
 	case "pong":
 		return nil
 	default:
-		return fmt.Errorf("cannot route trade data %v to correct handler", string(respRaw))
+		return fmt.Errorf("%w for trade: %v", errUnhandledStreamData, string(respRaw))
 	}
 }
 

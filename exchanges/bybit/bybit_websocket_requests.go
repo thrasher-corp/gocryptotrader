@@ -24,7 +24,7 @@ const (
 )
 
 // WSCreateOrder creates an order through the websocket connection
-func (e *Exchange) WSCreateOrder(ctx context.Context, arg *PlaceOrderParams) (*WebsocketOrderDetails, error) {
+func (e *Exchange) WSCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*WebsocketOrderDetails, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
@@ -35,8 +35,16 @@ func (e *Exchange) WSCreateOrder(ctx context.Context, arg *PlaceOrderParams) (*W
 	return e.SendWebsocketRequest(ctx, WsCreate, arg, epl)
 }
 
+// LoadID loads the order link ID into the parameter, only if it is not already set
+func (r *PlaceOrderRequest) LoadID(id string) string {
+	if r.OrderLinkID == "" {
+		r.OrderLinkID = id
+	}
+	return r.OrderLinkID
+}
+
 // WSAmendOrder amends an order through the websocket connection
-func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderParams) (*WebsocketOrderDetails, error) {
+func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequest) (*WebsocketOrderDetails, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
@@ -47,8 +55,16 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderParams) (*We
 	return e.SendWebsocketRequest(ctx, WsAmend, arg, epl)
 }
 
+// LoadID loads the order link ID into the parameter, only if it is not already set
+func (r *AmendOrderRequest) LoadID(id string) string {
+	if r.OrderLinkID == "" {
+		r.OrderLinkID = id
+	}
+	return r.OrderLinkID
+}
+
 // WSCancelOrder cancels an order through the websocket connection
-func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderParams) (*WebsocketOrderDetails, error) {
+func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequest) (*WebsocketOrderDetails, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
@@ -57,6 +73,14 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderParams) (*
 		return nil, err
 	}
 	return e.SendWebsocketRequest(ctx, WsCancel, arg, epl)
+}
+
+// LoadID loads the order link ID into the parameter, only if it is not already set
+func (r *CancelOrderRequest) LoadID(id string) string {
+	if r.OrderLinkID == "" {
+		r.OrderLinkID = id
+	}
+	return r.OrderLinkID
 }
 
 // WebsocketOrderDetails is the order details from the websocket response.

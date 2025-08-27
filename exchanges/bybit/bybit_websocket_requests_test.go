@@ -17,7 +17,7 @@ import (
 func TestWSCreateOrder(t *testing.T) {
 	t.Parallel()
 
-	arg := &PlaceOrderParams{}
+	arg := &PlaceOrderRequest{}
 	_, err := e.WSCreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errCategoryNotSet)
 
@@ -26,11 +26,6 @@ func TestWSCreateOrder(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	arg.Symbol = currency.NewBTCUSDT()
-	arg.IsLeverage = 69
-	_, err = e.WSCreateOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errInvalidLeverageValue)
-
-	arg.IsLeverage = 0
 	_, err = e.WSCreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -59,7 +54,7 @@ func TestWSCreateOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e = getWebsocketInstance(t, e)
-	got, err := e.WSCreateOrder(t.Context(), &PlaceOrderParams{
+	got, err := e.WSCreateOrder(t.Context(), &PlaceOrderRequest{
 		Category:      cSpot,
 		Symbol:        currency.NewBTCUSDT(),
 		Side:          "Buy",
@@ -101,7 +96,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 
 func TestWSAmendOrder(t *testing.T) {
 	t.Parallel()
-	arg := &AmendOrderParams{}
+	arg := &AmendOrderRequest{}
 	_, err := e.WSAmendOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errCategoryNotSet)
 
@@ -144,7 +139,7 @@ func TestWebsocketModifyOrder(t *testing.T) {
 
 func TestWSCancelOrder(t *testing.T) {
 	t.Parallel()
-	arg := &CancelOrderParams{}
+	arg := &CancelOrderRequest{}
 	_, err := e.WSCancelOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errCategoryNotSet)
 
@@ -232,4 +227,31 @@ assetLoader:
 	}
 	require.NoError(t, cpy.Websocket.Connect())
 	return cpy
+}
+
+func TestLoadIDPlaceOrderRequest(t *testing.T) {
+	t.Parallel()
+	p := &PlaceOrderRequest{}
+	id := p.LoadID("12345")
+	require.Equal(t, "12345", id)
+	id = p.LoadID("67890")
+	require.Equal(t, "12345", id)
+}
+
+func TestLoadIDAmendOrderRequest(t *testing.T) {
+	t.Parallel()
+	p := &AmendOrderRequest{}
+	id := p.LoadID("12345")
+	require.Equal(t, "12345", id)
+	id = p.LoadID("67890")
+	require.Equal(t, "12345", id)
+}
+
+func TestLoadIDCancelOrderRequest(t *testing.T) {
+	t.Parallel()
+	p := &CancelOrderRequest{}
+	id := p.LoadID("12345")
+	require.Equal(t, "12345", id)
+	id = p.LoadID("67890")
+	require.Equal(t, "12345", id)
 }
