@@ -1,7 +1,6 @@
 package quickspy
 
 import (
-	"maps"
 	"sync"
 )
 
@@ -43,8 +42,8 @@ func (s *FocusStore) GetByFocusType(key FocusType) *FocusData {
 func (s *FocusStore) List() []*FocusData {
 	s.m.RLock()
 	defer s.m.RUnlock()
-	list := make([]*FocusData, len(s.s))
-	for v := range maps.Values(s.s) {
+	list := make([]*FocusData, 0, len(s.s))
+	for _, v := range s.s {
 		list = append(list, v)
 	}
 	return list

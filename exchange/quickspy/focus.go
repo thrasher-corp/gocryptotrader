@@ -85,3 +85,15 @@ func (f *FocusData) SetSuccessful() {
 	close(f.HasBeenSuccessfulChan)
 	f.m.Unlock()
 }
+
+func (f *FocusData) RequiresWebsocket() bool {
+	f.m.RLock()
+	defer f.m.RUnlock()
+	return f.UseWebsocket
+}
+
+func (f *FocusData) RequiresAuth() bool {
+	f.m.RLock()
+	defer f.m.RUnlock()
+	return f.Type == AccountHoldingsFocusType || f.Type == ActiveOrdersFocusType || f.Type == OrderPlacementFocusType
+}

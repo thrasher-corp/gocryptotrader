@@ -27,6 +27,7 @@ var (
 	errNoFocus          = errors.New("no focuses provided")
 	errValidationFailed = errors.New("validation failed")
 	errNoCredentials    = errors.New("credentials required but none provided")
+	errFocusDataTimeout = errors.New("focus did not receive data in time")
 )
 
 type CredentialsKey struct {
@@ -45,6 +46,7 @@ type QuickSpy struct {
 	// Key contains exchange, pair, and asset information
 	Key *CredentialsKey
 	// Focuses is a map of focus types to focus options
+	// Don't access directly, use functions to handle locking
 	Focuses *FocusStore
 	// shutdown is a channel for shutdown signaling
 	shutdown chan any
