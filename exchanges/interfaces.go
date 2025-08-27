@@ -40,9 +40,7 @@ type IBotExchange interface {
 
 	GetEnabledFeatures() FeaturesEnabled
 	GetSupportedFeatures() FeaturesSupported
-	// GetTradingRequirements returns trading requirements for the exchange
 	GetTradingRequirements() protocol.TradingRequirements
-
 	GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
