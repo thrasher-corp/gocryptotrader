@@ -927,10 +927,10 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 
 	resp.ReduceOnly = orderDetails.ReduceOnly
 	resp.TriggerPrice = orderDetails.TriggerPrice.Float64()
-	resp.AverageExecutedPrice = orderDetails.AvgPrice.Float64()
+	resp.AverageExecutedPrice = orderDetails.AveragePrice.Float64()
 	resp.ClientOrderID = orderDetails.OrderLinkID
-	resp.Fee = orderDetails.CumExecFee.Float64()
-	resp.Cost = orderDetails.CumExecValue.Float64()
+	resp.Fee = orderDetails.CumulativeExecutedFee.Float64()
+	resp.Cost = orderDetails.CumulativeExecutedValue.Float64()
 	return resp, nil
 }
 
@@ -978,7 +978,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	}
 	resp.OrderID = result.OrderID
 	resp.ClientOrderID = result.OrderLinkID
-	resp.Amount = result.Qty.Float64()
+	resp.Amount = result.Quantity.Float64()
 	resp.Price = action.Price
 	return resp, nil
 }
