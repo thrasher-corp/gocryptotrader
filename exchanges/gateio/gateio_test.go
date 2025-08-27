@@ -3636,7 +3636,7 @@ func TestValidateContractOrderCreateParams(t *testing.T) {
 		},
 		{
 			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "test"},
-			err:    errInvalidClientOrderIDTextPrefix,
+			err:    errInvalidTextPrefix,
 		},
 		{
 			params: &ContractOrderCreateParams{
