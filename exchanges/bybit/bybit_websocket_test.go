@@ -19,18 +19,14 @@ func TestWSHandleTradeData(t *testing.T) {
 		{input: []byte(`{"op":"pong"}`), err: nil},
 		{input: []byte(`{"op":"pewpewpew"}`), err: errUnhandledStreamData},
 	} {
-
 		conn := &FixtureConnection{match: websocket.NewMatch()}
-
 		var ch <-chan []byte
 		if tc.match != "" {
 			var err error
 			ch, err = conn.match.Set(tc.match, 1)
 			require.NoError(t, err, "match.Set must not error")
 		}
-
 		require.ErrorIs(t, e.wsHandleTradeData(conn, tc.input), tc.err)
-
 		if tc.match != "" {
 			require.Len(t, ch, 1, "must receive 1 message from channel")
 			require.Equal(t, tc.input, <-ch, "must be correct")
