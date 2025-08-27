@@ -1053,7 +1053,7 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 func TestGetDeliveryOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetDeliveryOrders(t.Context(), getPair(t, asset.DeliveryFutures), statusOpen, currency.USDT, "", 0, 0, 1)
+	_, err := e.GetDeliveryOrders(t.Context(), getPair(t, asset.DeliveryFutures), statusOpen, currency.USDT, "", 0, 0, true)
 	assert.NoError(t, err, "GetDeliveryOrders should not error")
 }
 
@@ -1215,7 +1215,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 func TestGetFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetFuturesOrders(t.Context(), currency.NewBTCUSD(), statusOpen, "", currency.BTC, 0, 0, 1)
+	_, err := e.GetFuturesOrders(t.Context(), currency.NewBTCUSD(), statusOpen, "", currency.BTC, 0, 0, true)
 	assert.NoError(t, err, "GetFuturesOrders should not error")
 }
 
@@ -3414,7 +3414,7 @@ func TestToExchangeTIF(t *testing.T) {
 		tif      order.TimeInForce
 		price    float64
 		expected string
-		error    error
+		err      error
 	}{
 		{price: 0, expected: iocTIF}, // market orders default to IOC
 		{price: 0, tif: order.FillOrKill, expected: fokTIF},
@@ -3423,12 +3423,12 @@ func TestToExchangeTIF(t *testing.T) {
 		{price: 420, tif: order.ImmediateOrCancel, expected: iocTIF},
 		{price: 420, tif: order.PostOnly, expected: pocTIF},
 		{price: 420, tif: order.FillOrKill, expected: fokTIF},
-		{tif: order.GoodTillTime, error: order.ErrUnsupportedTimeInForce},
+		{tif: order.GoodTillTime, err: order.ErrUnsupportedTimeInForce},
 	} {
 		t.Run(fmt.Sprintf("TIF:%q Price:'%v'", tc.tif, tc.price), func(t *testing.T) {
 			t.Parallel()
 			got, err := toExchangeTIF(tc.tif, tc.price)
-			require.ErrorIs(t, err, tc.error)
+			require.ErrorIs(t, err, tc.err)
 			require.Equal(t, tc.expected, got)
 		})
 	}
@@ -3703,54 +3703,54 @@ func TestValidateContractOrderCreateParams(t *testing.T) {
 	for _, tc := range []struct {
 		params *ContractOrderCreateParams
 		isRest bool
-		error  error
+		err    error
 	}{
 		{
-			error: common.ErrNilPointer,
+			err: common.ErrNilPointer,
 		},
 		{
-			params: &ContractOrderCreateParams{}, error: currency.ErrCurrencyPairEmpty,
+			params: &ContractOrderCreateParams{}, err: currency.ErrCurrencyPairEmpty,
 		},
 		{
 			params: &ContractOrderCreateParams{Contract: BTCUSDT},
-			error:  errInvalidOrderSize,
+			err:    errInvalidOrderSize,
 		},
 		{
 			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: "bad"},
-			error:  order.ErrUnsupportedTimeInForce,
+			err:    order.ErrUnsupportedTimeInForce,
 		},
 		{
 			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: pocTIF},
-			error:  order.ErrUnsupportedTimeInForce,
+			err:    order.ErrUnsupportedTimeInForce,
 		},
 		{
 			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "test"},
-			error:  errInvalidClientOrderIDTextPrefix,
+			err:    errInvalidClientOrderIDTextPrefix,
 		},
 		{
 			params: &ContractOrderCreateParams{
 				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "silly_billy",
 			},
-			error: errInvalidAutoSize,
+			err: errInvalidAutoSize,
 		},
 		{
 			params: &ContractOrderCreateParams{
 				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
 			},
-			error: errInvalidOrderSize,
+			err: errInvalidOrderSize,
 		},
 		{
 			params: &ContractOrderCreateParams{
 				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
 			},
 			isRest: true,
-			error:  errEmptyOrInvalidSettlementCurrency,
+			err:    errEmptyOrInvalidSettlementCurrency,
 		},
 		{
 			params: &ContractOrderCreateParams{
 				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.NewCode("Silly"),
 			},
-			error: errEmptyOrInvalidSettlementCurrency,
+			err: errEmptyOrInvalidSettlementCurrency,
 		},
 		{
 			params: &ContractOrderCreateParams{
@@ -3758,7 +3758,7 @@ func TestValidateContractOrderCreateParams(t *testing.T) {
 			},
 		},
 	} {
-		assert.ErrorIs(t, tc.params.validate(tc.isRest), tc.error)
+		assert.ErrorIs(t, tc.params.validate(tc.isRest), tc.err)
 	}
 }
 

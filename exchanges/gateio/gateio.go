@@ -152,8 +152,7 @@ var (
 	errChangeHasToBePositive            = errors.New("change has to be positive")
 	errInvalidLeverage                  = errors.New("invalid leverage value")
 	errInvalidRiskLimit                 = errors.New("new position risk limit")
-	errInvalidCountTotal                = errors.New("invalid \"count_total\" value, supported \"count_total\" values are 0 and 1")
-	errInvalidAutoSize                  = errors.New("invalid \"auto_size\" value, only \"close_long\" and \"close_short\" are supported")
+	errInvalidAutoSize                  = errors.New("invalid autoSize")
 	errTooManyOrderRequest              = errors.New("too many order creation request")
 	errInvalidTimeout                   = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
 	errNoTickerData                     = errors.New("no ticker data available")
@@ -2126,7 +2125,7 @@ func (e *Exchange) UpdateFuturesPositionLeverage(ctx context.Context, settle cur
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if leverage < 0 {
-		return nil, errInvalidLeverage
+		return nil, fmt.Errorf("%w: %f", errInvalidLeverage, leverage)
 	}
 	params := url.Values{}
 	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
@@ -2202,7 +2201,7 @@ func (e *Exchange) UpdatePositionLeverageInDualMode(ctx context.Context, settle 
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if leverage < 0 {
-		return nil, errInvalidLeverage
+		return nil, fmt.Errorf("%w: %f", errInvalidLeverage, leverage)
 	}
 	params := url.Values{}
 	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
@@ -2247,7 +2246,7 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCrea
 
 // GetFuturesOrders retrieves list of futures orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal int64) ([]Order, error) {
+func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal bool) ([]Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2268,10 +2267,8 @@ func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair,
 	if lastID != "" {
 		params.Set("last_id", lastID)
 	}
-	if countTotal == 1 && status != statusOpen {
-		params.Set("count_total", strconv.FormatInt(countTotal, 10))
-	} else if countTotal != 0 && countTotal != 1 {
-		return nil, errInvalidCountTotal
+	if countTotal && status != statusOpen {
+		params.Set("count_total", "1")
 	}
 	var response []Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetOrdersEPL, http.MethodGet, futuresPath+settle.Item.Lower+ordersPath, params, nil, &response)
@@ -2783,7 +2780,7 @@ func (e *Exchange) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCre
 
 // GetDeliveryOrders list futures orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal int64) ([]Order, error) {
+func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal bool) ([]Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2804,10 +2801,8 @@ func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair
 	if lastID != "" {
 		params.Set("last_id", lastID)
 	}
-	if countTotal == 1 && status != statusOpen {
-		params.Set("count_total", strconv.FormatInt(countTotal, 10))
-	} else if countTotal != 0 && countTotal != 1 {
-		return nil, errInvalidCountTotal
+	if countTotal && status != statusOpen {
+		params.Set("count_total", "1")
 	}
 	var response []Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryGetOrdersEPL, http.MethodGet, deliveryPath+settle.Item.Lower+ordersPath, params, nil, &response)
@@ -3630,12 +3625,14 @@ func (c *ContractOrderCreateParams) validate(isRest bool) error {
 	}
 	if c.AutoSize != "" {
 		if c.AutoSize != "close_long" && c.AutoSize != "close_short" {
-			return errInvalidAutoSize
+			return fmt.Errorf("%w: %q", errInvalidAutoSize, c.AutoSize)
 		}
 		if c.Size != 0 {
 			return fmt.Errorf("%w: size needs to be zero when auto size is set", errInvalidOrderSize)
 		}
 	}
+	// REST requests require a settlement currency, but it can be anything
+	// Websocket requests may have an empty settlement currency, or it must be BTC or USDT
 	if (isRest && c.Settle.IsEmpty()) ||
 		(!isRest && !c.Settle.IsEmpty() && !c.Settle.Equal(currency.BTC) && !c.Settle.Equal(currency.USDT)) {
 		return errEmptyOrInvalidSettlementCurrency
