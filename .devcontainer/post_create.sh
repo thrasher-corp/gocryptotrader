@@ -24,8 +24,8 @@ install_go_tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0
 # Formatting
 install_go_tool mvdan.cc/gofumpt@latest
 
-# Go modernize analyzer
-install_go_tool  golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest
+# Go modernise enforcer
+install_go_tool golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest
 
 log "Installed tools:"
 
