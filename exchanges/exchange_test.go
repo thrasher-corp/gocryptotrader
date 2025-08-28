@@ -835,7 +835,7 @@ func TestSetupDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = b.Websocket.Enable()
+	err = b.Websocket.EnableAndConnect()
 	if err != nil {
 		t.Fatal(err)
 	}

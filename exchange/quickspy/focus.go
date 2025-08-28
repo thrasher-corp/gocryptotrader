@@ -32,7 +32,7 @@ func (f *FocusData) Validate(k *CredentialsKey) error {
 	if f.RESTPollTime <= 0 && !f.UseWebsocket {
 		return ErrInvalidRESTPollTime
 	}
-	if !k.Key.Asset.IsFutures() {
+	if !k.ExchangeAssetPair.Asset.IsFutures() {
 		switch f.Type {
 		case OpenInterestFocusType, FundingRateFocusType, ContractFocusType, OrderExecutionFocusType:
 			return ErrInvalidAssetForFocusType

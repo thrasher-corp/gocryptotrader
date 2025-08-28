@@ -22,17 +22,19 @@ import (
 )
 
 var (
-	errKeyNotFound      = errors.New("key not found")
-	errNoKey            = errors.New("no key provided")
-	errNoFocus          = errors.New("no focuses provided")
-	errValidationFailed = errors.New("validation failed")
-	errNoCredentials    = errors.New("credentials required but none provided")
-	errFocusDataTimeout = errors.New("focus did not receive data in time")
+	errKeyNotFound                    = errors.New("key not found")
+	errNoKey                          = errors.New("no key provided")
+	errNoFocus                        = errors.New("no focuses provided")
+	errValidationFailed               = errors.New("validation failed")
+	errNoCredentials                  = errors.New("credentials required but none provided")
+	errFocusDataTimeout               = errors.New("focus did not receive data in time")
+	errNoRateLimits                   = errors.New("exchange has no rate limits set")
+	errNoWebsocketSupportForFocusType = errors.New("quickspy does not support websocket for this focus type")
 )
 
 type CredentialsKey struct {
-	Credentials *account.Credentials  `json:"credentials"`
-	Key         key.ExchangeAssetPair `json:"exchangeAssetPair"`
+	Credentials       *account.Credentials  `json:"credentials"`
+	ExchangeAssetPair key.ExchangeAssetPair `json:"exchangeAssetPair"`
 }
 
 // QuickSpy is a struct that holds data on a single exchange pair asset

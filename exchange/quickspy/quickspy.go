@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -58,7 +59,7 @@ func NewQuickSpy(k *CredentialsKey, focuses []FocusData) (*QuickSpy, error) {
 	}
 	if q.AnyRequiresAuth() {
 		if k.Credentials.IsEmpty() {
-			return nil, fmt.Errorf("%w for %q %q %q", errNoCredentials, k.Key.Exchange, k.Key.Asset, k.Key.Pair())
+			return nil, fmt.Errorf("%w for %s", errNoCredentials, k.ExchangeAssetPair)
 		}
 		q.credContext = account.DeployCredentialsToContext(context.Background(), k.Credentials)
 		b := q.Exch.GetBase()
@@ -121,7 +122,7 @@ func (q *QuickSpy) setupExchange() error {
 	q.m.Lock()
 	defer q.m.Unlock()
 
-	e, err := engine.NewSupportedExchangeByName(q.Key.Key.Exchange)
+	e, err := engine.NewSupportedExchangeByName(q.Key.ExchangeAssetPair.Exchange)
 	if err != nil {
 		return err
 	}
@@ -151,13 +152,13 @@ func (q *QuickSpy) setupExchangeDefaults(e exchange.IBotExchange, b *exchange.Ba
 	e.SetDefaults()
 	exchCfg, err := b.GetStandardConfig()
 	if err != nil {
-		return fmt.Errorf("%q %q %q: %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), err)
+		return fmt.Errorf("%s: %w", q.Key.ExchangeAssetPair, err)
 	}
 	if err := b.SetupDefaults(exchCfg); err != nil {
-		return fmt.Errorf("%q %q %q: %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), err)
+		return fmt.Errorf("%s: %w", q.Key.ExchangeAssetPair, err)
 	}
 	if err := e.Setup(exchCfg); err != nil {
-		return fmt.Errorf("%q %q %q: %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), err)
+		return fmt.Errorf("%s: %w", q.Key.ExchangeAssetPair, err)
 	}
 	return nil
 }
@@ -168,24 +169,24 @@ func (q *QuickSpy) setupCurrencyPairs(b *exchange.Base) error {
 		rFmt = b.CurrencyPairs.RequestFormat
 		cFmt = b.CurrencyPairs.ConfigFormat
 	} else {
-		rFmt = b.CurrencyPairs.Pairs[q.Key.Key.Asset].RequestFormat
-		cFmt = b.CurrencyPairs.Pairs[q.Key.Key.Asset].ConfigFormat
+		rFmt = b.CurrencyPairs.Pairs[q.Key.ExchangeAssetPair.Asset].RequestFormat
+		cFmt = b.CurrencyPairs.Pairs[q.Key.ExchangeAssetPair.Asset].ConfigFormat
 	}
 	b.CurrencyPairs.DisableAllPairs()
-	b.CurrencyPairs.Pairs[q.Key.Key.Asset] = &currency.PairStore{
+	b.CurrencyPairs.Pairs[q.Key.ExchangeAssetPair.Asset] = &currency.PairStore{
 		AssetEnabled:  true,
 		RequestFormat: rFmt,
 		ConfigFormat:  cFmt,
 	}
-	if err := b.CurrencyPairs.StorePairs(q.Key.Key.Asset, currency.Pairs{q.Key.Key.Pair()}, false); err != nil {
+	if err := b.CurrencyPairs.StorePairs(q.Key.ExchangeAssetPair.Asset, currency.Pairs{q.Key.ExchangeAssetPair.Pair()}, false); err != nil {
 		return err
 	}
-	return b.CurrencyPairs.StorePairs(q.Key.Key.Asset, currency.Pairs{q.Key.Key.Pair()}, true)
+	return b.CurrencyPairs.StorePairs(q.Key.ExchangeAssetPair.Asset, currency.Pairs{q.Key.ExchangeAssetPair.Pair()}, true)
 }
 
 func (q *QuickSpy) checkRateLimits(b *exchange.Base) error {
 	if len(b.GetRateLimiterDefinitions()) == 0 {
-		return fmt.Errorf("exchange %s has no rate limits. Quickspy requires rate limits to be set", q.Key.Key.Exchange)
+		return fmt.Errorf("%s %w", q.Key.ExchangeAssetPair, errNoRateLimits)
 	}
 	return nil
 }
@@ -193,47 +194,58 @@ func (q *QuickSpy) checkRateLimits(b *exchange.Base) error {
 func (q *QuickSpy) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) error {
 	if q.AnyRequiresWebsocket() {
 		if !e.SupportsWebsocket() {
-			return fmt.Errorf("exchange %s has no websocket. Websocket requirement was enabled", q.Key.Key.Exchange)
+			return fmt.Errorf("exchange %s has no websocket. Websocket requirement was enabled", q.Key.ExchangeAssetPair.Exchange)
 		}
 	} else {
 		return nil
 	}
 
 	if !b.Features.Supports.Websocket {
-		return fmt.Errorf("exchange %s has no websocket. Websocket requirement was enabled", q.Key.Key.Exchange)
+		return fmt.Errorf("exchange %s has no websocket. Websocket requirement was enabled", q.Key.ExchangeAssetPair.Exchange)
 	}
-
+	if err := common.NilGuard(b.Websocket); err != nil {
+		return fmt.Errorf("%s %w", q.Key.ExchangeAssetPair, err)
+	}
+	// allows routing of all websocket data to our custom one
 	b.Websocket.ToRoutine = q.dataHandlerChannel
 	var newSubs []*subscription.Subscription
-	if q.FocusTypeRequiresWebsocket(TickerFocusType) {
-		newSubs = append(newSubs, &subscription.Subscription{Channel: focusToSub[TickerFocusType]})
-	}
-	if q.FocusTypeRequiresWebsocket(TradesFocusType) {
-		newSubs = append(newSubs, &subscription.Subscription{Channel: focusToSub[TradesFocusType]})
-	}
-	if q.FocusTypeRequiresWebsocket(OrderBookFocusType) {
-		newSubs = append(newSubs, &subscription.Subscription{Channel: focusToSub[OrderBookFocusType]})
-	}
-	if q.FocusTypeRequiresWebsocket(AccountHoldingsFocusType) {
-		newSubs = append(newSubs, &subscription.Subscription{Channel: focusToSub[AccountHoldingsFocusType]})
+	for _, f := range q.Focuses.List() {
+		if !f.RequiresWebsocket() {
+			continue
+		}
+		// todo: more sub support
+		switch f.Type {
+		case TickerFocusType, TradesFocusType, OrderBookFocusType, AccountHoldingsFocusType:
+			newSubs = append(newSubs, &subscription.Subscription{Channel: focusToSub[f.Type]})
+		default:
+			return fmt.Errorf("%s %s %w", q.Key.ExchangeAssetPair, f.Type, errNoWebsocketSupportForFocusType)
+		}
 	}
 	b.Config.Features.Subscriptions = newSubs
-	if err := b.Websocket.Connect(); err != nil {
-		return fmt.Errorf("failed to connect websocket for %s: %w", q.Key.Key.Exchange, err)
+	b.Features.Subscriptions = newSubs
+	if err := b.Websocket.EnableAndConnect(); err != nil {
+		if !errors.Is(err, websocket.ErrWebsocketAlreadyEnabled) {
+			return fmt.Errorf("%s: %w", q.Key.ExchangeAssetPair, err)
+		}
+		// Because EnableAndConnect errors if its already enabled, but also wants to connect
+		// we have to do this silly handling, making everyone suffer
+		// the complaint was generated by AI, there must be a lot of bitching in scraped comments
+		err = b.Websocket.Connect()
+		if err != nil {
+			return fmt.Errorf("%s: %w", q.Key.ExchangeAssetPair, err)
+		}
 	}
 	return nil
 }
 
 func (q *QuickSpy) Run() error {
 	if q.AnyRequiresWebsocket() {
-		q.wg.Add(1)
-		go func() {
-			defer q.wg.Done()
+		q.wg.Go(func() {
 			err := q.HandleWS()
 			if err != nil {
 				panic(err)
 			}
-		}()
+		})
 	}
 	for i, focus := range q.Focuses.List() {
 		if focus.UseWebsocket {
@@ -244,8 +256,8 @@ func (q *QuickSpy) Run() error {
 			defer q.wg.Done()
 			err := q.RunRESTFocus(f.Type)
 			if err != nil {
-				log.Errorf(log.QuickSpy, "Quickspy data attempt: %v %q %q %q failed, focus type: %q err: %v",
-					i+1, q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), f.Type, err)
+				log.Errorf(log.QuickSpy, "Quickspy data attempt: %v %s failed, focus type: %q err: %v",
+					i+1, q.Key.ExchangeAssetPair, f.Type, err)
 			}
 		}(focus)
 	}
@@ -262,8 +274,8 @@ func (q *QuickSpy) HandleWS() error {
 			case []ticker.Price:
 				focus := q.Focuses.GetByFocusType(TickerFocusType)
 				if focus == nil {
-					log.Errorf(log.QuickSpy, "Quickspy data attempt: %q %q %q failed, focus type: %s not found",
-						q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), TickerFocusType)
+					log.Errorf(log.QuickSpy, "Quickspy data attempt: %s failed, focus type: %s not found",
+						q.Key.ExchangeAssetPair, TickerFocusType)
 					continue
 				}
 				if len(data) != 1 {
@@ -281,8 +293,8 @@ func (q *QuickSpy) HandleWS() error {
 			case *ticker.Price:
 				focus := q.Focuses.GetByFocusType(TickerFocusType)
 				if focus == nil {
-					log.Errorf(log.QuickSpy, "Quickspy data attempt: %q %q %q failed, focus type: %s not found",
-						q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), TickerFocusType)
+					log.Errorf(log.QuickSpy, "Quickspy data attempt: %s failed, focus type: %s not found",
+						q.Key.ExchangeAssetPair, TickerFocusType)
 					continue
 				}
 				q.m.Lock()
@@ -296,14 +308,13 @@ func (q *QuickSpy) HandleWS() error {
 			case *orderbook.Depth:
 				focus := q.Focuses.GetByFocusType(OrderBookFocusType)
 				if focus == nil {
-					log.Errorf(log.QuickSpy, "Quickspy data attempt: %q %q %q failed, focus type: %s not found",
-						q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), OrderBookFocusType)
+					log.Errorf(log.QuickSpy, "Quickspy data attempt: %s failed, focus type: %s not found",
+						q.Key.ExchangeAssetPair, OrderBookFocusType)
 					continue
 				}
 
-				q.m.Lock()
-				var err error
-				q.Data.Orderbook, err = data.Retrieve()
+				// Retrieve without holding q.m to avoid lock contention
+				ob, err := data.Retrieve()
 				if err != nil {
 					select {
 					case focus.Stream <- err:
@@ -311,33 +322,36 @@ func (q *QuickSpy) HandleWS() error {
 					}
 					continue
 				}
+				q.m.Lock()
+				q.Data.Orderbook = ob
+				q.m.Unlock()
 
 				select {
-				case focus.Stream <- q.Data.Orderbook:
+				case focus.Stream <- ob:
 				default: // drop data that doesn't fit or get listened to
 				}
-				q.m.Unlock()
 				focus.SetSuccessful()
 			case trade.Data:
 				focus := q.Focuses.GetByFocusType(TradesFocusType)
 				if focus == nil {
-					log.Errorf(log.QuickSpy, "Quickspy data attempt: %q %q %q failed, focus type: %s not found",
-						q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), TradesFocusType)
+					log.Errorf(log.QuickSpy, "Quickspy data attempt: %s failed, focus type: %s not found",
+						q.Key.ExchangeAssetPair, TradesFocusType)
 					continue
 				}
 				q.m.Lock()
 				q.Data.Trades = []trade.Data{data}
+				payload := q.Data.Trades
+				q.m.Unlock()
 				select {
-				case focus.Stream <- q.Data.Trades:
+				case focus.Stream <- payload:
 				default: // drop data that doesn't fit or get listened to
 				}
-				q.m.Unlock()
 				focus.SetSuccessful()
 			case []trade.Data:
 				focus := q.Focuses.GetByFocusType(TradesFocusType)
 				if focus == nil {
-					log.Errorf(log.QuickSpy, "Quickspy data attempt: %q %q %q failed, focus type: %s not found",
-						q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), TradesFocusType)
+					log.Errorf(log.QuickSpy, "Quickspy data attempt: %s failed, focus type: %s not found",
+						q.Key.ExchangeAssetPair, TradesFocusType)
 					continue
 				}
 				if len(data) == 0 {
@@ -345,24 +359,10 @@ func (q *QuickSpy) HandleWS() error {
 				}
 				q.m.Lock()
 				q.Data.Trades = data
-				select {
-				case focus.Stream <- q.Data.Trades:
-				default: // drop data that doesn't fit or get listened to
-				}
-				q.m.Unlock()
-				focus.SetSuccessful()
-			case []websocket.KlineData:
-				focus := q.Focuses.GetByFocusType(KlineFocusType)
-				if focus == nil {
-					log.Errorf(log.QuickSpy, "Quickspy data attempt: %q %q %q failed, focus type: %s not found",
-						q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), TradesFocusType)
-					continue
-				}
-				q.m.Lock()
-				q.Data.Kline = data
+				payload := q.Data.Trades
 				q.m.Unlock()
 				select {
-				case focus.Stream <- data:
+				case focus.Stream <- payload:
 				default: // drop data that doesn't fit or get listened to
 				}
 				focus.SetSuccessful()
@@ -388,8 +388,8 @@ func (q *QuickSpy) RunRESTFocus(focusType FocusType) error {
 		case <-timer.C:
 			err := q.handleFocusType(focusType, focus, timer)
 			if err != nil {
-				log.Errorf(log.QuickSpy, "Quickspy data attempt: %v %q %q %q failed, focus type: %s err: %v",
-					failures+1, q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focusType, err)
+				log.Errorf(log.QuickSpy, "Quickspy data attempt: %v %s failed, focus type: %s err: %v",
+					failures+1, q.Key.ExchangeAssetPair, focusType, err)
 				if focus.IsOnceOff {
 					return nil
 				}
@@ -399,7 +399,7 @@ func (q *QuickSpy) RunRESTFocus(focusType FocusType) error {
 						return nil
 					}
 					if failures == 5 {
-						return fmt.Errorf("Quickspy data attempt: %v/5 %q %q %q failed, focus type: %s err: %v ", failures, q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focusType, err)
+						return fmt.Errorf("Quickspy data attempt: %v/5 %s failed, focus type: %s err: %v ", failures, q.Key.ExchangeAssetPair, focusType, err)
 					}
 					failures++
 					timer.Reset(time.Second)
@@ -452,9 +452,9 @@ func (q *QuickSpy) handleFocusType(focusType FocusType, focus *FocusData, timer 
 }
 
 func (q *QuickSpy) handleURLFocus(focus *FocusData) error {
-	resp, err := q.Exch.GetCurrencyTradeURL(q.credContext, q.Key.Key.Asset, q.Key.Key.Pair())
+	resp, err := q.Exch.GetCurrencyTradeURL(q.credContext, q.Key.ExchangeAssetPair.Asset, q.Key.ExchangeAssetPair.Pair())
 	if err != nil {
-		return fmt.Errorf("%q %q %q %q %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
 	}
 	if resp == "" {
 		return nil
@@ -470,20 +470,20 @@ func (q *QuickSpy) handleURLFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleContractFocus(focus *FocusData) error {
-	contracts, err := q.Exch.GetFuturesContractDetails(q.credContext, q.Key.Key.Asset)
+	contracts, err := q.Exch.GetFuturesContractDetails(q.credContext, q.Key.ExchangeAssetPair.Asset)
 	if err != nil {
-		return fmt.Errorf("%q %q %q %q %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
 	}
 	var contractOfFocus *futures.Contract
 	for i := range contracts {
-		if !contracts[i].Name.Equal(q.Key.Key.Pair()) {
+		if !contracts[i].Name.Equal(q.Key.ExchangeAssetPair.Pair()) {
 			continue
 		}
 		contractOfFocus = &contracts[i]
 		break
 	}
 	if contractOfFocus == nil {
-		return fmt.Errorf("no contract found for %v %v %v %v", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String())
+		return fmt.Errorf("no contract found for %v %v %v %v", q.Key.ExchangeAssetPair, focus.Type.String())
 	}
 	focus.m.Lock()
 	q.Data.Contract = contractOfFocus
@@ -497,13 +497,13 @@ func (q *QuickSpy) handleContractFocus(focus *FocusData) error {
 
 func (q *QuickSpy) handleKlineFocus(focus *FocusData) error {
 	tt := time.Now().Add(-kline.ThreeMonth.Duration())
-	k, err := q.Exch.GetHistoricCandlesExtended(q.credContext, q.Key.Key.Pair(), q.Key.Key.Asset, kline.OneHour, tt, time.Now())
+	k, err := q.Exch.GetHistoricCandlesExtended(q.credContext, q.Key.ExchangeAssetPair.Pair(), q.Key.ExchangeAssetPair.Asset, kline.OneHour, tt, time.Now())
 	if err != nil {
 		if errors.Is(err, common.ErrFunctionNotSupported) || errors.Is(err, common.ErrNotYetImplemented) {
-			k, err = q.Exch.GetHistoricCandles(q.credContext, q.Key.Key.Pair(), q.Key.Key.Asset, kline.OneHour, tt, time.Now())
+			k, err = q.Exch.GetHistoricCandles(q.credContext, q.Key.ExchangeAssetPair.Pair(), q.Key.ExchangeAssetPair.Asset, kline.OneHour, tt, time.Now())
 		}
 		if err != nil {
-			return fmt.Errorf("%q %q %q %q %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+			return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
 		}
 	}
 	if len(k.Candles) == 0 {
@@ -540,12 +540,12 @@ func (q *QuickSpy) handleKlineFocus(focus *FocusData) error {
 
 func (q *QuickSpy) handleOpenInterestFocus(focus *FocusData) error {
 	oi, err := q.Exch.GetOpenInterest(q.credContext, key.PairAsset{
-		Base:  q.Key.Key.Pair().Base.Item,
-		Quote: q.Key.Key.Pair().Quote.Item,
-		Asset: q.Key.Key.Asset,
+		Base:  q.Key.ExchangeAssetPair.Pair().Base.Item,
+		Quote: q.Key.ExchangeAssetPair.Pair().Quote.Item,
+		Asset: q.Key.ExchangeAssetPair.Asset,
 	})
 	if err != nil {
-		return fmt.Errorf("%q %q %q %q %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
 	}
 	if len(oi) != 1 {
 		return nil
@@ -557,9 +557,9 @@ func (q *QuickSpy) handleOpenInterestFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleTickerFocus(focus *FocusData) error {
-	tick, err := q.Exch.UpdateTicker(q.credContext, q.Key.Key.Pair(), q.Key.Key.Asset)
+	tick, err := q.Exch.UpdateTicker(q.credContext, q.Key.ExchangeAssetPair.Pair(), q.Key.ExchangeAssetPair.Asset)
 	if err != nil {
-		return fmt.Errorf("%q %q %q %q %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
 	}
 	focus.m.Lock()
 	q.Data.Ticker = tick
@@ -569,11 +569,11 @@ func (q *QuickSpy) handleTickerFocus(focus *FocusData) error {
 
 func (q *QuickSpy) handleOrdersFocus(focus *FocusData) error {
 	resp, err := q.Exch.GetActiveOrders(q.credContext, &order.MultiOrderRequest{
-		Pairs:     []currency.Pair{q.Key.Key.Pair()},
-		AssetType: q.Key.Key.Asset,
+		Pairs:     []currency.Pair{q.Key.ExchangeAssetPair.Pair()},
+		AssetType: q.Key.ExchangeAssetPair.Asset,
 	})
 	if err != nil {
-		return fmt.Errorf("%q %q %q %q %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
 	}
 	focus.m.Lock()
 	q.Data.Orders = resp
@@ -582,10 +582,10 @@ func (q *QuickSpy) handleOrdersFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleAccountHoldingsFocus(focus *FocusData) error {
-	ais, err := account.GetHoldings(q.Key.Key.Exchange, q.Key.Credentials, q.Key.Key.Asset)
+	ais, err := account.GetHoldings(q.Key.ExchangeAssetPair.Exchange, q.Key.Credentials, q.Key.ExchangeAssetPair.Asset)
 	if err != nil {
-		return fmt.Errorf("%q %q %q %q %w",
-			q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+		return fmt.Errorf("%s %q %w",
+			q.Key.ExchangeAssetPair, focus.Type.String(), err)
 	}
 	focus.m.Lock()
 	q.Data.Account = &ais
@@ -594,9 +594,9 @@ func (q *QuickSpy) handleAccountHoldingsFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleOrderBookFocus(focus *FocusData) error {
-	ob, err := q.Exch.UpdateOrderbook(q.credContext, q.Key.Key.Pair(), q.Key.Key.Asset)
+	ob, err := q.Exch.UpdateOrderbook(q.credContext, q.Key.ExchangeAssetPair.Pair(), q.Key.ExchangeAssetPair.Asset)
 	if err != nil {
-		return fmt.Errorf("%q %q %q %q %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
 	}
 	focus.m.Lock()
 	q.Data.Orderbook = ob
@@ -605,9 +605,9 @@ func (q *QuickSpy) handleOrderBookFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleTradesFocus(focus *FocusData) error {
-	tr, err := q.Exch.GetRecentTrades(q.credContext, q.Key.Key.Pair(), q.Key.Key.Asset)
+	tr, err := q.Exch.GetRecentTrades(q.credContext, q.Key.ExchangeAssetPair.Pair(), q.Key.ExchangeAssetPair.Asset)
 	if err != nil {
-		return fmt.Errorf("%q %q %q %q %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
 	}
 	focus.m.Lock()
 	q.Data.Trades = tr
@@ -616,15 +616,15 @@ func (q *QuickSpy) handleTradesFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleOrderExecutionFocus(focus *FocusData) error {
-	el, err := q.Exch.GetOrderExecutionLimits(q.Key.Key.Asset, q.Key.Key.Pair())
+	el, err := q.Exch.GetOrderExecutionLimits(q.Key.ExchangeAssetPair.Asset, q.Key.ExchangeAssetPair.Pair())
 	if err != nil {
-		err = q.Exch.UpdateOrderExecutionLimits(q.credContext, q.Key.Key.Asset)
+		err = q.Exch.UpdateOrderExecutionLimits(q.credContext, q.Key.ExchangeAssetPair.Asset)
 		if err != nil {
-			return fmt.Errorf("%q %q %q %q %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+			return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
 		}
-		el, err = q.Exch.GetOrderExecutionLimits(q.Key.Key.Asset, q.Key.Key.Pair())
+		el, err = q.Exch.GetOrderExecutionLimits(q.Key.ExchangeAssetPair.Asset, q.Key.ExchangeAssetPair.Pair())
 		if err != nil {
-			return fmt.Errorf("%q %q %q %q %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+			return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
 		}
 	}
 	focus.m.Lock()
@@ -635,9 +635,9 @@ func (q *QuickSpy) handleOrderExecutionFocus(focus *FocusData) error {
 
 func (q *QuickSpy) handleFundingRateFocus(focus *FocusData) error {
 
-	isPerp, err := q.Exch.IsPerpetualFutureCurrency(q.Key.Key.Asset, q.Key.Key.Pair())
+	isPerp, err := q.Exch.IsPerpetualFutureCurrency(q.Key.ExchangeAssetPair.Asset, q.Key.ExchangeAssetPair.Pair())
 	if err != nil && !errors.Is(err, futures.ErrNotPerpetualFuture) {
-		return fmt.Errorf("%q %q %q %q %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
 	}
 	if !isPerp {
 		// Hard to validate if its a perp at startup
@@ -648,15 +648,15 @@ func (q *QuickSpy) handleFundingRateFocus(focus *FocusData) error {
 		return nil
 	}
 	fr, err := q.Exch.GetLatestFundingRates(q.credContext, &fundingrate.LatestRateRequest{
-		Asset:                q.Key.Key.Asset,
-		Pair:                 q.Key.Key.Pair(),
+		Asset:                q.Key.ExchangeAssetPair.Asset,
+		Pair:                 q.Key.ExchangeAssetPair.Pair(),
 		IncludePredictedRate: true,
 	})
 	if err != nil {
-		return fmt.Errorf("%q %q %q %q %w", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
 	}
 	if len(fr) != 1 {
-		return fmt.Errorf("expected 1 funding rate for %q %q %q %q, got %d", q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair(), focus.Type.String(), len(fr))
+		return fmt.Errorf("expected 1 funding rate for %s %q, got %d", q.Key.ExchangeAssetPair, focus.Type.String(), len(fr))
 	}
 	focus.m.Lock()
 	q.Data.FundingRate = &fr[0]
@@ -681,7 +681,7 @@ func (q *QuickSpy) Shutdown() {
 func (q *QuickSpy) Dump() (*ExportedData, error) {
 	q.m.RLock()
 	defer q.m.RUnlock()
-	return q.Data.Dump(key.NewExchangeAssetPair(q.Key.Key.Exchange, q.Key.Key.Asset, q.Key.Key.Pair()), !q.Key.Credentials.IsEmpty())
+	return q.Data.Dump(q.Key.ExchangeAssetPair, !q.Key.Credentials.IsEmpty())
 }
 
 func (d *Data) Dump(k key.ExchangeAssetPair, hasCredentials bool) (*ExportedData, error) {
@@ -729,9 +729,11 @@ func (d *Data) Dump(k key.ExchangeAssetPair, hasCredentials bool) (*ExportedData
 	if d.Account != nil {
 		holdings = append(holdings, *d.Account)
 	}
-	var (
-		nextFundingRateTime, currentFundingRateTime time.Time
-	)
+	var nextFundingRateTime, currentFundingRateTime time.Time
+	var execLimitsCopy limits.MinMaxLevel
+	if d.ExecutionLimits != nil {
+		execLimitsCopy = *d.ExecutionLimits
+	}
 	return &ExportedData{
 		Key:                    k,
 		UnderlyingBase:         underlyingBase,
@@ -744,6 +746,10 @@ func (d *Data) Dump(k key.ExchangeAssetPair, hasCredentials bool) (*ExportedData
 		IndexPrice:             indexPrice,
 		MarkPrice:              markPrice,
 		Volume:                 volume,
+		AskLiquidity:           0,
+		AskValue:               0,
+		BidLiquidity:           0,
+		BidValue:               0,
 		Spread:                 spread,
 		SpreadPercent:          spreadPercent,
 		FundingRate:            fundingRate,
@@ -757,10 +763,77 @@ func (d *Data) Dump(k key.ExchangeAssetPair, hasCredentials bool) (*ExportedData
 		OpenInterest:           d.OpenInterest,
 		NextFundingRateTime:    nextFundingRateTime,
 		CurrentFundingRateTime: currentFundingRateTime,
-		ExecutionLimits:        *d.ExecutionLimits,
+		ExecutionLimits:        execLimitsCopy,
 		URL:                    d.URL,
 		ContractSettlement:     contractSettlement,
 	}, nil
+}
+
+// CurrentPayload returns the latest focus-specific payload guarded by the
+// internal read lock. It returns an error if no data has been collected yet
+// for the requested focus type.
+func (q *QuickSpy) CurrentPayload(focusType FocusType) (any, error) {
+	q.m.RLock()
+	defer q.m.RUnlock()
+	switch focusType {
+	case TickerFocusType:
+		if q.Data.Ticker == nil {
+			return nil, fmt.Errorf("no ticker yet")
+		}
+		return q.Data.Ticker, nil
+	case OrderBookFocusType:
+		if q.Data.Orderbook == nil {
+			return nil, fmt.Errorf("no orderbook yet")
+		}
+		return q.Data.Orderbook, nil
+	case KlineFocusType:
+		if len(q.Data.Kline) == 0 {
+			return nil, fmt.Errorf("no kline yet")
+		}
+		return q.Data.Kline, nil
+	case TradesFocusType:
+		if len(q.Data.Trades) == 0 {
+			return nil, fmt.Errorf("no trades yet")
+		}
+		return q.Data.Trades, nil
+	case AccountHoldingsFocusType:
+		if q.Data.Account == nil || len(q.Data.Account.Accounts) == 0 {
+			return nil, fmt.Errorf("no account holdings yet")
+		}
+		return q.Data.Account, nil
+	case ActiveOrdersFocusType:
+		if len(q.Data.Orders) == 0 {
+			return nil, fmt.Errorf("no active orders yet")
+		}
+		return q.Data.Orders, nil
+	case OpenInterestFocusType:
+		if q.Data.OpenInterest == 0 {
+			return 0, fmt.Errorf("no open interest yet")
+		}
+		return q.Data.OpenInterest, nil
+	case FundingRateFocusType:
+		if q.Data.FundingRate == nil {
+			return nil, fmt.Errorf("no funding rate yet")
+		}
+		return q.Data.FundingRate, nil
+	case ContractFocusType:
+		if q.Data.Contract == nil {
+			return nil, fmt.Errorf("no contract yet")
+		}
+		return q.Data.Contract, nil
+	case URLFocusType:
+		if q.Data.URL == "" {
+			return nil, fmt.Errorf("no url yet")
+		}
+		return q.Data.URL, nil
+	case OrderExecutionFocusType:
+		if q.Data.ExecutionLimits == nil || (q.Data.ExecutionLimits.MinPrice == 0 && q.Data.ExecutionLimits.MaxPrice == 0) {
+			return nil, fmt.Errorf("no execution limits yet")
+		}
+		return q.Data.ExecutionLimits, nil
+	default:
+		return nil, fmt.Errorf("unsupported focus: %s", focusType.String())
+	}
 }
 
 // WaitForInitialData allows a caller to wait for a response before doing other actions

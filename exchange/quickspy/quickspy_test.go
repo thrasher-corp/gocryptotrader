@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -27,13 +28,13 @@ func TestNewQuickSpy(t *testing.T) {
 	_, err = NewQuickSpy(&CredentialsKey{}, []FocusData{{Type: OrderBookFocusType, RESTPollTime: -1}})
 	require.ErrorIs(t, err, ErrInvalidRESTPollTime)
 
-	_, err = NewQuickSpy(&CredentialsKey{Key: key.NewExchangeAssetPair("hi", asset.Binary, currency.NewBTCUSD())}, []FocusData{{Type: OpenInterestFocusType, RESTPollTime: 10}})
+	_, err = NewQuickSpy(&CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("hi", asset.Binary, currency.NewBTCUSD())}, []FocusData{{Type: OpenInterestFocusType, RESTPollTime: 10}})
 	require.ErrorIs(t, err, ErrInvalidAssetForFocusType)
 
-	_, err = NewQuickSpy(&CredentialsKey{Key: key.NewExchangeAssetPair("hi", asset.Futures, currency.NewBTCUSD())}, []FocusData{{Type: AccountHoldingsFocusType, RESTPollTime: 10}})
+	_, err = NewQuickSpy(&CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("hi", asset.Futures, currency.NewBTCUSD())}, []FocusData{{Type: AccountHoldingsFocusType, RESTPollTime: 10}})
 	require.ErrorIs(t, err, ErrCredentialsRequiredForFocusType)
 
-	qs, err := NewQuickSpy(&CredentialsKey{Key: key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewBTCUSDT()), Credentials: &account.Credentials{
+	qs, err := NewQuickSpy(&CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewBTCUSDT()), Credentials: &account.Credentials{
 		Key:    "abc",
 		Secret: "123",
 	}}, []FocusData{{Type: AccountHoldingsFocusType, RESTPollTime: 10}})
@@ -45,7 +46,7 @@ func mustQuickSpy(t *testing.T, data *FocusData) *QuickSpy {
 	t.Helper()
 	qs, err := NewQuickSpy(
 		&CredentialsKey{
-			Key: key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewBTCUSDT()),
+			ExchangeAssetPair: key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewBTCUSDT()),
 			Credentials: &account.Credentials{
 				Key:    "abc",
 				Secret: "123",
@@ -121,7 +122,7 @@ func TestSetupExchange(t *testing.T) {
 	require.NoError(t, err)
 
 	q = &QuickSpy{
-		Key:                &CredentialsKey{Key: key.NewExchangeAssetPair("butts", asset.Spot, currency.NewBTCUSDT())},
+		Key:                &CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("butts", asset.Spot, currency.NewBTCUSDT())},
 		shutdown:           make(chan any),
 		dataHandlerChannel: make(chan any),
 		m:                  new(sync.RWMutex),
@@ -135,14 +136,84 @@ func TestSetupExchange(t *testing.T) {
 func TestSetupExchangeDefaults(t *testing.T) {
 	t.Parallel()
 	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: 10})
-	e, err := engine.NewSupportedExchangeByName(q.Key.Key.Exchange)
+	e, err := engine.NewSupportedExchangeByName(q.Key.ExchangeAssetPair.Exchange)
 	require.NoError(t, err)
 	b := e.GetBase()
 
 	err = q.setupExchangeDefaults(e, b)
 	require.NoError(t, err)
 
-	q.Key.Key.Exchange = "butts"
+	q.Key.ExchangeAssetPair.Exchange = "butts"
 	err = q.setupExchangeDefaults(e, b)
 	require.Error(t, err)
+}
+
+func TestSetupCurrencyPairs(t *testing.T) {
+	t.Parallel()
+	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: 10})
+	e, err := engine.NewSupportedExchangeByName(q.Key.ExchangeAssetPair.Exchange)
+	require.NoError(t, err)
+	b := e.GetBase()
+	err = q.setupExchangeDefaults(e, b)
+	require.NoError(t, err)
+
+	err = q.setupCurrencyPairs(b)
+	require.NoError(t, err)
+	require.NotNil(t, b.CurrencyPairs.Pairs[asset.Spot])
+	require.Nil(t, b.CurrencyPairs.Pairs[asset.Futures])
+
+	b.CurrencyPairs.UseGlobalFormat = true
+	b.CurrencyPairs.RequestFormat = b.CurrencyPairs.Pairs[asset.Spot].RequestFormat
+	b.CurrencyPairs.ConfigFormat = b.CurrencyPairs.Pairs[asset.Spot].ConfigFormat
+	err = q.setupCurrencyPairs(b)
+	require.NoError(t, err)
+	require.NotNil(t, b.CurrencyPairs.Pairs[asset.Spot])
+}
+
+func TestCheckRateLimits(t *testing.T) {
+	t.Parallel()
+	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: 10})
+	e, err := engine.NewSupportedExchangeByName(q.Key.ExchangeAssetPair.Exchange)
+	require.NoError(t, err)
+	b := e.GetBase()
+	err = q.setupExchangeDefaults(e, b)
+	require.NoError(t, err)
+
+	err = q.checkRateLimits(b)
+	require.NoError(t, err)
+
+	b.Requester = nil
+	err = q.checkRateLimits(b)
+	require.ErrorIs(t, err, errNoRateLimits)
+}
+
+func TestSetupWebsocket(t *testing.T) {
+	t.Parallel()
+	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: 10, UseWebsocket: true})
+	e, err := engine.NewSupportedExchangeByName(q.Key.ExchangeAssetPair.Exchange)
+	require.NoError(t, err)
+	b := e.GetBase()
+	err = q.setupExchangeDefaults(e, b)
+	require.NoError(t, err)
+
+	err = q.setupWebsocket(e, b)
+	require.NoError(t, err)
+	require.NoError(t, b.Websocket.Shutdown())
+
+	q.Focuses.Upsert(OrderBookFocusType, &FocusData{Type: OrderBookFocusType, RESTPollTime: 10, UseWebsocket: true})
+	q.Focuses.Upsert(TickerFocusType, &FocusData{Type: TickerFocusType, RESTPollTime: 10, UseWebsocket: true})
+	q.Focuses.Upsert(TradesFocusType, &FocusData{Type: TradesFocusType, RESTPollTime: 10, UseWebsocket: true})
+	q.Focuses.Upsert(AccountHoldingsFocusType, &FocusData{Type: AccountHoldingsFocusType, RESTPollTime: 10, UseWebsocket: true})
+	err = q.setupWebsocket(e, b)
+	require.NoError(t, err)
+	require.NoError(t, b.Websocket.Shutdown())
+
+	q.Focuses.Upsert(OrderPlacementFocusType, &FocusData{Type: OrderPlacementFocusType, RESTPollTime: 10, UseWebsocket: true})
+	err = q.setupWebsocket(e, b)
+	require.ErrorIs(t, err, errNoWebsocketSupportForFocusType)
+
+	b.Websocket = nil
+	err = q.setupWebsocket(e, b)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
 }

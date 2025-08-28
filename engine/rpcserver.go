@@ -2992,7 +2992,7 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 	}
 
 	if r.Enable {
-		err = w.Enable()
+		err = w.EnableAndConnect()
 		if err != nil {
 			return nil, err
 		}
