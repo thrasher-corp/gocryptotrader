@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -27,7 +28,7 @@ import (
 )
 
 // NewQuickSpy creates a new QuickSpy
-func NewQuickSpy(k *CredentialsKey, focuses []FocusData) (*QuickSpy, error) {
+func NewQuickSpy(k *CredentialsKey, focuses []FocusData, verbose bool) (*QuickSpy, error) {
 	if k == nil {
 		return nil, errNoKey
 	}
@@ -52,6 +53,7 @@ func NewQuickSpy(k *CredentialsKey, focuses []FocusData) (*QuickSpy, error) {
 		credContext:        credContext,
 		Data:               &Data{Key: k},
 		m:                  new(sync.RWMutex),
+		verbose:            verbose,
 	}
 	err := q.setupExchange()
 	if err != nil {
@@ -143,7 +145,6 @@ func (q *QuickSpy) setupExchange() error {
 	if err := q.setupWebsocket(e, b); err != nil {
 		return err
 	}
-
 	q.Exch = e
 	return nil
 }
@@ -154,9 +155,11 @@ func (q *QuickSpy) setupExchangeDefaults(e exchange.IBotExchange, b *exchange.Ba
 	if err != nil {
 		return fmt.Errorf("%s: %w", q.Key.ExchangeAssetPair, err)
 	}
+	exchCfg.Verbose = q.verbose
 	if err := b.SetupDefaults(exchCfg); err != nil {
 		return fmt.Errorf("%s: %w", q.Key.ExchangeAssetPair, err)
 	}
+	b.Verbose = q.verbose
 	if err := e.Setup(exchCfg); err != nil {
 		return fmt.Errorf("%s: %w", q.Key.ExchangeAssetPair, err)
 	}
@@ -173,15 +176,22 @@ func (q *QuickSpy) setupCurrencyPairs(b *exchange.Base) error {
 		cFmt = b.CurrencyPairs.Pairs[q.Key.ExchangeAssetPair.Asset].ConfigFormat
 	}
 	b.CurrencyPairs.DisableAllPairs()
+	// no formatting occurs for websocket subscription generation
+	// so do it here to cover for it
+	cFmtPair := q.Key.ExchangeAssetPair.Pair().Format(*cFmt)
 	b.CurrencyPairs.Pairs[q.Key.ExchangeAssetPair.Asset] = &currency.PairStore{
 		AssetEnabled:  true,
 		RequestFormat: rFmt,
 		ConfigFormat:  cFmt,
 	}
-	if err := b.CurrencyPairs.StorePairs(q.Key.ExchangeAssetPair.Asset, currency.Pairs{q.Key.ExchangeAssetPair.Pair()}, false); err != nil {
+
+	if err := b.CurrencyPairs.StorePairs(q.Key.ExchangeAssetPair.Asset, currency.Pairs{cFmtPair}, false); err != nil {
 		return err
 	}
-	return b.CurrencyPairs.StorePairs(q.Key.ExchangeAssetPair.Asset, currency.Pairs{q.Key.ExchangeAssetPair.Pair()}, true)
+	if err := b.CurrencyPairs.StorePairs(q.Key.ExchangeAssetPair.Asset, currency.Pairs{cFmtPair}, true); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (q *QuickSpy) checkRateLimits(b *exchange.Base) error {
@@ -213,13 +223,28 @@ func (q *QuickSpy) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) err
 		if !f.RequiresWebsocket() {
 			continue
 		}
-		// todo: more sub support
-		switch f.Type {
-		case TickerFocusType, TradesFocusType, OrderBookFocusType, AccountHoldingsFocusType:
-			newSubs = append(newSubs, &subscription.Subscription{Channel: focusToSub[f.Type]})
-		default:
+		ch, ok := focusToSub[f.Type]
+		if !ok || ch == "" {
 			return fmt.Errorf("%s %s %w", q.Key.ExchangeAssetPair, f.Type, errNoWebsocketSupportForFocusType)
 		}
+		var sub *subscription.Subscription
+		for _, s := range b.Config.Features.Subscriptions {
+			if s.Channel != ch {
+				continue
+			}
+			if s.Asset != q.Key.ExchangeAssetPair.Asset &&
+				s.Asset != asset.All && s.Asset != asset.Empty {
+				continue
+			}
+			sub = s
+		}
+		if sub == nil {
+			// panic
+		}
+		s := sub.Clone()
+		rFmtPair := q.Key.ExchangeAssetPair.Pair().Format(*b.CurrencyPairs.Pairs[q.Key.ExchangeAssetPair.Asset].RequestFormat)
+		s.Pairs.Add(rFmtPair)
+		newSubs = append(newSubs, s)
 	}
 	b.Config.Features.Subscriptions = newSubs
 	b.Features.Subscriptions = newSubs
@@ -298,6 +323,7 @@ func (q *QuickSpy) HandleWS() error {
 					continue
 				}
 				q.m.Lock()
+				q.Data.Ticker = data
 				q.m.Unlock()
 				select {
 				case focus.Stream <- data:
@@ -634,7 +660,6 @@ func (q *QuickSpy) handleOrderExecutionFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleFundingRateFocus(focus *FocusData) error {
-
 	isPerp, err := q.Exch.IsPerpetualFutureCurrency(q.Key.ExchangeAssetPair.Asset, q.Key.ExchangeAssetPair.Pair())
 	if err != nil && !errors.Is(err, futures.ErrNotPerpetualFuture) {
 		return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
@@ -837,11 +862,32 @@ func (q *QuickSpy) CurrentPayload(focusType FocusType) (any, error) {
 }
 
 // WaitForInitialData allows a caller to wait for a response before doing other actions
-func (q *QuickSpy) WaitForInitialData(focusType FocusType) error {
+func (q *QuickSpy) WaitForInitialData(ctx context.Context, focusType FocusType) error {
 	focus := q.Focuses.GetByFocusType(focusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, focusType)
 	}
-	<-focus.HasBeenSuccessfulChan
-	return nil
+	select {
+	case <-focus.HasBeenSuccessfulChan:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// WaitForInitialDataWithTimer waits for initial data for a focus type or cancels when ctx is done.
+func (q *QuickSpy) WaitForInitialDataWithTimer(ctx context.Context, focusType FocusType, tt time.Duration) error {
+	focus := q.Focuses.GetByFocusType(focusType)
+	if focus == nil {
+		return fmt.Errorf("%w %q", errKeyNotFound, focusType)
+	}
+	t := time.NewTimer(tt)
+	select {
+	case <-focus.HasBeenSuccessfulChan:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return fmt.Errorf("%w %q", errFocusDataTimeout, focusType)
+	}
 }

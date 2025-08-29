@@ -47,12 +47,13 @@ func (f *FocusData) Validate(k *CredentialsKey) error {
 	return nil
 }
 
-func NewFocusData(focusType FocusType, isOnceOff, useWebsocket bool, restPollTime time.Duration) *FocusData {
+func NewFocusData(focusType FocusType, isOnceOff, useWebsocket bool, restPollTime, wsInterval time.Duration) *FocusData {
 	return &FocusData{
-		Type:         focusType,
-		UseWebsocket: useWebsocket,
-		RESTPollTime: restPollTime,
-		IsOnceOff:    isOnceOff,
+		Type:              focusType,
+		UseWebsocket:      useWebsocket,
+		RESTPollTime:      restPollTime,
+		IsOnceOff:         isOnceOff,
+		WebsocketInterval: wsInterval,
 	}
 }
 
@@ -77,13 +78,12 @@ func (f *FocusData) SetSuccessful() {
 	}
 	f.m.RUnlock()
 	f.m.Lock()
+	defer f.m.Unlock()
 	if f.hasBeenSuccessful {
-		f.m.Unlock()
 		return
 	}
 	f.hasBeenSuccessful = true
 	close(f.HasBeenSuccessfulChan)
-	f.m.Unlock()
 }
 
 func (f *FocusData) RequiresWebsocket() bool {

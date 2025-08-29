@@ -496,7 +496,7 @@ func (m *Manager) connect() error {
 		if len(subs) == 0 {
 			// If no subscriptions are generated, we skip the connection
 			if m.verbose {
-				log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated", m.exchangeName)
+				log.Warnf(log.WebsocketMgr, "%s  [URL:%s] websocket: no subscriptions generated", m.exchangeName, m.connectionManager[i].setup.URL)
 			}
 			continue
 		}

@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
@@ -19,7 +21,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+var enc = json.NewEncoder(os.Stdout)
 
 // eventEnvelope is a small wrapper to add metadata around exported data.
 // It is printed as NDJSON to stdout for easy streaming/consumption.
@@ -36,11 +41,13 @@ func main() {
 	assetStr := flag.String("asset", "spot", "Asset type, e.g. spot, futures, perpetualswap")
 	pairStr := flag.String("currencyPair", "BTC-USDT", "Currency pair, e.g. BTC-USDT or ETHUSD")
 	focusStr := flag.String("focusType", "ticker", "Focus type: ticker, orderbook, kline, trades, openinterest, fundingrate, accountholdings, activeorders, orderexecution, url, contract")
-	pollStr := flag.String("poll", "5s", "Poll interval for REST focuses (ignored for websocket focuses)")
+	pollStr := flag.String("poll", "5s", "Poll interval for REST focus and timeout for websocket initial data wait")
+	websocketInterval := flag.String("websocketInterval", "100ms", "Interval for websocket subscriptions")
 	wsFlag := flag.Bool("websocket", true, "Use websocket when supported (ticker/orderbook). Set false to force REST.")
 	bookLevels := flag.Int("book-levels", 15, "Number of levels to render per side for orderbook focus")
-
-	// Optional credentials (only required for certain focuses)
+	websocketDataTimeout := flag.String("wsDataTimeout", "30s", "Websocket data timeout duration (e.g. 30s, 1m)")
+	verbose := flag.Bool("verbose", false, "Verbose logging to stderr")
+	// credentials until credential manager integrated
 	apiKey := flag.String("apiKey", "", "API key (only for auth-required focuses)")
 	apiSecret := flag.String("apiSecret", "", "API secret (only for auth-required focuses)")
 	subAccount := flag.String("subAccount", "", "Sub-account (optional)")
@@ -49,6 +56,20 @@ func main() {
 	pemKey := flag.String("pemKey", "", "PEM key (optional)")
 
 	flag.Parse()
+	if *verbose {
+		defaultLogSettings := log.GenDefaultSettings()
+		defaultLogSettings.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(true)
+		defaultLogSettings.AdvancedSettings.Headers.Info = common.CMDColours.Info + "[INFO]" + common.CMDColours.Default
+		defaultLogSettings.AdvancedSettings.Headers.Warn = common.CMDColours.Warn + "[WARN]" + common.CMDColours.Default
+		defaultLogSettings.AdvancedSettings.Headers.Debug = common.CMDColours.Debug + "[DEBUG]" + common.CMDColours.Default
+		defaultLogSettings.AdvancedSettings.Headers.Error = common.CMDColours.Error + "[ERROR]" + common.CMDColours.Default
+		err := log.SetGlobalLogConfig(defaultLogSettings)
+		if err != nil {
+			fmt.Printf("failed to setup logger: %v\n", err)
+			os.Exit(1)
+		}
+		log.Infoln(log.Global, "Verbose logger initialised.")
+	}
 
 	if strings.TrimSpace(*exch) == "" || strings.TrimSpace(*assetStr) == "" || strings.TrimSpace(*pairStr) == "" || strings.TrimSpace(*focusStr) == "" {
 		_, _ = fmt.Fprintln(os.Stderr, "missing required flags: --exchange, --asset, --currencyPair, --focusType")
@@ -79,9 +100,15 @@ func main() {
 	if err != nil {
 		fatalErr(fmt.Errorf("invalid poll duration: %w", err))
 	}
-	if useWS {
-		// Poll not used for websockets, but quickspy requires RESTPollTime>0 only when not using WS.
-		pollDur = 0
+
+	wsInterval, err := time.ParseDuration(*websocketInterval)
+	if err != nil {
+		fatalErr(fmt.Errorf("invalid websocket interval duration: %w", err))
+	}
+
+	wsDataTimeoutDur, err := time.ParseDuration(*websocketDataTimeout)
+	if err != nil {
+		fatalErr(fmt.Errorf("invalid websocket data timeout duration: %w", err))
 	}
 
 	// Credentials (only applied when supplied or required by focus)
@@ -107,16 +134,15 @@ func main() {
 	}
 
 	// Focus config
-	focus := quickspy.NewFocusData(fType, false, useWS, pollDur)
+	focus := quickspy.NewFocusData(fType, false, useWS, pollDur, wsInterval)
 	focus.Init()
-
 	// Create quickspy and start; fallback to REST if websocket unsupported
-	qs, err := quickspy.NewQuickSpy(k, []quickspy.FocusData{*focus})
+	qs, err := quickspy.NewQuickSpy(k, []quickspy.FocusData{*focus}, *verbose)
 	if err != nil && useWS && strings.Contains(strings.ToLower(err.Error()), "has no websocket") {
 		// retry with REST
-		focus = quickspy.NewFocusData(fType, false, false, fallbackPoll(pollDur))
+		focus = quickspy.NewFocusData(fType, false, false, fallbackPoll(pollDur), wsInterval)
 		focus.Init()
-		qs, err = quickspy.NewQuickSpy(k, []quickspy.FocusData{*focus})
+		qs, err = quickspy.NewQuickSpy(k, []quickspy.FocusData{*focus}, *verbose)
 	}
 	if err != nil {
 		fatalErr(err)
@@ -134,7 +160,7 @@ func main() {
 	defer cancel()
 
 	// Wait for initial data or timeout based on RESTPollTime
-	if err := qs.WaitForInitialData(fType); err != nil {
+	if err := qs.WaitForInitialDataWithTimer(ctx, fType, wsDataTimeoutDur); err != nil {
 		// Emit error and exit
 		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: fType.String(), Error: err.Error()})
 		os.Exit(1)
@@ -161,7 +187,7 @@ func main() {
 	// REST streaming via ticker
 	interval := pollDur
 	if interval <= 0 {
-		interval = 5 * time.Second
+		interval = time.Second
 	}
 	streamREST(ctx, qs, fType, interval)
 }
@@ -179,10 +205,7 @@ func streamWS(ctx context.Context, qs *quickspy.QuickSpy, ft quickspy.FocusType,
 		case <-ctx.Done():
 			qs.Shutdown()
 			return
-		case d, ok := <-f.Stream:
-			if !ok {
-				return
-			}
+		case d := <-f.Stream:
 			clearScreen()
 			heading := fmt.Sprintf("%s | %s | %s", qs.Key.ExchangeAssetPair.Exchange, qs.Key.ExchangeAssetPair.Asset.String(), qs.Key.ExchangeAssetPair.Pair().String())
 			fmt.Fprintf(os.Stdout, "%s%s%s\n", ansiBold, heading, ansiReset)
@@ -194,12 +217,12 @@ func streamWS(ctx context.Context, qs *quickspy.QuickSpy, ft quickspy.FocusType,
 				renderOrderbook(v, bookLevels)
 			case []ticker.Price:
 				if len(v) > 0 {
-					printJSON(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
+					emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
 				}
 			case *ticker.Price:
-				printJSON(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
+				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
 			default:
-				printJSON(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
+				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
 			}
 		}
 	}
@@ -230,13 +253,6 @@ func requiresAuth(f quickspy.FocusType) bool {
 
 // emit writes NDJSON events to stdout.
 func emit(ev eventEnvelope) {
-	enc := json.NewEncoder(os.Stdout)
-	_ = enc.Encode(ev)
-}
-
-// printJSON clears any color and prints one NDJSON line
-func printJSON(ev eventEnvelope) {
-	enc := json.NewEncoder(os.Stdout)
 	_ = enc.Encode(ev)
 }
 
@@ -246,7 +262,7 @@ func parseFocusType(s string) (quickspy.FocusType, bool) {
 	switch s {
 	case "ticker":
 		return quickspy.TickerFocusType, true
-	case "orderbook", "order_book", "ob":
+	case "orderbook", "order_book", "ob", "book":
 		return quickspy.OrderBookFocusType, true
 	case "kline", "candles", "candle", "ohlc":
 		// websocket subscriptions for kline are not wired via quickspy yet
@@ -299,25 +315,26 @@ func renderOrderbook(b *orderbook.Book, levels int) {
 	}
 	fmt.Fprintf(os.Stdout, "%s%-14s %-14s %-14s%s\n", ansiDim, "Price", "Amount", "Total", ansiReset)
 	// Asks (red), display from best (lowest) up to levels
-	askCount := min(levels, len(b.Asks))
-	cum := 0.0
+	askCount := intMin(levels, len(b.Asks))
+	cumulativeAsks := 0.0
 	for i := 0; i < askCount; i++ {
 		lvl := b.Asks[i]
-		cum += lvl.Amount
-		fmt.Fprintf(os.Stdout, "%s% -14.8f % -14.8f % -14.8f%s\n", ansiRed, lvl.Price, lvl.Amount, cum, ansiReset)
+		cumulativeAsks += lvl.Amount
+		fmt.Fprintf(os.Stdout, "%s% -14.8f % -14.8f % -14.8f%s\n", ansiRed, lvl.Price, lvl.Amount, cumulativeAsks, ansiReset)
 	}
 	fmt.Fprintln(os.Stdout)
 	// Bids (green), from best (highest) up to levels
-	bidCount := min(levels, len(b.Bids))
-	cum = 0.0
+	bidCount := intMin(levels, len(b.Bids))
+	cumulativeBids := 0.0
 	for i := 0; i < bidCount; i++ {
 		lvl := b.Bids[i]
-		cum += lvl.Amount
-		fmt.Fprintf(os.Stdout, "%s% -14.8f % -14.8f % -14.8f%s\n", ansiGreen, lvl.Price, lvl.Amount, cum, ansiReset)
+		cumulativeBids += lvl.Amount
+		fmt.Fprintf(os.Stdout, "%s% -14.8f % -14.8f % -14.8f%s\n", ansiGreen, lvl.Price, lvl.Amount, cumulativeBids, ansiReset)
 	}
 }
 
-func min(a, b int) int {
+// intMin for dealing with ints
+func intMin(a, b int) int {
 	if a < b {
 		return a
 	}

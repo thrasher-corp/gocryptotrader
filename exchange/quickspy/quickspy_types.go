@@ -61,7 +61,8 @@ type QuickSpy struct {
 	// alert is used for notifications
 	alert alert.Notice
 	// Data contains all the market data
-	Data *Data
+	Data    *Data
+	verbose bool
 }
 
 type FocusStore struct {
@@ -126,6 +127,7 @@ type FocusData struct {
 	Type                  FocusType
 	UseWebsocket          bool
 	RESTPollTime          time.Duration
+	WebsocketInterval     time.Duration
 	m                     *sync.RWMutex
 	IsOnceOff             bool
 	hasBeenSuccessful     bool
