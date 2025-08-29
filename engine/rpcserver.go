@@ -1439,12 +1439,10 @@ func (s *RPCServer) CancelAllOrders(ctx context.Context, r *gctrpc.CancelAllOrde
 	// TODO: Change to order manager
 	resp, err := exch.CancelAllOrders(ctx, nil)
 	if err != nil {
-		return &gctrpc.CancelAllOrdersResponse{}, err
+		return nil, err
 	}
 
-	return &gctrpc.CancelAllOrdersResponse{
-		Count: resp.Count, // count of deleted orders
-	}, nil
+	return &gctrpc.CancelAllOrdersResponse{Count: int64(len(resp.Status))}, nil
 }
 
 // ModifyOrder modifies an existing order if it exists

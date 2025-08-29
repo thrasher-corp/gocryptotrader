@@ -272,7 +272,14 @@ type Cancel struct {
 // cancel all orders on an exchange
 type CancelAllResponse struct {
 	Status map[string]string
-	Count  int64
+}
+
+// Load adds a new orderID and status to the CancelAllResponse
+func (c *CancelAllResponse) Load(orderID string, status string) {
+	if c.Status == nil {
+		c.Status = make(map[string]string)
+	}
+	c.Status[orderID] = status
 }
 
 // CancelBatchResponse returns the status of orders
