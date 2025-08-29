@@ -143,7 +143,11 @@ func (q *QuickSpy) setupExchange() error {
 	}
 
 	if err := q.setupWebsocket(e, b); err != nil {
-		return err
+		if !errors.Is(err, errNoSubSwitchingToREST) {
+			return err
+		}
+		log.Warnf(log.QuickSpy, "%s websocket setup failed: %v. Disabling websocket focuses", q.Key.ExchangeAssetPair, err)
+		q.Focuses.DisableWebsocketFocuses()
 	}
 	q.Exch = e
 	return nil
@@ -239,7 +243,7 @@ func (q *QuickSpy) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) err
 			sub = s
 		}
 		if sub == nil {
-			// panic
+			return fmt.Errorf("%s %s %w", q.Key.ExchangeAssetPair, f.Type, errNoSubSwitchingToREST)
 		}
 		s := sub.Clone()
 		rFmtPair := q.Key.ExchangeAssetPair.Pair().Format(*b.CurrencyPairs.Pairs[q.Key.ExchangeAssetPair.Asset].RequestFormat)
@@ -509,7 +513,7 @@ func (q *QuickSpy) handleContractFocus(focus *FocusData) error {
 		break
 	}
 	if contractOfFocus == nil {
-		return fmt.Errorf("no contract found for %v %v %v %v", q.Key.ExchangeAssetPair, focus.Type.String())
+		return fmt.Errorf("no contract found for %s %s", q.Key.ExchangeAssetPair, focus.Type)
 	}
 	focus.m.Lock()
 	q.Data.Contract = contractOfFocus

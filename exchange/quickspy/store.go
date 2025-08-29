@@ -48,3 +48,13 @@ func (s *FocusStore) List() []*FocusData {
 	}
 	return list
 }
+
+func (s *FocusStore) DisableWebsocketFocuses() {
+	s.m.Lock()
+	defer s.m.Unlock()
+	for k := range s.s {
+		s.s[k].m.Lock()
+		s.s[k].UseWebsocket = false
+		s.s[k].m.Unlock()
+	}
+}

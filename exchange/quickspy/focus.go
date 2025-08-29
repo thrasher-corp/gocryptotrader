@@ -34,7 +34,7 @@ func (f *FocusData) Validate(k *CredentialsKey) error {
 	}
 	if !k.ExchangeAssetPair.Asset.IsFutures() {
 		switch f.Type {
-		case OpenInterestFocusType, FundingRateFocusType, ContractFocusType, OrderExecutionFocusType:
+		case OpenInterestFocusType, FundingRateFocusType, ContractFocusType:
 			return ErrInvalidAssetForFocusType
 		}
 	}
@@ -47,13 +47,12 @@ func (f *FocusData) Validate(k *CredentialsKey) error {
 	return nil
 }
 
-func NewFocusData(focusType FocusType, isOnceOff, useWebsocket bool, restPollTime, wsInterval time.Duration) *FocusData {
+func NewFocusData(focusType FocusType, isOnceOff, useWebsocket bool, restPollTime time.Duration) *FocusData {
 	return &FocusData{
-		Type:              focusType,
-		UseWebsocket:      useWebsocket,
-		RESTPollTime:      restPollTime,
-		IsOnceOff:         isOnceOff,
-		WebsocketInterval: wsInterval,
+		Type:         focusType,
+		UseWebsocket: useWebsocket,
+		RESTPollTime: restPollTime,
+		IsOnceOff:    isOnceOff,
 	}
 }
 

@@ -16,28 +16,28 @@ import (
 
 func TestNewQuickSpy(t *testing.T) {
 	t.Parallel()
-	_, err := NewQuickSpy(nil, nil)
+	_, err := NewQuickSpy(nil, nil, false)
 	require.ErrorIs(t, err, errNoKey)
 
-	_, err = NewQuickSpy(&CredentialsKey{}, nil)
+	_, err = NewQuickSpy(&CredentialsKey{}, nil, false)
 	require.ErrorIs(t, err, errNoFocus)
 
-	_, err = NewQuickSpy(&CredentialsKey{}, []FocusData{{}})
+	_, err = NewQuickSpy(&CredentialsKey{}, []FocusData{{}}, false)
 	require.ErrorIs(t, err, ErrUnsetFocusType)
 
-	_, err = NewQuickSpy(&CredentialsKey{}, []FocusData{{Type: OrderBookFocusType, RESTPollTime: -1}})
+	_, err = NewQuickSpy(&CredentialsKey{}, []FocusData{{Type: OrderBookFocusType, RESTPollTime: -1}}, false)
 	require.ErrorIs(t, err, ErrInvalidRESTPollTime)
 
-	_, err = NewQuickSpy(&CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("hi", asset.Binary, currency.NewBTCUSD())}, []FocusData{{Type: OpenInterestFocusType, RESTPollTime: 10}})
+	_, err = NewQuickSpy(&CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("hi", asset.Binary, currency.NewBTCUSD())}, []FocusData{{Type: OpenInterestFocusType, RESTPollTime: 10}}, false)
 	require.ErrorIs(t, err, ErrInvalidAssetForFocusType)
 
-	_, err = NewQuickSpy(&CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("hi", asset.Futures, currency.NewBTCUSD())}, []FocusData{{Type: AccountHoldingsFocusType, RESTPollTime: 10}})
+	_, err = NewQuickSpy(&CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("hi", asset.Futures, currency.NewBTCUSD())}, []FocusData{{Type: AccountHoldingsFocusType, RESTPollTime: 10}}, false)
 	require.ErrorIs(t, err, ErrCredentialsRequiredForFocusType)
 
 	qs, err := NewQuickSpy(&CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewBTCUSDT()), Credentials: &account.Credentials{
 		Key:    "abc",
 		Secret: "123",
-	}}, []FocusData{{Type: AccountHoldingsFocusType, RESTPollTime: 10}})
+	}}, []FocusData{{Type: AccountHoldingsFocusType, RESTPollTime: 10}}, false)
 	require.NoError(t, err)
 	require.NotNil(t, qs)
 }
@@ -51,7 +51,7 @@ func mustQuickSpy(t *testing.T, data *FocusData) *QuickSpy {
 				Key:    "abc",
 				Secret: "123",
 			}},
-		[]FocusData{*data})
+		[]FocusData{*data}, false)
 	require.NoError(t, err)
 	require.NotNil(t, qs)
 	return qs
@@ -215,5 +215,4 @@ func TestSetupWebsocket(t *testing.T) {
 	b.Websocket = nil
 	err = q.setupWebsocket(e, b)
 	require.ErrorIs(t, err, common.ErrNilPointer)
-
 }

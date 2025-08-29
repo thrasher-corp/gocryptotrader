@@ -30,6 +30,7 @@ var (
 	errFocusDataTimeout               = errors.New("focus did not receive data in time")
 	errNoRateLimits                   = errors.New("exchange has no rate limits set")
 	errNoWebsocketSupportForFocusType = errors.New("quickspy does not support websocket for this focus type")
+	errNoSubSwitchingToREST           = errors.New("no subscription found, switching to REST")
 )
 
 type CredentialsKey struct {
@@ -127,7 +128,6 @@ type FocusData struct {
 	Type                  FocusType
 	UseWebsocket          bool
 	RESTPollTime          time.Duration
-	WebsocketInterval     time.Duration
 	m                     *sync.RWMutex
 	IsOnceOff             bool
 	hasBeenSuccessful     bool
