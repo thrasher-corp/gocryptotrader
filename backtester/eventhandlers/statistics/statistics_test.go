@@ -81,12 +81,7 @@ func TestAddDataEventForTime(t *testing.T) {
 	if s.ExchangeAssetPairStatistics == nil {
 		t.Error("expected not nil")
 	}
-	if len(s.ExchangeAssetPairStatistics[key.ExchangePairAsset{
-		Exchange: exch,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}].Events) != 1 {
+	if len(s.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(exch, a, p)].Events) != 1 {
 		t.Error("expected 1 event")
 	}
 }
@@ -104,7 +99,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 	err = s.SetEventForOffset(&signal.Signal{})
 	assert.ErrorIs(t, err, common.ErrNilEvent)
 
-	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.SetEventForOffset(&signal.Signal{
 		Base: b,
@@ -147,7 +142,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	err = s.SetEventForOffset(&order.Order{})
 	assert.ErrorIs(t, err, common.ErrNilEvent)
 
-	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*CurrencyPairStatistic)
 	b := &event.Base{}
 
 	b.Exchange = exch
@@ -191,7 +186,7 @@ func TestAddFillEventForTime(t *testing.T) {
 	err = s.SetEventForOffset(&fill.Fill{})
 	assert.ErrorIs(t, err, common.ErrNilEvent)
 
-	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.SetEventForOffset(&fill.Fill{
 		Base: b,
@@ -237,7 +232,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 	err := s.AddHoldingsForTime(&holdings.Holding{})
 	assert.ErrorIs(t, err, errExchangeAssetPairStatsUnset)
 
-	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*CurrencyPairStatistic)
 	err = s.AddHoldingsForTime(&holdings.Holding{})
 	assert.ErrorIs(t, err, errCurrencyStatisticsUnset)
 
@@ -297,7 +292,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{}, &fill.Fill{})
 	assert.ErrorIs(t, err, errExchangeAssetPairStatsUnset)
 
-	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{}, &fill.Fill{Base: b})
 	assert.ErrorIs(t, err, errCurrencyStatisticsUnset)
@@ -673,18 +668,8 @@ func TestCalculateTheResults(t *testing.T) {
 	err = s.SetEventForOffset(signal4)
 	assert.NoError(t, err)
 
-	mapKey1 := key.ExchangePairAsset{
-		Exchange: exch,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}
-	mapKey2 := key.ExchangePairAsset{
-		Exchange: exch,
-		Base:     p2.Base.Item,
-		Quote:    p2.Quote.Item,
-		Asset:    a,
-	}
+	mapKey1 := key.NewExchangeAssetPair(exch, a, p)
+	mapKey2 := key.NewExchangeAssetPair(exch, a, p2)
 	s.ExchangeAssetPairStatistics[mapKey1].Events[1].Holdings.QuoteInitialFunds = eleet
 	s.ExchangeAssetPairStatistics[mapKey1].Events[1].Holdings.TotalValue = eleeet
 	s.ExchangeAssetPairStatistics[mapKey2].Events[1].Holdings.QuoteInitialFunds = eleet

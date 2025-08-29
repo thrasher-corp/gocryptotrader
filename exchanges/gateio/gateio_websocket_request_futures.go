@@ -23,19 +23,19 @@ func (e *Exchange) authenticateFutures(ctx context.Context, conn websocket.Conne
 }
 
 // WebsocketFuturesSubmitOrder submits an order via the websocket connection
-func (e *Exchange) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item, order *ContractOrderCreateParams) (*WebsocketFuturesOrderResponse, error) {
-	resps, err := e.WebsocketFuturesSubmitOrders(ctx, a, order)
+func (e *Exchange) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item, o *ContractOrderCreateParams) (*WebsocketFuturesOrderResponse, error) {
+	resps, err := e.WebsocketFuturesSubmitOrders(ctx, a, o)
 	if err != nil {
 		return nil, err
 	}
 	if len(resps) != 1 {
 		return nil, common.ErrInvalidResponse
 	}
-	return &resps[0], err
+	return resps[0], err
 }
 
 // WebsocketFuturesSubmitOrders submits orders via the websocket connection. All orders must be for the same asset.
-func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item, orders ...*ContractOrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
+func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item, orders ...*ContractOrderCreateParams) ([]*WebsocketFuturesOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
@@ -64,12 +64,12 @@ func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Ite
 	}
 
 	if len(orders) == 1 {
-		var singleResponse WebsocketFuturesOrderResponse
+		var singleResponse *WebsocketFuturesOrderResponse
 		err := e.SendWebsocketRequest(ctx, perpetualSubmitOrderEPL, "futures.order_place", a, orders[0], &singleResponse, 2)
-		return []WebsocketFuturesOrderResponse{singleResponse}, err
+		return []*WebsocketFuturesOrderResponse{singleResponse}, err
 	}
 
-	var resp []WebsocketFuturesOrderResponse
+	var resp []*WebsocketFuturesOrderResponse
 	return resp, e.SendWebsocketRequest(ctx, perpetualSubmitBatchOrdersEPL, "futures.order_batch_place", a, orders, &resp, 2)
 }
 

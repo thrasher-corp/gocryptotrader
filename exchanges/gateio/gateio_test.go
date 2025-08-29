@@ -2324,7 +2324,7 @@ func TestSubscribe(t *testing.T) {
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	e.Features.Subscriptions = subscription.List{}
-	err = e.Subscribe(t.Context(), &DummyConnection{}, subs)
+	err = e.Subscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "Subscribe must not error")
 }
 
@@ -2470,138 +2470,26 @@ func TestUnlockSubAccount(t *testing.T) {
 	}
 }
 
-func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
-	t.Parallel()
-	var timeWhenTesting int64 = 1684981731098
-	timeWhenTestingString := `"1684981731098"` // Normal string
-	integerJSON := `{"number": 1684981731098}`
-	float64JSON := `{"number": 1684981731.098}`
-
-	time := time.UnixMilli(timeWhenTesting)
-	var in types.Time
-	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !in.Time().Equal(time) {
-		t.Fatalf("found %v, but expected %v", in.Time(), time)
-	}
-	inInteger := struct {
-		Number types.Time `json:"number"`
-	}{}
-	err = json.Unmarshal([]byte(integerJSON), &inInteger)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !inInteger.Number.Time().Equal(time) {
-		t.Fatalf("found %v, but expected %v", inInteger.Number.Time(), time)
-	}
-
-	inFloat64 := struct {
-		Number types.Time `json:"number"`
-	}{}
-	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !inFloat64.Number.Time().Equal(time) {
-		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), time)
-	}
-}
-
-func TestParseTimeUnmarshal(t *testing.T) {
-	t.Parallel()
-	var timeWhenTesting int64 = 1684981731
-	timeWhenTestingString := `"1684981731"`
-	integerJSON := `{"number": 1684981731}`
-	float64JSON := `{"number": 1684981731.234}`
-	timeWhenTestingStringMicroSecond := `"1691122380942.173000"`
-
-	whenTime := time.Unix(timeWhenTesting, 0)
-	var in types.Time
-	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !in.Time().Equal(whenTime) {
-		t.Fatalf("found %v, but expected %v", in.Time(), whenTime)
-	}
-	inInteger := struct {
-		Number types.Time `json:"number"`
-	}{}
-	err = json.Unmarshal([]byte(integerJSON), &inInteger)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !inInteger.Number.Time().Equal(whenTime) {
-		t.Fatalf("found %v, but expected %v", inInteger.Number.Time(), whenTime)
-	}
-
-	inFloat64 := struct {
-		Number types.Time `json:"number"`
-	}{}
-	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
-	if err != nil {
-		t.Fatal(err)
-	}
-	msTime := time.UnixMilli(1684981731234)
-	if !inFloat64.Number.Time().Equal(time.UnixMilli(1684981731234)) {
-		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), msTime)
-	}
-
-	var microSeconds types.Time
-	err = json.Unmarshal([]byte(timeWhenTestingStringMicroSecond), &microSeconds)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !microSeconds.Time().Equal(time.UnixMicro(1691122380942173)) {
-		t.Fatalf("found %v, but expected %v", microSeconds.Time(), time.UnixMicro(1691122380942173))
-	}
-}
-
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
-
-	err := e.UpdateOrderExecutionLimits(t.Context(), 1336)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Options)
-	require.ErrorIs(t, err, common.ErrNotYetImplemented)
-
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	avail, err := e.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for i := range avail {
-		mm, err := e.GetOrderExecutionLimits(asset.Spot, avail[i])
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if mm == (order.MinMaxLevel{}) {
-			t.Fatal("expected a value")
-		}
-
-		if mm.MinimumBaseAmount <= 0 {
-			t.Fatalf("MinimumBaseAmount expected 0 but received %v for %v", mm.MinimumBaseAmount, avail[i])
-		}
-
-		// 1INCH_TRY no minimum quote or base values are returned.
-
-		if mm.QuoteStepIncrementSize <= 0 {
-			t.Fatalf("QuoteStepIncrementSize expected 0 but received %v for %v", mm.QuoteStepIncrementSize, avail[i])
-		}
-
-		if mm.AmountStepIncrementSize <= 0 {
-			t.Fatalf("AmountStepIncrementSize expected 0 but received %v for %v", mm.AmountStepIncrementSize, avail[i])
-		}
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			switch a {
+			case asset.Options:
+				return // Options not supported
+			case asset.CrossMargin, asset.Margin:
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
+			default:
+				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+				pairs, err := e.CurrencyPairs.GetPairs(a, true)
+				require.NoError(t, err, "GetPairs must not error")
+				l, err := e.GetOrderExecutionLimits(a, pairs[0])
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			}
+		})
 	}
 }
 
@@ -2866,15 +2754,10 @@ func TestGetSettlementCurrency(t *testing.T) {
 	}
 }
 
-func TestGenerateWebsocketMessageID(t *testing.T) {
-	t.Parallel()
-	require.NotEmpty(t, e.GenerateWebsocketMessageID(false))
-}
+type FixtureConnection struct{ websocket.Connection }
 
-type DummyConnection struct{ websocket.Connection }
-
-func (d *DummyConnection) GenerateMessageID(bool) int64 { return 1337 }
-func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+func (d *FixtureConnection) GenerateMessageID(bool) int64 { return 1337 }
+func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
 	return []byte(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`), nil
 }
 
@@ -2883,12 +2766,12 @@ func TestHandleSubscriptions(t *testing.T) {
 
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
 
-	err := e.handleSubscription(t.Context(), &DummyConnection{}, subscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
+	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
 
-	err = e.handleSubscription(t.Context(), &DummyConnection{}, unsubscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
+	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
@@ -3057,6 +2940,53 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "batch of spot orders with error at end",
+			// This is specifically testing the return responses of WebsocketSpotSubmitOrders
+			// AverageDealPrice is not returned when using this endpoint so purchased and cost fields cannot be set.
+			orders: [][]byte{
+				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"9.98","id":"775453816782","create_time":"1736980695","update_time":"1736980695","text":"t-740","left":"0.047239","currency_pair":"ETH_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"9.932761","fill_price":"9.932761","create_time_ms":1736980695949,"update_time_ms":1736980695949,"succeeded":true}`),
+				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"0.00289718","id":"775453816824","create_time":"1736980695","update_time":"1736980695","text":"t-741","left":"0.00000000962","currency_pair":"LIKE_ETH","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"0.00289717038","fill_price":"0.00289717038","create_time_ms":1736980695956,"update_time_ms":1736980695956,"succeeded":true}`),
+				[]byte(`{"text":"t-742","label":"BALANCE_NOT_ENOUGH","message":"Not enough balance"}`),
+			},
+			expected: []*order.SubmitResponse{
+				{
+					Exchange:        e.Name,
+					OrderID:         "775453816782",
+					AssetType:       asset.Spot,
+					Pair:            currency.NewPair(currency.ETH, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:   "t-740",
+					Date:            time.UnixMilli(1736980695949),
+					LastUpdated:     time.UnixMilli(1736980695949),
+					Amount:          9.98,
+					RemainingAmount: 0.047239,
+					Type:            order.Market,
+					Side:            order.Buy,
+					Status:          order.Filled,
+					TimeInForce:     order.FillOrKill,
+				},
+				{
+					Exchange:        e.Name,
+					OrderID:         "775453816824",
+					AssetType:       asset.Spot,
+					Pair:            currency.NewPair(currency.LIKE, currency.ETH).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:   "t-741",
+					Date:            time.UnixMilli(1736980695956),
+					LastUpdated:     time.UnixMilli(1736980695956),
+					RemainingAmount: 0.00000000962,
+					Amount:          0.00289718,
+					Type:            order.Market,
+					Side:            order.Buy,
+					Status:          order.Filled,
+					TimeInForce:     order.FillOrKill,
+				},
+				{
+					Exchange:        e.Name,
+					ClientOrderID:   "t-742",
+					SubmissionError: order.ErrUnableToPlaceOrder,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -3074,6 +3004,12 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 
 			require.Len(t, got, len(tc.expected))
 			for i := range got {
+				if tc.expected[i].SubmissionError != nil {
+					assert.ErrorIs(t, got[i].SubmissionError, tc.expected[i].SubmissionError)
+					assert.Equal(t, tc.expected[i].Exchange, got[i].Exchange)
+					assert.Equal(t, tc.expected[i].ClientOrderID, got[i].ClientOrderID)
+					continue
+				}
 				assert.Equal(t, tc.expected[i], got[i])
 			}
 		})
@@ -3579,4 +3515,46 @@ func TestGetIntervalString(t *testing.T) {
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "0 should be an invalid interval")
 	_, err = getIntervalString(kline.FiveDay)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "Any other random interval should also be invalid")
+}
+
+func TestWebsocketSubmitOrders(t *testing.T) {
+	t.Parallel()
+
+	_, err := e.WebsocketSubmitOrders(t.Context(), nil)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	sub := &order.Submit{
+		Exchange:    e.Name,
+		AssetType:   asset.Spot,
+		Side:        order.Buy,
+		Type:        order.Market,
+		QuoteAmount: 10,
+	}
+	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub})
+	require.ErrorIs(t, err, order.ErrPairIsEmpty)
+
+	sub.Pair = currency.NewBTCUSD()
+	cpy := *sub
+	cpy.AssetType = asset.Futures
+	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
+	require.ErrorIs(t, err, errSingleAssetRequired)
+
+	cpy.AssetType = asset.Spread
+	sub.AssetType = asset.Spread
+	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	sub.AssetType = asset.USDTMarginedFutures
+	cpy.AssetType = asset.USDTMarginedFutures
+	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
+	require.ErrorIs(t, err, common.ErrNotYetImplemented)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+
+	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+
+	sub.AssetType = asset.Spot
+	cpy.AssetType = asset.Spot
+	_, err = e.WebsocketSubmitOrders(request.WithVerbose(t.Context()), []*order.Submit{sub, &cpy})
+	require.NoError(t, err)
 }

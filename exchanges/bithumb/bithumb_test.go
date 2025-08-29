@@ -88,6 +88,22 @@ func TestGetOrderBook(t *testing.T) {
 	assert.NotEmpty(t, ob.Data.PaymentCurrency, "PaymentCurrency should not be empty")
 }
 
+func TestOrderbookLevelsFilterZeroQuantities(t *testing.T) {
+	t.Parallel()
+	bids := OrderbookLevels{
+		{Price: 99, Quantity: 0},
+		{Price: 98, Quantity: 2},
+	}
+	asks := OrderbookLevels{
+		{Price: 100, Quantity: 0},
+		{Price: 101, Quantity: 1},
+	}
+	bids.FilterZeroQuantities()
+	asks.FilterZeroQuantities()
+	assert.Len(t, asks, 1, "Asks should have 1 item")
+	assert.Len(t, bids, 1, "Bids should have 1 item")
+}
+
 func TestGetTransactionHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -247,7 +263,6 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	feeBuilder := setFeeBuilder()
@@ -532,17 +547,17 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Empty)
-	require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
-
-	limit, err := e.GetOrderExecutionLimits(asset.Spot, testPair)
-	require.NoError(t, err, "GetOrderExecutionLimits must not error")
-
-	err = limit.Conforms(46241000, 0.00001, order.Limit)
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
-
-	err = limit.Conforms(46241000, 0.0001, order.Limit)
-	assert.NoError(t, err, "Conforms should not error")
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
+			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+		})
+	}
 }
 
 func TestGetAmountMinimum(t *testing.T) {

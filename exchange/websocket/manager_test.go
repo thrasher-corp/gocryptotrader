@@ -769,7 +769,7 @@ func TestGenerateMessageID(t *testing.T) {
 		ids[i] = id
 	}
 
-	wc.bespokeGenerateMessageID = func(bool) int64 { return 42 }
+	wc.requestIDGenerator = func() int64 { return 42 }
 	assert.EqualValues(t, 42, wc.GenerateMessageID(true), "GenerateMessageID should use bespokeGenerateMessageID")
 }
 

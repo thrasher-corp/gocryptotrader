@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -84,7 +85,7 @@ type IBotExchange interface {
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
 	CanUseAuthenticatedWebsocketEndpoints() bool
-	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
+	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 	GetCredentials(ctx context.Context) (*account.Credentials, error)
@@ -135,6 +136,7 @@ type OrderManagement interface {
 	GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
 	GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
 	WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error)
+	WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) (responses []*order.SubmitResponse, err error)
 }
 
 // CurrencyStateManagement defines functionality for currency state management

@@ -15,11 +15,12 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -132,7 +133,21 @@ func (e *Exchange) GetOrderBook(ctx context.Context, symbol string) (*Orderbook,
 		return nil, errors.New(response.Message)
 	}
 
+	response.Data.Bids.FilterZeroQuantities()
+	response.Data.Asks.FilterZeroQuantities()
+
 	return &response, nil
+}
+
+// FilterZeroQuantities filters out orderbook levels with zero quantity
+func (o *OrderbookLevels) FilterZeroQuantities() {
+	b := (*o)[:0]
+	for _, x := range *o {
+		if x.Quantity > 0 {
+			b = append(b, x)
+		}
+	}
+	*o = b
 }
 
 // GetAssetStatus returns the withdrawal and deposit status for the symbol
@@ -398,15 +413,15 @@ func (e *Exchange) PlaceTrade(ctx context.Context, orderCurrency, transactionTyp
 //
 // orderID: Order number registered for purchase/sales
 // transactionType: Transaction type(bid : purchase, ask : sales)
-// currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
+// ccy: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
 // (default value: BTC)
-func (e *Exchange) GetOrderDetails(ctx context.Context, orderID, transactionType, currency string) (OrderDetails, error) {
+func (e *Exchange) GetOrderDetails(ctx context.Context, orderID, transactionType, ccy string) (OrderDetails, error) {
 	response := OrderDetails{}
 
 	params := url.Values{}
 	params.Set("order_id", strings.ToUpper(orderID))
 	params.Set("type", transactionType)
-	params.Set("currency", strings.ToUpper(currency))
+	params.Set("currency", strings.ToUpper(ccy))
 
 	return response,
 		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateOrderDetail, params, &response)
@@ -415,15 +430,15 @@ func (e *Exchange) GetOrderDetails(ctx context.Context, orderID, transactionType
 // CancelTrade cancels a customer purchase/sales transaction
 // transactionType: Transaction type(bid : purchase, ask : sales)
 // orderID: Order number registered for purchase/sales
-// currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
+// ccy: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
 // (default value: BTC)
-func (e *Exchange) CancelTrade(ctx context.Context, transactionType, orderID, currency string) (ActionStatus, error) {
+func (e *Exchange) CancelTrade(ctx context.Context, transactionType, orderID, ccy string) (ActionStatus, error) {
 	response := ActionStatus{}
 
 	params := url.Values{}
 	params.Set("order_id", strings.ToUpper(orderID))
 	params.Set("type", strings.ToUpper(transactionType))
-	params.Set("currency", strings.ToUpper(currency))
+	params.Set("currency", strings.ToUpper(ccy))
 
 	return response,
 		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateCancelTrade, nil, &response)
@@ -437,7 +452,7 @@ func (e *Exchange) CancelTrade(ctx context.Context, transactionType, orderID, cu
 // currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM
 // (default value: BTC)
 // units: Quantity to withdraw currency
-func (e *Exchange) WithdrawCrypto(ctx context.Context, address, destination, currency string, units float64) (ActionStatus, error) {
+func (e *Exchange) WithdrawCrypto(ctx context.Context, address, destination, ccy string, units float64) (ActionStatus, error) {
 	response := ActionStatus{}
 
 	params := url.Values{}
@@ -445,7 +460,7 @@ func (e *Exchange) WithdrawCrypto(ctx context.Context, address, destination, cur
 	if destination != "" {
 		params.Set("destination", destination)
 	}
-	params.Set("currency", strings.ToUpper(currency))
+	params.Set("currency", strings.ToUpper(ccy))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 
 	return response,
@@ -519,12 +534,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		return err
 	}
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
@@ -567,15 +583,16 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 		return &request.Item{
-			Method:        http.MethodPost,
-			Path:          endpoint + path,
-			Headers:       headers,
-			Body:          bytes.NewBufferString(payload),
-			Result:        &intermediary,
-			NonceEnabled:  true,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 http.MethodPost,
+			Path:                   endpoint + path,
+			Headers:                headers,
+			Body:                   bytes.NewBufferString(payload),
+			Result:                 &intermediary,
+			NonceEnabled:           true,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
@@ -683,21 +700,20 @@ func (e *Exchange) GetCandleStick(ctx context.Context, symbol, interval string) 
 }
 
 // FetchExchangeLimits fetches spot order execution limits
-func (e *Exchange) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
+func (e *Exchange) FetchExchangeLimits(ctx context.Context) ([]limits.MinMaxLevel, error) {
 	ticks, err := e.GetAllTickers(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	limits := make([]order.MinMaxLevel, 0, len(ticks))
+	l := make([]limits.MinMaxLevel, 0, len(ticks))
 	for code, data := range ticks {
-		limits = append(limits, order.MinMaxLevel{
-			Pair:              currency.NewPair(currency.NewCode(code), currency.KRW),
-			Asset:             asset.Spot,
+		l = append(l, limits.MinMaxLevel{
+			Key:               key.NewExchangeAssetPair(e.Name, asset.Spot, currency.NewPair(currency.NewCode(code), currency.KRW)),
 			MinimumBaseAmount: getAmountMinimum(data.ClosingPrice),
 		})
 	}
-	return limits, nil
+	return l, nil
 }
 
 // getAmountMinimum derives the minimum amount based on current price. This
