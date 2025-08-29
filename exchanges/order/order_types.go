@@ -274,14 +274,6 @@ type CancelAllResponse struct {
 	Status map[string]string
 }
 
-// Load adds a new orderID and status to the CancelAllResponse
-func (c *CancelAllResponse) Load(orderID string, status string) {
-	if c.Status == nil {
-		c.Status = make(map[string]string)
-	}
-	c.Status[orderID] = status
-}
-
 // CancelBatchResponse returns the status of orders
 // that have been requested for cancellation
 type CancelBatchResponse struct {
