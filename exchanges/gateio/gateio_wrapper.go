@@ -2205,8 +2205,10 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 		for _, c := range contracts {
 			if p.IsEmpty() { // If not exactly one key provided
 				p, err = e.MatchSymbolWithAvailablePairs(c.contractName(), a, true)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-					errs = common.AppendError(errs, fmt.Errorf("%w from %s contract %s", err, a, c.contractName()))
+				if err != nil {
+					if !errors.Is(err, currency.ErrPairNotFound) { // contract delisted
+						errs = common.AppendError(errs, fmt.Errorf("%w from %s contract %s", err, a, c.contractName()))
+					}
 					continue
 				}
 				if len(keys) == 0 { // No keys: All enabled pairs
