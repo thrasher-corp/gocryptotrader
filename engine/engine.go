@@ -731,12 +731,8 @@ func (bot *Engine) LoadExchange(name string) error {
 		return ErrExchangeFailedToLoad
 	}
 
-	var localWG sync.WaitGroup
-	localWG.Add(1)
-	go func() {
-		exch.SetDefaults()
-		localWG.Done()
-	}()
+	exch.SetDefaults()
+
 	exchCfg, err := bot.Config.GetExchangeConfig(name)
 	if err != nil {
 		return err
@@ -789,7 +785,6 @@ func (bot *Engine) LoadExchange(name string) error {
 		exchCfg.HTTPDebugging = bot.Settings.EnableExchangeHTTPDebugging
 	}
 
-	localWG.Wait()
 	if !bot.Settings.EnableExchangeHTTPRateLimiter {
 		err = exch.DisableRateLimiter()
 		if err != nil {
