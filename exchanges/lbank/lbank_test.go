@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -126,9 +127,9 @@ func TestCreateOrder(t *testing.T) {
 	_, err := e.CreateOrder(t.Context(), testPair.String(), "what", 1231, 12314)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = e.CreateOrder(t.Context(), testPair.String(), order.Buy.String(), 0, 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.CreateOrder(t.Context(), testPair.String(), order.Sell.String(), 1231, 0)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 

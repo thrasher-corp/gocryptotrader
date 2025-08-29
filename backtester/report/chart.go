@@ -91,7 +91,7 @@ func createHoldingsOverTimeChart(stats []statistics.FundingItemStatistics) (*Cha
 
 // createPNLCharts shows a running history of all realised and unrealised PNL values
 // over time
-func createPNLCharts(items map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic) (*Chart, error) {
+func createPNLCharts(items map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic) (*Chart, error) {
 	if items == nil {
 		return nil, fmt.Errorf("%w missing currency pair statistics", gctcommon.ErrNilPointer)
 	}
@@ -131,7 +131,7 @@ func createPNLCharts(items map[key.ExchangePairAsset]*statistics.CurrencyPairSta
 
 // createFuturesSpotDiffChart highlights the difference in futures and spot prices
 // over time
-func createFuturesSpotDiffChart(items map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic) (*Chart, error) {
+func createFuturesSpotDiffChart(items map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic) (*Chart, error) {
 	if items == nil {
 		return nil, fmt.Errorf("%w missing currency pair statistics", gctcommon.ErrNilPointer)
 	}
