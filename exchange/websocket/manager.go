@@ -113,6 +113,7 @@ type Manager struct {
 	Conn                          Connection // Public connection
 	AuthConn                      Connection // Authenticated Private connection
 	ExchangeLevelReporter         Reporter   // Latency reporter
+	processReporter               ProcessReporterManager
 	MaxSubscriptionsPerConnection int
 
 	// connectionManager stores all *potential* connections for the exchange, organised within connectionWrapper structs.
@@ -296,6 +297,14 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	m.setState(disconnectedState)
 
 	m.rateLimitDefinitions = s.RateLimitDefinitions
+
+	if s.ExchangeConfig.WebsocketMetricsLogging {
+		if s.UseMultiConnectionManagement {
+			m.processReporter = NewDefaultProcessReporterManager()
+		} else {
+			log.Warnf(log.WebsocketMgr, "%s websocket: metrics logging is only supported with multi connection management supported exchanges", m.exchangeName)
+		}
+	}
 	return nil
 }
 
@@ -870,13 +879,30 @@ func checkWebsocketURL(s string) error {
 // Reader reads and handles data from a specific connection
 func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error) {
 	defer m.Wg.Done()
+	var reporter ProcessReporter
+	if m.processReporter != nil {
+		reporter = m.processReporter.New(conn)
+	}
 	for {
 		resp := conn.ReadMessage()
+
+		var readAt time.Time
+		if reporter != nil {
+			readAt = time.Now()
+		}
+
 		if resp.Raw == nil {
+			if reporter != nil {
+				reporter.Close()
+			}
 			return // Connection has been closed
 		}
-		if err := handler(ctx, conn, resp.Raw); err != nil {
+		err := handler(ctx, conn, resp.Raw)
+		if err != nil {
 			m.DataHandler <- fmt.Errorf("connection URL:[%v] error: %w", conn.GetURL(), err)
+		}
+		if reporter != nil {
+			reporter.Report(readAt, resp.Raw, err)
 		}
 	}
 }
