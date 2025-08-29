@@ -135,12 +135,9 @@ func TestLiveHandlerStopFromError(t *testing.T) {
 
 	dc.started = 1
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err = dc.SignalStopFromError(errNoCredsNoLive)
-		assert.NoError(t, err)
-	}()
+	wg.Go(func() {
+		assert.NoError(t, dc.SignalStopFromError(errNoCredsNoLive))
+	})
 	wg.Wait()
 
 	var dh *dataChecker
@@ -177,19 +174,15 @@ func TestUpdated(t *testing.T) {
 		dataUpdated: make(chan bool, 10),
 	}
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		_ = dc.Updated()
-		wg.Done()
-	}()
+	})
 	wg.Wait()
 
 	dc = nil
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		_ = dc.Updated()
-		wg.Done()
-	}()
+	})
 	wg.Wait()
 }
 

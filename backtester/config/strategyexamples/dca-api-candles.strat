@@ -11,10 +11,10 @@
  },
  "currency-settings": [
   {
-   "exchange-name": "bitfinex",
+   "exchange-name": "okx",
    "asset": "spot",
    "base": "BTC",
-   "quote": "USD",
+   "quote": "USDT",
    "spot-details": {
     "initial-quote-funds": "100000"
    },

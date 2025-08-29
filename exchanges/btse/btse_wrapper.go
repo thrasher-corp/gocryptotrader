@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -228,7 +229,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if !e.SupportsAsset(a) {
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	tickers, err := e.GetMarketSummary(ctx, "", a == asset.Spot)
 	if err != nil {
@@ -265,7 +266,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !e.SupportsAsset(a) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	symbol, err := e.FormatSymbol(p, a)
 	if err != nil {
@@ -894,7 +895,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	switch a {
 	case asset.Spot, asset.Futures:
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	req, err := e.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
@@ -935,7 +936,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	switch a {
 	case asset.Spot, asset.Futures:
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	req, err := e.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
@@ -1222,16 +1223,15 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return err
 	}
 	var errs error
-	limits := make([]order.MinMaxLevel, 0, len(summary))
+	l := make([]limits.MinMaxLevel, 0, len(summary))
 	for _, marketInfo := range summary {
 		p, err := marketInfo.Pair()
 		if err != nil {
 			errs = common.AppendError(err, fmt.Errorf("%s: %w", p, err))
 			continue
 		}
-		limits = append(limits, order.MinMaxLevel{
-			Pair:                    p,
-			Asset:                   a,
+		l = append(l, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, a, p),
 			MinimumBaseAmount:       marketInfo.MinOrderSize,
 			MaximumBaseAmount:       marketInfo.MaxOrderSize,
 			AmountStepIncrementSize: marketInfo.MinSizeIncrement,
@@ -1239,7 +1239,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			PriceStepIncrementSize:  marketInfo.MinPriceIncrement,
 		})
 	}
-	if err = e.LoadLimits(limits); err != nil {
+	if err = limits.Load(l); err != nil {
 		errs = common.AppendError(errs, err)
 	}
 	return errs
@@ -1279,12 +1279,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			continue
 		}
 		resp = append(resp, futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: e.Name,
-				Base:     symbol.Base.Item,
-				Quote:    symbol.Quote.Item,
-				Asset:    asset.Futures,
-			},
+			Key:          key.NewExchangeAssetPair(e.Name, asset.Futures, symbol),
 			OpenInterest: tickers[i].OpenInterest,
 		})
 	}
@@ -1304,6 +1299,6 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	case asset.Futures:
 		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }

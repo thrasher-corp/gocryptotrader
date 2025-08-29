@@ -19,8 +19,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
@@ -293,11 +295,11 @@ func (e *Exchange) GetV2MarginFunding(ctx context.Context, symbol, amount string
 }
 
 // GetV2FundingInfo gets funding info for margin pairs
-func (e *Exchange) GetV2FundingInfo(ctx context.Context, key string) (MarginFundingDataV2, error) {
+func (e *Exchange) GetV2FundingInfo(ctx context.Context, k string) (MarginFundingDataV2, error) {
 	var resp []any
 	var response MarginFundingDataV2
 	err := e.SendAuthenticatedHTTPRequestV2(ctx, exchange.RestSpot, http.MethodPost,
-		fmt.Sprintf(bitfinexV2FundingInfo, key),
+		fmt.Sprintf(bitfinexV2FundingInfo, k),
 		nil,
 		&resp,
 		getAccountFees)
@@ -454,9 +456,9 @@ func (e *Exchange) GetPairs(ctx context.Context, a asset.Item) ([]string, error)
 			return nil, err
 		}
 		var pairs []string
-		for key := range funding {
-			symbol := key[1:]
-			if key[0] != 'f' || strings.Contains(symbol, ":") || len(symbol) > 6 {
+		for k := range funding {
+			symbol := k[1:]
+			if k[0] != 'f' || strings.Contains(symbol, ":") || len(symbol) > 6 {
 				continue
 			}
 			pairs = append(pairs, symbol)
@@ -490,7 +492,7 @@ func (e *Exchange) GetSiteListConfigData(ctx context.Context, set string) ([]str
 // GetSiteInfoConfigData returns site configuration data by pub:info:{AssetType} as a map
 // path should be bitfinexInfoPairs or bitfinexInfoPairsFuture???
 // NOTE: See https://docs.bitfinex.com/reference/rest-public-conf
-func (e *Exchange) GetSiteInfoConfigData(ctx context.Context, assetType asset.Item) ([]order.MinMaxLevel, error) {
+func (e *Exchange) GetSiteInfoConfigData(ctx context.Context, assetType asset.Item) ([]limits.MinMaxLevel, error) {
 	var path string
 	switch assetType {
 	case asset.Spot:
@@ -500,7 +502,6 @@ func (e *Exchange) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 	default:
 		return nil, fmt.Errorf("invalid asset type for GetSiteInfoConfigData: %s", assetType)
 	}
-
 	var resp [][][]any
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, bitfinexAPIVersion2+path, &resp, status)
 	if err != nil {
@@ -510,7 +511,7 @@ func (e *Exchange) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 		return nil, errors.New("response did not contain only one item")
 	}
 	data := resp[0]
-	pairs := make([]order.MinMaxLevel, 0, len(data))
+	l := make([]limits.MinMaxLevel, 0, len(data))
 	for i := range data {
 		if len(data[i]) != 2 {
 			return nil, errors.New("response contained a tuple without exactly 2 items")
@@ -542,14 +543,13 @@ func (e *Exchange) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 		if err != nil {
 			return nil, err
 		}
-		pairs = append(pairs, order.MinMaxLevel{
-			Asset:             assetType,
-			Pair:              pair,
+		l = append(l, limits.MinMaxLevel{
+			Key:               key.NewExchangeAssetPair(e.Name, assetType, pair),
 			MinimumBaseAmount: minOrder,
 			MaximumBaseAmount: maxOrder,
 		})
 	}
-	return pairs, nil
+	return l, nil
 }
 
 // GetDerivativeStatusInfo gets status data for the queried derivative
@@ -992,7 +992,7 @@ func (e *Exchange) GetLiquidationFeed() error {
 // profit
 // Allowed time frames are 3h, 1w and 1M
 // Allowed symbols are trading pairs (e.g. tBTCUSD, tETHUSD and tGLOBAL:USD)
-func (e *Exchange) GetLeaderboard(ctx context.Context, key, timeframe, symbol string, sort, limit int, start, end string) ([]LeaderboardEntry, error) {
+func (e *Exchange) GetLeaderboard(ctx context.Context, k, timeframe, symbol string, sort, limit int, start, end string) ([]LeaderboardEntry, error) {
 	validLeaderboardKey := func(input string) bool {
 		switch input {
 		case LeaderboardUnrealisedProfitPeriodDelta,
@@ -1005,12 +1005,12 @@ func (e *Exchange) GetLeaderboard(ctx context.Context, key, timeframe, symbol st
 		}
 	}
 
-	if !validLeaderboardKey(key) {
+	if !validLeaderboardKey(k) {
 		return nil, errors.New("invalid leaderboard key")
 	}
 
 	path := fmt.Sprintf("%s/%s:%s:%s/hist", bitfinexAPIVersion2+bitfinexLeaderboard,
-		key,
+		k,
 		timeframe,
 		symbol)
 	vals := url.Values{}
@@ -1862,12 +1862,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		return err
 	}
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
@@ -1913,14 +1914,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["X-BFX-SIGNATURE"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:        method,
-			Path:          fullPath,
-			Headers:       headers,
-			Result:        result,
-			NonceEnabled:  true,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   fullPath,
+			Headers:                headers,
+			Result:                 result,
+			NonceEnabled:           true,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 }
@@ -1962,15 +1964,16 @@ func (e *Exchange) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchan
 		headers["bfx-signature"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:        method,
-			Path:          ePoint + bitfinexAPIVersion2 + path,
-			Headers:       headers,
-			Body:          body,
-			Result:        result,
-			NonceEnabled:  true,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   ePoint + bitfinexAPIVersion2 + path,
+			Headers:                headers,
+			Body:                   body,
+			Result:                 result,
+			NonceEnabled:           true,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 }
