@@ -454,7 +454,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(contracts))
 		for i := range contracts {
-			if !contracts[i].DelistedTime.Time().IsZero() {
+			if !contracts[i].DelistedTime.Time().IsZero() && time.Since(contracts[i].DelistedTime.Time()) > 0 {
 				continue
 			}
 			pairs = append(pairs, contracts[i].Name)
@@ -1826,7 +1826,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				Name:                 contracts[i].Name,
 				Underlying:           contracts[i].Name,
 				Asset:                a,
-				IsActive:             contracts[i].DelistedTime.Time().IsZero(),
+				IsActive:             contracts[i].DelistedTime.Time().IsZero() || contracts[i].DelistedTime.Time().After(time.Now()),
 				Type:                 futures.Perpetual,
 				SettlementType:       contractSettlementType,
 				SettlementCurrencies: currency.Currencies{settle},
@@ -1962,6 +1962,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				PriceDivisor:            priceDiv,
 				Delisting:               contractInfo[i].InDelisting,
 				DelistingAt:             contractInfo[i].DelistingTime.Time(),
+				DelistedAt:              contractInfo[i].DelistedTime.Time(),
 			})
 		}
 	case asset.DeliveryFutures:

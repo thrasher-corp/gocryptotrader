@@ -71,5 +71,6 @@ type MinMaxLevel struct {
 	MaxTotalOrders          int64
 	MaxAlgoOrders           int64
 	Delisting               bool
-	DelistingAt             time.Time
+	DelistingAt             time.Time // Start time for delisting
+	DelistedAt              time.Time // End time for delisting
 }

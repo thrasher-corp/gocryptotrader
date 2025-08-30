@@ -2497,6 +2497,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 					if l.Delisting {
 						assert.NotZero(t, l.DelistingAt, "DelistingAt should be populated")
+						if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
+							assert.NotZero(t, l.DelistedAt, "DelistedAt should be populated")
+							assert.True(t, l.DelistedAt.After(l.DelistingAt), "DelistedAt should be after DelistingAt")
+						}
 					}
 
 					if a == asset.Spot {
