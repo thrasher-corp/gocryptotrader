@@ -1096,7 +1096,7 @@ func (b *Base) GetSubscriptions() (subscription.List, error) {
 
 // GetSubscriptionTemplate returns a template for a given subscription; See exchange/subscription/README.md for more information
 func (b *Base) GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, fmt.Errorf("%w: GetSubscriptionTemplate", common.ErrFunctionNotSupported)
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
