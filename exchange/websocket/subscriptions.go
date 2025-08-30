@@ -23,6 +23,16 @@ var (
 	errSubscriptionsExceedsLimit = errors.New("subscriptions exceeds limit")
 )
 
+// GenerateSubscriptions fans out subscriptions using ExpandTemplates
+func (m *Manager) GenerateSubscriptions() (subscription.List, error) {
+	if err := common.NilGuard(m); err != nil {
+		return nil, err
+	} else if err := common.NilGuard(m.Exchange); err != nil {
+		return nil, fmt.Errorf("m.Exchange: %w", err)
+	}
+	return m.Subscriptions.ExpandTemplates(m.Exchange)
+}
+
 // UnsubscribeChannels unsubscribes from a list of websocket channel
 func (m *Manager) UnsubscribeChannels(conn Connection, channels subscription.List) error {
 	if len(channels) == 0 {
@@ -276,7 +286,7 @@ func (m *Manager) FlushChannels() error {
 	}
 
 	if !m.useMultiConnectionManagement {
-		newSubs, err := m.GenerateSubs()
+		newSubs, err := m.transitionGenerateSubs()
 		if err != nil {
 			return err
 		}
@@ -284,11 +294,7 @@ func (m *Manager) FlushChannels() error {
 	}
 
 	for x := range m.connectionManager {
-		if m.connectionManager[x].setup.SubscriptionsNotRequired {
-			continue
-		}
-
-		newSubs, err := m.connectionManager[x].setup.GenerateSubscriptions()
+		newSubs, err := m.transitionGenerateSubs(m.connectionManager[x])
 		if err != nil {
 			return err
 		}

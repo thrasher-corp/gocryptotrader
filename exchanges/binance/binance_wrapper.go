@@ -213,14 +213,14 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            binanceDefaultWebsocketURL,
-		RunningURL:            ePoint,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.GenerateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		Exchange:       e,
+		ExchangeConfig: exch,
+		DefaultURL:     binanceDefaultWebsocketURL,
+		RunningURL:     ePoint,
+		Connector:      e.WsConnect,
+		Subscriber:     e.Subscribe,
+		Unsubscriber:   e.Unsubscribe,
+		Features:       &e.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,

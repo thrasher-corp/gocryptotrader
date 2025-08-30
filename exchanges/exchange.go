@@ -168,14 +168,6 @@ func (b *Base) SetFeatureDefaults() {
 	}
 }
 
-// GenereateSubscriptions expands the exchange subscriptions
-func (b *Base) GenerateSubscriptions() (subscription.List, error) {
-	if b.Websocket == nil || b.Websocket.Subscriptions == nil {
-		return nil, nil
-	}
-	return b.Websocket.Subscriptions.ExpandTemplates(b)
-}
-
 // SetSubscriptionsFromConfig sets the subscriptions from config
 // If the subscriptions config is empty then Config will be updated from the exchange subscriptions,
 // allowing e.SetDefaults to set default subscriptions for an exchange to update user's config

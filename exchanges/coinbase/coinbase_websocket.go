@@ -428,9 +428,6 @@ func (e *Exchange) ProcessUpdate(update *WebsocketOrderbookDataHolder, timestamp
 }
 
 // GenerateSubscriptions adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
-}
 
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
@@ -585,7 +582,7 @@ func (e *Exchange) checkSubscriptions() {
 		switch s.Channel {
 		case "level2_batch", "matches":
 			e.Config.Features.Subscriptions = defaultSubscriptions.Clone()
-			e.Features.Subscriptions = e.Config.Features.Subscriptions.Enabled()
+			e.Websocket.Subscriptions = e.Config.Features.Subscriptions.Enabled()
 			return
 		}
 	}

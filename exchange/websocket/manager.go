@@ -34,32 +34,31 @@ var (
 
 // Private websocket errors
 var (
-	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
-	errDefaultURLIsEmpty                    = errors.New("default url is empty")
-	errRunningURLIsEmpty                    = errors.New("running url cannot be empty")
-	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
-	errExchangeConfigNameEmpty              = errors.New("exchange config name empty")
-	errInvalidTrafficTimeout                = errors.New("invalid traffic timeout")
-	errTrafficAlertNil                      = errors.New("traffic alert is nil")
-	errWebsocketSubscriberUnset             = errors.New("websocket subscriber function needs to be set")
-	errWebsocketUnsubscriberUnset           = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
-	errWebsocketConnectorUnset              = errors.New("websocket connector function not set")
-	errWebsocketDataHandlerUnset            = errors.New("websocket data handler not set")
-	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
-	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
-	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
-	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
-	errNoConnectFunc                        = errors.New("websocket connect func not set")
-	errAlreadyConnected                     = errors.New("websocket already connected")
-	errCannotShutdown                       = errors.New("websocket cannot shutdown")
-	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
-	errConnSetup                            = errors.New("error in connection setup")
-	errNoPendingConnections                 = errors.New("no pending connections, call SetupNewConnection first")
-	errDuplicateConnectionSetup             = errors.New("duplicate connection setup")
-	errCannotChangeConnectionURL            = errors.New("cannot change connection URL when using multi connection management")
-	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
-	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
-	errMessageFilterNotComparable           = errors.New("message filter is not comparable")
+	errWebsocketAlreadyInitialised    = errors.New("websocket already initialised")
+	errDefaultURLIsEmpty              = errors.New("default url is empty")
+	errRunningURLIsEmpty              = errors.New("running url cannot be empty")
+	errInvalidWebsocketURL            = errors.New("invalid websocket url")
+	errExchangeConfigNameEmpty        = errors.New("exchange config name empty")
+	errInvalidTrafficTimeout          = errors.New("invalid traffic timeout")
+	errTrafficAlertNil                = errors.New("traffic alert is nil")
+	errWebsocketSubscriberUnset       = errors.New("websocket subscriber function needs to be set")
+	errWebsocketUnsubscriberUnset     = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
+	errWebsocketConnectorUnset        = errors.New("websocket connector function not set")
+	errWebsocketDataHandlerUnset      = errors.New("websocket data handler not set")
+	errReadMessageErrorsNil           = errors.New("read message errors is nil")
+	errInvalidMaxSubscriptions        = errors.New("max subscriptions cannot be less than 0")
+	errSameProxyAddress               = errors.New("cannot set proxy address to the same address")
+	errNoConnectFunc                  = errors.New("websocket connect func not set")
+	errAlreadyConnected               = errors.New("websocket already connected")
+	errCannotShutdown                 = errors.New("websocket cannot shutdown")
+	errAlreadyReconnecting            = errors.New("websocket in the process of reconnection")
+	errConnSetup                      = errors.New("error in connection setup")
+	errNoPendingConnections           = errors.New("no pending connections, call SetupNewConnection first")
+	errDuplicateConnectionSetup       = errors.New("duplicate connection setup")
+	errCannotChangeConnectionURL      = errors.New("cannot change connection URL when using multi connection management")
+	errExchangeConfigEmpty            = errors.New("exchange config is empty")
+	errCannotObtainOutboundConnection = errors.New("cannot obtain outbound connection")
+	errMessageFilterNotComparable     = errors.New("message filter is not comparable")
 )
 
 // Websocket functionality list and state consts
@@ -96,7 +95,8 @@ type Manager struct {
 	subscriptions                 *subscription.Store // Internal store of expanded templates
 	connector                     func() error
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
-	Subscriptions                 subscription.List            // Public api for configuring
+	Exchange                      IExchange
+	Subscriptions                 subscription.List // Public api for configuring
 	Subscriber                    func(subscription.List) error
 	Unsubscriber                  func(subscription.List) error
 	GenerateSubs                  func() (subscription.List, error)
@@ -127,6 +127,7 @@ type Manager struct {
 
 // ManagerSetup defines variables for setting up a websocket manager
 type ManagerSetup struct {
+	Exchange              IExchange
 	ExchangeConfig        *config.Exchange
 	DefaultURL            string
 	RunningURL            string
@@ -154,6 +155,11 @@ type ManagerSetup struct {
 	// an error will be returned. However, if a connection configuration includes its own rate limit,
 	// it will fall back to that configuration’s rate limit without raising an error.
 	RateLimitDefinitions request.RateLimitDefinitions
+}
+
+// IExchange is the interface exchanges must implement to use the manager
+type IExchange interface {
+	subscription.IExchange
 }
 
 // connectionWrapper contains the connection setup details to be used when
@@ -207,6 +213,9 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	if s.Features == nil {
 		return fmt.Errorf("%w: ManagerSetup.Features", common.ErrNilPointer)
 	}
+	if s.Exchange == nil {
+		return fmt.Errorf("%w: ManagerSetup.Exchange", common.ErrNilPointer)
+	}
 
 	m.m.Lock()
 	defer m.m.Unlock()
@@ -218,6 +227,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	if s.ExchangeConfig.Name == "" {
 		return errExchangeConfigNameEmpty
 	}
+	m.Exchange = s.Exchange
 	m.exchangeName = s.ExchangeConfig.Name
 	m.verbose = s.ExchangeConfig.Verbose
 
@@ -238,9 +248,6 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 		}
 		if s.Unsubscriber == nil && m.features.Unsubscribe {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketUnsubscriberUnset)
-		}
-		if s.GenerateSubscriptions == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriptionsGeneratorUnset)
 		}
 		if s.DefaultURL == "" {
 			return fmt.Errorf("%s websocket %w", m.exchangeName, errDefaultURLIsEmpty)
@@ -335,11 +342,8 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		if c.Connector == nil {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketConnectorUnset)
 		}
-		if c.GenerateSubscriptions == nil && !c.SubscriptionsNotRequired {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriptionsGeneratorUnset)
-		}
 		if c.Subscriber == nil && !c.SubscriptionsNotRequired {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriberUnset)
+			return fmt.Errorf("%w (%s): %w", errConnSetup, c.URL, errWebsocketSubscriberUnset)
 		}
 		if c.Unsubscriber == nil && m.features.Unsubscribe && !c.SubscriptionsNotRequired {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketUnsubscriberUnset)
@@ -452,7 +456,7 @@ func (m *Manager) connect() error {
 			go m.monitorFrame(nil, m.monitorConnection)
 		}
 
-		subs, err := m.GenerateSubs() // regenerate state on new connection
+		subs, err := m.transitionGenerateSubs()
 		if err != nil {
 			return fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 		}
@@ -482,27 +486,18 @@ func (m *Manager) connect() error {
 
 	// TODO: Implement concurrency below.
 	for i := range m.connectionManager {
-		var subs subscription.List
-		if !m.connectionManager[i].setup.SubscriptionsNotRequired {
-			if m.connectionManager[i].setup.GenerateSubscriptions == nil {
-				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, errWebsocketSubscriptionsGeneratorUnset)
-				break
-			}
+		subs, err := m.transitionGenerateSubs(m.connectionManager[i])
+		if err != nil {
+			multiConnectFatalError = fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+			break
+		}
 
-			var err error
-			subs, err = m.connectionManager[i].setup.GenerateSubscriptions() // regenerate state on new connection
-			if err != nil {
-				multiConnectFatalError = fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
-				break
+		if len(subs) == 0 {
+			// If no subscriptions are generated, we skip the connection
+			if m.verbose {
+				log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated [conn:%d] [URL:%s]", m.exchangeName, i+1, m.connectionManager[i].setup.URL)
 			}
-
-			if len(subs) == 0 {
-				// If no subscriptions are generated, we skip the connection
-				if m.verbose {
-					log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated", m.exchangeName)
-				}
-				continue
-			}
+			continue
 		}
 
 		if m.connectionManager[i].setup.Connector == nil {

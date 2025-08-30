@@ -1050,11 +1050,6 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, subs subscription.Li
 	return errs
 }
 
-// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
-}
-
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").
@@ -1627,7 +1622,7 @@ func (e *Exchange) checkSubscriptions() {
 		return false
 	})
 	if upgraded {
-		e.Features.Subscriptions = e.Config.Features.Subscriptions.Enabled()
+		e.Websocket.Subscriptions = e.Config.Features.Subscriptions.Enabled()
 	}
 }
 
@@ -1664,7 +1659,7 @@ func (e *Exchange) mergeMarginPairs(s *subscription.Subscription, ap map[asset.I
 		}
 	case asset.Spot:
 		// If there's a margin sub then we should merge the pairs into spot
-		hasMarginSub := slices.ContainsFunc(e.Features.Subscriptions, func(sB *subscription.Subscription) bool {
+		hasMarginSub := slices.ContainsFunc(e.Websocket.Subscriptions, func(sB *subscription.Subscription) bool {
 			if sB.Asset != asset.Margin && sB.Asset != asset.All {
 				return false
 			}
@@ -1676,7 +1671,7 @@ func (e *Exchange) mergeMarginPairs(s *subscription.Subscription, ap map[asset.I
 		}
 	case asset.Margin:
 		// If there's a spot sub, all margin pairs are already merged, so empty the margin pairs
-		hasSpotSub := slices.ContainsFunc(e.Features.Subscriptions, func(sB *subscription.Subscription) bool {
+		hasSpotSub := slices.ContainsFunc(e.Websocket.Subscriptions, func(sB *subscription.Subscription) bool {
 			if sB.Asset != asset.Spot && sB.Asset != asset.All {
 				return false
 			}

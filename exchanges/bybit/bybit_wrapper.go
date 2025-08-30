@@ -182,7 +182,6 @@ func (e *Exchange) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
-		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	e.API.Endpoints = e.NewEndpoints()
@@ -209,6 +208,7 @@ func (e *Exchange) SetDefaults() {
 	}
 
 	e.Websocket = websocket.NewManager()
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -229,6 +229,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
+		Exchange:                     e,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig:        buffer.Config{SortBuffer: true, SortBufferByUpdateIDs: true},
 		TradeFeed:                    e.Features.Enabled.TradeFeed,
@@ -249,7 +250,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		Connector:             e.WsConnect,
-		GenerateSubscriptions: e.generateSubscriptions,
 		Subscriber:            e.SpotSubscribe,
 		Unsubscriber:          e.SpotUnsubscribe,
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {

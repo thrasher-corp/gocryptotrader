@@ -226,10 +226,6 @@ func (e *Exchange) handleWSOrder(event string, msg []byte) error {
 	return nil
 }
 
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
-}
-
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName}).Parse(subTplText)

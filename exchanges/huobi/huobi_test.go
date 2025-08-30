@@ -1929,12 +1929,13 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := e.generateSubscriptions()
+	subs, err := e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
-	for _, s := range e.Features.Subscriptions {
+	for _, s := range e.Websocket.Subscriptions {
 		if s.Asset == asset.Empty {
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.QualifiedChannel = channelName(s)
@@ -1996,7 +1997,7 @@ func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
+	subs, err := defaultSubscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	testexch.SetupWs(t, e)
 	err = e.Subscribe(subs)
@@ -2011,10 +2012,9 @@ func TestSubscribe(t *testing.T) {
 // TestAuthSubscribe exercises mock subscriptions including private
 func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
-	subCfg := e.Features.Subscriptions
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := subCfg.ExpandTemplates(h)
+	subs, err := defaultSubscriptions.ExpandTemplates(h)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	err = h.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")

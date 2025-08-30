@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // Endpoint authentication types
@@ -152,7 +151,6 @@ type WithdrawalHistory struct {
 type Features struct {
 	Supports             FeaturesSupported
 	Enabled              FeaturesEnabled
-	Subscriptions        subscription.List // TODO: GBJK must remove this
 	CurrencyTranslations currency.Translations
 	TradingRequirements  protocol.TradingRequirements
 }

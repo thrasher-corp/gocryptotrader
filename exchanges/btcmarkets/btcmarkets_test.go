@@ -966,17 +966,18 @@ func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "_"), currency.NewPairWithDelimiter("ETH", "BTC", "_")}
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, p, false))
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, p, true))
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
-	subs, err := e.generateSubscriptions()
+	subs, err := e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
 	exp := subscription.List{}
-	for _, baseSub := range e.Features.Subscriptions {
+	for _, baseSub := range e.Websocket.Subscriptions {
 		s := baseSub.Clone()
 		if !s.Authenticated && s.Channel != subscription.HeartbeatChannel {
 			s.Pairs = pairs

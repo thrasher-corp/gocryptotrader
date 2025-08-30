@@ -1139,12 +1139,13 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
-	subs, err := e.generateSubscriptions()
+	subs, err := e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
-	for _, baseSub := range e.Features.Subscriptions {
+	for _, baseSub := range e.Websocket.Subscriptions {
 		for _, a := range e.GetAssetTypes(true) {
 			if baseSub.Asset != asset.All && baseSub.Asset != a {
 				continue

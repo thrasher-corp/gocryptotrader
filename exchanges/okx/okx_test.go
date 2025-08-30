@@ -6044,14 +6044,15 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := e.generateSubscriptions()
+	subs, err := e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{
 		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
 	}
 	var pairs currency.Pairs
-	for _, s := range e.Features.Subscriptions {
+	for _, s := range e.Websocket.Subscriptions {
 		for _, a := range e.GetAssetTypes(true) {
 			if a == asset.Spread || (s.Asset != asset.All && s.Asset != a) {
 				continue
@@ -6083,14 +6084,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 	testsubs.EqualLists(t, exp, subs)
 
-	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
-	subs, err = e.generateSubscriptions()
+	e.Websocket.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
+	subs, err = e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}, QualifiedChannel: `{"channel":"grid-positions","algoId":"42"}`}}
 	testsubs.EqualLists(t, exp, subs)
 
-	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions}}
-	subs, err = e.generateSubscriptions()
+	e.Websocket.Subscriptions = subscription.List{{Channel: channelGridPositions}}
+	subs, err = e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp = subscription.List{{Channel: channelGridPositions, QualifiedChannel: `{"channel":"grid-positions"}`}}
 	testsubs.EqualLists(t, exp, subs)

@@ -164,7 +164,6 @@ func (e *Exchange) SetDefaults() {
 				GlobalResultLimit: 100, // Reference: https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history
 			},
 		},
-		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -183,6 +182,7 @@ func (e *Exchange) SetDefaults() {
 	}
 
 	e.Websocket = websocket.NewManager()
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	e.WebsocketResponseMaxLimit = websocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = websocketResponseMaxLimit
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -207,12 +207,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
+		Exchange:                               e,
 		DefaultURL:                             apiWebsocketPublicURL,
 		RunningURL:                             wsRunningEndpoint,
 		Connector:                              e.WsConnect,
 		Subscriber:                             e.Subscribe,
 		Unsubscriber:                           e.Unsubscribe,
-		GenerateSubscriptions:                  e.generateSubscriptions,
 		Features:                               &e.Features.Supports.WebsocketCapabilities,
 		MaxWebsocketSubscriptionsPerConnection: 240,
 		RateLimitDefinitions:                   rateLimits,

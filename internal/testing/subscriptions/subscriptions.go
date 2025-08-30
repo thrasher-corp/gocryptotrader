@@ -13,7 +13,7 @@ import (
 // EqualLists is a utility function to compare subscription lists and show a pretty failure message
 // It overcomes the verbose depth of assert.ElementsMatch spewConfig
 // Duplicate of exchange/subscription/subscription:equalList
-func EqualLists(tb testing.TB, a, b subscription.List) bool {
+func EqualLists(tb testing.TB, a, b subscription.List, msg ...string) bool {
 	tb.Helper()
 	for _, sub := range append(a, b...) {
 		sub.Key = &StrictKey{&subscription.ExactKey{Subscription: sub}}
@@ -29,7 +29,10 @@ func EqualLists(tb testing.TB, a, b subscription.List) bool {
 		if len(missing) > 0 {
 			fail = fail + "\n - " + strings.Join(missing.Strings(), "\n - ")
 		}
-		assert.Fail(tb, fail, "Subscriptions should be equal")
+		if len(msg) == 0 {
+			msg = []string{"Subscriptions should be equal"}
+		}
+		assert.Fail(tb, fail, msg)
 		return false
 	}
 	return true

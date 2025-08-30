@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"text/template"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -22,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -33,8 +35,6 @@ const (
 	useProxyTests = false                     // Disabled by default. Freely available proxy servers that work all the time are difficult to find
 	proxyURL      = "http://212.186.171.4:80" // Replace with a usable proxy server
 )
-
-var errDastardlyReason = errors.New("some dastardly reason")
 
 type testStruct struct {
 	Error error
@@ -65,6 +65,7 @@ type testSubKey struct {
 
 func newDefaultSetup() *ManagerSetup {
 	return &ManagerSetup{
+		Exchange: &mockEx{},
 		ExchangeConfig: &config.Exchange{
 			Features: &config.FeaturesConfig{
 				Enabled: config.FeaturesEnabledConfig{Websocket: true},
@@ -104,7 +105,7 @@ func TestSetup(t *testing.T) {
 
 	websocketSetup := &ManagerSetup{}
 	err = w.Setup(websocketSetup)
-	assert.ErrorContains(t, err, "nil pointer: ManagerSetup.Exchange")
+	assert.ErrorContains(t, err, "nil pointer: ManagerSetup.ExchangeConfig")
 
 	websocketSetup.ExchangeConfig = &config.Exchange{}
 	err = w.Setup(websocketSetup)
@@ -115,6 +116,10 @@ func TestSetup(t *testing.T) {
 	assert.ErrorContains(t, err, "nil pointer: ManagerSetup.Features")
 
 	websocketSetup.Features = &protocol.Features{}
+	err = w.Setup(websocketSetup)
+	assert.ErrorContains(t, err, "nil pointer: ManagerSetup.Exchange")
+
+	websocketSetup.Exchange = &mockEx{}
 	err = w.Setup(websocketSetup)
 	assert.ErrorIs(t, err, errExchangeConfigNameEmpty)
 
@@ -134,10 +139,6 @@ func TestSetup(t *testing.T) {
 	assert.ErrorIs(t, err, errWebsocketUnsubscriberUnset)
 
 	websocketSetup.Unsubscriber = func(subscription.List) error { return nil }
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
-
-	websocketSetup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
 	err = w.Setup(websocketSetup)
 	assert.ErrorIs(t, err, errDefaultURLIsEmpty)
 
@@ -165,7 +166,10 @@ func TestSetup(t *testing.T) {
 
 func TestConnectionMessageErrors(t *testing.T) {
 	t.Parallel()
-	wsWrong := &Manager{}
+	wsWrong := &Manager{
+		exchangeName: "mock",
+		Exchange:     &mockEx{},
+	}
 	wsWrong.connector = func() error { return nil }
 	err := wsWrong.Connect()
 	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "Connect should error correctly")
@@ -182,9 +186,9 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	wsWrong.subscriptions = subscription.NewStore()
 	wsWrong.setState(disconnectedState)
-	wsWrong.connector = func() error { return errDastardlyReason }
+	wsWrong.connector = func() error { return errors.New("connector errors correctly") }
 	err = wsWrong.Connect()
-	assert.ErrorIs(t, err, errDastardlyReason, "Connect should error correctly")
+	assert.ErrorContains(t, err, "connector errors correctly", "Connect should error correctly")
 
 	ws := NewManager()
 	err = ws.Setup(newDefaultSetup())
@@ -205,26 +209,26 @@ func TestConnectionMessageErrors(t *testing.T) {
 	}
 	require.NoError(t, ws.Connect(), "Connect must not error")
 
-	checkToRoutineResult := func(t *testing.T) {
+	checkToRoutineResult := func(t *testing.T, exp string) {
 		t.Helper()
 		v, ok := <-ws.ToRoutine
 		require.True(t, ok, "ToRoutine must not be closed on us")
 		switch err := v.(type) {
 		case *gws.CloseError:
-			assert.Equal(t, "SpecialText", err.Text, "Should get correct Close Error")
+			assert.Equal(t, exp, err.Text, "Should get correct Close Error")
 		case error:
-			assert.ErrorIs(t, err, errDastardlyReason, "Should get the correct error")
+			assert.ErrorContains(t, err, exp, "Should get the correct error")
 		default:
 			assert.Failf(t, "Wrong data type sent to ToRoutine", "Got type: %T", err)
 		}
 	}
 
 	ws.TrafficAlert <- struct{}{}
-	ws.ReadMessageErrors <- errDastardlyReason
-	checkToRoutineResult(t)
+	ws.ReadMessageErrors <- errors.New("ReadMessageErrors error")
+	checkToRoutineResult(t, "ReadMessageErrors error")
 
 	ws.ReadMessageErrors <- &gws.CloseError{Code: 1006, Text: "SpecialText"}
-	checkToRoutineResult(t)
+	checkToRoutineResult(t, "SpecialText")
 
 	// Test individual connection defined functions
 	require.NoError(t, ws.Shutdown())
@@ -239,17 +243,13 @@ func TestConnectionMessageErrors(t *testing.T) {
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
 	ws.connectionManager = []*connectionWrapper{{setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
-	err = ws.Connect()
-	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
-
-	ws.connectionManager[0].setup.Authenticate = func(context.Context, Connection) error { return errDastardlyReason }
-
 	ws.connectionManager[0].setup.GenerateSubscriptions = func() (subscription.List, error) {
-		return nil, errDastardlyReason
+		return nil, errors.New("multi-GenerateSubs error")
 	}
 	err = ws.Connect()
-	require.ErrorIs(t, err, errDastardlyReason)
+	require.ErrorContains(t, err, "multi-GenerateSubs error")
 
+	// ConnectFunc isn't called unless we have some subs
 	ws.connectionManager[0].setup.GenerateSubscriptions = func() (subscription.List, error) {
 		return subscription.List{{Channel: "test"}}, nil
 	}
@@ -257,46 +257,40 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.ErrorIs(t, err, errNoConnectFunc)
 
 	ws.connectionManager[0].setup.Connector = func(context.Context, Connection) error {
-		return errDastardlyReason
+		return errors.New("setup.Connector error")
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
 	ws.connectionManager[0].setup.Handler = func(context.Context, Connection, []byte) error {
-		return errDastardlyReason
+		return errors.New("setup.Handler error")
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriberUnset)
 
 	ws.connectionManager[0].setup.Subscriber = func(context.Context, Connection, subscription.List) error {
-		return errDastardlyReason
+		return errors.New("setup.Subscriber error")
 	}
 	err = ws.Connect()
-	require.ErrorIs(t, err, errDastardlyReason)
+	require.ErrorContains(t, err, "setup.Connector error")
 
 	ws.connectionManager[0].setup.Connector = func(ctx context.Context, conn Connection) error {
 		return conn.Dial(ctx, gws.DefaultDialer, nil)
 	}
 	err = ws.Connect()
-	require.ErrorIs(t, err, errDastardlyReason)
-
-	ws.connectionManager[0].setup.Handler = func(context.Context, Connection, []byte) error {
-		return errDastardlyReason
-	}
-	err = ws.Connect()
-	require.ErrorIs(t, err, errDastardlyReason)
-
-	ws.connectionManager[0].setup.Subscriber = func(context.Context, Connection, subscription.List) error {
-		return errDastardlyReason
-	}
-	ws.connectionManager[0].setup.Authenticate = nil
-	err = ws.Connect()
-	require.ErrorIs(t, err, errDastardlyReason)
-	require.NoError(t, ws.shutdown())
+	require.ErrorContains(t, err, "setup.Subscriber error")
+	require.NoError(t, ws.shutdown()) // Subscription errors do not disconnect
 
 	ws.connectionManager[0].setup.Subscriber = func(context.Context, Connection, subscription.List) error {
 		return nil
 	}
+	ws.connectionManager[0].setup.Authenticate = func(context.Context, Connection) error {
+		return errors.New("setup.Authenticate error")
+	}
+	err = ws.Connect()
+	require.ErrorContains(t, err, "setup.Authenticate error")
+
+	ws.connectionManager[0].setup.Authenticate = nil
 	err = ws.Connect()
 	require.ErrorIs(t, err, ErrSubscriptionsNotAdded)
 	require.NoError(t, ws.shutdown())
@@ -306,12 +300,12 @@ func TestConnectionMessageErrors(t *testing.T) {
 		return ws.connectionManager[0].subscriptions.Add(&subscription.Subscription{Channel: "test"})
 	}
 	err = ws.Connect()
-	require.NoError(t, err)
+	require.NoError(t, err, "Connect must not error")
 
 	err = ws.connectionManager[0].connection.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("test"))
 	require.NoError(t, err)
+	checkToRoutineResult(t, "setup.Handler error")
 
-	require.NoError(t, err)
 	require.NoError(t, ws.Shutdown())
 }
 
@@ -345,9 +339,9 @@ func TestManager(t *testing.T) {
 
 	ws.setState(connectedState)
 
-	ws.connector = func() error { return errDastardlyReason }
+	ws.connector = func() error { return errors.New("connector error") }
 	err = ws.SetProxyAddress("https://192.168.0.1:1336")
-	assert.ErrorIs(t, err, errDastardlyReason, "SetProxyAddress should call Connect and error from there")
+	assert.ErrorContains(t, err, "connector error", "SetProxyAddress should call Connect and error from there")
 
 	err = ws.SetProxyAddress("https://192.168.0.1:1336")
 	assert.ErrorIs(t, err, errSameProxyAddress, "SetProxyAddress should error correctly")
@@ -865,9 +859,9 @@ func TestFlushChannels(t *testing.T) {
 
 	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
 
-	w.GenerateSubs = func() (subscription.List, error) { return nil, errDastardlyReason } // error on generateSubs
-	err = w.FlushChannels()                                                               // error on full subscribeToChannels
-	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should error correctly on GenerateSubs")
+	w.GenerateSubs = func() (subscription.List, error) { return nil, errors.New("GenerateSubs error") }
+	err = w.FlushChannels()
+	assert.ErrorContains(t, err, "GenerateSubs error", "FlushChannels should error correctly on GenerateSubs")
 
 	w.GenerateSubs = func() (subscription.List, error) { return nil, nil } // No subs to sub
 
@@ -1020,10 +1014,6 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errWebsocketConnectorUnset)
 
 	connSetup.Connector = func(context.Context, Connection) error { return nil }
-	err = multi.SetupNewConnection(connSetup)
-	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
-
-	connSetup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errWebsocketSubscriberUnset)
 
@@ -1356,3 +1346,18 @@ func TestShutdown(t *testing.T) {
 	require.Equal(t, m.ShutdownC, authConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 	require.Equal(t, m.ShutdownC, unauthConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 }
+
+type mockEx struct{}
+
+func (*mockEx) GetAssetTypes(_ bool) asset.Items                   { return asset.Items{} }
+func (*mockEx) GetEnabledPairs(asset.Item) (currency.Pairs, error) { return nil, nil }
+func (*mockEx) CanUseAuthenticatedWebsocketEndpoints() bool        { return true }
+func (*mockEx) IsAssetWebsocketSupported(_ asset.Item) bool        { return true }
+func (*mockEx) GetPairFormat(asset.Item, bool) (currency.PairFormat, error) {
+	return currency.PairFormat{}, nil
+}
+
+func (*mockEx) GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error) {
+	return nil, nil
+}
+func (*mockEx) GetSubscriptions() (subscription.List, error) { return nil, nil }

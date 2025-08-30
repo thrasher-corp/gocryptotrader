@@ -190,11 +190,6 @@ func (e *Exchange) handleSubscriptions(_ websocket.Connection, operation string,
 	return
 }
 
-// generateSubscriptions generates default subscription
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
-}
-
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{

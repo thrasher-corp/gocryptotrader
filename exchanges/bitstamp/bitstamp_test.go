@@ -1001,12 +1001,12 @@ func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
-	subs, err := e.generateSubscriptions()
+	subs, err := e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
-	for _, baseSub := range e.Features.Subscriptions {
+	for _, baseSub := range e.Websocket.Subscriptions {
 		for _, p := range pairs.Format(currency.PairFormat{Uppercase: false}) {
 			s := baseSub.Clone()
 			s.Pairs = currency.Pairs{p}
@@ -1026,9 +1026,9 @@ func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
+	subs, err := e.Websocket.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	e.Features.Subscriptions = subscription.List{}
+	e.Websocket.Subscriptions = subscription.List{}
 	testexch.SetupWs(t, e)
 	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")

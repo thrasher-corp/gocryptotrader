@@ -1162,6 +1162,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 
 	p := currency.Pairs{
 		currency.NewPair(currency.ETH, currency.USD),
@@ -1183,14 +1184,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := e.generateSubscriptions()
+	subs, err := e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 
 	for _, a := range e.GetAssetTypes(true) {
 		require.NoErrorf(t, e.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
 	}
-	_, err = e.generateSubscriptions()
+	_, err = e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error when no assets are enabled")
 }
 
@@ -1198,9 +1199,9 @@ func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	subs, err := e.generateSubscriptions() // Note: We grab this before it's overwritten by SetupWs
-	require.NoError(t, err, "generateSubscriptions must not error")
 	testexch.SetupWs(t, e)
+	subs, err := defaultSubscriptions.ExpandTemplates(e)
+	require.NoError(t, err, "ExpandTemplates must not error")
 	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
 	for _, s := range subs {

@@ -2327,9 +2327,9 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
+	subs, err := e.Websocket.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	e.Features.Subscriptions = subscription.List{}
+	e.Websocket.Subscriptions = subscription.List{}
 	err = e.Subscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "Subscribe must not error")
 }

@@ -371,11 +371,6 @@ func (e *Exchange) orderbookFilter(price, amount float64) bool {
 	return price == 0 || amount == 0
 }
 
-// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
-}
-
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{

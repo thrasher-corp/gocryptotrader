@@ -115,7 +115,6 @@ func (e *Exchange) SetDefaults() {
 				GlobalResultLimit: 1500,
 			},
 		},
-		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -133,6 +132,7 @@ func (e *Exchange) SetDefaults() {
 	}
 
 	e.Websocket = websocket.NewManager()
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
@@ -157,13 +157,13 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            wsEndpoint,
-		RunningURL:            ePoint,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		Exchange:       e,
+		ExchangeConfig: exch,
+		DefaultURL:     wsEndpoint,
+		RunningURL:     ePoint,
+		Connector:      e.WsConnect,
+		Subscriber:     e.Subscribe,
+		Features:       &e.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

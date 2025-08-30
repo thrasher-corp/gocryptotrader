@@ -790,11 +790,6 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 	return nil
 }
 
-// generateSubscriptions returns a list of configured subscriptions
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
-}
-
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{

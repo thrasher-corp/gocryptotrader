@@ -84,11 +84,6 @@ func (e *Exchange) WsConnect() error {
 	return nil
 }
 
-// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
-}
-
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{

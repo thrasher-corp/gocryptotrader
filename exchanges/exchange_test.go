@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -1120,6 +1121,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 
 	b.Websocket = websocket.NewManager()
 	err := b.Websocket.Setup(&websocket.ManagerSetup{
+		Exchange: &FakeBase{},
 		ExchangeConfig: &config.Exchange{
 			Enabled:                 true,
 			WebsocketTrafficTimeout: time.Second * 30,
@@ -1517,30 +1519,6 @@ func TestFlushWebsocketChannels(t *testing.T) {
 	if err == nil {
 		t.Fatal(err)
 	}
-}
-
-func TestSubscribeToWebsocketChannels(t *testing.T) {
-	b := Base{}
-	err := b.SubscribeToWebsocketChannels(nil)
-	if err == nil {
-		t.Fatal(err)
-	}
-
-	b.Websocket = websocket.NewManager()
-	err = b.SubscribeToWebsocketChannels(nil)
-	if err == nil {
-		t.Fatal(err)
-	}
-}
-
-func TestUnsubscribeToWebsocketChannels(t *testing.T) {
-	b := Base{}
-	err := b.UnsubscribeToWebsocketChannels(nil)
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "UnsubscribeToWebsocketChannels should error correctly with a nil Websocket")
-
-	b.Websocket = websocket.NewManager()
-	err = b.UnsubscribeToWebsocketChannels(nil)
-	assert.NoError(t, err, "UnsubscribeToWebsocketChannels from an empty/nil list should not error")
 }
 
 func TestGetSubscriptions(t *testing.T) {
@@ -2489,10 +2467,11 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: true},
 		{Channel: subscription.OrderbookChannel, Enabled: false},
 	}
-	b.Features.Subscriptions = subs
+	b.Websocket = websocket.NewManager()
+	b.Websocket.Subscriptions = subs
 	b.SetSubscriptionsFromConfig()
-	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be updated")
-	assert.ElementsMatch(t, subscription.List{subs[0]}, b.Features.Subscriptions, "Actual Subscriptions should only contain Enabled")
+	testsubs.EqualLists(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be updated")
+	testsubs.EqualLists(t, subscription.List{subs[0]}, b.Websocket.Subscriptions, "Actual Subscriptions should only contain Enabled")
 
 	subs = subscription.List{
 		{Channel: subscription.OrderbookChannel, Enabled: true},
@@ -2500,8 +2479,8 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 	}
 	b.Config.Features.Subscriptions = subs
 	b.SetSubscriptionsFromConfig()
-	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
-	assert.ElementsMatch(t, subscription.List{subs[0]}, b.Features.Subscriptions, "Subscriptions should only contain Enabled from Config")
+	testsubs.EqualLists(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
+	testsubs.EqualLists(t, subscription.List{subs[0]}, b.Websocket.Subscriptions, "Subscriptions should only contain Enabled from Config")
 }
 
 // TestParallelChanOp unit tests the helper func ParallelChanOp
