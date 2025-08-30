@@ -93,9 +93,10 @@ type Manager struct {
 	features                      *protocol.Features
 	m                             sync.Mutex
 	connections                   map[Connection]*connectionWrapper
-	subscriptions                 *subscription.Store
+	subscriptions                 *subscription.Store // Internal store of expanded templates
 	connector                     func() error
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
+	Subscriptions                 subscription.List            // Public api for configuring
 	Subscriber                    func(subscription.List) error
 	Unsubscriber                  func(subscription.List) error
 	GenerateSubs                  func() (subscription.List, error)
