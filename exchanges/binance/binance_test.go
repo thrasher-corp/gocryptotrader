@@ -2420,7 +2420,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	e.Websocket.Subscriptions = defaultSubscriptions
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone().Enabled()
 	exp := subscription.List{}
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	assert.NoError(t, err, "GetEnabledPairs should not error")
