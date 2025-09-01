@@ -195,6 +195,11 @@ func (e *Exchange) ListAccounts(ctx context.Context, limit uint8, cursor int64) 
 	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+accountsPath, vals, nil, true, &resp)
 }
 
+type convertTradeReqBase struct {
+	FromAccount string `json:"from_account"`
+	ToAccount   string `json:"to_account"`
+}
+
 // CommitConvertTrade commits a conversion between two currencies, using the trade_id returned from CreateConvertQuote
 func (e *Exchange) CommitConvertTrade(ctx context.Context, tradeID, from, to string) (*ConvertResponse, error) {
 	if tradeID == "" {
@@ -204,12 +209,8 @@ func (e *Exchange) CommitConvertTrade(ctx context.Context, tradeID, from, to str
 		return nil, errAccountIDEmpty
 	}
 	path := v3Path + convertPath + "/" + tradePath + "/" + tradeID
-	req := map[string]any{
-		"from_account": from,
-		"to_account":   to,
-	}
 	var resp ConvertWrapper
-	return &resp.Trade, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return &resp.Trade, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, convertTradeReqBase{FromAccount: from, ToAccount: to}, true, &resp)
 }
 
 // CreateConvertQuote creates a quote for a conversion between two currencies. The trade_id returned can be used to commit the trade, but that must be done within 10 minutes of the quote's creation
@@ -1402,7 +1403,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, queryParams url.Values, bodyParams map[string]any, isVersion3 bool, result any) (err error) {
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, queryParams url.Values, payload any, isVersion3 bool, result any) (err error) {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -1412,10 +1413,9 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 	interim := json.RawMessage{}
 	newRequest := func() (*request.Item, error) {
-		payload := []byte("")
-		if bodyParams != nil {
-			payload, err = json.Marshal(bodyParams)
-			if err != nil {
+		payloadBytes := []byte("")
+		if payload != nil {
+			if payloadBytes, err = json.Marshal(payload); err != nil {
 				return nil, err
 			}
 		}
@@ -1432,7 +1432,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Method:                 method,
 			Path:                   endpoint + common.EncodeURLValues(path, queryParams),
 			Headers:                headers,
-			Body:                   bytes.NewBuffer(payload),
+			Body:                   bytes.NewBuffer(payloadBytes),
 			Result:                 &interim,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,
