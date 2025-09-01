@@ -90,27 +90,6 @@ func (e *Exchange) WsAuthenticate(ctx context.Context) error {
 	return e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 }
 
-func stringToOrderStatus(status string) (order.Status, error) {
-	switch status {
-	case "ORDER_INSERTED", "TRIGGER_INSERTED":
-		return order.New, nil
-	case "ORDER_CANCELLED":
-		return order.Cancelled, nil
-	case "ORDER_FULL_TRANSACTED":
-		return order.Filled, nil
-	case "ORDER_PARTIALLY_TRANSACTED":
-		return order.PartiallyFilled, nil
-	case "TRIGGER_ACTIVATED":
-		return order.Active, nil
-	case "INSUFFICIENT_BALANCE":
-		return order.InsufficientBalance, nil
-	case "MARKET_UNAVAILABLE":
-		return order.MarketUnavailable, nil
-	default:
-		return order.UnknownStatus, errors.New(status + " not recognised as order status")
-	}
-}
-
 // wsReadData receives and passes on websocket messages for processing
 func (e *Exchange) wsReadData(ctx context.Context) {
 	defer e.Websocket.Wg.Done()
@@ -184,34 +163,6 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			return err
 		}
 		for i := range notification.Data {
-			var oType order.Type
-			var oSide order.Side
-			var oStatus order.Status
-			oType, err = order.StringToOrderType(notification.Data[i].Type)
-			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  notification.Data[i].OrderID,
-					Err:      err,
-				}
-			}
-			oSide, err = order.StringToOrderSide(notification.Data[i].OrderMode)
-			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  notification.Data[i].OrderID,
-					Err:      err,
-				}
-			}
-			oStatus, err = stringToOrderStatus(notification.Data[i].Status)
-			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  notification.Data[i].OrderID,
-					Err:      err,
-				}
-			}
-
 			var p currency.Pair
 			p, err = currency.NewPairFromString(notification.Data[i].Symbol)
 			if err != nil {
@@ -230,9 +181,9 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				TriggerPrice: notification.Data[i].TriggerPrice,
 				Exchange:     e.Name,
 				OrderID:      notification.Data[i].OrderID,
-				Type:         oType,
-				Side:         oSide,
-				Status:       oStatus,
+				Type:         notification.Data[i].Type,
+				Side:         notification.Data[i].OrderMode,
+				Status:       notification.Data[i].Status,
 				AssetType:    a,
 				Date:         notification.Data[i].Timestamp.Time(),
 				Pair:         p,
