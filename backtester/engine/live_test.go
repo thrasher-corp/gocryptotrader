@@ -2,7 +2,6 @@ package engine
 
 import (
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -65,20 +64,23 @@ func TestSetupLiveDataHandler(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	dc := &dataChecker{
+	dc1 := &dataChecker{
 		shutdown: make(chan bool),
 	}
-	err := dc.Start()
+	err := dc1.Start()
 	assert.NoError(t, err)
 
-	close(dc.shutdown)
-	dc.wg.Wait()
-	atomic.CompareAndSwapUint32(&dc.started, 0, 1)
-	err = dc.Start()
+	close(dc1.shutdown)
+	dc1.wg.Wait()
+
+	dc2 := &dataChecker{
+		started: 1,
+	}
+	err = dc2.Start()
 	assert.ErrorIs(t, err, engine.ErrSubSystemAlreadyStarted)
 
-	var dh *dataChecker
-	err = dh.Start()
+	var dc3 *dataChecker
+	err = dc3.Start()
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
