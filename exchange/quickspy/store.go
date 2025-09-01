@@ -4,6 +4,14 @@ import (
 	"sync"
 )
 
+// FocusStore is a store for FocusData instances identified by FocusType
+// Use methods to interact with the store in a thread-safe manner
+type FocusStore struct {
+	s map[FocusType]*FocusData
+	m *sync.RWMutex
+}
+
+// NewFocusStore creates a ready to use FocusStore
 func NewFocusStore() *FocusStore {
 	return &FocusStore{
 		s: make(map[FocusType]*FocusData),
@@ -12,18 +20,26 @@ func NewFocusStore() *FocusStore {
 }
 
 // Upsert adds or updates FocusData in the store.
+// If data is nil, the method does nothing. Use Remove to delete entries.
 func (s *FocusStore) Upsert(key FocusType, data *FocusData) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	if data == nil {
-		delete(s.s, key)
 		return
 	}
 	data.Type = key
 	if data.m == nil {
-		data.m = new(sync.RWMutex)
+		data.Init()
 	}
 	s.s[key] = data
+}
+
+// Remove deletes FocusData from the store by its FocusType key.
+// It does nothing with the data itself, like closing channels or cleaning up resources.
+func (s *FocusStore) Remove(key FocusType) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	delete(s.s, key)
 }
 
 // GetByFocusType returns FocusData if exists
@@ -37,8 +53,9 @@ func (s *FocusStore) GetByFocusType(key FocusType) *FocusData {
 	return data
 }
 
-// List returns a new list of store data.
-// store data are pointers
+// List returns a slice of FocusData pointers to iterate over
+// Note: order of the slice is not guaranteed
+// Note: is unsafe
 func (s *FocusStore) List() []*FocusData {
 	s.m.RLock()
 	defer s.m.RUnlock()
@@ -49,6 +66,7 @@ func (s *FocusStore) List() []*FocusData {
 	return list
 }
 
+// DisableWebsocketFocuses sets all FocusData in the store to not use websockets
 func (s *FocusStore) DisableWebsocketFocuses() {
 	s.m.Lock()
 	defer s.m.Unlock()

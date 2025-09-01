@@ -28,14 +28,16 @@ import (
 )
 
 // NewQuickSpy creates a new QuickSpy
-func NewQuickSpy(k *CredentialsKey, focuses []FocusData, verbose bool) (*QuickSpy, error) {
+func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []FocusData, verbose bool) (*QuickSpy, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if k == nil {
 		return nil, errNoKey
 	}
 	if len(focuses) == 0 {
 		return nil, errNoFocus
 	}
-
 	sm := NewFocusStore()
 	for i := range focuses {
 		focuses[i].Init()
@@ -44,13 +46,11 @@ func NewQuickSpy(k *CredentialsKey, focuses []FocusData, verbose bool) (*QuickSp
 		}
 		sm.Upsert(focuses[i].Type, &focuses[i])
 	}
-	credContext := context.Background()
 	q := &QuickSpy{
 		Key:                k,
 		dataHandlerChannel: make(chan any),
-		shutdown:           make(chan any),
 		Focuses:            sm,
-		credContext:        credContext,
+		credContext:        ctx,
 		Data:               &Data{Key: k},
 		m:                  new(sync.RWMutex),
 		verbose:            verbose,
@@ -296,8 +296,8 @@ func (q *QuickSpy) Run() error {
 func (q *QuickSpy) HandleWS() error {
 	for {
 		select {
-		case <-q.shutdown:
-			return nil
+		case <-q.credContext.Done():
+			return q.credContext.Err()
 		case d := <-q.dataHandlerChannel:
 			switch data := d.(type) {
 			case []ticker.Price:
@@ -413,8 +413,8 @@ func (q *QuickSpy) RunRESTFocus(focusType FocusType) error {
 	failures := 0
 	for {
 		select {
-		case <-q.shutdown:
-			return nil
+		case <-q.credContext.Done():
+			return q.credContext.Err()
 		case <-timer.C:
 			err := q.handleFocusType(focusType, focus, timer)
 			if err != nil {
@@ -612,11 +612,30 @@ func (q *QuickSpy) handleOrdersFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleAccountHoldingsFocus(focus *FocusData) error {
-	ais, err := account.GetHoldings(q.Key.ExchangeAssetPair.Exchange, q.Key.Credentials, q.Key.ExchangeAssetPair.Asset)
+	ais, err := q.Exch.UpdateAccountInfo(q.credContext, q.Key.ExchangeAssetPair.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w",
 			q.Key.ExchangeAssetPair, focus.Type.String(), err)
 	}
+	// filter results only to passed in key currencies
+	sa := make([]account.Balance, 0, 2)
+	for _, a := range ais.Accounts {
+		if a.AssetType != q.Key.ExchangeAssetPair.Asset {
+			continue
+		}
+		for _, c := range a.Currencies {
+			if c.Currency.Equal(q.Key.ExchangeAssetPair.Base.Currency()) {
+				sa = append(sa, c)
+			}
+			if c.Currency.Equal(q.Key.ExchangeAssetPair.Quote.Currency()) {
+				sa = append(sa, c)
+			}
+		}
+	}
+	ais.Accounts = []account.SubAccount{{
+		AssetType:  q.Key.ExchangeAssetPair.Asset,
+		Currencies: sa,
+	}}
 	focus.m.Lock()
 	q.Data.Account = &ais
 	focus.m.Unlock()
@@ -704,7 +723,7 @@ func (q *QuickSpy) successfulSpy(focus *FocusData, timer *time.Timer) {
 }
 
 func (q *QuickSpy) Shutdown() {
-	close(q.shutdown)
+	q.credContext.Done()
 }
 
 func (q *QuickSpy) Dump() (*ExportedData, error) {
@@ -754,9 +773,13 @@ func (d *Data) Dump(k key.ExchangeAssetPair, hasCredentials bool) (*ExportedData
 		lastTradePrice = lastTrade.Price
 		lastTradeSize = lastTrade.Amount
 	}
-	holdings := []account.Holdings{}
+
+	var holdings []account.SubAccount
 	if d.Account != nil {
-		holdings = append(holdings, *d.Account)
+		holdings = make([]account.SubAccount, len(d.Account.Accounts))
+		for i := range d.Account.Accounts {
+			holdings[i] = d.Account.Accounts[i]
+		}
 	}
 	var nextFundingRateTime, currentFundingRateTime time.Time
 	var execLimitsCopy limits.MinMaxLevel
@@ -775,10 +798,6 @@ func (d *Data) Dump(k key.ExchangeAssetPair, hasCredentials bool) (*ExportedData
 		IndexPrice:             indexPrice,
 		MarkPrice:              markPrice,
 		Volume:                 volume,
-		AskLiquidity:           0,
-		AskValue:               0,
-		BidLiquidity:           0,
-		BidValue:               0,
 		Spread:                 spread,
 		SpreadPercent:          spreadPercent,
 		FundingRate:            fundingRate,
@@ -872,6 +891,8 @@ func (q *QuickSpy) WaitForInitialData(ctx context.Context, focusType FocusType) 
 		return fmt.Errorf("%w %q", errKeyNotFound, focusType)
 	}
 	select {
+	case <-ctx.Done():
+		return ctx.Err()
 	case <-focus.HasBeenSuccessfulChan:
 		return nil
 	case <-ctx.Done():
@@ -881,17 +902,21 @@ func (q *QuickSpy) WaitForInitialData(ctx context.Context, focusType FocusType) 
 
 // WaitForInitialDataWithTimer waits for initial data for a focus type or cancels when ctx is done.
 func (q *QuickSpy) WaitForInitialDataWithTimer(ctx context.Context, focusType FocusType, tt time.Duration) error {
+	if tt == 0 {
+		return fmt.Errorf("%w: timer cannot be 0", errTimerNotSet)
+	}
 	focus := q.Focuses.GetByFocusType(focusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, focusType)
 	}
 	t := time.NewTimer(tt)
 	select {
-	case <-focus.HasBeenSuccessfulChan:
-		return nil
 	case <-ctx.Done():
 		return ctx.Err()
+	case <-focus.HasBeenSuccessfulChan:
+		return nil
 	case <-t.C:
 		return fmt.Errorf("%w %q", errFocusDataTimeout, focusType)
+
 	}
 }

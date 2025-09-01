@@ -31,9 +31,12 @@ var (
 	errNoRateLimits                   = errors.New("exchange has no rate limits set")
 	errNoWebsocketSupportForFocusType = errors.New("quickspy does not support websocket for this focus type")
 	errNoSubSwitchingToREST           = errors.New("no subscription found, switching to REST")
+	errTimerNotSet                    = errors.New("timer not set")
 )
 
+// CredentialsKey is a struct that holds credentials and exchange/pair/asset info
 type CredentialsKey struct {
+	// Credentials is optional, if nil public data only
 	Credentials       *account.Credentials  `json:"credentials"`
 	ExchangeAssetPair key.ExchangeAssetPair `json:"exchangeAssetPair"`
 }
@@ -43,6 +46,7 @@ type CredentialsKey struct {
 // it is write-side oriented vs the comparer
 type QuickSpy struct {
 	// credContext is the context for credentials
+	// also used for cancelling goroutines
 	credContext context.Context
 	// Exch is the exchange interface
 	Exch exchange.IBotExchange
@@ -51,8 +55,6 @@ type QuickSpy struct {
 	// Focuses is a map of focus types to focus options
 	// Don't access directly, use functions to handle locking
 	Focuses *FocusStore
-	// shutdown is a channel for shutdown signaling
-	shutdown chan any
 	// dataHandlerChannel is used for receiving data from websockets
 	dataHandlerChannel chan any
 	// m is used for concurrent read/write operations
@@ -66,11 +68,7 @@ type QuickSpy struct {
 	verbose bool
 }
 
-type FocusStore struct {
-	s map[FocusType]*FocusData
-	m *sync.RWMutex
-}
-
+// Data holds the GCT types that QuickSpy gathers
 type Data struct {
 	Key             *CredentialsKey
 	Contract        *futures.Contract
@@ -86,8 +84,7 @@ type Data struct {
 	OpenInterest    float64
 }
 
-// ExportedData is a struct that collates
-// all important data from focus types
+// ExportedData is a struct that collates all the data QuickSpy has gathered
 type ExportedData struct {
 	Key                    key.ExchangeAssetPair `json:"CredentialsKey"`
 	UnderlyingBase         *currency.Item        `json:"UnderlyingBase,omitzero"`
@@ -101,17 +98,13 @@ type ExportedData struct {
 	IndexPrice             float64               `json:"indexPrice,omitzero"`
 	MarkPrice              float64               `json:"markPrice,omitzero"`
 	Volume                 float64               `json:"volume,omitzero"`
-	AskLiquidity           float64               `json:"askLiquidity,omitzero"`
-	AskValue               float64               `json:"askValue,omitzero"`
-	BidLiquidity           float64               `json:"bidLiquidity,omitzero"`
-	BidValue               float64               `json:"bidValue,omitzero"`
 	Spread                 float64               `json:"spread,omitzero"`
 	SpreadPercent          float64               `json:"spreadPercent,omitzero"`
 	FundingRate            float64               `json:"fundingRate,omitzero"`
 	EstimatedFundingRate   float64               `json:"estimatedFundingRate,omitzero"`
 	LastTradePrice         float64               `json:"lastTradePrice,omitzero"`
 	LastTradeSize          float64               `json:"lastTradeSize,omitzero"`
-	Holdings               []account.Holdings    `json:"holdings,omitzero"`
+	Holdings               []account.SubAccount  `json:"holdings,omitzero"`
 	Orders                 []order.Detail        `json:"orders,omitzero"`
 	Bids                   orderbook.Levels      `json:"bids,omitzero"`
 	Asks                   orderbook.Levels      `json:"asks,omitzero"`
@@ -120,65 +113,4 @@ type ExportedData struct {
 	CurrentFundingRateTime time.Time             `json:"currentFundingRateTime,omitzero"`
 	ExecutionLimits        limits.MinMaxLevel    `json:"executionLimits,omitzero"`
 	URL                    string                `json:"url,omitzero"`
-}
-
-type FocusType int
-
-type FocusData struct {
-	Type                  FocusType
-	UseWebsocket          bool
-	RESTPollTime          time.Duration
-	m                     *sync.RWMutex
-	IsOnceOff             bool
-	hasBeenSuccessful     bool
-	HasBeenSuccessfulChan chan any
-	Stream                chan any
-}
-
-// FocusTypes are what quickspy uses to grant permission for it to grab data
-const (
-	UnsetFocusType FocusType = iota
-	OpenInterestFocusType
-	TickerFocusType
-	OrderBookFocusType
-	FundingRateFocusType
-	TradesFocusType
-	AccountHoldingsFocusType
-	ActiveOrdersFocusType
-	OrderPlacementFocusType
-	KlineFocusType
-	ContractFocusType
-	OrderExecutionFocusType
-	URLFocusType
-)
-
-func (f FocusType) String() string {
-	switch f {
-	case OpenInterestFocusType:
-		return "OpenInterestFocusType"
-	case TickerFocusType:
-		return "TickerFocusType"
-	case OrderBookFocusType:
-		return "OrderBookFocusType"
-	case FundingRateFocusType:
-		return "FundingRateFocusType"
-	case TradesFocusType:
-		return "TradesFocusType"
-	case AccountHoldingsFocusType:
-		return "AccountHoldingsFocusType"
-	case ActiveOrdersFocusType:
-		return "ActiveOrdersFocusType"
-	case OrderPlacementFocusType:
-		return "OrderPlacementFocusType"
-	case KlineFocusType:
-		return "KlineFocusType"
-	case ContractFocusType:
-		return "ContractFocusType"
-	case OrderExecutionFocusType:
-		return "OrderExecutionFocusType"
-	case URLFocusType:
-		return "URLFocusType"
-	default:
-		return "Unset/Unknown FocusType"
-	}
 }
