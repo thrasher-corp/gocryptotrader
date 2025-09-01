@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -192,6 +193,8 @@ type Exchange struct {
 
 	messageIDSeq  common.Counter
 	wsOBUpdateMgr *wsOBUpdateManager
+	userIDMutex   sync.RWMutex
+	userID        string
 }
 
 // ***************************************** SubAccounts ********************************

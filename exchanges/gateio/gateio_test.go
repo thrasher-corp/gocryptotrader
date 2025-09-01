@@ -3,11 +3,11 @@ package gateio
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -56,6 +57,10 @@ func TestMain(m *testing.M) {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
 		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	}
+
+	orderbookPayloadConstraints[asset.Spot]["bypassSliceCheck"] = orderbookPayloadConstraint{
+		Intervals: []kline.Interval{kline.OneYear},
 	}
 
 	os.Exit(m.Run())
@@ -2280,18 +2285,21 @@ func TestOptionsPongPushData(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGenerateSubscriptionsSpot(t *testing.T) {
+func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange)
+	e := &Exchange{userID: "flow"}
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := e.generateSubscriptionsSpot()
-	require.NoError(t, err, "generateSubscriptions must not error")
+	e.Websocket.Subscriptions = defaultSubscriptions.Enabled()
+
+	subs, err := e.Websocket.GenerateSubscriptions()
+	require.NoError(t, err, "GenerateSubscriptions must not error")
+
 	exp := subscription.List{}
 	assets := slices.DeleteFunc(e.GetAssetTypes(true), func(a asset.Item) bool { return !e.IsAssetWebsocketSupported(a) })
-	for _, s := range e.Features.Subscriptions {
+
+	for _, s := range e.Websocket.Subscriptions {
 		for _, a := range assets {
 			if s.Asset != asset.All && s.Asset != a {
 				continue
@@ -2301,28 +2309,309 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a
-			if singleSymbolChannel(channelName(s)) {
-				for i := range pairs {
+			n := channelName(s, a)
+			if strings.HasPrefix(n, "options.ul_") {
+				var underlyings currency.Pairs
+				for _, p := range pairs {
+					u, err := e.GetUnderlyingFromCurrencyPair(p)
+					require.NoError(t, err, "GetUnderlyingFromCurrencyPair must not error")
+					underlyings = underlyings.Add(u)
+				}
+				pairs = underlyings
+			}
+			switch {
+			case s.Channel == subscription.MyWalletChannel:
+				s.Pairs = pairs
+				if a == asset.Spot {
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q}`, n)
+				} else {
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"payload":["flow"]}`, n)
+				}
+				exp = append(exp, s)
+			case singleSymbolChannel(s, a, n):
+				for _, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-					switch s.Channel {
-					case subscription.CandlesChannel:
-						s.QualifiedChannel = "5m," + pairs[i].String()
-					case subscription.OrderbookChannel:
-						s.QualifiedChannel = pairs[i].String() + ",100ms"
-					case spotOrderbookChannel:
-						s.QualifiedChannel = pairs[i].String() + ",5,1000ms"
+					payload := []string{}
+					if s.Authenticated {
+						payload = append(payload, `"flow"`)
 					}
-					s.Pairs = pairs[i : i+1]
+					payload = append(payload, `"`+p.String()+`"`)
+					switch {
+					case strings.HasSuffix(n, "candlesticks"):
+						payload = slices.Insert(payload, 0, `"5m"`)
+					case strings.HasSuffix(n, "order_book_update"):
+						switch a {
+						case asset.DeliveryFutures:
+							payload = append(payload, `"100ms"`, `"100"`)
+						case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
+							payload = append(payload, `"20ms"`, `"20"`)
+						case asset.Options:
+							payload = append(payload, `"100ms"`, `"50"`)
+						default:
+							payload = append(payload, `"20ms"`)
+						}
+					}
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"payload":[%s]}`, n, strings.Join(payload, ","))
+					s.Pairs = currency.Pairs{p}
 					exp = append(exp, s)
 				}
-			} else {
+			default:
 				s.Pairs = pairs
-				s.QualifiedChannel = pairs.Join()
+				payload := make([]string, len(pairs))
+				for i, p := range pairs {
+					payload[i] = `"` + p.String() + `"`
+				}
+				s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"payload":[%v]}`, n, strings.Join(payload, ","))
 				exp = append(exp, s)
 			}
 		}
 	}
 	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestSubToJson(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name    string
+		s       *subscription.Subscription
+		exp     []string
+		err     error
+		pairArg any
+	}
+
+	testCases := []testCase{
+		{
+			name: "invalid channel parts",
+			s:    &subscription.Subscription{Channel: "dodgychannel"},
+			err:  errChannelParts,
+		},
+		{
+			name: "unsupported candle interval",
+			s:    &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.OneYear},
+			err:  kline.ErrUnsupportedInterval,
+		},
+		{
+			name: "orderbook missing asset",
+			s:    &subscription.Subscription{Channel: spotOrderbookChannel},
+			err:  asset.ErrInvalidAsset,
+		},
+		{
+			name: "spot candles payload",
+			s:    &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
+			exp:  []string{"5m", "BTCUSDT"},
+		},
+		{
+			name: "options orderbook snapshot accuracy",
+			s:    &subscription.Subscription{Channel: optionsOrderbookChannel, Asset: asset.Options, Interval: 0, Levels: 10},
+			exp:  []string{"BTCUSDT", "10", "0"},
+		},
+		{
+			name: "spot orderbook update payload",
+			s:    &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.TwentyMilliseconds},
+			exp:  []string{"BTCUSDT", "20ms"},
+		},
+		{
+			name: "options orderbook update payload",
+			s:    &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Options, Interval: kline.HundredMilliseconds},
+			exp:  []string{"BTCUSDT", "100ms", "50"},
+		},
+		{
+			name: "spot orderbook payload",
+			s:    &subscription.Subscription{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 50, Interval: kline.HundredMilliseconds},
+			exp:  []string{"BTCUSDT", "50", "100ms"},
+		},
+		{
+			name: "usdt futures orderbook translation",
+			s:    &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds, Levels: 20},
+			exp:  []string{"BTCUSDT", "100ms", "20"},
+		},
+		{
+			name: "override user_id",
+			s:    &subscription.Subscription{Channel: subscription.MyTradesChannel, Asset: asset.Options, Authenticated: true, Params: map[string]any{"user_id": "override_user"}},
+			exp:  []string{"override_user", "BTCUSDT"},
+		},
+		{
+			name: "user_id and symbol default payload order",
+			s:    &subscription.Subscription{Channel: subscription.MyTradesChannel, Asset: asset.Options, Authenticated: true},
+			exp:  []string{"flow", "BTCUSDT"},
+		},
+		{
+			name: "empty payload for spot MyWallet",
+			s:    &subscription.Subscription{Channel: subscription.MyWalletChannel, Asset: asset.Spot, Authenticated: true},
+			exp:  nil, // spotBalance should not include the Payload map key
+		},
+		{
+			name: "user_id from exchange",
+			s:    &subscription.Subscription{Channel: subscription.MyWalletChannel, Asset: asset.Options, Authenticated: true},
+			exp:  []string{"flow"},
+		},
+		{
+			name: "required user_id missing",
+			s:    &subscription.Subscription{Channel: subscription.MyTradesChannel, Asset: asset.Options, Authenticated: true},
+			err:  exchange.ErrCredentialsAreEmpty,
+		},
+		{
+			name: "delivery futures wallet uses exchange user",
+			s:    &subscription.Subscription{Channel: subscription.MyWalletChannel, Asset: asset.DeliveryFutures, Authenticated: true},
+			exp:  []string{"flow"},
+		},
+		{
+			name: "delivery futures wallet optional user provided",
+			s:    &subscription.Subscription{Channel: subscription.MyWalletChannel, Asset: asset.DeliveryFutures, Authenticated: true, Params: map[string]any{"user_id": "df_user"}},
+			exp:  []string{"df_user"},
+		},
+		{
+			name: "delivery futures trades user id",
+			s:    &subscription.Subscription{Channel: subscription.MyTradesChannel, Asset: asset.DeliveryFutures, Authenticated: true},
+			exp:  []string{"flow", "BTCUSDT"},
+		},
+		{
+			name: "spot ticker multi pair payload",
+			s:    &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot},
+			exp:  []string{"BTCUSDT", "ETHUSDT"},
+			pairArg: currency.Pairs{
+				currency.NewBTCUSDT(),
+				currency.NewPair(currency.ETH, currency.USDT),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := new(Exchange) //nolint:govet // Intentional shadow
+
+			if !errors.Is(tc.err, exchange.ErrCredentialsAreEmpty) {
+				e.userID = "flow"
+			}
+
+			s := tc.s
+			cName := channelName(s, s.Asset)
+			pairArg := tc.pairArg
+			if pairArg == nil {
+				pairArg = currency.NewBTCUSDT()
+			}
+			p, err := e.subToJSON(tc.s, cName, s.Asset, pairArg)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err)
+				return
+			}
+			require.NoError(t, err)
+			exp := map[string]any{
+				"channel": cName,
+			}
+			if tc.exp != nil {
+				exp["payload"] = tc.exp
+			}
+			require.Equal(t, exp, p)
+		})
+	}
+}
+
+func TestOrderbookPayload(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		s    *subscription.Subscription
+		exp  map[string]string
+		err  error
+	}{
+		{
+			name: "unknown asset",
+			s:    &subscription.Subscription{Channel: spotOrderbookChannel, Asset: asset.Binary},
+			err:  asset.ErrInvalidAsset,
+		},
+		{
+			name: "unknown channel",
+			s:    &subscription.Subscription{Channel: "bad_channel", Asset: asset.Spot},
+			err:  subscription.ErrNotSupported,
+		},
+		{
+			name: "levels unsupported",
+			s:    &subscription.Subscription{Channel: spotOrderbookTickerChannel, Levels: 1, Asset: asset.Spot},
+			err:  subscription.ErrInvalidLevel,
+		},
+		{
+			name: "invalid level",
+			s:    &subscription.Subscription{Channel: futuresOrderbookChannel, Levels: 2, Asset: asset.Futures},
+			err:  subscription.ErrInvalidLevel,
+		},
+		{
+			name: "valid level and optional interval",
+			s:    &subscription.Subscription{Channel: futuresOrderbookChannel, Levels: 5, Asset: asset.Futures},
+			exp:  map[string]string{"depth": "5", "interval": "0"},
+		},
+		{
+			name: "Asset switching for futures assets",
+			s:    &subscription.Subscription{Channel: futuresOrderbookChannel, Levels: 5, Asset: asset.USDTMarginedFutures},
+			exp:  map[string]string{"depth": "5", "interval": "0"},
+		},
+		{
+			name: "defaults: spot orderbook interval and levels",
+			s:    &subscription.Subscription{Channel: spotOrderbookChannel, Asset: asset.Spot},
+			exp:  map[string]string{"interval": "100ms", "depth": "100"},
+		},
+		{
+			name: "defaults: spot orderbook update interval and (redundant) depth",
+			s:    &subscription.Subscription{Channel: spotOrderbookUpdateChannel, Asset: asset.Spot},
+			exp:  map[string]string{"interval": "20ms", "depth": "20"},
+		},
+		{
+			name: "interval unsupported",
+			s:    &subscription.Subscription{Channel: spotOrderbookTickerChannel, Interval: kline.HundredMilliseconds, Asset: asset.Spot},
+			err:  subscription.ErrInvalidInterval,
+		},
+		{
+			name: "interval invalid in constraints",
+			s:    &subscription.Subscription{Channel: spotOrderbookChannel, Levels: 5, Interval: kline.OneDay, Asset: asset.Spot},
+			err:  subscription.ErrInvalidInterval,
+		},
+		{
+			name: "interval invalid in getIntervalString",
+			s:    &subscription.Subscription{Channel: "bypassSliceCheck", Interval: kline.OneYear, Asset: asset.Spot},
+			err:  kline.ErrUnsupportedInterval,
+		},
+		{
+			name: "interval valid",
+			s:    &subscription.Subscription{Channel: spotOrderbookChannel, Levels: 5, Interval: kline.ThousandMilliseconds, Asset: asset.Spot},
+			exp:  map[string]string{"depth": "5", "interval": "1000ms"},
+		},
+		{
+			name: "20ms interval requires level 20",
+			s: &subscription.Subscription{
+				Channel: futuresOrderbookUpdateChannel, Levels: 50, Interval: kline.TwentyMilliseconds, Asset: asset.Futures,
+			},
+			err: subscription.ErrInvalidInterval,
+		},
+		{
+			name: "20ms interval with level 20",
+			s: &subscription.Subscription{
+				Channel: futuresOrderbookUpdateChannel, Levels: 20, Interval: kline.TwentyMilliseconds, Asset: asset.Futures,
+			},
+			exp: map[string]string{"depth": "20", "interval": "20ms"},
+		},
+		{
+			name: "defaults: futures orderbook update interval and levels",
+			s:    &subscription.Subscription{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures},
+			exp:  map[string]string{"interval": "20ms", "depth": "20"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			payload := map[string]string{}
+			err := orderbookPayload(tc.s, tc.s.Asset, tc.s.Channel, payload)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.exp, payload)
+		})
+	}
 }
 
 func TestSubscribe(t *testing.T) {
@@ -2332,36 +2621,6 @@ func TestSubscribe(t *testing.T) {
 	e.Websocket.Subscriptions = subscription.List{}
 	err = e.Subscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "Subscribe must not error")
-}
-
-func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
-	t.Parallel()
-	if _, err := e.GenerateDeliveryFuturesDefaultSubscriptions(); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	subs, err := e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
-	require.NoError(t, err)
-	require.NotEmpty(t, subs)
-	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
-	require.NoError(t, err)
-	require.NotEmpty(t, subs)
-	require.NoError(t, e.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
-	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
-	require.NoError(t, err, "Disabled asset must not error")
-	require.Empty(t, subs, "Disabled asset must return no pairs")
-}
-
-func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
-	t.Parallel()
-	if _, err := e.GenerateOptionsDefaultSubscriptions(); err != nil {
-		t.Error(err)
-	}
 }
 
 func TestCreateAPIKeysOfSubAccount(t *testing.T) {
@@ -3399,145 +3658,6 @@ func TestValidateSubscriptions(t *testing.T) {
 	}), subscription.ErrExclusiveSubscription)
 }
 
-func TestCandlesChannelIntervals(t *testing.T) {
-	t.Parallel()
-	s := &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: 0}
-	_, err := candlesChannelInterval(s)
-	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "candlestickChannelInterval must error correctly with a 0 interval")
-	s.Interval = kline.ThousandMilliseconds
-	i, err := candlesChannelInterval(s)
-	require.NoError(t, err)
-	assert.Equal(t, "1000ms", i)
-}
-
-func TestOrderbookChannelIntervals(t *testing.T) {
-	t.Parallel()
-
-	s := &subscription.Subscription{Channel: futuresOrderbookUpdateChannel, Interval: kline.TwentyMilliseconds, Levels: 100}
-	_, err := orderbookChannelInterval(s, asset.Futures)
-	require.ErrorIs(t, err, subscription.ErrInvalidInterval)
-	require.ErrorContains(t, err, "20ms only valid with Levels 20")
-	s.Levels = 20
-	i, err := orderbookChannelInterval(s, asset.Futures)
-	require.NoError(t, err)
-	assert.Equal(t, "20ms", i)
-
-	for s, exp := range map[*subscription.Subscription]error{
-		{Asset: asset.Binary, Channel: "unknown_channel", Interval: kline.OneYear}:                                   nil,
-		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: kline.OneDay}:                             subscription.ErrInvalidInterval,
-		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: 0}:                                        nil,
-		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.OneDay}:                                   subscription.ErrInvalidInterval,
-		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.HundredMilliseconds}:                      nil,
-		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.ThousandMilliseconds}:                     nil,
-		{Asset: asset.Spot, Channel: spotOrderbookUpdateChannel, Interval: kline.OneDay}:                             subscription.ErrInvalidInterval,
-		{Asset: asset.Spot, Channel: spotOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:                nil,
-		{Asset: asset.Futures, Channel: futuresOrderbookTickerChannel, Interval: kline.TenMilliseconds}:              subscription.ErrInvalidInterval,
-		{Asset: asset.Futures, Channel: futuresOrderbookTickerChannel, Interval: 0}:                                  nil,
-		{Asset: asset.Futures, Channel: futuresOrderbookChannel, Interval: kline.TenMilliseconds}:                    subscription.ErrInvalidInterval,
-		{Asset: asset.Futures, Channel: futuresOrderbookChannel, Interval: 0}:                                        nil,
-		{Asset: asset.Futures, Channel: futuresOrderbookUpdateChannel, Interval: kline.OneDay}:                       subscription.ErrInvalidInterval,
-		{Asset: asset.Futures, Channel: futuresOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:          nil,
-		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookTickerChannel, Interval: kline.TenMilliseconds}:      subscription.ErrInvalidInterval,
-		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookTickerChannel, Interval: 0}:                          nil,
-		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookChannel, Interval: kline.TenMilliseconds}:            subscription.ErrInvalidInterval,
-		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookChannel, Interval: 0}:                                nil,
-		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookUpdateChannel, Interval: kline.OneDay}:               subscription.ErrInvalidInterval,
-		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:  nil,
-		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookUpdateChannel, Interval: kline.ThousandMilliseconds}: nil,
-
-		{Asset: asset.Options, Channel: optionsOrderbookTickerChannel, Interval: kline.TenMilliseconds}:          subscription.ErrInvalidInterval,
-		{Asset: asset.Options, Channel: optionsOrderbookTickerChannel, Interval: 0}:                              nil,
-		{Asset: asset.Options, Channel: optionsOrderbookChannel, Interval: kline.TwoHundredAndFiftyMilliseconds}: subscription.ErrInvalidInterval,
-		{Asset: asset.Options, Channel: optionsOrderbookChannel, Interval: 0}:                                    nil,
-		{Asset: asset.Options, Channel: optionsOrderbookUpdateChannel, Interval: kline.OneDay}:                   subscription.ErrInvalidInterval,
-		{Asset: asset.Options, Channel: optionsOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:      nil,
-		{Asset: asset.Options, Channel: optionsOrderbookUpdateChannel, Interval: kline.ThousandMilliseconds}:     nil,
-	} {
-		t.Run(s.Asset.String()+"/"+s.Channel+"/"+s.Interval.Short(), func(t *testing.T) {
-			t.Parallel()
-			i, err := orderbookChannelInterval(s, s.Asset)
-			if exp != nil {
-				require.ErrorIs(t, err, exp)
-			} else {
-				switch {
-				case s.Channel == "unknown_channel":
-					assert.Empty(t, i, "orderbookChannelInterval should return empty for unknown channels")
-				case strings.HasSuffix(s.Channel, "_ticker"):
-					assert.Empty(t, i)
-				case s.Interval == 0:
-					assert.Equal(t, "0", i)
-				default:
-					exp, err2 := getIntervalString(s.Interval)
-					require.NoError(t, err2, "getIntervalString must not error for validating expected value")
-					require.Equal(t, exp, i)
-				}
-			}
-		})
-	}
-}
-
-func TestChannelLevels(t *testing.T) {
-	t.Parallel()
-
-	for s, exp := range map[*subscription.Subscription]error{
-		{Channel: "unknown_channel", Asset: asset.Binary}:                                   nil,
-		{Channel: spotOrderbookTickerChannel, Asset: asset.Spot}:                            nil,
-		{Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Levels: 1}:                 subscription.ErrInvalidLevel,
-		{Channel: spotOrderbookUpdateChannel, Asset: asset.Spot}:                            nil,
-		{Channel: spotOrderbookUpdateChannel, Asset: asset.Spot, Levels: 100}:               subscription.ErrInvalidLevel,
-		{Channel: spotOrderbookChannel, Asset: asset.Spot}:                                  subscription.ErrInvalidLevel,
-		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 5}:                       nil,
-		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 10}:                      nil,
-		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 20}:                      nil,
-		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 50}:                      nil,
-		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 100}:                     nil,
-		{Channel: futuresOrderbookChannel, Asset: asset.Futures}:                            subscription.ErrInvalidLevel,
-		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 1}:                 nil,
-		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 5}:                 nil,
-		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 10}:                nil,
-		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 20}:                nil,
-		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 50}:                nil,
-		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 100}:               nil,
-		{Channel: futuresOrderbookTickerChannel, Asset: asset.Futures}:                      nil,
-		{Channel: futuresOrderbookTickerChannel, Asset: asset.Futures, Levels: 1}:           subscription.ErrInvalidLevel,
-		{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures}:                      subscription.ErrInvalidLevel,
-		{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures, Levels: 20}:          nil,
-		{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures, Levels: 50}:          nil,
-		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures}:              subscription.ErrInvalidLevel,
-		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 5}:   nil,
-		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 10}:  nil,
-		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 20}:  nil,
-		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 50}:  nil,
-		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 100}: nil,
-		{Channel: optionsOrderbookTickerChannel, Asset: asset.Options}:                      nil,
-		{Channel: optionsOrderbookTickerChannel, Asset: asset.Options, Levels: 1}:           subscription.ErrInvalidLevel,
-		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options}:                      subscription.ErrInvalidLevel,
-		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 5}:           nil,
-		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 10}:          nil,
-		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 20}:          nil,
-		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 50}:          nil,
-		{Channel: optionsOrderbookChannel, Asset: asset.Options}:                            subscription.ErrInvalidLevel,
-		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 5}:                 nil,
-		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 10}:                nil,
-		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 20}:                nil,
-		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 50}:                nil,
-	} {
-		t.Run(s.Asset.String()+"/"+s.Channel+"/"+strconv.Itoa(s.Levels), func(t *testing.T) {
-			t.Parallel()
-			l, err := channelLevels(s, s.Asset)
-			switch {
-			case exp != nil:
-				require.ErrorIs(t, err, exp)
-			case s.Levels == 0:
-				assert.Empty(t, l)
-			default:
-				require.NoError(t, err)
-				require.NotEmpty(t, l)
-			}
-		})
-	}
-}
-
 func TestGetIntervalString(t *testing.T) {
 	t.Parallel()
 	for k, exp := range map[kline.Interval]string{
@@ -3706,4 +3826,42 @@ func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
 	assert.Equal(t, 0.001, ob[0].Amount, "Amount should be correct")
 
 	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
+}
+
+func TestGetUserID(t *testing.T) {
+	t.Parallel()
+
+	mock := func(path ...string) *Exchange {
+		e := new(Exchange) //nolint:govet // Intentional shadow
+		require.NoError(t, testexch.Setup(e), "testexch.Setup must not error")
+		path = append(path, gateioAPIVersion)
+		err := testexch.MockHTTPInstance(e, path...)
+		require.NoError(t, err, "MockHTTPInstance must not error")
+		e.API.CredentialsValidator.RequiresKey = true
+		e.API.CredentialsValidator.RequiresSecret = true
+		e.SetCredentials("mock-key", "mock-secret", "", "", "", "")
+		return e
+	}
+
+	e := mock() //nolint:govet // Intentional shadow
+	uid, err := e.getUserID()
+	require.NoError(t, err)
+	assert.Equal(t, "11", uid, "getUserID should return the correct userID")
+	assert.Equal(t, uid, e.userID, "getUserID should populate the cache")
+
+	e = mock("err-many-subaccts")
+	e.Verbose = true
+
+	e.userID = "22"
+	uid, err = e.getUserID()
+	require.NoError(t, err, "getUserID must not error on an invalid http request when cache is populated")
+	assert.Equal(t, "22", uid)
+
+	e.userID = ""
+	_, err = e.getUserID()
+	require.ErrorIs(t, errSubUserID, err, "getUserID must error on multiple subaccounts returned")
+
+	e = mock("err-500")
+	_, err = e.getUserID()
+	require.ErrorContains(t, err, "userID mock error", "getUserID must propagate get account errors")
 }

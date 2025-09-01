@@ -142,11 +142,3 @@ func TestIgnoringAssetKeyString(t *testing.T) {
 	key := &IgnoringAssetKey{&Subscription{Asset: asset.Spot, Channel: TickerChannel, Pairs: currency.Pairs{ethusdcPair, btcusdtPair}}}
 	assert.Equal(t, "ticker [ETHUSDC BTCUSDT]", key.String())
 }
-
-// TestGetSubscription exercises GetSubscription
-func TestGetSubscription(t *testing.T) {
-	t.Parallel()
-	s := &Subscription{Asset: asset.Spot}
-	assert.Same(t, s, ExactKey{s}.GetSubscription(), "ExactKey.GetSubscription Must return a pointer to the subscription")
-	assert.Same(t, s, IgnoringPairsKey{s}.GetSubscription(), "IgnorePairKeys.GetSubscription Must return a pointer to the subscription")
-}

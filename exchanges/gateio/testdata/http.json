@@ -1,0 +1,50 @@
+{
+  "routes": {
+    "/api/v4/wallet/sub_account_balances": {
+      "GET": [
+        {
+          "data": [
+            {
+              "uid": "11"
+            }
+          ],
+          "queryString": "",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
+    },
+    "/err-many-subaccts/api/v4/wallet/sub_account_balances": {
+      "GET": [
+        {
+          "data": [
+            {
+              "uid": "33"
+            },
+            {
+              "uid": "44"
+            }
+          ],
+          "queryString": "",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
+    },
+    "/err-500/api/v4/wallet/sub_account_balances": {
+      "GET": [
+        {
+          "status": 500,
+          "data": {
+            "label": "userID mock error",
+            "code": "500",
+            "message": "simulated server error"
+          },
+          "queryString": "",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
+    }
+  }
+}
