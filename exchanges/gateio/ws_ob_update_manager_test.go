@@ -56,7 +56,8 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cache := m.LoadCache(pair, asset.USDTMarginedFutures)
+	cache, err := m.LoadCache(pair, asset.USDTMarginedFutures)
+	require.NoError(t, err, "LoadCache must not error")
 
 	cache.mtx.Lock()
 	assert.Len(t, cache.updates, 1)
@@ -90,13 +91,20 @@ func TestLoadCache(t *testing.T) {
 	t.Parallel()
 
 	m := newWsOBUpdateManager(0, 0)
-	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
-	cache := m.LoadCache(pair, asset.USDTMarginedFutures)
+	_, err := m.LoadCache(currency.EMPTYPAIR, 1336)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = m.LoadCache(currency.NewBTCUSDT(), 1336)
+	require.ErrorIs(t, err, asset.ErrInvalidAsset)
+
+	cache, err := m.LoadCache(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
+	require.NoError(t, err, "LoadCache must not error")
 	assert.NotNil(t, cache)
 	assert.Len(t, m.lookup, 1)
 
 	// Test cache is reused
-	cache2 := m.LoadCache(pair, asset.USDTMarginedFutures)
+	cache2, err := m.LoadCache(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
+	require.NoError(t, err, "LoadCache must not error")
 	assert.Equal(t, cache, cache2)
 }
 
@@ -126,7 +134,7 @@ func TestSyncOrderbook(t *testing.T) {
 
 	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}}}
 	err = cache.SyncOrderbook(t.Context(), e, pair, asset.Spot, 0, time.Second)
-	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorContains(t, err, context.DeadlineExceeded.Error())
 
 	err = e.Base.SetPairs([]currency.Pair{pair}, asset.Spot, true)
 	require.NoError(t, err)

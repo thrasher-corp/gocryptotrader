@@ -49,7 +49,11 @@ func newWsOBUpdateManager(delay, deadline time.Duration) *wsOBUpdateManager {
 
 // ProcessOrderbookUpdate processes an orderbook update by syncing snapshot, caching updates and applying them
 func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Exchange, firstUpdateID int64, update *orderbook.Update) error {
-	cache := m.LoadCache(update.Pair, update.Asset)
+	cache, err := m.LoadCache(update.Pair, update.Asset)
+	if err != nil {
+		return err
+	}
+
 	cache.mtx.Lock()
 	defer cache.mtx.Unlock()
 
@@ -62,13 +66,13 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 		return nil
 	}
 
-	lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
-	if err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
-		return err
-	}
-
-	if lastUpdateID+1 == firstUpdateID {
-		return applyOrderbookUpdate(e, update)
+	var inUpdateErr error
+	// Error disregarded as as all error pathways require a new snapshot
+	if lastUpdateID, _ := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset); lastUpdateID+1 == firstUpdateID {
+		// Track incremental update error for logging but quickly initiate a new snapshot call on error
+		if inUpdateErr = applyOrderbookUpdate(e, update); inUpdateErr == nil {
+			return nil
+		}
 	}
 
 	// Orderbook notifications are desynced, therefore invalidate store.
@@ -85,11 +89,17 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 		}
 	}()
 
-	return nil
+	return inUpdateErr
 }
 
 // LoadCache loads the cache for the given pair and asset. If the cache does not exist, it creates a new one.
-func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) *updateCache {
+func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) (*updateCache, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !a.IsValid() {
+		return nil, fmt.Errorf("%w: %q", asset.ErrInvalidAsset, a)
+	}
 	m.mtx.RLock()
 	cache, ok := m.lookup[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	m.mtx.RUnlock()
@@ -99,7 +109,7 @@ func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) *updateCach
 		m.lookup[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}] = cache
 		m.mtx.Unlock()
 	}
-	return cache
+	return cache, nil
 }
 
 // SyncOrderbook fetches and synchronises an orderbook snapshot to the limit size so that pending updates can be
