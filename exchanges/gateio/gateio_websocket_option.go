@@ -333,6 +333,8 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 		return e.processBalancePushData(ctx, respRaw, asset.Options)
 	case optionsPositionsChannel:
 		return e.processOptionsPositionPushData(respRaw)
+	case "options.pong":
+		return nil
 	default:
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 			Message: e.Name + websocket.UnhandledMessage + string(respRaw),

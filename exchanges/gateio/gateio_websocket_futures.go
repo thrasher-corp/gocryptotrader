@@ -3,7 +3,6 @@ package gateio
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -188,7 +187,6 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case "futures.pong":
 		return nil
 	default:
-		fmt.Println("Unhandled futures websocket message:", a, string(respRaw))
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
 		}

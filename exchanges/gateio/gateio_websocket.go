@@ -77,7 +77,12 @@ var subscriptionNames = map[string]string{
 	subscription.AllTradesChannel: spotTradesChannel,
 }
 
-var standardMarginAssetTypes = []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
+var (
+	standardMarginAssetTypes = []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
+	validPingChannels        = []string{optionsPingChannel, futuresPingChannel, spotPingChannel}
+)
+
+var errInvalidPingChannel = errors.New("invalid ping channel")
 
 // WsConnectSpot initiates a websocket connection
 func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
@@ -1003,6 +1008,9 @@ func (wsRespAckInspector) IsFinal(data []byte) bool {
 }
 
 func getWSPingHandler(channel string) (websocket.PingHandler, error) {
+	if !slices.Contains(validPingChannels, channel) {
+		return websocket.PingHandler{}, fmt.Errorf("%w: %q", errInvalidPingChannel, channel)
+	}
 	pingMessage, err := json.Marshal(WsInput{Channel: channel})
 	if err != nil {
 		return websocket.PingHandler{}, err
