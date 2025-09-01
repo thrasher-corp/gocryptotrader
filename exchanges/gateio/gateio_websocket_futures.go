@@ -3,6 +3,7 @@ package gateio
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -69,20 +70,11 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	pingMessage, err := json.Marshal(WsInput{
-		ID:      conn.GenerateMessageID(false),
-		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
-		Channel: futuresPingChannel,
-	})
+	pingHandler, err := getWSPingHandler(futuresPingChannel)
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, websocket.PingHandler{
-		Websocket:   true,
-		MessageType: gws.PingMessage,
-		Delay:       time.Second * 15,
-		Message:     pingMessage,
-	})
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, pingHandler)
 	return nil
 }
 
@@ -193,7 +185,10 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 		return e.processFuturesPositionsNotification(respRaw)
 	case futuresAutoOrdersChannel:
 		return e.processFuturesAutoOrderPushData(respRaw)
+	case "futures.pong":
+		return nil
 	default:
+		fmt.Println("Unhandled futures websocket message:", a, string(respRaw))
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
 		}
