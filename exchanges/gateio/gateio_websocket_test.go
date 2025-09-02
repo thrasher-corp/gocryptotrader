@@ -28,7 +28,7 @@ func TestGetWSPingHandler(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, got.Websocket)
 		require.Equal(t, time.Second*15, got.Delay)
-		require.Equal(t, got.MessageType, gws.TextMessage)
+		require.Equal(t, gws.TextMessage, got.MessageType)
 		require.Contains(t, string(got.Message), tc.channel)
 	}
 }
