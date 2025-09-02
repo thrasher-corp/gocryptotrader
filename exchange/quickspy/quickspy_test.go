@@ -13,11 +13,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -27,11 +25,12 @@ import (
 // these are here to help a user test
 // modifying them and decrying that tests fail will get you thrown in gaol
 var (
-	exchangeName = "Binance"
-	assetType    = asset.Spot
-	currencyPair = currency.NewBTCUSDT()
-	apiKey       = "abc"
-	apiSecret    = "123"
+	exchangeName     = "Binance"
+	assetType        = asset.Spot
+	currencyPair     = currency.NewBTCUSDT()
+	apiKey           = "abc"
+	apiSecret        = "123"
+	futuresAssetType = asset.USDTMarginedFutures // used in TestDumpAndCurrentPayload
 )
 
 func TestNewQuickSpy(t *testing.T) {
@@ -71,8 +70,10 @@ func TestNewQuickSpy(t *testing.T) {
 	assert.NotEmpty(t, qs.credContext.Value(account.ContextCredentialsFlag), "credentials should be popultated in context")
 }
 
-func mustQuickSpy(t *testing.T, data *FocusData) *QuickSpy {
+func mustQuickSpy(t *testing.T, ft FocusType) *QuickSpy {
 	t.Helper()
+	ftd := FocusData{Type: ft, RESTPollTime: time.Second}
+	ftd.Init()
 	qs, err := NewQuickSpy(
 		context.Background(),
 		&CredentialsKey{
@@ -81,7 +82,30 @@ func mustQuickSpy(t *testing.T, data *FocusData) *QuickSpy {
 				Key:    apiKey,
 				Secret: apiSecret,
 			}},
-		[]FocusData{*data}, false)
+		[]FocusData{ftd},
+		false)
+	require.NoError(t, err)
+	require.NotNil(t, qs)
+	return qs
+}
+
+func mustQuickSpyAllFocuses(t *testing.T) *QuickSpy {
+	t.Helper()
+	focuses := make([]FocusData, 0, len(focusList))
+	for _, ft := range focusList {
+		ftd := FocusData{Type: ft, RESTPollTime: time.Second}
+		ftd.Init()
+		focuses = append(focuses, ftd)
+	}
+	qs, err := NewQuickSpy(
+		context.Background(),
+		&CredentialsKey{
+			ExchangeAssetPair: key.NewExchangeAssetPair(exchangeName, futuresAssetType, currencyPair),
+			Credentials: &account.Credentials{
+				Key:    apiKey,
+				Secret: apiSecret,
+			}},
+		focuses, false)
 	require.NoError(t, err)
 	require.NotNil(t, qs)
 	return qs
@@ -89,7 +113,7 @@ func mustQuickSpy(t *testing.T, data *FocusData) *QuickSpy {
 
 func TestAnyRequiresWebsocket(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: time.Second, UseWebsocket: false})
+	q := mustQuickSpy(t, TickerFocusType)
 	require.False(t, q.AnyRequiresWebsocket())
 
 	q.Focuses.Upsert(TickerFocusType, &FocusData{Type: TickerFocusType, RESTPollTime: time.Second, UseWebsocket: true})
@@ -98,7 +122,7 @@ func TestAnyRequiresWebsocket(t *testing.T) {
 
 func TestAnyRequiresAuth(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: time.Second})
+	q := mustQuickSpy(t, TickerFocusType)
 	require.False(t, q.AnyRequiresAuth())
 
 	q.Focuses.Upsert(AccountHoldingsFocusType, &FocusData{Type: AccountHoldingsFocusType, RESTPollTime: time.Second})
@@ -107,7 +131,7 @@ func TestAnyRequiresAuth(t *testing.T) {
 
 func TestFocusTypeRequiresWebsocket(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: time.Second, UseWebsocket: false})
+	q := mustQuickSpy(t, TickerFocusType)
 	require.False(t, q.FocusTypeRequiresWebsocket(TickerFocusType))
 
 	q.Focuses.Upsert(TickerFocusType, &FocusData{Type: TickerFocusType, RESTPollTime: time.Second, UseWebsocket: true})
@@ -117,7 +141,7 @@ func TestFocusTypeRequiresWebsocket(t *testing.T) {
 
 func TestGetAndWaitForFocusByKey(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: time.Millisecond * 200})
+	q := mustQuickSpy(t, TickerFocusType)
 
 	_, err := q.GetAndWaitForFocusByKey(TickerFocusType)
 	require.ErrorIs(t, err, errFocusDataTimeout)
@@ -140,7 +164,7 @@ func TestGetAndWaitForFocusByKey(t *testing.T) {
 
 func TestGetFocusByKey(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: 10})
+	q := mustQuickSpy(t, TickerFocusType)
 
 	_, err := q.GetFocusByKey(OrderPlacementFocusType)
 	require.ErrorIs(t, err, errKeyNotFound)
@@ -152,7 +176,7 @@ func TestGetFocusByKey(t *testing.T) {
 
 func TestSetupExchange(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: 10})
+	q := mustQuickSpy(t, TickerFocusType)
 	err := q.setupExchange()
 	require.NoError(t, err)
 
@@ -169,7 +193,7 @@ func TestSetupExchange(t *testing.T) {
 
 func TestSetupExchangeDefaults(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: time.Second})
+	q := mustQuickSpy(t, TickerFocusType)
 	e, err := engine.NewSupportedExchangeByName(q.Key.ExchangeAssetPair.Exchange)
 	require.NoError(t, err)
 	b := e.GetBase()
@@ -183,7 +207,7 @@ func TestSetupExchangeDefaults(t *testing.T) {
 
 func TestSetupCurrencyPairs(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: 10})
+	q := mustQuickSpy(t, TickerFocusType)
 	e, err := engine.NewSupportedExchangeByName(q.Key.ExchangeAssetPair.Exchange)
 	require.NoError(t, err)
 	b := e.GetBase()
@@ -205,7 +229,7 @@ func TestSetupCurrencyPairs(t *testing.T) {
 
 func TestCheckRateLimits(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: 10})
+	q := mustQuickSpy(t, TickerFocusType)
 	e, err := engine.NewSupportedExchangeByName(q.Key.ExchangeAssetPair.Exchange)
 	require.NoError(t, err)
 	b := e.GetBase()
@@ -224,7 +248,7 @@ func TestSetupWebsocket(t *testing.T) {
 	// Reworked to cover key branches deterministically
 	t.Parallel()
 	// Case 1: No websocket required -> nil
-	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: time.Second, UseWebsocket: false})
+	q := mustQuickSpy(t, TickerFocusType)
 	e, err := engine.NewSupportedExchangeByName(q.Key.ExchangeAssetPair.Exchange)
 	require.NoError(t, err)
 	b := e.GetBase()
@@ -312,69 +336,65 @@ func TestFocusDataValidateAndInit(t *testing.T) {
 
 func TestDumpAndCurrentPayload(t *testing.T) {
 	t.Parallel()
-	q := &QuickSpy{
-		Key: &CredentialsKey{
-			ExchangeAssetPair: key.NewExchangeAssetPair(exchangeName, assetType, currencyPair),
-			Credentials:       &account.Credentials{}, // empty -> HasValidCredentials false
-		},
-		Data: &Data{},
-		m:    new(sync.RWMutex),
-	}
-
-	// Empty cases error
+	q := mustQuickSpy(t, OrderBookFocusType)
 	_, err := q.LatestData(TickerFocusType)
-	require.Error(t, err)
-	_, err = q.LatestData(OrderBookFocusType)
-	require.Error(t, err)
-	_, err = q.LatestData(KlineFocusType)
-	require.Error(t, err)
-	_, err = q.LatestData(TradesFocusType)
-	require.Error(t, err)
-	_, err = q.LatestData(AccountHoldingsFocusType)
-	require.Error(t, err)
-	_, err = q.LatestData(ActiveOrdersFocusType)
-	require.Error(t, err)
-	_, err = q.LatestData(OpenInterestFocusType)
-	require.Error(t, err)
-	_, err = q.LatestData(FundingRateFocusType)
-	require.Error(t, err)
-	_, err = q.LatestData(ContractFocusType)
-	require.Error(t, err)
-	_, err = q.LatestData(URLFocusType)
-	require.Error(t, err)
-	_, err = q.LatestData(OrderExecutionFocusType)
-	require.Error(t, err)
+	require.ErrorIs(t, err, errKeyNotFound)
 
-	// Populate and verify success cases
-	q.Data.Ticker = &ticker.Price{Last: 1337, IndexPrice: 42, MarkPrice: 84, Volume: 99}
-	q.Data.Orderbook = &orderbook.Book{Bids: orderbook.Levels{{Amount: 1, Price: 1}}, Asks: orderbook.Levels{{Amount: 2, Price: 2}}}
-	q.Data.Trades = []trade.Data{{Price: 1, Amount: 2}, {Price: 3, Amount: 4}}
-	q.Data.OpenInterest = 69
-	q.Data.URL = "https://trade"
-	lim := limits.MinMaxLevel{MinPrice: 1, MaxPrice: 2}
-	q.Data.ExecutionLimits = &lim
-	// Contract
-	q.Data.Contract = &futures.Contract{Underlying: currency.NewPair(currency.BTC, currency.USDT), EndDate: time.Unix(10, 0), Type: futures.Perpetual, Multiplier: 0.1}
-	// FundingRate not set for simplicity
+	q = mustQuickSpyAllFocuses(t)
+	// Empty cases error
+	_, err = q.LatestData(TickerFocusType)
+	require.ErrorIs(t, err, errNoDataYet)
+	_, err = q.LatestData(OrderBookFocusType)
+	require.ErrorIs(t, err, errNoDataYet)
+	_, err = q.LatestData(KlineFocusType)
+	require.ErrorIs(t, err, errNoDataYet)
+	_, err = q.LatestData(TradesFocusType)
+	require.ErrorIs(t, err, errNoDataYet)
+	_, err = q.LatestData(AccountHoldingsFocusType)
+	require.ErrorIs(t, err, errNoDataYet)
+	_, err = q.LatestData(ActiveOrdersFocusType)
+	require.ErrorIs(t, err, errNoDataYet)
+	_, err = q.LatestData(OpenInterestFocusType)
+	require.ErrorIs(t, err, errNoDataYet)
+	_, err = q.LatestData(FundingRateFocusType)
+	require.ErrorIs(t, err, errNoDataYet)
+	_, err = q.LatestData(ContractFocusType)
+	require.ErrorIs(t, err, errNoDataYet)
+	_, err = q.LatestData(URLFocusType)
+	require.ErrorIs(t, err, errNoDataYet)
+	_, err = q.LatestData(OrderExecutionFocusType)
+	require.ErrorIs(t, err, errNoDataYet)
+
+	fl := q.Focuses.List()
+	for i := range fl {
+		close(fl[i].HasBeenSuccessfulChan)
+		fl[i].hasBeenSuccessful = true
+	}
 
 	p, err := q.LatestData(TickerFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.Ticker, p)
+
 	p, err = q.LatestData(OrderBookFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.Orderbook, p)
+
 	p, err = q.LatestData(TradesFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.Trades, p)
+
 	p, err = q.LatestData(OpenInterestFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.OpenInterest, p)
+
 	p, err = q.LatestData(URLFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.URL, p)
+
 	p, err = q.LatestData(OrderExecutionFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.ExecutionLimits, p)
+
 	p, err = q.LatestData(ContractFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.Contract, p)
@@ -382,20 +402,21 @@ func TestDumpAndCurrentPayload(t *testing.T) {
 	exp, err := q.Dump()
 	require.NoError(t, err)
 	require.Equal(t, q.Key.ExchangeAssetPair, exp.Key)
-	require.False(t, exp.HasValidCredentials)
-	require.Equal(t, float64(1337), exp.LastPrice)
-	require.Equal(t, float64(42), exp.IndexPrice)
-	require.Equal(t, float64(84), exp.MarkPrice)
-	require.Equal(t, float64(99), exp.Volume)
-	require.Equal(t, q.Data.Orderbook.Bids, exp.Bids)
-	require.Equal(t, q.Data.Orderbook.Asks, exp.Asks)
-	require.Equal(t, q.Data.OpenInterest, exp.OpenInterest)
-	require.Equal(t, q.Data.URL, exp.URL)
-	require.NotNil(t, exp.UnderlyingBase)
-	require.NotNil(t, exp.UnderlyingQuote)
-	require.Equal(t, q.Data.Contract.EndDate, exp.ContractExpirationTime)
-	require.Equal(t, q.Data.Contract.Type.String(), exp.ContractType)
-	require.Equal(t, q.Data.Contract.Multiplier, exp.ContractDecimals)
+
+	assert.True(t, exp.HasValidCredentials)
+	assert.Equal(t, float64(1337), exp.LastPrice)
+	assert.Equal(t, float64(42), exp.IndexPrice)
+	assert.Equal(t, float64(84), exp.MarkPrice)
+	assert.Equal(t, float64(99), exp.Volume)
+	assert.Equal(t, q.Data.Orderbook.Bids, exp.Bids)
+	assert.Equal(t, q.Data.Orderbook.Asks, exp.Asks)
+	assert.Equal(t, q.Data.OpenInterest, exp.OpenInterest)
+	assert.Equal(t, q.Data.URL, exp.URL)
+	assert.NotNil(t, exp.UnderlyingBase)
+	assert.NotNil(t, exp.UnderlyingQuote)
+	assert.Equal(t, q.Data.Contract.EndDate, exp.ContractExpirationTime)
+	assert.Equal(t, q.Data.Contract.Type.String(), exp.ContractType)
+	assert.Equal(t, q.Data.Contract.Multiplier, exp.ContractDecimals)
 }
 
 func TestWaitForInitialDataWithTimer(t *testing.T) {
@@ -718,9 +739,11 @@ func TestAccountHoldingsFocusType(t *testing.T) {
 	if apiKey == "abc" || apiSecret == "123" {
 		t.Skip("API credentials not set; skipping test that requires them")
 	}
-	f := NewFocusData(AccountHoldingsFocusType, true, false, time.Second)
-	f.Init()
-	qs := mustQuickSpy(t, f)
+	qs := mustQuickSpy(t, AccountHoldingsFocusType)
+	f, err := qs.GetFocusByKey(AccountHoldingsFocusType)
+	require.NoError(t, err)
+	require.NotNil(t, f)
+
 	require.NoError(t, qs.handleFocusType(f.Type, f, time.NewTimer(f.RESTPollTime)))
-	require.NotEmpty(t, qs.Data.Account)
+	require.NotEmpty(t, qs.Data.AccountBalance)
 }

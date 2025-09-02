@@ -32,6 +32,7 @@ var (
 	errNoWebsocketSupportForFocusType = errors.New("quickspy does not support websocket for this focus type")
 	errNoSubSwitchingToREST           = errors.New("no subscription found, switching to REST")
 	errTimerNotSet                    = errors.New("timer not set")
+	errNoDataYet                      = errors.New("no data received yet")
 )
 
 // CredentialsKey is a struct that holds credentials and exchange/pair/asset info
@@ -75,7 +76,7 @@ type Data struct {
 	Orderbook       *orderbook.Book
 	Ticker          *ticker.Price
 	Kline           []websocket.KlineData
-	Account         *account.Holdings
+	AccountBalance  []account.Balance
 	Orders          []order.Detail
 	FundingRate     *fundingrate.LatestRateResponse
 	Trades          []trade.Data
@@ -104,7 +105,7 @@ type ExportedData struct {
 	EstimatedFundingRate   float64               `json:"estimatedFundingRate,omitzero"`
 	LastTradePrice         float64               `json:"lastTradePrice,omitzero"`
 	LastTradeSize          float64               `json:"lastTradeSize,omitzero"`
-	Holdings               []account.SubAccount  `json:"holdings,omitzero"`
+	Holdings               []account.Balance     `json:"holdings,omitzero"`
 	Orders                 []order.Detail        `json:"orders,omitzero"`
 	Bids                   orderbook.Levels      `json:"bids,omitzero"`
 	Asks                   orderbook.Levels      `json:"asks,omitzero"`

@@ -300,18 +300,131 @@ func (q *QuickSpy) HandleWS() error {
 			return q.credContext.Err()
 		case d := <-q.dataHandlerChannel:
 			switch data := d.(type) {
+			case account.Change:
+				focus := q.Focuses.GetByFocusType(AccountHoldingsFocusType)
+				if focus == nil {
+					// these should never happen, but I've had Stranger Things happen
+					log.Errorf(log.QuickSpy, "Quickspy data attempt: %s failed, focus type: %s not found",
+						q.Key.ExchangeAssetPair, AccountHoldingsFocusType)
+					continue
+				}
+				if data.AssetType != q.Key.ExchangeAssetPair.Asset &&
+					!data.Balance.Currency.Equal(q.Key.ExchangeAssetPair.Pair().Base) &&
+					!data.Balance.Currency.Equal(q.Key.ExchangeAssetPair.Pair().Quote) {
+					continue
+				}
+				a := make([]account.Balance, 1)
+				a[0] = *data.Balance
+				q.m.Lock()
+				q.Data.AccountBalance = a
+				q.m.Unlock()
+				select {
+				case focus.Stream <- a:
+				default:
+					// drop data that doesn't fit or get listened to
+				}
+				focus.SetSuccessful()
+			case []account.Change:
+				focus := q.Focuses.GetByFocusType(AccountHoldingsFocusType)
+				if focus == nil {
+					// these should never happen, but I've had Stranger Things happen
+					log.Errorf(log.QuickSpy, "Quickspy data attempt: %s failed, focus type: %s not found",
+						q.Key.ExchangeAssetPair, AccountHoldingsFocusType)
+					continue
+				}
+				var a []account.Balance
+				for i := range data {
+					if data[i].AssetType == q.Key.ExchangeAssetPair.Asset &&
+						(data[i].Balance.Currency.Equal(q.Key.ExchangeAssetPair.Pair().Base) || data[i].Balance.Currency.Equal(q.Key.ExchangeAssetPair.Pair().Quote)) {
+						a = append(a, *data[i].Balance)
+					}
+				}
+				if len(a) == 0 {
+					continue
+				}
+				q.m.Lock()
+				q.Data.AccountBalance = a
+				q.m.Unlock()
+				select {
+				case focus.Stream <- a:
+				default:
+					// drop data that doesn't fit or get listened to
+				}
+				focus.SetSuccessful()
+			case *order.Detail:
+				focus := q.Focuses.GetByFocusType(ActiveOrdersFocusType)
+				if focus == nil {
+					// these should never happen, but I've had Stranger Things happen
+					log.Errorf(log.QuickSpy, "Quickspy data attempt: %s failed, focus type: %s not found",
+						q.Key.ExchangeAssetPair, ActiveOrdersFocusType)
+					continue
+				}
+				q.m.Lock()
+				// managing an order list properly goes against the simplicity of quickspy.
+				// If you're trying to track everything effectively, PRs welcome with map based management or use something else
+				q.Data.Orders = []order.Detail{*data}
+				q.m.Unlock()
+				select {
+				case focus.Stream <- data:
+				default:
+					// drop data that doesn't fit or get listened to
+				}
+				focus.SetSuccessful()
+			case []order.Detail:
+				focus := q.Focuses.GetByFocusType(ActiveOrdersFocusType)
+				if focus == nil {
+					// these should never happen, but I've had Stranger Things happen
+					log.Errorf(log.QuickSpy, "Quickspy data attempt: %s failed, focus type: %s not found",
+						q.Key.ExchangeAssetPair, ActiveOrdersFocusType)
+					continue
+				}
+				o := make([]order.Detail, 0, len(data))
+				for i := range data {
+					if data[i].Pair.Equal(q.Key.ExchangeAssetPair.Pair()) &&
+						data[i].AssetType == q.Key.ExchangeAssetPair.Asset {
+						o = append(o, data[i])
+					}
+				}
+				if len(o) == 0 {
+					continue
+				}
+				q.m.Lock()
+				q.Data.Orders = o
+				q.m.Unlock()
+				select {
+				case focus.Stream <- o:
+				default:
+					// drop data that doesn't fit or get listened to
+				}
+				focus.SetSuccessful()
 			case []ticker.Price:
 				focus := q.Focuses.GetByFocusType(TickerFocusType)
 				if focus == nil {
+					// these should never happen, but I've had Stranger Things happen
 					log.Errorf(log.QuickSpy, "Quickspy data attempt: %s failed, focus type: %s not found",
 						q.Key.ExchangeAssetPair, TickerFocusType)
 					continue
 				}
-				if len(data) != 1 {
+				var td *ticker.Price
+				switch {
+				case len(data) == 0:
+					continue
+				case len(data) == 1:
+					td = &data[0]
+				case len(data) > 1:
+					for i := range data {
+						if data[i].Pair.Equal(q.Key.ExchangeAssetPair.Pair()) &&
+							data[i].AssetType == q.Key.ExchangeAssetPair.Asset {
+							td = &data[i]
+							break
+						}
+					}
+				}
+				if td == nil {
 					continue
 				}
 				q.m.Lock()
-				q.Data.Ticker = &data[0]
+				q.Data.Ticker = td
 				q.m.Unlock()
 				select {
 				case focus.Stream <- data:
@@ -632,12 +745,8 @@ func (q *QuickSpy) handleAccountHoldingsFocus(focus *FocusData) error {
 			}
 		}
 	}
-	ais.Accounts = []account.SubAccount{{
-		AssetType:  q.Key.ExchangeAssetPair.Asset,
-		Currencies: sa,
-	}}
 	focus.m.Lock()
-	q.Data.Account = &ais
+	q.Data.AccountBalance = sa
 	focus.m.Unlock()
 	return nil
 }
@@ -774,11 +883,11 @@ func (d *Data) Dump(k key.ExchangeAssetPair, hasCredentials bool) (*ExportedData
 		lastTradeSize = lastTrade.Amount
 	}
 
-	var holdings []account.SubAccount
-	if d.Account != nil {
-		holdings = make([]account.SubAccount, len(d.Account.Accounts))
-		for i := range d.Account.Accounts {
-			holdings[i] = d.Account.Accounts[i]
+	var holdings []account.Balance
+	if d.AccountBalance != nil {
+		holdings = make([]account.Balance, len(d.AccountBalance))
+		for i := range d.AccountBalance {
+			holdings[i] = d.AccountBalance[i]
 		}
 	}
 	var nextFundingRateTime, currentFundingRateTime time.Time
@@ -817,67 +926,50 @@ func (d *Data) Dump(k key.ExchangeAssetPair, hasCredentials bool) (*ExportedData
 	}, nil
 }
 
+func (q *QuickSpy) HasBeenSuccessful(focusType FocusType) (bool, error) {
+	focus := q.Focuses.GetByFocusType(focusType)
+	if focus == nil {
+		return false, fmt.Errorf("%w %q", errKeyNotFound, focusType)
+	}
+	return focus.HasBeenSuccessful(), nil
+}
+
 // LatestData returns the latest focus-specific payload guarded by the
 // internal read lock. It returns an error if no data has been collected yet
 // for the requested focus type.
 func (q *QuickSpy) LatestData(focusType FocusType) (any, error) {
+	focus := q.Focuses.GetByFocusType(focusType)
+	if focus == nil {
+		return false, fmt.Errorf("%w %q", errKeyNotFound, focusType)
+	}
+	if !focus.HasBeenSuccessful() {
+		return nil, fmt.Errorf("%q %w", focusType, errNoDataYet)
+	}
+
 	q.m.RLock()
 	defer q.m.RUnlock()
 	switch focusType {
 	case TickerFocusType:
-		if q.Data.Ticker == nil {
-			return nil, fmt.Errorf("no ticker yet")
-		}
 		return q.Data.Ticker, nil
 	case OrderBookFocusType:
-		if q.Data.Orderbook == nil {
-			return nil, fmt.Errorf("no orderbook yet")
-		}
 		return q.Data.Orderbook, nil
 	case KlineFocusType:
-		if len(q.Data.Kline) == 0 {
-			return nil, fmt.Errorf("no kline yet")
-		}
 		return q.Data.Kline, nil
 	case TradesFocusType:
-		if len(q.Data.Trades) == 0 {
-			return nil, fmt.Errorf("no trades yet")
-		}
 		return q.Data.Trades, nil
 	case AccountHoldingsFocusType:
-		if q.Data.Account == nil || len(q.Data.Account.Accounts) == 0 {
-			return nil, fmt.Errorf("no account holdings yet")
-		}
-		return q.Data.Account, nil
+		return q.Data.AccountBalance, nil
 	case ActiveOrdersFocusType:
-		if len(q.Data.Orders) == 0 {
-			return nil, fmt.Errorf("no active orders yet")
-		}
 		return q.Data.Orders, nil
 	case OpenInterestFocusType:
-		if q.Data.OpenInterest == 0 {
-			return 0, fmt.Errorf("no open interest yet")
-		}
 		return q.Data.OpenInterest, nil
 	case FundingRateFocusType:
-		if q.Data.FundingRate == nil {
-			return nil, fmt.Errorf("no funding rate yet")
-		}
 		return q.Data.FundingRate, nil
 	case ContractFocusType:
-		if q.Data.Contract == nil {
-			return nil, fmt.Errorf("no contract yet")
-		}
 		return q.Data.Contract, nil
 	case URLFocusType:
-		if q.Data.URL == "" {
-			return nil, fmt.Errorf("no url yet")
-		}
 		return q.Data.URL, nil
 	case OrderExecutionFocusType:
-		if q.Data.ExecutionLimits == nil || (q.Data.ExecutionLimits.MinPrice == 0 && q.Data.ExecutionLimits.MaxPrice == 0) {
-			return nil, fmt.Errorf("no execution limits yet")
-		}
 		return q.Data.ExecutionLimits, nil
 	default:
 		return nil, fmt.Errorf("unsupported focus: %s", focusType.String())
@@ -917,6 +1009,5 @@ func (q *QuickSpy) WaitForInitialDataWithTimer(ctx context.Context, focusType Fo
 		return nil
 	case <-t.C:
 		return fmt.Errorf("%w %q", errFocusDataTimeout, focusType)
-
 	}
 }

@@ -37,9 +37,12 @@ var (
 // focusToSub maps FocusType to subscription channels allowing for easy
 // websocket subscription generation without needing to know about an exchange's underlying implementation
 var focusToSub = map[FocusType]string{
-	OrderBookFocusType: subscription.OrderbookChannel,
-	TickerFocusType:    subscription.TickerChannel,
-	KlineFocusType:     subscription.CandlesChannel,
+	OrderBookFocusType:       subscription.OrderbookChannel,
+	TickerFocusType:          subscription.TickerChannel,
+	KlineFocusType:           subscription.CandlesChannel,
+	TradesFocusType:          subscription.AllTradesChannel,
+	ActiveOrdersFocusType:    subscription.MyOrdersChannel,
+	AccountHoldingsFocusType: subscription.MyAccountChannel,
 }
 
 // NewFocusData creates a new FocusData instance and initializes its internal fields.
@@ -164,10 +167,28 @@ var focusList = []FocusType{
 	URLFocusType,
 }
 
+var authFocusList = []FocusType{
+	AccountHoldingsFocusType,
+	ActiveOrdersFocusType,
+	OrderPlacementFocusType,
+	OrderExecutionFocusType,
+}
+
+var futuresOnlyFocusList = []FocusType{
+	OpenInterestFocusType,
+	FundingRateFocusType,
+}
+
 func (f *FocusData) RequiresAuth() bool {
 	f.m.RLock()
 	defer f.m.RUnlock()
 	return f.Type == AccountHoldingsFocusType || f.Type == ActiveOrdersFocusType || f.Type == OrderPlacementFocusType
+}
+
+func (f *FocusData) HasBeenSuccessful() bool {
+	f.m.RLock()
+	defer f.m.RUnlock()
+	return f.hasBeenSuccessful
 }
 
 func (f FocusType) String() string {
