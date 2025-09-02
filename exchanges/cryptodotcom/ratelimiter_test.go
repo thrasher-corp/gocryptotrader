@@ -27,6 +27,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"Get Sub Account Balances":     privateGetSubAccountBalancesRate,
 		"Get Positions":                privateGetPositionsRate,
 		"Create Order":                 privateCreateOrderRate,
+		"Amend Order":                  privateAmendOrderRate,
 		"Cancel Order":                 privateCancelOrderRate,
 		"Create Order List":            privateCreateOrderListRate,
 		"Cancel Order List":            privateCancelOrderListRate,

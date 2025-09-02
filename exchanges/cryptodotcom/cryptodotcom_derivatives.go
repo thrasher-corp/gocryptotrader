@@ -66,7 +66,7 @@ func (e *Exchange) ClosePosition(ctx context.Context, symbol, orderType string, 
 		return nil, fmt.Errorf("%w: LIMIT or MARKET order types are supported", order.ErrUnsupportedOrderType)
 	}
 	if orderType == "LIMIT" && price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, order.ErrPriceMustBeSetIfLimitOrder
 	}
 	params := make(map[string]any)
 	params["instrument_name"] = symbol

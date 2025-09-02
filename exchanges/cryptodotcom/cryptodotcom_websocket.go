@@ -305,16 +305,16 @@ func (e *Exchange) handleSubscriptions(operation string, subscriptions subscript
 	return nil
 }
 
-func (e *Exchange) generatePayload(operation string, subscription subscription.List) ([]SubscriptionPayload, error) {
-	subscriptionPayloads := make([]SubscriptionPayload, len(subscription))
+func (e *Exchange) generatePayload(operation string, subscriptions subscription.List) ([]SubscriptionPayload, error) {
+	subscriptionPayloads := make([]SubscriptionPayload, len(subscriptions))
 	timestamp := time.Now()
-	for x := range subscription {
+	for x := range subscriptions {
 		subscriptionPayloads[x] = SubscriptionPayload{
 			ID:     e.Websocket.Conn.GenerateMessageID(false),
 			Method: operation,
 			Nonce:  timestamp.UnixMilli(),
 		}
-		switch subscription[x].Channel {
+		switch subscriptions[x].Channel {
 		case instrumentOrderbookCnl,
 			tickerCnl,
 			tradeCnl,
@@ -323,8 +323,8 @@ func (e *Exchange) generatePayload(operation string, subscription subscription.L
 			settlementCnl,
 			markCnl,
 			indexCnl:
-			for p := range subscription[x].Pairs {
-				subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + subscription[x].Pairs[p].String()}}
+			for p := range subscriptions[x].Pairs {
+				subscriptionPayloads[x].Params = map[string][]string{"channels": {subscriptions[x].Channel + "." + subscriptions[x].Pairs[p].String()}}
 			}
 		case positionBalanceCnl,
 			accountRiskCnl,
@@ -332,17 +332,17 @@ func (e *Exchange) generatePayload(operation string, subscription subscription.L
 			userOrderCnl,
 			userTradeCnl,
 			userBalanceCnl:
-			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel}}
+			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscriptions[x].Channel}}
 		case candlestickCnl:
-			interval, err := intervalToString(subscription[x].Interval)
+			interval, err := intervalToString(subscriptions[x].Interval)
 			if err != nil {
 				return nil, err
 			}
-			for p := range subscription[x].Pairs {
-				subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + interval + "." + subscription[x].Pairs[p].String()}}
+			for p := range subscriptions[x].Pairs {
+				subscriptionPayloads[x].Params = map[string][]string{"channels": {subscriptions[x].Channel + "." + interval + "." + subscriptions[x].Pairs[p].String()}}
 			}
 		}
-		switch subscription[x].Channel {
+		switch subscriptions[x].Channel {
 		case userOrderCnl, userTradeCnl, userBalanceCnl:
 			subscriptionPayloads[x].Authenticated = true
 		}
@@ -804,9 +804,9 @@ func (e *Exchange) processUserOrders(resp *WsResult) error {
 		}
 		var tif order.TimeInForce
 		switch data[x].TimeInForce {
-		case "POST_ONLY":
+		case tifPOSTONLY:
 			tif = order.PostOnly
-		case "GOOD_TILL_CANCEL":
+		case tifGTC:
 			tif = order.GoodTillCancel
 		}
 		ordersDetails[x] = order.Detail{

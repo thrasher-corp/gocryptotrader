@@ -39,7 +39,7 @@ func (e *Exchange) WsCreateWithdrawal(ccy currency.Code, amount float64, address
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return nil, fmt.Errorf("%w, withdrawal amount provided: %f", order.ErrAmountBelowMin, amount)
+		return nil, fmt.Errorf("%w, withdrawal amount provided: %f", order.ErrAmountIsInvalid, amount)
 	}
 	if address == "" {
 		return nil, errAddressRequired
@@ -68,7 +68,7 @@ func (e *Exchange) WsRetriveWithdrawalHistory() (*WithdrawalResponse, error) {
 }
 
 // WsPlaceOrder created a new BUY or SELL order on the Exchange through the websocket connection.
-func (e *Exchange) WsPlaceOrder(arg *CreateOrderParam) (*CreateOrderResponse, error) {
+func (e *Exchange) WsPlaceOrder(arg *OrderParam) (*CreateOrderResponse, error) {
 	params, err := arg.getCreateParamMap()
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func (e *Exchange) WsCancelExistingOrder(symbol, orderID string) error {
 // WsCreateOrderList create a list of orders on the Exchange.
 // contingency_type must be LIST, for list of orders creation.
 // This call is asynchronous, so the response is simply a confirmation of the request.
-func (e *Exchange) WsCreateOrderList(contingencyType string, arg []CreateOrderParam) (*OrderCreationResponse, error) {
+func (e *Exchange) WsCreateOrderList(contingencyType string, arg []OrderParam) (*OrderCreationResponse, error) {
 	if len(arg) == 0 {
 		return nil, common.ErrNilPointer
 	}
@@ -235,7 +235,7 @@ func (e *Exchange) WsRetriveAccountSummary(ccy currency.Code) (*Accounts, error)
 }
 
 // SendWebsocketRequest pushed a request data through the websocket data for authenticated and public messages.
-func (e *Exchange) SendWebsocketRequest(method string, arg map[string]any, result interface{}, authenticated bool) error {
+func (e *Exchange) SendWebsocketRequest(method string, arg map[string]any, result any, authenticated bool) error {
 	if authenticated && !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return errors.New("can not send authenticated websocket request")
 	}

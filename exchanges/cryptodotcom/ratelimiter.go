@@ -38,6 +38,7 @@ const (
 	privateGetSubAccountBalancesRate
 	privateGetPositionsRate
 	privateCreateOrderRate
+	privateAmendOrderRate
 	privateCancelOrderRate
 	privateCreateOrderListRate
 	privateCancelOrderListRate
@@ -96,6 +97,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		privateGetSubAccountBalancesRate:    request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		privateGetPositionsRate:             request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		privateCreateOrderRate:              request.NewRateLimitWithWeight(hundredMilliSecondsInterval, fifteenPerIntrval, 1),
+		privateAmendOrderRate:               request.NewRateLimitWithWeight(hundredMilliSecondsInterval, fifteenPerIntrval, 1),
 		privateCancelOrderRate:              request.NewRateLimitWithWeight(hundredMilliSecondsInterval, fifteenPerIntrval, 1),
 		privateCreateOrderListRate:          request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		privateCancelOrderListRate:          request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),

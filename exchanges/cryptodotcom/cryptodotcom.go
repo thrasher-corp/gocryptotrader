@@ -160,7 +160,7 @@ func (e *Exchange) WithdrawFunds(ctx context.Context, ccy currency.Code, amount 
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return nil, fmt.Errorf("%w, withdrawal amount provided: %f", order.ErrAmountBelowMin, amount)
+		return nil, fmt.Errorf("%w, withdrawal amount provided: %f", order.ErrAmountIsInvalid, amount)
 	}
 	if address == "" {
 		return nil, errAddressRequired
@@ -296,13 +296,44 @@ func (e *Exchange) GetAccountSummary(ctx context.Context, ccy currency.Code) (*A
 }
 
 // CreateOrder created a new BUY or SELL order on the Exchange.
-func (e *Exchange) CreateOrder(ctx context.Context, arg *CreateOrderParam) (*CreateOrderResponse, error) {
+func (e *Exchange) CreateOrder(ctx context.Context, arg *OrderParam) (*CreateOrderResponse, error) {
 	params, err := arg.getCreateParamMap()
 	if err != nil {
 		return nil, err
 	}
 	var resp *CreateOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOrderRate, privateCreateOrder, params, &resp)
+}
+
+// StructToMap converts an interface to a map[string]any representation for SendAuthHTTPRequest to use it for signture generation.
+func StructToMap(s any) (map[string]any, error) {
+	data, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]any
+	err = json.Unmarshal(data, &result)
+	return result, err
+}
+
+// AmendOrder updates an open order given the order id, price, and quantity information
+func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderParam) (*CreateOrderResponse, error) {
+	if arg.OriginalClientOrderID == "" && arg.OrderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if arg.NewPrice <= 0 {
+		return nil, order.ErrPriceMustBeSetIfLimitOrder
+	}
+	if arg.NewQuantity <= 0 {
+		return nil, order.ErrAmountIsInvalid
+	}
+	params, err := StructToMap(arg)
+	if err != nil {
+		return nil, err
+	}
+	var resp *CreateOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateAmendOrderRate, "private/amend-order", params, &resp)
 }
 
 // CancelExistingOrder cancels and existing open order.
@@ -322,7 +353,7 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, symbol, orderID stri
 // CreateOrderList create a list of orders on the Exchange.
 // contingency_type must be LIST, for list of orders creation.
 // This call is asynchronous, so the response is simply a confirmation of the request.
-func (e *Exchange) CreateOrderList(ctx context.Context, contingencyType string, arg []CreateOrderParam) (*OrderCreationResponse, error) {
+func (e *Exchange) CreateOrderList(ctx context.Context, contingencyType string, arg []OrderParam) (*OrderCreationResponse, error) {
 	orderParams := make([]map[string]any, len(arg))
 	for x := range arg {
 		p, err := arg[x].getCreateParamMap()
@@ -396,7 +427,7 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, from, to string, ccy 
 		return currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return order.ErrAmountBelowMin
+		return order.ErrAmountIsInvalid
 	}
 	params := make(map[string]any)
 	params["from"] = from
@@ -457,7 +488,7 @@ func (e *Exchange) CreateSubAccountTransfer(ctx context.Context, from, to string
 		return fmt.Errorf("%w Currency: %v", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	if amount <= 0 {
-		return order.ErrAmountBelowMin
+		return order.ErrAmountIsInvalid
 	}
 	params := make(map[string]any)
 	params["from"] = from
@@ -657,10 +688,10 @@ func (e *Exchange) CreateOTCOrder(ctx context.Context, symbol, side, clientOrder
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if quantity <= 0 {
-		return nil, fmt.Errorf("%w, 'quantity' is %f", order.ErrAmountBelowMin, quantity)
+		return nil, fmt.Errorf("%w, 'quantity' is %f", order.ErrAmountIsInvalid, quantity)
 	}
 	if price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, errPriceBelowMin
 	}
 	if side != "BUY" && side != "SELL" {
 		return nil, fmt.Errorf("%w, side=%s", order.ErrSideIsInvalid, side)
@@ -714,7 +745,7 @@ func (e *Exchange) CreateStaking(ctx context.Context, symbol string, quantity fl
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, order.ErrAmountIsInvalid
 	}
 	params := make(map[string]any)
 	params["instrument_name"] = symbol
@@ -729,7 +760,7 @@ func (e *Exchange) Unstake(ctx context.Context, symbol string, quantity float64)
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, order.ErrAmountIsInvalid
 	}
 	params := make(map[string]any)
 	params["instrument_name"] = symbol
@@ -829,7 +860,7 @@ func (e *Exchange) ConvertStakedToken(ctx context.Context, fromSymbol, toSymbol 
 		return nil, errInvalidRate
 	}
 	if fromQuantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, order.ErrAmountIsInvalid
 	}
 	if slippageToleranceBasisPoints <= 0 {
 		return nil, errInvalidSlippageToleraceBPs

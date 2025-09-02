@@ -3,6 +3,7 @@ package cryptodotcom
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -26,6 +27,14 @@ var (
 	errValuationTypeUnset              = errors.New("valuation type unset")
 	errAccountIDMissing                = errors.New("account id is required")
 	errContingencyTypeRequired         = errors.New("contingency type is required")
+	errPriceBelowMin                   = errors.New("price below min")
+)
+
+const (
+	tifGTC      = "GOOD_TILL_CANCEL"
+	tifPOSTONLY = "POST_ONLY"
+	tifIOC      = "IMMEDIATE_OR_CANCEL"
+	tifFOK      = "FILL_OR_KILL"
 )
 
 // OrderbookDetail public order book detail.
@@ -306,8 +315,8 @@ type PersonalOrdersResponse struct {
 	OrderList []OrderItem `json:"order_list"`
 }
 
-// CreateOrderParam represents a create order request parameter.
-type CreateOrderParam struct {
+// OrderParam represents a create order request parameter.
+type OrderParam struct {
 	Symbol                        string     `json:"instrument_name"`
 	Side                          order.Side `json:"side"`
 	OrderType                     order.Type `json:"type"`
@@ -326,8 +335,17 @@ type CreateOrderParam struct {
 	FeeInstrumentName             string     `json:"fee_instrument_name,omitempty"`
 }
 
-func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error) {
-	if arg == nil || *arg == (CreateOrderParam{}) {
+// AmendOrderParam holds order updating request parameters
+type AmendOrderParam struct {
+	ClientOrderID         string  `json:"client_oid,omitempty"`
+	OrderID               string  `json:"order_id,omitempty"`
+	OriginalClientOrderID string  `json:"orig_client_oid,omitempty"`
+	NewPrice              float64 `json:"new_price"`
+	NewQuantity           float64 `json:"new_quantity"`
+}
+
+func (arg *OrderParam) getCreateParamMap() (map[string]interface{}, error) {
+	if arg == nil {
 		return nil, fmt.Errorf("%w, CreateOrderParam can not be nil", common.ErrNilPointer)
 	}
 	if arg.Symbol == "" {
@@ -339,10 +357,10 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 	switch arg.OrderType {
 	case order.Limit, order.StopLimit, order.TakeProfitLimit:
 		if arg.Price <= 0 { // Unit price
-			return nil, fmt.Errorf("%w, price must be non-zero positive decimal value", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, price must be non-zero positive decimal value", order.ErrPriceMustBeSetIfLimitOrder)
 		}
 		if arg.Quantity <= 0 {
-			return nil, order.ErrAmountBelowMin
+			return nil, order.ErrAmountIsInvalid
 		}
 		switch arg.OrderType {
 		case order.StopLimit, order.TakeProfitLimit:
@@ -357,13 +375,13 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 			}
 		} else {
 			if arg.Quantity <= 0 {
-				return nil, fmt.Errorf("%w order type: %v and order side: %v", order.ErrAmountBelowMin, arg.OrderType, arg.Side)
+				return nil, fmt.Errorf("%w order type: %v and order side: %v", order.ErrAmountIsInvalid, arg.OrderType, arg.Side)
 			}
 		}
 	case order.Stop, order.TakeProfit:
 		if arg.Side == order.Sell {
 			if arg.Quantity <= 0 {
-				return nil, fmt.Errorf("%w order type: %v and order side: %v", order.ErrAmountBelowMin, arg.OrderType, arg.Side)
+				return nil, fmt.Errorf("%w order type: %v and order side: %v", order.ErrAmountIsInvalid, arg.OrderType, arg.Side)
 			}
 		} else {
 			if arg.Notional <= 0 {
@@ -390,11 +408,15 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 	if arg.ClientOrderID != "" {
 		params["client_oid"] = arg.ClientOrderID
 	}
+	arg.TimeInForce = strings.ToUpper(arg.TimeInForce)
 	if arg.TimeInForce != "" {
 		params["time_in_force"] = arg.TimeInForce
 	}
 	if arg.PostOnly {
-		params["exec_inst"] = "POST_ONLY"
+		if arg.TimeInForce != tifGTC {
+			return nil, errors.New("execution type POST_ONLY is only allowed with GOOD_TILL_CANCEL time-in-force")
+		}
+		params["exec_inst"] = []string{tifPOSTONLY}
 	}
 	if arg.TriggerPrice > 0 {
 		params["trigger_price"] = arg.TriggerPrice
@@ -729,12 +751,12 @@ type WsOrderbook struct {
 
 // WsRequestPayload represents authentication and request sending payload
 type WsRequestPayload struct {
-	ID        int64                  `json:"id"`
-	Method    string                 `json:"method"`
-	APIKey    string                 `json:"api_key,omitempty"`
-	Signature string                 `json:"sig,omitempty"`
-	Nonce     int64                  `json:"nonce,omitempty"`
-	Params    map[string]interface{} `json:"params,omitempty"`
+	ID        int64          `json:"id"`
+	Method    string         `json:"method"`
+	APIKey    string         `json:"api_key,omitempty"`
+	Signature string         `json:"sig,omitempty"`
+	Nonce     int64          `json:"nonce,omitempty"`
+	Params    map[string]any `json:"params,omitempty"`
 }
 
 // RespData represents a generalized object structure of responses.

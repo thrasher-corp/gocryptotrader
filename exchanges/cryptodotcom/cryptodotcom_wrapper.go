@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -622,6 +624,18 @@ allTrades:
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
+func timeInForceToString(tif order.TimeInForce) string {
+	switch {
+	case tif.Is(order.GoodTillCancel):
+		return tifGTC
+	case tif.Is(order.ImmediateOrCancel):
+		return tifIOC
+	case tif.Is(order.FillOrKill):
+		return tifFOK
+	}
+	return ""
+}
+
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
@@ -631,7 +645,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	if s.Amount <= 0 {
-		return nil, fmt.Errorf("%w, amount to buy or sell hast to be greater than zero ", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w, amount to buy or sell hast to be greater than zero ", order.ErrAmountIsInvalid)
 	}
 	format, err := e.GetPairFormat(s.AssetType, false)
 	if err != nil {
@@ -651,7 +665,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, err
 	}
 	var ordersResp *CreateOrderResponse
-	arg := &CreateOrderParam{Symbol: format.Format(s.Pair), Side: s.Side, OrderType: s.Type, Price: s.Price, Quantity: s.Amount, ClientOrderID: s.ClientOrderID, Notional: notional, PostOnly: s.TimeInForce.Is(order.PostOnly), TriggerPrice: s.TriggerPrice, TriggerPriceType: priceTypeString}
+	arg := &OrderParam{Symbol: format.Format(s.Pair), Side: s.Side, OrderType: s.Type, Price: s.Price, Quantity: s.Amount, ClientOrderID: s.ClientOrderID, Notional: notional, PostOnly: s.TimeInForce.Is(order.PostOnly), TriggerPrice: s.TriggerPrice, TriggerPriceType: priceTypeString, TimeInForce: timeInForceToString(s.TimeInForce)}
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		ordersResp, err = e.WsPlaceOrder(arg)
 	} else {
@@ -781,11 +795,11 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	}
 	var tif order.TimeInForce
 	switch orderDetail.TimeInForce {
-	case "GOOD_TILL_CANCEL":
+	case tifGTC:
 		tif = order.GoodTillCancel
-	case "IMMEDIATE_OR_CANCEL":
+	case tifIOC:
 		tif = order.ImmediateOrCancel
-	case "FILL_OR_KILL":
+	case tifFOK:
 		tif = order.FillOrKill
 	default:
 		// TODO: include post only variable in response detail
@@ -1077,11 +1091,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 func timeInForceFromString(timeInForce string, postOnly bool) order.TimeInForce {
 	var tif order.TimeInForce
 	switch timeInForce {
-	case "GOOD_TILL_CANCEL":
+	case tifGTC:
 		tif = order.GoodTillCancel
-	case "IMMEDIATE_OR_CANCEL":
+	case tifIOC:
 		tif = order.ImmediateOrCancel
-	case "FILL_OR_KILL":
+	case tifFOK:
 		tif = order.FillOrKill
 	}
 	if postOnly {
@@ -1204,20 +1218,19 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return err
 	}
 
-	limits := make([]order.MinMaxLevel, 0, len(instrumentsResponse.Instruments))
+	ls := make([]limits.MinMaxLevel, 0, len(instrumentsResponse.Instruments))
 	for x := range instrumentsResponse.Instruments {
 		pair, err := currency.NewPairFromString(instrumentsResponse.Instruments[x].Symbol)
 		if err != nil {
 			return err
 		}
-		limits = append(limits, order.MinMaxLevel{
-			Pair:                    pair,
-			Asset:                   a,
+		ls = append(ls, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 			AmountStepIncrementSize: instrumentsResponse.Instruments[x].QtyTickSize.Float64(),
 			PriceStepIncrementSize:  instrumentsResponse.Instruments[x].PriceTickSize.Float64(),
 		})
 	}
-	return e.LoadLimits(limits)
+	return limits.Load(ls)
 }
 
 func priceTypeToString(pt order.PriceType) (string, error) {
@@ -1237,15 +1250,15 @@ func priceTypeToString(pt order.PriceType) (string, error) {
 
 func timeInForceString(tif order.TimeInForce) (string, error) {
 	if tif.Is(order.PostOnly) {
-		return "GOOD_TILL_CANCEL", nil
+		return tifGTC, nil
 	}
 	switch tif {
 	case order.GoodTillCancel:
-		return "GOOD_TILL_CANCEL", nil
+		return tifGTC, nil
 	case order.ImmediateOrCancel:
-		return "IMMEDIATE_OR_CANCEL", nil
+		return tifIOC, nil
 	case order.FillOrKill:
-		return "FILL_OR_KILL", nil
+		return tifFOK, nil
 	default:
 		return "", fmt.Errorf("%w: time-in-force value %v", order.ErrInvalidTimeInForce, tif.String())
 	}
