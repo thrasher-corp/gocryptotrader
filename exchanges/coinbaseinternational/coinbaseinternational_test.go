@@ -282,17 +282,17 @@ func TestCreateOrder(t *testing.T) {
 
 	arg.Side = "BUY"
 	_, err = e.CreateOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	arg.BaseSize = 1
-	_, err = e.CreateOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
-
-	arg.Price = 12345.67
 	_, err = e.CreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
 	arg.OrderType = orderType
+	_, err = e.CreateOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
+
+	arg.Price = 12345.67
 	_, err = e.CreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 

@@ -290,13 +290,13 @@ func (e *Exchange) CreateOrder(ctx context.Context, arg *OrderRequestParams) (*T
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.BaseSize <= 0 {
-		return nil, order.ErrAmountBelowMin
-	}
-	if arg.Price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, order.ErrAmountIsInvalid
 	}
 	if arg.OrderType == "" {
 		return nil, order.ErrUnsupportedOrderType
+	}
+	if (arg.OrderType == "LIMIT" || arg.OrderType == "STOP_LIMIT") && arg.Price <= 0 {
+		return nil, order.ErrPriceMustBeSetIfLimitOrder
 	}
 	if arg.ClientOrderID == "" {
 		return nil, fmt.Errorf("%w, client_order_id is required", order.ErrOrderIDNotSet)

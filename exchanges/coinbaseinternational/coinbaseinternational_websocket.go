@@ -61,11 +61,7 @@ func (e *Exchange) WsConnect() error {
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(e.Websocket.Conn)
 
-	return e.handleSubscription([]SubscriptionInput{{
-		Type:       "SUBSCRIBE",
-		ProductIDs: []string{"BTC-PERP"},
-		Channels:   []string{"LEVEL2"},
-	}})
+	return nil
 }
 
 // wsReadData gets and passes on websocket messages for processing

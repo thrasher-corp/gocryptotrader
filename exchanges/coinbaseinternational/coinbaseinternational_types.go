@@ -10,27 +10,33 @@ import (
 
 // AssetItemInfo represents a single an asset item instance.
 type AssetItemInfo struct {
-	AssetID                  string  `json:"asset_id"`
-	AssetUUID                string  `json:"asset_uuid"`
-	AssetName                string  `json:"asset_name"`
-	Status                   string  `json:"status"`
-	CollateralWeight         float64 `json:"collateral_weight"`
-	SupportedNetworksEnabled bool    `json:"supported_networks_enabled"`
+	AssetID                             int64   `json:"asset_id"`
+	AssetUUID                           string  `json:"asset_uuid"`
+	AssetName                           string  `json:"asset_name"`
+	Status                              string  `json:"status"`
+	CollateralWeight                    float64 `json:"collateral_weight"`
+	SupportedNetworksEnabled            bool    `json:"supported_networks_enabled"`
+	MinBorrowQty                        float64 `json:"min_borrow_qty"`
+	MaxBorrowQty                        float64 `json:"max_borrow_qty"`
+	LoanCollateralRequirementMultiplier float64 `json:"loan_collateral_requirement_multiplier"`
+	EcosystemCollateralLimitBreached    bool    `json:"ecosystem_collateral_limit_breached"`
+	LoanInitialMargin                   float64 `json:"loan_initial_margin"`
+	MaxLoanLeverage                     int64   `json:"max_loan_leverage"`
 }
 
 // AssetInfoWithSupportedNetwork represents network information for a specific asset.
 type AssetInfoWithSupportedNetwork struct {
-	AssetID             string       `json:"asset_id"`
-	AssetUUID           string       `json:"asset_uuid"`
-	AssetName           string       `json:"asset_name"`
-	NetworkName         string       `json:"network_name"`
-	DisplayName         string       `json:"display_name"`
-	NetworkArnID        string       `json:"network_arn_id"`
-	MinWithdrawalAmount types.Number `json:"min_withdrawal_amt"`
-	MaxWithdrawalAmount types.Number `json:"max_withdrawal_amt"`
-	NetworkConfirms     int64        `json:"network_confirms"`
-	ProcessingTime      int64        `json:"processing_time"` // Number of seconds estimated to process a transaction on the network
-	IsDefault           bool         `json:"is_default"`
+	AssetID          int64   `json:"asset_id"`
+	AssetUUID        string  `json:"asset_uuid"`
+	AssetName        string  `json:"asset_name"`
+	NetworkArnID     string  `json:"network_arn_id"`
+	MinWithdrawalAmt float64 `json:"min_withdrawal_amt"`
+	MaxWithdrawalAmt float64 `json:"max_withdrawal_amt"`
+	NetworkConfirms  int64   `json:"network_confirms"`
+	ProcessingTime   int64   `json:"processing_time"` // Number of seconds estimated to process a transaction on the network
+	IsDefault        bool    `json:"is_default"`
+	NetworkName      string  `json:"network_name"`
+	DisplayName      string  `json:"display_name"`
 }
 
 // InstrumentInfo represents an instrument detail for specific instrument id.

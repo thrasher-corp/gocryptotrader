@@ -10,8 +10,10 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -894,22 +896,21 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if err != nil {
 		return err
 	}
-	limits := make([]order.MinMaxLevel, len(instruments))
+	ls := make([]limits.MinMaxLevel, len(instruments))
 	for index := range instruments {
 		pair, err := currency.NewPairFromString(instruments[index].Symbol)
 		if err != nil {
 			return err
 		}
-		limits[index] = order.MinMaxLevel{
-			Asset:                   a,
-			Pair:                    pair.Format(format),
+		ls[index] = limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, a, pair.Format(format)),
 			AmountStepIncrementSize: instruments[index].BaseIncrement.Float64(),
 			QuoteStepIncrementSize:  instruments[index].QuoteIncrement.Float64(),
 			MinimumQuoteAmount:      instruments[index].Quote.LimitDown.Float64(),
 			MaximumQuoteAmount:      instruments[index].Quote.LimitUp.Float64(),
 		}
 	}
-	return e.LoadLimits(limits)
+	return limits.Load(ls)
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
