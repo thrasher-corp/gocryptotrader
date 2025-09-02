@@ -84,8 +84,7 @@ type WebsocketGeneralPayload struct {
 	Arguments []any             `json:"args"`
 }
 
-// IDLoader is an interface to load an ID that is generated from the request. If the ID is loaded by a client then it
-// will be returned and that ID will be used.
-type IDLoader interface {
-	LoadID(generated string) (stored string)
+// orderLinkIDSetter is an interface to set an order Link ID if not already set
+type orderLinkIDSetter interface {
+	setOrderLinkID(string) string
 }

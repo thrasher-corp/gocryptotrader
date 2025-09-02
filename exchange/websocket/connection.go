@@ -479,9 +479,7 @@ type MatchedResponse struct {
 	Err       error
 }
 
-// MatchReturnResponses sets up a channel to listen for an expected number of responses. These responses may not
-// originate from the same connection as the request, but can come from an alternative connection. It returns a channel
-// that will receive a MatchedResponse containing the collected responses or an error.
+// MatchReturnResponses returns channel of exactly expected matched responses
 func (c *connection) MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error) {
 	connectionListen, err := c.Match.Set(signature, expected)
 	if err != nil {

@@ -12,10 +12,6 @@ import (
 
 // Websocket request operation types
 const (
-	WsCreate = "order.create"
-	WsAmend  = "order.amend"
-	WsCancel = "order.cancel"
-
 	OutboundTradeConnection  = "PRIVATE_TRADE"
 	InboundPrivateConnection = "PRIVATE"
 )
@@ -29,11 +25,11 @@ func (e *Exchange) WSCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	return e.SendWebsocketRequest(ctx, WsCreate, arg, epl)
+	return e.SendWebsocketRequest(ctx, "order.create", arg, epl)
 }
 
-// LoadID loads the order link ID into the parameter, only if it is not already set
-func (r *PlaceOrderRequest) LoadID(id string) string {
+// setOrderLinkID the order link ID if not already populated
+func (r *PlaceOrderRequest) setOrderLinkID(id string) string {
 	if r.OrderLinkID == "" {
 		r.OrderLinkID = id
 	}
@@ -49,11 +45,11 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequest) (*W
 	if err != nil {
 		return nil, err
 	}
-	return e.SendWebsocketRequest(ctx, WsAmend, arg, epl)
+	return e.SendWebsocketRequest(ctx, "order.amend", arg, epl)
 }
 
-// LoadID loads the order link ID into the parameter, only if it is not already set
-func (r *AmendOrderRequest) LoadID(id string) string {
+// setOrderLinkID the order link ID if not already populated
+func (r *AmendOrderRequest) setOrderLinkID(id string) string {
 	if r.OrderLinkID == "" {
 		r.OrderLinkID = id
 	}
@@ -69,11 +65,11 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequest) (
 	if err != nil {
 		return nil, err
 	}
-	return e.SendWebsocketRequest(ctx, WsCancel, arg, epl)
+	return e.SendWebsocketRequest(ctx, "order.cancel", arg, epl)
 }
 
-// LoadID loads the order link ID into the parameter, only if it is not already set
-func (r *CancelOrderRequest) LoadID(id string) string {
+// setOrderLinkID the order link ID if not already populated
+func (r *CancelOrderRequest) setOrderLinkID(id string) string {
 	if r.OrderLinkID == "" {
 		r.OrderLinkID = id
 	}
@@ -81,7 +77,7 @@ func (r *CancelOrderRequest) LoadID(id string) string {
 }
 
 // SendWebsocketRequest sends a request to the exchange through the websocket connection
-func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, argument IDLoader, limit request.EndpointLimit) (*WebsocketOrderDetails, error) {
+func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, argument orderLinkIDSetter, limit request.EndpointLimit) (*WebsocketOrderDetails, error) {
 	// Get the outbound and inbound connections to send and receive the request. This makes sure both are live before
 	// sending the request.
 	outbound, err := e.Websocket.GetConnection(OutboundTradeConnection)
@@ -97,7 +93,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, argument
 	requestID := strconv.FormatInt(outbound.GenerateMessageID(false), 10)
 
 	// Sets OrderLinkID to the outbound payload so that the response can be matched to the request in the inbound connection.
-	argumentID := argument.LoadID(strconv.FormatInt(tn.UnixNano(), 10) + requestID) // UnixNano is used to ensure the ID is unique.
+	argumentID := argument.setOrderLinkID(strconv.FormatInt(tn.UnixNano(), 10) + requestID) // UnixNano is used to ensure the ID is unique.
 
 	// Set up a listener to wait for the response to come back from the inbound connection. The request is sent through
 	// the outbound trade connection, the response can come back through the inbound private connection before the

@@ -229,29 +229,29 @@ assetLoader:
 	return cpy
 }
 
-func TestLoadIDPlaceOrderRequest(t *testing.T) {
+func TestSetOrderLinkIDPlaceOrderRequest(t *testing.T) {
 	t.Parallel()
 	p := &PlaceOrderRequest{}
-	id := p.LoadID("12345")
+	id := p.setOrderLinkID("12345")
 	require.Equal(t, "12345", id)
-	id = p.LoadID("67890")
+	id = p.setOrderLinkID("67890")
 	require.Equal(t, "12345", id)
 }
 
-func TestLoadIDAmendOrderRequest(t *testing.T) {
+func TestSetOrderLinkIDAmendOrderRequest(t *testing.T) {
 	t.Parallel()
 	p := &AmendOrderRequest{}
-	id := p.LoadID("12345")
+	id := p.setOrderLinkID("12345")
 	require.Equal(t, "12345", id)
-	id = p.LoadID("67890")
+	id = p.setOrderLinkID("67890")
 	require.Equal(t, "12345", id)
 }
 
-func TestLoadIDCancelOrderRequest(t *testing.T) {
+func TestSetOrderLinkIDCancelOrderRequest(t *testing.T) {
 	t.Parallel()
 	p := &CancelOrderRequest{}
-	id := p.LoadID("12345")
+	id := p.setOrderLinkID("12345")
 	require.Equal(t, "12345", id)
-	id = p.LoadID("67890")
+	id = p.setOrderLinkID("67890")
 	require.Equal(t, "12345", id)
 }

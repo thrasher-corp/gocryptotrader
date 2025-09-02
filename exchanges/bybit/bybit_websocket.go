@@ -120,8 +120,8 @@ func (e *Exchange) WebsocketAuthenticatePrivateConnection(ctx context.Context, c
 	return nil
 }
 
-// WebsocketAuthenticateTradeConnection sends an authentication message to the private websocket for outbound account
-// data
+// WebsocketAuthenticateTradeConnection sends an authentication message to the private trade websocket for outbound
+// account data
 func (e *Exchange) WebsocketAuthenticateTradeConnection(ctx context.Context, conn websocket.Connection) error {
 	// request ID is not returned with the response, a workaround in the trade connection handler monitors the response
 	// for the operation type "auth", which is then set in the response match key.
@@ -154,16 +154,15 @@ func (e *Exchange) GetAuthenticationPayload(ctx context.Context, requestID strin
 	if err != nil {
 		return nil, err
 	}
-	intNonce := time.Now().Add(time.Hour * 6).UnixMilli()
-	strNonce := strconv.FormatInt(intNonce, 10)
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("GET/realtime"+strNonce), []byte(creds.Secret))
+	expires := time.Now().Add(time.Hour * 6).UnixMilli()
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("GET/realtime"+strconv.FormatInt(expires, 10)), []byte(creds.Secret))
 	if err != nil {
 		return nil, err
 	}
 	return &Authenticate{
 		RequestID: requestID,
 		Operation: "auth",
-		Args:      []any{creds.Key, intNonce, hex.EncodeToString(hmac)},
+		Args:      []any{creds.Key, expires, hex.EncodeToString(hmac)},
 	}, nil
 }
 
