@@ -59,8 +59,7 @@ type Connection interface {
 	RequireMatchWithData(signature any, incoming []byte) error
 	// IncomingWithData routes incoming data using the connection specific match system to the correct handler
 	IncomingWithData(signature any, data []byte) bool
-	// MatchReturnResponses sets up a channel to listen for an expected number of responses. This is used for when a
-	// request is sent and a response is expected in a different connection.
+	// MatchReturnResponses sets up a channel to listen for an expected number of responses.
 	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
 }
 
