@@ -337,7 +337,6 @@ func TestSettingsPrint(t *testing.T) {
 
 var unsupportedDefaultConfigExchanges = []string{
 	"poloniex", // poloniex has dropped support for the API GCT has implemented //TODO: drop this when supported
-	"coinbase", // deprecated API. TODO: Remove this when the Coinbase update is merged
 }
 
 func TestGetDefaultConfigurations(t *testing.T) {

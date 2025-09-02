@@ -26,7 +26,7 @@ func (m *MockProvider) GetName() string {
 
 func (m *MockProvider) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
 	c := map[string]float64{}
-	for _, s := range strings.Split(symbols, ",") {
+	for s := range strings.SplitSeq(symbols, ",") {
 		if s == "XRP" && m.value == 1.5 {
 			return nil, errCurrencyNotSupported
 		}

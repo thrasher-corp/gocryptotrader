@@ -1137,7 +1137,7 @@ func StringToOrderType(oType string) (Type, error) {
 		return TakeProfit, nil
 	case orderLiquidation:
 		return Liquidation, nil
-	case Bracket.String(), "TRIGGER_BRACKET":
+	case orderBracket, "TRIGGER_BRACKET":
 		return Bracket, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, ErrUnrecognisedOrderType)

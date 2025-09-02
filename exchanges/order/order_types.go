@@ -379,12 +379,12 @@ const (
 	Chase           // chase limit order
 	OptimalLimit
 	MarketMakerProtection
-	Bracket // Sets both a profit target and a stop loss simultaneously.
 
 	// Hybrid order types
 	StopLimit        = Stop | Limit
 	StopMarket       = Stop | Market
 	TakeProfitMarket = TakeProfit | Market
+	Bracket          = Stop | TakeProfit
 )
 
 // order-type string representations

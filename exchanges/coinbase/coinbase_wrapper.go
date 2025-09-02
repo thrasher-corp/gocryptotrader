@@ -2,7 +2,6 @@ package coinbase
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -110,18 +109,16 @@ func (e *Exchange) SetDefaults() {
 		Subscriptions:       defaultSubscriptions.Clone(),
 		TradingRequirements: protocol.TradingRequirements{},
 	}
-	e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(rateLimits))
-	if err != nil {
+	if e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(rateLimits)); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	e.API.Endpoints = e.NewEndpoints()
-	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	if err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              apiURL,
 		exchange.RestSandbox:           sandboxAPIURL,
 		exchange.WebsocketSpot:         coinbaseWebsocketURL,
 		exchange.RestSpotSupplementary: v1APIURL,
-	})
-	if err != nil {
+	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	e.Websocket = websocket.NewManager()
@@ -132,16 +129,14 @@ func (e *Exchange) SetDefaults() {
 
 // Setup initialises the exchange parameters with the current configuration
 func (e *Exchange) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil
 	}
-	err = e.SetupDefaults(exch)
-	if err != nil {
+	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
 	e.checkSubscriptions()
@@ -150,7 +145,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = e.Websocket.Setup(&websocket.ManagerSetup{
+	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            coinbaseWebsocketURL,
 		RunningURL:            wsRunningURL,
@@ -162,8 +157,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer: true,
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
@@ -175,24 +169,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	var products *AllProducts
-	verified, err := e.verificationCheck(ctx)
+	aString := FormatAssetOutbound(a)
+	products, err := e.GetAllProducts(ctx, 0, 0, aString, "", "", "", nil, false, true, false)
 	if err != nil {
 		return nil, err
-	}
-	aString := FormatAssetOutbound(a)
-	if verified {
-		products, err = e.GetAllProducts(ctx, 0, 0, aString, "", "", "", nil, true, true, verified)
-		if err != nil {
-			log.Warnf(log.ExchangeSys, warnAuth, err)
-			verified = false
-		}
-	}
-	if !verified {
-		products, err = e.GetAllProducts(ctx, 0, 0, aString, "", "", "", nil, false, true, verified)
-		if err != nil {
-			return nil, err
-		}
 	}
 	pairs := make([]currency.Pair, 0, len(products.Products))
 	aliases := make(map[currency.Pair]currency.Pairs)
@@ -225,8 +205,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 		if err != nil {
 			return err
 		}
-		err = e.UpdatePairs(pairs, assets[i], false, forceUpdate)
-		if err != nil {
+		if err := e.UpdatePairs(pairs, assets[i], false, forceUpdate); err != nil {
 			return err
 		}
 	}
@@ -245,8 +224,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	)
 	response.Exchange = e.Name
 	for !done {
-		accountResp, err = e.ListAccounts(ctx, 250, cursor)
-		if err != nil {
+		if accountResp, err = e.ListAccounts(ctx, 250, cursor); err != nil {
 			return response, err
 		}
 		accountBalance = append(accountBalance, accountResp.Accounts...)
@@ -272,8 +250,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	err = account.Process(&response, creds)
-	if err != nil {
+	if err := account.Process(&response, creds); err != nil {
 		return account.Holdings{}, err
 	}
 	return response, nil
@@ -286,16 +263,11 @@ func (e *Exchange) UpdateTickers(context.Context, asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	verified, err := e.verificationCheck(ctx)
-	if err != nil {
-		return nil, err
-	}
 	fPair, err := e.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
-	err = e.tickerHelper(ctx, fPair, a, verified)
-	if err != nil {
+	if err := e.tickerHelper(ctx, fPair, a); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(e.Name, p, a)
@@ -306,16 +278,11 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	verified, err := e.verificationCheck(ctx)
+	p, err := e.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	p, err = e.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-	err = e.CurrencyPairs.IsAssetEnabled(assetType)
-	if err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
@@ -325,18 +292,8 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		ValidateOrderbook: e.ValidateOrderbook,
 	}
 	var orderbookNew *ProductBookResp
-	if verified {
-		orderbookNew, err = e.GetProductBookV3(ctx, p, 1000, 0, true)
-		if err != nil {
-			log.Warnf(log.ExchangeSys, warnAuth, err)
-			verified = false
-		}
-	}
-	if !verified {
-		orderbookNew, err = e.GetProductBookV3(ctx, p, 1000, 0, false)
-		if err != nil {
-			return book, err
-		}
+	if orderbookNew, err = e.GetProductBookV3(ctx, p, 1000, 0, false); err != nil {
+		return book, err
 	}
 	book.Bids = make(orderbook.Levels, len(orderbookNew.Pricebook.Bids))
 	for x := range orderbookNew.Pricebook.Bids {
@@ -363,8 +320,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		}
 		if isEnabled {
 			book.Pair = aliases[i]
-			err = book.Process()
-			if err != nil {
+			if err := book.Process(); err != nil {
 				errs = fmt.Errorf("%v %v", errs, err)
 				continue
 			}
@@ -396,8 +352,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			return nil, err
 		}
 		accHistory = append(accHistory, tempAccHist.Data...)
-		tempAccHist, err = e.GetAllFiatTransfers(ctx, wallIDs.Data[i].ID, PaginationInp{}, FiatWithdrawal)
-		if err != nil {
+		if tempAccHist, err = e.GetAllFiatTransfers(ctx, wallIDs.Data[i].ID, PaginationInp{}, FiatWithdrawal); err != nil {
 			return nil, err
 		}
 		accHistory = append(accHistory, tempAccHist.Data...)
@@ -491,8 +446,7 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(e.GetTradingRequirements())
-	if err != nil {
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	fPair, err := e.FormatExchangeCurrency(s.Pair, s.AssetType)
@@ -550,8 +504,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 	if m == nil {
 		return nil, common.ErrNilPointer
 	}
-	err := m.Validate()
-	if err != nil {
+	if err := m.Validate(); err != nil {
 		return nil, err
 	}
 	success, err := e.EditOrder(ctx, m.OrderID, m.Amount, m.Price)
@@ -569,8 +522,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if o == nil {
 		return common.ErrNilPointer
 	}
-	err := o.Validate(o.StandardCancel())
-	if err != nil {
+	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
 	canSlice := []order.Cancel{*o}
@@ -594,8 +546,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	status.Status = make(map[string]string)
 	ordIDSlice := make([]string, ordToCancel)
 	for i := range o {
-		err := o[i].Validate(o[i].StandardCancel())
-		if err != nil {
+		if err := o[i].Validate(o[i].StandardCancel()); err != nil {
 			return nil, err
 		}
 		ordIDSlice[i] = o[i].OrderID
@@ -736,7 +687,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	} else {
 		travel.IsSelf = "IS_SELF_FALSE"
 	}
-	resp, err := e.SendMoney(ctx, "send", withdrawRequest.WalletID, withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(), withdrawRequest.Description, withdrawRequest.IdempotencyToken, withdrawRequest.Crypto.AddressTag, "", withdrawRequest.Amount, false, travel)
+	resp, err := e.SendMoney(ctx, "send", withdrawRequest.WalletID, withdrawRequest.Crypto.Address, withdrawRequest.Description, withdrawRequest.IdempotencyToken, withdrawRequest.Crypto.AddressTag, "", withdrawRequest.Currency, withdrawRequest.Amount, false, travel)
 	if err != nil {
 		return nil, err
 	}
@@ -803,8 +754,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	}
 	var respOrders []GetOrderResponse
 	ordStatus := []string{"OPEN"}
-	respOrders, err = e.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), ordStatus, 1000, req.StartTime, req.EndTime)
-	if err != nil {
+	if respOrders, err = e.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), ordStatus, 1000, req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
 	orders := make([]order.Detail, len(respOrders))
@@ -836,8 +786,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 	ord = append(ord, interOrd...)
-	interOrd, err = e.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), openStatus, defaultOrderCount, req.StartTime, req.EndTime)
-	if err != nil {
+	if interOrd, err = e.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), openStatus, defaultOrderCount, req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
 	ord = append(ord, interOrd...)
@@ -858,11 +807,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if err != nil {
 		return nil, err
 	}
-	verified, err := e.verificationCheck(ctx)
-	if err != nil {
-		return nil, err
-	}
-	timeSeries, err := e.candleHelper(ctx, req.RequestFormatted.String(), interval, start, end, verified)
+	timeSeries, err := e.candleHelper(ctx, req.RequestFormatted.String(), interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -875,13 +820,9 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	if err != nil {
 		return nil, err
 	}
-	verified, err := e.verificationCheck(ctx)
-	if err != nil {
-		return nil, err
-	}
 	var timeSeries []kline.Candle
 	for x := range req.RangeHolder.Ranges {
-		hist, err := e.candleHelper(ctx, req.RequestFormatted.String(), interval, req.RangeHolder.Ranges[x].Start.Time.Add(-time.Nanosecond), req.RangeHolder.Ranges[x].End.Time.Add(-time.Nanosecond), verified)
+		hist, err := e.candleHelper(ctx, req.RequestFormatted.String(), interval, req.RangeHolder.Ranges[x].Start.Time.Add(-time.Nanosecond), req.RangeHolder.Ranges[x].End.Time.Add(-time.Nanosecond))
 		if err != nil {
 			return nil, err
 		}
@@ -913,11 +854,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if !e.SupportsAsset(r.Asset) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
-	verified, err := e.verificationCheck(ctx)
-	if err != nil {
-		return nil, err
-	}
-	products, perpStart, err := e.fetchFutures(ctx, verified)
+	products, perpStart, err := e.fetchFutures(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -946,11 +883,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	if !e.SupportsAsset(item) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-	verified, err := e.verificationCheck(ctx)
-	if err != nil {
-		return nil, err
-	}
-	products, perpStart, err := e.fetchFutures(ctx, verified)
+	products, perpStart, err := e.fetchFutures(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -982,24 +915,13 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 
 // UpdateOrderExecutionLimits updates order execution limits
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	var data *AllProducts
-	verified, err := e.verificationCheck(ctx)
-	if err != nil {
-		return err
+	if !e.SupportsAsset(a) {
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	aString := FormatAssetOutbound(a)
-	if verified {
-		data, err = e.GetAllProducts(ctx, 0, 0, aString, "", "", "", nil, true, true, true)
-		if err != nil {
-			log.Warnf(log.ExchangeSys, warnAuth, err)
-			verified = false
-		}
-	}
-	if !verified {
-		data, err = e.GetAllProducts(ctx, 0, 0, aString, "", "", "", nil, false, true, false)
-		if err != nil {
-			return err
-		}
+	data, err := e.GetAllProducts(ctx, 0, 0, aString, "", "", "", nil, false, true, false)
+	if err != nil {
+		return err
 	}
 	lim := make([]limits.MinMaxLevel, len(data.Products))
 	for i := range data.Products {
@@ -1022,8 +944,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
-	if err != nil {
+	if _, err := e.CurrencyPairs.IsPairEnabled(cp, a); err != nil {
 		return "", err
 	}
 	cp.Delimiter = currency.DashDelimiter
@@ -1031,19 +952,13 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 }
 
 // fetchFutures is a helper function for GetLatestFundingRates and GetFuturesContractDetails that calls the List Products endpoint twice, to get both expiring futures and perpetual futures
-func (e *Exchange) fetchFutures(ctx context.Context, verified bool) (*AllProducts, int, error) {
-	products, err := e.GetAllProducts(ctx, 0, 0, "FUTURE", "", "", "", nil, false, false, verified)
+func (e *Exchange) fetchFutures(ctx context.Context) (*AllProducts, int, error) {
+	products, err := e.GetAllProducts(ctx, 0, 0, "FUTURE", "", "", "", nil, false, false, false)
 	if err != nil {
-		if verified {
-			return e.fetchFutures(ctx, false)
-		}
 		return nil, 0, err
 	}
-	products2, err := e.GetAllProducts(ctx, 0, 0, "FUTURE", "PERPETUAL", "", "", nil, false, false, verified)
+	products2, err := e.GetAllProducts(ctx, 0, 0, "FUTURE", "PERPETUAL", "", "", nil, false, false, false)
 	if err != nil {
-		if verified {
-			return e.fetchFutures(ctx, false)
-		}
 		return nil, 0, err
 	}
 	perpStart := len(products.Products)
@@ -1237,30 +1152,15 @@ func (e *Exchange) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse, p
 	return &response
 }
 
-// VerificationCheck returns whether authentication support is enabled or not
-func (e *Exchange) verificationCheck(ctx context.Context) (bool, error) {
-	_, err := e.GetCredentials(ctx)
-	if err != nil {
-		if errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) || errors.Is(err, exchange.ErrCredentialsAreEmpty) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
-// TickerHelper fetches the ticker for a given currency pair, used by UpdateTickers and UpdateTicker
-func (e *Exchange) tickerHelper(ctx context.Context, name currency.Pair, assetType asset.Item, verified bool) error {
+// TickerHelper fetches the ticker for a given currency pair, used by UpdateTicker
+func (e *Exchange) tickerHelper(ctx context.Context, name currency.Pair, assetType asset.Item) error {
 	newTick := &ticker.Price{
 		Pair:         name,
 		ExchangeName: e.Name,
 		AssetType:    assetType,
 	}
-	ticks, err := e.GetTicker(ctx, name, 1, time.Time{}, time.Time{}, verified)
+	ticks, err := e.GetTicker(ctx, name, 1, time.Time{}, time.Time{}, false)
 	if err != nil {
-		if verified {
-			return e.tickerHelper(ctx, name, assetType, false)
-		}
 		return err
 	}
 	var last float64
@@ -1274,12 +1174,9 @@ func (e *Exchange) tickerHelper(ctx context.Context, name currency.Pair, assetTy
 }
 
 // CandleHelper handles calling the candle function, and doing preliminary work on the data
-func (e *Exchange) candleHelper(ctx context.Context, pair string, granularity kline.Interval, start, end time.Time, verified bool) ([]kline.Candle, error) {
-	history, err := e.GetHistoricKlines(ctx, pair, granularity, start, end, verified)
+func (e *Exchange) candleHelper(ctx context.Context, pair string, granularity kline.Interval, start, end time.Time) ([]kline.Candle, error) {
+	history, err := e.GetHistoricKlines(ctx, pair, granularity, start, end, false)
 	if err != nil {
-		if verified {
-			return e.candleHelper(ctx, pair, granularity, start, end, false)
-		}
 		return nil, err
 	}
 	timeSeries := make([]kline.Candle, len(history))

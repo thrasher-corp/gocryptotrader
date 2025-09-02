@@ -1266,7 +1266,7 @@
    ]
   },
   {
-   "name": "CoinbasePro",
+   "name": "Coinbase",
    "enabled": true,
    "verbose": false,
    "httpTimeout": 15000000000,

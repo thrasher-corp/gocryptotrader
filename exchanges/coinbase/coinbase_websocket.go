@@ -64,8 +64,7 @@ func (e *Exchange) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
 	e.Websocket.Wg.Add(1)
@@ -222,24 +221,21 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 	for i := range wsUser {
 		for j := range wsUser[i].Orders {
 			var oType order.Type
-			oType, err = stringToStandardType(wsUser[i].Orders[j].OrderType)
-			if err != nil {
+			if oType, err = stringToStandardType(wsUser[i].Orders[j].OrderType); err != nil {
 				e.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: e.Name,
 					Err:      err,
 				}
 			}
 			var oSide order.Side
-			oSide, err = order.StringToOrderSide(wsUser[i].Orders[j].OrderSide)
-			if err != nil {
+			if oSide, err = order.StringToOrderSide(wsUser[i].Orders[j].OrderSide); err != nil {
 				e.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: e.Name,
 					Err:      err,
 				}
 			}
 			var oStatus order.Status
-			oStatus, err = statusToStandardStatus(wsUser[i].Orders[j].Status)
-			if err != nil {
+			if oStatus, err = statusToStandardStatus(wsUser[i].Orders[j].Status); err != nil {
 				e.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: e.Name,
 					Err:      err,
@@ -250,16 +246,14 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 				price = wsUser[i].Orders[j].LimitPrice
 			}
 			var assetType asset.Item
-			assetType, err = stringToStandardAsset(wsUser[i].Orders[j].ProductType)
-			if err != nil {
+			if assetType, err = stringToStandardAsset(wsUser[i].Orders[j].ProductType); err != nil {
 				e.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: e.Name,
 					Err:      err,
 				}
 			}
 			var tif order.TimeInForce
-			tif, err = strategyDecoder(wsUser[i].Orders[j].TimeInForce)
-			if err != nil {
+			if tif, err = strategyDecoder(wsUser[i].Orders[j].TimeInForce); err != nil {
 				e.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: e.Name,
 					Err:      err,
@@ -290,16 +284,14 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 		}
 		for j := range wsUser[i].Positions.PerpetualFuturesPositions {
 			var oSide order.Side
-			oSide, err = order.StringToOrderSide(wsUser[i].Positions.PerpetualFuturesPositions[j].PositionSide)
-			if err != nil {
+			if oSide, err = order.StringToOrderSide(wsUser[i].Positions.PerpetualFuturesPositions[j].PositionSide); err != nil {
 				e.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: e.Name,
 					Err:      err,
 				}
 			}
 			var mType margin.Type
-			mType, err = margin.StringToMarginType(wsUser[i].Positions.PerpetualFuturesPositions[j].MarginType)
-			if err != nil {
+			if mType, err = margin.StringToMarginType(wsUser[i].Positions.PerpetualFuturesPositions[j].MarginType); err != nil {
 				e.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: e.Name,
 					Err:      err,
@@ -317,8 +309,7 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 		}
 		for j := range wsUser[i].Positions.ExpiringFuturesPositions {
 			var oSide order.Side
-			oSide, err = order.StringToOrderSide(wsUser[i].Positions.ExpiringFuturesPositions[j].Side)
-			if err != nil {
+			if oSide, err = order.StringToOrderSide(wsUser[i].Positions.ExpiringFuturesPositions[j].Side); err != nil {
 				e.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: e.Name,
 					Err:      err,
@@ -355,28 +346,23 @@ func (e *Exchange) wsHandleData(respRaw []byte) (*uint64, error) {
 		}
 		e.Websocket.DataHandler <- wsStatus
 	case "ticker", "ticker_batch":
-		err := e.wsProcessTicker(&resp)
-		if err != nil {
+		if err := e.wsProcessTicker(&resp); err != nil {
 			return &resp.Sequence, err
 		}
 	case "candles":
-		err := e.wsProcessCandle(&resp)
-		if err != nil {
+		if err := e.wsProcessCandle(&resp); err != nil {
 			return &resp.Sequence, err
 		}
 	case "market_trades":
-		err := e.wsProcessMarketTrades(&resp)
-		if err != nil {
+		if err := e.wsProcessMarketTrades(&resp); err != nil {
 			return &resp.Sequence, err
 		}
 	case "l2_data":
-		err := e.wsProcessL2(&resp)
-		if err != nil {
+		if err := e.wsProcessL2(&resp); err != nil {
 			return &resp.Sequence, err
 		}
 	case "user":
-		err := e.wsProcessUser(&resp)
-		if err != nil {
+		if err := e.wsProcessUser(&resp); err != nil {
 			return &resp.Sequence, err
 		}
 	default:
@@ -407,8 +393,7 @@ func (e *Exchange) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, times
 		}
 		if isEnabled {
 			book.Pair = a
-			err = e.Websocket.Orderbook.LoadSnapshot(book)
-			if err != nil {
+			if err := e.Websocket.Orderbook.LoadSnapshot(book); err != nil {
 				return err
 			}
 		}
@@ -436,8 +421,7 @@ func (e *Exchange) ProcessUpdate(update *WebsocketOrderbookDataHolder, timestamp
 		}
 		if isEnabled {
 			obU.Pair = a
-			err = e.Websocket.Orderbook.Update(obU)
-			if err != nil {
+			if err := e.Websocket.Orderbook.Update(obU); err != nil {
 				return err
 			}
 		}

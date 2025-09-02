@@ -69,7 +69,6 @@ const (
 	portfolioPath            = "portfolio"
 	paymentMethodsPath       = "payment_methods"
 	v2Path                   = "/v2/"
-	notificationsPath        = "notifications"
 	userPath                 = "user"
 	addressesPath            = "addresses"
 	transactionsPath         = "transactions"
@@ -91,8 +90,6 @@ const (
 
 	startDateString = "start_date"
 	endDateString   = "end_date"
-
-	warnAuth = "%v authenticated request failed, attempting unauthenticated"
 
 	defaultOrderFillCount = 3000       // Largest number of fills the exchange will let one retrieve in a request, found through experimentation
 	defaultOrderCount     = 2147483647 // int32 limit, largest number of orders the exchange will let one retrieve in a request, found through experimentation
@@ -195,11 +192,6 @@ func (e *Exchange) ListAccounts(ctx context.Context, limit uint8, cursor int64) 
 	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+accountsPath, vals, nil, true, &resp)
 }
 
-type convertTradeReqBase struct {
-	FromAccount string `json:"from_account"`
-	ToAccount   string `json:"to_account"`
-}
-
 // CommitConvertTrade commits a conversion between two currencies, using the trade_id returned from CreateConvertQuote
 func (e *Exchange) CommitConvertTrade(ctx context.Context, tradeID, from, to string) (*ConvertResponse, error) {
 	if tradeID == "" {
@@ -222,13 +214,13 @@ func (e *Exchange) CreateConvertQuote(ctx context.Context, from, to, userIncenti
 		return nil, order.ErrAmountIsInvalid
 	}
 	path := v3Path + convertPath + "/" + quotePath
-	req := map[string]any{
-		"from_account": from,
-		"to_account":   to,
-		"amount":       strconv.FormatFloat(amount, 'f', -1, 64),
-		"trade_incentive_metadata": map[string]string{
-			"user_incentive_id": userIncentiveID,
-			"code_val":          codeVal,
+	req := convertQuoteReqBase{
+		FromAccount: from,
+		ToAccount:   to,
+		Amount:      amount,
+		Metadata: tradeIncentiveMetadata{
+			UserIncentiveID: userIncentiveID,
+			CodeVal:         codeVal,
 		},
 	}
 	var resp ConvertWrapper
@@ -244,12 +236,8 @@ func (e *Exchange) GetConvertTradeByID(ctx context.Context, tradeID, from, to st
 		return nil, errAccountIDEmpty
 	}
 	path := v3Path + convertPath + "/" + tradePath + "/" + tradeID
-	req := map[string]any{
-		"from_account": from,
-		"to_account":   to,
-	}
 	var resp ConvertWrapper
-	return &resp.Trade, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, req, true, &resp)
+	return &resp.Trade, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, convertTradeReqBase{FromAccount: from, ToAccount: to}, true, &resp)
 }
 
 // GetPermissions returns the permissions associated with the API key
@@ -262,8 +250,7 @@ func (e *Exchange) GetPermissions(ctx context.Context) (*PermissionsResponse, er
 func (e *Exchange) GetTransactionSummary(ctx context.Context, startDate, endDate time.Time, productVenue, productType, contractExpiryType string) (*TransactionSummary, error) {
 	var params Params
 	params.Values = url.Values{}
-	err := params.encodeDateRange(startDate, endDate, startDateString, endDateString)
-	if err != nil {
+	if err := params.encodeDateRange(startDate, endDate, startDateString, endDateString); err != nil {
 		return nil, err
 	}
 	if contractExpiryType != "" {
@@ -351,12 +338,8 @@ func (e *Exchange) ListFuturesSweeps(ctx context.Context) ([]SweepData, error) {
 // ScheduleFuturesSweep schedules a sweep of funds from a CFTC-regulated futures account to a Coinbase USD Spot wallet. Request submitted before 5 pm ET are processed the following business day, requests submitted after are processed in 2 business days. Only one sweep request can be pending at a time. Funds transferred depend on the excess available in the futures account. An amount of 0 will sweep all available excess funds
 func (e *Exchange) ScheduleFuturesSweep(ctx context.Context, amount float64) (bool, error) {
 	path := v3Path + futuresPath + "/" + sweepsPath + "/" + schedulePath
-	var req map[string]any
-	if amount != 0 {
-		req = map[string]any{"usd_amount": strconv.FormatFloat(amount, 'f', -1, 64)}
-	}
 	var resp SuccessResp
-	return resp.Success, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return resp.Success, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, futuresSweepReqBase{USDAmount: amount}, true, &resp)
 }
 
 // SetIntradayMarginSetting sets the futures intraday margin setting
@@ -365,8 +348,7 @@ func (e *Exchange) SetIntradayMarginSetting(ctx context.Context, setting string)
 		return errSettingEmpty
 	}
 	path := v3Path + futuresPath + "/" + intradayPath + "/" + marginSettingPath
-	req := map[string]any{"setting": setting}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, marginSettingReqBase{Setting: setting}, true, nil)
 }
 
 // CancelOrders cancels orders by orderID. Can only cancel 100 orders per request
@@ -378,11 +360,10 @@ func (e *Exchange) CancelOrders(ctx context.Context, orderIDs []string) ([]Order
 		return nil, errCancelLimitExceeded
 	}
 	path := v3Path + ordersPath + "/" + batchCancelpath
-	req := map[string]any{"order_ids": orderIDs}
 	resp := struct {
 		Results []OrderCancelDetail `json:"results"`
 	}{}
-	return resp.Results, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return resp.Results, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, cancelOrdersReqBase{OrderIDs: orderIDs}, true, &resp)
 }
 
 // ClosePosition closes a position by client order ID, product ID, and size
@@ -397,10 +378,10 @@ func (e *Exchange) ClosePosition(ctx context.Context, clientOrderID string, prod
 		return nil, order.ErrAmountIsInvalid
 	}
 	path := v3Path + ordersPath + "/" + closePositionPath
-	req := map[string]any{
-		"client_order_id": clientOrderID,
-		"product_id":      productID.String(),
-		"size":            strconv.FormatFloat(size, 'f', -1, 64),
+	req := closePositionReqBase{
+		ClientOrderID: clientOrderID,
+		ProductID:     productID,
+		Size:          size,
 	}
 	var resp SuccessFailureConfig
 	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
@@ -421,20 +402,18 @@ func (e *Exchange) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*Succes
 	if err != nil {
 		return nil, err
 	}
-	req := map[string]any{
-		"client_order_id":              ord.ClientOID,
-		"product_id":                   ord.ProductID,
-		"side":                         ord.Side,
-		"order_configuration":          orderConfig,
-		"retail_portfolio_id":          ord.RetailPortfolioID,
-		"preview_id":                   ord.PreviewID,
-		"attached_order_configuration": ord.AttachedOrderConfiguration,
+	req := placeOrderReqbase{
+		ClientOID:                  ord.ClientOID,
+		ProductID:                  ord.ProductID,
+		Side:                       ord.Side,
+		OrderConfiguration:         &orderConfig,
+		RetailPortfolioID:          ord.RetailPortfolioID,
+		PreviewID:                  ord.PreviewID,
+		AttachedOrderConfiguration: &ord.AttachedOrderConfiguration,
+		MarginType:                 FormatMarginType(ord.MarginType),
 	}
-	if ord.MarginType != "" {
-		req["margin_type"] = FormatMarginType(ord.MarginType)
-	}
-	if ord.Leverage != 0 && ord.Leverage != 1 {
-		req["leverage"] = strconv.FormatFloat(ord.Leverage, 'f', -1, 64)
+	if ord.Leverage != 1 {
+		req.Leverage = ord.Leverage
 	}
 	var resp SuccessFailureConfig
 	return &resp,
@@ -450,10 +429,10 @@ func (e *Exchange) EditOrder(ctx context.Context, orderID string, size, price fl
 		return false, errSizeAndPriceZero
 	}
 	path := v3Path + ordersPath + "/" + editPath
-	req := map[string]any{
-		"order_id": orderID,
-		"size":     strconv.FormatFloat(size, 'f', -1, 64),
-		"price":    strconv.FormatFloat(price, 'f', -1, 64),
+	req := editOrderReqBase{
+		OrderID: orderID,
+		Size:    size,
+		Price:   price,
 	}
 	var resp SuccessResp
 	return resp.Success, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
@@ -468,10 +447,10 @@ func (e *Exchange) EditOrderPreview(ctx context.Context, orderID string, size, p
 		return nil, errSizeAndPriceZero
 	}
 	path := v3Path + ordersPath + "/" + editPreviewPath
-	req := map[string]any{
-		"order_id": orderID,
-		"size":     strconv.FormatFloat(size, 'f', -1, 64),
-		"price":    strconv.FormatFloat(price, 'f', -1, 64),
+	req := editOrderReqBase{
+		OrderID: orderID,
+		Size:    size,
+		Price:   price,
 	}
 	var resp *EditOrderPreviewResp
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
@@ -500,8 +479,7 @@ func (e *Exchange) GetOrderByID(ctx context.Context, orderID, clientOID string, 
 func (e *Exchange) ListFills(ctx context.Context, orderIDs, tradeIDs []string, productIDs currency.Pairs, cursor int64, sortBy string, startDate, endDate time.Time, limit uint16) (*FillResponse, error) {
 	var params Params
 	params.Values = url.Values{}
-	err := params.encodeDateRange(startDate, endDate, "start_sequence_timestamp", "end_sequence_timestamp")
-	if err != nil {
+	if err := params.encodeDateRange(startDate, endDate, "start_sequence_timestamp", "end_sequence_timestamp"); err != nil {
 		return nil, err
 	}
 	for i := range orderIDs {
@@ -527,8 +505,7 @@ func (e *Exchange) ListFills(ctx context.Context, orderIDs, tradeIDs []string, p
 func (e *Exchange) ListOrders(ctx context.Context, req *ListOrdersReq) (*ListOrdersResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.encodeDateRange(req.StartDate, req.EndDate, startDateString, endDateString)
-	if err != nil {
+	if err := params.encodeDateRange(req.StartDate, req.EndDate, startDateString, endDateString); err != nil {
 		return nil, err
 	}
 	for x := range req.OrderStatus {
@@ -582,16 +559,14 @@ func (e *Exchange) PreviewOrder(ctx context.Context, inf *PreviewOrderInfo) (*Pr
 	if err != nil {
 		return nil, err
 	}
-	req := map[string]any{
-		"product_id":                   inf.ProductID,
-		"side":                         inf.Side,
-		"order_configuration":          orderConfig,
-		"retail_portfolio_id":          inf.RetailPortfolioID,
-		"leverage":                     strconv.FormatFloat(inf.Leverage, 'f', -1, 64),
-		"attached_order_configuration": inf.AttachedOrderConfiguration,
-	}
-	if mt := FormatMarginType(inf.MarginType); mt != "" {
-		req["margin_type"] = mt
+	req := previewOrderReqBase{
+		ProductID:                  inf.ProductID,
+		Side:                       inf.Side,
+		OrderConfiguration:         &orderConfig,
+		RetailPortfolioID:          inf.RetailPortfolioID,
+		Leverage:                   inf.Leverage,
+		AttachedOrderConfiguration: &inf.AttachedOrderConfiguration,
+		MarginType:                 FormatMarginType(inf.MarginType),
 	}
 	var resp *PreviewOrderResp
 	path := v3Path + ordersPath + "/" + previewPath
@@ -615,9 +590,8 @@ func (e *Exchange) ListPaymentMethods(ctx context.Context) ([]PaymentMethodData,
 	resp := struct {
 		PaymentMethods []PaymentMethodData `json:"payment_methods"`
 	}{}
-	req := map[string]any{"currency": "BTC"}
 	path := v3Path + paymentMethodsPath
-	return resp.PaymentMethods, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, req, true, &resp)
+	return resp.PaymentMethods, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, paymentMethodReqBase{Currency: currency.BTC}, true, &resp)
 }
 
 // AllocatePortfolio allocates funds to a position in your perpetuals portfolio
@@ -634,11 +608,11 @@ func (e *Exchange) AllocatePortfolio(ctx context.Context, portfolioID, productID
 	if amount <= 0 {
 		return order.ErrAmountIsInvalid
 	}
-	req := map[string]any{
-		"portfolio_uuid": portfolioID,
-		"symbol":         productID,
-		"currency":       cur,
-		"amount":         strconv.FormatFloat(amount, 'f', -1, 64),
+	req := allocatePortfolioReqBase{
+		PortfolioUUID: portfolioID,
+		Symbol:        productID,
+		Currency:      cur,
+		Amount:        amount,
 	}
 	path := v3Path + intxPath + "/" + allocatePath
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, nil)
@@ -698,15 +672,11 @@ func (e *Exchange) MultiAssetCollateralToggle(ctx context.Context, portfolioID s
 	if portfolioID == "" {
 		return false, errPortfolioIDEmpty
 	}
-	req := map[string]any{
-		"portfolio_uuid":                 portfolioID,
-		"multi_asset_collateral_enabled": enabled,
-	}
 	path := v3Path + intxPath + "/" + multiAssetCollateralPath
 	var resp struct {
 		Enabled bool `json:"multi_asset_collateral_enabled"`
 	}
-	return resp.Enabled, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	return resp.Enabled, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, assetCollateralToggleReqBase{PortfolioUUID: portfolioID, Enabled: enabled}, true, &resp)
 }
 
 // CreatePortfolio creates a new portfolio
@@ -714,11 +684,10 @@ func (e *Exchange) CreatePortfolio(ctx context.Context, name string) (*SimplePor
 	if name == "" {
 		return nil, errNameEmpty
 	}
-	req := map[string]any{"name": name}
 	resp := struct {
 		Portfolio SimplePortfolioData `json:"portfolio"`
 	}{}
-	return &resp.Portfolio, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, v3Path+portfoliosPath, nil, req, true, &resp)
+	return &resp.Portfolio, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, v3Path+portfoliosPath, nil, nameReqBase{Name: name}, true, &resp)
 }
 
 // DeletePortfolio deletes a portfolio
@@ -738,12 +707,11 @@ func (e *Exchange) EditPortfolio(ctx context.Context, portfolioID, name string) 
 	if name == "" {
 		return nil, errNameEmpty
 	}
-	req := map[string]any{"name": name}
 	path := v3Path + portfoliosPath + "/" + portfolioID
 	resp := struct {
 		Portfolio SimplePortfolioData `json:"portfolio"`
 	}{}
-	return &resp.Portfolio, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, nil, req, true, &resp)
+	return &resp.Portfolio, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, nil, nameReqBase{Name: name}, true, &resp)
 }
 
 // GetPortfolioByID provides detailed information on a single portfolio
@@ -771,24 +739,23 @@ func (e *Exchange) GetAllPortfolios(ctx context.Context, portfolioType string) (
 }
 
 // MovePortfolioFunds transfers funds between portfolios
-func (e *Exchange) MovePortfolioFunds(ctx context.Context, cur, from, to string, amount float64) (*MovePortfolioFundsResponse, error) {
+func (e *Exchange) MovePortfolioFunds(ctx context.Context, cur currency.Code, from, to string, amount float64) (*MovePortfolioFundsResponse, error) {
 	if from == "" || to == "" {
 		return nil, errPortfolioIDEmpty
 	}
-	if cur == "" {
+	if cur.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	funds := FundsData{
-		Value:    strconv.FormatFloat(amount, 'f', -1, 64),
-		Currency: cur,
-	}
-	req := map[string]any{
-		"source_portfolio_uuid": from,
-		"target_portfolio_uuid": to,
-		"funds":                 funds,
+	req := movePortfolioFundsReqBase{
+		SourcePortfolioUUID: from,
+		TargetPortfolioUUID: to,
+		Funds: fundsData{
+			Value:    amount,
+			Currency: cur,
+		},
 	}
 	path := v3Path + portfoliosPath + "/" + moveFundsPath
 	var resp *MovePortfolioFundsResponse
@@ -928,8 +895,21 @@ func (e *Exchange) GetV3Time(ctx context.Context) (*ServerTimeV3, error) {
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, v3Path+timePath, nil, &resp)
 }
 
+type sendMoneyReqBase struct {
+	Type              string        `json:"type"`
+	To                string        `json:"to"`
+	Amount            float64       `json:"amount,string"`
+	Currency          currency.Code `json:"currency"`
+	Description       string        `json:"description"`
+	SkipNotifications bool          `json:"skip_notifications"`
+	Idem              string        `json:"idem"`
+	DestinationTag    string        `json:"destination_tag"`
+	Network           string        `json:"network"`
+	TravelRuleData    *TravelRule   `json:"travel_rule_data"`
+}
+
 // SendMoney can send funds to an email or cryptocurrency address (if "traType" is set to "send"), or to another one of the user's wallets or vaults (if "traType" is set to "transfer"). Coinbase may delay or cancel the transaction at their discretion. The "idem" parameter is an optional string for idempotency; a token with a max length of 100 characters, if a previous transaction included the same token as a parameter, the new transaction won't be processed, and information on the previous transaction will be returned instead
-func (e *Exchange) SendMoney(ctx context.Context, traType, walletID, to, cur, description, idem, destinationTag, network string, amount float64, skipNotifications bool, travelRuleData *TravelRule) (*TransactionData, error) {
+func (e *Exchange) SendMoney(ctx context.Context, traType, walletID, to, description, idem, destinationTag, network string, cur currency.Code, amount float64, skipNotifications bool, travelRuleData *TravelRule) (*TransactionData, error) {
 	if traType == "" {
 		return nil, errTransactionTypeEmpty
 	}
@@ -942,21 +922,21 @@ func (e *Exchange) SendMoney(ctx context.Context, traType, walletID, to, cur, de
 	if amount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	if cur == "" {
+	if cur.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	path := v2Path + accountsPath + "/" + walletID + "/" + transactionsPath
-	req := map[string]any{
-		"type":               traType,
-		"to":                 to,
-		"amount":             strconv.FormatFloat(amount, 'f', -1, 64),
-		"currency":           cur,
-		"description":        description,
-		"skip_notifications": skipNotifications,
-		"idem":               idem,
-		"destination_tag":    destinationTag,
-		"network":            network,
-		"travel_rule_data":   travelRuleData,
+	req := sendMoneyReqBase{
+		Type:              traType,
+		To:                to,
+		Amount:            amount,
+		Currency:          cur,
+		Description:       description,
+		SkipNotifications: skipNotifications,
+		Idem:              idem,
+		DestinationTag:    destinationTag,
+		Network:           network,
+		TravelRuleData:    travelRuleData,
 	}
 	resp := struct {
 		Data TransactionData `json:"data"`
@@ -970,11 +950,10 @@ func (e *Exchange) CreateAddress(ctx context.Context, walletID, name string) (*A
 		return nil, errWalletIDEmpty
 	}
 	path := v2Path + accountsPath + "/" + walletID + "/" + addressesPath
-	req := map[string]any{"name": name}
 	resp := struct {
 		Data AddressData `json:"data"`
 	}{}
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, false, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, nameReqBase{Name: name}, false, &resp)
 }
 
 // GetAllAddresses returns information on all addresses associated with a wallet
@@ -1025,6 +1004,13 @@ func (e *Exchange) GetAddressTransactions(ctx context.Context, walletID, address
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
 }
 
+type fiatTransferReqBase struct {
+	Currency      string  `json:"currency"`
+	PaymentMethod string  `json:"payment_method"`
+	Amount        float64 `json:"amount,string"`
+	Commit        bool    `json:"commit"`
+}
+
 // FiatTransfer prepares and optionally processes a transfer of funds between the exchange and a fiat payment method. "Deposit" signifies funds going from exchange to bank, "withdraw" signifies funds going from bank to exchange
 func (e *Exchange) FiatTransfer(ctx context.Context, walletID, cur, paymentMethod string, amount float64, commit bool, transferType FiatTransferType) (*DeposWithdrData, error) {
 	if walletID == "" {
@@ -1046,11 +1032,11 @@ func (e *Exchange) FiatTransfer(ctx context.Context, walletID, cur, paymentMetho
 	case FiatWithdrawal:
 		path = v2Path + accountsPath + "/" + walletID + "/" + withdrawalsPath
 	}
-	req := map[string]any{
-		"currency":       cur,
-		"payment_method": paymentMethod,
-		"amount":         strconv.FormatFloat(amount, 'f', -1, 64),
-		"commit":         commit,
+	req := fiatTransferReqBase{
+		Currency:      cur,
+		PaymentMethod: paymentMethod,
+		Amount:        amount,
+		Commit:        commit,
 	}
 	resp := struct {
 		Data DeposWithdrData `json:"transfer"`
@@ -1097,8 +1083,7 @@ func (e *Exchange) GetAllFiatTransfers(ctx context.Context, walletID string, pag
 		return nil, err
 	}
 	var resp *ManyDeposWithdrResp
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -1304,8 +1289,7 @@ func (e *Exchange) GetProductCandles(ctx context.Context, pair string, granulari
 	}
 	var params Params
 	params.Values = url.Values{}
-	err := params.encodeDateRange(startTime, endTime, "start", "end")
-	if err != nil {
+	if err := params.encodeDateRange(startTime, endTime, "start", "end"); err != nil {
 		return nil, err
 	}
 	if granularity != 0 {
@@ -1420,8 +1404,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			}
 		}
 		var jwt string
-		jwt, _, err = e.GetJWT(ctx, method+" "+endpoint[8:]+path)
-		if err != nil {
+		if jwt, _, err = e.GetJWT(ctx, method+" "+endpoint[8:]+path); err != nil {
 			return nil, err
 		}
 		headers := make(map[string]string)
@@ -1444,15 +1427,14 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if isVersion3 {
 		rateLim = V3Rate
 	}
-	err = e.SendPayload(ctx, rateLim, newRequest, request.AuthenticatedRequest)
-	if err != nil {
+	if err := e.SendPayload(ctx, rateLim, newRequest, request.AuthenticatedRequest); err != nil {
 		return err
 	}
 	// Doing this error handling because the docs indicate that errors can be returned even with a 200 status code, and that these errors can be buried in the JSON returned
 	singleErrCap := struct {
 		ErrorResponse ErrorResponse `json:"error_response"`
 	}{}
-	if err = json.Unmarshal(interim, &singleErrCap); err == nil {
+	if err := json.Unmarshal(interim, &singleErrCap); err == nil {
 		if singleErrCap.ErrorResponse.ErrorType != "" {
 			return fmt.Errorf("message: %s, error type: %s, error details: %s, edit failure reason: %s, preview failure reason: %s, new order failure reason: %s", singleErrCap.ErrorResponse.Message, singleErrCap.ErrorResponse.ErrorType, singleErrCap.ErrorResponse.ErrorDetails, singleErrCap.ErrorResponse.EditFailureReason, singleErrCap.ErrorResponse.PreviewFailureReason, singleErrCap.ErrorResponse.NewOrderFailureReason)
 		}
@@ -1461,8 +1443,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		Results []ManyErrors `json:"results"`
 		Errors  []ManyErrors `json:"errors"`
 	}{}
-	err = json.Unmarshal(interim, &manyErrCap)
-	if err == nil {
+	if err := json.Unmarshal(interim, &manyErrCap); err == nil {
 		errMessage := ""
 		for i := range manyErrCap.Errors {
 			if !manyErrCap.Errors[i].Success && (manyErrCap.Errors[i].EditFailureReason != "" || manyErrCap.Errors[i].PreviewFailureReason != "") {
@@ -1746,8 +1727,7 @@ func (o *Orders) UnmarshalJSON(data []byte) error {
 	}
 	switch a := alias.(type) {
 	case string:
-		o.OrderID, err = uuid.FromString(a)
-		if err != nil {
+		if o.OrderID, err = uuid.FromString(a); err != nil {
 			return err
 		}
 		o.OrderCount = 1

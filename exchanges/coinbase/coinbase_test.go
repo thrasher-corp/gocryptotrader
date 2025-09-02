@@ -31,7 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
-	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -60,8 +59,7 @@ const (
 	testAmount  = 1e-08
 	testAmount2 = 1e-02
 	testAmount3 = 1
-	testPrice   = 1e+09
-	testPrice2  = 1.5e+05
+	testPrice   = 1.5e+05
 
 	skipPayMethodNotFound          = "no payment methods found, skipping"
 	skipInsufSuitableAccs          = "insufficient suitable accounts for test, skipping"
@@ -74,8 +72,6 @@ const (
 
 	errExpectMismatch          = "received: '%v' but expected: '%v'"
 	errExpectedNonEmpty        = "expected non-empty response"
-	errPortfolioNameDuplicate  = `Coinbase unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"A portfolio with this name already exists.","message":"A portfolio with this name already exists."}, authenticated request failed`
-	errPortTransferInsufFunds  = `Coinbase unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
 	errInvalidProductID        = `Coinbase unsuccessful HTTP status code: 404 raw response: {"error":"NOT_FOUND","error_details":"valid product_id is required","message":"valid product_id is required"}`
 	errExpectedFeeRange        = "expected fee range of %v and %v, received %v"
 	errOptionInvalid           = `Coinbase unsuccessful HTTP status code: 400 raw response: {"error":"unknown","error_details":"parsing field \"product_type\": \"OPTIONS\" is not a valid value","message":"parsing field \"product_type\": \"OPTIONS\" is not a valid value"}`
@@ -96,19 +92,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if apiKey != "" {
-		e.GetBase().API.AuthenticatedSupport = true
-		e.GetBase().API.AuthenticatedWebsocketSupport = true
-	}
-	err = gctlog.SetGlobalLogConfig(gctlog.GenDefaultSettings())
-	if err != nil {
-		log.Fatal(err)
-	}
 	var dialer gws.Dialer
 	err = e.Websocket.Conn.Dial(context.TODO(), &dialer, http.Header{})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Websocket connection error", err)
 	}
+	e.Websocket.Wg.Add(1)
 	go e.wsReadData()
 	os.Exit(m.Run())
 }
@@ -332,7 +321,7 @@ func TestPlaceOrder(t *testing.T) {
 			EndTime:    time.Now().Add(time.Hour),
 			OrderType:  order.Limit,
 			BaseAmount: testAmount,
-			LimitPrice: testPrice2,
+			LimitPrice: testPrice,
 		},
 	}
 	resp, err := e.PlaceOrder(t.Context(), ord)
@@ -355,7 +344,7 @@ func TestEditOrder(t *testing.T) {
 	_, err = e.EditOrder(t.Context(), "meow", 0, 0)
 	assert.ErrorIs(t, err, errSizeAndPriceZero)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	resp, err := e.EditOrder(t.Context(), "1", testAmount, testPrice2-1)
+	resp, err := e.EditOrder(t.Context(), "1", testAmount, testPrice-1)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -367,7 +356,7 @@ func TestEditOrderPreview(t *testing.T) {
 	_, err = e.EditOrderPreview(t.Context(), "meow", 0, 0)
 	assert.ErrorIs(t, err, errSizeAndPriceZero)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	resp, err := e.EditOrderPreview(t.Context(), "1", testAmount, testPrice2+2)
+	resp, err := e.EditOrderPreview(t.Context(), "1", testAmount, testPrice+2)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -599,11 +588,11 @@ func TestGetAllPortfolios(t *testing.T) {
 
 func TestMovePortfolioFunds(t *testing.T) {
 	t.Parallel()
-	_, err := e.MovePortfolioFunds(t.Context(), "", "", "", 0)
+	_, err := e.MovePortfolioFunds(t.Context(), currency.Code{}, "", "", 0)
 	assert.ErrorIs(t, err, errPortfolioIDEmpty)
-	_, err = e.MovePortfolioFunds(t.Context(), "", "meowPort", "woofPort", 0)
+	_, err = e.MovePortfolioFunds(t.Context(), currency.Code{}, "meowPort", "woofPort", 0)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.MovePortfolioFunds(t.Context(), testCrypto.String(), "meowPort", "woofPort", 0)
+	_, err = e.MovePortfolioFunds(t.Context(), testCrypto, "meowPort", "woofPort", 0)
 	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	portID, err := e.GetAllPortfolios(t.Context(), "")
@@ -611,7 +600,7 @@ func TestMovePortfolioFunds(t *testing.T) {
 	if len(portID) < 2 {
 		t.Skip(skipInsufficientPortfolios)
 	}
-	_, err = e.MovePortfolioFunds(t.Context(), testCrypto.String(), portID[0].UUID, portID[1].UUID, testAmount)
+	_, err = e.MovePortfolioFunds(t.Context(), testCrypto, portID[0].UUID, portID[1].UUID, testAmount)
 	assert.NoError(t, err)
 }
 
@@ -702,15 +691,15 @@ func TestGetV3Time(t *testing.T) {
 
 func TestSendMoney(t *testing.T) {
 	t.Parallel()
-	_, err := e.SendMoney(t.Context(), "", "", "", "", "", "", "", "", 0, false, &TravelRule{})
+	_, err := e.SendMoney(t.Context(), "", "", "", "", "", "", "", currency.Code{}, 0, false, &TravelRule{})
 	assert.ErrorIs(t, err, errTransactionTypeEmpty)
-	_, err = e.SendMoney(t.Context(), "123", "", "", "", "", "", "", "", 0, false, &TravelRule{})
+	_, err = e.SendMoney(t.Context(), "123", "", "", "", "", "", "", currency.Code{}, 0, false, &TravelRule{})
 	assert.ErrorIs(t, err, errWalletIDEmpty)
-	_, err = e.SendMoney(t.Context(), "123", "123", "", "", "", "", "", "", 0, false, &TravelRule{})
+	_, err = e.SendMoney(t.Context(), "123", "123", "", "", "", "", "", currency.Code{}, 0, false, &TravelRule{})
 	assert.ErrorIs(t, err, errToEmpty)
-	_, err = e.SendMoney(t.Context(), "123", "123", "123", "", "", "", "", "", 0, false, &TravelRule{})
+	_, err = e.SendMoney(t.Context(), "123", "123", "123", "", "", "", "", currency.Code{}, 0, false, &TravelRule{})
 	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
-	_, err = e.SendMoney(t.Context(), "123", "123", "123", "", "", "", "", "", 1, false, &TravelRule{})
+	_, err = e.SendMoney(t.Context(), "123", "123", "123", "", "", "", "", currency.Code{}, 1, false, &TravelRule{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	wID, err := e.GetAllWallets(t.Context(), PaginationInp{})
@@ -737,7 +726,7 @@ func TestSendMoney(t *testing.T) {
 	if fromID == "" || toID == "" {
 		t.Skip(skipInsufficientFundsOrWallets)
 	}
-	resp, err := e.SendMoney(t.Context(), "transfer", wID.Data[0].ID, wID.Data[1].ID, testCrypto.String(), "GCT Test", "123", "", "", testAmount, false, &TravelRule{})
+	resp, err := e.SendMoney(t.Context(), "transfer", wID.Data[0].ID, wID.Data[1].ID, "GCT Test", "123", "", "", testCrypto, testAmount, false, &TravelRule{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1224,8 +1213,8 @@ func TestSubmitOrder(t *testing.T) {
 		Type:          order.StopLimit,
 		StopDirection: order.StopUp,
 		Amount:        testAmount2,
-		Price:         testPrice2,
-		TriggerPrice:  testPrice2 + 1,
+		Price:         testPrice,
+		TriggerPrice:  testPrice + 1,
 		RetrieveFees:  true,
 		ClientOrderID: strconv.FormatInt(time.Now().UnixMilli(), 18) + "GCTSubmitOrderTest",
 	}
@@ -1234,7 +1223,7 @@ func TestSubmitOrder(t *testing.T) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
 	ord.StopDirection = order.StopDown
-	ord.TriggerPrice = testPrice2/2 + 1
+	ord.TriggerPrice = testPrice/2 + 1
 	resp, err = e.SubmitOrder(t.Context(), &ord)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -1255,7 +1244,7 @@ func TestModifyOrder(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrPairIsEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	ord.OrderID = "a"
-	ord.Price = testPrice2 + 1
+	ord.Price = testPrice + 1
 	ord.Amount = testAmount
 	ord.Pair = testPairStable
 	ord.AssetType = asset.Spot
@@ -1461,7 +1450,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Options)
-	assert.Equal(t, errOptionInvalid, err.Error())
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	assert.NoError(t, err)
 }
@@ -1916,25 +1905,13 @@ func TestChannelName(t *testing.T) {
 }
 
 func exchangeBaseHelper(e *Exchange) error {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		return err
-	}
-	gdxConfig, err := cfg.GetExchangeConfig("Coinbase")
-	if err != nil {
+	if err := testexch.Setup(e); err != nil {
 		return err
 	}
 	if apiKey != "" {
-		gdxConfig.API.Credentials.Key = apiKey
-		gdxConfig.API.Credentials.Secret = apiSecret
-		gdxConfig.API.AuthenticatedSupport = true
-		gdxConfig.API.AuthenticatedWebsocketSupport = true
-	}
-	e.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = e.Setup(gdxConfig)
-	if err != nil {
-		return err
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.API.AuthenticatedSupport = true
+		e.API.AuthenticatedWebsocketSupport = true
 	}
 	return nil
 }

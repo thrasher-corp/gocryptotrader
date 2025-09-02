@@ -97,6 +97,14 @@ type SuccessResp struct {
 	Success bool `json:"success"`
 }
 
+type futuresSweepReqBase struct {
+	USDAmount float64 `json:"usd_amount,string,omitempty"`
+}
+
+type marginSettingReqBase struct {
+	Setting string `json:"setting"`
+}
+
 // CurrentMarginWindow holds information on the current margin window, returned by GetCurrentMarginWindow
 type CurrentMarginWindow struct {
 	MarginWindow                                MarginWindow `json:"margin_window"`
@@ -409,6 +417,34 @@ type OrderCancelDetail struct {
 	OrderID       string `json:"order_id"`
 }
 
+type cancelOrdersReqBase struct {
+	OrderIDs []string `json:"order_ids"`
+}
+
+type closePositionReqBase struct {
+	ClientOrderID string        `json:"client_order_id"`
+	ProductID     currency.Pair `json:"product_id"`
+	Size          float64       `json:"size,string"`
+}
+
+type placeOrderReqbase struct {
+	ClientOID                  string              `json:"client_order_id"`
+	ProductID                  string              `json:"product_id"`
+	Side                       string              `json:"side"`
+	OrderConfiguration         *OrderConfiguration `json:"order_configuration"`
+	RetailPortfolioID          string              `json:"retail_portfolio_id"`
+	PreviewID                  string              `json:"preview_id"`
+	AttachedOrderConfiguration *OrderConfiguration `json:"attached_order_configuration"`
+	MarginType                 string              `json:"margin_type,omitempty"`
+	Leverage                   float64             `json:"leverage,omitempty,string"`
+}
+
+type editOrderReqBase struct {
+	OrderID string  `json:"order_id"`
+	Size    float64 `json:"size,string"`
+	Price   float64 `json:"price,string"`
+}
+
 // EditOrderPreviewResp contains information on the effects of editing an order, returned by EditOrderPreview
 type EditOrderPreviewResp struct {
 	Slippage           types.Number `json:"slippage"`
@@ -558,6 +594,16 @@ type PreviewOrderResp struct {
 	CommissionDetailTotal          json.RawMessage    `json:"commission_detail_total"`
 }
 
+type previewOrderReqBase struct {
+	ProductID                  string              `json:"product_id"`
+	Side                       string              `json:"side"`
+	OrderConfiguration         *OrderConfiguration `json:"order_configuration"`
+	RetailPortfolioID          string              `json:"retail_portfolio_id"`
+	Leverage                   float64             `json:"leverage,string"`
+	AttachedOrderConfiguration *OrderConfiguration `json:"attached_order_configuration"`
+	MarginType                 string              `json:"margin_type,omitempty"`
+}
+
 // SimplePortfolioData is a sub-struct used in the type DetailedPortfolioResponse
 type SimplePortfolioData struct {
 	Name    string `json:"name"`
@@ -566,16 +612,25 @@ type SimplePortfolioData struct {
 	Deleted bool   `json:"deleted"`
 }
 
+type nameReqBase struct {
+	Name string `json:"name"`
+}
+
 // MovePortfolioFundsResponse contains the UUIDs of the portfolios involved. Returned by MovePortfolioFunds
 type MovePortfolioFundsResponse struct {
 	SourcePortfolioUUID string `json:"source_portfolio_uuid"`
 	TargetPortfolioUUID string `json:"target_portfolio_uuid"`
 }
 
-// FundsData is used internally when preparing a request in MovePortfolioFunds
-type FundsData struct {
-	Value    string `json:"value"`
-	Currency string `json:"currency"`
+type fundsData struct {
+	Value    float64       `json:"value,string"`
+	Currency currency.Code `json:"currency"`
+}
+
+type movePortfolioFundsReqBase struct {
+	SourcePortfolioUUID string    `json:"source_portfolio_uuid"`
+	TargetPortfolioUUID string    `json:"target_portfolio_uuid"`
+	Funds               fundsData `json:"funds"`
 }
 
 // NativeAndRaw is a sub-struct used in the type DetailedPortfolioResponse
@@ -817,6 +872,11 @@ type PerpetualSummary struct {
 type AllPerpPosResponse struct {
 	Positions []PerpPositionDetail `json:"positions"`
 	Summary   PerpetualSummary     `json:"summary"`
+}
+
+type assetCollateralToggleReqBase struct {
+	PortfolioUUID string `json:"portfolio_uuid"`
+	Enabled       bool   `json:"multi_asset_collateral_enabled"`
 }
 
 // FeeTier is a sub-struct used in the type TransactionSummary
@@ -1791,6 +1851,23 @@ type ConvertWrapper struct {
 	Trade ConvertResponse `json:"trade"`
 }
 
+type convertTradeReqBase struct {
+	FromAccount string `json:"from_account"`
+	ToAccount   string `json:"to_account"`
+}
+
+type convertQuoteReqBase struct {
+	FromAccount string                 `json:"from_account"`
+	ToAccount   string                 `json:"to_account"`
+	Amount      float64                `json:"amount,string"`
+	Metadata    tradeIncentiveMetadata `json:"trade_incentive_metadata"`
+}
+
+type tradeIncentiveMetadata struct {
+	UserIncentiveID string `json:"user_incentive_id"`
+	CodeVal         string `json:"code_val"`
+}
+
 // ConvertResponse contains information on a convert trade, returned by CreateConvertQuote, CommitConvertTrade, and GetConvertTradeByID
 type ConvertResponse struct {
 	// Many of these fields and subfields could, in truth, be types.Number, but documentation lists them as strings, and these endpoints can't be tested with Australian accounts
@@ -1840,6 +1917,17 @@ type PaymentMethodData struct {
 	AllowWithdraw bool          `json:"allow_withdraw"`
 	CreatedAt     time.Time     `json:"created_at"`
 	UpdatedAt     time.Time     `json:"updated_at"`
+}
+
+type paymentMethodReqBase struct {
+	Currency currency.Code `json:"currency"`
+}
+
+type allocatePortfolioReqBase struct {
+	PortfolioUUID string  `json:"portfolio_uuid"`
+	Symbol        string  `json:"symbol"`
+	Currency      string  `json:"currency"`
+	Amount        float64 `json:"amount,string"`
 }
 
 // IDResource holds an ID, resource type, and associated data, used in ListNotificationsResponse, TransactionData, DeposWithdrData, and PaymentMethodData
@@ -2150,11 +2238,11 @@ type ManyTransactionsResp struct {
 
 // AccountHolder is a sub-type that holds information on an account holder. Used in DeposWithdrData
 type AccountHolder struct {
-	Type                  string          `json:"type"`
-	Network               string          `json:"network"`
-	PaymentMethodID       string          `json:"payment_method_id"`
-	ExternalPaymentMethod PaymentMethodID `json:"external_payment_method,omitempty"`
-	LedgerAccount         LedgerAccount   `json:"ledger_account,omitempty"`
+	Type                  string           `json:"type"`
+	Network               string           `json:"network"`
+	PaymentMethodID       string           `json:"payment_method_id"`
+	ExternalPaymentMethod *PaymentMethodID `json:"external_payment_method,omitempty"`
+	LedgerAccount         *LedgerAccount   `json:"ledger_account,omitempty"`
 }
 
 // FeeDetail is a sub-type that holds information on a fee. Used in DeposWithdrData
