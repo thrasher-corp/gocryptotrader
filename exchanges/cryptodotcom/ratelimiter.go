@@ -46,6 +46,7 @@ const (
 	privateCancelAllOrdersRate
 	privateClosePositionRate
 	changeAccountLeverageRate
+	changeAccountSettingRate
 	getAllExecutableTradesRate
 	closePositionRate
 	futuresOrderListRate
@@ -105,6 +106,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		privateCancelAllOrdersRate:          request.NewRateLimitWithWeight(hundredMilliSecondsInterval, fifteenPerIntrval, 1),
 		privateClosePositionRate:            request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		changeAccountLeverageRate:           request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
+		changeAccountSettingRate:            request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		getAllExecutableTradesRate:          request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		closePositionRate:                   request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		futuresOrderListRate:                request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),

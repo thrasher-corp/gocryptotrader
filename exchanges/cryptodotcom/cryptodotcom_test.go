@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -319,11 +318,55 @@ func TestCreateOrder(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestAmendOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.AmendOrder(context.Background(), &AmendOrderParam{NewPrice: 124.})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	_, err = e.AmendOrder(context.Background(), &AmendOrderParam{OrderID: "1234", NewPrice: 124.})
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
+	_, err = e.AmendOrder(context.Background(), &AmendOrderParam{OrderID: "1234", NewQuantity: 1})
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.AmendOrder(
+		context.Background(),
+		&AmendOrderParam{
+			OrderID:     "1234",
+			NewPrice:    124.,
+			NewQuantity: 2,
+		})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestWsPlaceOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg := &OrderParam{Symbol: mainTP.String(), Side: order.Buy, OrderType: order.Limit, Price: 123, Quantity: 12}
 	result, err := e.WsPlaceOrder(arg)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestWsAmendOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.WsAmendOrder(&AmendOrderParam{NewPrice: 124.})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	_, err = e.WsAmendOrder(&AmendOrderParam{OrderID: "1234", NewPrice: 124.})
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
+	_, err = e.WsAmendOrder(&AmendOrderParam{OrderID: "1234", NewQuantity: 1})
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.WsAmendOrder(&AmendOrderParam{
+		OrderID:     "1234",
+		NewPrice:    124.,
+		NewQuantity: 2,
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -375,22 +418,11 @@ func TestWsRetrivePrivateTrades(t *testing.T) {
 
 func TestGetOrderDetail(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOrderDetail(t.Context(), "")
+	_, err := e.GetOrderDetail(t.Context(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetOrderDetail(t.Context(), "1234")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestWsRetriveOrderDetail(t *testing.T) {
-	t.Parallel()
-	_, err := e.WsRetriveOrderDetail("")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.WsRetriveOrderDetail("1234")
+	result, err := e.GetOrderDetail(t.Context(), "1234", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -398,7 +430,7 @@ func TestWsRetriveOrderDetail(t *testing.T) {
 func TestGetPersonalOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetPersonalOpenOrders(t.Context(), "", 0, 0)
+	result, err := e.GetPersonalOpenOrders(t.Context(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -406,7 +438,7 @@ func TestGetPersonalOpenOrders(t *testing.T) {
 func TestWsRetrivePersonalOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.WsRetrivePersonalOpenOrders("", 0, 0)
+	result, err := e.WsRetrivePersonalOpenOrders("")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -484,21 +516,15 @@ func TestWsCancelOrderList(t *testing.T) {
 
 func TestCancelAllPersonalOrders(t *testing.T) {
 	t.Parallel()
-	err := e.CancelAllPersonalOrders(t.Context(), "")
-	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.CancelAllPersonalOrders(t.Context(), mainTP.String())
+	err := e.CancelAllPersonalOrders(t.Context(), mainTP.String(), "LIMIT")
 	assert.NoError(t, err)
 }
 
 func TestWsCancelAllPersonalOrders(t *testing.T) {
 	t.Parallel()
-	err := e.WsCancelAllPersonalOrders("")
-	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.WsCancelAllPersonalOrders(mainTP.String())
+	err := e.WsCancelAllPersonalOrders(mainTP.String(), OrderTypeToString(order.Limit))
 	assert.NoError(t, err)
 }
 
@@ -1232,25 +1258,6 @@ func TestStakingConversionRate(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestTimeInForceString(t *testing.T) {
-	t.Parallel()
-	timeInForceStringMap := map[order.TimeInForce]struct {
-		String string
-		Error  error
-	}{
-		order.GoodTillDay | order.PostOnly: {tifGTC, nil},
-		order.GoodTillCancel:               {tifGTC, nil},
-		order.ImmediateOrCancel:            {tifIOC, nil},
-		order.FillOrKill:                   {tifFOK, nil},
-		order.GoodTillDay:                  {"", order.ErrInvalidTimeInForce},
-	}
-	for k, v := range timeInForceStringMap {
-		result, err := timeInForceString(k)
-		assert.ErrorIs(t, err, v.Error)
-		assert.Equal(t, result, v.String)
-	}
-}
-
 func TestOrderTypeString(t *testing.T) {
 	t.Parallel()
 	orderTypeStringMap := map[order.Type]string{
@@ -1335,7 +1342,7 @@ func TestGetExpiredSettlementPrice(t *testing.T) {
 func TestChangeAccountLeverage(t *testing.T) {
 	t.Parallel()
 	err := e.ChangeAccountLeverage(t.Context(), "", 100)
-	require.ErrorIs(t, err, errAccountIDMissing)
+	assert.ErrorIs(t, err, errAccountIDMissing)
 
 	err = e.ChangeAccountLeverage(t.Context(), perpetualTP.String(), 0)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
@@ -1343,6 +1350,24 @@ func TestChangeAccountLeverage(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	err = e.ChangeAccountLeverage(t.Context(), perpetualTP.String(), 100)
 	assert.NoError(t, err)
+}
+
+func TestChangeAccountSettings(t *testing.T) {
+	t.Parallel()
+	err := e.ChangeAccountSettings(context.Background(), "S", "", "23213211232", 123)
+	assert.ErrorIs(t, err, errSTPInstructionIsRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.ChangeAccountSettings(context.Background(), "S", "B", "23213211232", 123)
+	assert.NoError(t, err)
+}
+
+func TestGetAccountSettings(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetAccountSettings(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetAllExecutableTradesForInstrument(t *testing.T) {
@@ -1370,6 +1395,23 @@ func TestClosePosition(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestWsClosePosition(t *testing.T) {
+	t.Parallel()
+	_, err := e.WsClosePosition("", "MARKET", 23123)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = e.WsClosePosition(perpetualTP.String(), "", 23123)
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	_, err = e.WsClosePosition(perpetualTP.String(), "LIMIT", 0)
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.WsClosePosition(perpetualTP.String(), "LIMIT", 23123)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetFuturesOrderList(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesOrderList(t.Context(), "", "6498090546073120100", perpetualTP.String())
@@ -1393,29 +1435,6 @@ func TestGetInsurance(t *testing.T) {
 	result, err := e.GetInsurance(t.Context(), perpetualTP.String(), 10, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-}
-
-func TestTimeInForceFromString(t *testing.T) {
-	t.Parallel()
-	timesInForceList := []struct {
-		String   string
-		PostOnly bool
-		TIF      order.TimeInForce
-	}{
-		{tifGTC, true, order.GoodTillCancel | order.PostOnly},
-		{tifGTC, false, order.GoodTillCancel},
-		{tifIOC, false, order.ImmediateOrCancel},
-		{tifFOK, false, order.FillOrKill},
-		{"", true, order.PostOnly},
-		{"", false, order.UnknownTIF},
-	}
-	for i, v := range timesInForceList {
-		t.Run(v.String+"#"+strconv.FormatBool(v.PostOnly), func(t *testing.T) {
-			t.Parallel()
-			tif := timeInForceFromString(timesInForceList[i].String, timesInForceList[i].PostOnly)
-			assert.Equal(t, timesInForceList[i].TIF, tif)
-		})
-	}
 }
 
 func TestStringToInterval(t *testing.T) {

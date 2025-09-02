@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -77,6 +79,25 @@ func (e *Exchange) WsPlaceOrder(arg *OrderParam) (*CreateOrderResponse, error) {
 	return resp, e.SendWebsocketRequest(privateCreateOrder, params, &resp, true)
 }
 
+// WsAmendOrder updates an open order given the order id, price, and quantity information through the websockt connection
+func (e *Exchange) WsAmendOrder(arg *AmendOrderParam) (*CreateOrderResponse, error) {
+	if arg.OriginalClientOrderID == "" && arg.OrderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if arg.NewPrice <= 0 {
+		return nil, order.ErrPriceMustBeSetIfLimitOrder
+	}
+	if arg.NewQuantity <= 0 {
+		return nil, order.ErrAmountIsInvalid
+	}
+	params, err := StructToMap(arg)
+	if err != nil {
+		return nil, err
+	}
+	var resp *CreateOrderResponse
+	return resp, e.SendWebsocketRequest("private/amend-order", params, &resp, true)
+}
+
 // WsCancelExistingOrder cancels and existing open order through the websocket connection
 func (e *Exchange) WsCancelExistingOrder(symbol, orderID string) error {
 	if symbol == "" {
@@ -143,12 +164,14 @@ func (e *Exchange) WsCancelOrderList(args []CancelOrderParam) (*CancelOrdersResp
 
 // WsCancelAllPersonalOrders cancels all orders for a particular instrument/pair (asynchronous)
 // This call is asynchronous, so the response is simply a confirmation of the request.
-func (e *Exchange) WsCancelAllPersonalOrders(symbol string) error {
-	if symbol == "" {
-		return currency.ErrSymbolStringEmpty
-	}
+func (e *Exchange) WsCancelAllPersonalOrders(symbol, orderType string) error {
 	params := make(map[string]any)
-	params["instrument_name"] = symbol
+	if orderType != "" {
+		params["type"] = orderType
+	}
+	if symbol != "" {
+		params["instrument_name"] = symbol
+	}
 	return e.SendWebsocketRequest(privateCancelAllOrders, params, nil, true)
 }
 
@@ -177,28 +200,13 @@ func (e *Exchange) WsRetrivePersonalOrderHistory(instrumentName string, startTim
 }
 
 // WsRetrivePersonalOpenOrders retrieves all open orders of particular instrument through the websocket connection
-func (e *Exchange) WsRetrivePersonalOpenOrders(instrumentName string, pageSize, page int64) (*PersonalOrdersResponse, error) {
+func (e *Exchange) WsRetrivePersonalOpenOrders(instrumentName string) (*PersonalOrdersResponse, error) {
 	params := make(map[string]any)
 	if instrumentName != "" {
 		params["instrument_name"] = instrumentName
 	}
-	if pageSize > 0 {
-		params["page_size"] = pageSize
-	}
-	params["page"] = page
 	var resp *PersonalOrdersResponse
 	return resp, e.SendWebsocketRequest(privateGetOpenOrders, params, &resp, true)
-}
-
-// WsRetriveOrderDetail retrieves details on a particular order ID through the websocket connection
-func (e *Exchange) WsRetriveOrderDetail(orderID string) (*OrderDetail, error) {
-	if orderID == "" {
-		return nil, order.ErrOrderIDNotSet
-	}
-	params := make(map[string]any)
-	params["order_id"] = orderID
-	var resp *OrderDetail
-	return resp, e.SendWebsocketRequest(privateGetOrderDetail, params, &resp, true)
 }
 
 // WsRetrivePrivateTrades gets all executed trades for a particular instrument.
@@ -272,4 +280,26 @@ func (e *Exchange) SendWebsocketRequest(method string, arg map[string]any, resul
 		return errors.New(mes)
 	}
 	return nil
+}
+
+// WsClosePosition cancels position for a particular instrument/pair (asynchronous).
+func (e *Exchange) WsClosePosition(symbol, orderType string, price float64) (*OrderIDsDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	orderType = strings.ToUpper(orderType)
+	if !slices.Contains([]string{"LIMIT", "MARKET"}, orderType) {
+		return nil, fmt.Errorf("%w: LIMIT or MARKET order types are supported", order.ErrUnsupportedOrderType)
+	}
+	if orderType == "LIMIT" && price <= 0 {
+		return nil, order.ErrPriceMustBeSetIfLimitOrder
+	}
+	params := make(map[string]any)
+	params["instrument_name"] = symbol
+	params["type"] = orderType
+	if price > 0 {
+		params["price"] = price
+	}
+	var resp *OrderIDsDetail
+	return resp, e.SendWebsocketRequest("private/close-position", params, &resp, true)
 }

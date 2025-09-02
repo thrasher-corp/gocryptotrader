@@ -754,9 +754,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		return cancelAllResponse, err
 	}
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return order.CancelAllResponse{}, e.WsCancelAllPersonalOrders(orderCancellation.Pair.Format(format).String())
+		return order.CancelAllResponse{}, e.WsCancelAllPersonalOrders(orderCancellation.Pair.Format(format).String(), OrderTypeToString(orderCancellation.Type))
 	}
-	return order.CancelAllResponse{}, e.CancelAllPersonalOrders(ctx, orderCancellation.Pair.Format(format).String())
+	return order.CancelAllResponse{}, e.CancelAllPersonalOrders(ctx, orderCancellation.Pair.Format(format).String(), OrderTypeToString(orderCancellation.Type))
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -767,13 +767,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if !pair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var orderDetail *OrderDetail
-	var err error
-	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		orderDetail, err = e.WsRetriveOrderDetail(orderID)
-	} else {
-		orderDetail, err = e.GetOrderDetail(ctx, orderID)
-	}
+	orderDetail, err := e.GetOrderDetail(ctx, orderID, "")
 	if err != nil {
 		return nil, err
 	}
@@ -793,18 +787,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if err != nil {
 		return nil, err
 	}
-	var tif order.TimeInForce
-	switch orderDetail.TimeInForce {
-	case tifGTC:
-		tif = order.GoodTillCancel
-	case tifIOC:
-		tif = order.ImmediateOrCancel
-	case tifFOK:
-		tif = order.FillOrKill
-	default:
-		// TODO: include post only variable in response detail
-		tif |= order.PostOnly
-	}
 	return &order.Detail{
 		ExecutedAmount: orderDetail.CumulativeQuantity.Float64() - orderDetail.Quantity.Float64(),
 		Cost:           orderDetail.CumulativeValue.Float64(),
@@ -820,7 +802,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		AssetType:      assetType,
 		Status:         status,
 		Price:          orderDetail.Price.Float64(),
-		TimeInForce:    tif,
+		TimeInForce:    orderDetail.TimeInForce,
 	}, err
 }
 
@@ -893,9 +875,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 		var orders *PersonalOrdersResponse
 		var err error
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			orders, err = e.WsRetrivePersonalOpenOrders("", 0, 0)
+			orders, err = e.WsRetrivePersonalOpenOrders("")
 		} else {
-			orders, err = e.GetPersonalOpenOrders(ctx, "", 0, 0)
+			orders, err = e.GetPersonalOpenOrders(ctx, "")
 		}
 		if err != nil {
 			return nil, err
@@ -945,7 +927,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				Date:                 orders.OrderList[x].CreateTime.Time(),
 				LastUpdated:          orders.OrderList[x].UpdateTime.Time(),
 				Pair:                 cp,
-				TimeInForce:          timeInForceFromString(orders.OrderList[x].TimeInForce, false),
+				TimeInForce:          orders.OrderList[x].TimeInForce,
 			})
 		}
 		return getOrdersRequest.Filter(e.Name, resp), nil
@@ -995,7 +977,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				return nil, err
 			}
 			resp = append(resp, order.Detail{
-				TimeInForce:          timeInForceFromString(result.Data[d].TimeInForce, false),
+				TimeInForce:          result.Data[d].TimeInForce,
 				Price:                result.Data[d].Price.Float64(),
 				Amount:               result.Data[d].Quantity.Float64(),
 				ContractAmount:       result.Data[d].CumulativeValue.Float64(),
@@ -1082,26 +1064,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			Date:                 orders.OrderList[x].CreateTime.Time(),
 			LastUpdated:          orders.OrderList[x].UpdateTime.Time(),
 			Pair:                 cp,
-			TimeInForce:          timeInForceFromString(orders.OrderList[x].TimeInForce, false),
+			TimeInForce:          orders.OrderList[x].TimeInForce,
 		})
 	}
 	return getOrdersRequest.Filter(e.Name, resp), nil
-}
-
-func timeInForceFromString(timeInForce string, postOnly bool) order.TimeInForce {
-	var tif order.TimeInForce
-	switch timeInForce {
-	case tifGTC:
-		tif = order.GoodTillCancel
-	case tifIOC:
-		tif = order.ImmediateOrCancel
-	case tifFOK:
-		tif = order.FillOrKill
-	}
-	if postOnly {
-		tif |= order.PostOnly
-	}
-	return tif
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
@@ -1245,22 +1211,6 @@ func priceTypeToString(pt order.PriceType) (string, error) {
 		return "", nil
 	default:
 		return "", fmt.Errorf("%w, price type: %v", order.ErrUnknownPriceType, pt.String())
-	}
-}
-
-func timeInForceString(tif order.TimeInForce) (string, error) {
-	if tif.Is(order.PostOnly) {
-		return tifGTC, nil
-	}
-	switch tif {
-	case order.GoodTillCancel:
-		return tifGTC, nil
-	case order.ImmediateOrCancel:
-		return tifIOC, nil
-	case order.FillOrKill:
-		return tifFOK, nil
-	default:
-		return "", fmt.Errorf("%w: time-in-force value %v", order.ErrInvalidTimeInForce, tif.String())
 	}
 }
 

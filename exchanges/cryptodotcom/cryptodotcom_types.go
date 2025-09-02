@@ -28,6 +28,7 @@ var (
 	errAccountIDMissing                = errors.New("account id is required")
 	errContingencyTypeRequired         = errors.New("contingency type is required")
 	errPriceBelowMin                   = errors.New("price below min")
+	errSTPInstructionIsRequired        = errors.New("self-trade-prevention instruction (stpInstruction) is missing")
 )
 
 const (
@@ -291,22 +292,22 @@ type OrderAndTrades struct {
 
 // OrderItem represents order instance detail information.
 type OrderItem struct {
-	Status             string     `json:"status"`
-	Side               string     `json:"side"`
-	OrderID            string     `json:"order_id"`
-	ClientOid          string     `json:"client_oid"`
-	CreateTime         types.Time `json:"create_time"`
-	UpdateTime         types.Time `json:"update_time"`
-	Type               string     `json:"type"`
-	InstrumentName     string     `json:"instrument_name"`
-	CumulativeQuantity float64    `json:"cumulative_quantity"`
-	CumulativeValue    float64    `json:"cumulative_value"`
-	AvgPrice           float64    `json:"avg_price"`
-	FeeCurrency        string     `json:"fee_currency"`
-	TimeInForce        string     `json:"time_in_force"`
-	ExecInst           string     `json:"exec_inst"`
-	Price              float64    `json:"price"`
-	Quantity           float64    `json:"quantity"`
+	Status             string            `json:"status"`
+	Side               string            `json:"side"`
+	OrderID            string            `json:"order_id"`
+	ClientOid          string            `json:"client_oid"`
+	CreateTime         types.Time        `json:"create_time"`
+	UpdateTime         types.Time        `json:"update_time"`
+	Type               string            `json:"type"`
+	InstrumentName     string            `json:"instrument_name"`
+	CumulativeQuantity float64           `json:"cumulative_quantity"`
+	CumulativeValue    float64           `json:"cumulative_value"`
+	AvgPrice           float64           `json:"avg_price"`
+	FeeCurrency        string            `json:"fee_currency"`
+	TimeInForce        order.TimeInForce `json:"time_in_force"`
+	ExecInst           string            `json:"exec_inst"`
+	Price              float64           `json:"price"`
+	Quantity           float64           `json:"quantity"`
 }
 
 // PersonalOrdersResponse represents a personal order.
@@ -926,8 +927,8 @@ type StakingConvertRequestDetail struct {
 
 // FeeRate holds fee rate information for spot and derivatives maker and taker rates.
 type FeeRate struct {
-	SpotTier                   string       `json:"spot_tier"`
-	DerivTier                  string       `json:"deriv_tier"`
+	SpotTier                   types.Number `json:"spot_tier"`
+	DerivTier                  types.Number `json:"deriv_tier"`
 	EffectiveSpotMakerRateBps  types.Number `json:"effective_spot_maker_rate_bps"`
 	EffectiveSpotTakerRateBps  types.Number `json:"effective_spot_taker_rate_bps"`
 	EffectiveDerivMakerRateBps types.Number `json:"effective_deriv_maker_rate_bps"`
@@ -1078,6 +1079,14 @@ type InstrumentTrades struct {
 	Data []TradeDetail `json:"data"`
 }
 
+// AccountSetting holds a self-trade-prevention account setting details
+type AccountSetting struct {
+	Leverage int64  `json:"leverage"`
+	STPID    int64  `json:"stp_id"`
+	STPScope string `json:"stp_scope"`
+	STPInst  string `json:"stp_inst"`
+}
+
 // TradeDetail holds instrument's executed trade detail
 type TradeDetail struct {
 	AccountID         string       `json:"account_id"`
@@ -1111,32 +1120,32 @@ type OrdersDetail struct {
 
 // OrderDetail holds order detail
 type OrderDetail struct {
-	AccountID          string       `json:"account_id"`
-	OrderID            string       `json:"order_id"`
-	ClientOrderID      string       `json:"client_oid"`
-	OrderType          string       `json:"type"`
-	TimeInForce        string       `json:"time_in_force"`
-	Side               string       `json:"side"`
-	ExecInst           []any        `json:"exec_inst"`
-	Quantity           types.Number `json:"quantity"`
-	Price              types.Number `json:"price,omitempty"`
-	OrderValue         types.Number `json:"order_value"`
-	AvgPrice           types.Number `json:"avg_price"`
-	TriggerPrice       types.Number `json:"trigger_price"`
-	CumulativeQuantity types.Number `json:"cumulative_quantity"`
-	CumulativeValue    types.Number `json:"cumulative_value"`
-	CumulativeFee      types.Number `json:"cumulative_fee"`
-	Status             string       `json:"status"`
-	UpdateUserID       string       `json:"update_user_id"`
-	OrderDate          string       `json:"order_date"`
-	InstrumentName     string       `json:"instrument_name"`
-	FeeInstrumentName  string       `json:"fee_instrument_name"`
-	ListID             string       `json:"list_id"`
-	ContingencyType    string       `json:"contingency_type"`
-	TriggerPriceType   string       `json:"trigger_price_type"`
-	CreateTime         types.Time   `json:"create_time"`
-	CreateTimeNs       types.Time   `json:"create_time_ns"`
-	UpdateTime         types.Time   `json:"update_time"`
+	AccountID          string            `json:"account_id"`
+	OrderID            string            `json:"order_id"`
+	ClientOrderID      string            `json:"client_oid"`
+	OrderType          string            `json:"type"`
+	TimeInForce        order.TimeInForce `json:"time_in_force"`
+	Side               string            `json:"side"`
+	ExecInst           []any             `json:"exec_inst"`
+	Quantity           types.Number      `json:"quantity"`
+	Price              types.Number      `json:"price,omitempty"`
+	OrderValue         types.Number      `json:"order_value"`
+	AvgPrice           types.Number      `json:"avg_price"`
+	TriggerPrice       types.Number      `json:"trigger_price"`
+	CumulativeQuantity types.Number      `json:"cumulative_quantity"`
+	CumulativeValue    types.Number      `json:"cumulative_value"`
+	CumulativeFee      types.Number      `json:"cumulative_fee"`
+	Status             string            `json:"status"`
+	UpdateUserID       string            `json:"update_user_id"`
+	OrderDate          string            `json:"order_date"`
+	InstrumentName     string            `json:"instrument_name"`
+	FeeInstrumentName  string            `json:"fee_instrument_name"`
+	ListID             string            `json:"list_id"`
+	ContingencyType    string            `json:"contingency_type"`
+	TriggerPriceType   string            `json:"trigger_price_type"`
+	CreateTime         types.Time        `json:"create_time"`
+	CreateTimeNs       types.Time        `json:"create_time_ns"`
+	UpdateTime         types.Time        `json:"update_time"`
 }
 
 // ValueAndTimestamp holds value, and timestamp information

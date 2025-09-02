@@ -399,12 +399,14 @@ func (e *Exchange) CancelOrderList(ctx context.Context, args []CancelOrderParam)
 
 // CancelAllPersonalOrders cancels all orders for a particular instrument/pair (asynchronous)
 // This call is asynchronous, so the response is simply a confirmation of the request.
-func (e *Exchange) CancelAllPersonalOrders(ctx context.Context, symbol string) error {
-	if symbol == "" {
-		return currency.ErrSymbolStringEmpty
-	}
+func (e *Exchange) CancelAllPersonalOrders(ctx context.Context, symbol, orderType string) error {
 	params := make(map[string]any)
-	params["instrument_name"] = symbol
+	if symbol != "" {
+		params["instrument_name"] = symbol
+	}
+	if orderType != "" {
+		params["type"] = orderType
+	}
 	return e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCancelAllOrdersRate, privateCancelAllOrders, params, nil)
 }
 
@@ -523,28 +525,26 @@ func (e *Exchange) GetPersonalOrderHistory(ctx context.Context, symbol string, s
 }
 
 // GetPersonalOpenOrders retrieves all open orders of particular instrument.
-func (e *Exchange) GetPersonalOpenOrders(ctx context.Context, symbol string, pageSize, page int64) (*PersonalOrdersResponse, error) {
+func (e *Exchange) GetPersonalOpenOrders(ctx context.Context, symbol string) (*PersonalOrdersResponse, error) {
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
-	}
-	if pageSize > 0 {
-		params["page_size"] = pageSize
-	}
-	if page > 0 {
-		params["page"] = page
 	}
 	var resp *PersonalOrdersResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOpenOrdersRate, privateGetOpenOrders, params, &resp)
 }
 
 // GetOrderDetail retrieves details on a particular order ID
-func (e *Exchange) GetOrderDetail(ctx context.Context, orderID string) (*OrderDetail, error) {
-	if orderID == "" {
+func (e *Exchange) GetOrderDetail(ctx context.Context, orderID, clientOrderID string) (*OrderDetail, error) {
+	if orderID == "" && clientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := make(map[string]any)
-	params["order_id"] = orderID
+	if orderID != "" {
+		params["order_id"] = orderID
+	} else {
+		params["client_oid"] = clientOrderID
+	}
 	var resp *OrderDetail
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOrderDetailRate, privateGetOrderDetail, params, &resp)
 }
@@ -1071,6 +1071,8 @@ func OrderTypeToString(orderType order.Type) string {
 		return "STOP_LIMIT"
 	case order.TakeProfit:
 		return "TAKE_PROFIT"
+	case order.UnknownType:
+		return ""
 	default:
 		return orderType.String()
 	}

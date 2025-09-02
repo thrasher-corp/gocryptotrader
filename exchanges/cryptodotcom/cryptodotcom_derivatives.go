@@ -35,6 +35,35 @@ func (e *Exchange) ChangeAccountLeverage(ctx context.Context, accountID string, 
 	return e.SendAuthHTTPRequest(ctx, exchange.RestFutures, changeAccountLeverageRate, "private/change-account-leverage", params, nil)
 }
 
+// ChangeAccountSettings changes account's self-trade-prevention settings
+// possible values of 'stpScope' are "M" for Matches Master or Sub a/c  and "S" for Matches Sub a/c only
+// possible values of 'stpInstruction' are: 'M' for Cancel Maker, "T" Cancel Taker, and "B" for Cancel Both Maker and Taker
+func (e *Exchange) ChangeAccountSettings(ctx context.Context, stpScope, stpInstruction, stpID string, leverage int) error {
+	params := make(map[string]any)
+	if stpScope != "" {
+		params["stp_scope"] = stpScope
+	}
+	if stpScope != "" && stpInstruction == "" {
+		return errSTPInstructionIsRequired
+	}
+	if stpInstruction != "" {
+		params["stp_inst"] = stpInstruction
+	}
+	if stpID != "" {
+		params["stp_id"] = stpID
+	}
+	if leverage > 0 {
+		params["leverage"] = leverage
+	}
+	return e.SendAuthHTTPRequest(ctx, exchange.RestFutures, changeAccountSettingRate, "private/change-account-settings", params, nil)
+}
+
+// GetAccountSettings retrieves account self-trade-prevention setting details
+func (e *Exchange) GetAccountSettings(ctx context.Context) ([]AccountSetting, error) {
+	var resp []AccountSetting
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, changeAccountSettingRate, "private/get-account-settings", nil, &resp)
+}
+
 // GetAllExecutableTradesForInstrument returns all executable trades for a particular instrument
 func (e *Exchange) GetAllExecutableTradesForInstrument(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*InstrumentTrades, error) {
 	params := make(map[string]any)
@@ -71,7 +100,9 @@ func (e *Exchange) ClosePosition(ctx context.Context, symbol, orderType string, 
 	params := make(map[string]any)
 	params["instrument_name"] = symbol
 	params["type"] = orderType
-	params["price"] = price
+	if price > 0 {
+		params["price"] = price
+	}
 	var resp *OrderIDsDetail
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, closePositionRate, "private/close-position", params, &resp)
 }
