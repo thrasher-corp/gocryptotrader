@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -1220,13 +1221,13 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if !e.SupportsAsset(a) {
 		return fmt.Errorf("%s: %w - %v", e.Name, asset.ErrNotSupported, a)
 	}
-	for _, x := range baseCurrencies {
+	for _, bc := range baseCurrencies {
 		var instrumentsData []*InstrumentData
 		var err error
 		if e.Websocket.IsConnected() {
-			instrumentsData, err = e.WSRetrieveInstrumentsData(ctx, currency.NewCode(x), e.GetAssetKind(a), false)
+			instrumentsData, err = e.WSRetrieveInstrumentsData(ctx, currency.NewCode(bc), e.GetAssetKind(a), false)
 		} else {
-			instrumentsData, err = e.GetInstruments(ctx, currency.NewCode(x), e.GetAssetKind(a), false)
+			instrumentsData, err = e.GetInstruments(ctx, currency.NewCode(bc), e.GetAssetKind(a), false)
 		}
 		if err != nil {
 			return err
@@ -1234,21 +1235,20 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			continue
 		}
 
-		limits := make([]order.MinMaxLevel, len(instrumentsData))
-		for x, inst := range instrumentsData {
+		l := make([]limits.MinMaxLevel, len(instrumentsData))
+		for i, inst := range instrumentsData {
 			var pair currency.Pair
 			pair, err = currency.NewPairFromString(inst.InstrumentName)
 			if err != nil {
 				return err
 			}
-			limits[x] = order.MinMaxLevel{
-				Pair:                   pair,
-				Asset:                  a,
+			l[i] = limits.MinMaxLevel{
+				Key:                    key.NewExchangeAssetPair(e.Name, a, pair),
 				PriceStepIncrementSize: inst.TickSize,
 				MinimumBaseAmount:      inst.MinimumTradeAmount,
 			}
 		}
-		err = e.LoadLimits(limits)
+		err = limits.Load(l)
 		if err != nil {
 			return err
 		}
@@ -1364,12 +1364,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		}
 		for a := range oi {
 			result = append(result, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: e.Name,
-					Base:     k[i].Base,
-					Quote:    k[i].Quote,
-					Asset:    k[i].Asset,
-				},
+				Key:          key.NewExchangeAssetPair(e.Name, k[i].Asset, k[i].Pair()),
 				OpenInterest: oi[a].OpenInterest,
 			})
 			break
@@ -1413,7 +1408,7 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	case asset.OptionCombo:
 		return tradeBaseURL + tradeOptionsCombo + cp.Base.Upper().String(), nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }
 

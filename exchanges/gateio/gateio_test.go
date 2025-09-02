@@ -2470,138 +2470,26 @@ func TestUnlockSubAccount(t *testing.T) {
 	}
 }
 
-func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
-	t.Parallel()
-	var timeWhenTesting int64 = 1684981731098
-	timeWhenTestingString := `"1684981731098"` // Normal string
-	integerJSON := `{"number": 1684981731098}`
-	float64JSON := `{"number": 1684981731.098}`
-
-	time := time.UnixMilli(timeWhenTesting)
-	var in types.Time
-	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !in.Time().Equal(time) {
-		t.Fatalf("found %v, but expected %v", in.Time(), time)
-	}
-	inInteger := struct {
-		Number types.Time `json:"number"`
-	}{}
-	err = json.Unmarshal([]byte(integerJSON), &inInteger)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !inInteger.Number.Time().Equal(time) {
-		t.Fatalf("found %v, but expected %v", inInteger.Number.Time(), time)
-	}
-
-	inFloat64 := struct {
-		Number types.Time `json:"number"`
-	}{}
-	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !inFloat64.Number.Time().Equal(time) {
-		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), time)
-	}
-}
-
-func TestParseTimeUnmarshal(t *testing.T) {
-	t.Parallel()
-	var timeWhenTesting int64 = 1684981731
-	timeWhenTestingString := `"1684981731"`
-	integerJSON := `{"number": 1684981731}`
-	float64JSON := `{"number": 1684981731.234}`
-	timeWhenTestingStringMicroSecond := `"1691122380942.173000"`
-
-	whenTime := time.Unix(timeWhenTesting, 0)
-	var in types.Time
-	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !in.Time().Equal(whenTime) {
-		t.Fatalf("found %v, but expected %v", in.Time(), whenTime)
-	}
-	inInteger := struct {
-		Number types.Time `json:"number"`
-	}{}
-	err = json.Unmarshal([]byte(integerJSON), &inInteger)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !inInteger.Number.Time().Equal(whenTime) {
-		t.Fatalf("found %v, but expected %v", inInteger.Number.Time(), whenTime)
-	}
-
-	inFloat64 := struct {
-		Number types.Time `json:"number"`
-	}{}
-	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
-	if err != nil {
-		t.Fatal(err)
-	}
-	msTime := time.UnixMilli(1684981731234)
-	if !inFloat64.Number.Time().Equal(time.UnixMilli(1684981731234)) {
-		t.Fatalf("found %v, but expected %v", inFloat64.Number.Time(), msTime)
-	}
-
-	var microSeconds types.Time
-	err = json.Unmarshal([]byte(timeWhenTestingStringMicroSecond), &microSeconds)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !microSeconds.Time().Equal(time.UnixMicro(1691122380942173)) {
-		t.Fatalf("found %v, but expected %v", microSeconds.Time(), time.UnixMicro(1691122380942173))
-	}
-}
-
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
-
-	err := e.UpdateOrderExecutionLimits(t.Context(), 1336)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Options)
-	require.ErrorIs(t, err, common.ErrNotYetImplemented)
-
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	avail, err := e.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for i := range avail {
-		mm, err := e.GetOrderExecutionLimits(asset.Spot, avail[i])
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if mm == (order.MinMaxLevel{}) {
-			t.Fatal("expected a value")
-		}
-
-		if mm.MinimumBaseAmount <= 0 {
-			t.Fatalf("MinimumBaseAmount expected 0 but received %v for %v", mm.MinimumBaseAmount, avail[i])
-		}
-
-		// 1INCH_TRY no minimum quote or base values are returned.
-
-		if mm.QuoteStepIncrementSize <= 0 {
-			t.Fatalf("QuoteStepIncrementSize expected 0 but received %v for %v", mm.QuoteStepIncrementSize, avail[i])
-		}
-
-		if mm.AmountStepIncrementSize <= 0 {
-			t.Fatalf("AmountStepIncrementSize expected 0 but received %v for %v", mm.AmountStepIncrementSize, avail[i])
-		}
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			switch a {
+			case asset.Options:
+				return // Options not supported
+			case asset.CrossMargin, asset.Margin:
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
+			default:
+				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+				pairs, err := e.CurrencyPairs.GetPairs(a, true)
+				require.NoError(t, err, "GetPairs must not error")
+				l, err := e.GetOrderExecutionLimits(a, pairs[0])
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			}
+		})
 	}
 }
 

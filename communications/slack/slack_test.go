@@ -281,7 +281,7 @@ func TestHandleReconnectResponse(t *testing.T) {
 	}
 
 	data, err := json.Marshal(testURL)
-	require.NoError(t, err, "json.Marshal must not error")
+	require.NoError(t, err, "Marshal must not error")
 
 	err = s.handleReconnectResponse(data)
 	require.NoError(t, err, "handleReconnectResponse must not error")

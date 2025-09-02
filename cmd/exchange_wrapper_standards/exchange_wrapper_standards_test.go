@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -178,6 +179,8 @@ var validWrapperParams = []reflect.Type{
 	latestRateRequest,
 }
 
+type testCtxKey string
+
 func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
 	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
@@ -195,7 +198,7 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 			if slices.ContainsFunc(validWrapperParams, func(t reflect.Type) bool {
 				return input.AssignableTo(t)
 			}) {
-				assetLen = len(assetParams) - 1
+				assetLen = len(assetParams)
 				break
 			}
 		}
@@ -207,24 +210,25 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 			e = time.Now()
 			s = e.Add(-time.Minute * 3)
 		}
-		for y := 0; y <= assetLen; y++ {
-			inputs := make([]reflect.Value, method.Type().NumIn())
-			argGenerator := &MethodArgumentGenerator{
-				Exchange:    exch,
-				AssetParams: assetParams[y],
-				MethodName:  methodName,
-				Start:       s,
-				End:         e,
-			}
-			for z := range method.Type().NumIn() {
-				argGenerator.MethodInputType = method.Type().In(z)
-				generatedArg := generateMethodArg(ctx, t, argGenerator)
-				inputs[z] = *generatedArg
-			}
-			assetY := assetParams[y].Asset.String()
-			pairY := assetParams[y].Pair.String()
-			t.Run(methodName+"-"+assetY+"-"+pairY, func(t *testing.T) {
+		for y := range assetLen {
+			ap := assetParams[y]
+			t.Run(methodName+"-"+ap.Asset.String()+"-"+ap.Pair.String(), func(t *testing.T) {
 				t.Parallel()
+				// Create a new context for each test run to avoid race conditions
+				ctx := context.WithValue(ctx, testCtxKey("test"), t.Name()) //nolint:govet // Intentional shadow
+				inputs := make([]reflect.Value, method.Type().NumIn())
+				argGenerator := &MethodArgumentGenerator{
+					Exchange:    exch,
+					AssetParams: ap,
+					MethodName:  methodName,
+					Start:       s,
+					End:         e,
+				}
+				for z := range method.Type().NumIn() {
+					argGenerator.MethodInputType = method.Type().In(z)
+					generatedArg := generateMethodArg(ctx, t, argGenerator)
+					inputs[z] = *generatedArg
+				}
 				CallExchangeMethod(t, method, inputs, methodName, exch)
 			})
 		}
@@ -245,12 +249,16 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 		if isUnacceptableError(t, err) != nil {
 			literalInputs := make([]any, len(methodValues))
 			for j := range methodValues {
-				if methodValues[j].Kind() == reflect.Ptr {
+				switch {
+				case methodValues[j].Type().Implements(contextParam):
+					// Errorf will use reflection on ctx and cause a race, so we need to replace it
+					literalInputs[j] = "<context>"
+				case methodValues[j].Kind() == reflect.Ptr:
 					// dereference pointers just to add a bit more clarity
 					literalInputs[j] = methodValues[j].Elem().Interface()
-					continue
+				default:
+					literalInputs[j] = methodValues[j].Interface()
 				}
-				literalInputs[j] = methodValues[j].Interface()
 			}
 			t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
 		}
@@ -340,8 +348,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			OneTimePassword: "test",
 		})
 	case argGenerator.MethodInputType.Implements(contextParam):
-		// Need to deploy a context.Context value as nil value is not
-		// checked throughout codebase.
+		// Need to deploy a context.Context value as nil value is not checked throughout codebase
 		input = reflect.ValueOf(ctx)
 	case argGenerator.MethodInputType.AssignableTo(feeBuilderParam):
 		input = reflect.ValueOf(&exchange.FeeBuilder{
@@ -638,10 +645,9 @@ var acceptableErrors = []error{
 	futures.ErrNotFuturesAsset,           // Is thrown when a futures function receives a non-futures asset
 	currency.ErrSymbolStringEmpty,        // Is thrown when a symbol string is empty for blank MatchSymbol func checks
 	futures.ErrNotPerpetualFuture,        // Is thrown when a futures function receives a non-perpetual future
-	order.ErrExchangeLimitNotLoaded,      // Is thrown when the limits aren't loaded for a particular exchange, asset, pair
-	order.ErrCannotValidateAsset,         // Is thrown when attempting to get order limits from an asset that is not yet loaded
-	order.ErrCannotValidateBaseCurrency,  // Is thrown when attempting to get order limits from an base currency that is not yet loaded
-	order.ErrCannotValidateQuoteCurrency, // Is thrown when attempting to get order limits from an quote currency that is not yet loaded
+	limits.ErrExchangeLimitNotLoaded,     // Is thrown when the limits aren't loaded for a particular exchange, asset, pair
+	limits.ErrOrderLimitNotFound,         // Is thrown when the order limit isn't found for a particular exchange, asset, pair
+	limits.ErrEmptyLevels,                // Is thrown if limits are not provided for the asset
 	account.ErrExchangeHoldingsNotFound,
 	ticker.ErrTickerNotFound,
 	orderbook.ErrOrderbookNotFound,
