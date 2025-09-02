@@ -817,10 +817,10 @@ func (d *Data) Dump(k key.ExchangeAssetPair, hasCredentials bool) (*ExportedData
 	}, nil
 }
 
-// CurrentPayload returns the latest focus-specific payload guarded by the
+// LatestData returns the latest focus-specific payload guarded by the
 // internal read lock. It returns an error if no data has been collected yet
 // for the requested focus type.
-func (q *QuickSpy) CurrentPayload(focusType FocusType) (any, error) {
+func (q *QuickSpy) LatestData(focusType FocusType) (any, error) {
 	q.m.RLock()
 	defer q.m.RUnlock()
 	switch focusType {

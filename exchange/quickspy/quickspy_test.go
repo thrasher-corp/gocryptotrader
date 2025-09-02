@@ -91,7 +91,7 @@ func TestAnyRequiresWebsocket(t *testing.T) {
 	t.Parallel()
 	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: time.Second, UseWebsocket: false})
 	require.False(t, q.AnyRequiresWebsocket())
-	// ensure mutex initialised via Upsert
+
 	q.Focuses.Upsert(TickerFocusType, &FocusData{Type: TickerFocusType, RESTPollTime: time.Second, UseWebsocket: true})
 	require.True(t, q.AnyRequiresWebsocket())
 }
@@ -100,7 +100,7 @@ func TestAnyRequiresAuth(t *testing.T) {
 	t.Parallel()
 	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: time.Second})
 	require.False(t, q.AnyRequiresAuth())
-	// ensure mutex initialised via Upsert
+
 	q.Focuses.Upsert(AccountHoldingsFocusType, &FocusData{Type: AccountHoldingsFocusType, RESTPollTime: time.Second})
 	require.True(t, q.AnyRequiresAuth())
 }
@@ -109,7 +109,7 @@ func TestFocusTypeRequiresWebsocket(t *testing.T) {
 	t.Parallel()
 	q := mustQuickSpy(t, &FocusData{Type: TickerFocusType, RESTPollTime: time.Second, UseWebsocket: false})
 	require.False(t, q.FocusTypeRequiresWebsocket(TickerFocusType))
-	// ensure mutex initialised via Upsert
+
 	q.Focuses.Upsert(TickerFocusType, &FocusData{Type: TickerFocusType, RESTPollTime: time.Second, UseWebsocket: true})
 	require.True(t, q.FocusTypeRequiresWebsocket(TickerFocusType))
 	require.False(t, q.FocusTypeRequiresWebsocket(OrderBookFocusType))
@@ -322,27 +322,27 @@ func TestDumpAndCurrentPayload(t *testing.T) {
 	}
 
 	// Empty cases error
-	_, err := q.CurrentPayload(TickerFocusType)
+	_, err := q.LatestData(TickerFocusType)
 	require.Error(t, err)
-	_, err = q.CurrentPayload(OrderBookFocusType)
+	_, err = q.LatestData(OrderBookFocusType)
 	require.Error(t, err)
-	_, err = q.CurrentPayload(KlineFocusType)
+	_, err = q.LatestData(KlineFocusType)
 	require.Error(t, err)
-	_, err = q.CurrentPayload(TradesFocusType)
+	_, err = q.LatestData(TradesFocusType)
 	require.Error(t, err)
-	_, err = q.CurrentPayload(AccountHoldingsFocusType)
+	_, err = q.LatestData(AccountHoldingsFocusType)
 	require.Error(t, err)
-	_, err = q.CurrentPayload(ActiveOrdersFocusType)
+	_, err = q.LatestData(ActiveOrdersFocusType)
 	require.Error(t, err)
-	_, err = q.CurrentPayload(OpenInterestFocusType)
+	_, err = q.LatestData(OpenInterestFocusType)
 	require.Error(t, err)
-	_, err = q.CurrentPayload(FundingRateFocusType)
+	_, err = q.LatestData(FundingRateFocusType)
 	require.Error(t, err)
-	_, err = q.CurrentPayload(ContractFocusType)
+	_, err = q.LatestData(ContractFocusType)
 	require.Error(t, err)
-	_, err = q.CurrentPayload(URLFocusType)
+	_, err = q.LatestData(URLFocusType)
 	require.Error(t, err)
-	_, err = q.CurrentPayload(OrderExecutionFocusType)
+	_, err = q.LatestData(OrderExecutionFocusType)
 	require.Error(t, err)
 
 	// Populate and verify success cases
@@ -357,25 +357,25 @@ func TestDumpAndCurrentPayload(t *testing.T) {
 	q.Data.Contract = &futures.Contract{Underlying: currency.NewPair(currency.BTC, currency.USDT), EndDate: time.Unix(10, 0), Type: futures.Perpetual, Multiplier: 0.1}
 	// FundingRate not set for simplicity
 
-	p, err := q.CurrentPayload(TickerFocusType)
+	p, err := q.LatestData(TickerFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.Ticker, p)
-	p, err = q.CurrentPayload(OrderBookFocusType)
+	p, err = q.LatestData(OrderBookFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.Orderbook, p)
-	p, err = q.CurrentPayload(TradesFocusType)
+	p, err = q.LatestData(TradesFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.Trades, p)
-	p, err = q.CurrentPayload(OpenInterestFocusType)
+	p, err = q.LatestData(OpenInterestFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.OpenInterest, p)
-	p, err = q.CurrentPayload(URLFocusType)
+	p, err = q.LatestData(URLFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.URL, p)
-	p, err = q.CurrentPayload(OrderExecutionFocusType)
+	p, err = q.LatestData(OrderExecutionFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.ExecutionLimits, p)
-	p, err = q.CurrentPayload(ContractFocusType)
+	p, err = q.LatestData(ContractFocusType)
 	require.NoError(t, err)
 	require.Equal(t, q.Data.Contract, p)
 

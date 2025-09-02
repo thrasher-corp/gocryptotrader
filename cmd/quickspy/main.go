@@ -348,7 +348,7 @@ func streamREST(ctx context.Context, qs *quickspy.QuickSpy, ft quickspy.FocusTyp
 			qs.Shutdown()
 			return
 		case <-t.C:
-			payload, err := qs.CurrentPayload(ft)
+			payload, err := qs.LatestData(ft)
 			if err != nil {
 				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Error: err.Error()})
 				t.Reset(d)
