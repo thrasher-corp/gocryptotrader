@@ -64,24 +64,33 @@ func TestSetupLiveDataHandler(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	dc1 := &dataChecker{
-		shutdown: make(chan bool),
-	}
-	err := dc1.Start()
-	assert.NoError(t, err)
+	t.Run("successful start", func(t *testing.T) {
+		t.Parallel()
+		dc := &dataChecker{
+			shutdown: make(chan bool),
+		}
+		err := dc.Start()
+		assert.NoError(t, err)
 
-	close(dc1.shutdown)
-	dc1.wg.Wait()
+		close(dc.shutdown)
+		dc.wg.Wait()
+	})
 
-	dc2 := &dataChecker{
-		started: 1,
-	}
-	err = dc2.Start()
-	assert.ErrorIs(t, err, engine.ErrSubSystemAlreadyStarted)
+	t.Run("already started", func(t *testing.T) {
+		t.Parallel()
+		dc := &dataChecker{
+			started: 1,
+		}
+		err := dc.Start()
+		assert.ErrorIs(t, err, engine.ErrSubSystemAlreadyStarted)
+	})
 
-	var dc3 *dataChecker
-	err = dc3.Start()
-	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+	t.Run("nil pointer", func(t *testing.T) {
+		t.Parallel()
+		var dc *dataChecker
+		err := dc.Start()
+		assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+	})
 }
 
 func TestDataCheckerIsRunning(t *testing.T) {
