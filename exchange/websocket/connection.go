@@ -488,7 +488,7 @@ func (c *connection) MatchReturnResponses(ctx context.Context, signature any, ex
 		return nil, err
 	}
 
-	out := make(chan MatchedResponse, 1) // buffered so routine below doesn't leak
+	out := make(chan MatchedResponse, 1) // buffered so routine below doesn't block if no receiver
 
 	go func() {
 		resps, err := c.waitForResponses(ctx, signature, connectionListen, expected, nil)
