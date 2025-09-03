@@ -897,10 +897,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 
 // WebsocketSubmitOrder submits a new order through the websocket connection
 func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(e.GetTradingRequirements())
-	if err != nil {
-		return nil, err
-	}
 	arg, err := e.DeriveSubmitOrderArguments(s)
 	if err != nil {
 		return nil, err
@@ -918,11 +914,9 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		return nil, err
 	}
 
-	switch orderDetails.TimeInForce {
-	case "IOC":
-		resp.TimeInForce = order.ImmediateOrCancel
-	case "PostOnly":
-		resp.TimeInForce = order.PostOnly
+	resp.TimeInForce, err = order.StringToTimeInForce(orderDetails.TimeInForce)
+	if err != nil {
+		return nil, err
 	}
 
 	resp.ReduceOnly = orderDetails.ReduceOnly
