@@ -79,7 +79,7 @@ type InstrumentInfo struct {
 	DefaultImf                float64             `json:"default_imf,omitempty"`
 	BaseAssetMultiplier       string              `json:"base_asset_multiplier"`
 	UnderlyingType            string              `json:"underlying_type"`
-	RFQMakerFeeRate           float64             `json:"rfq_maker_fee_rate"`
+	RFQMakerFeeRate           types.Number        `json:"rfq_maker_fee_rate"`
 }
 
 // ContractQuoteDetail represents a contract quote detail
@@ -306,11 +306,13 @@ type PortfolioInfo struct {
 
 // PatchPortfolioParams represents a request body for patching a portfolio
 type PatchPortfolioParams struct {
-	AutoMarginEnabled       bool   `json:"auto_margin_enabled,omitempty"`
-	CrossCollateralEnabled  bool   `json:"cross_collateral_enabled,omitempty"`
-	PositionOffsetEnabled   bool   `json:"position_offsets_enabled,omitempty"`
-	PreLaunchTradingEnabled bool   `json:"pre_launch_trading_enabled,omitempty"`
-	PortfolioName           string `json:"portfolio_name,omitempty"`
+	AutoMarginEnabled          bool   `json:"auto_margin_enabled,omitempty"`
+	CrossCollateralEnabled     bool   `json:"cross_collateral_enabled,omitempty"`
+	PositionOffsetEnabled      bool   `json:"position_offsets_enabled,omitempty"`
+	PreLaunchTradingEnabled    bool   `json:"pre_launch_trading_enabled,omitempty"`
+	MarginCallEnabled          bool   `json:"marginCallEnabled,omitempty"`
+	DisableOverdraftProtection bool   `json:"disable_overdraft_protection,omitempty"`
+	PortfolioName              string `json:"portfolio_name,omitempty"`
 }
 
 // PortfolioDetail represents a portfolio detail.
@@ -352,6 +354,23 @@ type PortfolioDetail struct {
 		UnrealizedPnl  float64 `json:"unrealized_pnl"`
 		MarkPrice      float64 `json:"mark_price"`
 	} `json:"positions"`
+}
+
+// PortfolioMarginCallStatus holds margin call status for a given
+type PortfolioMarginCallStatus struct {
+	PortfolioID        string `json:"portfolio_id"`
+	Status             string `json:"status"`
+	MarginCallDuration string `json:"margin_call_duration"`
+	ActiveMarginCall   struct {
+		StartTime        time.Time `json:"start_time"`
+		ExpiryTime       time.Time `json:"expiry_time"`
+		MarginCallAmount float64   `json:"margin_call_amount"`
+		USDCRequirement  float64   `json:"usdc_requirement"`
+		CureRequirements struct {
+			InitialMarginDeficit bool `json:"initial_margin_deficit"`
+			USDCRequirement      bool `json:"usdc_requirement"`
+		} `json:"cure_requirements"`
+	} `json:"active_margin_call"`
 }
 
 // PortfoliosMaxFundTransfer holds a maximum fund transfer between portfolios
@@ -454,6 +473,14 @@ type PortfolioPosition struct {
 	MarkPrice                 float64 `json:"mark_price"`
 }
 
+// OpenPortfolioPositions holds an open positions for a specific portfolio
+type OpenPortfolioPositions struct {
+	Symbol                    string  `json:"symbol"`
+	InstrumentID              string  `json:"instrument_id"`
+	InstrumentUUID            string  `json:"instrument_uuid"`
+	OpenPositionNotionalLimit float64 `json:"open_position_notional_limit"`
+}
+
 // PortfolioFill represents a portfolio fill information.
 type PortfolioFill struct {
 	Pagination struct {
@@ -462,6 +489,9 @@ type PortfolioFill struct {
 		ResultOffset int64     `json:"result_offset"`
 	} `json:"pagination"`
 	Results []struct {
+		PortfolioID    string            `json:"portfolio_id"`
+		PortfolioUUID  string            `json:"portfolio_uuid"`
+		PortfolioName  string            `json:"portfolio_name"`
 		FillID         string            `json:"fill_id"`
 		OrderID        string            `json:"order_id"`
 		InstrumentID   string            `json:"instrument_id"`
@@ -486,6 +516,8 @@ type PortfolioFill struct {
 		FeeAsset       string            `json:"fee_asset"`
 		OrderStatus    string            `json:"order_status"`
 		EventTime      time.Time         `json:"event_time"`
+		Source         string            `json:"source"`
+		ExecutionVenue string            `json:"execution_venue"`
 	} `json:"results"`
 }
 

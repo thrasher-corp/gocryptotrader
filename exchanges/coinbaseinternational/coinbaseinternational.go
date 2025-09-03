@@ -449,12 +449,21 @@ func (e *Exchange) GetUserPortfolio(ctx context.Context, portfolioID string) (*P
 }
 
 // PatchPortfolio update parameters for existing portfolio
-func (e *Exchange) PatchPortfolio(ctx context.Context, arg *PatchPortfolioParams) (*PortfolioInfo, error) {
+func (e *Exchange) PatchPortfolio(ctx context.Context, portfolioID, portfolioUUID string, arg *PatchPortfolioParams) (*PortfolioInfo, error) {
 	if arg == nil || *arg == (PatchPortfolioParams{}) {
 		return nil, common.ErrEmptyParams
 	}
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = portfolios + portfolioUUID
+	case portfolioID != "":
+		path = portfolios + portfolioID
+	default:
+		return nil, errMissingPortfolioID
+	}
 	var resp *PortfolioInfo
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPatch, "portfolios", nil, arg, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPatch, path, nil, arg, &resp, true)
 }
 
 // UpdatePortfolio update existing user portfolio
@@ -484,19 +493,34 @@ func (e *Exchange) GetPortfolioDetails(ctx context.Context, portfolioID, portfol
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, portfolios+pID+"/detail", nil, nil, &resp, true)
 }
 
+// GetPortfolioMarginCallStatus returns the margin call status for a given portfolio
+func (e *Exchange) GetPortfolioMarginCallStatus(ctx context.Context, portfolioUUID, portfolioID string) (*PortfolioMarginCallStatus, error) {
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = portfolios + portfolioUUID
+	case portfolioID != "":
+		path = portfolios + portfolioID
+	default:
+		return nil, errMissingPortfolioID
+	}
+	var resp *PortfolioMarginCallStatus
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/margin-call-status", nil, nil, &resp, true)
+}
+
 // GetPortfolioSummary retrieves the high level overview of a portfolio.
 func (e *Exchange) GetPortfolioSummary(ctx context.Context, portfolioUUID, portfolioID string) (*PortfolioSummary, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
-		path = portfolios + portfolioUUID + "/summary"
+		path = portfolios + portfolioUUID
 	case portfolioID != "":
-		path = portfolios + portfolioID + "/summary"
+		path = portfolios + portfolioID
 	default:
 		return nil, errMissingPortfolioID
 	}
 	var resp *PortfolioSummary
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/summary", nil, nil, &resp, true)
 }
 
 // ListPortfolioBalances returns all of the balances for a given portfolio.
@@ -605,8 +629,8 @@ func (e *Exchange) AcquireRepayLoan(ctx context.Context, portfolioUUID, portfoli
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path+"/loans/"+asset.String(), nil, arg, &resp, true)
 }
 
-// PreviewLoanUpdate preview acquire or repay loan for a given portfolio and asset.
-func (e *Exchange) PreviewLoanUpdate(ctx context.Context, portfolioUUID, portfolioID string, asset currency.Code, arg *LoanActionAmountParam) (*LoanUpdate, error) {
+// PreviewLoanUpdate preview acquire or repay loan for a given portfolio and asset
+func (e *Exchange) PreviewLoanUpdate(ctx context.Context, portfolioUUID, portfolioID string, ccy currency.Code, arg *LoanActionAmountParam) (*LoanUpdate, error) {
 	if arg == nil || *arg == (LoanActionAmountParam{}) {
 		return nil, common.ErrEmptyParams
 	}
@@ -619,11 +643,11 @@ func (e *Exchange) PreviewLoanUpdate(ctx context.Context, portfolioUUID, portfol
 	default:
 		return nil, errMissingPortfolioID
 	}
-	if asset.IsEmpty() {
+	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp *LoanUpdate
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path+"/loans/"+asset.String()+"/preview", nil, arg, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path+"/loans/"+ccy.String()+"/preview", nil, arg, &resp, true)
 }
 
 // ViewMaxLoanAvailability view the maximum amount of loan that could be acquired now
@@ -677,6 +701,39 @@ func (e *Exchange) GetPortfolioInstrumentPosition(ctx context.Context, portfolio
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/positions/"+instrument.String(), nil, nil, &resp, true)
 }
 
+// GetOpenPositionLimitsForPortfolioInstrument retrieves the position limits for a given portfolio and symbol
+func (e *Exchange) GetOpenPositionLimitsForPortfolioInstrument(ctx context.Context, portfolioUUID, portfolioID string, instrument currency.Pair) (*OpenPortfolioPositions, error) {
+	if instrument.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = portfolios + portfolioUUID
+	case portfolioID != "":
+		path = portfolios + portfolioID
+	default:
+		return nil, errMissingPortfolioID
+	}
+	var resp *OpenPortfolioPositions
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/position-limits/positions/"+instrument.String(), nil, nil, &resp, true)
+}
+
+// GetOpenPositionLimitsForAllInstruments retrieves position limits for all positions a given portfolio currently has or has opened in the past
+func (e *Exchange) GetOpenPositionLimitsForAllInstruments(ctx context.Context, portfolioUUID, portfolioID string) ([]OpenPortfolioPositions, error) {
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = portfolios + portfolioUUID
+	case portfolioID != "":
+		path = portfolios + portfolioID
+	default:
+		return nil, errMissingPortfolioID
+	}
+	var resp []OpenPortfolioPositions
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/position-limits/positions", nil, nil, &resp, true)
+}
+
 // GetTotalOpenPositionLimitPortfolio retrieves the total open position limit across instruments for a given portfolio.
 func (e *Exchange) GetTotalOpenPositionLimitPortfolio(ctx context.Context, portfolioID string) (*PortfolioPositionLimit, error) {
 	if portfolioID == "" {
@@ -719,14 +776,14 @@ func (e *Exchange) ListPortfolioFills(ctx context.Context, portfolioUUID, portfo
 	var path string
 	switch {
 	case portfolioUUID != "":
-		path = portfolios + portfolioUUID + "/fills"
+		path = portfolios + portfolioUUID
 	case portfolioID != "":
-		path = portfolios + portfolioID + "/fills"
+		path = portfolios + portfolioID
 	default:
 		return nil, errMissingPortfolioID
 	}
 	var resp []PortfolioFill
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/fills", nil, nil, &resp, true)
 }
 
 // EnableDisablePortfolioCrossCollateral enable or disable the cross collateral feature for the portfolio, which allows the portfolio to use non-USDC assets as collateral for margin trading.
@@ -1091,7 +1148,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.02 * price * amount
 }
 
-// asssetToInstrumentType returns a string representation of the two supported asset types.
+// asssetToInstrumentType returns a string representation of the two supported asset types
 func asssetToInstrumentType(assetItem asset.Item) string {
 	switch assetItem {
 	case asset.Spot:

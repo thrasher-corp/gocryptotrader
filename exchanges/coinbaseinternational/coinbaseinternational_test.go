@@ -411,11 +411,14 @@ func TestGetUserPortfolio(t *testing.T) {
 
 func TestPatchPortfolio(t *testing.T) {
 	t.Parallel()
-	_, err := e.PatchPortfolio(t.Context(), nil)
+	_, err := e.PatchPortfolio(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", nil)
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
+	_, err = e.PatchPortfolio(t.Context(), "", "", &PatchPortfolioParams{AutoMarginEnabled: true})
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.PatchPortfolio(t.Context(), &PatchPortfolioParams{AutoMarginEnabled: true, PortfolioName: "new-portfolio"})
+	result, err := e.PatchPortfolio(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", &PatchPortfolioParams{AutoMarginEnabled: true, PortfolioName: "new-portfolio"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -438,6 +441,17 @@ func TestGetPortfolioDetails(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetPortfolioDetails(t.Context(), "", "1234")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPortfolioMarginCallStatus(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetPortfolioMarginCallStatus(context.Background(), "", "")
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetPortfolioMarginCallStatus(t.Context(), "", "892e8c7c-e979-4cad-b61b-55a197932cf1")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -583,6 +597,30 @@ func TestGetPortfolioInstrumentPosition(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetPortfolioInstrumentPosition(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", perpetualTP)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOpenPositionLimitsForPortfolioInstrument(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetOpenPositionLimitsForPortfolioInstrument(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = e.GetOpenPositionLimitsForPortfolioInstrument(t.Context(), "", "", perpetualTP)
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetOpenPositionLimitsForPortfolioInstrument(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", perpetualTP)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOpenPositionLimitsForAllInstruments(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetOpenPositionLimitsForAllInstruments(t.Context(), "", "")
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetOpenPositionLimitsForAllInstruments(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
