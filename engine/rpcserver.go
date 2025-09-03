@@ -1442,7 +1442,11 @@ func (s *RPCServer) CancelAllOrders(ctx context.Context, r *gctrpc.CancelAllOrde
 		return nil, err
 	}
 
-	return &gctrpc.CancelAllOrdersResponse{Count: int64(len(resp.Status))}, nil
+	cancelledOrders := new(gctrpc.Orders)
+	cancelledOrders.Exchange = r.Exchange
+	cancelledOrders.OrderStatus = resp.Status
+
+	return &gctrpc.CancelAllOrdersResponse{Orders: []*gctrpc.Orders{cancelledOrders}, Count: int64(len(resp.Status))}, nil
 }
 
 // ModifyOrder modifies an existing order if it exists
