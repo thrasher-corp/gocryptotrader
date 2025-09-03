@@ -79,7 +79,7 @@ func TestProcessSpotBalances(t *testing.T) {
 			continue
 		}
 		require.NoError(t, err, "processSpotBalances must not error")
-		checkAccountChange(t, ctx, e, &tc)
+		checkAccountChange(ctx, t, e, &tc)
 	}
 }
 
@@ -140,7 +140,7 @@ func TestProcessBalancePushData(t *testing.T) {
 		}
 		require.NoError(t, err, "processBalancePushData must not error")
 		require.Len(t, e.Websocket.DataHandler, 1)
-		checkAccountChange(t, ctx, e, &tc)
+		checkAccountChange(ctx, t, e, &tc)
 	}
 }
 
