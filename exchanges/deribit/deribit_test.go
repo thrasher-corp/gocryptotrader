@@ -3807,9 +3807,8 @@ func TestWSRetrieveCombos(t *testing.T) {
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSDT(),
-		IncludePredictedRate: true,
+		Asset: asset.USDTMarginedFutures,
+		Pair:  currency.NewBTCUSDT(),
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	result, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{

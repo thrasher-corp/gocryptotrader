@@ -1110,14 +1110,12 @@ message GetManagedPositionRequest {
   bool include_full_order_data = 4;
   bool get_funding_payments = 5;
   bool include_full_funding_rates = 6;
-  bool include_predicted_rate = 7;
 }
 
 message GetAllManagedPositionsRequest {
   bool include_full_order_data = 1;
   bool get_funding_payments = 2;
   bool include_full_funding_rates = 3;
-  bool include_predicted_rate = 4;
 }
 
 message GetManagedPositionsResponse {

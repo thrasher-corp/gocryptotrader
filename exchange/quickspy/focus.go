@@ -2,6 +2,7 @@ package quickspy
 
 import (
 	"errors"
+	"slices"
 	"sync"
 	"time"
 
@@ -28,6 +29,7 @@ type FocusData struct {
 // Focus based errors
 var (
 	ErrUnsetFocusType                  = errors.New("focus type is unset")
+	ErrUnsupportedFocusType            = errors.New("unsupported focus type")
 	ErrInvalidRESTPollTime             = errors.New("invalid REST poll time")
 	ErrInvalidAssetForFocusType        = errors.New("invalid asset for focus type")
 	ErrCredentialsRequiredForFocusType = errors.New("credentials required for this focus type")
@@ -66,6 +68,7 @@ func (f *FocusData) Init() {
 }
 
 // Validate checks if the FocusData instance is good to go
+// It is assumed that this will be called before use rather than willy-nilly
 func (f *FocusData) Validate(k *CredentialsKey) error {
 	if err := common.NilGuard(f); err != nil {
 		return err
@@ -81,14 +84,8 @@ func (f *FocusData) Validate(k *CredentialsKey) error {
 	}
 	// lazy initialisation of mutex and channels
 	// we could error and cause a fuss because a silly user didn't call init, but what good is it to be annoying?
-	if f.m == nil {
-		f.m = new(sync.RWMutex)
-	}
-	if f.HasBeenSuccessfulChan == nil {
-		f.HasBeenSuccessfulChan = make(chan any)
-	}
-	if f.Stream == nil {
-		f.Stream = make(chan any)
+	if f.m == nil || f.HasBeenSuccessfulChan == nil || f.Stream == nil {
+		f.Init()
 	}
 	if k.Credentials != nil && k.Credentials.IsEmpty() {
 		return ErrNoCredentials
@@ -99,11 +96,11 @@ func (f *FocusData) Validate(k *CredentialsKey) error {
 			return ErrInvalidAssetForFocusType
 		}
 	}
-	if k.Credentials == nil {
-		switch f.Type {
-		case AccountHoldingsFocusType, ActiveOrdersFocusType:
-			return ErrCredentialsRequiredForFocusType
-		}
+	if slices.Contains(authFocusList, f.Type) && k.Credentials == nil {
+		return ErrCredentialsRequiredForFocusType
+	}
+	if slices.Contains(futuresOnlyFocusList, f.Type) && !k.ExchangeAssetPair.Asset.IsFutures() {
+		return ErrInvalidAssetForFocusType
 	}
 	return nil
 }
@@ -148,7 +145,7 @@ const (
 	OrderPlacementFocusType
 	KlineFocusType
 	ContractFocusType
-	OrderExecutionFocusType
+	OrderLimitsFocusType
 	URLFocusType
 )
 
@@ -160,18 +157,16 @@ var focusList = []FocusType{
 	TradesFocusType,
 	AccountHoldingsFocusType,
 	ActiveOrdersFocusType,
-	OrderPlacementFocusType,
 	KlineFocusType,
 	ContractFocusType,
-	OrderExecutionFocusType,
+	OrderLimitsFocusType,
 	URLFocusType,
 }
 
 var authFocusList = []FocusType{
 	AccountHoldingsFocusType,
 	ActiveOrdersFocusType,
-	OrderPlacementFocusType,
-	OrderExecutionFocusType,
+	OrderLimitsFocusType,
 }
 
 var futuresOnlyFocusList = []FocusType{
@@ -213,8 +208,8 @@ func (f FocusType) String() string {
 		return "KlineFocusType"
 	case ContractFocusType:
 		return "ContractFocusType"
-	case OrderExecutionFocusType:
-		return "OrderExecutionFocusType"
+	case OrderLimitsFocusType:
+		return "OrderLimitsFocusType"
 	case URLFocusType:
 		return "URLFocusType"
 	default:

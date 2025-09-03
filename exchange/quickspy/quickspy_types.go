@@ -99,8 +99,6 @@ type ExportedData struct {
 	IndexPrice             float64               `json:"indexPrice,omitzero"`
 	MarkPrice              float64               `json:"markPrice,omitzero"`
 	Volume                 float64               `json:"volume,omitzero"`
-	Spread                 float64               `json:"spread,omitzero"`
-	SpreadPercent          float64               `json:"spreadPercent,omitzero"`
 	FundingRate            float64               `json:"fundingRate,omitzero"`
 	EstimatedFundingRate   float64               `json:"estimatedFundingRate,omitzero"`
 	LastTradePrice         float64               `json:"lastTradePrice,omitzero"`

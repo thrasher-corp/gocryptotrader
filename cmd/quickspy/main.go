@@ -401,7 +401,7 @@ func parseFocusType(s string) (quickspy.FocusType, bool) {
 	case "activeorders", "orders":
 		return quickspy.ActiveOrdersFocusType, false
 	case "orderexecution", "executionlimits", "limits":
-		return quickspy.OrderExecutionFocusType, false
+		return quickspy.OrderLimitsFocusType, false
 	case "url", "tradeurl", "trade_url":
 		return quickspy.URLFocusType, false
 	case "contract":

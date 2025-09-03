@@ -42,7 +42,7 @@ func TestParseFocusType(t *testing.T) {
 		{"fundingrate", quickspy.FundingRateFocusType, false},
 		{"accountholdings", quickspy.AccountHoldingsFocusType, false},
 		{"activeorders", quickspy.ActiveOrdersFocusType, false},
-		{"orderexecution", quickspy.OrderExecutionFocusType, false},
+		{"orderexecution", quickspy.OrderLimitsFocusType, false},
 		{"url", quickspy.URLFocusType, false},
 		{"contract", quickspy.ContractFocusType, false},
 		{"unknown", quickspy.UnsetFocusType, false},

@@ -114,7 +114,7 @@ func TestRequiresAuth(t *testing.T) {
 		{KlineFocusType, false},
 		{ContractFocusType, false},
 		{OpenInterestFocusType, false},
-		{OrderExecutionFocusType, false},
+		{OrderLimitsFocusType, false},
 		{URLFocusType, false},
 	}
 	for _, tc := range cases {
@@ -142,7 +142,7 @@ func TestFocusType_String(t *testing.T) {
 		OrderPlacementFocusType:  "OrderPlacementFocusType",
 		KlineFocusType:           "KlineFocusType",
 		ContractFocusType:        "ContractFocusType",
-		OrderExecutionFocusType:  "OrderExecutionFocusType",
+		OrderLimitsFocusType:     "OrderLimitsFocusType",
 		URLFocusType:             "URLFocusType",
 		FocusType(999):           "Unset/Unknown FocusType",
 	}

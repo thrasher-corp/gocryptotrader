@@ -569,13 +569,11 @@ func (q *QuickSpy) handleFocusType(focusType FocusType, focus *FocusData, timer 
 		err = q.handleOrdersFocus(focus)
 	case AccountHoldingsFocusType:
 		err = q.handleAccountHoldingsFocus(focus)
-	case OrderPlacementFocusType:
-		// No implementation provided in the original code
 	case OrderBookFocusType:
 		err = q.handleOrderBookFocus(focus)
 	case TradesFocusType:
 		err = q.handleTradesFocus(focus)
-	case OrderExecutionFocusType:
+	case OrderLimitsFocusType:
 		err = q.handleOrderExecutionFocus(focus)
 	case FundingRateFocusType:
 		err = q.handleFundingRateFocus(focus)
@@ -805,9 +803,8 @@ func (q *QuickSpy) handleFundingRateFocus(focus *FocusData) error {
 		return nil
 	}
 	fr, err := q.Exch.GetLatestFundingRates(q.credContext, &fundingrate.LatestRateRequest{
-		Asset:                q.Key.ExchangeAssetPair.Asset,
-		Pair:                 q.Key.ExchangeAssetPair.Pair(),
-		IncludePredictedRate: true,
+		Asset: q.Key.ExchangeAssetPair.Asset,
+		Pair:  q.Key.ExchangeAssetPair.Pair(),
 	})
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.Key.ExchangeAssetPair, focus.Type.String(), err)
@@ -859,7 +856,7 @@ func (d *Data) Dump(k key.ExchangeAssetPair, hasCredentials bool) (*ExportedData
 	}
 	var (
 		lastPrice, indexPrice, markPrice, volume,
-		spread, spreadPercent, fundingRate, estimatedFundingRate,
+		fundingRate, estimatedFundingRate,
 		lastTradePrice, lastTradeSize float64
 		bids, asks orderbook.Levels
 	)
@@ -907,8 +904,6 @@ func (d *Data) Dump(k key.ExchangeAssetPair, hasCredentials bool) (*ExportedData
 		IndexPrice:             indexPrice,
 		MarkPrice:              markPrice,
 		Volume:                 volume,
-		Spread:                 spread,
-		SpreadPercent:          spreadPercent,
 		FundingRate:            fundingRate,
 		EstimatedFundingRate:   estimatedFundingRate,
 		LastTradePrice:         lastTradePrice,
@@ -969,10 +964,10 @@ func (q *QuickSpy) LatestData(focusType FocusType) (any, error) {
 		return q.Data.Contract, nil
 	case URLFocusType:
 		return q.Data.URL, nil
-	case OrderExecutionFocusType:
+	case OrderLimitsFocusType:
 		return q.Data.ExecutionLimits, nil
 	default:
-		return nil, fmt.Errorf("unsupported focus: %s", focusType.String())
+		return nil, fmt.Errorf("%w %q", ErrUnsupportedFocusType, focusType.String())
 	}
 }
 
