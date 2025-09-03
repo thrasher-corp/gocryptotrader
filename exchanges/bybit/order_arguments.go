@@ -40,13 +40,8 @@ func (e *Exchange) DeriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		}
 	}
 
-	orderFilter := "Order"
-	if s.RiskManagementModes.TakeProfit.Price != 0 ||
-		s.RiskManagementModes.TakeProfit.LimitPrice != 0 ||
-		s.RiskManagementModes.StopLoss.Price != 0 ||
-		s.RiskManagementModes.StopLoss.LimitPrice != 0 {
-		orderFilter = ""
-	} else if s.TriggerPrice != 0 {
+	orderFilter := "" // If "Order" is not passed, "Order" by default.
+	if s.AssetType == asset.Spot && s.TriggerPrice != 0 {
 		orderFilter = "tpslOrder"
 	}
 
