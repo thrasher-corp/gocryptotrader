@@ -144,7 +144,7 @@ func TestProcessBalancePushData(t *testing.T) {
 	}
 }
 
-func checkAccountChange(t *testing.T, ctx context.Context, exch *Exchange, tc *websocketBalancesTest) {
+func checkAccountChange(ctx context.Context, t *testing.T, exch *Exchange, tc *websocketBalancesTest) {
 	t.Helper()
 
 	require.Len(t, exch.Websocket.DataHandler, 1)
