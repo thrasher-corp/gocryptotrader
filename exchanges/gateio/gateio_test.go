@@ -3316,7 +3316,11 @@ func TestToExchangeTIF(t *testing.T) {
 		t.Run(fmt.Sprintf("TIF:%q Price:'%v'", tc.tif, tc.price), func(t *testing.T) {
 			t.Parallel()
 			got, err := toExchangeTIF(tc.tif, tc.price)
-			require.ErrorIs(t, err, tc.err)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err)
+			} else {
+				require.NoError(t, err)
+			}
 			require.Equal(t, tc.expected, got)
 		})
 	}
