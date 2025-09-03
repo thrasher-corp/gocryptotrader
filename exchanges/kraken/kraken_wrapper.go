@@ -828,7 +828,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 				return resp, err
 			}
 			for i := range cancel.Count {
-				resp.Load(fmt.Sprintf("Unknown:%d", i), "cancelled")
+				resp.Load(fmt.Sprintf("Unknown:%d", i+1), "cancelled")
 			}
 			return resp, err
 		}
