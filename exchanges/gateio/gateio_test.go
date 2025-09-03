@@ -3558,3 +3558,13 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	_, err = e.WebsocketSubmitOrders(request.WithVerbose(t.Context()), []*order.Submit{sub, &cpy})
 	require.NoError(t, err)
 }
+
+func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
+	t.Parallel()
+	var ob OrderbookLevels
+	require.NoError(t, ob.UnmarshalJSON([]byte(`[{"p":"123.45","s":"0.001"}]`)))
+	assert.Equal(t, 123.45, ob[0].Price)
+	assert.Equal(t, 0.001, ob[0].Amount)
+
+	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
+}
