@@ -79,6 +79,7 @@ type InstrumentInfo struct {
 	DefaultImf                float64             `json:"default_imf,omitempty"`
 	BaseAssetMultiplier       string              `json:"base_asset_multiplier"`
 	UnderlyingType            string              `json:"underlying_type"`
+	RFQMakerFeeRate           float64             `json:"rfq_maker_fee_rate"`
 }
 
 // ContractQuoteDetail represents a contract quote detail
@@ -214,69 +215,47 @@ type QuoteInformation struct {
 
 // OrderRequestParams represents a request parameter for creating order.
 type OrderRequestParams struct {
-	ClientOrderID string  `json:"client_order_id"`
-	Side          string  `json:"side,omitempty"`
-	BaseSize      float64 `json:"size,omitempty,string"`
-	TimeInForce   string  `json:"tif,omitempty"`        // Possible values: [GTC, IOC, GTT]
-	Instrument    string  `json:"instrument,omitempty"` // The name, ID, or UUID of the instrument the order wants to transact
-	OrderType     string  `json:"type,omitempty"`
-	Price         float64 `json:"price,omitempty,string"`
-	StopPrice     float64 `json:"stop_price,omitempty,string"`
-	ExpireTime    string  `json:"expire_time,omitempty"` // e.g., 2023-03-16T23:59:53Z
-	Portfolio     string  `json:"portfolio,omitempty"`
-	User          string  `json:"user,omitempty"`     // The ID or UUID of the user the order belongs to (only used and required for brokers)
-	STPMode       string  `json:"stp_mode,omitempty"` // Possible values: [NONE, AGGRESSING, BOTH]
-	PostOnly      bool    `json:"post_only,omitempty"`
+	ClientOrderID  string  `json:"client_order_id"`
+	Side           string  `json:"side,omitempty"`
+	BaseSize       float64 `json:"size,omitempty,string"`
+	TimeInForce    string  `json:"tif,omitempty"`        // Possible values: [GTC, IOC, GTT]
+	Instrument     string  `json:"instrument,omitempty"` // The name, ID, or UUID of the instrument the order wants to transact
+	OrderType      string  `json:"type,omitempty"`
+	Price          float64 `json:"price,omitempty,string"`
+	StopPrice      float64 `json:"stop_price,omitempty,string"`
+	StopLimitPrice float64 `json:"stop_limit_price,omitempty"`
+	ExpireTime     string  `json:"expire_time,omitempty"` // e.g., 2023-03-16T23:59:53Z
+	Portfolio      string  `json:"portfolio,omitempty"`
+	User           string  `json:"user,omitempty"`     // The ID or UUID of the user the order belongs to (only used and required for brokers)
+	STPMode        string  `json:"stp_mode,omitempty"` // Possible values: [NONE, AGGRESSING, BOTH]
+	PostOnly       bool    `json:"post_only,omitempty"`
+	CloseOnly      bool    `json:"close_only,omitempty"`
+	AlgoStrategy   string  `json:"algo_strategy,omitempty"`
 }
 
-// TradeOrder represents a single order
-type TradeOrder struct {
-	OrderID        int64             `json:"order_id"`
-	ClientOrderID  string            `json:"client_order_id"`
-	Side           string            `json:"side"`
-	InstrumentID   int64             `json:"instrument_id"`
-	InstrumentUUID string            `json:"instrument_uuid"`
-	Symbol         string            `json:"symbol"`
-	PortfolioID    int64             `json:"portfolio_id"`
-	PortfolioUUID  string            `json:"portfolio_uuid"`
-	Type           string            `json:"type"`
-	Price          float64           `json:"price"`
-	StopPrice      float64           `json:"stop_price"`
-	Size           float64           `json:"size"`
-	TimeInForce    order.TimeInForce `json:"tif"`
-	ExpireTime     time.Time         `json:"expire_time"`
-	StpMode        string            `json:"stp_mode"`
-	EventType      string            `json:"event_type"`
-	OrderStatus    string            `json:"order_status"`
-	LeavesQty      types.Number      `json:"leaves_qty"`
-	ExecQty        types.Number      `json:"exec_qty"`
-	AvgPrice       types.Number      `json:"avg_price"`
-	Message        string            `json:"message"`
-	Fee            types.Number      `json:"fee"`
-}
-
-// OrderItemDetail represents an open order detail.
-type OrderItemDetail struct {
+// Orders represents an open order detail.
+type Orders struct {
 	Pagination struct {
 		RefDatetime  time.Time `json:"ref_datetime"`
 		ResultLimit  int64     `json:"result_limit"`
 		ResultOffset int64     `json:"result_offset"`
 	} `json:"pagination"`
-	Results []OrderItem `json:"results"`
+	Results []OrderDetail `json:"results"`
 }
 
 // ModifyOrderParam holds update parameters to modify an order.
 type ModifyOrderParam struct {
-	ClientOrderID string  `json:"client_order_id,omitempty"`
-	Portfolio     string  `json:"portfolio,omitempty"`
-	Price         float64 `json:"price,omitempty,string"`
-	StopPrice     float64 `json:"stop_price,omitempty,string"`
-	Size          float64 `json:"size,omitempty,string"`
+	ClientOrderID  string  `json:"client_order_id,omitempty"`
+	Portfolio      string  `json:"portfolio,omitempty"`
+	Price          float64 `json:"price,omitempty,string"`
+	StopPrice      float64 `json:"stop_price,omitempty,string"`
+	Size           float64 `json:"size,omitempty,string"`
+	StopLimitPrice float64 `json:"stop_limit_price,omitempty,string"`
 }
 
-// OrderItem represents a single order item.
-type OrderItem struct {
-	OrderID        string       `json:"order_id"`
+// OrderDetail represents a single order item.
+type OrderDetail struct {
+	OrderID        types.Number `json:"order_id"`
 	ClientOrderID  string       `json:"client_order_id"`
 	Side           string       `json:"side"`
 	InstrumentID   string       `json:"instrument_id"`
@@ -298,23 +277,31 @@ type OrderItem struct {
 	AveragePrice   types.Number `json:"avg_price"`
 	Message        string       `json:"message"`
 	Fee            types.Number `json:"fee"`
+	StopLimitPrice float64      `json:"stop_limit_price"`
+	EventTime      time.Time    `json:"event_time"`
+	SubmitTime     time.Time    `json:"submit_time"`
+	PostOnly       bool         `json:"post_only"`
+	CloseOnly      bool         `json:"close_only"`
+	AlgoStrategy   string       `json:"algo_strategy"`
+	Text           string       `json:"text"`
 }
 
-// PortfolioItem represents a user portfolio item
+// PortfolioInfo represents a user portfolio item
 // and transaction fee information.
-type PortfolioItem struct {
-	PortfolioID             string       `json:"portfolio_id"`
-	PortfolioUUID           string       `json:"portfolio_uuid"`
-	Name                    string       `json:"name"`
-	UserUUID                string       `json:"user_uuid"`
-	MakerFeeRate            types.Number `json:"maker_fee_rate"`
-	TakerFeeRate            types.Number `json:"taker_fee_rate"`
-	TradingLock             bool         `json:"trading_lock"`
-	BorrowDisabled          bool         `json:"borrow_disabled"`
-	IsLSP                   bool         `json:"is_lsp"` // Indicates if the portfolio is setup to take liquidation assignments
-	IsDefault               string       `json:"is_default"`
-	CrossCollateralEnabled  string       `json:"cross_collateral_enabled"`
-	PreLaunchTradingEnabled string       `json:"pre_launch_trading_enabled"`
+type PortfolioInfo struct {
+	PortfolioID                string       `json:"portfolio_id"`
+	PortfolioUUID              string       `json:"portfolio_uuid"`
+	Name                       string       `json:"name"`
+	UserUUID                   string       `json:"user_uuid"`
+	MakerFeeRate               types.Number `json:"maker_fee_rate"`
+	TakerFeeRate               types.Number `json:"taker_fee_rate"`
+	TradingLock                bool         `json:"trading_lock"`
+	BorrowDisabled             bool         `json:"borrow_disabled"`
+	IsLSP                      bool         `json:"is_lsp"` // Indicates if the portfolio is setup to take liquidation assignments
+	IsDefault                  string       `json:"is_default"`
+	CrossCollateralEnabled     string       `json:"cross_collateral_enabled"`
+	PreLaunchTradingEnabled    string       `json:"pre_launch_trading_enabled"`
+	DisableOverdraftProtection bool         `json:"disable_overdraft_protection"`
 }
 
 // PatchPortfolioParams represents a request body for patching a portfolio
@@ -365,6 +352,11 @@ type PortfolioDetail struct {
 		UnrealizedPnl  float64 `json:"unrealized_pnl"`
 		MarkPrice      float64 `json:"mark_price"`
 	} `json:"positions"`
+}
+
+// PortfoliosMaxFundTransfer holds a maximum fund transfer between portfolios
+type PortfoliosMaxFundTransfer struct {
+	MaxPortfolioTransferAmount types.Number `json:"max_portfolio_transfer_amount"`
 }
 
 // PortfolioLoanDetail represents a portfolio loan detail

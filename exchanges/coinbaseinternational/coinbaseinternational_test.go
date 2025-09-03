@@ -204,6 +204,9 @@ func TestGetDailyTradingVolumes(t *testing.T) {
 	_, err := e.GetDailyTradingVolumes(t.Context(), []string{}, 10, 10, time.Now().Add(-time.Hour*100), true)
 	require.ErrorIs(t, err, errInstrumentIDRequired)
 
+	_, err = e.GetDailyTradingVolumes(t.Context(), []string{"BTC-PERP", ""}, 10, 10, time.Now().Add(-time.Hour*100), true)
+	require.ErrorIs(t, err, errInstrumentIDRequired)
+
 	result, err := e.GetDailyTradingVolumes(t.Context(), []string{"BTC-PERP"}, 10, 1, time.Now().Add(-time.Hour*100), true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -319,7 +322,7 @@ func TestCreateOrder(t *testing.T) {
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetOpenOrders(t.Context(), "", "", "BTC-PERP", "", "", time.Time{}, 0, 0)
+	result, err := e.GetOpenOrders(t.Context(), "", "", "BTC-PERP", "PERPETUAL_FUTURE", "", "", "LIMIT", time.Time{}, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -386,8 +389,11 @@ func TestListAllUserPortfolios(t *testing.T) {
 
 func TestCreatePortfolio(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.CreatePortfolio(t.Context(), "")
+	_, err := e.CreatePortfolio(t.Context(), "")
+	require.ErrorIs(t, err, errMissingPortfolioName)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.CreatePortfolio(t.Context(), "altman")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -472,6 +478,20 @@ func TestGetPortfolioAssetBalance(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetFundTransferLimitBetweenPortfolio(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetFundTransferLimitBetweenPortfolio(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetFundTransferLimitBetweenPortfolio(t.Context(), "", currency.BTC)
+	require.ErrorIs(t, err, errMissingPortfolioID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetFundTransferLimitBetweenPortfolio(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetActiveLoansForPortfolio(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetActiveLoansForPortfolio(t.Context(), "", "")
@@ -500,6 +520,10 @@ func TestAcquireRepayLoan(t *testing.T) {
 	t.Parallel()
 	_, err := e.AcquireRepayLoan(t.Context(), "", "", currency.BTC, &LoanActionAmountParam{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = e.AcquireRepayLoan(t.Context(), "", "", currency.BTC, &LoanActionAmountParam{Amount: 0.1})
+	require.ErrorIs(t, err, errLoanActionMissing)
+	_, err = e.AcquireRepayLoan(t.Context(), "", "", currency.BTC, &LoanActionAmountParam{Action: "ACQUIRE"})
+	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
 	_, err = e.AcquireRepayLoan(t.Context(), "", "", currency.BTC, &LoanActionAmountParam{Action: "ACQUIRE", Amount: 0.1})
 	require.ErrorIs(t, err, errMissingPortfolioID)
 	_, err = e.AcquireRepayLoan(t.Context(), "", "892e8c7c-e979-4cad-b61b-55a197932cf1", currency.EMPTYCODE, &LoanActionAmountParam{Action: "ACQUIRE", Amount: 0.1})

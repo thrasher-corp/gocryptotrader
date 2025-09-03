@@ -482,7 +482,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	return s.DeriveSubmitResponse(strconv.FormatInt(response.OrderID, 10))
+	return s.DeriveSubmitResponse(strconv.FormatInt(response.OrderID.Int64(), 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -512,7 +512,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if err != nil {
 		return nil, err
 	}
-	resp.OrderID = response.OrderID
+	resp.OrderID = strconv.FormatInt(response.OrderID.Int64(), 10)
 	return resp, nil
 }
 
@@ -552,7 +552,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, action *order.Cancel) (o
 		Count:  int64(len(canceled)),
 	}
 	for a := range canceled {
-		response.Status[canceled[a].OrderID] = canceled[a].OrderStatus
+		response.Status[strconv.FormatInt(canceled[a].OrderID.Int64(), 10)] = canceled[a].OrderStatus
 	}
 	return response, nil
 }
@@ -595,7 +595,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		ExecutedAmount:       resp.ExecQty.Float64(),
 		RemainingAmount:      resp.Size - resp.ExecQty.Float64(),
 		Fee:                  resp.Fee.Float64(),
-		OrderID:              resp.OrderID,
+		OrderID:              strconv.FormatInt(resp.OrderID.Int64(), 10),
 		ClientOrderID:        resp.ClientOrderID,
 		Type:                 oType,
 		Side:                 oSide,
@@ -665,7 +665,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 	if len(getOrdersRequest.Pairs) == 1 {
 		instrument = getOrdersRequest.Pairs[0].String()
 	}
-	response, err := e.GetOpenOrders(ctx, "", "", instrument, "", "", getOrdersRequest.StartTime, 0, 0)
+	response, err := e.GetOpenOrders(ctx, "", "", instrument, asssetToInstrumentType(getOrdersRequest.AssetType), "", "", "LIMIT", getOrdersRequest.StartTime, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -702,7 +702,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			AverageExecutedPrice: response.Results[x].AveragePrice.Float64(),
 			QuoteAmount:          response.Results[x].Size * response.Results[x].AveragePrice.Float64(),
 			RemainingAmount:      response.Results[x].Size - response.Results[x].ExecQty.Float64(),
-			OrderID:              response.Results[x].OrderID,
+			OrderID:              strconv.FormatInt(response.Results[x].OrderID.Int64(), 10),
 			ExecutedAmount:       response.Results[x].ExecQty.Float64(),
 			Fee:                  response.Results[x].Fee.Float64(),
 			ClientOrderID:        response.Results[x].ClientOrderID,
