@@ -1017,7 +1017,7 @@ func getWSPingHandler(channel string) (websocket.PingHandler, error) {
 	}
 	return websocket.PingHandler{
 		Websocket:   true,
-		Delay:       time.Second * 15, // There is no concrete delay value specified in docs but this exhibits reasonable behavior
+		Delay:       time.Second * 10,  // Arbitrary reasonable delay
 		Message:     pingMessage,
 		MessageType: gws.TextMessage,
 	}, nil
