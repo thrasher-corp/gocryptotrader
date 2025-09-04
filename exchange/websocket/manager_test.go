@@ -254,6 +254,12 @@ func TestConnectionMessageErrors(t *testing.T) {
 		return subscription.List{{Channel: "test"}}, nil
 	}
 	err = ws.Connect()
+	require.ErrorIs(t, err, errWebsocketSubscriberUnset)
+
+	ws.connectionManager[0].setup.Subscriber = func(context.Context, Connection, subscription.List) error {
+		return errors.New("setup.Subscriber error")
+	}
+	err = ws.Connect()
 	require.ErrorIs(t, err, errNoConnectFunc)
 
 	ws.connectionManager[0].setup.Connector = func(context.Context, Connection) error {
@@ -264,12 +270,6 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	ws.connectionManager[0].setup.Handler = func(context.Context, Connection, []byte) error {
 		return errors.New("setup.Handler error")
-	}
-	err = ws.Connect()
-	require.ErrorIs(t, err, errWebsocketSubscriberUnset)
-
-	ws.connectionManager[0].setup.Subscriber = func(context.Context, Connection, subscription.List) error {
-		return errors.New("setup.Subscriber error")
 	}
 	err = ws.Connect()
 	require.ErrorContains(t, err, "setup.Connector error")
@@ -1026,11 +1026,11 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
 	connSetup.Handler = func(context.Context, Connection, []byte) error { return nil }
-	connSetup.MessageFilter = []string{"slices are super naughty and not comparable"}
+	connSetup.MessageFilter = naughtyFilter{"slices are super naughty and not comparable"}
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errMessageFilterNotComparable)
 
-	connSetup.MessageFilter = "comparable string signature"
+	connSetup.MessageFilter = AssetFilter(asset.Spot)
 	err = multi.SetupNewConnection(connSetup)
 	require.NoError(t, err)
 
@@ -1041,6 +1041,12 @@ func TestSetupNewConnection(t *testing.T) {
 
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errDuplicateConnectionSetup)
+}
+
+type naughtyFilter []string
+
+func (n naughtyFilter) MatchesSub(_ *subscription.Subscription) bool {
+	return false
 }
 
 func TestConnectionShutdown(t *testing.T) {
@@ -1282,16 +1288,16 @@ func TestGetConnection(t *testing.T) {
 	require.ErrorIs(t, err, ErrRequestRouteNotFound)
 
 	ws.connectionManager = []*connectionWrapper{{
-		setup: &ConnectionSetup{MessageFilter: "testURL", URL: "testURL"},
+		setup: &ConnectionSetup{MessageFilter: AssetFilter(asset.Spot), URL: "testURL"},
 	}}
 
-	_, err = ws.GetConnection("testURL")
+	_, err = ws.GetConnection(AssetFilter(asset.Spot))
 	require.ErrorIs(t, err, ErrNotConnected)
 
 	expected := &connection{}
 	ws.connectionManager[0].connection = expected
 
-	conn, err := ws.GetConnection("testURL")
+	conn, err := ws.GetConnection(AssetFilter(asset.Spot))
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
 }

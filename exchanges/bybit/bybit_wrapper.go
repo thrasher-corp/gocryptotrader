@@ -246,12 +246,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// Spot - Inbound public data.
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   wsSpotURL,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Connector:             e.WsConnect,
-		Subscriber:            e.SpotSubscribe,
-		Unsubscriber:          e.SpotUnsubscribe,
+		URL:                  wsSpotURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Connector:            e.WsConnect,
+		Subscriber:           e.SpotSubscribe,
+		Unsubscriber:         e.SpotUnsubscribe,
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.Spot, resp)
 		},
@@ -303,7 +303,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.USDTMarginedFutures, resp)
 		},
-		MessageFilter: asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter: websocket.AssetFilter(asset.USDTMarginedFutures), // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -331,7 +331,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.USDCMarginedFutures, resp)
 		},
-		MessageFilter: asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter: websocket.AssetFilter(asset.USDCMarginedFutures), // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
