@@ -31,7 +31,8 @@ type Exchange struct {
 
 const (
 	// cryptodotcom API endpoints.
-	cryptodotcomAPIURLV1 = "https://api.crypto.com/exchange/v1/"
+	apiURLV1              = "https://api.crypto.com/exchange/v1/"
+	apiURLV1Supplementary = "https://api.crypto.com/v1/"
 
 	// cryptodotcom websocket endpoints.
 	cryptodotcomWebsocketUserAPI   = "wss://stream.crypto.com/v1/user"
@@ -91,13 +92,24 @@ func checkInstrumentName(symbol string) (url.Values, error) {
 }
 
 // GetCandlestickDetail retrieves candlesticks (k-line data history) over a given period for an instrument
-func (e *Exchange) GetCandlestickDetail(ctx context.Context, symbol string, interval kline.Interval) (*CandlestickDetail, error) {
+func (e *Exchange) GetCandlestickDetail(ctx context.Context, symbol string, interval kline.Interval, count int64, startTime, endTime time.Time) (*CandlestickDetail, error) {
 	params, err := checkInstrumentName(symbol)
 	if err != nil {
 		return nil, err
 	}
 	if intervalString, err := intervalToString(interval); err == nil {
 		params.Set("timeframe", intervalString)
+	}
+	if count >= 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("start_ts", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("end_ts", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *CandlestickDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-candlestick", params), publicCandlestickRate, &resp)
@@ -114,10 +126,21 @@ func (e *Exchange) GetTickers(ctx context.Context, symbol string) (*TickersRespo
 }
 
 // GetTrades fetches the public trades for a particular instrument.
-func (e *Exchange) GetTrades(ctx context.Context, symbol string) (*TradesResponse, error) {
+func (e *Exchange) GetTrades(ctx context.Context, symbol string, count int64, startTime, endTime time.Time) (*TradesResponse, error) {
 	params, err := checkInstrumentName(symbol)
 	if err != nil {
 		return nil, err
+	}
+	if count > 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("start_ts", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("end_ts", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *TradesResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-trades", params), publicTradesRate, &resp)
@@ -125,7 +148,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol string) (*TradesRespons
 
 // GetValuations fetches certain valuation type data for a particular instrument.
 // Valuation type possible values: index_price, mark_price, funding_hist, funding_rate, and estimated_funding_rate
-func (e *Exchange) GetValuations(ctx context.Context, symbol, valuationType string, count int64, startTimestamp, endTimestamp time.Time) (*InstrumentValuation, error) {
+func (e *Exchange) GetValuations(ctx context.Context, symbol, valuationType string, count int64, startTime, endTime time.Time) (*InstrumentValuation, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -138,13 +161,13 @@ func (e *Exchange) GetValuations(ctx context.Context, symbol, valuationType stri
 	if count > 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	if !startTimestamp.IsZero() && !endTimestamp.IsZero() {
-		err := common.StartEndTimeCheck(startTimestamp, endTimestamp)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
 		if err != nil {
 			return nil, err
 		}
-		params.Set("start_ts", strconv.FormatInt(startTimestamp.UnixMilli(), 10))
-		params.Set("end_ts", strconv.FormatInt(endTimestamp.UnixMilli(), 10))
+		params.Set("start_ts", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("end_ts", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *InstrumentValuation
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("public/get-valuations", params), getValuationsRate, &resp)
@@ -1184,4 +1207,17 @@ func (e *Exchange) GetExpiredSettlementPrice(ctx context.Context, instrumentype 
 	}
 	var resp *ExpiredSettlementPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("public/get-expired-settlement-price", params), expiredSettlementPriceRate, &resp)
+}
+
+// GetAnnouncements retrieves all announcements from server
+func (e *Exchange) GetAnnouncements(ctx context.Context, category, productType string) (*Announcements, error) {
+	params := url.Values{}
+	if category != "" {
+		params.Set("category", category)
+	}
+	if productType != "" {
+		params.Set("product_type", productType)
+	}
+	var resp *Announcements
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("public/get-announcements", params), getAnnouncementsRate, &resp)
 }

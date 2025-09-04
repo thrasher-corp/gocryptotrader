@@ -101,7 +101,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetCandlestickDetail(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetCandlestickDetail(t.Context(), mainTP.String(), kline.FiveMin)
+	result, err := e.GetCandlestickDetail(t.Context(), mainTP.String(), kline.FiveMin, 100, time.Now().Add(-time.Hour*50), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -119,10 +119,10 @@ func TestGetTickers(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTrades(t.Context(), "")
+	_, err := e.GetTrades(t.Context(), "", 0, time.Now().Add(-time.Hour*250), time.Now())
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	result, err := e.GetTrades(t.Context(), mainTP.String())
+	result, err := e.GetTrades(t.Context(), mainTP.String(), 100, time.Now().Add(-time.Hour*250), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1335,6 +1335,14 @@ func TestGetExpiredSettlementPrice(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 
 	result, err := e.GetExpiredSettlementPrice(t.Context(), asset.Futures, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAnnouncements(t *testing.T) {
+	t.Parallel()
+	e.Verbose = true
+	result, err := e.GetAnnouncements(t.Context(), "delist", "OTC")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

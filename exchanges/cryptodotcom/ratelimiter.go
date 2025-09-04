@@ -29,6 +29,7 @@ const (
 	getValuationsRate
 	getInsuranceRate
 	expiredSettlementPriceRate
+	getAnnouncementsRate
 	publicGetValuationsRate
 	publicGetExpiredSettlementPriceRate
 	publicGetInsuranceRate
@@ -89,6 +90,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getValuationsRate:                   request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		getInsuranceRate:                    request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		expiredSettlementPriceRate:          request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
+		getAnnouncementsRate:                request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		publicGetValuationsRate:             request.NewRateLimitWithWeight(oneSecondInterval, hundredPerInterval, 1),
 		publicGetExpiredSettlementPriceRate: request.NewRateLimitWithWeight(oneSecondInterval, hundredPerInterval, 1),
 		publicGetInsuranceRate:              request.NewRateLimitWithWeight(oneSecondInterval, hundredPerInterval, 1),

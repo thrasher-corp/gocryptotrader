@@ -131,8 +131,8 @@ func (e *Exchange) SetDefaults() {
 	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:                   cryptodotcomAPIURLV1,
-		exchange.RestSpotSupplementary:      cryptodotcomAPIURLV1,
+		exchange.RestSpot:                   apiURLV1,
+		exchange.RestSpotSupplementary:      apiURLV1Supplementary,
 		exchange.RestFutures:                restURL,
 		exchange.WebsocketSpot:              cryptodotcomWebsocketMarketAPI,
 		exchange.WebsocketSpotSupplementary: cryptodotcomWebsocketUserAPI,
@@ -526,7 +526,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	if !p.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	trades, err := e.GetTrades(ctx, p.String())
+	trades, err := e.GetTrades(ctx, p.String(), 0, time.Time{}, time.Time{})
 	if err != nil {
 		return nil, err
 	}
@@ -559,12 +559,12 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
 	if !e.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%w, asset type %v not supported", asset.ErrNotSupported, assetType)
 	}
-	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
+	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", startTime, endTime, err)
 	}
 	var err error
 	p, err = e.FormatExchangeCurrency(p, assetType)
@@ -572,17 +572,17 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 		return nil, err
 	}
 	limit := 1000
-	ts := timestampStart
+	ts := startTime
 	var resp []trade.Data
 allTrades:
 	for {
 		var tradeData *TradesResponse
-		tradeData, err = e.GetTrades(ctx, p.String())
+		tradeData, err = e.GetTrades(ctx, p.String(), 0, startTime, endTime)
 		if err != nil {
 			return nil, err
 		}
 		for i := range tradeData.Data {
-			if tradeData.Data[i].TradeTimestamp.Time().Before(timestampStart) || tradeData.Data[i].TradeTimestamp.Time().After(timestampEnd) {
+			if tradeData.Data[i].TradeTimestamp.Time().Before(startTime) || tradeData.Data[i].TradeTimestamp.Time().After(endTime) {
 				break allTrades
 			}
 			var side order.Side
@@ -621,7 +621,7 @@ allTrades:
 	}
 
 	sort.Sort(trade.ByDate(resp))
-	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
+	return trade.FilterTradesByTime(resp, startTime, endTime), nil
 }
 
 func timeInForceToString(tif order.TimeInForce) string {
@@ -1130,7 +1130,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if err != nil {
 		return nil, err
 	}
-	candles, err := e.GetCandlestickDetail(ctx, req.RequestFormatted.String(), interval)
+	candles, err := e.GetCandlestickDetail(ctx, req.RequestFormatted.String(), interval, 0, start, end)
 	if err != nil {
 		return nil, err
 	}

@@ -1223,3 +1223,35 @@ type ExpiredSettlementPrice struct {
 		Timestamp  types.Time   `json:"t"`
 	} `json:"data"`
 }
+
+// Announcements holds exchange announcements
+type Announcements struct {
+	ID     int64  `json:"id"`
+	Method string `json:"method"`
+	Code   int64  `json:"code"`
+	Result struct {
+		Data []struct {
+			ID             string     `json:"id"`
+			Category       string     `json:"category"`
+			ProductType    string     `json:"product_type"`
+			AnnouncedAt    types.Time `json:"announced_at"`
+			Title          string     `json:"title"`
+			Content        string     `json:"content"`
+			InstrumentName string     `json:"instrument_name"`
+			ImpactedParams struct {
+				SpotTradingImpacted       string `json:"spot_trading_impacted"`
+				DerivativeTradingImpacted string `json:"derivative_trading_impacted"`
+				MarginTradingImpacted     string `json:"margin_trading_impacted"`
+				OtcTradingImpacted        string `json:"otc_trading_impacted"`
+				ConvertImpacted           string `json:"convert_impacted"`
+				StakingImpacted           string `json:"staking_impacted"`
+				TradingBotImpacted        string `json:"trading_bot_impacted"`
+				CryptoWalletImpacted      string `json:"crypto_wallet_impacted"`
+				FiatWalletImpacted        string `json:"fiat_wallet_impacted"`
+				LoginImpacted             string `json:"login_impacted"`
+			} `json:"impacted_params"`
+			StartTime types.Time `json:"start_time"`
+			EndTime   types.Time `json:"end_time"`
+		} `json:"data"`
+	} `json:"result"`
+}
