@@ -394,7 +394,7 @@ func (e *Exchange) FetchAccountInfo(ctx context.Context, assetType asset.Item) (
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
-	history, err := e.ListMatchingTransfers(ctx, "", "", "", "", 0, 0, time.Time{}, time.Time{})
+	history, err := e.ListMatchingTransfers(ctx, nil, "", "", 0, 0, time.Time{}, time.Time{})
 	if err != nil {
 		return nil, err
 	}
@@ -419,7 +419,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, a
 	if a != asset.Spot {
 		return nil, asset.ErrNotSupported
 	}
-	history, err := e.ListMatchingTransfers(ctx, "", "", "", "WITHDRAW", 0, 0, time.Time{}, time.Time{})
+	history, err := e.ListMatchingTransfers(ctx, nil, "", "WITHDRAW", 0, 0, time.Time{}, time.Time{})
 	if err != nil {
 		return nil, err
 	}
@@ -633,10 +633,10 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 		return nil, err
 	}
 	resp, err := e.WithdrawToCryptoAddress(ctx, &WithdrawCryptoParams{
-		Portfolio:       withdrawRequest.PortfolioID,
-		AssetIdentifier: withdrawRequest.Currency.String(),
-		Amount:          withdrawRequest.Amount,
-		Address:         withdrawRequest.Crypto.Address,
+		Portfolio: withdrawRequest.PortfolioID,
+		AssetID:   withdrawRequest.Currency.String(),
+		Amount:    withdrawRequest.Amount,
+		Address:   withdrawRequest.Crypto.Address,
 	})
 	if err != nil {
 		return nil, err

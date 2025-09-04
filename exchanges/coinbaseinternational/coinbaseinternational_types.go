@@ -521,8 +521,8 @@ type PortfolioFill struct {
 	} `json:"results"`
 }
 
-// PortfolioMarginOverrideResponse represents margin override value for a portfolio
-type PortfolioMarginOverrideResponse struct {
+// PortfolioMarginOverride represents margin override value for a portfolio
+type PortfolioMarginOverride struct {
 	PortfolioID    string  `json:"portfolio_id"`
 	MarginOverride float64 `json:"margin_override"`
 }
@@ -535,10 +535,10 @@ type PortfolioPositionLimit struct {
 
 // TransferFundsBetweenPortfoliosParams transfer assets from one portfolio to another
 type TransferFundsBetweenPortfoliosParams struct {
-	From   string        `json:"from,omitempty"`
-	To     string        `json:"to,omitempty"`
-	Asset  currency.Code `json:"asset,omitempty"`
-	Amount float64       `json:"amount,omitempty"`
+	From    string  `json:"from,omitempty"`
+	To      string  `json:"to,omitempty"`
+	AssetID string  `json:"asset,omitempty"`
+	Amount  float64 `json:"amount,omitempty"`
 }
 
 // TransferPortfolioParams represents a response detail for transfer an existing position from one portfolio to another
@@ -548,12 +548,6 @@ type TransferPortfolioParams struct {
 	Instrument string  `json:"instrument"`
 	Quantity   float64 `json:"quantity"`
 	Side       string  `json:"side"`
-}
-
-// PortfolioMarginOverrideParams represents a margin override value for a portfolio parameter
-type PortfolioMarginOverrideParams struct {
-	PortfolioID    string  `json:"portfolio_id,omitempty"`
-	MarginOverride float64 `json:"margin_override,omitempty"`
 }
 
 // PortfolioFeeRate represents Perpetual Future and Spot fee rate
@@ -573,22 +567,17 @@ type PortfolioFeeRate struct {
 type VolumeRankingInfo struct {
 	LastUpdated time.Time `json:"last_updated"`
 	Statistics  struct {
-		Maker struct {
-			Rank            float64 `json:"rank"`
-			RelativePercent float64 `json:"relative_percent"`
-			Volume          float64 `json:"volume"`
-		} `json:"maker"`
-		Taker struct {
-			Rank            float64 `json:"rank"`
-			RelativePercent float64 `json:"relative_percent"`
-			Volume          float64 `json:"volume"`
-		} `json:"taker"`
-		Total struct {
-			Rank            float64 `json:"rank"`
-			RelativePercent float64 `json:"relative_percent"`
-			Volume          float64 `json:"volume"`
-		} `json:"total"`
+		Maker RankingInfo `json:"maker"`
+		Taker RankingInfo `json:"taker"`
+		Total RankingInfo `json:"total"`
 	} `json:"statistics"`
+}
+
+// RankingInfo holds user's maker, taker, and total statistics ranking information
+type RankingInfo struct {
+	Rank            float64 `json:"rank"`
+	RelativePercent float64 `json:"relative_percent"`
+	Volume          float64 `json:"volume"`
 }
 
 // Transfers returns a list of fund transfers.
@@ -652,12 +641,13 @@ type WithdrawToCoinbaseResponse struct {
 // WithdrawCryptoParams holds crypto fund withdrawal information.
 type WithdrawCryptoParams struct {
 	Portfolio            string  `json:"portfolio,omitempty"` // Identifies the portfolio by UUID
-	AssetIdentifier      string  `json:"asset"`               // Identifies the asset by name
+	AssetID              string  `json:"asset"`               // Identifies the asset by name
 	Amount               float64 `json:"amount,string"`
 	AddNetworkFeeToTotal bool    `json:"add_network_fee_to_total,omitempty"` // if true, deducts network fee from the portfolio, otherwise deduct fee from the withdrawal
 	NetworkArnID         string  `json:"network_arn_id,omitempty"`           // Identifies the blockchain network
 	Address              string  `json:"address"`
-	Nonce                string  `json:"nonce,omitempty"`
+	Nonce                int64   `json:"nonce,omitempty"`
+	DestinationTag       string  `json:"destination_tag,omitempty"`
 }
 
 // WithdrawalResponse holds crypto withdrawal ID information
@@ -667,9 +657,9 @@ type WithdrawalResponse struct {
 
 // CryptoAddressParam holds crypto address creation parameters.
 type CryptoAddressParam struct {
-	Portfolio       string `json:"portfolio"`      // Identifies the portfolio by UUID
-	AssetIdentifier string `json:"asset"`          // Identifies the asset by name (e.g., BTC), UUID (e.g., 291efb0f-2396-4d41-ad03-db3b2311cb2c), or asset ID (e.g., 1482439423963469)
-	NetworkArnID    string `json:"network_arn_id"` // Identifies the blockchain network
+	Portfolio    string `json:"portfolio"`      // Identifies the portfolio by UUID
+	AssetID      string `json:"asset"`          // Identifies the asset by name (e.g., BTC), UUID (e.g., 291efb0f-2396-4d41-ad03-db3b2311cb2c), or asset ID (e.g., 1482439423963469)
+	NetworkArnID string `json:"network_arn_id"` // Identifies the blockchain network
 }
 
 // CryptoAddressInfo holds crypto address information after creation
@@ -696,7 +686,7 @@ type AssetCounterpartyWithdrawalResponse struct {
 	CounterpartyID string  `json:"counterparty_id"`
 	Asset          string  `json:"asset"`
 	Amount         float64 `json:"amount"`
-	Nonce          string  `json:"nonce"`
+	Nonce          int64   `json:"nonce"`
 }
 
 // CounterpartyWithdrawalResponse an asset withdrawal response
@@ -709,9 +699,9 @@ type CounterpartyWithdrawalResponse struct {
 	Amount               float64 `json:"amount"`
 }
 
-// CounterpartyWithdrawalLimi represents a counterparty withdrawal limit instance.
-type CounterpartyWithdrawalLimi struct {
-	MaxCtnWithdrawAmount string `json:"max_ctn_withdraw_amount"`
+// CounterpartyWithdrawalLimit represents a counterparty withdrawal limit instance.
+type CounterpartyWithdrawalLimit struct {
+	MaxCounterpartyWithdrawAmount string `json:"max_ctn_withdraw_amount"`
 }
 
 // SubscriptionInput holds channel subscription information
