@@ -30,9 +30,7 @@ func TestNewFocusDataAndInit(t *testing.T) {
 	default:
 	}
 
-	// Re-init should recreate channels and reset success flag
 	fd.setSuccessful()
-	// channel must be closed now
 	select {
 	case <-fd.hasBeenSuccessfulChan:
 		// ok
@@ -66,17 +64,14 @@ func TestSetSuccessful(t *testing.T) {
 	}
 	wg.Wait()
 
-	// channel should be closed and reads should not block
 	select {
 	case <-fd.hasBeenSuccessfulChan:
-		// ok
 	default:
 		require.FailNow(t, "hasBeenSuccessfulChan should be closed and readable")
 	}
-	// multiple reads on a closed channel should still proceed immediately
+
 	select {
 	case <-fd.hasBeenSuccessfulChan:
-		// ok
 	default:
 		require.FailNow(t, "hasBeenSuccessfulChan should remain closed and readable")
 	}

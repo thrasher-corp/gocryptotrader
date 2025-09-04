@@ -19,16 +19,15 @@ func TestUpsert(t *testing.T) {
 	t.Parallel()
 	fs := NewFocusStore()
 	require.NotNil(t, fs, "NewFocusStore must not return nil")
-	// test nil data does nothing
 	fs.Upsert(TickerFocusType, nil)
 	require.Empty(t, fs.s)
-	// success
+
 	fd := &FocusData{}
 	fs.Upsert(TickerFocusType, fd)
 	require.Len(t, fs.s, 1)
 	require.Equal(t, TickerFocusType, fs.s[TickerFocusType].focusType)
 	require.NotNil(t, fs.s[TickerFocusType].m)
-	// test update existing key
+
 	fd2 := &FocusData{}
 	fs.Upsert(TickerFocusType, fd2)
 	require.Len(t, fs.s, 1)
@@ -44,7 +43,7 @@ func TestRemove(t *testing.T) {
 	require.Len(t, fs.s, 1)
 	fs.Remove(TickerFocusType)
 	require.Empty(t, fs.s)
-	// test removing non-existent key does nothing
+
 	fs.Remove(TickerFocusType)
 	require.Empty(t, fs.s)
 }
@@ -53,10 +52,9 @@ func TestGetByFocusType(t *testing.T) {
 	t.Parallel()
 	fs := NewFocusStore()
 	require.NotNil(t, fs, "NewFocusStore must not return nil")
-	// test non-existent key returns nil
 	result := fs.GetByFocusType(TickerFocusType)
 	require.Nil(t, result)
-	// success
+
 	fd := &FocusData{}
 	fs.Upsert(TickerFocusType, fd)
 	result = fs.GetByFocusType(TickerFocusType)
@@ -69,11 +67,10 @@ func TestList(t *testing.T) {
 	t.Parallel()
 	fs := NewFocusStore()
 	require.NotNil(t, fs, "NewFocusStore must not return nil")
-	// test empty store returns empty slice
 	list := fs.List()
 	require.NotNil(t, list)
 	require.Empty(t, list)
-	// success
+
 	fd1 := &FocusData{}
 	fd2 := &FocusData{}
 	fs.Upsert(TickerFocusType, fd1)
@@ -86,9 +83,8 @@ func TestDisableWebsocketFocuses(t *testing.T) {
 	t.Parallel()
 	fs := NewFocusStore()
 	require.NotNil(t, fs, "NewFocusStore must not return nil")
-	// test empty store does nothing
 	fs.DisableWebsocketFocuses()
-	// success
+
 	fd1 := &FocusData{useWebsocket: true}
 	fd2 := &FocusData{useWebsocket: true}
 	fs.Upsert(TickerFocusType, fd1)

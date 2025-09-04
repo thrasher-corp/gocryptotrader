@@ -19,14 +19,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
-func (q *QuickSpy) handleWSAccountChange(data account.Change) error {
+func (q *QuickSpy) handleWSAccountChange(data *account.Change) error {
+	if err := common.NilGuard(data); err != nil {
+		return err
+	}
 	focus := q.focuses.GetByFocusType(AccountHoldingsFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, AccountHoldingsFocusType)
 	}
-	if data.AssetType != q.key.ExchangeAssetPair.Asset &&
-		!data.Balance.Currency.Equal(q.key.ExchangeAssetPair.Pair().Base) &&
-		!data.Balance.Currency.Equal(q.key.ExchangeAssetPair.Pair().Quote) {
+	if data.AssetType != q.key.ExchangeAssetPair.Asset ||
+		(!data.Balance.Currency.Equal(q.key.ExchangeAssetPair.Pair().Base) && !data.Balance.Currency.Equal(q.key.ExchangeAssetPair.Pair().Quote)) {
+		// these WS checks are here due to the inability to fully know how a subscription is transformed
+		// it is not an error to get other data, just ignore it
 		return nil
 	}
 	payload := make([]account.Balance, 1)
@@ -63,6 +67,9 @@ func (q *QuickSpy) handleWSAccountChanges(data []account.Change) error {
 }
 
 func (q *QuickSpy) handleWSOrderDetail(data *order.Detail) error {
+	if err := common.NilGuard(data); err != nil {
+		return err
+	}
 	focus := q.focuses.GetByFocusType(ActiveOrdersFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, ActiveOrdersFocusType)
@@ -131,6 +138,9 @@ func (q *QuickSpy) handleWSTickers(data []ticker.Price) error {
 }
 
 func (q *QuickSpy) handleWSTicker(data *ticker.Price) error {
+	if err := common.NilGuard(data); err != nil {
+		return err
+	}
 	focus := q.focuses.GetByFocusType(TickerFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, TickerFocusType)
@@ -144,6 +154,9 @@ func (q *QuickSpy) handleWSTicker(data *ticker.Price) error {
 }
 
 func (q *QuickSpy) handleWSOrderbook(data *orderbook.Depth) error {
+	if err := common.NilGuard(data); err != nil {
+		return err
+	}
 	focus := q.focuses.GetByFocusType(OrderBookFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, OrderBookFocusType)
@@ -161,13 +174,16 @@ func (q *QuickSpy) handleWSOrderbook(data *orderbook.Depth) error {
 	return nil
 }
 
-func (q *QuickSpy) handleWSTrade(data trade.Data) error {
+func (q *QuickSpy) handleWSTrade(data *trade.Data) error {
+	if err := common.NilGuard(data); err != nil {
+		return err
+	}
 	focus := q.focuses.GetByFocusType(TradesFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, TradesFocusType)
 	}
 	q.m.Lock()
-	q.data.Trades = []trade.Data{data}
+	q.data.Trades = []trade.Data{*data}
 	payload := q.data.Trades
 	q.m.Unlock()
 	focus.stream(payload)
@@ -193,6 +209,9 @@ func (q *QuickSpy) handleWSTrades(data []trade.Data) error {
 }
 
 func (q *QuickSpy) handleURLFocus(focus *FocusData) error {
+	if err := common.NilGuard(focus); err != nil {
+		return err
+	}
 	resp, err := q.exch.GetCurrencyTradeURL(q.credContext, q.key.ExchangeAssetPair.Asset, q.key.ExchangeAssetPair.Pair())
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
@@ -208,6 +227,9 @@ func (q *QuickSpy) handleURLFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleRESTContractFocus(focus *FocusData) error {
+	if err := common.NilGuard(focus); err != nil {
+		return err
+	}
 	contracts, err := q.exch.GetFuturesContractDetails(q.credContext, q.key.ExchangeAssetPair.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
@@ -231,6 +253,9 @@ func (q *QuickSpy) handleRESTContractFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleKlineFocus(focus *FocusData) error {
+	if err := common.NilGuard(focus); err != nil {
+		return err
+	}
 	ett := time.Now()
 	stt := ett.Add(-kline.OneMonth.Duration())
 	k, err := q.exch.GetHistoricCandlesExtended(q.credContext, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset, kline.OneHour, stt, ett)
@@ -272,6 +297,9 @@ func (q *QuickSpy) handleKlineFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleOpenInterestFocus(focus *FocusData) error {
+	if err := common.NilGuard(focus); err != nil {
+		return err
+	}
 	oi, err := q.exch.GetOpenInterest(q.credContext, key.PairAsset{
 		Base:  q.key.ExchangeAssetPair.Pair().Base.Item,
 		Quote: q.key.ExchangeAssetPair.Pair().Quote.Item,
@@ -292,6 +320,9 @@ func (q *QuickSpy) handleOpenInterestFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleTickerFocus(focus *FocusData) error {
+	if err := common.NilGuard(focus); err != nil {
+		return err
+	}
 	resp, err := q.exch.UpdateTicker(q.credContext, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
@@ -305,6 +336,9 @@ func (q *QuickSpy) handleTickerFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleOrdersFocus(focus *FocusData) error {
+	if err := common.NilGuard(focus); err != nil {
+		return err
+	}
 	resp, err := q.exch.GetActiveOrders(q.credContext, &order.MultiOrderRequest{
 		Pairs:     []currency.Pair{q.key.ExchangeAssetPair.Pair()},
 		AssetType: q.key.ExchangeAssetPair.Asset,
@@ -320,6 +354,9 @@ func (q *QuickSpy) handleOrdersFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleAccountHoldingsFocus(focus *FocusData) error {
+	if err := common.NilGuard(focus); err != nil {
+		return err
+	}
 	ais, err := q.exch.UpdateAccountInfo(q.credContext, q.key.ExchangeAssetPair.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w",
@@ -348,6 +385,9 @@ func (q *QuickSpy) handleAccountHoldingsFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleOrderBookFocus(focus *FocusData) error {
+	if err := common.NilGuard(focus); err != nil {
+		return err
+	}
 	ob, err := q.exch.UpdateOrderbook(q.credContext, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
@@ -360,6 +400,9 @@ func (q *QuickSpy) handleOrderBookFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleTradesFocus(focus *FocusData) error {
+	if err := common.NilGuard(focus); err != nil {
+		return err
+	}
 	tr, err := q.exch.GetRecentTrades(q.credContext, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
@@ -372,6 +415,9 @@ func (q *QuickSpy) handleTradesFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleOrderExecutionFocus(focus *FocusData) error {
+	if err := common.NilGuard(focus); err != nil {
+		return err
+	}
 	el, err := q.exch.GetOrderExecutionLimits(q.key.ExchangeAssetPair.Asset, q.key.ExchangeAssetPair.Pair())
 	if err != nil {
 		err = q.exch.UpdateOrderExecutionLimits(q.credContext, q.key.ExchangeAssetPair.Asset)
@@ -391,6 +437,9 @@ func (q *QuickSpy) handleOrderExecutionFocus(focus *FocusData) error {
 }
 
 func (q *QuickSpy) handleFundingRateFocus(focus *FocusData) error {
+	if err := common.NilGuard(focus); err != nil {
+		return err
+	}
 	isPerp, err := q.exch.IsPerpetualFutureCurrency(q.key.ExchangeAssetPair.Asset, q.key.ExchangeAssetPair.Pair())
 	if err != nil && !errors.Is(err, futures.ErrNotPerpetualFuture) {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
