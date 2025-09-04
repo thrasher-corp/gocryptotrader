@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -38,7 +36,7 @@ var (
 // CredentialsKey is a struct that holds credentials and exchange/pair/asset info
 type CredentialsKey struct {
 	// Credentials is optional, if nil public data only
-	Credentials       *account.Credentials  `json:"credentials"`
+	Credentials       *account.Credentials  `json:"credentials,omitempty"`
 	ExchangeAssetPair key.ExchangeAssetPair `json:"exchangeAssetPair"`
 }
 
@@ -49,13 +47,13 @@ type QuickSpy struct {
 	// credContext is the context for credentials
 	// also used for cancelling goroutines
 	credContext context.Context
-	// Exch is the exchange interface
-	Exch exchange.IBotExchange
+	// exch is the exchange interface
+	exch exchange.IBotExchange
 	// Key contains exchange, pair, and asset information
-	Key *CredentialsKey
-	// Focuses is a map of focus types to focus options
+	key *CredentialsKey
+	// focuses is a map of focus types to focus options
 	// Don't access directly, use functions to handle locking
-	Focuses *FocusStore
+	focuses *FocusStore
 	// dataHandlerChannel is used for receiving data from websockets
 	dataHandlerChannel chan any
 	// m is used for concurrent read/write operations
@@ -65,51 +63,21 @@ type QuickSpy struct {
 	// alert is used for notifications
 	alert alert.Notice
 	// Data contains all the market data
-	Data    *Data
-	verbose bool
+	data *Data
 }
 
 // Data holds the GCT types that QuickSpy gathers
 type Data struct {
-	Key             *CredentialsKey
-	Contract        *futures.Contract
-	Orderbook       *orderbook.Book
-	Ticker          *ticker.Price
-	Kline           []websocket.KlineData
-	AccountBalance  []account.Balance
-	Orders          []order.Detail
-	FundingRate     *fundingrate.LatestRateResponse
-	Trades          []trade.Data
-	ExecutionLimits *limits.MinMaxLevel
-	URL             string
-	OpenInterest    float64
-}
-
-// ExportedData is a struct that collates all the data QuickSpy has gathered
-type ExportedData struct {
-	Key                    key.ExchangeAssetPair `json:"CredentialsKey"`
-	UnderlyingBase         *currency.Item        `json:"UnderlyingBase,omitzero"`
-	UnderlyingQuote        *currency.Item        `json:"underlyingQuote,omitzero"`
-	ContractExpirationTime time.Time             `json:"contractExpirationTime,omitzero"`
-	ContractType           string                `json:"contractType,omitzero"`
-	ContractDecimals       float64               `json:"contractDecimals,omitzero"`
-	ContractSettlement     string                `json:"contractSettlement,omitzero"`
-	HasValidCredentials    bool                  `json:"hasValidCredentials"`
-	LastPrice              float64               `json:"lastPrice,omitzero"`
-	IndexPrice             float64               `json:"indexPrice,omitzero"`
-	MarkPrice              float64               `json:"markPrice,omitzero"`
-	Volume                 float64               `json:"volume,omitzero"`
-	FundingRate            float64               `json:"fundingRate,omitzero"`
-	EstimatedFundingRate   float64               `json:"estimatedFundingRate,omitzero"`
-	LastTradePrice         float64               `json:"lastTradePrice,omitzero"`
-	LastTradeSize          float64               `json:"lastTradeSize,omitzero"`
-	Holdings               []account.Balance     `json:"holdings,omitzero"`
-	Orders                 []order.Detail        `json:"orders,omitzero"`
-	Bids                   orderbook.Levels      `json:"bids,omitzero"`
-	Asks                   orderbook.Levels      `json:"asks,omitzero"`
-	OpenInterest           float64               `json:"openInterest,omitzero"`
-	NextFundingRateTime    time.Time             `json:"nextFundingRateTime,omitzero"`
-	CurrentFundingRateTime time.Time             `json:"currentFundingRateTime,omitzero"`
-	ExecutionLimits        limits.MinMaxLevel    `json:"executionLimits,omitzero"`
-	URL                    string                `json:"url,omitzero"`
+	Key             *CredentialsKey                 `json:"key"`
+	Contract        *futures.Contract               `json:"contract,omitempty"`
+	Orderbook       *orderbook.Book                 `json:"orderbook,omitempty"`
+	Ticker          *ticker.Price                   `json:"ticker,omitempty"`
+	Kline           []websocket.KlineData           `json:"kline,omitempty"`
+	AccountBalance  []account.Balance               `json:"accountBalance,omitempty"`
+	Orders          []order.Detail                  `json:"orders,omitempty"`
+	FundingRate     *fundingrate.LatestRateResponse `json:"fundingRate,omitempty"`
+	Trades          []trade.Data                    `json:"trades,omitempty"`
+	ExecutionLimits *limits.MinMaxLevel             `json:"executionLimits,omitempty"`
+	URL             string                          `json:"url,omitzero"`
+	OpenInterest    float64                         `json:"openInterest,omitzero"`
 }

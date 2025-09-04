@@ -283,7 +283,7 @@ func TestBuildQuickSpyRESTOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildQuickSpy error: %v", err)
 	}
-	if qs == nil || qs.Key == nil {
+	if qs == nil || qs.key == nil {
 		t.Fatalf("buildQuickSpy returned nil QuickSpy or Key")
 	}
 }
@@ -320,7 +320,7 @@ func makeDummyQuickSpy(tb testing.TB) *quickspy.QuickSpy {
 		[]quickspy.FocusData{*f},
 		false)
 	require.NoError(tb, err)
-	q.Data = &quickspy.Data{Key: &quickspy.CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewPair(currency.BTC, currency.USDT))}}
+	q.data = &quickspy.Data{Key: &quickspy.CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewPair(currency.BTC, currency.USDT))}}
 	return q
 }
 
@@ -366,7 +366,7 @@ func TestStreamWS_JSONOnlyMultiplePayloads(t *testing.T) {
 
 func TestStreamREST_JSONOnlyURLPayload(t *testing.T) {
 	qs := makeDummyQuickSpy(t)
-	qs.Data.URL = "http://example"
+	qs.data.URL = "http://example"
 
 	var buf bytes.Buffer
 	enc = json.NewEncoder(&buf)

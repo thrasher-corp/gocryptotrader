@@ -27,7 +27,7 @@ func (s *FocusStore) Upsert(key FocusType, data *FocusData) {
 	if data == nil {
 		return
 	}
-	data.Type = key
+	data.focusType = key
 	if data.m == nil {
 		data.Init()
 	}
@@ -72,7 +72,7 @@ func (s *FocusStore) DisableWebsocketFocuses() {
 	defer s.m.Unlock()
 	for k := range s.s {
 		s.s[k].m.Lock()
-		s.s[k].UseWebsocket = false
+		s.s[k].useWebsocket = false
 		s.s[k].m.Unlock()
 	}
 }

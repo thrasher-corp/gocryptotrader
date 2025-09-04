@@ -11,49 +11,43 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 func TestNewFocusDataAndInit(t *testing.T) {
 	t.Parallel()
 	fd := NewFocusData(TickerFocusType, false, false, time.Second)
-	if fd == nil {
-		t.Fatal("NewFocusData returned nil")
-	}
-	if fd.Type != TickerFocusType || fd.UseWebsocket || fd.IsOnceOff || fd.RESTPollTime != time.Second {
-		t.Fatalf("unexpected FocusData fields: %+v", fd)
-	}
-	if fd.m == nil {
-		t.Fatal("mutex not initialised")
-	}
-	if fd.HasBeenSuccessfulChan == nil || fd.Stream == nil {
-		t.Fatal("channels not initialised")
-	}
+	require.NotNil(t, fd, "NewFocusData returned nil")
+	require.Equal(t, TickerFocusType, fd.focusType)
+	require.False(t, fd.useWebsocket)
+	require.False(t, fd.isOnceOff)
+	require.Equal(t, time.Second, fd.restPollTime)
+	require.NotNil(t, fd.m, "mutex not initialised")
+	require.NotNil(t, fd.hasBeenSuccessfulChan, "hasBeenSuccessfulChan not initialised")
+	require.NotNil(t, fd.Stream, "Stream channel not initialised")
 	select {
-	case <-fd.HasBeenSuccessfulChan:
-		t.Fatal("HasBeenSuccessfulChan should not be closed initially")
+	case <-fd.hasBeenSuccessfulChan:
+		require.FailNow(t, "hasBeenSuccessfulChan should not be closed initially")
 	default:
 	}
 
 	// Re-init should recreate channels and reset success flag
-	fd.SetSuccessful()
+	fd.setSuccessful()
 	// channel must be closed now
 	select {
-	case <-fd.HasBeenSuccessfulChan:
+	case <-fd.hasBeenSuccessfulChan:
+		// ok
 	default:
-		t.Fatal("HasBeenSuccessfulChan should be closed after SetSuccessful")
+		require.FailNow(t, "hasBeenSuccessfulChan should be closed after setSuccessful")
 	}
-	oldChan := fd.HasBeenSuccessfulChan
+	oldChan := fd.hasBeenSuccessfulChan
 	fd.Init()
-	if fd.m == nil || fd.HasBeenSuccessfulChan == nil || fd.Stream == nil {
-		t.Fatal("Init did not re-initialise state")
-	}
-	if oldChan == fd.HasBeenSuccessfulChan {
-		t.Fatal("Init should create a new HasBeenSuccessfulChan")
-	}
+	require.NotNil(t, fd.m)
+	require.NotNil(t, fd.hasBeenSuccessfulChan)
+	require.NotNil(t, fd.Stream)
+	require.NotEqual(t, oldChan, fd.hasBeenSuccessfulChan, "Init should create a new hasBeenSuccessfulChan")
 	select {
-	case <-fd.HasBeenSuccessfulChan:
-		t.Fatal("HasBeenSuccessfulChan should not be closed after re-Init")
+	case <-fd.hasBeenSuccessfulChan:
+		require.FailNow(t, "hasBeenSuccessfulChan should not be closed after re-Init")
 	default:
 	}
 }
@@ -67,35 +61,33 @@ func TestSetSuccessful(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			fd.SetSuccessful()
+			fd.setSuccessful()
 		}()
 	}
 	wg.Wait()
 
 	// channel should be closed and reads should not block
 	select {
-	case <-fd.HasBeenSuccessfulChan:
+	case <-fd.hasBeenSuccessfulChan:
+		// ok
 	default:
-		t.Fatal("HasBeenSuccessfulChan should be closed and readable")
+		require.FailNow(t, "hasBeenSuccessfulChan should be closed and readable")
 	}
 	// multiple reads on a closed channel should still proceed immediately
 	select {
-	case <-fd.HasBeenSuccessfulChan:
+	case <-fd.hasBeenSuccessfulChan:
+		// ok
 	default:
-		t.Fatal("HasBeenSuccessfulChan should remain closed and readable")
+		require.FailNow(t, "hasBeenSuccessfulChan should remain closed and readable")
 	}
 }
 
 func TestRequiresWebsocket(t *testing.T) {
 	t.Parallel()
 	fd := NewFocusData(TickerFocusType, false, true, 0)
-	if !fd.RequiresWebsocket() {
-		t.Fatal("expected RequiresWebsocket to be true")
-	}
-	fd.UseWebsocket = false
-	if fd.RequiresWebsocket() {
-		t.Fatal("expected RequiresWebsocket to be false")
-	}
+	require.True(t, fd.RequiresWebsocket())
+	fd.useWebsocket = false
+	require.False(t, fd.RequiresWebsocket())
 }
 
 func TestRequiresAuth(t *testing.T) {
@@ -106,7 +98,6 @@ func TestRequiresAuth(t *testing.T) {
 	}{
 		{AccountHoldingsFocusType, true},
 		{ActiveOrdersFocusType, true},
-		{OrderPlacementFocusType, true},
 		{TickerFocusType, false},
 		{OrderBookFocusType, false},
 		{FundingRateFocusType, false},
@@ -121,9 +112,7 @@ func TestRequiresAuth(t *testing.T) {
 		t.Run(tc.ft.String(), func(t *testing.T) {
 			t.Parallel()
 			fd := NewFocusData(tc.ft, false, false, time.Second)
-			if got := fd.RequiresAuth(); got != tc.expected {
-				t.Fatalf("RequiresAuth(%v) = %v, expected %v", tc.ft, got, tc.expected)
-			}
+			require.Equalf(t, tc.expected, fd.RequiresAuth(), "RequiresAuth(%v) mismatch", tc.ft)
 		})
 	}
 }
@@ -139,7 +128,6 @@ func TestFocusType_String(t *testing.T) {
 		TradesFocusType:          "TradesFocusType",
 		AccountHoldingsFocusType: "AccountHoldingsFocusType",
 		ActiveOrdersFocusType:    "ActiveOrdersFocusType",
-		OrderPlacementFocusType:  "OrderPlacementFocusType",
 		KlineFocusType:           "KlineFocusType",
 		ContractFocusType:        "ContractFocusType",
 		OrderLimitsFocusType:     "OrderLimitsFocusType",
@@ -149,24 +137,9 @@ func TestFocusType_String(t *testing.T) {
 	for in, exp := range cases {
 		t.Run(in.String(), func(t *testing.T) {
 			t.Parallel()
-			if got := in.String(); got != exp {
-				t.Fatalf("FocusType(%d).String() = %q, expected %q", in, got, exp)
-			}
+			require.Equalf(t, exp, in.String(), "FocusType(%d).String() mismatch", in)
 		})
 
-	}
-}
-
-func TestFocusToSubMap(t *testing.T) {
-	t.Parallel()
-	if s, ok := focusToSub[OrderBookFocusType]; !ok || s != subscription.OrderbookChannel {
-		t.Fatalf("focusToSub[OrderBookFocusType] = %q, ok=%v", s, ok)
-	}
-	if s, ok := focusToSub[TickerFocusType]; !ok || s != subscription.TickerChannel {
-		t.Fatalf("focusToSub[TickerFocusType] = %q, ok=%v", s, ok)
-	}
-	if s, ok := focusToSub[KlineFocusType]; !ok || s != subscription.CandlesChannel {
-		t.Fatalf("focusToSub[KlineFocusType] = %q, ok=%v", s, ok)
 	}
 }
 
@@ -180,29 +153,25 @@ func makeCredKey(tb testing.TB, a asset.Item, creds *account.Credentials) *Crede
 func TestValidate(t *testing.T) {
 	t.Parallel()
 	// Spot ticker via REST
-	fd := &FocusData{Type: TickerFocusType, UseWebsocket: false, RESTPollTime: time.Second}
+	fd := &FocusData{focusType: TickerFocusType, useWebsocket: false, restPollTime: time.Second}
 	k := makeCredKey(t, asset.Spot, nil)
 	require.NoError(t, fd.Validate(k))
 	// Futures-specific type allowed on futures asset with websocket
-	fd = &FocusData{Type: OpenInterestFocusType, UseWebsocket: true}
+	fd = &FocusData{focusType: OpenInterestFocusType, useWebsocket: true}
 	k = makeCredKey(t, asset.Futures, nil)
 	require.NoError(t, fd.Validate(k))
 	// Futures-specific type fails on spot asset
 	k = makeCredKey(t, asset.Spot, nil)
 	require.ErrorIs(t, fd.Validate(k), ErrInvalidAssetForFocusType)
 	// Auth-required type passes when credentials are provided
-	fd = &FocusData{Type: AccountHoldingsFocusType, UseWebsocket: false, RESTPollTime: time.Second}
+	fd = &FocusData{focusType: AccountHoldingsFocusType, useWebsocket: false, restPollTime: time.Second}
 	k = makeCredKey(t, asset.Spot, &account.Credentials{})
 	require.ErrorIs(t, fd.Validate(k), ErrNoCredentials)
-	// OrderPlacementFocusType does not require credentials in Validate
-	fd = &FocusData{Type: OrderPlacementFocusType, UseWebsocket: false, RESTPollTime: time.Second}
-	k = makeCredKey(t, asset.Spot, nil)
-	require.NoError(t, fd.Validate(k), ErrNoCredentials)
 	// invalid REST poll time
-	fd = &FocusData{Type: TickerFocusType, UseWebsocket: false, RESTPollTime: 0}
+	fd = &FocusData{focusType: TickerFocusType, useWebsocket: false, restPollTime: 0}
 	k = makeCredKey(t, asset.Spot, nil)
 	require.ErrorIs(t, fd.Validate(k), ErrInvalidRESTPollTime)
-	fd = &FocusData{Type: UnsetFocusType, UseWebsocket: true}
+	fd = &FocusData{focusType: UnsetFocusType, useWebsocket: true}
 	k = makeCredKey(t, asset.Spot, nil)
 	require.ErrorIs(t, fd.Validate(k), ErrUnsetFocusType)
 	// nil stuff

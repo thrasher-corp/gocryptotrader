@@ -76,11 +76,11 @@ func main() {
 	}
 
 	// Safety: ensure non-nil limits for rendering
-	if qs.Data != nil && qs.Data.ExecutionLimits == nil {
-		qs.Data.ExecutionLimits = &limits.MinMaxLevel{}
+	if qs.data != nil && qs.data.ExecutionLimits == nil {
+		qs.data.ExecutionLimits = &limits.MinMaxLevel{}
 	}
 
-	if err := qs.Run(); err != nil {
+	if err := qs.run(); err != nil {
 		fatalErr(err)
 	}
 
@@ -245,7 +245,7 @@ func streamWS(ctx context.Context, qs *quickspy.QuickSpy, ft quickspy.FocusType,
 		case d := <-f.Stream:
 			if !jsonOnly {
 				clearScreen()
-				heading := fmt.Sprintf("%s | %s | %s | Websocket", qs.Key.ExchangeAssetPair.Exchange, qs.Key.ExchangeAssetPair.Asset.String(), qs.Key.ExchangeAssetPair.Pair().String())
+				heading := fmt.Sprintf("%s | %s | %s | Websocket", qs.key.ExchangeAssetPair.Exchange, qs.key.ExchangeAssetPair.Asset.String(), qs.key.ExchangeAssetPair.Pair().String())
 				outPrintf("%s%s%s\n", ansiBold, heading, ansiReset)
 			}
 
@@ -356,7 +356,7 @@ func streamREST(ctx context.Context, qs *quickspy.QuickSpy, ft quickspy.FocusTyp
 			}
 			if !jsonOnly {
 				clearScreen()
-				heading := fmt.Sprintf("%s | %s | %s | REST", qs.Key.ExchangeAssetPair.Exchange, qs.Key.ExchangeAssetPair.Asset.String(), qs.Key.ExchangeAssetPair.Pair().String())
+				heading := fmt.Sprintf("%s | %s | %s | REST", qs.key.ExchangeAssetPair.Exchange, qs.key.ExchangeAssetPair.Asset.String(), qs.key.ExchangeAssetPair.Pair().String())
 				outPrintf("%s%s%s\n", ansiBold, heading, ansiReset)
 				renderPrettyPayload(payload, 15)
 			}

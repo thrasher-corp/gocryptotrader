@@ -2,136 +2,115 @@
 {{template "header" .}}
 ## Overview
 
-The `quickpy` package provides a means to quickly request and receive data for an exchange for an individual exchange, asset and currency pair
+The `quickspy` package provides a means to quickly request and receive data for an individual exchange, asset and currency pair. For the times you just really want to get some data without fussing about with configs - setting currency pairs or API keys - or `SetDefaults()` functions.
 
 ## Features
 
 - Quickly creates an exchange with only the selected asset and currency pair enabled
 - Supports a range of focus data types allowing for a more tailored approach to data retrieval
--
 - Supports both REST and Websocket data retrieval methods
 - Supports both public and authenticated data retrieval methods
--
 
 
 ### Focus Data Types
-
+| Type | Supports REST | Supports Websocket | Futures Only | Requires Authentication |
+| ---- | ------------- | ------------------ | ------------ | ----------------------- |
+| Orderbook | Yes | Yes | No | No |
+| Ticker | Yes | Yes | No | No |
+| Trades | Yes | Yes | No | No |
+| Funding Rates | Yes | Yes | Yes | No |
+| Klines | Yes | Yes | No | No |
+| Account Info | Yes | Yes | No | Yes |
+| Open Interest | Yes | Yes | Yes | No |
+| Active Orders | Yes | Yes | No | Yes |
+| Order Execution Limits | Yes | No | No | No |
+| Contract Info | Yes | No | Yes | No |
+| URL | No | Yes | No | No |
 
 ## Usage
 
-### Default single websocket connection
+There are multiple ways to utilise a quickspy. See `/cmd/quickspy` for a basic way of establishing a single purpose quickspy that subscribes to data and prints it to console.
 
-Example setup for the `websocket` package connection:
-
+### Utilise QuickestSpy to fetch and print the latest ticker data
 ```go
-package main
-
-import (
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-)
-
-type Exchange struct {
-	exchange.Base
-}
-
-// In the exchange wrapper this will set up the initial pointer field provided by exchange.Base
-func (e *Exchange) SetDefault() {
-	e.Websocket = websocket.NewManager()
-	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// In the exchange wrapper this is the original setup pattern for the websocket services
-func (e *Exchange) Setup(exch *config.Exchange) error {
-	// This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
-	if err := e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:                         exch,
-		DefaultURL:                             connectionURLString,
-		RunningURL:                             connectionURLString,
-		Connector:                              e.WsConnect,
-		Subscriber:                             e.Subscribe,
-		Unsubscriber:                           e.Unsubscribe,
-		GenerateSubscriptions:                  e.GenerateDefaultSubscriptions,
-		Features:                               &e.Features.Supports.WebsocketCapabilities,
-		MaxWebsocketSubscriptionsPerConnection: 240,
-		OrderbookBufferConfig: buffer.Config{ Checksum: e.CalculateUpdateOrderbookChecksum },
-	}); err != nil {
-		return err
+func main() {
+	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	q, err := quickspy.NewQuickestSpy(ctx, "Binance", asset.Spot, currency.NewBTCUSDT(), quickspy.TickerFocusType, nil)
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	// This is a public websocket connection
-	if err := ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  connectionURLString,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exchangeWebsocketResponseMaxLimit,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
-	}); err != nil {
-		return err
+	if err := q.WaitForInitialData(ctx, quickspy.TickerFocusType); err != nil {
+		log.Fatal(err)
 	}
-
-	// This is a private websocket connection
-	return ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  privateConnectionURLString,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exchangeWebsocketResponseMaxLimit,
-		Authenticated:        true,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
-	})
+	d, err := q.LatestData(quickspy.TickerFocusType)
+	if err != nil {
+		log.Fatal(err)
+	}
+	b, err := json.MarshalIndent(d, "", " ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s", b)
 }
 ```
 
-### Multiple websocket connections
- The example below provides the now optional multi connection management system which allows for more connections
- to be maintained and established based off URL, connections types, asset types etc.
+### Stream gateio websocket orderbook
 ```go
-func (e *Exchange) Setup(exch *config.Exchange) error {
-	// This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
-	if err := e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:               exch,
-		Features:                     &e.Features.Supports.WebsocketCapabilities,
-		FillsFeed:                    e.Features.Enabled.FillsFeed,
-		TradeFeed:                    e.Features.Enabled.TradeFeed,
-		UseMultiConnectionManagement: true,
-	}); err != nil {
-		return err
+func main() {
+	focusData := quickspy.NewFocusData(quickspy.OrderbookFocusType, false, true, time.Second)
+	focusList := []*quickspy.FocusData{focusData}
+	k := &quickspy.CredentialsKey{
+		ExchangeAssetPair: key.NewExchangeAssetPair("gateio", asset.Spot, currency.NewBTCUSDT()),
 	}
-	// Spot connection
-	if err := g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      connectionURLStringForSpot,
-		RateLimit:                request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		// Custom handlers for the specific connection:
-		Handler:                  e.WsHandleSpotData,
-		Subscriber:               e.SpotSubscribe,
-		Unsubscriber:             e.SpotUnsubscribe,
-		GenerateSubscriptions:    e.GenerateDefaultSubscriptionsSpot,
-		Connector:                e.WsConnectSpot,
-		BespokeGenerateMessageID: e.GenerateWebsocketMessageID,
-	}); err != nil {
-		return err
+	q, err := quickspy.NewQuickSpy(
+		nil,
+		k,
+		focusList)
+	if err != nil {
+		log.Fatal(err)
 	}
-	// Futures connection - USDT margined
-	if err := g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  connectionURLStringForSpotForFutures,
-		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		// Custom handlers for the specific connection:
-		Handler: func(ctx context.Context, incoming []byte) error {	return e.WsHandleFuturesData(ctx, incoming, asset.Futures)	},
-		Subscriber:               e.FuturesSubscribe,
-		Unsubscriber:             e.FuturesUnsubscribe,
-		GenerateSubscriptions:    func() (subscription.List, error) { return e.GenerateFuturesDefaultSubscriptions(currency.USDT) },
-		Connector:                e.WsFuturesConnect,
-		BespokeGenerateMessageID: e.GenerateWebsocketMessageID,
-	}); err != nil {
-		return err
+	go streamData(&focusData)
+	_ = signaler.WaitForInterrupt()
+	q.Shutdown()
+}
+
+func streamData(fd *quickspy.FocusData) {
+	for {
+		fmt.Printf("%+v\n", <-fd.Stream)
 	}
 }
+
 ```
+
+### View JSON data
+``` go
+func main() {
+	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	focusData := quickspy.NewFocusData(quickspy.TickerFocusType, false, true, time.Second)
+	focusList := []*quickspy.FocusData{focusData}
+	k := &quickspy.CredentialsKey{
+		ExchangeAssetPair: key.NewExchangeAssetPair("binance", asset.Spot, currency.NewBTCUSDT()),
+	}
+	q, err := quickspy.NewQuickSpy(
+		ctx,
+		k,
+		focusList)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := q.WaitForInitialData(ctx, quickspy.TickerFocusType); err != nil {
+		log.Fatal(err)
+	}
+	d, err := q.DumpJSON()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s", d)
+}
+
+```
+
+
 
 {{template "donations" .}}
 {{end}}

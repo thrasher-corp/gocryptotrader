@@ -26,13 +26,13 @@ func TestUpsert(t *testing.T) {
 	fd := &FocusData{}
 	fs.Upsert(TickerFocusType, fd)
 	require.Len(t, fs.s, 1)
-	require.Equal(t, TickerFocusType, fs.s[TickerFocusType].Type)
+	require.Equal(t, TickerFocusType, fs.s[TickerFocusType].focusType)
 	require.NotNil(t, fs.s[TickerFocusType].m)
 	// test update existing key
 	fd2 := &FocusData{}
 	fs.Upsert(TickerFocusType, fd2)
 	require.Len(t, fs.s, 1)
-	require.Equal(t, TickerFocusType, fs.s[TickerFocusType].Type)
+	require.Equal(t, TickerFocusType, fs.s[TickerFocusType].focusType)
 }
 
 func TestRemove(t *testing.T) {
@@ -62,7 +62,7 @@ func TestGetByFocusType(t *testing.T) {
 	result = fs.GetByFocusType(TickerFocusType)
 	require.NotNil(t, result)
 	require.NotNil(t, result.m)
-	require.Equal(t, TickerFocusType, result.Type)
+	require.Equal(t, TickerFocusType, result.focusType)
 }
 
 func TestList(t *testing.T) {
@@ -89,16 +89,16 @@ func TestDisableWebsocketFocuses(t *testing.T) {
 	// test empty store does nothing
 	fs.DisableWebsocketFocuses()
 	// success
-	fd1 := &FocusData{UseWebsocket: true}
-	fd2 := &FocusData{UseWebsocket: true}
+	fd1 := &FocusData{useWebsocket: true}
+	fd2 := &FocusData{useWebsocket: true}
 	fs.Upsert(TickerFocusType, fd1)
 	fs.Upsert(TradesFocusType, fd2)
 	fs.DisableWebsocketFocuses()
 	list := fs.List()
 	for _, fd := range list {
-		t.Run(fd.Type.String(), func(t *testing.T) {
+		t.Run(fd.focusType.String(), func(t *testing.T) {
 			t.Parallel()
-			assert.False(t, fd.UseWebsocket)
+			assert.False(t, fd.useWebsocket)
 		})
 	}
 }

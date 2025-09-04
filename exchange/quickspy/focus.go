@@ -16,13 +16,13 @@ type FocusType int
 // FocusData contains information on what data quickspy should gather
 // how it should be gathered as well as a channel for delivering that data
 type FocusData struct {
-	Type                  FocusType
-	UseWebsocket          bool
-	RESTPollTime          time.Duration
+	focusType             FocusType
+	useWebsocket          bool
+	restPollTime          time.Duration
 	m                     *sync.RWMutex
-	IsOnceOff             bool
+	isOnceOff             bool
 	hasBeenSuccessful     bool
-	HasBeenSuccessfulChan chan any
+	hasBeenSuccessfulChan chan any
 	Stream                chan any
 }
 
@@ -50,10 +50,10 @@ var focusToSub = map[FocusType]string{
 // NewFocusData creates a new FocusData instance and initializes its internal fields.
 func NewFocusData(focusType FocusType, isOnceOff, useWebsocket bool, restPollTime time.Duration) *FocusData {
 	fd := &FocusData{
-		Type:         focusType,
-		UseWebsocket: useWebsocket,
-		RESTPollTime: restPollTime,
-		IsOnceOff:    isOnceOff,
+		focusType:    focusType,
+		useWebsocket: useWebsocket,
+		restPollTime: restPollTime,
+		isOnceOff:    isOnceOff,
 	}
 	fd.Init()
 	return fd
@@ -62,8 +62,8 @@ func NewFocusData(focusType FocusType, isOnceOff, useWebsocket bool, restPollTim
 // Init called to ensure that lame data is initialised
 func (f *FocusData) Init() {
 	f.m = new(sync.RWMutex)
-	f.HasBeenSuccessfulChan = make(chan any)
-	f.Stream = make(chan any)
+	f.hasBeenSuccessfulChan = make(chan any)
+	f.Stream = make(chan any, 1)
 	f.hasBeenSuccessful = false
 }
 
@@ -76,41 +76,45 @@ func (f *FocusData) Validate(k *CredentialsKey) error {
 	if err := common.NilGuard(k); err != nil {
 		return err
 	}
-	if f.Type == UnsetFocusType {
+	if f.focusType == UnsetFocusType {
 		return ErrUnsetFocusType
 	}
-	if f.RESTPollTime <= 0 && !f.UseWebsocket {
+	if f.restPollTime <= 0 && !f.useWebsocket {
 		return ErrInvalidRESTPollTime
 	}
 	// lazy initialisation of mutex and channels
 	// we could error and cause a fuss because a silly user didn't call init, but what good is it to be annoying?
-	if f.m == nil || f.HasBeenSuccessfulChan == nil || f.Stream == nil {
+	if f.m == nil || f.hasBeenSuccessfulChan == nil || f.Stream == nil {
 		f.Init()
 	}
 	if k.Credentials != nil && k.Credentials.IsEmpty() {
 		return ErrNoCredentials
 	}
-	if !k.ExchangeAssetPair.Asset.IsFutures() {
-		switch f.Type {
-		case OpenInterestFocusType, FundingRateFocusType, ContractFocusType:
-			return ErrInvalidAssetForFocusType
-		}
-	}
-	if slices.Contains(authFocusList, f.Type) && k.Credentials == nil {
+
+	if slices.Contains(authFocusList, f.focusType) &&
+		(k.Credentials == nil || k.Credentials.IsEmpty()) {
 		return ErrCredentialsRequiredForFocusType
 	}
-	if slices.Contains(futuresOnlyFocusList, f.Type) && !k.ExchangeAssetPair.Asset.IsFutures() {
+	if slices.Contains(futuresOnlyFocusList, f.focusType) && !k.ExchangeAssetPair.Asset.IsFutures() {
 		return ErrInvalidAssetForFocusType
 	}
 	return nil
 }
 
-// SetSuccessful sets the hasBeenSuccessful flag to true and closes the
-// HasBeenSuccessfulChan channel. It uses a read-write lock to ensure that
+// stream attempts to send data to the Stream channel without blocking
+func (f *FocusData) stream(d any) {
+	select {
+	case f.Stream <- d:
+	default: // drop data that doesn't fit or get listened to
+	}
+}
+
+// setSuccessful sets the hasBeenSuccessful flag to true and closes the
+// hasBeenSuccessfulChan channel. It uses a read-write lock to ensure that
 // the flag is only set once, preventing multiple goroutines from setting it
 // simultaneously. If the flag has already been set, it returns immediately
 // without doing anything further.
-func (f *FocusData) SetSuccessful() {
+func (f *FocusData) setSuccessful() {
 	f.m.RLock()
 	if f.hasBeenSuccessful {
 		f.m.RUnlock()
@@ -123,13 +127,28 @@ func (f *FocusData) SetSuccessful() {
 		return
 	}
 	f.hasBeenSuccessful = true
-	close(f.HasBeenSuccessfulChan)
+	close(f.hasBeenSuccessfulChan)
 }
 
+// RequiresWebsocket returns whether the focus type requires a websocket connection
 func (f *FocusData) RequiresWebsocket() bool {
 	f.m.RLock()
 	defer f.m.RUnlock()
-	return f.UseWebsocket
+	return f.useWebsocket
+}
+
+// RequiresAuth returns whether the focus type requires authentication
+func (f *FocusData) RequiresAuth() bool {
+	f.m.RLock()
+	defer f.m.RUnlock()
+	return f.focusType == AccountHoldingsFocusType || f.focusType == ActiveOrdersFocusType
+}
+
+// HasBeenSuccessful returns whether the focus has successfully received data at least once.
+func (f *FocusData) HasBeenSuccessful() bool {
+	f.m.RLock()
+	defer f.m.RUnlock()
+	return f.hasBeenSuccessful
 }
 
 // FocusTypes are what quickspy uses to grant permission for it to grab data
@@ -142,13 +161,13 @@ const (
 	TradesFocusType
 	AccountHoldingsFocusType
 	ActiveOrdersFocusType
-	OrderPlacementFocusType
 	KlineFocusType
 	ContractFocusType
 	OrderLimitsFocusType
 	URLFocusType
 )
 
+// focusList is a list of all supported FocusTypes
 var focusList = []FocusType{
 	OpenInterestFocusType,
 	TickerFocusType,
@@ -156,36 +175,34 @@ var focusList = []FocusType{
 	FundingRateFocusType,
 	TradesFocusType,
 	AccountHoldingsFocusType,
-	ActiveOrdersFocusType,
 	KlineFocusType,
 	ContractFocusType,
 	OrderLimitsFocusType,
 	URLFocusType,
 }
 
+var wsSupportedFocusList = []FocusType{
+	TickerFocusType,
+	OrderBookFocusType,
+	KlineFocusType,
+	TradesFocusType,
+	ActiveOrdersFocusType,
+	AccountHoldingsFocusType,
+}
+
+// authFocusList is a list of FocusTypes that require authentication
 var authFocusList = []FocusType{
 	AccountHoldingsFocusType,
 	ActiveOrdersFocusType,
-	OrderLimitsFocusType,
 }
 
+// futuresOnlyFocusList is a list of FocusTypes that are only valid for futures assets
 var futuresOnlyFocusList = []FocusType{
 	OpenInterestFocusType,
 	FundingRateFocusType,
 }
 
-func (f *FocusData) RequiresAuth() bool {
-	f.m.RLock()
-	defer f.m.RUnlock()
-	return f.Type == AccountHoldingsFocusType || f.Type == ActiveOrdersFocusType || f.Type == OrderPlacementFocusType
-}
-
-func (f *FocusData) HasBeenSuccessful() bool {
-	f.m.RLock()
-	defer f.m.RUnlock()
-	return f.hasBeenSuccessful
-}
-
+// String returns a string representation of the FocusType
 func (f FocusType) String() string {
 	switch f {
 	case OpenInterestFocusType:
@@ -202,8 +219,6 @@ func (f FocusType) String() string {
 		return "AccountHoldingsFocusType"
 	case ActiveOrdersFocusType:
 		return "ActiveOrdersFocusType"
-	case OrderPlacementFocusType:
-		return "OrderPlacementFocusType"
 	case KlineFocusType:
 		return "KlineFocusType"
 	case ContractFocusType:
