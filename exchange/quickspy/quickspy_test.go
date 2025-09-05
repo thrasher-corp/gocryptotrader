@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // these are here to help a user test
@@ -414,6 +415,29 @@ func TestGetAndWaitForFocusByKey(t *testing.T) {
 
 func TestNewQuickerSpy(t *testing.T) {
 	t.Parallel()
+	_, err := NewQuickerSpy(nil, nil, -1)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = NewQuickerSpy(nil, &key.ExchangeAssetPair{}, -1)
+	require.ErrorIs(t, err, ErrUnsupportedFocusType)
+
+	_, err = NewQuickerSpy(nil, &key.ExchangeAssetPair{}, TickerFocusType)
+	require.ErrorIs(t, err, engine.ErrExchangeNotFound)
+
+	k := &key.ExchangeAssetPair{
+		Exchange: exchangeName,
+		Asset:    futuresAssetType,
+		Base:     currencyPair.Base.Item,
+		Quote:    currencyPair.Quote.Item,
+	}
+	qs, err := NewQuickerSpy(nil, k, TickerFocusType)
+	require.NoError(t, err)
+	require.NotNil(t, qs)
+	ts := func() bool {
+		hasBeen, _ := qs.HasBeenSuccessful(TickerFocusType)
+		return hasBeen
+	}
+	assert.Eventually(t, ts, time.Second*5, time.Millisecond*100, "expected Ticker focus to have been successful within 5 seconds")
 }
 
 func TestNewQuickestSpy(t *testing.T) {
@@ -422,5 +446,53 @@ func TestNewQuickestSpy(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = NewQuickestSpy(nil, &key.ExchangeAssetPair{}, -1)
-	require.ErrorIs(t, err, errNoFocus)
+	require.ErrorIs(t, err, ErrUnsupportedFocusType)
+
+	_, err = NewQuickestSpy(nil, &key.ExchangeAssetPair{}, TickerFocusType)
+	require.ErrorIs(t, err, engine.ErrExchangeNotFound)
+
+	k := &key.ExchangeAssetPair{
+		Exchange: exchangeName,
+		Asset:    futuresAssetType,
+		Base:     currencyPair.Base.Item,
+		Quote:    currencyPair.Quote.Item,
+	}
+	c, err := NewQuickestSpy(nil, k, TickerFocusType)
+	require.NoError(t, err)
+	ts := func() bool {
+		_ = <-c
+		return true
+	}
+	assert.Eventually(t, ts, time.Second*5, time.Millisecond*100, "expected Ticker focus to have been successful within 5 seconds")
+}
+
+func TestValidateSubscriptions(t *testing.T) {
+	t.Parallel()
+	qs := mustQuickSpy(t, TickerFocusType)
+
+	assert.ErrorIs(t, qs.validateSubscriptions(nil), errNoSubSwitchingToREST)
+
+	assert.ErrorIs(t, qs.validateSubscriptions([]*subscription.Subscription{{}, {}}), errNoSubSwitchingToREST)
+
+	assert.ErrorIs(t, qs.validateSubscriptions([]*subscription.Subscription{{
+		Enabled: true,
+		Channel: subscription.TickerChannel,
+		Pairs:   []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+		Asset:   asset.Binary,
+	}}), errNoSubSwitchingToREST)
+
+	assert.ErrorIs(t, qs.validateSubscriptions([]*subscription.Subscription{{
+		Enabled: true,
+		Channel: subscription.TickerChannel,
+		Pairs:   []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+		Asset:   futuresAssetType,
+	}}), errNoSubSwitchingToREST)
+
+	qs = mustQuickSpy(t, TickerFocusType)
+	assert.NoError(t, qs.validateSubscriptions([]*subscription.Subscription{{
+		Enabled: true,
+		Channel: subscription.TickerChannel,
+		Pairs:   []currency.Pair{currencyPair},
+		Asset:   futuresAssetType,
+	}}))
 }

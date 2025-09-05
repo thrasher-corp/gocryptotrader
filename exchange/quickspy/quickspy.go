@@ -50,7 +50,7 @@ func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (
 	}
 	q := &QuickSpy{
 		key:                k,
-		dataHandlerChannel: make(chan any),
+		dataHandlerChannel: make(chan any, 10),
 		focuses:            sm,
 		credContext:        ctx,
 		data:               &Data{Key: k},
@@ -88,15 +88,13 @@ func NewQuickerSpy(ctx context.Context, k *key.ExchangeAssetPair, focus FocusTyp
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	sm := NewFocusStore()
 	useWS := slices.Contains(wsSupportedFocusList, focus)
 	focusData := NewFocusData(focus, false, useWS, time.Second)
-	sm.Upsert(focus, focusData)
 	ck := &CredentialsKey{
 		ExchangeAssetPair: *k,
 		Credentials:       account.GetCredentialsFromContext(ctx),
 	}
-	q, err := NewQuickSpy(ctx, ck, sm.List())
+	q, err := NewQuickSpy(ctx, ck, []*FocusData{focusData})
 	if err != nil {
 		return nil, err
 	}
@@ -117,15 +115,13 @@ func NewQuickestSpy(ctx context.Context, k *key.ExchangeAssetPair, focus FocusTy
 		ctx = context.Background()
 	}
 
-	sm := NewFocusStore()
 	useWS := slices.Contains(wsSupportedFocusList, focus)
 	focusData := NewFocusData(focus, false, useWS, time.Second)
-	sm.Upsert(focus, focusData)
 	ck := &CredentialsKey{
 		ExchangeAssetPair: *k,
 		Credentials:       account.GetCredentialsFromContext(ctx),
 	}
-	q, err := NewQuickSpy(ctx, ck, sm.List())
+	q, err := NewQuickSpy(ctx, ck, []*FocusData{focusData})
 	if err != nil {
 		return nil, err
 	}
@@ -325,6 +321,68 @@ func (q *QuickSpy) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) err
 			return fmt.Errorf("%s: %w", q.key.ExchangeAssetPair, err)
 		}
 	}
+	err := q.validateSubscriptions(newSubs)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (q *QuickSpy) validateSubscriptions(newSubs []*subscription.Subscription) error {
+	if len(newSubs) == 0 {
+		if err := q.stopWebsocket(); err != nil {
+			return err
+		}
+		return fmt.Errorf("%s %w", q.key.ExchangeAssetPair, errNoSubSwitchingToREST)
+	}
+	b := q.exch.GetBase()
+	generatedSubs := b.Websocket.GetSubscriptions()
+	if len(generatedSubs) != len(newSubs) {
+		if err := q.stopWebsocket(); err != nil {
+			return err
+		}
+		return fmt.Errorf("%s %w", q.key.ExchangeAssetPair, errNoSubSwitchingToREST)
+	}
+	for i := range generatedSubs {
+		for _, f := range q.focuses.List() {
+			if !f.UseWebsocket() {
+				continue
+			}
+			ch, ok := focusToSub[f.focusType]
+			if !ok || ch == "" {
+				continue
+			}
+			if generatedSubs[i].Channel != ch {
+				continue
+			}
+			if generatedSubs[i].Asset != q.key.ExchangeAssetPair.Asset &&
+				generatedSubs[i].Asset != asset.All && generatedSubs[i].Asset != asset.Empty {
+				if err := q.stopWebsocket(); err != nil {
+					return err
+				}
+				return fmt.Errorf("%s %s %w", q.key.ExchangeAssetPair, f.focusType, errNoSubSwitchingToREST)
+			}
+			if !generatedSubs[i].Pairs.Contains(q.key.ExchangeAssetPair.Pair(), false) {
+				if err := q.stopWebsocket(); err != nil {
+					return err
+				}
+				return fmt.Errorf("%s %s %w", q.key.ExchangeAssetPair, f.focusType, errNoSubSwitchingToREST)
+			}
+		}
+	}
+	return nil
+}
+
+// stopWebsocket reverts all focuses to REST when websocket does not utilise proper subscriptions
+// eg multi connection websockets
+func (q *QuickSpy) stopWebsocket() error {
+	b := q.exch.GetBase()
+	if err := b.Websocket.Shutdown(); err != nil && !errors.Is(err, websocket.ErrNotConnected) {
+		return err
+	}
+	for _, f := range q.focuses.List() {
+		f.useWebsocket = false
+	}
 	return nil
 }
 
@@ -344,7 +402,7 @@ func (q *QuickSpy) run() error {
 		if focus.useWebsocket {
 			continue
 		}
-		q.wg.Add(1)
+		q.wg.Add(1) // wg.Go doesn't work here as we have to pass in the focus variable
 		go func(f *FocusData) {
 			defer q.wg.Done()
 			err := q.runRESTFocus(f)

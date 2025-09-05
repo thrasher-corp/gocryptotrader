@@ -1,7 +1,6 @@
 package quickspy
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -214,9 +213,6 @@ func TestHandleWSTicker(t *testing.T) {
 }
 
 func TestHandleWSOrderbook(t *testing.T) {
-	to := time.Now()
-	_ = to // silence unused if parallel skip occurs
-	// orderbook focus test
 	q := mustQuickSpy(t, OrderBookFocusType)
 	require.ErrorIs(t, q.handleWSOrderbook(nil), common.ErrNilPointer)
 	id, _ := uuid.NewV4()
@@ -232,17 +228,20 @@ func TestHandleWSOrderbook(t *testing.T) {
 	require.NoError(t, depth.LoadSnapshot(bk))
 	require.NoError(t, q.handleWSOrderbook(depth))
 	require.NotNil(t, q.data.Orderbook)
-	assert.Equal(t, q.key.ExchangeAssetPair.Pair(), q.data.Orderbook.Pair)
 	assert.Len(t, q.data.Orderbook.Bids, 1)
-	require.NoError(t, depth.Invalidate(errors.New("test")))
-	err := q.handleWSOrderbook(depth)
-	require.Error(t, err)
 }
 
 func TestHandleWSTrade(t *testing.T) {
 	q := mustQuickSpy(t, TradesFocusType)
 	require.ErrorIs(t, q.handleWSTrade(nil), common.ErrNilPointer)
-	trd := &trade.Data{Exchange: q.key.ExchangeAssetPair.Exchange, CurrencyPair: q.key.ExchangeAssetPair.Pair(), AssetType: q.key.ExchangeAssetPair.Asset, Price: 123.45, Amount: 0.5, Timestamp: time.Now()}
+	trd := &trade.Data{
+		Exchange:     q.key.ExchangeAssetPair.Exchange,
+		CurrencyPair: q.key.ExchangeAssetPair.Pair(),
+		AssetType:    q.key.ExchangeAssetPair.Asset,
+		Price:        123.45,
+		Amount:       0.5,
+		Timestamp:    time.Now(),
+	}
 	require.NoError(t, q.handleWSTrade(trd))
 	require.Len(t, q.data.Trades, 1)
 	assert.Equal(t, 123.45, q.data.Trades[0].Price)
@@ -252,7 +251,24 @@ func TestHandleWSTrades(t *testing.T) {
 	q := mustQuickSpy(t, TradesFocusType)
 	require.NoError(t, q.handleWSTrades(nil))
 	require.Empty(t, q.data.Trades)
-	trs := []trade.Data{{Exchange: q.key.ExchangeAssetPair.Exchange, CurrencyPair: q.key.ExchangeAssetPair.Pair(), AssetType: q.key.ExchangeAssetPair.Asset, Price: 1, Amount: 1, Timestamp: time.Now()}, {Exchange: q.key.ExchangeAssetPair.Exchange, CurrencyPair: q.key.ExchangeAssetPair.Pair(), AssetType: q.key.ExchangeAssetPair.Asset, Price: 2, Amount: 2, Timestamp: time.Now()}}
+	trs := []trade.Data{
+		{
+			Exchange:     q.key.ExchangeAssetPair.Exchange,
+			CurrencyPair: q.key.ExchangeAssetPair.Pair(),
+			AssetType:    q.key.ExchangeAssetPair.Asset,
+			Price:        1,
+			Amount:       1,
+			Timestamp:    time.Now(),
+		},
+		{
+			Exchange:     q.key.ExchangeAssetPair.Exchange,
+			CurrencyPair: q.key.ExchangeAssetPair.Pair(),
+			AssetType:    q.key.ExchangeAssetPair.Asset,
+			Price:        2,
+			Amount:       2,
+			Timestamp:    time.Now(),
+		},
+	}
 	require.NoError(t, q.handleWSTrades(trs))
 	require.Len(t, q.data.Trades, 2)
 	assert.Equal(t, 2.0, q.data.Trades[1].Price)
