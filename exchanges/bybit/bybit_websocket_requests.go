@@ -148,9 +148,9 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, payload 
 }
 
 var retCode = map[int64]string{
-	10404: "1. op type is not found; 2. category is not correct/supported",
-	10429: "System level frequency protection",
+	10404: "either op type is not found or category is not correct/supported",
+	10429: "request exceeds rate limit",
 	20006: "reqId is duplicated",
-	10016: "1. internal server error; 2. Service is restarting",
-	10019: "ws trade service is restarting, do not accept new request, but the request in the process is not affected. You can build new connection to be routed to normal service",
+	10016: "internal server error",
+	10019: "ws trade service is restarting, please reconnect",
 }
