@@ -93,7 +93,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, argument
 	requestID := strconv.FormatInt(outbound.GenerateMessageID(false), 10)
 
 	// Sets OrderLinkID to the outbound payload so that the response can be matched to the request in the inbound connection.
-	argumentID := argument.setOrderLinkID(strconv.FormatInt(tn.UnixNano(), 10) + requestID) // UnixNano is used to ensure the ID is unique.
+	orderLinkID := argument.setOrderLinkID(strconv.FormatInt(tn.UnixNano(), 10) + requestID) // UnixNano is used to reduce the chance of an ID clash
 
 	// Set up a listener to wait for the response to come back from the inbound connection. The request is sent through
 	// the outbound trade connection, the response can come back through the inbound private connection before the
