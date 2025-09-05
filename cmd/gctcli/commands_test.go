@@ -11,14 +11,14 @@ import (
 func TestFlagsFromStruct(t *testing.T) {
 	t.Parallel()
 	flags := FlagsFromStruct(&struct {
-		Exchange string  `cli:"exchange"`
-		Leverage int64   `cli:"leverage"`
-		Price    float64 `cli:"price"`
+		Exchange string  `name:"exchange"`
+		Leverage int64   `name:"leverage"`
+		Price    float64 `name:"price" usage:"the price for the order"`
 	}{
 		Exchange: "okx",
 		Leverage: 1,
 		Price:    3.1415,
-	}, map[string]string{"price": "the price for the order"})
+	})
 	require.Len(t, flags, 3)
 	for e := range flags {
 		assert.Contains(t, []string{"exchange", "leverage", "price"}, flags[e].Names()[0])
@@ -27,18 +27,21 @@ func TestFlagsFromStruct(t *testing.T) {
 
 func TestUnmarshalCLIFields(t *testing.T) {
 	t.Parallel()
+	// FlagsFromStringNew
 	type SampleTest struct {
-		Exchange      string `cli:"exchange,required"`
-		OrderID       string `cli:"order_id,required"`
-		ClientOrderID string `cli:"client_order_id"`
-		PostOnly      bool   `cli:"post_only"`
-		ReduceOnly    bool   `cli:"reduce_only"`
+		Exchange      string `name:"exchange" required:"t"`
+		OrderID       string `name:"order_id" required:"true"`
+		ClientOrderID string `name:"client_order_id"`
+		PostOnly      bool   `name:"post_only"`
+		ReduceOnly    bool   `name:"reduce_only"`
 	}
 	sample1 := &SampleTest{Exchange: "Okx", OrderID: "1234", ClientOrderID: "5678", PostOnly: true}
 
 	target := &SampleTest{}
+	flags := FlagsFromStruct(target)
+
 	app := &cli.App{
-		Flags: FlagsFromStruct(target, nil),
+		Flags: flags,
 		Action: func(ctx *cli.Context) error {
 			return UnmarshalCLIFields(ctx, target)
 		},

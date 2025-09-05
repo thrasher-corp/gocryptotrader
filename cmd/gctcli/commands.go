@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -475,20 +476,7 @@ var getTickerCommand = &cli.Command{
 	Usage:     "gets the ticker for a specific currency pair and exchange",
 	ArgsUsage: "<exchange> <pair> <asset>",
 	Action:    getTicker,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to get the ticker for",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair to get the ticker for",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type of the currency pair to get the ticker for",
-		},
-	},
+	Flags:     FlagsFromStruct(&GetTickerParams{}),
 }
 
 func getTicker(c *cli.Context) error {
@@ -496,38 +484,22 @@ func getTicker(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	var currencyPair string
-	var assetType string
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	getTickerParam := &GetTickerParams{}
+	err := UnmarshalCLIFields(c, getTickerParam)
+	if err != nil {
+		return err
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
-
-	if !validPair(currencyPair) {
+	if !validPair(getTickerParam.Pair) {
 		return errInvalidPair
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
-	}
-
-	assetType = strings.ToLower(assetType)
-	if !validAsset(assetType) {
+	getTickerParam.Asset = strings.ToLower(getTickerParam.Asset)
+	if !validAsset(getTickerParam.Asset) {
 		return errInvalidAsset
 	}
 
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(getTickerParam.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -541,13 +513,13 @@ func getTicker(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetTicker(c.Context,
 		&gctrpc.GetTickerRequest{
-			Exchange: exchangeName,
+			Exchange: getTickerParam.Exchange,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			AssetType: assetType,
+			AssetType: getTickerParam.Asset,
 		},
 	)
 	if err != nil {
@@ -1286,7 +1258,7 @@ var getOrderCommand = &cli.Command{
 	Usage:     "gets the specified order info",
 	ArgsUsage: "<exchange> <asset> <pair> <order_id>",
 	Action:    getOrder,
-	Flags:     FlagsFromStruct(&GetOrderParams{}, nil),
+	Flags:     FlagsFromStruct(&GetOrderParams{}),
 }
 
 func getOrder(c *cli.Context) error {
@@ -1343,17 +1315,7 @@ var submitOrderCommand = &cli.Command{
 	Usage:     "submit order submits an exchange order",
 	ArgsUsage: "<exchange> <pair> <side> <type> <amount> <price> <client_id>",
 	Action:    submitOrder,
-	Flags: FlagsFromStruct(&SubmitOrderParams{}, map[string]string{
-		"pair":           "the currency pair",
-		"side":           "the order side to use (BUY OR SELL)",
-		"type":           "the order type (MARKET OR LIMIT)",
-		"tp_price":       "the optional take-profit price for the order",
-		"tp_limit_price": "the optional take-profit limit price for the order",
-		"tp_price_type":  "the optional take-profit price type for the order",
-		"sl_price":       "the optional stop-loss price for the order",
-		"sl_limit_price": "the optional stop-loss limit price for the order",
-		"sl_price_type":  "the optional stop-loss price type for the order",
-	}),
+	Flags:     FlagsFromStruct(&SubmitOrderParams{}),
 }
 
 func submitOrder(c *cli.Context) error {
@@ -1563,11 +1525,7 @@ var cancelOrderCommand = &cli.Command{
 	Usage:     "cancel order cancels an exchange order",
 	ArgsUsage: "<exchange> <order_id> <client_order_id> <account_id> <pair> <asset> <side> <type> <client_id> <margin_type> <time_in_force>",
 	Action:    cancelOrder,
-	Flags: FlagsFromStruct(&CancelOrderParams{}, map[string]string{
-		"exchange": "the exchange to cancel the order for",
-		"pair":     "the currency pair to cancel the order for",
-		"type":     "the order type (MARKET OR LIMIT)",
-	}),
+	Flags:     FlagsFromStruct(&CancelOrderParams{}),
 }
 
 func cancelOrder(c *cli.Context) error {
@@ -1640,11 +1598,7 @@ var cancelBatchOrdersCommand = &cli.Command{
 	Usage:     "cancel batch orders cancels a list of exchange orders (comma separated)",
 	ArgsUsage: "<exchange> <account_id> <order_ids> <pair> <asset> <side>",
 	Action:    cancelBatchOrders,
-	Flags: FlagsFromStruct(&CancelOrderParams{}, map[string]string{
-		"exchange": "the exchange to cancel the order for",
-		"pair":     "the currency pair to cancel the order for",
-		"type":     "the order type (MARKET OR LIMIT)",
-	}),
+	Flags:     FlagsFromStruct(&CancelOrderParams{}),
 }
 
 func cancelBatchOrders(c *cli.Context) error {
@@ -1725,17 +1679,7 @@ var modifyOrderCommand = &cli.Command{
 	Usage:     "modify price and/or amount of a previously submitted order",
 	ArgsUsage: "<exchange> <asset> <pair> <order_id>",
 	Action:    modifyOrder,
-	Flags: FlagsFromStruct(&ModifyOrderParams{}, map[string]string{
-		"pair":           "the currency pair",
-		"side":           "the order side of the order to be modified",
-		"type":           "the order type (MARKET OR LIMIT)",
-		"tp_price":       "the optional take-profit price for the order to be modified",
-		"tp_limit_price": "the optional take-profit limit price for the order to be modified",
-		"tp_price_type":  "the optional take-profit price type for the order to be modified",
-		"sl_price":       "the optional stop-loss price for the order to be modified",
-		"sl_limit_price": "the optional stop-loss limit price for the order to be modified",
-		"sl_price_type":  "the optional stop-loss price type for the order to be modified",
-	}),
+	Flags:     FlagsFromStruct(&ModifyOrderParams{}),
 }
 
 func cancelAllOrders(c *cli.Context) error {
@@ -1861,16 +1805,7 @@ var addEventCommand = &cli.Command{
 	Usage:     "adds an event",
 	ArgsUsage: "<exchange> <item> <condition> <price> <check_bids> <check_bids_and_asks> <orderbook_amount> <pair> <asset> <action>",
 	Action:    addEvent,
-	Flags: FlagsFromStruct(&AddEventParams{}, map[string]string{
-		"exchange":         "the exchange to add an event for",
-		"item":             "the item to trigger the event",
-		"condition":        "the condition for the event",
-		"orderbook_amount": "the orderbook amount to trigger the event",
-		"action":           "the action for the event to perform upon trigger",
-		"check_asks":       "whether to check the asks",
-		"check_bids":       "whether to check the bids",
-		"price":            "the price to trigger the event",
-	}),
+	Flags:     FlagsFromStruct(&AddEventParams{}),
 }
 
 func addEvent(c *cli.Context) error {
@@ -2143,14 +2078,7 @@ var withdrawCryptocurrencyFundsCommand = &cli.Command{
 	Usage:     "withdraws cryptocurrency funds from the desired exchange",
 	ArgsUsage: "<exchange> <currency> <amount> <address> <addresstag> <fee> <description> <chain>",
 	Action:    withdrawCryptocurrencyFunds,
-	Flags: FlagsFromStruct(&WithdrawCryptoCurrencyFundParams{}, map[string]string{
-		"exchange":   "the exchange to withdraw from",
-		"currency":   "the cryptocurrency to withdraw funds from",
-		"address":    "address to withdraw to",
-		"addresstag": "address tag/memo",
-		"amount":     "amount of funds to withdraw",
-		"chain":      "chain to use for the withdrawal",
-	}),
+	Flags:     FlagsFromStruct(&WithdrawCryptoCurrencyFundParams{}),
 }
 
 func withdrawCryptocurrencyFunds(c *cli.Context) error {
@@ -3312,39 +3240,7 @@ var (
 		Usage:     "gets historical candles for the specified granularity up to range size time from now",
 		ArgsUsage: "<exchange> <pair> <asset> <rangesize> <granularity>",
 		Action:    getHistoricCandles,
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "exchange",
-				Aliases: []string{"e"},
-				Usage:   "the exchange to get the candles from",
-			},
-			&cli.StringFlag{
-				Name:  "pair",
-				Usage: "the currency pair to get the candles for",
-			},
-			&cli.StringFlag{
-				Name:  "asset",
-				Usage: "the asset type of the currency pair",
-			},
-			&cli.Int64Flag{
-				Name:        "rangesize",
-				Aliases:     []string{"r"},
-				Usage:       "the amount of time to go back from now to fetch candles in the given granularity",
-				Value:       10,
-				Destination: &candleRangeSize,
-			},
-			&cli.Int64Flag{
-				Name:        "granularity",
-				Aliases:     []string{"g"},
-				Usage:       klineMessage,
-				Value:       86400,
-				Destination: &candleGranularity,
-			},
-			&cli.BoolFlag{
-				Name:  "fillmissingdatawithtrades, fill",
-				Usage: "will create candles for missing intervals using stored trade data <true/false>",
-			},
-		},
+		Flags:     FlagsFromStruct(&HistoricCandlesParams{Granularity: 86400, RangeSize: 10}),
 	}
 )
 
@@ -3353,7 +3249,7 @@ func getHistoricCandles(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	getHistoricCandles := &HistoricCandlesParams{Granularity: 86400, RangeSize: 10}
+	getHistoricCandles := &HistoricCandlesParams{}
 	err := UnmarshalCLIFields(c, getHistoricCandles)
 	if err != nil {
 		return err
@@ -4050,22 +3946,20 @@ func getCurrencyTradeURL(c *cli.Context) error {
 	return nil
 }
 
-// UnmarshalCLIFields unmarshals field values from command line as *cli.Context to an interface.
 func UnmarshalCLIFields(c *cli.Context, params any) error {
 	val := reflect.ValueOf(params).Elem()
 	typ := val.Type()
 	for i := range typ.NumField() {
 		field := typ.Field(i)
-		flagStrings := strings.Split(field.Tag.Get("cli"), ",")
-		if len(flagStrings) == 0 {
+		if !field.IsExported() {
 			continue
 		}
-		required := len(flagStrings) > 1 && strings.EqualFold(flagStrings[len(flagStrings)-1], "required")
-
-		flagNames := flagStrings
-		if len(flagStrings) > 1 && required {
-			flagNames = flagStrings[:len(flagStrings)-1]
+		flagNames := strings.Split(field.Tag.Get("name"), ",")
+		if len(flagNames) == 0 || flagNames[0] == "" {
+			continue
 		}
+		required := slices.Contains([]string{"t", "true"}, strings.ToLower(field.Tag.Get("required")))
+
 		switch field.Type.Kind() {
 		case reflect.String:
 			var value string
@@ -4079,7 +3973,9 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 					break
 				}
 			}
-			if required && value == "" {
+			if value == "" && val.Field(i).String() != "" {
+				value = val.Field(i).String()
+			} else if required && value == "" {
 				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
 			}
 			val.Field(i).SetString(value)
@@ -4088,7 +3984,8 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 			for n := range flagNames {
 				if c.IsSet(flagNames[n]) {
 					value = c.Float64(flagNames[n])
-				} else {
+				} else if c.Args().Get(i) != "" {
+					// TODO: this line errors even if the field is not required
 					var err error
 					value, err = strconv.ParseFloat(c.Args().Get(i), 64)
 					if err != nil {
@@ -4099,7 +3996,11 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 					break
 				}
 			}
-			if required && value == 0 {
+			// check if the struct field values is initiated
+			if value == 0 && val.Field(i).Float() != 0 {
+				value = val.Field(i).Float()
+			} else if required && value == 0 {
+				// check if the field is required and the value is not provided
 				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
 			}
 			val.Field(i).SetFloat(value)
@@ -4108,7 +4009,7 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 			for n := range flagNames {
 				if c.IsSet(flagNames[n]) {
 					value = c.Bool(flagNames[n])
-				} else {
+				} else if c.Args().Get(i) != "" {
 					var err error
 					value, err = strconv.ParseBool(c.Args().Get(i))
 					if required && (err != nil || !value) {
@@ -4119,13 +4020,20 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 					break
 				}
 			}
+			// check if the struct field values is initiated
+			if !value && val.Field(i).Bool() {
+				value = val.Field(i).Bool()
+			} else if required && !value {
+				// check if the field is required and the value is not provided
+				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
+			}
 			val.Field(i).SetBool(value)
 		case reflect.Int64:
 			var value int64
 			for n := range flagNames {
 				if c.IsSet(flagNames[n]) {
 					value = c.Int64(flagNames[n])
-				} else {
+				} else if c.Args().Get(i) != "" {
 					var err error
 					value, err = strconv.ParseInt(c.Args().Get(i), 10, 64)
 					if err != nil {
@@ -4136,7 +4044,11 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 					break
 				}
 			}
-			if required && value == 0 {
+			// check if the struct field values is initiated
+			if value == 0 && val.Field(i).Int() != 0 {
+				value = val.Field(i).Int()
+			} else if required && value == 0 {
+				// check if the field is required and the value is not provided
 				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
 			}
 			val.Field(i).SetInt(value)
@@ -4146,31 +4058,40 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 }
 
 // FlagsFromStruct returns list of cli flags from exported flags
-func FlagsFromStruct(params any, usageInfo map[string]string) []cli.Flag {
+func FlagsFromStruct(params any) []cli.Flag {
 	var flags []cli.Flag
 	val := reflect.ValueOf(params).Elem()
 	typ := val.Type()
 
 	for i := range typ.NumField() {
 		field := typ.Field(i)
-		flagStrings := strings.Split(field.Tag.Get("cli"), ",")
-		if len(flagStrings) == 0 {
+		if !field.IsExported() {
 			continue
 		}
-		flagName := flagStrings[0]
-		required := len(flagStrings) == 2 && strings.EqualFold(flagStrings[1], "required")
+		flagNames := strings.Split(field.Tag.Get("name"), ",")
+		if len(flagNames) == 0 || flagNames[0] == "" {
+			continue
+		}
+		flagName := flagNames[0]
 
-		var (
-			usage string
-			ok    bool
-		)
-		if usage, ok = usageInfo[flagName]; !ok {
+		var aliceNames []string
+		if len(flagNames) > 1 {
+			if !slices.Contains(flagNames[1:], "") {
+				aliceNames = flagNames[1:]
+			}
+		}
+
+		required := slices.Contains([]string{"t", "true"}, strings.ToLower(field.Tag.Get("required")))
+
+		usage := field.Tag.Get("usage")
+		if usage == "" {
 			if required {
 				usage = "the required '" + flagName + "' for the request"
 			} else {
 				usage = "the optional '" + flagName + "' for the request"
 			}
 		}
+
 		switch field.Type.Kind() {
 		case reflect.String:
 			flags = append(flags, &cli.StringFlag{
@@ -4178,6 +4099,7 @@ func FlagsFromStruct(params any, usageInfo map[string]string) []cli.Flag {
 				Usage:    usage,
 				Required: required,
 				Value:    val.Field(i).String(),
+				Aliases:  aliceNames,
 			})
 		case reflect.Float64:
 			flags = append(flags, &cli.Float64Flag{
@@ -4185,12 +4107,14 @@ func FlagsFromStruct(params any, usageInfo map[string]string) []cli.Flag {
 				Usage:    usage,
 				Required: required,
 				Value:    val.Field(i).Float(),
+				Aliases:  aliceNames,
 			})
 		case reflect.Bool:
 			flags = append(flags, &cli.BoolFlag{
 				Name:     flagName,
 				Usage:    usage,
 				Required: required,
+				Aliases:  aliceNames,
 			})
 		case reflect.Int64:
 			flags = append(flags, &cli.Int64Flag{
@@ -4198,6 +4122,7 @@ func FlagsFromStruct(params any, usageInfo map[string]string) []cli.Flag {
 				Usage:    usage,
 				Required: required,
 				Value:    val.Field(i).Int(),
+				Aliases:  aliceNames,
 			})
 		}
 	}
