@@ -4,11 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/log"
+)
+
+var (
+	errNoProvider            = errors.New("no supporting foreign exchange providers set")
+	errUnsupportedCurrencies = errors.New("currencies not supported by provider")
 )
 
 // IFXProvider enforces standard functions for all foreign exchange providers
@@ -106,47 +112,27 @@ func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (m
 	return rates, nil
 }
 
-// backupGetRate uses the currencies that are supported and falls through, and
-// errors when unsupported currency found
+// backupGetRate uses the currencies that are supported and falls through, and errors when unsupported currency found
 func (f *FXHandler) backupGetRate(base string, currencies []string) (map[string]float64, error) {
 	if f.Support == nil {
-		return nil, errors.New("no supporting foreign exchange providers set")
+		return nil, errNoProvider
 	}
-
-	var shunt []string
 	rate := make(map[string]float64)
-
 	for i := range f.Support {
-		if len(shunt) != 0 {
-			shunt = f.Support[i].CheckCurrencies(shunt)
-			newRate, err := f.Support[i].GetNewRate(base, shunt)
-			if err != nil {
-				continue
-			}
-
-			maps.Copy(rate, newRate)
-
-			if len(shunt) != 0 {
-				continue
-			}
-
-			return rate, nil
-		}
-
-		shunt = f.Support[i].CheckCurrencies(currencies)
-		newRate, err := f.Support[i].GetNewRate(base, currencies)
+		missed := f.Support[i].CheckCurrencies(currencies)
+		toGet := slices.DeleteFunc(currencies, func(s string) bool {
+			return common.StringSliceContains(missed, s)
+		})
+		newRate, err := f.Support[i].GetNewRate(base, toGet)
 		if err != nil {
-			continue
+			return nil, err
 		}
-
 		maps.Copy(rate, newRate)
-
-		if len(shunt) != 0 {
+		if len(missed) != 0 {
+			currencies = missed
 			continue
 		}
-
 		return rate, nil
 	}
-
-	return nil, fmt.Errorf("currencies %s not supported", shunt)
+	return nil, fmt.Errorf("%w: %s", errUnsupportedCurrencies, currencies)
 }

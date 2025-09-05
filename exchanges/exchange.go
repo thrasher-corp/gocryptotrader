@@ -52,8 +52,12 @@ const (
 	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
-// ErrSymbolCannotBeMatched returned on symbol matching failure
-var ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+// Public Errors
+var (
+	ErrSettingProxyAddress   = errors.New("setting proxy address error")
+	ErrEndpointPathNotFound  = errors.New("no endpoint path found for the given key")
+	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+)
 
 var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
@@ -80,8 +84,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 	proxy, err := url.Parse(addr)
 	if err != nil {
-		return fmt.Errorf("setting proxy address error %s",
-			err)
+		return fmt.Errorf("%w %w", ErrSettingProxyAddress, err)
 	}
 
 	err = b.Requester.SetProxy(proxy)
@@ -203,7 +206,7 @@ func (b *Base) GetLastPairsUpdateTime() int64 {
 	return b.CurrencyPairs.LastUpdated
 }
 
-// GetAssetTypes returns the either the enabled or available asset types for an
+// GetAssetTypes returns either the enabled or available asset types for an
 // individual exchange
 func (b *Base) GetAssetTypes(enabled bool) asset.Items {
 	return b.CurrencyPairs.GetAssetTypes(enabled)
@@ -695,6 +698,7 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 					diff.Remove)
 			}
 		}
+		// TODO: Add check for nil config etc.
 		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
 		if err != nil {
 			return err
@@ -1277,7 +1281,7 @@ func (e *Endpoints) GetURL(endpoint URL) (string, error) {
 	defer e.mu.RUnlock()
 	val, ok := e.defaults[endpoint.String()]
 	if !ok {
-		return "", fmt.Errorf("no endpoint path found for the given key: %v", endpoint)
+		return "", fmt.Errorf("%w %v", ErrEndpointPathNotFound, endpoint)
 	}
 	return val, nil
 }

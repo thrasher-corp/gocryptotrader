@@ -1266,7 +1266,7 @@
    ]
   },
   {
-   "name": "CoinbasePro",
+   "name": "Coinbase",
    "enabled": true,
    "verbose": false,
    "httpTimeout": 15000000000,
@@ -1286,12 +1286,17 @@
     },
     "useGlobalFormat": true,
     "assetTypes": [
-     "spot"
+     "spot",
+     "futures"
     ],
     "pairs": {
      "spot": {
       "enabled": "BTC-USD",
       "available": "LTC-GBP,XLM-BTC,DASH-BTC,DAI-USDC,ZEC-USDC,XLM-EUR,ZRX-BTC,LTC-BTC,ETC-BTC,ETH-USD,XRP-EUR,BTC-USDC,REP-USD,EOS-BTC,ZEC-BTC,ETC-GBP,LINK-ETH,XRP-BTC,ZRX-USD,ETH-USDC,MANA-USDC,BTC-EUR,BCH-GBP,DNT-USDC,EOS-EUR,BCH-EUR,LTC-EUR,CVC-USDC,ETH-GBP,DASH-USD,ETH-EUR,XTZ-BTC,ZRX-EUR,BAT-ETH,BTC-GBP,ETC-USD,BAT-USDC,BCH-USD,GNT-USDC,ALGO-USD,LINK-USD,XLM-USD,ETH-BTC,EOS-USD,REP-BTC,ETH-DAI,XRP-USD,LTC-USD,ETC-EUR,BTC-USD,XTZ-USD,BCH-BTC,LOOM-USDC"
+     },
+     "futures": {
+      "enabled": "BTC-USD",
+      "available": "BTC-USD,BTC-PERP-INTX"
      }
     }
    },
