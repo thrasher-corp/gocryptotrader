@@ -9,7 +9,6 @@ import (
 
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -44,20 +43,11 @@ func (e *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	pingMessage, err := json.Marshal(WsInput{
-		ID:      conn.GenerateMessageID(false),
-		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
-		Channel: futuresPingChannel,
-	})
+	pingHandler, err := getWSPingHandler(futuresPingChannel)
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, websocket.PingHandler{
-		Websocket:   true,
-		Delay:       time.Second * 5,
-		MessageType: gws.PingMessage,
-		Message:     pingMessage,
-	})
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, pingHandler)
 	return nil
 }
 
