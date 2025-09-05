@@ -80,9 +80,9 @@ func TestSetSuccessful(t *testing.T) {
 func TestRequiresWebsocket(t *testing.T) {
 	t.Parallel()
 	fd := NewFocusData(TickerFocusType, false, true, 0)
-	require.True(t, fd.RequiresWebsocket())
+	require.True(t, fd.UseWebsocket())
 	fd.useWebsocket = false
-	require.False(t, fd.RequiresWebsocket())
+	require.False(t, fd.UseWebsocket())
 }
 
 func TestRequiresAuth(t *testing.T) {
@@ -107,7 +107,7 @@ func TestRequiresAuth(t *testing.T) {
 		t.Run(tc.ft.String(), func(t *testing.T) {
 			t.Parallel()
 			fd := NewFocusData(tc.ft, false, false, time.Second)
-			require.Equalf(t, tc.expected, fd.RequiresAuth(), "RequiresAuth(%v) mismatch", tc.ft)
+			require.Equalf(t, tc.expected, RequiresAuth(fd.focusType), "RequiresAuth(%v) mismatch", tc.ft)
 		})
 	}
 }

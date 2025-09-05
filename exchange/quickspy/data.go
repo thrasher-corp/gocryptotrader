@@ -70,6 +70,11 @@ func (q *QuickSpy) handleWSOrderDetail(data *order.Detail) error {
 	if err := common.NilGuard(data); err != nil {
 		return err
 	}
+	if data.AssetType != q.key.ExchangeAssetPair.Asset || !data.Pair.Equal(q.key.ExchangeAssetPair.Pair()) {
+		// these WS checks are here due to the inability to fully know how a subscription is transformed
+		// it is not an error to get other data, just ignore it
+		return nil
+	}
 	focus := q.focuses.GetByFocusType(ActiveOrdersFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, ActiveOrdersFocusType)
@@ -342,6 +347,8 @@ func (q *QuickSpy) handleOrdersFocus(focus *FocusData) error {
 	resp, err := q.exch.GetActiveOrders(q.credContext, &order.MultiOrderRequest{
 		Pairs:     []currency.Pair{q.key.ExchangeAssetPair.Pair()},
 		AssetType: q.key.ExchangeAssetPair.Asset,
+		Side:      order.AnySide,
+		Type:      order.AnyType,
 	})
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)

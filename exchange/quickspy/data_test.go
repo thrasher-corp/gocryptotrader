@@ -1,15 +1,21 @@
 package quickspy
 
 import (
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 func TestHandleWSAccountChange(t *testing.T) {
@@ -30,6 +36,7 @@ func TestHandleWSAccountChange(t *testing.T) {
 		},
 	}
 	require.NoError(t, q.handleWSAccountChange(d))
+	require.Len(t, q.data.AccountBalance, 1)
 	assert.Equal(t, d.Balance, &q.data.AccountBalance[0])
 
 	d2 := &account.Change{
@@ -45,6 +52,7 @@ func TestHandleWSAccountChange(t *testing.T) {
 		},
 	}
 	require.NoError(t, q.handleWSAccountChange(d2))
+	require.Len(t, q.data.AccountBalance, 1)
 	assert.NotEqual(t, d2.Balance, &q.data.AccountBalance[0])
 }
 
@@ -66,6 +74,7 @@ func TestHandleWSAccountChanges(t *testing.T) {
 		},
 	}
 	require.NoError(t, q.handleWSAccountChanges([]account.Change{d}))
+	require.Len(t, q.data.AccountBalance, 1)
 	assert.Equal(t, d.Balance, &q.data.AccountBalance[0])
 
 	d2 := account.Change{
@@ -81,7 +90,59 @@ func TestHandleWSAccountChanges(t *testing.T) {
 		},
 	}
 	require.NoError(t, q.handleWSAccountChanges([]account.Change{d2}))
+	require.Len(t, q.data.AccountBalance, 1)
 	assert.NotEqual(t, d2.Balance, &q.data.AccountBalance[0])
+}
+
+func TestHandleWSOrderDetail(t *testing.T) {
+	t.Parallel()
+	q := mustQuickSpy(t, ActiveOrdersFocusType)
+	require.ErrorIs(t, q.handleWSOrderDetail(nil), common.ErrNilPointer)
+
+	d := &order.Detail{
+		AssetType: q.key.ExchangeAssetPair.Asset,
+		Amount:    1337,
+		Pair:      q.key.ExchangeAssetPair.Pair(),
+	}
+	require.NoError(t, q.handleWSOrderDetail(d))
+	require.Len(t, q.data.Orders, 1)
+	assert.Equal(t, d.Amount, q.data.Orders[0].Amount)
+
+	d2 := &order.Detail{
+		AssetType: asset.Binary,
+		Amount:    1,
+		Pair:      currency.NewBTCUSDT(),
+	}
+	require.NoError(t, q.handleWSOrderDetail(d2))
+	require.Len(t, q.data.Orders, 1)
+	assert.NotEqual(t, d2.Amount, q.data.Orders[0].Amount)
+}
+
+func TestHandleWSOrderDetails(t *testing.T) {
+	t.Parallel()
+	q := mustQuickSpy(t, ActiveOrdersFocusType)
+
+	d := []order.Detail{
+		{
+			AssetType: q.key.ExchangeAssetPair.Asset,
+			Amount:    1337,
+			Pair:      q.key.ExchangeAssetPair.Pair(),
+		},
+	}
+	require.NoError(t, q.handleWSOrderDetails(d))
+	require.Len(t, q.data.Orders, 1)
+	assert.Equal(t, d[0].Amount, q.data.Orders[0].Amount)
+
+	d2 := []order.Detail{
+		{
+			AssetType: asset.Binary,
+			Amount:    1,
+			Pair:      currency.NewBTCUSDT(),
+		},
+	}
+	require.NoError(t, q.handleWSOrderDetails(d2))
+	require.Len(t, q.data.Orders, 1)
+	assert.NotEqual(t, d2[0].Amount, q.data.Orders[0].Amount)
 }
 
 func TestAccountHoldingsFocusType(t *testing.T) {
@@ -96,4 +157,103 @@ func TestAccountHoldingsFocusType(t *testing.T) {
 
 	require.NoError(t, qs.handleFocusType(f.focusType, f, time.NewTimer(f.restPollTime)))
 	require.NotEmpty(t, qs.data.AccountBalance)
+}
+
+func TestHandleWSTickers(t *testing.T) {
+	t.Parallel()
+	q := mustQuickSpy(t, TickerFocusType)
+
+	require.NoError(t, q.handleWSTickers(nil))
+	assert.Nil(t, q.data.Ticker)
+	require.NoError(t, q.handleWSTickers([]ticker.Price{}))
+	assert.Nil(t, q.data.Ticker)
+
+	solo := ticker.Price{
+		AssetType:    q.key.ExchangeAssetPair.Asset,
+		Pair:         q.key.ExchangeAssetPair.Pair(),
+		Last:         100,
+		ExchangeName: q.key.ExchangeAssetPair.Exchange,
+	}
+	require.NoError(t, q.handleWSTickers([]ticker.Price{solo}))
+	require.NotNil(t, q.data.Ticker)
+	assert.Equal(t, solo.Last, q.data.Ticker.Last)
+
+	mismatch := ticker.Price{
+		AssetType: asset.Binary,
+		Pair:      currency.NewBTCUSDT(),
+		Last:      1,
+	}
+	match := ticker.Price{
+		AssetType:    q.key.ExchangeAssetPair.Asset,
+		Pair:         q.key.ExchangeAssetPair.Pair(),
+		Last:         200,
+		ExchangeName: q.key.ExchangeAssetPair.Exchange,
+	}
+	require.NoError(t, q.handleWSTickers([]ticker.Price{mismatch, match}))
+	require.NotNil(t, q.data.Ticker)
+	assert.Equal(t, match.Last, q.data.Ticker.Last)
+	assert.NotEqual(t, mismatch.Last, q.data.Ticker.Last)
+
+	prev := *q.data.Ticker
+	noMatch1 := ticker.Price{AssetType: asset.Binary, Pair: currency.NewBTCUSDT(), Last: 300}
+	noMatch2 := ticker.Price{AssetType: asset.Binary, Pair: currency.NewPair(currency.BTC, currency.USDC), Last: 400}
+	require.NoError(t, q.handleWSTickers([]ticker.Price{noMatch1, noMatch2}))
+	require.NotNil(t, q.data.Ticker)
+	assert.Equal(t, prev.Last, q.data.Ticker.Last)
+}
+
+// Newly added websocket handler tests
+func TestHandleWSTicker(t *testing.T) {
+	t.Parallel()
+	q := mustQuickSpy(t, TickerFocusType)
+	require.ErrorIs(t, q.handleWSTicker(nil), common.ErrNilPointer)
+	p := &ticker.Price{AssetType: q.key.ExchangeAssetPair.Asset, Pair: q.key.ExchangeAssetPair.Pair(), Last: 999}
+	require.NoError(t, q.handleWSTicker(p))
+	require.NotNil(t, q.data.Ticker)
+	assert.Equal(t, 999.0, q.data.Ticker.Last)
+}
+
+func TestHandleWSOrderbook(t *testing.T) {
+	to := time.Now()
+	_ = to // silence unused if parallel skip occurs
+	// orderbook focus test
+	q := mustQuickSpy(t, OrderBookFocusType)
+	require.ErrorIs(t, q.handleWSOrderbook(nil), common.ErrNilPointer)
+	id, _ := uuid.NewV4()
+	depth := orderbook.NewDepth(id)
+	bk := &orderbook.Book{
+		Bids:        orderbook.Levels{{Price: 10, Amount: 1}},
+		Asks:        orderbook.Levels{{Price: 11, Amount: 2}},
+		Exchange:    q.key.ExchangeAssetPair.Exchange,
+		Asset:       q.key.ExchangeAssetPair.Asset,
+		Pair:        q.key.ExchangeAssetPair.Pair(),
+		LastUpdated: time.Now(),
+	}
+	require.NoError(t, depth.LoadSnapshot(bk))
+	require.NoError(t, q.handleWSOrderbook(depth))
+	require.NotNil(t, q.data.Orderbook)
+	assert.Equal(t, q.key.ExchangeAssetPair.Pair(), q.data.Orderbook.Pair)
+	assert.Len(t, q.data.Orderbook.Bids, 1)
+	require.NoError(t, depth.Invalidate(errors.New("test")))
+	err := q.handleWSOrderbook(depth)
+	require.Error(t, err)
+}
+
+func TestHandleWSTrade(t *testing.T) {
+	q := mustQuickSpy(t, TradesFocusType)
+	require.ErrorIs(t, q.handleWSTrade(nil), common.ErrNilPointer)
+	trd := &trade.Data{Exchange: q.key.ExchangeAssetPair.Exchange, CurrencyPair: q.key.ExchangeAssetPair.Pair(), AssetType: q.key.ExchangeAssetPair.Asset, Price: 123.45, Amount: 0.5, Timestamp: time.Now()}
+	require.NoError(t, q.handleWSTrade(trd))
+	require.Len(t, q.data.Trades, 1)
+	assert.Equal(t, 123.45, q.data.Trades[0].Price)
+}
+
+func TestHandleWSTrades(t *testing.T) {
+	q := mustQuickSpy(t, TradesFocusType)
+	require.NoError(t, q.handleWSTrades(nil))
+	require.Empty(t, q.data.Trades)
+	trs := []trade.Data{{Exchange: q.key.ExchangeAssetPair.Exchange, CurrencyPair: q.key.ExchangeAssetPair.Pair(), AssetType: q.key.ExchangeAssetPair.Asset, Price: 1, Amount: 1, Timestamp: time.Now()}, {Exchange: q.key.ExchangeAssetPair.Exchange, CurrencyPair: q.key.ExchangeAssetPair.Pair(), AssetType: q.key.ExchangeAssetPair.Asset, Price: 2, Amount: 2, Timestamp: time.Now()}}
+	require.NoError(t, q.handleWSTrades(trs))
+	require.Len(t, q.data.Trades, 2)
+	assert.Equal(t, 2.0, q.data.Trades[1].Price)
 }

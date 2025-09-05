@@ -25,35 +25,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// NewQuickestSpy spins up a quickspy with a single focus and the least fuss
-// For those who gotta go fast
-func NewQuickestSpy(ctx context.Context, exchangeName string, assetType asset.Item, pair currency.Pair, focus FocusType, credentials *account.Credentials) (*QuickSpy, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	sm := NewFocusStore()
-	useWS := slices.Contains(wsSupportedFocusList, focus)
-	focusData := NewFocusData(focus, false, useWS, time.Second)
-	sm.Upsert(focus, focusData)
-	k := &CredentialsKey{
-		ExchangeAssetPair: key.NewExchangeAssetPair(exchangeName, assetType, pair),
-		Credentials:       credentials,
-	}
-	q, err := NewQuickSpy(ctx, k, sm.List())
-	if err != nil {
-		return nil, err
-	}
-	if err := q.run(); err != nil {
-		return nil, err
-	}
-	return q, nil
-}
-
 // NewQuickSpy returns a running quickspy if everything passed in is valid
 func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (*QuickSpy, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
 	if k == nil {
 		return nil, errNoKey
 	}
@@ -62,6 +39,9 @@ func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (
 	}
 	sm := NewFocusStore()
 	for i := range focuses {
+		if err := focuses[i].focusType.Valid(); err != nil {
+			return nil, err
+		}
 		focuses[i].Init()
 		if err := focuses[i].Validate(k); err != nil {
 			return nil, fmt.Errorf("focus %q %w: %w", focuses[i].focusType, errValidationFailed, err)
@@ -95,10 +75,71 @@ func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (
 	return q, nil
 }
 
+// NewQuickerSpy spins up a quickspy with a single focus to quickly return data to the user
+// auto opt-in to use websocket as it has REST fallback
+// embue context with credentials to utilise private endpoints
+func NewQuickerSpy(ctx context.Context, k *key.ExchangeAssetPair, focus FocusType) (*QuickSpy, error) {
+	if err := common.NilGuard(k); err != nil {
+		return nil, err
+	}
+	if err := focus.Valid(); err != nil {
+		return nil, err
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	sm := NewFocusStore()
+	useWS := slices.Contains(wsSupportedFocusList, focus)
+	focusData := NewFocusData(focus, false, useWS, time.Second)
+	sm.Upsert(focus, focusData)
+	ck := &CredentialsKey{
+		ExchangeAssetPair: *k,
+		Credentials:       account.GetCredentialsFromContext(ctx),
+	}
+	q, err := NewQuickSpy(ctx, ck, sm.List())
+	if err != nil {
+		return nil, err
+	}
+	return q, nil
+}
+
+// NewQuickestSpy spins up a quickspy with a single focus and returns the data channel which streams results
+// auto opt-in to use websocket as it has REST fallback
+// embue context with credentials to utilise private endpoints
+func NewQuickestSpy(ctx context.Context, k *key.ExchangeAssetPair, focus FocusType) (chan any, error) {
+	if err := common.NilGuard(k); err != nil {
+		return nil, err
+	}
+	if err := focus.Valid(); err != nil {
+		return nil, err
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	sm := NewFocusStore()
+	useWS := slices.Contains(wsSupportedFocusList, focus)
+	focusData := NewFocusData(focus, false, useWS, time.Second)
+	sm.Upsert(focus, focusData)
+	ck := &CredentialsKey{
+		ExchangeAssetPair: *k,
+		Credentials:       account.GetCredentialsFromContext(ctx),
+	}
+	q, err := NewQuickSpy(ctx, ck, sm.List())
+	if err != nil {
+		return nil, err
+	}
+	fd, err := q.GetFocusByKey(focus)
+	if err != nil {
+		return nil, err
+	}
+	return fd.Stream, nil
+}
+
 // AnyRequiresWebsocket tells a quickspy whether to setup the websocket
 func (q *QuickSpy) AnyRequiresWebsocket() bool {
 	for _, focus := range q.focuses.List() {
-		if focus.RequiresWebsocket() {
+		if focus.UseWebsocket() {
 			return true
 		}
 	}
@@ -108,20 +149,11 @@ func (q *QuickSpy) AnyRequiresWebsocket() bool {
 // AnyRequiresAuth tells quickspy if valid credentials should be present
 func (q *QuickSpy) AnyRequiresAuth() bool {
 	for _, focus := range q.focuses.List() {
-		if focus.RequiresAuth() {
+		if RequiresAuth(focus.focusType) {
 			return true
 		}
 	}
 	return false
-}
-
-// FocusTypeRequiresWebsocket checks a focus type to see if it has been set for a websocket subscription
-func (q *QuickSpy) FocusTypeRequiresWebsocket(focusType FocusType) bool {
-	focus := q.focuses.GetByFocusType(focusType)
-	if focus == nil {
-		return false
-	}
-	return focus.useWebsocket
 }
 
 // GetAndWaitForFocusByKey is a convenience function to wait for a quickspy to be setup and have data
@@ -253,7 +285,7 @@ func (q *QuickSpy) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) err
 	b.Websocket.ToRoutine = q.dataHandlerChannel
 	var newSubs []*subscription.Subscription
 	for _, f := range q.focuses.List() {
-		if !f.RequiresWebsocket() {
+		if !f.UseWebsocket() {
 			continue
 		}
 		ch, ok := focusToSub[f.focusType]

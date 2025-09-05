@@ -68,16 +68,6 @@ func mustQuickSpyAllFocuses(t *testing.T) *QuickSpy {
 	return qs
 }
 
-func TestNewQuickestSpy(t *testing.T) {
-	t.Parallel()
-	q, err := NewQuickestSpy(nil, "Binance", asset.Spot, currency.NewBTCUSDT(), OrderBookFocusType, nil)
-	require.NoError(t, err)
-	require.NotNil(t, q)
-
-	require.NoError(t, q.WaitForInitialData(q.credContext, OrderBookFocusType))
-	assert.NotNil(t, q.data.Orderbook)
-}
-
 func TestNewQuickSpy(t *testing.T) {
 	t.Parallel()
 	_, err := NewQuickSpy(nil, nil, nil)
@@ -131,16 +121,6 @@ func TestAnyRequiresAuth(t *testing.T) {
 
 	q.focuses.Upsert(AccountHoldingsFocusType, &FocusData{focusType: AccountHoldingsFocusType, restPollTime: time.Second})
 	require.True(t, q.AnyRequiresAuth())
-}
-
-func TestFocusTypeRequiresWebsocket(t *testing.T) {
-	t.Parallel()
-	q := mustQuickSpy(t, TickerFocusType)
-	require.False(t, q.FocusTypeRequiresWebsocket(TickerFocusType))
-
-	q.focuses.Upsert(TickerFocusType, &FocusData{focusType: TickerFocusType, restPollTime: time.Second, useWebsocket: true})
-	require.True(t, q.FocusTypeRequiresWebsocket(TickerFocusType))
-	require.False(t, q.FocusTypeRequiresWebsocket(OrderBookFocusType))
 }
 
 func TestGetFocusByKey(t *testing.T) {
@@ -259,17 +239,17 @@ func TestFocusDataValidateAndInit(t *testing.T) {
 		fd.Init()
 		require.NotNil(t, fd.m)
 		if slices.Contains(authFocusList, ft) {
-			assert.Truef(t, fd.RequiresAuth(), "expected %v to require auth", ft)
+			assert.Truef(t, RequiresAuth(fd.focusType), "expected %v to require auth", ft)
 		} else {
-			assert.Falsef(t, fd.RequiresAuth(), "expected %v to not require auth", ft)
+			assert.Falsef(t, RequiresAuth(fd.focusType), "expected %v to not require auth", ft)
 		}
 	}
 	fd := &FocusData{focusType: TickerFocusType, restPollTime: time.Second}
 	fd.Init()
 	fd.useWebsocket = true
-	assert.True(t, fd.RequiresWebsocket())
+	assert.True(t, fd.UseWebsocket())
 	fd.useWebsocket = false
-	assert.False(t, fd.RequiresWebsocket())
+	assert.False(t, fd.UseWebsocket())
 }
 
 func TestLatestData(t *testing.T) {
@@ -430,4 +410,17 @@ func TestGetAndWaitForFocusByKey(t *testing.T) {
 		require.ErrorIs(t, err, context.Canceled)
 		require.Nil(t, f)
 	})
+}
+
+func TestNewQuickerSpy(t *testing.T) {
+	t.Parallel()
+}
+
+func TestNewQuickestSpy(t *testing.T) {
+	t.Parallel()
+	_, err := NewQuickestSpy(nil, nil, -1)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = NewQuickestSpy(nil, &key.ExchangeAssetPair{}, -1)
+	require.ErrorIs(t, err, errNoFocus)
 }

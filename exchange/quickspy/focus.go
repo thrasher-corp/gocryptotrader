@@ -130,18 +130,26 @@ func (f *FocusData) setSuccessful() {
 	close(f.hasBeenSuccessfulChan)
 }
 
-// RequiresWebsocket returns whether the focus type requires a websocket connection
-func (f *FocusData) RequiresWebsocket() bool {
+// UseWebsocket returns whether the focus type desires a websocket connection
+func (f *FocusData) UseWebsocket() bool {
 	f.m.RLock()
 	defer f.m.RUnlock()
 	return f.useWebsocket
 }
 
 // RequiresAuth returns whether the focus type requires authentication
-func (f *FocusData) RequiresAuth() bool {
-	f.m.RLock()
-	defer f.m.RUnlock()
-	return f.focusType == AccountHoldingsFocusType || f.focusType == ActiveOrdersFocusType
+func RequiresAuth(ft FocusType) bool {
+	return slices.Contains(authFocusList, ft)
+}
+
+// RequiresFutures returns whether the focus type requires a futures asset
+func RequiresFutures(ft FocusType) bool {
+	return slices.Contains(futuresOnlyFocusList, ft)
+}
+
+// SupportsWebsocket returns whether the focus type supports websocket connections
+func SupportsWebsocket(ft FocusType) bool {
+	return slices.Contains(wsSupportedFocusList, ft)
 }
 
 // HasBeenSuccessful returns whether the focus has successfully received data at least once.
@@ -175,6 +183,7 @@ var focusList = []FocusType{
 	FundingRateFocusType,
 	TradesFocusType,
 	AccountHoldingsFocusType,
+	ActiveOrdersFocusType,
 	KlineFocusType,
 	ContractFocusType,
 	OrderLimitsFocusType,
@@ -200,6 +209,14 @@ var authFocusList = []FocusType{
 var futuresOnlyFocusList = []FocusType{
 	OpenInterestFocusType,
 	FundingRateFocusType,
+}
+
+// Valid checks if the FocusType is supported
+func (f FocusType) Valid() error {
+	if !slices.Contains(focusList, f) {
+		return ErrUnsupportedFocusType
+	}
+	return nil
 }
 
 // String returns a string representation of the FocusType

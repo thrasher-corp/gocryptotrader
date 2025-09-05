@@ -11,8 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	btcommon "github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
@@ -26,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var enc = json.NewEncoder(os.Stdout)
@@ -42,7 +39,7 @@ type eventEnvelope struct {
 	Timestamp time.Time `json:"ts"`
 	Focus     string    `json:"focus"`
 	Data      any       `json:"data,omitempty"`
-	Error     string    `json:"error,omitempty"`
+	Error     error     `json:"error,omitempty"`
 }
 
 // appConfig holds parsed CLI configuration in a structured way.
@@ -54,58 +51,28 @@ type appConfig struct {
 	UseWebsocket  bool
 	PollInterval  time.Duration
 	WSDataTimeout time.Duration
-	Verbose       bool
 	BookLevels    int
 	Credentials   *account.Credentials
 	JSONOnly      bool
 }
 
 func main() {
+	defer outPrintln("\nGoodbye! 🌞")
 	cfg := parseFlags()
-	if cfg.Verbose {
-		if err := initVerboseLogger(); err != nil {
-			fatalErr(fmt.Errorf("failed to setup logger: %w", err))
-		}
-		log.Infoln(log.Global, "Verbose logger initialised.")
-	}
-
-	// Build QuickSpy with WS fallback if needed
-	qs, err := buildQuickSpy(cfg)
-	if err != nil {
-		fatalErr(err)
-	}
-
-	// Safety: ensure non-nil limits for rendering
-	if qs.data != nil && qs.data.ExecutionLimits == nil {
-		qs.data.ExecutionLimits = &limits.MinMaxLevel{}
-	}
-
-	if err := qs.run(); err != nil {
-		fatalErr(err)
-	}
-
 	// Context & OS signals for graceful shutdown
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
-
-	// Wait for initial data
-	if err := qs.WaitForInitialDataWithTimer(ctx, cfg.FocusType, cfg.WSDataTimeout); err != nil {
-		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err.Error()})
+	ctx = account.DeployCredentialsToContext(ctx, cfg.Credentials)
+	k := key.NewExchangeAssetPair(cfg.Exchange, cfg.Asset, cfg.Pair)
+	qsChan, err := quickspy.NewQuickestSpy(ctx, &k, cfg.FocusType)
+	if err != nil {
+		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
 		os.Exit(1)
 	}
-
-	defer outPrintln("\nGoodbye! 🌞")
-	// Dispatch streaming mode
-	f, _ := qs.GetFocusByKey(cfg.FocusType)
-	if f != nil && f.RequiresWebsocket() {
-		streamWS(ctx, qs, cfg.FocusType, f, cfg.BookLevels, cfg.JSONOnly)
-		return
+	if err := streamData(ctx, qsChan, cfg); err != nil {
+		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
+		os.Exit(1)
 	}
-	interval := cfg.PollInterval
-	if interval <= 0 {
-		interval = time.Second
-	}
-	streamREST(ctx, qs, cfg.FocusType, interval, cfg.JSONOnly)
 }
 
 // parseFlags parses CLI flags, validates them, applies sensible defaults, and returns appConfig.
@@ -115,10 +82,8 @@ func parseFlags() *appConfig {
 	pairStr := flag.String("currencyPair", "BTC-USDT", "Currency pair, e.g. BTC-USDT or ETHUSD")
 	focusStr := flag.String("focusType", "ticker", "Focus type: ticker, orderbook, kline, trades, openinterest, fundingrate, accountholdings, activeorders, orderexecution, url, contract")
 	pollStr := flag.String("poll", "5s", "Poll interval for REST focus and timeout for websocket initial data wait")
-	wsFlag := flag.Bool("websocket", true, "Use websocket when supported (ticker/orderbook). Set false to force REST.")
 	bookLevels := flag.Int("book-levels", 15, "Number of levels to render per side for orderbook focus")
 	websocketDataTimeout := flag.String("wsDataTimeout", "30s", "Websocket data timeout duration (e.g. 30s, 1m)")
-	verbose := flag.Bool("verbose", false, "Verbose logging to stderr")
 	jsonOnly := flag.Bool("json", false, "Emit NDJSON only (no ANSI rendering/headers)")
 
 	// credentials until credential manager integrated
@@ -150,11 +115,10 @@ func parseFlags() *appConfig {
 	}
 
 	// Parse focus type and defaults
-	fType, defaultWS := parseFocusType(*focusStr)
+	fType := parseFocusType(*focusStr)
 	if fType == quickspy.UnsetFocusType {
 		fatalErr(fmt.Errorf("unsupported focusType: %s", *focusStr))
 	}
-	useWS := defaultWS && *wsFlag
 
 	pollDur, err := time.ParseDuration(*pollStr)
 	if err != nil {
@@ -168,7 +132,7 @@ func parseFlags() *appConfig {
 
 	// Credentials (only applied when supplied or required by focus)
 	var creds *account.Credentials
-	if requiresAuth(fType) {
+	if quickspy.RequiresAuth(fType) {
 		creds = &account.Credentials{
 			Key:             strings.TrimSpace(*apiKey),
 			Secret:          strings.TrimSpace(*apiSecret),
@@ -187,190 +151,35 @@ func parseFlags() *appConfig {
 		Asset:         ast,
 		Pair:          cp,
 		FocusType:     fType,
-		UseWebsocket:  useWS,
 		PollInterval:  pollDur,
 		WSDataTimeout: wsDataTimeoutDur,
-		Verbose:       *verbose,
 		BookLevels:    *bookLevels,
 		Credentials:   creds,
 		JSONOnly:      *jsonOnly,
 	}
 }
 
-func initVerboseLogger() error {
-	defaultLogSettings := log.GenDefaultSettings()
-	defaultLogSettings.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(true)
-	defaultLogSettings.AdvancedSettings.Headers.Info = btcommon.CMDColours.Info + "[INFO]" + btcommon.CMDColours.Default
-	defaultLogSettings.AdvancedSettings.Headers.Warn = btcommon.CMDColours.Warn + "[WARN]" + btcommon.CMDColours.Default
-	defaultLogSettings.AdvancedSettings.Headers.Debug = btcommon.CMDColours.Debug + "[DEBUG]" + btcommon.CMDColours.Default
-	defaultLogSettings.AdvancedSettings.Headers.Error = btcommon.CMDColours.Error + "[ERROR]" + btcommon.CMDColours.Default
-	return log.SetGlobalLogConfig(defaultLogSettings)
-}
-
-func buildQuickSpy(cfg *appConfig) (*quickspy.QuickSpy, error) {
-	// Build key
-	k := &quickspy.CredentialsKey{
-		Credentials:       cfg.Credentials,
-		ExchangeAssetPair: key.NewExchangeAssetPair(cfg.Exchange, cfg.Asset, cfg.Pair),
-	}
-
-	// Focus config
-	focus := quickspy.NewFocusData(cfg.FocusType, false, cfg.UseWebsocket, cfg.PollInterval)
-	focus.Init()
-
-	// Create quickspy and start; fallback to REST if websocket unsupported
-	qs, err := quickspy.NewQuickSpy(k, []quickspy.FocusData{*focus}, cfg.Verbose)
-	if err != nil && cfg.UseWebsocket && strings.Contains(strings.ToLower(err.Error()), "has no websocket") {
-		// retry with REST
-		focus = quickspy.NewFocusData(cfg.FocusType, false, false, fallbackPoll(cfg.PollInterval))
-		focus.Init()
-		qs, err = quickspy.NewQuickSpy(k, []quickspy.FocusData{*focus}, cfg.Verbose)
-	}
-	return qs, err
-}
-
-func fallbackPoll(d time.Duration) time.Duration {
-	if d > 0 {
-		return d
-	}
-	return 5 * time.Second
-}
-
-func streamWS(ctx context.Context, qs *quickspy.QuickSpy, ft quickspy.FocusType, f *quickspy.FocusData, bookLevels int, jsonOnly bool) {
+func streamData(ctx context.Context, c <-chan any, cfg *appConfig) error {
 	for {
 		select {
 		case <-ctx.Done():
-			qs.Shutdown()
-			return
-		case d := <-f.Stream:
-			if !jsonOnly {
-				clearScreen()
-				heading := fmt.Sprintf("%s | %s | %s | Websocket", qs.key.ExchangeAssetPair.Exchange, qs.key.ExchangeAssetPair.Asset.String(), qs.key.ExchangeAssetPair.Pair().String())
-				outPrintf("%s%s%s\n", ansiBold, heading, ansiReset)
-			}
-
-			switch v := d.(type) {
-			case error:
-				if !jsonOnly {
-					outPrintf("Error: %v\n", v)
-				}
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Error: v.Error()})
-			case *orderbook.Book:
-				if !jsonOnly {
-					renderOrderbook(v, bookLevels)
-				}
-				if jsonOnly {
-					emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-				}
-			case []ticker.Price:
-				if len(v) > 0 {
-					if !jsonOnly {
-						renderTicker(&v[0])
-					}
-					if jsonOnly {
-						emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-					}
-				}
-			case *ticker.Price:
-				if !jsonOnly {
-					renderTicker(v)
-				}
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-			case trade.Data:
-				if !jsonOnly {
-					renderTrades([]trade.Data{v})
-				}
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-			case []trade.Data:
-				if !jsonOnly {
-					renderTrades(v)
-				}
-				if jsonOnly {
-					emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-				}
-			case []websocket.KlineData:
-				if !jsonOnly {
-					renderKlines(v)
-				}
-				if jsonOnly {
-					emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-				}
-			case *fundingrate.LatestRateResponse:
-				if !jsonOnly {
-					renderFundingRate(v)
-				}
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-			case float64:
-				if !jsonOnly {
-					renderOpenInterest(v)
-				}
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-			case []order.Detail:
-				if !jsonOnly {
-					renderActiveOrders(v)
-				}
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-			case *account.Holdings:
-				if !jsonOnly {
-					renderAccountHoldings(v)
-				}
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-			case *limits.MinMaxLevel:
-				if !jsonOnly {
-					renderExecutionLimits(v)
-				}
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-			case string:
-				if !jsonOnly {
-					renderURL(v)
-				}
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-			case *futures.Contract:
-				if !jsonOnly {
-					renderContract(v)
-				}
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
+			return ctx.Err()
+		case d := <-c:
+			switch {
+			case cfg.JSONOnly:
+				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Data: d})
 			default:
-				// Unknown payload, just dump JSON
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: v})
-			}
-		}
-	}
-}
-
-func streamREST(ctx context.Context, qs *quickspy.QuickSpy, ft quickspy.FocusType, d time.Duration, jsonOnly bool) {
-	// we have already waited for initial data before calling this function
-	t := time.NewTimer(0)
-	defer t.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			qs.Shutdown()
-			return
-		case <-t.C:
-			payload, err := qs.LatestData(ft)
-			if err != nil {
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Error: err.Error()})
-				t.Reset(d)
-				continue
-			}
-			if !jsonOnly {
 				clearScreen()
-				heading := fmt.Sprintf("%s | %s | %s | REST", qs.key.ExchangeAssetPair.Exchange, qs.key.ExchangeAssetPair.Asset.String(), qs.key.ExchangeAssetPair.Pair().String())
+				heading := fmt.Sprintf("%s | %s | %s", cfg.Exchange, cfg.Asset, cfg.Pair)
 				outPrintf("%s%s%s\n", ansiBold, heading, ansiReset)
-				renderPrettyPayload(payload, 15)
+				renderPrettyPayload(d, cfg.BookLevels)
+				if cfg.FocusType != quickspy.TickerFocusType && cfg.FocusType != quickspy.KlineFocusType && cfg.FocusType != quickspy.OrderBookFocusType {
+					// executive decision to not render large payloads
+					emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Data: d})
+				}
 			}
-			// Emit NDJSON
-			if jsonOnly || (ft != quickspy.TradesFocusType && ft != quickspy.KlineFocusType && ft != quickspy.OrderBookFocusType) {
-				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: ft.String(), Data: payload})
-			}
-			t.Reset(d)
 		}
 	}
-}
-
-func requiresAuth(f quickspy.FocusType) bool {
-	return f == quickspy.AccountHoldingsFocusType || f == quickspy.ActiveOrdersFocusType || f == quickspy.OrderPlacementFocusType
 }
 
 // emit writes NDJSON events to stdout.
@@ -378,36 +187,34 @@ func emit(ev eventEnvelope) {
 	_ = enc.Encode(ev)
 }
 
-func parseFocusType(s string) (quickspy.FocusType, bool) {
+func parseFocusType(s string) quickspy.FocusType {
 	// returns (focusType, useWebsocketDefault)
 	s = strings.TrimSpace(strings.ToLower(s))
 	switch s {
-	case "ticker":
-		return quickspy.TickerFocusType, true
+	case "ticker", "tick":
+		return quickspy.TickerFocusType
 	case "orderbook", "order_book", "ob", "book":
-		return quickspy.OrderBookFocusType, true
+		return quickspy.OrderBookFocusType
 	case "kline", "candles", "candle", "ohlc":
-		// websocket subscriptions for kline are not wired via quickspy yet
-		return quickspy.KlineFocusType, false
+		return quickspy.KlineFocusType
 	case "trades", "trade":
-		// websocket support exists in quickspy handler, but subscription mapping is not wired for trades
-		return quickspy.TradesFocusType, false
+		return quickspy.TradesFocusType
 	case "openinterest", "oi":
-		return quickspy.OpenInterestFocusType, false
+		return quickspy.OpenInterestFocusType
 	case "fundingrate", "funding":
-		return quickspy.FundingRateFocusType, false
+		return quickspy.FundingRateFocusType
 	case "accountholdings", "account", "holdings", "balances":
-		return quickspy.AccountHoldingsFocusType, false
+		return quickspy.AccountHoldingsFocusType
 	case "activeorders", "orders":
-		return quickspy.ActiveOrdersFocusType, false
+		return quickspy.ActiveOrdersFocusType
 	case "orderexecution", "executionlimits", "limits":
-		return quickspy.OrderLimitsFocusType, false
+		return quickspy.OrderLimitsFocusType
 	case "url", "tradeurl", "trade_url":
-		return quickspy.URLFocusType, false
+		return quickspy.URLFocusType
 	case "contract":
-		return quickspy.ContractFocusType, false
+		return quickspy.ContractFocusType
 	default:
-		return quickspy.UnsetFocusType, false
+		return quickspy.UnsetFocusType
 	}
 }
 
