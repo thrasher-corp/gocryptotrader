@@ -55,8 +55,8 @@ func (c *CurrencyBalances) Set(curr currency.Code, b Balance) { //nolint:gocriti
 
 // Add will add to a currency balance
 func (c *CurrencyBalances) Add(curr currency.Code, b Balance) error { //nolint:gocritic // hugeparam not relevant; we want to store a value so we'd deref anyway
-	if b.Currency != currency.EMPTYCODE && b.Currency != curr {
-		return fmt.Errorf("%w: '%v'", errBalanceCurrencyMismatch, curr)
+	if b.Currency != currency.EMPTYCODE && !b.Currency.Equal(curr) {
+		return fmt.Errorf("%w: %q != %q", errBalanceCurrencyMismatch, b.Currency, curr)
 	}
 	if e, ok := (*c)[curr]; !ok {
 		b.Currency = curr
@@ -113,13 +113,10 @@ func (b *balance) update(change Balance) (bool, error) { //nolint:gocritic // hu
 	b.m.Lock()
 	defer b.m.Unlock()
 	if b.internal.Currency != currency.EMPTYCODE {
-		switch change.Currency {
-		case b.internal.Currency:
-			// All good
-		case currency.EMPTYCODE:
+		if change.Currency == currency.EMPTYCODE {
 			change.Currency = b.internal.Currency
-		default:
-			return false, errBalanceCurrencyMismatch
+		} else if !change.Currency.Equal(b.internal.Currency) {
+			return false, fmt.Errorf("%w %q != %q", errBalanceCurrencyMismatch, b.internal.Currency, change.Currency)
 		}
 	}
 	if !b.internal.UpdatedAt.Before(change.UpdatedAt) {
