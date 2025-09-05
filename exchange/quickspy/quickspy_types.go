@@ -31,6 +31,7 @@ var (
 	errNoSubSwitchingToREST           = errors.New("no subscription found, switching to REST")
 	errTimerNotSet                    = errors.New("timer not set")
 	errNoDataYet                      = errors.New("no data received yet")
+	errOverMaxFailures                = errors.New("exceeded maximum allowed failures for this focus")
 )
 
 // CredentialsKey is a struct that holds credentials and exchange/pair/asset info

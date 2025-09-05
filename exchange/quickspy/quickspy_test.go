@@ -22,17 +22,17 @@ import (
 // these are here to help a user test
 // modifying them and decrying that tests fail will get you thrown in gaol
 var (
-	exchangeName     = "okx"
+	exchangeName     = "binance"
 	assetType        = asset.Spot
-	currencyPair     = currency.NewPair(currency.BTC, currency.NewCode("USD-SWAP"))
+	currencyPair     = currency.NewBTCUSDT()
 	apiKey           = "abc"
 	apiSecret        = "123"
-	futuresAssetType = asset.PerpetualSwap // used in TestDumpAndCurrentPayload
+	futuresAssetType = asset.USDTMarginedFutures // used in TestDumpAndCurrentPayload
 )
 
 func mustQuickSpy(t *testing.T, ft FocusType) *QuickSpy {
 	t.Helper()
-	ftd := NewFocusData(ft, false, false, time.Second)
+	ftd := NewFocusData(ft, false, true, time.Second)
 	ftd.Init()
 	qs, err := NewQuickSpy(
 		context.Background(),
@@ -78,7 +78,7 @@ func TestNewQuickSpy(t *testing.T) {
 	require.ErrorIs(t, err, errNoFocus)
 
 	_, err = NewQuickSpy(nil, &CredentialsKey{}, []*FocusData{{}})
-	require.ErrorIs(t, err, ErrUnsetFocusType)
+	require.ErrorIs(t, err, ErrUnsupportedFocusType)
 
 	_, err = NewQuickSpy(nil, &CredentialsKey{}, []*FocusData{{focusType: OrderBookFocusType, restPollTime: -1}})
 	require.ErrorIs(t, err, ErrInvalidRESTPollTime)
@@ -109,10 +109,10 @@ func TestNewQuickSpy(t *testing.T) {
 func TestAnyRequiresWebsocket(t *testing.T) {
 	t.Parallel()
 	q := mustQuickSpy(t, TickerFocusType)
-	require.False(t, q.AnyRequiresWebsocket())
-
-	q.focuses.Upsert(TickerFocusType, &FocusData{focusType: TickerFocusType, restPollTime: time.Second, useWebsocket: true})
 	require.True(t, q.AnyRequiresWebsocket())
+
+	q.focuses.Upsert(TickerFocusType, &FocusData{focusType: TickerFocusType, restPollTime: time.Second, useWebsocket: false})
+	require.False(t, q.AnyRequiresWebsocket())
 }
 
 func TestAnyRequiresAuth(t *testing.T) {
@@ -279,10 +279,9 @@ func TestLatestData(t *testing.T) {
 
 	t.Run("illegal Focus default scenario", func(t *testing.T) {
 		t.Parallel()
-		q := mustQuickSpy(t, 999)
-		q.focuses.s[999].setSuccessful()
+		q := mustQuickSpy(t, TickerFocusType)
 		_, err := q.LatestData(999)
-		require.ErrorIs(t, err, ErrUnsupportedFocusType)
+		require.ErrorIs(t, err, errKeyNotFound)
 	})
 }
 
@@ -495,4 +494,20 @@ func TestValidateSubscriptions(t *testing.T) {
 		Pairs:   []currency.Pair{currencyPair},
 		Asset:   futuresAssetType,
 	}}))
+}
+
+func TestData(t *testing.T) {
+	t.Parallel()
+	qs := mustQuickSpyAllFocuses(t)
+	assert.NotNil(t, qs.Data())
+	assert.Equal(t, qs.Data(), qs.data)
+}
+
+func TestHandleRESTFailure(t *testing.T) {
+	t.Parallel()
+	qs := mustQuickSpy(t, TickerFocusType)
+	f := qs.focuses.GetByFocusType(TickerFocusType)
+	require.NoError(t, qs.handleRESTFailure(f, 1, errKeyNotFound, time.NewTimer(time.Second)))
+	assert.Equal(t, int64(1), f.failureCount)
+	require.ErrorIs(t, qs.handleRESTFailure(f, 10, errKeyNotFound, time.NewTimer(time.Second)), errOverMaxFailures)
 }

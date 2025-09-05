@@ -37,6 +37,7 @@ func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (
 	if len(focuses) == 0 {
 		return nil, errNoFocus
 	}
+
 	sm := NewFocusStore()
 	for i := range focuses {
 		if err := focuses[i].focusType.Valid(); err != nil {
@@ -187,7 +188,7 @@ func (q *QuickSpy) setupExchange() error {
 	if err != nil {
 		return err
 	}
-
+	q.exch = e
 	b := e.GetBase()
 	if err := q.setupExchangeDefaults(e, b); err != nil {
 		return err
@@ -208,7 +209,6 @@ func (q *QuickSpy) setupExchange() error {
 		log.Warnf(log.QuickSpy, "%s websocket setup failed: %v. Disabling websocket focuses", q.key.ExchangeAssetPair, err)
 		q.focuses.DisableWebsocketFocuses()
 	}
-	q.exch = e
 	return nil
 }
 
@@ -471,7 +471,7 @@ func (q *QuickSpy) runRESTFocus(f *FocusData) error {
 		return nil
 	}
 	timer := time.NewTimer(0)
-	failures := 0
+	failures := uint64(0)
 	for {
 		select {
 		case <-q.credContext.Done():
@@ -481,23 +481,32 @@ func (q *QuickSpy) runRESTFocus(f *FocusData) error {
 			if err != nil {
 				log.Errorf(log.QuickSpy, "Quickspy data attempt: %v %s failed, focus type: %s err: %v",
 					failures+1, q.key.ExchangeAssetPair, f.focusType, err)
-				if f.isOnceOff {
-					return nil
-				}
-				if !f.hasBeenSuccessful {
-					if errors.Is(err, common.ErrFunctionNotSupported) || errors.Is(err, common.ErrNotYetImplemented) {
-						q.successfulSpy(f, timer)
-						return nil
-					}
-					if failures == 5 {
-						return fmt.Errorf("Quickspy data attempt: %v/5 %s failed, focus type: %s err: %v ", failures, q.key.ExchangeAssetPair, f.focusType, err)
-					}
-					failures++
-					timer.Reset(f.restPollTime)
+
+				if failureErr := q.handleRESTFailure(f, &failures, err, timer); failureErr != nil {
+					return failureErr
 				}
 			}
+			if f.isOnceOff {
+				return nil
+			}
+			timer.Reset(f.restPollTime)
 		}
 	}
+}
+
+func (q *QuickSpy) handleRESTFailure(f *FocusData, failures *uint64, err error, timer *time.Timer) error {
+	if !f.hasBeenSuccessful {
+		if errors.Is(err, common.ErrFunctionNotSupported) || errors.Is(err, common.ErrNotYetImplemented) {
+			q.successfulSpy(f, timer)
+			return nil
+		}
+		if *failures >= f.FailureAllowance {
+			return fmt.Errorf("%w: %v/%v %s failed, focus type: %s err: %w",
+				errOverMaxFailures, failures, f.FailureAllowance, q.key.ExchangeAssetPair, f.focusType, err)
+		}
+		*failures++
+	}
+	return nil
 }
 
 func (q *QuickSpy) handleFocusType(focusType FocusType, focus *FocusData, timer *time.Timer) error {

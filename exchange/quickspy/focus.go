@@ -24,6 +24,7 @@ type FocusData struct {
 	hasBeenSuccessful     bool
 	hasBeenSuccessfulChan chan any
 	Stream                chan any
+	FailureAllowance      uint64
 }
 
 // Focus based errors
@@ -87,6 +88,9 @@ func (f *FocusData) Validate(k *CredentialsKey) error {
 	if f.m == nil || f.hasBeenSuccessfulChan == nil || f.Stream == nil {
 		f.Init()
 	}
+	if f.FailureAllowance == 0 {
+		f.FailureAllowance = 5
+	}
 	if k.Credentials != nil && k.Credentials.IsEmpty() {
 		return ErrNoCredentials
 	}
@@ -140,16 +144,6 @@ func (f *FocusData) UseWebsocket() bool {
 // RequiresAuth returns whether the focus type requires authentication
 func RequiresAuth(ft FocusType) bool {
 	return slices.Contains(authFocusList, ft)
-}
-
-// RequiresFutures returns whether the focus type requires a futures asset
-func RequiresFutures(ft FocusType) bool {
-	return slices.Contains(futuresOnlyFocusList, ft)
-}
-
-// SupportsWebsocket returns whether the focus type supports websocket connections
-func SupportsWebsocket(ft FocusType) bool {
-	return slices.Contains(wsSupportedFocusList, ft)
 }
 
 // HasBeenSuccessful returns whether the focus has successfully received data at least once.
