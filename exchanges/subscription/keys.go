@@ -122,3 +122,29 @@ func (k IgnoringAssetKey) Match(eachKey MatchableKey) bool {
 		eachSub.Levels == k.Levels &&
 		eachSub.Interval == k.Interval
 }
+
+// ChannelKey is a key type for finding a single subscription by its channel, this will match first found.
+// For use with exchange websocket method GetSubscription.
+type ChannelKey struct {
+	*Subscription
+}
+
+var _ MatchableKey = ChannelKey{} // Enforce ChannelKey must implement MatchableKey
+
+// MustChannelKey is a helper function to create a ChannelKey from a subscription channel
+func MustChannelKey(channel string) ChannelKey {
+	if channel == "" {
+		panic("channel must not be empty")
+	}
+	return ChannelKey{Subscription: &Subscription{Channel: channel}}
+}
+
+// Match implements MatchableKey
+func (k ChannelKey) Match(eachKey MatchableKey) bool {
+	return k.Subscription.Channel == eachKey.GetSubscription().Channel
+}
+
+// GetSubscription returns the underlying subscription
+func (k ChannelKey) GetSubscription() *Subscription {
+	return k.Subscription
+}
