@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -17,61 +18,61 @@ const (
 )
 
 // WSCreateOrder creates an order through the websocket connection
-func (e *Exchange) WSCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*WebsocketOrderDetails, error) {
-	if err := arg.Validate(); err != nil {
+func (e *Exchange) WSCreateOrder(ctx context.Context, param *PlaceOrderRequest) (*WebsocketOrderDetails, error) {
+	if err := param.Validate(); err != nil {
 		return nil, err
 	}
-	epl, err := getWSRateLimitEPLByCategory(arg.Category)
+	epl, err := getWSRateLimitEPLByCategory(param.Category)
 	if err != nil {
 		return nil, err
 	}
-	return e.SendWebsocketRequest(ctx, "order.create", arg, epl)
+	return e.SendWebsocketRequest(ctx, "order.create", param, epl)
 }
 
 // setOrderLinkID the order link ID if not already populated
-func (r *PlaceOrderRequest) setOrderLinkID(id string) string {
+func (r *PlaceOrderRequest) setOrderLinkID(defaultClientOrderLinkID func() string) string {
 	if r.OrderLinkID == "" {
-		r.OrderLinkID = id
+		r.OrderLinkID = defaultClientOrderLinkID()
 	}
 	return r.OrderLinkID
 }
 
 // WSAmendOrder amends an order through the websocket connection
-func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequest) (*WebsocketOrderDetails, error) {
-	if err := arg.Validate(); err != nil {
+func (e *Exchange) WSAmendOrder(ctx context.Context, param *AmendOrderRequest) (*WebsocketOrderDetails, error) {
+	if err := param.Validate(); err != nil {
 		return nil, err
 	}
-	epl, err := getWSRateLimitEPLByCategory(arg.Category)
+	epl, err := getWSRateLimitEPLByCategory(param.Category)
 	if err != nil {
 		return nil, err
 	}
-	return e.SendWebsocketRequest(ctx, "order.amend", arg, epl)
+	return e.SendWebsocketRequest(ctx, "order.amend", param, epl)
 }
 
 // setOrderLinkID the order link ID if not already populated
-func (r *AmendOrderRequest) setOrderLinkID(id string) string {
+func (r *AmendOrderRequest) setOrderLinkID(defaultClientOrderLinkID func() string) string {
 	if r.OrderLinkID == "" {
-		r.OrderLinkID = id
+		r.OrderLinkID = defaultClientOrderLinkID()
 	}
 	return r.OrderLinkID
 }
 
 // WSCancelOrder cancels an order through the websocket connection
-func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequest) (*WebsocketOrderDetails, error) {
-	if err := arg.Validate(); err != nil {
+func (e *Exchange) WSCancelOrder(ctx context.Context, param *CancelOrderRequest) (*WebsocketOrderDetails, error) {
+	if err := param.Validate(); err != nil {
 		return nil, err
 	}
-	epl, err := getWSRateLimitEPLByCategory(arg.Category)
+	epl, err := getWSRateLimitEPLByCategory(param.Category)
 	if err != nil {
 		return nil, err
 	}
-	return e.SendWebsocketRequest(ctx, "order.cancel", arg, epl)
+	return e.SendWebsocketRequest(ctx, "order.cancel", param, epl)
 }
 
 // setOrderLinkID the order link ID if not already populated
-func (r *CancelOrderRequest) setOrderLinkID(id string) string {
+func (r *CancelOrderRequest) setOrderLinkID(defaultClientOrderLinkID func() string) string {
 	if r.OrderLinkID == "" {
-		r.OrderLinkID = id
+		r.OrderLinkID = defaultClientOrderLinkID()
 	}
 	return r.OrderLinkID
 }
@@ -93,12 +94,12 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, payload 
 	requestID := strconv.FormatInt(outbound.GenerateMessageID(false), 10)
 
 	// Sets OrderLinkID to the outbound payload so that the response can be matched to the request in the inbound connection.
-	orderLinkID := argument.setOrderLinkID(strconv.FormatInt(tn.UnixNano(), 10) + requestID) // UnixNano is used to reduce the chance of an ID clash
+	orderLinkID := payload.setOrderLinkID(func() string { return uuid.Must(uuid.NewV7()).String() })
 
 	// Set up a listener to wait for the response to come back from the inbound connection. The request is sent through
 	// the outbound trade connection, the response can come back through the inbound private connection before the
 	// outbound connection sends its acknowledgement.
-	wait, err := inbound.MatchReturnResponses(ctx, argumentID, 1)
+	wait, err := inbound.MatchReturnResponses(ctx, orderLinkID, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +108,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, payload 
 		RequestID: requestID,
 		Header:    map[string]string{"X-BAPI-TIMESTAMP": strconv.FormatInt(tn.UnixMilli(), 10)},
 		Operation: op,
-		Arguments: []any{argument},
+		Arguments: []any{orderLinkID},
 	})
 	if err != nil {
 		return nil, err

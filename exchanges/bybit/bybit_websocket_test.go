@@ -26,7 +26,12 @@ func TestWSHandleTradeData(t *testing.T) {
 			ch, err = conn.match.Set(tc.match, 1)
 			require.NoError(t, err, "match.Set must not error")
 		}
-		require.ErrorIs(t, e.wsHandleTradeData(conn, tc.input), tc.err)
+		err := e.wsHandleTradeData(conn, tc.input)
+		if tc.err != nil {
+			require.ErrorIs(t, err, tc.err)
+			continue
+		}
+		require.NoError(t, err)
 		if tc.match != "" {
 			require.Len(t, ch, 1, "must receive 1 message from channel")
 			require.Equal(t, tc.input, <-ch, "must be correct")

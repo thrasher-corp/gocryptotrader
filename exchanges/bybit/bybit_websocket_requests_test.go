@@ -53,7 +53,7 @@ func TestWSCreateOrder(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidTriggerPriceType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e = getWebsocketInstance(t, e)
+	e := getWebsocketInstance(t)
 	got, err := e.WSCreateOrder(t.Context(), &PlaceOrderRequest{
 		Category:      cSpot,
 		Symbol:        currency.NewBTCUSDT(),
@@ -84,7 +84,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e = getWebsocketInstance(t, e)
+	e := getWebsocketInstance(t)
 
 	s.Type = order.Limit
 	s.Price = 55000
@@ -113,7 +113,7 @@ func TestWSAmendOrder(t *testing.T) {
 	require.ErrorIs(t, err, errAmendArgumentsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e = getWebsocketInstance(t, e)
+	e := getWebsocketInstance(t)
 	arg.OrderQuantity = 0.0002
 	got, err := e.WSAmendOrder(t.Context(), arg)
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e = getWebsocketInstance(t, e)
+	e := getWebsocketInstance(t)
 
 	got, err := e.WebsocketModifyOrder(t.Context(), mod)
 	require.NoError(t, err)
@@ -165,7 +165,7 @@ func TestWSCancelOrder(t *testing.T) {
 	arg.OrderFilter = "Order"
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e = getWebsocketInstance(t, e)
+	e := getWebsocketInstance(t)
 	got, err := e.WSCancelOrder(t.Context(), arg)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
@@ -180,7 +180,7 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e = getWebsocketInstance(t, e)
+	e := getWebsocketInstance(t)
 
 	err := e.WebsocketCancelOrder(t.Context(), cancel)
 	require.NoError(t, err)
@@ -188,7 +188,7 @@ func TestWebsocketCancelOrder(t *testing.T) {
 
 // getWebsocketInstance returns a websocket instance copy for testing.
 // This restricts the pairs to a single pair per asset type to reduce test time.
-func getWebsocketInstance(t *testing.T, e *Exchange) *Exchange {
+func getWebsocketInstance(t *testing.T) *Exchange {
 	t.Helper()
 	cfg := &config.Config{}
 	root, err := testutils.RootPathFromCWD()
@@ -197,8 +197,9 @@ func getWebsocketInstance(t *testing.T, e *Exchange) *Exchange {
 	err = cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true)
 	require.NoError(t, err)
 
-	cpy := new(Exchange)
-	cpy.SetDefaults()
+	pairs := &e.CurrencyPairs
+	e := new(Exchange)
+	e.SetDefaults()
 	bConf, err := cfg.GetExchangeConfig("Bybit")
 	require.NoError(t, err)
 	bConf.API.AuthenticatedSupport = true
@@ -206,52 +207,52 @@ func getWebsocketInstance(t *testing.T, e *Exchange) *Exchange {
 	bConf.API.Credentials.Key = apiKey
 	bConf.API.Credentials.Secret = apiSecret
 
-	require.NoError(t, cpy.Setup(bConf), "Test instance Setup must not error")
-	cpy.CurrencyPairs.Load(&e.CurrencyPairs)
+	require.NoError(t, e.Setup(bConf), "Test instance Setup must not error")
+	e.CurrencyPairs.Load(pairs)
 
 assetLoader:
-	for _, a := range cpy.GetAssetTypes(true) {
+	for _, a := range e.GetAssetTypes(true) {
 		var avail currency.Pairs
 		switch a {
 		case asset.Spot:
-			avail, err = cpy.GetAvailablePairs(a)
+			avail, err := e.GetAvailablePairs(a)
 			require.NoError(t, err)
 			if len(avail) > 1 { // reduce pairs to 1 to speed up tests
 				avail = avail[:1]
 			}
 		default:
-			require.NoError(t, cpy.CurrencyPairs.SetAssetEnabled(a, false))
+			require.NoError(t, e.CurrencyPairs.SetAssetEnabled(a, false))
 			continue assetLoader
 		}
-		require.NoError(t, cpy.SetPairs(avail, a, true))
+		require.NoError(t, e.SetPairs(avail, a, true))
 	}
-	require.NoError(t, cpy.Websocket.Connect())
-	return cpy
+	require.NoError(t, e.Websocket.Connect())
+	return e
 }
 
 func TestSetOrderLinkIDPlaceOrderRequest(t *testing.T) {
 	t.Parallel()
 	p := &PlaceOrderRequest{}
-	id := p.setOrderLinkID("12345")
+	id := p.setOrderLinkID(func() string { return "12345" })
 	require.Equal(t, "12345", id)
-	id = p.setOrderLinkID("67890")
+	id = p.setOrderLinkID(func() string { return "67890" })
 	require.Equal(t, "12345", id)
 }
 
 func TestSetOrderLinkIDAmendOrderRequest(t *testing.T) {
 	t.Parallel()
 	p := &AmendOrderRequest{}
-	id := p.setOrderLinkID("12345")
+	id := p.setOrderLinkID(func() string { return "12345" })
 	require.Equal(t, "12345", id)
-	id = p.setOrderLinkID("67890")
+	id = p.setOrderLinkID(func() string { return "67890" })
 	require.Equal(t, "12345", id)
 }
 
 func TestSetOrderLinkIDCancelOrderRequest(t *testing.T) {
 	t.Parallel()
 	p := &CancelOrderRequest{}
-	id := p.setOrderLinkID("12345")
+	id := p.setOrderLinkID(func() string { return "12345" })
 	require.Equal(t, "12345", id)
-	id = p.setOrderLinkID("67890")
+	id = p.setOrderLinkID(func() string { return "67890" })
 	require.Equal(t, "12345", id)
 }

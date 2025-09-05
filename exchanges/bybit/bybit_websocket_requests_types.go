@@ -86,5 +86,5 @@ type WebsocketGeneralPayload struct {
 
 // orderLinkIDSetter is an interface to set an order Link ID if not already set
 type orderLinkIDSetter interface {
-	setOrderLinkID(string) string
+	setOrderLinkID(func() string) string
 }
