@@ -943,10 +943,10 @@ func (s *store) get() map[string][]*order.Detail {
 }
 
 // getByExchangeAndID returns a specific order by exchange and id
-func (s *store) getByExchangeAndID(exchange, id string) (*order.Detail, error) {
+func (s *store) getByExchangeAndID(exch, id string) (*order.Detail, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
-	r, ok := s.Orders[strings.ToLower(exchange)]
+	r, ok := s.Orders[strings.ToLower(exch)]
 	if !ok {
 		return nil, ErrExchangeNotFound
 	}

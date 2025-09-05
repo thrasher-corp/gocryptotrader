@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -782,12 +783,15 @@ func (e *Exchange) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
-func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) error {
-	limits, err := e.FetchExchangeLimits(ctx)
+func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !e.CurrencyPairs.IsAssetSupported(a) {
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
+	l, err := e.FetchExchangeLimits(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
-	return e.LoadLimits(limits)
+	return limits.Load(l)
 }
 
 // UpdateCurrencyStates updates currency states for exchange

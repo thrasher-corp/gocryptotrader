@@ -2382,7 +2382,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange, currency, assetType string
+	var exchange, ccy, assetType string
 	if c.IsSet("exchange") {
 		exchange = c.String("exchange")
 	} else {
@@ -2417,7 +2417,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		}
 
 		if c.IsSet("currency") {
-			currency = c.String("currency")
+			ccy = c.String("currency")
 		}
 
 		if c.IsSet("asset") {
@@ -2443,7 +2443,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 			Exchange:  exchange,
 			Id:        ID,
 			Limit:     int32(limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
-			Currency:  currency,
+			Currency:  ccy,
 			AssetType: assetType,
 		},
 	)
