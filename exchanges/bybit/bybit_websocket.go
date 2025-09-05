@@ -269,8 +269,7 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket
 	case chanExecution:
 		return e.wsProcessExecution(&result)
 	case chanOrder:
-		// Below provides a way of matching an order change to a websocket request. There is no batch support for this
-		// so the first element will be used to match the order link ID.
+		// Use first order's orderLinkId to match with an entire batch of order change request
 		if id, err := jsonparser.GetString(respRaw, "data", "[0]", "orderLinkId"); err == nil {
 			if conn.IncomingWithData(id, respRaw) {
 				return nil // If the data has been routed, return
