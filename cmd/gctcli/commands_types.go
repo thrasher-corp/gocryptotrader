@@ -2,12 +2,12 @@ package main
 
 // SubmitOrderParams holds submit order parameters
 type SubmitOrderParams struct {
-	ExchangeName       string  `name:"exchange" required:""`
+	ExchangeName       string  `name:"exchange" required:"t"`
 	CurrencyPair       string  `name:"pair" required:"t" usage:"the currency pair"`
-	OrderSide          string  `name:"side" required:"" usage:"the order side to use (BUY OR SELL)"`
-	OrderType          string  `name:"type" required:"" usage:"the order type (MARKET OR LIMIT)"`
-	Amount             float64 `name:"amount" required:""`
-	AssetType          string  `name:"asset" required:""`
+	OrderSide          string  `name:"side" required:"t" usage:"the order side to use (BUY OR SELL)"`
+	OrderType          string  `name:"type" required:"t" usage:"the order type (MARKET OR LIMIT)"`
+	Amount             float64 `name:"amount" required:"t"`
+	AssetType          string  `name:"asset" required:"t"`
 	Price              float64 `name:"price"`
 	Leverage           float64 `name:"leverage"`
 	ClientOrderID      string  `name:"client_order_id"`
@@ -37,16 +37,16 @@ type SubmitOrderParams struct {
 // GetOrderParams holds an exchange order detail retrieval parameters
 type GetOrderParams struct {
 	Exchange     string `name:"exchange"`
-	Asset        string `name:"asset" required:""`
+	Asset        string `name:"asset" required:"t"`
 	CurrencyPair string `name:"pair"`
 	OrderID      string `name:"order_id"`
 }
 
 // ModifyOrderParams holds an order modification params
 type ModifyOrderParams struct {
-	ExchangeName      string  `name:"exchange" required:""`
-	AssetType         string  `name:"asset" required:""`
-	CurrencyPair      string  `name:"pair" required:"" usage:"the currency pair"`
+	ExchangeName      string  `name:"exchange" required:"t"`
+	AssetType         string  `name:"asset" required:"t"`
+	CurrencyPair      string  `name:"pair" required:"t" usage:"the currency pair"`
 	OrderID           string  `name:"order_id"`
 	OrderType         string  `name:"type" usage:"the order type (MARKET OR LIMIT)"`
 	OrderSide         string  `name:"side" usage:"the order side of the order to be modified"`
@@ -67,8 +67,8 @@ type ModifyOrderParams struct {
 
 // CancelOrderParams holds an order cancellation params
 type CancelOrderParams struct {
-	Exchange      string `name:"exchange" required:"" usage:"the exchange to cancel the order for"`
-	OrderID       string `name:"order_id" required:""`
+	Exchange      string `name:"exchange" required:"t" usage:"the exchange to cancel the order for"`
+	OrderID       string `name:"order_id" required:"t"`
 	ClientOrderID string `name:"client_order_id"`
 	AccountID     string `name:"account_id"`
 	ClientID      string `name:"client_id"`
@@ -117,16 +117,16 @@ type GetCryptoDepositAddressParams struct {
 
 // AddEventParams holds a event add request params
 type AddEventParams struct {
-	ExchangeName    string  `name:"exchange" required:"" usage:"the exchange to add an event for"`
+	ExchangeName    string  `name:"exchange" required:"t" usage:"the exchange to add an event for"`
 	Item            string  `name:"item" usage:"the item to trigger the event"`
-	Condition       string  `name:"condition" required:"" usage:"the condition for the event"`
+	Condition       string  `name:"condition" required:"t" usage:"the condition for the event"`
 	Price           float64 `name:"price" usage:"the price to trigger the event"`
 	CheckBids       bool    `name:"check_bids" usage:"whether to check the bids"`
 	CheckAsks       bool    `name:"check_asks" usage:"whether to check the asks"`
 	OrderbookAmount float64 `name:"orderbook_amount" usage:"the orderbook amount to trigger the event"`
-	CurrencyPair    string  `name:"pair" required:""`
+	CurrencyPair    string  `name:"pair" required:"t"`
 	AssetType       string  `name:"asset"`
-	Action          string  `name:"action" required:"" usage:"the action for the event to perform upon trigger"`
+	Action          string  `name:"action" required:"t" usage:"the action for the event to perform upon trigger"`
 }
 
 // GetTickerStreamParams holds exchange ticker stream retrieval params
@@ -138,8 +138,8 @@ type GetTickerStreamParams struct {
 
 // GetAuditEventParam holds an audit event request params
 type GetAuditEventParam struct {
-	Start string `name:"start" required:""`
-	End   string `name:"end" required:""`
+	Start string `name:"start" required:"t"`
+	End   string `name:"end" required:"t"`
 	Order string `name:"order"`
 	Limit int64  `name:"limit"`
 }
@@ -147,8 +147,8 @@ type GetAuditEventParam struct {
 // HistoricCandlesParams holds a historic candles retrieval params
 type HistoricCandlesParams struct {
 	Exchange                  string `name:"exchange,e" usage:"the exchange to get the candles from"`
-	CurrencyPair              string `name:"pair" required:"" usage:"the currency pair to get the candles for"`
-	Asset                     string `name:"asset" required:"" usage:"the asset type of the currency pair"`
+	CurrencyPair              string `name:"pair" required:"t" usage:"the currency pair to get the candles for"`
+	Asset                     string `name:"asset" required:"t" usage:"the asset type of the currency pair"`
 	RangeSize                 int64  `name:"rangesize,r" usage:"the amount of time to go back from now to fetch candles in the given granularity"`
 	Granularity               int64  `name:"granularity,g" usage:"interval in seconds. supported values are: 15, 60(1min), 180(3min), 300(5min), 600(10min),900(15min) 1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h),86400(1d), 259200(3d) 604800(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)"`
 	FillMissingDataWithTrades bool   `name:"fillmissingdatawithtrades,fill" usage:"will create candles for missing intervals using stored trade data <true/false>"`
@@ -159,4 +159,42 @@ type GetTickerParams struct {
 	Exchange string `name:"exchange,e" usage:"the exchange to get the ticker for"`
 	Pair     string `name:"pair" usage:"the currency pair to get the ticker for"`
 	Asset    string `name:"asset" usage:"the asset type of the currency pair to get the ticker for"`
+}
+
+// GetHistoricCandlesParams holds historical candles params retrieving params
+type GetHistoricCandlesParams struct {
+	Exchange                  string `name:"exchange,e" required:"t" usage:"the exchange to get the candles from"`
+	Pair                      string `name:"pair,p" required:"t" usage:"the currency pair to get the candles for"`
+	Asset                     string `name:"asset,a" usage:"the asset type of the currency pair"`
+	Interval                  int64  `name:"interval,i" usage:"interval in seconds. supported values are: 15, 60(1min), 180(3min), 300(5min), 600(10min),900(15min) 1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h),86400(1d), 259200(3d) 604800(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)"`
+	Start                     string `name:"start" usage:"the date to begin retrieving candles. Any candles before this date will be filtered"`
+	End                       string `name:"end" usage:"the date to end retrieving candles. Any candles after this date will be filtered"`
+	Sync                      bool   `name:"sync" usage:"<true/false>"`
+	Force                     bool   `name:"force" usage:"will overwrite any conflicting candle data on save <true/false>"`
+	Database                  bool   `name:"db" usage:"source data from database <true/false>"`
+	FillMissingDataWithTrades bool   `name:"fillmissingdatawithtrades,fill" usage:"will create candles for missing intervals using stored trade data <true/false>"`
+}
+
+// FindMissingSavedCandleIntervalsParams holds a missing saved candle intervals retrieving params
+type FindMissingSavedCandleIntervalsParams struct {
+	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get the candles from"`
+	Pair     string `name:"pair,p" required:"t" usage:"the currency pair"`
+	Asset    string `name:"asset,a" usage:"the asset type of the currency pair"`
+	Interval int64  `name:"interval,i" usage:"interval in seconds. supported values are: 15, 60(1min), 180(3min), 300(5min), 600(10min),900(15min) 1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h),86400(1d), 259200(3d) 604800(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)"`
+	Start    string `name:"start" usage:"<start> rounded down to the nearest hour"`
+	End      string `name:"end" usage:"<end> rounded down to the nearest hour"`
+}
+
+// MarginRateHistoryParam holds a margin rate history retrieval params
+type MarginRateHistoryParam struct {
+	Exchange           string `name:"exchange,e" required:"t" usage:"the exchange to get the candles from"`
+	Asset              string `name:"asset,a" required:"t" usage:"the asset type of the currency pair"`
+	Currency           string `name:"currency,c"  required:"t" usage:"must be an enabled currency"`
+	Start              string `name:"start,sd" usage:"<start>"`
+	End                string `name:"end,ed" usage:"<end>"`
+	GetPredictedRate   bool   `name:"getpredictedrate,p" usage:"include the predicted upcoming rate in the response"`
+	GetLendingPayments bool   `name:"getlendingpayments,lp" usage:"retrieve and summarise your lending payments over the time period"`
+	GetBorrowRates     bool   `name:"getborrowrates,br" usage:"retrieve borrowing rates"`
+	GetBorrowCosts     bool   `name:"getborrowcosts,bc" usage:"retrieve and summarise your borrowing costs over the time period"`
+	IncludeAllRates    bool   `name:"includeallrates,ar,v,verbose" usage:"include a detailed slice of all lending/borrowing rates over the time period"`
 }

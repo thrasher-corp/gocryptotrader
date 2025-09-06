@@ -3306,59 +3306,11 @@ var getHistoricCandlesExtendedCommand = &cli.Command{
 	Usage:     "gets historical candles for the specified pair, asset, interval & date range",
 	ArgsUsage: "<exchange> <pair> <asset> <interval> <start> <end>",
 	Action:    getHistoricCandlesExtended,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:    "exchange",
-			Aliases: []string{"e"},
-			Usage:   "the exchange to get the candles from",
-		},
-		&cli.StringFlag{
-			Name:    "pair",
-			Aliases: []string{"p"},
-			Usage:   "the currency pair to get the candles for",
-		},
-		&cli.StringFlag{
-			Name:    "asset",
-			Aliases: []string{"a"},
-			Usage:   "the asset type of the currency pair",
-		},
-		&cli.Int64Flag{
-			Name:        "interval",
-			Aliases:     []string{"i"},
-			Usage:       klineMessage,
-			Value:       86400,
-			Destination: &candleGranularity,
-		},
-		&cli.StringFlag{
-			Name:        "start",
-			Usage:       "the date to begin retrieving candles. Any candles before this date will be filtered",
-			Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
-			Destination: &startTime,
-		},
-		&cli.StringFlag{
-			Name:        "end",
-			Usage:       "the date to end retrieving candles. Any candles after this date will be filtered",
-			Value:       time.Now().Format(time.DateTime),
-			Destination: &endTime,
-		},
-		&cli.BoolFlag{
-			Name:  "sync",
-			Usage: "<true/false>",
-		},
-		&cli.BoolFlag{
-			Name:  "force",
-			Usage: "will overwrite any conflicting candle data on save <true/false>",
-		},
-		&cli.BoolFlag{
-			Name:  "db",
-			Usage: "source data from database <true/false>",
-		},
-		&cli.BoolFlag{
-			Name:    "fillmissingdatawithtrades",
-			Aliases: []string{"fill"},
-			Usage:   "will create candles for missing intervals using stored trade data <true/false>",
-		},
-	},
+	Flags: FlagsFromStruct(&GetHistoricCandlesParams{
+		Interval: 86400,
+		Start:    time.Now().AddDate(0, -1, 0).Format(time.DateTime),
+		End:      time.Now().Format(time.DateTime),
+	}),
 }
 
 func getHistoricCandlesExtended(c *cli.Context) error {
@@ -3366,92 +3318,34 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	getCandlesParam := &GetHistoricCandlesParams{}
+	err := UnmarshalCLIFields(c, getCandlesParam)
+	if err != nil {
+		return err
 	}
-	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
-	if !validPair(currencyPair) {
+	if !validPair(getCandlesParam.Pair) {
 		return errInvalidPair
 	}
 
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(getCandlesParam.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
 
-	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
-	}
-
-	if !validAsset(assetType) {
+	if !validAsset(getCandlesParam.Asset) {
 		return errInvalidAsset
 	}
-
-	if c.IsSet("interval") {
-		candleGranularity = c.Int64("interval")
-	} else if c.Args().Get(3) != "" {
-		candleGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if !c.IsSet("start") {
-		if c.Args().Get(4) != "" {
-			startTime = c.Args().Get(4)
-		}
-	}
-
-	if !c.IsSet("end") {
-		if c.Args().Get(5) != "" {
-			endTime = c.Args().Get(5)
-		}
-	}
-
-	var sync bool
-	if c.IsSet("sync") {
-		sync = c.Bool("sync")
-	}
-
-	var useDB bool
-	if c.IsSet("db") {
-		useDB = c.Bool("db")
-	}
-
-	var fillMissingData bool
-	if c.IsSet("fillmissingdatawithtrades") {
-		fillMissingData = c.Bool("fillmissingdatawithtrades")
-	} else if c.IsSet("fill") {
-		fillMissingData = c.Bool("fill")
-	}
-
-	var force bool
-	if c.IsSet("force") {
-		force = c.Bool("force")
-	}
-
-	if force && !sync {
+	if getCandlesParam.Force && !getCandlesParam.Sync {
 		return errors.New("cannot forcefully overwrite without sync")
 	}
 
-	candleInterval := time.Duration(candleGranularity) * time.Second
+	candleInterval := time.Duration(getCandlesParam.Interval) * time.Second
 	var s, e time.Time
-	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, getCandlesParam.Start, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, getCandlesParam.End, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -3469,21 +3363,21 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetHistoricCandles(c.Context,
 		&gctrpc.GetHistoricCandlesRequest{
-			Exchange: exchangeName,
+			Exchange: getCandlesParam.Exchange,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			AssetType:             assetType,
+			AssetType:             getCandlesParam.Asset,
 			Start:                 s.Format(common.SimpleTimeFormatWithTimezone),
 			End:                   e.Format(common.SimpleTimeFormatWithTimezone),
 			TimeInterval:          int64(candleInterval),
 			ExRequest:             true,
-			Sync:                  sync,
-			UseDb:                 useDB,
-			FillMissingWithTrades: fillMissingData,
-			Force:                 force,
+			Sync:                  getCandlesParam.Sync,
+			UseDb:                 getCandlesParam.Database,
+			FillMissingWithTrades: getCandlesParam.FillMissingDataWithTrades,
+			Force:                 getCandlesParam.Force,
 		})
 	if err != nil {
 		return err
@@ -3498,42 +3392,10 @@ var findMissingSavedCandleIntervalsCommand = &cli.Command{
 	Usage:     "will highlight any interval that is missing candle data so you can fill that gap",
 	ArgsUsage: "<exchange> <pair> <asset> <interval> <start> <end>",
 	Action:    findMissingSavedCandleIntervals,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:    "exchange",
-			Aliases: []string{"e"},
-			Usage:   "the exchange to find the missing candles",
-		},
-		&cli.StringFlag{
-			Name:    "pair",
-			Aliases: []string{"p"},
-			Usage:   "the currency pair",
-		},
-		&cli.StringFlag{
-			Name:    "asset",
-			Aliases: []string{"a"},
-			Usage:   "the asset type of the currency pair",
-		},
-		&cli.Int64Flag{
-			Name:        "interval",
-			Aliases:     []string{"i"},
-			Usage:       klineMessage,
-			Value:       86400,
-			Destination: &candleGranularity,
-		},
-		&cli.StringFlag{
-			Name:        "start",
-			Usage:       "<start> rounded down to the nearest hour",
-			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
-			Destination: &startTime,
-		},
-		&cli.StringFlag{
-			Name:        "end",
-			Usage:       "<end> rounded down to the nearest hour",
-			Value:       time.Now().Truncate(time.Hour).Format(time.DateTime),
-			Destination: &endTime,
-		},
-	},
+	Flags: FlagsFromStruct(&FindMissingSavedCandleIntervalsParams{
+		Interval: 86400,
+		Start:    time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
+		End:      time.Now().Truncate(time.Hour).Format(time.DateTime)}),
 }
 
 func findMissingSavedCandleIntervals(c *cli.Context) error {
@@ -3541,66 +3403,32 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-	var currencyPair string
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
-	if !validPair(currencyPair) {
-		return errInvalidPair
-	}
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	missingIntervalsParam := &FindMissingSavedCandleIntervalsParams{}
+	err := UnmarshalCLIFields(c, missingIntervalsParam)
 	if err != nil {
 		return err
 	}
 
-	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
+	if !validPair(missingIntervalsParam.Pair) {
+		return errInvalidPair
 	}
 
-	if !validAsset(assetType) {
+	p, err := currency.NewPairDelimiter(missingIntervalsParam.Pair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	if !validAsset(missingIntervalsParam.Asset) {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("interval") {
-		candleGranularity = c.Int64("interval")
-	} else if c.Args().Get(3) != "" {
-		candleGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	if !c.IsSet("start") {
-		if c.Args().Get(4) != "" {
-			startTime = c.Args().Get(4)
-		}
-	}
-
-	if !c.IsSet("end") {
-		if c.Args().Get(5) != "" {
-			endTime = c.Args().Get(5)
-		}
-	}
-
-	candleInterval := time.Duration(candleGranularity) * time.Second
+	candleInterval := time.Duration(missingIntervalsParam.Interval) * time.Second
 	var s, e time.Time
-	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, missingIntervalsParam.Start, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, missingIntervalsParam.End, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -3618,13 +3446,13 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.FindMissingSavedCandleIntervals(c.Context,
 		&gctrpc.FindMissingCandlePeriodsRequest{
-			ExchangeName: exchangeName,
+			ExchangeName: missingIntervalsParam.Exchange,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			AssetType: assetType,
+			AssetType: missingIntervalsParam.Asset,
 			Start:     s.Format(common.SimpleTimeFormatWithTimezone),
 			End:       e.Format(common.SimpleTimeFormatWithTimezone),
 			Interval:  int64(candleInterval),
@@ -3665,62 +3493,10 @@ var getMarginRatesHistoryCommand = &cli.Command{
 	Usage:     "returns margin lending/borrow rates for a period",
 	ArgsUsage: "<exchange> <asset> <currency> <start> <end> <getpredictedrate> <getlendingpayments> <getborrowrates> <getborrowcosts> <includeallrates>",
 	Action:    getMarginRatesHistory,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:    "exchange",
-			Aliases: []string{"e"},
-			Usage:   "the exchange to retrieve margin rates from",
-		},
-		&cli.StringFlag{
-			Name:    "asset",
-			Aliases: []string{"a"},
-			Usage:   "the asset type of the currency pair",
-		},
-		&cli.StringFlag{
-			Name:    "currency",
-			Aliases: []string{"c"},
-			Usage:   "must be an enabled currency",
-		},
-		&cli.StringFlag{
-			Name:        "start",
-			Aliases:     []string{"sd"},
-			Usage:       "<start>",
-			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
-			Destination: &startTime,
-		},
-		&cli.StringFlag{
-			Name:        "end",
-			Aliases:     []string{"ed"},
-			Usage:       "<end>",
-			Value:       time.Now().Format(time.DateTime),
-			Destination: &endTime,
-		},
-		&cli.BoolFlag{
-			Name:    "getpredictedrate",
-			Aliases: []string{"p"},
-			Usage:   "include the predicted upcoming rate in the response",
-		},
-		&cli.BoolFlag{
-			Name:    "getlendingpayments",
-			Aliases: []string{"lp"},
-			Usage:   "retrieve and summarise your lending payments over the time period",
-		},
-		&cli.BoolFlag{
-			Name:    "getborrowrates",
-			Aliases: []string{"br"},
-			Usage:   "retrieve borrowing rates",
-		},
-		&cli.BoolFlag{
-			Name:    "getborrowcosts",
-			Aliases: []string{"bc"},
-			Usage:   "retrieve and summarise your borrowing costs over the time period",
-		},
-		&cli.BoolFlag{
-			Name:    "includeallrates",
-			Aliases: []string{"ar", "v", "verbose"},
-			Usage:   "include a detailed slice of all lending/borrowing rates over the time period",
-		},
-	},
+	Flags: FlagsFromStruct(&MarginRateHistoryParam{
+		Start: time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
+		End:   time.Now().Format(time.DateTime),
+	}),
 }
 
 func getMarginRatesHistory(c *cli.Context) error {
@@ -3728,100 +3504,21 @@ func getMarginRatesHistory(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	marginRatesHistoryParams := &MarginRateHistoryParam{}
+	err := UnmarshalCLIFields(c, marginRatesHistoryParams)
+	if err != nil {
+		return err
 	}
 
-	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
-	}
-
-	if !validAsset(assetType) {
+	if !validAsset(marginRatesHistoryParams.Asset) {
 		return errInvalidAsset
 	}
-
-	var curr string
-	if c.IsSet("currency") {
-		curr = c.String("currency")
-	} else {
-		curr = c.Args().Get(2)
-	}
-
-	if !c.IsSet("start") {
-		if c.Args().Get(3) != "" {
-			startTime = c.Args().Get(3)
-		}
-	}
-
-	if !c.IsSet("end") {
-		if c.Args().Get(4) != "" {
-			endTime = c.Args().Get(4)
-		}
-	}
-
-	var err error
-	var getPredictedRate bool
-	if c.IsSet("getpredictedrate") {
-		getPredictedRate = c.Bool("getpredictedrate")
-	} else if c.Args().Get(5) != "" {
-		getPredictedRate, err = strconv.ParseBool(c.Args().Get(5))
-		if err != nil {
-			return err
-		}
-	}
-
-	var getLendingPayments bool
-	if c.IsSet("getlendingpayments") {
-		getLendingPayments = c.Bool("getlendingpayments")
-	} else if c.Args().Get(6) != "" {
-		getLendingPayments, err = strconv.ParseBool(c.Args().Get(6))
-		if err != nil {
-			return err
-		}
-	}
-
-	var getBorrowRates bool
-	if c.IsSet("getborrowrates") {
-		getBorrowRates = c.Bool("getborrowrates")
-	} else if c.Args().Get(7) != "" {
-		getBorrowRates, err = strconv.ParseBool(c.Args().Get(7))
-		if err != nil {
-			return err
-		}
-	}
-
-	var getBorrowCosts bool
-	if c.IsSet("getborrowcosts") {
-		getBorrowCosts = c.Bool("getborrowcosts")
-	} else if c.Args().Get(8) != "" {
-		getBorrowCosts, err = strconv.ParseBool(c.Args().Get(8))
-		if err != nil {
-			return err
-		}
-	}
-
-	var includeAllRates bool
-	if c.IsSet("includeallrates") {
-		includeAllRates = c.Bool("includeallrates")
-	} else if c.Args().Get(9) != "" {
-		includeAllRates, err = strconv.ParseBool(c.Args().Get(9))
-		if err != nil {
-			return err
-		}
-	}
-
 	var s, e time.Time
-	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, marginRatesHistoryParams.Start, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, marginRatesHistoryParams.End, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -3840,16 +3537,16 @@ func getMarginRatesHistory(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetMarginRatesHistory(c.Context,
 		&gctrpc.GetMarginRatesHistoryRequest{
-			Exchange:           exchangeName,
-			Asset:              assetType,
-			Currency:           curr,
+			Exchange:           marginRatesHistoryParams.Exchange,
+			Asset:              marginRatesHistoryParams.Asset,
+			Currency:           marginRatesHistoryParams.Currency,
 			StartDate:          s.Format(common.SimpleTimeFormatWithTimezone),
 			EndDate:            e.Format(common.SimpleTimeFormatWithTimezone),
-			GetPredictedRate:   getPredictedRate,
-			GetLendingPayments: getLendingPayments,
-			GetBorrowRates:     getBorrowRates,
-			GetBorrowCosts:     getBorrowCosts,
-			IncludeAllRates:    includeAllRates,
+			GetPredictedRate:   marginRatesHistoryParams.GetPredictedRate,
+			GetLendingPayments: marginRatesHistoryParams.GetLendingPayments,
+			GetBorrowRates:     marginRatesHistoryParams.GetBorrowRates,
+			GetBorrowCosts:     marginRatesHistoryParams.GetBorrowCosts,
+			IncludeAllRates:    marginRatesHistoryParams.IncludeAllRates,
 		})
 	if err != nil {
 		return err
