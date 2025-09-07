@@ -67,20 +67,6 @@ func (r *AmendOrderRequest) Validate() error {
 	if r.OrderID == "" && r.OrderLinkID == "" {
 		return errEitherOrderIDOROrderLinkIDRequired
 	}
-	if r.OrderImpliedVolatility == "" &&
-		r.TriggerPrice == 0 &&
-		r.OrderQuantity == 0 &&
-		r.Price == 0 &&
-		r.TakeProfitPrice == 0 &&
-		r.StopLossPrice == 0 &&
-		r.TakeProfitTriggerBy == "" &&
-		r.StopLossTriggerBy == "" &&
-		r.TriggerPriceType == "" &&
-		r.TakeProfitLimitPrice == 0 &&
-		r.StopLossLimitPrice == 0 &&
-		r.TPSLMode == "" {
-		return errAmendArgumentsRequired
-	}
 	return nil
 }
 

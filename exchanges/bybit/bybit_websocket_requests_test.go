@@ -108,12 +108,9 @@ func TestWSAmendOrder(t *testing.T) {
 	_, err = e.WSAmendOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired)
 
-	arg.OrderID = "1793353687809485568" // Replace with a valid order ID
-	_, err = e.WSAmendOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errAmendArgumentsRequired)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e := getWebsocketInstance(t) //nolint:govet // Intentional shadow
+	e := getWebsocketInstance(t)        //nolint:govet // Intentional shadow
+	arg.OrderID = "1793353687809485568" // Replace with a valid order ID
 	arg.OrderQuantity = 0.0002
 	got, err := e.WSAmendOrder(t.Context(), arg)
 	require.NoError(t, err)

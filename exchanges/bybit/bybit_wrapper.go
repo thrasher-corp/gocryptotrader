@@ -875,11 +875,7 @@ func orderTypeToString(oType order.Type) string {
 
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(e.GetTradingRequirements())
-	if err != nil {
-		return nil, err
-	}
-	arg, err := e.DeriveSubmitOrderArguments(s)
+	arg, err := e.deriveSubmitOrderArguments(s)
 	if err != nil {
 		return nil, err
 	}
@@ -897,7 +893,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 
 // WebsocketSubmitOrder submits a new order through the websocket connection
 func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	arg, err := e.DeriveSubmitOrderArguments(s)
+	arg, err := e.deriveSubmitOrderArguments(s)
 	if err != nil {
 		return nil, err
 	}
@@ -939,7 +935,7 @@ func getOrderTypeString(oType order.Type) string {
 
 // ModifyOrder will allow of changing orderbook placement and limit to market conversion
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	arg, err := e.DeriveAmendOrderArguments(action)
+	arg, err := e.deriveAmendOrderArguments(action)
 	if err != nil {
 		return nil, err
 	}
@@ -955,10 +951,9 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	return resp, nil
 }
 
-// WebsocketModifyOrder will allow of changing orderbook placement and limit to market conversion through the websocket
-// connection.
+// WebsocketModifyOrder modifies an existing order
 func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	arg, err := e.DeriveAmendOrderArguments(action)
+	arg, err := e.deriveAmendOrderArguments(action)
 	if err != nil {
 		return nil, err
 	}
@@ -979,7 +974,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
-	arg, err := e.DeriveCancelOrderArguments(ord)
+	arg, err := e.deriveCancelOrderArguments(ord)
 	if err != nil {
 		return err
 	}
@@ -987,9 +982,9 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	return err
 }
 
-// WebsocketCancelOrder cancels an order by its corresponding ID number
+// WebsocketCancelOrder cancels an order by ID
 func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error {
-	arg, err := e.DeriveCancelOrderArguments(ord)
+	arg, err := e.deriveCancelOrderArguments(ord)
 	if err != nil {
 		return err
 	}

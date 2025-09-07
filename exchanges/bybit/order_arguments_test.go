@@ -148,8 +148,12 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 			},
 		},
 	} {
-		got, err := e.DeriveSubmitOrderArguments(tc.submit)
-		require.ErrorIs(t, err, tc.err)
+		got, err := e.deriveSubmitOrderArguments(tc.submit)
+		if tc.err != nil {
+			require.ErrorIs(t, err, tc.err)
+			continue
+		}
+		require.NoError(t, err)
 		assert.Equal(t, tc.exp, got)
 	}
 }
@@ -185,8 +189,12 @@ func TestDeriveAmendOrderArguments(t *testing.T) {
 			},
 		},
 	} {
-		got, err := e.DeriveAmendOrderArguments(tc.action)
-		require.ErrorIs(t, err, tc.err)
+		got, err := e.deriveAmendOrderArguments(tc.action)
+		if tc.err != nil {
+			require.ErrorIs(t, err, tc.err)
+			continue
+		}
+		require.NoError(t, err)
 		assert.Equal(t, tc.exp, got)
 	}
 }
@@ -220,8 +228,12 @@ func TestDeriveCancelOrderArguments(t *testing.T) {
 			},
 		},
 	} {
-		got, err := e.DeriveCancelOrderArguments(tc.action)
-		require.ErrorIs(t, err, tc.err)
+		got, err := e.deriveCancelOrderArguments(tc.action)
+		if tc.err != nil {
+			require.ErrorIs(t, err, tc.err)
+			continue
+		}
+		require.NoError(t, err)
 		assert.Equal(t, tc.exp, got)
 	}
 }

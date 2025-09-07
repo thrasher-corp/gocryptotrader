@@ -24,7 +24,11 @@ func TestGetWSRateLimitEPLByCategory(t *testing.T) {
 		t.Run(tc.category, func(t *testing.T) {
 			t.Parallel()
 			actual, err := getWSRateLimitEPLByCategory(tc.category)
-			require.ErrorIs(t, err, tc.err)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err)
+				return
+			}
+			require.NoError(t, err)
 			assert.Equal(t, tc.expected, actual)
 		})
 	}

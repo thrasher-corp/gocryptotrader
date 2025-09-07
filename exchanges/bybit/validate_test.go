@@ -101,7 +101,11 @@ func TestValidatePlaceOrderRequest(t *testing.T) {
 			err: nil,
 		},
 	} {
-		require.ErrorIs(t, tc.params.Validate(), tc.err)
+		if tc.err != nil {
+			require.ErrorIs(t, tc.params.Validate(), tc.err)
+			continue
+		}
+		require.NoError(t, tc.params.Validate())
 	}
 }
 
@@ -126,20 +130,16 @@ func TestValidateAmendOrderRequest(t *testing.T) {
 				Category: cSpot,
 				Symbol:   currency.NewBTCUSDT(),
 				OrderID:  "69420",
-			},
-			err: errAmendArgumentsRequired,
-		},
-		{
-			params: AmendOrderRequest{
-				Category: cSpot,
-				Symbol:   currency.NewBTCUSDT(),
-				OrderID:  "69420",
 				TPSLMode: "TP",
 			},
 			err: nil,
 		},
 	} {
-		require.ErrorIs(t, tc.params.Validate(), tc.err)
+		if tc.err != nil {
+			require.ErrorIs(t, tc.params.Validate(), tc.err)
+			continue
+		}
+		require.NoError(t, tc.params.Validate())
 	}
 }
 
@@ -186,6 +186,10 @@ func TestValidateCancelOrderRequest(t *testing.T) {
 			err: nil,
 		},
 	} {
-		require.ErrorIs(t, tc.params.Validate(), tc.err)
+		if tc.err != nil {
+			require.ErrorIs(t, tc.params.Validate(), tc.err)
+			continue
+		}
+		require.NoError(t, tc.params.Validate())
 	}
 }

@@ -90,7 +90,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, orderLin
 		RequestID: requestID,
 		Header:    map[string]string{"X-BAPI-TIMESTAMP": strconv.FormatInt(tn.UnixMilli(), 10)},
 		Operation: op,
-		Arguments: []any{orderLinkID},
+		Arguments: []any{payload},
 	})
 	if err != nil {
 		return nil, err

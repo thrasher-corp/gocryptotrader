@@ -6,8 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// DeriveSubmitOrderArguments returns a derived order arguments struct from an order.Submit for use in this package.
-func (e *Exchange) DeriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderRequest, error) {
+func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderRequest, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
@@ -81,8 +80,7 @@ func (e *Exchange) DeriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	return arg, nil
 }
 
-// DeriveAmendOrderArguments returns a derived order arguments struct from an order.Modify for use in this package.
-func (e *Exchange) DeriveAmendOrderArguments(action *order.Modify) (*AmendOrderRequest, error) {
+func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderRequest, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
@@ -114,8 +112,7 @@ func (e *Exchange) DeriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 	}, nil
 }
 
-// DeriveCancelOrderArguments returns a derived order arguments struct from an order.Cancel for use in this package.
-func (e *Exchange) DeriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderRequest, error) {
+func (e *Exchange) deriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderRequest, error) {
 	if err := ord.Validate(ord.StandardCancel()); err != nil {
 		return nil, err
 	}

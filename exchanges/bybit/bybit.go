@@ -91,7 +91,6 @@ var (
 	errDisconnectTimeWindowNotSet         = errors.New("disconnect time window not set")
 	errAPIKeyIsNotUnified                 = errors.New("api key is not unified")
 	errInvalidContractLength              = errors.New("contract length cannot be less than or equal to zero")
-	errAmendArgumentsRequired             = errors.New("at least one of the following fields is required: orderIv, triggerPrice, qty, price, takeProfit, stopLoss")
 )
 
 var (
