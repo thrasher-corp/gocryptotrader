@@ -67,7 +67,7 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 	}
 
 	var inUpdateErr error
-	// Error disregarded as as all error pathways require a new snapshot
+	// Error disregarded as all error pathways require a new snapshot
 	if lastUpdateID, _ := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset); lastUpdateID+1 == firstUpdateID {
 		// Track incremental update error for logging but quickly initiate a new snapshot call on error
 		if inUpdateErr = applyOrderbookUpdate(e, update); inUpdateErr == nil {
