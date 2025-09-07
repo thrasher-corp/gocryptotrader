@@ -229,30 +229,3 @@ assetLoader:
 	require.NoError(t, e.Websocket.Connect())
 	return e
 }
-
-func TestSetOrderLinkIDPlaceOrderRequest(t *testing.T) {
-	t.Parallel()
-	p := &PlaceOrderRequest{}
-	id := p.setOrderLinkID(func() string { return "12345" })
-	require.Equal(t, "12345", id)
-	id = p.setOrderLinkID(func() string { return "67890" })
-	require.Equal(t, "12345", id)
-}
-
-func TestSetOrderLinkIDAmendOrderRequest(t *testing.T) {
-	t.Parallel()
-	p := &AmendOrderRequest{}
-	id := p.setOrderLinkID(func() string { return "12345" })
-	require.Equal(t, "12345", id)
-	id = p.setOrderLinkID(func() string { return "67890" })
-	require.Equal(t, "12345", id)
-}
-
-func TestSetOrderLinkIDCancelOrderRequest(t *testing.T) {
-	t.Parallel()
-	p := &CancelOrderRequest{}
-	id := p.setOrderLinkID(func() string { return "12345" })
-	require.Equal(t, "12345", id)
-	id = p.setOrderLinkID(func() string { return "67890" })
-	require.Equal(t, "12345", id)
-}

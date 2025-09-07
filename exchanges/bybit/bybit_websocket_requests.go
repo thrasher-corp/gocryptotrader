@@ -18,67 +18,52 @@ const (
 )
 
 // WSCreateOrder creates an order through the websocket connection
-func (e *Exchange) WSCreateOrder(ctx context.Context, param *PlaceOrderRequest) (*WebsocketOrderDetails, error) {
-	if err := param.Validate(); err != nil {
+func (e *Exchange) WSCreateOrder(ctx context.Context, r *PlaceOrderRequest) (*WebsocketOrderDetails, error) {
+	if err := r.Validate(); err != nil {
 		return nil, err
 	}
-	epl, err := getWSRateLimitEPLByCategory(param.Category)
+	epl, err := getWSRateLimitEPLByCategory(r.Category)
 	if err != nil {
 		return nil, err
 	}
-	return e.SendWebsocketRequest(ctx, "order.create", param, epl)
-}
-
-// setOrderLinkID the order link ID if not already populated
-func (r *PlaceOrderRequest) setOrderLinkID(defaultClientOrderLinkID func() string) string {
 	if r.OrderLinkID == "" {
-		r.OrderLinkID = defaultClientOrderLinkID()
+		r.OrderLinkID = uuid.Must(uuid.NewV7()).String()
 	}
-	return r.OrderLinkID
+	return e.SendWebsocketRequest(ctx, "order.create", r.OrderLinkID, r, epl)
 }
 
 // WSAmendOrder amends an order through the websocket connection
-func (e *Exchange) WSAmendOrder(ctx context.Context, param *AmendOrderRequest) (*WebsocketOrderDetails, error) {
-	if err := param.Validate(); err != nil {
+func (e *Exchange) WSAmendOrder(ctx context.Context, r *AmendOrderRequest) (*WebsocketOrderDetails, error) {
+	if err := r.Validate(); err != nil {
 		return nil, err
 	}
-	epl, err := getWSRateLimitEPLByCategory(param.Category)
+	epl, err := getWSRateLimitEPLByCategory(r.Category)
 	if err != nil {
 		return nil, err
 	}
-	return e.SendWebsocketRequest(ctx, "order.amend", param, epl)
-}
-
-// setOrderLinkID the order link ID if not already populated
-func (r *AmendOrderRequest) setOrderLinkID(defaultClientOrderLinkID func() string) string {
 	if r.OrderLinkID == "" {
-		r.OrderLinkID = defaultClientOrderLinkID()
+		r.OrderLinkID = uuid.Must(uuid.NewV7()).String()
 	}
-	return r.OrderLinkID
+	return e.SendWebsocketRequest(ctx, "order.amend", r.OrderLinkID, r, epl)
 }
 
 // WSCancelOrder cancels an order through the websocket connection
-func (e *Exchange) WSCancelOrder(ctx context.Context, param *CancelOrderRequest) (*WebsocketOrderDetails, error) {
-	if err := param.Validate(); err != nil {
+func (e *Exchange) WSCancelOrder(ctx context.Context, r *CancelOrderRequest) (*WebsocketOrderDetails, error) {
+	if err := r.Validate(); err != nil {
 		return nil, err
 	}
-	epl, err := getWSRateLimitEPLByCategory(param.Category)
+	epl, err := getWSRateLimitEPLByCategory(r.Category)
 	if err != nil {
 		return nil, err
 	}
-	return e.SendWebsocketRequest(ctx, "order.cancel", param, epl)
-}
-
-// setOrderLinkID the order link ID if not already populated
-func (r *CancelOrderRequest) setOrderLinkID(defaultClientOrderLinkID func() string) string {
 	if r.OrderLinkID == "" {
-		r.OrderLinkID = defaultClientOrderLinkID()
+		r.OrderLinkID = uuid.Must(uuid.NewV7()).String()
 	}
-	return r.OrderLinkID
+	return e.SendWebsocketRequest(ctx, "order.cancel", r.OrderLinkID, r, epl)
 }
 
 // SendWebsocketRequest sends a request to the exchange through the websocket connection
-func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, payload orderLinkIDSetter, limit request.EndpointLimit) (*WebsocketOrderDetails, error) {
+func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, orderLinkID string, payload any, limit request.EndpointLimit) (*WebsocketOrderDetails, error) {
 	// Get the outbound and inbound connections to send and receive the request. This makes sure both are live before
 	// sending the request.
 	outbound, err := e.Websocket.GetConnection(OutboundTradeConnection)
@@ -92,9 +77,6 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, payload 
 
 	tn := time.Now()
 	requestID := strconv.FormatInt(outbound.GenerateMessageID(false), 10)
-
-	// Sets OrderLinkID to the outbound payload so that the response can be matched to the request in the inbound connection.
-	orderLinkID := payload.setOrderLinkID(func() string { return uuid.Must(uuid.NewV7()).String() })
 
 	// Set up a listener to wait for the response to come back from the inbound connection. The request is sent through
 	// the outbound trade connection, the response can come back through the inbound private connection before the

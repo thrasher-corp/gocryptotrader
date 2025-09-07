@@ -83,8 +83,3 @@ type WebsocketGeneralPayload struct {
 	Operation string            `json:"op"`
 	Arguments []any             `json:"args"`
 }
-
-// orderLinkIDSetter is an interface to set an order Link ID if not already set
-type orderLinkIDSetter interface {
-	setOrderLinkID(func() string) string
-}
