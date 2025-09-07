@@ -97,7 +97,7 @@ func (e *Exchange) SetDefaults() {
 			},
 		),
 		TradingRequirements: protocol.TradingRequirements{
-			SpotMarketOrderAmountPurchaseQuotationOnly: true,
+			SpotMarketBuyQuotation: true,
 		},
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
