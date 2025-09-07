@@ -490,7 +490,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*Ord
 	if arg.Category == "spot" {
 		epl = createSpotOrderEPL
 	}
-	var resp OrderResponse
+	var resp *OrderResponse
 	return &resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create", nil, arg, &resp, epl)
 }
 
