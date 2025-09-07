@@ -96,7 +96,7 @@ var (
 var (
 	intervalMap         = map[kline.Interval]string{kline.OneMin: "1", kline.ThreeMin: "3", kline.FiveMin: "5", kline.FifteenMin: "15", kline.ThirtyMin: "30", kline.OneHour: "60", kline.TwoHour: "120", kline.FourHour: "240", kline.SixHour: "360", kline.SevenHour: "720", kline.OneDay: "D", kline.OneWeek: "W", kline.OneMonth: "M"}
 	stringToIntervalMap = map[string]kline.Interval{"1": kline.OneMin, "3": kline.ThreeMin, "5": kline.FiveMin, "15": kline.FifteenMin, "30": kline.ThirtyMin, "60": kline.OneHour, "120": kline.TwoHour, "240": kline.FourHour, "360": kline.SixHour, "720": kline.SevenHour, "D": kline.OneDay, "W": kline.OneWeek, "M": kline.OneMonth}
-	validCategory       = []string{"spot", "linear", "inverse", "option"}
+	validCategory       = []string{cSpot, cLinear, cOption, cInverse}
 )
 
 func intervalToString(interval kline.Interval) (string, error) {
