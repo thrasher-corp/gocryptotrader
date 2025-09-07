@@ -486,13 +486,13 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 func getCategoryName(a asset.Item) string {
 	switch a {
 	case asset.CoinMarginedFutures:
-		return "inverse"
+		return cInverse
 	case asset.USDTMarginedFutures, asset.USDCMarginedFutures:
-		return "linear"
+		return cLinear
 	case asset.Spot:
 		return a.String()
 	case asset.Options:
-		return "option"
+		return cOption
 	default:
 		return ""
 	}
@@ -1796,7 +1796,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		return resp, nil
 	case asset.USDCMarginedFutures:
-		linearContracts, err := e.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
+		linearContracts, err := e.GetInstrumentInfo(ctx, cLinear, "", "", "", "", 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -1875,7 +1875,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		return resp, nil
 	case asset.USDTMarginedFutures:
-		linearContracts, err := e.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
+		linearContracts, err := e.GetInstrumentInfo(ctx, cLinear, "", "", "", "", 1000)
 		if err != nil {
 			return nil, err
 		}

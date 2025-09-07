@@ -868,13 +868,13 @@ func (e *Exchange) authUnsubscribe(ctx context.Context, conn websocket.Connectio
 func (e *Exchange) matchPairAssetFromResponse(category, symbol string) (currency.Pair, asset.Item, error) {
 	assets := make([]asset.Item, 0, 2)
 	switch category {
-	case "spot":
+	case cSpot:
 		assets = append(assets, asset.Spot)
-	case "inverse":
+	case cInverse:
 		assets = append(assets, asset.CoinMarginedFutures)
-	case "linear":
+	case cLinear:
 		assets = append(assets, asset.USDTMarginedFutures, asset.USDCMarginedFutures)
-	case "option":
+	case cOption:
 		assets = append(assets, asset.Options)
 	default:
 		return currency.EMPTYPAIR, 0, fmt.Errorf("incoming symbol %q %w: %q", symbol, errUnsupportedCategory, category)

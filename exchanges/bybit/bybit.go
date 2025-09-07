@@ -91,6 +91,7 @@ var (
 	errDisconnectTimeWindowNotSet         = errors.New("disconnect time window not set")
 	errAPIKeyIsNotUnified                 = errors.New("api key is not unified")
 	errInvalidContractLength              = errors.New("contract length cannot be less than or equal to zero")
+	errAmendArgumentsRequired             = errors.New("at least one of the following fields is required: orderIv, triggerPrice, qty, price, takeProfit, stopLoss")
 )
 
 var (
@@ -487,11 +488,11 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*Ord
 		return nil, err
 	}
 	epl := createOrderEPL
-	if arg.Category == "spot" {
+	if arg.Category == cSpot {
 		epl = createSpotOrderEPL
 	}
 	var resp *OrderResponse
-	return &resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create", nil, arg, &resp, epl)
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create", nil, arg, &resp, epl)
 }
 
 // AmendOrder amends an open unfilled or partially filled orders.
@@ -509,7 +510,7 @@ func (e *Exchange) CancelTradeOrder(ctx context.Context, arg *CancelOrderRequest
 		return nil, err
 	}
 	epl := cancelOrderEPL
-	if arg.Category == "spot" {
+	if arg.Category == cSpot {
 		epl = cancelSpotEPL
 	}
 	var resp *OrderResponse
@@ -560,12 +561,12 @@ func (e *Exchange) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrder
 	if err != nil {
 		return nil, err
 	}
-	if arg.OrderFilter != "" && (arg.Category != "linear" && arg.Category != "inverse") {
+	if arg.OrderFilter != "" && (arg.Category != cLinear && arg.Category != cInverse) {
 		return nil, fmt.Errorf("%w, only used for category=linear or inverse", errInvalidOrderFilter)
 	}
 	var resp CancelAllResponse
 	epl := cancelAllEPL
-	if arg.Category == "spot" {
+	if arg.Category == cSpot {
 		epl = cancelAllSpotEPL
 	}
 	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-all", nil, arg, &resp, epl)

@@ -1,7 +1,6 @@
 package bybit
 
 import (
-	"errors"
 	"sync"
 	"time"
 
@@ -12,8 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
-
-var errAmendArgumentsRequired = errors.New("at least one of the following fields is required: orderIv, triggerPrice, qty, price, takeProfit, stopLoss")
 
 // supportedOptionsTypes Bybit does not offer a way to retrieve option denominations via its API
 var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}

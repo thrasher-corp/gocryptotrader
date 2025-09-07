@@ -58,15 +58,15 @@ var (
 
 func TestGetInstrumentInfo(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetInstrumentInfo(t.Context(), "spot", "", "", "", "", 0)
+	_, err := e.GetInstrumentInfo(t.Context(), cSpot, "", "", "", "", 0)
 	require.NoError(t, err)
-	_, err = e.GetInstrumentInfo(t.Context(), "linear", "", "", "", "", 0)
+	_, err = e.GetInstrumentInfo(t.Context(), cLinear, "", "", "", "", 0)
 	require.NoError(t, err)
-	_, err = e.GetInstrumentInfo(t.Context(), "inverse", "", "", "", "", 0)
+	_, err = e.GetInstrumentInfo(t.Context(), cInverse, "", "", "", "", 0)
 	require.NoError(t, err)
-	_, err = e.GetInstrumentInfo(t.Context(), "option", "", "", "", "", 0)
+	_, err = e.GetInstrumentInfo(t.Context(), cOption, "", "", "", "", 0)
 	require.NoError(t, err)
-	payload, err := e.GetInstrumentInfo(t.Context(), "linear", "10000000AIDOGEUSDT", "", "", "", 0)
+	payload, err := e.GetInstrumentInfo(t.Context(), cLinear, "10000000AIDOGEUSDT", "", "", "", 0)
 	require.NoError(t, err)
 	require.NotEmpty(t, payload.List)
 	require.NotZero(t, payload.List[0].LotSizeFilter.MinNotionalValue)
@@ -87,11 +87,11 @@ func TestGetKlines(t *testing.T) {
 		expRespLen int
 		expError   error
 	}{
-		{"spot", spotTradablePair, 100, 34, nil}, // TODO: Update expected limit when mock data is updated
-		{"linear", usdtMarginedTradablePair, 5, 5, nil},
-		{"linear", usdcMarginedTradablePair, 5, 5, nil},
-		{"inverse", inverseTradablePair, 5, 5, nil},
-		{"option", optionsTradablePair, 5, 5, errInvalidCategory},
+		{cSpot, spotTradablePair, 100, 34, nil}, // TODO: Update expected limit when mock data is updated
+		{cLinear, usdtMarginedTradablePair, 5, 5, nil},
+		{cLinear, usdcMarginedTradablePair, 5, 5, nil},
+		{cInverse, inverseTradablePair, 5, 5, nil},
+		{cOption, optionsTradablePair, 5, 5, errInvalidCategory},
 	} {
 		t.Run(fmt.Sprintf("%s-%s", tc.category, tc.pair), func(t *testing.T) {
 			t.Parallel()
@@ -105,15 +105,15 @@ func TestGetKlines(t *testing.T) {
 				require.Equal(t, tc.expRespLen, len(r))
 
 				switch tc.category {
-				case "spot":
+				case cSpot:
 					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 29393.99, High: 29399.76, Low: 29393.98, Close: 29399.76, TradeVolume: 1.168988, Turnover: 34363.5346739}, r[0])
-				case "linear":
+				case cLinear:
 					if tc.pair == usdtMarginedTradablePair {
 						assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 0.0003, High: 0.0003, Low: 0.0002995, Close: 0.0003, TradeVolume: 55102100, Turnover: 16506.2427}, r[0])
 						return
 					}
 					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 239.7, High: 239.7, Low: 239.7, Close: 239.7}, r[0])
-				case "inverse":
+				case cInverse:
 					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 0.2908, High: 0.2912, Low: 0.2908, Close: 0.2912, TradeVolume: 5131, Turnover: 17626.40000346}, r[0])
 				}
 			} else {
@@ -131,19 +131,19 @@ func TestGetMarkPriceKline(t *testing.T) {
 		startTime = time.UnixMilli(1693077167971)
 		endTime = time.UnixMilli(1693080767971)
 	}
-	_, err := e.GetMarkPriceKline(t.Context(), "linear", usdtMarginedTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
+	_, err := e.GetMarkPriceKline(t.Context(), cLinear, usdtMarginedTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.GetMarkPriceKline(t.Context(), "linear", usdcMarginedTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
+	_, err = e.GetMarkPriceKline(t.Context(), cLinear, usdcMarginedTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.GetMarkPriceKline(t.Context(), "inverse", inverseTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
+	_, err = e.GetMarkPriceKline(t.Context(), cInverse, inverseTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.GetMarkPriceKline(t.Context(), "option", optionsTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
+	_, err = e.GetMarkPriceKline(t.Context(), cOption, optionsTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
 	if err == nil {
 		t.Fatalf("expected 'params error: Category is invalid', but found nil")
 	}
@@ -157,15 +157,15 @@ func TestGetIndexPriceKline(t *testing.T) {
 		startTime = time.UnixMilli(1693077165571)
 		endTime = time.UnixMilli(1693080765571)
 	}
-	_, err := e.GetIndexPriceKline(t.Context(), "linear", usdtMarginedTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
+	_, err := e.GetIndexPriceKline(t.Context(), cLinear, usdtMarginedTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.GetIndexPriceKline(t.Context(), "linear", usdcMarginedTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
+	_, err = e.GetIndexPriceKline(t.Context(), cLinear, usdcMarginedTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.GetIndexPriceKline(t.Context(), "inverse", inverseTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
+	_, err = e.GetIndexPriceKline(t.Context(), cInverse, inverseTradablePair.String(), kline.FiveMin, startTime, endTime, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,23 +173,23 @@ func TestGetIndexPriceKline(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOrderBook(t.Context(), "spot", spotTradablePair.String(), 100)
+	_, err := e.GetOrderBook(t.Context(), cSpot, spotTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.GetOrderBook(t.Context(), "linear", usdtMarginedTradablePair.String(), 100)
+	_, err = e.GetOrderBook(t.Context(), cLinear, usdtMarginedTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.GetOrderBook(t.Context(), "linear", usdcMarginedTradablePair.String(), 100)
+	_, err = e.GetOrderBook(t.Context(), cLinear, usdcMarginedTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.GetOrderBook(t.Context(), "inverse", inverseTradablePair.String(), 100)
+	_, err = e.GetOrderBook(t.Context(), cInverse, inverseTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.GetOrderBook(t.Context(), "option", optionsTradablePair.String(), 0)
+	_, err = e.GetOrderBook(t.Context(), cOption, optionsTradablePair.String(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,22 +197,22 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetRiskLimit(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetRiskLimit(t.Context(), "linear", usdtMarginedTradablePair.String())
+	_, err := e.GetRiskLimit(t.Context(), cLinear, usdtMarginedTradablePair.String())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetRiskLimit(t.Context(), "linear", usdcMarginedTradablePair.String())
+	_, err = e.GetRiskLimit(t.Context(), cLinear, usdcMarginedTradablePair.String())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetRiskLimit(t.Context(), "inverse", inverseTradablePair.String())
+	_, err = e.GetRiskLimit(t.Context(), cInverse, inverseTradablePair.String())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetRiskLimit(t.Context(), "option", optionsTradablePair.String())
+	_, err = e.GetRiskLimit(t.Context(), cOption, optionsTradablePair.String())
 	assert.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetRiskLimit(t.Context(), "spot", spotTradablePair.String())
+	_, err = e.GetRiskLimit(t.Context(), cSpot, spotTradablePair.String())
 	assert.ErrorIs(t, err, errInvalidCategory)
 }
 
@@ -646,15 +646,15 @@ func TestGetTickersV5(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTickers(t.Context(), "bruh", "", "", time.Time{})
 	require.ErrorIs(t, err, errInvalidCategory)
-	_, err = e.GetTickers(t.Context(), "option", "BTC-26NOV24-92000-C", "", time.Time{})
+	_, err = e.GetTickers(t.Context(), cOption, "BTC-26NOV24-92000-C", "", time.Time{})
 	require.NoError(t, err)
-	_, err = e.GetTickers(t.Context(), "spot", "", "", time.Time{})
+	_, err = e.GetTickers(t.Context(), cSpot, "", "", time.Time{})
 	require.NoError(t, err)
-	_, err = e.GetTickers(t.Context(), "inverse", "", "", time.Time{})
+	_, err = e.GetTickers(t.Context(), cInverse, "", "", time.Time{})
 	require.NoError(t, err)
-	_, err = e.GetTickers(t.Context(), "linear", "", "", time.Time{})
+	_, err = e.GetTickers(t.Context(), cLinear, "", "", time.Time{})
 	require.NoError(t, err)
-	_, err = e.GetTickers(t.Context(), "option", "", "BTC", time.Time{})
+	_, err = e.GetTickers(t.Context(), cOption, "", "BTC", time.Time{})
 	require.NoError(t, err)
 }
 
@@ -663,44 +663,44 @@ func TestGetFundingRateHistory(t *testing.T) {
 	_, err := e.GetFundingRateHistory(t.Context(), "bruh", "", time.Time{}, time.Time{}, 0)
 	assert.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetFundingRateHistory(t.Context(), "spot", spotTradablePair.String(), time.Time{}, time.Time{}, 100)
+	_, err = e.GetFundingRateHistory(t.Context(), cSpot, spotTradablePair.String(), time.Time{}, time.Time{}, 100)
 	assert.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetFundingRateHistory(t.Context(), "linear", usdtMarginedTradablePair.String(), time.Time{}, time.Time{}, 100)
+	_, err = e.GetFundingRateHistory(t.Context(), cLinear, usdtMarginedTradablePair.String(), time.Time{}, time.Time{}, 100)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetFundingRateHistory(t.Context(), "linear", usdcMarginedTradablePair.String(), time.Time{}, time.Time{}, 100)
+	_, err = e.GetFundingRateHistory(t.Context(), cLinear, usdcMarginedTradablePair.String(), time.Time{}, time.Time{}, 100)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetFundingRateHistory(t.Context(), "inverse", inverseTradablePair.String(), time.Time{}, time.Time{}, 100)
+	_, err = e.GetFundingRateHistory(t.Context(), cInverse, inverseTradablePair.String(), time.Time{}, time.Time{}, 100)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetFundingRateHistory(t.Context(), "option", optionsTradablePair.String(), time.Time{}, time.Time{}, 100)
+	_, err = e.GetFundingRateHistory(t.Context(), cOption, optionsTradablePair.String(), time.Time{}, time.Time{}, 100)
 	assert.ErrorIs(t, err, errInvalidCategory)
 }
 
 func TestGetPublicTradingHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPublicTradingHistory(t.Context(), "spot", spotTradablePair.String(), "", "", 30)
+	_, err := e.GetPublicTradingHistory(t.Context(), cSpot, spotTradablePair.String(), "", "", 30)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetPublicTradingHistory(t.Context(), "linear", usdtMarginedTradablePair.String(), "", "", 30)
+	_, err = e.GetPublicTradingHistory(t.Context(), cLinear, usdtMarginedTradablePair.String(), "", "", 30)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetPublicTradingHistory(t.Context(), "linear", usdcMarginedTradablePair.String(), "", "", 30)
+	_, err = e.GetPublicTradingHistory(t.Context(), cLinear, usdcMarginedTradablePair.String(), "", "", 30)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetPublicTradingHistory(t.Context(), "inverse", inverseTradablePair.String(), "", "", 30)
+	_, err = e.GetPublicTradingHistory(t.Context(), cInverse, inverseTradablePair.String(), "", "", 30)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetPublicTradingHistory(t.Context(), "option", optionsTradablePair.String(), "BTC", "", 30)
+	_, err = e.GetPublicTradingHistory(t.Context(), cOption, optionsTradablePair.String(), "BTC", "", 30)
 	if err != nil {
 		t.Error(err)
 	}
@@ -708,22 +708,22 @@ func TestGetPublicTradingHistory(t *testing.T) {
 
 func TestGetOpenInterestData(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOpenInterestData(t.Context(), "spot", spotTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err := e.GetOpenInterestData(t.Context(), cSpot, spotTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
 	assert.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetOpenInterestData(t.Context(), "linear", usdtMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err = e.GetOpenInterestData(t.Context(), cLinear, usdtMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetOpenInterestData(t.Context(), "linear", usdcMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err = e.GetOpenInterestData(t.Context(), cLinear, usdcMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetOpenInterestData(t.Context(), "inverse", inverseTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err = e.GetOpenInterestData(t.Context(), cInverse, inverseTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetOpenInterestData(t.Context(), "option", optionsTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err = e.GetOpenInterestData(t.Context(), cOption, optionsTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
 	assert.ErrorIs(t, err, errInvalidCategory)
 }
 
@@ -735,11 +735,11 @@ func TestGetHistoricalVolatility(t *testing.T) {
 		end = time.UnixMilli(1693080759395)
 		start = time.UnixMilli(1690488759395)
 	}
-	_, err := e.GetHistoricalVolatility(t.Context(), "option", "", 123, start, end)
+	_, err := e.GetHistoricalVolatility(t.Context(), cOption, "", 123, start, end)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetHistoricalVolatility(t.Context(), "spot", "", 123, start, end)
+	_, err = e.GetHistoricalVolatility(t.Context(), cSpot, "", 123, start, end)
 	assert.ErrorIs(t, err, errInvalidCategory)
 }
 
@@ -753,18 +753,18 @@ func TestGetInsurance(t *testing.T) {
 
 func TestGetDeliveryPrice(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetDeliveryPrice(t.Context(), "spot", spotTradablePair.String(), "", "", 200)
+	_, err := e.GetDeliveryPrice(t.Context(), cSpot, spotTradablePair.String(), "", "", 200)
 	assert.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetDeliveryPrice(t.Context(), "linear", "", "", "", 200)
+	_, err = e.GetDeliveryPrice(t.Context(), cLinear, "", "", "", 200)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetDeliveryPrice(t.Context(), "inverse", "", "", "", 200)
+	_, err = e.GetDeliveryPrice(t.Context(), cInverse, "", "", "", 200)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetDeliveryPrice(t.Context(), "option", "", "BTC", "", 200)
+	_, err = e.GetDeliveryPrice(t.Context(), cOption, "", "BTC", "", 200)
 	if err != nil {
 		t.Error(err)
 	}
@@ -804,25 +804,25 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidCategory)
 
 	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
-		Category: "spot",
+		Category: cSpot,
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
-		Category: "spot",
+		Category: cSpot,
 		Symbol:   currency.Pair{Delimiter: "", Base: currency.BTC, Quote: currency.USDT},
 	})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
-		Category: "spot",
+		Category: cSpot,
 		Symbol:   spotTradablePair,
 		Side:     "buy",
 	})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
-		Category:  "spot",
+		Category:  cSpot,
 		Symbol:    spotTradablePair,
 		Side:      "buy",
 		OrderType: "limit",
@@ -830,7 +830,7 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
-		Category:         "spot",
+		Category:         cSpot,
 		Symbol:           spotTradablePair,
 		Side:             "buy",
 		OrderType:        "limit",
@@ -840,7 +840,7 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidTriggerDirection)
 
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{
-		Category:         "spot",
+		Category:         cSpot,
 		Symbol:           spotTradablePair,
 		Side:             "buy",
 		OrderType:        "limit",
@@ -852,14 +852,14 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	// Spot post only normal order
-	arg := &PlaceOrderRequest{Category: "spot", Symbol: spotTradablePair, Side: "Buy", OrderType: "Limit", OrderQuantity: 0.1, Price: 15600, TimeInForce: "PostOnly", OrderLinkID: "spot-test-01", IsLeverage: 0, OrderFilter: "Order"}
+	arg := &PlaceOrderRequest{Category: cSpot, Symbol: spotTradablePair, Side: "Buy", OrderType: "Limit", OrderQuantity: 0.1, Price: 15600, TimeInForce: "PostOnly", OrderLinkID: "spot-test-01", IsLeverage: 0, OrderFilter: "Order"}
 	_, err = e.PlaceOrder(t.Context(), arg)
 	if err != nil {
 		t.Error(err)
 	}
 	// Spot TP/SL order
 	arg = &PlaceOrderRequest{
-		Category: "spot",
+		Category: cSpot,
 		Symbol:   spotTradablePair,
 		Side:     "Buy", OrderType: "Limit",
 		OrderQuantity: 0.1, Price: 15600, TriggerPrice: 15000,
@@ -871,7 +871,7 @@ func TestPlaceOrder(t *testing.T) {
 	}
 	// Spot margin normal order (UTA)
 	arg = &PlaceOrderRequest{
-		Category: "spot", Symbol: spotTradablePair, Side: "Buy", OrderType: "Limit",
+		Category: cSpot, Symbol: spotTradablePair, Side: "Buy", OrderType: "Limit",
 		OrderQuantity: 0.1, Price: 15600, TimeInForce: "IOC", OrderLinkID: "spot-test-limit", IsLeverage: 1, OrderFilter: "Order",
 	}
 	_, err = e.PlaceOrder(t.Context(), arg)
@@ -879,7 +879,7 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	arg = &PlaceOrderRequest{
-		Category: "spot",
+		Category: cSpot,
 		Symbol:   spotTradablePair,
 		Side:     "Buy", OrderType: "Market", OrderQuantity: 200,
 		TimeInForce: "IOC", OrderLinkID: "spot-test-04",
@@ -891,7 +891,7 @@ func TestPlaceOrder(t *testing.T) {
 	}
 	// USDT Perp open long position (one-way mode)
 	arg = &PlaceOrderRequest{
-		Category: "linear",
+		Category: cLinear,
 		Symbol:   usdcMarginedTradablePair, Side: "Buy", OrderType: "Limit", OrderQuantity: 1, Price: 25000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-01", ReduceOnly: false, TakeProfitPrice: 28000, StopLossPrice: 20000, TpslMode: "Partial", TpOrderType: "Limit", SlOrderType: "Limit", TpLimitPrice: 27500, SlLimitPrice: 20500,
 	}
 	_, err = e.PlaceOrder(t.Context(), arg)
@@ -900,7 +900,7 @@ func TestPlaceOrder(t *testing.T) {
 	}
 	// USDT Perp close long position (one-way mode)
 	arg = &PlaceOrderRequest{
-		Category: "linear", Symbol: usdtMarginedTradablePair, Side: "Sell",
+		Category: cLinear, Symbol: usdtMarginedTradablePair, Side: "Sell",
 		OrderType: "Limit", OrderQuantity: 1, Price: 3000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-02", ReduceOnly: true,
 	}
 	_, err = e.PlaceOrder(t.Context(), arg)
@@ -934,7 +934,7 @@ func TestAmendOrder(t *testing.T) {
 
 	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category: "option",
+		Category: cOption,
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
@@ -978,13 +978,13 @@ func TestCancelTradeOrder(t *testing.T) {
 
 	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderRequest{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category: "option",
+		Category: cOption,
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderRequest{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category: "option",
+		Category: cOption,
 		Symbol:   optionsTradablePair,
 	})
 	if err != nil {
@@ -1000,7 +1000,7 @@ func TestGetOpenOrders(t *testing.T) {
 	_, err := e.GetOpenOrders(t.Context(), "", "", "", "", "", "", "", "", 0, 100)
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	_, err = e.GetOpenOrders(t.Context(), "spot", "", "", "", "", "", "", "", 0, 0)
+	_, err = e.GetOpenOrders(t.Context(), cSpot, "", "", "", "", "", "", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1018,7 +1018,7 @@ func TestCancelAllTradeOrders(t *testing.T) {
 	_, err = e.CancelAllTradeOrders(t.Context(), &CancelAllOrdersParam{})
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	_, err = e.CancelAllTradeOrders(t.Context(), &CancelAllOrdersParam{Category: "option"})
+	_, err = e.CancelAllTradeOrders(t.Context(), &CancelAllOrdersParam{Category: cOption})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1037,7 +1037,7 @@ func TestGetTradeOrderHistory(t *testing.T) {
 	_, err := e.GetTradeOrderHistory(t.Context(), "", "", "", "", "", "", "", "", "", start, end, 100)
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	_, err = e.GetTradeOrderHistory(t.Context(), "spot", spotTradablePair.String(), "", "", "BTC", "", "StopOrder", "", "", start, end, 100)
+	_, err = e.GetTradeOrderHistory(t.Context(), cSpot, spotTradablePair.String(), "", "", "BTC", "", "StopOrder", "", "", start, end, 100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1056,12 +1056,12 @@ func TestPlaceBatchOrder(t *testing.T) {
 	require.ErrorIs(t, err, errCategoryNotSet)
 
 	_, err = e.PlaceBatchOrder(t.Context(), &PlaceBatchOrderParam{
-		Category: "linear",
+		Category: cLinear,
 	})
 	require.ErrorIs(t, err, errNoOrderPassed)
 
 	_, err = e.PlaceBatchOrder(t.Context(), &PlaceBatchOrderParam{
-		Category: "option",
+		Category: cOption,
 		Request: []BatchOrderItemParam{
 			{
 				Symbol:                optionsTradablePair,
@@ -1091,7 +1091,7 @@ func TestPlaceBatchOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = e.PlaceBatchOrder(t.Context(), &PlaceBatchOrderParam{
-		Category: "linear",
+		Category: cLinear,
 		Request: []BatchOrderItemParam{
 			{
 				Symbol:                optionsTradablePair,
@@ -1128,7 +1128,7 @@ func TestBatchAmendOrder(t *testing.T) {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.BatchAmendOrder(t.Context(), "linear", nil)
+	_, err := e.BatchAmendOrder(t.Context(), cLinear, nil)
 	require.ErrorIs(t, err, errNilArgument)
 
 	_, err = e.BatchAmendOrder(t.Context(), "", []BatchAmendOrderParamItem{
@@ -1140,7 +1140,7 @@ func TestBatchAmendOrder(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	_, err = e.BatchAmendOrder(t.Context(), "option", []BatchAmendOrderParamItem{
+	_, err = e.BatchAmendOrder(t.Context(), cOption, []BatchAmendOrderParamItem{
 		{
 			Symbol:                 optionsTradablePair,
 			OrderImpliedVolatility: "6.8",
@@ -1173,7 +1173,7 @@ func TestCancelBatchOrder(t *testing.T) {
 	require.ErrorIs(t, err, errNoOrderPassed)
 
 	_, err = e.CancelBatchOrder(t.Context(), &CancelBatchOrder{
-		Category: "option",
+		Category: cOption,
 		Request: []CancelOrderRequest{
 			{
 				Symbol:  optionsTradablePair,
@@ -1198,13 +1198,13 @@ func TestGetBorrowQuota(t *testing.T) {
 	_, err := e.GetBorrowQuota(t.Context(), "", "BTCUSDT", "Buy")
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	_, err = e.GetBorrowQuota(t.Context(), "spot", "", "Buy")
+	_, err = e.GetBorrowQuota(t.Context(), cSpot, "", "Buy")
 	require.ErrorIs(t, err, errSymbolMissing)
 
-	_, err = e.GetBorrowQuota(t.Context(), "spot", spotTradablePair.String(), "")
+	_, err = e.GetBorrowQuota(t.Context(), cSpot, spotTradablePair.String(), "")
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	_, err = e.GetBorrowQuota(t.Context(), "spot", spotTradablePair.String(), "Buy")
+	_, err = e.GetBorrowQuota(t.Context(), cSpot, spotTradablePair.String(), "Buy")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1233,14 +1233,14 @@ func TestGetPositionInfo(t *testing.T) {
 	_, err := e.GetPositionInfo(t.Context(), "", "", "", "", "", 20)
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	_, err = e.GetPositionInfo(t.Context(), "spot", "", "", "", "", 20)
+	_, err = e.GetPositionInfo(t.Context(), cSpot, "", "", "", "", 20)
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetPositionInfo(t.Context(), "linear", "BTCUSDT", "", "", "", 20)
+	_, err = e.GetPositionInfo(t.Context(), cLinear, "BTCUSDT", "", "", "", 20)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetPositionInfo(t.Context(), "option", "BTC-26NOV24-92000-C", "BTC", "", "", 20)
+	_, err = e.GetPositionInfo(t.Context(), cOption, "BTC-26NOV24-92000-C", "BTC", "", "", 20)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1258,16 +1258,16 @@ func TestSetLeverageLevel(t *testing.T) {
 	err = e.SetLeverageLevel(t.Context(), &SetLeverageParams{})
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	err = e.SetLeverageLevel(t.Context(), &SetLeverageParams{Category: "spot"})
+	err = e.SetLeverageLevel(t.Context(), &SetLeverageParams{Category: cSpot})
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	err = e.SetLeverageLevel(t.Context(), &SetLeverageParams{Category: "linear"})
+	err = e.SetLeverageLevel(t.Context(), &SetLeverageParams{Category: cLinear})
 	require.ErrorIs(t, err, errSymbolMissing)
 
-	err = e.SetLeverageLevel(t.Context(), &SetLeverageParams{Category: "linear", Symbol: "BTCUSDT"})
+	err = e.SetLeverageLevel(t.Context(), &SetLeverageParams{Category: cLinear, Symbol: "BTCUSDT"})
 	require.ErrorIs(t, err, errInvalidLeverage)
 
-	err = e.SetLeverageLevel(t.Context(), &SetLeverageParams{Category: "linear", Symbol: "BTCUSDT", SellLeverage: 3, BuyLeverage: 3})
+	err = e.SetLeverageLevel(t.Context(), &SetLeverageParams{Category: cLinear, Symbol: "BTCUSDT", SellLeverage: 3, BuyLeverage: 3})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1285,19 +1285,19 @@ func TestSwitchTradeMode(t *testing.T) {
 	err = e.SwitchTradeMode(t.Context(), &SwitchTradeModeParams{})
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	err = e.SwitchTradeMode(t.Context(), &SwitchTradeModeParams{Category: "spot"})
+	err = e.SwitchTradeMode(t.Context(), &SwitchTradeModeParams{Category: cSpot})
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	err = e.SwitchTradeMode(t.Context(), &SwitchTradeModeParams{Category: "linear"})
+	err = e.SwitchTradeMode(t.Context(), &SwitchTradeModeParams{Category: cLinear})
 	require.ErrorIs(t, err, errSymbolMissing)
 
-	err = e.SwitchTradeMode(t.Context(), &SwitchTradeModeParams{Category: "linear", Symbol: usdtMarginedTradablePair.String()})
+	err = e.SwitchTradeMode(t.Context(), &SwitchTradeModeParams{Category: cLinear, Symbol: usdtMarginedTradablePair.String()})
 	require.ErrorIs(t, err, errInvalidLeverage)
 
-	err = e.SwitchTradeMode(t.Context(), &SwitchTradeModeParams{Category: "linear", Symbol: usdcMarginedTradablePair.String(), SellLeverage: 3, BuyLeverage: 3, TradeMode: 2})
+	err = e.SwitchTradeMode(t.Context(), &SwitchTradeModeParams{Category: cLinear, Symbol: usdcMarginedTradablePair.String(), SellLeverage: 3, BuyLeverage: 3, TradeMode: 2})
 	require.ErrorIs(t, err, errInvalidTradeModeValue)
 
-	err = e.SwitchTradeMode(t.Context(), &SwitchTradeModeParams{Category: "linear", Symbol: usdtMarginedTradablePair.String(), SellLeverage: 3, BuyLeverage: 3, TradeMode: 1})
+	err = e.SwitchTradeMode(t.Context(), &SwitchTradeModeParams{Category: cLinear, Symbol: usdtMarginedTradablePair.String(), SellLeverage: 3, BuyLeverage: 3, TradeMode: 1})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1316,20 +1316,20 @@ func TestSetTakeProfitStopLossMode(t *testing.T) {
 	require.ErrorIs(t, err, errCategoryNotSet)
 
 	_, err = e.SetTakeProfitStopLossMode(t.Context(), &TPSLModeParams{
-		Category: "spot",
+		Category: cSpot,
 	})
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.SetTakeProfitStopLossMode(t.Context(), &TPSLModeParams{Category: "spot"})
+	_, err = e.SetTakeProfitStopLossMode(t.Context(), &TPSLModeParams{Category: cSpot})
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.SetTakeProfitStopLossMode(t.Context(), &TPSLModeParams{Category: "linear"})
+	_, err = e.SetTakeProfitStopLossMode(t.Context(), &TPSLModeParams{Category: cLinear})
 	require.ErrorIs(t, err, errSymbolMissing)
 
-	_, err = e.SetTakeProfitStopLossMode(t.Context(), &TPSLModeParams{Category: "linear", Symbol: "BTCUSDT"})
+	_, err = e.SetTakeProfitStopLossMode(t.Context(), &TPSLModeParams{Category: cLinear, Symbol: "BTCUSDT"})
 	require.ErrorIs(t, err, errTakeProfitOrStopLossModeMissing)
 
-	_, err = e.SetTakeProfitStopLossMode(t.Context(), &TPSLModeParams{Category: "linear", Symbol: "BTCUSDT", TpslMode: "Partial"})
+	_, err = e.SetTakeProfitStopLossMode(t.Context(), &TPSLModeParams{Category: cLinear, Symbol: "BTCUSDT", TpslMode: "Partial"})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1347,10 +1347,10 @@ func TestSwitchPositionMode(t *testing.T) {
 	err = e.SwitchPositionMode(t.Context(), &SwitchPositionModeParams{})
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	err = e.SwitchPositionMode(t.Context(), &SwitchPositionModeParams{Category: "linear"})
+	err = e.SwitchPositionMode(t.Context(), &SwitchPositionModeParams{Category: cLinear})
 	require.ErrorIs(t, err, errEitherSymbolOrCoinRequired)
 
-	err = e.SwitchPositionMode(t.Context(), &SwitchPositionModeParams{Category: "linear", Symbol: usdtMarginedTradablePair, PositionMode: 3})
+	err = e.SwitchPositionMode(t.Context(), &SwitchPositionModeParams{Category: cLinear, Symbol: usdtMarginedTradablePair, PositionMode: 3})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1368,14 +1368,14 @@ func TestSetRiskLimit(t *testing.T) {
 	_, err = e.SetRiskLimit(t.Context(), &SetRiskLimitParam{})
 	assert.ErrorIs(t, err, errCategoryNotSet)
 
-	_, err = e.SetRiskLimit(t.Context(), &SetRiskLimitParam{Category: "linear", PositionMode: -2})
+	_, err = e.SetRiskLimit(t.Context(), &SetRiskLimitParam{Category: cLinear, PositionMode: -2})
 	assert.ErrorIs(t, err, errInvalidPositionMode)
 
-	_, err = e.SetRiskLimit(t.Context(), &SetRiskLimitParam{Category: "linear"})
+	_, err = e.SetRiskLimit(t.Context(), &SetRiskLimitParam{Category: cLinear})
 	assert.ErrorIs(t, err, errSymbolMissing)
 
 	_, err = e.SetRiskLimit(t.Context(), &SetRiskLimitParam{
-		Category:     "linear",
+		Category:     cLinear,
 		RiskID:       1234,
 		Symbol:       usdtMarginedTradablePair,
 		PositionMode: 0,
@@ -1394,11 +1394,11 @@ func TestSetTradingStop(t *testing.T) {
 	err := e.SetTradingStop(t.Context(), &TradingStopParams{})
 	assert.ErrorIs(t, err, errCategoryNotSet)
 
-	err = e.SetTradingStop(t.Context(), &TradingStopParams{Category: "spot"})
+	err = e.SetTradingStop(t.Context(), &TradingStopParams{Category: cSpot})
 	assert.ErrorIs(t, err, errInvalidCategory)
 
 	err = e.SetTradingStop(t.Context(), &TradingStopParams{
-		Category:                 "linear",
+		Category:                 cLinear,
 		Symbol:                   usdtMarginedTradablePair,
 		TakeProfit:               "0.5",
 		StopLoss:                 "0.2",
@@ -1417,7 +1417,7 @@ func TestSetTradingStop(t *testing.T) {
 		t.Error(err)
 	}
 	err = e.SetTradingStop(t.Context(), &TradingStopParams{
-		Category:                 "linear",
+		Category:                 cLinear,
 		Symbol:                   usdcMarginedTradablePair,
 		TakeProfit:               "0.5",
 		StopLoss:                 "0.2",
@@ -1444,7 +1444,7 @@ func TestSetAutoAddMargin(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err := e.SetAutoAddMargin(t.Context(), &AutoAddMarginParam{
-		Category:      "inverse",
+		Category:      cInverse,
 		Symbol:        inverseTradablePair,
 		AutoAddmargin: 0,
 		PositionIndex: 2,
@@ -1461,7 +1461,7 @@ func TestAddOrReduceMargin(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.AddOrReduceMargin(t.Context(), &AddOrReduceMarginParam{
-		Category:      "inverse",
+		Category:      cInverse,
 		Symbol:        inverseTradablePair,
 		Margin:        -10,
 		PositionIndex: 2,
@@ -1476,7 +1476,7 @@ func TestGetExecution(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetExecution(t.Context(), "spot", "", "", "", "", "Trade", "tpslOrder", "", time.Time{}, time.Time{}, 0)
+	_, err := e.GetExecution(t.Context(), cSpot, "", "", "", "", "Trade", "tpslOrder", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1487,10 +1487,10 @@ func TestGetClosedPnL(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetClosedPnL(t.Context(), "spot", "", "", time.Time{}, time.Time{}, 0)
+	_, err := e.GetClosedPnL(t.Context(), cSpot, "", "", time.Time{}, time.Time{}, 0)
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetClosedPnL(t.Context(), "linear", "", "", time.Time{}, time.Time{}, 0)
+	_, err = e.GetClosedPnL(t.Context(), cLinear, "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1502,7 +1502,7 @@ func TestConfirmNewRiskLimit(t *testing.T) {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	err := e.ConfirmNewRiskLimit(t.Context(), "linear", "BTCUSDT")
+	err := e.ConfirmNewRiskLimit(t.Context(), cLinear, "BTCUSDT")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1517,10 +1517,10 @@ func TestGetPreUpgradeOrderHistory(t *testing.T) {
 	_, err := e.GetPreUpgradeOrderHistory(t.Context(), "", "", "", "", "", "", "", "", time.Time{}, time.Time{}, 100)
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	_, err = e.GetPreUpgradeOrderHistory(t.Context(), "option", "", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	_, err = e.GetPreUpgradeOrderHistory(t.Context(), cOption, "", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
 	require.ErrorIs(t, err, errBaseNotSet)
 
-	_, err = e.GetPreUpgradeOrderHistory(t.Context(), "linear", "", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	_, err = e.GetPreUpgradeOrderHistory(t.Context(), cLinear, "", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1535,10 +1535,10 @@ func TestGetPreUpgradeTradeHistory(t *testing.T) {
 	_, err := e.GetPreUpgradeTradeHistory(t.Context(), "", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
 	require.ErrorIs(t, err, errCategoryNotSet)
 
-	_, err = e.GetPreUpgradeTradeHistory(t.Context(), "option", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	_, err = e.GetPreUpgradeTradeHistory(t.Context(), cOption, "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetPreUpgradeTradeHistory(t.Context(), "linear", "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	_, err = e.GetPreUpgradeTradeHistory(t.Context(), cLinear, "", "", "", "", "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1550,10 +1550,10 @@ func TestGetPreUpgradeClosedPnL(t *testing.T) {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetPreUpgradeClosedPnL(t.Context(), "option", "BTCUSDT", "", time.Time{}, time.Time{}, 0)
+	_, err := e.GetPreUpgradeClosedPnL(t.Context(), cOption, "BTCUSDT", "", time.Time{}, time.Time{}, 0)
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetPreUpgradeClosedPnL(t.Context(), "linear", "BTCUSDT", "", time.Time{}, time.Time{}, 0)
+	_, err = e.GetPreUpgradeClosedPnL(t.Context(), cLinear, "BTCUSDT", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1565,10 +1565,10 @@ func TestGetPreUpgradeTransactionLog(t *testing.T) {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetPreUpgradeTransactionLog(t.Context(), "option", "", "", "", time.Time{}, time.Time{}, 0)
+	_, err := e.GetPreUpgradeTransactionLog(t.Context(), cOption, "", "", "", time.Time{}, time.Time{}, 0)
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetPreUpgradeTransactionLog(t.Context(), "linear", "", "", "", time.Time{}, time.Time{}, 0)
+	_, err = e.GetPreUpgradeTransactionLog(t.Context(), cLinear, "", "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1580,10 +1580,10 @@ func TestGetPreUpgradeOptionDeliveryRecord(t *testing.T) {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetPreUpgradeOptionDeliveryRecord(t.Context(), "linear", "", "", time.Time{}, 0)
+	_, err := e.GetPreUpgradeOptionDeliveryRecord(t.Context(), cLinear, "", "", time.Time{}, 0)
 	assert.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetPreUpgradeOptionDeliveryRecord(t.Context(), "option", "", "", time.Time{}, 0)
+	_, err = e.GetPreUpgradeOptionDeliveryRecord(t.Context(), cOption, "", "", time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1595,10 +1595,10 @@ func TestGetPreUpgradeUSDCSessionSettlement(t *testing.T) {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetPreUpgradeUSDCSessionSettlement(t.Context(), "option", "", "", 10)
+	_, err := e.GetPreUpgradeUSDCSessionSettlement(t.Context(), cOption, "", "", 10)
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetPreUpgradeUSDCSessionSettlement(t.Context(), "linear", "", "", 10)
+	_, err = e.GetPreUpgradeUSDCSessionSettlement(t.Context(), cLinear, "", "", 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1758,7 +1758,7 @@ func TestGetFeeRate(t *testing.T) {
 	_, err := e.GetFeeRate(t.Context(), "something", "", "BTC")
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetFeeRate(t.Context(), "linear", "", "BTC")
+	_, err = e.GetFeeRate(t.Context(), cLinear, "", "BTC")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1780,11 +1780,11 @@ func TestGetTransactionLog(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetTransactionLog(t.Context(), "option", "", "", "", time.Time{}, time.Time{}, 0)
+	_, err := e.GetTransactionLog(t.Context(), cOption, "", "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = e.GetTransactionLog(t.Context(), "linear", "", "", "", time.Time{}, time.Time{}, 0)
+	_, err = e.GetTransactionLog(t.Context(), cLinear, "", "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1892,9 +1892,9 @@ func TestGetDeliveryRecord(t *testing.T) {
 	} else {
 		expiryTime = time.UnixMilli(1700216290093)
 	}
-	_, err := e.GetDeliveryRecord(t.Context(), "spot", "", "", expiryTime, 20)
+	_, err := e.GetDeliveryRecord(t.Context(), cSpot, "", "", expiryTime, 20)
 	assert.ErrorIs(t, err, errInvalidCategory)
-	_, err = e.GetDeliveryRecord(t.Context(), "linear", "", "", expiryTime, 20)
+	_, err = e.GetDeliveryRecord(t.Context(), cLinear, "", "", expiryTime, 20)
 	assert.NoError(t, err, "GetDeliveryRecord should not error for linear category")
 }
 
@@ -1903,10 +1903,10 @@ func TestGetUSDCSessionSettlement(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetUSDCSessionSettlement(t.Context(), "option", "", "", 10)
+	_, err := e.GetUSDCSessionSettlement(t.Context(), cOption, "", "", 10)
 	require.ErrorIs(t, err, errInvalidCategory)
 
-	_, err = e.GetUSDCSessionSettlement(t.Context(), "linear", "", "", 10)
+	_, err = e.GetUSDCSessionSettlement(t.Context(), cLinear, "", "", 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3128,7 +3128,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, "Full", v[0].TpslMode, "TPSL mode should be correct")
 			assert.Zero(t, v[0].LiqPrice.Float64(), "Liq price should be 0")
 			assert.Zero(t, v[0].BustPrice.Float64(), "Bust price should be 0")
-			assert.Equal(t, "linear", v[0].Category, "Category should be correct")
+			assert.Equal(t, cLinear, v[0].Category, "Category should be correct")
 			assert.Equal(t, "Normal", v[0].PositionStatus, "Position status should be correct")
 			assert.Equal(t, int64(2), v[0].AdlRankIndicator, "ADL Rank Indicator should be correct")
 		case []order.Detail:
@@ -3518,15 +3518,15 @@ func TestDeltaUpdateOrderbook(t *testing.T) {
 
 func TestGetLongShortRatio(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetLongShortRatio(t.Context(), "linear", "BTCUSDT", kline.FiveMin, 0)
+	_, err := e.GetLongShortRatio(t.Context(), cLinear, "BTCUSDT", kline.FiveMin, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.GetLongShortRatio(t.Context(), "inverse", "BTCUSDT", kline.FiveMin, 0)
+	_, err = e.GetLongShortRatio(t.Context(), cInverse, "BTCUSDT", kline.FiveMin, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.GetLongShortRatio(t.Context(), "spot", "BTCUSDT", kline.FiveMin, 0)
+	_, err = e.GetLongShortRatio(t.Context(), cSpot, "BTCUSDT", kline.FiveMin, 0)
 	require.ErrorIs(t, err, errInvalidCategory)
 }
 
@@ -3911,13 +3911,13 @@ func TestMatchPairAssetFromResponse(t *testing.T) {
 		expectedPair  currency.Pair
 		err           error
 	}{
-		{pair: noDelim.Format(spotTradablePair), category: "spot", expectedAsset: asset.Spot, expectedPair: spotTradablePair},
-		{pair: noDelim.Format(usdtMarginedTradablePair), category: "linear", expectedAsset: asset.USDTMarginedFutures, expectedPair: usdtMarginedTradablePair},
-		{pair: noDelim.Format(usdcMarginedTradablePair), category: "linear", expectedAsset: asset.USDCMarginedFutures, expectedPair: usdcMarginedTradablePair},
-		{pair: noDelim.Format(inverseTradablePair), category: "inverse", expectedAsset: asset.CoinMarginedFutures, expectedPair: inverseTradablePair},
-		{pair: optionsTradablePair.String(), category: "option", expectedAsset: asset.Options, expectedPair: optionsTradablePair},
+		{pair: noDelim.Format(spotTradablePair), category: cSpot, expectedAsset: asset.Spot, expectedPair: spotTradablePair},
+		{pair: noDelim.Format(usdtMarginedTradablePair), category: cLinear, expectedAsset: asset.USDTMarginedFutures, expectedPair: usdtMarginedTradablePair},
+		{pair: noDelim.Format(usdcMarginedTradablePair), category: cLinear, expectedAsset: asset.USDCMarginedFutures, expectedPair: usdcMarginedTradablePair},
+		{pair: noDelim.Format(inverseTradablePair), category: cInverse, expectedAsset: asset.CoinMarginedFutures, expectedPair: inverseTradablePair},
+		{pair: optionsTradablePair.String(), category: cOption, expectedAsset: asset.Options, expectedPair: optionsTradablePair},
 		{pair: optionsTradablePair.String(), category: "silly", err: errUnsupportedCategory, expectedAsset: 0},
-		{pair: "bad pair", category: "spot", err: currency.ErrPairNotFound},
+		{pair: "bad pair", category: cSpot, err: currency.ErrPairNotFound},
 	} {
 		t.Run(fmt.Sprintf("pair: %s, category: %s", tc.pair, tc.category), func(t *testing.T) {
 			t.Parallel()

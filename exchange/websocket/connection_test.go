@@ -26,7 +26,7 @@ func TestMatchReturnResponses(t *testing.T) {
 
 	exp := []byte("test")
 	require.True(t, conn.Match.IncomingWithData(nil, exp))
-	require.Equal(t, exp, (<-ch).Responses[0])
+	assert.Equal(t, exp, (<-ch).Responses[0])
 }
 
 func TestWebsocketConnectionRequireMatchWithData(t *testing.T) {
