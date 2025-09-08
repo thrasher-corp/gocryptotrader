@@ -249,9 +249,9 @@ func (q *QuickSpy) handleURLFocus(focus *FocusData) error {
 	if resp == "" {
 		return nil
 	}
-	focus.m.Lock()
+	q.m.Lock()
 	q.data.URL = resp
-	focus.m.Unlock()
+	q.m.Unlock()
 	focus.stream(resp)
 	return nil
 }
@@ -275,9 +275,9 @@ func (q *QuickSpy) handleContractFocus(focus *FocusData) error {
 	if contractOfFocus == nil {
 		return fmt.Errorf("no contract found for %s %s", q.key.ExchangeAssetPair, focus.focusType)
 	}
-	focus.m.Lock()
+	q.m.Lock()
 	q.data.Contract = contractOfFocus
-	focus.m.Unlock()
+	q.m.Unlock()
 	focus.stream(contractOfFocus)
 	return nil
 }
@@ -319,9 +319,9 @@ func (q *QuickSpy) handleKlineFocus(focus *FocusData) error {
 			Volume:     k.Candles[i].Volume,
 		}
 	}
-	focus.m.Lock()
+	q.m.Lock()
 	q.data.Kline = wsConvertedCandles
-	focus.m.Unlock()
+	q.m.Unlock()
 	focus.stream(wsConvertedCandles)
 	return nil
 }
@@ -342,9 +342,9 @@ func (q *QuickSpy) handleOpenInterestFocus(focus *FocusData) error {
 		return nil
 	}
 	resp := oi[0].OpenInterest
-	focus.m.Lock()
+	q.m.Lock()
 	q.data.OpenInterest = resp
-	focus.m.Unlock()
+	q.m.Unlock()
 	focus.stream(resp)
 	return nil
 }
@@ -357,9 +357,9 @@ func (q *QuickSpy) handleTickerFocus(focus *FocusData) error {
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
 	}
-	focus.m.Lock()
+	q.m.Lock()
 	q.data.Ticker = resp
-	focus.m.Unlock()
+	q.m.Unlock()
 	focus.stream(resp)
 
 	return nil
@@ -378,9 +378,9 @@ func (q *QuickSpy) handleOrdersFocus(focus *FocusData) error {
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
 	}
-	focus.m.Lock()
+	q.m.Lock()
 	q.data.Orders = resp
-	focus.m.Unlock()
+	q.m.Unlock()
 	focus.stream(resp)
 	return nil
 }
@@ -410,9 +410,9 @@ func (q *QuickSpy) handleAccountHoldingsFocus(focus *FocusData) error {
 			}
 		}
 	}
-	focus.m.Lock()
+	q.m.Lock()
 	q.data.AccountBalance = sa
-	focus.m.Unlock()
+	q.m.Unlock()
 	focus.stream(sa)
 	return nil
 }
@@ -425,9 +425,9 @@ func (q *QuickSpy) handleOrderBookFocus(focus *FocusData) error {
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
 	}
-	focus.m.Lock()
+	q.m.Lock()
 	q.data.Orderbook = ob
-	focus.m.Unlock()
+	q.m.Unlock()
 	focus.stream(ob)
 	return nil
 }
@@ -440,9 +440,9 @@ func (q *QuickSpy) handleTradesFocus(focus *FocusData) error {
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
 	}
-	focus.m.Lock()
+	q.m.Lock()
 	q.data.Trades = tr
-	focus.m.Unlock()
+	q.m.Unlock()
 	focus.stream(tr)
 	return nil
 }
@@ -462,9 +462,9 @@ func (q *QuickSpy) handleOrderExecutionFocus(focus *FocusData) error {
 			return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
 		}
 	}
-	focus.m.Lock()
+	q.m.Lock()
 	q.data.ExecutionLimits = &el
-	focus.m.Unlock()
+	q.m.Unlock()
 	focus.stream(&el)
 	return nil
 }
@@ -490,9 +490,9 @@ func (q *QuickSpy) handleFundingRateFocus(focus *FocusData) error {
 	if len(fr) != 1 {
 		return fmt.Errorf("expected 1 funding rate for %s %q, got %d", q.key.ExchangeAssetPair, focus.focusType.String(), len(fr))
 	}
-	focus.m.Lock()
+	q.m.Lock()
 	q.data.FundingRate = &fr[0]
-	focus.m.Unlock()
+	q.m.Unlock()
 	focus.stream(&fr[0])
 	return nil
 }
