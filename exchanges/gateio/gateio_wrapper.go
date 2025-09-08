@@ -1175,7 +1175,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 			return resp, err
 		}
 		for x := range cancel {
-			resp.Load(strconv.FormatInt(cancel[x].AutoOrderID, 10), cancel[x].Status)
+			resp.Add(strconv.FormatInt(cancel[x].AutoOrderID, 10), cancel[x].Status)
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
 		side, err := getExchangeSide(o.Side)
@@ -1196,7 +1196,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 			return resp, err
 		}
 		for f := range cancel {
-			resp.Load(strconv.FormatInt(cancel[f].ID, 10), cancel[f].FinishAs)
+			resp.Add(strconv.FormatInt(cancel[f].ID, 10), cancel[f].FinishAs)
 		}
 	case asset.Options:
 		side, err := getExchangeSide(o.Side)
@@ -1208,7 +1208,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 			return resp, err
 		}
 		for x := range cancel {
-			resp.Load(strconv.FormatInt(cancel[x].OptionOrderID, 10), cancel[x].FinishAs)
+			resp.Add(strconv.FormatInt(cancel[x].OptionOrderID, 10), cancel[x].FinishAs)
 		}
 	default:
 		return resp, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)

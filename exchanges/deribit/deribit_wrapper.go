@@ -727,7 +727,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (o
 	}
 	for a := range cancelData.CancelDetails {
 		for b := range cancelData.CancelDetails[a].Result {
-			resp.Load(cancelData.CancelDetails[a].Result[b].OrderID, cancelData.CancelDetails[a].Result[b].OrderState)
+			resp.Add(cancelData.CancelDetails[a].Result[b].OrderID, cancelData.CancelDetails[a].Result[b].OrderState)
 		}
 	}
 	return resp, nil

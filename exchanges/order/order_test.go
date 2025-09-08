@@ -1747,9 +1747,9 @@ func TestMarshalOrder(t *testing.T) {
 	assert.Equal(t, exp, j)
 }
 
-func TestLoad(t *testing.T) {
+func TestAdd(t *testing.T) {
 	t.Parallel()
 	var c CancelAllResponse
-	c.Load("order1", "cancelled")
+	c.Add("order1", "cancelled")
 	assert.Equal(t, "cancelled", c.Status["order1"])
 }

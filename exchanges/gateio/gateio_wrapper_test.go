@@ -74,7 +74,11 @@ func TestGetExchangeSide(t *testing.T) {
 		{order.UnknownSide, "", order.ErrSideIsInvalid},
 	} {
 		got, err := getExchangeSide(tc.side)
-		require.ErrorIs(t, err, tc.err)
+		if tc.err != nil {
+			require.ErrorIs(t, err, tc.err)
+		} else {
+			require.NoError(t, err)
+		}
 		assert.Equal(t, tc.exp, got)
 	}
 }

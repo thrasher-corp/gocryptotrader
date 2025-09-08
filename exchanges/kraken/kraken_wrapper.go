@@ -828,7 +828,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 				return resp, err
 			}
 			for i := range cancel.Count {
-				resp.Load(fmt.Sprintf("Unknown:%d", i+1), "cancelled")
+				resp.Add(fmt.Sprintf("Unknown:%d", i+1), "cancelled")
 			}
 			return resp, err
 		}
@@ -843,10 +843,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 				_, err = e.CancelExistingOrder(ctx, orderID)
 			}
 			if err != nil {
-				resp.Load(orderID, err.Error())
+				resp.Add(orderID, err.Error())
 				continue
 			}
-			resp.Load(orderID, "cancelled")
+			resp.Add(orderID, "cancelled")
 		}
 	case asset.Futures:
 		cancelData, err := e.FuturesCancelAllOrders(ctx, req.Pair)
@@ -854,7 +854,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 			return resp, err
 		}
 		for x := range cancelData.CancelStatus.CancelledOrders {
-			resp.Load(cancelData.CancelStatus.CancelledOrders[x].OrderID, "cancelled")
+			resp.Add(cancelData.CancelStatus.CancelledOrders[x].OrderID, "cancelled")
 		}
 	}
 	return resp, nil
