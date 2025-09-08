@@ -3165,10 +3165,17 @@ type WebsocketEventRequest struct {
 
 // WebsocketLoginData represents the websocket login data input json data
 type WebsocketLoginData struct {
-	APIKey     string `json:"apiKey"`
+	//APIKey     string `json:"apiKey"`
+	Key        string `json:"apiKey"`
 	Passphrase string `json:"passphrase"`
 	Timestamp  int64  `json:"timestamp,string"`
 	Sign       string `json:"sign"`
+}
+
+// WebsocketOp holds the operation and arguments
+type WebsocketOp struct {
+	Op   string      `json:"op"`
+	Args interface{} `json:"args"`
 }
 
 // SubscriptionInfo holds the channel and instrument IDs
