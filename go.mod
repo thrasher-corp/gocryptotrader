@@ -26,7 +26,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.41.0
-	golang.org/x/term v0.34.0
+	golang.org/x/term v0.35.0
 	golang.org/x/text v0.29.0
 	golang.org/x/time v0.13.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250818200422-3122310a409c
@@ -69,7 +69,7 @@ require (
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/arch v0.13.0 // indirect
 	golang.org/x/net v0.42.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250818200422-3122310a409c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
