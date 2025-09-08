@@ -63,7 +63,7 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, r *CancelOrderRequest) (*W
 }
 
 // SendWebsocketRequest sends a request to the exchange through the websocket connection
-func (e *Exchange) SendWebsocketRequest(ctx context.Context, op string, orderLinkID string, payload any, limit request.EndpointLimit) (*WebsocketOrderDetails, error) {
+func (e *Exchange) SendWebsocketRequest(ctx context.Context, op, orderLinkID string, payload any, limit request.EndpointLimit) (*WebsocketOrderDetails, error) {
 	// Get the outbound and inbound connections to send and receive the request. This makes sure both are live before
 	// sending the request.
 	outbound, err := e.Websocket.GetConnection(OutboundTradeConnection)
