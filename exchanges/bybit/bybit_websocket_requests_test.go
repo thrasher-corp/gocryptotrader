@@ -204,25 +204,8 @@ func getWebsocketInstance(t *testing.T) *Exchange {
 	bConf.API.Credentials.Key = apiKey
 	bConf.API.Credentials.Secret = apiSecret
 
-	require.NoError(t, e.Setup(bConf), "Test instance Setup must not error")
+	require.NoError(t, e.Setup(bConf), "Setup must not error")
 	e.CurrencyPairs.Load(pairs)
-
-assetLoader:
-	for _, a := range e.GetAssetTypes(true) {
-		var avail currency.Pairs
-		switch a {
-		case asset.Spot:
-			avail, err = e.GetAvailablePairs(a)
-			require.NoError(t, err)
-			if len(avail) > 1 { // reduce pairs to 1 to speed up tests
-				avail = avail[:1]
-			}
-		default:
-			require.NoError(t, e.CurrencyPairs.SetAssetEnabled(a, false))
-			continue assetLoader
-		}
-		require.NoError(t, e.SetPairs(avail, a, true))
-	}
 	require.NoError(t, e.Websocket.Connect())
 	return e
 }
