@@ -16,7 +16,7 @@
   }
  },
  "logging": {
-  "enabled": true,
+  "enabled": false,
   "level": "INFO|DEBUG|WARN|ERROR",
   "output": "console",
   "fileSettings": {

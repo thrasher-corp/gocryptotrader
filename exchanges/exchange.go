@@ -671,28 +671,30 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 			updateType = "available"
 		}
 
-		if force {
-			log.Debugf(log.ExchangeSys,
-				"%s forced update of %s [%v] pairs.",
-				b.Name,
-				updateType,
-				strings.ToUpper(a.String()))
-		} else {
-			if len(diff.New) > 0 {
+		if b.Verbose {
+			if force {
 				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Added: %s.\n",
+					"%s forced update of %s [%v] pairs.",
 					b.Name,
 					updateType,
-					strings.ToUpper(a.String()),
-					diff.New)
-			}
-			if len(diff.Remove) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Removed: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.Remove)
+					strings.ToUpper(a.String()))
+			} else {
+				if len(diff.New) > 0 {
+					log.Debugf(log.ExchangeSys,
+						"%s Updating %s pairs [%v] - Added: %s.\n",
+						b.Name,
+						updateType,
+						strings.ToUpper(a.String()),
+						diff.New)
+				}
+				if len(diff.Remove) > 0 {
+					log.Debugf(log.ExchangeSys,
+						"%s Updating %s pairs [%v] - Removed: %s.\n",
+						b.Name,
+						updateType,
+						strings.ToUpper(a.String()),
+						diff.Remove)
+				}
 			}
 		}
 		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
@@ -768,14 +770,16 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		if err != nil {
 			return err
 		}
-		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n",
-			b.Name,
-			strings.ToUpper(a.String()),
-			randomPair)
+		if b.Verbose {
+			log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n",
+				b.Name,
+				strings.ToUpper(a.String()),
+				randomPair)
+		}
 		enabledPairs = currency.Pairs{randomPair}
 	}
 
-	if len(diff.Remove) > 0 {
+	if len(diff.Remove) > 0 && b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
 			b.Name,
 			strings.ToUpper(a.String()),
