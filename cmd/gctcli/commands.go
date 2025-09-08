@@ -863,47 +863,17 @@ var removePortfolioAddressCommand = &cli.Command{
 	Usage:     "removes an address from the portfolio",
 	ArgsUsage: "<address> <coin_type> <description>",
 	Action:    removePortfolioAddress,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "address",
-			Usage: "the address to add to the portfolio",
-		},
-		&cli.StringFlag{
-			Name:  "coin_type",
-			Usage: "the coin type e.g ('BTC')",
-		},
-		&cli.StringFlag{
-			Name:  "description",
-			Usage: "description of the address",
-		},
-	},
+	Flags:     FlagsFromStruct(&RemovePortfolioAddressCommandParam{}),
 }
 
 func removePortfolioAddress(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	var address string
-	var coinType string
-	var description string
-
-	if c.IsSet("address") {
-		address = c.String("address")
-	} else {
-		address = c.Args().First()
-	}
-
-	if c.IsSet("coin_type") {
-		coinType = c.String("coin_type")
-	} else {
-		coinType = c.Args().Get(1)
-	}
-
-	if c.IsSet("description") {
-		description = c.String("description")
-	} else {
-		description = c.Args().Get(2)
+	params := &RemovePortfolioAddressCommandParam{}
+	err := UnmarshalCLIFields(c, params)
+	if err != nil {
+		return err
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -915,9 +885,9 @@ func removePortfolioAddress(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.RemovePortfolioAddress(c.Context,
 		&gctrpc.RemovePortfolioAddressRequest{
-			Address:     address,
-			CoinType:    coinType,
-			Description: description,
+			Address:     params.Address,
+			CoinType:    params.CoinType,
+			Description: params.Description,
 		},
 	)
 	if err != nil {
@@ -1057,20 +1027,7 @@ var getManagedOrdersCommand = &cli.Command{
 	Usage:     "gets the current orders from the order manager",
 	ArgsUsage: "<exchange> <asset> <pair>",
 	Action:    getManagedOrders,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to get orders for",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type to get orders for",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair to get orders for",
-		},
-	},
+	Flags:     FlagsFromStruct(&GetManagedOrdersCommandParams{}),
 }
 
 func getManagedOrders(c *cli.Context) error {
@@ -1078,38 +1035,22 @@ func getManagedOrders(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	var assetType string
-	var currencyPair string
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	params := &GetManagedOrdersCommandParams{}
+	err := UnmarshalCLIFields(c, params)
+	if err != nil {
+		return err
 	}
 
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(1)
-	}
-
-	assetType = strings.ToLower(assetType)
-	if !validAsset(assetType) {
+	params.Asset = strings.ToLower(params.Asset)
+	if !validAsset(params.Asset) {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
-	}
-
-	if !validPair(currencyPair) {
+	if !validPair(params.Pair) {
 		return errInvalidPair
 	}
 
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(params.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -1122,8 +1063,8 @@ func getManagedOrders(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetManagedOrders(c.Context, &gctrpc.GetOrdersRequest{
-		Exchange:  exchangeName,
-		AssetType: assetType,
+		Exchange:  params.Exchange,
+		AssetType: params.Asset,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),

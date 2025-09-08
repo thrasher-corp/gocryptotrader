@@ -232,3 +232,17 @@ type SimulateOrderCommandParams struct {
 	OrderSide string  `name:"side" required:"t" usage:"the order side to use (BUY OR SELL)"`
 	Amount    float64 `name:"amount" required:"t" usage:"the amount for the order"`
 }
+
+// RemovePortfolioAddressCommandParam holds portfolio address removing command request params
+type RemovePortfolioAddressCommandParam struct {
+	Address     string `name:"address" usage:"the address to add to the portfolio"`
+	CoinType    string `name:"coin_type" usage:"the coin type e.g ('BTC')"`
+	Description string `name:"description" usage:"description of the address"`
+}
+
+// GetManagedOrdersCommandParams holds a managed orders command request params
+type GetManagedOrdersCommandParams struct {
+	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get orders for"`
+	Asset    string `name:"asset" required:"t" usage:"the asset type to get orders for"`
+	Pair     string `name:"pair,e" required:"t" usage:"the currency pair to get orders for"`
+}
