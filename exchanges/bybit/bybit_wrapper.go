@@ -988,7 +988,7 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	if err != nil {
 		return err
 	}
-	_, err = e.CancelTradeOrder(ctx, arg)
+	_, err = e.WSCancelOrder(ctx, arg)
 	return err
 }
 
