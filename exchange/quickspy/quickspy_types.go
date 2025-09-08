@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -31,7 +30,8 @@ var (
 	errNoSubSwitchingToREST           = errors.New("no subscription found, switching to REST")
 	errTimerNotSet                    = errors.New("timer not set")
 	errNoDataYet                      = errors.New("no data received yet")
-	errOverMaxFailures                = errors.New("exceeded maximum allowed failures for this focus")
+	errOverMaxFailures                = errors.New("exceeded maximum allowed failures")
+	errUnhandledWebsocketData         = errors.New("unhandled websocket data type")
 )
 
 // CredentialsKey is a struct that holds credentials and exchange/pair/asset info
@@ -61,8 +61,6 @@ type QuickSpy struct {
 	m *sync.RWMutex
 	// wg is used for synchronizing goroutines
 	wg sync.WaitGroup
-	// alert is used for notifications
-	alert alert.Notice
 	// Data contains all the market data
 	data *Data
 }

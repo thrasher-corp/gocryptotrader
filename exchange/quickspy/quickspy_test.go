@@ -14,9 +14,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 // these are here to help a user test
@@ -35,7 +38,7 @@ func mustQuickSpy(t *testing.T, ft FocusType) *QuickSpy {
 	ftd := NewFocusData(ft, false, true, time.Second)
 	ftd.Init()
 	qs, err := NewQuickSpy(
-		context.Background(),
+		t.Context(),
 		&CredentialsKey{
 			ExchangeAssetPair: key.NewExchangeAssetPair(exchangeName, assetType, currencyPair),
 			Credentials: &account.Credentials{
@@ -56,7 +59,7 @@ func mustQuickSpyAllFocuses(t *testing.T) *QuickSpy {
 		focuses = append(focuses, ftd)
 	}
 	qs, err := NewQuickSpy(
-		context.Background(),
+		t.Context(),
 		&CredentialsKey{
 			ExchangeAssetPair: key.NewExchangeAssetPair(exchangeName, futuresAssetType, currencyPair),
 			Credentials: &account.Credentials{
@@ -96,7 +99,7 @@ func TestNewQuickSpy(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, qs)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	qs, err = NewQuickSpy(ctx, &CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair(exchangeName, assetType, currencyPair), Credentials: &account.Credentials{
 		Key:    apiKey,
 		Secret: apiSecret,
@@ -147,7 +150,6 @@ func TestSetupExchange(t *testing.T) {
 		dataHandlerChannel: make(chan any),
 		m:                  new(sync.RWMutex),
 		wg:                 sync.WaitGroup{},
-		alert:              alert.Notice{},
 	}
 	err = q.setupExchange()
 	require.ErrorIs(t, err, engine.ErrExchangeNotFound)
@@ -294,15 +296,15 @@ func TestWaitForInitialDataWithTimer(t *testing.T) {
 	f := &FocusData{focusType: TickerFocusType, restPollTime: time.Millisecond * 10}
 	f.Init()
 	qs.focuses.Upsert(TickerFocusType, f)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	require.Error(t, qs.WaitForInitialDataWithTimer(ctx, TickerFocusType, 1))
 
 	f.setSuccessful()
-	require.NoError(t, qs.WaitForInitialDataWithTimer(context.Background(), TickerFocusType, time.Second))
-	require.Error(t, qs.WaitForInitialDataWithTimer(context.Background(), OrderBookFocusType, 1))
+	require.NoError(t, qs.WaitForInitialDataWithTimer(t.Context(), TickerFocusType, time.Second))
+	require.Error(t, qs.WaitForInitialDataWithTimer(t.Context(), OrderBookFocusType, 1))
 	cancel()
 
-	require.NoError(t, qs.WaitForInitialDataWithTimer(context.Background(), TickerFocusType, time.Second))
+	require.NoError(t, qs.WaitForInitialDataWithTimer(t.Context(), TickerFocusType, time.Second))
 }
 
 func TestWaitForInitialData(t *testing.T) {
@@ -314,15 +316,15 @@ func TestWaitForInitialData(t *testing.T) {
 	f := &FocusData{focusType: TickerFocusType, restPollTime: time.Millisecond * 10}
 	f.Init()
 	qs.focuses.Upsert(TickerFocusType, f)
-	_, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(t.Context())
 
 	f.setSuccessful()
-	require.NoError(t, qs.WaitForInitialData(context.Background(), TickerFocusType))
+	require.NoError(t, qs.WaitForInitialData(t.Context(), TickerFocusType))
 
-	require.Error(t, qs.WaitForInitialData(context.Background(), OrderBookFocusType))
+	require.Error(t, qs.WaitForInitialData(t.Context(), OrderBookFocusType))
 
 	cancel()
-	require.NoError(t, qs.WaitForInitialData(context.Background(), TickerFocusType))
+	require.NoError(t, qs.WaitForInitialData(t.Context(), TickerFocusType))
 }
 
 func TestHandleFocusType(t *testing.T) {
@@ -352,8 +354,7 @@ func TestHandleFocusType(t *testing.T) {
 			}
 			fd := &FocusData{focusType: tc.ft, restPollTime: time.Second}
 			fd.Init()
-			timer := time.NewTimer(time.Hour)
-			assert.NoError(t, q.handleFocusType(tc.ft, fd, timer))
+			assert.NoError(t, q.handleFocusType(tc.ft, fd))
 			assert.NotEmpty(t, <-fd.Stream)
 		})
 	}
@@ -367,7 +368,7 @@ func TestDump(t *testing.T) {
 		if slices.Contains(authFocusList, fd.focusType) && apiKey == "abc" && apiSecret == "123" {
 			continue
 		}
-		require.NoError(t, q.handleFocusType(fd.focusType, fd, time.NewTimer(fd.restPollTime)))
+		require.NoError(t, q.handleFocusType(fd.focusType, fd))
 	}
 	d, err := q.DumpJSON()
 	require.NoError(t, err)
@@ -377,12 +378,12 @@ func TestDump(t *testing.T) {
 func TestWaitForInitialDataWithTimer_Zero(t *testing.T) {
 	t.Parallel()
 	qs := &QuickSpy{focuses: NewFocusStore()}
-	require.Error(t, qs.WaitForInitialDataWithTimer(context.Background(), TickerFocusType, 0))
+	require.Error(t, qs.WaitForInitialDataWithTimer(t.Context(), TickerFocusType, 0))
 }
 
 func TestShutdown(t *testing.T) {
 	t.Parallel()
-	qs := &QuickSpy{credContext: context.Background()}
+	qs := &QuickSpy{credContext: t.Context()}
 	require.NotPanics(t, func() { qs.Shutdown() }, "shutdown with set context should not panic")
 	qs.credContext = nil
 	require.Panics(t, func() { qs.Shutdown() }, "shutdown with nil context should panic")
@@ -392,19 +393,19 @@ func TestGetAndWaitForFocusByKey(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		qs := mustQuickSpy(t, TickerFocusType)
-		f, err := qs.GetAndWaitForFocusByKey(context.Background(), TickerFocusType, time.Second)
+		f, err := qs.GetAndWaitForFocusByKey(t.Context(), TickerFocusType, time.Second)
 		require.NoError(t, err)
 		require.NotNil(t, f)
 	})
 	t.Run("timeout", func(t *testing.T) {
 		qs := mustQuickSpy(t, TickerFocusType)
-		f, err := qs.GetAndWaitForFocusByKey(context.Background(), TickerFocusType, 0)
+		f, err := qs.GetAndWaitForFocusByKey(t.Context(), TickerFocusType, 0)
 		require.ErrorIs(t, err, errFocusDataTimeout)
 		require.Nil(t, f)
 	})
 	t.Run("context cancelled", func(t *testing.T) {
 		qs := mustQuickSpy(t, TickerFocusType)
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 		f, err := qs.GetAndWaitForFocusByKey(ctx, TickerFocusType, time.Hour)
 		require.ErrorIs(t, err, context.Canceled)
@@ -503,11 +504,39 @@ func TestData(t *testing.T) {
 	assert.Equal(t, qs.Data(), qs.data)
 }
 
-func TestHandleRESTFailure(t *testing.T) {
+func TestProcessRESTFocus(t *testing.T) {
 	t.Parallel()
 	qs := mustQuickSpy(t, TickerFocusType)
 	f := qs.focuses.GetByFocusType(TickerFocusType)
-	require.NoError(t, qs.handleRESTFailure(f, 1, errKeyNotFound, time.NewTimer(time.Second)))
-	assert.Equal(t, int64(1), f.failureCount)
-	require.ErrorIs(t, qs.handleRESTFailure(f, 10, errKeyNotFound, time.NewTimer(time.Second)), errOverMaxFailures)
+	require.NoError(t, qs.processRESTFocus(f))
+
+	fd := NewFocusData(999, false, false, time.Second)
+	fd.Init()
+	fd.FailureTolerance = 2
+	require.NoError(t, qs.processRESTFocus(fd))
+	require.ErrorIs(t, qs.processRESTFocus(fd), errOverMaxFailures)
+
+	fd = NewFocusData(999, false, false, time.Second)
+	fd.Init()
+	fd.setSuccessful()
+	require.NoError(t, qs.processRESTFocus(fd))
+	sErr := <-fd.Stream
+	err, ok := sErr.(error)
+	require.True(t, ok)
+	require.ErrorIs(t, err, ErrUnsupportedFocusType)
+}
+
+func TestHandleWSData(t *testing.T) {
+	t.Parallel()
+	qs := mustQuickSpyAllFocuses(t)
+	assert.ErrorIs(t, qs.handleWSData("butts"), errUnhandledWebsocketData)
+	assert.NoError(t, qs.handleWSData(&ticker.Price{}))
+	assert.NoError(t, qs.handleWSData([]ticker.Price{}))
+	assert.NoError(t, qs.handleWSData(&orderbook.Depth{}))
+	assert.NoError(t, qs.handleWSData(account.Change{}))
+	assert.NoError(t, qs.handleWSData([]account.Change{}))
+	assert.NoError(t, qs.handleWSData(&order.Detail{}))
+	assert.NoError(t, qs.handleWSData([]order.Detail{}))
+	assert.NoError(t, qs.handleWSData(trade.Data{}))
+	assert.NoError(t, qs.handleWSData([]trade.Data{}))
 }

@@ -10,6 +10,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
+// Focus based errors
+var (
+	ErrUnsetFocusType                  = errors.New("focus type is unset")
+	ErrUnsupportedFocusType            = errors.New("unsupported focus type")
+	ErrInvalidRESTPollTime             = errors.New("invalid REST poll time")
+	ErrInvalidAssetForFocusType        = errors.New("invalid asset for focus type")
+	ErrCredentialsRequiredForFocusType = errors.New("credentials required for this focus type")
+	ErrNoCredentials                   = errors.New("no credentials provided")
+)
+
 // FocusType is an identifier for data types that quickspy can gather
 type FocusType int
 
@@ -24,18 +34,9 @@ type FocusData struct {
 	hasBeenSuccessful     bool
 	hasBeenSuccessfulChan chan any
 	Stream                chan any
-	FailureAllowance      uint64
+	FailureTolerance      uint64
+	failures              uint64
 }
-
-// Focus based errors
-var (
-	ErrUnsetFocusType                  = errors.New("focus type is unset")
-	ErrUnsupportedFocusType            = errors.New("unsupported focus type")
-	ErrInvalidRESTPollTime             = errors.New("invalid REST poll time")
-	ErrInvalidAssetForFocusType        = errors.New("invalid asset for focus type")
-	ErrCredentialsRequiredForFocusType = errors.New("credentials required for this focus type")
-	ErrNoCredentials                   = errors.New("no credentials provided")
-)
 
 // focusToSub maps FocusType to subscription channels allowing for easy
 // websocket subscription generation without needing to know about an exchange's underlying implementation
@@ -66,6 +67,9 @@ func (f *FocusData) Init() {
 	f.hasBeenSuccessfulChan = make(chan any)
 	f.Stream = make(chan any, 1)
 	f.hasBeenSuccessful = false
+	if f.FailureTolerance == 0 {
+		f.FailureTolerance = 5
+	}
 }
 
 // Validate checks if the FocusData instance is good to go
@@ -88,8 +92,8 @@ func (f *FocusData) Validate(k *CredentialsKey) error {
 	if f.m == nil || f.hasBeenSuccessfulChan == nil || f.Stream == nil {
 		f.Init()
 	}
-	if f.FailureAllowance == 0 {
-		f.FailureAllowance = 5
+	if f.FailureTolerance == 0 {
+		f.FailureTolerance = 5
 	}
 	if k.Credentials != nil && k.Credentials.IsEmpty() {
 		return ErrNoCredentials

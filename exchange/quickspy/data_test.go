@@ -154,7 +154,7 @@ func TestAccountHoldingsFocusType(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, f)
 
-	require.NoError(t, qs.handleFocusType(f.focusType, f, time.NewTimer(f.restPollTime)))
+	require.NoError(t, qs.handleFocusType(f.focusType, f))
 	require.NotEmpty(t, qs.data.AccountBalance)
 }
 
@@ -225,6 +225,7 @@ func TestHandleWSOrderbook(t *testing.T) {
 		Pair:        q.key.ExchangeAssetPair.Pair(),
 		LastUpdated: time.Now(),
 	}
+	depth.AssignOptions(bk)
 	require.NoError(t, depth.LoadSnapshot(bk))
 	require.NoError(t, q.handleWSOrderbook(depth))
 	require.NotNil(t, q.data.Orderbook)

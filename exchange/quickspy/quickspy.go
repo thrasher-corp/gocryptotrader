@@ -37,7 +37,6 @@ func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (
 	if len(focuses) == 0 {
 		return nil, errNoFocus
 	}
-
 	sm := NewFocusStore()
 	for i := range focuses {
 		if err := focuses[i].focusType.Valid(); err != nil {
@@ -221,6 +220,7 @@ func (q *QuickSpy) setupExchangeDefaults(e exchange.IBotExchange, b *exchange.Ba
 	if err := b.SetupDefaults(exchCfg); err != nil {
 		return fmt.Errorf("%s: %w", q.key.ExchangeAssetPair, err)
 	}
+	exchCfg.Features.Enabled.TradeFeed = true
 	if err := e.Setup(exchCfg); err != nil {
 		return fmt.Errorf("%s: %w", q.key.ExchangeAssetPair, err)
 	}
@@ -290,6 +290,8 @@ func (q *QuickSpy) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) err
 		}
 		var sub *subscription.Subscription
 		for _, s := range b.Config.Features.Subscriptions {
+			if s.Channel == subscription.AllTradesChannel {
+			}
 			if s.Channel != ch {
 				continue
 			}
@@ -398,20 +400,19 @@ func (q *QuickSpy) run() error {
 			}
 		})
 	}
-	for i, focus := range q.focuses.List() {
+	for _, focus := range q.focuses.List() {
 		if focus.useWebsocket {
 			continue
 		}
 		q.wg.Add(1) // wg.Go doesn't work here as we have to pass in the focus variable
 		go func(f *FocusData) {
 			defer q.wg.Done()
-			err := q.runRESTFocus(f)
+			err := q.runRESTRoutine(f)
 			if err != nil {
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return
 				}
-				log.Errorf(log.QuickSpy, "Quickspy data attempt: %v %s failed, focus type: %q err: %v",
-					i+1, q.key.ExchangeAssetPair, f.focusType, err)
+				f.stream(err)
 			}
 		}(focus)
 	}
@@ -424,67 +425,51 @@ func (q *QuickSpy) handleWS() error {
 		case <-q.credContext.Done():
 			return q.credContext.Err()
 		case d := <-q.dataHandlerChannel:
-			switch data := d.(type) {
-			case account.Change:
-				if err := q.handleWSAccountChange(&data); err != nil {
-					log.Errorf(log.QuickSpy, "%s %s", q.key.ExchangeAssetPair, err)
-				}
-			case []account.Change:
-				if err := q.handleWSAccountChanges(data); err != nil {
-					log.Errorf(log.QuickSpy, "%s %s", q.key.ExchangeAssetPair, err)
-				}
-			case *order.Detail:
-				if err := q.handleWSOrderDetail(data); err != nil {
-					log.Errorf(log.QuickSpy, "%s %s", q.key.ExchangeAssetPair, err)
-				}
-			case []order.Detail:
-				if err := q.handleWSOrderDetails(data); err != nil {
-					log.Errorf(log.QuickSpy, "%s %s", q.key.ExchangeAssetPair, err)
-				}
-			case []ticker.Price:
-				if err := q.handleWSTickers(data); err != nil {
-					log.Errorf(log.QuickSpy, "%s %s", q.key.ExchangeAssetPair, err)
-				}
-			case *ticker.Price:
-				if err := q.handleWSTicker(data); err != nil {
-					log.Errorf(log.QuickSpy, "%s %s", q.key.ExchangeAssetPair, err)
-				}
-			case *orderbook.Depth:
-				if err := q.handleWSOrderbook(data); err != nil {
-					log.Errorf(log.QuickSpy, "%s %s", q.key.ExchangeAssetPair, err)
-				}
-			case trade.Data:
-				if err := q.handleWSTrade(&data); err != nil {
-					log.Errorf(log.QuickSpy, "%s %s", q.key.ExchangeAssetPair, err)
-				}
-			case []trade.Data:
-				if err := q.handleWSTrades(data); err != nil {
-					log.Errorf(log.QuickSpy, "%s %s", q.key.ExchangeAssetPair, err)
-				}
+			if err := q.handleWSData(d); err != nil {
+				log.Errorf(log.QuickSpy, "%s %s", q.key.ExchangeAssetPair, err)
 			}
 		}
 	}
 }
 
-func (q *QuickSpy) runRESTFocus(f *FocusData) error {
+func (q *QuickSpy) handleWSData(d any) error {
+	switch data := d.(type) {
+	case account.Change:
+		return q.handleWSAccountChange(&data)
+	case []account.Change:
+		return q.handleWSAccountChanges(data)
+	case *order.Detail:
+		return q.handleWSOrderDetail(data)
+	case []order.Detail:
+		return q.handleWSOrderDetails(data)
+	case []ticker.Price:
+		return q.handleWSTickers(data)
+	case *ticker.Price:
+		return q.handleWSTicker(data)
+	case *orderbook.Depth:
+		return q.handleWSOrderbook(data)
+	case trade.Data:
+		return q.handleWSTrade(&data)
+	case []trade.Data:
+		return q.handleWSTrades(data)
+	default:
+		return fmt.Errorf("%w %T", errUnhandledWebsocketData, data)
+	}
+}
+
+func (q *QuickSpy) runRESTRoutine(f *FocusData) error {
 	if f.useWebsocket {
 		return nil
 	}
 	timer := time.NewTimer(0)
-	failures := uint64(0)
 	for {
 		select {
 		case <-q.credContext.Done():
 			return q.credContext.Err()
 		case <-timer.C:
-			err := q.handleFocusType(f.focusType, f, timer)
+			err := q.processRESTFocus(f)
 			if err != nil {
-				log.Errorf(log.QuickSpy, "Quickspy data attempt: %v %s failed, focus type: %s err: %v",
-					failures+1, q.key.ExchangeAssetPair, f.focusType, err)
-
-				if failureErr := q.handleRESTFailure(f, &failures, err, timer); failureErr != nil {
-					return failureErr
-				}
+				return err
 			}
 			if f.isOnceOff {
 				return nil
@@ -494,28 +479,31 @@ func (q *QuickSpy) runRESTFocus(f *FocusData) error {
 	}
 }
 
-func (q *QuickSpy) handleRESTFailure(f *FocusData, failures *uint64, err error, timer *time.Timer) error {
-	if !f.hasBeenSuccessful {
+func (q *QuickSpy) processRESTFocus(f *FocusData) error {
+	err := q.handleFocusType(f.focusType, f)
+	if err != nil {
 		if errors.Is(err, common.ErrFunctionNotSupported) || errors.Is(err, common.ErrNotYetImplemented) {
-			q.successfulSpy(f, timer)
-			return nil
+			return err
 		}
-		if *failures >= f.FailureAllowance {
-			return fmt.Errorf("%w: %v/%v %s failed, focus type: %s err: %w",
-				errOverMaxFailures, failures, f.FailureAllowance, q.key.ExchangeAssetPair, f.focusType, err)
+		if !f.hasBeenSuccessful {
+			f.failures++
+			if f.failures >= f.FailureTolerance {
+				return fmt.Errorf("%w: %v/%v %s failed, focus type: %s err: %w",
+					errOverMaxFailures, f.failures, f.FailureTolerance, q.key.ExchangeAssetPair, f.focusType, err)
+			}
 		}
-		*failures++
+		f.stream(err)
 	}
+
 	return nil
 }
-
-func (q *QuickSpy) handleFocusType(focusType FocusType, focus *FocusData, timer *time.Timer) error {
+func (q *QuickSpy) handleFocusType(focusType FocusType, focus *FocusData) error {
 	var err error
 	switch focusType {
 	case URLFocusType:
 		err = q.handleURLFocus(focus)
 	case ContractFocusType:
-		err = q.handleRESTContractFocus(focus)
+		err = q.handleContractFocus(focus)
 	case KlineFocusType:
 		err = q.handleKlineFocus(focus)
 	case OpenInterestFocusType:
@@ -535,24 +523,13 @@ func (q *QuickSpy) handleFocusType(focusType FocusType, focus *FocusData, timer 
 	case FundingRateFocusType:
 		err = q.handleFundingRateFocus(focus)
 	default:
-		return fmt.Errorf("unknown focus type %v", focusType)
+		return fmt.Errorf("%w %v", ErrUnsupportedFocusType, focusType)
 	}
 	if err != nil {
-		focus.stream(err)
+		return err
 	}
-	q.successfulSpy(focus, timer)
-
-	return nil
-}
-
-func (q *QuickSpy) successfulSpy(focus *FocusData, timer *time.Timer) {
 	focus.setSuccessful()
-	focus.m.RLock()
-	defer focus.m.RUnlock()
-	if focus.isOnceOff {
-		return
-	}
-	timer.Reset(focus.restPollTime)
+	return nil
 }
 
 func (q *QuickSpy) Shutdown() {

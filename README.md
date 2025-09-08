@@ -152,7 +152,7 @@ Binaries will be published once the codebase reaches a stable condition.
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 736 |
 | [dependabot[bot]](https://github.com/apps/dependabot) | 395 |
-| [shazbert](https://github.com/shazbert) | 377 |
+| [shazbert](https://github.com/shazbert) | 378 |
 | [gloriousCode](https://github.com/gloriousCode) | 238 |
 | [gbjk](https://github.com/gbjk) | 134 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
@@ -190,11 +190,12 @@ Binaries will be published once the codebase reaches a stable condition.
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
-| [dsinuela-taurus](https://github.com/dsinuela-taurus) | 2 |
-| [cornelk](https://github.com/cornelk) | 2 |
-| [gam-phon](https://github.com/gam-phon) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
-| [mortensorensen](https://github.com/mortensorensen) | 1 |
+| [MathieuCesbron](https://github.com/MathieuCesbron) | 2 |
+| [dsinuela-taurus](https://github.com/dsinuela-taurus) | 2 |
+| [gam-phon](https://github.com/gam-phon) | 2 |
+| [cornelk](https://github.com/cornelk) | 2 |
+| [aidan-bailey](https://github.com/aidan-bailey) | 1 |
 | [Polizo96](https://github.com/Polizo96) | 1 |
 | [cavapoo2](https://github.com/cavapoo2) | 1 |
 | [tongxiaofeng](https://github.com/tongxiaofeng) | 1 |
@@ -208,16 +209,15 @@ Binaries will be published once the codebase reaches a stable condition.
 | [cangqiaoyuzhuo](https://github.com/cangqiaoyuzhuo) | 1 |
 | [gcmutator](https://github.com/gcmutator) | 1 |
 | [gopherorg](https://github.com/gopherorg) | 1 |
-| [yuhangcangqian](https://github.com/yuhangcangqian) | 1 |
 | [whilei](https://github.com/whilei) | 1 |
-| [youzichuan](https://github.com/youzichuan) | 1 |
 | [phieudu241](https://github.com/phieudu241) | 1 |
 | [snipesjr](https://github.com/snipesjr) | 1 |
 | [snussik](https://github.com/snussik) | 1 |
 | [taewdy](https://github.com/taewdy) | 1 |
 | [threehonor](https://github.com/threehonor) | 1 |
 | [xiiiew](https://github.com/xiiiew) | 1 |
-| [aidan-bailey](https://github.com/aidan-bailey) | 1 |
+| [youzichuan](https://github.com/youzichuan) | 1 |
+| [yuhangcangqian](https://github.com/yuhangcangqian) | 1 |
 | [antonzhukov](https://github.com/antonzhukov) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
@@ -237,10 +237,10 @@ Binaries will be published once the codebase reaches a stable condition.
 | [lookfirst](https://github.com/lookfirst) | 1 |
 | [zeldrinn](https://github.com/zeldrinn) | 1 |
 | [roskee](https://github.com/roskee) | 1 |
-| [MathieuCesbron](https://github.com/MathieuCesbron) | 1 |
 | [mattkanwisher](https://github.com/mattkanwisher) | 1 |
 | [mgravitt](https://github.com/mgravitt) | 1 |
 | [mKurrels](https://github.com/mKurrels) | 1 |
 | [m1kola](https://github.com/m1kola) | 1 |
+| [mortensorensen](https://github.com/mortensorensen) | 1 |
 | [idoall](https://github.com/idoall) | 1 |
 | [starit](https://github.com/starit) | 1 |

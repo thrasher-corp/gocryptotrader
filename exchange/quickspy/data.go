@@ -150,6 +150,11 @@ func (q *QuickSpy) handleWSTicker(data *ticker.Price) error {
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, TickerFocusType)
 	}
+	if data.AssetType != q.key.ExchangeAssetPair.Asset || !data.Pair.Equal(q.key.ExchangeAssetPair.Pair()) {
+		// these WS checks are here due to the inability to fully know how a subscription is transformed
+		// it is not an error to get other data, just ignore it
+		return nil
+	}
 	q.m.Lock()
 	q.data.Ticker = data
 	q.m.Unlock()
@@ -171,6 +176,11 @@ func (q *QuickSpy) handleWSOrderbook(data *orderbook.Depth) error {
 		focus.stream(err)
 		return err
 	}
+	if payload.Asset != q.key.ExchangeAssetPair.Asset || !payload.Pair.Equal(q.key.ExchangeAssetPair.Pair()) {
+		// these WS checks are here due to the inability to fully know how a subscription is transformed
+		// it is not an error to get other data, just ignore it
+		return nil
+	}
 	q.m.Lock()
 	q.data.Orderbook = payload
 	q.m.Unlock()
@@ -187,6 +197,12 @@ func (q *QuickSpy) handleWSTrade(data *trade.Data) error {
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, TradesFocusType)
 	}
+	if data.AssetType != q.key.ExchangeAssetPair.Asset || !data.CurrencyPair.Equal(q.key.ExchangeAssetPair.Pair()) {
+		// these WS checks are here due to the inability to fully know how a subscription is transformed
+		// it is not an error to get other data, just ignore it
+		return nil
+	}
+
 	q.m.Lock()
 	q.data.Trades = []trade.Data{*data}
 	payload := q.data.Trades
@@ -202,6 +218,15 @@ func (q *QuickSpy) handleWSTrades(data []trade.Data) error {
 		return fmt.Errorf("%w %q", errKeyNotFound, TradesFocusType)
 	}
 	if len(data) == 0 {
+		return nil
+	}
+	relevantTrades := make([]trade.Data, 0, len(data))
+	for i := range data {
+		if data[i].AssetType == q.key.ExchangeAssetPair.Asset && data[i].CurrencyPair.Equal(q.key.ExchangeAssetPair.Pair()) {
+			relevantTrades = append(relevantTrades, data[i])
+		}
+	}
+	if len(relevantTrades) == 0 {
 		return nil
 	}
 	q.m.Lock()
@@ -231,7 +256,7 @@ func (q *QuickSpy) handleURLFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickSpy) handleRESTContractFocus(focus *FocusData) error {
+func (q *QuickSpy) handleContractFocus(focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
@@ -448,16 +473,11 @@ func (q *QuickSpy) handleFundingRateFocus(focus *FocusData) error {
 		return err
 	}
 	isPerp, err := q.exch.IsPerpetualFutureCurrency(q.key.ExchangeAssetPair.Asset, q.key.ExchangeAssetPair.Pair())
-	if err != nil && !errors.Is(err, futures.ErrNotPerpetualFuture) {
-		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
+	if err != nil {
+		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType, err)
 	}
 	if !isPerp {
-		// Hard to validate if its a perp at startup
-		// if its not a perp, just say its successful to
-		// stop it polling
-		// let the user feel bashful for their choices
-		q.successfulSpy(focus, time.NewTimer(focus.restPollTime))
-		return nil
+		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType, futures.ErrNotPerpetualFuture)
 	}
 	fr, err := q.exch.GetLatestFundingRates(q.credContext, &fundingrate.LatestRateRequest{
 		Asset: q.key.ExchangeAssetPair.Asset,

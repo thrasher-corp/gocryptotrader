@@ -178,7 +178,6 @@ func TestParseFlags_Success(t *testing.T) {
 	require.Equal(t, "ETH-BTC", cfg.Pair.String())
 	require.Equal(t, quickspy.TickerFocusType, cfg.FocusType)
 	require.Equal(t, 10*time.Second, cfg.PollInterval)
-	require.Equal(t, 45*time.Second, cfg.WSDataTimeout)
 	require.Equal(t, 20, cfg.BookLevels)
 	require.True(t, cfg.JSONOnly)
 	require.Nil(t, cfg.Credentials)

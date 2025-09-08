@@ -28,7 +28,7 @@ import (
 
 var enc = json.NewEncoder(os.Stdout)
 
-// errless stdout helpers to avoid handling write errors everywhere.
+// errorless stdout helpers to avoid handling write errors everywhere.
 func outPrintf(format string, args ...any) { _, _ = fmt.Fprintf(os.Stdout, format, args...) }
 func outPrintln(args ...any)               { _, _ = fmt.Fprintln(os.Stdout, args...) }
 func outPrint(args ...any)                 { _, _ = fmt.Fprint(os.Stdout, args...) }
@@ -44,20 +44,20 @@ type eventEnvelope struct {
 
 // appConfig holds parsed CLI configuration in a structured way.
 type appConfig struct {
-	Exchange      string
-	Asset         asset.Item
-	Pair          currency.Pair
-	FocusType     quickspy.FocusType
-	UseWebsocket  bool
-	PollInterval  time.Duration
-	WSDataTimeout time.Duration
-	BookLevels    int
-	Credentials   *account.Credentials
-	JSONOnly      bool
+	Exchange     string
+	Asset        asset.Item
+	Pair         currency.Pair
+	FocusType    quickspy.FocusType
+	UseWebsocket bool
+	PollInterval time.Duration
+	BookLevels   int
+	Credentials  *account.Credentials
+	JSONOnly     bool
 }
 
 func main() {
-	defer outPrintln("\nGoodbye! 🌞")
+	outPrintln("Hello! 🌞\n")
+	defer outPrintln("\nGoodbye! 🌚")
 	cfg := parseFlags()
 	// Context & OS signals for graceful shutdown
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -69,6 +69,7 @@ func main() {
 		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
 		os.Exit(1)
 	}
+	outPrintln("Quickspy setup, waiting for initial data...")
 	if err := streamData(ctx, qsChan, cfg); err != nil {
 		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
 		os.Exit(1)
@@ -83,7 +84,6 @@ func parseFlags() *appConfig {
 	focusStr := flag.String("focusType", "ticker", "Focus type: ticker, orderbook, kline, trades, openinterest, fundingrate, accountholdings, activeorders, orderexecution, url, contract")
 	pollStr := flag.String("poll", "5s", "Poll interval for REST focus and timeout for websocket initial data wait")
 	bookLevels := flag.Int("book-levels", 15, "Number of levels to render per side for orderbook focus")
-	websocketDataTimeout := flag.String("wsDataTimeout", "30s", "Websocket data timeout duration (e.g. 30s, 1m)")
 	jsonOnly := flag.Bool("json", false, "Emit NDJSON only (no ANSI rendering/headers)")
 
 	// credentials until credential manager integrated
@@ -125,11 +125,6 @@ func parseFlags() *appConfig {
 		fatalErr(fmt.Errorf("invalid poll duration: %w", err))
 	}
 
-	wsDataTimeoutDur, err := time.ParseDuration(*websocketDataTimeout)
-	if err != nil {
-		fatalErr(fmt.Errorf("invalid websocket data timeout duration: %w", err))
-	}
-
 	// Credentials (only applied when supplied or required by focus)
 	var creds *account.Credentials
 	if quickspy.RequiresAuth(fType) {
@@ -147,15 +142,14 @@ func parseFlags() *appConfig {
 	}
 
 	return &appConfig{
-		Exchange:      strings.ToLower(*exch),
-		Asset:         ast,
-		Pair:          cp,
-		FocusType:     fType,
-		PollInterval:  pollDur,
-		WSDataTimeout: wsDataTimeoutDur,
-		BookLevels:    *bookLevels,
-		Credentials:   creds,
-		JSONOnly:      *jsonOnly,
+		Exchange:     strings.ToLower(*exch),
+		Asset:        ast,
+		Pair:         cp,
+		FocusType:    fType,
+		PollInterval: pollDur,
+		BookLevels:   *bookLevels,
+		Credentials:  creds,
+		JSONOnly:     *jsonOnly,
 	}
 }
 

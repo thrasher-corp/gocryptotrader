@@ -28,6 +28,10 @@ The `quickspy` package provides a means to quickly request and receive data for 
 - Supports a range of focus data types allowing for a more tailored approach to data retrieval
 - Supports both REST and Websocket data retrieval methods
 - Supports both public and authenticated data retrieval methods
+- Three types of quickspy implementations:
+  - `Quickspy` - supports multiple focus data types, has the finest level of control over data retrieval method and frequency
+  - `QuickerSpy` - supports a single focus data type, prioritises websocket and allows for control over the quickspy instance
+  - `QuickestSpy` - supports a single focus data type, prioritises websocket and returns a chan of data for the caller to consume
 
 
 ### Focus Data Types
@@ -43,90 +47,89 @@ The `quickspy` package provides a means to quickly request and receive data for 
 | Active Orders | Yes | Yes | No | Yes |
 | Order Execution Limits | Yes | No | No | No |
 | Contract Info | Yes | No | Yes | No |
-| URL | No | Yes | No | No |
+| URL | Yes | No | No | No |
 
 ## Usage
 
 There are multiple ways to utilise a quickspy. See `/cmd/quickspy` for a basic way of establishing a single purpose quickspy that subscribes to data and prints it to console.
 
-### Utilise QuickestSpy to fetch and print the latest ticker data
+### Quickspy with two focus types
 ```go
 func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	q, err := quickspy.NewQuickestSpy(ctx, "Binance", asset.Spot, currency.NewBTCUSDT(), quickspy.TickerFocusType, nil)
+	isOnceOff := false
+	useWebsocket := true
+	tickerFocusType := quickspy.NewFocusData(quickspy.TickerFocusType, isOnceOff, useWebsocket, time.Second)
+	orderbookFocusType := quickspy.NewFocusData(quickspy.OrderBookFocusType, isOnceOff, useWebsocket, time.Second)
+	focusTypes := []*quickspy.FocusData{tickerFocusType, orderbookFocusType}
+
+	k := &quickspy.CredentialsKey{
+		ExchangeAssetPair: key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewBTCUSDT()),
+	}
+
+	qs, err := quickspy.NewQuickSpy(ctx, k, focusTypes)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("could not create quickspy instance: %v", err)
 	}
-	if err := q.WaitForInitialData(ctx, quickspy.TickerFocusType); err != nil {
-		log.Fatal(err)
-	}
-	d, err := q.LatestData(quickspy.TickerFocusType)
-	if err != nil {
-		log.Fatal(err)
-	}
-	b, err := json.MarshalIndent(d, "", " ")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%s", b)
+
+	fmt.Println(<-tickerFocusType.Stream)
+	fmt.Println(<-orderbookFocusType.Stream)
+
+	qs.Shutdown()
 }
 ```
 
-### Stream gateio websocket orderbook
+### Quickerspy for account info focus type with credentials provided by context
 ```go
 func main() {
-	focusData := quickspy.NewFocusData(quickspy.OrderbookFocusType, false, true, time.Second)
-	focusList := []*quickspy.FocusData{focusData}
-	k := &quickspy.CredentialsKey{
-		ExchangeAssetPair: key.NewExchangeAssetPair("gateio", asset.Spot, currency.NewBTCUSDT()),
+	ctx := context.Background()
+	credentials := &account.Credentials{
+		Key:    "abc",
+		Secret: "123",
 	}
-	q, err := quickspy.NewQuickSpy(
-		nil,
-		k,
-		focusList)
+	ctx = account.DeployCredentialsToContext(ctx, credentials)
+	k := key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewBTCUSDT())
+
+	qs, err := quickspy.NewQuickerSpy(ctx, &k, quickspy.AccountHoldingsFocusType)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("could not create quickspy instance: %v", err)
 	}
-	go streamData(&focusData)
-	_ = signaler.WaitForInterrupt()
-	q.Shutdown()
+
+	if err := qs.WaitForInitialData(ctx, quickspy.AccountHoldingsFocusType); err != nil {
+		log.Fatalf("could not get initial data: %v", err)
+	}
+	data, err := qs.LatestData(quickspy.AccountHoldingsFocusType)
+	if err != nil {
+		log.Fatalf("could not get latest data: %v", err)
+	}
+	log.Printf("latest data: %+v", data)
+}
+```
+
+### Quickestspy to stream ticker data as fast as possible
+```go
+func main() {
+	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	k := key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewBTCUSDT())
+	qs, err := quickspy.NewQuickestSpy(ctx, &k, quickspy.TickerFocusType)
+	if err != nil {
+		log.Fatalf("could not create quickspy instance: %v", err)
+	}
+	parseData(ctx, qs)
 }
 
-func streamData(fd *quickspy.FocusData) {
+func parseData(ctx context.Context, c <-chan any) {
 	for {
-		fmt.Printf("%+v\n", <-fd.Stream)
+		select {
+		case <-ctx.Done():
+			return
+		case data := <-c:
+			log.Printf("%+v", data)
+		}
 	}
 }
-
 ```
 
-### View JSON data
-``` go
-func main() {
-	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	focusData := quickspy.NewFocusData(quickspy.TickerFocusType, false, true, time.Second)
-	focusList := []*quickspy.FocusData{focusData}
-	k := &quickspy.CredentialsKey{
-		ExchangeAssetPair: key.NewExchangeAssetPair("binance", asset.Spot, currency.NewBTCUSDT()),
-	}
-	q, err := quickspy.NewQuickSpy(
-		ctx,
-		k,
-		focusList)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err := q.WaitForInitialData(ctx, quickspy.TickerFocusType); err != nil {
-		log.Fatal(err)
-	}
-	d, err := q.DumpJSON()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%s", d)
-}
-
-```
 
 
 
