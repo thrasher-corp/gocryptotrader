@@ -100,8 +100,7 @@ func (e *Exchange) WsConnect() error {
 	go e.wsReadData()
 
 	for _, sub := range e.Features.Subscriptions {
-		if sub.Channel == subscription.OrderbookChannel {
-			// don't presume someone is us
+		if sub.Channel == subscription.OrderbookChannel { // don't presume orderbook is part of the supplied subscriptions
 			e.setupOrderbookManager(ctx)
 			break
 		}

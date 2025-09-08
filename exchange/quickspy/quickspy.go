@@ -75,7 +75,7 @@ func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (
 
 // NewQuickerSpy spins up a quickspy with a single focus to quickly return data to the user
 // auto opt-in to use websocket as it has REST fallback
-// embue context with credentials to utilise private endpoints
+// imbue context with credentials to utilise private endpoints
 func NewQuickerSpy(ctx context.Context, k *key.ExchangeAssetPair, focus FocusType) (*QuickSpy, error) {
 	if err := common.NilGuard(k); err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func NewQuickerSpy(ctx context.Context, k *key.ExchangeAssetPair, focus FocusTyp
 
 // NewQuickestSpy spins up a quickspy with a single focus and returns the data channel which streams results
 // auto opt-in to use websocket as it has REST fallback
-// embue context with credentials to utilise private endpoints
+// imbue context with credentials to utilise private endpoints
 func NewQuickestSpy(ctx context.Context, k *key.ExchangeAssetPair, focus FocusType) (chan any, error) {
 	if err := common.NilGuard(k); err != nil {
 		return nil, err
