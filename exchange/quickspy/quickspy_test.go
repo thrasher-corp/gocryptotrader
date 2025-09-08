@@ -235,7 +235,7 @@ func TestFocusDataValidateAndInit(t *testing.T) {
 	case <-f.hasBeenSuccessfulChan:
 		// closed as expected
 	case <-time.After(time.Second):
-		require.FailNow(t, "expected hasBeenSuccessfulChan to be closed")
+		require.FailNow(t, "hasBeenSuccessfulChan must be closed")
 	}
 
 	for _, ft := range allFocusList {
@@ -385,9 +385,9 @@ func TestWaitForInitialDataWithTimer_Zero(t *testing.T) {
 func TestShutdown(t *testing.T) {
 	t.Parallel()
 	qs := &QuickSpy{credContext: t.Context()}
-	require.NotPanics(t, func() { qs.Shutdown() }, "shutdown with set context should not panic")
+	require.NotPanics(t, func() { qs.Shutdown() }, "shutdown with set context must not panic")
 	qs.credContext = nil
-	require.Panics(t, func() { qs.Shutdown() }, "shutdown with nil context should panic")
+	require.Panics(t, func() { qs.Shutdown() }, "shutdown with nil context must panic")
 }
 
 func TestGetAndWaitForFocusByKey(t *testing.T) {

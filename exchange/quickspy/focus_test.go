@@ -26,7 +26,7 @@ func TestNewFocusDataAndInit(t *testing.T) {
 	require.NotNil(t, fd.Stream, "Stream channel not initialised")
 	select {
 	case <-fd.hasBeenSuccessfulChan:
-		require.FailNow(t, "hasBeenSuccessfulChan should not be closed initially")
+		require.FailNow(t, "hasBeenSuccessfulChan must not be closed initially")
 	default:
 	}
 
@@ -35,17 +35,17 @@ func TestNewFocusDataAndInit(t *testing.T) {
 	case <-fd.hasBeenSuccessfulChan:
 		// ok
 	default:
-		require.FailNow(t, "hasBeenSuccessfulChan should be closed after setSuccessful")
+		require.FailNow(t, "hasBeenSuccessfulChan must be closed after setSuccessful")
 	}
 	oldChan := fd.hasBeenSuccessfulChan
 	fd.Init()
 	require.NotNil(t, fd.m)
 	require.NotNil(t, fd.hasBeenSuccessfulChan)
 	require.NotNil(t, fd.Stream)
-	require.NotEqual(t, oldChan, fd.hasBeenSuccessfulChan, "Init should create a new hasBeenSuccessfulChan")
+	require.NotEqual(t, oldChan, fd.hasBeenSuccessfulChan, "Init must create a new hasBeenSuccessfulChan")
 	select {
 	case <-fd.hasBeenSuccessfulChan:
-		require.FailNow(t, "hasBeenSuccessfulChan should not be closed after re-Init")
+		require.FailNow(t, "hasBeenSuccessfulChan must not be closed after re-Init")
 	default:
 	}
 }
@@ -67,13 +67,13 @@ func TestSetSuccessful(t *testing.T) {
 	select {
 	case <-fd.hasBeenSuccessfulChan:
 	default:
-		require.FailNow(t, "hasBeenSuccessfulChan should be closed and readable")
+		require.FailNow(t, "hasBeenSuccessfulChan must be closed and readable")
 	}
 
 	select {
 	case <-fd.hasBeenSuccessfulChan:
 	default:
-		require.FailNow(t, "hasBeenSuccessfulChan should remain closed and readable")
+		require.FailNow(t, "hasBeenSuccessfulChan must remain closed and readable")
 	}
 }
 
@@ -107,7 +107,7 @@ func TestRequiresAuth(t *testing.T) {
 		t.Run(tc.ft.String(), func(t *testing.T) {
 			t.Parallel()
 			fd := NewFocusData(tc.ft, false, false, time.Second)
-			require.Equalf(t, tc.expected, RequiresAuth(fd.focusType), "RequiresAuth(%v) mismatch", tc.ft)
+			require.Equalf(t, tc.expected, RequiresAuth(fd.focusType), "RequiresAuth(%v) must match", tc.ft)
 		})
 	}
 }
@@ -132,7 +132,7 @@ func TestFocusType_String(t *testing.T) {
 	for in, exp := range cases {
 		t.Run(in.String(), func(t *testing.T) {
 			t.Parallel()
-			require.Equalf(t, exp, in.String(), "FocusType(%d).String() mismatch", in)
+			require.Equalf(t, exp, in.String(), "FocusType(%d).String() must match", in)
 		})
 	}
 }
