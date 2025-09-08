@@ -61,7 +61,7 @@ func NewFocusData(focusType FocusType, isOnceOff, useWebsocket bool, restPollTim
 	return fd
 }
 
-// Init called to ensure that lame data is initialised
+// Init called to ensure that data is properly initialised
 func (f *FocusData) Init() {
 	f.m = new(sync.RWMutex)
 	f.hasBeenSuccessfulChan = make(chan any)
