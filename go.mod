@@ -28,7 +28,7 @@ require (
 	golang.org/x/crypto v0.41.0
 	golang.org/x/term v0.34.0
 	golang.org/x/text v0.29.0
-	golang.org/x/time v0.12.0
+	golang.org/x/time v0.13.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250818200422-3122310a409c
 	google.golang.org/grpc v1.75.0
 	google.golang.org/protobuf v1.36.8
