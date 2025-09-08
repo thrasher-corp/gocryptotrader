@@ -640,9 +640,8 @@ func (b *Base) EnsureOnePairEnabled() error {
 	return nil
 }
 
-// UpdatePairs updates the exchange currency pairs for either enabledPairs or
-// availablePairs
-func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force bool) error {
+// UpdatePairs updates the exchange currency pairs for either enabledPairs or availablePairs
+func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) error {
 	pFmt, err := b.GetPairFormat(a, false)
 	if err != nil {
 		return err
@@ -663,46 +662,23 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		return err
 	}
 
-	if force || len(diff.New) != 0 || len(diff.Remove) != 0 || diff.FormatDifference {
-		var updateType string
-		if enabled {
-			updateType = "enabled"
-		} else {
-			updateType = "available"
-		}
+	updateType := "enabled"
+	if !enabled {
+		updateType = "available"
+	}
 
-		if force {
-			log.Debugf(log.ExchangeSys,
-				"%s forced update of %s [%v] pairs.",
-				b.Name,
-				updateType,
-				strings.ToUpper(a.String()))
-		} else {
-			if len(diff.New) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Added: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.New)
-			}
-			if len(diff.Remove) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Removed: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.Remove)
-			}
-		}
-		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
-		if err != nil {
-			return err
-		}
-		err = b.CurrencyPairs.StorePairs(a, incoming, enabled)
-		if err != nil {
-			return err
-		}
+	if len(diff.New) > 0 {
+		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.New)
+	}
+	if len(diff.Remove) > 0 {
+		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Removed: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.Remove)
+	}
+
+	if err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled); err != nil {
+		return err
+	}
+	if err = b.CurrencyPairs.StorePairs(a, incoming, enabled); err != nil {
+		return err
 	}
 
 	if enabled {
@@ -768,21 +744,14 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		if err != nil {
 			return err
 		}
-		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n",
-			b.Name,
-			strings.ToUpper(a.String()),
-			randomPair)
+		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n", b.Name, strings.ToUpper(a.String()), randomPair)
 		enabledPairs = currency.Pairs{randomPair}
 	}
 
 	if len(diff.Remove) > 0 {
-		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
-			b.Name,
-			strings.ToUpper(a.String()),
-			diff.Remove)
+		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n", b.Name, strings.ToUpper(a.String()), diff.Remove)
 	}
-	err = b.Config.CurrencyPairs.StorePairs(a, enabledPairs, true)
-	if err != nil {
+	if err := b.Config.CurrencyPairs.StorePairs(a, enabledPairs, true); err != nil {
 		return err
 	}
 	return b.CurrencyPairs.StorePairs(a, enabledPairs, true)
@@ -1826,7 +1795,7 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 	}
 
 	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+		if err := b.UpdateTradablePairs(ctx); err != nil {
 			return fmt.Errorf("failed to update tradable pairs: %w", err)
 		}
 	}
@@ -1885,13 +1854,12 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 		return nil, err
 	}
 
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
+	if err := b.SetupDefaults(exchCfg); err != nil {
 		return nil, err
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = exch.UpdateTradablePairs(ctx, true)
+		err = exch.UpdateTradablePairs(ctx)
 		if err != nil {
 			return nil, err
 		}
