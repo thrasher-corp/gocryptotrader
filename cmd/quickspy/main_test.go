@@ -70,8 +70,6 @@ func TestParseFocusType(t *testing.T) {
 }
 
 func TestRenderFunctions_NoPanicAndOutput(t *testing.T) {
-	pair := currency.NewPair(currency.BTC, currency.USDT)
-
 	// orderbook
 	ob := &orderbook.Book{Bids: orderbook.Levels{{Price: 50000, Amount: 1}}, Asks: orderbook.Levels{{Price: 50010, Amount: 2}}}
 	out := captureOutput(func() { renderOrderbook(ob, 5) })
@@ -111,7 +109,7 @@ func TestRenderFunctions_NoPanicAndOutput(t *testing.T) {
 	_ = captureOutput(func() { renderURL("https://example.com") })
 
 	// contract
-	ctr := &futures.Contract{Name: pair, StartDate: time.Now().Add(-time.Hour), EndDate: time.Now().Add(time.Hour), Multiplier: 1.0, SettlementCurrencies: currency.Currencies{currency.USDT}}
+	ctr := &futures.Contract{Name: currency.NewBTCUSDT(), StartDate: time.Now().Add(-time.Hour), EndDate: time.Now().Add(time.Hour), Multiplier: 1.0, SettlementCurrencies: currency.Currencies{currency.USDT}}
 	_ = captureOutput(func() { renderContract(ctr) })
 	_ = captureOutput(func() { renderContract(nil) })
 

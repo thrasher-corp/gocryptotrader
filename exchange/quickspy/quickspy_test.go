@@ -481,14 +481,14 @@ func TestValidateSubscriptions(t *testing.T) {
 	assert.ErrorIs(t, qs.validateSubscriptions([]*subscription.Subscription{{
 		Enabled: true,
 		Channel: subscription.TickerChannel,
-		Pairs:   []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+		Pairs:   []currency.Pair{currency.NewBTCUSD()},
 		Asset:   asset.Binary,
 	}}), errNoSubSwitchingToREST)
 
 	assert.ErrorIs(t, qs.validateSubscriptions([]*subscription.Subscription{{
 		Enabled: true,
 		Channel: subscription.TickerChannel,
-		Pairs:   []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+		Pairs:   []currency.Pair{currency.NewBTCUSD()},
 		Asset:   futuresAssetType,
 	}}), errNoSubSwitchingToREST)
 
