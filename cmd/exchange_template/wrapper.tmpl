@@ -193,9 +193,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-
-		err = e.UpdatePairs(pairs, assetTypes[x], false, forceUpdate)
-		if err != nil {
+		if err := e.UpdatePairs(pairs, assetTypes[x], false); err != nil {
 			return err
 		}
 	}
