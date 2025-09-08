@@ -1375,8 +1375,8 @@ func StringToTrackingMode(mode string) TrackingMode {
 	}
 }
 
-// Load adds a new orderID and status to the CancelAllResponse
-func (c *CancelAllResponse) Load(orderID, status string) {
+// Add adds a new orderID and status to the CancelAllResponse
+func (c *CancelAllResponse) Add(orderID, status string) {
 	if c.Status == nil {
 		c.Status = make(map[string]string)
 	}
