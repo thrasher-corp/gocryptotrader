@@ -19,7 +19,7 @@ require (
 	github.com/pquerna/otp v1.5.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/viper v1.20.1
-	github.com/stretchr/testify v1.11.0
+	github.com/stretchr/testify v1.11.1
 	github.com/thrasher-corp/gct-ta v0.0.0-20200623072738-f2b55b7f9f41
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
@@ -27,8 +27,8 @@ require (
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.41.0
 	golang.org/x/term v0.34.0
-	golang.org/x/text v0.28.0
-	golang.org/x/time v0.12.0
+	golang.org/x/text v0.29.0
+	golang.org/x/time v0.13.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250818200422-3122310a409c
 	google.golang.org/grpc v1.75.0
 	google.golang.org/protobuf v1.36.8
