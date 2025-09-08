@@ -24,6 +24,8 @@ jobs:
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
       - uses: bufbuild/buf-setup-action@v1.50.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: buf generate
         working-directory: ./gctrpc
@@ -32,6 +34,7 @@ jobs:
       - uses: bufbuild/buf-lint-action@v1
         with:
           input: gctrpc
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           
       - name: buf format
         run: buf format --diff --exit-code
@@ -43,6 +46,7 @@ jobs:
       - uses: bufbuild/buf-lint-action@v1
         with:
           input: ./backtester/btrpc
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: buf format backtester
         run: buf format --diff --exit-code
