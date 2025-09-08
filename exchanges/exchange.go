@@ -674,10 +674,10 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) 
 		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Removed: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.Remove)
 	}
 
-	if err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled); err != nil {
+	if err := b.Config.CurrencyPairs.StorePairs(a, incoming, enabled); err != nil {
 		return err
 	}
-	if err = b.CurrencyPairs.StorePairs(a, incoming, enabled); err != nil {
+	if err := b.CurrencyPairs.StorePairs(a, incoming, enabled); err != nil {
 		return err
 	}
 
