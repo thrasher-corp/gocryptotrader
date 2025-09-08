@@ -25,7 +25,7 @@ import (
 // these are here to help a user test
 // modifying them and decrying that tests fail will get you thrown in gaol
 var (
-	exchangeName     = "binance"
+	exchangeName     = "gateio"
 	assetType        = asset.Spot
 	currencyPair     = currency.NewBTCUSDT()
 	apiKey           = "abc"

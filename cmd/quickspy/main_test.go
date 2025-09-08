@@ -194,7 +194,7 @@ func TestParseFlags_AuthRequired(t *testing.T) {
 }
 
 func TestStreamData_DefaultRendering(t *testing.T) {
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	// Custom capture because global encoder 'enc' was initialised with original os.Stdout
 	origStd := os.Stdout
 	origEnc := enc
