@@ -55,7 +55,7 @@ func TestSetSuccessful(t *testing.T) {
 	fd := NewFocusData(TickerFocusType, false, false, time.Second)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -134,7 +134,6 @@ func TestFocusType_String(t *testing.T) {
 			t.Parallel()
 			require.Equalf(t, exp, in.String(), "FocusType(%d).String() mismatch", in)
 		})
-
 	}
 }
 

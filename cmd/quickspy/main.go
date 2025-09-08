@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/quickspy"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -56,7 +56,7 @@ type appConfig struct {
 }
 
 func main() {
-	outPrintln("Hello! 🌞\n")
+	outPrintln("Hello! 🌞")
 	defer outPrintln("\nGoodbye! 🌚")
 	cfg := parseFlags()
 	// Context & OS signals for graceful shutdown
@@ -67,12 +67,12 @@ func main() {
 	qsChan, err := quickspy.NewQuickestSpy(ctx, &k, cfg.FocusType)
 	if err != nil {
 		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
-		os.Exit(1)
+		return
 	}
 	outPrintln("Quickspy setup, waiting for initial data...")
 	if err := streamData(ctx, qsChan, cfg); err != nil {
 		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
-		os.Exit(1)
+		return
 	}
 }
 
@@ -178,7 +178,9 @@ func streamData(ctx context.Context, c <-chan any, cfg *appConfig) error {
 
 // emit writes NDJSON events to stdout.
 func emit(ev eventEnvelope) {
-	_ = enc.Encode(ev)
+	if err := enc.Encode(ev); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "failed to emit event: %v %v\n", ev, err)
+	}
 }
 
 func parseFocusType(s string) quickspy.FocusType {
@@ -240,7 +242,7 @@ func renderOrderbook(b *orderbook.Book, levels int) {
 	// Asks (red), display from best (lowest) up to levels
 	askCount := intMin(levels, len(b.Asks))
 	cumulativeAsks := 0.0
-	for i := 0; i < askCount; i++ {
+	for i := range askCount {
 		lvl := b.Asks[i]
 		cumulativeAsks += lvl.Amount
 		outPrintf("%s% -14.8f % -14.8f % -14.8f%s\n", ansiRed, lvl.Price, lvl.Amount, cumulativeAsks, ansiReset)
@@ -249,7 +251,7 @@ func renderOrderbook(b *orderbook.Book, levels int) {
 	// Bids (green), from best (highest) up to levels
 	bidCount := intMin(levels, len(b.Bids))
 	cumulativeBids := 0.0
-	for i := 0; i < bidCount; i++ {
+	for i := range bidCount {
 		lvl := b.Bids[i]
 		cumulativeBids += lvl.Amount
 		outPrintf("%s% -14.8f % -14.8f % -14.8f%s\n", ansiGreen, lvl.Price, lvl.Amount, cumulativeBids, ansiReset)

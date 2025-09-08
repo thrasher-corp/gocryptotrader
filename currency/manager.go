@@ -543,6 +543,7 @@ func (fs FullStore) clone() FullStore {
 	return c
 }
 
+// DisableAllPairs disables all pairs and assets
 func (p *PairsManager) DisableAllPairs() {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()

@@ -173,8 +173,8 @@ const (
 	URLFocusType
 )
 
-// focusList is a list of all supported FocusTypes
-var focusList = []FocusType{
+// allFocusList is a list of all supported FocusTypes
+var allFocusList = []FocusType{
 	OpenInterestFocusType,
 	TickerFocusType,
 	OrderBookFocusType,
@@ -211,7 +211,7 @@ var futuresOnlyFocusList = []FocusType{
 
 // Valid checks if the FocusType is supported
 func (f FocusType) Valid() error {
-	if !slices.Contains(focusList, f) {
+	if !slices.Contains(allFocusList, f) {
 		return ErrUnsupportedFocusType
 	}
 	return nil

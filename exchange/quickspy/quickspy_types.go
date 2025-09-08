@@ -47,7 +47,7 @@ type CredentialsKey struct {
 type QuickSpy struct {
 	// credContext is the context for credentials
 	// also used for cancelling goroutines
-	credContext context.Context
+	credContext context.Context //nolint:containedctx // allows for repeated credential usage and cancellation. Happy to hear of other ways
 	// exch is the exchange interface
 	exch exchange.IBotExchange
 	// Key contains exchange, pair, and asset information

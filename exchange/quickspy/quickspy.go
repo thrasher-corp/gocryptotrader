@@ -69,9 +69,7 @@ func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (
 		b.API.AuthenticatedSupport = true
 		b.API.AuthenticatedWebsocketSupport = true
 	}
-	if err := q.run(); err != nil {
-		return nil, err
-	}
+	q.run()
 	return q, nil
 }
 
@@ -279,8 +277,9 @@ func (q *QuickSpy) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) err
 	}
 	// allows routing of all websocket data to our custom one
 	b.Websocket.ToRoutine = q.dataHandlerChannel
-	var newSubs []*subscription.Subscription
-	for _, f := range q.focuses.List() {
+	focusList := q.focuses.List()
+	newSubs := make([]*subscription.Subscription, 0, len(focusList))
+	for _, f := range focusList {
 		if !f.UseWebsocket() {
 			continue
 		}
@@ -290,8 +289,6 @@ func (q *QuickSpy) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) err
 		}
 		var sub *subscription.Subscription
 		for _, s := range b.Config.Features.Subscriptions {
-			if s.Channel == subscription.AllTradesChannel {
-			}
 			if s.Channel != ch {
 				continue
 			}
@@ -388,14 +385,11 @@ func (q *QuickSpy) stopWebsocket() error {
 	return nil
 }
 
-func (q *QuickSpy) run() error {
+func (q *QuickSpy) run() {
 	if q.AnyRequiresWebsocket() {
 		q.wg.Go(func() {
 			err := q.handleWS()
 			if err != nil {
-				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-					return
-				}
 				log.Errorf(log.QuickSpy, "%s websocket handler error: %v", q.key.ExchangeAssetPair, err)
 			}
 		})
@@ -416,7 +410,6 @@ func (q *QuickSpy) run() error {
 			}
 		}(focus)
 	}
-	return nil
 }
 
 func (q *QuickSpy) handleWS() error {
@@ -497,6 +490,7 @@ func (q *QuickSpy) processRESTFocus(f *FocusData) error {
 
 	return nil
 }
+
 func (q *QuickSpy) handleFocusType(focusType FocusType, focus *FocusData) error {
 	var err error
 	switch focusType {
@@ -532,10 +526,13 @@ func (q *QuickSpy) handleFocusType(focusType FocusType, focus *FocusData) error 
 	return nil
 }
 
+// Shutdown stops all routines and websocket connections
 func (q *QuickSpy) Shutdown() {
 	q.credContext.Done()
 }
 
+// HasBeenSuccessful returns whether a focus type has ever been successful
+// or an error if the focus type does not exist
 func (q *QuickSpy) HasBeenSuccessful(focusType FocusType) (bool, error) {
 	focus := q.focuses.GetByFocusType(focusType)
 	if focus == nil {

@@ -396,11 +396,12 @@ func (q *QuickSpy) handleAccountHoldingsFocus(focus *FocusData) error {
 	}
 	// filter results only to passed in key currencies
 	sa := make([]account.Balance, 0, 2)
-	for _, a := range ais.Accounts {
-		if a.AssetType != q.key.ExchangeAssetPair.Asset {
+	// iterate on account index as it is not a pointer
+	for i := range ais.Accounts {
+		if ais.Accounts[i].AssetType != q.key.ExchangeAssetPair.Asset {
 			continue
 		}
-		for _, c := range a.Currencies {
+		for _, c := range ais.Accounts[i].Currencies {
 			if c.Currency.Equal(q.key.ExchangeAssetPair.Base.Currency()) {
 				sa = append(sa, c)
 			}
