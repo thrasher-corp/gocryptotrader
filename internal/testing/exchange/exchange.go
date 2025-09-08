@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -29,7 +29,7 @@ import (
 // Setup takes an empty exchange instance and loads config for it from testdata/configtest and connects a NewTestWebsocket
 func Setup(e exchange.IBotExchange) error {
 	// quiet test setup logs as they are unhelpful
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 	defer func() {
 		log.SetOutput(os.Stdout)
 	}()
