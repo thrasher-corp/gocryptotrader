@@ -98,21 +98,21 @@ type GetAvailableTransferChainsParams struct {
 	Currency string `name:"cryptocurrency"`
 }
 
-// WithdrawFiatFundParams holds fiat fund withdrawal parameters
-type WithdrawFiatFundParams struct {
-	Exchange      string  `name:"exchange"`
-	Currency      string  `name:"currency"`
-	Amount        float64 `name:"amount"`
-	BankAccountID string  `name:"bankaccountid"`
-	Description   string  `name:"description"`
+// GetCryptoCurrencyDepositAddressCommandParams holds a cryptocurrency deposit addresses request parameters
+type GetCryptoCurrencyDepositAddressCommandParams struct {
+	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get the cryptocurrency deposit address for"`
+	Currency string `name:"cryptocurrency,c" required:"t" usage:"the cryptocurrency to get the deposit address for"`
+	Chain    string `name:"chain" usage:"the chain to use for the deposit"`
+	Bypass   bool   `name:"bypass" usage:"whether to bypass the deposit address manager cache if enabled"`
 }
 
-// GetCryptoDepositAddressParams holds a cryptocurrency deposit addresses request parameters
-type GetCryptoDepositAddressParams struct {
-	Exchange string `name:"exchange"`
-	Currency string `name:"cryptocurrency"`
-	Chain    string `name:"chain"`
-	Bypass   bool   `name:"bypass"`
+// WithdrawFiatFundParams holds fiat fund withdrawal parameters
+type WithdrawFiatFundParams struct {
+	Exchange      string  `name:"exchange,e" required:"t" usage:"the exchange to withdraw from"`
+	Currency      string  `name:"currency" required:"t" usage:"the fiat currency to withdraw funds from"`
+	Amount        float64 `name:"amount" usage:"amount of funds to withdraw"`
+	BankAccountID string  `name:"bankaccountid" usage:"ID of bank account to use"`
+	Description   string  `name:"description" usage:"description to submit with request"`
 }
 
 // AddEventParams holds a event add request params
@@ -197,4 +197,38 @@ type MarginRateHistoryParam struct {
 	GetBorrowRates     bool   `name:"getborrowrates,br" usage:"retrieve borrowing rates"`
 	GetBorrowCosts     bool   `name:"getborrowcosts,bc" usage:"retrieve and summarise your borrowing costs over the time period"`
 	IncludeAllRates    bool   `name:"includeallrates,ar,v,verbose" usage:"include a detailed slice of all lending/borrowing rates over the time period"`
+}
+
+// CurrencyTradeURLParams holds currency trade url retrieval params
+type CurrencyTradeURLParams struct {
+	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to retrieve margin rates from"`
+	Asset    string `name:"asset,a" require:"t" usage:"the asset type of the currency pair"`
+	Pair     string `name:"pair,p" require:"t" usage:"the currency pair"`
+}
+
+// AddPortfolioAddressParams holds a portfolio adding params
+type AddPortfolioAddressParams struct {
+	Address            string  `name:"address" usage:"the address to add to the portfolio"`
+	Balance            float64 `name:"balance" usage:"balance of the address"`
+	CoinType           string  `name:"coin_type" usage:"the coin type e.g ('BTC')"`
+	Description        string  `name:"description" usage:"description of the address"`
+	ColdStorage        bool    `name:"cold_storage" usage:"true/false if address is cold storage"`
+	SupportedExchanges string  `name:"supported_exchanges" usage:"common separated list of exchanges supported by this address for withdrawals"`
+}
+
+// GetOrdersCommandParams holds exchange orders retrieval command request parameters
+type GetOrdersCommandParams struct {
+	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get orders for"`
+	Asset    string `name:"asset" required:"t" usage:"the asset type to get orders for"`
+	Pair     string `name:"pair,e" required:"t" usage:"the currency pair to get orders for"`
+	Start    string `name:"start" usage:"start date, optional. Will filter any results before this date"`
+	End      string `name:"name" usage:"end date, optional. Will filter any results after this date"`
+}
+
+// SimulateOrderCommandParams holds a simulate order command request params
+type SimulateOrderCommandParams struct {
+	Exchange  string  `name:"exchange,e" required:"t" usage:"the exchange to simulate the order for"`
+	Pair      string  `name:"pair,e" required:"t" usage:"the currency pair"`
+	OrderSide string  `name:"side" required:"t" usage:"the order side to use (BUY OR SELL)"`
+	Amount    float64 `name:"amount" required:"t" usage:"the amount for the order"`
 }
