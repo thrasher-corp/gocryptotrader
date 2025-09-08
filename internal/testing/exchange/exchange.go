@@ -30,9 +30,7 @@ import (
 func Setup(e exchange.IBotExchange) error {
 	// quiet test setup logs as they are unhelpful
 	log.SetOutput(io.Discard)
-	defer func() {
-		log.SetOutput(os.Stdout)
-	}()
+	defer log.SetOutput(os.Stdout)
 
 	cfg := &config.Config{}
 	root, err := testutils.RootPathFromCWD()
