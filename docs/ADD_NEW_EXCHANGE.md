@@ -322,7 +322,7 @@ Create a test function in `rest_test.go` to see if the data is received and unma
 func TestGetExchangeInfo(t *testing.T) {
     t.Parallel() // adding t.Parallel() is preferred as it allows tests to run simultaneously, speeding up package test time
     e.Verbose = true
-    result, err := e.GetExchangeInfo(context.Background())
+    result, err := e.GetExchangeInfo(t.Context())
     require.NoError(t, err)
     t.Log(result)
     assert.NotNil(t, result)
@@ -331,10 +331,10 @@ func TestGetExchangeInfo(t *testing.T) {
 
 Set `Verbose` to `true` to view received data during unmarshalling errors.
 After testing, remove `Verbose`, the result variable, and `t.Log(result)`, or replace the log with `assert.NotNil(t, result)` to avoid unnecessary output when running GCT.
-Alternatively you can use `request.WithVerbose(context.Background())` as the `context` param to achieve the same result.
+Alternatively you can use `request.WithVerbose(t.Context())` as the `context` param to achieve the same result.
 
 ```go
-    result, err := e.GetExchangeInfo(context.Background())
+    result, err := e.GetExchangeInfo(t.Context())
     require.NoError(t, err)
     assert.NotNil(t, result)
 ```
