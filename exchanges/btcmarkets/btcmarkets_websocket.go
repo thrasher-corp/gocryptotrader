@@ -425,11 +425,11 @@ func orderbookChecksum(ob *orderbook.Book) uint32 {
 
 // concatOrderbookLiquidity concatenates price and amounts together for checksum processing
 func concatOrderbookLiquidity(liquidity orderbook.Levels) string {
-	var c string
+	var c strings.Builder
 	for x := range min(10, len(liquidity)) {
-		c += trim(liquidity[x].Price) + trim(liquidity[x].Amount)
+		c.WriteString(trim(liquidity[x].Price) + trim(liquidity[x].Amount))
 	}
-	return c
+	return c.String()
 }
 
 // trim turns value into string, removes the decimal point and all the leading zeros
