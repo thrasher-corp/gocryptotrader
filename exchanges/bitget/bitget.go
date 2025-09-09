@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -263,9 +264,9 @@ var (
 	errSideEmpty                      = fmt.Errorf("%w, empty order side", order.ErrSideIsInvalid)
 	errOrderTypeEmpty                 = fmt.Errorf("%w empty order type", order.ErrTypeIsInvalid)
 	errStrategyEmpty                  = errors.New("strategy cannot be empty")
-	errLimitPriceEmpty                = fmt.Errorf("%w: Price below minimum for limit orders", order.ErrPriceBelowMin)
+	errLimitPriceEmpty                = fmt.Errorf("%w: Price below minimum for limit orders", limits.ErrPriceBelowMin)
 	errOrdersEmpty                    = errors.New("orders cannot be empty")
-	errTriggerPriceEmpty              = fmt.Errorf("%w: TriggerPrice below minimum", order.ErrPriceBelowMin)
+	errTriggerPriceEmpty              = fmt.Errorf("%w: TriggerPrice below minimum", limits.ErrPriceBelowMin)
 	errTriggerTypeEmpty               = errors.New("triggerType cannot be empty")
 	errAccountTypeEmpty               = errors.New("accountType cannot be empty")
 	errFromTypeEmpty                  = errors.New("fromType cannot be empty")
@@ -277,8 +278,8 @@ var (
 	errAddressEmpty                   = errors.New("address cannot be empty")
 	errMarginCoinEmpty                = errors.New("marginCoin cannot be empty")
 	errAmountEmpty                    = errors.New("amount cannot be empty")
-	errOpenAmountEmpty                = fmt.Errorf("%w: OpenAmount below minimum", order.ErrAmountBelowMin)
-	errOpenPriceEmpty                 = fmt.Errorf("%w: OpenPrice below minimum", order.ErrPriceBelowMin)
+	errOpenAmountEmpty                = fmt.Errorf("%w: OpenAmount below minimum", limits.ErrAmountBelowMin)
+	errOpenPriceEmpty                 = fmt.Errorf("%w: OpenPrice below minimum", limits.ErrPriceBelowMin)
 	errLeverageEmpty                  = errors.New("leverage cannot be empty")
 	errMarginModeEmpty                = fmt.Errorf("%w margin mode can not be empty", margin.ErrInvalidMarginType)
 	errPositionModeEmpty              = errors.New("positionMode cannot be empty")
@@ -286,7 +287,7 @@ var (
 	errPlanTypeEmpty                  = errors.New("planType cannot be empty")
 	errPlanOrderIDEmpty               = errors.New("planOrderID cannot be empty")
 	errHoldSideEmpty                  = errors.New("holdSide cannot be empty")
-	errExecutePriceEmpty              = fmt.Errorf("%w: ExecutePrice below minimum", order.ErrPriceBelowMin)
+	errExecutePriceEmpty              = fmt.Errorf("%w: ExecutePrice below minimum", limits.ErrPriceBelowMin)
 	errIDListEmpty                    = errors.New("idList cannot be empty")
 	errLoanTypeEmpty                  = errors.New("loanType cannot be empty")
 	errProductIDEmpty                 = errors.New("productID cannot be empty")
@@ -294,7 +295,7 @@ var (
 	errLoanCoinEmpty                  = fmt.Errorf("%w: LoanCoin is required", currency.ErrCurrencyCodeEmpty)
 	errCollateralCoinEmpty            = fmt.Errorf("%w: CollateralCoin is required", currency.ErrCurrencyCodeEmpty)
 	errTermEmpty                      = errors.New("term cannot be empty")
-	errCollateralAmountEmpty          = fmt.Errorf("%w: CollateralAmount below minimum", order.ErrAmountBelowMin)
+	errCollateralAmountEmpty          = fmt.Errorf("%w: CollateralAmount below minimum", limits.ErrAmountBelowMin)
 	errCollateralLoanMutex            = errors.New("exactly one of collateralAmount and loanAmount must be set")
 	errReviseTypeEmpty                = errors.New("reviseType cannot be empty")
 	errUnknownPairQuote               = errors.New("unknown pair quote; pair can't be split due to lack of delimiter and unclear base length")
@@ -302,8 +303,8 @@ var (
 	errReturnEmpty                    = errors.New("returned data unexpectedly empty")
 	errAuthenticatedWebsocketDisabled = errors.New("authenticatedWebsocketAPISupport not enabled")
 	errAssetModeEmpty                 = errors.New("assetMode cannot be empty")
-	errTakeProfitTriggerPriceEmpty    = fmt.Errorf("%w: TakeProfitTriggerPrice below minimum", order.ErrPriceBelowMin)
-	errStopLossTriggerPriceEmpty      = fmt.Errorf("%w: StopLossTriggerPrice below minimum", order.ErrPriceBelowMin)
+	errTakeProfitTriggerPriceEmpty    = fmt.Errorf("%w: TakeProfitTriggerPrice below minimum", limits.ErrPriceBelowMin)
+	errStopLossTriggerPriceEmpty      = fmt.Errorf("%w: StopLossTriggerPrice below minimum", limits.ErrPriceBelowMin)
 	errOrderIDMutex                   = errors.New("exactly one of orderID and clientOrderID must be set")
 	errProductTypeAndPairEmpty        = errors.New("productType and pair cannot both be empty")
 
@@ -842,10 +843,10 @@ func (e *Exchange) CommitConversion(ctx context.Context, fromCurrency, toCurrenc
 		return nil, errTraceIDEmpty
 	}
 	if fromAmount <= 0 || toAmount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	req := map[string]any{
 		"fromCoin":     fromCurrency,
@@ -1068,7 +1069,7 @@ func (e *Exchange) PlaceSpotOrder(ctx context.Context, pair currency.Pair, side,
 		return nil, errLimitPriceEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"symbol":      pair,
@@ -1116,7 +1117,7 @@ func (e *Exchange) CancelAndPlaceSpotOrder(ctx context.Context, pair currency.Pa
 		return nil, order.ErrOrderIDNotSet
 	}
 	if price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	req := map[string]any{
 		"symbol": pair,
@@ -1347,7 +1348,7 @@ func (e *Exchange) PlacePlanSpotOrder(ctx context.Context, pair currency.Pair, s
 		return nil, errLimitPriceEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if triggerType == "" {
 		return nil, errTriggerTypeEmpty
@@ -1387,7 +1388,7 @@ func (e *Exchange) ModifyPlanSpotOrder(ctx context.Context, orderID int64, clien
 		return nil, errLimitPriceEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"orderType":    orderType,
@@ -1574,7 +1575,7 @@ func (e *Exchange) TransferAsset(ctx context.Context, fromType, toType, clientOr
 		return nil, errCurrencyAndPairEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"fromType": fromType,
@@ -1625,7 +1626,7 @@ func (e *Exchange) SubaccountTransfer(ctx context.Context, fromType, toType, cli
 		return nil, errToIDEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"fromType":   fromType,
@@ -1656,7 +1657,7 @@ func (e *Exchange) WithdrawFunds(ctx context.Context, currency currency.Code, tr
 		return nil, errAddressEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"coin":         currency,
@@ -2510,7 +2511,7 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, pair currency.Pair, pr
 		return nil, errOrderTypeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if orderType == "limit" && price <= 0 {
 		return nil, errLimitPriceEmpty
@@ -2561,7 +2562,7 @@ func (e *Exchange) PlaceReversal(ctx context.Context, pair currency.Pair, margin
 		return nil, errProductTypeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"symbol":      pair,
@@ -2911,7 +2912,7 @@ func (e *Exchange) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin currenc
 		return nil, errTriggerPriceEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"marginCoin":   marginCoin,
@@ -3001,7 +3002,7 @@ func (e *Exchange) PlaceTriggerFuturesOrder(ctx context.Context, planType, produ
 		return nil, errOrderTypeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if executePrice <= 0 {
 		return nil, errExecutePriceEmpty
@@ -3064,7 +3065,7 @@ func (e *Exchange) ModifyTPSLFuturesOrder(ctx context.Context, orderID int64, cl
 		return nil, errTriggerPriceEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"orderId":      orderID,
@@ -3344,7 +3345,7 @@ func (e *Exchange) CrossBorrow(ctx context.Context, currency currency.Code, clie
 		return nil, errCurrencyEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"coin":         currency,
@@ -3362,7 +3363,7 @@ func (e *Exchange) CrossRepay(ctx context.Context, currency currency.Code, amoun
 		return nil, errCurrencyEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"coin":        currency,
@@ -3471,7 +3472,7 @@ func (e *Exchange) PlaceCrossOrder(ctx context.Context, pair currency.Pair, orde
 		return nil, errSideEmpty
 	}
 	if baseAmount <= 0 && quoteAmount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"symbol":    pair,
@@ -3804,7 +3805,7 @@ func (e *Exchange) IsolatedBorrow(ctx context.Context, pair currency.Pair, cur c
 		return nil, errCurrencyEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"symbol":       pair,
@@ -3820,7 +3821,7 @@ func (e *Exchange) IsolatedBorrow(ctx context.Context, pair currency.Pair, cur c
 // IsolatedRepay repays funds for isolated margin
 func (e *Exchange) IsolatedRepay(ctx context.Context, amount float64, cur currency.Code, pair currency.Pair, clientOrderID string) (*RepayIso, error) {
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if cur.IsEmpty() {
 		return nil, errCurrencyEmpty
@@ -3943,7 +3944,7 @@ func (e *Exchange) PlaceIsolatedOrder(ctx context.Context, pair currency.Pair, o
 		return nil, errSideEmpty
 	}
 	if baseAmount <= 0 && quoteAmount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"symbol":    pair,
@@ -4217,7 +4218,7 @@ func (e *Exchange) SubscribeSavings(ctx context.Context, productID int64, period
 		return nil, errPeriodTypeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"productId":  productID,
@@ -4254,7 +4255,7 @@ func (e *Exchange) RedeemSavings(ctx context.Context, productID, orderID int64, 
 		return nil, errPeriodTypeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"productId":  productID,
@@ -4382,7 +4383,7 @@ func (e *Exchange) SubscribeSharkFin(ctx context.Context, productID int64, amoun
 		return nil, errProductIDEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"productId": productID,
@@ -4488,7 +4489,7 @@ func (e *Exchange) RepayLoan(ctx context.Context, orderID int64, amount float64,
 		return nil, order.ErrOrderIDNotSet
 	}
 	if amount <= 0 && !repayAll {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	req := map[string]any{
 		"orderId": orderID,
@@ -4537,7 +4538,7 @@ func (e *Exchange) ModifyPledgeRate(ctx context.Context, orderID int64, amount f
 		return nil, order.ErrOrderIDNotSet
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if pledgeCoin.IsEmpty() {
 		return nil, errCollateralCoinEmpty
@@ -4970,19 +4971,19 @@ func (e *Exchange) spotOrderHelper(ctx context.Context, path string, vals url.Va
 		resp[i].Symbol = temp[i].Symbol
 		resp[i].OrderID = temp[i].OrderID
 		resp[i].ClientOrderID = temp[i].ClientOrderID
-		resp[i].Price = temp[i].Price
-		resp[i].Size = temp[i].Size
+		resp[i].Price = temp[i].Price.Float64()
+		resp[i].Size = temp[i].Size.Float64()
 		resp[i].OrderType = temp[i].OrderType
 		resp[i].Side = temp[i].Side
 		resp[i].Status = temp[i].Status
-		resp[i].PriceAverage = temp[i].PriceAverage
-		resp[i].BaseVolume = temp[i].BaseVolume
-		resp[i].QuoteVolume = temp[i].QuoteVolume
+		resp[i].PriceAverage = temp[i].PriceAverage.Float64()
+		resp[i].BaseVolume = temp[i].BaseVolume.Float64()
+		resp[i].QuoteVolume = temp[i].QuoteVolume.Float64()
 		resp[i].EnterPointSource = temp[i].EnterPointSource
 		resp[i].CreationTime = temp[i].CreationTime
 		resp[i].UpdateTime = temp[i].UpdateTime
 		resp[i].OrderSource = temp[i].OrderSource
-		resp[i].TriggerPrice = temp[i].TriggerPrice
+		resp[i].TriggerPrice = temp[i].TriggerPrice.Float64()
 		resp[i].TPSLType = temp[i].TPSLType
 		resp[i].CancelReason = temp[i].CancelReason
 	}

@@ -289,14 +289,14 @@ func (e *Exchange) tickerDataHandler(wsResponse *WsResponse, respRaw []byte) err
 				return err
 			}
 			e.Websocket.DataHandler <- &ticker.Price{
-				Last:         ticks[i].LastPrice,
-				High:         ticks[i].High24H,
-				Low:          ticks[i].Low24H,
-				Bid:          ticks[i].BidPrice,
-				Ask:          ticks[i].AskPrice,
-				Volume:       ticks[i].BaseVolume,
-				QuoteVolume:  ticks[i].QuoteVolume,
-				Open:         ticks[i].Open24H,
+				Last:         ticks[i].LastPrice.Float64(),
+				High:         ticks[i].High24H.Float64(),
+				Low:          ticks[i].Low24H.Float64(),
+				Bid:          ticks[i].BidPrice.Float64(),
+				Ask:          ticks[i].AskPrice.Float64(),
+				Volume:       ticks[i].BaseVolume.Float64(),
+				QuoteVolume:  ticks[i].QuoteVolume.Float64(),
+				Open:         ticks[i].Open24H.Float64(),
 				Pair:         pair,
 				ExchangeName: e.Name,
 				AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
@@ -315,16 +315,16 @@ func (e *Exchange) tickerDataHandler(wsResponse *WsResponse, respRaw []byte) err
 				return err
 			}
 			e.Websocket.DataHandler <- &ticker.Price{
-				Last:         ticks[i].LastPrice,
-				High:         ticks[i].High24H,
-				Low:          ticks[i].Low24H,
-				Bid:          ticks[i].BidPrice,
-				Ask:          ticks[i].AskPrice,
-				Volume:       ticks[i].BaseVolume,
-				QuoteVolume:  ticks[i].QuoteVolume,
-				Open:         ticks[i].Open24H,
-				MarkPrice:    ticks[i].MarkPrice,
-				IndexPrice:   ticks[i].IndexPrice,
+				Last:         ticks[i].LastPrice.Float64(),
+				High:         ticks[i].High24H.Float64(),
+				Low:          ticks[i].Low24H.Float64(),
+				Bid:          ticks[i].BidPrice.Float64(),
+				Ask:          ticks[i].AskPrice.Float64(),
+				Volume:       ticks[i].BaseVolume.Float64(),
+				QuoteVolume:  ticks[i].QuoteVolume.Float64(),
+				Open:         ticks[i].Open24H.Float64(),
+				MarkPrice:    ticks[i].MarkPrice.Float64(),
+				IndexPrice:   ticks[i].IndexPrice.Float64(),
 				Pair:         pair,
 				ExchangeName: e.Name,
 				AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
@@ -411,8 +411,8 @@ func (e *Exchange) tradeDataHandler(wsResponse *WsResponse) error {
 			CurrencyPair: pair,
 			AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
 			Exchange:     e.Name,
-			Price:        trades[i].Price,
-			Amount:       trades[i].Size,
+			Price:        trades[i].Price.Float64(),
+			Amount:       trades[i].Size.Float64(),
 			Side:         sideDecoder(trades[i].Side),
 			TID:          strconv.FormatInt(trades[i].TradeID, 10),
 		}
@@ -498,8 +498,8 @@ func (e *Exchange) accountSnapshotDataHandler(wsResponse *WsResponse, respRaw []
 		for i := range acc {
 			sub.Currencies[i] = account.Balance{
 				Currency: acc[i].Coin,
-				Hold:     acc[i].Frozen + acc[i].Locked,
-				Free:     acc[i].Available,
+				Hold:     acc[i].Frozen.Float64() + acc[i].Locked.Float64(),
+				Free:     acc[i].Available.Float64(),
 				Total:    sub.Currencies[i].Hold + sub.Currencies[i].Free,
 			}
 		}
@@ -513,9 +513,9 @@ func (e *Exchange) accountSnapshotDataHandler(wsResponse *WsResponse, respRaw []
 		for i := range acc {
 			sub.Currencies[i] = account.Balance{
 				Currency: acc[i].MarginCoin,
-				Hold:     acc[i].Frozen,
-				Free:     acc[i].Available,
-				Total:    acc[i].Available + acc[i].Frozen,
+				Hold:     acc[i].Frozen.Float64(),
+				Free:     acc[i].Available.Float64(),
+				Total:    acc[i].Available.Float64() + acc[i].Frozen.Float64(),
 			}
 		}
 	default:
@@ -550,8 +550,8 @@ func (e *Exchange) fillDataHandler(wsResponse *WsResponse, respRaw []byte) error
 				Side:         sideDecoder(fil[i].Side),
 				OrderID:      strconv.FormatInt(fil[i].OrderID, 10),
 				TradeID:      strconv.FormatInt(fil[i].TradeID, 10),
-				Price:        fil[i].PriceAverage,
-				Amount:       fil[i].Size,
+				Price:        fil[i].PriceAverage.Float64(),
+				Amount:       fil[i].Size.Float64(),
 			}
 		}
 		e.Websocket.DataHandler <- resp
@@ -573,8 +573,8 @@ func (e *Exchange) fillDataHandler(wsResponse *WsResponse, respRaw []byte) error
 				OrderID:      strconv.FormatInt(fil[i].OrderID, 10),
 				TradeID:      strconv.FormatInt(fil[i].TradeID, 10),
 				Side:         sideDecoder(fil[i].Side),
-				Price:        fil[i].Price,
-				Amount:       fil[i].BaseVolume,
+				Price:        fil[i].Price.Float64(),
+				Amount:       fil[i].BaseVolume.Float64(),
 				Timestamp:    fil[i].CreationTime.Time(),
 			}
 		}
@@ -604,14 +604,14 @@ func (e *Exchange) genOrderDataHandler(wsResponse *WsResponse, respRaw []byte) e
 			var baseAmount, quoteAmount float64
 			side := sideDecoder(orders[i].Side)
 			if side == order.Buy {
-				quoteAmount = orders[i].Size
+				quoteAmount = orders[i].Size.Float64()
 			}
 			if side == order.Sell {
-				baseAmount = orders[i].Size
+				baseAmount = orders[i].Size.Float64()
 			}
 			orderType := typeDecoder(orders[i].OrderType)
 			if orderType == order.Limit {
-				baseAmount = orders[i].NewSize
+				baseAmount = orders[i].NewSize.Float64()
 			}
 			resp[i] = order.Detail{
 				Exchange:             e.Name,
@@ -619,19 +619,19 @@ func (e *Exchange) genOrderDataHandler(wsResponse *WsResponse, respRaw []byte) e
 				Pair:                 pair,
 				OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
 				ClientOrderID:        orders[i].ClientOrderID,
-				Price:                orders[i].PriceAverage,
+				Price:                orders[i].PriceAverage.Float64(),
 				Amount:               baseAmount,
 				QuoteAmount:          quoteAmount,
 				Type:                 orderType,
 				TimeInForce:          strategyDecoder(orders[i].Force),
 				Side:                 side,
-				AverageExecutedPrice: orders[i].PriceAverage,
+				AverageExecutedPrice: orders[i].PriceAverage.Float64(),
 				Status:               statusDecoder(orders[i].Status),
 				Date:                 orders[i].CreationTime.Time(),
 				LastUpdated:          orders[i].UpdateTime.Time(),
 			}
 			for x := range orders[i].FeeDetail {
-				resp[i].Fee += orders[i].FeeDetail[x].TotalFee
+				resp[i].Fee += orders[i].FeeDetail[x].TotalFee.Float64()
 				resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
 			}
 		}
@@ -651,14 +651,14 @@ func (e *Exchange) genOrderDataHandler(wsResponse *WsResponse, respRaw []byte) e
 			var baseAmount, quoteAmount float64
 			side := sideDecoder(orders[i].Side)
 			if side == order.Buy {
-				quoteAmount = orders[i].Size
+				quoteAmount = orders[i].Size.Float64()
 			}
 			if side == order.Sell {
-				baseAmount = orders[i].Size
+				baseAmount = orders[i].Size.Float64()
 			}
 			orderType := typeDecoder(orders[i].OrderType)
 			if orderType == order.Limit {
-				baseAmount = orders[i].BaseVolume
+				baseAmount = orders[i].BaseVolume.Float64()
 			}
 			resp[i] = order.Detail{
 				Exchange:             e.Name,
@@ -669,22 +669,22 @@ func (e *Exchange) genOrderDataHandler(wsResponse *WsResponse, respRaw []byte) e
 				Type:                 orderType,
 				TimeInForce:          strategyDecoder(orders[i].Force),
 				Side:                 side,
-				ExecutedAmount:       orders[i].FilledQuantity,
+				ExecutedAmount:       orders[i].FilledQuantity.Float64(),
 				Date:                 orders[i].CreationTime.Time(),
 				ClientOrderID:        orders[i].ClientOrderID,
-				Leverage:             orders[i].Leverage,
+				Leverage:             orders[i].Leverage.Float64(),
 				MarginType:           marginDecoder(orders[i].MarginMode),
 				OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
-				Price:                orders[i].Price,
-				AverageExecutedPrice: orders[i].PriceAverage,
+				Price:                orders[i].Price.Float64(),
+				AverageExecutedPrice: orders[i].PriceAverage.Float64(),
 				ReduceOnly:           bool(orders[i].ReduceOnly),
 				Status:               statusDecoder(orders[i].Status),
-				LimitPriceLower:      orders[i].PresetStopSurplusPrice,
-				LimitPriceUpper:      orders[i].PresetStopLossPrice,
+				LimitPriceLower:      orders[i].PresetStopSurplusPrice.Float64(),
+				LimitPriceUpper:      orders[i].PresetStopLossPrice.Float64(),
 				LastUpdated:          orders[i].UpdateTime.Time(),
 			}
 			for x := range orders[i].FeeDetail {
-				resp[i].Fee += orders[i].FeeDetail[x].Fee
+				resp[i].Fee += orders[i].FeeDetail[x].Fee.Float64()
 				resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
 			}
 		}
@@ -717,9 +717,9 @@ func (e *Exchange) triggerOrderDataHandler(wsResponse *WsResponse, respRaw []byt
 				Pair:          pair,
 				OrderID:       strconv.FormatInt(orders[i].OrderID, 10),
 				ClientOrderID: orders[i].ClientOrderID,
-				TriggerPrice:  orders[i].TriggerPrice,
-				Price:         orders[i].Price,
-				Amount:        orders[i].Size,
+				TriggerPrice:  orders[i].TriggerPrice.Float64(),
+				Price:         orders[i].Price.Float64(),
+				Amount:        orders[i].Size.Float64(),
 				Type:          typeDecoder(orders[i].OrderType),
 				Side:          sideDecoder(orders[i].Side),
 				Status:        statusDecoder(orders[i].Status),
@@ -746,10 +746,10 @@ func (e *Exchange) triggerOrderDataHandler(wsResponse *WsResponse, respRaw []byt
 				Pair:                 pair,
 				OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
 				ClientOrderID:        orders[i].ClientOrderID,
-				TriggerPrice:         orders[i].TriggerPrice,
-				Price:                orders[i].Price,
-				AverageExecutedPrice: orders[i].ExecutePrice,
-				Amount:               orders[i].Size,
+				TriggerPrice:         orders[i].TriggerPrice.Float64(),
+				Price:                orders[i].Price.Float64(),
+				AverageExecutedPrice: orders[i].ExecutePrice.Float64(),
+				Amount:               orders[i].Size.Float64(),
 				Type:                 typeDecoder(orders[i].OrderType),
 				Side:                 sideDecoder(orders[i].Side),
 				Status:               statusDecoder(orders[i].Status),
@@ -784,11 +784,11 @@ func (e *Exchange) positionsDataHandler(wsResponse *WsResponse) error {
 			OrderID:              strconv.FormatInt(positions[i].PositionID, 10),
 			MarginType:           marginDecoder(positions[i].MarginMode),
 			Side:                 sideDecoder(positions[i].HoldSide),
-			Amount:               positions[i].Total,
-			AverageExecutedPrice: positions[i].OpenPriceAverage,
-			Leverage:             positions[i].Leverage,
+			Amount:               positions[i].Total.Float64(),
+			AverageExecutedPrice: positions[i].OpenPriceAverage.Float64(),
+			Leverage:             positions[i].Leverage.Float64(),
 			Date:                 positions[i].CreationTime.Time(),
-			Fee:                  positions[i].TotalFee,
+			Fee:                  positions[i].TotalFee.Float64(),
 			LastUpdated:          positions[i].UpdateTime.Time(),
 		}
 	}
@@ -817,14 +817,14 @@ func (e *Exchange) positionsHistoryDataHandler(wsResponse *WsResponse) error {
 			MarginType:        marginDecoder(positions[i].MarginMode),
 			Side:              sideDecoder(positions[i].HoldSide),
 			PositionMode:      positionModeDecoder(positions[i].PositionMode),
-			OpenAveragePrice:  positions[i].OpenPriceAverage,
-			CloseAveragePrice: positions[i].ClosePriceAverage,
-			OpenSize:          positions[i].OpenSize,
-			CloseSize:         positions[i].CloseSize,
-			RealisedPnl:       positions[i].AchievedProfits,
-			SettlementFee:     positions[i].SettleFee,
-			OpenFee:           positions[i].OpenFee,
-			CloseFee:          positions[i].CloseFee,
+			OpenAveragePrice:  positions[i].OpenPriceAverage.Float64(),
+			CloseAveragePrice: positions[i].ClosePriceAverage.Float64(),
+			OpenSize:          positions[i].OpenSize.Float64(),
+			CloseSize:         positions[i].CloseSize.Float64(),
+			RealisedPnl:       positions[i].AchievedProfits.Float64(),
+			SettlementFee:     positions[i].SettleFee.Float64(),
+			OpenFee:           positions[i].OpenFee.Float64(),
+			CloseFee:          positions[i].CloseFee.Float64(),
 			StartDate:         positions[i].CreationTime.Time(),
 			LastUpdated:       positions[i].UpdateTime.Time(),
 		}
@@ -854,7 +854,7 @@ func (e *Exchange) indexPriceDataHandler(wsResponse *WsResponse) error {
 			ExchangeName: e.Name,
 			AssetType:    as,
 			Pair:         pair,
-			Last:         indexPrice[i].IndexPrice,
+			Last:         indexPrice[i].IndexPrice.Float64(),
 			LastUpdated:  indexPrice[i].Timestamp.Time(),
 		}
 	}
@@ -879,11 +879,11 @@ func (e *Exchange) crossAccountDataHandler(wsResponse *WsResponse) error {
 	for i := range acc {
 		sub.Currencies[i] = account.Balance{
 			Currency:               acc[i].Coin,
-			Hold:                   acc[i].Frozen,
-			Free:                   acc[i].Available,
-			Borrowed:               acc[i].Borrow,
-			AvailableWithoutBorrow: acc[i].Available,                                                                   // Need to check if Bitget actually calculates values this way
-			Total:                  acc[i].Available + acc[i].Frozen + acc[i].Borrow + acc[i].Interest + acc[i].Coupon, // Here too
+			Hold:                   acc[i].Frozen.Float64(),
+			Free:                   acc[i].Available.Float64(),
+			Borrowed:               acc[i].Borrow.Float64(),
+			AvailableWithoutBorrow: acc[i].Available.Float64(),                                                                                                           // Need to check if Bitget actually calculates values this way
+			Total:                  acc[i].Available.Float64() + acc[i].Frozen.Float64() + acc[i].Borrow.Float64() + acc[i].Interest.Float64() + acc[i].Coupon.Float64(), // Here too
 		}
 	}
 	e.Websocket.DataHandler <- hold
@@ -908,10 +908,10 @@ func (e *Exchange) marginOrderDataHandler(wsResponse *WsResponse) error {
 			Pair:                 pair,
 			OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
 			ClientOrderID:        orders[i].ClientOrderID,
-			AverageExecutedPrice: orders[i].FillPrice,
-			Price:                orders[i].Price,
-			Amount:               orders[i].BaseSize,
-			QuoteAmount:          orders[i].QuoteSize,
+			AverageExecutedPrice: orders[i].FillPrice.Float64(),
+			Price:                orders[i].Price.Float64(),
+			Amount:               orders[i].BaseSize.Float64(),
+			QuoteAmount:          orders[i].QuoteSize.Float64(),
 			Type:                 typeDecoder(orders[i].OrderType),
 			TimeInForce:          strategyDecoder(orders[i].Force),
 			Side:                 sideDecoder(orders[i].Side),
@@ -919,7 +919,7 @@ func (e *Exchange) marginOrderDataHandler(wsResponse *WsResponse) error {
 			Date:                 orders[i].CreationTime.Time(),
 		}
 		for x := range orders[i].FeeDetail {
-			resp[i].Fee += orders[i].FeeDetail[x].TotalFee
+			resp[i].Fee += orders[i].FeeDetail[x].TotalFee.Float64()
 			resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
 		}
 		if wsResponse.Arg.Channel == bitgetOrdersIsolatedChannel {
@@ -948,11 +948,11 @@ func (e *Exchange) isolatedAccountDataHandler(wsResponse *WsResponse) error {
 	for i := range acc {
 		sub.Currencies[i] = account.Balance{
 			Currency:               acc[i].Coin,
-			Hold:                   acc[i].Frozen,
-			Free:                   acc[i].Available,
-			Borrowed:               acc[i].Borrow,
-			AvailableWithoutBorrow: acc[i].Available,                                                                   // Need to check if Bitget actually calculates values this way
-			Total:                  acc[i].Available + acc[i].Frozen + acc[i].Borrow + acc[i].Interest + acc[i].Coupon, // Here too
+			Hold:                   acc[i].Frozen.Float64(),
+			Free:                   acc[i].Available.Float64(),
+			Borrowed:               acc[i].Borrow.Float64(),
+			AvailableWithoutBorrow: acc[i].Available.Float64(),                                                                                                           // Need to check if Bitget actually calculates values this way
+			Total:                  acc[i].Available.Float64() + acc[i].Frozen.Float64() + acc[i].Borrow.Float64() + acc[i].Interest.Float64() + acc[i].Coupon.Float64(), // Here too
 		}
 	}
 	e.Websocket.DataHandler <- hold
@@ -979,9 +979,9 @@ func (e *Exchange) accountUpdateDataHandler(wsResponse *WsResponse, respRaw []by
 				AssetType: asset.Spot,
 				Balance: &account.Balance{
 					Currency:  acc[i].Coin,
-					Hold:      acc[i].Frozen + acc[i].Locked,
-					Free:      acc[i].Available,
-					Total:     acc[i].Available + acc[i].Frozen + acc[i].Locked,
+					Hold:      acc[i].Frozen.Float64() + acc[i].Locked.Float64(),
+					Free:      acc[i].Available.Float64(),
+					Total:     acc[i].Available.Float64() + acc[i].Frozen.Float64() + acc[i].Locked.Float64(),
 					UpdatedAt: acc[i].UpdateTime.Time(),
 				},
 			}
@@ -999,9 +999,9 @@ func (e *Exchange) accountUpdateDataHandler(wsResponse *WsResponse, respRaw []by
 				AssetType: asset.Futures,
 				Balance: &account.Balance{
 					Currency:  acc[i].MarginCoin,
-					Hold:      acc[i].Frozen,
-					Free:      acc[i].Available,
-					Total:     acc[i].Available + acc[i].Frozen,
+					Hold:      acc[i].Frozen.Float64(),
+					Free:      acc[i].Available.Float64(),
+					Total:     acc[i].Available.Float64() + acc[i].Frozen.Float64(),
 					UpdatedAt: time.Now(),
 				},
 			}
