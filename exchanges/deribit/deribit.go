@@ -2633,31 +2633,9 @@ func (e *Exchange) getAssetPairByInstrument(instrument string) (currency.Pair, a
 		return currency.EMPTYPAIR, asset.Empty, errInvalidInstrumentName
 	}
 
-	var item asset.Item
-	// Find the first occurrence of the delimiter and split the instrument string accordingly
-	parts := strings.Split(instrument, currency.DashDelimiter)
-	switch {
-	case len(parts) == 1:
-		if i := strings.IndexAny(instrument, currency.UnderscoreDelimiter); i == -1 {
-			return currency.EMPTYPAIR, asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
-		}
-		item = asset.Spot
-	case len(parts) == 2:
-		item = asset.Futures
-	case parts[len(parts)-1] == "C" || parts[len(parts)-1] == "P":
-		item = asset.Options
-	case len(parts) >= 3:
-		// Check for options or other types
-		switch parts[1] {
-		case "USDC", "USDT":
-			item = asset.Futures
-		case "FS":
-			item = asset.FutureCombo
-		default:
-			item = asset.OptionCombo
-		}
-	default:
-		return currency.EMPTYPAIR, asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
+	item, err := getAssetFromInstrument(instrument)
+	if err != nil {
+		return currency.EMPTYPAIR, asset.Empty, err
 	}
 	cp, err := currency.NewPairFromString(instrument)
 	if err != nil {
@@ -2667,46 +2645,35 @@ func (e *Exchange) getAssetPairByInstrument(instrument string) (currency.Pair, a
 	return cp, item, nil
 }
 
-func getAssetFromPair(currencyPair currency.Pair) (asset.Item, error) {
-	currencyPairString := currencyPair.String()
-	vals := strings.Split(currencyPairString, currency.DashDelimiter)
-	if strings.HasSuffix(currencyPairString, perpString) || len(vals) == 2 {
+func getAssetFromInstrument(instrument string) (asset.Item, error) {
+	splitCurrency := strings.Split(instrument, currency.DashDelimiter)
+	splitLen := len(splitCurrency)
+	lastSplit := splitCurrency[splitLen-1]
+	hasUnderscore := strings.IndexAny(instrument, currency.UnderscoreDelimiter) != -1
+	switch {
+	case splitLen == 1 && !hasUnderscore:
+		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
+	case splitLen == 1:
+		return asset.Spot, nil
+	case splitLen == 2:
 		return asset.Futures, nil
-	} else if len(vals) == 1 {
-		if vals = strings.Split(vals[0], currency.UnderscoreDelimiter); len(vals) == 2 {
-			return asset.Spot, nil
-		}
-	}
-	added := false
-	if len(vals) >= 3 {
-		for a := range vals {
-			lastVals := strings.Split(vals[a], currency.UnderscoreDelimiter)
-			if len(lastVals) > 1 {
-				added = true
-				if a < len(vals)-1 {
-					lastVals = append(lastVals, vals[a+1:]...)
-				}
-				vals = append(vals[:a], lastVals...)
-			}
-		}
-	}
-	length := len(vals)
-	if strings.EqualFold(vals[length-1], "C") || strings.EqualFold(vals[length-1], "P") {
+	case lastSplit == "C" || lastSplit == "P":
 		return asset.Options, nil
-	}
-	if length == 4 {
-		if added {
-			return asset.FutureCombo, nil
-		}
+	case splitLen == 3 && hasUnderscore:
+		return asset.FutureCombo, nil
+	case splitLen == 3:
+		return asset.Futures, nil
+	case splitLen > 3 && lastSplit == "FS":
+		return asset.FutureCombo, nil
+	case splitLen > 3:
 		return asset.OptionCombo, nil
-	} else if length >= 5 {
-		return asset.OptionCombo, nil
+	default:
+		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
 	}
-	return asset.Empty, fmt.Errorf("%w currency pair: %v", errUnsupportedInstrumentFormat, currencyPair)
 }
 
 func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	assetType, err := getAssetFromPair(feeBuilder.Pair)
+	assetType, err := getAssetFromInstrument(feeBuilder.Pair.String())
 	if err != nil {
 		return 0, err
 	}

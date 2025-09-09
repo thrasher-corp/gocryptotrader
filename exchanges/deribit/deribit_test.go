@@ -3539,30 +3539,6 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
-func TestGetAssetFromPair(t *testing.T) {
-	var assetTypeNew asset.Item
-	for _, assetType := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
-		availablePairs, err := e.GetEnabledPairs(assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s", err, assetType)
-		require.NotNilf(t, availablePairs, "expected result not to be nil for asset type %s", assetType)
-
-		format, err := e.GetPairFormat(assetType, true)
-		require.NoError(t, err)
-
-		for id, cp := range availablePairs {
-			t.Run(strconv.Itoa(id), func(t *testing.T) {
-				assetTypeNew, err = getAssetFromPair(cp.Format(format))
-				require.Equalf(t, assetType, assetTypeNew, "expected %s, but found %s for pair string %s", assetType.String(), assetTypeNew.String(), cp.Format(format))
-			})
-		}
-	}
-
-	cp, err := currency.NewPairFromString("some_thing_else")
-	require.NoError(t, err)
-	_, err = getAssetFromPair(cp)
-	assert.ErrorIs(t, err, errUnsupportedInstrumentFormat)
-}
-
 func TestGetAssetPairByInstrument(t *testing.T) {
 	t.Parallel()
 	for _, assetType := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
