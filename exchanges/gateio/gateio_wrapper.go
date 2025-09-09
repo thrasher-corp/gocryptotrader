@@ -179,6 +179,7 @@ func (e *Exchange) SetDefaults() {
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 	e.wsOBUpdateMgr = newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
+	e.wsOBSubMgr = newWSSubscriptionManager()
 }
 
 // Setup sets user configuration

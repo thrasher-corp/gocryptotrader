@@ -38,21 +38,22 @@ import (
 const (
 	gateioWebsocketEndpoint = "wss://api.gateio.ws/ws/v4/"
 
-	spotPingChannel            = "spot.ping"
-	spotPongChannel            = "spot.pong"
-	spotTickerChannel          = "spot.tickers"
-	spotTradesChannel          = "spot.trades"
-	spotCandlesticksChannel    = "spot.candlesticks"
-	spotOrderbookTickerChannel = "spot.book_ticker"       // Best bid or ask price
-	spotOrderbookUpdateChannel = "spot.order_book_update" // Changed order book levels
-	spotOrderbookChannel       = "spot.order_book"        // Limited-Level Full Order Book Snapshot
-	spotOrdersChannel          = "spot.orders"
-	spotUserTradesChannel      = "spot.usertrades"
-	spotBalancesChannel        = "spot.balances"
-	marginBalancesChannel      = "spot.margin_balances"
-	spotFundingBalanceChannel  = "spot.funding_balances"
-	crossMarginBalanceChannel  = "spot.cross_balances"
-	crossMarginLoanChannel     = "spot.cross_loan"
+	spotPingChannel                        = "spot.ping"
+	spotPongChannel                        = "spot.pong"
+	spotTickerChannel                      = "spot.tickers"
+	spotTradesChannel                      = "spot.trades"
+	spotCandlesticksChannel                = "spot.candlesticks"
+	spotOrderbookTickerChannel             = "spot.book_ticker"       // Best bid or ask price
+	spotOrderbookUpdateChannel             = "spot.order_book_update" // Changed order book levels
+	spotOrderbookChannel                   = "spot.order_book"        // Limited-Level Full Order Book Snapshot
+	spotOrderbookUpdateWithSnapshotChannel = "spot.obu"
+	spotOrdersChannel                      = "spot.orders"
+	spotUserTradesChannel                  = "spot.usertrades"
+	spotBalancesChannel                    = "spot.balances"
+	marginBalancesChannel                  = "spot.margin_balances"
+	spotFundingBalanceChannel              = "spot.funding_balances"
+	crossMarginBalanceChannel              = "spot.cross_balances"
+	crossMarginLoanChannel                 = "spot.cross_loan"
 
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
@@ -64,6 +65,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
 	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.TenMilliseconds, Levels: 1},
 	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
+	{Enabled: false, Channel: spotOrderbookUpdateWithSnapshotChannel, Asset: asset.Spot, Levels: 50},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
@@ -193,6 +195,8 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 		return e.processOrderbookUpdate(ctx, push.Result, push.Time)
 	case spotOrderbookChannel:
 		return e.processOrderbookSnapshot(push.Result, push.Time)
+	case spotOrderbookUpdateWithSnapshotChannel:
+		return e.processOrderbookUpdateWithSnapshot(conn, push.Result, push.Time)
 	case spotOrdersChannel:
 		return e.processSpotOrders(respRaw)
 	case spotUserTradesChannel:
@@ -432,6 +436,75 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 	return nil
 }
 
+func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection, incoming []byte, lastPushed time.Time) error {
+	var data WsOrderbookUpdateWithSnapshot
+	if err := json.Unmarshal(incoming, &data); err != nil {
+		return err
+	}
+
+	asks := make([]orderbook.Level, len(data.Asks))
+	for x := range data.Asks {
+		asks[x].Price = data.Asks[x][0].Float64()
+		asks[x].Amount = data.Asks[x][1].Float64()
+	}
+	bids := make([]orderbook.Level, len(data.Bids))
+	for x := range data.Bids {
+		bids[x].Price = data.Bids[x][0].Float64()
+		bids[x].Amount = data.Bids[x][1].Float64()
+	}
+
+	pair, err := currency.NewPairFromString(strings.Split(data.Channel, ".")[1])
+	if err != nil {
+		return err
+	}
+
+	var errs error
+	for _, a := range standardMarginAssetTypes {
+		if enabled, _ := e.CurrencyPairs.IsPairEnabled(pair, a); !enabled {
+			continue
+		}
+		if data.Full {
+			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+				Exchange:     e.Name,
+				Pair:         pair,
+				Asset:        a,
+				LastUpdated:  data.UpdateTime.Time(),
+				LastPushed:   lastPushed,
+				LastUpdateID: data.LastUpdateID,
+				Bids:         bids,
+				Asks:         asks,
+			}); err != nil {
+				return err
+			}
+			e.wsOBSubMgr.CompletedResubscribe(pair, asset.Spot) // asset.Spot used so that all pathways don't compete
+			continue
+		}
+
+		if e.wsOBSubMgr.IsResubscribing(pair, asset.Spot) { // asset.Spot used so that all pathways don't compete
+			continue // Drop incremental updates; waiting for a fresh snapshot
+		}
+
+		if lastUpdateID, _ := e.Websocket.Orderbook.LastUpdateID(pair, a); lastUpdateID+1 != data.FirstUpdateID {
+			errs = common.AppendError(errs, e.wsOBSubMgr.Resubscribe(e, conn, data.Channel, pair, asset.Spot)) // asset.Spot used so that all pathways don't compete
+			continue
+		}
+
+		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
+			Pair:       pair,
+			Asset:      a,
+			UpdateTime: data.UpdateTime.Time(),
+			LastPushed: lastPushed,
+			UpdateID:   data.LastUpdateID,
+			Bids:       bids,
+			Asks:       asks,
+			AllowEmpty: true,
+		}); err != nil {
+			return err
+		}
+	}
+	return errs
+}
+
 func (e *Exchange) processSpotOrders(data []byte) error {
 	resp := struct {
 		Time    types.Time    `json:"time"`
@@ -648,11 +721,12 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return template.New("master.tmpl").
 		Funcs(sprig.FuncMap()).
 		Funcs(template.FuncMap{
-			"channelName":         channelName,
-			"singleSymbolChannel": singleSymbolChannel,
-			"orderbookInterval":   orderbookChannelInterval,
-			"candlesInterval":     candlesChannelInterval,
-			"levels":              channelLevels,
+			"channelName":             channelName,
+			"singleSymbolChannel":     singleSymbolChannel,
+			"orderbookInterval":       orderbookChannelInterval,
+			"candlesInterval":         candlesChannelInterval,
+			"levels":                  channelLevels,
+			"compactOrderbookPayload": isCompactOrderbookPayload,
 		}).Parse(subTplText)
 }
 
@@ -740,7 +814,7 @@ func channelName(s *subscription.Subscription) string {
 // singleSymbolChannel returns if the channel should be fanned out into single symbol requests
 func singleSymbolChannel(name string) bool {
 	switch name {
-	case spotCandlesticksChannel, spotOrderbookUpdateChannel, spotOrderbookChannel:
+	case spotCandlesticksChannel, spotOrderbookUpdateChannel, spotOrderbookChannel, spotOrderbookUpdateWithSnapshotChannel:
 		return true
 	}
 	return false
@@ -779,6 +853,7 @@ func isSingleOrderbookChannel(name string) bool {
 	case spotOrderbookUpdateChannel,
 		spotOrderbookChannel,
 		spotOrderbookTickerChannel,
+		spotOrderbookUpdateWithSnapshotChannel,
 		futuresOrderbookChannel,
 		futuresOrderbookTickerChannel,
 		futuresOrderbookUpdateChannel,
@@ -849,9 +924,10 @@ func orderbookChannelInterval(s *subscription.Subscription, a asset.Item) (strin
 
 var channelLevelsMap = map[asset.Item]map[string][]int{
 	asset.Spot: {
-		spotOrderbookTickerChannel: {},
-		spotOrderbookUpdateChannel: {},
-		spotOrderbookChannel:       {1, 5, 10, 20, 50, 100},
+		spotOrderbookTickerChannel:             {},
+		spotOrderbookUpdateChannel:             {},
+		spotOrderbookChannel:                   {1, 5, 10, 20, 50, 100},
+		spotOrderbookUpdateWithSnapshotChannel: {50, 400},
 	},
 	asset.Futures: {
 		futuresOrderbookChannel:       {1, 5, 10, 20, 50, 100},
@@ -892,16 +968,27 @@ func channelLevels(s *subscription.Subscription, a asset.Item) (string, error) {
 	return strconv.Itoa(s.Levels), nil
 }
 
+func isCompactOrderbookPayload(channel string) bool {
+	return channel == spotOrderbookUpdateWithSnapshotChannel
+}
+
 const subTplText = `
 {{- with $name := channelName $.S }}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- if singleSymbolChannel $name }}
 			{{- range $i, $p := $pairs -}}
-				{{- with $i := candlesInterval $.S }}{{ $i -}} , {{- end }}
-				{{- $p }}
-				{{- with $l := levels $.S $asset -}} , {{- $l }}{{ end }}
-				{{- with $i := orderbookInterval $.S $asset -}} , {{- $i }}{{- end }}
-				{{- $.PairSeparator }}
+				{{- if compactOrderbookPayload $name }}	
+					{{- with $l := levels $.S $asset -}}
+                    ob.{{ $p }}.{{ $l }}
+                	{{- end -}}
+                	{{- $.PairSeparator }}
+				{{- else }}
+					{{- with $i := candlesInterval $.S }}{{ $i -}} , {{- end }}
+					{{- $p }}
+					{{- with $l := levels $.S $asset -}} , {{- $l }}{{ end }}
+					{{- with $i := orderbookInterval $.S $asset -}} , {{- $i }}{{- end }}
+					{{- $.PairSeparator }}
+				{{- end }}
 			{{- end }}
 			{{- $.AssetSeparator }}
 		{{- else }}
