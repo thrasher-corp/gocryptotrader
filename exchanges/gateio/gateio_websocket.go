@@ -979,9 +979,9 @@ const subTplText = `
 			{{- range $i, $p := $pairs -}}
 				{{- if compactOrderbookPayload $name }}	
 					{{- with $l := levels $.S $asset -}}
-                    ob.{{ $p }}.{{ $l }}
-                	{{- end -}}
-                	{{- $.PairSeparator }}
+					ob.{{ $p }}.{{ $l }}
+					{{- end -}}
+					{{- $.PairSeparator }}
 				{{- else }}
 					{{- with $i := candlesInterval $.S }}{{ $i -}} , {{- end }}
 					{{- $p }}

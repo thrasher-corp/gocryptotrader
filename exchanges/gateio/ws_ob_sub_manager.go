@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 type wsSubscriptionManager struct {
@@ -29,6 +30,10 @@ func (m *wsSubscriptionManager) IsResubscribing(pair currency.Pair, a asset.Item
 
 // Resubscribe marks a subscription as resubscribing and starts the unsubscribe/resubscribe process
 func (m *wsSubscriptionManager) Resubscribe(e *Exchange, conn websocket.Connection, qualifiedChannel string, pair currency.Pair, a asset.Item) error {
+	if err := e.Websocket.Orderbook.InvalidateOrderbook(pair, a); err != nil {
+		return err
+	}
+
 	m.m.Lock()
 	defer m.m.Unlock()
 
@@ -41,7 +46,7 @@ func (m *wsSubscriptionManager) Resubscribe(e *Exchange, conn websocket.Connecti
 
 	go func() { // Has to be called in routine to not impede websocket throughput
 		if err := e.Websocket.ResubscribeToChannel(conn, sub); err != nil {
-			fmt.Printf("Failed to resubscribe to channel %q: %v\n", qualifiedChannel, err)
+			log.Errorf(log.ExchangeSys, "Failed to resubscribe to channel %q: %v", qualifiedChannel, err)
 		}
 	}()
 

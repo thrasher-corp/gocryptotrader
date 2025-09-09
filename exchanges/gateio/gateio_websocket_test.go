@@ -17,7 +17,7 @@ import (
 func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange)
+	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e))
 	e.Name = "ProcessOrderbookUpdateWithSnapshot"
 	e.Features.Subscriptions = subscription.List{
