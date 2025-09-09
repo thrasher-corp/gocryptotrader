@@ -2577,13 +2577,6 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		Asset:           asset.USDTMarginedFutures,
 		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
 		PaymentCurrency: currency.USDT,
-	})
-	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
-
-	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
-		Asset:           asset.USDTMarginedFutures,
-		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
-		PaymentCurrency: currency.USDT,
 		StartDate:       time.Now().Add(time.Hour * 16),
 		EndDate:         time.Now(),
 	})

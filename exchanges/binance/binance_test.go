@@ -2759,16 +2759,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
-	_, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
-		Asset:           asset.USDTMarginedFutures,
-		Pair:            currency.NewBTCUSDT(),
-		StartDate:       start,
-		EndDate:         end,
-		IncludePayments: true,
-	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
-	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+	_, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
 		Pair:            currency.NewBTCUSDT(),
 		StartDate:       start,
@@ -2805,13 +2797,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewBTCUSDT()
-	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset: asset.USDTMarginedFutures,
-		Pair:  cp,
-	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
-
-	err = e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
+	err := e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
 	require.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
 		"EnablePair for asset %s and pair %s must not error: %s", asset.USDTMarginedFutures, cp, err)
 
