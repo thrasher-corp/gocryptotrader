@@ -80,29 +80,29 @@ func TestFlagsFromStruct(t *testing.T) {
 
 func TestUnmarshalCLIFields(t *testing.T) {
 	t.Parallel()
-	// FlagsFromStringNew
 	type SampleTest struct {
 		Exchange      string `name:"exchange"        required:"t"`
-		OrderID       string `name:"order_id"        required:"true"`
+		OrderID       int64  `name:"order_id"        required:"true"`
 		ClientOrderID string `name:"client_order_id"`
 		PostOnly      bool   `name:"post_only"`
 		ReduceOnly    bool   `name:"reduce_only"`
 	}
-	sample1 := &SampleTest{Exchange: "Okx", OrderID: "1234", ClientOrderID: "5678", PostOnly: true}
 
-	target := &SampleTest{}
-	flags := FlagsFromStruct(target)
+	flags := FlagsFromStruct(&SampleTest{Exchange: "Okx", OrderID: 1234, ClientOrderID: "5678", PostOnly: true})
 
+	var target SampleTest
 	app := &cli.App{
 		Flags: flags,
 		Action: func(ctx *cli.Context) error {
-			return UnmarshalCLIFields(ctx, target)
+			return UnmarshalCLIFields(ctx, &target)
 		},
 	}
 	err := app.Run([]string{"test", "-exchange", "", "-order_id", "1234", "-client_order_id", "5678"})
 	require.ErrorIs(t, err, ErrRequiredValueMissing)
 
-	err = app.Run([]string{"test", "-exchange", "Okx", "-order_id", "1234", "-client_order_id", "5678", "-post_only", "true"})
+	err = app.Run([]string{"test", "-exchange", "Okx", "-order_id", "4321", "-client_order_id", "9012", "-post_only", "true"})
 	require.NoError(t, err)
-	assert.Equal(t, *sample1, *target)
+	assert.Equal(t,
+		SampleTest{Exchange: "Okx", OrderID: 4321, ClientOrderID: "9012", PostOnly: true},
+		target)
 }
