@@ -1561,6 +1561,8 @@ func (e *Exchange) formatPairString(assetType asset.Item, pair currency.Pair) st
 		return e.formatFuturesTradablePair(pair)
 	case asset.Options:
 		return e.optionPairToString(pair)
+	case asset.OptionCombo:
+		return e.optionComboPairToString(pair)
 	}
 	return pair.String()
 }

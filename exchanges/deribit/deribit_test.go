@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -558,12 +559,14 @@ func TestWSRetrieveInstrumentData(t *testing.T) {
 	t.Parallel()
 	_, err := e.WSRetrieveInstrumentData(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidInstrumentName)
-
 	var result *InstrumentData
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err = e.WSRetrieveInstrumentData(t.Context(), e.formatPairString(assetType, cp))
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		t.Run(fmt.Sprintf("%s %s", assetType, cp), func(t *testing.T) {
+			t.Parallel()
+			result, err = e.WSRetrieveInstrumentData(request.WithVerbose(t.Context()), e.formatPairString(assetType, cp))
+			require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
+			require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		})
 	}
 }
 
