@@ -1716,7 +1716,7 @@ func (e *Exchange) subscribeToChan(ctx context.Context, subs subscription.List) 
 
 	// subId is a single round-trip identifier that provides linking sub requests to chanIDs
 	// Although docs only mention subId for wsBookChannel, it works for all chans
-	subID := strconv.FormatInt(e.Websocket.Conn.GenerateMessageID(false), 10)
+	subID := e.MessageID()
 	req["subId"] = subID
 
 	// Add a temporary Key so we can find this Sub when we get the resp without delay or context switch
@@ -1829,7 +1829,7 @@ func (e *Exchange) WsSendAuth(ctx context.Context) error {
 
 // WsNewOrder authenticated new order request
 func (e *Exchange) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (string, error) {
-	data.CustomID = e.Websocket.AuthConn.GenerateMessageID(false)
+	data.CustomID = e.MessageSequence()
 	req := makeRequestInterface(wsOrderNew, data)
 	resp, err := e.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, data.CustomID, req)
 	if err != nil {
