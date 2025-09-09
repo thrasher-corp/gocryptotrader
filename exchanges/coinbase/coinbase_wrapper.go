@@ -38,7 +38,6 @@ func (e *Exchange) SetDefaults() {
 	e.Enabled = true
 	e.API.CredentialsValidator.RequiresKey = true
 	e.API.CredentialsValidator.RequiresSecret = true
-	e.API.CredentialsValidator.RequiresBase64DecodeSecret = false
 	requestFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	err := e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Futures)
@@ -315,13 +314,13 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	for i := range aliases {
 		isEnabled, err := e.CurrencyPairs.IsPairEnabled(aliases[i], assetType)
 		if err != nil {
-			errs = fmt.Errorf("%v %v", errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		if isEnabled {
 			book.Pair = aliases[i]
 			if err := book.Process(); err != nil {
-				errs = fmt.Errorf("%v %v", errs, err)
+				errs = common.AppendError(errs, err)
 				continue
 			}
 			validPairs = append(validPairs, book.Pair)
@@ -753,8 +752,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 	var respOrders []GetOrderResponse
-	ordStatus := []string{"OPEN"}
-	if respOrders, err = e.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), ordStatus, 1000, req.StartTime, req.EndTime); err != nil {
+	if respOrders, err = e.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), openStatus, 1000, req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
 	orders := make([]order.Detail, len(respOrders))

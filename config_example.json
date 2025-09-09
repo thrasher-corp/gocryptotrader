@@ -1270,7 +1270,7 @@
      "requiresBase64DecodeSecret": true
     },
     "urlEndpoints": {
-     "RestSandboxURL": "https://api-public.sandbox.exchange.coinbase.com/",
+     "RestSandboxURL": "https://api-sandbox.coinbase.com",
      "RestSpotURL": "https://api.coinbase.com",
      "WebsocketSpotURL": "wss://advanced-trade-ws.coinbase.com"
     }

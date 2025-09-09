@@ -2,12 +2,10 @@ package coinbase
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
-	"strings"
 	"text/template"
 	"time"
 
@@ -578,15 +576,6 @@ func strategyDecoder(str string) (tif order.TimeInForce, err error) {
 	default:
 		return order.UnknownTIF, fmt.Errorf("%w %v", errUnrecognisedStrategyType, str)
 	}
-}
-
-// Base64URLEncode is a helper function that does some tweaks to standard Base64 encoding, in a way which JWT requires
-func base64URLEncode(b []byte) string {
-	s := base64.StdEncoding.EncodeToString(b)
-	s = strings.Split(s, "=")[0]
-	s = strings.ReplaceAll(s, "+", "-")
-	s = strings.ReplaceAll(s, "/", "_")
-	return s
 }
 
 // checkSubscriptions looks for incompatible subscriptions and if found replaces all with defaults

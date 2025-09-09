@@ -78,6 +78,10 @@ const (
 )
 
 func TestMain(m *testing.M) {
+	err := exchangeBaseHelper(e)
+	if err != nil {
+		log.Fatal(err)
+	}
 	if testingInSandbox {
 		err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 			exchange.RestSpot: sandboxAPIURL,
@@ -85,10 +89,6 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatal("failed to set sandbox endpoint", err)
 		}
-	}
-	err := exchangeBaseHelper(e)
-	if err != nil {
-		log.Fatal(err)
 	}
 	os.Exit(m.Run())
 }
@@ -1841,12 +1841,6 @@ func TestStrategyDecoder(t *testing.T) {
 	assert.True(t, resp.Is(order.GoodTillDay|order.GoodTillTime))
 	_, err := strategyDecoder("")
 	assert.ErrorIs(t, err, errUnrecognisedStrategyType)
-}
-
-func TestBase64URLEncode(t *testing.T) {
-	t.Parallel()
-	resp := base64URLEncode([]byte{byte(252), byte(253), byte(254), byte(255)})
-	assert.Equal(t, "_P3-_w", resp)
 }
 
 func TestProcessFundingData(t *testing.T) {
