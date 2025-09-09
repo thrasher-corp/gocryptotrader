@@ -3139,7 +3139,8 @@ var findMissingSavedCandleIntervalsCommand = &cli.Command{
 	Flags: FlagsFromStruct(&FindMissingSavedCandleIntervalsParams{
 		Interval: 86400,
 		Start:    time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
-		End:      time.Now().Truncate(time.Hour).Format(time.DateTime)}),
+		End:      time.Now().Truncate(time.Hour).Format(time.DateTime),
+	}),
 }
 
 func findMissingSavedCandleIntervals(c *cli.Context) error {
@@ -3395,7 +3396,6 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 				if c.IsSet(flagNames[n]) {
 					value = c.Float64(flagNames[n])
 				} else if c.Args().Get(i) != "" {
-					// TODO: this line errors even if the field is not required
 					var err error
 					value, err = strconv.ParseFloat(c.Args().Get(i), 64)
 					if err != nil {
@@ -3406,11 +3406,9 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 					break
 				}
 			}
-			// check if the struct field values is initiated
 			if value == 0 && val.Field(i).Float() != 0 {
 				value = val.Field(i).Float()
 			} else if required && value == 0 {
-				// check if the field is required and the value is not provided
 				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
 			}
 			val.Field(i).SetFloat(value)
@@ -3430,11 +3428,9 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 					break
 				}
 			}
-			// check if the struct field values is initiated
 			if !value && val.Field(i).Bool() {
 				value = val.Field(i).Bool()
 			} else if required && !value {
-				// check if the field is required and the value is not provided
 				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
 			}
 			val.Field(i).SetBool(value)
@@ -3454,11 +3450,9 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 					break
 				}
 			}
-			// check if the struct field values is initiated
 			if value == 0 && val.Field(i).Int() != 0 {
 				value = val.Field(i).Int()
 			} else if required && value == 0 {
-				// check if the field is required and the value is not provided
 				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
 			}
 			val.Field(i).SetInt(value)
