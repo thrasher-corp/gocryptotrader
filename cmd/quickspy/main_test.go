@@ -169,7 +169,7 @@ func TestParseFlags_Success(t *testing.T) {
 	origArgs := os.Args
 	defer func() { os.Args = origArgs }()
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	os.Args = []string{"quickspy", "--exchange", "BiNaNcE", "--asset", "spot", "--currencyPair", "ETH-BTC", "--focusType", "ticker", "--poll", "10s", "--wsDataTimeout", "45s", "--book-levels", "20", "--json"}
+	os.Args = []string{"quickspy", "--exchange", "BiNaNcE", "--asset", "spot", "--currencyPair", "ETH-BTC", "--focusType", "ticker", "--poll", "10s", "--book-levels", "20", "--json"}
 	cfg := parseFlags()
 	require.Equal(t, "binance", cfg.Exchange)
 	require.Equal(t, asset.Spot, cfg.Asset)
