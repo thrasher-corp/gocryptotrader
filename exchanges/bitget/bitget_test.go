@@ -69,10 +69,8 @@ var (
 
 // Developer-defined constants to aid testing
 const (
-	ordersNotFound                     = "Orders not found"
 	skipTestSubAccNotFound             = "appropriate sub-account (equals %v, not equals %v) not found, skipping"
 	skipInsufficientAPIKeysFound       = "insufficient API keys found, skipping"
-	skipInsufficientBalance            = "insufficient balance to place order, skipping"
 	skipInsufficientOrders             = "insufficient orders found, skipping"
 	skipInsufficientRiskUnits          = "insufficient risk units found, skipping"
 	skipInstitution                    = "this endpoint requires IDs tailored to an institution, so it can't be automatically tested, skipping"
