@@ -3,10 +3,15 @@ package coinbase
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,7 +19,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/golang-jwt/jwt"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -113,9 +117,7 @@ const (
 
 var (
 	errAccountIDEmpty           = errors.New("account id cannot be empty")
-	errClientOrderIDEmpty       = errors.New("client order id cannot be empty")
 	errProductIDEmpty           = errors.New("product id cannot be empty")
-	errOrderIDEmpty             = errors.New("order ids cannot be empty")
 	errCancelLimitExceeded      = errors.New("100 order cancel limit exceeded")
 	errSizeAndPriceZero         = errors.New("size and price cannot both be 0")
 	errCurrWalletConflict       = errors.New("exactly one of walletID and currency must be specified")
@@ -146,7 +148,6 @@ var (
 	errEndpointPathInvalid      = errors.New("endpoint path invalid, should start with https://")
 	errPairsDisabledOrErrored   = errors.New("pairs are either disabled or errored")
 	errDateLabelEmpty           = errors.New("date label cannot be empty")
-	errParamValuesNil           = errors.New("param values cannot be nil")
 	errMarginProfileTypeEmpty   = errors.New("margin profile type cannot be empty")
 	errSettingEmpty             = errors.New("setting cannot be empty")
 	errUnknownTransferType      = errors.New("unknown transfer type")
@@ -188,8 +189,8 @@ func (e *Exchange) ListAccounts(ctx context.Context, limit uint8, cursor int64) 
 	if cursor != 0 {
 		vals.Set("cursor", strconv.FormatInt(cursor, 10))
 	}
-	var resp AllAccountsResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+accountsPath, vals, nil, true, &resp)
+	var resp *AllAccountsResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+accountsPath, vals, nil, true, &resp)
 }
 
 // CommitConvertTrade commits a conversion between two currencies, using the trade_id returned from CreateConvertQuote
@@ -248,22 +249,21 @@ func (e *Exchange) GetPermissions(ctx context.Context) (*PermissionsResponse, er
 
 // GetTransactionSummary returns a summary of transactions with fee tiers, total volume, and fees
 func (e *Exchange) GetTransactionSummary(ctx context.Context, startDate, endDate time.Time, productVenue, productType, contractExpiryType string) (*TransactionSummary, error) {
-	var params Params
-	params.Values = url.Values{}
-	if err := params.encodeDateRange(startDate, endDate, startDateString, endDateString); err != nil {
+	vals, err := encodeDateRange(startDate, endDate, startDateString, endDateString)
+	if err != nil {
 		return nil, err
 	}
 	if contractExpiryType != "" {
-		params.Values.Set("contract_expiry_type", contractExpiryType)
+		vals.Set("contract_expiry_type", contractExpiryType)
 	}
 	if productType != "" {
-		params.Values.Set("product_type", productType)
+		vals.Set("product_type", productType)
 	}
 	if productVenue != "" {
-		params.Values.Set("product_venue", productVenue)
+		vals.Set("product_venue", productVenue)
 	}
-	var resp TransactionSummary
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+transactionSummaryPath, params.Values, nil, true, &resp)
+	var resp *TransactionSummary
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+transactionSummaryPath, vals, nil, true, &resp)
 }
 
 // CancelPendingFuturesSweep cancels a pending sweep request
@@ -283,8 +283,8 @@ func (e *Exchange) GetCurrentMarginWindow(ctx context.Context, marginProfileType
 		vals.Set("margin_profile_type", marginProfileType)
 	}
 	path := v3Path + futuresPath + "/" + intradayPath + "/" + currentMarginWindowPath
-	var resp CurrentMarginWindow
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
+	var resp *CurrentMarginWindow
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
 }
 
 // GetFuturesBalanceSummary returns information on balances related to Coinbase Financial Markets futures trading
@@ -354,7 +354,7 @@ func (e *Exchange) SetIntradayMarginSetting(ctx context.Context, setting string)
 // CancelOrders cancels orders by orderID. Can only cancel 100 orders per request
 func (e *Exchange) CancelOrders(ctx context.Context, orderIDs []string) ([]OrderCancelDetail, error) {
 	if len(orderIDs) == 0 {
-		return nil, errOrderIDEmpty
+		return nil, order.ErrOrderIDNotSet
 	}
 	if len(orderIDs) > 100 {
 		return nil, errCancelLimitExceeded
@@ -369,7 +369,7 @@ func (e *Exchange) CancelOrders(ctx context.Context, orderIDs []string) ([]Order
 // ClosePosition closes a position by client order ID, product ID, and size
 func (e *Exchange) ClosePosition(ctx context.Context, clientOrderID string, productID currency.Pair, size float64) (*SuccessFailureConfig, error) {
 	if clientOrderID == "" {
-		return nil, errClientOrderIDEmpty
+		return nil, order.ErrClientOrderIDMustBeSet
 	}
 	if productID.IsEmpty() {
 		return nil, errProductIDEmpty
@@ -383,14 +383,14 @@ func (e *Exchange) ClosePosition(ctx context.Context, clientOrderID string, prod
 		ProductID:     productID,
 		Size:          size,
 	}
-	var resp SuccessFailureConfig
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+	var resp *SuccessFailureConfig
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
 // PlaceOrder places either a limit, market, or stop order
 func (e *Exchange) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*SuccessFailureConfig, error) {
 	if ord.ClientOID == "" {
-		return nil, errClientOrderIDEmpty
+		return nil, order.ErrClientOrderIDMustBeSet
 	}
 	if ord.ProductID == "" {
 		return nil, errProductIDEmpty
@@ -415,15 +415,14 @@ func (e *Exchange) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*Succes
 	if ord.Leverage != 1 {
 		req.Leverage = ord.Leverage
 	}
-	var resp SuccessFailureConfig
-	return &resp,
-		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, v3Path+ordersPath, nil, req, true, &resp)
+	var resp *SuccessFailureConfig
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, v3Path+ordersPath, nil, req, true, &resp)
 }
 
 // EditOrder edits an order to a new size or price. Only limit orders with a good-till-cancelled time in force can be edited
 func (e *Exchange) EditOrder(ctx context.Context, orderID string, size, price float64) (bool, error) {
 	if orderID == "" {
-		return false, errOrderIDEmpty
+		return false, order.ErrOrderIDNotSet
 	}
 	if size <= 0 && price <= 0 {
 		return false, errSizeAndPriceZero
@@ -441,7 +440,7 @@ func (e *Exchange) EditOrder(ctx context.Context, orderID string, size, price fl
 // EditOrderPreview simulates an edit order request, to preview the result. Only limit orders with a good-till-cancelled time in force can be edited.
 func (e *Exchange) EditOrderPreview(ctx context.Context, orderID string, size, price float64) (*EditOrderPreviewResp, error) {
 	if orderID == "" {
-		return nil, errOrderIDEmpty
+		return nil, order.ErrOrderIDNotSet
 	}
 	if size <= 0 && price <= 0 {
 		return nil, errSizeAndPriceZero
@@ -459,7 +458,7 @@ func (e *Exchange) EditOrderPreview(ctx context.Context, orderID string, size, p
 // GetOrderByID returns a single order by order id.
 func (e *Exchange) GetOrderByID(ctx context.Context, orderID, clientOID string, userNativeCurrency currency.Code) (*GetOrderResponse, error) {
 	if orderID == "" {
-		return nil, errOrderIDEmpty
+		return nil, order.ErrOrderIDNotSet
 	}
 	vals := url.Values{}
 	if clientOID != "" {
@@ -477,77 +476,75 @@ func (e *Exchange) GetOrderByID(ctx context.Context, orderID, clientOID string, 
 
 // ListFills returns information on recent order fills
 func (e *Exchange) ListFills(ctx context.Context, orderIDs, tradeIDs []string, productIDs currency.Pairs, cursor int64, sortBy string, startDate, endDate time.Time, limit uint16) (*FillResponse, error) {
-	var params Params
-	params.Values = url.Values{}
-	if err := params.encodeDateRange(startDate, endDate, "start_sequence_timestamp", "end_sequence_timestamp"); err != nil {
+	vals, err := encodeDateRange(startDate, endDate, "start_sequence_timestamp", "end_sequence_timestamp")
+	if err != nil {
 		return nil, err
 	}
 	for i := range orderIDs {
-		params.Values.Add("order_ids", orderIDs[i])
+		vals.Add("order_ids", orderIDs[i])
 	}
 	for i := range tradeIDs {
-		params.Values.Add("trade_ids", tradeIDs[i])
+		vals.Add("trade_ids", tradeIDs[i])
 	}
 	for i := range productIDs {
-		params.Values.Add("product_ids", productIDs[i].String())
+		vals.Add("product_ids", productIDs[i].String())
 	}
-	params.Values.Set("limit", strconv.FormatInt(int64(limit), 10))
-	params.Values.Set("cursor", strconv.FormatInt(cursor, 10))
+	vals.Set("limit", strconv.FormatInt(int64(limit), 10))
+	vals.Set("cursor", strconv.FormatInt(cursor, 10))
 	if sortBy != "" {
-		params.Values.Set("sort_by", sortBy)
+		vals.Set("sort_by", sortBy)
 	}
 	path := v3Path + ordersPath + "/" + historicalPath + "/" + fillsPath
-	var resp FillResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
+	var resp *FillResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
 }
 
 // ListOrders lists orders, filtered by their status
 func (e *Exchange) ListOrders(ctx context.Context, req *ListOrdersReq) (*ListOrdersResp, error) {
-	var params Params
-	params.Values = make(url.Values)
-	if err := params.encodeDateRange(req.StartDate, req.EndDate, startDateString, endDateString); err != nil {
+	vals, err := encodeDateRange(req.StartDate, req.EndDate, startDateString, endDateString)
+	if err != nil {
 		return nil, err
 	}
 	for x := range req.OrderStatus {
-		params.Values.Add("order_status", req.OrderStatus[x])
+		vals.Add("order_status", req.OrderStatus[x])
 	}
 	for x := range req.OrderIDs {
-		params.Values.Add("order_ids", req.OrderIDs[x])
+		vals.Add("order_ids", req.OrderIDs[x])
 	}
 	for x := range req.TimeInForces {
-		params.Values.Add("time_in_forces", req.TimeInForces[x])
+		vals.Add("time_in_forces", req.TimeInForces[x])
 	}
 	for x := range req.OrderTypes {
-		params.Values.Add("order_types", req.OrderTypes[x])
+		vals.Add("order_types", req.OrderTypes[x])
 	}
 	for x := range req.AssetFilters {
-		params.Values.Add("asset_filters", req.AssetFilters[x])
+		vals.Add("asset_filters", req.AssetFilters[x])
 	}
 	for x := range req.ProductIDs {
-		params.Values.Add("product_ids", req.ProductIDs[x].String())
+		vals.Add("product_ids", req.ProductIDs[x].String())
 	}
 	if req.ProductType != "" {
-		params.Values.Set("product_type", req.ProductType)
+		vals.Set("product_type", req.ProductType)
 	}
 	if req.OrderSide != "" {
-		params.Values.Set("order_side", req.OrderSide)
+		vals.Set("order_side", req.OrderSide)
 	}
 	if req.OrderPlacementSource != "" {
-		params.Values.Set("order_placement_source", req.OrderPlacementSource)
+		vals.Set("order_placement_source", req.OrderPlacementSource)
 	}
 	if req.ContractExpiryType != "" {
-		params.Values.Set("contract_expiry_type", req.ContractExpiryType)
+		vals.Set("contract_expiry_type", req.ContractExpiryType)
 	}
 	if req.SortBy != "" {
-		params.Values.Set("sort_by", req.SortBy)
+		vals.Set("sort_by", req.SortBy)
 	}
-	params.Values.Set("cursor", strconv.FormatInt(req.Cursor, 10))
-	params.Values.Set("limit", strconv.FormatInt(int64(req.Limit), 10))
-	params.Values.Set("user_native_currency", req.UserNativeCurrency.String())
-	params.Values.Set("retail_portfolio_id", req.RetailPortfolioID) // deprecated and only works for legacy API keys
+	vals.Set("cursor", strconv.FormatInt(req.Cursor, 10))
+	vals.Set("limit", strconv.FormatInt(int64(req.Limit), 10))
+	vals.Set("user_native_currency", req.UserNativeCurrency.String())
+	vals.Set("retail_portfolio_id", req.RetailPortfolioID) // deprecated and only works for legacy API keys
 	path := v3Path + ordersPath + "/" + historicalPath + "/" + batchPath
-	var resp ListOrdersResp
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
+	var resp *ListOrdersResp
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
 }
 
 // PreviewOrder simulates the results of an order request
@@ -787,13 +784,13 @@ func (e *Exchange) GetTicker(ctx context.Context, productID currency.Pair, limit
 	if !endDate.IsZero() && !endDate.Equal(time.Time{}) {
 		vals.Set("end", strconv.FormatInt(endDate.Unix(), 10))
 	}
-	var resp Ticker
+	var resp *Ticker
 	if authenticated {
 		path := v3Path + productsPath + "/" + productID.String() + "/" + tickerPath
-		return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
+		return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
 	}
 	path := v3Path + marketPath + "/" + productsPath + "/" + productID.String() + "/" + tickerPath
-	return &resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // GetProductByID returns information on a single specified currency pair
@@ -801,13 +798,13 @@ func (e *Exchange) GetProductByID(ctx context.Context, productID currency.Pair, 
 	if productID.IsEmpty() {
 		return nil, errProductIDEmpty
 	}
-	var resp Product
+	var resp *Product
 	if authenticated {
 		path := v3Path + productsPath + "/" + productID.String()
-		return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+		return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 	}
 	path := v3Path + marketPath + "/" + productsPath + "/" + productID.String()
-	return &resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
 // GetProductBookV3 returns a list of bids/asks for a single product
@@ -832,7 +829,7 @@ func (e *Exchange) GetProductBookV3(ctx context.Context, productID currency.Pair
 }
 
 // GetHistoricKlines returns historic candles for a product. Candles are returned in grouped buckets based on requested granularity. Requests that return more than 300 data points are rejected
-func (e *Exchange) GetHistoricKlines(ctx context.Context, productID string, granularity kline.Interval, startDate, endDate time.Time, authenticated bool) ([]Klines, error) {
+func (e *Exchange) GetHistoricKlines(ctx context.Context, productID string, granularity kline.Interval, startDate, endDate time.Time, authenticated bool) ([]kline.Candle, error) {
 	if productID == "" {
 		return nil, errProductIDEmpty
 	}
@@ -847,12 +844,29 @@ func (e *Exchange) GetHistoricKlines(ctx context.Context, productID string, gran
 	resp := struct {
 		Candles []Klines `json:"candles"`
 	}{}
+	var err error
 	if authenticated {
 		path := v3Path + productsPath + "/" + productID + "/" + candlesPath
-		return resp.Candles, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
+		err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
+	} else {
+		path := v3Path + marketPath + "/" + productsPath + "/" + productID + "/" + candlesPath
+		err = e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 	}
-	path := v3Path + marketPath + "/" + productsPath + "/" + productID + "/" + candlesPath
-	return resp.Candles, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
+	if err != nil {
+		return nil, err
+	}
+	timeSeries := make([]kline.Candle, len(resp.Candles))
+	for x := range resp.Candles {
+		timeSeries[x] = kline.Candle{
+			Time:   resp.Candles[x].Start.Time(),
+			Low:    resp.Candles[x].Low.Float64(),
+			High:   resp.Candles[x].High.Float64(),
+			Open:   resp.Candles[x].Open.Float64(),
+			Close:  resp.Candles[x].Close.Float64(),
+			Volume: resp.Candles[x].Volume.Float64(),
+		}
+	}
+	return timeSeries, nil
 }
 
 // GetAllProducts returns information on all currency pairs that are available for trading
@@ -881,31 +895,18 @@ func (e *Exchange) GetAllProducts(ctx context.Context, limit, offset int32, prod
 	}
 	vals.Set("get_tradability_status", strconv.FormatBool(getTradabilityStatus))
 	vals.Set("get_all_products", strconv.FormatBool(getAllProducts))
-	var resp AllProducts
+	var resp *AllProducts
 	if authenticated {
-		return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+productsPath, vals, nil, true, &resp)
+		return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v3Path+productsPath, vals, nil, true, &resp)
 	}
 	path := v3Path + marketPath + "/" + productsPath
-	return &resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // GetV3Time returns the current server time, calling V3 of the API
 func (e *Exchange) GetV3Time(ctx context.Context) (*ServerTimeV3, error) {
 	var resp *ServerTimeV3
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, v3Path+timePath, nil, &resp)
-}
-
-type sendMoneyReqBase struct {
-	Type              string        `json:"type"`
-	To                string        `json:"to"`
-	Amount            float64       `json:"amount,string"`
-	Currency          currency.Code `json:"currency"`
-	Description       string        `json:"description"`
-	SkipNotifications bool          `json:"skip_notifications"`
-	Idem              string        `json:"idem"`
-	DestinationTag    string        `json:"destination_tag"`
-	Network           string        `json:"network"`
-	TravelRuleData    *TravelRule   `json:"travel_rule_data"`
 }
 
 // SendMoney can send funds to an email or cryptocurrency address (if "traType" is set to "send"), or to another one of the user's wallets or vaults (if "traType" is set to "transfer"). Coinbase may delay or cancel the transaction at their discretion. The "idem" parameter is an optional string for idempotency; a token with a max length of 100 characters, if a previous transaction included the same token as a parameter, the new transaction won't be processed, and information on the previous transaction will be returned instead
@@ -962,13 +963,9 @@ func (e *Exchange) GetAllAddresses(ctx context.Context, walletID string, pag Pag
 		return nil, errWalletIDEmpty
 	}
 	path := v2Path + accountsPath + "/" + walletID + "/" + addressesPath
-	var params Params
-	params.Values = url.Values{}
-	if err := params.encodePagination(pag); err != nil {
-		return nil, err
-	}
+	vals := encodePagination(pag)
 	var resp *GetAllAddrResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, false, &resp)
 }
 
 // GetAddressByID returns information on a single address associated with the specified wallet
@@ -995,20 +992,9 @@ func (e *Exchange) GetAddressTransactions(ctx context.Context, walletID, address
 		return nil, errAddressIDEmpty
 	}
 	path := v2Path + accountsPath + "/" + walletID + "/" + addressesPath + "/" + addressID + "/" + transactionsPath
-	var params Params
-	params.Values = url.Values{}
-	if err := params.encodePagination(pag); err != nil {
-		return nil, err
-	}
+	vals := encodePagination(pag)
 	var resp *ManyTransactionsResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
-}
-
-type fiatTransferReqBase struct {
-	Currency      string  `json:"currency"`
-	PaymentMethod string  `json:"payment_method"`
-	Amount        float64 `json:"amount,string"`
-	Commit        bool    `json:"commit"`
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, false, &resp)
 }
 
 // FiatTransfer prepares and optionally processes a transfer of funds between the exchange and a fiat payment method. "Deposit" signifies funds going from exchange to bank, "withdraw" signifies funds going from bank to exchange
@@ -1077,16 +1063,9 @@ func (e *Exchange) GetAllFiatTransfers(ctx context.Context, walletID string, pag
 	case FiatWithdrawal:
 		path = v2Path + accountsPath + "/" + walletID + "/" + withdrawalsPath
 	}
-	var params Params
-	params.Values = url.Values{}
-	if err := params.encodePagination(pag); err != nil {
-		return nil, err
-	}
+	vals := encodePagination(pag)
 	var resp *ManyDeposWithdrResp
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, false, &resp)
 }
 
 // GetFiatTransferByID returns information on a single deposit/withdrawal associated with the specified wallet
@@ -1112,13 +1091,9 @@ func (e *Exchange) GetFiatTransferByID(ctx context.Context, walletID, depositID 
 
 // GetAllWallets lists all accounts associated with the API key
 func (e *Exchange) GetAllWallets(ctx context.Context, pag PaginationInp) (*GetAllWalletsResponse, error) {
+	vals := encodePagination(pag)
 	var resp *GetAllWalletsResponse
-	var params Params
-	params.Values = url.Values{}
-	if err := params.encodePagination(pag); err != nil {
-		return nil, err
-	}
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v2Path+accountsPath, params.Values, nil, false, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v2Path+accountsPath, vals, nil, false, &resp)
 }
 
 // GetWalletByID returns information about a single wallet. In lieu of a wallet ID, a currency can be provided to get the primary account for that currency
@@ -1144,14 +1119,10 @@ func (e *Exchange) GetAllTransactions(ctx context.Context, walletID string, pag 
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
+	vals := encodePagination(pag)
 	path := v2Path + accountsPath + "/" + walletID + "/" + transactionsPath
-	var params Params
-	params.Values = url.Values{}
-	if err := params.encodePagination(pag); err != nil {
-		return nil, err
-	}
 	var resp *ManyTransactionsResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, false, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, false, &resp)
 }
 
 // GetTransactionByID returns information on a single transaction associated with the specified wallet
@@ -1287,17 +1258,16 @@ func (e *Exchange) GetProductCandles(ctx context.Context, pair string, granulari
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = url.Values{}
-	if err := params.encodeDateRange(startTime, endTime, "start", "end"); err != nil {
+	vals, err := encodeDateRange(startTime, endTime, "start", "end")
+	if err != nil {
 		return nil, err
 	}
 	if granularity != 0 {
-		params.Values.Set("granularity", strconv.FormatUint(uint64(granularity), 10))
+		vals.Set("granularity", strconv.FormatUint(uint64(granularity), 10))
 	}
 	path := productsPath + "/" + pair + "/" + candlesPath
 	var resp []Candle
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, params.Values, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, vals, &resp)
 }
 
 // GetProductStats returns information on a specific pair's price and volume
@@ -1483,45 +1453,50 @@ func (e *Exchange) GetJWT(ctx context.Context, uri string) (string, time.Time, e
 	if err != nil {
 		return "", time.Time{}, err
 	}
+	head := map[string]any{
+		"kid":   creds.Key,
+		"typ":   "JWT",
+		"alg":   "ES256",
+		"nonce": nonce,
+	}
+	headJSON, err := json.Marshal(head)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	headEnc := base64.RawURLEncoding.EncodeToString(headJSON)
 	regTime := time.Now()
-	mapClaims := jwt.MapClaims{
+	body := map[string]any{
 		"iss": "cdp",
 		"nbf": regTime.Unix(),
-		"exp": regTime.Add(time.Minute * 2).Unix(),
+		"exp": regTime.Add(2 * time.Minute).Unix(),
 		"sub": creds.Key,
 	}
 	if uri != "" {
-		mapClaims["uri"] = uri
+		body["uri"] = uri
 	}
-	tok := jwt.NewWithClaims(jwt.SigningMethodES256, mapClaims)
-	tok.Header["kid"] = creds.Key
-	tok.Header["nonce"] = nonce
-	sign, err := tok.SignedString(privateKey)
-	return sign, regTime.Add(time.Minute * 2), err
-	// The code below mostly works, but seems to lead to bad results on the signature step. Deferring until later
-	// head := map[string]any{"kid": creds.Key, "typ": "JWT", "alg": "ES256", "nonce": nonce}
-	// headJSON, err := json.Marshal(head)
-	// if err != nil {
-	// 	return "", time.Time{}, err
-	// }
-	// headEncode := base64URLEncode(headJSON)
-	// regTime := time.Now()
-	// body := map[string]any{"iss": "cdp", "nbf": regTime.Unix(), "exp": regTime.Add(time.Minute * 2).Unix(), "sub": creds.Key /*, "aud": "retail_rest_api_proxy"*/}
-	// if uri != "" {
-	// 	body["uri"] = uri
-	// }
-	// bodyJSON, err := json.Marshal(body)
-	// if err != nil {
-	// 	return "", time.Time{}, err
-	// }
-	// bodyEncode := base64URLEncode(bodyJSON)
-	// hash := sha256.Sum256([]byte(headEncode + "." + bodyEncode))
-	// sig, err := ecdsa.SignASN1(rand.Reader, key, hash[:])
-	// if err != nil {
-	// 	return "", time.Time{}, err
-	// }
-	// sigEncode := base64URLEncode(sig)
-	// return headEncode + "." + bodyEncode + "." + sigEncode, regTime.Add(time.Minute * 2), nil
+	bodyJSON, err := json.Marshal(body)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	bodyEnc := base64.RawURLEncoding.EncodeToString(bodyJSON)
+	signingInput := headEnc + "." + bodyEnc
+	hash := sha256.Sum256([]byte(signingInput))
+	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash[:])
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	n := privateKey.Params().N
+	halfN := new(big.Int).Rsh(n, 1)
+	if s.Cmp(halfN) == 1 {
+		s.Sub(n, s)
+	}
+	rb := r.Bytes()
+	sb := s.Bytes()
+	sig := make([]byte, 64)
+	copy(sig[32-len(rb):32], rb)
+	copy(sig[64-len(sb):], sb)
+	sigEnc := base64.RawURLEncoding.EncodeToString(sig)
+	return signingInput + "." + sigEnc, regTime.Add(2 * time.Minute), nil
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -1579,43 +1554,39 @@ func isStablePair(pair currency.Pair) bool {
 	return stableMap[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item}]
 }
 
-// encodeDateRange encodes a set of parameters indicating start & end dates
-func (p *Params) encodeDateRange(startDate, endDate time.Time, labelStart, labelEnd string) error {
+// encodeDateRange encodes a set of parameters indicating start and end dates
+func encodeDateRange(startDate, endDate time.Time, labelStart, labelEnd string) (url.Values, error) {
+	values := url.Values{}
 	if err := common.StartEndTimeCheck(startDate, endDate); err != nil {
 		if errors.Is(err, common.ErrDateUnset) {
-			return nil
+			return values, nil
 		}
-		return err
+		return nil, err
 	}
 	if labelStart == "" || labelEnd == "" {
-		return errDateLabelEmpty
+		return nil, errDateLabelEmpty
 	}
-	if p.Values == nil {
-		return errParamValuesNil
-	}
-	p.Values.Set(labelStart, startDate.Format(time.RFC3339))
-	p.Values.Set(labelEnd, endDate.Format(time.RFC3339))
-	return nil
+	values.Set(labelStart, startDate.Format(time.RFC3339))
+	values.Set(labelEnd, endDate.Format(time.RFC3339))
+	return values, nil
 }
 
 // encodePagination formats pagination information in the way the exchange expects
-func (p *Params) encodePagination(pag PaginationInp) error {
-	if p.Values == nil {
-		return errParamValuesNil
-	}
+func encodePagination(pag PaginationInp) url.Values {
+	values := url.Values{}
 	if pag.Limit != 0 {
-		p.Values.Set("limit", strconv.FormatInt(int64(pag.Limit), 10))
+		values.Set("limit", strconv.FormatInt(int64(pag.Limit), 10))
 	}
 	if pag.OrderAscend {
-		p.Values.Set("order", "asc")
+		values.Set("order", "asc")
 	}
 	if pag.StartingAfter != "" {
-		p.Values.Set("starting_after", pag.StartingAfter)
+		values.Set("starting_after", pag.StartingAfter)
 	}
 	if pag.EndingBefore != "" {
-		p.Values.Set("ending_before", pag.EndingBefore)
+		values.Set("ending_before", pag.EndingBefore)
 	}
-	return nil
+	return values
 }
 
 // createOrderConfig populates the OrderConfiguration struct

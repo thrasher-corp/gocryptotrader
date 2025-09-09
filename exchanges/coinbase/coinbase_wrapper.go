@@ -541,7 +541,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	var status order.CancelBatchResponse
 	ordToCancel := len(o)
 	if ordToCancel == 0 {
-		return nil, errOrderIDEmpty
+		return nil, order.ErrOrderIDNotSet
 	}
 	status.Status = make(map[string]string)
 	ordIDSlice := make([]string, ordToCancel)
@@ -759,7 +759,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	}
 	orders := make([]order.Detail, len(respOrders))
 	for i := range respOrders {
-		orderRec := e.getOrderRespToOrderDetail(&respOrders[i], respOrders[i].ProductID, asset.Spot)
+		orderRec := e.getOrderRespToOrderDetail(&respOrders[i], respOrders[i].ProductID, req.AssetType)
 		orders[i] = *orderRec
 	}
 	if len(req.Pairs) > 1 {
@@ -807,7 +807,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if err != nil {
 		return nil, err
 	}
-	timeSeries, err := e.candleHelper(ctx, req.RequestFormatted.String(), interval, start, end)
+	timeSeries, err := e.GetHistoricKlines(ctx, req.RequestFormatted.String(), interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
@@ -822,7 +822,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	}
 	var timeSeries []kline.Candle
 	for x := range req.RangeHolder.Ranges {
-		hist, err := e.candleHelper(ctx, req.RequestFormatted.String(), interval, req.RangeHolder.Ranges[x].Start.Time.Add(-time.Nanosecond), req.RangeHolder.Ranges[x].End.Time.Add(-time.Nanosecond))
+		hist, err := e.GetHistoricKlines(ctx, req.RequestFormatted.String(), interval, req.RangeHolder.Ranges[x].Start.Time.Add(-time.Nanosecond), req.RangeHolder.Ranges[x].End.Time.Add(-time.Nanosecond), false)
 		if err != nil {
 			return nil, err
 		}
@@ -975,7 +975,7 @@ func (e *Exchange) processFundingData(accHistory []DeposWithdrData, cryptoHistor
 			Status:       accHistory[i].Status,
 			TransferID:   accHistory[i].ID,
 			Timestamp:    accHistory[i].PayoutAt,
-			Currency:     accHistory[i].Amount.Currency,
+			Currency:     accHistory[i].Amount.Currency.String(),
 			Amount:       accHistory[i].Amount.Value.Float64(),
 			Fee:          accHistory[i].TotalFee.Amount.Value.Float64(),
 		}
@@ -1171,26 +1171,6 @@ func (e *Exchange) tickerHelper(ctx context.Context, name currency.Pair, assetTy
 	newTick.Bid = ticks.BestBid.Float64()
 	newTick.Ask = ticks.BestAsk.Float64()
 	return ticker.ProcessTicker(newTick)
-}
-
-// CandleHelper handles calling the candle function, and doing preliminary work on the data
-func (e *Exchange) candleHelper(ctx context.Context, pair string, granularity kline.Interval, start, end time.Time) ([]kline.Candle, error) {
-	history, err := e.GetHistoricKlines(ctx, pair, granularity, start, end, false)
-	if err != nil {
-		return nil, err
-	}
-	timeSeries := make([]kline.Candle, len(history))
-	for x := range history {
-		timeSeries[x] = kline.Candle{
-			Time:   history[x].Start.Time(),
-			Low:    history[x].Low.Float64(),
-			High:   history[x].High.Float64(),
-			Open:   history[x].Open.Float64(),
-			Close:  history[x].Close.Float64(),
-			Volume: history[x].Volume.Float64(),
-		}
-	}
-	return timeSeries, nil
 }
 
 // FormatAssetOutbound formats asset items for outbound requests

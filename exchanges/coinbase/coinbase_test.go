@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -79,7 +78,6 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	e.SetDefaults()
 	if testingInSandbox {
 		err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 			exchange.RestSpot: sandboxAPIURL,
@@ -92,13 +90,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var dialer gws.Dialer
-	err = e.Websocket.Conn.Dial(context.TODO(), &dialer, http.Header{})
-	if err != nil {
-		log.Fatal("Websocket connection error", err)
-	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData()
 	os.Exit(m.Run())
 }
 
@@ -106,7 +97,6 @@ func TestSetup(t *testing.T) {
 	cfg, err := e.GetStandardConfig()
 	assert.NoError(t, err)
 	exch := &Exchange{}
-	exch.SetDefaults()
 	err = exchangeBaseHelper(exch)
 	require.NoError(t, err)
 	cfg.ProxyAddress = string(rune(0x7f))
@@ -115,14 +105,11 @@ func TestSetup(t *testing.T) {
 }
 
 func TestWsConnect(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	exch := &Exchange{}
 	exch.Websocket = sharedtestvalues.NewTestWebsocket()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	err := exch.Websocket.Disable()
-	assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled)
-	err = exch.WsConnect()
+	err := exch.WsConnect()
 	assert.ErrorIs(t, err, websocket.ErrWebsocketNotEnabled)
-	exch.SetDefaults()
 	err = exchangeBaseHelper(exch)
 	require.NoError(t, err)
 	err = exch.Websocket.Enable()
@@ -136,9 +123,7 @@ func TestGetAccountByID(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	longResp, err := e.ListAccounts(t.Context(), 49, 0)
 	assert.NoError(t, err)
-	if longResp == nil || len(longResp.Accounts) == 0 {
-		t.Fatal(errExpectedNonEmpty)
-	}
+	require.True(t, longResp != nil && len(longResp.Accounts) > 0, errExpectedNonEmpty)
 	shortResp, err := e.GetAccountByID(t.Context(), longResp.Accounts[0].UUID)
 	assert.NoError(t, err)
 	if *shortResp != longResp.Accounts[0] {
@@ -265,7 +250,7 @@ func TestCancelOrders(t *testing.T) {
 	t.Parallel()
 	var orderSlice []string
 	_, err := e.CancelOrders(t.Context(), orderSlice)
-	assert.ErrorIs(t, err, errOrderIDEmpty)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	orderSlice = make([]string, 200)
 	for i := range 200 {
 		orderSlice[i] = strconv.Itoa(i)
@@ -282,7 +267,7 @@ func TestCancelOrders(t *testing.T) {
 func TestClosePosition(t *testing.T) {
 	t.Parallel()
 	_, err := e.ClosePosition(t.Context(), "", currency.Pair{}, 0)
-	assert.ErrorIs(t, err, errClientOrderIDEmpty)
+	assert.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
 	_, err = e.ClosePosition(t.Context(), "meow", currency.Pair{}, 0)
 	assert.ErrorIs(t, err, errProductIDEmpty)
 	_, err = e.ClosePosition(t.Context(), "meow", testPairFiat, 0)
@@ -297,7 +282,7 @@ func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
 	ord := &PlaceOrderInfo{}
 	_, err := e.PlaceOrder(t.Context(), ord)
-	assert.ErrorIs(t, err, errClientOrderIDEmpty)
+	assert.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
 	ord.ClientOID = "meow"
 	_, err = e.PlaceOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, errProductIDEmpty)
@@ -340,7 +325,7 @@ func TestPlaceOrder(t *testing.T) {
 func TestEditOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.EditOrder(t.Context(), "", 0, 0)
-	assert.ErrorIs(t, err, errOrderIDEmpty)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = e.EditOrder(t.Context(), "meow", 0, 0)
 	assert.ErrorIs(t, err, errSizeAndPriceZero)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -352,7 +337,7 @@ func TestEditOrder(t *testing.T) {
 func TestEditOrderPreview(t *testing.T) {
 	t.Parallel()
 	_, err := e.EditOrderPreview(t.Context(), "", 0, 0)
-	assert.ErrorIs(t, err, errOrderIDEmpty)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = e.EditOrderPreview(t.Context(), "meow", 0, 0)
 	assert.ErrorIs(t, err, errSizeAndPriceZero)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -364,7 +349,7 @@ func TestEditOrderPreview(t *testing.T) {
 func TestGetOrderByID(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOrderByID(t.Context(), "", "", currency.Code{})
-	assert.ErrorIs(t, err, errOrderIDEmpty)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	ordID, err := e.ListOrders(t.Context(), &ListOrdersReq{Limit: 10})
 	assert.NoError(t, err)
@@ -1272,7 +1257,7 @@ func TestCancelOrder(t *testing.T) {
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelBatchOrders(t.Context(), nil)
-	assert.ErrorIs(t, err, errOrderIDEmpty)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	can := make([]order.Cancel, 1)
 	_, err = e.CancelBatchOrders(t.Context(), can)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
@@ -1712,39 +1697,32 @@ func TestCheckSubscriptions(t *testing.T) {
 func TestGetJWT(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, _, err := e.GetJWT(t.Context(), "")
+	_, _, err := e.GetJWT(t.Context(), "a")
 	assert.NoError(t, err)
 }
 
 func TestEncodeDateRange(t *testing.T) {
 	t.Parallel()
-	var p Params
-	err := p.encodeDateRange(time.Time{}, time.Time{}, "", "")
+	_, err := encodeDateRange(time.Time{}, time.Time{}, "", "")
 	assert.NoError(t, err)
-	err = p.encodeDateRange(time.Unix(1, 1), time.Unix(1, 1), "", "")
+	_, err = encodeDateRange(time.Unix(1, 1), time.Unix(1, 1), "", "")
 	assert.ErrorIs(t, err, common.ErrStartEqualsEnd)
-	err = p.encodeDateRange(time.Unix(1, 1), time.Unix(2, 2), "", "")
+	_, err = encodeDateRange(time.Unix(1, 1), time.Unix(2, 2), "", "")
 	assert.ErrorIs(t, err, errDateLabelEmpty)
-	err = p.encodeDateRange(time.Unix(1, 1), time.Unix(2, 2), "start", "end")
-	assert.ErrorIs(t, err, errParamValuesNil)
-	p.Values = url.Values{}
-	err = p.encodeDateRange(time.Unix(1, 1), time.Unix(2, 2), "start", "end")
+	vals, err := encodeDateRange(time.Unix(1, 1), time.Unix(2, 2), "start", "end")
 	assert.NoError(t, err)
+	assert.NotEmpty(t, vals)
 }
 
 func TestEncodePagination(t *testing.T) {
 	t.Parallel()
-	var p Params
-	err := p.encodePagination(PaginationInp{})
-	assert.ErrorIs(t, err, errParamValuesNil)
-	p.Values = url.Values{}
-	err = p.encodePagination(PaginationInp{
+	vals := encodePagination(PaginationInp{
 		Limit:         1,
 		OrderAscend:   true,
 		StartingAfter: "a",
 		EndingBefore:  "b",
 	})
-	assert.NoError(t, err)
+	assert.NotEmpty(t, vals)
 }
 
 func TestCreateOrderConfig(t *testing.T) {

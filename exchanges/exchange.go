@@ -54,9 +54,9 @@ const (
 
 // Public Errors
 var (
-	ErrSettingProxyAddress   = errors.New("setting proxy address error")
-	ErrEndpointPathNotFound  = errors.New("no endpoint path found for the given key")
-	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+	ErrSettingProxyAddress  = errors.New("error setting proxy address")
+	ErrEndpointPathNotFound = errors.New("no endpoint path found for the given key")
+	ErrSymbolNotMatched     = errors.New("symbol cannot be matched")
 )
 
 var (
@@ -253,7 +253,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.EMPTYPAIR, asset.Empty, ErrSymbolCannotBeMatched
+	return currency.EMPTYPAIR, asset.Empty, ErrSymbolNotMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -698,7 +698,10 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 					diff.Remove)
 			}
 		}
-		// TODO: Add check for nil config etc.
+		err = common.NilGuard(b.Config, b.Config.CurrencyPairs)
+		if err != nil {
+			return err
+		}
 		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
 		if err != nil {
 			return err
