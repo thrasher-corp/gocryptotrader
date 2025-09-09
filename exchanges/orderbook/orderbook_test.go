@@ -329,8 +329,7 @@ func TestProcessOrderbook(t *testing.T) {
 			break
 		}
 		m.Unlock()
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10) //nolint:gosec // no need to import crypo/rand for testing
 			newPairs := currency.NewPair(currency.NewCode("BTC"+strconv.FormatInt(rand.Int63(), 10)),
 				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10))) //nolint:gosec // no need to import crypo/rand for testing
@@ -351,13 +350,11 @@ func TestProcessOrderbook(t *testing.T) {
 				t.Error(err)
 				catastrophicFailure = true
 				m.Unlock()
-				wg.Done()
 				return
 			}
 			testArray = append(testArray, quick{Name: newName, P: newPairs, Bids: bids, Asks: asks})
 			m.Unlock()
-			wg.Done()
-		}()
+		})
 	}
 
 	wg.Wait()

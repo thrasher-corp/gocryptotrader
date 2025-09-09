@@ -641,7 +641,7 @@ type FuturesContract struct {
 	InDelisting           bool         `json:"in_delisting"`
 	RiskLimitBase         string       `json:"risk_limit_base"`
 	InterestRate          string       `json:"interest_rate"`
-	OrderPriceRound       string       `json:"order_price_round"`
+	OrderPriceRound       types.Number `json:"order_price_round"`
 	OrderSizeMin          int64        `json:"order_size_min"`
 	RefRebateRate         string       `json:"ref_rebate_rate"`
 	FundingInterval       int64        `json:"funding_interval"`
@@ -845,7 +845,7 @@ type OptionContract struct {
 	Underlying        string       `json:"underlying"`
 	UnderlyingPrice   types.Number `json:"underlying_price"`
 	Multiplier        string       `json:"multiplier"`
-	OrderPriceRound   string       `json:"order_price_round"`
+	OrderPriceRound   types.Number `json:"order_price_round"`
 	MarkPriceRound    string       `json:"mark_price_round"`
 	MakerFeeRate      string       `json:"maker_fee_rate"`
 	TakerFeeRate      string       `json:"taker_fee_rate"`
@@ -1793,12 +1793,19 @@ type DualModeResponse struct {
 	} `json:"history"`
 }
 
+// number represents a number type for JSON marshaling with zero value as "0"
+type number float64
+
+func (n number) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strconv.FormatFloat(float64(n), 'f', -1, 64) + `"`), nil
+}
+
 // ContractOrderCreateParams represents future order creation parameters
 type ContractOrderCreateParams struct {
 	Contract                  currency.Pair `json:"contract"`
 	Size                      float64       `json:"size"`    // positive long, negative short
 	Iceberg                   int64         `json:"iceberg"` // required; can be zero
-	Price                     string        `json:"price"`   // NOTE: Market orders require string "0"
+	Price                     number        `json:"price"`   // NOTE: Market orders require string "0"
 	TimeInForce               string        `json:"tif"`
 	Text                      string        `json:"text,omitempty"`  // errors when empty; Either populated or omitted
 	ClosePosition             bool          `json:"close,omitempty"` // Size needs to be zero if true

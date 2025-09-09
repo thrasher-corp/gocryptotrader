@@ -333,9 +333,9 @@ func (m *portfolioManager) IsWhiteListed(address string) bool {
 }
 
 // IsExchangeSupported checks if an exchange is supported
-func (m *portfolioManager) IsExchangeSupported(exchange, address string) bool {
+func (m *portfolioManager) IsExchangeSupported(exch, address string) bool {
 	if m == nil || !m.IsRunning() {
 		return false
 	}
-	return m.base.IsExchangeSupported(exchange, address)
+	return m.base.IsExchangeSupported(exch, address)
 }
