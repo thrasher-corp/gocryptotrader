@@ -57,6 +57,10 @@ const (
 
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
+
+	// Used for orderbook resubscription management so as to not compete with margin/cross-margin updates as they use
+	// the same orderbook
+	defaultExclusiveAsset = asset.Spot
 )
 
 var defaultSubscriptions = subscription.List{
@@ -476,16 +480,16 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 			}); err != nil {
 				return err
 			}
-			e.wsOBSubMgr.CompletedResubscribe(pair, asset.Spot) // asset.Spot used so that all pathways don't compete
+			e.wsOBSubMgr.CompletedResubscribe(pair, defaultExclusiveAsset)
 			continue
 		}
 
-		if e.wsOBSubMgr.IsResubscribing(pair, asset.Spot) { // asset.Spot used so that all pathways don't compete
+		if e.wsOBSubMgr.IsResubscribing(pair, defaultExclusiveAsset) {
 			continue // Drop incremental updates; waiting for a fresh snapshot
 		}
 
 		if lastUpdateID, _ := e.Websocket.Orderbook.LastUpdateID(pair, a); lastUpdateID+1 != data.FirstUpdateID {
-			errs = common.AppendError(errs, e.wsOBSubMgr.Resubscribe(e, conn, data.Channel, pair, asset.Spot)) // asset.Spot used so that all pathways don't compete
+			errs = common.AppendError(errs, e.wsOBSubMgr.Resubscribe(e, conn, data.Channel, pair, defaultExclusiveAsset))
 			continue
 		}
 

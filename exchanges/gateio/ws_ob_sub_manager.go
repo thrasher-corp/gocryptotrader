@@ -46,6 +46,7 @@ func (m *wsSubscriptionManager) Resubscribe(e *Exchange, conn websocket.Connecti
 
 	go func() { // Has to be called in routine to not impede websocket throughput
 		if err := e.Websocket.ResubscribeToChannel(conn, sub); err != nil {
+			m.CompletedResubscribe(pair, a) // Ensure we clear the map entry on failure too
 			log.Errorf(log.ExchangeSys, "Failed to resubscribe to channel %q: %v", qualifiedChannel, err)
 		}
 	}()

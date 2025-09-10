@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,7 +19,7 @@ func TestNewWSSubscriptionManager(t *testing.T) {
 
 	m := newWSSubscriptionManager()
 	require.NotNil(t, m)
-	require.NotNil(t, m.lookup)
+	assert.NotNil(t, m.lookup)
 }
 
 func TestIsResubscribing(t *testing.T) {
@@ -26,8 +27,8 @@ func TestIsResubscribing(t *testing.T) {
 
 	m := newWSSubscriptionManager()
 	m.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = true
-	require.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
-	require.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Futures))
+	assert.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
+	assert.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Futures))
 }
 
 func TestResubscribe(t *testing.T) {
@@ -78,7 +79,7 @@ func TestResubscribe(t *testing.T) {
 	require.NoError(t, err)
 	err = m.Resubscribe(e, conn, "ob.BTC_USDT.50", currency.NewBTCUSDT(), asset.Spot)
 	require.NoError(t, err)
-	require.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
+	assert.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 }
 
 func TestCompletedResubscribe(t *testing.T) {
@@ -90,7 +91,7 @@ func TestCompletedResubscribe(t *testing.T) {
 	m.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = true
 	require.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 	m.CompletedResubscribe(currency.NewBTCUSDT(), asset.Spot)
-	require.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
+	assert.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 }
 
 func TestQualifiedChannelKey_Match(t *testing.T) {
@@ -101,5 +102,5 @@ func TestQualifiedChannelKey_Match(t *testing.T) {
 	k := qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "test.channel"}}
 	require.True(t, k.Match(k))
 	require.False(t, k.Match(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "TEST.channel"}}))
-	require.NotNil(t, k.GetSubscription())
+	assert.NotNil(t, k.GetSubscription())
 }
