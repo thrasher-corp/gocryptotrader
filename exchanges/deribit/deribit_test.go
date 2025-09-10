@@ -4181,7 +4181,7 @@ func TestTimeInForceFromString(t *testing.T) {
 func TestOptionsComboFormatting(t *testing.T) {
 	t.Parallel()
 	availablePairs, err := e.GetAvailablePairs(asset.OptionCombo)
-	require.NoErrorf(t, err, "expected nil, got %v for asset type %s", err, asset.OptionCombo)
+	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotNil(t, availablePairs, "availablePairs must not be nil")
 	for _, cp := range availablePairs {
 		t.Run(cp.String(), func(t *testing.T) {
