@@ -317,8 +317,6 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 	}
 
 	return e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, op)
-
-	//return e.SendAuthenticatedWebsocketRequest(ctx, request.Unset, "login-response", operationLogin, args, nil)
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
