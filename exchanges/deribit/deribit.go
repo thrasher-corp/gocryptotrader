@@ -2766,7 +2766,6 @@ func (e *Exchange) optionComboPairToString(pair currency.Pair) string {
 	}
 	// Otherwise insert underscore after base (covers:
 	// * any length > 4
-	// * length == 4 with USDC as second token
-	// * any length > 4 regardless of second token)
+	// * length == 4 with USDC as second token)
 	return parts[0] + "_" + strings.Join(parts[1:], "-")
 }
