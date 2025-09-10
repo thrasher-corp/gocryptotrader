@@ -484,22 +484,22 @@ func getTicker(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	getTickerParam := &GetTickerParams{}
-	err := UnmarshalCLIFields(c, getTickerParam)
+	arg := &GetTickerParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	if !validPair(getTickerParam.Pair) {
+	if !validPair(arg.Pair) {
 		return errInvalidPair
 	}
 
-	getTickerParam.Asset = strings.ToLower(getTickerParam.Asset)
-	if !validAsset(getTickerParam.Asset) {
+	arg.Asset = strings.ToLower(arg.Asset)
+	if !validAsset(arg.Asset) {
 		return errInvalidAsset
 	}
 
-	p, err := currency.NewPairDelimiter(getTickerParam.Pair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(arg.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -513,13 +513,13 @@ func getTicker(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetTicker(c.Context,
 		&gctrpc.GetTickerRequest{
-			Exchange: getTickerParam.Exchange,
+			Exchange: arg.Exchange,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			AssetType: getTickerParam.Asset,
+			AssetType: arg.Asset,
 		},
 	)
 	if err != nil {
@@ -827,8 +827,8 @@ func addPortfolioAddress(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	addPortfolioParams := &AddPortfolioAddressParams{}
-	err := UnmarshalCLIFields(c, addPortfolioParams)
+	arg := &AddPortfolioAddressParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -842,12 +842,12 @@ func addPortfolioAddress(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.AddPortfolioAddress(c.Context,
 		&gctrpc.AddPortfolioAddressRequest{
-			Address:            addPortfolioParams.Address,
-			CoinType:           addPortfolioParams.CoinType,
-			Description:        addPortfolioParams.Description,
-			Balance:            addPortfolioParams.Balance,
-			SupportedExchanges: addPortfolioParams.SupportedExchanges,
-			ColdStorage:        addPortfolioParams.ColdStorage,
+			Address:            arg.Address,
+			CoinType:           arg.CoinType,
+			Description:        arg.Description,
+			Balance:            arg.Balance,
+			SupportedExchanges: arg.SupportedExchanges,
+			ColdStorage:        arg.ColdStorage,
 		},
 	)
 	if err != nil {
@@ -870,8 +870,8 @@ func removePortfolioAddress(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	params := &RemovePortfolioAddressCommandParam{}
-	err := UnmarshalCLIFields(c, params)
+	arg := &RemovePortfolioAddressCommandParam{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -885,9 +885,9 @@ func removePortfolioAddress(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.RemovePortfolioAddress(c.Context,
 		&gctrpc.RemovePortfolioAddressRequest{
-			Address:     params.Address,
-			CoinType:    params.CoinType,
-			Description: params.Description,
+			Address:     arg.Address,
+			CoinType:    arg.CoinType,
+			Description: arg.Description,
 		},
 	)
 	if err != nil {
@@ -960,34 +960,34 @@ func getOrders(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	getOrdersParams := &GetOrdersCommandParams{
+	arg := &GetOrdersCommandParams{
 		Start: time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 		End:   time.Now().Format(time.DateTime),
 	}
-	err := UnmarshalCLIFields(c, getOrdersParams)
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
-	getOrdersParams.Asset = strings.ToLower(getOrdersParams.Asset)
-	if !validAsset(getOrdersParams.Asset) {
+	arg.Asset = strings.ToLower(arg.Asset)
+	if !validAsset(arg.Asset) {
 		return errInvalidAsset
 	}
 
-	if !validPair(getOrdersParams.Pair) {
+	if !validPair(arg.Pair) {
 		return errInvalidPair
 	}
 
-	p, err := currency.NewPairDelimiter(getOrdersParams.Pair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(arg.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
 
 	var s, e time.Time
-	s, err = time.ParseInLocation(time.DateTime, getOrdersParams.Start, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, arg.Start, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, getOrdersParams.End, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, arg.End, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -1004,8 +1004,8 @@ func getOrders(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetOrders(c.Context, &gctrpc.GetOrdersRequest{
-		Exchange:  getOrdersParams.Exchange,
-		AssetType: getOrdersParams.Asset,
+		Exchange:  arg.Exchange,
+		AssetType: arg.Asset,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
@@ -1035,22 +1035,22 @@ func getManagedOrders(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	params := &GetManagedOrdersCommandParams{}
-	err := UnmarshalCLIFields(c, params)
+	arg := &GetManagedOrdersCommandParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	params.Asset = strings.ToLower(params.Asset)
-	if !validAsset(params.Asset) {
+	arg.Asset = strings.ToLower(arg.Asset)
+	if !validAsset(arg.Asset) {
 		return errInvalidAsset
 	}
 
-	if !validPair(params.Pair) {
+	if !validPair(arg.Pair) {
 		return errInvalidPair
 	}
 
-	p, err := currency.NewPairDelimiter(params.Pair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(arg.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -1063,8 +1063,8 @@ func getManagedOrders(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetManagedOrders(c.Context, &gctrpc.GetOrdersRequest{
-		Exchange:  params.Exchange,
-		AssetType: params.Asset,
+		Exchange:  arg.Exchange,
+		AssetType: arg.Asset,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
@@ -1091,22 +1091,22 @@ func getOrder(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	getOrderParams := &GetOrderParams{}
-	err := UnmarshalCLIFields(c, getOrderParams)
+	arg := &GetOrderParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	getOrderParams.Asset = strings.ToLower(getOrderParams.Asset)
-	if !validAsset(getOrderParams.Asset) {
+	arg.Asset = strings.ToLower(arg.Asset)
+	if !validAsset(arg.Asset) {
 		return errInvalidAsset
 	}
 
-	if !validPair(getOrderParams.CurrencyPair) {
+	if !validPair(arg.CurrencyPair) {
 		return errInvalidPair
 	}
 
-	p, err := currency.NewPairDelimiter(getOrderParams.CurrencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(arg.CurrencyPair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -1119,14 +1119,14 @@ func getOrder(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetOrder(c.Context, &gctrpc.GetOrderRequest{
-		Exchange: getOrderParams.Exchange,
-		OrderId:  getOrderParams.OrderID,
+		Exchange: arg.Exchange,
+		OrderId:  arg.OrderID,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		Asset: getOrderParams.Asset,
+		Asset: arg.Asset,
 	})
 	if err != nil {
 		return err
@@ -1149,39 +1149,39 @@ func submitOrder(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	submitOrderParam := &SubmitOrderParams{}
-	err := UnmarshalCLIFields(c, submitOrderParam)
+	arg := &SubmitOrderParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	if !validPair(submitOrderParam.CurrencyPair) {
+	if !validPair(arg.CurrencyPair) {
 		return errInvalidPair
 	}
 
-	if submitOrderParam.OrderSide == "" {
+	if arg.OrderSide == "" {
 		return errors.New("order side must be set")
 	}
 
-	if submitOrderParam.OrderType == "" {
+	if arg.OrderType == "" {
 		return errors.New("order type must be set")
 	}
 
-	if submitOrderParam.Amount == 0 {
+	if arg.Amount == 0 {
 		return errors.New("amount must be set")
 	}
 
-	submitOrderParam.AssetType = strings.ToLower(submitOrderParam.AssetType)
-	if !validAsset(submitOrderParam.AssetType) {
+	arg.AssetType = strings.ToLower(arg.AssetType)
+	if !validAsset(arg.AssetType) {
 		return errInvalidAsset
 	}
 
-	submitOrderParam.MarginType = strings.ToLower(submitOrderParam.MarginType)
-	if submitOrderParam.MarginType != "" && !margin.IsValidString(submitOrderParam.MarginType) {
+	arg.MarginType = strings.ToLower(arg.MarginType)
+	if arg.MarginType != "" && !margin.IsValidString(arg.MarginType) {
 		return margin.ErrInvalidMarginType
 	}
 
-	p, err := currency.NewPairDelimiter(submitOrderParam.CurrencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(arg.CurrencyPair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -1194,44 +1194,44 @@ func submitOrder(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SubmitOrder(c.Context, &gctrpc.SubmitOrderRequest{
-		Exchange: submitOrderParam.ExchangeName,
+		Exchange: arg.ExchangeName,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		Amount:            submitOrderParam.Amount,
-		Price:             submitOrderParam.Price,
-		Leverage:          submitOrderParam.Leverage,
-		Side:              submitOrderParam.OrderSide,
-		OrderType:         submitOrderParam.OrderType,
-		AssetType:         submitOrderParam.AssetType,
-		MarginType:        submitOrderParam.MarginType,
-		ClientId:          submitOrderParam.ClientID,
-		ClientOrderId:     submitOrderParam.ClientOrderID,
-		QuoteAmount:       submitOrderParam.QuoteAmount,
-		TimeInForce:       submitOrderParam.TimeInForce,
-		TriggerPrice:      submitOrderParam.TriggerPrice,
-		TriggerPriceType:  submitOrderParam.TriggerPriceType,
-		TriggerLimitPrice: submitOrderParam.TriggerLimitPrice,
+		Amount:            arg.Amount,
+		Price:             arg.Price,
+		Leverage:          arg.Leverage,
+		Side:              arg.OrderSide,
+		OrderType:         arg.OrderType,
+		AssetType:         arg.AssetType,
+		MarginType:        arg.MarginType,
+		ClientId:          arg.ClientID,
+		ClientOrderId:     arg.ClientOrderID,
+		QuoteAmount:       arg.QuoteAmount,
+		TimeInForce:       arg.TimeInForce,
+		TriggerPrice:      arg.TriggerPrice,
+		TriggerPriceType:  arg.TriggerPriceType,
+		TriggerLimitPrice: arg.TriggerLimitPrice,
 		StopLoss: &gctrpc.RiskManagement{
-			Price:      submitOrderParam.SlPrice,
-			LimitPrice: submitOrderParam.SlLimitPrice,
-			PriceType:  submitOrderParam.SlPriceType,
+			Price:      arg.SlPrice,
+			LimitPrice: arg.SlLimitPrice,
+			PriceType:  arg.SlPriceType,
 		},
 		TakeProfit: &gctrpc.RiskManagement{
-			Price:      submitOrderParam.TpPrice,
-			LimitPrice: submitOrderParam.TpLimitPrice,
-			PriceType:  submitOrderParam.TpPriceType,
+			Price:      arg.TpPrice,
+			LimitPrice: arg.TpLimitPrice,
+			PriceType:  arg.TpPriceType,
 		},
-		Hidden:             submitOrderParam.Hidden,
-		Iceberg:            submitOrderParam.Iceberg,
-		ReduceOnly:         submitOrderParam.ReduceOnly,
-		AutoBorrow:         submitOrderParam.AutoBorrow,
-		RetrieveFees:       submitOrderParam.RetrieveFees,
-		RetrieveFeeDelayMs: submitOrderParam.RetrieveFeeDelayMs,
-		TrackingMode:       submitOrderParam.TrackingMode,
-		TrackingValue:      submitOrderParam.TrackingValue,
+		Hidden:             arg.Hidden,
+		Iceberg:            arg.Iceberg,
+		ReduceOnly:         arg.ReduceOnly,
+		AutoBorrow:         arg.AutoBorrow,
+		RetrieveFees:       arg.RetrieveFees,
+		RetrieveFeeDelayMs: arg.RetrieveFeeDelayMs,
+		TrackingMode:       arg.TrackingMode,
+		TrackingValue:      arg.TrackingValue,
 	})
 	if err != nil {
 		return err
@@ -1254,25 +1254,25 @@ func simulateOrder(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	simulateParams := &SimulateOrderCommandParams{}
-	err := UnmarshalCLIFields(c, simulateParams)
+	arg := &SimulateOrderCommandParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	if !validPair(simulateParams.Pair) {
+	if !validPair(arg.Pair) {
 		return errInvalidPair
 	}
 
-	if simulateParams.OrderSide == "" {
+	if arg.OrderSide == "" {
 		return errors.New("side must be set")
 	}
 
-	if simulateParams.Amount == 0 {
+	if arg.Amount == 0 {
 		return errors.New("amount must be set")
 	}
 
-	p, err := currency.NewPairDelimiter(simulateParams.Pair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(arg.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -1285,14 +1285,14 @@ func simulateOrder(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SimulateOrder(c.Context, &gctrpc.SimulateOrderRequest{
-		Exchange: simulateParams.Exchange,
+		Exchange: arg.Exchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		Side:   simulateParams.OrderSide,
-		Amount: simulateParams.Amount,
+		Side:   arg.OrderSide,
+		Amount: arg.Amount,
 	})
 	if err != nil {
 		return err
@@ -1315,29 +1315,29 @@ func cancelOrder(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	cancelOrderParams := &CancelOrderParams{}
-	err := UnmarshalCLIFields(c, cancelOrderParams)
+	arg := &CancelOrderParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	if cancelOrderParams.OrderID == "" {
+	if arg.OrderID == "" {
 		return errors.New("an order ID must be set")
 	}
 
-	cancelOrderParams.AssetType = strings.ToLower(cancelOrderParams.AssetType)
-	if !validAsset(cancelOrderParams.AssetType) {
+	arg.AssetType = strings.ToLower(arg.AssetType)
+	if !validAsset(arg.AssetType) {
 		return errInvalidAsset
 	}
 
 	// pair is optional, but if it's set, do a validity check
 	var p currency.Pair
-	if cancelOrderParams.CurrencyPair != "" {
-		if !validPair(cancelOrderParams.CurrencyPair) {
+	if arg.CurrencyPair != "" {
+		if !validPair(arg.CurrencyPair) {
 			return errInvalidPair
 		}
 		var err error
-		p, err = currency.NewPairDelimiter(cancelOrderParams.CurrencyPair, pairDelimiter)
+		p, err = currency.NewPairDelimiter(arg.CurrencyPair, pairDelimiter)
 		if err != nil {
 			return err
 		}
@@ -1351,21 +1351,21 @@ func cancelOrder(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.CancelOrder(c.Context, &gctrpc.CancelOrderRequest{
-		Exchange:  cancelOrderParams.Exchange,
-		AccountId: cancelOrderParams.AccountID,
-		OrderId:   cancelOrderParams.OrderID,
+		Exchange:  arg.Exchange,
+		AccountId: arg.AccountID,
+		OrderId:   arg.OrderID,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		AssetType:     cancelOrderParams.AssetType,
-		Side:          cancelOrderParams.OrderSide,
-		Type:          cancelOrderParams.OrderType,
-		ClientOrderId: cancelOrderParams.ClientOrderID,
-		ClientId:      cancelOrderParams.ClientID,
-		MarginType:    cancelOrderParams.MarginType,
-		TimeInForce:   cancelOrderParams.TimeInForce,
+		AssetType:     arg.AssetType,
+		Side:          arg.OrderSide,
+		Type:          arg.OrderType,
+		ClientOrderId: arg.ClientOrderID,
+		ClientId:      arg.ClientID,
+		MarginType:    arg.MarginType,
+		TimeInForce:   arg.TimeInForce,
 	})
 	if err != nil {
 		return err
@@ -1388,29 +1388,29 @@ func cancelBatchOrders(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	cancelBatchParams := &CancelOrderParams{}
-	err := UnmarshalCLIFields(c, cancelBatchParams)
+	arg := &CancelOrderParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	if cancelBatchParams.OrderID == "" {
+	if arg.OrderID == "" {
 		return errors.New("an order ID must be set")
 	}
 
-	cancelBatchParams.AssetType = strings.ToLower(cancelBatchParams.AssetType)
-	if !validAsset(cancelBatchParams.AssetType) {
+	arg.AssetType = strings.ToLower(arg.AssetType)
+	if !validAsset(arg.AssetType) {
 		return errInvalidAsset
 	}
 
 	// pair is optional, but if it's set, do a validity check
 	var p currency.Pair
-	if cancelBatchParams.CurrencyPair != "" {
-		if !validPair(cancelBatchParams.CurrencyPair) {
+	if arg.CurrencyPair != "" {
+		if !validPair(arg.CurrencyPair) {
 			return errInvalidPair
 		}
 		var err error
-		p, err = currency.NewPairDelimiter(cancelBatchParams.CurrencyPair, pairDelimiter)
+		p, err = currency.NewPairDelimiter(arg.CurrencyPair, pairDelimiter)
 		if err != nil {
 			return err
 		}
@@ -1424,16 +1424,16 @@ func cancelBatchOrders(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.CancelBatchOrders(c.Context, &gctrpc.CancelBatchOrdersRequest{
-		Exchange:  cancelBatchParams.Exchange,
-		AccountId: cancelBatchParams.AccountID,
-		OrdersId:  cancelBatchParams.OrderID,
+		Exchange:  arg.Exchange,
+		AccountId: arg.AccountID,
+		OrdersId:  arg.OrderID,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		AssetType: cancelBatchParams.AssetType,
-		Side:      cancelBatchParams.OrderSide,
+		AssetType: arg.AssetType,
+		Side:      arg.OrderSide,
 	})
 	if err != nil {
 		return err
@@ -1595,22 +1595,22 @@ func addEvent(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	addEventParams := &AddEventParams{}
-	err := UnmarshalCLIFields(c, addEventParams)
+	arg := &AddEventParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	if !validPair(addEventParams.CurrencyPair) {
+	if !validPair(arg.CurrencyPair) {
 		return errInvalidPair
 	}
 
-	addEventParams.AssetType = strings.ToLower(addEventParams.AssetType)
-	if !validAsset(addEventParams.AssetType) {
+	arg.AssetType = strings.ToLower(arg.AssetType)
+	if !validAsset(arg.AssetType) {
 		return errInvalidAsset
 	}
 
-	p, err := currency.NewPairDelimiter(addEventParams.CurrencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(arg.CurrencyPair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -1623,22 +1623,22 @@ func addEvent(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.AddEvent(c.Context, &gctrpc.AddEventRequest{
-		Exchange: addEventParams.ExchangeName,
-		Item:     addEventParams.Item,
+		Exchange: arg.ExchangeName,
+		Item:     arg.Item,
 		ConditionParams: &gctrpc.ConditionParams{
-			Condition:       addEventParams.Condition,
-			Price:           addEventParams.Price,
-			CheckBids:       addEventParams.CheckBids,
-			CheckAsks:       addEventParams.CheckAsks,
-			OrderbookAmount: addEventParams.OrderbookAmount,
+			Condition:       arg.Condition,
+			Price:           arg.Price,
+			CheckBids:       arg.CheckBids,
+			CheckAsks:       arg.CheckAsks,
+			OrderbookAmount: arg.OrderbookAmount,
 		},
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		AssetType: addEventParams.AssetType,
-		Action:    addEventParams.Action,
+		AssetType: arg.AssetType,
+		Action:    arg.Action,
 	})
 	if err != nil {
 		return err
@@ -1753,12 +1753,12 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	getCurrencyDepositAddressParams := &GetCryptoCurrencyDepositAddressCommandParams{}
-	err := UnmarshalCLIFields(c, getCurrencyDepositAddressParams)
+	arg := &GetCryptoCurrencyDepositAddressCommandParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
-	if getCurrencyDepositAddressParams.Currency == "" {
+	if arg.Currency == "" {
 		return errors.New("cryptocurrency must be set")
 	}
 
@@ -1771,10 +1771,10 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetCryptocurrencyDepositAddress(c.Context,
 		&gctrpc.GetCryptocurrencyDepositAddressRequest{
-			Exchange:       getCurrencyDepositAddressParams.Exchange,
-			Cryptocurrency: getCurrencyDepositAddressParams.Currency,
-			Chain:          getCurrencyDepositAddressParams.Chain,
-			Bypass:         getCurrencyDepositAddressParams.Bypass,
+			Exchange:       arg.Exchange,
+			Cryptocurrency: arg.Currency,
+			Chain:          arg.Chain,
+			Bypass:         arg.Bypass,
 		},
 	)
 	if err != nil {
@@ -1807,13 +1807,13 @@ func getAvailableTransferChains(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	getAvailableTransferChainsParams := &GetAvailableTransferChainsParams{}
-	err := UnmarshalCLIFields(c, getAvailableTransferChainsParams)
+	arg := &GetAvailableTransferChainsParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	if getAvailableTransferChainsParams.Currency == "" {
+	if arg.Currency == "" {
 		return errors.New("cryptocurrency must be set")
 	}
 
@@ -1826,8 +1826,8 @@ func getAvailableTransferChains(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetAvailableTransferChains(c.Context,
 		&gctrpc.GetAvailableTransferChainsRequest{
-			Exchange:       getAvailableTransferChainsParams.Exchange,
-			Cryptocurrency: getAvailableTransferChainsParams.Currency,
+			Exchange:       arg.Exchange,
+			Cryptocurrency: arg.Currency,
 		},
 	)
 	if err != nil {
@@ -1850,8 +1850,8 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	withdrawFundParams := &WithdrawCryptoCurrencyFundParams{}
-	err := UnmarshalCLIFields(c, withdrawFundParams)
+	arg := &WithdrawCryptoCurrencyFundParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1866,14 +1866,14 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 
 	result, err := client.WithdrawCryptocurrencyFunds(c.Context,
 		&gctrpc.WithdrawCryptoRequest{
-			Exchange:    withdrawFundParams.Exchange,
-			Currency:    withdrawFundParams.CurrencyPair,
-			Address:     withdrawFundParams.Address,
-			AddressTag:  withdrawFundParams.AddressTag,
-			Amount:      withdrawFundParams.Amount,
-			Fee:         withdrawFundParams.Fee,
-			Description: withdrawFundParams.Description,
-			Chain:       withdrawFundParams.Chain,
+			Exchange:    arg.Exchange,
+			Currency:    arg.CurrencyPair,
+			Address:     arg.Address,
+			AddressTag:  arg.AddressTag,
+			Amount:      arg.Amount,
+			Fee:         arg.Fee,
+			Description: arg.Description,
+			Chain:       arg.Chain,
 		},
 	)
 	if err != nil {
@@ -1896,8 +1896,8 @@ func withdrawFiatFunds(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	fiatWithdraFiatFundParams := &WithdrawFiatFundParams{}
-	err := UnmarshalCLIFields(c, fiatWithdraFiatFundParams)
+	arg := &WithdrawFiatFundParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1911,11 +1911,11 @@ func withdrawFiatFunds(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WithdrawFiatFunds(c.Context,
 		&gctrpc.WithdrawFiatRequest{
-			Exchange:      fiatWithdraFiatFundParams.Exchange,
-			Currency:      fiatWithdraFiatFundParams.Currency,
-			Amount:        fiatWithdraFiatFundParams.Amount,
-			Description:   fiatWithdraFiatFundParams.Description,
-			BankAccountId: fiatWithdraFiatFundParams.BankAccountID,
+			Exchange:      arg.Exchange,
+			Currency:      arg.Currency,
+			Amount:        arg.Amount,
+			Description:   arg.Description,
+			BankAccountId: arg.BankAccountID,
 		},
 	)
 	if err != nil {
@@ -2341,22 +2341,22 @@ func getTickerStream(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	tickerStreamParam := &GetTickerStreamParams{}
-	err := UnmarshalCLIFields(c, tickerStreamParam)
+	arg := &GetTickerStreamParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	if !validPair(tickerStreamParam.Pair) {
+	if !validPair(arg.Pair) {
 		return errInvalidPair
 	}
 
-	tickerStreamParam.Asset = strings.ToLower(tickerStreamParam.Asset)
-	if !validAsset(tickerStreamParam.Asset) {
+	arg.Asset = strings.ToLower(arg.Asset)
+	if !validAsset(arg.Asset) {
 		return errInvalidAsset
 	}
 
-	p, err := currency.NewPairDelimiter(tickerStreamParam.Pair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(arg.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -2370,13 +2370,13 @@ func getTickerStream(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetTickerStream(c.Context,
 		&gctrpc.GetTickerStreamRequest{
-			Exchange: tickerStreamParam.Exchange,
+			Exchange: arg.Exchange,
 			Pair: &gctrpc.CurrencyPair{
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 				Delimiter: p.Delimiter,
 			},
-			AssetType: tickerStreamParam.Asset,
+			AssetType: arg.Asset,
 		},
 	)
 	if err != nil {
@@ -2394,7 +2394,7 @@ func getTickerStream(c *cli.Context) error {
 			return err
 		}
 
-		fmt.Printf("Ticker stream for %s %s:\n", tickerStreamParam.Exchange,
+		fmt.Printf("Ticker stream for %s %s:\n", arg.Exchange,
 			resp.Pair.String())
 		fmt.Println()
 
@@ -2510,18 +2510,18 @@ var getAuditEventCommand = &cli.Command{
 }
 
 func getAuditEvent(c *cli.Context) error {
-	getAuditParams := &GetAuditEventParam{}
-	err := UnmarshalCLIFields(c, getAuditParams)
+	arg := &GetAuditEventParam{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	s, err := time.ParseInLocation(time.DateTime, getAuditParams.Start, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, arg.Start, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
 
-	e, err := time.ParseInLocation(time.DateTime, getAuditParams.End, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, arg.End, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -2543,8 +2543,8 @@ func getAuditEvent(c *cli.Context) error {
 		&gctrpc.GetAuditEventRequest{
 			StartDate: s.Format(common.SimpleTimeFormatWithTimezone),
 			EndDate:   e.Format(common.SimpleTimeFormatWithTimezone),
-			Limit:     int32(getAuditParams.Limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
-			OrderBy:   getAuditParams.Order,
+			Limit:     int32(arg.Limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
+			OrderBy:   arg.Order,
 		})
 	if err != nil {
 		return err
@@ -2993,21 +2993,21 @@ func getHistoricCandles(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	getHistoricCandles := &HistoricCandlesParams{}
-	err := UnmarshalCLIFields(c, getHistoricCandles)
+	arg := &HistoricCandlesParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	if !validPair(getHistoricCandles.CurrencyPair) {
+	if !validPair(arg.CurrencyPair) {
 		return errInvalidPair
 	}
-	p, err := currency.NewPairDelimiter(getHistoricCandles.CurrencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(arg.CurrencyPair, pairDelimiter)
 	if err != nil {
 		return err
 	}
 
-	if !validAsset(getHistoricCandles.Asset) {
+	if !validAsset(arg.Asset) {
 		return errInvalidAsset
 	}
 
@@ -3025,17 +3025,17 @@ func getHistoricCandles(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetHistoricCandles(c.Context,
 		&gctrpc.GetHistoricCandlesRequest{
-			Exchange: getHistoricCandles.Exchange,
+			Exchange: arg.Exchange,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			AssetType:             getHistoricCandles.Asset,
+			AssetType:             arg.Asset,
 			Start:                 s.Format(common.SimpleTimeFormatWithTimezone),
 			End:                   e.Format(common.SimpleTimeFormatWithTimezone),
 			TimeInterval:          int64(candleInterval),
-			FillMissingWithTrades: getHistoricCandles.FillMissingDataWithTrades,
+			FillMissingWithTrades: arg.FillMissingDataWithTrades,
 		})
 	if err != nil {
 		return err
@@ -3062,34 +3062,34 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	getCandlesParam := &GetHistoricCandlesParams{}
-	err := UnmarshalCLIFields(c, getCandlesParam)
+	arg := &GetHistoricCandlesParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
-	if !validPair(getCandlesParam.Pair) {
+	if !validPair(arg.Pair) {
 		return errInvalidPair
 	}
 
-	p, err := currency.NewPairDelimiter(getCandlesParam.Pair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(arg.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
 
-	if !validAsset(getCandlesParam.Asset) {
+	if !validAsset(arg.Asset) {
 		return errInvalidAsset
 	}
-	if getCandlesParam.Force && !getCandlesParam.Sync {
+	if arg.Force && !arg.Sync {
 		return errors.New("cannot forcefully overwrite without sync")
 	}
 
-	candleInterval := time.Duration(getCandlesParam.Interval) * time.Second
+	candleInterval := time.Duration(arg.Interval) * time.Second
 	var s, e time.Time
-	s, err = time.ParseInLocation(time.DateTime, getCandlesParam.Start, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, arg.Start, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, getCandlesParam.End, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, arg.End, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -3107,21 +3107,21 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetHistoricCandles(c.Context,
 		&gctrpc.GetHistoricCandlesRequest{
-			Exchange: getCandlesParam.Exchange,
+			Exchange: arg.Exchange,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			AssetType:             getCandlesParam.Asset,
+			AssetType:             arg.Asset,
 			Start:                 s.Format(common.SimpleTimeFormatWithTimezone),
 			End:                   e.Format(common.SimpleTimeFormatWithTimezone),
 			TimeInterval:          int64(candleInterval),
 			ExRequest:             true,
-			Sync:                  getCandlesParam.Sync,
-			UseDb:                 getCandlesParam.Database,
-			FillMissingWithTrades: getCandlesParam.FillMissingDataWithTrades,
-			Force:                 getCandlesParam.Force,
+			Sync:                  arg.Sync,
+			UseDb:                 arg.Database,
+			FillMissingWithTrades: arg.FillMissingDataWithTrades,
+			Force:                 arg.Force,
 		})
 	if err != nil {
 		return err
@@ -3148,32 +3148,32 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	missingIntervalsParam := &FindMissingSavedCandleIntervalsParams{}
-	err := UnmarshalCLIFields(c, missingIntervalsParam)
+	arg := &FindMissingSavedCandleIntervalsParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	if !validPair(missingIntervalsParam.Pair) {
+	if !validPair(arg.Pair) {
 		return errInvalidPair
 	}
 
-	p, err := currency.NewPairDelimiter(missingIntervalsParam.Pair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(arg.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
 
-	if !validAsset(missingIntervalsParam.Asset) {
+	if !validAsset(arg.Asset) {
 		return errInvalidAsset
 	}
 
-	candleInterval := time.Duration(missingIntervalsParam.Interval) * time.Second
+	candleInterval := time.Duration(arg.Interval) * time.Second
 	var s, e time.Time
-	s, err = time.ParseInLocation(time.DateTime, missingIntervalsParam.Start, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, arg.Start, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, missingIntervalsParam.End, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, arg.End, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -3191,13 +3191,13 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.FindMissingSavedCandleIntervals(c.Context,
 		&gctrpc.FindMissingCandlePeriodsRequest{
-			ExchangeName: missingIntervalsParam.Exchange,
+			ExchangeName: arg.Exchange,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			AssetType: missingIntervalsParam.Asset,
+			AssetType: arg.Asset,
 			Start:     s.Format(common.SimpleTimeFormatWithTimezone),
 			End:       e.Format(common.SimpleTimeFormatWithTimezone),
 			Interval:  int64(candleInterval),
@@ -3249,21 +3249,21 @@ func getMarginRatesHistory(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	marginRatesHistoryParams := &MarginRateHistoryParam{}
-	err := UnmarshalCLIFields(c, marginRatesHistoryParams)
+	arg := &MarginRateHistoryParam{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	if !validAsset(marginRatesHistoryParams.Asset) {
+	if !validAsset(arg.Asset) {
 		return errInvalidAsset
 	}
 	var s, e time.Time
-	s, err = time.ParseInLocation(time.DateTime, marginRatesHistoryParams.Start, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, arg.Start, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, marginRatesHistoryParams.End, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, arg.End, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -3282,16 +3282,16 @@ func getMarginRatesHistory(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetMarginRatesHistory(c.Context,
 		&gctrpc.GetMarginRatesHistoryRequest{
-			Exchange:           marginRatesHistoryParams.Exchange,
-			Asset:              marginRatesHistoryParams.Asset,
-			Currency:           marginRatesHistoryParams.Currency,
+			Exchange:           arg.Exchange,
+			Asset:              arg.Asset,
+			Currency:           arg.Currency,
 			StartDate:          s.Format(common.SimpleTimeFormatWithTimezone),
 			EndDate:            e.Format(common.SimpleTimeFormatWithTimezone),
-			GetPredictedRate:   marginRatesHistoryParams.GetPredictedRate,
-			GetLendingPayments: marginRatesHistoryParams.GetLendingPayments,
-			GetBorrowRates:     marginRatesHistoryParams.GetBorrowRates,
-			GetBorrowCosts:     marginRatesHistoryParams.GetBorrowCosts,
-			IncludeAllRates:    marginRatesHistoryParams.IncludeAllRates,
+			GetPredictedRate:   arg.GetPredictedRate,
+			GetLendingPayments: arg.GetLendingPayments,
+			GetBorrowRates:     arg.GetBorrowRates,
+			GetBorrowCosts:     arg.GetBorrowCosts,
+			IncludeAllRates:    arg.IncludeAllRates,
 		})
 	if err != nil {
 		return err
@@ -3314,20 +3314,20 @@ func getCurrencyTradeURL(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	getCurrencyTradeURLParams := &CurrencyTradeURLParams{}
-	err := UnmarshalCLIFields(c, getCurrencyTradeURLParams)
+	arg := &CurrencyTradeURLParams{}
+	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
 
-	if !validAsset(getCurrencyTradeURLParams.Asset) {
+	if !validAsset(arg.Asset) {
 		return errInvalidAsset
 	}
 
-	if !validPair(getCurrencyTradeURLParams.Pair) {
+	if !validPair(arg.Pair) {
 		return errInvalidPair
 	}
-	p, err := currency.NewPairDelimiter(getCurrencyTradeURLParams.Pair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(arg.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -3341,8 +3341,8 @@ func getCurrencyTradeURL(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetCurrencyTradeURL(c.Context,
 		&gctrpc.GetCurrencyTradeURLRequest{
-			Exchange: getCurrencyTradeURLParams.Exchange,
-			Asset:    getCurrencyTradeURLParams.Asset,
+			Exchange: arg.Exchange,
+			Asset:    arg.Asset,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
