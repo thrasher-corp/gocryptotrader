@@ -2751,14 +2751,13 @@ func (e *Exchange) optionPairToString(pair currency.Pair) string {
 	return pair.Base.String() + initialDelimiter + q
 }
 
-// optionComboPairToString formats an option combo pair from dash to underscore between base and quote, e.g. PAXG-USDC-CS-12SEP25-3550_3600 -> PAXG_USDC-CS-12SEP25-3550_3600
+// optionComboPairToString formats an option combo pair to deribit request format
+// e.g. XRP-USDC-CS-26SEP25-3D3_3D5 -> XRP_USDC-CS-26SEP25-3d3_3d5
 func (e *Exchange) optionComboPairToString(pair currency.Pair) string {
 	parts := strings.Split(pair.String(), "-")
-	// Deribit uses lowercase 'd' to represent the decimal point in strike prices for linear options.
-	// Some sources may use uppercase 'D', so we normalize to lowercase 'd' for compatibility with Deribit's format.
+	// Deribit uses lowercase 'd' to represent the decimal point
 	lastIdx := len(parts) - 1
 	parts[lastIdx] = strings.ReplaceAll(parts[lastIdx], "D", "d")
-
 	// Leave unchanged when:
 	// * length <= 3 (not enough info to be a combo needing underscore)
 	// * length == 4 and second token is not USDC (original logic kept as-is)
