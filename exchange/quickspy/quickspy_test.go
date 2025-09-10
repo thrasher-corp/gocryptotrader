@@ -384,10 +384,10 @@ func TestWaitForInitialDataWithTimer_Zero(t *testing.T) {
 
 func TestShutdown(t *testing.T) {
 	t.Parallel()
-	qs := &QuickSpy{credContext: t.Context()}
+	qs := &QuickSpy{credContext: t.Context(), shutdown: make(chan any)}
 	require.NotPanics(t, func() { qs.Shutdown() }, "shutdown with set context must not panic")
-	qs.credContext = nil
-	require.Panics(t, func() { qs.Shutdown() }, "shutdown with nil context must panic")
+	qs = &QuickSpy{credContext: t.Context()}
+	require.Panics(t, func() { qs.Shutdown() }, "shutdown with nil shutdown chan must panic")
 }
 
 func TestGetAndWaitForFocusByKey(t *testing.T) {
