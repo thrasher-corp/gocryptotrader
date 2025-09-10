@@ -2649,7 +2649,7 @@ func getAssetFromInstrument(instrument string) (asset.Item, error) {
 	splitCurrency := strings.Split(instrument, currency.DashDelimiter)
 	splitLen := len(splitCurrency)
 	lastSplit := splitCurrency[splitLen-1]
-	hasUnderscore := strings.IndexAny(instrument, currency.UnderscoreDelimiter) != -1
+	hasUnderscore := strings.ContainsAny(instrument, currency.UnderscoreDelimiter)
 	switch {
 	case splitLen == 1 && !hasUnderscore:
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
@@ -2753,16 +2753,23 @@ func (e *Exchange) optionPairToString(pair currency.Pair) string {
 
 // optionComboPairToString formats an option combo pair from dash to underscore between base and quote, e.g. PAXG-USDC-CS-12SEP25-3550_3600 -> PAXG_USDC-CS-12SEP25-3550_3600
 func (e *Exchange) optionComboPairToString(pair currency.Pair) string {
-	pairStr := pair.String()
-	// Find the first dash or underscore between base and quote
-	// If already underscore, return as is
-	if strings.Contains(pairStr, "_") {
-		return pairStr
+	parts := strings.Split(pair.String(), "-")
+	if len(parts) == 0 {
+		return ""
 	}
-	// Otherwise, replace the first dash with underscore
-	idx := strings.Index(pairStr, "-")
-	if idx == -1 {
-		return pairStr // fallback, not a combo format
+	// Normalise last segment replacing any capital 'D' with lowercase 'd'
+	lastIdx := len(parts) - 1
+	parts[lastIdx] = strings.ReplaceAll(parts[lastIdx], "D", "d")
+
+	// Leave unchanged when:
+	// * length <= 3 (not enough info to be a combo needing underscore)
+	// * length == 4 and second token is not USDC (original logic kept as-is)
+	if len(parts) <= 3 || (len(parts) == 4 && parts[1] != "USDC") {
+		return strings.Join(parts, "-")
 	}
-	return pairStr[:idx] + "_" + pairStr[idx+1:]
+	// Otherwise insert underscore after base (covers:
+	// * any length > 4
+	// * length == 4 with USDC as second token
+	// * any length > 4 regardless of second token)
+	return parts[0] + "_" + strings.Join(parts[1:], "-")
 }

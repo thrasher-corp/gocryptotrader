@@ -318,11 +318,14 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 		spotTradablePair.String(),
 		futureComboTradablePair.String(),
 		e.optionPairToString(optionsTradablePair),
-		optionComboTradablePair.String(),
+		e.optionComboPairToString(optionComboTradablePair),
 	} {
-		result, err = e.GetBookSummaryByInstrument(t.Context(), ps)
-		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
-		require.NotNilf(t, result, "expected result not to be nil for pair %s", ps)
+		t.Run(ps, func(t *testing.T) {
+			t.Parallel()
+			result, err = e.GetBookSummaryByInstrument(t.Context(), ps)
+			require.NoError(t, err, "GetBookSummaryByInstrument must not error")
+			require.NotNil(t, result, "result must not be nil")
+		})
 	}
 }
 
@@ -336,7 +339,7 @@ func TestWSRetrieveBookSummaryByInstrument(t *testing.T) {
 		spotTradablePair.String(),
 		futureComboTradablePair.String(),
 		e.optionPairToString(optionsTradablePair),
-		optionComboTradablePair.String(),
+		e.optionComboPairToString(optionComboTradablePair),
 	} {
 		result, err = e.WSRetrieveBookSummaryByInstrument(t.Context(), ps)
 		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
@@ -2195,22 +2198,22 @@ func TestWSSubmitCancelByLabel(t *testing.T) {
 
 func TestSubmitCancelQuotes(t *testing.T) {
 	t.Parallel()
-	_, err := e.SubmitCancelQuotes(t.Context(), currency.EMPTYCODE, 0, 0, "all", "", futuresTradablePair.String(), "future", true)
+	_, err := e.SubmitCancelQuotes(t.Context(), currency.EMPTYCODE, 0, 0, "all", "", e.formatFuturesTradablePair(futuresTradablePair), "future", true)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SubmitCancelQuotes(t.Context(), currency.BTC, 0, 0, "all", "", futuresTradablePair.String(), "future", true)
+	result, err := e.SubmitCancelQuotes(t.Context(), currency.BTC, 0, 0, "all", "", e.formatFuturesTradablePair(futuresTradablePair), "future", true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestWSSubmitCancelQuotes(t *testing.T) {
 	t.Parallel()
-	_, err := e.WSSubmitCancelQuotes(t.Context(), currency.EMPTYCODE, 0, 0, "all", "", futuresTradablePair.String(), "future", true)
+	_, err := e.WSSubmitCancelQuotes(t.Context(), currency.EMPTYCODE, 0, 0, "all", "", e.formatFuturesTradablePair(futuresTradablePair), "future", true)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.WSSubmitCancelQuotes(t.Context(), currency.BTC, 0, 0, "all", "", futuresTradablePair.String(), "future", true)
+	result, err := e.WSSubmitCancelQuotes(t.Context(), currency.BTC, 0, 0, "all", "", e.formatFuturesTradablePair(futuresTradablePair), "future", true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3451,9 +3454,12 @@ func TestGetRecentTrades(t *testing.T) {
 	var result []trade.Data
 	var err error
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err = e.GetRecentTrades(t.Context(), cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		t.Run(fmt.Sprintf("%s %s", assetType, cp), func(t *testing.T) {
+			t.Parallel()
+			result, err = e.GetRecentTrades(t.Context(), cp, assetType)
+			require.NoError(t, err, "GetRecentTrades must not error")
+			require.NotNil(t, result, "result must not be nil")
+		})
 	}
 }
 
@@ -3645,7 +3651,7 @@ func TestCalculateTradingFee(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	_, err = calculateTradingFee(feeBuilder)
-	assert.ErrorIs(t, err, errUnsupportedInstrumentFormat)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestGetTime(t *testing.T) {
@@ -4169,5 +4175,19 @@ func TestTimeInForceFromString(t *testing.T) {
 		result, err := timeInForceFromString(timeInForceList[i].String, timeInForceList[i].PostOnly)
 		assert.Equalf(t, timeInForceList[i].TIF, result, "expected  %s, got %s", timeInForceList[i].TIF.String(), result.String())
 		require.ErrorIs(t, err, timeInForceList[i].Error)
+	}
+}
+
+func TestOptionsComboFormatting(t *testing.T) {
+	t.Parallel()
+	availablePairs, err := e.GetAvailablePairs(asset.OptionCombo)
+	require.NoErrorf(t, err, "expected nil, got %v for asset type %s", err, asset.OptionCombo)
+	require.NotNil(t, availablePairs, "availablePairs must not be nil")
+	for _, cp := range availablePairs {
+		t.Run(cp.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetPublicTicker(t.Context(), e.optionComboPairToString(cp))
+			assert.NoError(t, err, "GetPublicTicker should not error")
+		})
 	}
 }
