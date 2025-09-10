@@ -30,7 +30,6 @@ func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (
 	if ctx == nil {
 		ctx = context.Background()
 	}
-
 	if k == nil {
 		return nil, errNoKey
 	}
@@ -48,6 +47,7 @@ func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (
 		}
 		sm.Upsert(focuses[i].focusType, focuses[i])
 	}
+
 	q := &QuickSpy{
 		key:                k,
 		dataHandlerChannel: make(chan any, 10),
@@ -55,6 +55,7 @@ func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (
 		credContext:        ctx,
 		data:               &Data{Key: k},
 		m:                  new(sync.RWMutex),
+		shutdown:           make(chan any),
 	}
 	err := q.setupExchange()
 	if err != nil {
@@ -415,6 +416,8 @@ func (q *QuickSpy) run() {
 func (q *QuickSpy) handleWS() error {
 	for {
 		select {
+		case <-q.shutdown:
+			return nil
 		case <-q.credContext.Done():
 			return q.credContext.Err()
 		case d := <-q.dataHandlerChannel:
@@ -457,6 +460,8 @@ func (q *QuickSpy) runRESTRoutine(f *FocusData) error {
 	timer := time.NewTimer(0)
 	for {
 		select {
+		case <-q.shutdown:
+			return nil
 		case <-q.credContext.Done():
 			return q.credContext.Err()
 		case <-timer.C:
@@ -528,7 +533,8 @@ func (q *QuickSpy) handleFocusType(focusType FocusType, focus *FocusData) error 
 
 // Shutdown stops all routines and websocket connections
 func (q *QuickSpy) Shutdown() {
-	q.credContext.Done()
+	close(q.shutdown)
+	q.wg.Wait()
 }
 
 // HasBeenSuccessful returns whether a focus type has ever been successful

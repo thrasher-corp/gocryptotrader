@@ -63,6 +63,10 @@ type QuickSpy struct {
 	wg sync.WaitGroup
 	// Data contains all the market data
 	data *Data
+	// shutdown is a channel used to signal shutdown of goroutines
+	// while a stored context can be cancelled to do the same, we don't pass around the cancel func
+	// the cancel func is the only way to close the context
+	shutdown chan any
 }
 
 // Data holds the GCT types that QuickSpy gathers
