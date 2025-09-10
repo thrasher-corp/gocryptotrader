@@ -77,28 +77,26 @@ var subscriptionNames = map[string]string{
 	subscription.AllTradesChannel: spotTradesChannel,
 }
 
-var standardMarginAssetTypes = []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
+var (
+	standardMarginAssetTypes = []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
+	validPingChannels        = []string{optionsPingChannel, futuresPingChannel, spotPingChannel}
+)
+
+var errInvalidPingChannel = errors.New("invalid ping channel")
 
 // WsConnectSpot initiates a websocket connection
 func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
-	err := e.CurrencyPairs.IsAssetEnabled(asset.Spot)
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
+		return err
+	}
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+		return err
+	}
+	pingHandler, err := getWSPingHandler(spotPingChannel)
 	if err != nil {
 		return err
 	}
-	err = conn.Dial(ctx, &gws.Dialer{}, http.Header{})
-	if err != nil {
-		return err
-	}
-	pingMessage, err := json.Marshal(WsInput{Channel: spotPingChannel})
-	if err != nil {
-		return err
-	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, websocket.PingHandler{
-		Websocket:   true,
-		Delay:       time.Second * 15,
-		Message:     pingMessage,
-		MessageType: gws.TextMessage,
-	})
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, pingHandler)
 	return nil
 }
 
@@ -1007,4 +1005,19 @@ type wsRespAckInspector struct{}
 // This will force the cancellation of further waiting for responses.
 func (wsRespAckInspector) IsFinal(data []byte) bool {
 	return !strings.Contains(string(data), "ack")
+}
+
+func getWSPingHandler(channel string) (websocket.PingHandler, error) {
+	if !slices.Contains(validPingChannels, channel) {
+		return websocket.PingHandler{}, fmt.Errorf("%w: %q", errInvalidPingChannel, channel)
+	}
+	pingMessage, err := json.Marshal(WsInput{Channel: channel})
+	if err != nil {
+		return websocket.PingHandler{}, err
+	}
+	return websocket.PingHandler{
+		Delay:       time.Second * 10, // Arbitrary reasonable delay
+		Message:     pingMessage,
+		MessageType: gws.TextMessage,
+	}, nil
 }
