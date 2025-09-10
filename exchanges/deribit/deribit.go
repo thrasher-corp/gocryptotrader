@@ -2754,9 +2754,6 @@ func (e *Exchange) optionPairToString(pair currency.Pair) string {
 // optionComboPairToString formats an option combo pair from dash to underscore between base and quote, e.g. PAXG-USDC-CS-12SEP25-3550_3600 -> PAXG_USDC-CS-12SEP25-3550_3600
 func (e *Exchange) optionComboPairToString(pair currency.Pair) string {
 	parts := strings.Split(pair.String(), "-")
-	if len(parts) == 0 {
-		return ""
-	}
 	// Normalise last segment replacing any capital 'D' with lowercase 'd'
 	lastIdx := len(parts) - 1
 	parts[lastIdx] = strings.ReplaceAll(parts[lastIdx], "D", "d")
