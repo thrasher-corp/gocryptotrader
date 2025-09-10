@@ -26,21 +26,28 @@ func TestCancelAllOrders(t *testing.T) {
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
 		Pair:      currency.NewBTCUSDT(),
 		AssetType: asset.Options,
-		Side:      order.AnySide,
-	})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-
-	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
-		Pair:      currency.NewBTCUSDT(),
-		AssetType: asset.USDTMarginedFutures,
-		Side:      order.AnySide,
+		Side:      order.ClosePosition,
 	})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
 		Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
 		AssetType: asset.USDTMarginedFutures,
-		Side:      order.Buy,
+		Side:      order.Long,
+	})
+	require.ErrorIs(t, err, errInvalidSettlementQuote)
+
+	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
+		Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
+		AssetType: asset.USDTMarginedFutures,
+		Side:      order.Short,
+	})
+	require.ErrorIs(t, err, errInvalidSettlementQuote)
+
+	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{
+		Pair:      currency.NewPair(currency.BTC, currency.EMPTYCODE),
+		AssetType: asset.USDTMarginedFutures,
+		Side:      order.AnySide,
 	})
 	require.ErrorIs(t, err, errInvalidSettlementQuote)
 
@@ -59,26 +66,5 @@ func TestCancelAllOrders(t *testing.T) {
 		r.Pair = getPair(t, a)
 		_, err = e.CancelAllOrders(t.Context(), r)
 		require.NoError(t, err)
-	}
-}
-
-func TestGetExchangeSide(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		side order.Side
-		exp  string
-		err  error
-	}{
-		{order.Buy, "buy", nil},
-		{order.Sell, "sell", nil},
-		{order.UnknownSide, "", order.ErrSideIsInvalid},
-	} {
-		got, err := getExchangeSide(tc.side)
-		if tc.err != nil {
-			require.ErrorIs(t, err, tc.err)
-		} else {
-			require.NoError(t, err)
-		}
-		assert.Equal(t, tc.exp, got)
 	}
 }

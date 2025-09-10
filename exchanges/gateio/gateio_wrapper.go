@@ -1168,6 +1168,17 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 		return resp, err
 	}
 
+	var side string
+	switch {
+	case o.Side.IsLong():
+		side = order.Bid.Lower()
+	case o.Side.IsShort():
+		side = order.Ask.Lower()
+	case o.Side == order.UnknownSide, o.Side == order.AnySide:
+	default:
+		return resp, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, o.Side)
+	}
+
 	switch o.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		cancel, err := e.CancelMultipleSpotOpenOrders(ctx, fmtPair, o.AssetType)
@@ -1178,10 +1189,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 			resp.Add(strconv.FormatInt(cancel[x].AutoOrderID, 10), cancel[x].Status)
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
-		side, err := getExchangeSide(o.Side)
-		if err != nil && o.Side != order.UnknownSide {
-			return resp, err
-		}
 		settle, err := getSettlementCurrency(fmtPair, o.AssetType)
 		if err != nil {
 			return resp, err
@@ -1199,10 +1206,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 			resp.Add(strconv.FormatInt(cancel[f].ID, 10), cancel[f].FinishAs)
 		}
 	case asset.Options:
-		side, err := getExchangeSide(o.Side)
-		if err != nil && o.Side != order.UnknownSide {
-			return resp, err
-		}
 		cancel, err := e.CancelMultipleOptionOpenOrders(ctx, fmtPair, currency.USDT.String(), side)
 		if err != nil {
 			return resp, err
@@ -2608,9 +2611,14 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 }
 
 func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, error) {
-	side, err := getExchangeSide(s.Side)
-	if err != nil {
-		return nil, err
+	var side string
+	switch {
+	case s.Side.IsLong():
+		side = order.Buy.Lower()
+	case s.Side.IsShort():
+		side = order.Sell.Lower()
+	default:
+		return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, s.Side)
 	}
 
 	var timeInForce string
@@ -2631,17 +2639,6 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 		Text:         s.ClientOrderID,
 		TimeInForce:  timeInForce,
 	}, nil
-}
-
-func getExchangeSide(s order.Side) (string, error) {
-	switch {
-	case s.IsLong():
-		return order.Buy.Lower(), nil
-	case s.IsShort():
-		return order.Sell.Lower(), nil
-	default:
-		return "", fmt.Errorf("%w: %q", order.ErrSideIsInvalid, s)
-	}
 }
 
 func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error) {
