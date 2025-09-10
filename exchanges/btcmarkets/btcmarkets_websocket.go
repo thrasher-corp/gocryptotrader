@@ -427,7 +427,8 @@ func orderbookChecksum(ob *orderbook.Book) uint32 {
 func concatOrderbookLiquidity(liquidity orderbook.Levels) string {
 	var c strings.Builder
 	for x := range min(10, len(liquidity)) {
-		c.WriteString(trim(liquidity[x].Price) + trim(liquidity[x].Amount))
+		c.WriteString(trim(liquidity[x].Price))
+		c.WriteString(trim(liquidity[x].Amount))
 	}
 	return c.String()
 }
