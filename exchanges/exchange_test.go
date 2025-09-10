@@ -1096,6 +1096,25 @@ func TestUpdatePairs(t *testing.T) {
 	if !uacEnabledPairs.Contains(currency.NewPair(currency.LINK, currency.USD), true) {
 		t.Fatalf("received: '%v' but expected: '%v'", false, true)
 	}
+
+	// purge all pairs
+	err = UAC.UpdatePairs(currency.Pairs{}, asset.Spot, true)
+	require.NoError(t, err)
+
+	unset, err := UAC.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err)
+	require.Empty(t, unset)
+
+	avail, err := UAC.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err)
+	require.NotEmpty(t, avail)
+
+	err = UAC.UpdatePairs(currency.Pairs{}, asset.Spot, false)
+	require.NoError(t, err)
+
+	avail, err = UAC.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err)
+	require.Empty(t, avail)
 }
 
 func TestSupportsWebsocket(t *testing.T) {
