@@ -14,10 +14,10 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestNewWSSubscriptionManager(t *testing.T) {
+func TestNewWSObResubManager(t *testing.T) {
 	t.Parallel()
 
-	m := newWSSubscriptionManager()
+	m := newWSObResubManager()
 	require.NotNil(t, m)
 	assert.NotNil(t, m.lookup)
 }
@@ -25,7 +25,7 @@ func TestNewWSSubscriptionManager(t *testing.T) {
 func TestIsResubscribing(t *testing.T) {
 	t.Parallel()
 
-	m := newWSSubscriptionManager()
+	m := newWSObResubManager()
 	m.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = true
 	assert.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 	assert.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Futures))
@@ -34,9 +34,13 @@ func TestIsResubscribing(t *testing.T) {
 func TestResubscribe(t *testing.T) {
 	t.Parallel()
 
-	m := newWSSubscriptionManager()
+	m := newWSObResubManager()
 
 	conn := &FixtureConnection{}
+
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e))
+	e.Name = "Resubscribe"
 
 	err := m.Resubscribe(e, conn, "notfound", currency.NewBTCUSDT(), asset.Spot)
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
@@ -56,9 +60,6 @@ func TestResubscribe(t *testing.T) {
 
 	require.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
-	require.NoError(t, testexch.Setup(e))
-	e.Name = "Resubscribe"
 	e.Features.Subscriptions = subscription.List{
 		{Enabled: true, Channel: spotOrderbookUpdateWithSnapshotChannel, Asset: asset.Spot, Levels: 50},
 	}
@@ -85,7 +86,7 @@ func TestResubscribe(t *testing.T) {
 func TestCompletedResubscribe(t *testing.T) {
 	t.Parallel()
 
-	m := newWSSubscriptionManager()
+	m := newWSObResubManager()
 	m.CompletedResubscribe(currency.NewBTCUSDT(), asset.Spot) // no-op
 	require.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 	m.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = true

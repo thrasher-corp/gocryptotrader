@@ -88,7 +88,10 @@ var (
 	validPingChannels        = []string{optionsPingChannel, futuresPingChannel, spotPingChannel}
 )
 
-var errInvalidPingChannel = errors.New("invalid ping channel")
+var (
+	errInvalidPingChannel = errors.New("invalid ping channel")
+	errMalformedData      = errors.New("malformed data")
+)
 
 // WsConnectSpot initiates a websocket connection
 func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
@@ -455,7 +458,12 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 		bids[x].Amount = data.Bids[x][1].Float64()
 	}
 
-	pair, err := currency.NewPairFromString(strings.Split(data.Channel, ".")[1])
+	splitChannel := strings.Split(data.Channel, ".")
+	if len(splitChannel) < 3 {
+		return fmt.Errorf("%w: %q", errMalformedData, data.Channel)
+	}
+
+	pair, err := currency.NewPairFromString(splitChannel[1])
 	if err != nil {
 		return err
 	}
@@ -478,16 +486,16 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 			}); err != nil {
 				return err
 			}
-			e.wsOBSubMgr.CompletedResubscribe(pair, defaultExclusiveAsset)
+			e.wsOBResubMgr.CompletedResubscribe(pair, defaultExclusiveAsset)
 			continue
 		}
 
-		if e.wsOBSubMgr.IsResubscribing(pair, defaultExclusiveAsset) {
+		if e.wsOBResubMgr.IsResubscribing(pair, defaultExclusiveAsset) {
 			continue // Drop incremental updates; waiting for a fresh snapshot
 		}
 
 		if lastUpdateID, _ := e.Websocket.Orderbook.LastUpdateID(pair, a); lastUpdateID+1 != data.FirstUpdateID {
-			errs = common.AppendError(errs, e.wsOBSubMgr.Resubscribe(e, conn, data.Channel, pair, defaultExclusiveAsset))
+			errs = common.AppendError(errs, e.wsOBResubMgr.Resubscribe(e, conn, data.Channel, pair, defaultExclusiveAsset))
 			continue
 		}
 

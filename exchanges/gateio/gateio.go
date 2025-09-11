@@ -192,7 +192,7 @@ type Exchange struct {
 
 	messageIDSeq  common.Counter
 	wsOBUpdateMgr *wsOBUpdateManager
-	wsOBSubMgr    *wsSubscriptionManager
+	wsOBResubMgr  *wsObResubManager
 }
 
 // ***************************************** SubAccounts ********************************

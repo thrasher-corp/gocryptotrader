@@ -55,13 +55,14 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 	err = e.Websocket.AddSubscriptions(conn, expanded...)
 	require.NoError(t, err)
 
-	e.wsOBSubMgr.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = true
+	e.wsOBResubMgr.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = true
 
 	for _, tc := range []struct {
 		payload []byte
 		err     error
 	}{
 		{payload: []byte(`{"t":"bingbong"}`), err: strconv.ErrSyntax},
+		{payload: []byte(`{"s":"ob.50"}`), err: errMalformedData},
 		{payload: []byte(`{"s":"ob..50"}`), err: currency.ErrCannotCreatePair},
 		{payload: []byte(`{"s":"ob.BTC_USDT.50","full":true}`), err: orderbook.ErrLastUpdatedNotSet},
 		{payload: []byte(`{"s":"ob.DING_USDT.50","full":true}`), err: nil}, // asset not enabled
