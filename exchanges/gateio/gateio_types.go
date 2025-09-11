@@ -2130,12 +2130,15 @@ type WsUserPersonalTrade struct {
 
 // WsSpotBalance represents a spot balance.
 type WsSpotBalance struct {
-	Timestamp types.Time   `json:"timestamp_ms"`
-	User      string       `json:"user"`
-	Currency  string       `json:"currency"`
-	Change    types.Number `json:"change"`
-	Total     types.Number `json:"total"`
-	Available types.Number `json:"available"`
+	Timestamp    types.Time    `json:"timestamp_ms"`
+	User         string        `json:"user"`
+	Currency     currency.Code `json:"currency"`
+	Change       types.Number  `json:"change"`
+	Total        types.Number  `json:"total"`
+	Available    types.Number  `json:"available"`
+	Freeze       types.Number  `json:"freeze"`
+	FreezeChange types.Number  `json:"freeze_change"`
+	ChangeType   string        `json:"change_type"` // e.g. "order-create", "order-match"
 }
 
 // WsMarginBalance represents margin account balance push data
@@ -2340,12 +2343,13 @@ type WsPositionClose struct {
 
 // WsBalance represents a options and futures balance push data
 type WsBalance struct {
-	Balance float64    `json:"balance"`
-	Change  float64    `json:"change"`
-	Text    string     `json:"text"`
-	Time    types.Time `json:"time_ms"`
-	Type    string     `json:"type"`
-	User    string     `json:"user"`
+	Balance  float64       `json:"balance"`
+	Change   float64       `json:"change"`
+	Currency currency.Code `json:"currency"`
+	Text     string        `json:"text"`
+	Time     types.Time    `json:"time_ms"`
+	Type     string        `json:"type"`
+	User     string        `json:"user"`
 }
 
 // WsFuturesReduceRiskLimitNotification represents a futures reduced risk limit push data

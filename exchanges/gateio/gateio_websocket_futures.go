@@ -177,7 +177,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresAutoPositionCloseChannel:
 		return e.processPositionCloseData(respRaw)
 	case futuresBalancesChannel:
-		return e.processBalancePushData(ctx, respRaw, a)
+		return e.processBalancePushData(ctx, push.Result, a)
 	case futuresReduceRiskLimitsChannel:
 		return e.processFuturesReduceRiskLimitNotification(respRaw)
 	case futuresPositionsChannel:
@@ -632,34 +632,31 @@ func (e *Exchange) processPositionCloseData(data []byte) error {
 }
 
 func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
-	resp := struct {
-		Time    types.Time  `json:"time"`
-		Channel string      `json:"channel"`
-		Event   string      `json:"event"`
-		Result  []WsBalance `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	var resp []WsBalance
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
+
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	changes := make([]account.Change, len(resp.Result))
-	for x, bal := range resp.Result {
-		info := strings.Split(bal.Text, currency.UnderscoreDelimiter)
-		if len(info) != 2 {
-			return errors.New("malformed text")
+
+	changes := make([]account.Change, len(resp))
+	for x, bal := range resp {
+		c := bal.Currency
+		if assetType == asset.Options && c.IsEmpty() {
+			c = currency.USDT // Settlement currency is USDT
 		}
 		changes[x] = account.Change{
 			AssetType: assetType,
 			Account:   bal.User,
 			Balance: &account.Balance{
-				Currency:  currency.NewCode(info[0]),
-				Total:     bal.Balance,
-				Free:      bal.Balance,
-				UpdatedAt: bal.Time.Time(),
+				Currency:               c,
+				Total:                  bal.Balance,
+				Free:                   bal.Balance,
+				AvailableWithoutBorrow: bal.Balance,
+				UpdatedAt:              bal.Time.Time(),
 			},
 		}
 	}
