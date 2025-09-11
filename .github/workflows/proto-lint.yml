@@ -34,7 +34,6 @@ jobs:
       - uses: bufbuild/buf-lint-action@v1
         with:
           input: gctrpc
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           
       - name: buf format
         run: buf format --diff --exit-code
@@ -46,7 +45,6 @@ jobs:
       - uses: bufbuild/buf-lint-action@v1
         with:
           input: ./backtester/btrpc
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: buf format backtester
         run: buf format --diff --exit-code
