@@ -312,7 +312,7 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 		},
 	}
 	op := WebsocketOp{
-		Op:   "login",
+		Op:   operationLogin,
 		Args: args,
 	}
 
