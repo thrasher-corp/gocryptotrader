@@ -312,7 +312,6 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 	_, err := e.GetBookSummaryByInstrument(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
-	var result []BookSummaryData
 	for _, ps := range []string{
 		btcPerpInstrument,
 		spotTradablePair.String(),
@@ -322,7 +321,7 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 	} {
 		t.Run(ps, func(t *testing.T) {
 			t.Parallel()
-			result, err = e.GetBookSummaryByInstrument(t.Context(), ps)
+			result, err := e.GetBookSummaryByInstrument(t.Context(), ps)
 			require.NoError(t, err, "GetBookSummaryByInstrument must not error")
 			require.NotNil(t, result, "result must not be nil")
 		})
@@ -562,13 +561,12 @@ func TestWSRetrieveInstrumentData(t *testing.T) {
 	t.Parallel()
 	_, err := e.WSRetrieveInstrumentData(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidInstrumentName)
-	var result *InstrumentData
 	for assetType, cp := range assetTypeToPairsMap {
 		t.Run(fmt.Sprintf("%s %s", assetType, cp), func(t *testing.T) {
 			t.Parallel()
-			result, err = e.WSRetrieveInstrumentData(request.WithVerbose(t.Context()), e.formatPairString(assetType, cp))
-			require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-			require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+			result, err := e.WSRetrieveInstrumentData(request.WithVerbose(t.Context()), e.formatPairString(assetType, cp))
+			require.NoError(t, err)
+			require.NotNil(t, result, "result must not be nil")
 		})
 	}
 }
@@ -3451,12 +3449,10 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	var result []trade.Data
-	var err error
 	for assetType, cp := range assetTypeToPairsMap {
 		t.Run(fmt.Sprintf("%s %s", assetType, cp), func(t *testing.T) {
 			t.Parallel()
-			result, err = e.GetRecentTrades(t.Context(), cp, assetType)
+			result, err := e.GetRecentTrades(t.Context(), cp, assetType)
 			require.NoError(t, err, "GetRecentTrades must not error")
 			require.NotNil(t, result, "result must not be nil")
 		})
@@ -3742,7 +3738,7 @@ func TestProcessPushData(t *testing.T) {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
 			err := e.wsHandleData(t.Context(), []byte(v))
-			require.NoErrorf(t, err, "%s: Received unexpected error for", k)
+			require.NoError(t, err, "wsHandleData must not error")
 		})
 	}
 }
@@ -4021,8 +4017,8 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 			t.Run(fmt.Sprintf("Asset: %s Pair: %s", assetType.String(), instances[i].Pair.String()), func(t *testing.T) {
 				t.Parallel()
 				is, err := e.IsPerpetualFutureCurrency(assetType, instances[i].Pair)
-				require.ErrorIsf(t, err, instances[i].Error, "expected %v, got %v for asset: %s pair: %s", instances[i].Error, err, assetType.String(), instances[i].Pair.String())
-				require.Equalf(t, is, instances[i].Response, "expected %v, got %v for asset: %s pair: %s", instances[i].Response, is, assetType.String(), instances[i].Pair.String())
+				require.ErrorIs(t, err, instances[i].Error)
+				require.Equal(t, is, instances[i].Response)
 			})
 		}
 	}
