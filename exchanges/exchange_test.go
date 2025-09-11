@@ -1105,16 +1105,13 @@ func TestUpdatePairs(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, unset)
 
+	// preserve existing pairs for available list
+	err = UAC.UpdatePairs(currency.Pairs{}, asset.Spot, false)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+
 	avail, err := UAC.GetAvailablePairs(asset.Spot)
 	require.NoError(t, err)
 	require.NotEmpty(t, avail)
-
-	err = UAC.UpdatePairs(currency.Pairs{}, asset.Spot, false)
-	require.NoError(t, err)
-
-	avail, err = UAC.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err)
-	require.Empty(t, avail)
 }
 
 func TestSupportsWebsocket(t *testing.T) {
