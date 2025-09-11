@@ -52,19 +52,21 @@ func TestCancelAllOrders(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidSettlementQuote)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	r := &order.Cancel{
-		OrderID:   "1",
-		AccountID: "1",
-	}
-
 	for _, a := range e.GetAssetTypes(false) {
-		r.AssetType = a
-		r.Pair = currency.EMPTYPAIR
-		_, err = e.CancelAllOrders(t.Context(), r)
-		assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+		t.Run(fmt.Sprintf("Live test: %s", a), func(t *testing.T) {
+			t.Parallel()
+			r := &order.Cancel{
+				OrderID:   "1",
+				AccountID: "1",
+				AssetType: a,
+				Pair:      currency.EMPTYPAIR,
+			}
+			_, err := e.CancelAllOrders(t.Context(), r)
+			assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-		r.Pair = getPair(t, a)
-		_, err = e.CancelAllOrders(t.Context(), r)
-		require.NoError(t, err)
+			r.Pair = getPair(t, a)
+			_, err = e.CancelAllOrders(t.Context(), r)
+			assert.NoError(t, err)
+		})
 	}
 }
