@@ -89,6 +89,7 @@ func TestProcessBalancePushData(t *testing.T) {
 	e.SetDefaults()
 	e.Name = "ProcessFuturesBalancesTest"
 
+	// Sequential tests, do not use t.Run(); Some timestamps are deliberately identical from trading activity
 	for _, tc := range []websocketBalancesTest{
 		{
 			input: []byte(`[{"timestamp":"1755718222"}]`),
