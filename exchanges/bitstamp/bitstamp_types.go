@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -133,7 +134,7 @@ type OrderStatus struct {
 	Type            int64          `json:"type"`
 	ID              string         `json:"id"`
 	DateTime        types.DateTime `json:"datetime"`
-	Status          string         `json:"status"`
+	Status          order.Status   `json:"status"`
 	ClientOrderID   string         `json:"client_order_id"`
 	Market          string         `json:"market"`
 	Transactions    []struct {
