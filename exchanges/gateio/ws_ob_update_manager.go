@@ -219,6 +219,7 @@ func (c *updateCache) waitForUpdate(ctx context.Context, nextUpdateID int64) err
 }
 
 // applyPendingUpdates applies all pending updates to the orderbook
+// requires lock
 func (c *updateCache) applyPendingUpdates(e *Exchange) error {
 	var updateApplied bool
 	for _, data := range c.updates {
