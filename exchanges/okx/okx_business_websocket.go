@@ -101,7 +101,7 @@ func (e *Exchange) WsSpreadAuth(ctx context.Context) error {
 	}
 	args := []WebsocketLoginData{
 		{
-			APIKey:     creds.Key,
+			Key:        creds.Key,
 			Passphrase: creds.ClientID,
 			Timestamp:  ts,
 			Sign:       base64.StdEncoding.EncodeToString(hmac),
