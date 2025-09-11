@@ -3165,7 +3165,7 @@ type WebsocketEventRequest struct {
 
 // WebsocketLoginData represents the websocket login data input json data
 type WebsocketLoginData struct {
-	Key        string `json:"apiKey"`
+	APIKey     string `json:"apiKey"`
 	Passphrase string `json:"passphrase"`
 	Timestamp  int64  `json:"timestamp,string"`
 	Sign       string `json:"sign"`

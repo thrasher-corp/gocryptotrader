@@ -305,7 +305,7 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 
 	args := []WebsocketLoginData{
 		{
-			Key:        creds.Key,
+			APIKey:     creds.Key,
 			Passphrase: creds.ClientID,
 			Timestamp:  ts,
 			Sign:       base64.StdEncoding.EncodeToString(hmac),
