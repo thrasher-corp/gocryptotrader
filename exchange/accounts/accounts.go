@@ -107,6 +107,10 @@ func (a *Accounts) CurrencyBalances(creds *Credentials, assetType asset.Item) (C
 	if !assetType.IsValid() && assetType != asset.All {
 		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, asset.ErrNotSupported)
 	}
+
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
 	currs := CurrencyBalances{}
 	for credsKey, subAccountsForCreds := range a.subAccounts {
 		if !creds.IsEmpty() && *creds != credsKey {
@@ -140,6 +144,9 @@ func (a *Accounts) SubAccounts(creds *Credentials, assetType asset.Item) (SubAcc
 	if !assetType.IsValid() && assetType != asset.All {
 		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, asset.ErrNotSupported)
 	}
+
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
 	var subAccts SubAccounts
 	for credsKey, subAccountsForCreds := range a.subAccounts {
