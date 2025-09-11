@@ -311,8 +311,12 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 			Sign:       base64.StdEncoding.EncodeToString(hmac),
 		},
 	}
+	op := WebsocketOp{
+		Op:   "login",
+		Args: args,
+	}
 
-	return e.SendAuthenticatedWebsocketRequest(ctx, request.Unset, "login-response", operationLogin, args, nil)
+	return e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, op)
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
