@@ -1206,7 +1206,14 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 			resp.Add(strconv.FormatInt(cancel[f].ID, 10), cancel[f].FinishAs)
 		}
 	case asset.Options:
-		cancel, err := e.CancelMultipleOptionOpenOrders(ctx, fmtPair, currency.USDT.String(), side)
+		var underlying currency.Pair
+		if !o.Pair.IsEmpty() {
+			underlying, err = e.GetUnderlyingFromCurrencyPair(o.Pair)
+			if err != nil {
+				return resp, err
+			}
+		}
+		cancel, err := e.CancelMultipleOptionOpenOrders(ctx, fmtPair, underlying.String(), side)
 		if err != nil {
 			return resp, err
 		}
