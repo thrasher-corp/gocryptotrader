@@ -233,9 +233,7 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 		})
 		return
 	}
-	c.Wg.Add(1)
-	go func() {
-		defer c.Wg.Done()
+	c.Wg.Go(func() {
 		ticker := time.NewTicker(handler.Delay)
 		for {
 			select {
@@ -250,7 +248,7 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 				}
 			}
 		}
-	}()
+	})
 }
 
 // setConnectedStatus sets connection status if changed it will return true.
@@ -284,7 +282,7 @@ func (c *connection) ReadMessage() Response {
 			// method on WebsocketConnection type has been called and can
 			// be skipped.
 			select {
-			case c.readMessageErrors <- fmt.Errorf("%w: %w", err, errConnectionFault):
+			case c.readMessageErrors <- fmt.Errorf("%w: %w (%q)", err, errConnectionFault, c.URL):
 			default:
 				// bypass if there is no receiver, as this stops it returning
 				// when shutdown is called.

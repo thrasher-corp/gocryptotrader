@@ -68,28 +68,17 @@ var defaultOptionsSubscriptions = []string{
 
 // WsOptionsConnect initiates a websocket connection to options websocket endpoints.
 func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connection) error {
-	err := e.CurrencyPairs.IsAssetEnabled(asset.Options)
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Options); err != nil {
+		return err
+	}
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+		return err
+	}
+	pingHandler, err := getWSPingHandler(optionsPingChannel)
 	if err != nil {
 		return err
 	}
-	err = conn.Dial(ctx, &gws.Dialer{}, http.Header{})
-	if err != nil {
-		return err
-	}
-	pingMessage, err := json.Marshal(WsInput{
-		ID:      conn.GenerateMessageID(false),
-		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
-		Channel: optionsPingChannel,
-	})
-	if err != nil {
-		return err
-	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, websocket.PingHandler{
-		Websocket:   true,
-		Delay:       time.Second * 5,
-		MessageType: gws.PingMessage,
-		Message:     pingMessage,
-	})
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, pingHandler)
 	return nil
 }
 
@@ -344,6 +333,8 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 		return e.processBalancePushData(ctx, push.Result, asset.Options)
 	case optionsPositionsChannel:
 		return e.processOptionsPositionPushData(respRaw)
+	case "options.pong":
+		return nil
 	default:
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 			Message: e.Name + websocket.UnhandledMessage + string(respRaw),

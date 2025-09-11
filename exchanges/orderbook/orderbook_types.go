@@ -39,7 +39,7 @@ var (
 )
 
 var s = store{
-	orderbooks:      make(map[key.ExchangePairAsset]book),
+	orderbooks:      make(map[key.ExchangeAssetPair]book),
 	exchangeRouters: make(map[string]uuid.UUID),
 	signalMux:       dispatch.GetNewMux(nil),
 }
@@ -51,7 +51,7 @@ type book struct {
 
 // store provides a centralised store for orderbooks
 type store struct {
-	orderbooks      map[key.ExchangePairAsset]book
+	orderbooks      map[key.ExchangeAssetPair]book
 	exchangeRouters map[string]uuid.UUID
 	signalMux       *dispatch.Mux
 	m               sync.RWMutex
