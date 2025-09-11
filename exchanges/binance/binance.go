@@ -289,13 +289,17 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, args *AggregatedTra
 		// Only 10 seconds is used to prevent limit of 1000 being reached in the first request, cutting off trades for high activity pairs
 		// If we don't find anything we keep increasing the window by doubling the interval and scanning again
 		increment := time.Second * 10
-		for start := args.StartTime; len(resp) == 0; increment, start = increment*2, start.Add(increment) {
-			if !args.EndTime.IsZero() && start.After(args.EndTime) {
-				// All requests returned empty
+		for start := args.StartTime; len(resp) == 0; start, increment = start.Add(increment), increment*2 {
+			if !args.EndTime.IsZero() && start.After(args.EndTime) || increment <= 0 {
+				// All requests returned empty or we searched until increment overflowed
 				return nil, nil
 			}
 			params.Set("startTime", strconv.FormatInt(start.UnixMilli(), 10))
-			params.Set("endTime", strconv.FormatInt(start.Add(increment).UnixMilli(), 10))
+			end := start.Add(increment)
+			if !args.EndTime.IsZero() && end.After(args.EndTime) {
+				end = args.EndTime
+			}
+			params.Set("endTime", strconv.FormatInt(end.UnixMilli(), 10))
 			path := aggregatedTrades + "?" + params.Encode()
 			err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
