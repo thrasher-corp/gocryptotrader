@@ -659,18 +659,18 @@ func (e *Exchange) fetchOrderbook(ctx context.Context, p currency.Pair, a asset.
 	var o *Orderbook
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		var available bool
-		available, err = e.checkInstrumentAvailabilityInSpot(p)
-		if err != nil {
-			return nil, err
-		}
-		if a != asset.Spot && !available {
-			return nil, fmt.Errorf("%v instrument %v does not have orderbook data", a, p)
+		if a != asset.Spot {
+			available, err := e.checkInstrumentAvailabilityInSpot(p)
+			if err != nil {
+				return nil, err
+			}
+			if !available {
+				return nil, fmt.Errorf("%w: %q %q", errNoOrderbookDataAvailable, p, a)
+			}
 		}
 		o, err = e.GetOrderbook(ctx, p.String(), "", limit, true)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
-		var settle currency.Code
-		settle, err = getSettlementCurrency(p, a)
+		settle, err := getSettlementCurrency(p, a)
 		if err != nil {
 			return nil, err
 		}
