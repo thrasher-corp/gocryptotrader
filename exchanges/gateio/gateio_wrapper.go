@@ -670,7 +670,8 @@ func (e *Exchange) fetchOrderbook(ctx context.Context, p currency.Pair, a asset.
 		}
 		o, err = e.GetOrderbook(ctx, p.String(), "", limit, true)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
-		settle, err := getSettlementCurrency(p, a)
+		var settle currency.Code
+		settle, err = getSettlementCurrency(p, a)
 		if err != nil {
 			return nil, err
 		}
