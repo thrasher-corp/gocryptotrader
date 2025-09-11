@@ -290,8 +290,11 @@ func TestBalanceInternalLoad(t *testing.T) {
 
 	assert.Equal(t, 3.0, bi.GetFree())
 
+	err = bi.load(&Balance{UpdatedAt: now.Add(-time.Second), Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
+	assert.ErrorIs(t, err, errOutOfSequence, "should error correctly with old update trying to store")
+
 	err = bi.load(&Balance{UpdatedAt: now, Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
-	assert.ErrorIs(t, err, errOutOfSequence, "should error correctly with same UpdatedAt")
+	assert.NoError(t, err, "should not error when timestamps are the same")
 
 	err = bi.load(&Balance{UpdatedAt: now.Add(time.Second), Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
 	assert.NoError(t, err)

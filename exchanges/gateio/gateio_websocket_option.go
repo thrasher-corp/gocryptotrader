@@ -330,7 +330,7 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 	case optionsPositionCloseChannel:
 		return e.processPositionCloseData(respRaw)
 	case optionsBalancesChannel:
-		return e.processBalancePushData(ctx, respRaw, asset.Options)
+		return e.processBalancePushData(ctx, push.Result, asset.Options)
 	case optionsPositionsChannel:
 		return e.processOptionsPositionPushData(respRaw)
 	case "options.pong":
