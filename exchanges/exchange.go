@@ -52,8 +52,13 @@ const (
 	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
-// ErrSymbolCannotBeMatched returned on symbol matching failure
-var ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+// Public Errors
+var (
+	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
+	ErrSettingProxyAddress   = errors.New("setting proxy address error")
+	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+	ErrEndpointPathNotFound  = errors.New("no endpoint path found for the given key")
+)
 
 var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
@@ -80,8 +85,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 	proxy, err := url.Parse(addr)
 	if err != nil {
-		return fmt.Errorf("setting proxy address error %s",
-			err)
+		return fmt.Errorf("%w %w", ErrSettingProxyAddress, err)
 	}
 
 	err = b.Requester.SetProxy(proxy)
@@ -1277,7 +1281,7 @@ func (e *Endpoints) GetURL(endpoint URL) (string, error) {
 	defer e.mu.RUnlock()
 	val, ok := e.defaults[endpoint.String()]
 	if !ok {
-		return "", fmt.Errorf("no endpoint path found for the given key: %v", endpoint)
+		return "", fmt.Errorf("%w: %v", ErrEndpointPathNotFound, endpoint)
 	}
 	return val, nil
 }
@@ -1474,11 +1478,6 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 // types instead of just being denoted as spot holdings.
 func (b *Base) HasAssetTypeAccountSegregation() bool {
 	return b.Features.Supports.RESTCapabilities.HasAssetTypeAccountSegregation
-}
-
-// GetPositionSummary returns stats for a future position
-func (b *Base) GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetKlineRequest returns a helper for the fetching of candle/kline data for

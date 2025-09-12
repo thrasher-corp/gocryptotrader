@@ -1927,13 +1927,6 @@ func TestGetMarginRateHistory(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
-func TestGetPositionSummary(t *testing.T) {
-	t.Parallel()
-	var b Base
-	_, err := b.GetFuturesPositionSummary(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
-}
-
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	var b Base
