@@ -738,7 +738,7 @@ func TestWSProcessTrades(t *testing.T) {
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
 	close(e.Websocket.DataHandler)
 
-	a, p, err := e.getAssetPairByInstrument("BTC-PERPETUAL")
+	a, p, err := getAssetPairByInstrument("BTC-PERPETUAL")
 	require.NoError(t, err, "getAssetPairByInstrument must not error")
 
 	exp := []trade.Data{
@@ -3554,7 +3554,7 @@ func TestGetAssetPairByInstrument(t *testing.T) {
 			instrument := formatPairString(assetType, cp)
 			t.Run(fmt.Sprintf("%s %s", assetType, instrument), func(t *testing.T) {
 				t.Parallel()
-				extractedAsset, extractedPair, err := e.getAssetPairByInstrument(instrument)
+				extractedAsset, extractedPair, err := getAssetPairByInstrument(instrument)
 				assert.NoError(t, err)
 				fPair, err := e.FormatExchangeCurrency(extractedPair, assetType)
 				require.NoError(t, err, "FormatExchangeCurrency must not error")
@@ -3565,12 +3565,12 @@ func TestGetAssetPairByInstrument(t *testing.T) {
 	}
 	t.Run("empty asset, empty pair", func(t *testing.T) {
 		t.Parallel()
-		_, _, err := e.getAssetPairByInstrument("")
+		_, _, err := getAssetPairByInstrument("")
 		assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	})
 	t.Run("thisIsAFakeCurrency", func(t *testing.T) {
 		t.Parallel()
-		_, _, err := e.getAssetPairByInstrument("thisIsAFakeCurrency")
+		_, _, err := getAssetPairByInstrument("thisIsAFakeCurrency")
 		assert.ErrorIs(t, err, errUnsupportedInstrumentFormat)
 	})
 }

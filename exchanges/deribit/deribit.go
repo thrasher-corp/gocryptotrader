@@ -2628,7 +2628,7 @@ func (e *Exchange) StringToAssetKind(assetType string) (asset.Item, error) {
 
 // getAssetPairByInstrument is able to determine the asset type and currency pair
 // based on the received instrument ID
-func (e *Exchange) getAssetPairByInstrument(instrument string) (asset.Item, currency.Pair, error) {
+func getAssetPairByInstrument(instrument string) (asset.Item, currency.Pair, error) {
 	if instrument == "" {
 		return asset.Empty, currency.EMPTYPAIR, currency.ErrSymbolStringEmpty
 	}
