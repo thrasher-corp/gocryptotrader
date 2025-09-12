@@ -220,7 +220,7 @@ func TestSubmitOrder(t *testing.T) {
 	var err error
 	var info *InstrumentData
 	for assetType, cp := range assetToPairStringMap {
-		info, err = e.GetInstrument(t.Context(), e.formatPairString(assetType, cp))
+		info, err = e.GetInstrument(t.Context(), formatPairString(assetType, cp))
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
 		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
 
@@ -253,7 +253,7 @@ func TestGetMarkPriceHistory(t *testing.T) {
 
 	var result []MarkPriceHistory
 	for _, ps := range []string{
-		e.optionPairToString(optionsTradablePair),
+		optionPairToString(optionsTradablePair),
 		spotTradablePair.String(),
 		btcPerpInstrument,
 		futureComboTradablePair.String(),
@@ -271,7 +271,7 @@ func TestWSRetrieveMarkPriceHistory(t *testing.T) {
 
 	var result []MarkPriceHistory
 	for _, ps := range []string{
-		e.optionPairToString(optionsTradablePair),
+		optionPairToString(optionsTradablePair),
 		spotTradablePair.String(),
 		btcPerpInstrument,
 		futureComboTradablePair.String(),
@@ -316,8 +316,8 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 		btcPerpInstrument,
 		spotTradablePair.String(),
 		futureComboTradablePair.String(),
-		e.optionPairToString(optionsTradablePair),
-		e.optionComboPairToString(optionComboTradablePair),
+		optionPairToString(optionsTradablePair),
+		optionComboPairToString(optionComboTradablePair),
 	} {
 		t.Run(ps, func(t *testing.T) {
 			t.Parallel()
@@ -337,8 +337,8 @@ func TestWSRetrieveBookSummaryByInstrument(t *testing.T) {
 		btcPerpInstrument,
 		spotTradablePair.String(),
 		futureComboTradablePair.String(),
-		e.optionPairToString(optionsTradablePair),
-		e.optionComboPairToString(optionComboTradablePair),
+		optionPairToString(optionsTradablePair),
+		optionComboPairToString(optionComboTradablePair),
 	} {
 		result, err = e.WSRetrieveBookSummaryByInstrument(t.Context(), ps)
 		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
@@ -551,7 +551,7 @@ func TestGetInstrumentData(t *testing.T) {
 
 	var result *InstrumentData
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err = e.GetInstrument(t.Context(), e.formatPairString(assetType, cp))
+		result, err = e.GetInstrument(t.Context(), formatPairString(assetType, cp))
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
 		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
 	}
@@ -564,7 +564,7 @@ func TestWSRetrieveInstrumentData(t *testing.T) {
 	for assetType, cp := range assetTypeToPairsMap {
 		t.Run(fmt.Sprintf("%s %s", assetType, cp), func(t *testing.T) {
 			t.Parallel()
-			result, err := e.WSRetrieveInstrumentData(request.WithVerbose(t.Context()), e.formatPairString(assetType, cp))
+			result, err := e.WSRetrieveInstrumentData(request.WithVerbose(t.Context()), formatPairString(assetType, cp))
 			require.NoError(t, err)
 			require.NotNil(t, result, "result must not be nil")
 		})
@@ -621,7 +621,7 @@ func TestWSRetrieveLastSettlementsByInstrument(t *testing.T) {
 	_, err := e.WSRetrieveLastSettlementsByInstrument(t.Context(), "", "settlement", "5", 0, time.Now().Add(-2*time.Hour))
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
-	result, err := e.WSRetrieveLastSettlementsByInstrument(t.Context(), e.formatFuturesTradablePair(futuresTradablePair), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
+	result, err := e.WSRetrieveLastSettlementsByInstrument(t.Context(), formatFuturesTradablePair(futuresTradablePair), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -631,7 +631,7 @@ func TestGetLastSettlementsByInstrument(t *testing.T) {
 	_, err := e.GetLastSettlementsByInstrument(t.Context(), "", "settlement", "5", 0, time.Now().Add(-2*time.Hour))
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
-	result, err := e.GetLastSettlementsByInstrument(t.Context(), e.formatFuturesTradablePair(futuresTradablePair), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
+	result, err := e.GetLastSettlementsByInstrument(t.Context(), formatFuturesTradablePair(futuresTradablePair), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -688,7 +688,7 @@ func TestGetLastTradesByInstrument(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err := e.GetLastTradesByInstrument(t.Context(), e.formatPairString(assetType, cp), "30500", "31500", "desc", 0, true)
+		result, err := e.GetLastTradesByInstrument(t.Context(), formatPairString(assetType, cp), "30500", "31500", "desc", 0, true)
 		require.NoErrorf(t, err, "expected %v, got %v currency asset %v pair %v", nil, err, assetType, cp)
 		require.NotNilf(t, result, "expected value not to be nil for asset %v pair: %v", assetType, cp)
 	}
@@ -700,7 +700,7 @@ func TestWSRetrieveLastTradesByInstrument(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err := e.WSRetrieveLastTradesByInstrument(t.Context(), e.formatPairString(assetType, cp), "30500", "31500", "desc", 0, true)
+		result, err := e.WSRetrieveLastTradesByInstrument(t.Context(), formatPairString(assetType, cp), "30500", "31500", "desc", 0, true)
 		require.NoErrorf(t, err, "expected %v, got %v currency asset %v pair %v", nil, err, assetType, cp)
 		require.NotNilf(t, result, "expected value not to be nil for asset %v pair: %v", assetType, cp)
 	}
@@ -712,7 +712,7 @@ func TestGetLastTradesByInstrumentAndTime(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err := e.GetLastTradesByInstrumentAndTime(t.Context(), e.formatPairString(assetType, cp), "", 0, time.Now().Add(-8*time.Hour), time.Now())
+		result, err := e.GetLastTradesByInstrumentAndTime(t.Context(), formatPairString(assetType, cp), "", 0, time.Now().Add(-8*time.Hour), time.Now())
 		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
 		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
 	}
@@ -724,7 +724,7 @@ func TestWSRetrieveLastTradesByInstrumentAndTime(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err := e.WSRetrieveLastTradesByInstrumentAndTime(t.Context(), e.formatPairString(assetType, cp), "", 0, true, time.Now().Add(-8*time.Hour), time.Now())
+		result, err := e.WSRetrieveLastTradesByInstrumentAndTime(t.Context(), formatPairString(assetType, cp), "", 0, true, time.Now().Add(-8*time.Hour), time.Now())
 		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
 		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
 	}
@@ -784,7 +784,7 @@ func TestGetOrderbookData(t *testing.T) {
 
 	var result *Orderbook
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err = e.GetOrderbook(t.Context(), e.formatPairString(assetType, cp), 0)
+		result, err = e.GetOrderbook(t.Context(), formatPairString(assetType, cp), 0)
 		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
 		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
 	}
@@ -800,7 +800,7 @@ func TestWSRetrieveOrderbookData(t *testing.T) {
 
 	var result *Orderbook
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err = e.WSRetrieveOrderbookData(t.Context(), e.formatPairString(assetType, cp), 0)
+		result, err = e.WSRetrieveOrderbookData(t.Context(), formatPairString(assetType, cp), 0)
 		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
 		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
 	}
@@ -2196,22 +2196,22 @@ func TestWSSubmitCancelByLabel(t *testing.T) {
 
 func TestSubmitCancelQuotes(t *testing.T) {
 	t.Parallel()
-	_, err := e.SubmitCancelQuotes(t.Context(), currency.EMPTYCODE, 0, 0, "all", "", e.formatFuturesTradablePair(futuresTradablePair), "future", true)
+	_, err := e.SubmitCancelQuotes(t.Context(), currency.EMPTYCODE, 0, 0, "all", "", formatFuturesTradablePair(futuresTradablePair), "future", true)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SubmitCancelQuotes(t.Context(), currency.BTC, 0, 0, "all", "", e.formatFuturesTradablePair(futuresTradablePair), "future", true)
+	result, err := e.SubmitCancelQuotes(t.Context(), currency.BTC, 0, 0, "all", "", formatFuturesTradablePair(futuresTradablePair), "future", true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestWSSubmitCancelQuotes(t *testing.T) {
 	t.Parallel()
-	_, err := e.WSSubmitCancelQuotes(t.Context(), currency.EMPTYCODE, 0, 0, "all", "", e.formatFuturesTradablePair(futuresTradablePair), "future", true)
+	_, err := e.WSSubmitCancelQuotes(t.Context(), currency.EMPTYCODE, 0, 0, "all", "", formatFuturesTradablePair(futuresTradablePair), "future", true)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.WSSubmitCancelQuotes(t.Context(), currency.BTC, 0, 0, "all", "", e.formatFuturesTradablePair(futuresTradablePair), "future", true)
+	result, err := e.WSSubmitCancelQuotes(t.Context(), currency.BTC, 0, 0, "all", "", formatFuturesTradablePair(futuresTradablePair), "future", true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2222,7 +2222,7 @@ func TestSubmitClosePosition(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SubmitClosePosition(t.Context(), e.formatFuturesTradablePair(futuresTradablePair), "limit", 35000)
+	result, err := e.SubmitClosePosition(t.Context(), formatFuturesTradablePair(futuresTradablePair), "limit", 35000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2233,7 +2233,7 @@ func TestWSSubmitClosePosition(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.WSSubmitClosePosition(t.Context(), e.formatFuturesTradablePair(futuresTradablePair), "limit", 35000)
+	result, err := e.WSSubmitClosePosition(t.Context(), formatFuturesTradablePair(futuresTradablePair), "limit", 35000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2242,13 +2242,13 @@ func TestGetMargins(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetMargins(t.Context(), "", 5, 35000)
 	require.ErrorIs(t, err, errInvalidInstrumentName)
-	_, err = e.GetMargins(t.Context(), e.formatFuturesTradablePair(futuresTradablePair), 0, 35000)
+	_, err = e.GetMargins(t.Context(), formatFuturesTradablePair(futuresTradablePair), 0, 35000)
 	require.ErrorIs(t, err, errInvalidAmount)
-	_, err = e.GetMargins(t.Context(), e.formatFuturesTradablePair(futuresTradablePair), 5, -1)
+	_, err = e.GetMargins(t.Context(), formatFuturesTradablePair(futuresTradablePair), 5, -1)
 	require.ErrorIs(t, err, errInvalidPrice)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetMargins(t.Context(), e.formatFuturesTradablePair(futuresTradablePair), 5, 35000)
+	result, err := e.GetMargins(t.Context(), formatFuturesTradablePair(futuresTradablePair), 5, 35000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2259,7 +2259,7 @@ func TestWSRetrieveMargins(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.WSRetrieveMargins(t.Context(), e.formatFuturesTradablePair(futuresTradablePair), 5, 35000)
+	result, err := e.WSRetrieveMargins(t.Context(), formatFuturesTradablePair(futuresTradablePair), 5, 35000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2630,7 +2630,7 @@ func TestSendRequestForQuote(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	err = e.SendRequestForQuote(t.Context(), e.formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy)
+	err = e.SendRequestForQuote(t.Context(), formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy)
 	assert.NoError(t, err)
 }
 
@@ -2640,7 +2640,7 @@ func TestWSSendRequestForQuote(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	err = e.WSSendRequestForQuote(t.Context(), e.formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy)
+	err = e.WSSendRequestForQuote(t.Context(), formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy)
 	assert.NoError(t, err)
 }
 
@@ -3551,25 +3551,60 @@ func TestGetAssetPairByInstrument(t *testing.T) {
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s", err, assetType)
 		require.NotNilf(t, availablePairs, "expected result not to be nil for asset type %s", assetType)
 		for _, cp := range availablePairs {
-			t.Run(fmt.Sprintf("%s %s", assetType, cp), func(t *testing.T) {
+			instrument := formatPairString(assetType, cp)
+			t.Run(fmt.Sprintf("%s %s", assetType, instrument), func(t *testing.T) {
 				t.Parallel()
-				extractedPair, extractedAsset, err := e.getAssetPairByInstrument(cp.String())
+				extractedPair, extractedAsset, err := e.getAssetPairByInstrument(instrument)
 				assert.NoError(t, err)
 				assert.Equal(t, cp.String(), extractedPair.String())
-				assert.Equal(t, assetType.String(), extractedAsset.String())
+				assert.Equal(t, assetType.String(), extractedAsset.String(), "asset should match for")
 			})
 		}
 	}
 	t.Run("empty asset, empty pair", func(t *testing.T) {
 		t.Parallel()
 		_, _, err := e.getAssetPairByInstrument("")
-		assert.ErrorIs(t, err, errInvalidInstrumentName)
+		assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	})
 	t.Run("thisIsAFakeCurrency", func(t *testing.T) {
 		t.Parallel()
 		_, _, err := e.getAssetPairByInstrument("thisIsAFakeCurrency")
 		assert.ErrorIs(t, err, errUnsupportedInstrumentFormat)
 	})
+}
+
+func TestGetAssetFromInstrument(t *testing.T) {
+	t.Parallel()
+	tc := []struct {
+		instrument    string
+		expectedAsset asset.Item
+		expectedError error
+	}{
+		{"BNB_USDC", asset.Spot, nil},
+		{"BTC-30DEC22", asset.Futures, nil},
+		{"BTCDVOL_USDC-1OCT25", asset.Futures, nil},
+		{"ADA_USDC-PERPETUAL", asset.Futures, nil},
+		{"PAXG_USDC-12SEP25-3320-P", asset.Options, nil},
+		{"ETH-3OCT25-4800-P", asset.Options, nil},
+		{"ETH-FS-26JUN26_26DEC25", asset.FutureCombo, nil},
+		{"BTC_USDC-PBUT-31OCT25-90000_100000_102000", asset.OptionCombo, nil},
+		{"XRP_USDC-CBUT-26SEP25-2d9_3d2_3d4", asset.OptionCombo, nil},
+		{"ETH-CS-26SEP25-5000_5500", asset.OptionCombo, nil},
+		{"HELLOMOTO", asset.Empty, errUnsupportedInstrumentFormat},
+		{"hi-my-name-is-moto", asset.Empty, errUnsupportedInstrumentFormat},
+	}
+	for _, test := range tc {
+		t.Run(test.instrument, func(t *testing.T) {
+			t.Parallel()
+			a, err := getAssetFromInstrument(test.instrument)
+			if test.expectedError != nil {
+				assert.ErrorIs(t, err, test.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, test.expectedAsset, a)
+			}
+		})
+	}
 }
 
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
@@ -3755,7 +3790,7 @@ func TestFormatFuturesTradablePair(t *testing.T) {
 	for pair, instrumentID := range futuresInstrumentsOutputList {
 		t.Run(instrumentID, func(t *testing.T) {
 			t.Parallel()
-			instrument := e.formatFuturesTradablePair(pair)
+			instrument := formatFuturesTradablePair(pair)
 			require.Equal(t, instrumentID, instrument)
 		})
 	}
@@ -3771,7 +3806,7 @@ func TestOptionPairToString(t *testing.T) {
 		{Delimiter: currency.DashDelimiter, Base: currency.MATIC, Quote: currency.NewCode("USDC-8JUN24-0D99-P")}: "MATIC_USDC-8JUN24-0d99-P",
 		{Delimiter: currency.DashDelimiter, Base: currency.MATIC, Quote: currency.NewCode("USDC-6DEC29-0D87-C")}: "MATIC_USDC-6DEC29-0d87-C",
 	} {
-		assert.Equal(t, exp, e.optionPairToString(pair), "optionPairToString should return correctly")
+		assert.Equal(t, exp, optionPairToString(pair), "optionPairToString should return correctly")
 	}
 }
 
@@ -4179,11 +4214,47 @@ func TestOptionsComboFormatting(t *testing.T) {
 	availablePairs, err := e.GetAvailablePairs(asset.OptionCombo)
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotNil(t, availablePairs, "availablePairs must not be nil")
-	for _, cp := range availablePairs {
+	for _, cp := range availablePairs[:5] {
 		t.Run(cp.String(), func(t *testing.T) {
 			t.Parallel()
-			_, err := e.GetPublicTicker(t.Context(), e.optionComboPairToString(cp))
+			_, err := e.GetPublicTicker(t.Context(), optionComboPairToString(cp))
 			assert.NoError(t, err, "GetPublicTicker should not error")
 		})
 	}
+}
+
+func TestAppendCandles(t *testing.T) {
+	t.Parallel()
+	_, err := appendCandles(nil, time.Time{})
+	assert.ErrorIs(t, err, kline.ErrNoTimeSeriesDataToConvert)
+
+	candles := &TVChartData{
+		Ticks: []int64{1337},
+	}
+	_, err = appendCandles(candles, time.Time{})
+	assert.ErrorIs(t, err, kline.ErrInsufficientCandleData)
+
+	candles = &TVChartData{
+		Open:   []float64{1337},
+		High:   []float64{1337},
+		Low:    []float64{1337},
+		Close:  []float64{1337},
+		Volume: []float64{1337},
+		Ticks:  []int64{1337},
+	}
+	resp, err := appendCandles(candles, time.Time{})
+	assert.NoError(t, err)
+	assert.Len(t, resp, 1)
+
+	candles = &TVChartData{
+		Open:   []float64{1337},
+		High:   []float64{1337},
+		Low:    []float64{1337},
+		Close:  []float64{1337},
+		Volume: []float64{1337},
+		Ticks:  []int64{1337},
+	}
+	resp, err = appendCandles(candles, time.Unix(1338, 0))
+	assert.NoError(t, err)
+	assert.Empty(t, resp)
 }

@@ -2630,7 +2630,7 @@ func (e *Exchange) StringToAssetKind(assetType string) (asset.Item, error) {
 // based on the received instrument ID
 func (e *Exchange) getAssetPairByInstrument(instrument string) (currency.Pair, asset.Item, error) {
 	if instrument == "" {
-		return currency.EMPTYPAIR, asset.Empty, errInvalidInstrumentName
+		return currency.EMPTYPAIR, asset.Empty, currency.ErrSymbolStringEmpty
 	}
 
 	item, err := getAssetFromInstrument(instrument)
@@ -2641,33 +2641,33 @@ func (e *Exchange) getAssetPairByInstrument(instrument string) (currency.Pair, a
 	if err != nil {
 		return currency.EMPTYPAIR, asset.Empty, err
 	}
-
+	cp, err = e.FormatExchangeCurrency(cp, item)
+	if err != nil {
+		return currency.EMPTYPAIR, asset.Empty, err
+	}
 	return cp, item, nil
 }
 
+// getAssetFromInstrument extrapolates the asset type from the instrument formatting as each type is unique
 func getAssetFromInstrument(instrument string) (asset.Item, error) {
-	splitCurrency := strings.Split(instrument, currency.DashDelimiter)
-	splitLen := len(splitCurrency)
-	lastSplit := splitCurrency[splitLen-1]
-	hasUnderscore := strings.ContainsAny(instrument, currency.UnderscoreDelimiter)
+	currencyParts := strings.Split(instrument, currency.DashDelimiter)
+	partsLen := len(currencyParts)
+	currencySuffix := currencyParts[partsLen-1]
+	hasUnderscore := strings.Contains(instrument, currency.UnderscoreDelimiter)
 	switch {
-	case splitLen == 1 && !hasUnderscore:
+	case partsLen == 1 && !hasUnderscore: // no pair delimiter found
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
-	case splitLen == 1:
+	case partsLen == 1: // spot pairs use underscore eg BTC_USDC
 		return asset.Spot, nil
-	case splitLen == 2:
+	case partsLen == 2: // futures pairs use single dash eg ETH_USDC-PERPETUAL, BTC-12SEP25
 		return asset.Futures, nil
-	case lastSplit == "C" || lastSplit == "P":
+	case currencySuffix == "C" || currencySuffix == "P": // options end in P or C to denote puts or calls eg BTC-26SEP25-30000-C
 		return asset.Options, nil
-	case splitLen == 3 && hasUnderscore:
+	case partsLen == 3: // futures combos have 3 parts eg BTC-FS-12SEP25_PERP
 		return asset.FutureCombo, nil
-	case splitLen == 3:
-		return asset.Futures, nil
-	case splitLen > 3 && lastSplit == "FS":
-		return asset.FutureCombo, nil
-	case splitLen > 3:
+	case partsLen == 4: // option combos with more than 3 parts eg BTC_USDC-PS-19SEP25-113000_111000
 		return asset.OptionCombo, nil
-	default:
+	default: // deribit has changed their format and needs a review
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
 	}
 }
@@ -2724,7 +2724,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.0003 * price * amount
 }
 
-func (e *Exchange) formatFuturesTradablePair(pair currency.Pair) string {
+func formatFuturesTradablePair(pair currency.Pair) string {
 	var instrumentID string
 	if result := strings.Split(pair.String(), currency.DashDelimiter); len(result) == 3 {
 		instrumentID = strings.Join(result[:2], currency.UnderscoreDelimiter) + currency.DashDelimiter + result[2]
@@ -2739,7 +2739,7 @@ func (e *Exchange) formatFuturesTradablePair(pair currency.Pair) string {
 // EXPIRE is DDMMMYY
 // STRIKE may include a d for decimal point in linear options
 // TYPE is Call or Put
-func (e *Exchange) optionPairToString(pair currency.Pair) string {
+func optionPairToString(pair currency.Pair) string {
 	initialDelimiter := currency.DashDelimiter
 	q := pair.Quote.String()
 	if strings.HasPrefix(q, "USDC") && len(q) > 11 { // Linear option
@@ -2753,7 +2753,7 @@ func (e *Exchange) optionPairToString(pair currency.Pair) string {
 
 // optionComboPairToString formats an option combo pair to deribit request format
 // e.g. XRP-USDC-CS-26SEP25-3D3_3D5 -> XRP_USDC-CS-26SEP25-3d3_3d5
-func (e *Exchange) optionComboPairToString(pair currency.Pair) string {
+func optionComboPairToString(pair currency.Pair) string {
 	parts := strings.Split(pair.String(), "-")
 	// Deribit uses lowercase 'd' to represent the decimal point
 	lastIdx := len(parts) - 1
