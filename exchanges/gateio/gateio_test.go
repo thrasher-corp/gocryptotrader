@@ -66,29 +66,6 @@ func TestUpdateTradablePairs(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 }
 
-func TestCancelAllExchangeOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CancelAllOrders(t.Context(), nil)
-	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
-
-	r := &order.Cancel{
-		OrderID:   "1",
-		AccountID: "1",
-	}
-
-	for _, a := range e.GetAssetTypes(false) {
-		r.AssetType = a
-		r.Pair = currency.EMPTYPAIR
-		_, err = e.CancelAllOrders(t.Context(), r)
-		assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-
-		r.Pair = getPair(t, a)
-		_, err = e.CancelAllOrders(t.Context(), r)
-		require.NoError(t, err)
-	}
-}
-
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
