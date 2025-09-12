@@ -678,18 +678,26 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	}
 	currencyBalance := []account.Balance{}
 	for i := range balances.List {
-		for _, b := range balances.List[i].Coin {
-			balance := account.Balance{
-				Currency: b.Coin,
-				Total:    b.WalletBalance.Float64(),
-				Free:     b.BorrowAmount.Float64() + b.WalletBalance.Float64() - b.Locked.Float64(),
-				Borrowed: b.BorrowAmount.Float64(),
-				Hold:     b.Locked.Float64(),
+		for _, c := range balances.List[i].Coin {
+			// borrow amounts get truncated to 8 dec places when total and equity are calculated on the exchange
+			truncBorrow := c.BorrowAmount.Decimal().Truncate(8).InexactFloat64()
+
+			// wallet balance can be negative when borrow is present, and wallet balance will be offset with spot holdings
+			// e.g. borrow $10,000, wallet balance will be -$9,900 ∴ spot holding $100
+			balanceDiff := truncBorrow + c.WalletBalance.Float64()
+
+			freeBalance := balanceDiff - c.Locked.Float64()
+			if assetType == asset.Spot && c.AvailableBalanceForSpot.Float64() != 0 {
+				freeBalance = c.AvailableBalanceForSpot.Float64()
 			}
-			if assetType == asset.Spot && b.AvailableBalanceForSpot.Float64() != 0 {
-				balance.Free = b.AvailableBalanceForSpot.Float64()
-			}
-			currencyBalance = append(currencyBalance, balance)
+
+			currencyBalance = append(currencyBalance, account.Balance{
+				Currency: c.Coin,
+				Total:    c.WalletBalance.Float64(),
+				Free:     freeBalance,
+				Borrowed: c.BorrowAmount.Float64(),
+				Hold:     c.Locked.Float64(),
+			})
 		}
 	}
 	acc.Currencies = currencyBalance
