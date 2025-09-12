@@ -7,8 +7,12 @@ import (
 	"unicode"
 )
 
+// Public error vars
 var (
-	errCannotCreatePair       = errors.New("cannot create currency pair")
+	ErrCannotCreatePair = errors.New("cannot create currency pair")
+)
+
+var (
 	errDelimiterNotFound      = errors.New("delimiter not found")
 	errDelimiterCannotBeEmpty = errors.New("delimiter cannot be empty")
 )
@@ -70,7 +74,7 @@ func NewPairWithDelimiter(base, quote, delimiter string) Pair {
 // with or without delimiter
 func NewPairFromString(currencyPair string) (Pair, error) {
 	if len(currencyPair) < 3 {
-		return EMPTYPAIR, fmt.Errorf("%w from %s string too short to be a currency pair", errCannotCreatePair, currencyPair)
+		return EMPTYPAIR, fmt.Errorf("%w from %s string too short to be a currency pair", ErrCannotCreatePair, currencyPair)
 	}
 
 	for x := range currencyPair {
