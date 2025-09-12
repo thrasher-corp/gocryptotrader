@@ -4215,7 +4215,7 @@ func TestOptionsComboFormatting(t *testing.T) {
 	t.Parallel()
 	availablePairs, err := e.GetAvailablePairs(asset.OptionCombo)
 	require.NoError(t, err, "GetAvailablePairs must not error")
-	require.NotNil(t, availablePairs, "availablePairs must not be nil")
+	require.GreaterOrEqual(t, len(availablePairs), 5, "availablePairs must be greater than or equal 5")
 	for _, cp := range availablePairs[:5] {
 		t.Run(cp.String(), func(t *testing.T) {
 			t.Parallel()
