@@ -287,7 +287,7 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(ctx, e.Websocket.AuthConn)
 	e.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		MessageType: gws.TextMessage,
+		MessageType: gws.PingMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
@@ -311,8 +311,12 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 			Sign:       base64.StdEncoding.EncodeToString(hmac),
 		},
 	}
+	op := WebsocketOp{
+		Op:   operationLogin,
+		Args: args,
+	}
 
-	return e.SendAuthenticatedWebsocketRequest(ctx, request.Unset, "login-response", operationLogin, args, nil)
+	return e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, op)
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
