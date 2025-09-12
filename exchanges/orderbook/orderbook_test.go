@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -223,7 +224,7 @@ func TestBookGetDepth(t *testing.T) {
 func TestDeployDepth(t *testing.T) {
 	pair := currency.NewBTCUSD()
 	_, err := DeployDepth("", pair, asset.Spot)
-	require.ErrorIs(t, err, ErrExchangeNameEmpty)
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, errPairNotSet)
 	_, err = DeployDepth("test", pair, asset.Empty)

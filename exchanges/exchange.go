@@ -53,8 +53,12 @@ const (
 	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
-// ErrSymbolCannotBeMatched returned on symbol matching failure
-var ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+// Public Errors
+var (
+	ErrSettingProxyAddress  = errors.New("error setting proxy address")
+	ErrEndpointPathNotFound = errors.New("no endpoint path found for the given key")
+	ErrSymbolNotMatched     = errors.New("symbol cannot be matched")
+)
 
 var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
@@ -81,8 +85,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 	proxy, err := url.Parse(addr)
 	if err != nil {
-		return fmt.Errorf("setting proxy address error %s",
-			err)
+		return fmt.Errorf("%w %w", ErrSettingProxyAddress, err)
 	}
 
 	err = b.Requester.SetProxy(proxy)
@@ -204,7 +207,7 @@ func (b *Base) GetLastPairsUpdateTime() int64 {
 	return b.CurrencyPairs.LastUpdated
 }
 
-// GetAssetTypes returns the either the enabled or available asset types for an
+// GetAssetTypes returns either the enabled or available asset types for an
 // individual exchange
 func (b *Base) GetAssetTypes(enabled bool) asset.Items {
 	return b.CurrencyPairs.GetAssetTypes(enabled)
@@ -251,7 +254,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.EMPTYPAIR, asset.Empty, ErrSymbolCannotBeMatched
+	return currency.EMPTYPAIR, asset.Empty, ErrSymbolNotMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -695,6 +698,10 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 					strings.ToUpper(a.String()),
 					diff.Remove)
 			}
+		}
+		err = common.NilGuard(b.Config, b.Config.CurrencyPairs)
+		if err != nil {
+			return err
 		}
 		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
 		if err != nil {
@@ -1278,7 +1285,7 @@ func (e *Endpoints) GetURL(endpoint URL) (string, error) {
 	defer e.mu.RUnlock()
 	val, ok := e.defaults[endpoint.String()]
 	if !ok {
-		return "", fmt.Errorf("no endpoint path found for the given key: %v", endpoint)
+		return "", fmt.Errorf("%w %v", ErrEndpointPathNotFound, endpoint)
 	}
 	return val, nil
 }

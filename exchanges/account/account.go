@@ -25,7 +25,6 @@ var (
 
 var (
 	errHoldingsIsNil                = errors.New("holdings cannot be nil")
-	errExchangeNameUnset            = errors.New("exchange name unset")
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
 	errBalanceIsNil                 = errors.New("balance is nil")
 	errNoCredentialBalances         = errors.New("no balances associated with credentials")
@@ -107,7 +106,7 @@ func ProcessChange(exch string, changes []Change, c *Credentials) error {
 // TODO: Add jurisdiction and differentiation between APIKEY holdings.
 func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holdings, error) {
 	if exch == "" {
-		return Holdings{}, errExchangeNameUnset
+		return Holdings{}, common.ErrExchangeNameNotSet
 	}
 
 	if creds.IsEmpty() {
@@ -171,7 +170,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 // GetBalance returns the internal balance for that asset item.
 func GetBalance(exch, subAccount string, creds *Credentials, a asset.Item, c currency.Code) (*ProtectedBalance, error) {
 	if exch == "" {
-		return nil, fmt.Errorf("cannot get balance: %w", errExchangeNameUnset)
+		return nil, fmt.Errorf("cannot get balance: %w", common.ErrExchangeNameNotSet)
 	}
 
 	if !a.IsValid() {
@@ -222,7 +221,7 @@ func (s *Service) Save(incoming *Holdings, creds *Credentials) error {
 	}
 
 	if incoming.Exchange == "" {
-		return fmt.Errorf("cannot save holdings: %w", errExchangeNameUnset)
+		return fmt.Errorf("cannot save holdings: %w", common.ErrExchangeNameNotSet)
 	}
 
 	if creds.IsEmpty() {
@@ -316,7 +315,7 @@ func (s *Service) Save(incoming *Holdings, creds *Credentials) error {
 // Update updates the balance for a specific exchange and credentials
 func (s *Service) Update(exch string, changes []Change, creds *Credentials) error {
 	if exch == "" {
-		return fmt.Errorf("%w: %w", errCannotUpdateBalance, errExchangeNameUnset)
+		return fmt.Errorf("%w: %w", errCannotUpdateBalance, common.ErrExchangeNameNotSet)
 	}
 
 	if creds.IsEmpty() {

@@ -145,7 +145,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
-| CoinbasePro | Yes | Yes | No|
+| Coinbase | Yes | Yes | No|
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
@@ -171,7 +171,7 @@ var Exchanges = []string{
     "btc markets",
     "btse",
     "bybit",
-    "coinbasepro",
+    "coinbase",
     "coinut",
     "deribit",
     "exmo",

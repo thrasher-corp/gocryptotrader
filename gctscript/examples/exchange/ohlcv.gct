@@ -6,7 +6,7 @@ load := func() {
    start := t.add(t.now(), -t.hour*24)
    // 'ctx' is already defined when we construct our bytecode from file.
    // To add debugging information to the request, see verbose.gct. To add account credentials, see account.gct  
-   ohlcvData := exch.ohlcv(ctx, "coinbasepro", "BTC-USD", "-", "SPOT", start, t.now(), "1h")
+   ohlcvData := exch.ohlcv(ctx, "coinbase", "BTC-USD", "-", "SPOT", start, t.now(), "1h")
    if is_error(ohlcvData) {
       // handle error
    }

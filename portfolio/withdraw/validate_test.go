@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
@@ -151,7 +152,7 @@ func TestExchangeNameUnset(t *testing.T) {
 	r := Request{}
 	err := r.Validate()
 	if err != nil {
-		if err != ErrExchangeNameUnset {
+		if err != common.ErrExchangeNameNotSet {
 			t.Fatal(err)
 		}
 	}
