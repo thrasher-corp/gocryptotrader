@@ -99,7 +99,12 @@ func (e *Exchange) WsConnect() error {
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData()
 
-	e.setupOrderbookManager(ctx)
+	for _, sub := range e.Features.Subscriptions {
+		if sub.Channel == subscription.OrderbookChannel { // don't presume orderbook is part of the supplied subscriptions
+			e.setupOrderbookManager(ctx)
+			break
+		}
+	}
 	return nil
 }
 

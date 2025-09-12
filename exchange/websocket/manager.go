@@ -23,18 +23,18 @@ import (
 
 // Public websocket errors
 var (
-	ErrWebsocketNotEnabled  = errors.New("websocket not enabled")
-	ErrAlreadyDisabled      = errors.New("websocket already disabled")
-	ErrNotConnected         = errors.New("websocket is not connected")
-	ErrSignatureTimeout     = errors.New("websocket timeout waiting for response with signature")
-	ErrRequestRouteNotFound = errors.New("request route not found")
-	ErrSignatureNotSet      = errors.New("signature not set")
+	ErrWebsocketNotEnabled     = errors.New("websocket not enabled")
+	ErrAlreadyDisabled         = errors.New("websocket already disabled")
+	ErrNotConnected            = errors.New("websocket is not connected")
+	ErrSignatureTimeout        = errors.New("websocket timeout waiting for response with signature")
+	ErrRequestRouteNotFound    = errors.New("request route not found")
+	ErrSignatureNotSet         = errors.New("signature not set")
+	ErrWebsocketAlreadyEnabled = errors.New("websocket already enabled")
 )
 
 // Private websocket errors
 var (
 	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
-	errWebsocketAlreadyEnabled              = errors.New("websocket already enabled")
 	errDefaultURLIsEmpty                    = errors.New("default url is empty")
 	errRunningURLIsEmpty                    = errors.New("running url cannot be empty")
 	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
@@ -496,7 +496,7 @@ func (m *Manager) connect() error {
 		if len(subs) == 0 {
 			// If no subscriptions are generated, we skip the connection
 			if m.verbose {
-				log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated", m.exchangeName)
+				log.Warnf(log.WebsocketMgr, "%s  [URL:%s] websocket: no subscriptions generated", m.exchangeName, m.connectionManager[i].setup.URL)
 			}
 			continue
 		}
@@ -609,10 +609,10 @@ func (m *Manager) Disable() error {
 	return nil
 }
 
-// Enable enables the exchange websocket protocol
-func (m *Manager) Enable() error {
+// EnableAndConnect enables the exchange websocket protocol and initiates a connection
+func (m *Manager) EnableAndConnect() error {
 	if m.IsConnected() || m.IsEnabled() {
-		return fmt.Errorf("%s %w", m.exchangeName, errWebsocketAlreadyEnabled)
+		return fmt.Errorf("%s %w", m.exchangeName, ErrWebsocketAlreadyEnabled)
 	}
 
 	m.setEnabled(true)

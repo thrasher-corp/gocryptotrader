@@ -234,7 +234,6 @@ func init() {
 
 	mu.Lock()
 	Global = registerNewSubLogger("LOG")
-
 	ConnectionMgr = registerNewSubLogger("CONNECTION")
 	CommunicationMgr = registerNewSubLogger("COMMS")
 	APIServerMgr = registerNewSubLogger("API")
@@ -249,16 +248,15 @@ func init() {
 	WebsocketMgr = registerNewSubLogger("WEBSOCKET")
 	EventMgr = registerNewSubLogger("EVENT")
 	DispatchMgr = registerNewSubLogger("DISPATCH")
-
 	RequestSys = registerNewSubLogger("REQUESTER")
 	ExchangeSys = registerNewSubLogger("EXCHANGE")
 	GRPCSys = registerNewSubLogger("GRPC")
 	RESTSys = registerNewSubLogger("REST")
-
 	Ticker = registerNewSubLogger("TICKER")
 	OrderBook = registerNewSubLogger("ORDERBOOK")
 	Trade = registerNewSubLogger("TRADE")
 	Fill = registerNewSubLogger("FILL")
 	Currency = registerNewSubLogger("CURRENCY")
+	QuickSpy = registerNewSubLogger("QUICKSPY")
 	mu.Unlock()
 }
