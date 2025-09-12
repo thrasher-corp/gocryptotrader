@@ -288,7 +288,7 @@ func (c *connection) ReadMessage() Response {
 			// method on WebsocketConnection type has been called and can
 			// be skipped.
 			select {
-			case c.readMessageErrors <- fmt.Errorf("%w: %w", err, errConnectionFault):
+			case c.readMessageErrors <- fmt.Errorf("%w: %w (%q)", err, errConnectionFault, c.URL):
 			default:
 				// bypass if there is no receiver, as this stops it returning
 				// when shutdown is called.
