@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 	if err := testexch.MockHTTPInstance(e); err != nil {
 		log.Fatalf("Binance MockHTTPInstance error: %s", err)
 	}
-	if err := e.UpdateTradablePairs(context.Background(), true); err != nil {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		log.Fatalf("Binance UpdateTradablePairs error: %s", err)
 	}
 	os.Exit(m.Run())

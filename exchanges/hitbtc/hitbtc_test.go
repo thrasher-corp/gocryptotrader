@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 
-	if err := e.UpdateTradablePairs(context.Background(), false); err != nil {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		log.Fatalf("HitBTC UpdateTradablePairs error: %s", err)
 	}
 

@@ -98,7 +98,7 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 		t.Fatalf("Cannot setup %v exchange Setup %v", name, err)
 	}
 
-	err = exch.UpdateTradablePairs(ctx, true)
+	err = exch.UpdateTradablePairs(ctx)
 	require.Truef(t, errors.Is(err, context.DeadlineExceeded) || err == nil, "Exchange %s UpdateTradablePairs must not error: %s", name, err)
 	b := exch.GetBase()
 

@@ -90,7 +90,7 @@ func TestMain(m *testing.M) {
 }
 
 func instantiateTradablePairs() {
-	if err := e.UpdateTradablePairs(context.Background(), true); err != nil {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		log.Fatalf("Failed to update tradable pairs. Error: %v", err)
 	}
 

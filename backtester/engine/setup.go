@@ -158,7 +158,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				if err != nil {
 					return err
 				}
-				err = exch.UpdateTradablePairs(context.TODO(), true)
+				err = exch.UpdateTradablePairs(context.TODO())
 				if err != nil {
 					return err
 				}

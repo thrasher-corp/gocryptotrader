@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Bybit MockHTTPInstance error: %s", err)
 	}
 
-	if err := e.UpdateTradablePairs(context.Background(), true); err != nil {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		log.Fatalf("Bybit unable to UpdateTradablePairs: %s", err)
 	}
 
