@@ -2628,24 +2628,20 @@ func (e *Exchange) StringToAssetKind(assetType string) (asset.Item, error) {
 
 // getAssetPairByInstrument is able to determine the asset type and currency pair
 // based on the received instrument ID
-func (e *Exchange) getAssetPairByInstrument(instrument string) (currency.Pair, asset.Item, error) {
+func (e *Exchange) getAssetPairByInstrument(instrument string) (asset.Item, currency.Pair, error) {
 	if instrument == "" {
-		return currency.EMPTYPAIR, asset.Empty, currency.ErrSymbolStringEmpty
+		return asset.Empty, currency.EMPTYPAIR, currency.ErrSymbolStringEmpty
 	}
 
 	item, err := getAssetFromInstrument(instrument)
 	if err != nil {
-		return currency.EMPTYPAIR, asset.Empty, err
+		return asset.Empty, currency.EMPTYPAIR, err
 	}
 	cp, err := currency.NewPairFromString(instrument)
 	if err != nil {
-		return currency.EMPTYPAIR, asset.Empty, err
+		return asset.Empty, currency.EMPTYPAIR, err
 	}
-	cp, err = e.FormatExchangeCurrency(cp, item)
-	if err != nil {
-		return currency.EMPTYPAIR, asset.Empty, err
-	}
-	return cp, item, nil
+	return item, cp, nil
 }
 
 // getAssetFromInstrument extrapolates the asset type from the instrument formatting as each type is unique

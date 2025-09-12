@@ -738,7 +738,7 @@ func TestWSProcessTrades(t *testing.T) {
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
 	close(e.Websocket.DataHandler)
 
-	p, a, err := e.getAssetPairByInstrument("BTC-PERPETUAL")
+	a, p, err := e.getAssetPairByInstrument("BTC-PERPETUAL")
 	require.NoError(t, err, "getAssetPairByInstrument must not error")
 
 	exp := []trade.Data{
@@ -3554,9 +3554,11 @@ func TestGetAssetPairByInstrument(t *testing.T) {
 			instrument := formatPairString(assetType, cp)
 			t.Run(fmt.Sprintf("%s %s", assetType, instrument), func(t *testing.T) {
 				t.Parallel()
-				extractedPair, extractedAsset, err := e.getAssetPairByInstrument(instrument)
+				extractedAsset, extractedPair, err := e.getAssetPairByInstrument(instrument)
 				assert.NoError(t, err)
-				assert.Equal(t, cp.String(), extractedPair.String())
+				fPair, err := e.FormatExchangeCurrency(extractedPair, assetType)
+				require.NoError(t, err, "FormatExchangeCurrency must not error")
+				assert.Equal(t, cp.String(), fPair.String())
 				assert.Equal(t, assetType.String(), extractedAsset.String(), "asset should match for")
 			})
 		}
