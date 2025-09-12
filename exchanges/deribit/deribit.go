@@ -2657,7 +2657,7 @@ func getAssetFromInstrument(instrument string) (asset.Item, error) {
 		return asset.Spot, nil
 	case partsLen == 2: // futures pairs use single dash eg ETH_USDC-PERPETUAL, BTC-12SEP25
 		return asset.Futures, nil
-	case currencySuffix == "C" || currencySuffix == "P": // options end in P or C to denote puts or calls eg BTC-26SEP25-30000-C
+	case currencySuffix == "C", currencySuffix == "P": // options end in P or C to denote puts or calls eg BTC-26SEP25-30000-C
 		return asset.Options, nil
 	case partsLen == 3: // futures combos have 3 parts eg BTC-FS-12SEP25_PERP
 		return asset.FutureCombo, nil
