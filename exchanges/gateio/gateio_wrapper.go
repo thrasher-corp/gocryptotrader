@@ -57,8 +57,8 @@ func (e *Exchange) SetDefaults() {
 			currency.NewCode("MBABYDOGE"): currency.BABYDOGE,
 		}),
 		TradingRequirements: protocol.TradingRequirements{
-			SpotMarketOrderAmountPurchaseQuotationOnly: true,
-			SpotMarketOrderAmountSellBaseOnly:          true,
+			SpotMarketBuyQuotation: true,
+			SpotMarketSellBase:     true,
 		},
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
