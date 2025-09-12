@@ -287,7 +287,7 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(ctx, e.Websocket.AuthConn)
 	e.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		MessageType: gws.TextMessage,
+		MessageType: gws.PingMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
