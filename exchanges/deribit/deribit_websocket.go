@@ -334,7 +334,7 @@ func (e *Exchange) processUserOrders(respRaw []byte, channels []string) error {
 	}
 	orderDetails := make([]order.Detail, len(orderData))
 	for x := range orderData {
-		cp, a, err := e.getAssetPairByInstrument(orderData[x].InstrumentName)
+		a, cp, err := getAssetPairByInstrument(orderData[x].InstrumentName)
 		if err != nil {
 			return err
 		}
@@ -390,7 +390,7 @@ func (e *Exchange) processUserOrderChanges(respRaw []byte, channels []string) er
 		}
 		var cp currency.Pair
 		var a asset.Item
-		cp, a, err = e.getAssetPairByInstrument(changeData.Trades[x].InstrumentName)
+		a, cp, err = getAssetPairByInstrument(changeData.Trades[x].InstrumentName)
 		if err != nil {
 			return err
 		}
@@ -424,7 +424,7 @@ func (e *Exchange) processUserOrderChanges(respRaw []byte, channels []string) er
 		if err != nil {
 			return err
 		}
-		cp, a, err := e.getAssetPairByInstrument(changeData.Orders[x].InstrumentName)
+		a, cp, err := getAssetPairByInstrument(changeData.Orders[x].InstrumentName)
 		if err != nil {
 			return err
 		}
@@ -450,7 +450,7 @@ func (e *Exchange) processUserOrderChanges(respRaw []byte, channels []string) er
 }
 
 func (e *Exchange) processQuoteTicker(respRaw []byte, channels []string) error {
-	cp, a, err := e.getAssetPairByInstrument(channels[1])
+	a, cp, err := getAssetPairByInstrument(channels[1])
 	if err != nil {
 		return err
 	}
@@ -498,7 +498,7 @@ func (e *Exchange) processTrades(respRaw []byte, channels []string) error {
 	for x := range tradesData {
 		var cp currency.Pair
 		var a asset.Item
-		cp, a, err = e.getAssetPairByInstrument(tradeList[x].InstrumentName)
+		a, cp, err = getAssetPairByInstrument(tradeList[x].InstrumentName)
 		if err != nil {
 			return err
 		}
@@ -528,7 +528,7 @@ func (e *Exchange) processIncrementalTicker(respRaw []byte, channels []string) e
 	if len(channels) != 2 {
 		return fmt.Errorf("%w, expected format 'incremental_ticker.{instrument_name}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
-	cp, a, err := e.getAssetPairByInstrument(channels[1])
+	a, cp, err := getAssetPairByInstrument(channels[1])
 	if err != nil {
 		return err
 	}
@@ -564,7 +564,7 @@ func (e *Exchange) processInstrumentTicker(respRaw []byte, channels []string) er
 }
 
 func (e *Exchange) processTicker(respRaw []byte, channels []string) error {
-	cp, a, err := e.getAssetPairByInstrument(channels[1])
+	a, cp, err := getAssetPairByInstrument(channels[1])
 	if err != nil {
 		return err
 	}
@@ -615,7 +615,7 @@ func (e *Exchange) processCandleChart(respRaw []byte, channels []string) error {
 	if len(channels) != 4 {
 		return fmt.Errorf("%w, expected format 'chart.trades.{instrument_name}.{resolution}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
-	cp, a, err := e.getAssetPairByInstrument(channels[2])
+	a, cp, err := getAssetPairByInstrument(channels[2])
 	if err != nil {
 		return err
 	}
@@ -649,7 +649,7 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 		return err
 	}
 	if len(channels) == 3 {
-		cp, a, err := e.getAssetPairByInstrument(orderbookData.InstrumentName)
+		a, cp, err := getAssetPairByInstrument(orderbookData.InstrumentName)
 		if err != nil {
 			return err
 		}
@@ -718,7 +718,7 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 			})
 		}
 	} else if len(channels) == 5 {
-		cp, a, err := e.getAssetPairByInstrument(orderbookData.InstrumentName)
+		a, cp, err := getAssetPairByInstrument(orderbookData.InstrumentName)
 		if err != nil {
 			return err
 		}
