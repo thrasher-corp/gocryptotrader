@@ -196,7 +196,7 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 	case spotUserTradesChannel:
 		return e.processUserPersonalTrades(respRaw)
 	case spotBalancesChannel:
-		return e.processSpotBalances(ctx, respRaw)
+		return e.processSpotBalances(ctx, push.Result)
 	case marginBalancesChannel:
 		return e.processMarginBalances(ctx, respRaw)
 	case spotFundingBalanceChannel:
@@ -510,31 +510,28 @@ func (e *Exchange) processUserPersonalTrades(data []byte) error {
 }
 
 func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
-	resp := struct {
-		Time    types.Time      `json:"time"`
-		Channel string          `json:"channel"`
-		Event   string          `json:"event"`
-		Result  []WsSpotBalance `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	var resp []WsSpotBalance
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
+
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	changes := make([]account.Change, len(resp.Result))
-	for i := range resp.Result {
+
+	changes := make([]account.Change, len(resp))
+	for i := range resp {
 		changes[i] = account.Change{
-			Account:   resp.Result[i].User,
+			Account:   resp[i].User,
 			AssetType: asset.Spot,
 			Balance: &account.Balance{
-				Currency:  currency.NewCode(resp.Result[i].Currency),
-				Total:     resp.Result[i].Total.Float64(),
-				Free:      resp.Result[i].Available.Float64(),
-				Hold:      resp.Result[i].Total.Float64() - resp.Result[i].Available.Float64(),
-				UpdatedAt: resp.Result[i].Timestamp.Time(),
+				Currency:               resp[i].Currency,
+				Total:                  resp[i].Total.Float64(),
+				Free:                   resp[i].Available.Float64(),
+				Hold:                   resp[i].Freeze.Float64(),
+				AvailableWithoutBorrow: resp[i].Available.Float64(),
+				UpdatedAt:              resp[i].Timestamp.Time(),
 			},
 		}
 	}
