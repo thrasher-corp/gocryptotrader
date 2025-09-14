@@ -315,7 +315,7 @@ func TestApplyOrderbookUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	err = e.Base.SetPairs([]currency.Pair{pair}, asset.Spot, true)
-	require.NoError(t, err)
+	require.NoError(t, err, "SetPairs must not error")
 
 	update.Pair = pair
 	err = applyOrderbookUpdate(e, update)
