@@ -187,8 +187,8 @@ type SideAmounts struct {
 	BaseAmount float64
 }
 
-// LevelsArrayPriceAmount used to unmarshal orderbook levels from JSON slice of arrays e.g. [[price, amount], [price, amount]] or
-// [][2]types.Number type declaration
+// LevelsArrayPriceAmount used to unmarshal orderbook levels from JSON slice of arrays
+// e.g. [[price, amount], [price, amount]] or [][2]types.Number type declaration
 type LevelsArrayPriceAmount Levels
 
 // UnmarshalJSON implements json.Unmarshaler
