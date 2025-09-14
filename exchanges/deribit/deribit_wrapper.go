@@ -713,7 +713,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (o
 	case order.AnyType, order.UnknownType:
 		orderTypeStr = "all"
 	default:
-		return resp, fmt.Errorf("%s: orderType %v is not valid", e.Name, cancel.Type)
+		return resp, fmt.Errorf("%s %w: %v", e.Name, order.ErrTypeIsInvalid, cancel.Type)
 	}
 
 	var cancelData *MultipleCancelResponse
