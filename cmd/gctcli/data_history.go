@@ -12,100 +12,102 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var startTime, endTime string
-var dataHistoryCommands = &cli.Command{
-	Name:      "datahistory",
-	Usage:     "manage data history jobs to retrieve historic trade or candle data over time",
-	ArgsUsage: "<command> <args>",
-	Subcommands: []*cli.Command{
-		{
-			Name:   "getactivejobs",
-			Usage:  "returns all jobs that are currently active",
-			Flags:  []cli.Flag{},
-			Action: getActiveDataHistoryJobs,
-		},
-		{
-			Name:  "getjobsbetweendates",
-			Usage: "returns all jobs with creation dates between the two provided dates",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "start_date",
-					Usage: "formatted as: " + time.DateTime,
+var (
+	startTime, endTime  string
+	dataHistoryCommands = &cli.Command{
+		Name:      "datahistory",
+		Usage:     "manage data history jobs to retrieve historic trade or candle data over time",
+		ArgsUsage: "<command> <args>",
+		Subcommands: []*cli.Command{
+			{
+				Name:   "getactivejobs",
+				Usage:  "returns all jobs that are currently active",
+				Flags:  []cli.Flag{},
+				Action: getActiveDataHistoryJobs,
+			},
+			{
+				Name:  "getjobsbetweendates",
+				Usage: "returns all jobs with creation dates between the two provided dates",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "start_date",
+						Usage: "formatted as: " + time.DateTime,
+					},
+					&cli.StringFlag{
+						Name:  "end_date",
+						Usage: "formatted as: " + time.DateTime,
+					},
 				},
-				&cli.StringFlag{
-					Name:  "end_date",
-					Usage: "formatted as: " + time.DateTime,
+				Action: getDataHistoryJobsBetween,
+			},
+			{
+				Name:        "getajob",
+				Usage:       "returns a job by either its id or nickname",
+				Description: "na-na, why don't you get a job?",
+				ArgsUsage:   "<id> or <nickname>",
+				Action:      getDataHistoryJob,
+				Flags:       specificJobSubCommands,
+			},
+			{
+				Name:        "getjobwithdetailedresults",
+				Usage:       "returns a job by either its nickname along with all its data retrieval results",
+				Description: "results may be large",
+				ArgsUsage:   "<nickname>",
+				Action:      getDataHistoryJob,
+				Flags: []cli.Flag{
+					nicknameFlag,
 				},
 			},
-			Action: getDataHistoryJobsBetween,
-		},
-		{
-			Name:        "getajob",
-			Usage:       "returns a job by either its id or nickname",
-			Description: "na-na, why don't you get a job?",
-			ArgsUsage:   "<id> or <nickname>",
-			Action:      getDataHistoryJob,
-			Flags:       specificJobSubCommands,
-		},
-		{
-			Name:        "getjobwithdetailedresults",
-			Usage:       "returns a job by either its nickname along with all its data retrieval results",
-			Description: "results may be large",
-			ArgsUsage:   "<nickname>",
-			Action:      getDataHistoryJob,
-			Flags: []cli.Flag{
-				nicknameFlag,
+			{
+				Name:      "getjobstatussummary",
+				Usage:     "returns a job with human readable summary of its status",
+				ArgsUsage: "<nickname>",
+				Action:    getDataHistoryJobSummary,
+				Flags: []cli.Flag{
+					nicknameFlag,
+				},
+			},
+			dataHistoryJobCommands,
+			{
+				Name:      "deletejob",
+				Usage:     "sets a jobs status to deleted so it no longer is processed",
+				ArgsUsage: "<id> or <nickname>",
+				Flags:     specificJobSubCommands,
+				Action:    setDataHistoryJobStatus,
+			},
+			{
+				Name:      "pausejob",
+				Usage:     "sets a jobs status to paused so it no longer is processed",
+				ArgsUsage: "<id> or <nickname>",
+				Flags:     specificJobSubCommands,
+				Action:    setDataHistoryJobStatus,
+			},
+			{
+				Name:      "unpausejob",
+				Usage:     "sets a jobs status to active so it can be processed",
+				ArgsUsage: "<id> or <nickname>",
+				Flags:     specificJobSubCommands,
+				Action:    setDataHistoryJobStatus,
+			},
+			{
+				Name:      "updateprerequisite",
+				Usage:     "adds or updates a prerequisite job to the job referenced - if the job is active, it will be set as 'paused'",
+				ArgsUsage: "<prerequisite> <nickname>",
+				Flags:     prerequisiteJobSubCommands,
+				Action:    setPrerequisiteJob,
+			},
+			{
+				Name:      "removeprerequisite",
+				Usage:     "removes a prerequisite job from the job referenced - if the job is 'paused', it will be set as 'active'",
+				ArgsUsage: "<nickname>",
+				Flags: []cli.Flag{
+					nicknameFlag,
+				},
+				Action: setPrerequisiteJob,
 			},
 		},
-		{
-			Name:      "getjobstatussummary",
-			Usage:     "returns a job with human readable summary of its status",
-			ArgsUsage: "<nickname>",
-			Action:    getDataHistoryJobSummary,
-			Flags: []cli.Flag{
-				nicknameFlag,
-			},
-		},
-		dataHistoryJobCommands,
-		{
-			Name:      "deletejob",
-			Usage:     "sets a jobs status to deleted so it no longer is processed",
-			ArgsUsage: "<id> or <nickname>",
-			Flags:     specificJobSubCommands,
-			Action:    setDataHistoryJobStatus,
-		},
-		{
-			Name:      "pausejob",
-			Usage:     "sets a jobs status to paused so it no longer is processed",
-			ArgsUsage: "<id> or <nickname>",
-			Flags:     specificJobSubCommands,
-			Action:    setDataHistoryJobStatus,
-		},
-		{
-			Name:      "unpausejob",
-			Usage:     "sets a jobs status to active so it can be processed",
-			ArgsUsage: "<id> or <nickname>",
-			Flags:     specificJobSubCommands,
-			Action:    setDataHistoryJobStatus,
-		},
-		{
-			Name:      "updateprerequisite",
-			Usage:     "adds or updates a prerequisite job to the job referenced - if the job is active, it will be set as 'paused'",
-			ArgsUsage: "<prerequisite> <nickname>",
-			Flags:     prerequisiteJobSubCommands,
-			Action:    setPrerequisiteJob,
-		},
-		{
-			Name:      "removeprerequisite",
-			Usage:     "removes a prerequisite job from the job referenced - if the job is 'paused', it will be set as 'active'",
-			ArgsUsage: "<nickname>",
-			Flags: []cli.Flag{
-				nicknameFlag,
-			},
-			Action: setPrerequisiteJob,
-		},
-	},
-}
+	}
+)
 
 var dataHistoryJobCommands = &cli.Command{
 	Name:      "addjob",

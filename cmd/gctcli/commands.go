@@ -20,8 +20,6 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var ()
-
 var getInfoCommand = &cli.Command{
 	Name:   "getinfo",
 	Usage:  "gets GoCryptoTrader info",
@@ -3295,8 +3293,6 @@ func UnmarshalCLIFields(c *cli.Context, params any) error {
 			}
 			if !value && val.Field(i).Bool() {
 				value = val.Field(i).Bool()
-			} else if required && !value {
-				return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
 			}
 			val.Field(i).SetBool(value)
 		case reflect.Int64:
@@ -3351,6 +3347,7 @@ func FlagsFromStruct(params any) []cli.Flag {
 		}
 
 		required := slices.Contains([]string{"t", "true"}, strings.ToLower(field.Tag.Get("required")))
+		hidden := slices.Contains([]string{"t", "true"}, strings.ToLower(field.Tag.Get("hidden")))
 
 		usage := field.Tag.Get("usage")
 		if usage == "" {
@@ -3366,6 +3363,7 @@ func FlagsFromStruct(params any) []cli.Flag {
 			flags = append(flags, &cli.StringFlag{
 				Name:     flagName,
 				Usage:    usage,
+				Hidden:   hidden,
 				Required: required,
 				Value:    val.Field(i).String(),
 				Aliases:  aliceNames,
@@ -3374,6 +3372,7 @@ func FlagsFromStruct(params any) []cli.Flag {
 			flags = append(flags, &cli.Float64Flag{
 				Name:     flagName,
 				Usage:    usage,
+				Hidden:   hidden,
 				Required: required,
 				Value:    val.Field(i).Float(),
 				Aliases:  aliceNames,
@@ -3382,6 +3381,7 @@ func FlagsFromStruct(params any) []cli.Flag {
 			flags = append(flags, &cli.BoolFlag{
 				Name:     flagName,
 				Usage:    usage,
+				Hidden:   hidden,
 				Required: required,
 				Aliases:  aliceNames,
 			})
@@ -3389,6 +3389,7 @@ func FlagsFromStruct(params any) []cli.Flag {
 			flags = append(flags, &cli.Int64Flag{
 				Name:     flagName,
 				Usage:    usage,
+				Hidden:   hidden,
 				Required: required,
 				Value:    val.Field(i).Int(),
 				Aliases:  aliceNames,

@@ -6,7 +6,6 @@ import (
 	"os"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -116,60 +115,62 @@ func TestFunctionsAndStructHandling(t *testing.T) {
 	t.Parallel()
 
 	funcAndValue := []struct {
-		l                   string
 		function            func(c *cli.Context) error
 		val                 any
 		args                []string
 		err                 error
 		missingRequiredFlag string
 	}{
-		{l: "withdrawlRequestByDate", function: withdrawlRequestByDate, val: &WithdrawalRequestByDate{Start: time.Now().AddDate(0, -1, 0).Format(time.DateTime), End: time.Now().Format(time.DateTime)}, args: []string{"test", "--exchange", "binance"}},
-
 		// Futures commands handled
-		{l: "getManagedPosition-ErrNotFuturesAsset", function: getManagedPosition, val: &GetManagedPositionsParams{}, args: []string{"test", "-e", "Okx", "-a", "spot", "-p", "btc-usdt"}, err: futures.ErrNotFuturesAsset},
-		{l: "getManagedPosition-MissingRequiredFlag", function: getManagedPosition, val: &GetManagedPositionsParams{}, args: []string{"test", "-e", "Okx", "-a", "spot"}, missingRequiredFlag: "pair"},
-		{l: "getManagedPosition", function: getManagedPosition, val: &GetManagedPositionsParams{}, args: []string{"test", "-e", "Okx", "-a", "futures", "-p", "btc-usdt"}},
-		{l: "getAllManagedPositions", function: getAllManagedPositions, val: &GetAllManagedPositions{}},
-		{l: "getCollateral", function: getCollateral, val: &GetCollateralParams{}, args: []string{"test", "-e", "okx", "-a", "futures"}},
-		{l: "getLatestFundingRate", function: getLatestFundingRate, val: &GetLatestFundingRateParams{}, args: []string{"test", "-e", "Binance", "-a", "futures", "-p", "btc-usdt"}},
-		{l: "getLatestFundingRate-RequiredValueMissing-asset", function: getLatestFundingRate, val: &GetLatestFundingRateParams{}, args: []string{"test", "-e", "Binance", "-a", "", "-p", "btc-usdt"}, err: ErrRequiredValueMissing},
-		{l: "getLatestFundingRate-RequiredValueMissing-pair", function: getLatestFundingRate, val: &GetLatestFundingRateParams{}, args: []string{"test", "-e", "Binance", "-a", "futures", "-p", ""}, err: ErrRequiredValueMissing},
-		{l: "getCollateralMode", function: getCollateralMode, val: &GetCollateralMode{}, args: []string{"test", "-e", "Binance", "-a", "spot"}, err: futures.ErrNotFuturesAsset},
-		{l: "getCollateralMode", function: getCollateralMode, val: &GetCollateralMode{}, args: []string{"test", "-e", "Binance", "-a", "futures"}},
-		{l: "setCollateralMode", function: setCollateralMode, val: &SetCollateralMode{}, args: []string{"test", "-e", "kucoin", "--asset", "perpetual_swap", "-c", "multi"}, err: asset.ErrNotSupported},
-		{l: "setCollateralMode", function: setCollateralMode, val: &SetCollateralMode{}, args: []string{"test", "-e", "kucoin", "--asset", "delivery", "-c", "abcd"}, err: collateral.ErrInvalidCollateralMode},
-		{l: "setCollateralMode", function: setCollateralMode, val: &SetCollateralMode{}, args: []string{"test", "-e", "kucoin", "--asset", "delivery", "-c", "multi"}, err: asset.ErrNotSupported},
-		{l: "setLeverage", function: setLeverage, val: &SetLeverage{}, args: []string{"test", "--exchange", "binance", "-a", "spot", "-p", "btc_usdt", "-margintype", "multi", "-l", "2312"}, err: futures.ErrNotFuturesAsset},
-		{l: "setLeverage", function: setLeverage, val: &SetLeverage{}, args: []string{"test", "--exchange", "binance", "-a", "futures", "-p", "btc_usdt", "-margintype", "multi", "-l", "2312"}},
-		{l: "getLeverage", function: getLeverage, val: &LeverageInfo{}, args: []string{"test", "--exchange", "okx", "-a", "something", "-p", "btc_usdt", "-margintype", "multi"}, err: asset.ErrNotSupported},
-		{l: "getLeverage", function: getLeverage, val: &LeverageInfo{}, args: []string{"test", "--exchange", "okx", "-a", "spot", "-p", "btc_usdt", "-margintype", "multi"}, err: futures.ErrNotFuturesAsset},
-		{l: "getLeverage", function: getLeverage, val: &LeverageInfo{}, args: []string{"test", "--exchange", "okx", "-a", "futures", "-p", "btc_usdt", "-margintype", "multi"}},
-		{l: "changePositionMargin", function: changePositionMargin, val: &ChangePositionMargin{}, args: []string{"test", "--exchange", "okx", "--asset", "spot", "--pair", "btc-usd", "--margintype", "cross", "--originalallocatedmargin", "123.", "--newallocatedmargin", "456"}, err: futures.ErrNotFuturesAsset},
-		{l: "changePositionMargin", function: changePositionMargin, val: &ChangePositionMargin{}, args: []string{"test", "--exchange", "okx", "--asset", "futures", "--pair", "btc-usd", "--margintype", "cross", "--originalallocatedmargin", "123.", "--newallocatedmargin", "456"}},
-		{l: "getFuturesPositionSummary", function: getFuturesPositionSummary, val: &GetFuturesPositionSummary{}, args: []string{"test", "-e", "deribit", "-a", "spot", "-p", "btc-eth"}, err: futures.ErrNotFuturesAsset},
-		{l: "getFuturesPositionSummary", function: getFuturesPositionSummary, val: &GetFuturesPositionSummary{}, args: []string{"test", "-e", "deribit", "-a", "coinmarginedfutures", "-p", "btc-eth"}},
-		{l: "getFuturePositionOrders", function: getFuturePositionOrders, val: &GetFuturePositionOrders{}, args: []string{"test", "-e", "deribit", "-a", "coinmarginedfutures", "-p", "btc-eth"}},
-		{l: "setMarginType", function: setMarginType, val: &SetMarginType{}, args: []string{"test", "-e", "deribit", "-a", "coinmarginedfutures", "-margintype", "multi", "-p", "btc-eth"}},
-		{l: "getOpenInterest", function: getOpenInterest, val: &GetOpenInterest{}, args: []string{"test", "-e", "kucoin"}},
+		{function: getManagedPosition, val: &GetManagedPositionsParams{}, args: []string{"test", "-e", "Okx", "-a", "spot", "-p", "btc-usdt"}, err: futures.ErrNotFuturesAsset},
+		{function: getManagedPosition, val: &GetManagedPositionsParams{}, args: []string{"test", "-e", "Okx", "-a", "spot"}, missingRequiredFlag: "pair"},
+		{function: getManagedPosition, val: &GetManagedPositionsParams{}, args: []string{"test", "-e", "Okx", "-a", "futures", "-p", "btc-usdt"}},
+		{function: getAllManagedPositions, val: &GetAllManagedPositions{}},
+		{function: getCollateral, val: &GetCollateralParams{}, args: []string{"test", "-e", "okx", "-a", "futures"}},
+		{function: getLatestFundingRate, val: &GetLatestFundingRateParams{}, args: []string{"test", "-e", "Binance", "-a", "futures", "-p", "btc-usdt"}},
+		{function: getLatestFundingRate, val: &GetLatestFundingRateParams{}, args: []string{"test", "-e", "Binance", "-a", "", "-p", "btc-usdt"}, err: ErrRequiredValueMissing},
+		{function: getLatestFundingRate, val: &GetLatestFundingRateParams{}, args: []string{"test", "-e", "Binance", "-a", "futures", "-p", ""}, err: ErrRequiredValueMissing},
+		{function: getCollateralMode, val: &GetCollateralMode{}, args: []string{"test", "-e", "Binance", "-a", "spot"}, err: futures.ErrNotFuturesAsset},
+		{function: getCollateralMode, val: &GetCollateralMode{}, args: []string{"test", "-e", "Binance", "-a", "futures"}},
+		{function: setCollateralMode, val: &SetCollateralMode{}, args: []string{"test", "-e", "kucoin", "--asset", "perpetual_swap", "-c", "multi"}, err: asset.ErrNotSupported},
+		{function: setCollateralMode, val: &SetCollateralMode{}, args: []string{"test", "-e", "kucoin", "--asset", "delivery", "-c", "abcd"}, err: collateral.ErrInvalidCollateralMode},
+		{function: setCollateralMode, val: &SetCollateralMode{}, args: []string{"test", "-e", "kucoin", "--asset", "delivery", "-c", "multi"}, err: asset.ErrNotSupported},
+		{function: setLeverage, val: &SetLeverage{}, args: []string{"test", "--exchange", "binance", "-a", "spot", "-p", "btc_usdt", "-margintype", "multi", "-l", "2312"}, err: futures.ErrNotFuturesAsset},
+		{function: setLeverage, val: &SetLeverage{}, args: []string{"test", "--exchange", "binance", "-a", "futures", "-p", "btc_usdt", "-margintype", "multi", "-l", "2312"}},
+		{function: getLeverage, val: &LeverageInfo{}, args: []string{"test", "--exchange", "okx", "-a", "something", "-p", "btc_usdt", "-margintype", "multi"}, err: asset.ErrNotSupported},
+		{function: getLeverage, val: &LeverageInfo{}, args: []string{"test", "--exchange", "okx", "-a", "spot", "-p", "btc_usdt", "-margintype", "multi"}, err: futures.ErrNotFuturesAsset},
+		{function: getLeverage, val: &LeverageInfo{}, args: []string{"test", "--exchange", "okx", "-a", "futures", "-p", "btc_usdt", "-margintype", "multi"}},
+		{function: changePositionMargin, val: &ChangePositionMargin{}, args: []string{"test", "--exchange", "okx", "--asset", "spot", "--pair", "btc-usd", "--margintype", "cross", "--originalallocatedmargin", "123.", "--newallocatedmargin", "456"}, err: futures.ErrNotFuturesAsset},
+		{function: changePositionMargin, val: &ChangePositionMargin{}, args: []string{"test", "--exchange", "okx", "--asset", "futures", "--pair", "btc-usd", "--margintype", "cross", "--originalallocatedmargin", "123.", "--newallocatedmargin", "456"}},
+		{function: getFuturesPositionSummary, val: &GetFuturesPositionSummary{}, args: []string{"test", "-e", "deribit", "-a", "spot", "-p", "btc-eth"}, err: futures.ErrNotFuturesAsset},
+		{function: getFuturesPositionSummary, val: &GetFuturesPositionSummary{}, args: []string{"test", "-e", "deribit", "-a", "coinmarginedfutures", "-p", "btc-eth"}},
+		{function: getFuturePositionOrders, val: &GetFuturePositionOrders{}, args: []string{"test", "-e", "deribit", "-a", "coinmarginedfutures", "-p", "btc-eth"}},
+		{function: setMarginType, val: &SetMarginType{}, args: []string{"test", "-e", "deribit", "-a", "coinmarginedfutures", "-margintype", "multi", "-p", "btc-eth"}},
+		{function: getOpenInterest, val: &GetOpenInterest{}, args: []string{"test", "-e", "kucoin"}},
 
 		// Trade commands handler
-		{function: setExchangeTradeProcessing, val: &SetExchangeTradeProcessing{}, args: []string{"setexchangetradeprocessing", "-e", "binance", "-status"}},
+		{function: setExchangeTradeProcessing, val: &SetExchangeTradeProcessing{}, args: []string{"test", "-e", "binance", "-status"}},
+
+		// Orderbook commands handler
+		{function: whaleBomb, val: &WhaleBomb{}, args: []string{"test", "--exchange", "okx", "-asset", "something", "-p", "btc_usdt"}, missingRequiredFlag: "side"},
+		{function: whaleBomb, val: &WhaleBomb{}, args: []string{"test", "--exchange", "okx", "-asset", "something", "-p", "btc_usdt", "-s", ""}, err: ErrRequiredValueMissing},
+		{function: whaleBomb, val: &WhaleBomb{}, args: []string{"test", "--exchange", "okx", "-asset", "something", "-p", "btc_usdt", "-s", "sell"}},
+
+		// pair management commands handler
+		{function: enableDisableExchangePair, val: &EnableDisableExchangePair{}, args: []string{"test", "-e", "okx", "-p", "btc-usdt", "-asset", "spot"}},
 	}
 
 	for a := range funcAndValue {
-		t.Run(funcAndValue[a].l, func(t *testing.T) {
-			t.Parallel()
-			app := &cli.App{
-				Flags:  FlagsFromStruct(funcAndValue[a].val),
-				Action: funcAndValue[a].function,
-			}
+		app := &cli.App{
+			Flags:  FlagsFromStruct(funcAndValue[a].val),
+			Action: funcAndValue[a].function,
+		}
 
-			err := app.Run(funcAndValue[a].args)
-			if funcAndValue[a].missingRequiredFlag != "" {
-				require.ErrorContains(t, err, fmt.Sprintf("Required flag %q not set", funcAndValue[a].missingRequiredFlag))
-			} else if !errors.Is(err, os.ErrNotExist) {
-				require.ErrorIs(t, err, funcAndValue[a].err)
-			}
-		})
+		err := app.Run(funcAndValue[a].args)
+		if funcAndValue[a].missingRequiredFlag != "" {
+			require.ErrorContains(t, err, fmt.Sprintf("Required flag %q not set", funcAndValue[a].missingRequiredFlag))
+		} else if !errors.Is(err, os.ErrNotExist) {
+			require.ErrorIs(t, err, funcAndValue[a].err)
+		}
 	}
 }

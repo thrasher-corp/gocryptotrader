@@ -38,7 +38,13 @@ var orderbookCommand = &cli.Command{
 			Usage:       "simulates sell to derive orderbook liquidity impact information",
 			ArgsUsage:   "<command> <args>",
 			Subcommands: []*cli.Command{nominal, impact, base, quoteRequired},
-			Flags:       []cli.Flag{&cli.BoolFlag{Name: "sell", Hidden: true, Value: true}},
+			Flags: []cli.Flag{
+				&cli.BoolFlag{
+					Name:   "sell",
+					Hidden: true,
+					Value:  true,
+				},
+			},
 		},
 		{
 			Name:        "buy",
@@ -735,84 +741,27 @@ var whaleBombCommand = &cli.Command{
 	Usage:     "whale bomb finds the amount required to reach a price target",
 	ArgsUsage: "<exchange> <pair> <side> <asset> <price>",
 	Action:    whaleBomb,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to whale bomb",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair",
-		},
-		&cli.StringFlag{
-			Name:  "side",
-			Usage: "the order side to use (BUY OR SELL)",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type of the currency pair to get the orderbook for",
-		},
-		&cli.Float64Flag{
-			Name:  "price",
-			Usage: "the price target",
-		},
-	},
+	Flags:     FlagsFromStruct(&WhaleBomb{}),
 }
 
 func whaleBomb(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	var exchangeName string
-	var currencyPair string
-	var orderSide string
-	var price float64
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
+	arg := &WhaleBomb{}
+	if err := UnmarshalCLIFields(c, arg); err != nil {
+		return err
 	}
 
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(1)
-	}
-
-	if !validPair(currencyPair) {
+	if !validPair(arg.Pair) {
 		return errInvalidPair
 	}
 
-	if c.IsSet("side") {
-		orderSide = c.String("side")
-	} else {
-		orderSide = c.Args().Get(2)
-	}
-
-	if orderSide == "" {
+	if arg.Side == "" {
 		return errors.New("order side must be set")
 	}
 
-	var assetType string
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(3)
-	}
-
-	if c.IsSet("price") {
-		price = c.Float64("price")
-	} else if c.Args().Get(4) != "" {
-		var err error
-		price, err = strconv.ParseFloat(c.Args().Get(4), 64)
-		if err != nil {
-			return err
-		}
-	}
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairFromString(arg.Pair)
 	if err != nil {
 		return err
 	}
@@ -825,15 +774,15 @@ func whaleBomb(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WhaleBomb(c.Context, &gctrpc.WhaleBombRequest{
-		Exchange: exchangeName,
+		Exchange: arg.Exchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		Side:        orderSide,
-		PriceTarget: price,
-		AssetType:   assetType,
+		Side:        arg.Side,
+		PriceTarget: arg.Price,
+		AssetType:   arg.Asset,
 	})
 	if err != nil {
 		return err

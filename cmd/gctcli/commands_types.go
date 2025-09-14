@@ -272,42 +272,59 @@ type WithdrawlRequestByExchange struct {
 // SetExchangeTradeProcessing defines command-line flags for setting exchange trade processing and unmarshal their values.
 type SetExchangeTradeProcessing struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to change the status of"`
-	Status   bool   `name:"status" required:"t" usage:"<true>/<false>"`
+	Status   bool   `name:"status"     required:"t" usage:"<true>/<false>"`
 }
 
 // GetRecentTrades defines command-line flags for exchange trades retrieval and unmarshal their values.
 type GetRecentTrades struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get the trades from"`
-	Pair     string `name:"pair,p" required:"t" usage:"the currency pair to get the trades for"`
-	Asset    string `name:"asset,a" required:"t" usage:"the asset type of the currency pair"`
+	Pair     string `name:"pair,p"     required:"t" usage:"the currency pair to get the trades for"`
+	Asset    string `name:"asset,a"    required:"t" usage:"the asset type of the currency pair"`
 }
 
 // GetTrades defines command-line flags for exchange trades retrieval and unmarshal their values.
 type GetTrades struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get the trades from"`
-	Pair     string `name:"pair,p" required:"t" usage:"the currency pair to get the trades for"`
-	Asset    string `name:"asset,a" required:"t" usage:"the asset type of the currency pair"`
-	Start    string `name:"start,s" required:"t" usage:"<start>"`
-	End      string `name:"end" required:"t" usage:"<end> WARNING: large date ranges may take considerable time"`
+	Pair     string `name:"pair,p"     required:"t" usage:"the currency pair to get the trades for"`
+	Asset    string `name:"asset,a"    required:"t" usage:"the asset type of the currency pair"`
+	Start    string `name:"start,s"    required:"t" usage:"<start>"`
+	End      string `name:"end"        required:"t" usage:"<end> WARNING: large date ranges may take considerable time"`
 }
 
 // FindMisingSavedTradeIntervals defines command-line flags for exchange missing saved trade intervals retrieval and unmarshal their values.
 type FindMisingSavedTradeIntervals struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to find the missing trades"`
-	Pair     string `name:"pair,p" required:"t" usage:"the currency pair"`
-	Asset    string `name:"asset,a" required:"t" usage:"the asset type of the currency pair"`
-	Start    string `name:"start,s" required:"t" usage:"<start> rounded down to the nearest hour"`
-	End      string `name:"end" required:"t" usage:"<end> rounded down to the nearest hour"`
+	Pair     string `name:"pair,p"     required:"t" usage:"the currency pair"`
+	Asset    string `name:"asset,a"    required:"t" usage:"the asset type of the currency pair"`
+	Start    string `name:"start,s"    required:"t" usage:"<start> rounded down to the nearest hour"`
+	End      string `name:"end"        required:"t" usage:"<end> rounded down to the nearest hour"`
 }
 
 // ConvertSavedTradesToCandles defines command-line flags for exchange saved trades to candles conversion and unmarshal their values.
 type ConvertSavedTradesToCandles struct {
-	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to find the missing trades"`
-	Pair     string `name:"pair,p" required:"t" usage:"the currency pair"`
-	Asset    string `name:"asset,a" required:"t" usage:"the asset type of the currency pair"`
+	Exchange string `name:"exchange,e" required:"t"                                                                                                                                                                                                                                                                     usage:"the exchange to find the missing trades"`
+	Pair     string `name:"pair,p"     required:"t"                                                                                                                                                                                                                                                                     usage:"the currency pair"`
+	Asset    string `name:"asset,a"    required:"t"                                                                                                                                                                                                                                                                     usage:"the asset type of the currency pair"`
 	Interval int64  `name:"interval,i" usage:"interval in seconds. supported values are: 15, 60(1min), 180(3min), 300(5min), 600(10min),900(15min) 1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h),86400(1d), 259200(3d) 604800(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)"`
-	Start    string `name:"start,s" required:"t" usage:"<start>"`
-	End      string `name:"end,e" required:"t" usage:"<end>"`
-	Sync     bool   `name:"sync,s" usage:"will sync the resulting candles to the database <true/false>"`
-	Force    bool   `name:"force,f" usage:"will overwrite any conflicting candle data on save <true/false>"`
+	Start    string `name:"start,s"    required:"t"                                                                                                                                                                                                                                                                     usage:"<start>"`
+	End      string `name:"end,e"      required:"t"                                                                                                                                                                                                                                                                     usage:"<end>"`
+	Sync     bool   `name:"sync,s"     usage:"will sync the resulting candles to the database <true/false>"`
+	Force    bool   `name:"force,f"    usage:"will overwrite any conflicting candle data on save <true/false>"`
+}
+
+// WhaleBomb defines command-line flags for exchange whale bomb amount required to reach a price target and unmarshal their values.
+type WhaleBomb struct {
+	Exchange string  `name:"exchange,e" required:"t"             usage:"the exchange to whale bomb"`
+	Pair     string  `name:"pair,p"     required:"t"             usage:"the currency pair"`
+	Side     string  `name:"side,s"     required:"t"             usage:"the order side to use (BUY OR SELL)"`
+	Asset    string  `name:"asset,a"    required:"t"             usage:"the asset type of the currency pair to get the orderbook for"`
+	Price    float64 `name:"price"      usage:"the price target"`
+}
+
+// EnableDisableExchangePair defines command-line flags for exchange pair toggling and unmarshal their values.
+type EnableDisableExchangePair struct {
+	Exchange string `name:"exchange,e" required:"t"  usage:"the exchange to act on"`
+	Pairs    string `name:"pairs,p"    required:"t"  usage:"either a single currency pair string or comma delimiter string of pairs e.g. \"BTC-USD,XRP-USD\""`
+	Asset    string `name:"asset"      required:"t"  usage:"asset"`
+	Enable   bool   `hidden:"t"        name:"enable"`
 }
