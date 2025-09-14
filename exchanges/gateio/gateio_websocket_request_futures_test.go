@@ -120,7 +120,7 @@ func TestWebsocketFuturesCancelAllOpenFuturesOrders(t *testing.T) {
 
 	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures) //nolint:govet // Intentional shadow
 
-	got, err := e.WebsocketFuturesCancelAllOpenFuturesOrders(t.Context(), BTCUSDT, asset.USDTMarginedFutures, "bid")
+	got, err := e.WebsocketFuturesCancelAllOpenFuturesOrders(t.Context(), BTCUSDT, asset.USDTMarginedFutures, sideBid)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }

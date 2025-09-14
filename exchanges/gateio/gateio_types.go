@@ -25,6 +25,9 @@ const (
 	// Loan sides
 	sideLend   = "lend"
 	sideBorrow = "borrow"
+	// cancel sides
+	sideBid = "bid"
+	sideAsk = "ask"
 )
 
 // WithdrawalFees the large list of predefined withdrawal fees
