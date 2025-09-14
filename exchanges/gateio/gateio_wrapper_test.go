@@ -54,7 +54,7 @@ func TestCancelAllOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	
 	for _, a := range e.GetAssetTypes(false) {
-		t.Run(fmt.Sprintf("Live test: %s", a), func(t *testing.T) {
+		t.Run(fmt.Sprintf(a.String()), func(t *testing.T) {
 			t.Parallel()
 			r := &order.Cancel{
 				OrderID:   "1",
