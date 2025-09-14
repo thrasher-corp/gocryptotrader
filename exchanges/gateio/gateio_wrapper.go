@@ -665,7 +665,7 @@ func (e *Exchange) fetchOrderbook(ctx context.Context, p currency.Pair, a asset.
 				return nil, err
 			}
 			if !available {
-				return nil, fmt.Errorf("%w: %q %q", errNoOrderbookDataAvailable, p, a)
+				return nil, fmt.Errorf("%w: %w for %q %q", errFetchingOrderbook, errNoSpotInstrument, a, p)
 			}
 		}
 		o, err = e.GetOrderbook(ctx, p.String(), "", limit, true)
