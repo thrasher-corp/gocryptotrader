@@ -3675,8 +3675,8 @@ func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
 	t.Parallel()
 	var ob OrderbookLevels
 	require.NoError(t, ob.UnmarshalJSON([]byte(`[{"p":"123.45","s":"0.001"}]`)))
-	assert.Equal(t, 123.45, ob[0].Price)
-	assert.Equal(t, 0.001, ob[0].Amount)
+	assert.Equal(t, 123.45, ob[0].Price, "Price should be correct")
+	assert.Equal(t, 0.001, ob[0].Amount, "Amount should be correct")
 
 	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
 }
