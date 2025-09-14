@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -16,14 +15,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
 )
 
-var (
-	startTime, endTime, orderingDirection string
-	limit                                 int
-)
+var ()
 
 var getInfoCommand = &cli.Command{
 	Name:   "getinfo",
@@ -1160,15 +1157,15 @@ func submitOrder(c *cli.Context) error {
 	}
 
 	if arg.OrderSide == "" {
-		return errors.New("order side must be set")
+		return fmt.Errorf("%w: order side must be set", order.ErrSideIsInvalid)
 	}
 
 	if arg.OrderType == "" {
-		return errors.New("order type must be set")
+		return fmt.Errorf("%w: order type must be set", order.ErrTypeIsInvalid)
 	}
 
 	if arg.Amount == 0 {
-		return errors.New("amount must be set")
+		return order.ErrAmountMustBeSet
 	}
 
 	arg.AssetType = strings.ToLower(arg.AssetType)
@@ -1265,11 +1262,11 @@ func simulateOrder(c *cli.Context) error {
 	}
 
 	if arg.OrderSide == "" {
-		return errors.New("side must be set")
+		return order.ErrSideIsInvalid
 	}
 
 	if arg.Amount == 0 {
-		return errors.New("amount must be set")
+		return order.ErrAmountMustBeSet
 	}
 
 	p, err := currency.NewPairDelimiter(arg.Pair, pairDelimiter)
@@ -1759,7 +1756,7 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 		return err
 	}
 	if arg.Currency == "" {
-		return errors.New("cryptocurrency must be set")
+		return fmt.Errorf("%w: cryptocurrency must be set", currency.ErrCurrencyCodeEmpty)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -1946,68 +1943,24 @@ var withdrawalRequestCommand = &cli.Command{
 			Name:      "byexchangeid",
 			Usage:     "exchange id",
 			ArgsUsage: "<id>",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "exchange name",
-				},
-				&cli.StringFlag{
-					Name:  "id",
-					Usage: "withdrawal id",
-				},
-			},
-			Action: withdrawlRequestByExchangeID,
+			Flags:     FlagsFromStruct(&WithdrawlRequestByExchangeID{}),
+			Action:    withdrawlRequestByExchangeID,
 		},
 		{
 			Name:      "byexchange",
 			Usage:     "exchange limit",
 			ArgsUsage: "<id>",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "exchange name",
-				},
-				&cli.Int64Flag{
-					Name:  "limit",
-					Usage: "max number of withdrawals to return",
-				},
-				&cli.StringFlag{
-					Name:  "currency",
-					Usage: "<currency>",
-				},
-				&cli.StringFlag{
-					Name:  "asset",
-					Usage: "the asset type of the currency pair",
-				},
-			},
-			Action: withdrawlRequestByExchangeID,
+			Flags:     FlagsFromStruct(&WithdrawlRequestByExchange{}),
+			Action:    withdrawlRequestByExchangeID,
 		},
 		{
 			Name:      "bydate",
 			Usage:     "exchange start end limit",
 			ArgsUsage: "<exchange> <start> <end> <limit>",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "the currency used in to withdraw",
-				},
-				&cli.StringFlag{
-					Name:        "start",
-					Usage:       "the start date to get withdrawals from. Any withdrawal before this date will be filtered",
-					Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
-					Destination: &startTime,
-				},
-				&cli.StringFlag{
-					Name:        "end",
-					Usage:       "the end date to get withdrawals from. Any withdrawal after this date will be filtered",
-					Value:       time.Now().Format(time.DateTime),
-					Destination: &endTime,
-				},
-				&cli.Int64Flag{
-					Name:  "limit",
-					Usage: "max number of withdrawals to return",
-				},
-			},
+			Flags: FlagsFromStruct(&WithdrawalRequestByDate{
+				Start: time.Now().AddDate(0, -1, 0).Format(time.DateTime),
+				End:   time.Now().Format(time.DateTime),
+			}),
 			Action: withdrawlRequestByDate,
 		},
 	},
@@ -2054,51 +2007,36 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange, ccy, assetType string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
-	} else {
-		exchange = c.Args().First()
-	}
-
-	var limit, limitStr int64
-	var ID string
-	var err error
+	var in *gctrpc.WithdrawalEventsByExchangeRequest
 	if c.Command.Name == "byexchangeid" {
-		if c.IsSet("id") {
-			ID = c.String("id")
-		} else {
-			ID = c.Args().Get(1)
+		arg := &WithdrawlRequestByExchangeID{}
+		err := UnmarshalCLIFields(c, arg)
+		if err != nil {
+			return err
 		}
-		if ID == "" {
-			return errors.New("an ID must be specified")
+
+		in = &gctrpc.WithdrawalEventsByExchangeRequest{
+			Exchange: arg.Exchange,
+			Id:       arg.ID,
+			Limit:    1,
 		}
-		limit = 1
 	} else {
-		if c.IsSet("limit") {
-			limit = c.Int64("limit")
-		} else if c.Args().Get(1) != "" {
-			limitStr, err = strconv.ParseInt(c.Args().Get(1), 10, 64)
-			if err != nil {
-				return err
-			}
-			if limitStr > math.MaxInt32 {
-				return fmt.Errorf("limit greater than max size: %v", math.MaxInt32)
-			}
-			limit = limitStr
+		arg := &WithdrawlRequestByExchange{}
+		err := UnmarshalCLIFields(c, arg)
+		if err != nil {
+			return err
 		}
 
-		if c.IsSet("currency") {
-			ccy = c.String("currency")
-		}
-
-		if c.IsSet("asset") {
-			assetType = c.String("asset")
-		}
-
-		assetType = strings.ToLower(assetType)
-		if !validAsset(assetType) {
+		arg.Asset = strings.ToLower(arg.Asset)
+		if !validAsset(arg.Asset) {
 			return errInvalidAsset
+		}
+
+		in = &gctrpc.WithdrawalEventsByExchangeRequest{
+			Exchange:  arg.Exchange,
+			Limit:     int32(arg.Limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
+			Currency:  arg.Currency,
+			AssetType: arg.Asset,
 		}
 	}
 
@@ -2110,15 +2048,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 
-	result, err := client.WithdrawalEventsByExchange(c.Context,
-		&gctrpc.WithdrawalEventsByExchangeRequest{
-			Exchange:  exchange,
-			Id:        ID,
-			Limit:     int32(limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
-			Currency:  ccy,
-			AssetType: assetType,
-		},
-	)
+	result, err := client.WithdrawalEventsByExchange(c.Context, in)
 	if err != nil {
 		return err
 	}
@@ -2131,45 +2061,17 @@ func withdrawlRequestByDate(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	var limit, limitStr int64
-	var err error
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
-	} else {
-		exchange = c.Args().First()
+	arg := &WithdrawalRequestByDate{}
+	err := UnmarshalCLIFields(c, arg)
+	if err != nil {
+		return err
 	}
 
-	if !c.IsSet("start") {
-		if c.Args().Get(1) != "" {
-			startTime = c.Args().Get(1)
-		}
-	}
-
-	if !c.IsSet("end") {
-		if c.Args().Get(2) != "" {
-			endTime = c.Args().Get(2)
-		}
-	}
-
-	if c.IsSet("limit") {
-		limit = c.Int64("limit")
-	} else if c.Args().Get(3) != "" {
-		limitStr, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
-		if err != nil {
-			return err
-		}
-		if limitStr > math.MaxInt32 {
-			return fmt.Errorf("limit greater than max size: %v", math.MaxInt32)
-		}
-		limit = limitStr
-	}
-
-	s, err := time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, arg.Start, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, arg.End, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -2187,10 +2089,10 @@ func withdrawlRequestByDate(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WithdrawalEventsByDate(c.Context,
 		&gctrpc.WithdrawalEventsByDateRequest{
-			Exchange: exchange,
+			Exchange: arg.Exchange,
 			Start:    s.Format(common.SimpleTimeFormatWithTimezone),
 			End:      e.Format(common.SimpleTimeFormatWithTimezone),
-			Limit:    int32(limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
+			Limit:    int32(arg.Limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
 		},
 	)
 	if err != nil {
@@ -2320,20 +2222,7 @@ var getTickerStreamCommand = &cli.Command{
 	Usage:     "gets the ticker stream for a specific currency pair and exchange",
 	ArgsUsage: "<exchange> <pair> <asset>",
 	Action:    getTickerStream,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to get the ticker from",
-		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "currency pair",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type of the currency pair",
-		},
-	},
+	Flags:     FlagsFromStruct(&GetTickerStreamParams{}),
 }
 
 func getTickerStream(c *cli.Context) error {
@@ -2356,7 +2245,7 @@ func getTickerStream(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	p, err := currency.NewPairDelimiter(arg.Pair, pairDelimiter)
+	p, err := currency.NewPairFromString(arg.Pair)
 	if err != nil {
 		return err
 	}
@@ -2477,36 +2366,12 @@ var getAuditEventCommand = &cli.Command{
 	Usage:     "gets audit events matching query parameters",
 	ArgsUsage: "<starttime> <endtime> <orderby> <limit>",
 	Action:    getAuditEvent,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:        "start",
-			Aliases:     []string{"s"},
-			Usage:       "start date to search",
-			Value:       time.Now().Add(-time.Hour).Format(time.DateTime),
-			Destination: &startTime,
-		},
-		&cli.StringFlag{
-			Name:        "end",
-			Aliases:     []string{"e"},
-			Usage:       "end time to search",
-			Value:       time.Now().Format(time.DateTime),
-			Destination: &endTime,
-		},
-		&cli.StringFlag{
-			Name:        "order",
-			Aliases:     []string{"o"},
-			Usage:       "order results by ascending/descending",
-			Value:       "asc",
-			Destination: &orderingDirection,
-		},
-		&cli.IntFlag{
-			Name:        "limit",
-			Aliases:     []string{"l"},
-			Usage:       "how many results to retrieve",
-			Value:       100,
-			Destination: &limit,
-		},
-	},
+	Flags: FlagsFromStruct(&GetAuditEventParam{
+		Start: time.Now().Add(-time.Hour).Format(time.DateTime),
+		End:   time.Now().Format(time.DateTime),
+		Order: "asc",
+		Limit: 100,
+	}),
 }
 
 func getAuditEvent(c *cli.Context) error {

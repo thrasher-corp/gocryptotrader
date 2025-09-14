@@ -12,6 +12,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var startTime, endTime string
 var dataHistoryCommands = &cli.Command{
 	Name:      "datahistory",
 	Usage:     "manage data history jobs to retrieve historic trade or candle data over time",

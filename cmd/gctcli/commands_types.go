@@ -131,17 +131,17 @@ type AddEventParams struct {
 
 // GetTickerStreamParams defines command-line flags for exchange tickers stream retrieval and unmarshal their values
 type GetTickerStreamParams struct {
-	Exchange string `name:"exchange"`
-	Pair     string `name:"pair"`
-	Asset    string `name:"asset"`
+	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get the ticker from"`
+	Pair     string `name:"pair,p"     required:"t" usage:"currency pair"`
+	Asset    string `name:"asset"      required:"t" usage:"the asset type of the currency pair"`
 }
 
 // GetAuditEventParam defines command-line flags for exchange event audit retrieval and unmarshal their values.
 type GetAuditEventParam struct {
-	Start string `name:"start" required:"t"`
-	End   string `name:"end"   required:"t"`
-	Order string `name:"order"`
-	Limit int64  `name:"limit"`
+	Start string `name:"start,s" required:"t" usage:"start date to search"`
+	End   string `name:"end,e"   required:"t" usage:"end time to search"`
+	Order string `name:"order"   required:"t" usage:"order results by ascending/descending"`
+	Limit int64  `name:"limit"   required:"t" usage:"how many results to retrieve"`
 }
 
 // HistoricCandlesParams defines command-line flags for exchange historical candles retrieval and unmarshal their values.
@@ -222,7 +222,7 @@ type GetOrdersCommandParams struct {
 	Asset    string `name:"asset"      required:"t"                                                           usage:"the asset type to get orders for"`
 	Pair     string `name:"pair,p"     required:"t"                                                           usage:"the currency pair to get orders for"`
 	Start    string `name:"start"      usage:"start date, optional. Will filter any results before this date"`
-	End      string `name:"name"       usage:"end date, optional. Will filter any results after this date"`
+	End      string `name:"end"        usage:"end date, optional. Will filter any results after this date"`
 }
 
 // SimulateOrderCommandParams defines command-line flags for simulate exchange order and unmarshal their values.
@@ -245,4 +245,69 @@ type GetManagedOrdersCommandParams struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get orders for"`
 	Asset    string `name:"asset"      required:"t" usage:"the asset type to get orders for"`
 	Pair     string `name:"pair,p"     required:"t" usage:"the currency pair to get orders for"`
+}
+
+// WithdrawalRequestByDate defines command-line flags for withdrawal request by date and unmarshal their values.
+type WithdrawalRequestByDate struct {
+	Exchange string `name:"exchange,e" required:"t"                                                                                     usage:"the currency used in to withdraw"`
+	Start    string `name:"start"      usage:"the start date to get withdrawals from. Any withdrawal before this date will be filtered"`
+	End      string `name:"end"        usage:"the end date to get withdrawals from. Any withdrawal after this date will be filtered"`
+	Limit    int64  `name:"limit"      usage:"max number of withdrawals to return"`
+}
+
+// WithdrawlRequestByExchangeID defines command-line flags for withdrawal request by exchange id and unmarshal their values.
+type WithdrawlRequestByExchangeID struct {
+	Exchange string `name:"exchange,e" required:"t" usage:"exchange name"`
+	ID       string `name:"id"         required:"t" usage:"withdrawal id"`
+}
+
+// WithdrawlRequestByExchange defines command-line flags for withdrawal request by exchange and unmarshal their values.
+type WithdrawlRequestByExchange struct {
+	Exchange string `name:"exchange,e" required:"t"                                usage:"exchange name"`
+	Asset    string `name:"asset"      usage:"the asset type of the currency pair"`
+	Limit    int64  `name:"limit"      usage:"max number of withdrawals to return"`
+	Currency string `name:"currency"   usage:"<currency>"`
+}
+
+// SetExchangeTradeProcessing defines command-line flags for setting exchange trade processing and unmarshal their values.
+type SetExchangeTradeProcessing struct {
+	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to change the status of"`
+	Status   bool   `name:"status" required:"t" usage:"<true>/<false>"`
+}
+
+// GetRecentTrades defines command-line flags for exchange trades retrieval and unmarshal their values.
+type GetRecentTrades struct {
+	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get the trades from"`
+	Pair     string `name:"pair,p" required:"t" usage:"the currency pair to get the trades for"`
+	Asset    string `name:"asset,a" required:"t" usage:"the asset type of the currency pair"`
+}
+
+// GetTrades defines command-line flags for exchange trades retrieval and unmarshal their values.
+type GetTrades struct {
+	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get the trades from"`
+	Pair     string `name:"pair,p" required:"t" usage:"the currency pair to get the trades for"`
+	Asset    string `name:"asset,a" required:"t" usage:"the asset type of the currency pair"`
+	Start    string `name:"start,s" required:"t" usage:"<start>"`
+	End      string `name:"end" required:"t" usage:"<end> WARNING: large date ranges may take considerable time"`
+}
+
+// FindMisingSavedTradeIntervals defines command-line flags for exchange missing saved trade intervals retrieval and unmarshal their values.
+type FindMisingSavedTradeIntervals struct {
+	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to find the missing trades"`
+	Pair     string `name:"pair,p" required:"t" usage:"the currency pair"`
+	Asset    string `name:"asset,a" required:"t" usage:"the asset type of the currency pair"`
+	Start    string `name:"start,s" required:"t" usage:"<start> rounded down to the nearest hour"`
+	End      string `name:"end" required:"t" usage:"<end> rounded down to the nearest hour"`
+}
+
+// ConvertSavedTradesToCandles defines command-line flags for exchange saved trades to candles conversion and unmarshal their values.
+type ConvertSavedTradesToCandles struct {
+	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to find the missing trades"`
+	Pair     string `name:"pair,p" required:"t" usage:"the currency pair"`
+	Asset    string `name:"asset,a" required:"t" usage:"the asset type of the currency pair"`
+	Interval int64  `name:"interval,i" usage:"interval in seconds. supported values are: 15, 60(1min), 180(3min), 300(5min), 600(10min),900(15min) 1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h),86400(1d), 259200(3d) 604800(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)"`
+	Start    string `name:"start,s" required:"t" usage:"<start>"`
+	End      string `name:"end,e" required:"t" usage:"<end>"`
+	Sync     bool   `name:"sync,s" usage:"will sync the resulting candles to the database <true/false>"`
+	Force    bool   `name:"force,f" usage:"will overwrite any conflicting candle data on save <true/false>"`
 }
