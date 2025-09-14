@@ -52,6 +52,7 @@ func TestCancelAllOrders(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidSettlementQuote)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(fmt.Sprintf("Live test: %s", a), func(t *testing.T) {
 			t.Parallel()
