@@ -272,7 +272,7 @@ func applyOrderbookUpdate(g *Exchange, update *orderbook.Update) error {
 		return g.Websocket.Orderbook.Update(update)
 	}
 
-	var updateApplied bool
+	var updated bool
 	for i := range standardMarginAssetTypes {
 		if enabled, _ := g.IsPairEnabled(update.Pair, standardMarginAssetTypes[i]); !enabled {
 			continue
