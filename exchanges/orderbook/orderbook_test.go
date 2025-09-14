@@ -578,3 +578,22 @@ func TestLevelsArrayPriceAmountUnmarshalJSON(t *testing.T) {
 	err = asks.UnmarshalJSON([]byte(`invalid`))
 	assert.Error(t, err)
 }
+
+func TestStore(t *testing.T) {
+	t.Parallel()
+
+	require.Panics(t, func() { _, _ = Store(nil) }, "must panic on nil book")
+	got, err := Store(&Book{})
+	require.ErrorIs(t, err, ErrExchangeNameEmpty, "must error on empty exchange name")
+	require.Nil(t, got, "must return nil book on error")
+
+	got, err = Store(&Book{
+		Pair:     currency.NewBTCUSD(),
+		Asks:     []Level{{Price: 100, Amount: 10}},
+		Bids:     []Level{{Price: 200, Amount: 10}},
+		Exchange: "bing bong",
+		Asset:    asset.Spot,
+	})
+	require.NoError(t, err, "Store must not error")
+	require.NotNil(t, got, "book must not be nil")
+}

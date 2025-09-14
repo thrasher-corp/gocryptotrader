@@ -538,18 +538,14 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	if err := (&orderbook.Book{
+	return orderbook.Store(&orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
 		Asset:             assetType,
 		ValidateOrderbook: e.ValidateOrderbook,
 		Bids:              orderbookNew.Bids.Levels(),
 		Asks:              orderbookNew.Asks.Levels(),
-	}).Process(); err != nil {
-		return nil, err
-	}
-
-	return orderbook.Get(e.Name, p, assetType)
+	})
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
