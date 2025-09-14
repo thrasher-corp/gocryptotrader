@@ -107,10 +107,7 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair
 	}
 
 	var resp *OrderBookResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesOrderbook+params.Encode(), rateBudget, &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesOrderbook+params.Encode(), rateBudget, &resp)
 }
 
 // GetFuturesPublicTrades gets recent public trades for CoinMarginedFutures,

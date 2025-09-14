@@ -115,10 +115,7 @@ func (e *Exchange) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, 
 	}
 
 	var resp *OrderBookResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), rateBudget, &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), rateBudget, &resp)
 }
 
 // URecentTrades gets recent trades for usdt margined futures
