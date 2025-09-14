@@ -17,7 +17,7 @@ func TestFetchOrderbook(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 
 	availSpot, err := e.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err)
+	require.NoError(t, err, "GetAvailablePairs must not error")
 
 	availMargin, err := e.GetAvailablePairs(asset.Margin)
 	require.NoError(t, err)
