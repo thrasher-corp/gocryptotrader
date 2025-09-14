@@ -62,8 +62,8 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.True(t, tc.pair.Equal(got.Pair))
 			assert.Equal(t, tc.a, got.Asset)
 			// options books are consistently empty but should not exceed limit 1
-			assert.LessOrEqual(t, len(got.Asks), 1)
-			assert.LessOrEqual(t, len(got.Bids), 1)
+			assert.LessOrEqual(t, len(got.Asks), 1, "Asks count should not exceed limit, but may be empty especially for options")
+			assert.LessOrEqual(t, len(got.Bids), 1, "Bids count should not exceed limit, but may be empty especially for options")
 			assert.NotZero(t, got.LastUpdated)
 			assert.NotZero(t, got.LastUpdateID)
 			assert.NotZero(t, got.LastPushed)
