@@ -2587,16 +2587,16 @@ func (e *Exchange) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL
 		return fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, response.RetCode, response.RetMsg)
 	}
 	if len(response.RetExtInfo.List) > 0 && response.RetCode != 0 {
-		var errMessage string
+		var errMessage strings.Builder
 		var failed bool
 		for i := range response.RetExtInfo.List {
 			if response.RetExtInfo.List[i].Code != 0 {
 				failed = true
-				errMessage += fmt.Sprintf("code: %d message: %s ", response.RetExtInfo.List[i].Code, response.RetExtInfo.List[i].Message)
+				errMessage.WriteString(fmt.Sprintf("code: %d message: %s ", response.RetExtInfo.List[i].Code, response.RetExtInfo.List[i].Message))
 			}
 		}
 		if failed {
-			return fmt.Errorf("%w %s", request.ErrAuthRequestFailed, errMessage)
+			return fmt.Errorf("%w %s", request.ErrAuthRequestFailed, errMessage.String())
 		}
 	}
 	return err
