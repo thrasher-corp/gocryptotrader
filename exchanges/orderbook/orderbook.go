@@ -28,7 +28,7 @@ func DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error)
 	return s.DeployDepth(exchange, p, a)
 }
 
-// store stores the orderbook returns the book pointer
+// Store stores the orderbook returns the book pointer
 func Store(book *Book) (*Book, error) {
 	if err := book.Process(); err != nil { // TODO: Uncouple method from Book struct
 		return nil, err
