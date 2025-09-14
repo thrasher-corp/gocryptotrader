@@ -109,7 +109,7 @@ func (e *Exchange) GetPartOrderbook20(ctx context.Context, symbol string) (*Orde
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, partOrderbook20EPL, common.EncodeURLValues("/v1/market/orderbook/level2_20", params), &o); err != nil {
 		return nil, err
 	}
-	return unifySpotOrderbook(o), nil
+	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: o.Time.Time(), Sequence: o.Sequence.Int64()}, nil
 }
 
 // GetPartOrderbook100 gets orderbook for a specified pair with depth 100
@@ -123,7 +123,7 @@ func (e *Exchange) GetPartOrderbook100(ctx context.Context, symbol string) (*Ord
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, partOrderbook100EPL, common.EncodeURLValues("/v1/market/orderbook/level2_100", params), &o); err != nil {
 		return nil, err
 	}
-	return unifySpotOrderbook(o), nil
+	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: o.Time.Time(), Sequence: o.Sequence.Int64()}, nil
 }
 
 // GetOrderbook gets full orderbook for a specified pair
@@ -137,11 +137,7 @@ func (e *Exchange) GetOrderbook(ctx context.Context, symbol string) (*Orderbook,
 	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, fullOrderbookEPL, http.MethodGet, common.EncodeURLValues("/v3/market/orderbook/level2", params), nil, &o); err != nil {
 		return nil, err
 	}
-	return unifySpotOrderbook(o), nil
-}
-
-func unifySpotOrderbook(o *orderbookResponse) *Orderbook {
-	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: o.Time.Time(), Sequence: o.Sequence.Int64()}
+	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: o.Time.Time(), Sequence: o.Sequence.Int64()}, nil
 }
 
 // GetTradeHistory gets trade history of the specified pair
