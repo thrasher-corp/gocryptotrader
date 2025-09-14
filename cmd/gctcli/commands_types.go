@@ -328,3 +328,10 @@ type EnableDisableExchangePair struct {
 	Asset    string `name:"asset"      required:"t"  usage:"asset"`
 	Enable   bool   `hidden:"t"        name:"enable"`
 }
+
+// EnableDisableExchangeAsset defines command-line flags for exchange asset toggling and unmarshal their values.
+type EnableDisableExchangeAsset struct {
+	Exchange string `name:"exchange,e" required:"t"  usage:"the exchange to act on"`
+	Asset    string `name:"asset"      required:"t"  usage:"asset"`
+	Enable   bool   `hidden:"t"        name:"enable"`
+}

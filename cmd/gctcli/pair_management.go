@@ -45,23 +45,9 @@ var exchangePairManagerCommand = &cli.Command{
 			Action: enableDisableExchangeAsset,
 		},
 		{
-			Name:  "enableasset",
-			Usage: "enables asset type",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "the exchange to act on",
-				},
-				&cli.StringFlag{
-					Name:  "asset",
-					Usage: "asset",
-				},
-				&cli.BoolFlag{
-					Name:   "enable",
-					Hidden: true,
-					Value:  true,
-				},
-			},
+			Name:   "enableasset",
+			Usage:  "enables asset type",
+			Flags:  FlagsFromStruct(&EnableDisableExchangeAsset{Enable: true}),
 			Action: enableDisableExchangeAsset,
 		},
 		{
@@ -235,28 +221,16 @@ func getExchangePairs(c *cli.Context) error {
 }
 
 func enableDisableExchangeAsset(c *cli.Context) error {
-	enable := c.Bool("enable")
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	var asset string
-
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
-	} else {
-		exchange = c.Args().First()
+	arg := &EnableDisableExchangeAsset{}
+	if err := UnmarshalCLIFields(c, arg); err != nil {
+		return err
 	}
-
-	if c.IsSet("asset") {
-		asset = c.String("asset")
-	} else {
-		asset = c.Args().Get(1)
-	}
-
-	asset = strings.ToLower(asset)
-	if !validAsset(asset) {
+	arg.Asset = strings.ToLower(arg.Asset)
+	if !validAsset(arg.Asset) {
 		return errInvalidAsset
 	}
 
@@ -269,9 +243,9 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SetExchangeAsset(c.Context,
 		&gctrpc.SetExchangeAssetRequest{
-			Exchange: exchange,
-			Asset:    asset,
-			Enable:   enable,
+			Exchange: arg.Exchange,
+			Asset:    arg.Asset,
+			Enable:   arg.Enable,
 		},
 	)
 	if err != nil {
