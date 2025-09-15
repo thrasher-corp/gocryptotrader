@@ -19,7 +19,6 @@ var (
 	errOrderbookSnapshotOutdated      = errors.New("orderbook snapshot is outdated")
 	errPendingUpdatesNotApplied       = errors.New("pending updates not applied")
 	errInvalidOrderbookUpdateInterval = errors.New("invalid orderbook update interval")
-	errApplyingOrderbookUpdate        = errors.New("error applying orderbook update")
 
 	defaultWSOrderbookUpdateDeadline  = time.Minute * 2
 	defaultWsOrderbookUpdateTimeDelay = time.Second * 2
@@ -70,7 +69,7 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 
 	lastUpdateID, updateErr := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
 	if updateErr == nil && lastUpdateID+1 == firstUpdateID {
-		if updateErr = applyOrderbookUpdate(e, update); updateErr == nil {
+		if updateErr = e.Websocket.Orderbook.Update(update); updateErr == nil {
 			return nil
 		}
 	}
@@ -156,28 +155,17 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair curre
 		c.mtx.Unlock()
 	}()
 
-	if a != asset.Spot { // Regarding Spot, Margin and Cross Margin, the asset is hard coded to `spot in the calling function
-		if err := e.Websocket.Orderbook.LoadSnapshot(book); err != nil {
-			return err
-		}
-	} else {
-		for i := range standardMarginAssetTypes {
-			if enabled, _ := e.IsPairEnabled(pair, standardMarginAssetTypes[i]); !enabled {
-				continue
-			}
-			book.Asset = standardMarginAssetTypes[i]
-			if err := e.Websocket.Orderbook.LoadSnapshot(book); err != nil {
-				return err
-			}
-		}
+	if err := e.Websocket.Orderbook.LoadSnapshot(book); err != nil {
+		return err
 	}
+
 	return c.applyPendingUpdates(e)
 }
 
 // TODO: When subscription config is added for all assets update limits to use sub.Levels
 func (c *updateCache) extractOrderbookLimit(e *Exchange, a asset.Item) (uint64, error) {
 	switch a {
-	case asset.Spot: // Regarding Spot, Margin and Cross Margin, the asset is hard coded to `spot` in the calling function
+	case asset.Spot:
 		sub := e.Websocket.GetSubscription(spotOrderbookUpdateKey)
 		if sub == nil {
 			return 0, fmt.Errorf("%w for %q", subscription.ErrNotFound, spotOrderbookUpdateKey)
@@ -246,7 +234,7 @@ func (c *updateCache) applyPendingUpdates(e *Exchange) error {
 			return errOrderbookSnapshotOutdated
 		}
 
-		if err := applyOrderbookUpdate(e, data.update); err != nil {
+		if err := e.Websocket.Orderbook.Update(data.update); err != nil {
 			return err
 		}
 
@@ -269,29 +257,4 @@ func (c *updateCache) clearWithLock() {
 func (c *updateCache) clearNoLock() {
 	c.updates = nil
 	c.updating = false
-}
-
-// applyOrderbookUpdate applies an orderbook update to the orderbook
-func applyOrderbookUpdate(g *Exchange, update *orderbook.Update) error {
-	if update.Asset != asset.Spot {
-		return g.Websocket.Orderbook.Update(update)
-	}
-
-	var updated bool
-	for i := range standardMarginAssetTypes {
-		if enabled, _ := g.IsPairEnabled(update.Pair, standardMarginAssetTypes[i]); !enabled {
-			continue
-		}
-		update.Asset = standardMarginAssetTypes[i]
-		if err := g.Websocket.Orderbook.Update(update); err != nil {
-			return err
-		}
-		updated = true
-	}
-
-	if !updated {
-		return fmt.Errorf("%w: %q %q %w", errApplyingOrderbookUpdate, update.Pair, update.Asset, currency.ErrPairNotEnabled)
-	}
-
-	return nil
 }
