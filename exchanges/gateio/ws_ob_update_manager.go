@@ -161,7 +161,6 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair curre
 			return err
 		}
 	} else {
-		// Spot, Margin, and Cross Margin books are all classified as spot
 		for i := range standardMarginAssetTypes {
 			if enabled, _ := e.IsPairEnabled(pair, standardMarginAssetTypes[i]); !enabled {
 				continue
