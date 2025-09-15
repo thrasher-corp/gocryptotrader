@@ -884,7 +884,7 @@ type WalletBalance struct {
 		TotalWalletBalance     types.Number `json:"totalWalletBalance"`
 		AccountLTV             types.Number `json:"accountLTV"` // Account LTV: account total borrowed size / (account total equity + account total borrowed size).
 		TotalMaintenanceMargin types.Number `json:"totalMaintenanceMargin"`
-		Coin                   []struct {
+		Coin                   []*struct {
 			AvailableToBorrow       types.Number  `json:"availableToBorrow"`
 			Bonus                   types.Number  `json:"bonus"`
 			AccruedInterest         types.Number  `json:"accruedInterest"`
