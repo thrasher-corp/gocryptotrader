@@ -514,17 +514,17 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return nil, err
 	}
 
 	var orderbookNew *OrderBookResponse
 	var err error
-	switch assetType {
+	switch a {
 	case asset.Spot, asset.Margin:
 		orderbookNew, err = e.GetOrderBook(ctx, p, 1000)
 	case asset.USDTMarginedFutures:
@@ -532,20 +532,26 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	case asset.CoinMarginedFutures:
 		orderbookNew, err = e.GetFuturesOrderbook(ctx, p, 1000)
 	default:
-		return nil, fmt.Errorf("[%s] %w", assetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("[%s] %w", a, asset.ErrNotSupported)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	return orderbook.Store(&orderbook.Book{
+	ob := &orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
-		Asset:             assetType,
+		Asset:             a,
 		ValidateOrderbook: e.ValidateOrderbook,
 		Bids:              orderbookNew.Bids.Levels(),
 		Asks:              orderbookNew.Asks.Levels(),
-	})
+	}
+
+	if err := ob.Process(); err != nil {
+		return nil, err
+	}
+
+	return orderbook.Get(e.Name, p, a)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the

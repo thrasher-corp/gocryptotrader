@@ -128,10 +128,7 @@ func (e *Exchange) GetOrderBook(ctx context.Context, pair currency.Pair, limit i
 	params.Set("limit", strconv.Itoa(limit))
 
 	var resp *OrderBookResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(limit), &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(limit), &resp)
 }
 
 // GetMostRecentTrades returns recent trade activity

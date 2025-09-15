@@ -674,7 +674,8 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 	if err != nil {
 		return nil, err
 	}
-	return orderbook.Store(&orderbook.Book{
+
+	ob := &orderbook.Book{
 		Exchange:          e.Name,
 		Asset:             a,
 		ValidateOrderbook: e.ValidateOrderbook,
@@ -684,7 +685,13 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 		LastPushed:        o.Current.Time(),
 		Bids:              o.Bids.Levels(),
 		Asks:              o.Asks.Levels(),
-	})
+	}
+
+	if err := ob.Process(); err != nil {
+		return nil, err
+	}
+
+	return orderbook.Get(e.Name, p, a)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the

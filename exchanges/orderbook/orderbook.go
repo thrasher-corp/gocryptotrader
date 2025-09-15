@@ -28,14 +28,6 @@ func DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error)
 	return s.DeployDepth(exchange, p, a)
 }
 
-// Store stores the orderbook returns the book pointer
-func Store(book *Book) (*Book, error) {
-	if err := book.Process(); err != nil { // TODO: Uncouple method from Book struct
-		return nil, err
-	}
-	return book, nil
-}
-
 // SubscribeToExchangeOrderbooks returns a pipe to an exchange feed
 func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 	s.m.RLock()
