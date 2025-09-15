@@ -161,6 +161,15 @@ func TestExtractOrderbookLimit(t *testing.T) {
 	_, err = cache.extractOrderbookLimit(e, asset.Spot)
 	require.ErrorIs(t, err, subscription.ErrNotFound)
 
+	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.Interval(time.Millisecond * 420)})
+	require.NoError(t, err)
+
+	_, err = cache.extractOrderbookLimit(e, asset.Spot)
+	require.ErrorIs(t, err, errInvalidOrderbookUpdateInterval)
+
+	err = e.Websocket.RemoveSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.Interval(time.Millisecond * 420)})
+	require.NoError(t, err)
+
 	// Add dummy subscription so that it can be matched and a limit/level can be extracted for initial orderbook sync spot.
 	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
 	require.NoError(t, err)

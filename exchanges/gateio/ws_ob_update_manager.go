@@ -16,8 +16,10 @@ import (
 )
 
 var (
-	errOrderbookSnapshotOutdated = errors.New("orderbook snapshot is outdated")
-	errPendingUpdatesNotApplied  = errors.New("pending updates not applied")
+	errOrderbookSnapshotOutdated      = errors.New("orderbook snapshot is outdated")
+	errPendingUpdatesNotApplied       = errors.New("pending updates not applied")
+	errInvalidOrderbookUpdateInterval = errors.New("invalid orderbook update interval")
+	errApplyingOrderbookUpdate        = errors.New("error applying orderbook update")
 
 	defaultWSOrderbookUpdateDeadline  = time.Minute * 2
 	defaultWsOrderbookUpdateTimeDelay = time.Second * 2
@@ -66,13 +68,15 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 		return nil
 	}
 
-	var updateErr error
-	// Error disregarded as all error pathways require a new snapshot
-	if lastUpdateID, _ := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset); lastUpdateID+1 == firstUpdateID {
-		// Track incremental update error for logging but quickly initiate a new snapshot call on error
-		if inUpdateErr = applyOrderbookUpdate(e, update); inUpdateErr == nil {
+	lastUpdateID, updateErr := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
+	if updateErr == nil && lastUpdateID+1 == firstUpdateID {
+		if updateErr = applyOrderbookUpdate(e, update); updateErr == nil {
 			return nil
 		}
+	}
+
+	if updateErr != nil && errors.Is(updateErr, orderbook.ErrDepthNotFound) {
+		updateErr = nil // silence error as this is expected initial sync behaviour
 	}
 
 	// Orderbook notifications are desynced, therefore invalidate store.
@@ -89,7 +93,7 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 		}
 	}()
 
-	return inUpdateErr
+	return updateErr
 }
 
 // LoadCache loads the cache for the given pair and asset. If the cache does not exist, it creates a new one.
@@ -121,8 +125,8 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair curre
 		return err
 	}
 
-	// Rest requests can be behind websocket updates by a large margin, we need to wait here so as to allow the cache to
-	// fill with updates before we fetch the orderbook snapshot.
+	// REST requests can be behind websocket updates by a large margin, so we wait here to allow the cache to fill with
+	// updates before we fetch the orderbook snapshot.
 	select {
 	case <-ctx.Done():
 		c.clearWithLock()
@@ -130,18 +134,18 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair curre
 	case <-time.After(delay):
 	}
 
-	// Setting deadline to error out instead of waiting for rate limiter delay
-	// which excessively builds a backlog of pending updates.
-	ctxWDeadline, cancel := context.WithDeadline(ctx, time.Now().Add(deadline))
+	// Setting deadline to error out instead of waiting for rate limiter delay which excessively builds a backlog of
+	// pending updates.
+	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(deadline))
 	defer cancel()
 
-	book, err := e.fetchOrderbook(ctxWDeadline, pair, a, limit)
+	book, err := e.fetchOrderbook(ctx, pair, a, limit)
 	if err != nil {
 		c.clearWithLock()
 		return err
 	}
 
-	if err := c.waitForUpdate(ctxWDeadline, book.LastUpdateID+1); err != nil {
+	if err := c.waitForUpdate(ctx, book.LastUpdateID+1); err != nil {
 		c.clearWithLock()
 		return err
 	}
@@ -152,7 +156,7 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair curre
 		c.mtx.Unlock()
 	}()
 
-	if a != asset.Spot {
+	if a != asset.Spot { // Regarding Spot, Margin and Cross Margin, the asset is hard coded to `spot in the calling function
 		if err := e.Websocket.Orderbook.LoadSnapshot(book); err != nil {
 			return err
 		}
@@ -174,14 +178,18 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair curre
 // TODO: When subscription config is added for all assets update limits to use sub.Levels
 func (c *updateCache) extractOrderbookLimit(e *Exchange, a asset.Item) (uint64, error) {
 	switch a {
-	case asset.Spot:
+	case asset.Spot: // Regarding Spot, Margin and Cross Margin, the asset is hard coded to `spot` in the calling function
 		sub := e.Websocket.GetSubscription(spotOrderbookUpdateKey)
 		if sub == nil {
 			return 0, fmt.Errorf("%w for %q", subscription.ErrNotFound, spotOrderbookUpdateKey)
 		}
-		// There is no way to set levels when we subscribe for this specific subscription case.
+		// There is no way to set levels when we subscribe for this specific channel
 		// Extract limit from interval e.g. 20ms == 20 limit book and 100ms == 100 limit book.
-		return uint64(sub.Interval.Duration().Milliseconds()), nil //nolint:gosec // No overflow risk
+		lim := uint64(sub.Interval.Duration().Milliseconds()) //nolint:gosec // No overflow risk
+		if lim != 20 && lim != 100 {
+			return 0, fmt.Errorf("%w: %d. Valid limits are 20 and 100", errInvalidOrderbookUpdateInterval, lim)
+		}
+		return lim, nil
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		return futuresOrderbookUpdateLimit, nil
 	case asset.DeliveryFutures:
@@ -193,9 +201,7 @@ func (c *updateCache) extractOrderbookLimit(e *Exchange, a asset.Item) (uint64, 
 	}
 }
 
-// waitForUpdate waits for an update to be available in the cache with an ID
-// that exceeds the specified next update ID. This is needed when the REST book
-// IDs are out of sync and for illiquid pairs.
+// waitForUpdate waits for an update with an ID >= nextUpdateID
 func (c *updateCache) waitForUpdate(ctx context.Context, nextUpdateID int64) error {
 	var updateListLastUpdateID int64
 	c.mtx.Lock()
@@ -203,7 +209,7 @@ func (c *updateCache) waitForUpdate(ctx context.Context, nextUpdateID int64) err
 	c.mtx.Unlock()
 
 	if updateListLastUpdateID >= nextUpdateID {
-		return nil // No need to wait, the update is already in the cache
+		return nil
 	}
 
 	for {
@@ -212,16 +218,16 @@ func (c *updateCache) waitForUpdate(ctx context.Context, nextUpdateID int64) err
 			return ctx.Err()
 		case recentPendingUpdateID := <-c.ch:
 			if recentPendingUpdateID >= nextUpdateID {
-				return nil // Update is now available
+				return nil
 			}
 		}
 	}
 }
 
 // applyPendingUpdates applies all pending updates to the orderbook
-// requires lock
+// Does not lock cache
 func (c *updateCache) applyPendingUpdates(e *Exchange) error {
-	var updateApplied bool
+	var updated bool
 	for _, data := range c.updates {
 		bookLastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(data.update.Pair, data.update.Asset)
 		if err != nil {
@@ -245,10 +251,10 @@ func (c *updateCache) applyPendingUpdates(e *Exchange) error {
 			return err
 		}
 
-		updateApplied = true
+		updated = true
 	}
 
-	if !updateApplied {
+	if !updated {
 		return errPendingUpdatesNotApplied
 	}
 
@@ -281,11 +287,11 @@ func applyOrderbookUpdate(g *Exchange, update *orderbook.Update) error {
 		if err := g.Websocket.Orderbook.Update(update); err != nil {
 			return err
 		}
-		updateApplied = true
+		updated = true
 	}
 
-	if !updateApplied {
-		return fmt.Errorf("error applying orderbook update: %q %q %w", update.Pair, update.Asset, currency.ErrPairNotEnabled)
+	if !updated {
+		return fmt.Errorf("%w: %q %q %w", errApplyingOrderbookUpdate, update.Pair, update.Asset, currency.ErrPairNotEnabled)
 	}
 
 	return nil

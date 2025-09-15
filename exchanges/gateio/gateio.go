@@ -166,7 +166,8 @@ var (
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidTextPrefix                = errors.New("invalid text value, requires prefix `t-`")
 	errSingleAssetRequired              = errors.New("single asset type required")
-	errNoOrderbookDataAvailable         = errors.New("no orderbook data available")
+	errFetchingOrderbook                = errors.New("error fetching orderbook")
+	errNoSpotInstrument                 = errors.New("no spot instrument available")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
