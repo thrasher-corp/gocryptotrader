@@ -1,36 +1,21 @@
 # Signaler
 
-A cross-platform helper for graceful shutdown in Go. It blocks until the process receives termination signal and then returns that signal
+A cross-platform helper for graceful shutdown in Go. It blocks until a termination signal is received and returns that signal.
 
-* Minimal portable set: SIGINT (Ctrl+C) and SIGTERM
-* No os.Kill: cannot be caught on any platform
-* No SIGABRT by default: preserves default abort+core-dump diagnostics
-* Clean unregistration via signal.Stop
+What it does
+- Listens for SIGINT (Ctrl+C) and SIGTERM.
+- Blocks the caller until a termination signal arrives, then returns it.
+- Unregisters its channel via signal.Stop before returning.
 
-* WaitForInterrupt() blocks until a termination signal arrives and returns it.
-* Signals are defined in getPlatformSignals().
-
-Platform behavior:
-    * Unix/macOS:
-        * Receives SIGINT and SIGTERM by default.
-        * SIGKILL (os.Kill) and SIGSTOP cannot be caught or ignored.
-        * SIGABRT default action is abort + core dump. Catching it changes that behavior, hence excluded here.
-    * Windows:
-        * Receiving: Go maps console events (Ctrl_C, Ctrl_Break) to os.Interrupt. Our handler will receive os.Interrupt.
-        * SIGTERM is included but typically not delivered on windows.
-        * os.Process.Kill forcibly terminates the process and cannot be caught.
-    * Go:
-        * The only signal values guaranteed to exist in the os package on all systems are os.Interrupt and os.Kill. We still register syscall.SIGTERM for Unix portability. On windows, it is usually not delivered but harmless.
-    
- * Unix/macOS listen for SIGINT and SIGTERM by default. SIGKILL and SIGSTOP are uncatchable by design and are never registered.
- * Windows maps console events (Ctrl+C, Ctrl+Break) to os.Interrupt including. SIGTERM is harmess but typically not delivered on windows.
- * SIGABRT excluded to preserve the default abort+core-dump diagnostics.
+Platform notes
+- Unix/macOS: SIGINT and SIGTERM are commonly delivered by the OS and process managers.
+- Windows: Console events (Ctrl+C, Ctrl+Break) are surfaced by Go as os.Interrupt. Including SIGTERM is harmless on Windows even if not typically delivered.
 
 Testing
-* Run package tests: go test ./signaler -v count=1
-* With race detector: go test ./signaler -race -v count=1
-* With coverage: go test ./signaler -cover -v
-* Coverage report: go test ./signaler -coverprofile=cover.out ./signaler && go tool cover -func=cover.out
+- Run package tests: go test ./signaler -v -count=1
+- With race detector: go test ./signaler -race -v -count=1
+- With coverage: go test ./signaler -cover -v
+- Coverage report: go test -coverprofile=cover.out ./signaler && go tool cover -func=cover.out
 
 References
     * Go os.Signal guarantees: https://pkg.go.dev/os#Signal
@@ -38,7 +23,7 @@ References
     * Windows TerminateProcess: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess
 
 Notes
-    * If there's a decision to taken to include SIGABRT, keep in mind that catching it suppresses the default abort+core-dump diagnostics/behavior. To preserve diagnostics, reset and re-raise SIGABRT after cleanup (Unix-only).
+    * If you decide to include SIGABRT, be aware that catching it suppresses the default abort+core-dump diagnostics. To preserve diagnostics, reset and re-raise SIGABRT after cleanup (Unix-only).
 
 ## Contribution
 
