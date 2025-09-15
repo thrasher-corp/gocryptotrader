@@ -692,11 +692,12 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 			}
 
 			currencyBalance = append(currencyBalance, account.Balance{
-				Currency: c.Coin,
-				Total:    c.WalletBalance.Float64(),
-				Free:     freeBalance,
-				Borrowed: c.BorrowAmount.Float64(),
-				Hold:     c.Locked.Float64(),
+				Currency:               c.Coin,
+				Total:                  c.WalletBalance.Float64(),
+				Free:                   freeBalance,
+				Borrowed:               c.BorrowAmount.Float64(),
+				Hold:                   c.Locked.Float64(),
+				AvailableWithoutBorrow: c.AvailableToWithdraw.Float64(),
 			})
 		}
 	}
