@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -2888,4 +2889,13 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
 	err := (&Base{}).WebsocketCancelOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestMessageID(t *testing.T) {
+	t.Parallel()
+	id := (new(Base)).MessageID()
+	require.NotEmpty(t, id, "MessageID must return a non-empty message ID")
+	u, err := uuid.FromString(id)
+	require.NoError(t, err, "MessageID must return a valid UUID")
+	assert.Equal(t, byte(0x7), u.Version(), "MessageID should return a V7 uuid")
 }
