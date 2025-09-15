@@ -396,7 +396,7 @@ func (b *ProtectedBalance) load(change *Balance) error {
 	}
 	b.m.Lock()
 	defer b.m.Unlock()
-	if !b.updatedAt.IsZero() && !b.updatedAt.Before(change.UpdatedAt) {
+	if !b.updatedAt.IsZero() && b.updatedAt.After(change.UpdatedAt) {
 		return errOutOfSequence
 	}
 	if b.total == change.Total &&

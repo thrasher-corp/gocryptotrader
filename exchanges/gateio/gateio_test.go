@@ -2276,6 +2276,12 @@ func TestOptionsPositionPushData(t *testing.T) {
 	}
 }
 
+func TestOptionsPongPushData(t *testing.T) {
+	t.Parallel()
+	err := e.WsHandleOptionsData(t.Context(), nil, []byte(`{"time":1756700469,"channel":"options.pong","event":"","result":null}`))
+	require.NoError(t, err)
+}
+
 func TestGenerateSubscriptionsSpot(t *testing.T) {
 	t.Parallel()
 
