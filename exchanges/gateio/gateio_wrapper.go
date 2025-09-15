@@ -659,11 +659,9 @@ func (e *Exchange) fetchOrderbook(ctx context.Context, p currency.Pair, a asset.
 	var o *Orderbook
 	switch a {
 	case asset.Margin, asset.CrossMargin:
-		available, err := e.checkInstrumentAvailabilityInSpot(p)
-		if err != nil {
+		if available, err := e.checkInstrumentAvailabilityInSpot(p); err != nil {
 			return nil, err
-		}
-		if !available {
+		} else if !available {
 			return nil, fmt.Errorf("%w: %w for %q %q", errFetchingOrderbook, errNoSpotInstrument, a, p)
 		}
 		fallthrough
