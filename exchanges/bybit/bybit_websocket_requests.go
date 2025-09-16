@@ -81,7 +81,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op, orderLinkID str
 	// Set up a listener to wait for the response to come back from the inbound connection. The request is sent through
 	// the outbound trade connection, the response can come back through the inbound private connection before the
 	// outbound connection sends its acknowledgement.
-	wait, err := inbound.MatchReturnResponses(ctx, orderLinkID, 1)
+	ch, err := inbound.MatchReturnResponses(ctx, orderLinkID, 1)
 	if err != nil {
 		return nil, err
 	}
