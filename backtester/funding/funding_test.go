@@ -709,7 +709,7 @@ func TestSetFunding(t *testing.T) {
 	t.Parallel()
 	f := &FundManager{}
 	err := f.SetFunding("", 0, nil, false)
-	assert.ErrorIs(t, err, engine.ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, gctcommon.ErrExchangeNameNotSet)
 
 	err = f.SetFunding(exchName, 0, nil, false)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
