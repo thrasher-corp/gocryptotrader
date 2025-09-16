@@ -117,6 +117,7 @@ func TestMain(m *testing.M) {
 	case "encoding/json":
 		errUnmarshalArray = "cannot unmarshal array"
 	}
+	e.Verbose = true
 	os.Exit(m.Run())
 }
 
@@ -165,9 +166,9 @@ func TestWsConnect(t *testing.T) {
 
 func TestQueryAnnouncements(t *testing.T) {
 	t.Parallel()
-	_, err := e.QueryAnnouncements(t.Context(), "", time.Now().Add(time.Hour), time.Time{})
+	_, err := e.QueryAnnouncements(t.Context(), "", time.Now().Add(time.Hour), time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
-	resp, err := e.QueryAnnouncements(t.Context(), "latest_news", time.Time{}, time.Time{})
+	resp, err := e.QueryAnnouncements(t.Context(), "latest_news", time.Time{}, time.Time{}, 0, 10)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -185,6 +186,16 @@ func TestGetTradeRate(t *testing.T) {
 	assert.ErrorIs(t, err, errBusinessTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	resp, err := e.GetTradeRate(t.Context(), testPair, "spot")
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetAllTradeRates(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetAllTradeRates(t.Context(), "")
+	assert.ErrorIs(t, err, errBusinessTypeEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	resp, err := e.GetAllTradeRates(t.Context(), "spot")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }

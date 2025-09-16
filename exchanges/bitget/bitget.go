@@ -85,6 +85,7 @@ const (
 	// Authenticated endpoints
 	bitgetCommon                   = "common/"
 	bitgetTradeRate                = "trade-rate"
+	bitgetAllTradeRate             = "all-trade-rate"
 	bitgetTax                      = "tax/"
 	bitgetSpotRecord               = "spot-record"
 	bitgetFutureRecord             = "future-record"
@@ -313,7 +314,7 @@ var (
 )
 
 // QueryAnnouncements returns announcements from the exchange, filtered by type and time
-func (e *Exchange) QueryAnnouncements(ctx context.Context, annType string, startTime, endTime time.Time) ([]AnnResp, error) {
+func (e *Exchange) QueryAnnouncements(ctx context.Context, annType string, startTime, endTime time.Time, pagination int64, limit uint8) ([]AnnouncementResp, error) {
 	var params Params
 	params.Values = make(url.Values)
 	err := params.prepareDateString(startTime, endTime, true, true)
@@ -322,7 +323,11 @@ func (e *Exchange) QueryAnnouncements(ctx context.Context, annType string, start
 	}
 	params.Values.Set("annType", annType)
 	params.Values.Set("language", "en_US")
-	var resp []AnnResp
+	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatUint(uint64(limit), 10))
+	}
+	var resp []AnnouncementResp
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, bitgetPublic+bitgetAnnouncements, params.Values, &resp)
 }
 
@@ -345,6 +350,18 @@ func (e *Exchange) GetTradeRate(ctx context.Context, pair currency.Pair, busines
 	vals.Set("businessType", businessType)
 	var resp TradeRateResp
 	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, bitgetCommon+bitgetTradeRate, vals, nil, &resp)
+}
+
+// GetAllTradeRates returns the fees the user would face for all symbols within a given business type
+func (e *Exchange) GetAllTradeRates(ctx context.Context, businessType string) ([]TradeRateResp, error) {
+	if businessType == "" {
+		return nil, errBusinessTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("businessType", businessType)
+	vals.Set("symbol", "BTCUSDT")
+	var resp []TradeRateResp
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, bitgetCommon+bitgetAllTradeRate, vals, nil, &resp)
 }
 
 // GetSpotTransactionRecords returns the user's spot transaction records

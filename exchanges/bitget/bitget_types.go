@@ -18,14 +18,16 @@ type RespWrapper struct {
 	Data any `json:"data"`
 }
 
-// AnnResp holds information on announcements
-type AnnResp struct {
-	AnnID    string     `json:"annId"`
-	AnnTitle string     `json:"annTitle"`
-	AnnDesc  string     `json:"annDesc"`
-	CTime    types.Time `json:"cTime"`
-	Language string     `json:"language"`
-	AnnURL   string     `json:"annUrl"`
+// AnnouncementResp holds information on announcements
+type AnnouncementResp struct {
+	AnnouncementID          int64      `json:"annId,string"`
+	AnnouncementTitle       string     `json:"annTitle"`
+	AnnouncementDescription string     `json:"annDesc"`
+	CreationTime            types.Time `json:"cTime"`
+	Language                string     `json:"language"`
+	AnnouncementURL         string     `json:"annUrl"`
+	AnnouncementType        string     `json:"annType"`
+	AnnouncementSubType     string     `json:"annSubType"`
 }
 
 // TimeResp holds information on the current server time
@@ -44,9 +46,9 @@ type SpotTrResp struct {
 	ID          int64         `json:"id,string"`
 	Coin        currency.Code `json:"coin"`
 	SpotTaxType string        `json:"spotTaxType"`
-	Amount      types.Number `json:"amount"`
-	Fee         types.Number `json:"fee"`
-	Balance     types.Number `json:"balance"`
+	Amount      types.Number  `json:"amount"`
+	Fee         types.Number  `json:"fee"`
+	Balance     types.Number  `json:"balance"`
 	Timestamp   types.Time    `json:"ts"`
 }
 
@@ -56,8 +58,8 @@ type FutureTrResp struct {
 	Symbol        string        `json:"symbol"`
 	MarginCoin    currency.Code `json:"marginCoin"`
 	FutureTaxType string        `json:"futureTaxType"`
-	Amount        types.Number `json:"amount"`
-	Fee           types.Number `json:"fee"`
+	Amount        types.Number  `json:"amount"`
+	Fee           types.Number  `json:"fee"`
 	Timestamp     types.Time    `json:"ts"`
 }
 
@@ -67,9 +69,9 @@ type MarginTrResp struct {
 	Coin          currency.Code `json:"coin"`
 	Symbol        string        `json:"symbol"`
 	MarginTaxType string        `json:"marginTaxType"`
-	Amount        types.Number `json:"amount"`
-	Fee           types.Number `json:"fee"`
-	Total         types.Number `json:"total"`
+	Amount        types.Number  `json:"amount"`
+	Fee           types.Number  `json:"fee"`
+	Total         types.Number  `json:"total"`
 	Timestamp     types.Time    `json:"ts"`
 }
 
@@ -78,22 +80,22 @@ type P2PTrResp struct {
 	ID         int64         `json:"id,string"`
 	Coin       currency.Code `json:"coin"`
 	P2PTaxType string        `json:"p2pTaxType"`
-	Total      types.Number `json:"total"`
+	Total      types.Number  `json:"total"`
 	Timestamp  types.Time    `json:"ts"`
 }
 
 // MerchantList is a sub-struct holding information on P2P merchants
 type MerchantList struct {
-	RegisterTime        types.Time `json:"registerTime"`
-	NickName            string     `json:"nickName"`
-	IsOnline            string     `json:"isOnline"`
-	AvgPaymentTime      int64      `json:"avgPaymentTime,string"`
-	AvgReleaseTime      int64      `json:"avgReleaseTime,string"`
-	TotalTrades         int64      `json:"totalTrades,string"`
-	TotalBuy            int64      `json:"totalBuy,string"`
-	TotalSell           int64      `json:"totalSell,string"`
+	RegisterTime        types.Time   `json:"registerTime"`
+	NickName            string       `json:"nickName"`
+	IsOnline            string       `json:"isOnline"`
+	AvgPaymentTime      int64        `json:"avgPaymentTime,string"`
+	AvgReleaseTime      int64        `json:"avgReleaseTime,string"`
+	TotalTrades         int64        `json:"totalTrades,string"`
+	TotalBuy            int64        `json:"totalBuy,string"`
+	TotalSell           int64        `json:"totalSell,string"`
 	TotalCompletionRate types.Number `json:"totalCompletionRate"`
-	Trades30D           int64      `json:"trades30d,string"`
+	Trades30D           int64        `json:"trades30d,string"`
 	Sell30D             types.Number `json:"sell30d"`
 	Buy30D              types.Number `json:"buy30d"`
 	CompletionRate30D   types.Number `json:"completionRate30d"`
@@ -110,24 +112,24 @@ type YesNoBool bool
 
 // P2PMerInfoResp holds information on P2P merchant information
 type P2PMerInfoResp struct {
-	RegisterTime        types.Time `json:"registerTime"`
-	NickName            string     `json:"nickName"`
-	MerchantID          int64      `json:"merchantId,string"`
-	AvgPaymentTime      int64      `json:"avgPaymentTime,string"`
-	AvgReleaseTime      int64      `json:"avgReleaseTime,string"`
-	TotalTrades         int64      `json:"totalTrades,string"`
-	TotalBuy            int64      `json:"totalBuy,string"`
-	TotalSell           int64      `json:"totalSell,string"`
+	RegisterTime        types.Time   `json:"registerTime"`
+	NickName            string       `json:"nickName"`
+	MerchantID          int64        `json:"merchantId,string"`
+	AvgPaymentTime      int64        `json:"avgPaymentTime,string"`
+	AvgReleaseTime      int64        `json:"avgReleaseTime,string"`
+	TotalTrades         int64        `json:"totalTrades,string"`
+	TotalBuy            int64        `json:"totalBuy,string"`
+	TotalSell           int64        `json:"totalSell,string"`
 	TotalCompletionRate types.Number `json:"totalCompletionRate"`
-	Trades30D           int64      `json:"trades30d,string"`
+	Trades30D           int64        `json:"trades30d,string"`
 	Sell30D             types.Number `json:"sell30d"`
 	Buy30D              types.Number `json:"buy30d"`
 	CompletionRate30D   types.Number `json:"completionRate30d"`
-	KYCStatus           YesNoBool  `json:"kycStatus"`
-	EmailBindStatus     YesNoBool  `json:"emailBindStatus"`
-	MobileBindStatus    YesNoBool  `json:"mobileBindStatus"`
-	Email               string     `json:"email"`
-	Mobile              string     `json:"mobile"`
+	KYCStatus           YesNoBool    `json:"kycStatus"`
+	EmailBindStatus     YesNoBool    `json:"emailBindStatus"`
+	MobileBindStatus    YesNoBool    `json:"mobileBindStatus"`
+	Email               string       `json:"email"`
+	Mobile              string       `json:"mobile"`
 }
 
 // PayMethodInfo is a sub-struct holding information on P2P payment methods
@@ -151,15 +153,15 @@ type P2POrderList struct {
 	OrderNum       int64         `json:"orderNo,string"`
 	AdvNum         int64         `json:"advNo,string"`
 	Side           string        `json:"side"`
-	Count          types.Number `json:"count"`
+	Count          types.Number  `json:"count"`
 	FiatCurrency   currency.Code `json:"fiat"`
 	CryptoCurrency currency.Code `json:"coin"`
-	Price          types.Number `json:"price"`
+	Price          types.Number  `json:"price"`
 	WithdrawTime   types.Time    `json:"withdrawTime"`
 	RepresentTime  types.Time    `json:"representTime"`
 	ReleaseTime    types.Time    `json:"releaseTime"`
 	PaymentTime    types.Time    `json:"paymentTime"`
-	Amount         types.Number `json:"amount"`
+	Amount         types.Number  `json:"amount"`
 	Status         string        `json:"status"`
 	BuyerRealName  string        `json:"buyerRealName"`
 	SellerRealName string        `json:"sellerRealName"`
@@ -176,12 +178,12 @@ type P2POrdersResp struct {
 
 // UserLimitList is a sub-struct holding information on P2P user limits
 type UserLimitList struct {
-	MinimumOrderQuantity int64     `json:"minCompleteNum,string"`
-	MaximumOrderQuantity int64     `json:"maxCompleteNum,string"`
-	PlaceOrderNumber     int64     `json:"placeOrderNum,string"`
-	AllowMerchantPlace   YesNoBool `json:"allowMerchantPlace"`
+	MinimumOrderQuantity int64        `json:"minCompleteNum,string"`
+	MaximumOrderQuantity int64        `json:"maxCompleteNum,string"`
+	PlaceOrderNumber     int64        `json:"placeOrderNum,string"`
+	AllowMerchantPlace   YesNoBool    `json:"allowMerchantPlace"`
 	CompleteRate30D      types.Number `json:"completeRate30d"`
-	Country              string    `json:"country"`
+	Country              string       `json:"country"`
 }
 
 // ReqNameType is a sub-struct holding information on P2P payment methods
@@ -209,21 +211,21 @@ type AdvertisementList struct {
 	AdvertisementID       int64                   `json:"advId,string"`
 	AdvertisementNumber   int64                   `json:"advNo,string"`
 	Side                  string                  `json:"side"`
-	AdvertisementSize     types.Number `json:"adSize"`
-	Size                  types.Number `json:"size"`
+	AdvertisementSize     types.Number            `json:"adSize"`
+	Size                  types.Number            `json:"size"`
 	CryptoCurrency        currency.Code           `json:"coin"`
-	Price                 types.Number `json:"price"`
+	Price                 types.Number            `json:"price"`
 	CryptoPrecision       uint8                   `json:"coinPrecision,string"`
 	FiatCurrency          currency.Code           `json:"fiat"`
 	FiatPrecision         uint8                   `json:"fiatPrecision,string"`
 	FiatSymbol            string                  `json:"fiatSymbol"`
 	Status                string                  `json:"status"`
 	Hide                  YesNoBool               `json:"hide"`
-	MaximumOrderQuantity  types.Number `json:"maxTradeAmount"`
-	MinimumOrderQuantity  types.Number `json:"minTradeAmount"`
+	MaximumOrderQuantity  types.Number            `json:"maxTradeAmount"`
+	MinimumOrderQuantity  types.Number            `json:"minTradeAmount"`
 	PayDuration           int64                   `json:"payDuration,string"`
 	TurnoverNumber        int64                   `json:"turnoverNum,string"`
-	TurnoverRate          types.Number `json:"turnoverRate"`
+	TurnoverRate          types.Number            `json:"turnoverRate"`
 	Label                 string                  `json:"label"`
 	CreationTime          types.Time              `json:"ctime"`
 	UpdateTime            types.Time              `json:"utime"`
@@ -241,14 +243,14 @@ type P2PAdListResp struct {
 // WhaleNetFlowResp holds information on whale trading volumes
 type WhaleNetFlowResp struct {
 	Volume types.Number `json:"volume"`
-	Date   types.Time `json:"date"`
+	Date   types.Time   `json:"date"`
 }
 
 // ActiveVolumeResp holds information on active trading volumes
 type ActiveVolumeResp struct {
 	BuyVolume  types.Number `json:"buyVolume"`
 	SellVolume types.Number `json:"sellVolume"`
-	Timestamp  types.Time `json:"ts"`
+	Timestamp  types.Time   `json:"ts"`
 }
 
 // PosRatFutureResp holds information on position ratios
@@ -256,24 +258,24 @@ type PosRatFutureResp struct {
 	LongPositionRatio      types.Number `json:"longPositionRatio"`
 	ShortPositionRatio     types.Number `json:"shortPositionRatio"`
 	LongShortPositionRatio types.Number `json:"longShortPositionRatio"`
-	Timestamp              types.Time `json:"ts"`
+	Timestamp              types.Time   `json:"ts"`
 }
 
 // PosRatMarginResp holds information on position ratios in margin trading
 type PosRatMarginResp struct {
-	Timestamp      types.Time `json:"ts"`
+	Timestamp      types.Time   `json:"ts"`
 	LongShortRatio types.Number `json:"longShortRatio"`
 }
 
 // LoanGrowthResp holds information on loan growth
 type LoanGrowthResp struct {
-	Timestamp  types.Time `json:"ts"`
+	Timestamp  types.Time   `json:"ts"`
 	GrowthRate types.Number `json:"growthRate"`
 }
 
 // BorrowRatioResp holds information on borrowing ratios
 type BorrowRatioResp struct {
-	Timestamp  types.Time `json:"ts"`
+	Timestamp  types.Time   `json:"ts"`
 	BorrowRate types.Number `json:"borrowRate"`
 }
 
@@ -282,7 +284,7 @@ type RatioResp struct {
 	LongRatio      types.Number `json:"longRatio"`
 	ShortRatio     types.Number `json:"shortRatio"`
 	LongShortRatio types.Number `json:"longShortRatio"`
-	Timestamp      types.Time `json:"ts"`
+	Timestamp      types.Time   `json:"ts"`
 }
 
 // FundFlowResp holds information on fund flows
@@ -310,7 +312,7 @@ type SymbolsResp struct {
 // WhaleFundFlowResp holds information on whale fund flows
 type WhaleFundFlowResp struct {
 	NetFlow   types.Number `json:"netFlow"`
-	Timestamp types.Time `json:"ts"`
+	Timestamp types.Time   `json:"ts"`
 }
 
 // AccountRatioResp holds information on ratios
@@ -318,7 +320,7 @@ type AccountRatioResp struct {
 	LongAccountRatio      types.Number `json:"longAccountRatio"`
 	ShortAccountRatio     types.Number `json:"shortAccountRatio"`
 	LongShortAccountRatio types.Number `json:"longShortAccountRatio"`
-	Timestamp             types.Time `json:"ts"`
+	Timestamp             types.Time   `json:"ts"`
 }
 
 // FailureList is a sub-struct holding information on failures
@@ -402,51 +404,51 @@ type GetAPIKeyResp struct {
 // FundingAssetsResp contains information on the user's funding assets
 type FundingAssetsResp struct {
 	Coin      currency.Code `json:"coin"`
-	Available types.Number `json:"available"`
-	Frozen    types.Number `json:"frozen"`
-	USDTValue types.Number `json:"usdtValue"`
+	Available types.Number  `json:"available"`
+	Frozen    types.Number  `json:"frozen"`
+	USDTValue types.Number  `json:"usdtValue"`
 }
 
 // BotAccAssetsResp contains information on the user's bot account assets
 type BotAccAssetsResp struct {
 	Coin      currency.Code `json:"coin"`
-	Available types.Number `json:"available"`
-	Equity    types.Number `json:"equity"`
-	Bonus     types.Number `json:"bonus"`
-	Frozen    types.Number `json:"frozen"`
-	USDTValue types.Number `json:"usdtValue"`
+	Available types.Number  `json:"available"`
+	Equity    types.Number  `json:"equity"`
+	Bonus     types.Number  `json:"bonus"`
+	Frozen    types.Number  `json:"frozen"`
+	USDTValue types.Number  `json:"usdtValue"`
 }
 
 // AssetOverviewResp contains information on the user's assets
 type AssetOverviewResp struct {
-	AccountType string  `json:"accountType"`
+	AccountType string       `json:"accountType"`
 	USDTBalance types.Number `json:"usdtBalance"`
 }
 
 // ConvertCoinsResp contains information on the user's available currencies
 type ConvertCoinsResp struct {
 	Coin          currency.Code `json:"coin"`
-	Available     types.Number `json:"available"`
-	MaximumAmount types.Number `json:"maxAmount"`
-	MinimumAmount types.Number `json:"minAmount"`
+	Available     types.Number  `json:"available"`
+	MaximumAmount types.Number  `json:"maxAmount"`
+	MinimumAmount types.Number  `json:"minAmount"`
 }
 
 // QuotedPriceResp contains information on a queried conversion
 type QuotedPriceResp struct {
 	FromCoin     currency.Code `json:"fromCoin"`
-	FromCoinSize types.Number `json:"fromCoinSize"`
-	ConvertPrice types.Number `json:"cnvtPrice"`
+	FromCoinSize types.Number  `json:"fromCoinSize"`
+	ConvertPrice types.Number  `json:"cnvtPrice"`
 	ToCoin       currency.Code `json:"toCoin"`
-	ToCoinSize   types.Number `json:"toCoinSize"`
+	ToCoinSize   types.Number  `json:"toCoinSize"`
 	TraceID      string        `json:"traceId"`
-	Fee          types.Number `json:"fee"`
+	Fee          types.Number  `json:"fee"`
 }
 
 // CommitConvResp contains information on a committed conversion
 type CommitConvResp struct {
 	ToCoin       currency.Code `json:"toCoin"`
-	ToCoinSize   types.Number `json:"toCoinSize"`
-	ConvertPrice types.Number `json:"cnvtPrice"`
+	ToCoinSize   types.Number  `json:"toCoinSize"`
+	ConvertPrice types.Number  `json:"cnvtPrice"`
 	Timestamp    types.Time    `json:"ts"`
 }
 
@@ -454,11 +456,11 @@ type CommitConvResp struct {
 type DataList struct {
 	ID           int64         `json:"id,string"`
 	Timestamp    types.Time    `json:"ts"`
-	ConvertPrice types.Number `json:"cnvtPrice"`
-	Fee          types.Number `json:"fee"`
-	FromCoinSize types.Number `json:"fromCoinSize"`
+	ConvertPrice types.Number  `json:"cnvtPrice"`
+	Fee          types.Number  `json:"fee"`
+	FromCoinSize types.Number  `json:"fromCoinSize"`
 	FromCoin     currency.Code `json:"fromCoin"`
-	ToCoinSize   types.Number `json:"toCoinSize"`
+	ToCoinSize   types.Number  `json:"toCoinSize"`
 	ToCoin       currency.Code `json:"toCoin"`
 }
 
@@ -478,8 +480,8 @@ type FeeAndRate struct {
 // and BGB
 type BGBConvertCoinsResp struct {
 	Coin         currency.Code `json:"coin"`
-	Available    types.Number `json:"available"`
-	BGBEstAmount types.Number `json:"bgbEstAmount"`
+	Available    types.Number  `json:"available"`
+	BGBEstAmount types.Number  `json:"bgbEstAmount"`
 	Precision    uint8         `json:"precision"`
 	FeeDetail    []FeeAndRate  `json:"feeDetail"`
 	CurrentTime  types.Time    `json:"cTime"`
@@ -494,18 +496,18 @@ type ConvertBGBResp struct {
 // FeeAndCoin is a sub-struct holding information on fees
 type FeeAndCoin struct {
 	FeeCoin currency.Code `json:"feeCoin"`
-	Fee     types.Number `json:"fee"`
+	Fee     types.Number  `json:"fee"`
 }
 
 // BGBConvHistResp contains information on the user's conversion history between BGB and other currencies
 type BGBConvHistResp struct {
 	OrderID       int64         `json:"orderId,string"`
 	FromCoin      currency.Code `json:"fromCoin"`
-	FromAmount    types.Number `json:"fromAmount"`
-	FromCoinPrice types.Number `json:"fromCoinPrice"`
+	FromAmount    types.Number  `json:"fromAmount"`
+	FromCoinPrice types.Number  `json:"fromCoinPrice"`
 	ToCoin        currency.Code `json:"toCoin"`
-	ToAmount      types.Number `json:"toAmount"`
-	ToCoinPrice   types.Number `json:"toCoinPrice"`
+	ToAmount      types.Number  `json:"toAmount"`
+	ToCoinPrice   types.Number  `json:"toCoinPrice"`
 	FeeDetail     []FeeAndCoin  `json:"feeDetail"`
 	Status        SuccessBool   `json:"status"`
 	CreationTime  types.Time    `json:"cTime"`
@@ -513,21 +515,21 @@ type BGBConvHistResp struct {
 
 // ChainInfo is a sub-struct containing information on supported chains for a currency
 type ChainInfo struct {
-	Chain                 string  `json:"chain"`
-	NeedTag               bool    `json:"needTag,string"`
-	Withdrawable          bool    `json:"withdrawable,string"`
-	Rechargeable          bool    `json:"rechargeable,string"`
+	Chain                 string       `json:"chain"`
+	NeedTag               bool         `json:"needTag,string"`
+	Withdrawable          bool         `json:"withdrawable,string"`
+	Rechargeable          bool         `json:"rechargeable,string"`
 	WithdrawFee           types.Number `json:"withdrawFee"`
 	ExtraWithdrawFee      types.Number `json:"extraWithdrawFee"`
-	DepositConfirm        uint16  `json:"depositConfirm,string"`
-	WithdrawConfirm       uint16  `json:"withdrawConfirm,string"`
+	DepositConfirm        uint16       `json:"depositConfirm,string"`
+	WithdrawConfirm       uint16       `json:"withdrawConfirm,string"`
 	MinimumDepositAmount  types.Number `json:"minDepositAmount"`
 	MinimumWithdrawAmount types.Number `json:"minWithdrawAmount"`
-	BrowserURL            string  `json:"browserUrl"`
-	ContractAddress       string  `json:"contractAddress"`
-	WithdrawStep          uint8   `json:"withdrawStep,string"`
-	WithdrawMinimumScale  uint8   `json:"withdrawMinimumScale,string"`
-	Congestion            string  `json:"congestion"`
+	BrowserURL            string       `json:"browserUrl"`
+	ContractAddress       string       `json:"contractAddress"`
+	WithdrawStep          uint8        `json:"withdrawStep,string"`
+	WithdrawMinimumScale  uint8        `json:"withdrawMinimumScale,string"`
+	Congestion            string       `json:"congestion"`
 }
 
 // CoinInfoResp contains information on supported spot currencies
@@ -543,14 +545,14 @@ type SymbolInfoResp struct {
 	Symbol              string        `json:"symbol"`
 	BaseCoin            currency.Code `json:"baseCoin"`
 	QuoteCoin           currency.Code `json:"quoteCoin"`
-	MinimumTradeAmount  types.Number `json:"minTradeAmount"`
-	MaximumTradeAmount  types.Number `json:"maxTradeAmount"`
-	TakerFeeRate        types.Number `json:"takerFeeRate"`
-	MakerFeeRate        types.Number `json:"makerFeeRate"`
+	MinimumTradeAmount  types.Number  `json:"minTradeAmount"`
+	MaximumTradeAmount  types.Number  `json:"maxTradeAmount"`
+	TakerFeeRate        types.Number  `json:"takerFeeRate"`
+	MakerFeeRate        types.Number  `json:"makerFeeRate"`
 	PricePrecision      uint8         `json:"pricePrecision,string"`
 	QuantityPrecision   uint8         `json:"quantityPrecision,string"`
 	QuotePrecision      uint8         `json:"quotePrecision,string"`
-	MinimumTradeUSDT    types.Number `json:"minTradeUSDT"`
+	MinimumTradeUSDT    types.Number  `json:"minTradeUSDT"`
 	Status              string        `json:"status"`
 	BuyLimitPriceRatio  types.Number  `json:"buyLimitPriceRatio"`
 	SellLimitPriceRatio types.Number  `json:"sellLimitPriceRatio"`
@@ -561,7 +563,7 @@ type SymbolInfoResp struct {
 
 // VIPFeeRateResp contains information on the different levels of VIP fee rates
 type VIPFeeRateResp struct {
-	Level        uint8   `json:"level,string"`
+	Level        uint8        `json:"level,string"`
 	DealAmount   types.Number `json:"dealAmount"`
 	AssetAmount  types.Number `json:"assetAmount"`
 	TakerFeeRate types.Number `json:"takerFeeRate"`
@@ -575,7 +577,7 @@ type VIPFeeRateResp struct {
 type InterestRateHistory struct {
 	AnnualInterestRate types.Number `json:"annualInterestRate"`
 	DailyInterestRate  types.Number `json:"dailyInterestRate"`
-	Timestamp          types.Time `json:"ts"`
+	Timestamp          types.Time   `json:"ts"`
 }
 
 // InterestRateResp contains information on the interest rate history
@@ -586,7 +588,7 @@ type InterestRateResp struct {
 
 // ExchangeRateList is a sub-struct holding information on exchange rates
 type ExchangeRateList struct {
-	Tier          uint8   `json:"tier,string"`
+	Tier          uint8        `json:"tier,string"`
 	MinimumAmount types.Number `json:"minAmount"`
 	MaximumAmount types.Number `json:"maxAmount"`
 	ExchangeRate  types.Number `json:"exchangeRate"`
@@ -600,7 +602,7 @@ type ExchangeRateResp struct {
 
 // DiscountRateList is a sub-struct holding information on discount rates
 type DiscountRateList struct {
-	Tier          uint8   `json:"tier,string"`
+	Tier          uint8        `json:"tier,string"`
 	MinimumAmount types.Number `json:"minAmount"`
 	MaximumAmount types.Number `json:"maxAmount"`
 	DiscountRate  types.Number `json:"discountRate"`
@@ -616,7 +618,7 @@ type DiscountRateResp struct {
 
 // TickerResp contains information on tickers
 type TickerResp struct {
-	Symbol       string     `json:"symbol"`
+	Symbol       string       `json:"symbol"`
 	High24H      types.Number `json:"high24h"`
 	Open         types.Number `json:"open"`
 	LastPrice    types.Number `json:"lastPr"`
@@ -629,7 +631,7 @@ type TickerResp struct {
 	BidSize      types.Number `json:"bidSz"`
 	AskSize      types.Number `json:"askSz"`
 	OpenUTC      types.Number `json:"openUTC"`
-	Timestamp    types.Time `json:"ts"`
+	Timestamp    types.Time   `json:"ts"`
 	ChangeUTC24H types.Number `json:"changeUTC24h"`
 	Change24H    types.Number `json:"change24h"`
 }
@@ -686,12 +688,12 @@ func (c *OneFuturesCandle) UnmarshalJSON(data []byte) error {
 
 // MarketFillsResp contains information on a batch of trades
 type MarketFillsResp struct {
-	Symbol    string     `json:"symbol"`
-	TradeID   int64      `json:"tradeId,string"`
-	Side      string     `json:"side"`
+	Symbol    string       `json:"symbol"`
+	TradeID   int64        `json:"tradeId,string"`
+	Side      string       `json:"side"`
 	Price     types.Number `json:"price"`
 	Size      types.Number `json:"size"`
-	Timestamp types.Time `json:"ts"`
+	Timestamp types.Time   `json:"ts"`
 }
 
 // PlaceSpotOrderStruct contains information on an order to be placed
@@ -701,14 +703,14 @@ type PlaceSpotOrderStruct struct {
 	Side                   string        `json:"side"`
 	OrderType              string        `json:"orderType"`
 	Strategy               string        `json:"force"`
-	Price                  types.Number `json:"price"`
-	Size                   types.Number `json:"size"`
+	Price                  types.Number  `json:"price"`
+	Size                   types.Number  `json:"size"`
 	ClientOrderID          string        `json:"clientOid,omitempty"`
 	STPMode                string        `json:"stpMode"`
-	PresetTakeProfitPrice  types.Number `json:"presetTakeProfitPrice,omitempty"`
-	ExecuteTakeProfitPrice types.Number `json:"executeTakeProfitPrice,omitempty"`
-	PresetStopLossPrice    types.Number `json:"presetStopLossPrice,omitempty"`
-	ExecuteStopLossPrice   types.Number `json:"executeStopLossPrice,omitempty"`
+	PresetTakeProfitPrice  types.Number  `json:"presetTakeProfitPrice,omitempty"`
+	ExecuteTakeProfitPrice types.Number  `json:"executeTakeProfitPrice,omitempty"`
+	PresetStopLossPrice    types.Number  `json:"presetStopLossPrice,omitempty"`
+	ExecuteStopLossPrice   types.Number  `json:"executeStopLossPrice,omitempty"`
 }
 
 // CancelSpotOrderStruct contains information on an order to be cancelled
@@ -747,20 +749,20 @@ type OrderDetailTemp struct {
 	Symbol           string          `json:"symbol"`
 	OrderID          EmptyInt        `json:"orderId"`
 	ClientOrderID    string          `json:"clientOid"`
-	Price            types.Number `json:"price"`
-	Size             types.Number `json:"size"`
+	Price            types.Number    `json:"price"`
+	Size             types.Number    `json:"size"`
 	OrderType        string          `json:"orderType"`
 	Side             string          `json:"side"`
 	Status           string          `json:"status"`
-	PriceAverage     types.Number `json:"priceAvg"`
-	BaseVolume       types.Number `json:"baseVolume"`
-	QuoteVolume      types.Number `json:"quoteVolume"`
+	PriceAverage     types.Number    `json:"priceAvg"`
+	BaseVolume       types.Number    `json:"baseVolume"`
+	QuoteVolume      types.Number    `json:"quoteVolume"`
 	EnterPointSource string          `json:"enterPointSource"`
 	CreationTime     types.Time      `json:"cTime"`
 	UpdateTime       types.Time      `json:"uTime"`
 	OrderSource      string          `json:"orderSource"`
 	FeeDetailTemp    json.RawMessage `json:"feeDetail"`
-	TriggerPrice     types.Number `json:"triggerPrice"`
+	TriggerPrice     types.Number    `json:"triggerPrice"`
 	TPSLType         string          `json:"tpslType"`
 	CancelReason     string          `json:"cancelReason"`
 }
@@ -807,28 +809,28 @@ type SpotOrderDetailData struct {
 
 // UnfilledOrdersResp contains information on the user's unfilled orders
 type UnfilledOrdersResp struct {
-	UserID                 uint64     `json:"userId,string"`
-	Symbol                 string     `json:"symbol"`
-	OrderID                EmptyInt   `json:"orderId"`
-	ClientOrderID          string     `json:"clientOid"`
+	UserID                 uint64       `json:"userId,string"`
+	Symbol                 string       `json:"symbol"`
+	OrderID                EmptyInt     `json:"orderId"`
+	ClientOrderID          string       `json:"clientOid"`
 	PriceAverage           types.Number `json:"priceAvg"`
 	Size                   types.Number `json:"size"`
-	OrderType              string     `json:"orderType"`
-	Side                   string     `json:"side"`
-	Status                 string     `json:"status"`
+	OrderType              string       `json:"orderType"`
+	Side                   string       `json:"side"`
+	Status                 string       `json:"status"`
 	BasePrice              types.Number `json:"basePrice"`
 	BaseVolume             types.Number `json:"baseVolume"`
 	QuoteVolume            types.Number `json:"quoteVolume"`
-	EnterPointSource       string     `json:"enterPointSource"`
-	OrderSource            string     `json:"orderSource"`
+	EnterPointSource       string       `json:"enterPointSource"`
+	OrderSource            string       `json:"orderSource"`
 	PresetTakeProfitPrice  types.Number `json:"presetTakeProfitPrice"`
 	ExecuteTakeProfitPrice types.Number `json:"executeTakeProfitPrice"`
 	PresetStopLossPrice    types.Number `json:"presetStopLossPrice"`
 	ExecuteStopLossPrice   types.Number `json:"executeStopLossPrice"`
-	CreationTime           types.Time `json:"cTime"`
-	UpdateTime             types.Time `json:"uTime"`
-	TriggerType            string     `json:"triggerType"`
-	TPSLType               string     `json:"tpslType"`
+	CreationTime           types.Time   `json:"cTime"`
+	UpdateTime             types.Time   `json:"uTime"`
+	TriggerType            string       `json:"triggerType"`
+	TPSLType               string       `json:"tpslType"`
 }
 
 // AbridgedFeeDetail contains some information on fees
@@ -836,7 +838,7 @@ type AbridgedFeeDetail struct {
 	Deduction         YesNoBool     `json:"deduction"`
 	FeeCoin           currency.Code `json:"feeCoin"`
 	TotalDeductionFee types.Number  `json:"totalDeductionFee"`
-	TotalFee          types.Number `json:"totalFee"`
+	TotalFee          types.Number  `json:"totalFee"`
 }
 
 // SpotFillsResp contains information on the user's fulfilled orders
@@ -847,9 +849,9 @@ type SpotFillsResp struct {
 	TradeID      int64             `json:"tradeId,string"`
 	OrderType    string            `json:"orderType"`
 	Side         string            `json:"side"`
-	PriceAverage types.Number `json:"priceAvg"`
-	Size         types.Number `json:"size"`
-	Amount       types.Number `json:"amount"`
+	PriceAverage types.Number      `json:"priceAvg"`
+	Size         types.Number      `json:"size"`
+	Amount       types.Number      `json:"amount"`
 	FeeDetail    AbridgedFeeDetail `json:"feeDetail"`
 	TradeScope   string            `json:"tradeScope"`
 	CreationTime types.Time        `json:"cTime"`
@@ -867,15 +869,15 @@ type CancelAndPlaceResp struct {
 // ReplaceSpotOrderStruct contains information on an order to be replaced
 type ReplaceSpotOrderStruct struct {
 	Pair                   currency.Pair `json:"symbol"`
-	Price                  types.Number `json:"price"`
-	Amount                 types.Number `json:"size"`
+	Price                  types.Number  `json:"price"`
+	Amount                 types.Number  `json:"size"`
 	OldClientOrderID       string        `json:"clientOid,omitempty"`
 	OrderID                int64         `json:"orderId,string,omitempty"`
 	NewClientOrderID       string        `json:"newClientOid,omitempty"`
-	PresetTakeProfitPrice  types.Number `json:"presetTakeProfitPrice,omitempty"`
-	ExecuteTakeProfitPrice types.Number `json:"executeTakeProfitPrice,omitempty"`
-	PresetStopLossPrice    types.Number `json:"presetStopLossPrice,omitempty"`
-	ExecuteStopLossPrice   types.Number `json:"executeStopLossPrice,omitempty"`
+	PresetTakeProfitPrice  types.Number  `json:"presetTakeProfitPrice,omitempty"`
+	ExecuteTakeProfitPrice types.Number  `json:"executeTakeProfitPrice,omitempty"`
+	PresetStopLossPrice    types.Number  `json:"presetStopLossPrice,omitempty"`
+	ExecuteStopLossPrice   types.Number  `json:"executeStopLossPrice,omitempty"`
 }
 
 // PlanSpotOrder is a sub-struct that contains information on a planned order
@@ -905,10 +907,10 @@ type PlanSpotOrderResp struct {
 
 // SubOrderResp contains information on sub-orders
 type SubOrderResp struct {
-	OrderID int64   `json:"orderId,string"`
+	OrderID int64        `json:"orderId,string"`
 	Price   types.Number `json:"price"`
-	Type    string  `json:"type"`
-	Status  string  `json:"status"`
+	Type    string       `json:"type"`
+	Status  string       `json:"status"`
 }
 
 // AccountInfoResp contains information on the user's account
@@ -927,10 +929,10 @@ type AccountInfoResp struct {
 // AssetData contains information on the amount of an asset an account owns
 type AssetData struct {
 	Coin           currency.Code `json:"coin"`
-	Available      types.Number `json:"available"`
-	Frozen         types.Number `json:"frozen"`
-	Locked         types.Number `json:"locked"`
-	LimitAvailable types.Number `json:"limitAvailable"`
+	Available      types.Number  `json:"available"`
+	Frozen         types.Number  `json:"frozen"`
+	Locked         types.Number  `json:"locked"`
+	LimitAvailable types.Number  `json:"limitAvailable"`
 	UpdateTime     types.Time    `json:"uTime"`
 }
 
@@ -946,9 +948,9 @@ type SpotAccBillResp struct {
 	Coin         currency.Code `json:"coin"`
 	GroupType    string        `json:"groupType"`
 	BusinessType string        `json:"businessType"`
-	Size         types.Number `json:"size"`
-	Balance      types.Number `json:"balance"`
-	Fees         types.Number `json:"fees"`
+	Size         types.Number  `json:"size"`
+	Balance      types.Number  `json:"balance"`
+	Fees         types.Number  `json:"fees"`
 	BillID       int64         `json:"billId,string"`
 }
 
@@ -964,7 +966,7 @@ type SubaccTfrRecResp struct {
 	Status        string        `json:"status"`
 	ToType        string        `json:"toType"`
 	FromType      string        `json:"fromType"`
-	Size          types.Number `json:"size"`
+	Size          types.Number  `json:"size"`
 	Timestamp     types.Time    `json:"ts"`
 	ClientOrderID string        `json:"clientOid"`
 	TransferID    int64         `json:"transferId,string"`
@@ -980,7 +982,7 @@ type TransferRecResp struct {
 	ToSymbol      string        `json:"toSymbol"`
 	FromType      string        `json:"fromType"`
 	FromSymbol    string        `json:"fromSymbol"`
-	Size          types.Number `json:"size"`
+	Size          types.Number  `json:"size"`
 	Timestamp     types.Time    `json:"ts"`
 	ClientOrderID string        `json:"clientOid"`
 	TransferID    int64         `json:"transferId,string"`
@@ -1004,7 +1006,7 @@ type SubaccDepRecResp struct {
 	TradeID       int64         `json:"tradeId,string"`
 	Coin          currency.Code `json:"coin"`
 	ClientOrderID string        `json:"clientOid"`
-	Size          types.Number `json:"size"`
+	Size          types.Number  `json:"size"`
 	Status        string        `json:"status"`
 	FromAddress   string        `json:"fromAddress"`
 	ToAddress     string        `json:"toAddress"`
@@ -1024,8 +1026,8 @@ type WithdrawRecordsResp struct {
 	ClientOrderID string        `json:"clientOid"`
 	OrderType     string        `json:"type"`
 	Destination   string        `json:"dest"`
-	Size          types.Number `json:"size"`
-	Fee           types.Number `json:"fee"`
+	Size          types.Number  `json:"size"`
+	Fee           types.Number  `json:"fee"`
 	Status        string        `json:"status"`
 	FromAddress   string        `json:"fromAddress"`
 	ToAddress     string        `json:"toAddress"`
@@ -1042,7 +1044,7 @@ type CryptoDepRecResp struct {
 	TradeID      int64         `json:"tradeId,string"`
 	Coin         currency.Code `json:"coin"`
 	OrderType    string        `json:"type"`
-	Size         types.Number `json:"size"`
+	Size         types.Number  `json:"size"`
 	Status       string        `json:"status"`
 	FromAddress  string        `json:"fromAddress"`
 	ToAddress    string        `json:"toAddress"`
@@ -1054,7 +1056,7 @@ type CryptoDepRecResp struct {
 
 // FutureTickerResp contains information on a futures ticker
 type FutureTickerResp struct {
-	Symbol            string     `json:"symbol"`
+	Symbol            string       `json:"symbol"`
 	LastPrice         types.Number `json:"lastPr"`
 	AskPrice          types.Number `json:"askPr"`
 	BidPrice          types.Number `json:"bidPr"`
@@ -1062,7 +1064,7 @@ type FutureTickerResp struct {
 	AskSize           types.Number `json:"askSz"`
 	High24H           types.Number `json:"high24h"`
 	Low24H            types.Number `json:"low24h"`
-	Timestamp         types.Time `json:"ts"`
+	Timestamp         types.Time   `json:"ts"`
 	Change24H         types.Number `json:"change24h"`
 	BaseVolume        types.Number `json:"baseVolume"`
 	QuoteVolume       types.Number `json:"quoteVolume"`
@@ -1072,9 +1074,9 @@ type FutureTickerResp struct {
 	IndexPrice        types.Number `json:"indexPrice"`
 	FundingRate       types.Number `json:"fundingRate"`
 	HoldingAmount     types.Number `json:"holdingAmount"`
-	DeliveryStartTime types.Time `json:"deliveryStartTime"`
-	DeliveryTime      types.Time `json:"deliveryTime"`
-	DeliveryStatus    string     `json:"deliveryStatus"`
+	DeliveryStartTime types.Time   `json:"deliveryStartTime"`
+	DeliveryTime      types.Time   `json:"deliveryTime"`
+	DeliveryStatus    string       `json:"deliveryStatus"`
 	Open24H           types.Number `json:"open24h"`
 	MarkPrice         types.Number `json:"markPrice"`
 }
@@ -1095,7 +1097,7 @@ const (
 
 // OpenInterestList is a sub-struct containing information on open interest
 type OpenInterestList struct {
-	Symbol string  `json:"symbol"`
+	Symbol string       `json:"symbol"`
 	Size   types.Number `json:"size"`
 }
 
@@ -1114,23 +1116,23 @@ type FundingTimeResp struct {
 
 // FuturesPriceResp contains information on futures prices
 type FuturesPriceResp struct {
-	Symbol     string     `json:"symbol"`
+	Symbol     string       `json:"symbol"`
 	Price      types.Number `json:"price"`
 	IndexPrice types.Number `json:"indexPrice"`
 	MarkPrice  types.Number `json:"markPrice"`
-	Timestamp  types.Time `json:"ts"`
+	Timestamp  types.Time   `json:"ts"`
 }
 
 // FundingHistoryResp contains information on funding history
 type FundingHistoryResp struct {
-	Symbol      string     `json:"symbol"`
+	Symbol      string       `json:"symbol"`
 	FundingRate types.Number `json:"fundingRate"`
-	FundingTime types.Time `json:"fundingTime"`
+	FundingTime types.Time   `json:"fundingTime"`
 }
 
 // FundingCurrentResp contains information on current funding rates
 type FundingCurrentResp struct {
-	Symbol      string  `json:"symbol"`
+	Symbol      string       `json:"symbol"`
 	FundingRate types.Number `json:"fundingRate"`
 }
 
@@ -1139,20 +1141,20 @@ type ContractConfigResp struct {
 	Symbol                    string        `json:"symbol"`
 	BaseCoin                  currency.Code `json:"baseCoin"`
 	QuoteCoin                 currency.Code `json:"quoteCoin"`
-	BuyLimitPriceRatio        types.Number `json:"buyLimitPriceRatio"`
-	SellLimitPriceRatio       types.Number `json:"sellLimitPriceRatio"`
-	FeeRateUpRatio            types.Number `json:"feeRateUpRatio"`
-	MakerFeeRate              types.Number `json:"makerFeeRate"`
-	TakerFeeRate              types.Number `json:"takerFeeRate"`
-	OpenCostUpRatio           types.Number `json:"openCostUpRatio"`
+	BuyLimitPriceRatio        types.Number  `json:"buyLimitPriceRatio"`
+	SellLimitPriceRatio       types.Number  `json:"sellLimitPriceRatio"`
+	FeeRateUpRatio            types.Number  `json:"feeRateUpRatio"`
+	MakerFeeRate              types.Number  `json:"makerFeeRate"`
+	TakerFeeRate              types.Number  `json:"takerFeeRate"`
+	OpenCostUpRatio           types.Number  `json:"openCostUpRatio"`
 	SupportMarginCoins        []string      `json:"supportMarginCoins"`
-	MinimumTradeNumber        types.Number `json:"minTradeNum"`
-	PriceEndStep              types.Number `json:"priceEndStep"`
-	VolumePlace               types.Number `json:"volumePlace"`
-	PricePlace                types.Number `json:"pricePlace"`
-	SizeMultiplier            types.Number `json:"sizeMultiplier"`
+	MinimumTradeNumber        types.Number  `json:"minTradeNum"`
+	PriceEndStep              types.Number  `json:"priceEndStep"`
+	VolumePlace               types.Number  `json:"volumePlace"`
+	PricePlace                types.Number  `json:"pricePlace"`
+	SizeMultiplier            types.Number  `json:"sizeMultiplier"`
 	SymbolType                string        `json:"symbolType"`
-	MinimumTradeUSDT          types.Number `json:"minTradeUSDT"`
+	MinimumTradeUSDT          types.Number  `json:"minTradeUSDT"`
 	MaximumSymbolOrderNumber  int64         `json:"maxSymbolOrderNum,string"`
 	MaximumProductOrderNumber int64         `json:"maxProductOrderNum,string"`
 	MaximumPositionNumber     int64         `json:"maxPositionNum,string"`
@@ -1164,9 +1166,9 @@ type ContractConfigResp struct {
 	DeliveryPeriod            string        `json:"deliveryPeriod"`
 	LaunchTime                types.Time    `json:"launchTime"`
 	FundInterval              EmptyInt      `json:"fundInterval"`
-	MinimumLeverage           types.Number `json:"minLever"`
-	MaximumLeverage           types.Number `json:"maxLever"`
-	PosLimit                  types.Number `json:"posLimit"`
+	MinimumLeverage           types.Number  `json:"minLever"`
+	MaximumLeverage           types.Number  `json:"maxLever"`
+	PosLimit                  types.Number  `json:"posLimit"`
 	MaintainTime              types.Time    `json:"maintainTime"`
 	OpenTime                  types.Time    `json:"openTime"`
 }
@@ -1174,15 +1176,15 @@ type ContractConfigResp struct {
 // OneAccResp contains information on a single account
 type OneAccResp struct {
 	MarginCoin                   currency.Code `json:"marginCoin"`
-	Locked                       types.Number `json:"locked"`
-	Available                    types.Number `json:"available"`
-	CrossedMaximumAvailable      types.Number `json:"crossedMaxAvailable"`
-	IsolatedMaximumAvailable     types.Number `json:"isolatedMaxAvailable"`
-	MaximumTransferOut           types.Number `json:"maxTransferOut"`
-	AccountEquity                types.Number `json:"accountEquity"`
-	USDTEquity                   types.Number `json:"usdtEquity"`
-	BTCEquity                    types.Number `json:"btcEquity"`
-	CrossedRiskRate              types.Number `json:"crossedRiskRate"`
+	Locked                       types.Number  `json:"locked"`
+	Available                    types.Number  `json:"available"`
+	CrossedMaximumAvailable      types.Number  `json:"crossedMaxAvailable"`
+	IsolatedMaximumAvailable     types.Number  `json:"isolatedMaxAvailable"`
+	MaximumTransferOut           types.Number  `json:"maxTransferOut"`
+	AccountEquity                types.Number  `json:"accountEquity"`
+	USDTEquity                   types.Number  `json:"usdtEquity"`
+	BTCEquity                    types.Number  `json:"btcEquity"`
+	CrossedRiskRate              types.Number  `json:"crossedRiskRate"`
 	CrossedMarginleverage        float64       `json:"crossedMarginleverage"`
 	IsolatedLongLeverage         float64       `json:"isolatedLongLever"`
 	IsolatedShortLeverage        float64       `json:"isolatedShortLever"`
@@ -1202,15 +1204,15 @@ type OneAccResp struct {
 // FutureAccDetails contains information on a user's futures account
 type FutureAccDetails struct {
 	MarginCoin                   currency.Code `json:"marginCoin"`
-	Locked                       types.Number `json:"locked"`
-	Available                    types.Number `json:"available"`
-	CrossedMaxAvailable          types.Number `json:"crossedMaxAvailable"`
-	IsolatedMaxAvailable         types.Number `json:"isolatedMaxAvailable"`
-	MaximumTransferOut           types.Number `json:"maxTransferOut"`
-	AccountEquity                types.Number `json:"accountEquity"`
-	USDTEquity                   types.Number `json:"usdtEquity"`
-	BTCEquity                    types.Number `json:"btcEquity"`
-	CrossedRiskRate              types.Number `json:"crossedRiskRate"`
+	Locked                       types.Number  `json:"locked"`
+	Available                    types.Number  `json:"available"`
+	CrossedMaxAvailable          types.Number  `json:"crossedMaxAvailable"`
+	IsolatedMaxAvailable         types.Number  `json:"isolatedMaxAvailable"`
+	MaximumTransferOut           types.Number  `json:"maxTransferOut"`
+	AccountEquity                types.Number  `json:"accountEquity"`
+	USDTEquity                   types.Number  `json:"usdtEquity"`
+	BTCEquity                    types.Number  `json:"btcEquity"`
+	CrossedRiskRate              types.Number  `json:"crossedRiskRate"`
 	UnrealizedProfitLoss         types.Number  `json:"unrealizedPL"`
 	Coupon                       types.Number  `json:"coupon"`
 	CrossedUnrealizedProfitLoss  types.Number  `json:"crossedUnrealizedPL"`
@@ -1225,14 +1227,14 @@ type FutureAccDetails struct {
 // FutureSubaccDetails contains information on a futures-related sub-account
 type FutureSubaccDetails struct {
 	MarginCoin           currency.Code `json:"marginCoin"`
-	Locked               types.Number `json:"locked"`
-	Available            types.Number `json:"available"`
-	CrossedMaxAvailable  types.Number `json:"crossedMaxAvailable"`
-	IsolatedMaxAvailable types.Number `json:"isolatedMaxAvailable"`
-	MaximumTransferOut   types.Number `json:"maxTransferOut"`
-	AccountEquity        types.Number `json:"accountEquity"`
-	USDTEquity           types.Number `json:"usdtEquity"`
-	BTCEquity            types.Number `json:"btcEquity"`
+	Locked               types.Number  `json:"locked"`
+	Available            types.Number  `json:"available"`
+	CrossedMaxAvailable  types.Number  `json:"crossedMaxAvailable"`
+	IsolatedMaxAvailable types.Number  `json:"isolatedMaxAvailable"`
+	MaximumTransferOut   types.Number  `json:"maxTransferOut"`
+	AccountEquity        types.Number  `json:"accountEquity"`
+	USDTEquity           types.Number  `json:"usdtEquity"`
+	BTCEquity            types.Number  `json:"btcEquity"`
 	UnrealizedProfitLoss types.Number  `json:"unrealizedPL"`
 	Coupon               types.Number  `json:"coupon"`
 	// The following fields are not in the documentation, but are still returned
@@ -1253,19 +1255,19 @@ type SubaccountFuturesResp struct {
 // InterestList is a sub-struct containing information on interest
 type InterestList struct {
 	Coin              currency.Code `json:"coin"`
-	Liability         types.Number `json:"liability"`
-	InterestFreeLimit types.Number `json:"interestFreeLimit"`
-	InterestLimit     types.Number `json:"interestLimit"`
-	HourInterestRate  types.Number `json:"hourInterestRate"`
-	Interest          types.Number `json:"interest"`
+	Liability         types.Number  `json:"liability"`
+	InterestFreeLimit types.Number  `json:"interestFreeLimit"`
+	InterestLimit     types.Number  `json:"interestLimit"`
+	HourInterestRate  types.Number  `json:"hourInterestRate"`
+	Interest          types.Number  `json:"interest"`
 	CreationTime      types.Time    `json:"cTime"`
 }
 
 // USDTInterestHistory contains information on USDT interest history
 type USDTInterestHistory struct {
 	NextSettleTime types.Time     `json:"nextSettleTime"`
-	BorrowAmount   types.Number `json:"borrowAmount"`
-	BorrowLimit    types.Number `json:"borrowLimit"`
+	BorrowAmount   types.Number   `json:"borrowAmount"`
+	BorrowLimit    types.Number   `json:"borrowLimit"`
 	InterestList   []InterestList `json:"interestList"`
 	EndID          int64          `json:"endId,string"`
 }
@@ -1274,9 +1276,9 @@ type USDTInterestHistory struct {
 type ChangeLeverageResp struct {
 	Symbol              string        `json:"symbol"`
 	MarginCoin          currency.Code `json:"marginCoin"`
-	LongLeverage        types.Number `json:"longLeverage"`
-	ShortLeverage       types.Number `json:"shortLeverage"`
-	CrossMarginLeverage types.Number `json:"crossMarginLeverage"`
+	LongLeverage        types.Number  `json:"longLeverage"`
+	ShortLeverage       types.Number  `json:"shortLeverage"`
+	CrossMarginLeverage types.Number  `json:"crossMarginLeverage"`
 	MarginMode          string        `json:"marginMode"`
 }
 
@@ -1284,8 +1286,8 @@ type ChangeLeverageResp struct {
 type ChangeMarginModeResp struct {
 	Symbol        string        `json:"symbol"`
 	MarginCoin    currency.Code `json:"marginCoin"`
-	LongLeverage  types.Number `json:"longLeverage"`
-	ShortLeverage types.Number `json:"shortLeverage"`
+	LongLeverage  types.Number  `json:"longLeverage"`
+	ShortLeverage types.Number  `json:"shortLeverage"`
 	MarginMode    string        `json:"marginMode"`
 }
 
@@ -1293,12 +1295,12 @@ type ChangeMarginModeResp struct {
 type FutureBills struct {
 	BillID       int64         `json:"billId,string"`
 	Symbol       string        `json:"symbol"`
-	Amount       types.Number `json:"amount"`
-	Fee          types.Number `json:"fee"`
+	Amount       types.Number  `json:"amount"`
+	Fee          types.Number  `json:"fee"`
 	FeeByCoupon  types.Number  `json:"feeByCoupon"`
 	BusinessType string        `json:"businessType"`
 	Coin         currency.Code `json:"coin"`
-	Balance      types.Number `json:"balance"`
+	Balance      types.Number  `json:"balance"`
 	CreationTime types.Time    `json:"cTime"`
 }
 
@@ -1310,8 +1312,8 @@ type FutureAccBillResp struct {
 
 // PositionTierResp contains information on position configurations
 type PositionTierResp struct {
-	Symbol         string  `json:"symbol"`
-	Level          uint8   `json:"level,string"`
+	Symbol         string       `json:"symbol"`
+	Level          uint8        `json:"level,string"`
 	StartUnit      types.Number `json:"startUnit"`
 	EndUnit        types.Number `json:"endUnit"`
 	Leverage       types.Number `json:"leverage"`
@@ -1323,24 +1325,24 @@ type SinglePositionResp struct {
 	MarginCoin           currency.Code `json:"marginCoin"`
 	Symbol               string        `json:"symbol"`
 	HoldSide             string        `json:"holdSide"`
-	OpenDelegateSize     types.Number `json:"openDelegateSize"`
-	MarginSize           types.Number `json:"marginSize"`
-	Available            types.Number `json:"available"`
-	Locked               types.Number `json:"locked"`
-	Total                types.Number `json:"total"`
-	Leverage             types.Number `json:"leverage"`
-	AchievedProfits      types.Number `json:"achievedProfits"`
-	OpenPriceAverage     types.Number `json:"openPriceAvg"`
+	OpenDelegateSize     types.Number  `json:"openDelegateSize"`
+	MarginSize           types.Number  `json:"marginSize"`
+	Available            types.Number  `json:"available"`
+	Locked               types.Number  `json:"locked"`
+	Total                types.Number  `json:"total"`
+	Leverage             types.Number  `json:"leverage"`
+	AchievedProfits      types.Number  `json:"achievedProfits"`
+	OpenPriceAverage     types.Number  `json:"openPriceAvg"`
 	MarginMode           string        `json:"marginMode"`
 	PositionMode         string        `json:"posMode"`
-	UnrealizedProfitLoss types.Number `json:"unrealizedPL"`
-	LiquidationPrice     types.Number `json:"liquidationPrice"`
-	KeepMarginRate       types.Number `json:"keepMarginRate"`
-	MarkPrice            types.Number `json:"markPrice"`
-	MarginRatio          types.Number `json:"marginRatio"`
-	BreakEvenPrice       types.Number `json:"breakEvenPrice"`
-	TotalFee             types.Number `json:"totalFee"`
-	DeductedFee          types.Number `json:"deductedFee"`
+	UnrealizedProfitLoss types.Number  `json:"unrealizedPL"`
+	LiquidationPrice     types.Number  `json:"liquidationPrice"`
+	KeepMarginRate       types.Number  `json:"keepMarginRate"`
+	MarkPrice            types.Number  `json:"markPrice"`
+	MarginRatio          types.Number  `json:"marginRatio"`
+	BreakEvenPrice       types.Number  `json:"breakEvenPrice"`
+	TotalFee             types.Number  `json:"totalFee"`
+	DeductedFee          types.Number  `json:"deductedFee"`
 	CreationTime         types.Time    `json:"cTime"`
 	AssetMode            string        `json:"assetMode"`
 	UpdateTime           types.Time    `json:"uTime"`
@@ -1352,28 +1354,28 @@ type AllPositionResp struct {
 	MarginCoin           currency.Code `json:"marginCoin"`
 	Symbol               string        `json:"symbol"`
 	HoldSide             string        `json:"holdSide"`
-	OpenDelegateSize     types.Number `json:"openDelegateSize"`
-	MarginSize           types.Number `json:"marginSize"`
-	Available            types.Number `json:"available"`
-	Locked               types.Number `json:"locked"`
-	Total                types.Number `json:"total"`
-	Leverage             types.Number `json:"leverage"`
-	AchievedProfits      types.Number `json:"achievedProfits"`
-	OpenPriceAverage     types.Number `json:"openPriceAvg"`
+	OpenDelegateSize     types.Number  `json:"openDelegateSize"`
+	MarginSize           types.Number  `json:"marginSize"`
+	Available            types.Number  `json:"available"`
+	Locked               types.Number  `json:"locked"`
+	Total                types.Number  `json:"total"`
+	Leverage             types.Number  `json:"leverage"`
+	AchievedProfits      types.Number  `json:"achievedProfits"`
+	OpenPriceAverage     types.Number  `json:"openPriceAvg"`
 	MarginMode           string        `json:"marginMode"`
 	PositionMode         string        `json:"posMode"`
-	UnrealizedProfitLoss types.Number `json:"unrealizedPL"`
-	LiquidationPrice     types.Number `json:"liquidationPrice"`
-	KeepMarginRate       types.Number `json:"keepMarginRate"`
-	MarkPrice            types.Number `json:"markPrice"`
-	MarginRatio          types.Number `json:"marginRatio"`
-	BreakEvenPrice       types.Number `json:"breakEvenPrice"`
-	TotalFee             types.Number `json:"totalFee"`
-	TakeProfit           types.Number `json:"takeProfit"`
-	StopLoss             types.Number `json:"stopLoss"`
+	UnrealizedProfitLoss types.Number  `json:"unrealizedPL"`
+	LiquidationPrice     types.Number  `json:"liquidationPrice"`
+	KeepMarginRate       types.Number  `json:"keepMarginRate"`
+	MarkPrice            types.Number  `json:"markPrice"`
+	MarginRatio          types.Number  `json:"marginRatio"`
+	BreakEvenPrice       types.Number  `json:"breakEvenPrice"`
+	TotalFee             types.Number  `json:"totalFee"`
+	TakeProfit           types.Number  `json:"takeProfit"`
+	StopLoss             types.Number  `json:"stopLoss"`
 	TakeProfitID         int64         `json:"takeProfitId,string"`
 	StopLossID           int64         `json:"stopLossId,string"`
-	DeductedFee          types.Number `json:"deductedFee"`
+	DeductedFee          types.Number  `json:"deductedFee"`
 	CreationTime         types.Time    `json:"cTime"`
 	AssetMode            string        `json:"assetMode"`
 	UpdateTime           types.Time    `json:"uTime"`
@@ -1385,16 +1387,16 @@ type HistPositions struct {
 	MarginCoin         currency.Code `json:"marginCoin"`
 	Symbol             string        `json:"symbol"`
 	HoldSide           string        `json:"holdSide"`
-	OpenAveragePrice   types.Number `json:"openAvgPrice"`
-	CloseAveragePrice  types.Number `json:"closeAvgPrice"`
+	OpenAveragePrice   types.Number  `json:"openAvgPrice"`
+	CloseAveragePrice  types.Number  `json:"closeAvgPrice"`
 	MarginMode         string        `json:"marginMode"`
-	OpenTotalPosition  types.Number `json:"openTotalPos"`
-	CloseTotalPosition types.Number `json:"closeTotalPos"`
-	ProfitAndLoss      types.Number `json:"pnl"`
-	NetProfit          types.Number `json:"netProfit"`
-	TotalFunding       types.Number `json:"totalFunding"`
-	OpenFee            types.Number `json:"openFee"`
-	CloseFee           types.Number `json:"closeFee"`
+	OpenTotalPosition  types.Number  `json:"openTotalPos"`
+	CloseTotalPosition types.Number  `json:"closeTotalPos"`
+	ProfitAndLoss      types.Number  `json:"pnl"`
+	NetProfit          types.Number  `json:"netProfit"`
+	TotalFunding       types.Number  `json:"totalFunding"`
+	OpenFee            types.Number  `json:"openFee"`
+	CloseFee           types.Number  `json:"closeFee"`
 	UpdateTime         types.Time    `json:"uTime"`
 	CreationTime       types.Time    `json:"cTime"`
 }
@@ -1409,38 +1411,38 @@ type HistPositionResp struct {
 type PlaceFuturesOrderStruct struct {
 	Size            types.Number `json:"size"`
 	Price           types.Number `json:"price"`
-	Side            string    `json:"side"`
-	TradeSide       string    `json:"tradeSide"`
-	OrderType       string    `json:"orderType"`
-	Strategy        string    `json:"force"`
-	ClientOID       string    `json:"clientOId,omitempty"`
-	ReduceOnly      YesNoBool `json:"reduceOnly"`
+	Side            string       `json:"side"`
+	TradeSide       string       `json:"tradeSide"`
+	OrderType       string       `json:"orderType"`
+	Strategy        string       `json:"force"`
+	ClientOID       string       `json:"clientOId,omitempty"`
+	ReduceOnly      YesNoBool    `json:"reduceOnly"`
 	TakeProfitValue types.Number `json:"presetStopSurplusPrice,omitempty"`
 	StopLossValue   types.Number `json:"presetStopLossPrice,omitempty"`
-	STPMode         string    `json:"stpMode,omitempty"`
+	STPMode         string       `json:"stpMode,omitempty"`
 }
 
 // FuturesOrderDetailResp contains information on a futures order
 type FuturesOrderDetailResp struct {
 	Symbol                 string        `json:"symbol"`
-	Size                   types.Number `json:"size"`
+	Size                   types.Number  `json:"size"`
 	OrderID                EmptyInt      `json:"orderId"`
 	ClientOrderID          string        `json:"clientOid"`
-	BaseVolume             types.Number `json:"baseVolume"`
+	BaseVolume             types.Number  `json:"baseVolume"`
 	PriceAverage           types.Number  `json:"priceAvg"`
 	Fee                    types.Number  `json:"fee"`
-	Price                  types.Number `json:"price"`
+	Price                  types.Number  `json:"price"`
 	State                  string        `json:"state"`
 	Side                   string        `json:"side"`
 	Force                  string        `json:"force"`
-	TotalProfits           types.Number `json:"totalProfits"`
+	TotalProfits           types.Number  `json:"totalProfits"`
 	PositionSide           string        `json:"posSide"`
 	MarginCoin             currency.Code `json:"marginCoin"`
-	PresetStopSurplusPrice types.Number `json:"presetStopSurplusPrice"`
-	PresetStopLossPrice    types.Number `json:"presetStopLossPrice"`
-	QuoteVolume            types.Number `json:"quoteVolume"`
+	PresetStopSurplusPrice types.Number  `json:"presetStopSurplusPrice"`
+	PresetStopLossPrice    types.Number  `json:"presetStopLossPrice"`
+	QuoteVolume            types.Number  `json:"quoteVolume"`
 	OrderType              string        `json:"orderType"`
-	Leverage               types.Number `json:"leverage"`
+	Leverage               types.Number  `json:"leverage"`
 	MarginMode             string        `json:"marginMode"`
 	ReduceOnly             YesNoBool     `json:"reduceOnly"`
 	EnterPointSource       string        `json:"enterPointSource"`
@@ -1463,12 +1465,12 @@ type FuturesFill struct {
 	TradeID          int64               `json:"tradeId,string"`
 	Symbol           string              `json:"symbol"`
 	OrderID          int64               `json:"orderId,string"`
-	Price            types.Number `json:"price"`
-	BaseVolume       types.Number `json:"baseVolume"`
+	Price            types.Number        `json:"price"`
+	BaseVolume       types.Number        `json:"baseVolume"`
 	FeeDetail        []AbridgedFeeDetail `json:"feeDetail"`
 	Side             string              `json:"side"`
-	QuoteVolume      types.Number `json:"quoteVolume"`
-	Profit           types.Number `json:"profit"`
+	QuoteVolume      types.Number        `json:"quoteVolume"`
+	Profit           types.Number        `json:"profit"`
 	EnterPointSource string              `json:"enterPointSource"`
 	TradeSide        string              `json:"tradeSide"`
 	PositionMode     string              `json:"posMode"`
@@ -1485,21 +1487,21 @@ type FuturesFillsResp struct {
 // FuturesOrder is a sub-struct containing information on futures orders
 type FuturesOrder struct {
 	Symbol                        string        `json:"symbol"`
-	Size                          types.Number `json:"size"`
+	Size                          types.Number  `json:"size"`
 	OrderID                       int64         `json:"orderId,string"`
 	ClientOrderID                 string        `json:"clientOid"`
-	BaseVolume                    types.Number `json:"baseVolume"`
+	BaseVolume                    types.Number  `json:"baseVolume"`
 	Fee                           types.Number  `json:"fee"`
 	Price                         types.Number  `json:"price"`
 	PriceAverage                  types.Number  `json:"priceAvg"`
 	Status                        string        `json:"status"`
 	Side                          string        `json:"side"`
 	Force                         string        `json:"force"`
-	TotalProfits                  types.Number `json:"totalProfits"`
+	TotalProfits                  types.Number  `json:"totalProfits"`
 	PositionSide                  string        `json:"posSide"`
 	MarginCoin                    currency.Code `json:"marginCoin"`
-	QuoteVolume                   types.Number `json:"quoteVolume"`
-	Leverage                      types.Number `json:"leverage"`
+	QuoteVolume                   types.Number  `json:"quoteVolume"`
+	Leverage                      types.Number  `json:"leverage"`
 	MarginMode                    string        `json:"marginMode"`
 	ReduceOnly                    YesNoBool     `json:"reduceOnly"`
 	EnterPointSource              string        `json:"enterPointSource"`
@@ -1526,21 +1528,21 @@ type FuturesOrdResp struct {
 // HistFuturesOrder is a sub-struct containing information on historical futures orders
 type HistFuturesOrder struct {
 	Symbol                 string        `json:"symbol"`
-	Size                   types.Number `json:"size"`
+	Size                   types.Number  `json:"size"`
 	OrderID                int64         `json:"orderId,string"`
 	ClientOrderID          string        `json:"clientOid"`
-	BaseVolume             types.Number `json:"baseVolume"`
+	BaseVolume             types.Number  `json:"baseVolume"`
 	Fee                    types.Number  `json:"fee"`
 	Price                  types.Number  `json:"price"`
 	PriceAverage           types.Number  `json:"priceAvg"`
 	Status                 string        `json:"status"`
 	Side                   string        `json:"side"`
 	Force                  string        `json:"force"`
-	TotalProfits           types.Number `json:"totalProfits"`
+	TotalProfits           types.Number  `json:"totalProfits"`
 	PositionSide           string        `json:"posSide"`
 	MarginCoin             currency.Code `json:"marginCoin"`
-	QuoteVolume            types.Number `json:"quoteVolume"`
-	Leverage               types.Number `json:"leverage"`
+	QuoteVolume            types.Number  `json:"quoteVolume"`
+	Leverage               types.Number  `json:"leverage"`
 	MarginMode             string        `json:"marginMode"`
 	EnterPointSource       string        `json:"enterPointSource"`
 	TradeSide              string        `json:"tradeSide"`
@@ -1564,13 +1566,13 @@ type HistFuturesOrdResp struct {
 type PlanFuturesOrder struct {
 	PlanType               string        `json:"planType"`
 	Symbol                 string        `json:"symbol"`
-	Size                   types.Number `json:"size"`
+	Size                   types.Number  `json:"size"`
 	OrderID                int64         `json:"orderId,string"`
 	ClientOrderID          string        `json:"clientOid"`
 	Price                  types.Number  `json:"price"`
 	ExecutePrice           types.Number  `json:"executePrice"`
 	CallbackRatio          types.Number  `json:"callbackRatio"`
-	TriggerPrice           types.Number `json:"triggerPrice"`
+	TriggerPrice           types.Number  `json:"triggerPrice"`
 	TriggerType            string        `json:"triggerType"`
 	PlanStatus             string        `json:"planStatus"`
 	Side                   string        `json:"side"`
@@ -1602,17 +1604,17 @@ type PlanFuturesOrdResp struct {
 type HistTriggerFuturesOrd struct {
 	PlanType               string        `json:"planType"`
 	Symbol                 string        `json:"symbol"`
-	Size                   types.Number `json:"size"`
+	Size                   types.Number  `json:"size"`
 	OrderID                int64         `json:"orderId,string"`
 	ExecuteOrderID         int64         `json:"executeOrderId,string"`
 	ClientOrderID          string        `json:"clientOid"`
 	PlanStatus             string        `json:"planStatus"`
-	Price                  types.Number `json:"price"`
-	ExecutePrice           types.Number `json:"executePrice"`
-	PriceAverage           types.Number `json:"priceAvg"`
-	BaseVolume             types.Number `json:"baseVolume"`
+	Price                  types.Number  `json:"price"`
+	ExecutePrice           types.Number  `json:"executePrice"`
+	PriceAverage           types.Number  `json:"priceAvg"`
+	BaseVolume             types.Number  `json:"baseVolume"`
 	CallbackRatio          types.Number  `json:"callbackRatio"`
-	TriggerPrice           types.Number `json:"triggerPrice"`
+	TriggerPrice           types.Number  `json:"triggerPrice"`
 	TriggerType            string        `json:"triggerType"`
 	Side                   string        `json:"side"`
 	PositionSide           string        `json:"posSide"`
@@ -1643,19 +1645,19 @@ type SupCurrencyResp struct {
 	Symbol                    string        `json:"symbol"`
 	BaseCoin                  currency.Code `json:"baseCoin"`
 	QuoteCoin                 currency.Code `json:"quoteCoin"`
-	MaximumCrossedLeverage    types.Number `json:"maxCrossedLeverage"`
-	MaximumIsolatedLeverage   types.Number `json:"maxIsolatedLeverage"`
-	WarningRiskRatio          types.Number `json:"warningRiskRatio"`
-	LiquidationRiskRatio      types.Number `json:"liquidationRiskRatio"`
-	MinimumTradeAmount        types.Number `json:"minTradeAmount"`
-	MaximumTradeAmount        types.Number `json:"maxTradeAmount"`
-	TakerFeeRate              types.Number `json:"takerFeeRate"`
-	MakerFeeRate              types.Number `json:"makerFeeRate"`
+	MaximumCrossedLeverage    types.Number  `json:"maxCrossedLeverage"`
+	MaximumIsolatedLeverage   types.Number  `json:"maxIsolatedLeverage"`
+	WarningRiskRatio          types.Number  `json:"warningRiskRatio"`
+	LiquidationRiskRatio      types.Number  `json:"liquidationRiskRatio"`
+	MinimumTradeAmount        types.Number  `json:"minTradeAmount"`
+	MaximumTradeAmount        types.Number  `json:"maxTradeAmount"`
+	TakerFeeRate              types.Number  `json:"takerFeeRate"`
+	MakerFeeRate              types.Number  `json:"makerFeeRate"`
 	PricePrecision            uint8         `json:"pricePrecision,string"`
 	QuantityPrecision         uint8         `json:"quantityPrecision,string"`
-	MinimumTradeUSDT          types.Number `json:"minTradeUSDT"`
+	MinimumTradeUSDT          types.Number  `json:"minTradeUSDT"`
 	IsBorrowable              bool          `json:"isBorrowable"`
-	UserMinBorrow             types.Number `json:"userMinBorrow"`
+	UserMinBorrow             types.Number  `json:"userMinBorrow"`
 	Status                    string        `json:"status"`
 	IsIsolatedBaseBorrowable  bool          `json:"isIsolatedBaseBorrowable"`
 	IsIsolatedQuoteBorrowable bool          `json:"isIsolatedQuoteBorrowable"`
@@ -1666,7 +1668,7 @@ type SupCurrencyResp struct {
 type CrossBorrow struct {
 	LoanID       int64         `json:"loanId,string"`
 	Coin         currency.Code `json:"coin"`
-	BorrowAmount types.Number `json:"borrowAmount"`
+	BorrowAmount types.Number  `json:"borrowAmount"`
 	BorrowType   string        `json:"borrowType"`
 	CreationTime types.Time    `json:"cTime"`
 	UpdateTime   types.Time    `json:"uTime"`
@@ -1683,10 +1685,10 @@ type BorrowHistCross struct {
 type CrossRepayment struct {
 	RepayID        int64         `json:"repayId,string"`
 	Coin           currency.Code `json:"coin"`
-	RepayAmount    types.Number `json:"repayAmount"`
+	RepayAmount    types.Number  `json:"repayAmount"`
 	RepayType      string        `json:"repayType"`
-	RepayInterest  types.Number `json:"repayInterest"`
-	RepayPrincipal types.Number `json:"repayPrincipal"`
+	RepayInterest  types.Number  `json:"repayInterest"`
+	RepayPrincipal types.Number  `json:"repayPrincipal"`
 	CreationTime   types.Time    `json:"cTime"`
 	UpdateTime     types.Time    `json:"uTime"`
 }
@@ -1703,8 +1705,8 @@ type CrossInterest struct {
 	InterestID        int64         `json:"interestId,string"`
 	LoanCoin          currency.Code `json:"loanCoin"`
 	InterestCoin      currency.Code `json:"interestCoin"`
-	DailyInterestRate types.Number `json:"dailyInterestRate"`
-	InterestAmount    types.Number `json:"interestAmount"`
+	DailyInterestRate types.Number  `json:"dailyInterestRate"`
+	InterestAmount    types.Number  `json:"interestAmount"`
 	InterestType      string        `json:"interstType"` // Misspelling of interestType
 	CreationTime      types.Time    `json:"cTime"`
 	UpdateTime        types.Time    `json:"uTime"`
@@ -1719,15 +1721,15 @@ type InterHistCross struct {
 
 // CrossLiquidation is a sub-struct containing information on liquidation for cross margin
 type CrossLiquidation struct {
-	LiquidationID        int64      `json:"liqId,string"`
-	LiquidationStartTime types.Time `json:"liqStartTime"`
-	LiquidationEndTime   types.Time `json:"liqEndTime"`
+	LiquidationID        int64        `json:"liqId,string"`
+	LiquidationStartTime types.Time   `json:"liqStartTime"`
+	LiquidationEndTime   types.Time   `json:"liqEndTime"`
 	LiquidationRiskRatio types.Number `json:"liqRiskRatio"`
 	TotalAssets          types.Number `json:"totalAssets"`
 	TotalDebt            types.Number `json:"totalDebt"`
 	LiquidationFee       types.Number `json:"liqFee"`
-	UpdateTime           types.Time `json:"uTime"`
-	CreationTime         types.Time `json:"cTime"`
+	UpdateTime           types.Time   `json:"uTime"`
+	CreationTime         types.Time   `json:"cTime"`
 }
 
 // LiquidHistCross contains information on liquidation history for cross margin
@@ -1740,10 +1742,10 @@ type LiquidHistCross struct {
 // CrossFinHist is a sub-struct containing information on financial history for cross margin
 type CrossFinHist struct {
 	MarginID     int64         `json:"marginId,string"`
-	Amount       types.Number `json:"amount"`
+	Amount       types.Number  `json:"amount"`
 	Coin         currency.Code `json:"coin"`
-	Balance      types.Number `json:"balance"`
-	Fee          types.Number `json:"fee"`
+	Balance      types.Number  `json:"balance"`
+	Fee          types.Number  `json:"fee"`
 	MarginType   string        `json:"marginType"`
 	UpdateTime   types.Time    `json:"uTime"`
 	CreationTime types.Time    `json:"cTime"`
@@ -1759,47 +1761,47 @@ type FinHistCrossResp struct {
 // CrossAssetResp contains information on assets being utilised in cross margin
 type CrossAssetResp struct {
 	Coin         currency.Code `json:"coin"`
-	TotalAmount  types.Number `json:"totalAmount"`
-	Available    types.Number `json:"available"`
-	Frozen       types.Number `json:"frozen"`
-	Borrow       types.Number `json:"borrow"`
-	Interest     types.Number `json:"interest"`
-	Net          types.Number `json:"net"`
+	TotalAmount  types.Number  `json:"totalAmount"`
+	Available    types.Number  `json:"available"`
+	Frozen       types.Number  `json:"frozen"`
+	Borrow       types.Number  `json:"borrow"`
+	Interest     types.Number  `json:"interest"`
+	Net          types.Number  `json:"net"`
 	CreationTime types.Time    `json:"cTime"`
 	UpdateTime   types.Time    `json:"uTime"`
-	Coupon       types.Number `json:"coupon"`
+	Coupon       types.Number  `json:"coupon"`
 }
 
 // BorrowCross contains information on borrowing for cross margin
 type BorrowCross struct {
 	LoanID       int64         `json:"loanId,string"`
 	Coin         currency.Code `json:"coin"`
-	BorrowAmount types.Number `json:"borrowAmount"`
+	BorrowAmount types.Number  `json:"borrowAmount"`
 }
 
 // RepayCross contains information on repayment for cross margin
 type RepayCross struct {
 	Coin                currency.Code `json:"coin"`
 	RepayID             int64         `json:"repayId,string"`
-	RemainingDebtAmount types.Number `json:"remainDebtAmount"`
-	RepayAmount         types.Number `json:"repayAmount"`
+	RemainingDebtAmount types.Number  `json:"remainDebtAmount"`
+	RepayAmount         types.Number  `json:"repayAmount"`
 }
 
 // MaxBorrowCross contains information on the maximum amount that can be borrowed for cross margin
 type MaxBorrowCross struct {
 	Coin                    currency.Code `json:"coin"`
-	MaximumBorrowableAmount types.Number `json:"maxBorrowableAmount"`
+	MaximumBorrowableAmount types.Number  `json:"maxBorrowableAmount"`
 }
 
 // MaxTransferCross contains information on the maximum amount that can be transferred out of cross margin
 type MaxTransferCross struct {
 	Coin                     currency.Code `json:"coin"`
-	MaximumTransferOutAmount types.Number `json:"maxTransferOutAmount"`
+	MaximumTransferOutAmount types.Number  `json:"maxTransferOutAmount"`
 }
 
 // VIPInfo is a sub-struct containing information on VIP levels
 type VIPInfo struct {
-	Level              int64   `json:"level,string"`
+	Level              int64        `json:"level,string"`
 	Limit              types.Number `json:"limit"`
 	DailyInterestRate  types.Number `json:"dailyInterestRate"`
 	AnnualInterestRate types.Number `json:"annualInterestRate"`
@@ -1810,22 +1812,22 @@ type VIPInfo struct {
 // cross margin
 type IntRateMaxBorrowCross struct {
 	Transferable            bool          `json:"transferable"`
-	Leverage                types.Number `json:"leverage"`
+	Leverage                types.Number  `json:"leverage"`
 	Coin                    currency.Code `json:"coin"`
 	Borrowable              bool          `json:"borrowable"`
-	DailyInterestRate       types.Number `json:"dailyInterestRate"`
-	AnnualInterestRate      types.Number `json:"annualInterestRate"`
-	MaximumBorrowableAmount types.Number `json:"maxBorrowableAmount"`
+	DailyInterestRate       types.Number  `json:"dailyInterestRate"`
+	AnnualInterestRate      types.Number  `json:"annualInterestRate"`
+	MaximumBorrowableAmount types.Number  `json:"maxBorrowableAmount"`
 	VIPList                 []VIPInfo     `json:"vipList"`
 }
 
 // TierConfigCross contains information on tier configurations for cross margin
 type TierConfigCross struct {
 	Tier                    int64         `json:"tier,string"`
-	Leverage                types.Number `json:"leverage"`
+	Leverage                types.Number  `json:"leverage"`
 	Coin                    currency.Code `json:"coin"`
-	MaximumBorrowableAmount types.Number `json:"maxBorrowableAmount"`
-	MaintainMarginRate      types.Number `json:"maintainMarginRate"`
+	MaximumBorrowableAmount types.Number  `json:"maxBorrowableAmount"`
+	MaintainMarginRate      types.Number  `json:"maintainMarginRate"`
 }
 
 // FlashRepayCross contains information on a flash repayment for cross margin
@@ -1842,36 +1844,36 @@ type FlashRepayResult struct {
 
 // MarginOrderData contains information on a margin order
 type MarginOrderData struct {
-	Side          string  `json:"side"`
-	OrderType     string  `json:"orderType"`
+	Side          string       `json:"side"`
+	OrderType     string       `json:"orderType"`
 	Price         types.Number `json:"price"`
-	Strategy      string  `json:"force"`
+	Strategy      string       `json:"force"`
 	BaseAmount    types.Number `json:"baseSize"`
 	QuoteAmount   types.Number `json:"quoteSize"`
-	LoanType      string  `json:"loanType"`
-	ClientOrderID string  `json:"clientOid"`
-	STPMode       string  `json:"stpMode"`
+	LoanType      string       `json:"loanType"`
+	ClientOrderID string       `json:"clientOid"`
+	STPMode       string       `json:"stpMode"`
 }
 
 // MarginOrder is a sub-struct containing information on a margin order
 type MarginOrder struct {
-	OrderID          int64      `json:"orderId,string"`
-	Symbol           string     `json:"symbol"`
-	OrderType        string     `json:"orderType"`
-	EnterPointSource string     `json:"enterPointSource"`
-	ClientOrderID    string     `json:"clientOid"`
-	LoanType         string     `json:"loanType"`
+	OrderID          int64        `json:"orderId,string"`
+	Symbol           string       `json:"symbol"`
+	OrderType        string       `json:"orderType"`
+	EnterPointSource string       `json:"enterPointSource"`
+	ClientOrderID    string       `json:"clientOid"`
+	LoanType         string       `json:"loanType"`
 	Price            types.Number `json:"price"`
-	Side             string     `json:"side"`
-	Status           string     `json:"status"`
+	Side             string       `json:"side"`
+	Status           string       `json:"status"`
 	BaseSize         types.Number `json:"baseSize"`
 	QuoteSize        types.Number `json:"quoteSize"`
 	PriceAverage     types.Number `json:"priceAvg"`
 	Size             types.Number `json:"size"`
 	Amount           types.Number `json:"amount"`
-	Force            string     `json:"force"`
-	CreationTime     types.Time `json:"cTime"`
-	UpdateTime       types.Time `json:"uTime"`
+	Force            string       `json:"force"`
+	CreationTime     types.Time   `json:"cTime"`
+	UpdateTime       types.Time   `json:"uTime"`
 }
 
 // MarginOrders contains information on margin orders
@@ -1887,9 +1889,9 @@ type MarginFill struct {
 	TradeID      int64             `json:"tradeId,string"`
 	OrderType    string            `json:"orderType"`
 	Side         string            `json:"side"`
-	PriceAverage types.Number `json:"priceAvg"`
-	Size         types.Number `json:"size"`
-	Amount       types.Number `json:"amount"`
+	PriceAverage types.Number      `json:"priceAvg"`
+	Size         types.Number      `json:"size"`
+	Amount       types.Number      `json:"amount"`
 	TradeScope   string            `json:"tradeScope"`
 	CreationTime types.Time        `json:"cTime"`
 	UpdateTime   types.Time        `json:"uTime"`
@@ -1908,11 +1910,11 @@ type LiquidationOrder struct {
 	Symbol       string        `json:"symbol"`
 	OrderType    string        `json:"orderType"`
 	Side         string        `json:"side"`
-	PriceAverage types.Number `json:"priceAvg"`
-	Price        types.Number `json:"price"`
-	FillSize     types.Number `json:"fillSize"`
-	Size         types.Number `json:"size"`
-	Amount       types.Number `json:"amount"`
+	PriceAverage types.Number  `json:"priceAvg"`
+	Price        types.Number  `json:"price"`
+	FillSize     types.Number  `json:"fillSize"`
+	Size         types.Number  `json:"size"`
+	Amount       types.Number  `json:"amount"`
 	OrderID      int64         `json:"orderId,string"`
 	FromCoin     currency.Code `json:"fromCoin"`
 	ToCoin       currency.Code `json:"toCoin"`
@@ -1932,10 +1934,10 @@ type LiquidationResp struct {
 type IsoRepayment struct {
 	RepayID        int64         `json:"repayId,string"`
 	Coin           currency.Code `json:"coin"`
-	RepayAmount    types.Number `json:"repayAmount"`
+	RepayAmount    types.Number  `json:"repayAmount"`
 	RepayType      string        `json:"repayType"`
-	RepayInterest  types.Number `json:"repayInterest"`
-	RepayPrincipal types.Number `json:"repayPrincipal"`
+	RepayInterest  types.Number  `json:"repayInterest"`
+	RepayPrincipal types.Number  `json:"repayPrincipal"`
 	Symbol         string        `json:"symbol"`
 	CreationTime   types.Time    `json:"cTime"`
 	UpdateTime     types.Time    `json:"uTime"`
@@ -1952,7 +1954,7 @@ type IsoRepayHistResp struct {
 type IsoBorrow struct {
 	LoanID       int64         `json:"loanId,string"`
 	Coin         currency.Code `json:"coin"`
-	BorrowAmount types.Number `json:"borrowAmount"`
+	BorrowAmount types.Number  `json:"borrowAmount"`
 	BorrowType   string        `json:"borrowType"`
 	Symbol       string        `json:"symbol"`
 	CreationTime types.Time    `json:"cTime"`
@@ -1971,8 +1973,8 @@ type IsoInterest struct {
 	InterestID        int64         `json:"interestId,string"`
 	LoanCoin          currency.Code `json:"loanCoin"`
 	InterestCoin      currency.Code `json:"interestCoin"`
-	DailyInterestRate types.Number `json:"dailyInterestRate"`
-	InterestAmount    types.Number `json:"interestAmount"`
+	DailyInterestRate types.Number  `json:"dailyInterestRate"`
+	InterestAmount    types.Number  `json:"interestAmount"`
 	InterestType      string        `json:"interstType"` // Misspelling of interestType
 	Symbol            string        `json:"symbol"`
 	CreationTime      types.Time    `json:"cTime"`
@@ -1988,16 +1990,16 @@ type InterHistIso struct {
 
 // IsoLiquidation is a sub-struct containing information on liquidation for isolated margin
 type IsoLiquidation struct {
-	LiquidationID        int64      `json:"liqId,string"`
-	Symbol               string     `json:"symbol"`
-	LiquidationStartTime types.Time `json:"liqStartTime"`
-	LiquidationEndTime   types.Time `json:"liqEndTime"`
+	LiquidationID        int64        `json:"liqId,string"`
+	Symbol               string       `json:"symbol"`
+	LiquidationStartTime types.Time   `json:"liqStartTime"`
+	LiquidationEndTime   types.Time   `json:"liqEndTime"`
 	LiquidationRiskRatio types.Number `json:"liqRiskRatio"`
 	TotalAssets          types.Number `json:"totalAssets"`
 	TotalDebt            types.Number `json:"totalDebt"`
 	LiquidationFee       types.Number `json:"liqFee"`
-	UpdateTime           types.Time `json:"uTime"`
-	CreationTime         types.Time `json:"cTime"`
+	UpdateTime           types.Time   `json:"uTime"`
+	CreationTime         types.Time   `json:"cTime"`
 }
 
 // LiquidHistIso contains information on liquidation history for isolated margin
@@ -2010,11 +2012,11 @@ type LiquidHistIso struct {
 // IsoFinHist is a sub-struct containing information on financial history for isolated margin
 type IsoFinHist struct {
 	MarginID     int64         `json:"marginId,string"`
-	Amount       types.Number `json:"amount"`
+	Amount       types.Number  `json:"amount"`
 	Coin         currency.Code `json:"coin"`
 	Symbol       string        `json:"symbol"`
-	Balance      types.Number `json:"balance"`
-	Fee          types.Number `json:"fee"`
+	Balance      types.Number  `json:"balance"`
+	Fee          types.Number  `json:"fee"`
 	MarginType   string        `json:"marginType"`
 	UpdateTime   types.Time    `json:"uTime"`
 	CreationTime types.Time    `json:"cTime"`
@@ -2031,15 +2033,15 @@ type FinHistIsoResp struct {
 type IsoAssetResp struct {
 	Symbol       string        `json:"symbol"`
 	Coin         currency.Code `json:"coin"`
-	TotalAmount  types.Number `json:"totalAmount"`
-	Available    types.Number `json:"available"`
-	Frozen       types.Number `json:"frozen"`
-	Borrow       types.Number `json:"borrow"`
-	Interest     types.Number `json:"interest"`
-	Net          types.Number `json:"net"`
+	TotalAmount  types.Number  `json:"totalAmount"`
+	Available    types.Number  `json:"available"`
+	Frozen       types.Number  `json:"frozen"`
+	Borrow       types.Number  `json:"borrow"`
+	Interest     types.Number  `json:"interest"`
+	Net          types.Number  `json:"net"`
 	CreationTime types.Time    `json:"cTime"`
 	UpdateTime   types.Time    `json:"uTime"`
-	Coupon       types.Number `json:"coupon"`
+	Coupon       types.Number  `json:"coupon"`
 }
 
 // BorrowIso contains information on borrowing for isolated margin
@@ -2047,7 +2049,7 @@ type BorrowIso struct {
 	LoanID       int64         `json:"loanId,string"`
 	Symbol       string        `json:"symbol"`
 	Coin         currency.Code `json:"coin"`
-	BorrowAmount types.Number `json:"borrowAmount"`
+	BorrowAmount types.Number  `json:"borrowAmount"`
 }
 
 // RepayIso contains information on repayment for isolated margin
@@ -2055,19 +2057,19 @@ type RepayIso struct {
 	Coin                currency.Code `json:"coin"`
 	Symbol              string        `json:"symbol"`
 	RepayID             int64         `json:"repayId,string"`
-	RemainingDebtAmount types.Number `json:"remainDebtAmount"`
-	RepayAmount         types.Number `json:"repayAmount"`
+	RemainingDebtAmount types.Number  `json:"remainDebtAmount"`
+	RepayAmount         types.Number  `json:"repayAmount"`
 }
 
 // RiskRateIso contains information on the risk rate for isolated margin
 type RiskRateIso struct {
-	Symbol        string  `json:"symbol"`
+	Symbol        string       `json:"symbol"`
 	RiskRateRatio types.Number `json:"riskRateRatio"`
 }
 
 // IsoVIPList contains information on VIP lists for isolated margin
 type IsoVIPList struct {
-	Level              int64   `json:"level,string"`
+	Level              int64        `json:"level,string"`
 	Limit              types.Number `json:"limit"`
 	DailyInterestRate  types.Number `json:"dailyInterestRate"`
 	AnnualInterestRate types.Number `json:"annuallyInterestRate"` // Misspelling of annualInterestRate
@@ -2077,20 +2079,20 @@ type IsoVIPList struct {
 // IntRateMaxBorrowIso contains information on the interest rate and the maximum amount that can be borrowed for isolated margin
 type IntRateMaxBorrowIso struct {
 	Symbol                   string        `json:"symbol"`
-	Leverage                 types.Number `json:"leverage"`
+	Leverage                 types.Number  `json:"leverage"`
 	BaseCoin                 currency.Code `json:"baseCoin"`
 	BaseTransferable         bool          `json:"baseTransferable"`
 	BaseBorrowable           bool          `json:"baseBorrowable"`
-	BaseDailyInterestRate    types.Number `json:"baseDailyInterestRate"`
-	BaseAnnualInterestRate   types.Number `json:"baseAnnuallyInterestRate"` // Misspelling of baseAnnualInterestRate
-	BaseMaxBorrowableAmount  types.Number `json:"baseMaxBorrowableAmount"`
+	BaseDailyInterestRate    types.Number  `json:"baseDailyInterestRate"`
+	BaseAnnualInterestRate   types.Number  `json:"baseAnnuallyInterestRate"` // Misspelling of baseAnnualInterestRate
+	BaseMaxBorrowableAmount  types.Number  `json:"baseMaxBorrowableAmount"`
 	BaseVIPList              []IsoVIPList  `json:"baseVipList"`
 	QuoteCoin                currency.Code `json:"quoteCoin"`
 	QuoteTransferable        bool          `json:"quoteTransferable"`
 	QuoteBorrowable          bool          `json:"quoteBorrowable"`
-	QuoteDailyInterestRate   types.Number `json:"quoteDailyInterestRate"`
-	QuoteAnnualInterestRate  types.Number `json:"quoteAnnuallyInterestRate"` // Misspelling of quoteAnnualInterestRate
-	QuoteMaxBorrowableAmount types.Number `json:"quoteMaxBorrowableAmount"`
+	QuoteDailyInterestRate   types.Number  `json:"quoteDailyInterestRate"`
+	QuoteAnnualInterestRate  types.Number  `json:"quoteAnnuallyInterestRate"` // Misspelling of quoteAnnualInterestRate
+	QuoteMaxBorrowableAmount types.Number  `json:"quoteMaxBorrowableAmount"`
 	QuoteVIPList             []IsoVIPList  `json:"quoteList"`
 }
 
@@ -2098,22 +2100,22 @@ type IntRateMaxBorrowIso struct {
 type TierConfigIso struct {
 	Tier                     int64         `json:"tier,string"`
 	Symbol                   string        `json:"symbol"`
-	Leverage                 types.Number `json:"leverage"`
+	Leverage                 types.Number  `json:"leverage"`
 	BaseCoin                 currency.Code `json:"baseCoin"`
 	QuoteCoin                currency.Code `json:"quoteCoin"`
-	BaseMaxBorrowableAmount  types.Number `json:"baseMaxBorrowableAmount"`
-	QuoteMaxBorrowableAmount types.Number `json:"quoteMaxBorrowableAmount"`
-	MaintainMarginRate       types.Number `json:"maintainMarginRate"`
-	InitRate                 types.Number `json:"initRate"`
+	BaseMaxBorrowableAmount  types.Number  `json:"baseMaxBorrowableAmount"`
+	QuoteMaxBorrowableAmount types.Number  `json:"quoteMaxBorrowableAmount"`
+	MaintainMarginRate       types.Number  `json:"maintainMarginRate"`
+	InitRate                 types.Number  `json:"initRate"`
 }
 
 // MaxBorrowIso contains information on the maximum amount that can be borrowed for isolated margin
 type MaxBorrowIso struct {
 	Symbol                       string        `json:"symbol"`
 	BaseCoin                     currency.Code `json:"baseCoin"`
-	BaseCoinMaxBorrowableAmount  types.Number `json:"baseCoinmaxBorrowAmount"`
+	BaseCoinMaxBorrowableAmount  types.Number  `json:"baseCoinmaxBorrowAmount"`
 	QuoteCoin                    currency.Code `json:"quoteCoin"`
-	QuoteCoinMaxBorrowableAmount types.Number `json:"quoteCoinmaxBorrowAmount"`
+	QuoteCoinMaxBorrowableAmount types.Number  `json:"quoteCoinmaxBorrowAmount"`
 }
 
 // MaxTransferIso contains information on the maximum amount that can be transferred out of isolated margin
@@ -2134,7 +2136,7 @@ type FlashRepayIso struct {
 
 // APY contains information on the APY of a savings product
 type APY struct {
-	RateLevel        int64   `json:"rateLevel,string"`
+	RateLevel        int64        `json:"rateLevel,string"`
 	MinimumStepValue types.Number `json:"minStepVal"`
 	MaximumStepValue types.Number `json:"maxStepVal"`
 	CurrentAPY       types.Number `json:"currentAPY"`
@@ -2172,9 +2174,9 @@ type SavingsAsset struct {
 	InterestCoin    currency.Code `json:"interestCoin"`
 	PeriodType      string        `json:"periodType"`
 	Period          EmptyInt      `json:"period"`
-	HoldAmount      types.Number `json:"holdAmount"`
-	LastProfit      types.Number `json:"lastProfit"`
-	TotalProfit     types.Number `json:"totalProfit"`
+	HoldAmount      types.Number  `json:"holdAmount"`
+	LastProfit      types.Number  `json:"lastProfit"`
+	TotalProfit     types.Number  `json:"totalProfit"`
 	HoldDays        EmptyInt      `json:"holdDays"`
 	Status          string        `json:"status"`
 	AllowRedemption YesNoBool     `json:"allowRedemption"`
@@ -2196,7 +2198,7 @@ type SavingsTransaction struct {
 	ProductType    string        `json:"productType"`
 	Period         EmptyInt      `json:"period"`
 	ProductLevel   string        `json:"productLevel"`
-	Amount         types.Number `json:"amount"`
+	Amount         types.Number  `json:"amount"`
 	Timestamp      types.Time    `json:"ts"`
 	OrderType      string        `json:"orderType"`
 }
@@ -2212,16 +2214,16 @@ type SavingsSubDetail struct {
 	SingleMinAmount    types.Number `json:"singleMinAmount"`
 	SingleMaxAmount    types.Number `json:"singleMaxAmount"`
 	RemainingAmount    types.Number `json:"remainingAmount"`
-	SubscribePrecision uint8      `json:"subscribePrecision,string"`
-	ProfitPrecision    uint8      `json:"profitPrecision,string"`
-	SubscribeTime      types.Time `json:"subscribeTime"`
-	InterestTime       types.Time `json:"interestTime"`
-	SettleTime         types.Time `json:"settleTime"`
-	ExpireTime         types.Time `json:"expireTime"`
-	RedeemTime         types.Time `json:"redeemTime"`
-	SettleMethod       string     `json:"settleMethod"`
-	APYList            []APY      `json:"apyList"`
-	RedeemDelay        string     `json:"redeemDelay"`
+	SubscribePrecision uint8        `json:"subscribePrecision,string"`
+	ProfitPrecision    uint8        `json:"profitPrecision,string"`
+	SubscribeTime      types.Time   `json:"subscribeTime"`
+	InterestTime       types.Time   `json:"interestTime"`
+	SettleTime         types.Time   `json:"settleTime"`
+	ExpireTime         types.Time   `json:"expireTime"`
+	RedeemTime         types.Time   `json:"redeemTime"`
+	SettleMethod       string       `json:"settleMethod"`
+	APYList            []APY        `json:"apyList"`
+	RedeemDelay        string       `json:"redeemDelay"`
 }
 
 // SaveResp contains information on a transaction involving a savings product
@@ -2239,7 +2241,7 @@ type SaveResult struct {
 // EarnAssets contains information on assets in the earn account
 type EarnAssets struct {
 	Coin   currency.Code `json:"coin"`
-	Amount types.Number `json:"amount"`
+	Amount types.Number  `json:"amount"`
 }
 
 // SharkFinProduct is a sub-struct containing information on a shark fin product
@@ -2250,15 +2252,15 @@ type SharkFinProduct struct {
 	SubscribeCoin     currency.Code `json:"subscribeCoin"`
 	FarmingStartTime  types.Time    `json:"farmingStartTime"`
 	FarmingEndTime    types.Time    `json:"farmingEndTime"`
-	LowerRate         types.Number `json:"lowerRate"`
-	DefaultRate       types.Number `json:"defaultRate"`
-	UpperRate         types.Number `json:"upperRate"`
+	LowerRate         types.Number  `json:"lowerRate"`
+	DefaultRate       types.Number  `json:"defaultRate"`
+	UpperRate         types.Number  `json:"upperRate"`
 	Period            EmptyInt      `json:"period"`
 	InterestStartTime types.Time    `json:"interestStartTime"`
 	Status            string        `json:"status"`
-	MinimumAmount     types.Number `json:"minAmount"`
-	LimitAmount       types.Number `json:"limitAmount"`
-	SoldAmount        types.Number `json:"soldAmount"`
+	MinimumAmount     types.Number  `json:"minAmount"`
+	LimitAmount       types.Number  `json:"limitAmount"`
+	SoldAmount        types.Number  `json:"soldAmount"`
 	EndTime           types.Time    `json:"endTime"`
 	StartTime         types.Time    `json:"startTime"`
 }
@@ -2300,12 +2302,12 @@ type SharkFinAssetsResp struct {
 
 // SharkFinRecords contains information on one's shark fin records
 type SharkFinRecords struct {
-	OrderID   int64      `json:"orderId,string"`
-	Product   string     `json:"product"`
-	Period    EmptyInt   `json:"period"`
+	OrderID   int64        `json:"orderId,string"`
+	Product   string       `json:"product"`
+	Period    EmptyInt     `json:"period"`
 	Amount    types.Number `json:"amount"`
-	Timestamp types.Time `json:"ts"`
-	Type      string     `json:"type"`
+	Timestamp types.Time   `json:"ts"`
+	Type      string       `json:"type"`
 }
 
 // SharkFinSubDetail contains information useful when subscribing to a shark fin product
@@ -2314,17 +2316,17 @@ type SharkFinSubDetail struct {
 	SubscribeCoin      currency.Code `json:"subscribeCoin"`
 	InterestTime       types.Time    `json:"interestTime"`
 	ExpirationTime     types.Time    `json:"expirationTime"`
-	MinimumPrice       types.Number `json:"minPrice"`
-	CurrentPrice       types.Number `json:"currentPrice"`
-	MaximumPrice       types.Number `json:"maxPrice"`
-	MinimumRate        types.Number `json:"minRate"`
-	DefaultRate        types.Number `json:"defaultRate"`
-	MaximumRate        types.Number `json:"maxRate"`
+	MinimumPrice       types.Number  `json:"minPrice"`
+	CurrentPrice       types.Number  `json:"currentPrice"`
+	MaximumPrice       types.Number  `json:"maxPrice"`
+	MinimumRate        types.Number  `json:"minRate"`
+	DefaultRate        types.Number  `json:"defaultRate"`
+	MaximumRate        types.Number  `json:"maxRate"`
 	Period             EmptyInt      `json:"period"`
-	ProductMinAmount   types.Number `json:"productMinAmount"`
-	AvailableBalance   types.Number `json:"availableBalance"`
-	UserAmount         types.Number `json:"userAmount"`
-	RemainingAmount    types.Number `json:"remainingAmount"`
+	ProductMinAmount   types.Number  `json:"productMinAmount"`
+	AvailableBalance   types.Number  `json:"availableBalance"`
+	UserAmount         types.Number  `json:"userAmount"`
+	RemainingAmount    types.Number  `json:"remainingAmount"`
 	ProfitPrecision    uint8         `json:"profitPrecision,string"`
 	SubscribePrecision uint8         `json:"subscribePrecision,string"`
 }
@@ -2332,24 +2334,24 @@ type SharkFinSubDetail struct {
 // LoanInfos is a sub-struct containing information on loans
 type LoanInfos struct {
 	Coin            currency.Code `json:"coin"`
-	HourlyRate7Day  types.Number `json:"hourRate7D"`
-	Rate7Day        types.Number `json:"rate7D"`
-	HourlyRate30Day types.Number `json:"hourRate30D"`
-	Rate30Day       types.Number `json:"rate30D"`
-	MinimumUSDT     types.Number `json:"minUsdt"`
-	MaximumUSDT     types.Number `json:"maxUsdt"`
-	Minimum         types.Number `json:"min"`
-	Maximum         types.Number `json:"max"`
+	HourlyRate7Day  types.Number  `json:"hourRate7D"`
+	Rate7Day        types.Number  `json:"rate7D"`
+	HourlyRate30Day types.Number  `json:"hourRate30D"`
+	Rate30Day       types.Number  `json:"rate30D"`
+	MinimumUSDT     types.Number  `json:"minUsdt"`
+	MaximumUSDT     types.Number  `json:"maxUsdt"`
+	Minimum         types.Number  `json:"min"`
+	Maximum         types.Number  `json:"max"`
 }
 
 // PledgeInfos is a sub-struct containing information on pledges
 type PledgeInfos struct {
 	Coin              currency.Code `json:"coin"`
-	InitialRate       types.Number `json:"initRate"`
-	SupplementaryRate types.Number `json:"supRate"`
-	ForceRate         types.Number `json:"forceRate"`
-	MinimumUSDT       types.Number `json:"minUsdt"`
-	MaximumUSDT       types.Number `json:"maxUsdt"`
+	InitialRate       types.Number  `json:"initRate"`
+	SupplementaryRate types.Number  `json:"supRate"`
+	ForceRate         types.Number  `json:"forceRate"`
+	MinimumUSDT       types.Number  `json:"minUsdt"`
+	MaximumUSDT       types.Number  `json:"maxUsdt"`
 }
 
 // LoanCurList contains information on currencies which can be loaned
@@ -2368,14 +2370,14 @@ type EstimateInterest struct {
 type OngoingLoans struct {
 	OrderID           int64         `json:"orderId,string"`
 	LoanCoin          currency.Code `json:"loanCoin"`
-	LoanAmount        types.Number `json:"loanAmount"`
-	InterestAmount    types.Number `json:"interestAmount"`
-	HourInterestRate  types.Number `json:"hourInterestRate"`
+	LoanAmount        types.Number  `json:"loanAmount"`
+	InterestAmount    types.Number  `json:"interestAmount"`
+	HourInterestRate  types.Number  `json:"hourInterestRate"`
 	PledgeCoin        currency.Code `json:"pledgeCoin"`
-	PledgeAmount      types.Number `json:"pledgeAmount"`
-	PledgeRate        types.Number `json:"pledgeRate"`
-	SupplementaryRate types.Number `json:"supRate"`
-	ForceRate         types.Number `json:"forceRate"`
+	PledgeAmount      types.Number  `json:"pledgeAmount"`
+	PledgeRate        types.Number  `json:"pledgeRate"`
+	SupplementaryRate types.Number  `json:"supRate"`
+	ForceRate         types.Number  `json:"forceRate"`
 	BorrowTime        types.Time    `json:"borrowTime"`
 	ExpireTime        types.Time    `json:"expireTime"`
 }
@@ -2384,10 +2386,10 @@ type OngoingLoans struct {
 type RepayResp struct {
 	LoanCoin          currency.Code `json:"loanCoin"`
 	PledgeCoin        currency.Code `json:"pledgeCoin"`
-	RepayAmount       types.Number `json:"repayAmount"`
-	PayInterest       types.Number `json:"payInterest"`
-	RepayLoanAmount   types.Number `json:"repayLoanAmount"`
-	RepayUnlockAmount types.Number `json:"repayUnlockAmount"`
+	RepayAmount       types.Number  `json:"repayAmount"`
+	PayInterest       types.Number  `json:"payInterest"`
+	RepayLoanAmount   types.Number  `json:"repayLoanAmount"`
+	RepayUnlockAmount types.Number  `json:"repayUnlockAmount"`
 }
 
 // RepayRecords contains information on repayment records
@@ -2395,10 +2397,10 @@ type RepayRecords struct {
 	OrderID           int64         `json:"orderId,string"`
 	LoanCoin          currency.Code `json:"loanCoin"`
 	PledgeCoin        currency.Code `json:"pledgeCoin"`
-	RepayAmount       types.Number `json:"repayAmount"`
-	PayInterest       types.Number `json:"payInterest"`
-	RepayLoanAmount   types.Number `json:"repayLoanAmount"`
-	RepayUnlockAmount types.Number `json:"repayUnlockAmount"`
+	RepayAmount       types.Number  `json:"repayAmount"`
+	PayInterest       types.Number  `json:"payInterest"`
+	RepayLoanAmount   types.Number  `json:"repayLoanAmount"`
+	RepayUnlockAmount types.Number  `json:"repayUnlockAmount"`
 	RepayTime         types.Time    `json:"repayTime"`
 }
 
@@ -2406,7 +2408,7 @@ type RepayRecords struct {
 type ModPledgeResp struct {
 	LoanCoin        currency.Code `json:"loanCoin"`
 	PledgeCoin      currency.Code `json:"pledgeCoin"`
-	AfterPledgeRate types.Number `json:"afterPledgeRate"`
+	AfterPledgeRate types.Number  `json:"afterPledgeRate"`
 }
 
 // PledgeRateHist contains information on historical pledge rates
@@ -2416,9 +2418,9 @@ type PledgeRateHist struct {
 	OrderID          int64         `json:"orderId,string"`
 	ReviseTime       types.Time    `json:"reviseTime"`
 	ReviseSide       string        `json:"reviseSide"`
-	ReviseAmount     types.Number `json:"reviseAmount"`
-	AfterPledgeRate  types.Number `json:"afterPledgeRate"`
-	BeforePledgeRate types.Number `json:"beforePledgeRate"`
+	ReviseAmount     types.Number  `json:"reviseAmount"`
+	AfterPledgeRate  types.Number  `json:"afterPledgeRate"`
+	BeforePledgeRate types.Number  `json:"beforePledgeRate"`
 }
 
 // LoanHistory contains information on loans
@@ -2426,10 +2428,10 @@ type LoanHistory struct {
 	OrderID             int64         `json:"orderId,string"`
 	LoanCoin            currency.Code `json:"loanCoin"`
 	PledgeCoin          currency.Code `json:"pledgeCoin"`
-	InitialPledgeAmount types.Number `json:"initPledgeAmount"`
-	InitialLoanAmount   types.Number `json:"initLoanAmount"`
-	HourlyRate          types.Number `json:"hourRate"`
-	Daily               types.Number `json:"daily"`
+	InitialPledgeAmount types.Number  `json:"initPledgeAmount"`
+	InitialLoanAmount   types.Number  `json:"initLoanAmount"`
+	HourlyRate          types.Number  `json:"hourRate"`
+	Daily               types.Number  `json:"daily"`
 	BorrowTime          types.Time    `json:"borrowTime"`
 	Status              string        `json:"status"`
 }
@@ -2437,8 +2439,8 @@ type LoanHistory struct {
 // CoinAm includes fields for coins, amounts, and amount-equivalents in USDT
 type CoinAm struct {
 	Coin       currency.Code `json:"coin"`
-	Amount     types.Number `json:"amount"`
-	AmountUSDT types.Number `json:"amountUsdt"`
+	Amount     types.Number  `json:"amount"`
+	AmountUSDT types.Number  `json:"amountUsdt"`
 }
 
 // DebtsResp contains information on debts
@@ -2453,19 +2455,19 @@ type LiquidRecs struct {
 	LoanCoin        currency.Code `json:"loanCoin"`
 	PledgeCoin      currency.Code `json:"pledgeCoin"`
 	ReduceTime      types.Time    `json:"reduceTime"`
-	PledgeRate      types.Number `json:"pledgeRate"`
-	PledgePrice     types.Number `json:"pledgePrice"`
+	PledgeRate      types.Number  `json:"pledgeRate"`
+	PledgePrice     types.Number  `json:"pledgePrice"`
 	Status          string        `json:"status"`
-	PledgeAmount    types.Number `json:"pledgeAmount"`
+	PledgeAmount    types.Number  `json:"pledgeAmount"`
 	ReduceFee       string        `json:"reduceFee"`
-	ResidueAmount   types.Number `json:"residueAmount"`
-	RunlockAmount   types.Number `json:"runlockAmount"`
-	RepayLoanAmount types.Number `json:"repayLoanAmount"`
+	ResidueAmount   types.Number  `json:"residueAmount"`
+	RunlockAmount   types.Number  `json:"runlockAmount"`
+	RepayLoanAmount types.Number  `json:"repayLoanAmount"`
 }
 
 // LoanInfo contains information on a loan
 type LoanInfo struct {
-	ProductID           string  `json:"productId"`
+	ProductID           string       `json:"productId"`
 	Leverage            types.Number `json:"leverage"`
 	TransferLine        types.Number `json:"transferLine"`
 	SpotBuyLine         types.Number `json:"spotBuyLine"`
@@ -2476,8 +2478,8 @@ type LoanInfo struct {
 // CoinConverts contains information on coin conversion ratios
 type CoinConverts struct {
 	Coin                currency.Code `json:"coin"`
-	ConvertRatio        types.Number `json:"convertRatio"`
-	MaximumConvertValue types.Number `json:"maxConvertValue"`
+	ConvertRatio        types.Number  `json:"convertRatio"`
+	MaximumConvertValue types.Number  `json:"maxConvertValue"`
 }
 
 // MarginCoinRatio contains information on margin coin conversion ratios
@@ -2495,24 +2497,24 @@ type SpotSymbols struct {
 // UnpaidLoanInfo contains information on unpaid loans
 type UnpaidLoanInfo struct {
 	Coin           currency.Code `json:"coin"`
-	UnpaidQuantity types.Number `json:"unpaidQty"`
-	UnpaidInterest types.Number `json:"unpaidInterest"`
+	UnpaidQuantity types.Number  `json:"unpaidQty"`
+	UnpaidInterest types.Number  `json:"unpaidInterest"`
 }
 
 // BalanceInfo contains information on balances
 type BalanceInfo struct {
 	Coin                currency.Code `json:"coin"`
-	Price               types.Number `json:"price"`
-	Amount              types.Number `json:"amount"`
-	ConvertedUSDTAmount types.Number `json:"convertedUsdtAmount"`
+	Price               types.Number  `json:"price"`
+	Amount              types.Number  `json:"amount"`
+	ConvertedUSDTAmount types.Number  `json:"convertedUsdtAmount"`
 }
 
 // LoanToValue contains information on loan-to-value ratios
 type LoanToValue struct {
-	LTV              types.Number `json:"ltv"`
+	LTV              types.Number     `json:"ltv"`
 	SubAccountUIDs   []string         `json:"subAccountUids"`
-	UnpaidUSDTAmount types.Number `json:"unpaidUsdtAmount"`
-	USDTBalance      types.Number `json:"usdtBalance"`
+	UnpaidUSDTAmount types.Number     `json:"unpaidUsdtAmount"`
+	USDTBalance      types.Number     `json:"usdtBalance"`
 	UnpaidInfo       []UnpaidLoanInfo `json:"unpaidInfo"`
 	BalanceInfo      []BalanceInfo    `json:"balanceInfo"`
 }
@@ -2520,7 +2522,7 @@ type LoanToValue struct {
 // TransferableAmount contains information on transferable amounts
 type TransferableAmount struct {
 	Coin        currency.Code `json:"coin"`
-	Transferred types.Number `json:"transfered"` //nolint:misspell // Bitget spelling mistake
+	Transferred types.Number  `json:"transfered"` //nolint:misspell // Bitget spelling mistake
 	UserID      uint64        `json:"userId,string"`
 }
 
@@ -2531,12 +2533,12 @@ type LoanOrders struct {
 	UID            string        `json:"uid"`
 	LoanTime       types.Time    `json:"loanTime"`
 	LoanCoin       currency.Code `json:"loanCoin"`
-	UnpaidAmount   types.Number `json:"unpaidAmount"`
-	UnpaidInterest types.Number `json:"unpaidInterest"`
-	LoanAmount     types.Number `json:"loanAmount"`
+	UnpaidAmount   types.Number  `json:"unpaidAmount"`
+	UnpaidInterest types.Number  `json:"unpaidInterest"`
+	LoanAmount     types.Number  `json:"loanAmount"`
 	Status         string        `json:"status"`
-	RepaidAmount   types.Number `json:"repaidAmount"`
-	RepaidInterest types.Number `json:"repaidInterest"`
+	RepaidAmount   types.Number  `json:"repaidAmount"`
+	RepaidInterest types.Number  `json:"repaidInterest"`
 }
 
 // RepaymentOrders contains information on repayment orders
@@ -2546,8 +2548,8 @@ type RepaymentOrders struct {
 	RepayType      string        `json:"repayType"`
 	RepaidTime     types.Time    `json:"repaidTime"`
 	Coin           currency.Code `json:"coin"`
-	RepaidAmount   types.Number `json:"repaidAmount"`
-	RepaidInterest types.Number `json:"repaidInterest"`
+	RepaidAmount   types.Number  `json:"repaidAmount"`
+	RepaidInterest types.Number  `json:"repaidInterest"`
 }
 
 // WsResponse contains information on a websocket response
@@ -2591,7 +2593,7 @@ type WsLogin struct {
 
 // WsTickerSnapshotSpot contains information on a ticker snapshot
 type WsTickerSnapshotSpot struct {
-	InstrumentID string     `json:"instId"`
+	InstrumentID string       `json:"instId"`
 	LastPrice    types.Number `json:"lastPr"`
 	Open24H      types.Number `json:"open24h"`
 	High24H      types.Number `json:"high24h"`
@@ -2605,26 +2607,26 @@ type WsTickerSnapshotSpot struct {
 	QuoteVolume  types.Number `json:"quoteVolume"`
 	OpenUTC      types.Number `json:"openUtc"`
 	ChangeUTC24H types.Number `json:"changeUtc24h"`
-	Timestamp    types.Time `json:"ts"`
+	Timestamp    types.Time   `json:"ts"`
 }
 
 // WsAccountSpotResponse contains information on an account response for spot trading
 type WsAccountSpotResponse struct {
 	Coin           currency.Code `json:"coin"`
-	Available      types.Number `json:"available"`
-	Frozen         types.Number `json:"frozen"`
-	Locked         types.Number `json:"locked"`
-	LimitAvailable types.Number `json:"limitAvailable"`
+	Available      types.Number  `json:"available"`
+	Frozen         types.Number  `json:"frozen"`
+	Locked         types.Number  `json:"locked"`
+	LimitAvailable types.Number  `json:"limitAvailable"`
 	UpdateTime     types.Time    `json:"uTime"`
 }
 
 // WsTradeResponse contains information on a trade response
 type WsTradeResponse struct {
-	Timestamp types.Time `json:"ts"`
+	Timestamp types.Time   `json:"ts"`
 	Price     types.Number `json:"price"`
 	Size      types.Number `json:"size"`
-	Side      string     `json:"side"`
-	TradeID   int64      `json:"tradeId,string"`
+	Side      string       `json:"side"`
+	TradeID   int64        `json:"tradeId,string"`
 }
 
 // WsOrderBookResponse contains information on an order book response
@@ -2642,9 +2644,9 @@ type WsFillSpotResponse struct {
 	Symbol       string              `json:"symbol"`
 	OrderType    string              `json:"orderType"`
 	Side         string              `json:"side"`
-	PriceAverage types.Number `json:"priceAvg"`
-	Size         types.Number `json:"size"`
-	Amount       types.Number `json:"amount"`
+	PriceAverage types.Number        `json:"priceAvg"`
+	Size         types.Number        `json:"size"`
+	Amount       types.Number        `json:"amount"`
 	TradeScope   string              `json:"tradeScope"`
 	FeeDetail    []AbridgedFeeDetail `json:"feeDetail"`
 	CreationTime types.Time          `json:"cTime"`
@@ -2656,21 +2658,21 @@ type WsOrderSpotResponse struct {
 	InstrumentID      string              `json:"instId"`
 	OrderID           int64               `json:"orderId,string"`
 	ClientOrderID     string              `json:"clientOid"`
-	Size              types.Number `json:"size"`
-	NewSize           types.Number `json:"newSize"`
-	Notional          types.Number `json:"notional"`
+	Size              types.Number        `json:"size"`
+	NewSize           types.Number        `json:"newSize"`
+	Notional          types.Number        `json:"notional"`
 	OrderType         string              `json:"orderType"`
 	Force             string              `json:"force"`
 	Side              string              `json:"side"`
-	FillPrice         types.Number `json:"fillPrice"`
+	FillPrice         types.Number        `json:"fillPrice"`
 	TradeID           int64               `json:"tradeId,string"`
-	BaseVolume        types.Number `json:"baseVolume"`
+	BaseVolume        types.Number        `json:"baseVolume"`
 	FillTime          types.Time          `json:"fillTime"`
-	FillFee           types.Number `json:"fillFee"`
+	FillFee           types.Number        `json:"fillFee"`
 	FillFeeCoin       currency.Code       `json:"fillFeeCoin"`
 	TradeScope        string              `json:"tradeScope"`
-	AccountBaseVolume types.Number `json:"accBaseVolume"`
-	PriceAverage      types.Number `json:"priceAvg"`
+	AccountBaseVolume types.Number        `json:"accBaseVolume"`
+	PriceAverage      types.Number        `json:"priceAvg"`
 	Status            string              `json:"status"`
 	CreationTime      types.Time          `json:"cTime"`
 	UpdateTime        types.Time          `json:"uTime"`
@@ -2681,28 +2683,28 @@ type WsOrderSpotResponse struct {
 
 // WsTriggerOrderSpotResponse contains information on a trigger order response for spot trading
 type WsTriggerOrderSpotResponse struct {
-	InstrumentID     string     `json:"instId"`
-	OrderID          int64      `json:"orderId,string"`
-	ClientOrderID    string     `json:"clientOid"`
+	InstrumentID     string       `json:"instId"`
+	OrderID          int64        `json:"orderId,string"`
+	ClientOrderID    string       `json:"clientOid"`
 	TriggerPrice     types.Number `json:"triggerPrice"`
-	TriggerType      string     `json:"triggerType"`
-	PlanType         string     `json:"planType"`
+	TriggerType      string       `json:"triggerType"`
+	PlanType         string       `json:"planType"`
 	Price            types.Number `json:"price"`
 	Size             types.Number `json:"size"`
 	ActualSize       types.Number `json:"actualSize"`
-	OrderType        string     `json:"orderType"`
-	Side             string     `json:"side"`
-	Status           string     `json:"status"`
+	OrderType        string       `json:"orderType"`
+	Side             string       `json:"side"`
+	Status           string       `json:"status"`
 	ExecutePrice     types.Number `json:"execPrice"`
-	EnterPointSource string     `json:"enterPointSource"`
-	CreationTime     types.Time `json:"cTime"`
-	UpdateTime       types.Time `json:"uTime"`
-	STPMode          string     `json:"stpMode"`
+	EnterPointSource string       `json:"enterPointSource"`
+	CreationTime     types.Time   `json:"cTime"`
+	UpdateTime       types.Time   `json:"uTime"`
+	STPMode          string       `json:"stpMode"`
 }
 
 // WsTickerSnapshotFutures contains information on a ticker snapshot
 type WsTickerSnapshotFutures struct {
-	InstrumentID  string     `json:"instId"`
+	InstrumentID  string       `json:"instId"`
 	LastPrice     types.Number `json:"lastPr"`
 	Open24H       types.Number `json:"open24h"`
 	High24H       types.Number `json:"high24h"`
@@ -2713,28 +2715,28 @@ type WsTickerSnapshotFutures struct {
 	BidSize       types.Number `json:"bidSz"`
 	AskSize       types.Number `json:"askSz"`
 	FundingRate   types.Number `json:"fundingRate"`
-	NextFunding   types.Time `json:"nextFundingTime"`
+	NextFunding   types.Time   `json:"nextFundingTime"`
 	MarkPrice     types.Number `json:"markPrice"`
 	IndexPrice    types.Number `json:"indexPrice"`
 	HoldingAmount types.Number `json:"holdingAmount"`
 	BaseVolume    types.Number `json:"baseVolume"`
 	QuoteVolume   types.Number `json:"quoteVolume"`
 	OpenUTC       types.Number `json:"openUtc"`
-	SymbolType    uint8      `json:"symbolType,string"`
-	Symbol        string     `json:"symbol"`
+	SymbolType    uint8        `json:"symbolType,string"`
+	Symbol        string       `json:"symbol"`
 	DeliveryPrice types.Number `json:"deliveryPrice"`
-	Timestamp     types.Time `json:"ts"`
+	Timestamp     types.Time   `json:"ts"`
 }
 
 // WsAccountFuturesResponse contains information on an account response for futures trading
 type WsAccountFuturesResponse struct {
 	MarginCoin                   currency.Code `json:"marginCoin"`
-	Frozen                       types.Number `json:"frozen"`
-	Available                    types.Number `json:"available"`
-	MaximumOpenPositionAvailable types.Number `json:"maxOpenPositionAvailable"`
-	MaximumTransferOut           types.Number `json:"maxTransferOut"`
-	Equity                       types.Number `json:"equity"`
-	USDTEquity                   types.Number `json:"usdtEquity"`
+	Frozen                       types.Number  `json:"frozen"`
+	Available                    types.Number  `json:"available"`
+	MaximumOpenPositionAvailable types.Number  `json:"maxOpenPositionAvailable"`
+	MaximumTransferOut           types.Number  `json:"maxTransferOut"`
+	Equity                       types.Number  `json:"equity"`
+	USDTEquity                   types.Number  `json:"usdtEquity"`
 }
 
 // WsPositionResponse contains information on a position response
@@ -2742,25 +2744,25 @@ type WsPositionResponse struct {
 	PositionID               int64         `json:"posId,string"`
 	InstrumentID             string        `json:"instId"`
 	MarginCoin               currency.Code `json:"marginCoin"`
-	MarginSize               types.Number `json:"marginSize"`
+	MarginSize               types.Number  `json:"marginSize"`
 	MarginMode               string        `json:"marginMode"`
 	HoldSide                 string        `json:"holdSide"`
 	PositionMode             string        `json:"posMode"`
-	Total                    types.Number `json:"total"`
-	Available                types.Number `json:"available"`
-	Frozen                   types.Number `json:"frozen"`
-	OpenPriceAverage         types.Number `json:"openPriceAvg"`
-	Leverage                 types.Number `json:"leverage"`
-	AchievedProfits          types.Number `json:"achievedProfits"`
-	UnrealizedProfitLoss     types.Number `json:"unrealizedPL"`
-	UnrealizedProfitLossRate types.Number `json:"unrealizedPLR"`
-	LiquidationPrice         types.Number `json:"liquidationPrice"`
-	KeepMarginRate           types.Number `json:"keepMarginRate"`
-	MarginRate               types.Number `json:"marginRate"`
+	Total                    types.Number  `json:"total"`
+	Available                types.Number  `json:"available"`
+	Frozen                   types.Number  `json:"frozen"`
+	OpenPriceAverage         types.Number  `json:"openPriceAvg"`
+	Leverage                 types.Number  `json:"leverage"`
+	AchievedProfits          types.Number  `json:"achievedProfits"`
+	UnrealizedProfitLoss     types.Number  `json:"unrealizedPL"`
+	UnrealizedProfitLossRate types.Number  `json:"unrealizedPLR"`
+	LiquidationPrice         types.Number  `json:"liquidationPrice"`
+	KeepMarginRate           types.Number  `json:"keepMarginRate"`
+	MarginRate               types.Number  `json:"marginRate"`
 	CreationTime             types.Time    `json:"cTime"`
-	BreakEvenPrice           types.Number `json:"breakEvenPrice"`
-	TotalFee                 types.Number `json:"totalFee"`
-	DeductedFee              types.Number `json:"deductedFee"`
+	BreakEvenPrice           types.Number  `json:"breakEvenPrice"`
+	TotalFee                 types.Number  `json:"totalFee"`
+	DeductedFee              types.Number  `json:"deductedFee"`
 	UpdateTime               types.Time    `json:"uTime"`
 	AutoMargin               string        `json:"autoMargin"`
 }
@@ -2773,10 +2775,10 @@ type WsFillFuturesResponse struct {
 	Side         string              `json:"side"`
 	OrderType    string              `json:"orderType"`
 	PosMode      string              `json:"posMode"`
-	Price        types.Number `json:"price"`
-	BaseVolume   types.Number `json:"baseVolume"`
-	QuoteVolume  types.Number `json:"quoteVolume"`
-	Profit       types.Number `json:"profit"`
+	Price        types.Number        `json:"price"`
+	BaseVolume   types.Number        `json:"baseVolume"`
+	QuoteVolume  types.Number        `json:"quoteVolume"`
+	Profit       types.Number        `json:"profit"`
 	TradeSide    string              `json:"tradeSide"`
 	TradeScope   string              `json:"tradeScope"`
 	FeeDetail    []AbridgedFeeDetail `json:"feeDetail"`
@@ -2786,41 +2788,41 @@ type WsFillFuturesResponse struct {
 
 // WsOrderFuturesResponse contains information on an order response for futures trading
 type WsOrderFuturesResponse struct {
-	FilledQuantity         types.Number `json:"accBaseVolume"`
+	FilledQuantity         types.Number  `json:"accBaseVolume"`
 	CreationTime           types.Time    `json:"cTime"`
 	ClientOrderID          string        `json:"clientOid"`
 	FeeDetail              []FeeAndCoin  `json:"feeDetail"`
-	FillFee                types.Number `json:"fillFee"`
+	FillFee                types.Number  `json:"fillFee"`
 	FillFeeCoin            currency.Code `json:"fillFeeCoin"`
-	FillNotionalUSD        types.Number `json:"fillNotionalUsd"`
-	FillPrice              types.Number `json:"fillPrice"`
-	BaseVolume             types.Number `json:"baseVolume"`
+	FillNotionalUSD        types.Number  `json:"fillNotionalUsd"`
+	FillPrice              types.Number  `json:"fillPrice"`
+	BaseVolume             types.Number  `json:"baseVolume"`
 	FillTime               types.Time    `json:"fillTime"`
 	Force                  string        `json:"force"`
 	InstrumentID           string        `json:"instId"`
-	Leverage               types.Number `json:"leverage"`
+	Leverage               types.Number  `json:"leverage"`
 	MarginCoin             currency.Code `json:"marginCoin"`
 	MarginMode             string        `json:"marginMode"`
-	NotionalUSD            types.Number `json:"notionalUsd"`
+	NotionalUSD            types.Number  `json:"notionalUsd"`
 	OrderID                int64         `json:"orderId,string"`
 	OrderType              string        `json:"orderType"`
-	ProfitAndLoss          types.Number `json:"pnl"`
+	ProfitAndLoss          types.Number  `json:"pnl"`
 	PositionMode           string        `json:"posMode"`
 	PositionSide           string        `json:"posSide"`
-	Price                  types.Number `json:"price"`
-	PriceAverage           types.Number `json:"priceAvg"`
+	Price                  types.Number  `json:"price"`
+	PriceAverage           types.Number  `json:"priceAvg"`
 	ReduceOnly             YesNoBool     `json:"reduceOnly"`
 	STPMode                string        `json:"stpMode"`
 	Side                   string        `json:"side"`
-	Size                   types.Number `json:"size"`
+	Size                   types.Number  `json:"size"`
 	EnterPointSource       string        `json:"enterPointSource"`
 	Status                 string        `json:"status"`
 	TradeScope             string        `json:"tradeScope"`
 	TradeID                int64         `json:"tradeId,string"`
 	TradeSide              string        `json:"tradeSide"`
-	PresetStopSurplusPrice types.Number `json:"presetStopSurplusPrice"`
-	TotalProfits           types.Number `json:"totalProfits"`
-	PresetStopLossPrice    types.Number `json:"presetStopLossPrice"`
+	PresetStopSurplusPrice types.Number  `json:"presetStopSurplusPrice"`
+	TotalProfits           types.Number  `json:"totalProfits"`
+	PresetStopLossPrice    types.Number  `json:"presetStopLossPrice"`
 	UpdateTime             types.Time    `json:"uTime"`
 }
 
@@ -2829,14 +2831,14 @@ type WsTriggerOrderFuturesResponse struct {
 	InstrumentID           string        `json:"instId"`
 	OrderID                int64         `json:"orderId,string"`
 	ClientOrderID          string        `json:"clientOid"`
-	TriggerPrice           types.Number `json:"triggerPrice"`
+	TriggerPrice           types.Number  `json:"triggerPrice"`
 	TriggerType            string        `json:"triggerType"`
 	TriggerTime            types.Time    `json:"triggerTime"`
 	PlanType               string        `json:"planType"`
-	Price                  types.Number `json:"price"`
-	ExecutePrice           types.Number `json:"executePrice"`
-	Size                   types.Number `json:"size"`
-	ActualSize             types.Number `json:"actualSize"`
+	Price                  types.Number  `json:"price"`
+	ExecutePrice           types.Number  `json:"executePrice"`
+	Size                   types.Number  `json:"size"`
+	ActualSize             types.Number  `json:"actualSize"`
 	OrderType              string        `json:"orderType"`
 	Side                   string        `json:"side"`
 	TradeSide              string        `json:"tradeSide"`
@@ -2860,14 +2862,14 @@ type WsPositionHistoryResponse struct {
 	MarginMode        string        `json:"marginMode"`
 	HoldSide          string        `json:"holdSide"`
 	PositionMode      string        `json:"posMode"`
-	OpenPriceAverage  types.Number `json:"openPriceAvg"`
-	ClosePriceAverage types.Number `json:"closePriceAvg"`
-	OpenSize          types.Number `json:"openSize"`
-	CloseSize         types.Number `json:"closeSize"`
-	AchievedProfits   types.Number `json:"achievedProfits"`
-	SettleFee         types.Number `json:"settleFee"`
-	OpenFee           types.Number `json:"openFee"`
-	CloseFee          types.Number `json:"closeFee"`
+	OpenPriceAverage  types.Number  `json:"openPriceAvg"`
+	ClosePriceAverage types.Number  `json:"closePriceAvg"`
+	OpenSize          types.Number  `json:"openSize"`
+	CloseSize         types.Number  `json:"closeSize"`
+	AchievedProfits   types.Number  `json:"achievedProfits"`
+	SettleFee         types.Number  `json:"settleFee"`
+	OpenFee           types.Number  `json:"openFee"`
+	CloseFee          types.Number  `json:"closeFee"`
 	CreationTime      types.Time    `json:"cTime"`
 	UpdateTime        types.Time    `json:"uTime"`
 }
@@ -2877,7 +2879,7 @@ type WsIndexPriceResponse struct {
 	Symbol     string        `json:"symbol"`
 	BaseCoin   currency.Code `json:"baseCoin"`
 	QuoteCoin  currency.Code `json:"quoteCoin"`
-	IndexPrice types.Number `json:"indexPrice"`
+	IndexPrice types.Number  `json:"indexPrice"`
 	Timestamp  types.Time    `json:"ts"`
 }
 
@@ -2886,29 +2888,29 @@ type WsAccountCrossMarginResponse struct {
 	UpdateTime types.Time    `json:"uTime"`
 	ID         int64         `json:"id,string"`
 	Coin       currency.Code `json:"coin"`
-	Available  types.Number `json:"available"`
-	Borrow     types.Number `json:"borrow"`
-	Frozen     types.Number `json:"frozen"`
-	Interest   types.Number `json:"interest"`
-	Coupon     types.Number `json:"coupon"`
+	Available  types.Number  `json:"available"`
+	Borrow     types.Number  `json:"borrow"`
+	Frozen     types.Number  `json:"frozen"`
+	Interest   types.Number  `json:"interest"`
+	Coupon     types.Number  `json:"coupon"`
 }
 
 // WsOrderMarginResponse contains information on an order response for margin trading
 type WsOrderMarginResponse struct {
 	Force            string              `json:"force"`
 	OrderType        string              `json:"orderType"`
-	Price            types.Number `json:"price"`
-	QuoteSize        types.Number `json:"quoteSize"`
+	Price            types.Number        `json:"price"`
+	QuoteSize        types.Number        `json:"quoteSize"`
 	Side             string              `json:"side"`
 	FeeDetail        []AbridgedFeeDetail `json:"feeDetail"`
 	EnterPointSource string              `json:"enterPointSource"`
 	Status           string              `json:"status"`
-	BaseSize         types.Number `json:"baseSize"`
+	BaseSize         types.Number        `json:"baseSize"`
 	CreationTime     types.Time          `json:"cTime"`
 	ClientOrderID    string              `json:"clientOid"`
-	FillPrice        types.Number `json:"fillPrice"`
-	BaseVolume       types.Number `json:"baseVolume"`
-	FillTotalAmount  types.Number `json:"fillTotalAmount"`
+	FillPrice        types.Number        `json:"fillPrice"`
+	BaseVolume       types.Number        `json:"baseVolume"`
+	FillTotalAmount  types.Number        `json:"fillTotalAmount"`
 	LoanType         string              `json:"loanType"`
 	OrderID          int64               `json:"orderId,string"`
 	STPMode          string              `json:"stpMode"`
@@ -2920,9 +2922,9 @@ type WsAccountIsolatedMarginResponse struct {
 	ID         int64         `json:"id,string"`
 	Coin       currency.Code `json:"coin"`
 	Symbol     string        `json:"symbol"`
-	Available  types.Number `json:"available"`
-	Borrow     types.Number `json:"borrow"`
-	Frozen     types.Number `json:"frozen"`
-	Interest   types.Number `json:"interest"`
-	Coupon     types.Number `json:"coupon"`
+	Available  types.Number  `json:"available"`
+	Borrow     types.Number  `json:"borrow"`
+	Frozen     types.Number  `json:"frozen"`
+	Interest   types.Number  `json:"interest"`
+	Coupon     types.Number  `json:"coupon"`
 }
