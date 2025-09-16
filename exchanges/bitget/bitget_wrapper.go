@@ -238,8 +238,18 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+	var wsPub string
+	var wsPriv string
+	switch e.isDemoTrading {
+	case true:
+		wsPub = bitgetPublicSandboxWSUrl
+		wsPriv = bitgetPrivateSandboxWSUrl
+	case false:
+		wsPub = bitgetPublicWSURL
+		wsPriv = bitgetPrivateWSURL
+	}
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  bitgetPublicWSURL,
+		URL:                  wsPub,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            GetRateLimits()[RateSubscription],
@@ -248,7 +258,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  bitgetPrivateWSURL,
+		URL:                  wsPriv,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Authenticated:        true,

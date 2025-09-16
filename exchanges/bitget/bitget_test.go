@@ -211,8 +211,6 @@ func TestGetSpotTransactionRecords(t *testing.T) {
 func TestGetFuturesTransactionRecords(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesTransactionRecords(t.Context(), "", currency.Code{}, time.Time{}, time.Time{}, 0, 0)
-	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = e.GetFuturesTransactionRecords(t.Context(), "woof", currency.Code{}, time.Time{}, time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetFuturesTransactionRecords(t.Context(), "COIN-FUTURES", currency.Code{}, time.Now().Add(-time.Hour*24*30), time.Now(), 5, 1<<62)
@@ -240,7 +238,7 @@ func TestGetP2PTransactionRecords(t *testing.T) {
 func TestGetP2PMerchantList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetP2PMerchantList(t.Context(), "", 5, 1<<62)
+	_, err := e.GetP2PMerchantList(t.Context(), nil, 5, 1<<62)
 	assert.NoError(t, err)
 }
 
@@ -252,18 +250,18 @@ func TestGetMerchantInfo(t *testing.T) {
 
 func TestGetMerchantP2POrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMerchantP2POrders(t.Context(), time.Time{}, time.Time{}, 0, 0, 0, 0, "", "", currency.Code{}, currency.Code{})
-	assert.ErrorIs(t, err, common.ErrDateUnset)
+	_, err := e.GetMerchantP2POrders(t.Context(), time.Now().Add(time.Second), time.Now(), 0, 0, 0, 0, "", "", currency.Code{}, currency.Code{})
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	// Can't currently be properly tested due to not knowing any p2p order IDs
+	// Seems like it can't currently be properly tested due to not knowing any p2p order IDs
 	_, err = e.GetMerchantP2POrders(t.Context(), time.Now().Add(-time.Hour*24*7), time.Now(), 5, 1, 0, 0, "", "", testCrypto, currency.Code{})
 	assert.NoError(t, err)
 }
 
 func TestGetMerchantAdvertisementList(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMerchantAdvertisementList(t.Context(), time.Time{}, time.Time{}, 0, 0, 0, 0, "", "", "", "", currency.Code{}, currency.Code{})
-	assert.ErrorIs(t, err, common.ErrDateUnset)
+	_, err := e.GetMerchantAdvertisementList(t.Context(), time.Now().Add(time.Second), time.Now(), 0, 0, 0, 0, "", "", "", "", currency.Code{}, currency.Code{})
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetMerchantAdvertisementList(t.Context(), time.Now().Add(-time.Hour*24*7), time.Now(), 5, 1<<62, 0, 0, "", "sell", "", "", testCrypto, currency.USD)
 	assert.NoError(t, err)
@@ -389,7 +387,7 @@ func TestCreateSubaccountAndAPIKey(t *testing.T) {
 	// Fails with error "subAccountList not empty" and I'm not sure why. The account I'm testing with is far off hitting the limit of 20 sub-accounts.
 	// Now it's saying that parameter req cannot be empty, still no clue what that means
 	// Now it's saying that parameter verification failed. Occasionally it says this in Chinese
-	_, err = e.CreateSubaccountAndAPIKey(t.Context(), "MEOWMEOW", "woofwoof123", "neighneighneighneighneigh", ipL, pL)
+	_, err = e.CreateSubaccountAndAPIKey(t.Context(), "OWMEOWME", "woofwoof123", "neighneighneighneigh", ipL, pL)
 	assert.NoError(t, err)
 }
 

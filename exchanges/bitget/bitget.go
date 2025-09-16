@@ -386,16 +386,15 @@ func (e *Exchange) GetSpotTransactionRecords(ctx context.Context, currency curre
 
 // GetFuturesTransactionRecords returns the user's futures transaction records
 func (e *Exchange) GetFuturesTransactionRecords(ctx context.Context, productType string, currency currency.Code, startTime, endTime time.Time, limit, pagination int64) ([]FutureTrResp, error) {
-	if productType == "" {
-		return nil, errProductTypeEmpty
-	}
 	var params Params
 	params.Values = make(url.Values)
 	err := params.prepareDateString(startTime, endTime, false, false)
 	if err != nil {
 		return nil, err
 	}
-	params.Values.Set("productType", productType)
+	if productType != "" {
+		params.Values.Set("productType", productType)
+	}
 	params.Values.Set("marginCoin", currency.String())
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
@@ -453,9 +452,9 @@ func (e *Exchange) GetP2PTransactionRecords(ctx context.Context, currency curren
 }
 
 // GetP2PMerchantList returns detailed information on merchants
-func (e *Exchange) GetP2PMerchantList(ctx context.Context, online string, limit, pagination int64) (*P2PMerListResp, error) {
+func (e *Exchange) GetP2PMerchantList(ctx context.Context, online *YesNoBool, limit, pagination int64) (*P2PMerListResp, error) {
 	vals := url.Values{}
-	vals.Set("online", online)
+	vals.Set("online", online.String())
 	if limit != 0 {
 		vals.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -476,7 +475,8 @@ func (e *Exchange) GetMerchantInfo(ctx context.Context) (*P2PMerInfoResp, error)
 func (e *Exchange) GetMerchantP2POrders(ctx context.Context, startTime, endTime time.Time, limit, pagination, adNum, ordNum int64, status, side string, cryptoCurrency, fiatCurrency currency.Code) (*P2POrdersResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
+	// Documentation incorrectly marks startTime, language, and advNo as required
+	err := params.prepareDateString(startTime, endTime, true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -490,6 +490,7 @@ func (e *Exchange) GetMerchantP2POrders(ctx context.Context, startTime, endTime 
 	params.Values.Set("orderNo", strconv.FormatInt(ordNum, 10))
 	params.Values.Set("status", status)
 	params.Values.Set("side", side)
+	params.Values.Set("language", "en-US")
 	if !cryptoCurrency.IsEmpty() {
 		params.Values.Set("coin", cryptoCurrency.String())
 	}
@@ -502,7 +503,8 @@ func (e *Exchange) GetMerchantP2POrders(ctx context.Context, startTime, endTime 
 func (e *Exchange) GetMerchantAdvertisementList(ctx context.Context, startTime, endTime time.Time, limit, pagination, adNum, payMethodID int64, status, side, orderBy, sourceType string, cryptoCurrency, fiatCurrency currency.Code) (*P2PAdListResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
+	// Documentation incorrectly marks startTime, status, coin, and fiat as required
+	err := params.prepareDateString(startTime, endTime, true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -4888,6 +4890,20 @@ func (y YesNoBool) MarshalJSON() ([]byte, error) {
 		return json.Marshal("YES")
 	}
 	return json.Marshal("NO")
+}
+
+// String implements the stringer interface
+func (y *YesNoBool) String() string {
+	if y == nil {
+		return ""
+	}
+	switch *y {
+	case true:
+		return "YES"
+	case false:
+		return "NO"
+	}
+	return ""
 }
 
 // UnmarshalJSON unmarshals the JSON input into a SuccessBool type

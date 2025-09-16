@@ -95,7 +95,7 @@ type P2PTrResp struct {
 type MerchantList struct {
 	RegisterTime        types.Time   `json:"registerTime"`
 	NickName            string       `json:"nickName"`
-	IsOnline            string       `json:"isOnline"`
+	IsOnline            YesNoBool    `json:"isOnline"`
 	AvgPaymentTime      int64        `json:"avgPaymentTime,string"`
 	AvgReleaseTime      int64        `json:"avgReleaseTime,string"`
 	TotalTrades         int64        `json:"totalTrades,string"`
@@ -156,25 +156,25 @@ type PaymentInfo struct {
 
 // P2POrderList is a sub-struct holding information on P2P orders
 type P2POrderList struct {
-	OrderID        int64         `json:"orderId,string"`
-	OrderNum       int64         `json:"orderNo,string"`
-	AdvNum         int64         `json:"advNo,string"`
-	Side           string        `json:"side"`
-	Count          types.Number  `json:"count"`
-	FiatCurrency   currency.Code `json:"fiat"`
-	CryptoCurrency currency.Code `json:"coin"`
-	Price          types.Number  `json:"price"`
-	WithdrawTime   types.Time    `json:"withdrawTime"`
-	RepresentTime  types.Time    `json:"representTime"`
-	ReleaseTime    types.Time    `json:"releaseTime"`
-	PaymentTime    types.Time    `json:"paymentTime"`
-	Amount         types.Number  `json:"amount"`
-	Status         string        `json:"status"`
-	BuyerRealName  string        `json:"buyerRealName"`
-	SellerRealName string        `json:"sellerRealName"`
-	CreationTime   types.Time    `json:"ctime"`
-	UpdateTime     types.Time    `json:"utime"`
-	PaymentInfo    PaymentInfo   `json:"paymentInfo"`
+	OrderID             int64         `json:"orderId,string"`
+	OrderNumber         int64         `json:"orderNo,string"`
+	AdvertisementNumber int64         `json:"advNo,string"`
+	Side                string        `json:"side"`
+	Count               types.Number  `json:"count"`
+	FiatCurrency        currency.Code `json:"fiat"`
+	CryptoCurrency      currency.Code `json:"coin"`
+	Price               types.Number  `json:"price"`
+	WithdrawTime        types.Time    `json:"withdrawTime"`
+	RepresentTime       types.Time    `json:"representTime"`
+	ReleaseTime         types.Time    `json:"releaseTime"`
+	PaymentTime         types.Time    `json:"paymentTime"`
+	Amount              types.Number  `json:"amount"`
+	Status              string        `json:"status"`
+	BuyerRealName       string        `json:"buyerRealName"`
+	SellerRealName      string        `json:"sellerRealName"`
+	CreationTime        types.Time    `json:"ctime"`
+	UpdateTime          types.Time    `json:"utime"`
+	PaymentInfo         PaymentInfo   `json:"paymentInfo"`
 }
 
 // P2POrdersResp holds information on P2P orders
@@ -380,7 +380,6 @@ type SubaccountList struct {
 	PermList       []string   `json:"permList"`
 	CreationTime   types.Time `json:"cTime"`
 	UpdateTime     types.Time `json:"uTime"`
-	// Documentation mentions "accountType" and "bindingTime" fields, but they aren't present in the response
 }
 
 // GetVirSubResp contains information on the user's virtual sub-accounts
