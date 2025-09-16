@@ -191,8 +191,10 @@ func (e *Exchange) SetDefaults() {
 	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      bitgetAPIURL,
-		exchange.WebsocketSpot: bitgetPublicWSURL,
+		exchange.RestSpot:                bitgetAPIURL,
+		exchange.WebsocketSpot:           bitgetPublicWSURL,
+		exchange.WebsocketSandboxPublic:  bitgetPublicSandboxWSUrl,
+		exchange.WebsocketSandboxPrivate: bitgetPrivateSandboxWSUrl,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

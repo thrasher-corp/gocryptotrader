@@ -610,9 +610,9 @@ func TestPlaceSpotOrder(t *testing.T) {
 	_, err = e.PlaceSpotOrder(t.Context(), testPair, "sell", "limit", "IOC", "", "", testPrice, 0, 0, 0, 0, 0, 0, false, 0)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.PlaceSpotOrder(t.Context(), testPair, "sell", "limit", "IOC", "", "", testPrice, testAmount, 0, testPrice-1, testPrice-2, testPrice+1, testPrice+2, true, 0)
+	_, err = e.PlaceSpotOrder(t.Context(), testPair, "sell", "limit", "IOC", "abc123", "", testPrice, testAmount, 0, testPrice-1, testPrice-2, testPrice+1, testPrice+2, true, 0)
 	assert.NoError(t, err)
-	_, err = e.PlaceSpotOrder(t.Context(), testPair, "sell", "limit", "IOC", "", "", testPrice, testAmount, testPrice/10, 0, 0, 0, 0, false, time.Minute)
+	_, err = e.PlaceSpotOrder(t.Context(), testPair, "sell", "limit", "IOC", "321cba", "", testPrice, testAmount, testPrice/10, 0, 0, 0, 0, false, time.Minute)
 	assert.NoError(t, err)
 }
 

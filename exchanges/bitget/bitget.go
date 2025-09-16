@@ -1100,7 +1100,7 @@ func (e *Exchange) PlaceSpotOrder(ctx context.Context, pair currency.Pair, side,
 	if triggerPrice != 0 {
 		req["triggerPrice"] = strconv.FormatFloat(triggerPrice, 'f', -1, 64)
 		req["tpslType"] = "tpsl"
-	} else {
+	} else if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
 	}
 	if acceptableDelay != 0 {

@@ -278,6 +278,9 @@ const (
 	WebsocketOptions
 	WebsocketPrivate
 	WebsocketSpotSupplementary
+	WebsocketSandbox
+	WebsocketSandboxPublic
+	WebsocketSandboxPrivate
 	ChainAnalysis
 	EdgeCase1
 	EdgeCase2
@@ -299,6 +302,9 @@ const (
 	websocketOptionsURL           = "WebsocketOptionsURL"
 	websocketPrivateURL           = "WebsocketPrivateURL"
 	websocketSpotSupplementaryURL = "WebsocketSpotSupplementaryURL"
+	websocketSandboxURL           = "WebsocketSandboxURL"
+	websocketSandboxPublicURL     = "WebsocketSandboxPublicURL"
+	websocketSandboxPrivateURL    = "WebsocketSandboxPrivateURL"
 	chainAnalysisURL              = "ChainAnalysisURL"
 	edgeCase1URL                  = "EdgeCase1URL"
 	edgeCase2URL                  = "EdgeCase2URL"
@@ -322,6 +328,9 @@ var keyURLs = []URL{
 	WebsocketOptions,
 	WebsocketPrivate,
 	WebsocketSpotSupplementary,
+	WebsocketSandbox,
+	WebsocketSandboxPublic,
+	WebsocketSandboxPrivate,
 	ChainAnalysis,
 	EdgeCase1,
 	EdgeCase2,

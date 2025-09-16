@@ -32,8 +32,10 @@ import (
 )
 
 const (
-	bitgetPublicWSURL  = "wss://ws.bitget.com/v2/ws/public"
-	bitgetPrivateWSURL = "wss://ws.bitget.com/v2/ws/private"
+	bitgetPublicWSURL         = "wss://ws.bitget.com/v2/ws/public"
+	bitgetPrivateWSURL        = "wss://ws.bitget.com/v2/ws/private"
+	bitgetPublicSandboxWSUrl  = "wss://wspap.bitget.com/v2/ws/public"
+	bitgetPrivateSandboxWSUrl = "wss://wspap.bitget.com/v2/ws/private"
 )
 
 var subscriptionNames = map[asset.Item]map[string]string{
