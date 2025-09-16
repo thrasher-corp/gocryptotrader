@@ -38,7 +38,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btse"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbase"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deribit"
@@ -695,8 +695,8 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, 
 }
 
 // GetAllExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
-func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map[string][]deposit.Address {
-	result := make(map[string]map[string][]deposit.Address)
+func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]ExchangeDepositAddresses {
+	result := make(map[string]ExchangeDepositAddresses)
 	exchanges := bot.GetExchanges()
 	var depositSyncer sync.WaitGroup
 	depositSyncer.Add(len(exchanges))
@@ -998,8 +998,8 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(deribit.Exchange), nil
 	case "exmo":
 		return new(exmo.Exchange), nil
-	case "coinbasepro":
-		return new(coinbasepro.Exchange), nil
+	case "coinbase":
+		return new(coinbase.Exchange), nil
 	case "gateio":
 		return new(gateio.Exchange), nil
 	case "gemini":

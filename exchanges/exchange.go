@@ -15,6 +15,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -55,7 +56,7 @@ const (
 // Public Errors
 var (
 	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
-	ErrSettingProxyAddress   = errors.New("setting proxy address error")
+	ErrSettingProxyAddress   = errors.New("error setting proxy address")
 	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
 	ErrEndpointPathNotFound  = errors.New("no endpoint path found for the given key")
 )
@@ -207,7 +208,7 @@ func (b *Base) GetLastPairsUpdateTime() int64 {
 	return b.CurrencyPairs.LastUpdated
 }
 
-// GetAssetTypes returns the either the enabled or available asset types for an
+// GetAssetTypes returns either the enabled or available asset types for an
 // individual exchange
 func (b *Base) GetAssetTypes(enabled bool) asset.Items {
 	return b.CurrencyPairs.GetAssetTypes(enabled)
@@ -698,6 +699,10 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 					strings.ToUpper(a.String()),
 					diff.Remove)
 			}
+		}
+		err = common.NilGuard(b.Config, b.Config.CurrencyPairs)
+		if err != nil {
+			return err
 		}
 		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
 		if err != nil {
@@ -1281,7 +1286,7 @@ func (e *Endpoints) GetURL(endpoint URL) (string, error) {
 	defer e.mu.RUnlock()
 	val, ok := e.defaults[endpoint.String()]
 	if !ok {
-		return "", fmt.Errorf("%w: %v", ErrEndpointPathNotFound, endpoint)
+		return "", fmt.Errorf("%w %v", ErrEndpointPathNotFound, endpoint)
 	}
 	return val, nil
 }
@@ -1969,4 +1974,10 @@ func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.Submit
 // WebsocketSubmitOrders submits multiple orders (batch) via the websocket connection
 func (*Base) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses []*order.SubmitResponse, err error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// MessageID returns a universally unique id using UUID V7
+// In the future additional params may be added to method signature to provide context for the message id for overriding exchange implementations
+func (b *Base) MessageID() string {
+	return uuid.Must(uuid.NewV7()).String()
 }

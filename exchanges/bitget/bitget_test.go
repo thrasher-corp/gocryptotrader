@@ -106,7 +106,6 @@ func TestMain(m *testing.M) {
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(e.Websocket.Conn)
 	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		Websocket:   true,
 		Message:     []byte(`ping`),
 		MessageType: gws.TextMessage,
 		Delay:       time.Second * 25,

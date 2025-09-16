@@ -115,7 +115,6 @@ func (e *Exchange) WsConnect() error {
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(e.Websocket.Conn)
 	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		Websocket:   true,
 		Message:     []byte(`ping`),
 		MessageType: gws.TextMessage,
 		Delay:       time.Second * 25,
@@ -143,7 +142,6 @@ func (e *Exchange) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(e.Websocket.AuthConn)
 	e.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		Websocket:   true,
 		Message:     []byte(`ping`),
 		MessageType: gws.TextMessage,
 		Delay:       time.Second * 25,
