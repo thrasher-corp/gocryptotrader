@@ -10,7 +10,6 @@ import (
 
 // PingHandler container for ping handler settings
 type PingHandler struct {
-	Websocket         bool
 	UseGorillaHandler bool
 	MessageType       int
 	Message           []byte

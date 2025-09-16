@@ -218,7 +218,7 @@ func (e *Exchange) GetCryptoDepositAddress(ctx context.Context) (map[string]stri
 
 // WithdrawCryptocurrency withdraws a cryptocurrency from the exchange to the desired address
 // NOTE: This API function is available only after request to their tech support team
-func (e *Exchange) WithdrawCryptocurrency(ctx context.Context, currency, address, invoice, transport string, amount float64) (int64, error) {
+func (e *Exchange) WithdrawCryptocurrency(ctx context.Context, ccy, address, invoice, transport string, amount float64) (int64, error) {
 	type response struct {
 		TaskID  int64  `json:"task_id,string"`
 		Result  bool   `json:"result"`
@@ -227,7 +227,7 @@ func (e *Exchange) WithdrawCryptocurrency(ctx context.Context, currency, address
 	}
 
 	v := url.Values{}
-	v.Set("currency", currency)
+	v.Set("currency", ccy)
 	v.Set("address", address)
 
 	if invoice != "" {
@@ -258,9 +258,9 @@ func (e *Exchange) GetWithdrawTXID(ctx context.Context, taskID int64) (string, e
 }
 
 // ExcodeCreate creates an EXMO coupon
-func (e *Exchange) ExcodeCreate(ctx context.Context, currency string, amount float64) (ExcodeCreate, error) {
+func (e *Exchange) ExcodeCreate(ctx context.Context, ccy string, amount float64) (ExcodeCreate, error) {
 	v := url.Values{}
-	v.Set("currency", currency)
+	v.Set("currency", ccy)
 	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var result ExcodeCreate
@@ -293,12 +293,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, endpoint exchange.URL, p
 	}
 
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          urlPath + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   urlPath + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
@@ -335,15 +336,16 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, epath excha
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 		return &request.Item{
-			Method:        method,
-			Path:          path,
-			Headers:       headers,
-			Body:          strings.NewReader(payload),
-			Result:        result,
-			NonceEnabled:  true,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   path,
+			Headers:                headers,
+			Body:                   strings.NewReader(payload),
+			Result:                 result,
+			NonceEnabled:           true,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 }

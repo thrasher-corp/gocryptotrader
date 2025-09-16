@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -771,28 +772,16 @@ func TestGetDeliveryPrice(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Futures)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Options)
-	assert.NoError(t, err)
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.USDCMarginedFutures)
-	assert.NoError(t, err)
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.USDTMarginedFutures)
-	assert.NoError(t, err)
-
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	assert.NoError(t, err)
-	availablePairs, err := e.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal("Bybit GetAvailablePairs() error", err)
-	}
-	for x := range availablePairs {
-		var limits order.MinMaxLevel
-		limits, err = e.GetOrderExecutionLimits(asset.Spot, availablePairs[x])
-		require.NoError(t, err)
-		if limits == (order.MinMaxLevel{}) {
-			t.Fatal("Bybit GetOrderExecutionLimits() error cannot be nil")
-		}
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, true)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
+			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+		})
 	}
 }
 
@@ -838,7 +827,7 @@ func TestPlaceOrder(t *testing.T) {
 		Side:      "buy",
 		OrderType: "limit",
 	})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.PlaceOrder(ctx, &PlaceOrderParams{
 		Category:         "spot",
@@ -1647,7 +1636,7 @@ func TestGetWalletBalance(t *testing.T) {
 				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should be correct")
 				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should be correct")
 				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Bonus, "Bonus should be correct")
-				assert.Equal(t, types.Number(30723.630216383711792744), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should be correct")
+				assert.Equal(t, types.Number(30723.630216383714), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should be correct")
 				assert.Equal(t, currency.USDC, r.List[0].Coin[x].Coin, "Coin should be correct")
 				assert.True(t, r.List[0].Coin[x].CollateralSwitch, "CollateralSwitch should match")
 				assert.Equal(t, types.Number(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should be correct")
@@ -2297,7 +2286,7 @@ func TestWithdrawCurrency(t *testing.T) {
 	require.ErrorIs(t, err, errMissingAddressInfo)
 
 	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234"})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234", Amount: 123})
 	if err != nil {
@@ -2664,7 +2653,7 @@ func TestBorrow(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.Borrow(t.Context(), &LendArgument{Coin: currency.BTC})
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.Borrow(t.Context(), &LendArgument{Coin: currency.BTC, AmountToBorrow: 0.1})
 	if err != nil {
@@ -2685,7 +2674,7 @@ func TestRepay(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.Repay(t.Context(), &LendArgument{Coin: currency.BTC})
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.Repay(t.Context(), &LendArgument{Coin: currency.BTC, AmountToBorrow: 0.1})
 	if err != nil {
@@ -2806,7 +2795,7 @@ func TestC2CDepositFunds(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.C2CDepositFunds(t.Context(), &C2CLendingFundsParams{Coin: currency.BTC})
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.C2CDepositFunds(t.Context(), &C2CLendingFundsParams{Coin: currency.BTC, Quantity: 1232})
 	if err != nil {
@@ -2827,7 +2816,7 @@ func TestC2CRedeemFunds(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.C2CRedeemFunds(t.Context(), &C2CLendingFundsParams{Coin: currency.BTC})
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.C2CRedeemFunds(t.Context(), &C2CLendingFundsParams{Coin: currency.BTC, Quantity: 1232})
 	if err != nil {
@@ -2890,21 +2879,24 @@ func TestUpdateAccountInfo(t *testing.T) {
 			case 0:
 				assert.Equal(t, currency.USDC, r.Accounts[0].Currencies[x].Currency, "Currency should be USDC")
 				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Total, "Total amount should be correct")
-				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Hold, "Hold amount should be correct")
-				assert.Equal(t, 30723.630216383714, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
+				assert.Zero(t, r.Accounts[0].Currencies[x].Hold, "Hold amount should be zero")
+				assert.Equal(t, 30723.630216383711792744, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
+				assert.Zero(t, r.Accounts[0].Currencies[x].Free, "Free amount should be zero")
+				assert.Zero(t, r.Accounts[0].Currencies[x].AvailableWithoutBorrow, "AvailableWithoutBorrow amount should be zero")
 			case 1:
 				assert.Equal(t, currency.AVAX, r.Accounts[0].Currencies[x].Currency, "Currency should be AVAX")
 				assert.Equal(t, 2473.9, r.Accounts[0].Currencies[x].Total, "Total amount should be correct")
-				assert.Equal(t, 1468.10808813, r.Accounts[0].Currencies[x].Hold, "Hold amount should be correct")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
-				assert.Equal(t, 1005.79191187, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
+				assert.Zero(t, r.Accounts[0].Currencies[x].Hold, "Hold amount should be zero")
+				assert.Zero(t, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be zero")
+				assert.Equal(t, 2473.9, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
+				assert.Equal(t, 1005.79191187, r.Accounts[0].Currencies[x].AvailableWithoutBorrow, "AvailableWithoutBorrow amount should be correct")
 			case 2:
 				assert.Equal(t, currency.USDT, r.Accounts[0].Currencies[x].Currency, "Currency should be USDT")
 				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Total, "Total amount should be correct")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Hold, "Hold amount should be correct")
+				assert.Zero(t, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be zero")
+				assert.Zero(t, r.Accounts[0].Currencies[x].Hold, "Hold amount should be zero")
 				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
+				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].AvailableWithoutBorrow, "AvailableWithoutBorrow amount should be correct")
 			}
 		}
 	}

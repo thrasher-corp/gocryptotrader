@@ -89,7 +89,7 @@ func SetupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeMana
 		fiatDisplayCurrency:            c.FiatDisplayCurrency,
 		format:                         *c.PairFormatDisplay,
 		tickerBatchLastRequested:       make(map[key.ExchangeAsset]time.Time),
-		currencyPairs:                  make(map[key.ExchangePairAsset]*currencyPairSyncAgent),
+		currencyPairs:                  make(map[key.ExchangeAssetPair]*currencyPairSyncAgent),
 	}
 
 	log.Debugf(log.SyncMgr,
@@ -177,12 +177,7 @@ func (m *SyncManager) Start() error {
 				continue
 			}
 			for i := range enabledPairs {
-				k := key.ExchangePairAsset{
-					Asset:    assetTypes[y],
-					Exchange: exchangeName,
-					Base:     enabledPairs[i].Base.Item,
-					Quote:    enabledPairs[i].Quote.Item,
-				}
+				k := key.NewExchangeAssetPair(exchangeName, assetTypes[y], enabledPairs[i])
 				if e := m.get(k); e != nil {
 					continue
 				}
@@ -251,14 +246,14 @@ func (m *SyncManager) Stop() error {
 	return nil
 }
 
-func (m *SyncManager) get(k key.ExchangePairAsset) *currencyPairSyncAgent {
+func (m *SyncManager) get(k key.ExchangeAssetPair) *currencyPairSyncAgent {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
 	return m.currencyPairs[k]
 }
 
-func newCurrencyPairSyncAgent(k key.ExchangePairAsset) *currencyPairSyncAgent {
+func newCurrencyPairSyncAgent(k key.ExchangeAssetPair) *currencyPairSyncAgent {
 	return &currencyPairSyncAgent{
 		Key:      k,
 		Pair:     currency.NewPair(k.Base.Currency(), k.Quote.Currency()),
@@ -268,7 +263,7 @@ func newCurrencyPairSyncAgent(k key.ExchangePairAsset) *currencyPairSyncAgent {
 	}
 }
 
-func (m *SyncManager) add(k key.ExchangePairAsset, s syncBase) *currencyPairSyncAgent {
+func (m *SyncManager) add(k key.ExchangeAssetPair, s syncBase) *currencyPairSyncAgent {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -335,7 +330,7 @@ func (m *SyncManager) add(k key.ExchangePairAsset, s syncBase) *currencyPairSync
 	}
 
 	if m.currencyPairs == nil {
-		m.currencyPairs = make(map[key.ExchangePairAsset]*currencyPairSyncAgent)
+		m.currencyPairs = make(map[key.ExchangeAssetPair]*currencyPairSyncAgent)
 	}
 
 	m.currencyPairs[k] = c
@@ -373,16 +368,10 @@ func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 		return fmt.Errorf("%v %w", syncType, errUnknownSyncItem)
 	}
 
-	k := key.ExchangePairAsset{
-		Asset:    a,
-		Exchange: exchangeName,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-	}
-
+	k := key.NewExchangeAssetPair(exchangeName, a, p)
 	c, exists := m.currencyPairs[k]
 	if !exists {
-		return fmt.Errorf("%w for %s %s %s %s %s",
+		return fmt.Errorf("%w for %q %q %q %q %q",
 			errCouldNotSyncNewData,
 			k.Exchange,
 			k.Base,
@@ -507,12 +496,7 @@ func (m *SyncManager) worker() {
 							return
 						}
 
-						k := key.ExchangePairAsset{
-							Asset:    assetTypes[y],
-							Exchange: exchangeName,
-							Base:     enabledPairs[i].Base.Item,
-							Quote:    enabledPairs[i].Quote.Item,
-						}
+						k := key.NewExchangeAssetPair(exchangeName, assetTypes[y], enabledPairs[i])
 						c := m.get(k)
 						if c == nil {
 							c = m.add(k, syncBase{

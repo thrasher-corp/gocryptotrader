@@ -23,18 +23,18 @@ import (
 
 // Public websocket errors
 var (
-	ErrWebsocketNotEnabled  = errors.New("websocket not enabled")
-	ErrAlreadyDisabled      = errors.New("websocket already disabled")
-	ErrNotConnected         = errors.New("websocket is not connected")
-	ErrSignatureTimeout     = errors.New("websocket timeout waiting for response with signature")
-	ErrRequestRouteNotFound = errors.New("request route not found")
-	ErrSignatureNotSet      = errors.New("signature not set")
+	ErrWebsocketNotEnabled     = errors.New("websocket not enabled")
+	ErrAlreadyDisabled         = errors.New("websocket already disabled")
+	ErrWebsocketAlreadyEnabled = errors.New("websocket already enabled")
+	ErrNotConnected            = errors.New("websocket is not connected")
+	ErrSignatureTimeout        = errors.New("websocket timeout waiting for response with signature")
+	ErrRequestRouteNotFound    = errors.New("request route not found")
+	ErrSignatureNotSet         = errors.New("signature not set")
 )
 
 // Private websocket errors
 var (
 	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
-	errWebsocketAlreadyEnabled              = errors.New("websocket already enabled")
 	errDefaultURLIsEmpty                    = errors.New("default url is empty")
 	errRunningURLIsEmpty                    = errors.New("running url cannot be empty")
 	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
@@ -612,7 +612,7 @@ func (m *Manager) Disable() error {
 // Enable enables the exchange websocket protocol
 func (m *Manager) Enable() error {
 	if m.IsConnected() || m.IsEnabled() {
-		return fmt.Errorf("%s %w", m.exchangeName, errWebsocketAlreadyEnabled)
+		return fmt.Errorf("%s %w", m.exchangeName, ErrWebsocketAlreadyEnabled)
 	}
 
 	m.setEnabled(true)
@@ -739,51 +739,51 @@ func (m *Manager) CanUseAuthenticatedWebsocketForWrapper() bool {
 }
 
 // SetWebsocketURL sets websocket URL and can refresh underlying connections
-func (m *Manager) SetWebsocketURL(url string, auth, reconnect bool) error {
+func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 	if m.useMultiConnectionManagement {
 		// TODO: Add functionality for multi-connection management to change URL
 		return fmt.Errorf("%s: %w", m.exchangeName, errCannotChangeConnectionURL)
 	}
-	defaultVals := url == "" || url == config.WebsocketURLNonDefaultMessage
+	defaultVals := u == "" || u == config.WebsocketURLNonDefaultMessage
 	if auth {
 		if defaultVals {
-			url = m.defaultURLAuth
+			u = m.defaultURLAuth
 		}
 
-		err := checkWebsocketURL(url)
+		err := checkWebsocketURL(u)
 		if err != nil {
 			return err
 		}
-		m.runningURLAuth = url
+		m.runningURLAuth = u
 
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, url)
+			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, u)
 		}
 
 		if m.AuthConn != nil {
-			m.AuthConn.SetURL(url)
+			m.AuthConn.SetURL(u)
 		}
 	} else {
 		if defaultVals {
-			url = m.defaultURL
+			u = m.defaultURL
 		}
-		err := checkWebsocketURL(url)
+		err := checkWebsocketURL(u)
 		if err != nil {
 			return err
 		}
-		m.runningURL = url
+		m.runningURL = u
 
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, url)
+			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, u)
 		}
 
 		if m.Conn != nil {
-			m.Conn.SetURL(url)
+			m.Conn.SetURL(u)
 		}
 	}
 
 	if m.IsConnected() && reconnect {
-		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, url)
+		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, u)
 		return m.Shutdown()
 	}
 	return nil

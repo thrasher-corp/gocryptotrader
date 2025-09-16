@@ -113,7 +113,6 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	feeBuilder := setFeeBuilder()
 	_, err := e.GetFeeByType(t.Context(), feeBuilder)
@@ -422,7 +421,6 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-// TestWsAuthGetAccountBalance dials websocket, retrieves account balance
 func TestWsAuthGetAccountBalance(t *testing.T) {
 	setupWSTestAuth(t)
 	if _, err := e.wsGetAccountBalance(t.Context()); err != nil {
@@ -430,7 +428,6 @@ func TestWsAuthGetAccountBalance(t *testing.T) {
 	}
 }
 
-// TestWsAuthSubmitOrder dials websocket, submit order
 func TestWsAuthSubmitOrder(t *testing.T) {
 	setupWSTestAuth(t)
 	if !canManipulateRealOrders {
@@ -448,7 +445,6 @@ func TestWsAuthSubmitOrder(t *testing.T) {
 	}
 }
 
-// TestWsAuthCancelOrders dials websocket, submit orders
 func TestWsAuthSubmitOrders(t *testing.T) {
 	setupWSTestAuth(t)
 	if !canManipulateRealOrders {
@@ -474,8 +470,6 @@ func TestWsAuthSubmitOrders(t *testing.T) {
 	}
 }
 
-// TestWsAuthCancelOrders dials websocket, cancels orders
-// doesn't care about if the order cancellations fail
 func TestWsAuthCancelOrders(t *testing.T) {
 	setupWSTestAuth(t)
 	if !canManipulateRealOrders {
@@ -498,8 +492,6 @@ func TestWsAuthCancelOrders(t *testing.T) {
 	}
 }
 
-// TestWsAuthCancelOrders dials websocket, cancels orders
-// Checks that the wrapper oversight works
 func TestWsAuthCancelOrdersWrapper(t *testing.T) {
 	setupWSTestAuth(t)
 	if !canManipulateRealOrders {
@@ -514,7 +506,6 @@ func TestWsAuthCancelOrdersWrapper(t *testing.T) {
 	}
 }
 
-// TestWsAuthCancelOrder dials websocket, cancels order
 func TestWsAuthCancelOrder(t *testing.T) {
 	setupWSTestAuth(t)
 	if !canManipulateRealOrders {
@@ -533,7 +524,6 @@ func TestWsAuthCancelOrder(t *testing.T) {
 	}
 }
 
-// TestWsAuthGetOpenOrders dials websocket, retrieves open orders
 func TestWsAuthGetOpenOrders(t *testing.T) {
 	setupWSTestAuth(t)
 	_, err := e.wsGetOpenOrders(t.Context(), currency.NewPair(currency.LTC, currency.BTC).String())

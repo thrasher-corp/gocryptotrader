@@ -735,13 +735,10 @@ func (e *Exchange) UserLogOutAll(ctx context.Context) (int64, error) {
 }
 
 // GetUserMargin returns user margin information
-func (e *Exchange) GetUserMargin(ctx context.Context, currency string) (UserMargin, error) {
+func (e *Exchange) GetUserMargin(ctx context.Context, ccy string) (UserMargin, error) {
 	var info UserMargin
-
-	return info, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		bitmexEndpointUserMargin,
-		UserCurrencyParams{Currency: currency},
-		&info)
+	params := UserCurrencyParams{Currency: ccy}
+	return info, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bitmexEndpointUserMargin, params, &info)
 }
 
 // GetAllUserMargin returns user margin information
@@ -755,13 +752,10 @@ func (e *Exchange) GetAllUserMargin(ctx context.Context) ([]UserMargin, error) {
 }
 
 // GetMinimumWithdrawalFee returns minimum withdrawal fee information
-func (e *Exchange) GetMinimumWithdrawalFee(ctx context.Context, currency string) (MinWithdrawalFee, error) {
+func (e *Exchange) GetMinimumWithdrawalFee(ctx context.Context, ccy string) (MinWithdrawalFee, error) {
 	var fee MinWithdrawalFee
-
-	return fee, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		bitmexEndpointUserMinWithdrawalFee,
-		UserCurrencyParams{Currency: currency},
-		&fee)
+	params := UserCurrencyParams{Currency: ccy}
+	return fee, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bitmexEndpointUserMinWithdrawalFee, params, &fee)
 }
 
 // GetUserPreferences returns user preferences
@@ -797,13 +791,10 @@ func (e *Exchange) UserRequestWithdrawal(ctx context.Context, params UserRequest
 }
 
 // GetWalletInfo returns user wallet information
-func (e *Exchange) GetWalletInfo(ctx context.Context, currency string) (WalletInfo, error) {
+func (e *Exchange) GetWalletInfo(ctx context.Context, ccy string) (WalletInfo, error) {
 	var info WalletInfo
-
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		bitmexEndpointUserWallet,
-		UserCurrencyParams{Currency: currency},
-		&info); err != nil {
+	params := UserCurrencyParams{Currency: ccy}
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bitmexEndpointUserWallet, params, &info); err != nil {
 		return info, err
 	}
 
@@ -818,23 +809,17 @@ func (e *Exchange) GetWalletInfo(ctx context.Context, currency string) (WalletIn
 }
 
 // GetWalletHistory returns user wallet history transaction data
-func (e *Exchange) GetWalletHistory(ctx context.Context, currency string) ([]TransactionInfo, error) {
+func (e *Exchange) GetWalletHistory(ctx context.Context, ccy string) ([]TransactionInfo, error) {
 	var info []TransactionInfo
-
-	return info, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		bitmexEndpointUserWalletHistory,
-		UserCurrencyParams{Currency: currency},
-		&info)
+	params := UserCurrencyParams{Currency: ccy}
+	return info, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bitmexEndpointUserWalletHistory, params, &info)
 }
 
 // GetWalletSummary returns user wallet summary
-func (e *Exchange) GetWalletSummary(ctx context.Context, currency string) ([]TransactionInfo, error) {
+func (e *Exchange) GetWalletSummary(ctx context.Context, ccy string) ([]TransactionInfo, error) {
 	var info []TransactionInfo
-
-	return info, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		bitmexEndpointUserWalletSummary,
-		UserCurrencyParams{Currency: currency},
-		&info)
+	params := UserCurrencyParams{Currency: ccy}
+	return info, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, bitmexEndpointUserWalletSummary, params, &info)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -853,12 +838,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          path,
-		Result:        &respCheck,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   path,
+		Result:                 &respCheck,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	err = e.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
@@ -911,14 +897,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["api-signature"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:        verb,
-			Path:          endpoint + path,
-			Headers:       headers,
-			Body:          strings.NewReader(payload),
-			Result:        &respCheck,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 verb,
+			Path:                   endpoint + path,
+			Headers:                headers,
+			Body:                   strings.NewReader(payload),
+			Result:                 &respCheck,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
 	err = e.SendPayload(ctx, request.Auth, newRequest, request.AuthenticatedRequest)

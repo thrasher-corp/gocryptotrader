@@ -68,7 +68,7 @@ func TestGetHoldings(t *testing.T) {
 	assert.ErrorIs(t, err, errHoldingsIsNil)
 
 	err = Process(&Holdings{}, nil)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	holdings := Holdings{Exchange: "Test"}
 
@@ -111,7 +111,7 @@ func TestGetHoldings(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = GetHoldings("", nil, asset.Spot)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	_, err = GetHoldings("bla", nil, asset.Spot)
 	assert.ErrorIs(t, err, errCredentialsAreNil)
@@ -182,7 +182,7 @@ func TestGetBalance(t *testing.T) {
 	t.Parallel()
 
 	_, err := GetBalance("", "", nil, asset.Empty, currency.Code{})
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	_, err = GetBalance("bruh", "", nil, asset.Empty, currency.Code{})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
@@ -290,8 +290,11 @@ func TestBalanceInternalLoad(t *testing.T) {
 
 	assert.Equal(t, 3.0, bi.GetFree())
 
+	err = bi.load(&Balance{UpdatedAt: now.Add(-time.Second), Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
+	assert.ErrorIs(t, err, errOutOfSequence, "should error correctly with old update trying to store")
+
 	err = bi.load(&Balance{UpdatedAt: now, Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
-	assert.ErrorIs(t, err, errOutOfSequence, "should error correctly with same UpdatedAt")
+	assert.NoError(t, err, "should not error when timestamps are the same")
 
 	err = bi.load(&Balance{UpdatedAt: now.Add(time.Second), Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
 	assert.NoError(t, err)
@@ -317,7 +320,7 @@ func TestSave(t *testing.T) {
 	assert.ErrorIs(t, err, errHoldingsIsNil)
 
 	err = s.Save(&Holdings{}, nil)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	err = s.Save(&Holdings{
 		Exchange: "TeSt",
@@ -407,7 +410,7 @@ func TestUpdate(t *testing.T) {
 	t.Parallel()
 	s := &Service{exchangeAccounts: make(map[string]*Accounts), mux: dispatch.GetNewMux(nil)}
 	err := s.Update("", nil, nil)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	err = s.Update("test", nil, nil)
 	assert.ErrorIs(t, err, errCredentialsAreNil)

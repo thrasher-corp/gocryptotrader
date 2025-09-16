@@ -134,19 +134,15 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 			continue
 		}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err = m.websocketDataReceiver(ws)
-			if err != nil {
+		wg.Go(func() {
+			if err := m.websocketDataReceiver(ws); err != nil {
 				log.Errorf(log.WebsocketMgr, "%v", err)
 			}
 
-			err = ws.Connect()
-			if err != nil {
+			if err := ws.Connect(); err != nil {
 				log.Errorf(log.WebsocketMgr, "%v", err)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }
@@ -166,9 +162,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 		return errRoutineManagerNotStarted
 	}
 
-	m.wg.Add(1)
-	go func() {
-		defer m.wg.Done()
+	m.wg.Go(func() {
 		for {
 			select {
 			case <-m.shutdown:
@@ -187,7 +181,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 				m.mu.RUnlock()
 			}
 		}
-	}()
+	})
 	return nil
 }
 

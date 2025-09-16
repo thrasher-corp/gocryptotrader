@@ -21,8 +21,8 @@ const (
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any) error {
-	// This is used to generate the *http.Request, used in conjunction with the
-	// generate functionality below.
+    // This is used to generate the *http.Request, used in conjunction with the
+    // generate functionality below.
 	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,

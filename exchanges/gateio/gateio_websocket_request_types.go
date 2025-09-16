@@ -171,7 +171,7 @@ type WebsocketFuturesAmendOrder struct {
 
 // WebsocketFutureOrdersList defines a websocket future orders list
 type WebsocketFutureOrdersList struct {
-	Contract currency.Pair `json:"contract,omitempty"`
+	Contract currency.Pair `json:"contract,omitzero"`
 	Asset    asset.Item    `json:"-"` // Only used internally for routing
 	Status   string        `json:"status"`
 	Limit    int64         `json:"limit,omitempty"`

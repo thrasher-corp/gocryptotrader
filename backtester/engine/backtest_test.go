@@ -68,7 +68,7 @@ func TestSetupFromConfig(t *testing.T) {
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	assert.ErrorIs(t, err, base.ErrStrategyNotFound)
 
-	const testExchange = "bitfinex"
+	const testExchange = "okx"
 
 	cfg.CurrencySettings = []config.CurrencySettings{
 		{
@@ -424,7 +424,7 @@ func TestFullCycle(t *testing.T) {
 	tt := time.Now()
 
 	stats := &statistics.Statistic{}
-	stats.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic)
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  exchange.MinMax{},
 		SellSide: exchange.MinMax{},
@@ -542,7 +542,7 @@ func TestFullCycleMulti(t *testing.T) {
 	tt := time.Now()
 
 	stats := &statistics.Statistic{}
-	stats.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
+	stats.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic)
 
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  exchange.MinMax{},
@@ -1321,37 +1321,27 @@ func TestLiveLoop(t *testing.T) {
 
 	// dataUpdated case
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		err = bt.liveCheck()
-		assert.NoError(t, err)
-
-		wg.Done()
-	}()
+	wg.Go(func() {
+		assert.NoError(t, bt.liveCheck())
+	})
 	dc.dataUpdated <- true
 	dc.shutdown <- true
 	wg.Wait()
 
 	// shutdown from error case
-	wg.Add(1)
 	dc.started = 0
-	go func() {
-		defer wg.Done()
-		err = bt.liveCheck()
-		assert.NoError(t, err)
-	}()
+	wg.Go(func() {
+		assert.NoError(t, bt.liveCheck())
+	})
 	dc.shutdownErr <- true
 	wg.Wait()
 
 	// shutdown case
 	dc.started = 1
 	bt.shutdown = make(chan struct{})
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err = bt.liveCheck()
-		assert.NoError(t, err)
-	}()
+	wg.Go(func() {
+		assert.NoError(t, bt.liveCheck())
+	})
 	dc.shutdown <- true
 	wg.Wait()
 

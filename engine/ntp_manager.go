@@ -156,7 +156,7 @@ func (m *ntpManager) processTime() error {
 // if no server can be reached will return local time in UTC()
 func (m *ntpManager) checkTimeInPools() time.Time {
 	for i := range m.pools {
-		con, err := net.DialTimeout("udp", m.pools[i], 5*time.Second)
+		con, err := net.DialTimeout("udp", m.pools[i], 5*time.Second) //nolint:noctx // TODO: #2006 Use (*net.Dialer).DialContext with (*net.Dialer).Timeout
 		if err != nil {
 			log.Warnf(log.TimeMgr, "Unable to connect to hosts %v attempting next", m.pools[i])
 			continue

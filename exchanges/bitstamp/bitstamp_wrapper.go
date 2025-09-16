@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -215,7 +217,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if err != nil {
 		return err
 	}
-	limits := make([]order.MinMaxLevel, 0, len(symbols))
+	l := make([]limits.MinMaxLevel, 0, len(symbols))
 	for x, info := range symbols {
 		if symbols[x].Trading != "Enabled" {
 			continue
@@ -224,15 +226,14 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-		limits = append(limits, order.MinMaxLevel{
-			Asset:                   a,
-			Pair:                    pair,
+		l = append(l, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 			PriceStepIncrementSize:  math.Pow10(-info.CounterDecimals),
 			AmountStepIncrementSize: math.Pow10(-info.BaseDecimals),
 			MinimumQuoteAmount:      info.MinimumOrder,
 		})
 	}
-	if err := e.LoadLimits(limits); err != nil {
+	if err := limits.Load(l); err != nil {
 		return fmt.Errorf("%s Error loading exchange limits: %v", e.Name, err)
 	}
 	return nil
@@ -583,18 +584,20 @@ func (e *Exchange) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withd
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := e.OpenBankWithdrawal(ctx,
-		withdrawRequest.Amount,
-		withdrawRequest.Currency.String(),
-		withdrawRequest.Fiat.Bank.AccountName,
-		withdrawRequest.Fiat.Bank.IBAN,
-		withdrawRequest.Fiat.Bank.SWIFTCode,
-		withdrawRequest.Fiat.Bank.BankAddress,
-		withdrawRequest.Fiat.Bank.BankPostalCode,
-		withdrawRequest.Fiat.Bank.BankPostalCity,
-		withdrawRequest.Fiat.Bank.BankCountry,
-		withdrawRequest.Description,
-		sepaWithdrawal)
+
+	resp, err := e.OpenBankWithdrawal(ctx, &OpenBankWithdrawalRequest{
+		Amount:         withdrawRequest.Amount,
+		Currency:       withdrawRequest.Currency,
+		Name:           withdrawRequest.Fiat.Bank.AccountName,
+		IBAN:           withdrawRequest.Fiat.Bank.IBAN,
+		BIC:            withdrawRequest.Fiat.Bank.SWIFTCode,
+		Address:        withdrawRequest.Fiat.Bank.BankAddress,
+		PostalCode:     withdrawRequest.Fiat.Bank.BankPostalCode,
+		City:           withdrawRequest.Fiat.Bank.BankPostalCity,
+		Country:        withdrawRequest.Fiat.Bank.BankCountry,
+		Comment:        withdrawRequest.Description,
+		WithdrawalType: sepaWithdrawal,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -610,24 +613,25 @@ func (e *Exchange) WithdrawFiatFundsToInternationalBank(ctx context.Context, wit
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := e.OpenInternationalBankWithdrawal(ctx,
-		withdrawRequest.Amount,
-		withdrawRequest.Currency.String(),
-		withdrawRequest.Fiat.Bank.AccountName,
-		withdrawRequest.Fiat.Bank.IBAN,
-		withdrawRequest.Fiat.Bank.SWIFTCode,
-		withdrawRequest.Fiat.Bank.BankAddress,
-		withdrawRequest.Fiat.Bank.BankPostalCode,
-		withdrawRequest.Fiat.Bank.BankPostalCity,
-		withdrawRequest.Fiat.Bank.BankCountry,
-		withdrawRequest.Fiat.IntermediaryBankName,
-		withdrawRequest.Fiat.IntermediaryBankAddress,
-		withdrawRequest.Fiat.IntermediaryBankPostalCode,
-		withdrawRequest.Fiat.IntermediaryBankCity,
-		withdrawRequest.Fiat.IntermediaryBankCountry,
-		withdrawRequest.Fiat.WireCurrency,
-		withdrawRequest.Description,
-		internationalWithdrawal)
+	resp, err := e.OpenInternationalBankWithdrawal(ctx, &OpenBankWithdrawalRequest{
+		Amount:                withdrawRequest.Amount,
+		Currency:              withdrawRequest.Currency,
+		Name:                  withdrawRequest.Fiat.Bank.AccountName,
+		IBAN:                  withdrawRequest.Fiat.Bank.IBAN,
+		BIC:                   withdrawRequest.Fiat.Bank.SWIFTCode,
+		Address:               withdrawRequest.Fiat.Bank.BankAddress,
+		PostalCode:            withdrawRequest.Fiat.Bank.BankPostalCode,
+		City:                  withdrawRequest.Fiat.Bank.BankPostalCity,
+		Country:               withdrawRequest.Fiat.Bank.BankCountry,
+		BankName:              withdrawRequest.Fiat.IntermediaryBankName,
+		BankAddress:           withdrawRequest.Fiat.IntermediaryBankAddress,
+		BankPostalCode:        withdrawRequest.Fiat.IntermediaryBankPostalCode,
+		BankCity:              withdrawRequest.Fiat.IntermediaryBankCity,
+		BankCountry:           withdrawRequest.Fiat.IntermediaryBankCountry,
+		InternationalCurrency: withdrawRequest.Fiat.WireCurrency,
+		Comment:               withdrawRequest.Description,
+		WithdrawalType:        internationalWithdrawal,
+	})
 	if err != nil {
 		return nil, err
 	}

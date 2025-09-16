@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -813,7 +814,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 		return fmt.Errorf("%w: '%v'", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.Amount <= 0 {
-		return order.ErrAmountBelowMin
+		return limits.ErrAmountBelowMin
 	}
 	if !slices.Contains([]string{"", "base_ccy", "quote_ccy"}, arg.TargetCurrency) {
 		return errCurrencyQuantityTypeRequired
@@ -2974,10 +2975,10 @@ func (arg *SpreadOrderParam) Validate() error {
 		return fmt.Errorf("%w spread order type is required", order.ErrTypeIsInvalid)
 	}
 	if arg.Size <= 0 {
-		return order.ErrAmountBelowMin
+		return limits.ErrAmountBelowMin
 	}
 	if arg.Price <= 0 {
-		return order.ErrPriceBelowMin
+		return limits.ErrPriceBelowMin
 	}
 	arg.Side = strings.ToLower(arg.Side)
 	switch arg.Side {
@@ -3636,13 +3637,14 @@ type WsDeliveryEstimatedPrice struct {
 	Data     []DeliveryEstimatedPrice `json:"data"`
 }
 
-// CandlestickMarkPrice represents candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel
+// CandlestickMarkPrice contains mark-price-candle subscription candles
 type CandlestickMarkPrice struct {
-	Timestamp    time.Time `json:"ts"`
-	OpenPrice    float64   `json:"o"`
-	HighestPrice float64   `json:"h"`
-	LowestPrice  float64   `json:"l"`
-	ClosePrice   float64   `json:"s"`
+	Pair         currency.Pair
+	Timestamp    time.Time
+	OpenPrice    float64
+	HighestPrice float64
+	LowestPrice  float64
+	ClosePrice   float64
 }
 
 // WsOrderBook order book represents order book push data which is returned as a result of subscription to "books*" channel

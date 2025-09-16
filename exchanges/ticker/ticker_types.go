@@ -25,7 +25,7 @@ var (
 
 // Service holds ticker information for each individual exchange
 type Service struct {
-	Tickers  map[key.ExchangePairAsset]*Ticker
+	Tickers  map[key.ExchangeAssetPair]*Ticker
 	Exchange map[string]uuid.UUID
 	mux      *dispatch.Mux
 	mu       sync.Mutex

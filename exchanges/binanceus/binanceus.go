@@ -663,7 +663,7 @@ func (e *Exchange) GetTradeFee(ctx context.Context, recvWindow uint64, symbol st
 //
 // INPUTS:
 // asset: string , startTime & endTime unix time in Milli seconds, recvWindow(duration in milli seconds > 2000 to < 6000)
-func (e *Exchange) GetAssetDistributionHistory(ctx context.Context, asset string, startTime, endTime int64, recvWindow uint64) (*AssetDistributionHistories, error) {
+func (e *Exchange) GetAssetDistributionHistory(ctx context.Context, a string, startTime, endTime int64, recvWindow uint64) (*AssetDistributionHistories, error) {
 	params := url.Values{}
 	timestamp := time.Now().UnixMilli()
 	var resp AssetDistributionHistories
@@ -683,8 +683,8 @@ func (e *Exchange) GetAssetDistributionHistory(ctx context.Context, asset string
 		params.Set("recvWindow", strconv.FormatUint(recvWindow, 10))
 	}
 
-	if asset != "" {
-		params.Set("asset", asset)
+	if a != "" {
+		params.Set("asset", a)
 	}
 	return &resp, e.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
@@ -1498,12 +1498,12 @@ func (e *Exchange) WithdrawFiat(ctx context.Context, arg *WithdrawFiatRequestPar
 */
 
 // GetDepositAddressForCurrency retrieves the wallet address for a given currency
-func (e *Exchange) GetDepositAddressForCurrency(ctx context.Context, currency, chain string) (*DepositAddress, error) {
+func (e *Exchange) GetDepositAddressForCurrency(ctx context.Context, coin, chain string) (*DepositAddress, error) {
 	params := url.Values{}
-	if currency == "" {
+	if coin == "" {
 		return nil, errMissingRequiredArgumentCoin
 	}
-	params.Set("coin", currency)
+	params.Set("coin", coin)
 	if chain != "" {
 		params.Set("network", chain)
 	}
@@ -1515,11 +1515,11 @@ func (e *Exchange) GetDepositAddressForCurrency(ctx context.Context, currency, c
 
 // DepositHistory returns the deposit history based on the supplied params
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (e *Exchange) DepositHistory(ctx context.Context, c currency.Code, status uint8, startTime, endTime time.Time, offset, limit int) ([]DepositHistory, error) {
+func (e *Exchange) DepositHistory(ctx context.Context, coin currency.Code, status uint8, startTime, endTime time.Time, offset, limit int) ([]DepositHistory, error) {
 	var response []DepositHistory
 	params := url.Values{}
-	if !c.IsEmpty() {
-		params.Set("coin", c.String())
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
 	}
 
 	if status > 0 {
@@ -1660,12 +1660,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path
 		return err
 	}
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpointPath + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   endpointPath + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
@@ -1687,13 +1688,14 @@ func (e *Exchange) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpointPath + path,
-		Headers:       headers,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   endpointPath + path,
+		Headers:                headers,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, f, func() (*request.Item, error) {
@@ -1728,13 +1730,14 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, 
 		headers["X-MBX-APIKEY"] = creds.Key
 		fullPath := common.EncodeURLValues(endpointPath+path, params) + "&signature=" + hex.EncodeToString(hmacSigned)
 		return &request.Item{
-			Method:        method,
-			Path:          fullPath,
-			Headers:       headers,
-			Result:        &interim,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   fullPath,
+			Headers:                headers,
+			Result:                 &interim,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
@@ -1775,13 +1778,14 @@ func (e *Exchange) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
-		Method:        http.MethodPost,
-		Path:          endpointPath + userAccountStream,
-		Headers:       headers,
-		Result:        &resp,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodPost,
+		Path:                   endpointPath + userAccountStream,
+		Headers:                headers,
+		Result:                 &resp,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	err = e.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
@@ -1820,12 +1824,13 @@ func (e *Exchange) MaintainWsAuthStreamKey(ctx context.Context) error {
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
-		Method:        http.MethodPut,
-		Path:          path,
-		Headers:       headers,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodPut,
+		Path:                   path,
+		Headers:                headers,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
@@ -1856,12 +1861,13 @@ func (e *Exchange) CloseUserDataStream(ctx context.Context) error {
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
-		Method:        http.MethodDelete,
-		Path:          path,
-		Headers:       headers,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodDelete,
+		Path:                   path,
+		Headers:                headers,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {

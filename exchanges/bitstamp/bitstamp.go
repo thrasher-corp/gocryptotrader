@@ -155,28 +155,27 @@ func getInternationalBankDepositFee(amount float64) float64 {
 }
 
 // GetTicker returns ticker information
-func (e *Exchange) GetTicker(ctx context.Context, currency string, hourly bool) (*Ticker, error) {
+func (e *Exchange) GetTicker(ctx context.Context, symbol string, hourly bool) (*Ticker, error) {
 	response := Ticker{}
 	tickerEndpoint := bitstampAPITicker
-
 	if hourly {
 		tickerEndpoint = bitstampAPITickerHourly
 	}
-	path := "/v" + bitstampAPIVersion + "/" + tickerEndpoint + "/" + strings.ToLower(currency) + "/"
+	path := "/v" + bitstampAPIVersion + "/" + tickerEndpoint + "/" + strings.ToLower(symbol) + "/"
 	return &response, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
 }
 
 // GetOrderbook Returns a JSON dictionary with "bids" and "asks". Each is a list
 // of open orders and each order is represented as a list holding the price and
 // the amount.
-func (e *Exchange) GetOrderbook(ctx context.Context, currency string) (*Orderbook, error) {
+func (e *Exchange) GetOrderbook(ctx context.Context, symbol string) (*Orderbook, error) {
 	type response struct {
 		Timestamp types.Time        `json:"timestamp"`
 		Bids      [][2]types.Number `json:"bids"`
 		Asks      [][2]types.Number `json:"asks"`
 	}
 
-	path := "/v" + bitstampAPIVersion + "/" + bitstampAPIOrderbook + "/" + strings.ToLower(currency) + "/"
+	path := "/v" + bitstampAPIVersion + "/" + bitstampAPIOrderbook + "/" + strings.ToLower(symbol) + "/"
 	var resp response
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 	if err != nil {
@@ -379,60 +378,51 @@ func (e *Exchange) CryptoWithdrawal(ctx context.Context, amount float64, address
 }
 
 // OpenBankWithdrawal Opens a bank withdrawal request (SEPA or international)
-func (e *Exchange) OpenBankWithdrawal(ctx context.Context, amount float64, currency,
-	name, iban, bic, address, postalCode, city, country,
-	comment, withdrawalType string,
-) (FIATWithdrawalResponse, error) {
-	req := url.Values{}
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	req.Add("account_currency", currency)
-	req.Add("name", name)
-	req.Add("iban", iban)
-	req.Add("bic", bic)
-	req.Add("address", address)
-	req.Add("postal_code", postalCode)
-	req.Add("city", city)
-	req.Add("country", country)
-	req.Add("type", withdrawalType)
-	req.Add("comment", comment)
-
+func (e *Exchange) OpenBankWithdrawal(ctx context.Context, req *OpenBankWithdrawalRequest) (FIATWithdrawalResponse, error) {
+	v := url.Values{}
+	v.Add("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
+	v.Add("account_currency", req.Currency.String())
+	v.Add("name", req.Name)
+	v.Add("iban", req.IBAN)
+	v.Add("bic", req.BIC)
+	v.Add("address", req.Address)
+	v.Add("postal_code", req.PostalCode)
+	v.Add("city", req.City)
+	v.Add("country", req.Country)
+	v.Add("type", req.WithdrawalType)
+	v.Add("comment", req.Comment)
 	resp := FIATWithdrawalResponse{}
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOpenWithdrawal, true, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOpenWithdrawal, true, v, &resp)
 }
 
 // OpenInternationalBankWithdrawal Opens a bank withdrawal request (international)
-func (e *Exchange) OpenInternationalBankWithdrawal(ctx context.Context, amount float64, currency,
-	name, iban, bic, address, postalCode, city, country,
-	bankName, bankAddress, bankPostCode, bankCity, bankCountry, internationalCurrency,
-	comment, withdrawalType string,
-) (FIATWithdrawalResponse, error) {
-	req := url.Values{}
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	req.Add("account_currency", currency)
-	req.Add("name", name)
-	req.Add("iban", iban)
-	req.Add("bic", bic)
-	req.Add("address", address)
-	req.Add("postal_code", postalCode)
-	req.Add("city", city)
-	req.Add("country", country)
-	req.Add("type", withdrawalType)
-	req.Add("comment", comment)
-	req.Add("currency", internationalCurrency)
-	req.Add("bank_name", bankName)
-	req.Add("bank_address", bankAddress)
-	req.Add("bank_postal_code", bankPostCode)
-	req.Add("bank_city", bankCity)
-	req.Add("bank_country", bankCountry)
-
+func (e *Exchange) OpenInternationalBankWithdrawal(ctx context.Context, req *OpenBankWithdrawalRequest) (FIATWithdrawalResponse, error) {
+	v := url.Values{}
+	v.Add("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
+	v.Add("account_currency", req.Currency.String())
+	v.Add("name", req.Name)
+	v.Add("iban", req.IBAN)
+	v.Add("bic", req.BIC)
+	v.Add("address", req.Address)
+	v.Add("postal_code", req.PostalCode)
+	v.Add("city", req.City)
+	v.Add("country", req.Country)
+	v.Add("type", req.WithdrawalType)
+	v.Add("comment", req.Comment)
+	v.Add("currency", req.InternationalCurrency)
+	v.Add("bank_name", req.BankName)
+	v.Add("bank_address", req.BankAddress)
+	v.Add("bank_postal_code", req.BankPostalCode)
+	v.Add("bank_city", req.BankCity)
+	v.Add("bank_country", req.BankCountry)
 	resp := FIATWithdrawalResponse{}
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOpenWithdrawal, true, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOpenWithdrawal, true, v, &resp)
 }
 
 // GetCryptoDepositAddress returns a depositing address by crypto.
-// crypto - example "btc", "ltc", "eth", "xrp" or "bch"
-func (e *Exchange) GetCryptoDepositAddress(ctx context.Context, crypto currency.Code) (*DepositAddress, error) {
-	path := crypto.Lower().String() + "_address"
+// c - example "btc", "ltc", "eth", "xrp" or "bch"
+func (e *Exchange) GetCryptoDepositAddress(ctx context.Context, c currency.Code) (*DepositAddress, error) {
+	path := c.Lower().String() + "_address"
 	var resp DepositAddress
 	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
 }
@@ -446,7 +436,7 @@ func (e *Exchange) GetUnconfirmedBitcoinDeposits(ctx context.Context) ([]Unconfi
 }
 
 // OHLC returns OHLCV data for step (interval)
-func (e *Exchange) OHLC(ctx context.Context, currency string, start, end time.Time, step, limit string) (resp OHLCResponse, err error) {
+func (e *Exchange) OHLC(ctx context.Context, symbol string, start, end time.Time, step, limit string) (resp OHLCResponse, err error) {
 	v := url.Values{}
 	v.Add("limit", limit)
 	v.Add("step", step)
@@ -460,7 +450,7 @@ func (e *Exchange) OHLC(ctx context.Context, currency string, start, end time.Ti
 	if !end.IsZero() {
 		v.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v"+bitstampAPIVersion+"/"+bitstampAPIOHLC+"/"+currency, v), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v"+bitstampAPIVersion+"/"+bitstampAPIOHLC+"/"+symbol, v), &resp)
 }
 
 // TransferAccountBalance transfers funds from either a main or sub account
@@ -468,10 +458,10 @@ func (e *Exchange) OHLC(ctx context.Context, currency string, start, end time.Ti
 // currency - which currency to transfer
 // subaccount - name of account
 // toMain - bool either to or from account
-func (e *Exchange) TransferAccountBalance(ctx context.Context, amount float64, currency, subAccount string, toMain bool) error {
+func (e *Exchange) TransferAccountBalance(ctx context.Context, amount float64, ccy, subAccount string, toMain bool) error {
 	req := url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	req.Add("currency", currency)
+	req.Add("currency", ccy)
 
 	if subAccount == "" {
 		return errors.New("missing subAccount parameter")
@@ -498,12 +488,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		return err
 	}
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
@@ -553,15 +544,16 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		readerValues := bytes.NewBufferString(encodedValues)
 
 		return &request.Item{
-			Method:        http.MethodPost,
-			Path:          fullPath,
-			Headers:       headers,
-			Body:          readerValues,
-			Result:        &interim,
-			NonceEnabled:  true,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 http.MethodPost,
+			Path:                   fullPath,
+			Headers:                headers,
+			Body:                   readerValues,
+			Result:                 &interim,
+			NonceEnabled:           true,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {

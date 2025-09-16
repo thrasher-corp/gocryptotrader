@@ -84,7 +84,12 @@ func TestDateTimeUnmarshalJSON(t *testing.T) {
 		jsonError  *json.UnmarshalTypeError
 		parseError *time.ParseError
 	)
-	require.ErrorAs(t, json.Unmarshal([]byte(`69`), &testTime), &jsonError)
+	err := json.Unmarshal([]byte(`69`), &testTime)
+	if json.Implementation == "bytedance/sonic" {
+		require.ErrorContains(t, err, "Mismatch type string with value number", "Unmarshal must return the correct error text for sonic")
+	} else {
+		require.ErrorAs(t, err, &jsonError, "Unmarshal must return the correct error type for Go standard encoding/json")
+	}
 	require.ErrorAs(t, json.Unmarshal([]byte(`"2025"`), &testTime), &parseError)
 	require.NoError(t, json.Unmarshal([]byte(`"2018-08-20 19:20:46"`), &testTime))
 	assert.Equal(t, time.Date(2018, 8, 20, 19, 20, 46, 0, time.UTC), testTime.Time())

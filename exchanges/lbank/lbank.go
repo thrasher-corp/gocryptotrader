@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -190,10 +191,10 @@ func (e *Exchange) CreateOrder(ctx context.Context, pair, side string, amount, p
 		return resp, order.ErrSideIsInvalid
 	}
 	if amount <= 0 {
-		return resp, order.ErrAmountBelowMin
+		return resp, limits.ErrAmountBelowMin
 	}
 	if price <= 0 {
-		return resp, order.ErrPriceBelowMin
+		return resp, limits.ErrPriceBelowMin
 	}
 
 	params := url.Values{}
@@ -490,12 +491,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
@@ -568,13 +570,14 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, endpoint str
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	item := &request.Item{
-		Method:        method,
-		Path:          endpoint,
-		Headers:       headers,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 method,
+		Path:                   endpoint,
+		Headers:                headers,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {

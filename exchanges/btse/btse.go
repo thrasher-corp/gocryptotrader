@@ -212,22 +212,20 @@ func (e *Exchange) GetWalletHistory(ctx context.Context, symbol string, start, e
 }
 
 // GetWalletAddress returns the users account balance
-func (e *Exchange) GetWalletAddress(ctx context.Context, currency string) (WalletAddress, error) {
+func (e *Exchange) GetWalletAddress(ctx context.Context, ccy string) (WalletAddress, error) {
 	var resp WalletAddress
-
 	urlValues := url.Values{}
-	if currency != "" {
-		urlValues.Add("currency", currency)
+	if ccy != "" {
+		urlValues.Add("currency", ccy)
 	}
-
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseWalletAddress, true, urlValues, nil, &resp, queryFunc)
 }
 
 // CreateWalletAddress create new deposit address for requested currency
-func (e *Exchange) CreateWalletAddress(ctx context.Context, currency string) (WalletAddress, error) {
+func (e *Exchange) CreateWalletAddress(ctx context.Context, ccy string) (WalletAddress, error) {
 	var resp WalletAddress
 	req := make(map[string]any, 1)
-	req["currency"] = currency
+	req["currency"] = ccy
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
 	if err != nil {
 		errResp := ErrorResponse{}
@@ -251,10 +249,10 @@ func (e *Exchange) CreateWalletAddress(ctx context.Context, currency string) (Wa
 }
 
 // WalletWithdrawal submit request to withdraw crypto currency
-func (e *Exchange) WalletWithdrawal(ctx context.Context, currency, address, tag, amount string) (WithdrawalResponse, error) {
+func (e *Exchange) WalletWithdrawal(ctx context.Context, ccy, address, tag, amount string) (WithdrawalResponse, error) {
 	var resp WithdrawalResponse
 	req := make(map[string]any, 4)
-	req["currency"] = currency
+	req["currency"] = ccy
 	req["address"] = address
 	req["tag"] = tag
 	req["amount"] = amount
@@ -443,12 +441,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method,
 		p = btseFuturesPath + btseFuturesAPIPath
 	}
 	item := &request.Item{
-		Method:        method,
-		Path:          ePoint + p + endpoint,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 method,
+		Path:                   ePoint + p + endpoint,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
@@ -520,14 +519,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["btse-sign"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:        method,
-			Path:          host,
-			Headers:       headers,
-			Body:          body,
-			Result:        result,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   host,
+			Headers:                headers,
+			Body:                   body,
+			Result:                 result,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
 	return e.SendPayload(ctx, f, newRequest, request.AuthenticatedRequest)

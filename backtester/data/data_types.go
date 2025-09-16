@@ -29,7 +29,7 @@ var (
 // HandlerHolder stores an event handler per exchange asset pair
 type HandlerHolder struct {
 	m    sync.Mutex
-	data map[key.ExchangePairAsset]Handler
+	data map[key.ExchangeAssetPair]Handler
 }
 
 // Holder interface dictates what a Data holder is expected to do

@@ -18,16 +18,14 @@ import (
 )
 
 // LoadFromDatabase returns Item from database seeded data
-func LoadFromDatabase(exchange string, pair currency.Pair, a asset.Item, interval Interval, start, end time.Time) (*Item, error) {
-	retCandle, err := candle.Series(exchange,
-		pair.Base.String(), pair.Quote.String(),
-		int64(interval.Duration().Seconds()), a.String(), start, end)
+func LoadFromDatabase(exch string, pair currency.Pair, a asset.Item, interval Interval, start, end time.Time) (*Item, error) {
+	retCandle, err := candle.Series(exch, pair.Base.String(), pair.Quote.String(), int64(interval.Duration().Seconds()), a.String(), start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	ret := Item{
-		Exchange: exchange,
+		Exchange: exch,
 		Pair:     pair,
 		Interval: interval,
 		Asset:    a,

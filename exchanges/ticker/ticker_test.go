@@ -12,6 +12,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -362,8 +363,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 			break
 		}
 
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			//nolint:gosec // no need to import crypo/rand for testing
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
 			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10), //nolint:gosec // no need to import crypo/rand for testing
@@ -389,8 +389,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 			testArray = append(testArray, quick{Name: newName, P: newPairs, TP: tp})
 			sm.Unlock()
-			wg.Done()
-		}()
+		})
 	}
 
 	if catastrophicFailure {
@@ -425,7 +424,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 func TestGetAssociation(t *testing.T) {
 	_, err := service.getAssociations("")
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	service.mux = nil
 
@@ -439,28 +438,23 @@ func TestGetAssociation(t *testing.T) {
 
 func TestGetExchangeTickersPublic(t *testing.T) {
 	_, err := GetExchangeTickers("")
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 }
 
 func TestGetExchangeTickers(t *testing.T) {
 	t.Parallel()
 	s := Service{
-		Tickers:  make(map[key.ExchangePairAsset]*Ticker),
+		Tickers:  make(map[key.ExchangeAssetPair]*Ticker),
 		Exchange: make(map[string]uuid.UUID),
 	}
 
 	_, err := s.getExchangeTickers("")
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	_, err = s.getExchangeTickers("test")
 	assert.ErrorIs(t, err, errExchangeNotFound)
 
-	s.Tickers[key.ExchangePairAsset{
-		Exchange: "test",
-		Base:     currency.XBT.Item,
-		Quote:    currency.DOGE.Item,
-		Asset:    asset.Futures,
-	}] = &Ticker{
+	s.Tickers[key.NewExchangeAssetPair("test", asset.Spot, currency.NewPair(currency.XBT, currency.DOGE))] = &Ticker{
 		Price: Price{
 			Pair:         currency.NewPair(currency.XBT, currency.DOGE),
 			ExchangeName: "test",

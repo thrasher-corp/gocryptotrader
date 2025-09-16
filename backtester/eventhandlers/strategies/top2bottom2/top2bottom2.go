@@ -131,24 +131,23 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 			highData[i] = history[i].GetHighPrice()
 			lowData[i] = history[i].GetLowPrice()
 		}
-		var massagedCloseData, massagedVolumeData, massagedHighData, massagedLowData []float64
-		massagedCloseData, err = s.massageMissingData(closeData, es.GetTime())
+		backfilledCloseData, err := s.backfillMissingData(closeData, es.GetTime())
 		if err != nil {
 			return nil, err
 		}
-		massagedVolumeData, err = s.massageMissingData(volumeData, es.GetTime())
+		backfilledVolumeData, err := s.backfillMissingData(volumeData, es.GetTime())
 		if err != nil {
 			return nil, err
 		}
-		massagedHighData, err = s.massageMissingData(highData, es.GetTime())
+		backfilledHighData, err := s.backfillMissingData(highData, es.GetTime())
 		if err != nil {
 			return nil, err
 		}
-		massagedLowData, err = s.massageMissingData(lowData, es.GetTime())
+		backfilledLowData, err := s.backfillMissingData(lowData, es.GetTime())
 		if err != nil {
 			return nil, err
 		}
-		mfi := indicators.MFI(massagedHighData, massagedLowData, massagedCloseData, massagedVolumeData, int(s.mfiPeriod.IntPart()))
+		mfi := indicators.MFI(backfilledHighData, backfilledLowData, backfilledCloseData, backfilledVolumeData, int(s.mfiPeriod.IntPart()))
 		latestMFI := decimal.NewFromFloat(mfi[len(mfi)-1])
 		hasDataAtTime, err := d[i].HasDataAtTime(latest.GetTime())
 		if err != nil {
@@ -247,16 +246,16 @@ func (s *Strategy) SetDefaults() {
 	s.mfiPeriod = decimal.NewFromInt(14)
 }
 
-// massageMissingData will replace missing data with the previous candle's data
+// backfillMissingData will replace missing data with the previous candle's data
 // this will ensure that mfi can be calculated correctly
 // the decision to handle missing data occurs at the strategy level, not all strategies
 // may wish to modify data
-func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]float64, error) {
-	resp := make([]float64, len(data))
+func (s *Strategy) backfillMissingData(d []decimal.Decimal, t time.Time) ([]float64, error) {
+	resp := make([]float64, len(d))
 	var missingDataStreak int64
-	for i := range data {
-		if data[i].IsZero() && i > int(s.mfiPeriod.IntPart()) {
-			data[i] = data[i-1]
+	for i := range d {
+		if d[i].IsZero() && i > int(s.mfiPeriod.IntPart()) {
+			d[i] = d[i-1]
 			missingDataStreak++
 		} else {
 			missingDataStreak = 0
@@ -267,7 +266,7 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 				t.Format(time.DateTime),
 				base.ErrTooMuchBadData)
 		}
-		resp[i] = data[i].InexactFloat64()
+		resp[i] = d[i].InexactFloat64()
 	}
 	return resp, nil
 }

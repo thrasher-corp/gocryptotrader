@@ -180,9 +180,7 @@ func (m *apiServerManager) StartRESTServer() error {
 			ReadHeaderTimeout: time.Minute,
 		}
 	}
-	m.wgRest.Add(1)
-	go func() {
-		defer m.wgRest.Done()
+	m.wgRest.Go(func() {
 		err := m.restHTTPServer.ListenAndServe()
 		if err != nil {
 			atomic.StoreInt32(&m.restStarted, 0)
@@ -190,7 +188,7 @@ func (m *apiServerManager) StartRESTServer() error {
 				log.Errorln(log.APIServerMgr, err)
 			}
 		}
-	}()
+	})
 	return nil
 }
 
@@ -422,9 +420,7 @@ func (m *apiServerManager) StartWebsocketServer() error {
 		}
 	}
 
-	m.wgWebsocket.Add(1)
-	go func() {
-		defer m.wgWebsocket.Done()
+	m.wgWebsocket.Go(func() {
 		err := m.websocketHTTPServer.ListenAndServe()
 		if err != nil {
 			atomic.StoreInt32(&m.websocketStarted, 0)
@@ -432,7 +428,7 @@ func (m *apiServerManager) StartWebsocketServer() error {
 				log.Errorln(log.APIServerMgr, err)
 			}
 		}
-	}()
+	})
 	return nil
 }
 

@@ -22,7 +22,7 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      - uses: actions/stale@v9
+      - uses: actions/stale@v10
         with:
           # General settings
           days-before-stale: ${{ env.DAYS_BEFORE_STALE }}

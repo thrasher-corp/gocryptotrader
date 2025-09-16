@@ -1264,12 +1264,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 					continue
 				}
 				resp = append(resp, futures.OpenInterest{
-					Key: key.ExchangePairAsset{
-						Exchange: e.Name,
-						Base:     symbol.Base.Item,
-						Quote:    symbol.Quote.Item,
-						Asset:    a,
-					},
+					Key:          key.NewExchangeAssetPair(e.Name, a, symbol),
 					OpenInterest: activeInstruments[i].OpenInterest,
 				})
 			}
@@ -1296,12 +1291,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	}
 	resp := make([]futures.OpenInterest, 1)
 	resp[0] = futures.OpenInterest{
-		Key: key.ExchangePairAsset{
-			Exchange: e.Name,
-			Base:     k[0].Base,
-			Quote:    k[0].Quote,
-			Asset:    k[0].Asset,
-		},
+		Key:          key.NewExchangeAssetPair(e.Name, k[0].Asset, k[0].Pair()),
 		OpenInterest: instrument[0].OpenInterest,
 	}
 	return resp, nil

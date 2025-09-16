@@ -233,9 +233,7 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 		})
 		return
 	}
-	c.Wg.Add(1)
-	go func() {
-		defer c.Wg.Done()
+	c.Wg.Go(func() {
 		ticker := time.NewTicker(handler.Delay)
 		for {
 			select {
@@ -250,7 +248,7 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 				}
 			}
 		}
-	}()
+	})
 }
 
 // setConnectedStatus sets connection status if changed it will return true.
@@ -284,7 +282,7 @@ func (c *connection) ReadMessage() Response {
 			// method on WebsocketConnection type has been called and can
 			// be skipped.
 			select {
-			case c.readMessageErrors <- fmt.Errorf("%w: %w", err, errConnectionFault):
+			case c.readMessageErrors <- fmt.Errorf("%w: %w (%q)", err, errConnectionFault, c.URL):
 			default:
 				// bypass if there is no receiver, as this stops it returning
 				// when shutdown is called.
@@ -374,8 +372,8 @@ func (c *connection) Shutdown() error {
 }
 
 // SetURL sets connection URL
-func (c *connection) SetURL(url string) {
-	c.URL = url
+func (c *connection) SetURL(u string) {
+	c.URL = u
 }
 
 // SetProxy sets connection proxy
@@ -469,11 +467,11 @@ inspection:
 	return resps, nil
 }
 
-func removeURLQueryString(url string) string {
-	if index := strings.Index(url, "?"); index != -1 {
-		return url[:index]
+func removeURLQueryString(u string) string {
+	if index := strings.Index(u, "?"); index != -1 {
+		return u[:index]
 	}
-	return url
+	return u
 }
 
 // RequireMatchWithData routes incoming data using the connection specific match system to the correct handler

@@ -453,7 +453,7 @@ func (p *PairsManager) getPairStoreRequiresLock(a asset.Item) (*PairStore, error
 
 	pairStore, ok := p.Pairs[a]
 	if !ok {
-		return nil, fmt.Errorf("%w %w %v", ErrAssetNotFound, asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %w %q", ErrAssetNotFound, asset.ErrNotSupported, a)
 	}
 
 	if pairStore == nil {

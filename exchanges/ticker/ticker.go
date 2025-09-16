@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -15,9 +16,8 @@ import (
 
 // Public errors
 var (
-	ErrTickerNotFound      = errors.New("no ticker found")
-	ErrBidEqualsAsk        = errors.New("bid equals ask this is a crossed or locked market")
-	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
+	ErrTickerNotFound = errors.New("no ticker found")
+	ErrBidEqualsAsk   = errors.New("bid equals ask this is a crossed or locked market")
 )
 
 var (
@@ -28,7 +28,7 @@ var (
 
 func init() {
 	service = new(Service)
-	service.Tickers = make(map[key.ExchangePairAsset]*Ticker)
+	service.Tickers = make(map[key.ExchangeAssetPair]*Ticker)
 	service.Exchange = make(map[string]uuid.UUID)
 	service.mux = dispatch.GetNewMux(nil)
 }
@@ -39,12 +39,7 @@ func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.P
 	exchange = strings.ToLower(exchange)
 	service.mu.Lock()
 	defer service.mu.Unlock()
-	tick, ok := service.Tickers[key.ExchangePairAsset{
-		Exchange: exchange,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}]
+	tick, ok := service.Tickers[key.NewExchangeAssetPair(exchange, a, p)]
 	if !ok {
 		return dispatch.Pipe{}, fmt.Errorf("ticker item not found for %s %s %s",
 			exchange,
@@ -71,23 +66,18 @@ func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
 // GetTicker checks and returns a requested ticker if it exists
 func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 	if exchange == "" {
-		return nil, ErrExchangeNameIsEmpty
+		return nil, common.ErrExchangeNameNotSet
 	}
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !a.IsValid() {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	exchange = strings.ToLower(exchange)
 	service.mu.Lock()
 	defer service.mu.Unlock()
-	tick, ok := service.Tickers[key.ExchangePairAsset{
-		Exchange: exchange,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}]
+	tick, ok := service.Tickers[key.NewExchangeAssetPair(exchange, a, p)]
 	if !ok {
 		return nil, fmt.Errorf("%w %s %s %s", ErrTickerNotFound, exchange, p, a)
 	}
@@ -103,7 +93,7 @@ func GetExchangeTickers(exchange string) ([]*Price, error) {
 
 func (s *Service) getExchangeTickers(exchange string) ([]*Price, error) {
 	if exchange == "" {
-		return nil, ErrExchangeNameIsEmpty
+		return nil, common.ErrExchangeNameNotSet
 	}
 	exchange = strings.ToLower(exchange)
 	s.mu.Lock()
@@ -146,7 +136,7 @@ func ProcessTicker(p *Price) error {
 	}
 
 	if p.ExchangeName == "" {
-		return ErrExchangeNameIsEmpty
+		return common.ErrExchangeNameNotSet
 	}
 
 	if p.Pair.IsEmpty() {
@@ -191,12 +181,7 @@ func ProcessTicker(p *Price) error {
 // update updates ticker price
 func (s *Service) update(p *Price) error {
 	name := strings.ToLower(p.ExchangeName)
-	mapKey := key.ExchangePairAsset{
-		Exchange: name,
-		Base:     p.Pair.Base.Item,
-		Quote:    p.Pair.Quote.Item,
-		Asset:    p.AssetType,
-	}
+	mapKey := key.NewExchangeAssetPair(name, p.AssetType, p.Pair)
 	s.mu.Lock()
 	t, ok := service.Tickers[mapKey]
 	if !ok || t == nil {
@@ -238,7 +223,7 @@ func (s *Service) setItemID(t *Ticker, p *Price, exch string) error {
 // getAssociations links a singular book with its dispatch associations
 func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 	if exch == "" {
-		return nil, ErrExchangeNameIsEmpty
+		return nil, common.ErrExchangeNameNotSet
 	}
 	var ids []uuid.UUID
 	exchangeID, ok := s.Exchange[exch]
