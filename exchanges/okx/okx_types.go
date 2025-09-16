@@ -3637,13 +3637,14 @@ type WsDeliveryEstimatedPrice struct {
 	Data     []DeliveryEstimatedPrice `json:"data"`
 }
 
-// CandlestickMarkPrice represents candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel
+// CandlestickMarkPrice contains mark-price-candle subscription candles
 type CandlestickMarkPrice struct {
-	Timestamp    time.Time `json:"ts"`
-	OpenPrice    float64   `json:"o"`
-	HighestPrice float64   `json:"h"`
-	LowestPrice  float64   `json:"l"`
-	ClosePrice   float64   `json:"s"`
+	Pair         currency.Pair
+	Timestamp    time.Time
+	OpenPrice    float64
+	HighestPrice float64
+	LowestPrice  float64
+	ClosePrice   float64
 }
 
 // WsOrderBook order book represents order book push data which is returned as a result of subscription to "books*" channel
