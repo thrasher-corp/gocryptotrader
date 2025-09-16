@@ -105,7 +105,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op, orderLinkID str
 		return nil, fmt.Errorf("code:%d, info:%v message:%s", confirmation.RetCode, retCode[confirmation.RetCode], confirmation.RetMsg)
 	}
 
-	inResp := <-wait // Blocking read okay; wait channel has a built in timeout already
+	inResp := <-wait // Blocking read is acceptable; wait channel has a built in timeout already
 	if inResp.Err != nil {
 		return nil, inResp.Err
 	}
