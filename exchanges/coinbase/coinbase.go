@@ -136,7 +136,7 @@ var (
 	errNameEmpty                = errors.New("name cannot be empty")
 	errPortfolioIDEmpty         = errors.New("portfolio id cannot be empty")
 	errFeeTypeNotSupported      = errors.New("fee type not supported")
-	errCantDecodePrivKey        = errors.New("cannot decode private key")
+	errDecodingPrivateKey       = errors.New("error decoding private key")
 	errNoWalletForCurrency      = errors.New("no wallet found for currency, address creation impossible")
 	errChannelNameUnknown       = errors.New("unknown channel name")
 	errNoWalletsReturned        = errors.New("no wallets returned")
@@ -249,7 +249,7 @@ func (e *Exchange) GetPermissions(ctx context.Context) (*PermissionsResponse, er
 
 // GetTransactionSummary returns a summary of transactions with fee tiers, total volume, and fees
 func (e *Exchange) GetTransactionSummary(ctx context.Context, startDate, endDate time.Time, productVenue, productType, contractExpiryType string) (*TransactionSummary, error) {
-	vals, err := encodeDateRange(startDate, endDate, startDateString, endDateString)
+	vals, err := urlValsFromDateRange(startDate, endDate, startDateString, endDateString)
 	if err != nil {
 		return nil, err
 	}
@@ -476,7 +476,7 @@ func (e *Exchange) GetOrderByID(ctx context.Context, orderID, clientOID string, 
 
 // ListFills returns information on recent order fills
 func (e *Exchange) ListFills(ctx context.Context, orderIDs, tradeIDs []string, productIDs currency.Pairs, cursor int64, sortBy string, startDate, endDate time.Time, limit uint16) (*FillResponse, error) {
-	vals, err := encodeDateRange(startDate, endDate, "start_sequence_timestamp", "end_sequence_timestamp")
+	vals, err := urlValsFromDateRange(startDate, endDate, "start_sequence_timestamp", "end_sequence_timestamp")
 	if err != nil {
 		return nil, err
 	}
@@ -501,7 +501,7 @@ func (e *Exchange) ListFills(ctx context.Context, orderIDs, tradeIDs []string, p
 
 // ListOrders lists orders, filtered by their status
 func (e *Exchange) ListOrders(ctx context.Context, req *ListOrdersReq) (*ListOrdersResp, error) {
-	vals, err := encodeDateRange(req.StartDate, req.EndDate, startDateString, endDateString)
+	vals, err := urlValsFromDateRange(req.StartDate, req.EndDate, startDateString, endDateString)
 	if err != nil {
 		return nil, err
 	}
@@ -963,7 +963,7 @@ func (e *Exchange) GetAllAddresses(ctx context.Context, walletID string, pag Pag
 		return nil, errWalletIDEmpty
 	}
 	path := v2Path + accountsPath + "/" + walletID + "/" + addressesPath
-	vals := encodePagination(pag)
+	vals := urlValsFromPagination(pag)
 	var resp *GetAllAddrResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, false, &resp)
 }
@@ -992,7 +992,7 @@ func (e *Exchange) GetAddressTransactions(ctx context.Context, walletID, address
 		return nil, errAddressIDEmpty
 	}
 	path := v2Path + accountsPath + "/" + walletID + "/" + addressesPath + "/" + addressID + "/" + transactionsPath
-	vals := encodePagination(pag)
+	vals := urlValsFromPagination(pag)
 	var resp *ManyTransactionsResp
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, false, &resp)
 }
@@ -1063,7 +1063,7 @@ func (e *Exchange) GetAllFiatTransfers(ctx context.Context, walletID string, pag
 	case FiatWithdrawal:
 		path = v2Path + accountsPath + "/" + walletID + "/" + withdrawalsPath
 	}
-	vals := encodePagination(pag)
+	vals := urlValsFromPagination(pag)
 	var resp *ManyDeposWithdrResp
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, false, &resp)
 }
@@ -1091,7 +1091,7 @@ func (e *Exchange) GetFiatTransferByID(ctx context.Context, walletID, depositID 
 
 // GetAllWallets lists all accounts associated with the API key
 func (e *Exchange) GetAllWallets(ctx context.Context, pag PaginationInp) (*GetAllWalletsResponse, error) {
-	vals := encodePagination(pag)
+	vals := urlValsFromPagination(pag)
 	var resp *GetAllWalletsResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, v2Path+accountsPath, vals, nil, false, &resp)
 }
@@ -1119,7 +1119,7 @@ func (e *Exchange) GetAllTransactions(ctx context.Context, walletID string, pag 
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
-	vals := encodePagination(pag)
+	vals := urlValsFromPagination(pag)
 	path := v2Path + accountsPath + "/" + walletID + "/" + transactionsPath
 	var resp *ManyTransactionsResp
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, false, &resp)
@@ -1258,7 +1258,7 @@ func (e *Exchange) GetProductCandles(ctx context.Context, pair string, granulari
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	vals, err := encodeDateRange(startTime, endTime, "start", "end")
+	vals, err := urlValsFromDateRange(startTime, endTime, "start", "end")
 	if err != nil {
 		return nil, err
 	}
@@ -1443,7 +1443,7 @@ func (e *Exchange) GetJWT(ctx context.Context, uri string) (string, time.Time, e
 	}
 	block, _ := pem.Decode([]byte(creds.Secret))
 	if block == nil {
-		return "", time.Time{}, errCantDecodePrivKey
+		return "", time.Time{}, errDecodingPrivateKey
 	}
 	privateKey, err := x509.ParseECPrivateKey(block.Bytes)
 	if err != nil {
@@ -1468,6 +1468,7 @@ func (e *Exchange) GetJWT(ctx context.Context, uri string) (string, time.Time, e
 	body := map[string]any{
 		"iss": "cdp",
 		"nbf": regTime.Unix(),
+		// As per documentation, the JWT expires after two minutes, with the exchange expecting this expiry time to be set accordingly
 		"exp": regTime.Add(2 * time.Minute).Unix(),
 		"sub": creds.Key,
 	}
@@ -1554,8 +1555,8 @@ func isStablePair(pair currency.Pair) bool {
 	return stableMap[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item}]
 }
 
-// encodeDateRange encodes a set of parameters indicating start and end dates
-func encodeDateRange(startDate, endDate time.Time, labelStart, labelEnd string) (url.Values, error) {
+// urlValsFromDateRange encodes a set of parameters indicating start and end dates
+func urlValsFromDateRange(startDate, endDate time.Time, labelStart, labelEnd string) (url.Values, error) {
 	values := url.Values{}
 	if err := common.StartEndTimeCheck(startDate, endDate); err != nil {
 		if errors.Is(err, common.ErrDateUnset) {
@@ -1571,8 +1572,8 @@ func encodeDateRange(startDate, endDate time.Time, labelStart, labelEnd string) 
 	return values, nil
 }
 
-// encodePagination formats pagination information in the way the exchange expects
-func encodePagination(pag PaginationInp) url.Values {
+// urlValsFromPagination formats pagination information in the way the exchange expects
+func urlValsFromPagination(pag PaginationInp) url.Values {
 	values := url.Values{}
 	if pag.Limit != 0 {
 		values.Set("limit", strconv.FormatInt(int64(pag.Limit), 10))

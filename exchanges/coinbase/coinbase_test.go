@@ -78,8 +78,7 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	err := exchangeBaseHelper(e)
-	if err != nil {
+	if err := exchangeBaseHelper(e); err != nil {
 		log.Fatal(err)
 	}
 	if testingInSandbox {
@@ -1703,20 +1702,20 @@ func TestGetJWT(t *testing.T) {
 
 func TestEncodeDateRange(t *testing.T) {
 	t.Parallel()
-	_, err := encodeDateRange(time.Time{}, time.Time{}, "", "")
+	_, err := urlValsFromDateRange(time.Time{}, time.Time{}, "", "")
 	assert.NoError(t, err)
-	_, err = encodeDateRange(time.Unix(1, 1), time.Unix(1, 1), "", "")
+	_, err = urlValsFromDateRange(time.Unix(1, 1), time.Unix(1, 1), "", "")
 	assert.ErrorIs(t, err, common.ErrStartEqualsEnd)
-	_, err = encodeDateRange(time.Unix(1, 1), time.Unix(2, 2), "", "")
+	_, err = urlValsFromDateRange(time.Unix(1, 1), time.Unix(2, 2), "", "")
 	assert.ErrorIs(t, err, errDateLabelEmpty)
-	vals, err := encodeDateRange(time.Unix(1, 1), time.Unix(2, 2), "start", "end")
+	vals, err := urlValsFromDateRange(time.Unix(1, 1), time.Unix(2, 2), "start", "end")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, vals)
 }
 
 func TestEncodePagination(t *testing.T) {
 	t.Parallel()
-	vals := encodePagination(PaginationInp{
+	vals := urlValsFromPagination(PaginationInp{
 		Limit:         1,
 		OrderAscend:   true,
 		StartingAfter: "a",

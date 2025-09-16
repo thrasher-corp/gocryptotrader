@@ -1150,7 +1150,7 @@ func (e *Exchange) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse, p
 	return &response
 }
 
-// TickerHelper fetches the ticker for a given currency pair, used by UpdateTicker
+// tickerHelper fetches the ticker for a given currency pair, used by UpdateTicker
 func (e *Exchange) tickerHelper(ctx context.Context, name currency.Pair, assetType asset.Item) error {
 	newTick := &ticker.Price{
 		Pair:         name,
