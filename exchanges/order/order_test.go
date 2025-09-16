@@ -38,7 +38,7 @@ func TestSubmitValidate(t *testing.T) {
 			Submit:      nil,
 		}, // nil struct
 		{
-			ExpectedErr: errExchangeNameUnset,
+			ExpectedErr: common.ErrExchangeNameNotSet,
 			Submit:      &Submit{},
 		}, // empty exchange
 		{
@@ -833,7 +833,7 @@ func TestStringToOrderType(t *testing.T) {
 		{"mMp", MarketMakerProtection, nil},
 		{"tWaP", TWAP, nil},
 		{"TWAP", TWAP, nil},
-		{"woahMan", UnknownType, errUnrecognisedOrderType},
+		{"woahMan", UnknownType, ErrUnrecognisedOrderType},
 		{"chase", Chase, nil},
 		{"MOVE_ORDER_STOP", TrailingStop, nil},
 		{"mOVe_OrdeR_StoP", TrailingStop, nil},
@@ -852,6 +852,8 @@ func TestStringToOrderType(t *testing.T) {
 		{"OTO", OTO, nil},
 		{"TAKE PROFIT LIMIT", TakeProfitLimit, nil},
 		{"take_profit_limit", TakeProfitLimit, nil},
+		{"brAcket", Bracket, nil},
+		{"TRIGGER_bracket", Bracket, nil},
 		{"optimal_limit", OptimalLimit, nil},
 		{"OPTIMAL_LIMIT", OptimalLimit, nil},
 	}
@@ -1145,7 +1147,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 	getOrders.Side = AnySide
 	err = getOrders.Validate()
-	require.ErrorIs(t, err, errUnrecognisedOrderType)
+	require.ErrorIs(t, err, ErrUnrecognisedOrderType)
 
 	errTestError := errors.New("test error")
 	getOrders.Type = AnyType
@@ -1579,24 +1581,25 @@ func TestGetOrdersRequest_Filter(t *testing.T) {
 	request.AssetType = asset.Spot
 	request.Type = AnyType
 	request.Side = AnySide
-
+	BTCUSD := currency.NewBTCUSD()
+	LTCUSD := currency.NewPair(currency.LTC, currency.USD)
 	orders := []Detail{
-		{OrderID: "0", Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Buy},
-		{OrderID: "1", Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Sell},
-		{OrderID: "2", Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Buy},
-		{OrderID: "3", Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Sell},
-		{OrderID: "4", Pair: btcusd, AssetType: asset.Futures, Type: Limit, Side: Buy},
-		{OrderID: "5", Pair: btcusd, AssetType: asset.Futures, Type: Limit, Side: Sell},
-		{OrderID: "6", Pair: btcusd, AssetType: asset.Futures, Type: Market, Side: Buy},
-		{OrderID: "7", Pair: btcusd, AssetType: asset.Futures, Type: Market, Side: Sell},
-		{OrderID: "8", Pair: btcltc, AssetType: asset.Spot, Type: Limit, Side: Buy},
-		{OrderID: "9", Pair: btcltc, AssetType: asset.Spot, Type: Limit, Side: Sell},
-		{OrderID: "10", Pair: btcltc, AssetType: asset.Spot, Type: Market, Side: Buy},
-		{OrderID: "11", Pair: btcltc, AssetType: asset.Spot, Type: Market, Side: Sell},
-		{OrderID: "12", Pair: btcltc, AssetType: asset.Futures, Type: Limit, Side: Buy},
-		{OrderID: "13", Pair: btcltc, AssetType: asset.Futures, Type: Limit, Side: Sell},
-		{OrderID: "14", Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Buy},
-		{OrderID: "15", Pair: btcltc, AssetType: asset.Futures, Type: Market, Side: Sell},
+		{OrderID: "0", Pair: BTCUSD, AssetType: asset.Spot, Type: Limit, Side: Buy},
+		{OrderID: "1", Pair: BTCUSD, AssetType: asset.Spot, Type: Limit, Side: Sell},
+		{OrderID: "2", Pair: BTCUSD, AssetType: asset.Spot, Type: Market, Side: Buy},
+		{OrderID: "3", Pair: BTCUSD, AssetType: asset.Spot, Type: Market, Side: Sell},
+		{OrderID: "4", Pair: BTCUSD, AssetType: asset.Futures, Type: Limit, Side: Buy},
+		{OrderID: "5", Pair: BTCUSD, AssetType: asset.Futures, Type: Limit, Side: Sell},
+		{OrderID: "6", Pair: BTCUSD, AssetType: asset.Futures, Type: Market, Side: Buy},
+		{OrderID: "7", Pair: BTCUSD, AssetType: asset.Futures, Type: Market, Side: Sell},
+		{OrderID: "8", Pair: LTCUSD, AssetType: asset.Spot, Type: Limit, Side: Buy},
+		{OrderID: "9", Pair: LTCUSD, AssetType: asset.Spot, Type: Limit, Side: Sell},
+		{OrderID: "10", Pair: LTCUSD, AssetType: asset.Spot, Type: Market, Side: Buy},
+		{OrderID: "11", Pair: LTCUSD, AssetType: asset.Spot, Type: Market, Side: Sell},
+		{OrderID: "12", Pair: LTCUSD, AssetType: asset.Futures, Type: Limit, Side: Buy},
+		{OrderID: "13", Pair: LTCUSD, AssetType: asset.Futures, Type: Limit, Side: Sell},
+		{OrderID: "14", Pair: LTCUSD, AssetType: asset.Futures, Type: Market, Side: Buy},
+		{OrderID: "15", Pair: LTCUSD, AssetType: asset.Futures, Type: Market, Side: Sell},
 	}
 
 	shinyAndClean := request.Filter("test", orders)
@@ -1606,7 +1609,7 @@ func TestGetOrdersRequest_Filter(t *testing.T) {
 		require.Equal(t, strconv.FormatInt(int64(x), 10), shinyAndClean[x].OrderID)
 	}
 
-	request.Pairs = []currency.Pair{btcltc}
+	request.Pairs = []currency.Pair{LTCUSD}
 
 	// Kicks off time error
 	request.EndTime = time.Unix(1336, 0)
@@ -1751,7 +1754,7 @@ func TestMarshalOrder(t *testing.T) {
 		Price:      1000,
 	}
 	j, err := json.Marshal(orderSubmit)
-	require.NoError(t, err, "json.Marshal must not error")
-	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"TrackingMode":0,"TrackingValue":0}`)
+	require.NoError(t, err, "Marshal must not error")
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"RFQDisabled":false}`)
 	assert.Equal(t, exp, j)
 }

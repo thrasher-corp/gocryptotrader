@@ -801,7 +801,7 @@ func (f *FundManager) HasExchangeBeenLiquidated(ev common.Event) bool {
 // help calculate collateral
 func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *account.Balance, initialFundsSet bool) error {
 	if exchName == "" {
-		return engine.ErrExchangeNameIsEmpty
+		return gctcommon.ErrExchangeNameNotSet
 	}
 	if !item.IsValid() {
 		return asset.ErrNotSupported

@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -215,7 +217,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if err != nil {
 		return err
 	}
-	limits := make([]order.MinMaxLevel, 0, len(symbols))
+	l := make([]limits.MinMaxLevel, 0, len(symbols))
 	for x, info := range symbols {
 		if symbols[x].Trading != "Enabled" {
 			continue
@@ -224,15 +226,14 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-		limits = append(limits, order.MinMaxLevel{
-			Asset:                   a,
-			Pair:                    pair,
+		l = append(l, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 			PriceStepIncrementSize:  math.Pow10(-info.CounterDecimals),
 			AmountStepIncrementSize: math.Pow10(-info.BaseDecimals),
 			MinimumQuoteAmount:      info.MinimumOrder,
 		})
 	}
-	if err := e.LoadLimits(limits); err != nil {
+	if err := limits.Load(l); err != nil {
 		return fmt.Errorf("%s Error loading exchange limits: %v", e.Name, err)
 	}
 	return nil

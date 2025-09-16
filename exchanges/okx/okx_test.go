@@ -19,6 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -747,7 +749,7 @@ func TestPlaceOrder(t *testing.T) {
 
 	arg.OrderType = order.Limit.String()
 	_, err = e.PlaceOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
 	_, err = e.PlaceOrder(contextGenerate(), arg)
@@ -755,7 +757,7 @@ func TestPlaceOrder(t *testing.T) {
 
 	arg.PositionSide = "long"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.Amount = 1
 	arg.TargetCurrency = "abcd"
@@ -829,7 +831,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 
 	arg.OrderType = orderLimit
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
@@ -837,7 +839,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 
 	arg.PositionSide = "long"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.PlaceMultipleOrders(contextGenerate(), params)
@@ -1057,7 +1059,7 @@ func TestPlaceAlgoOrder(t *testing.T) {
 
 	arg.OrderType = "limit"
 	_, err = e.PlaceAlgoOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 }
 
 func TestStopOrder(t *testing.T) {
@@ -1069,7 +1071,7 @@ func TestStopOrder(t *testing.T) {
 	}
 	arg.OrderType = "conditional"
 	_, err = e.PlaceStopOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.TakeProfitTriggerPrice = 123
 	_, err = e.PlaceStopOrder(contextGenerate(), arg)
@@ -1095,7 +1097,7 @@ func TestStopOrder(t *testing.T) {
 
 	arg.OrderType = "limit"
 	_, err = e.PlaceStopOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1184,7 +1186,7 @@ func TestPlaceTakeProfitStopLossOrder(t *testing.T) {
 	_, err = e.PlaceTakeProfitStopLossOrder(contextGenerate(), &AlgoOrderParams{ReduceOnly: true})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 	_, err = e.PlaceTakeProfitStopLossOrder(contextGenerate(), &AlgoOrderParams{OrderType: "conditional"})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.PlaceTakeProfitStopLossOrder(contextGenerate(), &AlgoOrderParams{
 		OrderType:                "conditional",
 		StopLossTriggerPrice:     1234,
@@ -1242,7 +1244,7 @@ func TestPlaceChaseAlgoOrder(t *testing.T) {
 
 	arg.Side = order.Sell.Lower()
 	_, err = e.PlaceChaseAlgoOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1270,7 +1272,7 @@ func TestTriggerAlgoOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	_, err = e.PlaceTriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{AlgoClientOrderID: "1234", OrderType: "trigger"})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	_, err = e.PlaceTriggerAlgoOrder(contextGenerate(), &AlgoOrderParams{AlgoClientOrderID: "1234", OrderType: "trigger", TriggerPrice: 123., TriggerPriceType: "abcd"})
 	require.ErrorIs(t, err, order.ErrUnknownPriceType)
@@ -1759,7 +1761,7 @@ func TestFundingTransfer(t *testing.T) {
 	_, err = e.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
 		BeneficiaryAccountType: "6", RemittingAccountType: "18", Currency: currency.BTC,
 	})
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
 		Amount: 12.000, BeneficiaryAccountType: "6",
 		RemittingAccountType: "18", Currency: currency.EMPTYCODE,
@@ -1811,7 +1813,7 @@ func TestGetLightningDeposits(t *testing.T) {
 	_, err := e.GetLightningDeposits(contextGenerate(), currency.EMPTYCODE, 1.00, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.GetLightningDeposits(contextGenerate(), currency.BTC, 0, 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetLightningDeposits(contextGenerate(), currency.BTC, 1.00, 0)
@@ -1845,7 +1847,7 @@ func TestWithdrawal(t *testing.T) {
 	_, err = e.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: currency.EMPTYCODE, WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.Withdrawal(contextGenerate(), &WithdrawalInput{TransactionFee: 0.00005, Currency: currency.BTC, WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: currency.BTC, ToAddress: core.BitcoinDonationAddress})
 	require.ErrorIs(t, err, errAddressRequired)
 	_, err = e.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: currency.BTC, WithdrawalDestination: "4"})
@@ -1942,7 +1944,7 @@ func TestSavingsPurchase(t *testing.T) {
 
 	arg.Currency = currency.BTC
 	_, err = e.SavingsPurchaseOrRedemption(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.Amount = 123.4
 	_, err = e.SavingsPurchaseOrRedemption(contextGenerate(), arg)
@@ -2077,7 +2079,7 @@ func TestEstimateQuote(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	arg.Side = order.Sell.Lower()
 	_, err = e.EstimateQuote(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	arg.RFQAmount = 30
 	_, err = e.EstimateQuote(contextGenerate(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
@@ -2112,7 +2114,7 @@ func TestConvertTrade(t *testing.T) {
 
 	arg.Side = order.Buy.Lower()
 	_, err = e.ConvertTrade(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.Size = 2
 	_, err = e.ConvertTrade(contextGenerate(), arg)
@@ -2315,7 +2317,7 @@ func TestIncreaseDecreaseMargin(t *testing.T) {
 
 	arg.MarginBalanceType = "reduce"
 	_, err = e.IncreaseDecreaseMargin(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.IncreaseDecreaseMargin(contextGenerate(), &IncreaseDecreaseMarginInput{
@@ -2433,7 +2435,7 @@ func TestVIPLoansBorrowAndRepay(t *testing.T) {
 	_, err = e.VIPLoansBorrowAndRepay(contextGenerate(), &LoanBorrowAndReplayInput{Currency: currency.BTC, Side: "", Amount: 12})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = e.VIPLoansBorrowAndRepay(contextGenerate(), &LoanBorrowAndReplayInput{Currency: currency.BTC, Side: "borrow", Amount: 0})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.VIPLoansBorrowAndRepay(contextGenerate(), &LoanBorrowAndReplayInput{Currency: currency.BTC, Side: "borrow", Amount: 12})
@@ -2472,7 +2474,7 @@ func TestGetFixedLoanBorrowQuote(t *testing.T) {
 	_, err = e.GetFixedLoanBorrowQuote(contextGenerate(), currency.EMPTYCODE, "normal", "30D", "123423423", 1, .4)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.GetFixedLoanBorrowQuote(contextGenerate(), currency.USDT, "normal", "30D", "", 0, .4)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.GetFixedLoanBorrowQuote(contextGenerate(), currency.USDT, "normal", "30D", "123423423", 1, 0)
 	require.ErrorIs(t, err, errMaxRateRequired)
 	_, err = e.GetFixedLoanBorrowQuote(contextGenerate(), currency.USDT, "normal", "", "123423423", 1, .4)
@@ -2491,7 +2493,7 @@ func TestPlaceFixedLoanBorrowingOrder(t *testing.T) {
 	_, err := e.PlaceFixedLoanBorrowingOrder(contextGenerate(), currency.EMPTYCODE, 1, .3, .2, "30D", false)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.PlaceFixedLoanBorrowingOrder(contextGenerate(), currency.USDT, 0, .3, .2, "30D", false)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.PlaceFixedLoanBorrowingOrder(contextGenerate(), currency.USDT, 1, 0, .2, "30D", false)
 	require.ErrorIs(t, err, errMaxRateRequired)
 	_, err = e.PlaceFixedLoanBorrowingOrder(contextGenerate(), currency.USDT, 1, .3, .2, "", false)
@@ -2575,7 +2577,7 @@ func TestManualBorrowOrRepay(t *testing.T) {
 	_, err = e.ManualBorrowOrRepay(contextGenerate(), currency.USDT, "", 1)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = e.ManualBorrowOrRepay(contextGenerate(), currency.USDT, "borrow", 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ManualBorrowOrRepay(contextGenerate(), currency.USDT, "borrow", 1)
@@ -2635,7 +2637,7 @@ func TestSetRiskOffsetAmount(t *testing.T) {
 	_, err := e.SetRiskOffsetAmount(contextGenerate(), currency.EMPTYCODE, 123)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.SetRiskOffsetAmount(contextGenerate(), currency.USDT, 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.SetRiskOffsetAmount(contextGenerate(), currency.USDT, 123)
@@ -2766,7 +2768,7 @@ func TestMasterAccountsManageTransfersBetweenSubaccounts(t *testing.T) {
 
 	arg.Currency = currency.BTC
 	_, err = e.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.Amount = 1234
 	_, err = e.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), arg)
@@ -2871,7 +2873,7 @@ func TestGetProductInfo(t *testing.T) {
 func TestPurcahseETHStaking(t *testing.T) {
 	t.Parallel()
 	err := e.PurchaseETHStaking(contextGenerate(), 0)
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.PurchaseETHStaking(contextGenerate(), 100)
@@ -2882,7 +2884,7 @@ func TestPurcahseETHStaking(t *testing.T) {
 func TestRedeemETHStaking(t *testing.T) {
 	t.Parallel()
 	err := e.RedeemETHStaking(contextGenerate(), 0)
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.RedeemETHStaking(contextGenerate(), 100)
@@ -2936,11 +2938,11 @@ func TestPlaceGridAlgoOrder(t *testing.T) {
 
 	arg.AlgoOrdType = "contract_grid"
 	_, err = e.PlaceGridAlgoOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.MaxPrice = 1000
 	_, err = e.PlaceGridAlgoOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.MinPrice = 1200
 	arg.GridQuantity = -1
@@ -3196,7 +3198,7 @@ func TestPurchase(t *testing.T) {
 	_, err = e.Purchase(contextGenerate(), &PurchaseRequestParam{ProductID: "1234", Term: 2, InvestData: []PurchaseInvestDataItem{{Amount: 1}}})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.Purchase(contextGenerate(), &PurchaseRequestParam{ProductID: "1234", Term: 2, InvestData: []PurchaseInvestDataItem{{Currency: currency.USDT}}})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.Purchase(contextGenerate(), &PurchaseRequestParam{
@@ -3318,23 +3320,18 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
-		err := e.UpdateOrderExecutionLimits(contextGenerate(), a)
-		if !assert.NoError(t, err) {
-			continue
-		}
-
-		p, err := e.GetAvailablePairs(a)
-		require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", a)
-		require.NotEmptyf(t, p, "GetAvailablePairs for asset %s must not return empty pairs", a)
-
-		limits, err := e.GetOrderExecutionLimits(a, p[0])
-		if assert.NoErrorf(t, err, "GetOrderExecutionLimits for asset %s and pair %s should not error", a, p[0]) {
-			require.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s", p[0])
-			require.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s", p[0])
-		}
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, true)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
+			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+		})
 	}
 }
 
@@ -3430,7 +3427,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	arg.AssetType = asset.Spot
 	_, err = e.SubmitOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.Amount = 1000000000
 	_, err = e.SubmitOrder(contextGenerate(), arg)
@@ -3480,7 +3477,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	arg.TrackingMode = order.Percentage
 	_, err = e.SubmitOrder(contextGenerate(), arg)
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.TrackingValue = .5
 	result, err = e.SubmitOrder(contextGenerate(), arg)
@@ -3499,7 +3496,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	arg.Type = order.OCO
 	_, err = e.SubmitOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.RiskManagementModes = order.RiskManagementModes{
 		TakeProfit: order.RiskManagement{
@@ -3689,11 +3686,11 @@ func TestModifyOrder(t *testing.T) {
 
 	arg.Type = order.Trigger
 	_, err = e.ModifyOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.Type = order.OCO
 	_, err = e.ModifyOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg = &order.Modify{
@@ -3714,7 +3711,7 @@ func TestModifyOrder(t *testing.T) {
 
 	arg.Type = order.Trigger
 	_, err = e.ModifyOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.TriggerPrice = 12345678
 	_, err = e.ModifyOrder(contextGenerate(), arg)
@@ -3723,7 +3720,7 @@ func TestModifyOrder(t *testing.T) {
 
 	arg.Type = order.OCO
 	_, err = e.ModifyOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.RiskManagementModes = order.RiskManagementModes{
 		TakeProfit: order.RiskManagement{Price: 12345677},
@@ -4502,7 +4499,7 @@ func TestManualBorrowAndRepayInQuickMarginMode(t *testing.T) {
 		LoanCcy:      currency.USDT,
 		Side:         "borrow",
 	})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.ManualBorrowAndRepayInQuickMarginMode(contextGenerate(), &BorrowAndRepay{
 		Amount:       1,
 		InstrumentID: mainPair.String(),
@@ -4707,7 +4704,7 @@ func TestPreCheckOrder(t *testing.T) {
 
 	arg.OrderType = "limit"
 	_, err = e.PreCheckOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.PreCheckOrder(contextGenerate(), &OrderPreCheckParams{
@@ -4766,7 +4763,7 @@ func TestClosePositionForContractID(t *testing.T) {
 	_, err = e.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false})
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
 	_, err = e.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false, Size: 123})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{
@@ -4815,11 +4812,11 @@ func TestComputeMinInvestment(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	arg.AlgoOrderType = "grid"
 	_, err = e.ComputeMinInvestment(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.MaxPrice = 5000
 	_, err = e.ComputeMinInvestment(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.MinPrice = 5000
 	_, err = e.ComputeMinInvestment(contextGenerate(), arg)
@@ -4842,7 +4839,7 @@ func TestComputeMinInvestment(t *testing.T) {
 	arg.Leverage = 5
 	arg.InvestmentData = []InvestmentData{{Currency: currency.ETH}}
 	_, err = e.ComputeMinInvestment(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.InvestmentData = []InvestmentData{{Amount: 0.01}}
 	_, err = e.ComputeMinInvestment(contextGenerate(), arg)
@@ -5187,7 +5184,7 @@ func TestAmendCopySettings(t *testing.T) {
 
 	arg.CopyInstrumentIDType = "copy"
 	_, err = e.SetFirstCopySettings(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.CopyTotalAmount = 500
 	_, err = e.SetFirstCopySettings(contextGenerate(), arg)
@@ -5385,11 +5382,11 @@ func TestPlaceSpreadOrder(t *testing.T) {
 
 	arg.OrderType = "limit"
 	_, err = e.PlaceSpreadOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.Size = 1
 	_, err = e.PlaceSpreadOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.Price = 12345
 	_, err = e.PlaceSpreadOrder(contextGenerate(), arg)
@@ -5684,7 +5681,7 @@ func TestPlaceLendingOrder(t *testing.T) {
 
 	arg.Currency = currency.USDT
 	_, err = e.PlaceLendingOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.Amount = 1
 	_, err = e.PlaceLendingOrder(contextGenerate(), arg)
@@ -5977,7 +5974,7 @@ func TestCreateWithdrawalOrder(t *testing.T) {
 	_, err = e.CreateWithdrawalOrder(contextGenerate(), currency.EMPTYCODE, "1231312312", "SEPA", "194a6975e98246538faeb0fab0d502df", 1000)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "1231312312", "SEPA", "194a6975e98246538faeb0fab0d502df", 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "1231312312", "", "194a6975e98246538faeb0fab0d502df", 1000)
 	require.ErrorIs(t, err, errPaymentMethodRequired)
 	_, err = e.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "1231312312", "SEPA", "", 1000)
@@ -6091,6 +6088,46 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp = subscription.List{{Channel: channelGridPositions, QualifiedChannel: `{"channel":"grid-positions"}`}}
 	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestBusinessWSCandleSubscriptions(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup must not error")
+
+	err := e.WsConnectBusiness(t.Context())
+	require.NoError(t, err, "WsConnectBusiness must not error")
+
+	err = e.BusinessSubscribe(t.Context(), subscription.List{{Channel: channelCandle1D}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	p := currency.Pairs{
+		mainPair,
+		currency.NewPairWithDelimiter("ETH", "USDT", "-"),
+		currency.NewPairWithDelimiter("OKB", "USDT", "-"),
+	}
+
+	for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
+		err := e.BusinessSubscribe(t.Context(), subscription.List{{Channel: ch, Pairs: p[i : i+1]}})
+		require.NoErrorf(t, err, "BusinessSubscribe %s-%s must not error", ch, p[i])
+	}
+
+	var got currency.Pairs
+	assert.Eventually(t, func() bool {
+		select {
+		case a := <-e.Websocket.DataHandler:
+			switch v := a.(type) {
+			case websocket.KlineData:
+				got = got.Add(v.Pair)
+			case []CandlestickMarkPrice:
+				if len(v) > 0 {
+					got = got.Add(v[0].Pair)
+				}
+			}
+		default:
+		}
+		return len(got) == 3
+	}, 4*time.Second, 100*time.Millisecond, "Should eventually get candles from the datahandler")
 }
 
 const (
@@ -6234,7 +6271,7 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
 	p.OrderType = order.Market.String()
-	require.ErrorIs(t, p.Validate(), order.ErrAmountBelowMin)
+	require.ErrorIs(t, p.Validate(), limits.ErrAmountBelowMin)
 	p.Amount = 1
 	p.TargetCurrency = "moo cows"
 	require.ErrorIs(t, p.Validate(), errCurrencyQuantityTypeRequired)
@@ -6251,9 +6288,9 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	p.SpreadID = spreadPair.String()
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
 	p.OrderType = order.Market.String()
-	require.ErrorIs(t, p.Validate(), order.ErrAmountBelowMin)
+	require.ErrorIs(t, p.Validate(), limits.ErrAmountBelowMin)
 	p.Size = 1
-	require.ErrorIs(t, p.Validate(), order.ErrPriceBelowMin)
+	require.ErrorIs(t, p.Validate(), limits.ErrPriceBelowMin)
 	p.Price = 1
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()

@@ -40,12 +40,11 @@ var (
 	ErrAmountMustBeSet             = errors.New("amount must be set")
 	ErrClientOrderIDMustBeSet      = errors.New("client order ID must be set")
 	ErrUnknownSubmissionAmountType = errors.New("unknown submission amount type")
+	ErrUnrecognisedOrderType       = errors.New("unrecognised order type")
 )
 
 var (
-	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
-	errExchangeNameUnset        = errors.New("exchange name unset")
 	errOrderSubmitIsNil         = errors.New("order submit is nil")
 	errOrderSubmitResponseIsNil = errors.New("order submit response is nil")
 	errOrderDetailIsNil         = errors.New("order detail is nil")
@@ -64,7 +63,7 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 	}
 
 	if s.Exchange == "" {
-		return errExchangeNameUnset
+		return common.ErrExchangeNameNotSet
 	}
 
 	if s.Pair.IsEmpty() {
@@ -83,7 +82,7 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 		return fmt.Errorf("%w %v", ErrSideIsInvalid, s.Side)
 	}
 
-	if s.Type != Market && s.Type != Limit {
+	if AllOrderTypes&s.Type != s.Type || s.Type == UnknownType {
 		return ErrTypeIsInvalid
 	}
 
@@ -705,6 +704,8 @@ func (t Type) String() string {
 		return orderSOR
 	case OCO:
 		return orderOCO
+	case Bracket:
+		return orderBracket
 	case OptimalLimit:
 		return orderOptimalLimit
 	case MarketMakerProtection:
@@ -1152,8 +1153,10 @@ func StringToOrderType(oType string) (Type, error) {
 		return TakeProfit, nil
 	case orderLiquidation:
 		return Liquidation, nil
+	case orderBracket, "TRIGGER_BRACKET":
+		return Bracket, nil
 	default:
-		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
+		return UnknownType, fmt.Errorf("'%v' %w", oType, ErrUnrecognisedOrderType)
 	}
 }
 
@@ -1279,7 +1282,7 @@ func (g *MultiOrderRequest) Validate(opt ...validate.Checker) error {
 	}
 
 	if g.Type == UnknownType {
-		return errUnrecognisedOrderType
+		return ErrUnrecognisedOrderType
 	}
 
 	var errs error

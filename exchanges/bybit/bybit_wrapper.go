@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -434,7 +435,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			}
 		}
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	pairs = make(currency.Pairs, 0, len(allPairs))
 	var filterSymbol string
@@ -655,9 +656,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		return info, err
 	}
 	switch assetType {
-	case asset.Spot, asset.Options,
-		asset.USDCMarginedFutures,
-		asset.USDTMarginedFutures:
+	case asset.Spot, asset.Options, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
 		switch at {
 		case accountTypeUnified:
 			accountType = "UNIFIED"
@@ -679,18 +678,27 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	}
 	currencyBalance := []account.Balance{}
 	for i := range balances.List {
-		for c := range balances.List[i].Coin {
-			balance := account.Balance{
-				Currency: balances.List[i].Coin[c].Coin,
-				Total:    balances.List[i].Coin[c].WalletBalance.Float64(),
-				Free:     balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
-				Borrowed: balances.List[i].Coin[c].BorrowAmount.Float64(),
-				Hold:     balances.List[i].Coin[c].WalletBalance.Float64() - balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
+		for _, c := range balances.List[i].Coin {
+			// borrow amounts get truncated to 8 dec places when total and equity are calculated on the exchange
+			truncBorrow := c.BorrowAmount.Decimal().Truncate(8).InexactFloat64()
+
+			// wallet balance can be negative when borrow is present, and wallet balance will be offset with spot holdings
+			// e.g. borrow $10,000, wallet balance will be -$9,900 ∴ spot holding $100
+			balanceDiff := truncBorrow + c.WalletBalance.Float64()
+
+			freeBalance := balanceDiff - c.Locked.Float64()
+			if assetType == asset.Spot && c.AvailableBalanceForSpot.Float64() != 0 {
+				freeBalance = c.AvailableBalanceForSpot.Float64()
 			}
-			if assetType == asset.Spot && balances.List[i].Coin[c].AvailableBalanceForSpot.Float64() != 0 {
-				balance.Free = balances.List[i].Coin[c].AvailableBalanceForSpot.Float64()
-			}
-			currencyBalance = append(currencyBalance, balance)
+
+			currencyBalance = append(currencyBalance, account.Balance{
+				Currency:               c.Coin,
+				Total:                  c.WalletBalance.Float64(),
+				Free:                   freeBalance,
+				Borrowed:               c.BorrowAmount.Float64(),
+				Hold:                   c.Locked.Float64(),
+				AvailableWithoutBorrow: c.AvailableToWithdraw.Float64(),
+			})
 		}
 	}
 	acc.Currencies = currencyBalance
@@ -1675,7 +1683,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	default:
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	limits := make([]order.MinMaxLevel, 0, len(allInstrumentsInfo.List))
+	l := make([]limits.MinMaxLevel, 0, len(allInstrumentsInfo.List))
 	for x := range allInstrumentsInfo.List {
 		if allInstrumentsInfo.List[x].Status != "Trading" {
 			continue
@@ -1686,9 +1694,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			log.Warnf(log.ExchangeSys, "%s unable to load limits for %s %v, pair data missing", e.Name, a, symbol)
 			continue
 		}
-		limits = append(limits, order.MinMaxLevel{
-			Asset:                   a,
-			Pair:                    pair,
+		l = append(l, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 			MinimumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),
 			MaximumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64(),
 			MinPrice:                allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
@@ -1700,7 +1707,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
 		})
 	}
-	return e.LoadLimits(limits)
+	return limits.Load(l)
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
@@ -2105,12 +2112,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				continue
 			}
 			return []futures.OpenInterest{{
-				Key: key.ExchangePairAsset{
-					Exchange: e.Name,
-					Asset:    k[0].Asset,
-					Base:     k[0].Base,
-					Quote:    k[0].Quote,
-				},
+				Key:          key.NewExchangeAssetPair(e.Name, k[0].Asset, k[0].Pair()),
 				OpenInterest: ticks.List[i].OpenInterest.Float64(),
 			}}, nil
 		}
@@ -2141,12 +2143,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: e.Name,
-					Base:     pair.Base.Item,
-					Quote:    pair.Quote.Item,
-					Asset:    assets[i],
-				},
+				Key:          key.NewExchangeAssetPair(e.Name, assets[i], pair),
 				OpenInterest: ticks.List[i].OpenInterest.Float64(),
 			})
 		}
@@ -2205,6 +2202,6 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 	case asset.Options:
 		return tradeBaseURL + "trade/option/usdc/" + cp.Base.Upper().String(), nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }

@@ -16,8 +16,10 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -1733,12 +1735,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path
 	var responseJSON json.RawMessage
 	err = e.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpointPath + path,
-			Result:        &responseJSON,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 http.MethodGet,
+			Path:                   endpointPath + path,
+			Result:                 &responseJSON,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
@@ -1783,13 +1786,14 @@ func (e *Exchange) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
-		Method:        method,
-		Path:          endpointPath + path,
-		Headers:       headers,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 method,
+		Path:                   endpointPath + path,
+		Headers:                headers,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, f, func() (*request.Item, error) {
@@ -1856,13 +1860,14 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, 
 		headers["X-MBX-APIKEY"] = creds.Key
 		fullPath := common.EncodeURLValues(endpointPath+path, params) + "&signature=" + hex.EncodeToString(hmacSigned)
 		return &request.Item{
-			Method:        method,
-			Path:          fullPath,
-			Headers:       headers,
-			Result:        &interim,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   fullPath,
+			Headers:                headers,
+			Result:                 &interim,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
@@ -3364,13 +3369,14 @@ func (e *Exchange) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
-		Method:        http.MethodPost,
-		Path:          endpointPath + "/api/v3/userDataStream",
-		Headers:       headers,
-		Result:        &resp,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodPost,
+		Path:                   endpointPath + "/api/v3/userDataStream",
+		Headers:                headers,
+		Result:                 &resp,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
@@ -3403,12 +3409,13 @@ func (e *Exchange) MaintainWsAuthStreamKey(ctx context.Context) error {
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
-		Method:        http.MethodPut,
-		Path:          path,
-		Headers:       headers,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodPut,
+		Path:                   path,
+		Headers:                headers,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
@@ -3416,9 +3423,9 @@ func (e *Exchange) MaintainWsAuthStreamKey(ctx context.Context) error {
 }
 
 // FetchExchangeLimits fetches order execution limits filtered by asset
-func (e *Exchange) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]order.MinMaxLevel, error) {
+func (e *Exchange) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]limits.MinMaxLevel, error) {
 	if a != asset.Spot && a != asset.Margin {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 
 	resp, err := e.GetExchangeInfo(ctx)
@@ -3428,7 +3435,7 @@ func (e *Exchange) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]ord
 
 	aUpper := strings.ToUpper(a.String())
 
-	limits := make([]order.MinMaxLevel, 0, len(resp.Symbols))
+	l := make([]limits.MinMaxLevel, 0, len(resp.Symbols))
 	for _, s := range resp.Symbols {
 		var cp currency.Pair
 		cp, err = currency.NewPairFromStrings(s.BaseAsset, s.QuoteAsset)
@@ -3446,9 +3453,8 @@ func (e *Exchange) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]ord
 			continue
 		}
 
-		l := order.MinMaxLevel{
-			Pair:  cp,
-			Asset: a,
+		mml := limits.MinMaxLevel{
+			Key: key.NewExchangeAssetPair(e.Name, a, cp),
 		}
 
 		for _, f := range s.Filters {
@@ -3456,34 +3462,34 @@ func (e *Exchange) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]ord
 			// maxPosition, trailingDelta, percentPriceBySide, maxNumAlgoOrders
 			switch f.FilterType {
 			case priceFilter:
-				l.MinPrice = f.MinPrice
-				l.MaxPrice = f.MaxPrice
-				l.PriceStepIncrementSize = f.TickSize
+				mml.MinPrice = f.MinPrice
+				mml.MaxPrice = f.MaxPrice
+				mml.PriceStepIncrementSize = f.TickSize
 			case percentPriceFilter:
-				l.MultiplierUp = f.MultiplierUp
-				l.MultiplierDown = f.MultiplierDown
-				l.AveragePriceMinutes = f.AvgPriceMinutes
+				mml.MultiplierUp = f.MultiplierUp
+				mml.MultiplierDown = f.MultiplierDown
+				mml.AveragePriceMinutes = f.AvgPriceMinutes
 			case lotSizeFilter:
-				l.MaximumBaseAmount = f.MaxQty
-				l.MinimumBaseAmount = f.MinQty
-				l.AmountStepIncrementSize = f.StepSize
+				mml.MaximumBaseAmount = f.MaxQty
+				mml.MinimumBaseAmount = f.MinQty
+				mml.AmountStepIncrementSize = f.StepSize
 			case notionalFilter:
-				l.MinNotional = f.MinNotional
+				mml.MinNotional = f.MinNotional
 			case icebergPartsFilter:
-				l.MaxIcebergParts = f.Limit
+				mml.MaxIcebergParts = f.Limit
 			case marketLotSizeFilter:
-				l.MarketMinQty = f.MinQty
-				l.MarketMaxQty = f.MaxQty
-				l.MarketStepIncrementSize = f.StepSize
+				mml.MarketMinQty = f.MinQty
+				mml.MarketMaxQty = f.MaxQty
+				mml.MarketStepIncrementSize = f.StepSize
 			case maxNumOrdersFilter:
-				l.MaxTotalOrders = f.MaxNumOrders
-				l.MaxAlgoOrders = f.MaxNumAlgoOrders
+				mml.MaxTotalOrders = f.MaxNumOrders
+				mml.MaxAlgoOrders = f.MaxNumAlgoOrders
 			}
 		}
 
-		limits = append(limits, l)
+		l = append(l, mml)
 	}
-	return limits, nil
+	return l, nil
 }
 
 // CryptoLoanIncomeHistory returns crypto loan income history

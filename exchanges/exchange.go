@@ -15,10 +15,12 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -53,8 +55,9 @@ const (
 
 // Public Errors
 var (
-	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
-	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+	ErrSettingProxyAddress  = errors.New("error setting proxy address")
+	ErrEndpointPathNotFound = errors.New("no endpoint path found for the given key")
+	ErrSymbolNotMatched     = errors.New("symbol cannot be matched")
 )
 
 var (
@@ -82,8 +85,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 	proxy, err := url.Parse(addr)
 	if err != nil {
-		return fmt.Errorf("setting proxy address error %s",
-			err)
+		return fmt.Errorf("%w %w", ErrSettingProxyAddress, err)
 	}
 
 	err = b.Requester.SetProxy(proxy)
@@ -205,7 +207,7 @@ func (b *Base) GetLastPairsUpdateTime() int64 {
 	return b.CurrencyPairs.LastUpdated
 }
 
-// GetAssetTypes returns the either the enabled or available asset types for an
+// GetAssetTypes returns either the enabled or available asset types for an
 // individual exchange
 func (b *Base) GetAssetTypes(enabled bool) asset.Items {
 	return b.CurrencyPairs.GetAssetTypes(enabled)
@@ -252,7 +254,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.EMPTYPAIR, asset.Empty, ErrSymbolCannotBeMatched
+	return currency.EMPTYPAIR, asset.Empty, ErrSymbolNotMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -696,6 +698,10 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 					strings.ToUpper(a.String()),
 					diff.Remove)
 			}
+		}
+		err = common.NilGuard(b.Config, b.Config.CurrencyPairs)
+		if err != nil {
+			return err
 		}
 		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
 		if err != nil {
@@ -1279,7 +1285,7 @@ func (e *Endpoints) GetURL(endpoint URL) (string, error) {
 	defer e.mu.RUnlock()
 	val, ok := e.defaults[endpoint.String()]
 	if !ok {
-		return "", fmt.Errorf("no endpoint path found for the given key: %v", endpoint)
+		return "", fmt.Errorf("%w %v", ErrEndpointPathNotFound, endpoint)
 	}
 	return val, nil
 }
@@ -1309,12 +1315,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: b.Name,
-					Base:     ticks[i].Pair.Base.Item,
-					Quote:    ticks[i].Pair.Quote.Item,
-					Asset:    ticks[i].AssetType,
-				},
+				Key:          key.NewExchangeAssetPair(b.Name, ticks[i].AssetType, ticks[i].Pair),
 				OpenInterest: ticks[i].OpenInterest,
 			})
 		}
@@ -1330,12 +1331,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 			return nil, err
 		}
 		resp[i] = futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: b.Name,
-				Base:     t.Pair.Base.Item,
-				Quote:    t.Pair.Quote.Item,
-				Asset:    t.AssetType,
-			},
+			Key:          key.NewExchangeAssetPair(b.Name, t.AssetType, t.Pair),
 			OpenInterest: t.OpenInterest,
 		}
 	}
@@ -1951,6 +1947,21 @@ func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (
 	return account.GetHoldings(b.Name, creds, assetType)
 }
 
+// GetOrderExecutionLimits returns a limit based on the exchange, asset and pair from storage
+func (b *Base) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error) {
+	return limits.GetOrderExecutionLimits(key.NewExchangeAssetPair(b.Name, a, cp))
+}
+
+// CheckOrderExecutionLimits checks if the order execution limits are within the defined limits from storage
+func (b *Base) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, amount, price float64, orderType order.Type) error {
+	return limits.CheckOrderExecutionLimits(
+		key.NewExchangeAssetPair(b.Name, a, cp),
+		amount,
+		price,
+		orderType,
+	)
+}
+
 // WebsocketSubmitOrder submits an order to the exchange via a websocket connection
 func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
 	return nil, common.ErrFunctionNotSupported
@@ -1959,4 +1970,10 @@ func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.Submit
 // WebsocketSubmitOrders submits multiple orders (batch) via the websocket connection
 func (*Base) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses []*order.SubmitResponse, err error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// MessageID returns a universally unique id using UUID V7
+// In the future additional params may be added to method signature to provide context for the message id for overriding exchange implementations
+func (b *Base) MessageID() string {
+	return uuid.Must(uuid.NewV7()).String()
 }

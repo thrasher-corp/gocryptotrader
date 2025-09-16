@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -328,7 +329,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !e.SupportsAsset(a) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	tradingStatus := "TRADING"
 	var pairs currency.Pairs
@@ -565,7 +566,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	default:
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	return nil
 }
@@ -694,7 +695,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			}
 		}
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	return ticker.GetTicker(e.Name, p, a)
 }
@@ -1048,6 +1049,9 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, from, to time.Time) ([]trade.Data, error) {
 	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return nil, err
+	}
+	if a != asset.Spot {
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	rFmt, err := e.GetPairFormat(a, true)
 	if err != nil {
@@ -2420,7 +2424,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			})
 		}
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	return req.ProcessResponse(timeSeries)
 }
@@ -2529,7 +2533,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 				})
 			}
 		default:
-			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+			return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -2571,24 +2575,24 @@ func compatibleOrderVars(side, status, orderType string) (OrderVars, error) {
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	var limits []order.MinMaxLevel
+	var l []limits.MinMaxLevel
 	var err error
 	switch a {
 	case asset.Spot, asset.Margin:
-		limits, err = e.FetchExchangeLimits(ctx, a)
+		l, err = e.FetchExchangeLimits(ctx, a)
 	case asset.USDTMarginedFutures:
-		limits, err = e.FetchUSDTMarginExchangeLimits(ctx)
+		l, err = e.FetchUSDTMarginExchangeLimits(ctx)
 	case asset.CoinMarginedFutures:
-		limits, err = e.FetchCoinMarginExchangeLimits(ctx)
+		l, err = e.FetchCoinMarginExchangeLimits(ctx)
 	case asset.Options:
-		limits, err = e.FetchOptionsExchangeLimits(ctx)
+		l, err = e.FetchOptionsExchangeLimits(ctx)
 	default:
-		err = fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		err = fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
-	return e.LoadLimits(limits)
+	return limits.Load(l)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
@@ -2993,7 +2997,7 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bo
 // SetCollateralMode sets the account's collateral mode for the asset type
 func (e *Exchange) SetCollateralMode(ctx context.Context, a asset.Item, collateralMode collateral.Mode) error {
 	if a != asset.USDTMarginedFutures {
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	if collateralMode != collateral.MultiMode && collateralMode != collateral.SingleMode {
 		return fmt.Errorf("%w %v", order.ErrCollateralInvalid, collateralMode)
@@ -3004,7 +3008,7 @@ func (e *Exchange) SetCollateralMode(ctx context.Context, a asset.Item, collater
 // GetCollateralMode returns the account's collateral mode for the asset type
 func (e *Exchange) GetCollateralMode(ctx context.Context, a asset.Item) (collateral.Mode, error) {
 	if a != asset.USDTMarginedFutures {
-		return collateral.UnknownMode, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return collateral.UnknownMode, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	isMulti, err := e.GetAssetsMode(ctx)
 	if err != nil {
@@ -3731,12 +3735,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				return nil, err
 			}
 			result[i] = futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: e.Name,
-					Base:     k[i].Base,
-					Quote:    k[i].Quote,
-					Asset:    k[i].Asset,
-				},
+				Key:          key.NewExchangeAssetPair(e.Name, k[i].Asset, k[i].Pair()),
 				OpenInterest: oi.OpenInterest,
 			}
 		case asset.CoinMarginedFutures:
@@ -3745,12 +3744,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				return nil, err
 			}
 			result[i] = futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: e.Name,
-					Base:     k[i].Base,
-					Quote:    k[i].Quote,
-					Asset:    k[i].Asset,
-				},
+				Key:          key.NewExchangeAssetPair(e.Name, k[i].Asset, k[i].Pair()),
 				OpenInterest: oi.OpenInterest,
 			}
 		}
@@ -3832,6 +3826,6 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 		}
 		return tradeBaseURL + "eoptions/" + underlying + "/" + symbol, nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }
