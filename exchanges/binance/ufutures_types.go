@@ -38,16 +38,6 @@ var (
 	uValidPeriods = []string{"5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"}
 )
 
-// USDT Margined Futures
-
-// OrderbookData stores ob data for umargined and cmargined futures
-type OrderbookData struct {
-	LastUpdateID int64             `json:"lastUpdateID"`
-	Timestamp    types.Time        `json:"T"`
-	Bids         [][2]types.Number `json:"bids"`
-	Asks         [][2]types.Number `json:"asks"`
-}
-
 // UPublicTradesData stores trade data
 type UPublicTradesData struct {
 	ID           int64      `json:"id"`
