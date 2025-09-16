@@ -53,14 +53,14 @@ func (e *Exchange) SetDefaults() {
 
 	fmt1 := currency.PairStore{
 		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
 	}
 
 	fmt2 := currency.PairStore{
 		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "-"},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
 	}
 
 	if err := e.SetAssetPairStore(asset.Spot, fmt1); err != nil {
