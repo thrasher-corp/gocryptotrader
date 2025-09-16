@@ -34,13 +34,13 @@ func (m *wsObResubManager) Resubscribe(e *Exchange, conn websocket.Connection, q
 		return err
 	}
 
-	m.m.Lock()
-	defer m.m.Unlock()
-
-	sub := e.Websocket.GetSubscription(newQualifiedChannelKey(qualifiedChannel))
+	sub := e.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: qualifiedChannel}})
 	if sub == nil {
 		return fmt.Errorf("%w: %q", subscription.ErrNotFound, qualifiedChannel)
 	}
+
+	m.m.Lock()
+	defer m.m.Unlock()
 
 	m.lookup[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}] = true
 
@@ -59,10 +59,6 @@ func (m *wsObResubManager) CompletedResubscribe(pair currency.Pair, a asset.Item
 	m.m.Lock()
 	defer m.m.Unlock()
 	delete(m.lookup, key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a})
-}
-
-func newQualifiedChannelKey(qualifiedChannel string) qualifiedChannelKey {
-	return qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: qualifiedChannel}}
 }
 
 type qualifiedChannelKey struct {
