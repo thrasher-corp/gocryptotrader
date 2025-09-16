@@ -21,7 +21,7 @@ func TestIsSynced(t *testing.T) {
 		t.Error("should be false")
 	}
 	m := SetupDepositAddressManager()
-	err := m.Sync(map[string]map[string][]deposit.Address{
+	err := m.Sync(map[string]ExchangeDepositAddresses{
 		bitStamp: {
 			btc: []deposit.Address{
 				{
@@ -49,7 +49,7 @@ func TestSetupDepositAddressManager(t *testing.T) {
 func TestSync(t *testing.T) {
 	t.Parallel()
 	m := SetupDepositAddressManager()
-	err := m.Sync(map[string]map[string][]deposit.Address{
+	err := m.Sync(map[string]ExchangeDepositAddresses{
 		bitStamp: {
 			btc: []deposit.Address{
 				{
@@ -70,7 +70,7 @@ func TestSync(t *testing.T) {
 	}
 
 	m.store = nil
-	err = m.Sync(map[string]map[string][]deposit.Address{
+	err = m.Sync(map[string]ExchangeDepositAddresses{
 		bitStamp: {
 			btc: []deposit.Address{
 				{
@@ -82,7 +82,7 @@ func TestSync(t *testing.T) {
 	assert.ErrorIs(t, err, ErrDepositAddressStoreIsNil)
 
 	m = nil
-	err = m.Sync(map[string]map[string][]deposit.Address{
+	err = m.Sync(map[string]ExchangeDepositAddresses{
 		bitStamp: {
 			btc: []deposit.Address{
 				{
@@ -100,7 +100,7 @@ func TestGetDepositAddressByExchangeAndCurrency(t *testing.T) {
 	_, err := m.GetDepositAddressByExchangeAndCurrency("", "", currency.BTC)
 	assert.ErrorIs(t, err, ErrDepositAddressStoreIsNil)
 
-	m.store = map[string]map[string][]deposit.Address{
+	m.store = map[string]ExchangeDepositAddresses{
 		bitStamp: {
 			btc: []deposit.Address{
 				{
@@ -155,7 +155,7 @@ func TestGetDepositAddressesByExchange(t *testing.T) {
 	_, err := m.GetDepositAddressesByExchange("")
 	assert.ErrorIs(t, err, ErrDepositAddressStoreIsNil)
 
-	m.store = map[string]map[string][]deposit.Address{
+	m.store = map[string]ExchangeDepositAddresses{
 		bitStamp: {
 			btc: []deposit.Address{
 				{
