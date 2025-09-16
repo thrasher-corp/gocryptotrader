@@ -909,7 +909,6 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
-
 	resp.TimeInForce, err = order.StringToTimeInForce(orderDetails.TimeInForce)
 	if err != nil {
 		return nil, err
