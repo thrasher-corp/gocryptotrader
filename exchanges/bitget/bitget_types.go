@@ -41,6 +41,13 @@ type TradeRateResp struct {
 	TakerFeeRate types.Number `json:"takerFeeRate"`
 }
 
+// AllTradeRatesResp holds information on the current maker and taker fee rates for a particular pair
+type AllTradeRatesResp struct {
+	MakerFeeRate types.Number `json:"makerFeeRate"`
+	TakerFeeRate types.Number `json:"takerFeeRate"`
+	Symbol       string       `json:"symbol"`
+}
+
 // SpotTrResp holds information on spot transactions
 type SpotTrResp struct {
 	ID          int64         `json:"id,string"`
@@ -80,7 +87,7 @@ type P2PTrResp struct {
 	ID         int64         `json:"id,string"`
 	Coin       currency.Code `json:"coin"`
 	P2PTaxType string        `json:"p2pTaxType"`
-	Total      types.Number  `json:"total"`
+	Balance    types.Number  `json:"balance"`
 	Timestamp  types.Time    `json:"ts"`
 }
 
@@ -665,11 +672,6 @@ type OneSpotCandle struct {
 	USDTVolume  types.Number
 }
 
-// UnmarshalJSON deserializes kline data from a JSON array into OneSpotCandle fields
-func (c *OneSpotCandle) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[8]any{&c.Timestamp, &c.Open, &c.High, &c.Low, &c.Close, &c.BaseVolume, &c.QuoteVolume, &c.USDTVolume})
-}
-
 // OneFuturesCandle contains a single candle
 type OneFuturesCandle struct {
 	Timestamp   types.Time
@@ -679,11 +681,6 @@ type OneFuturesCandle struct {
 	Exit        types.Number
 	BaseVolume  types.Number
 	QuoteVolume types.Number
-}
-
-// UnmarshalJSON deserializes kline data from a JSON array into OneFuturesCandle fields
-func (c *OneFuturesCandle) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[7]any{&c.Timestamp, &c.Entry, &c.High, &c.Low, &c.Exit, &c.BaseVolume, &c.QuoteVolume})
 }
 
 // MarketFillsResp contains information on a batch of trades

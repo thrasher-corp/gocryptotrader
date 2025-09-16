@@ -353,14 +353,13 @@ func (e *Exchange) GetTradeRate(ctx context.Context, pair currency.Pair, busines
 }
 
 // GetAllTradeRates returns the fees the user would face for all symbols within a given business type
-func (e *Exchange) GetAllTradeRates(ctx context.Context, businessType string) ([]TradeRateResp, error) {
+func (e *Exchange) GetAllTradeRates(ctx context.Context, businessType string) ([]AllTradeRatesResp, error) {
 	if businessType == "" {
 		return nil, errBusinessTypeEmpty
 	}
 	vals := url.Values{}
 	vals.Set("businessType", businessType)
-	vals.Set("symbol", "BTCUSDT")
-	var resp []TradeRateResp
+	var resp []AllTradeRatesResp
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, bitgetCommon+bitgetAllTradeRate, vals, nil, &resp)
 }
 
@@ -5005,4 +5004,14 @@ func (e *Exchange) spotOrderHelper(ctx context.Context, path string, vals url.Va
 		resp[i].CancelReason = temp[i].CancelReason
 	}
 	return resp, nil
+}
+
+// UnmarshalJSON deserializes kline data from a JSON array into OneSpotCandle fields
+func (c *OneSpotCandle) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[8]any{&c.Timestamp, &c.Open, &c.High, &c.Low, &c.Close, &c.BaseVolume, &c.QuoteVolume, &c.USDTVolume})
+}
+
+// UnmarshalJSON deserializes kline data from a JSON array into OneFuturesCandle fields
+func (c *OneFuturesCandle) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&c.Timestamp, &c.Entry, &c.High, &c.Low, &c.Exit, &c.BaseVolume, &c.QuoteVolume})
 }
