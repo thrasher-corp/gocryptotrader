@@ -86,7 +86,7 @@ func TestMain(m *testing.M) {
 			exchange.RestSpot: sandboxAPIURL,
 		})
 		if err != nil {
-			log.Fatal("failed to set sandbox endpoint", err)
+			log.Fatalf("Coinbase SetDefaultEndpoints sandbox error: %s", err)
 		}
 	}
 	os.Exit(m.Run())
