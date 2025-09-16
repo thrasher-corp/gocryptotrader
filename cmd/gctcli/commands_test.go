@@ -156,7 +156,7 @@ func TestFunctionsAndStructHandling(t *testing.T) {
 		{function: whaleBomb, val: &WhaleBomb{}, args: []string{"test", "--exchange", "okx", "-asset", "something", "-p", "btc_usdt", "-s", ""}, err: ErrRequiredValueMissing},
 		{function: whaleBomb, val: &WhaleBomb{}, args: []string{"test", "--exchange", "okx", "-asset", "something", "-p", "btc_usdt", "-s", "sell"}},
 
-		// pair management commands handler
+		// Pair management commands handler
 		{function: enableDisableExchangePair, val: &EnableDisableExchangePair{}, args: []string{"test", "-e", "okx", "-p", "btc-usdt", "-asset", "spot"}},
 	}
 

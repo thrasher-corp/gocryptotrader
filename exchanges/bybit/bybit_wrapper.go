@@ -656,9 +656,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		return info, err
 	}
 	switch assetType {
-	case asset.Spot, asset.Options,
-		asset.USDCMarginedFutures,
-		asset.USDTMarginedFutures:
+	case asset.Spot, asset.Options, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
 		switch at {
 		case accountTypeUnified:
 			accountType = "UNIFIED"
@@ -680,18 +678,27 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	}
 	currencyBalance := []account.Balance{}
 	for i := range balances.List {
-		for c := range balances.List[i].Coin {
-			balance := account.Balance{
-				Currency: balances.List[i].Coin[c].Coin,
-				Total:    balances.List[i].Coin[c].WalletBalance.Float64(),
-				Free:     balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
-				Borrowed: balances.List[i].Coin[c].BorrowAmount.Float64(),
-				Hold:     balances.List[i].Coin[c].WalletBalance.Float64() - balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
+		for _, c := range balances.List[i].Coin {
+			// borrow amounts get truncated to 8 dec places when total and equity are calculated on the exchange
+			truncBorrow := c.BorrowAmount.Decimal().Truncate(8).InexactFloat64()
+
+			// wallet balance can be negative when borrow is present, and wallet balance will be offset with spot holdings
+			// e.g. borrow $10,000, wallet balance will be -$9,900 ∴ spot holding $100
+			balanceDiff := truncBorrow + c.WalletBalance.Float64()
+
+			freeBalance := balanceDiff - c.Locked.Float64()
+			if assetType == asset.Spot && c.AvailableBalanceForSpot.Float64() != 0 {
+				freeBalance = c.AvailableBalanceForSpot.Float64()
 			}
-			if assetType == asset.Spot && balances.List[i].Coin[c].AvailableBalanceForSpot.Float64() != 0 {
-				balance.Free = balances.List[i].Coin[c].AvailableBalanceForSpot.Float64()
-			}
-			currencyBalance = append(currencyBalance, balance)
+
+			currencyBalance = append(currencyBalance, account.Balance{
+				Currency:               c.Coin,
+				Total:                  c.WalletBalance.Float64(),
+				Free:                   freeBalance,
+				Borrowed:               c.BorrowAmount.Float64(),
+				Hold:                   c.Locked.Float64(),
+				AvailableWithoutBorrow: c.AvailableToWithdraw.Float64(),
+			})
 		}
 	}
 	acc.Currencies = currencyBalance
