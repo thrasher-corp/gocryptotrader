@@ -20,6 +20,14 @@ func TestString(t *testing.T) {
 	}
 }
 
+func TestUpper(t *testing.T) {
+	t.Parallel()
+	a := Spot
+	require.Equal(t, "SPOT", a.Upper())
+	a = 0
+	require.Empty(t, a.Upper())
+}
+
 func TestStrings(t *testing.T) {
 	t.Parallel()
 	assert.ElementsMatch(t, Items{Spot, Futures}.Strings(), []string{"spot", "futures"})

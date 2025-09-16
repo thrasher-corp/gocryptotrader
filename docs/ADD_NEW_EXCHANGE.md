@@ -146,7 +146,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | Cryptodotcom | Yes | Yes | No |
 | Deribit | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
-| CoinbasePro | Yes | Yes | No|
+| Coinbase | Yes | Yes | No|
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
@@ -172,7 +172,7 @@ var Exchanges = []string{
     "btc markets",
     "btse",
     "bybit",
-    "coinbasepro",
+    "coinbase",
     "coinut",
     "cryptodotcom",
     "deribit",
@@ -360,6 +360,11 @@ Alternatively you can use `request.WithVerbose(context.Background())` as the `co
 ```
 
 Ensure each endpoint is implemented and has an associated test to improve test coverage and increase confidence
+
+#### Message IDs
+
+Use e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs. Otherwise override MessageID with a suitable alternative.
+For example: Consider common.Counter for simple integer IDs if uniqueness isn't critical.
 
 #### Authenticated functions
 
