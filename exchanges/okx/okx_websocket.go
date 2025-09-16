@@ -41,7 +41,7 @@ var (
 	// See: https://www.okx.com/docs-v5/en/#error-code-websocket-public
 	authConnErrorCodes = []string{
 		"60007", "60022", "60023", "60024", "60026", "63999", "60032", "60011", "60009",
-		"60005", "60021", "60031", "50110",
+		"60005", "60021", "60031", "50110", "60033",
 	}
 )
 
@@ -287,7 +287,7 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(ctx, e.Websocket.AuthConn)
 	e.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		MessageType: gws.PingMessage,
+		MessageType: gws.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
@@ -303,20 +303,36 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 		return err
 	}
 
-	args := []WebsocketLoginData{
-		{
-			APIKey:     creds.Key,
-			Passphrase: creds.ClientID,
-			Timestamp:  ts,
-			Sign:       base64.StdEncoding.EncodeToString(hmac),
+	op := WebsocketAuthLogin{
+		Operation: operationLogin,
+		Arguments: []WebsocketLoginData{
+			{
+				APIKey:     creds.Key,
+				Passphrase: creds.ClientID,
+				Timestamp:  ts,
+				Sign:       base64.StdEncoding.EncodeToString(hmac),
+			},
 		},
 	}
-	op := WebsocketOp{
-		Op:   operationLogin,
-		Args: args,
+
+	resp, err := e.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, "login-response", op)
+	if err != nil {
+		return err
 	}
 
-	return e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, op)
+	var intermediary struct {
+		Code    int64  `json:"code,string"`
+		Message string `json:"msg"`
+	}
+	if err := json.Unmarshal(resp, &intermediary); err != nil {
+		return err
+	}
+
+	if intermediary.Code == 0 {
+		return nil
+	}
+
+	return getStatusError(intermediary.Code, intermediary.Message)
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
