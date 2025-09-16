@@ -133,6 +133,11 @@ func (a Item) String() string {
 	}
 }
 
+// Upper returns the item's upper case string
+func (a Item) Upper() string {
+	return strings.ToUpper(a.String())
+}
+
 // Strings converts an asset type array to a string array
 func (a Items) Strings() []string {
 	assets := make([]string, len(a))

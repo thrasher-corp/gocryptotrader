@@ -1636,7 +1636,7 @@ func TestGetWalletBalance(t *testing.T) {
 				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should be correct")
 				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should be correct")
 				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Bonus, "Bonus should be correct")
-				assert.Equal(t, types.Number(30723.630216383711792744), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should be correct")
+				assert.Equal(t, types.Number(30723.630216383714), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should be correct")
 				assert.Equal(t, currency.USDC, r.List[0].Coin[x].Coin, "Coin should be correct")
 				assert.True(t, r.List[0].Coin[x].CollateralSwitch, "CollateralSwitch should match")
 				assert.Equal(t, types.Number(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should be correct")
@@ -2879,21 +2879,24 @@ func TestUpdateAccountInfo(t *testing.T) {
 			case 0:
 				assert.Equal(t, currency.USDC, r.Accounts[0].Currencies[x].Currency, "Currency should be USDC")
 				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Total, "Total amount should be correct")
-				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Hold, "Hold amount should be correct")
-				assert.Equal(t, 30723.630216383714, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
+				assert.Zero(t, r.Accounts[0].Currencies[x].Hold, "Hold amount should be zero")
+				assert.Equal(t, 30723.630216383711792744, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
+				assert.Zero(t, r.Accounts[0].Currencies[x].Free, "Free amount should be zero")
+				assert.Zero(t, r.Accounts[0].Currencies[x].AvailableWithoutBorrow, "AvailableWithoutBorrow amount should be zero")
 			case 1:
 				assert.Equal(t, currency.AVAX, r.Accounts[0].Currencies[x].Currency, "Currency should be AVAX")
 				assert.Equal(t, 2473.9, r.Accounts[0].Currencies[x].Total, "Total amount should be correct")
-				assert.Equal(t, 1468.10808813, r.Accounts[0].Currencies[x].Hold, "Hold amount should be correct")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
-				assert.Equal(t, 1005.79191187, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
+				assert.Zero(t, r.Accounts[0].Currencies[x].Hold, "Hold amount should be zero")
+				assert.Zero(t, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be zero")
+				assert.Equal(t, 2473.9, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
+				assert.Equal(t, 1005.79191187, r.Accounts[0].Currencies[x].AvailableWithoutBorrow, "AvailableWithoutBorrow amount should be correct")
 			case 2:
 				assert.Equal(t, currency.USDT, r.Accounts[0].Currencies[x].Currency, "Currency should be USDT")
 				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Total, "Total amount should be correct")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be correct")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Hold, "Hold amount should be correct")
+				assert.Zero(t, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should be zero")
+				assert.Zero(t, r.Accounts[0].Currencies[x].Hold, "Hold amount should be zero")
 				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Free, "Free amount should be correct")
+				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].AvailableWithoutBorrow, "AvailableWithoutBorrow amount should be correct")
 			}
 		}
 	}
