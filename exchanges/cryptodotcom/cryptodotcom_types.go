@@ -29,6 +29,7 @@ var (
 	errContingencyTypeRequired         = errors.New("contingency type is required")
 	errPriceBelowMin                   = errors.New("price below min")
 	errSTPInstructionIsRequired        = errors.New("self-trade-prevention instruction (stpInstruction) is missing")
+	errPaymentNetworkIsMissing         = errors.New("payment network is missing")
 )
 
 const (
@@ -1226,32 +1227,154 @@ type ExpiredSettlementPrice struct {
 
 // Announcements holds exchange announcements
 type Announcements struct {
-	ID     int64  `json:"id"`
-	Method string `json:"method"`
-	Code   int64  `json:"code"`
-	Result struct {
-		Data []struct {
-			ID             string     `json:"id"`
-			Category       string     `json:"category"`
-			ProductType    string     `json:"product_type"`
-			AnnouncedAt    types.Time `json:"announced_at"`
-			Title          string     `json:"title"`
-			Content        string     `json:"content"`
-			InstrumentName string     `json:"instrument_name"`
-			ImpactedParams struct {
-				SpotTradingImpacted       string `json:"spot_trading_impacted"`
-				DerivativeTradingImpacted string `json:"derivative_trading_impacted"`
-				MarginTradingImpacted     string `json:"margin_trading_impacted"`
-				OtcTradingImpacted        string `json:"otc_trading_impacted"`
-				ConvertImpacted           string `json:"convert_impacted"`
-				StakingImpacted           string `json:"staking_impacted"`
-				TradingBotImpacted        string `json:"trading_bot_impacted"`
-				CryptoWalletImpacted      string `json:"crypto_wallet_impacted"`
-				FiatWalletImpacted        string `json:"fiat_wallet_impacted"`
-				LoginImpacted             string `json:"login_impacted"`
-			} `json:"impacted_params"`
-			StartTime types.Time `json:"start_time"`
-			EndTime   types.Time `json:"end_time"`
-		} `json:"data"`
-	} `json:"result"`
+	Data []struct {
+		ID             string     `json:"id"`
+		Category       string     `json:"category"`
+		ProductType    string     `json:"product_type"`
+		AnnouncedAt    types.Time `json:"announced_at"`
+		Title          string     `json:"title"`
+		Content        string     `json:"content"`
+		InstrumentName string     `json:"instrument_name"`
+		ImpactedParams struct {
+			SpotTradingImpacted       string `json:"spot_trading_impacted"`
+			DerivativeTradingImpacted string `json:"derivative_trading_impacted"`
+			MarginTradingImpacted     string `json:"margin_trading_impacted"`
+			OtcTradingImpacted        string `json:"otc_trading_impacted"`
+			ConvertImpacted           string `json:"convert_impacted"`
+			StakingImpacted           string `json:"staking_impacted"`
+			TradingBotImpacted        string `json:"trading_bot_impacted"`
+			CryptoWalletImpacted      string `json:"crypto_wallet_impacted"`
+			FiatWalletImpacted        string `json:"fiat_wallet_impacted"`
+			LoginImpacted             string `json:"login_impacted"`
+		} `json:"impacted_params"`
+		StartTime types.Time `json:"start_time"`
+		EndTime   types.Time `json:"end_time"`
+	} `json:"data"`
+}
+
+// FiatDepositInfoDetail holds fiat deposit info
+type FiatDepositInfoDetail struct {
+	DepositInfoList []DepositInfoItem `json:"deposit_info_list"`
+}
+
+// DepositInfoItem holds fiat deposit info
+type DepositInfoItem struct {
+	PaymentNetwork string `json:"payment_network"`
+	Currency       string `json:"currency"`
+	BankDetails    struct {
+		AccountHolderName  string `json:"account_holder_name"`
+		BankName           string `json:"bank_name"`
+		BankAddress        string `json:"bank_address"`
+		BankCountry        string `json:"bank_country"`
+		RoutingNumber      string `json:"routing_number"`
+		AccountNumber      string `json:"account_number"`
+		RecipientName      string `json:"recipient_name"`
+		RecipientAddress   string `json:"recipient_address"`
+		BicCode            string `json:"bic_code"`
+		IbanCode           string `json:"iban_code"`
+		ReferenceCode      string `json:"reference_code"`
+		SortCode           string `json:"sort_code"`
+		CubixPartnerName   string `json:"cubix_partner_name"`
+		CubixAccountName   string `json:"cubix_account_name"`
+		CubixAccountID     string `json:"cubix_account_id"`
+		CubixAccountNumber string `json:"cubix_account_number"`
+		Meta               string `json:"meta"`
+	} `json:"bank_details"`
+}
+
+type FiatDepositHistoryParam struct {
+	Page            int    `json:"page"`
+	PageSize        int    `json:"page_size"`
+	StartTime       string `json:"start_time"`
+	EndTime         string `json:"end_time"`
+	PaymentNetworks string `json:"payment_networks"`
+}
+
+// FiatDepositHistory holds a fiat deposit history detail
+type FiatDepositHistory struct {
+	TransactionHistoryList []FiatTransactionItem `json:"transaction_history_list"`
+	Page                   int64                 `json:"page"`
+	PageSize               int64                 `json:"page_size"`
+}
+
+// FiatTransactionItem hods a fiat transaction item
+type FiatTransactionItem struct {
+	ID             string       `json:"id"`
+	AccountID      string       `json:"account_id"`
+	Currency       string       `json:"currency"`
+	Amount         types.Number `json:"amount"`
+	AmountInUsd    types.Number `json:"amount_in_usd"`
+	FeeCurrency    string       `json:"fee_currency"`
+	FeeAmount      types.Number `json:"fee_amount"`
+	FeeAmountInUSD types.Number `json:"fee_amount_in_usd"`
+	PaymentNetwork string       `json:"payment_network"`
+	Status         string       `json:"status"`
+	CreatedAt      types.Time   `json:"created_at"`
+	UpdatedAt      types.Time   `json:"updated_at"`
+	CompletedAt    types.Time   `json:"completed_at"`
+	Sender         struct {
+		AccountIdentifierValue string `json:"account_identifier_value"`
+	} `json:"sender"`
+	Beneficiary string `json:"beneficiary"`
+}
+
+// FiatWithdrawalHistory hods fiat withdrawal transaction history
+type FiatWithdrawalHistory struct {
+	Page                   int `json:"page"`
+	PageSize               int `json:"page_size"`
+	TransactionHistoryList []struct {
+		ID             string       `json:"id"`
+		AccountID      string       `json:"account_id"`
+		Currency       string       `json:"currency"`
+		Amount         types.Number `json:"amount"`
+		AmountInUSD    types.Number `json:"amount_in_usd"`
+		FeeCurrency    string       `json:"fee_currency"`
+		FeeAmount      string       `json:"fee_amount"`
+		FeeAmountInUSD types.Number `json:"fee_amount_in_usd"`
+		PaymentNetwork string       `json:"payment_network"`
+		Status         string       `json:"status"`
+		CreatedAt      types.Time   `json:"created_at"`
+		UpdatedAt      types.Time   `json:"updated_at"`
+		CompletedAt    types.Time   `json:"completed_at"`
+		Sender         string       `json:"sender"`
+		Beneficiary    struct {
+			AccountIdentifierValue string `json:"account_identifier_value"`
+		} `json:"beneficiary"`
+	} `json:"transaction_history_list"`
+}
+
+// FiatCreateWithdrawl hods fiat withdrawal params
+type FiatCreateWithdrawl struct {
+	AccountID              string  `json:"account_id"`
+	Amount                 float64 `json:"amount,omitempty,string"`
+	Currency               string  `json:"currency"`
+	PaymentNetwork         string  `json:"payment_network"`
+	AuthorizationID        string  `json:"authorization_id"`
+	BeneficiaryID          string  `json:"beneficiary_id"`
+	AccountIdentifierValue string  `json:"account_identifier_value"`
+	BankIdentifierValue    string  `json:"bank_identifier_value"`
+	IntermediateBank       struct {
+		BankIdentifierType  string `json:"bank_identifier_type"`
+		BankIdentifierValue string `json:"bank_identifier_value"`
+		BankName            string `json:"bank_name"`
+		Address1            string `json:"address_1"`
+		Address2            string `json:"address_2"`
+	} `json:"intermediate_bank"`
+}
+
+// FiatWithdrawalResponse holds a fiat currency withdrawal response
+type FiatWithdrawalResponse struct {
+	ID                     string  `json:"id"`
+	AccountID              string  `json:"account_id"`
+	Status                 string  `json:"status"`
+	PaymentNetwork         string  `json:"payment_network"`
+	Currency               string  `json:"currency"`
+	Amount                 float64 `json:"amount"`
+	AmountInUsd            float64 `json:"amount_in_usd"`
+	FeeCurrency            string  `json:"fee_currency"`
+	FeeAmount              float64 `json:"fee_amount"`
+	BeneficiaryID          string  `json:"beneficiary_id"`
+	AuthorizationID        string  `json:"authorization_id"`
+	BankIdentifierValue    string  `json:"bank_identifier_value,omitempty"`
+	AccountIdentifierValue string  `json:"account_identifier_value,omitempty"`
 }

@@ -1496,3 +1496,30 @@ func BenchmarkStructToMap(b *testing.B) {
 		}
 	}
 }
+
+func TestGetPrivateFiatDepositInformation(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetPrivateFiatDepositInformation(t.Context(), "")
+	require.ErrorIs(t, err, errPaymentNetworkIsMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetPrivateFiatDepositInformation(t.Context(), "usd_cubix")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFiatDepositHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetFiatDepositHistory(t.Context(), 0, 1, time.Now().Add(-time.Hour*36), time.Now(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFiatWithdrawHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetFiatWithdrawHistory(t.Context(), 0, 1, time.Now().Add(-time.Hour*36), time.Now(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

@@ -1221,3 +1221,63 @@ func (e *Exchange) GetAnnouncements(ctx context.Context, category, productType s
 	var resp *Announcements
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("public/get-announcements", params), getAnnouncementsRate, &resp)
 }
+
+// ------------------------------- Fiat Wallet API ---------------------------------------
+
+// GetPrivateFiatDepositInformation retrieves fiat deposit information for the authenticated user. Returns bank details for depositing fiat currency with optional payment network filtering.
+func (e *Exchange) GetPrivateFiatDepositInformation(ctx context.Context, paymentNetworks string) (*FiatDepositInfoDetail, error) {
+	if paymentNetworks == "" {
+		return nil, errPaymentNetworkIsMissing
+	}
+	var resp *FiatDepositInfoDetail
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, request.UnAuth, "private/fiat/fiat-deposit-info", map[string]any{"payment_networks": paymentNetworks}, &resp)
+}
+
+// GetFiatDepositHistory retrieves paginated fiat deposit transaction history for the authenticated user.
+func (e *Exchange) GetFiatDepositHistory(ctx context.Context, page, pageSize uint64, startTime, endTime time.Time, paymentNetworks string) (*FiatDepositHistory, error) {
+	param := make(map[string]any)
+	param["page"] = page
+	param["page_size"] = pageSize
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		param["start_time"] = startTime.UnixMilli()
+		param["end_time"] = endTime.UnixMilli()
+	}
+	if paymentNetworks != "" {
+		param["payment_networks"] = paymentNetworks
+	}
+	var resp *FiatDepositHistory
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, request.UnAuth, "private/fiat/fiat-deposit-history", param, &resp)
+}
+
+// GetFiatWithdrawHistory retrieves paginated fiat withdrawal transaction history for the authenticated user.
+func (e *Exchange) GetFiatWithdrawHistory(ctx context.Context, page, pageSize uint64, startTime, endTime time.Time, paymentNetworks string) (*FiatWithdrawalHistory, error) {
+	param := make(map[string]any)
+	param["page"] = page
+	param["page_size"] = pageSize
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		param["start_time"] = startTime.UnixMilli()
+		param["end_time"] = endTime.UnixMilli()
+	}
+	if paymentNetworks != "" {
+		param["payment_networks"] = paymentNetworks
+	}
+	var resp *FiatWithdrawalHistory
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, request.UnAuth, "private/fiat/fiat-withdraw-history", param, &resp)
+}
+
+// CreateFiatWithdrawal creates a new fiat withdrawal request for the authenticated user.
+func (e *Exchange) CreateFiatWithdrawal(ctx context.Context, arg *FiatCreateWithdrawl) (*FiatWithdrawalResponse, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
+	var resp *FiatWithdrawalResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, request.UnAuth, "private/fiat/fiat-create-withdraw", map[string]any{}, &resp)
+}
