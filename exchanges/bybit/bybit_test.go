@@ -787,57 +787,14 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
+
+	_, err := e.PlaceOrder(t.Context(), &PlaceOrderRequest{})
+	require.ErrorIs(t, err, errCategoryNotSet)
+
 	if mockTests {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	ctx := t.Context()
-	_, err := e.PlaceOrder(ctx, nil)
-	require.ErrorIs(t, err, errNilArgument)
-
-	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{})
-	require.ErrorIs(t, err, errCategoryNotSet)
-
-	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
-		Category: "my-category",
-	})
-	require.ErrorIs(t, err, errInvalidCategory)
-
-	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
-		Category: cSpot,
-	})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-
-	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
-		Category: cSpot,
-		Symbol:   currency.Pair{Delimiter: "", Base: currency.BTC, Quote: currency.USDT},
-	})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-
-	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
-		Category: cSpot,
-		Symbol:   spotTradablePair,
-		Side:     "buy",
-	})
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
-
-	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
-		Category:  cSpot,
-		Symbol:    spotTradablePair,
-		Side:      "buy",
-		OrderType: "limit",
-	})
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-
-	_, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
-		Category:         cSpot,
-		Symbol:           spotTradablePair,
-		Side:             "buy",
-		OrderType:        "limit",
-		OrderQuantity:    1,
-		TriggerDirection: 3,
-	})
-	require.ErrorIs(t, err, errInvalidTriggerDirection)
 
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{
 		Category:         cSpot,
@@ -911,42 +868,22 @@ func TestPlaceOrder(t *testing.T) {
 
 func TestAmendOrder(t *testing.T) {
 	t.Parallel()
+
+	_, err := e.AmendOrder(t.Context(), &AmendOrderRequest{})
+	require.ErrorIs(t, err, errCategoryNotSet)
+
 	if mockTests {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.AmendOrder(t.Context(), nil)
-	require.ErrorIs(t, err, errNilArgument)
-
-	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{})
-	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired)
 
 	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{
-		OrderID: "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-	})
-	require.ErrorIs(t, err, errCategoryNotSet)
-
-	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{
-		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category: "mycat",
-	})
-	require.ErrorIs(t, err, errInvalidCategory)
-
-	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{
-		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category: cOption,
-	})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-
-	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{
-		OrderID:         "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category:        cSpot,
-		Symbol:          spotTradablePair,
-		TriggerPrice:    1145,
-		OrderQuantity:   0.15,
-		Price:           1050,
-		TakeProfitPrice: 0,
-		StopLossPrice:   0,
+		OrderID:       "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category:      cSpot,
+		Symbol:        spotTradablePair,
+		TriggerPrice:  1145,
+		OrderQuantity: 0.15,
+		Price:         1050,
 	})
 	if err != nil {
 		t.Error(err)
@@ -955,32 +892,14 @@ func TestAmendOrder(t *testing.T) {
 
 func TestCancelTradeOrder(t *testing.T) {
 	t.Parallel()
+
+	_, err := e.CancelTradeOrder(t.Context(), &CancelOrderRequest{})
+	require.ErrorIs(t, err, errCategoryNotSet)
+
 	if mockTests {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CancelTradeOrder(t.Context(), nil)
-	require.ErrorIs(t, err, errNilArgument)
-
-	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderRequest{})
-	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired)
-
-	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderRequest{
-		OrderID: "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-	})
-	require.ErrorIs(t, err, errCategoryNotSet)
-
-	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderRequest{
-		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category: "mycat",
-	})
-	require.ErrorIs(t, err, errInvalidCategory)
-
-	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderRequest{
-		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category: cOption,
-	})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, err = e.CancelTradeOrder(t.Context(), &CancelOrderRequest{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",

@@ -29,7 +29,7 @@ func (e *Exchange) WSCreateOrder(ctx context.Context, r *PlaceOrderRequest) (*We
 	if r.OrderLinkID == "" {
 		r.OrderLinkID = uuid.Must(uuid.NewV7()).String()
 	}
-	return e.SendWebsocketRequest(ctx, "order.create", r.OrderLinkID, r, epl)
+	return e.sendWebsocketTradeRequest(ctx, "order.create", r.OrderLinkID, r, epl)
 }
 
 // WSAmendOrder amends an order through the websocket connection
@@ -44,7 +44,7 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, r *AmendOrderRequest) (*Web
 	if r.OrderLinkID == "" {
 		r.OrderLinkID = uuid.Must(uuid.NewV7()).String()
 	}
-	return e.SendWebsocketRequest(ctx, "order.amend", r.OrderLinkID, r, epl)
+	return e.sendWebsocketTradeRequest(ctx, "order.amend", r.OrderLinkID, r, epl)
 }
 
 // WSCancelOrder cancels an order through the websocket connection
@@ -59,11 +59,11 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, r *CancelOrderRequest) (*W
 	if r.OrderLinkID == "" {
 		r.OrderLinkID = uuid.Must(uuid.NewV7()).String()
 	}
-	return e.SendWebsocketRequest(ctx, "order.cancel", r.OrderLinkID, r, epl)
+	return e.sendWebsocketTradeRequest(ctx, "order.cancel", r.OrderLinkID, r, epl)
 }
 
-// SendWebsocketRequest sends a request to the exchange through the websocket connection
-func (e *Exchange) SendWebsocketRequest(ctx context.Context, op, orderLinkID string, payload any, limit request.EndpointLimit) (*WebsocketOrderDetails, error) {
+// sendWebsocketTradeRequest sends a trade request to the exchange through the websocket connection
+func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkID string, payload any, limit request.EndpointLimit) (*WebsocketOrderDetails, error) {
 	// Get the outbound and inbound connections to send and receive the request. This makes sure both are live before
 	// sending the request.
 	outbound, err := e.Websocket.GetConnection(OutboundTradeConnection)
@@ -105,7 +105,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, op, orderLinkID str
 		return nil, fmt.Errorf("code:%d, info:%v message:%s", confirmation.RetCode, retCode[confirmation.RetCode], confirmation.RetMsg)
 	}
 
-	inResp := <-wait // Blocking read is acceptable; wait channel has a built in timeout already
+	inResp := <-ch // Blocking read is acceptable; channel has a built in timeout already
 	if inResp.Err != nil {
 		return nil, inResp.Err
 	}
@@ -136,4 +136,5 @@ var retCode = map[int64]string{
 	20006: "reqId is duplicated",
 	10016: "internal server error",
 	10019: "ws trade service is restarting, please reconnect",
+	20003: "too frequent requests under the same session",
 }

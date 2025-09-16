@@ -183,8 +183,7 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// getWebsocketInstance returns a websocket instance copy for testing.
-// This restricts the pairs to a single pair per asset type to reduce test time.
+// getWebsocketInstance returns a websocket instance copy for live bi-directional testing
 func getWebsocketInstance(t *testing.T) *Exchange {
 	t.Helper()
 	cfg := &config.Config{}
