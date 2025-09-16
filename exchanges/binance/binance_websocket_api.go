@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -584,10 +585,10 @@ func (e *Exchange) WsPlaceOCOOrder(arg *PlaceOCOOrderParam) (*OCOOrder, error) {
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.StopPrice <= 0 {
-		return nil, fmt.Errorf("stopPrice: %w", order.ErrPriceBelowMin)
+		return nil, fmt.Errorf("stopPrice: %w", limits.ErrPriceBelowMin)
 	}
 	if arg.TrailingDelta <= 0 {
 		return nil, errors.New("invalid trailingDelta value")
@@ -687,7 +688,7 @@ func (e *Exchange) WsPlaceNewSOROrder(arg *WsOSRPlaceOrderParams) ([]OSROrder, e
 		return nil, order.ErrTypeIsInvalid
 	}
 	if arg.Quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	arg.Timestamp = time.Now().UnixMilli()
 	apiKey, signature, err := e.getSignature(arg)
@@ -716,7 +717,7 @@ func (e *Exchange) WsTestNewOrderUsingSOR(arg *WsOSRPlaceOrderParams) error {
 		return order.ErrTypeIsInvalid
 	}
 	if arg.Quantity <= 0 {
-		return order.ErrAmountBelowMin
+		return limits.ErrAmountBelowMin
 	}
 	arg.Timestamp = time.Now().UnixMilli()
 	apiKey, signature, err := e.getSignature(arg)

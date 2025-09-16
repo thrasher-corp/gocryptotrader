@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -198,7 +200,7 @@ func (e *Exchange) NewOptionsOrder(ctx context.Context, arg *OptionsOrderParams)
 		return nil, order.ErrTypeIsInvalid
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol.String())
@@ -207,7 +209,7 @@ func (e *Exchange) NewOptionsOrder(ctx context.Context, arg *OptionsOrderParams)
 	params.Set("quantity", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	arg.OrderType = strings.ToUpper(arg.OrderType)
 	if arg.OrderType == order.Limit.String() && arg.Price <= 0 {
-		return nil, fmt.Errorf("%w, price is required for limit orders", order.ErrPriceBelowMin)
+		return nil, fmt.Errorf("%w, price is required for limit orders", limits.ErrPriceBelowMin)
 	}
 	if arg.Price > 0 {
 		params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
@@ -253,7 +255,7 @@ func (e *Exchange) PlaceBatchEOptionsOrder(ctx context.Context, args []OptionsOr
 			return nil, order.ErrTypeIsInvalid
 		}
 		if args[a].Amount <= 0 {
-			return nil, order.ErrAmountBelowMin
+			return nil, limits.ErrAmountBelowMin
 		}
 	}
 	val, err := json.Marshal(args)
@@ -610,7 +612,7 @@ func (e *Exchange) GetOptionsAutoCancelAllOpenOrdersHeartbeat(ctx context.Contex
 }
 
 // FetchOptionsExchangeLimits fetches options order execution limits
-func (e *Exchange) FetchOptionsExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
+func (e *Exchange) FetchOptionsExchangeLimits(ctx context.Context) ([]limits.MinMaxLevel, error) {
 	resp, err := e.GetOptionsExchangeInformation(ctx)
 	if err != nil {
 		return nil, err
@@ -621,7 +623,7 @@ func (e *Exchange) FetchOptionsExchangeLimits(ctx context.Context) ([]order.MinM
 			maxOrderLimit = resp.RateLimits[a].Limit
 		}
 	}
-	limits := make([]order.MinMaxLevel, 0, len(resp.OptionSymbols))
+	l := make([]limits.MinMaxLevel, 0, len(resp.OptionSymbols))
 	for i := range resp.OptionSymbols {
 		var cp currency.Pair
 		cp, err = currency.NewPairFromString(resp.OptionSymbols[i].Symbol)
@@ -629,29 +631,28 @@ func (e *Exchange) FetchOptionsExchangeLimits(ctx context.Context) ([]order.MinM
 			return nil, err
 		}
 
-		l := order.MinMaxLevel{
-			Pair:  cp,
-			Asset: asset.Options,
+		mml := limits.MinMaxLevel{
+			Key: key.NewExchangeAssetPair(e.Name, asset.Options, cp),
 		}
 
 		for _, f := range resp.OptionSymbols[i].Filters {
 			switch f.FilterType {
 			case "PRICE_FILTER":
-				l.MinPrice = f.MinPrice.Float64()
-				l.MaxPrice = f.MaxPrice.Float64()
-				l.PriceStepIncrementSize = f.TickSize.Float64()
+				mml.MinPrice = f.MinPrice.Float64()
+				mml.MaxPrice = f.MaxPrice.Float64()
+				mml.PriceStepIncrementSize = f.TickSize.Float64()
 			case "LOT_SIZE":
-				l.MaximumBaseAmount = f.MaxQty.Float64()
-				l.MinimumBaseAmount = f.MinQty.Float64()
-				l.AmountStepIncrementSize = f.StepSize.Float64()
+				mml.MaximumBaseAmount = f.MaxQty.Float64()
+				mml.MinimumBaseAmount = f.MinQty.Float64()
+				mml.AmountStepIncrementSize = f.StepSize.Float64()
 			default:
 				return nil, fmt.Errorf("filter type %s not supported", f.FilterType)
 			}
 		}
-		l.MarketMaxQty = resp.OptionSymbols[i].MaxQty.Float64()
-		l.MarketMinQty = resp.OptionSymbols[i].MinQty.Float64()
-		l.MaxTotalOrders = maxOrderLimit
-		limits = append(limits, l)
+		mml.MarketMaxQty = resp.OptionSymbols[i].MaxQty.Float64()
+		mml.MarketMinQty = resp.OptionSymbols[i].MinQty.Float64()
+		mml.MaxTotalOrders = maxOrderLimit
+		l = append(l, mml)
 	}
-	return limits, nil
+	return l, nil
 }

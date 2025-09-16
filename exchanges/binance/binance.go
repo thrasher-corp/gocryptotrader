@@ -583,13 +583,13 @@ func (e *Exchange) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrd
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.Price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	if arg.StopPrice <= 0 {
-		return nil, fmt.Errorf("%w stop price is required", order.ErrPriceBelowMin)
+		return nil, fmt.Errorf("%w stop price is required", limits.ErrPriceBelowMin)
 	}
 	params := url.Values{}
 	params.Set("quantity", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
@@ -619,7 +619,7 @@ func (e *Exchange) NewOCOOrderList(ctx context.Context, arg *OCOOrderListParams)
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Quantity <= 0 {
-		return nil, fmt.Errorf("%w: quantity must be greater than 0", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: quantity must be greater than 0", limits.ErrAmountBelowMin)
 	}
 	if arg.AboveType == "" {
 		return nil, fmt.Errorf("%w: aboveType is required", order.ErrTypeIsInvalid)
@@ -931,7 +931,7 @@ func (e *Exchange) MarginAccountBorrowRepay(ctx context.Context, assetName curre
 		return "", errLendingTypeRequired
 	}
 	if amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -1264,13 +1264,13 @@ func (e *Exchange) NewMarginAccountOCOOrder(ctx context.Context, arg *MarginOCOO
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.Price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	if arg.StopPrice <= 0 {
-		return nil, fmt.Errorf("%w: stopPrice is required", order.ErrPriceBelowMin)
+		return nil, fmt.Errorf("%w: stopPrice is required", limits.ErrPriceBelowMin)
 	}
 	var resp *OCOOrder
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/order/oco", nil, marginOCOOrderRate, arg, &resp)
@@ -2016,7 +2016,7 @@ func (e *Exchange) WithdrawCrypto(ctx context.Context, cryptoAsset currency.Code
 		return "", errAddressRequired
 	}
 	if amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("coin", cryptoAsset.String())
@@ -2165,12 +2165,12 @@ func (e *Exchange) DustTransfer(ctx context.Context, assets []string, accountTyp
 }
 
 // GetAssetDevidendRecords query asset dividend record.
-func (e *Exchange) GetAssetDevidendRecords(ctx context.Context, asset currency.Code, startTime, endTime time.Time, limit int64) (interface{}, error) {
-	if asset.IsEmpty() {
+func (e *Exchange) GetAssetDevidendRecords(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, limit int64) (interface{}, error) {
+	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
 		if err != nil {
@@ -2206,20 +2206,20 @@ func (e *Exchange) GetTradeFees(ctx context.Context, symbol currency.Pair) ([]Tr
 // You need to enable Permits Universal Transfer option for the API Key which requests this endpoint.
 // fromSymbol must be sent when type are ISOLATEDMARGIN_MARGIN and ISOLATEDMARGIN_ISOLATEDMARGIN
 // toSymbol must be sent when type are MARGIN_ISOLATEDMARGIN and ISOLATEDMARGIN_ISOLATEDMARGIN
-func (e *Exchange) UserUniversalTransfer(ctx context.Context, transferType TransferTypes, amount float64, asset currency.Code, fromSymbol, toSymbol string) (string, error) {
+func (e *Exchange) UserUniversalTransfer(ctx context.Context, transferType TransferTypes, amount float64, ccy currency.Code, fromSymbol, toSymbol string) (string, error) {
 	if transferType == 0 {
 		return "", errTransferTypeRequired
 	}
-	if asset.IsEmpty() {
+	if ccy.IsEmpty() {
 		return "", fmt.Errorf("asset %w", currency.ErrCurrencyCodeEmpty)
 	}
 	if amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	params.Set("type", transferType.String())
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	if fromSymbol == "" {
 		params.Set("fromSymbol", fromSymbol)
 	}
@@ -2238,7 +2238,7 @@ func (e *Exchange) GetUserUniversalTransferHistory(ctx context.Context, transfer
 		return nil, errTransferTypeRequired
 	}
 	if size <= 0 {
-		return nil, fmt.Errorf("%w: 'size' is required", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: 'size' is required", limits.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("type", transferType.String())
@@ -2265,10 +2265,10 @@ func (e *Exchange) GetUserUniversalTransferHistory(ctx context.Context, transfer
 }
 
 // GetFundingAssets funding wallet
-func (e *Exchange) GetFundingAssets(ctx context.Context, asset currency.Code, needBTCValuation bool) ([]FundingAsset, error) {
+func (e *Exchange) GetFundingAssets(ctx context.Context, ccy currency.Code, needBTCValuation bool) ([]FundingAsset, error) {
 	params := url.Values{}
-	if !asset.IsEmpty() {
-		params.Set("asset", asset.String())
+	if !ccy.IsEmpty() {
+		params.Set("asset", ccy.String())
 	}
 	if needBTCValuation {
 		params.Set("needBtcValuation", "true")
@@ -2300,7 +2300,7 @@ func (e *Exchange) ConvertBUSD(ctx context.Context, clientTransactionID, account
 		return nil, fmt.Errorf("%w assetCcy is empty", currency.ErrCurrencyCodeEmpty)
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if targetAsset.IsEmpty() {
 		return nil, fmt.Errorf("%w targetAsset is empty", currency.ErrCurrencyCodeEmpty)
@@ -2450,7 +2450,7 @@ func (e *Exchange) GetUserWalletBalance(ctx context.Context, quoteAsset currency
 
 // GetUserDelegationHistory query User Delegation History for Master account.
 // The delegation type has two values: delegated or undelegated.
-func (e *Exchange) GetUserDelegationHistory(ctx context.Context, email, delegation string, startTime, endTime time.Time, asset currency.Code, current int64, size float64) (*UserDelegationHistory, error) {
+func (e *Exchange) GetUserDelegationHistory(ctx context.Context, email, delegation string, startTime, endTime time.Time, ccy currency.Code, current int64, size float64) (*UserDelegationHistory, error) {
 	if !common.MatchesEmailPattern(email) {
 		return nil, errValidEmailRequired
 	}
@@ -2462,8 +2462,8 @@ func (e *Exchange) GetUserDelegationHistory(ctx context.Context, email, delegati
 	params.Set("email", email)
 	params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	if !asset.IsEmpty() {
-		params.Set("asset", asset.String())
+	if !ccy.IsEmpty() {
+		params.Set("asset", ccy.String())
 	}
 	if delegation != "" {
 		params.Set("type", delegation)
@@ -2579,7 +2579,7 @@ func (e *Exchange) GetSubAccountFuturesAssetTransferHistory(ctx context.Context,
 
 // SubAccountFuturesAssetTransfer sub-account futures asset transfer for master account
 // futuresType: 1:USDT-margined Futures，2: Coin-margined Futures
-func (e *Exchange) SubAccountFuturesAssetTransfer(ctx context.Context, fromEmail, toEmail string, futuresType int64, asset currency.Code, amount float64) (*FuturesAssetTransfer, error) {
+func (e *Exchange) SubAccountFuturesAssetTransfer(ctx context.Context, fromEmail, toEmail string, futuresType int64, ccy currency.Code, amount float64) (*FuturesAssetTransfer, error) {
 	if !common.MatchesEmailPattern(fromEmail) {
 		return nil, fmt.Errorf("%w: fromEmail=%s", errValidEmailRequired, fromEmail)
 	}
@@ -2589,17 +2589,17 @@ func (e *Exchange) SubAccountFuturesAssetTransfer(ctx context.Context, fromEmail
 	if futuresType != 0 && futuresType != 1 {
 		return nil, fmt.Errorf("%w 1: USDT-margined Futures or 2: Coin-margined Futures", errInvalidFuturesType)
 	}
-	if asset.IsEmpty() {
+	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("fromEmail", fromEmail)
 	params.Set("toEmail", toEmail)
 	params.Set("futuresType", strconv.FormatInt(futuresType, 10))
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *FuturesAssetTransfer
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/futures/internalTransfer", params, sapiDefaultRate, nil, &resp)
@@ -2933,19 +2933,19 @@ func (e *Exchange) AddIPRestrictionForSubAccountAPIkey(ctx context.Context, emai
 }
 
 // DepositAssetsIntoTheManagedSubAccount deposits an asset into managed sub-account (for investor master account).
-func (e *Exchange) DepositAssetsIntoTheManagedSubAccount(ctx context.Context, toEmail string, asset currency.Code, amount float64) (string, error) {
+func (e *Exchange) DepositAssetsIntoTheManagedSubAccount(ctx context.Context, toEmail string, ccy currency.Code, amount float64) (string, error) {
 	if !common.MatchesEmailPattern(toEmail) {
 		return "", fmt.Errorf("%w: toEmail = %s", errValidEmailRequired, toEmail)
 	}
-	if asset.IsEmpty() {
+	if ccy.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("toEmail", toEmail)
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	resp := &struct {
 		TransactionID string `json:"tranId"`
@@ -2965,19 +2965,19 @@ func (e *Exchange) GetManagedSubAccountAssetsDetails(ctx context.Context, email 
 }
 
 // WithdrawAssetsFromManagedSubAccount withdraws an asset from managed sub-account(for investor master account).
-func (e *Exchange) WithdrawAssetsFromManagedSubAccount(ctx context.Context, fromEmail string, asset currency.Code, amount float64, transferDate time.Time) (string, error) {
+func (e *Exchange) WithdrawAssetsFromManagedSubAccount(ctx context.Context, fromEmail string, ccy currency.Code, amount float64, transferDate time.Time) (string, error) {
 	if !common.MatchesEmailPattern(fromEmail) {
 		return "", fmt.Errorf("%w fromEmail=%s", errValidEmailRequired, fromEmail)
 	}
-	if asset.IsEmpty() {
+	if ccy.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("fromEmail", fromEmail)
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	if !transferDate.IsZero() {
 		params.Set("transferData", strconv.FormatInt(transferDate.UnixMilli(), 10))
@@ -3086,32 +3086,32 @@ func (e *Exchange) GetManagedSubAccountMarginAssetDetails(ctx context.Context, e
 // FuturesTransferSubAccount transfers futures for sub-account( from master account only)
 // 1: transfer from subaccount's spot account to its USDT-margined futures account 2: transfer from subaccount's USDT-margined futures account to its spot account
 // 3: transfer from subaccount's spot account to its COIN-margined futures account 4:transfer from subaccount's COIN-margined futures account to its spot account
-func (e *Exchange) FuturesTransferSubAccount(ctx context.Context, email string, asset currency.Code, amount float64, transferType int64) (string, error) {
-	return e.transferSubAccount(ctx, email, "/sapi/v1/sub-account/futures/transfer", asset, amount, transferType)
+func (e *Exchange) FuturesTransferSubAccount(ctx context.Context, email string, ccy currency.Code, amount float64, transferType int64) (string, error) {
+	return e.transferSubAccount(ctx, email, "/sapi/v1/sub-account/futures/transfer", ccy, amount, transferType)
 }
 
 // MarginTransferForSubAccount margin Transfer for Sub-account (For Master Account)
 // transferType: 1: transfer from subaccount's spot account to margin account 2: transfer from subaccount's margin account to its spot account
-func (e *Exchange) MarginTransferForSubAccount(ctx context.Context, email string, asset currency.Code, amount float64, transferType int64) (string, error) {
-	return e.transferSubAccount(ctx, email, "/sapi/v1/sub-account/margin/transfer", asset, amount, transferType)
+func (e *Exchange) MarginTransferForSubAccount(ctx context.Context, email string, ccy currency.Code, amount float64, transferType int64) (string, error) {
+	return e.transferSubAccount(ctx, email, "/sapi/v1/sub-account/margin/transfer", ccy, amount, transferType)
 }
 
-func (e *Exchange) transferSubAccount(ctx context.Context, email, path string, asset currency.Code, amount float64, transferType int64) (string, error) {
+func (e *Exchange) transferSubAccount(ctx context.Context, email, path string, ccy currency.Code, amount float64, transferType int64) (string, error) {
 	if !common.MatchesEmailPattern(email) {
 		return "", errValidEmailRequired
 	}
-	if asset.IsEmpty() {
+	if ccy.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", limits.ErrAmountBelowMin
 	}
 	if transferType != 1 && transferType != 2 && transferType != 3 && transferType != 4 {
 		return "", errTransferTypeRequired
 	}
 	params := url.Values{}
 	params.Set("email", email)
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	params.Set("type", strconv.FormatInt(transferType, 10))
 	resp := struct {
@@ -3132,19 +3132,19 @@ func (e *Exchange) GetSubAccountAssetsV3(ctx context.Context, email string) (*Su
 }
 
 // TransferToSubAccountOfSameMaster Transfer to Sub-account of Same Master (For Sub-account)
-func (e *Exchange) TransferToSubAccountOfSameMaster(ctx context.Context, toEmail string, asset currency.Code, amount float64) (string, error) {
+func (e *Exchange) TransferToSubAccountOfSameMaster(ctx context.Context, toEmail string, ccy currency.Code, amount float64) (string, error) {
 	if !common.MatchesEmailPattern(toEmail) {
 		return "", errValidEmailRequired
 	}
-	if asset.IsEmpty() {
+	if ccy.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("toEmail", toEmail)
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	resp := &struct {
 		TransactionID string `json:"txnId"`
@@ -3154,15 +3154,15 @@ func (e *Exchange) TransferToSubAccountOfSameMaster(ctx context.Context, toEmail
 
 // FromSubAccountTransferToMaster Transfer to Master (For Sub-account)
 // need to open Enable Spot & Margin Trading permission for the API Key which requests this endpoint.
-func (e *Exchange) FromSubAccountTransferToMaster(ctx context.Context, asset currency.Code, amount float64) (string, error) {
-	if asset.IsEmpty() {
+func (e *Exchange) FromSubAccountTransferToMaster(ctx context.Context, ccy currency.Code, amount float64) (string, error) {
+	if ccy.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	resp := &struct {
 		TransactionID string `json:"txnId"`
@@ -3171,10 +3171,10 @@ func (e *Exchange) FromSubAccountTransferToMaster(ctx context.Context, asset cur
 }
 
 // SubAccountTransferHistory retrieves Sub-account Transfer History (For Sub-account)
-func (e *Exchange) SubAccountTransferHistory(ctx context.Context, asset currency.Code, transferType, limit int64, startTime, endTime time.Time) (*SubAccountTransferHistory, error) {
+func (e *Exchange) SubAccountTransferHistory(ctx context.Context, ccy currency.Code, transferType, limit int64, startTime, endTime time.Time) (*SubAccountTransferHistory, error) {
 	params := url.Values{}
-	if !asset.IsEmpty() {
-		params.Set("asset", asset.String())
+	if !ccy.IsEmpty() {
+		params.Set("asset", ccy.String())
 	}
 	if transferType != 1 && transferType != 2 {
 		params.Set("type", strconv.FormatInt(transferType, 10))
@@ -3195,10 +3195,10 @@ func (e *Exchange) SubAccountTransferHistory(ctx context.Context, asset currency
 }
 
 // SubAccountTransferHistoryForSubAccount represents a sub-account transfer history for sub accounts.
-func (e *Exchange) SubAccountTransferHistoryForSubAccount(ctx context.Context, asset currency.Code, transferType, limit int64, startTime, endTime time.Time, returnFailHistory bool) (*SubAccountTransferHistoryItem, error) {
+func (e *Exchange) SubAccountTransferHistoryForSubAccount(ctx context.Context, ccy currency.Code, transferType, limit int64, startTime, endTime time.Time, returnFailHistory bool) (*SubAccountTransferHistoryItem, error) {
 	params := url.Values{}
-	if !asset.IsEmpty() {
-		params.Set("asset", asset.String())
+	if !ccy.IsEmpty() {
+		params.Set("asset", ccy.String())
 	}
 	if transferType != 0 {
 		params.Set("type", strconv.FormatInt(transferType, 10))
@@ -3236,7 +3236,7 @@ func (e *Exchange) UniversalTransferForMasterAccount(ctx context.Context, arg *U
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("fromAccountType", arg.FromAccountType)
@@ -3528,7 +3528,7 @@ func (e *Exchange) CryptoLoanBorrow(ctx context.Context, loanCoin currency.Code,
 		return nil, errLoanTermMustBeSet
 	}
 	if loanAmount == 0 && collateralAmount == 0 {
-		return nil, fmt.Errorf("%w: either loan or collateral amounts must be set", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: either loan or collateral amounts must be set", limits.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
@@ -3594,7 +3594,7 @@ func (e *Exchange) CryptoLoanRepay(ctx context.Context, orderID int64, amount fl
 		return nil, order.ErrOrderIDNotSet
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("orderId", strconv.FormatInt(orderID, 10))
@@ -3635,7 +3635,7 @@ func (e *Exchange) CryptoLoanAdjustLTV(ctx context.Context, orderID int64, reduc
 		return nil, order.ErrOrderIDNotSet
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("orderId", strconv.FormatInt(orderID, 10))
@@ -3706,7 +3706,7 @@ func (e *Exchange) CryptoLoanCheckCollateralRepayRate(ctx context.Context, loanC
 		return nil, errCollateralCoinMustBeSet
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
@@ -3742,7 +3742,7 @@ func (e *Exchange) FlexibleLoanBorrow(ctx context.Context, loanCoin, collateralC
 		return nil, errCollateralCoinMustBeSet
 	}
 	if loanAmount == 0 && collateralAmount == 0 {
-		return nil, fmt.Errorf("%w: either loan or collateral amounts must be set", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: either loan or collateral amounts must be set", limits.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
@@ -3804,7 +3804,7 @@ func (e *Exchange) FlexibleLoanRepay(ctx context.Context, loanCoin, collateralCo
 		return nil, errCollateralCoinMustBeSet
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
@@ -3846,7 +3846,7 @@ func (e *Exchange) FlexibleLoanCollateralRepayment(ctx context.Context, loanCoin
 		return nil, errCollateralCoinMustBeSet
 	}
 	if repaymentAmount <= 0 {
-		return nil, fmt.Errorf("%w: repayment amount is required", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: repayment amount is required", limits.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
@@ -3902,7 +3902,7 @@ func (e *Exchange) FlexibleLoanAdjustLTV(ctx context.Context, loanCoin, collater
 		return nil, errCollateralCoinMustBeSet
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	direction := "ADDITIONAL"
 	if reduce {
@@ -4011,7 +4011,7 @@ func (e *Exchange) SubscribeToLockedProducts(ctx context.Context, projectID, sou
 
 func (e *Exchange) subscribeToFlexibleAndLockedProducts(ctx context.Context, productID, projectID, sourceAccount, path string, amount float64, autoSubscribe bool) (*SimpleEarnSubscriptionResponse, error) {
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	if productID != "" {
@@ -4255,7 +4255,7 @@ func (e *Exchange) GetFlexibleSubscriptionPreview(ctx context.Context, productID
 		return nil, errProductIDRequired
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("productId", productID)
@@ -4270,7 +4270,7 @@ func (e *Exchange) GetLockedSubscriptionPreview(ctx context.Context, projectID s
 		return nil, errProjectIDRequired
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("projectId", projectID)
@@ -4369,7 +4369,7 @@ func (e *Exchange) SubscribeDualInvestmentProducts(ctx context.Context, id, orde
 		return nil, order.ErrOrderIDNotSet
 	}
 	if depositAmount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if autoCompoundPlan == "" {
 		return nil, fmt.Errorf("%w: accountCompoundPlan is required", errPlanTypeRequired)
@@ -4497,7 +4497,7 @@ func (e *Exchange) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPl
 		return nil, errPlanTypeRequired
 	}
 	if arg.SubscriptionAmount <= 0 {
-		return nil, fmt.Errorf("%w: subscriptionAmount valid is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
+		return nil, fmt.Errorf("%w: subscriptionAmount valid is %f", limits.ErrAmountBelowMin, arg.SubscriptionAmount)
 	}
 	if arg.SubscriptionStartDay <= 0 {
 		return nil, errInvalidSubscriptionStartTime
@@ -4535,7 +4535,7 @@ func (e *Exchange) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInve
 		return nil, errPlanIDRequired
 	}
 	if arg.SubscriptionAmount <= 0 {
-		return nil, fmt.Errorf("%w: subscriptionAmount valid is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
+		return nil, fmt.Errorf("%w: subscriptionAmount valid is %f", limits.ErrAmountBelowMin, arg.SubscriptionAmount)
 	}
 	if !slices.Contains(subscriptionCycleList, arg.SubscriptionCycle) {
 		return nil, fmt.Errorf("%w: subscription cycle %s", errInvalidSubscriptionCycle, arg.SubscriptionCycle)
@@ -4657,7 +4657,7 @@ func (e *Exchange) OneTimeTransaction(ctx context.Context, arg *OneTimeTransacti
 		return nil, errSourceTypeRequired
 	}
 	if arg.SubscriptionAmount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.SourceAsset.IsEmpty() {
 		return nil, fmt.Errorf("%w: sourceAsset is required", currency.ErrCurrencyCodeEmpty)
@@ -4751,7 +4751,7 @@ func (e *Exchange) GetIndexLinkedPlanRebalanceDetails(ctx context.Context, start
 // Amount in ETH, limit 4 decimals
 func (e *Exchange) GetSubscribeETHStaking(ctx context.Context, amount float64) (bool, error) {
 	if amount <= 0 {
-		return false, order.ErrAmountBelowMin
+		return false, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -4764,7 +4764,7 @@ func (e *Exchange) GetSubscribeETHStaking(ctx context.Context, amount float64) (
 // SusbcribeETHStakingV2 stake ETH to get WBETH
 func (e *Exchange) SusbcribeETHStakingV2(ctx context.Context, amount float64) (*StakingSubscriptionResponse, error) {
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -4775,7 +4775,7 @@ func (e *Exchange) SusbcribeETHStakingV2(ctx context.Context, amount float64) (*
 // RedeemETH redeem WBETH or BETH and get ETH
 func (e *Exchange) RedeemETH(ctx context.Context, amount float64, assetName currency.Code) (*StakingRedemptionResponse, error) {
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -4867,7 +4867,7 @@ func (e *Exchange) GetETHStakingAccountV2(ctx context.Context) (*StakingAccountV
 // amount: Amount in BETH, limit 4 decimals
 func (e *Exchange) WrapBETH(ctx context.Context, amount float64) (*WrapBETHResponse, error) {
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -4919,7 +4919,7 @@ func (e *Exchange) GetSOLStakingQuotaDetails(ctx context.Context) (*SOLStakingQu
 // SubscribeToSOLStaking subscribes to SOL staking
 func (e *Exchange) SubscribeToSOLStaking(ctx context.Context, amount float64) (*SOLStakingSubscriptionResponse, error) {
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -4930,7 +4930,7 @@ func (e *Exchange) SubscribeToSOLStaking(ctx context.Context, amount float64) (*
 // RedeemSOL redeem BNSOL and SOL
 func (e *Exchange) RedeemSOL(ctx context.Context, amount float64) (*SOLRedemptionResponse, error) {
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -5279,7 +5279,7 @@ func (e *Exchange) NewFuturesAccountTransfer(ctx context.Context, assetName curr
 		return nil, fmt.Errorf("%w: assetName is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if transferType == 0 {
 		return nil, errTransferTypeRequired
@@ -5358,7 +5358,7 @@ func (e *Exchange) VolumeParticipationNewOrder(ctx context.Context, arg *VolumeP
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.Urgency == "" {
 		// Possible values of 'LOW', 'MEDIUM', and 'HIGH'
@@ -5380,7 +5380,7 @@ func (e *Exchange) FuturesTWAPOrder(ctx context.Context, arg *TWAPOrderParams) (
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.Duration == 0 {
 		return nil, fmt.Errorf("%w: duration for TWAP orders in seconds. [300, 86400]", errDurationRequired)
@@ -5488,7 +5488,7 @@ func (e *Exchange) SpotTWAPNewOrder(ctx context.Context, arg *SpotTWAPOrderParam
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.Duration == 0 {
 		return nil, fmt.Errorf("%w: duration for TWAP orders in seconds. [300, 86400]", errDurationRequired)
@@ -5711,7 +5711,7 @@ func (e *Exchange) RedeemBLVT(ctx context.Context, symbol string, amount float64
 		return nil, fmt.Errorf("%w: tokenName is missing", currency.ErrSymbolStringEmpty)
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("tokenName", symbol)
@@ -5876,7 +5876,7 @@ func (e *Exchange) VIPLoanRepay(ctx context.Context, orderID int64, amount float
 		return nil, order.ErrOrderIDNotSet
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("orderId", strconv.FormatInt(orderID, 10))
@@ -5961,7 +5961,7 @@ func (e *Exchange) VIPLoanBorrow(ctx context.Context, loanAccountID, loanTerm in
 		return nil, fmt.Errorf("%w: loanCoin is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if loanAmount <= 0 {
-		return nil, fmt.Errorf("%w: loanAmount is required", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: loanAmount is required", limits.ErrAmountBelowMin)
 	}
 	if collateralAccountID == "" {
 		return nil, fmt.Errorf("%w: collateralAccountID is required", errAccountIDRequired)
@@ -6166,7 +6166,7 @@ func (e *Exchange) PlaceLimitOrder(ctx context.Context, arg *ConvertPlaceLimitOr
 		return nil, fmt.Errorf("%w: quoteAsset is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.LimitPrice <= 0 {
-		return nil, fmt.Errorf("%w: limitPrice is required", order.ErrPriceBelowMin)
+		return nil, fmt.Errorf("%w: limitPrice is required", limits.ErrPriceBelowMin)
 	}
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
@@ -6320,7 +6320,7 @@ func (e *Exchange) CreateSingleTokenGiftCard(ctx context.Context, token currency
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("token", token.String())
@@ -6338,10 +6338,10 @@ func (e *Exchange) CreateDualTokenGiftCard(ctx context.Context, baseToken, faceT
 		return nil, fmt.Errorf("%w: faceToken is empty", currency.ErrCurrencyCodeEmpty)
 	}
 	if baseTokenAmount <= 0 {
-		return nil, fmt.Errorf("%w: baseTokenAmount is %f", order.ErrAmountBelowMin, baseTokenAmount)
+		return nil, fmt.Errorf("%w: baseTokenAmount is %f", limits.ErrAmountBelowMin, baseTokenAmount)
 	}
 	if discount <= 0 {
-		return nil, fmt.Errorf("%w: discount must be greater than zero", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: discount must be greater than zero", limits.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("baseToken", baseToken.String())
@@ -6821,15 +6821,15 @@ func (e *Exchange) GetBNBBurnStatusForSubAccount(ctx context.Context, subAccount
 }
 
 // SubAccountTransferWithSpotBroker applies a subaccount transfer through a broker on spot account
-func (e *Exchange) SubAccountTransferWithSpotBroker(ctx context.Context, asset currency.Code, fromID, toID, clientTransferID string, amount float64) (*BrokerSubAccountTransfer, error) {
-	if asset.IsEmpty() {
+func (e *Exchange) SubAccountTransferWithSpotBroker(ctx context.Context, ccy currency.Code, fromID, toID, clientTransferID string, amount float64) (*BrokerSubAccountTransfer, error) {
+	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	if fromID != "" {
 		params.Set("fromId", fromID)
@@ -6877,15 +6877,15 @@ func (e *Exchange) GetSpotBrokerSubAccountTransferHistory(ctx context.Context, f
 }
 
 // SubAccountTransferWithFuturesBroker applies a subaccount transfer through a broker on futures account
-func (e *Exchange) SubAccountTransferWithFuturesBroker(ctx context.Context, asset currency.Code, fromID, toID, clientTransferID string, futuresType int, amount float64) (*BrokerSubAccountTransfer, error) {
-	if asset.IsEmpty() {
+func (e *Exchange) SubAccountTransferWithFuturesBroker(ctx context.Context, ccy currency.Code, fromID, toID, clientTransferID string, futuresType int, amount float64) (*BrokerSubAccountTransfer, error) {
+	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	if futuresType != 0 {
 		params.Set("futuresType", strconv.Itoa(futuresType))
@@ -7017,23 +7017,23 @@ func (e *Exchange) GetSubAccountFuturesAssetInfo(ctx context.Context, subAccount
 }
 
 // UniversalTransferWithBroker retrieves a universal transfer history with broker
-func (e *Exchange) UniversalTransferWithBroker(ctx context.Context, fromAccountType, toAccountType, fromID, toID, clientTransferID string, asset currency.Code, amount float64) (*UniversalTransferResponse, error) {
+func (e *Exchange) UniversalTransferWithBroker(ctx context.Context, fromAccountType, toAccountType, fromID, toID, clientTransferID string, ccy currency.Code, amount float64) (*UniversalTransferResponse, error) {
 	if fromAccountType == "" {
 		return nil, fmt.Errorf("%w: fromAccountType=%s", errInvalidAccountType, fromAccountType)
 	}
 	if toAccountType == "" {
 		return nil, fmt.Errorf("%w: toAccountType=%s", errInvalidAccountType, toAccountType)
 	}
-	if asset.IsEmpty() {
+	if ccy.IsEmpty() {
 		return nil, fmt.Errorf("%w: asset is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("fromAccountType", fromAccountType)
 	params.Set("toAccountType", toAccountType)
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	if fromID != "" {
 		params.Set("fromId", fromID)
@@ -7136,10 +7136,10 @@ func (e *Exchange) ChangeSubAccountUSDTMarginedFuturesCommissionAdjustment(ctx c
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if makerAdjustment <= 0 {
-		return nil, fmt.Errorf("%w: makerAdjustment", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: makerAdjustment", limits.ErrAmountBelowMin)
 	}
 	if takerAdjustment <= 0 {
-		return nil, fmt.Errorf("%w: takerAdjustment", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: takerAdjustment", limits.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("subAccountId", subAccountID)
@@ -7173,10 +7173,10 @@ func (e *Exchange) ChangeSubAccountCoinMarginedFuturesCommissionAdjustment(ctx c
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if makerAdjustment <= 0 {
-		return nil, fmt.Errorf("%w: makerAdjustment is required", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: makerAdjustment is required", limits.ErrAmountBelowMin)
 	}
 	if takerAdjustment <= 0 {
-		return nil, fmt.Errorf("%w: takerAdjustment is required", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: takerAdjustment is required", limits.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("subAccountId", subAccountID)

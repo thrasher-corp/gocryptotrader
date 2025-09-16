@@ -41,6 +41,7 @@ func TestMain(m *testing.M) {
 			}
 		}
 	}
+	setupWs()
 	b.setupOrderbookManager(context.Background())
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
@@ -59,4 +60,16 @@ func TestMain(m *testing.M) {
 		asset.Margin:              spotTradablePair,
 	}
 	os.Exit(m.Run())
+}
+
+func setupWs() {
+	conn, err := e.Websocket.GetConnection(asset.Spot)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = e.WsConnect(context.Background(), conn)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

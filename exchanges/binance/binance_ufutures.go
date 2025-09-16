@@ -670,10 +670,10 @@ func (e *Exchange) validatePlaceOrder(arg *USDTOrderUpdateParams) error {
 		return order.ErrSideIsInvalid
 	}
 	if arg.Amount <= 0 {
-		return order.ErrAmountBelowMin
+		return limits.ErrAmountBelowMin
 	}
 	if arg.Price <= 0 {
-		return order.ErrPriceBelowMin
+		return limits.ErrPriceBelowMin
 	}
 	return nil
 }

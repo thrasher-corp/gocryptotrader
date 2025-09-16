@@ -621,7 +621,7 @@ func TestCurrencyUnitConvert(t *testing.T) {
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	_, err = e.CurrencyUnitConvert(contextGenerate(), perpetualSwapPair.String(), 0, 3500, 1, currency.EMPTYCODE, false)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	result, err := e.CurrencyUnitConvert(contextGenerate(), perpetualSwapPair.String(), 1, 3500, 1, currency.EMPTYCODE, false)
 	require.NoError(t, err)
@@ -1610,7 +1610,7 @@ func TestCreateQuote(t *testing.T) {
 	subArg.SizeOfQuoteLeg = 2
 	arg.Legs = []QuoteLeg{subArg}
 	_, err = e.CreateQuote(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	subArg.Price = 1234
 	arg.Legs = []QuoteLeg{subArg}

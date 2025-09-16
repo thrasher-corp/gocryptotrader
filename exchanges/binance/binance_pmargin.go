@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -56,14 +57,14 @@ func (e *Exchange) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path str
 			return nil, errTimeInForceRequired
 		}
 		if arg.Quantity <= 0 {
-			return nil, order.ErrAmountBelowMin
+			return nil, limits.ErrAmountBelowMin
 		}
 		if arg.Price <= 0 {
-			return nil, order.ErrPriceBelowMin
+			return nil, limits.ErrPriceBelowMin
 		}
 	case "MARKET":
 		if arg.Quantity <= 0 {
-			return nil, order.ErrAmountBelowMin
+			return nil, limits.ErrAmountBelowMin
 		}
 	default:
 		return nil, order.ErrUnsupportedOrderType
@@ -105,7 +106,7 @@ func (e *Exchange) marginAccountBorrowRepay(ctx context.Context, ccy currency.Co
 		return "", currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("asset", ccy.String())
@@ -128,13 +129,13 @@ func (e *Exchange) MarginAccountNewOCO(ctx context.Context, arg *OCOOrderParam) 
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.Price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	if arg.StopPrice <= 0 {
-		return nil, fmt.Errorf("%w, stopPrice is required", order.ErrPriceBelowMin)
+		return nil, fmt.Errorf("%w, stopPrice is required", limits.ErrPriceBelowMin)
 	}
 	var resp *OCOOrder
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/margin/order/oco", nil, pmDefaultRate, arg, &resp)

@@ -242,7 +242,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Connector:    e.WsConnect,
 		Subscriber:   e.Subscribe,
 		Unsubscriber: e.Unsubscribe,
-		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+		Handler: func(ctx context.Context, _ websocket.Connection, incoming []byte) error {
 			return e.wsHandleData(ctx, incoming)
 		},
 		GenerateSubscriptions: e.generateSubscriptions,
@@ -258,7 +258,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		MessageFilter: spotWebsocketAPI,
 		URL:           binanceWebsocketAPIURL,
-		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+		Handler: func(ctx context.Context, _ websocket.Connection, incoming []byte) error {
 			return e.wsHandleSpotAPIData(ctx, incoming)
 		},
 		Connector:             e.WsConnectAPI,
@@ -277,7 +277,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		MessageFilter: asset.CoinMarginedFutures,
 		URL:           binanceCFuturesWebsocketURL,
-		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+		Handler: func(ctx context.Context, _ websocket.Connection, incoming []byte) error {
 			return e.wsHandleCFuturesData(ctx, incoming)
 		},
 		Connector:             e.WsCFutureConnect,
@@ -295,7 +295,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		MessageFilter: asset.USDTMarginedFutures,
 		URL:           binanceUFuturesWebsocketURL,
-		Handler: func(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+		Handler: func(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
 			return e.wsHandleFuturesData(ctx, respRaw, asset.USDTMarginedFutures)
 		},
 		Connector:             e.WsUFuturesConnect,
@@ -313,7 +313,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		MessageFilter: asset.Options,
 		URL:           eoptionsWebsocketURL,
-		Handler: func(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+		Handler: func(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
 			return e.wsHandleEOptionsData(ctx, respRaw)
 		},
 		Connector:             e.WsOptionsConnect,

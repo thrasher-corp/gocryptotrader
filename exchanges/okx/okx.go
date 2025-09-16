@@ -929,7 +929,7 @@ func (e *Exchange) CreateQuote(ctx context.Context, arg *CreateQuoteParams) (*Qu
 		case arg.Legs[x].SizeOfQuoteLeg <= 0:
 			return nil, errMissingSizeOfQuote
 		case arg.Legs[x].Price <= 0:
-			return nil, fmt.Errorf("%w: missing quote price", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w: missing quote price", limits.ErrPriceBelowMin)
 		case arg.Legs[x].Side == order.UnknownSide:
 			return nil, order.ErrSideIsInvalid
 		}
@@ -5256,7 +5256,7 @@ func (e *Exchange) CurrencyUnitConvert(ctx context.Context, instrumentID string,
 		return nil, errMissingInstrumentID
 	}
 	if quantity <= 0 {
-		return nil, fmt.Errorf("%w: quantity is required", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: quantity is required", limits.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("instId", instrumentID)
