@@ -250,7 +250,7 @@ func (e *Exchange) WsConnect() error {
 	}
 	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.Conn) })
 	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "Successful connection to %v\n", e.Websocket.GetWebsocketURL())
+		log.Debugf(log.ExchangeSys, "Successful connection to %v", e.Websocket.GetWebsocketURL())
 	}
 	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
