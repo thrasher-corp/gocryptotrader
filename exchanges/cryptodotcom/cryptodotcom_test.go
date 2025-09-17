@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -1520,6 +1521,71 @@ func TestGetFiatWithdrawHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetFiatWithdrawHistory(t.Context(), 0, 1, time.Now().Add(-time.Hour*36), time.Now(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateFiatWithdrawal(t *testing.T) {
+	t.Parallel()
+	_, err := e.CreateFiatWithdrawal(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &FiatCreateWithdrawl{}
+	_, err = e.CreateFiatWithdrawal(t.Context(), arg)
+	require.ErrorIs(t, err, errAccountIDMissing)
+
+	arg.AccountID = "12344321"
+	_, err = e.CreateFiatWithdrawal(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	arg.Amount = 123.45
+	_, err = e.CreateFiatWithdrawal(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg.Currency = "BTC"
+	_, err = e.CreateFiatWithdrawal(t.Context(), arg)
+	require.ErrorIs(t, err, errPaymentNetworkIsMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.CreateFiatWithdrawal(t.Context(), &FiatCreateWithdrawl{
+		AccountID:      "12344321",
+		Amount:         123.45,
+		Currency:       "BTC",
+		PaymentNetwork: "usd_swift",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFiatTransactionQuota(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetFiatTransactionQuota(t.Context(), "")
+	require.ErrorIs(t, err, errPaymentNetworkIsMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetFiatTransactionQuota(t.Context(), "usd_swift")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFiatTransactionLimit(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetFiatTransactionLimit(t.Context(), "")
+	require.ErrorIs(t, err, errPaymentNetworkIsMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetFiatTransactionLimit(t.Context(), "usd_swift")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFiatBankAccounts(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetFiatBankAccounts(t.Context(), "")
+	require.ErrorIs(t, err, errPaymentNetworkIsMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetFiatBankAccounts(t.Context(), "usd_swift")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

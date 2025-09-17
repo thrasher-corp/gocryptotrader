@@ -29,7 +29,7 @@ var (
 	errContingencyTypeRequired         = errors.New("contingency type is required")
 	errPriceBelowMin                   = errors.New("price below min")
 	errSTPInstructionIsRequired        = errors.New("self-trade-prevention instruction (stpInstruction) is missing")
-	errPaymentNetworkIsMissing         = errors.New("payment network is missing")
+	errPaymentNetworkIsMissing         = errors.New("payment network is missing") // possible payment networks: https://exchange-docs.crypto.com/exchange/v1/rest-ws/index.html#payment-networks-and-currencies
 )
 
 const (
@@ -1349,17 +1349,17 @@ type FiatCreateWithdrawl struct {
 	Amount                 float64 `json:"amount,omitempty,string"`
 	Currency               string  `json:"currency"`
 	PaymentNetwork         string  `json:"payment_network"`
-	AuthorizationID        string  `json:"authorization_id"`
-	BeneficiaryID          string  `json:"beneficiary_id"`
-	AccountIdentifierValue string  `json:"account_identifier_value"`
-	BankIdentifierValue    string  `json:"bank_identifier_value"`
+	AuthorizationID        string  `json:"authorization_id,omitempty"`
+	BeneficiaryID          string  `json:"beneficiary_id,omitempty"`
+	AccountIdentifierValue string  `json:"account_identifier_value,omitempty"`
+	BankIdentifierValue    string  `json:"bank_identifier_value,omitempty"`
 	IntermediateBank       struct {
-		BankIdentifierType  string `json:"bank_identifier_type"`
-		BankIdentifierValue string `json:"bank_identifier_value"`
-		BankName            string `json:"bank_name"`
-		Address1            string `json:"address_1"`
-		Address2            string `json:"address_2"`
-	} `json:"intermediate_bank"`
+		BankIdentifierType  string `json:"bank_identifier_type,omitempty"`
+		BankIdentifierValue string `json:"bank_identifier_value,omitempty"`
+		BankName            string `json:"bank_name,omitempty"`
+		Address1            string `json:"address_1,omitempty"`
+		Address2            string `json:"address_2,omitempty"`
+	} `json:"intermediate_bank,omitempty"`
 }
 
 // FiatWithdrawalResponse holds a fiat currency withdrawal response
@@ -1377,4 +1377,156 @@ type FiatWithdrawalResponse struct {
 	AuthorizationID        string  `json:"authorization_id"`
 	BankIdentifierValue    string  `json:"bank_identifier_value,omitempty"`
 	AccountIdentifierValue string  `json:"account_identifier_value,omitempty"`
+}
+
+// FiatWithdrawalQuota holds fiat transaction quota information
+type FiatWithdrawalQuota struct {
+	Details FiatWithdrawalQuotaDetail `json:"details"`
+}
+
+// FiatWithdrawalQuotaDetail holds a fiat withdrawal quota detail
+type FiatWithdrawalQuotaDetail struct {
+	Currency                                  string            `json:"currency"`
+	PaymentNetwork                            string            `json:"payment_network"`
+	NetworkName                               string            `json:"network_name"`
+	MonthlyQuotaInUSD                         CurrencyAndAmount `json:"monthly_quota_in_usd"`
+	DailyQuotaInUSD                           CurrencyAndAmount `json:"daily_quota_in_usd"`
+	UsedMonthlyQuotaInUSD                     CurrencyAndAmount `json:"used_monthly_quota_in_usd"`
+	UsedDailyQuotaInUSD                       CurrencyAndAmount `json:"used_daily_quota_in_usd"`
+	RemainingMonthlyQuotaInUSD                CurrencyAndAmount `json:"remaining_monthly_quota_in_usd"`
+	RemainingDailyQuotaInUSD                  CurrencyAndAmount `json:"remaining_daily_quota_in_usd"`
+	MinimumWithdrawalAmountInUSD              CurrencyAndAmount `json:"minimum_withdrawal_amount_in_usd"`
+	MonthlyQuota                              CurrencyAndAmount `json:"monthly_quota"`
+	DailyQuota                                CurrencyAndAmount `json:"daily_quota"`
+	UsedMonthlyQuota                          CurrencyAndAmount `json:"used_monthly_quota"`
+	UsedDailyQuota                            CurrencyAndAmount `json:"used_daily_quota"`
+	RemainingMonthlyQuota                     CurrencyAndAmount `json:"remaining_monthly_quota"`
+	RemainingDailyQuota                       CurrencyAndAmount `json:"remaining_daily_quota"`
+	MinimumWithdrawalAmount                   CurrencyAndAmount `json:"minimum_withdrawal_amount"`
+	CurrencyDailyQuota                        CurrencyAndAmount `json:"currency_daily_quota"`
+	CurrencyMonthlyQuota                      CurrencyAndAmount `json:"currency_monthly_quota"`
+	CurrencyUsedDailyQuota                    CurrencyAndAmount `json:"currency_used_daily_quota"`
+	CurrencyUsedMonthlyQuota                  CurrencyAndAmount `json:"currency_used_monthly_quota"`
+	CurrencyRemainingDailyQuota               CurrencyAndAmount `json:"currency_remaining_daily_quota"`
+	CurrencyRemainingMonthlyQuota             CurrencyAndAmount `json:"currency_remaining_monthly_quota"`
+	TransactionsPerDay                        int64             `json:"transactions_per_day"`
+	TransactionsPerMonth                      int64             `json:"transactions_per_month"`
+	TransactionsDailyCount                    int64             `json:"transactions_daily_count"`
+	TransactionsMonthlyCount                  int64             `json:"transactions_monthly_count"`
+	RemainingTransactionsDailyCount           int64             `json:"remaining_transactions_daily_count"`
+	RemainingTransactionsMonthlyCount         int64             `json:"remaining_transactions_monthly_count"`
+	CurrencyTransactionsPerDay                int64             `json:"currency_transactions_per_day"`
+	CurrencyTransactionsPerMonth              int64             `json:"currency_transactions_per_month"`
+	CurrencyTransactionsDailyCount            int64             `json:"currency_transactions_daily_count"`
+	CurrencyTransactionsMonthlyCount          int64             `json:"currency_transactions_monthly_count"`
+	CurrencyRemainingTransactionsDailyCount   int64             `json:"currency_remaining_transactions_daily_count"`
+	CurrencyRemainingTransactionsMonthlyCount int64             `json:"currency_remaining_transactions_monthly_count"`
+}
+
+// CurrencyAndAmount holds a currency and amount detail
+type CurrencyAndAmount struct {
+	Currency string       `json:"currency"`
+	Amount   types.Number `json:"amount"`
+}
+
+// FiatTransactionLimit holds transaction limits for a specific payment network
+type FiatTransactionLimit struct {
+	Deposit FiatDepositLimit `json:"deposit"`
+	Payment FiatPaymentLimit `json:"payment"`
+}
+
+// FiatDepositLimit holds a fiat deposit transaction limit detail
+type FiatDepositLimit struct {
+	MinDepositAmount                   CurrencyAndAmount `json:"min_deposit_amount"`
+	DailyMaxDepositAmount              CurrencyAndAmount `json:"daily_max_deposit_amount"`
+	MonthlyMaxDepositAmount            CurrencyAndAmount `json:"monthly_max_deposit_amount"`
+	CurrencyDailyMaxDepositAmount      CurrencyAndAmount `json:"currency_daily_max_deposit_amount"`
+	CurrencyMonthlyMaxDepositAmount    CurrencyAndAmount `json:"currency_monthly_max_deposit_amount"`
+	DailyQuota                         int64             `json:"daily_quota"`
+	MonthlyQuota                       int64             `json:"monthly_quota"`
+	DailyTransactionCount              int64             `json:"daily_transaction_count"`
+	MonthlyTransactionCount            int64             `json:"monthly_transaction_count"`
+	CurrencyDailyTransactionCount      int64             `json:"currency_daily_transaction_count"`
+	CurrencyMonthlyTransactionCount    int64             `json:"currency_monthly_transaction_count"`
+	FeeAmount                          CurrencyAndAmount `json:"fee_amount"`
+	DailyMaxTransactionCount           int64             `json:"daily_max_transaction_count"`
+	MonthlyMaxTransactionCount         int64             `json:"monthly_max_transaction_count"`
+	CurrencyDailyMaxTransactionCount   int64             `json:"currency_daily_max_transaction_count"`
+	CurrencyMonthlyMaxTransactionCount int64             `json:"currency_monthly_max_transaction_count"`
+}
+
+// FiatPaymentLimit holds a fiat payment transaction detail
+type FiatPaymentLimit struct {
+	Name                  string `json:"name"`
+	FullName              string `json:"full_name"`
+	ReviewTimeDescription string `json:"review_time_description"`
+	ReviewTime            struct {
+		Min  types.Number `json:"min"`
+		Max  types.Number `json:"max"`
+		Unit string       `json:"unit"`
+	} `json:"review_time"`
+	BankTransferTimeDescription string `json:"bank_transfer_time_description"`
+	BankTransferTime            struct {
+		Min  types.Number `json:"min"`
+		Max  types.Number `json:"max"`
+		Unit string       `json:"unit"`
+	} `json:"bank_transfer_time"`
+	MinPaymentAmount                   CurrencyAndAmount `json:"min_payment_amount"`
+	DailyMaxPaymentAmount              CurrencyAndAmount `json:"daily_max_payment_amount"`
+	MonthlyMaxPaymentAmount            CurrencyAndAmount `json:"monthly_max_payment_amount"`
+	AutoApproveMaxPaymentAmount        CurrencyAndAmount `json:"auto_approve_max_payment_amount"`
+	CurrencyDailyMaxPaymentAmount      CurrencyAndAmount `json:"currency_daily_max_payment_amount"`
+	CurrencyMonthlyMaxPaymentAmount    CurrencyAndAmount `json:"currency_monthly_max_payment_amount"`
+	FeeAmount                          CurrencyAndAmount `json:"fee_amount"`
+	RefundFeeAmount                    CurrencyAndAmount `json:"refund_fee_amount"`
+	DailyTransactionCount              int64             `json:"daily_transaction_count"`
+	MonthlyTransactionCount            int64             `json:"monthly_transaction_count"`
+	CurrencyDailyTransactionCount      int64             `json:"currency_daily_transaction_count"`
+	CurrencyMonthlyTransactionCount    int64             `json:"currency_monthly_transaction_count"`
+	DailyMaxTransactionCount           int64             `json:"daily_max_transaction_count"`
+	MonthlyMaxTransactionCount         int64             `json:"monthly_max_transaction_count"`
+	CurrencyDailyMaxTransactionCount   int64             `json:"currency_daily_max_transaction_count"`
+	CurrencyMonthlyMaxTransactionCount int64             `json:"currency_monthly_max_transaction_count"`
+}
+
+// FiatBankAccounts holds a fiat bank accounts list
+type FiatBankAccounts struct {
+	BankAccountsList []FiatBankAccountDetail `json:"bank_accounts_list"`
+}
+
+// FiatBankAccountDetail holds a fiat bank account detail
+type FiatBankAccountDetail struct {
+	ID                            string   `json:"id"`
+	Ok                            string   `json:"ok"`
+	Code                          string   `json:"code"`
+	Message                       string   `json:"message"`
+	AccountID                     string   `json:"account_id"`
+	UserUUID                      string   `json:"user_uuid"`
+	Status                        string   `json:"status"`
+	BankName                      string   `json:"bank_name"`
+	BankCity                      string   `json:"bank_city"`
+	BankCountry                   string   `json:"bank_country"`
+	BankIdentifierType            string   `json:"bank_identifier_type"`
+	BankIdentifierValue           string   `json:"bank_identifier_value"`
+	BankAccountHolderName         string   `json:"bank_account_holder_name"`
+	AccountIdentifierType         string   `json:"account_identifier_type"`
+	AccountIdentifierValue        string   `json:"account_identifier_value"`
+	AccountHolderName             string   `json:"account_holder_name"`
+	AccountType                   string   `json:"account_type"`
+	Currency                      string   `json:"currency"`
+	VerifiedBy                    string   `json:"verified_by"`
+	Reason                        string   `json:"reason"`
+	SupportedPaymentNetworks      []string `json:"supported_payment_networks"`
+	WithdrawalPaymentNetworks     string   `json:"withdrawal_payment_networks"`
+	PaymentNetworkIdentifierValue string   `json:"payment_network_identifier_value"`
+	BankDetails                   struct {
+		InstitutionalStreetAddress string `json:"institutional_street_address"`
+		BankStreetAddress          string `json:"bank_street_address"`
+		AccountHolderAddress       string `json:"account_holder_address"`
+		BankAccountAddress         string `json:"bank_account_address"`
+		IntermediateBank           string `json:"intermediate_bank"`
+		IntermediateBankOptions    string `json:"intermediate_bank_options"`
+	} `json:"bank_details"`
+	CreatedAt types.Time `json:"created_at"`
+	UpdatedAt types.Time `json:"updated_at"`
 }

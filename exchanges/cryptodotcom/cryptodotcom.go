@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -48,7 +49,6 @@ const (
 	privateCancelAllOrders      = "private/cancel-all-orders"
 	privateGetOrderHistory      = "private/get-order-history"
 	privateGetOpenOrders        = "private/get-open-orders"
-	privateGetOrderDetail       = "private/get-order-detail"
 	privateGetTrades            = "private/get-trades"
 	privateWithdrawal           = "private/create-withdrawal"
 	privateGetWithdrawalHistory = "private/get-withdrawal-history"
@@ -569,7 +569,7 @@ func (e *Exchange) GetOrderDetail(ctx context.Context, orderID, clientOrderID st
 		params["client_oid"] = clientOrderID
 	}
 	var resp *OrderDetail
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOrderDetailRate, privateGetOrderDetail, params, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOrderDetailRate, "private/get-order-detail", params, &resp)
 }
 
 // GetPrivateTrades gets all executed trades for a particular instrument.
@@ -1278,6 +1278,49 @@ func (e *Exchange) CreateFiatWithdrawal(ctx context.Context, arg *FiatCreateWith
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
+	if arg.AccountID == "" {
+		return nil, errAccountIDMissing
+	}
+	if arg.Amount <= 0 {
+		return nil, limits.ErrAmountBelowMin
+	}
+	if arg.Currency == "" {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.PaymentNetwork == "" {
+		return nil, errPaymentNetworkIsMissing
+	}
+	param, err := StructToMap(arg)
+	if err != nil {
+		return nil, err
+	}
 	var resp *FiatWithdrawalResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, request.UnAuth, "private/fiat/fiat-create-withdraw", map[string]any{}, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, request.UnAuth, "private/fiat/fiat-create-withdraw", param, &resp)
+}
+
+// GetFiatTransactionQuota retrieves transaction quota information for a specific payment network.
+func (e *Exchange) GetFiatTransactionQuota(ctx context.Context, paymentNetwork string) (*FiatWithdrawalQuota, error) {
+	if paymentNetwork == "" {
+		return nil, errPaymentNetworkIsMissing
+	}
+	var resp *FiatWithdrawalQuota
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, request.UnAuth, "private/fiat/fiat-transaction-quota", map[string]any{"payment_network": paymentNetwork}, &resp)
+}
+
+// GetFiatTransactionLimit retrieves transaction limits for a specific payment network.
+func (e *Exchange) GetFiatTransactionLimit(ctx context.Context, paymentNetwork string) (*FiatTransactionLimit, error) {
+	if paymentNetwork == "" {
+		return nil, errPaymentNetworkIsMissing
+	}
+	var resp *FiatTransactionLimit
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, request.UnAuth, "private/fiat/fiat-transaction-limit", map[string]any{"payment_network": paymentNetwork}, &resp)
+}
+
+// GetFiatBankAccounts retrieves user's bank accounts with optional payment network filtering.
+func (e *Exchange) GetFiatBankAccounts(ctx context.Context, paymentNetworks string) (*FiatBankAccounts, error) {
+	if paymentNetworks == "" {
+		return nil, errPaymentNetworkIsMissing
+	}
+	var resp *FiatBankAccounts
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, request.UnAuth, "private/fiat/fiat-get-bank-accounts", map[string]any{"payment_networks": paymentNetworks}, &resp)
 }
