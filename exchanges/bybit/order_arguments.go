@@ -107,22 +107,30 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 		pair.Delimiter = currency.DashDelimiter
 	}
 
-	return &AmendOrderRequest{
-		Category:             getCategoryName(action.AssetType),
-		Symbol:               pair,
-		OrderID:              action.OrderID,
-		OrderLinkID:          action.ClientOrderID,
-		OrderQuantity:        action.Amount,
-		Price:                action.Price,
-		TriggerPrice:         action.TriggerPrice,
-		TriggerPriceType:     action.TriggerPriceType.String(),
-		TakeProfitPrice:      action.RiskManagementModes.TakeProfit.Price,
-		TakeProfitTriggerBy:  getOrderTypeString(action.RiskManagementModes.TakeProfit.OrderType),
-		TakeProfitLimitPrice: action.RiskManagementModes.TakeProfit.LimitPrice,
-		StopLossPrice:        action.RiskManagementModes.StopLoss.Price,
-		StopLossTriggerBy:    action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
-		StopLossLimitPrice:   action.RiskManagementModes.StopLoss.LimitPrice,
-	}, nil
+	arg := &AmendOrderRequest{
+		Category:         getCategoryName(action.AssetType),
+		Symbol:           pair,
+		OrderID:          action.OrderID,
+		OrderLinkID:      action.ClientOrderID,
+		OrderQuantity:    action.Amount,
+		Price:            action.Price,
+		TriggerPrice:     action.TriggerPrice,
+		TriggerPriceType: action.TriggerPriceType.String(),
+	}
+	if arg.TriggerPrice != 0 {
+		arg.TriggerPriceType = action.TriggerPriceType.String()
+	}
+	if action.TakeProfit.Price != 0 {
+		arg.TakeProfitPrice = action.TakeProfit.Price
+		arg.TakeProfitTriggerBy = action.TakeProfit.TriggerPriceType.String()
+		arg.TakeProfitLimitPrice = action.TakeProfit.LimitPrice
+	}
+	if action.StopLoss.Price != 0 {
+		arg.StopLossPrice = action.StopLoss.Price
+		arg.StopLossTriggerBy = action.StopLoss.TriggerPriceType.String()
+		arg.StopLossLimitPrice = action.StopLoss.LimitPrice
+	}
+	return arg, nil
 }
 
 func (e *Exchange) deriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderRequest, error) {

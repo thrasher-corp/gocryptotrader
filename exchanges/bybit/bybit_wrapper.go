@@ -945,42 +945,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if err != nil {
 		return nil, err
 	}
-<<<<<<< HEAD
-	switch action.AssetType {
-	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
-		if action.AssetType == asset.USDCMarginedFutures && !action.Pair.Quote.Equal(currency.PERP) {
-			action.Pair.Delimiter = currency.DashDelimiter
-		}
-		arg := &AmendOrderParams{
-			Category:             getCategoryName(action.AssetType),
-			Symbol:               action.Pair,
-			OrderID:              action.OrderID,
-			OrderLinkID:          action.ClientOrderID,
-			OrderQuantity:        action.Amount,
-			Price:                action.Price,
-			TriggerPrice:         action.TriggerPrice,
-			TriggerPriceType:     action.TriggerPriceType.String(),
-			TakeProfitPrice:      action.TakeProfit.Price,
-			TakeProfitLimitPrice: action.TakeProfit.LimitPrice,
-			StopLossPrice:        action.StopLoss.Price,
-			StopLossTriggerBy:    action.StopLoss.TriggerPriceType.String(),
-			StopLossLimitPrice:   action.StopLoss.LimitPrice,
-		}
-		if action.TakeProfit.LimitPrice != 0 {
-			arg.TakeProfitTriggerBy = getOrderTypeString(order.Limit)
-		} else {
-			arg.TakeProfitTriggerBy = getOrderTypeString(order.Market)
-		}
-		result, err = e.AmendOrder(ctx, arg)
-		if err != nil {
-			return nil, err
-		}
-	default:
-		err = fmt.Errorf("%s %w", action.AssetType, asset.ErrNotSupported)
-	}
-=======
 	result, err := e.AmendOrder(ctx, arg)
->>>>>>> 6a40d32b0c68814e18d79c5e66e14d02b6a8489e
 	if err != nil {
 		return nil, err
 	}
