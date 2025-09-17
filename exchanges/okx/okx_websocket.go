@@ -245,15 +245,12 @@ func (e *Exchange) WsConnect() error {
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx, e.Websocket.Conn)
+	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.Conn) })
 	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
-			e.Websocket.GetWebsocketURL())
+		log.Debugf(log.ExchangeSys, "Successful connection to %v\n", e.Websocket.GetWebsocketURL())
 	}
 	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
@@ -261,8 +258,7 @@ func (e *Exchange) WsConnect() error {
 		Delay:       time.Second * 20,
 	})
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err = e.WsAuth(ctx)
-		if err != nil {
+		if err := e.WsAuth(ctx); err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
@@ -275,24 +271,25 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 	if !e.AreCredentialsValid(ctx) || !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
 	var dialer gws.Dialer
-	err = e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx, e.Websocket.AuthConn)
+	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.AuthConn) })
 	e.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
+	return e.authenticateConnection(ctx, e.Websocket.AuthConn)
 
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+}
+
+func (e *Exchange) authenticateConnection(ctx context.Context, conn websocket.Connection) error {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
 	ts := time.Now().Unix()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
@@ -314,12 +311,10 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 			},
 		},
 	}
-
-	resp, err := e.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, "login-response", op)
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, "login-response", op)
 	if err != nil {
 		return err
 	}
-
 	var intermediary struct {
 		Code    int64  `json:"code,string"`
 		Message string `json:"msg"`
@@ -333,6 +328,7 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 	}
 
 	return getStatusError(intermediary.Code, intermediary.Message)
+
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
