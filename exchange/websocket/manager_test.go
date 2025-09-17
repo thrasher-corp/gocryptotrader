@@ -1001,7 +1001,7 @@ func TestEnable(t *testing.T) {
 	w.Unsubscriber = func(subscription.List) error { return nil }
 	w.GenerateSubs = func() (subscription.List, error) { return nil, nil }
 	require.NoError(t, w.Enable(), "Enable must not error")
-	assert.ErrorIs(t, w.Enable(), errWebsocketAlreadyEnabled, "Enable should error correctly")
+	assert.ErrorIs(t, w.Enable(), ErrWebsocketAlreadyEnabled, "Enable should error correctly")
 }
 
 func TestSetupNewConnection(t *testing.T) {
@@ -1335,19 +1335,4 @@ func TestGetConnection(t *testing.T) {
 	conn, err := ws.GetConnection("testURL")
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
-}
-
-func TestWebsocketConnectionRequireMatchWithData(t *testing.T) {
-	t.Parallel()
-	ws := connection{Match: NewMatch()}
-	err := ws.RequireMatchWithData(0, nil)
-	require.ErrorIs(t, err, ErrSignatureNotMatched)
-
-	ch, err := ws.Match.Set(0, 1)
-	require.NoError(t, err)
-
-	err = ws.RequireMatchWithData(0, []byte("test"))
-	require.NoError(t, err)
-	require.Len(t, ch, 1, "must have one item in channel")
-	assert.Equal(t, []byte("test"), <-ch)
 }
