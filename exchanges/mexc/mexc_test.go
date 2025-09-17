@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -279,7 +280,7 @@ func TestUniversalTransfer(t *testing.T) {
 	_, err = e.SubAccountUniversalTransfer(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.EMPTYCODE, 1234.)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.SubAccountUniversalTransfer(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.USDT, 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.SubAccountUniversalTransfer(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.USDT, 1234.)
@@ -338,11 +339,11 @@ func TestNewTestOrder(t *testing.T) {
 	_, err = e.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", "", 1, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 	_, err = e.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeLimit, 0, 0, 123456.78)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeLimit, 1, 0, 0)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeMarket, 0, 0, 123456.78)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeLimit, 1, 0, 123456.78)
@@ -415,11 +416,11 @@ func TestNewOrder(t *testing.T) {
 	_, err = e.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "", 1, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 	_, err = e.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeLimit, 0, 0, 123456.78)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeLimit, 1, 0, 0)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeMarket, 0, 0, 123456.78)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.NewOrder(t.Context(), spotTradablePair.String(), "123123", "BUY", typeLimit, 1, 0, 123456.78)
@@ -450,18 +451,18 @@ func TestCreateBatchOrder(t *testing.T) {
 	arg.OrderType, err = e.OrderTypeStringFromOrderTypeAndTimeInForce(order.Limit, order.UnknownTIF)
 	require.NoError(t, err)
 	_, err = e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{arg})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.Quantity = 123478.5
 	_, err = e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{arg})
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.OrderType, err = e.OrderTypeStringFromOrderTypeAndTimeInForce(order.Market, order.UnknownTIF)
 	require.NoError(t, err)
 
 	arg.Quantity = 0
 	_, err = e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{arg})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg.Quantity = 1231231
@@ -615,7 +616,7 @@ func TestWithdrawCapital(t *testing.T) {
 	_, err = e.WithdrawCapital(t.Context(), 1.2, currency.BTC, "", "BNB", "", "", "abcd", "")
 	require.ErrorIs(t, err, errAddressRequired)
 	_, err = e.WithdrawCapital(t.Context(), 0, currency.BTC, "", "BNB", "1234", core.BitcoinDonationAddress, "abcd", "")
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.WithdrawCapital(t.Context(), 1.2, currency.BTC, "", "BNB", "1234", core.BitcoinDonationAddress, "abcd", "")
@@ -691,7 +692,7 @@ func TestUserUniversalTransfer(t *testing.T) {
 	_, err = e.UserUniversalTransfer(t.Context(), "FUTURE", "SPOT", currency.EMPTYCODE, 1000)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.UserUniversalTransfer(t.Context(), "FUTURE", "SPOT", currency.USDT, 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.UserUniversalTransfer(t.Context(), "FUTURE", "SPOT", currency.USDT, 1000)
@@ -764,7 +765,7 @@ func TestInternalTransfer(t *testing.T) {
 	_, err = e.InternalTransfer(t.Context(), "EMAIL", "someone@example.com", "+251", currency.EMPTYCODE, 1.2)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.InternalTransfer(t.Context(), "EMAIL", "someone@example.com", "+251", currency.USDT, 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.InternalTransfer(t.Context(), "EMAIL", "someone@example.com", "+251", currency.USDT, 1.2)
@@ -787,7 +788,7 @@ func TestCapitalWithdrawal(t *testing.T) {
 	_, err = e.CapitalWithdrawal(t.Context(), currency.BTC, "12345678", "TRC20", "", "", "", 1234)
 	require.ErrorIs(t, err, errAddressRequired)
 	_, err = e.CapitalWithdrawal(t.Context(), currency.BTC, "1234", "TRC20", core.BitcoinDonationAddress, "", "", 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CapitalWithdrawal(t.Context(), currency.BTC, "1234", "TRC20", core.BitcoinDonationAddress, "", "", 1234)
@@ -1238,7 +1239,7 @@ func TestIncreaseDecreaseMargin(t *testing.T) {
 	err := e.IncreaseDecreaseMargin(t.Context(), 0, 0, "ADD")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	err = e.IncreaseDecreaseMargin(t.Context(), 12312312, 0, "ADD")
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	err = e.IncreaseDecreaseMargin(t.Context(), 12312312, 1.5, "")
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
@@ -1302,10 +1303,10 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	arg.Symbol = "BTC_USDT"
 	_, err = e.PlaceFuturesOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	arg.Price = 1234
 	_, err = e.PlaceFuturesOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	arg.Volume = 3
 	_, err = e.PlaceFuturesOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
@@ -1615,14 +1616,15 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, instrumentInfo.Symbols[0])
 
-	limits, err := e.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
+	lms, err := e.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
 	require.NoError(t, err)
+	require.NotNil(t, lms)
 
 	symbolDetail := instrumentInfo.Symbols[0]
 	require.NotNil(t, symbolDetail, "instrument required to be found")
-	require.Equal(t, symbolDetail.QuoteAmountPrecision.Float64(), limits.PriceStepIncrementSize)
-	assert.Equal(t, symbolDetail.BaseSizePrecision.Float64(), limits.MinimumBaseAmount)
-	assert.Equal(t, symbolDetail.MaxQuoteAmount.Float64(), limits.MaximumQuoteAmount)
+	require.Equal(t, symbolDetail.QuoteAmountPrecision.Float64(), lms.PriceStepIncrementSize)
+	assert.Equal(t, symbolDetail.BaseSizePrecision.Float64(), lms.MinimumBaseAmount)
+	assert.Equal(t, symbolDetail.MaxQuoteAmount.Float64(), lms.MaximumQuoteAmount)
 
 	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Futures)
 	require.NoErrorf(t, err, "Error fetching %s pairs for test: %v", asset.Spot, err)
@@ -1631,13 +1633,13 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, fInstrumentDetail.Data[0])
 
-	limits, err = e.GetOrderExecutionLimits(asset.Futures, futuresTradablePair)
+	lms, err = e.GetOrderExecutionLimits(asset.Futures, futuresTradablePair)
 	require.NoError(t, err)
 
 	fsymbolDetail := fInstrumentDetail.Data[0]
 	require.NotNil(t, fsymbolDetail)
-	assert.Equal(t, fsymbolDetail.PriceScale, limits.PriceStepIncrementSize)
-	assert.Equal(t, fsymbolDetail.MinVol, limits.MinimumBaseAmount)
+	assert.Equal(t, fsymbolDetail.PriceScale, lms.PriceStepIncrementSize)
+	assert.Equal(t, fsymbolDetail.MinVol, lms.MinimumBaseAmount)
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -1901,11 +1903,11 @@ func TestSubmitOrder(t *testing.T) {
 	arg.Type = order.Limit
 	arg.Side = order.Sell
 	_, err = e.SubmitOrder(t.Context(), arg)
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.Amount = .1
 	_, err = e.SubmitOrder(t.Context(), arg)
-	assert.ErrorIs(t, err, order.ErrPriceBelowMin)
+	assert.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.Price = 1234567
 	result, err := e.SubmitOrder(t.Context(), arg)

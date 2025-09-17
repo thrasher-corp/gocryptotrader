@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -499,7 +500,7 @@ func (e *Exchange) IncreaseDecreaseMargin(ctx context.Context, positionID int64,
 		return fmt.Errorf("%w: positionID is required", order.ErrOrderIDNotSet)
 	}
 	if amount <= 0 {
-		return order.ErrAmountBelowMin
+		return limits.ErrAmountBelowMin
 	}
 	if changeType == "" {
 		return fmt.Errorf("%w: changeType is required", order.ErrTypeIsInvalid)
@@ -601,10 +602,10 @@ func validateOrderParams(arg *PlaceFuturesOrderParams) (url.Values, error) {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if arg.Price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	if arg.Volume <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol)

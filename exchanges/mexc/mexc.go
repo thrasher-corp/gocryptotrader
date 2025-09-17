@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -321,7 +322,7 @@ func (e *Exchange) SubAccountUniversalTransfer(ctx context.Context, fromAccount,
 		return nil, fmt.Errorf("%w, asset %v", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("fromAccountType", fromAccountType.String())
@@ -417,7 +418,7 @@ func (e *Exchange) WithdrawCapital(ctx context.Context, amount float64, coin cur
 		return nil, fmt.Errorf("%w, withdrawal address 'address' is unset", errAddressRequired)
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("coin", coin.String())
@@ -548,24 +549,24 @@ func (e *Exchange) GetWithdrawalAddress(ctx context.Context, coin currency.Code,
 }
 
 // UserUniversalTransfer transfers an asset transfer between account types of same account
-func (e *Exchange) UserUniversalTransfer(ctx context.Context, fromAccountType, toAccountType string, asset currency.Code, amount float64) ([]UserUniversalTransferResponse, error) {
+func (e *Exchange) UserUniversalTransfer(ctx context.Context, fromAccountType, toAccountType string, ccy currency.Code, amount float64) ([]UserUniversalTransferResponse, error) {
 	if fromAccountType == "" {
 		return nil, fmt.Errorf("%w, fromAccountType is required", errAccountTypeRequired)
 	}
 	if toAccountType == "" {
 		return nil, fmt.Errorf("%w, toAccountType is required", errAccountTypeRequired)
 	}
-	if asset.IsEmpty() {
+	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	params.Set("fromAccountType", fromAccountType)
 	params.Set("toAccountType", toAccountType)
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	var resp []UserUniversalTransferResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, userUniversalTransferEPL, http.MethodPost, "capital/transfer", params, nil, &resp, true)
 }
@@ -659,23 +660,23 @@ func (e *Exchange) DustLog(ctx context.Context, startTime, endTime time.Time, pa
 }
 
 // InternalTransfer allows an internal asset transfer between assets.
-func (e *Exchange) InternalTransfer(ctx context.Context, toAccountType, toAccount, areaCode string, asset currency.Code, amount float64) (*AssetTransferResponse, error) {
+func (e *Exchange) InternalTransfer(ctx context.Context, toAccountType, toAccount, areaCode string, ccy currency.Code, amount float64) (*AssetTransferResponse, error) {
 	if toAccountType == "" {
 		return nil, fmt.Errorf("%w: toAccountType is required", errAccountTypeRequired)
 	}
 	if toAccount == "" {
 		return nil, fmt.Errorf("%w: toAccount is required", errAddressRequired)
 	}
-	if asset.IsEmpty() {
+	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("toAccountType", toAccountType)
 	params.Set("toAccount", toAccount)
-	params.Set("asset", asset.String())
+	params.Set("asset", ccy.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	if areaCode != "" {
 		params.Set("areaCode", areaCode)
@@ -717,7 +718,7 @@ func (e *Exchange) CapitalWithdrawal(ctx context.Context, coin currency.Code, wi
 		return nil, errAddressRequired
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("coin", coin.String())
@@ -793,14 +794,14 @@ func (e *Exchange) newOrder(ctx context.Context, symbol, newClientOrderID, side,
 	switch orderType {
 	case typeLimit, typeLimitMaker:
 		if quantity <= 0 {
-			return nil, fmt.Errorf("%w, quantity %v", order.ErrAmountBelowMin, quantity)
+			return nil, fmt.Errorf("%w, quantity %v", limits.ErrAmountBelowMin, quantity)
 		}
 		if price <= 0 {
-			return nil, fmt.Errorf("%w, price %v", order.ErrPriceBelowMin, price)
+			return nil, fmt.Errorf("%w, price %v", limits.ErrPriceBelowMin, price)
 		}
 	case typeMarket, typeImmediateOrCancel, typeFillOrKill:
 		if quantity <= 0 && quoteOrderQty <= 0 {
-			return nil, fmt.Errorf("%w, either quantity or quote order quantity must be filled", order.ErrAmountBelowMin)
+			return nil, fmt.Errorf("%w, either quantity or quote order quantity must be filled", limits.ErrAmountBelowMin)
 		}
 	default:
 		return nil, fmt.Errorf("%w, order type %s", order.ErrUnsupportedOrderType, orderType)
@@ -897,14 +898,14 @@ func (e *Exchange) CreateBatchOrder(ctx context.Context, args []BatchOrderCreati
 		switch args[a].OrderType {
 		case typeLimit:
 			if args[a].Quantity <= 0 {
-				return nil, fmt.Errorf("%w, quantity %v", order.ErrAmountBelowMin, args[a].Quantity)
+				return nil, fmt.Errorf("%w, quantity %v", limits.ErrAmountBelowMin, args[a].Quantity)
 			}
 			if args[a].Price <= 0 {
-				return nil, fmt.Errorf("%w, price %v", order.ErrPriceBelowMin, args[a].Price)
+				return nil, fmt.Errorf("%w, price %v", limits.ErrPriceBelowMin, args[a].Price)
 			}
 		case typeMarket:
 			if args[a].Quantity <= 0 && args[a].QuoteOrderQty <= 0 {
-				return nil, fmt.Errorf("%w, either quantity or quote order quantity must be filled", order.ErrAmountBelowMin)
+				return nil, fmt.Errorf("%w, either quantity or quote order quantity must be filled", limits.ErrAmountBelowMin)
 			}
 		default:
 			return nil, fmt.Errorf("%w, order type %s", order.ErrUnsupportedOrderType, args[a].OrderType)
