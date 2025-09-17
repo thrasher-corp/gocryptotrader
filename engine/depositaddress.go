@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -23,8 +22,11 @@ var (
 // DepositAddressManager manages the exchange deposit address store
 type DepositAddressManager struct {
 	m     sync.RWMutex
-	store map[string]map[string][]deposit.Address
+	store map[string]ExchangeDepositAddresses
 }
+
+// ExchangeDepositAddresses is a map of currencies to their deposit addresses
+type ExchangeDepositAddresses map[string][]deposit.Address
 
 // IsSynced returns whether or not the deposit address store has synced its data
 func (m *DepositAddressManager) IsSynced() bool {
@@ -39,7 +41,7 @@ func (m *DepositAddressManager) IsSynced() bool {
 // SetupDepositAddressManager returns a DepositAddressManager
 func SetupDepositAddressManager() *DepositAddressManager {
 	return &DepositAddressManager{
-		store: make(map[string]map[string][]deposit.Address),
+		store: make(map[string]ExchangeDepositAddresses),
 	}
 }
 
@@ -86,7 +88,7 @@ func (m *DepositAddressManager) GetDepositAddressByExchangeAndCurrency(exchName,
 
 // GetDepositAddressesByExchange returns a list of cryptocurrency addresses for the specified
 // exchange if they exist
-func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (map[string][]deposit.Address, error) {
+func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (ExchangeDepositAddresses, error) {
 	m.m.RLock()
 	defer m.m.RUnlock()
 
@@ -99,15 +101,15 @@ func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (
 		return nil, ErrDepositAddressNotFound
 	}
 
-	cpy := maps.Clone(r)
-	for k, v := range cpy {
+	cpy := make(ExchangeDepositAddresses, len(r))
+	for k, v := range r {
 		cpy[k] = slices.Clone(v)
 	}
 	return cpy, nil
 }
 
 // Sync synchronises all deposit addresses
-func (m *DepositAddressManager) Sync(addresses map[string]map[string][]deposit.Address) error {
+func (m *DepositAddressManager) Sync(addresses map[string]ExchangeDepositAddresses) error {
 	if m == nil {
 		return fmt.Errorf("deposit address manager %w", ErrNilSubsystem)
 	}
@@ -118,7 +120,7 @@ func (m *DepositAddressManager) Sync(addresses map[string]map[string][]deposit.A
 	}
 
 	for k, v := range addresses {
-		r := make(map[string][]deposit.Address)
+		r := make(ExchangeDepositAddresses)
 		for w, x := range v {
 			r[strings.ToUpper(w)] = x
 		}

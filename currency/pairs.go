@@ -145,7 +145,6 @@ list:
 		if p.Contains(check[x], exact) {
 			return fmt.Errorf("%s %w", check[x], ErrPairDuplication)
 		}
-
 		return fmt.Errorf("%s %w", check[x], ErrPairNotContainedInAvailablePairs)
 	}
 	return nil
