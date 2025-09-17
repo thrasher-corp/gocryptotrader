@@ -27,7 +27,7 @@ var futuresCommands = &cli.Command{
 			Name:      "getmanagedposition",
 			Aliases:   []string{"managedposition", "mp"},
 			Usage:     "retrieves an open position monitored by the order manager",
-			ArgsUsage: "<exchange> <asset> <pair> <includeorderdetails> <getfundingdata> <includefundingentries> <includepredictedrate>",
+			ArgsUsage: "<exchange> <asset> <pair> <includeorderdetails> <getfundingdata> <includefundingentries>",
 			Action:    getManagedPosition,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -60,18 +60,13 @@ var futuresCommands = &cli.Command{
 					Aliases: []string{"allfunding", "af"},
 					Usage:   "if true, will return all funding rate entries - requires --getfundingdata",
 				},
-				&cli.BoolFlag{
-					Name:    "includepredictedrate",
-					Aliases: []string{"predicted", "pr"},
-					Usage:   "if true, will return the predicted funding rate - requires --getfundingdata",
-				},
 			},
 		},
 		{
 			Name:      "getallmanagedpositions",
 			Aliases:   []string{"managedpositions", "mps"},
 			Usage:     "retrieves all open positions monitored by the order manager",
-			ArgsUsage: "<includeorderdetails> <getfundingdata> <includefundingentries> <includepredictedrate>",
+			ArgsUsage: "<includeorderdetails> <getfundingdata> <includefundingentries>",
 			Action:    getAllManagedPositions,
 			Flags: []cli.Flag{
 				&cli.BoolFlag{
@@ -88,11 +83,6 @@ var futuresCommands = &cli.Command{
 					Name:    "includefundingentries",
 					Aliases: []string{"allfunding", "af"},
 					Usage:   "if true, will return all funding rate entries - requires --getfundingdata",
-				},
-				&cli.BoolFlag{
-					Name:    "includepredictedrate",
-					Aliases: []string{"predicted", "pr"},
-					Usage:   "if true, will return the predicted funding rate - requires --getfundingdata",
 				},
 			},
 		},
@@ -582,17 +572,7 @@ func getManagedPosition(c *cli.Context) error {
 		}
 	}
 
-	var includePredictedRate bool
-	if c.IsSet("includepredictedrate") {
-		includePredictedRate = c.Bool("includepredictedrate")
-	} else if c.Args().Get(6) != "" {
-		includePredictedRate, err = strconv.ParseBool(c.Args().Get(6))
-		if err != nil {
-			return err
-		}
-	}
-
-	err = futures.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries)
+	err = futures.CheckFundingRatePrerequisites(getFundingData, includeFundingEntries)
 	if err != nil {
 		return err
 	}
@@ -616,7 +596,6 @@ func getManagedPosition(c *cli.Context) error {
 			IncludeFullOrderData:    includeOrderDetails,
 			GetFundingPayments:      getFundingData,
 			IncludeFullFundingRates: includeFundingEntries,
-			IncludePredictedRate:    includePredictedRate,
 		})
 	if err != nil {
 		return err
@@ -632,7 +611,6 @@ func getAllManagedPositions(c *cli.Context) error {
 		includeOrderDetails   bool
 		getFundingData        bool
 		includeFundingEntries bool
-		includePredictedRate  bool
 	)
 	if c.IsSet("includeorderdetails") {
 		includeOrderDetails = c.Bool("includeorderdetails")
@@ -661,16 +639,7 @@ func getAllManagedPositions(c *cli.Context) error {
 		}
 	}
 
-	if c.IsSet("includepredictedrate") {
-		includePredictedRate = c.Bool("includepredictedrate")
-	} else if c.Args().Get(2) != "" {
-		includePredictedRate, err = strconv.ParseBool(c.Args().Get(3))
-		if err != nil {
-			return err
-		}
-	}
-
-	err = futures.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries)
+	err = futures.CheckFundingRatePrerequisites(getFundingData, includeFundingEntries)
 	if err != nil {
 		return err
 	}
@@ -687,7 +656,6 @@ func getAllManagedPositions(c *cli.Context) error {
 			IncludeFullOrderData:    includeOrderDetails,
 			GetFundingPayments:      getFundingData,
 			IncludeFullFundingRates: includeFundingEntries,
-			IncludePredictedRate:    includePredictedRate,
 		})
 	if err != nil {
 		return err

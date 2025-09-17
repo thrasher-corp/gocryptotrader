@@ -4229,9 +4229,8 @@ func TestInstrument(t *testing.T) {
 func TestGetLatestFundingRate(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetLatestFundingRates(contextGenerate(), &fundingrate.LatestRateRequest{
-		Asset:                asset.PerpetualSwap,
-		Pair:                 perpetualSwapPair,
-		IncludePredictedRate: true,
+		Asset: asset.PerpetualSwap,
+		Pair:  perpetualSwapPair,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4240,12 +4239,11 @@ func TestGetLatestFundingRate(t *testing.T) {
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	r := &fundingrate.HistoricalRatesRequest{
-		Asset:                asset.PerpetualSwap,
-		Pair:                 perpetualSwapPair,
-		PaymentCurrency:      currency.USDT,
-		StartDate:            time.Now().Add(-time.Hour * 24 * 2),
-		EndDate:              time.Now(),
-		IncludePredictedRate: true,
+		Asset:           asset.PerpetualSwap,
+		Pair:            perpetualSwapPair,
+		PaymentCurrency: currency.USDT,
+		StartDate:       time.Now().Add(-time.Hour * 24 * 2),
+		EndDate:         time.Now(),
 	}
 
 	r.StartDate = time.Now().Add(-time.Hour * 24 * 120)

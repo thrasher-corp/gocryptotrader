@@ -496,7 +496,7 @@ func (m *Manager) connect() error {
 		if len(subs) == 0 {
 			// If no subscriptions are generated, we skip the connection
 			if m.verbose {
-				log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated", m.exchangeName)
+				log.Warnf(log.WebsocketMgr, "%s  [URL:%s] websocket: no subscriptions generated", m.exchangeName, m.connectionManager[i].setup.URL)
 			}
 			continue
 		}
@@ -609,8 +609,8 @@ func (m *Manager) Disable() error {
 	return nil
 }
 
-// Enable enables the exchange websocket protocol
-func (m *Manager) Enable() error {
+// EnableAndConnect enables the exchange websocket protocol and initiates a connection
+func (m *Manager) EnableAndConnect() error {
 	if m.IsConnected() || m.IsEnabled() {
 		return fmt.Errorf("%s %w", m.exchangeName, ErrWebsocketAlreadyEnabled)
 	}

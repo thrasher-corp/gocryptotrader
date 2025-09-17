@@ -1063,10 +1063,7 @@ func upsertPNLEntry(pnlHistory []PNLResult, entry *PNLResult) ([]PNLResult, erro
 }
 
 // CheckFundingRatePrerequisites is a simple check to see if the requested data meets the prerequisite
-func CheckFundingRatePrerequisites(getFundingData, includePredicted, includePayments bool) error {
-	if !getFundingData && includePredicted {
-		return fmt.Errorf("%w please include in request to get predicted funding rates", ErrGetFundingDataRequired)
-	}
+func CheckFundingRatePrerequisites(getFundingData, includePayments bool) error {
 	if !getFundingData && includePayments {
 		return fmt.Errorf("%w please include in request to get predicted funding rates", ErrGetFundingDataRequired)
 	}

@@ -1000,8 +1000,8 @@ func TestEnable(t *testing.T) {
 	w.Subscriber = func(subscription.List) error { return nil }
 	w.Unsubscriber = func(subscription.List) error { return nil }
 	w.GenerateSubs = func() (subscription.List, error) { return nil, nil }
-	require.NoError(t, w.Enable(), "Enable must not error")
-	assert.ErrorIs(t, w.Enable(), ErrWebsocketAlreadyEnabled, "Enable should error correctly")
+	require.NoError(t, w.EnableAndConnect(), "EnableAndConnect must not error")
+	assert.ErrorIs(t, w.EnableAndConnect(), ErrWebsocketAlreadyEnabled, "EnableAndConnect should error correctly")
 }
 
 func TestSetupNewConnection(t *testing.T) {
