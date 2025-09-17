@@ -11,13 +11,8 @@ import (
 // It registers a temporary channel, unregisters it via signal.Stop() and returns the received signal.
 func WaitForInterrupt() os.Signal {
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, getPlatformSignals()...)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	s := <-c
 	signal.Stop(c) // unregister to avoid keeping channel referenced/registered
 	return s
-}
-
-// getPlatformSignals returns the appropriate signals to listen for on the current platform.
-func getPlatformSignals() []os.Signal {
-	return []os.Signal{os.Interrupt, syscall.SIGTERM}
 }
