@@ -1484,7 +1484,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	end := start.Add(15 * time.Minute)
 	result, err := e.GetHistoricTrades(t.Context(), p, asset.Spot, start, end)
 	require.NoError(t, err, "GetHistoricTrades must not error")
-	assert.Greater(t, len(result), 1001, "GetHistoricTrades should enough trades")
+	assert.Greater(t, len(result), 1001, "GetHistoricTrades should have enough trades")
 	for _, r := range result {
 		require.WithinRange(t, r.Timestamp, start, end, "All trades must be within time range")
 	}

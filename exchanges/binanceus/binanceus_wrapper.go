@@ -467,8 +467,8 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 	}
 	req := AggregatedTradeRequestParams{
 		Symbol:    p,
-		StartTime: timestampStart.UnixMilli(),
-		EndTime:   timestampEnd.UnixMilli(),
+		StartTime: timestampStart,
+		EndTime:   timestampEnd,
 	}
 	trades, err := e.GetAggregateTrades(ctx, &req)
 	if err != nil {
