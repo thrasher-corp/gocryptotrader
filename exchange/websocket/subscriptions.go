@@ -284,6 +284,10 @@ func (m *Manager) FlushChannels() error {
 	}
 
 	for x := range m.connectionManager {
+		if m.connectionManager[x].setup.SubscriptionsNotRequired {
+			continue
+		}
+
 		newSubs, err := m.connectionManager[x].setup.GenerateSubscriptions()
 		if err != nil {
 			return err
@@ -306,8 +310,7 @@ func (m *Manager) FlushChannels() error {
 			m.connectionManager[x].connection = conn
 		}
 
-		err = m.updateChannelSubscriptions(m.connectionManager[x].connection, m.connectionManager[x].subscriptions, newSubs)
-		if err != nil {
+		if err := m.updateChannelSubscriptions(m.connectionManager[x].connection, m.connectionManager[x].subscriptions, newSubs); err != nil {
 			return err
 		}
 
