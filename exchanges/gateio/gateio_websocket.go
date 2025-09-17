@@ -1010,7 +1010,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 	}
 	var errs error
 	for k := range payloads {
-		result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
+		result, err := conn.SendMessageReturnResponse(request.WithVerbose(ctx), websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
