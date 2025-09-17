@@ -66,7 +66,7 @@ func (e *Exchange) WsConnectBusiness(ctx context.Context) error {
 	})
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		if err := e.authenticateConnection(ctx, e.Websocket.Conn); err != nil { // business WS uses same conn for public and private
-			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
+			log.Errorf(log.ExchangeSys, "Error authenticating business websocket: %s", err)
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
