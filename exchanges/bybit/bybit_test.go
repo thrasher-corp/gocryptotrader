@@ -3091,63 +3091,39 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, 0.358635, v[0].Fee, "fee should be correct")
 			assert.Equal(t, time.UnixMilli(1672364262444), v[0].Date, "Created time should be correct")
 			assert.Equal(t, time.UnixMilli(1672364262457), v[0].LastUpdated, "Updated time should be correct")
-		case []accounts.Change:
-			require.Len(t, v, 6, "must see 6 items")
-			for i, change := range v {
-				assert.Empty(t, change.Account, "Account type should be empty")
-				assert.Equal(t, asset.Spot, change.AssetType, "Asset type should be Spot")
-				require.NotNil(t, change.Balance, "balance must not be nil")
-				switch i {
-				case 0:
-					assert.True(t, currency.USDC.Equal(change.Balance.Currency), "currency should match")
-					assert.Zero(t, change.Balance.AvailableWithoutBorrow, "AvailableWithoutBorrow should zero")
-					assert.Zero(t, change.Balance.Borrowed, "Borrowed should be 0")
-					assert.Equal(t, 201.34882644, change.Balance.Free, "Free should be correct")
-					assert.Zero(t, change.Balance.Hold, "Hold should be 0")
-					assert.Equal(t, 201.34882644, change.Balance.Total, "Total should be correct")
-					assert.Equal(t, time.UnixMilli(1672364262482), change.Balance.UpdatedAt, "Last updated should be correct")
-				case 1:
-					assert.True(t, currency.BTC.Equal(change.Balance.Currency), "currency should match")
-					assert.Equal(t, 0.06488393, change.Balance.Free, "Free should be correct")
-					assert.Zero(t, change.Balance.AvailableWithoutBorrow, "AvailableWithoutBorrow should zero")
-					assert.Zero(t, change.Balance.Borrowed, "Borrowed should be 0")
-					assert.Zero(t, change.Balance.Hold, "Hold should be 0")
-					assert.Equal(t, 0.06488393, change.Balance.Total, "Total should be correct")
-					assert.Equal(t, time.UnixMilli(1672364262482), change.Balance.UpdatedAt, "Last updated should be correct")
-				case 2:
-					assert.True(t, currency.ETH.Equal(change.Balance.Currency), "currency should match")
-					assert.Zero(t, change.Balance.Free, "Free should be 0")
-					assert.Zero(t, change.Balance.AvailableWithoutBorrow, "AvailableWithoutBorrow should zero")
-					assert.Zero(t, change.Balance.Borrowed, "Borrowed should be 0")
-					assert.Zero(t, change.Balance.Hold, "Hold should be 0")
-					assert.Zero(t, change.Balance.Total, "Total should be 0")
-					assert.Equal(t, time.UnixMilli(1672364262482), change.Balance.UpdatedAt, "Last updated should be correct")
-				case 3:
-					assert.True(t, currency.USDT.Equal(change.Balance.Currency), "currency should match")
-					assert.Equal(t, 11728.54414904, change.Balance.Free, "Free should be correct")
-					assert.Zero(t, change.Balance.AvailableWithoutBorrow, "AvailableWithoutBorrow should be 0")
-					assert.Zero(t, change.Balance.Borrowed, "Borrowed should be 0")
-					assert.Zero(t, change.Balance.Hold, "Hold should be 0")
-					assert.Equal(t, 11728.54414904, change.Balance.Total, "Total should be correct")
-					assert.Equal(t, time.UnixMilli(1672364262482), change.Balance.UpdatedAt, "Last updated should be correct")
-				case 4:
-					assert.True(t, currency.NewCode("EOS3L").Equal(change.Balance.Currency), "currency should match")
-					assert.Equal(t, 215.0570412, change.Balance.Free, "Free should be correct")
-					assert.Zero(t, change.Balance.AvailableWithoutBorrow, "AvailableWithoutBorrow should be 0")
-					assert.Zero(t, change.Balance.Borrowed, "Borrowed should be 0")
-					assert.Zero(t, change.Balance.Hold, "Hold should be 0")
-					assert.Equal(t, 215.0570412, change.Balance.Total, "Total should be correct")
-					assert.Equal(t, time.UnixMilli(1672364262482), change.Balance.UpdatedAt, "Last updated should be correct")
-				case 5:
-					assert.True(t, currency.BIT.Equal(change.Balance.Currency), "currency should match")
-					assert.Equal(t, 1.82, change.Balance.Free, "Free should be correct")
-					assert.Zero(t, change.Balance.AvailableWithoutBorrow, "AvailableWithoutBorrow should be 0")
-					assert.Zero(t, change.Balance.Borrowed, "Borrowed should be 0")
-					assert.Zero(t, change.Balance.Hold, "Hold should be 0")
-					assert.Equal(t, 1.82, change.Balance.Total, "Total should be correct")
-					assert.Equal(t, time.UnixMilli(1672364262482), change.Balance.UpdatedAt, "Last updated should be correct")
-				}
-			}
+		case accounts.SubAccounts:
+			require.Len(t, v, 1, "Must have correct number of SubAccounts")
+			assert.Equal(t, asset.Spot, v[0].AssetType, "Asset type should be correct")
+			exp := accounts.CurrencyBalances{}
+			exp.Set(currency.ETH, accounts.Balance{
+				UpdatedAt: time.UnixMilli(1672364262482),
+			})
+			exp.Set(currency.USDT, accounts.Balance{
+				UpdatedAt: time.UnixMilli(1672364262482),
+				Total:     11728.54414904,
+				Free:      11728.54414904,
+			})
+			exp.Set(currency.EOS3L, accounts.Balance{
+				UpdatedAt: time.UnixMilli(1672364262482),
+				Total:     215.0570412,
+				Free:      215.0570412,
+			})
+			exp.Set(currency.BIT, accounts.Balance{
+				UpdatedAt: time.UnixMilli(1672364262482),
+				Total:     1.82,
+				Free:      1.82,
+			})
+			exp.Set(currency.USDC, accounts.Balance{
+				UpdatedAt: time.UnixMilli(1672364262482),
+				Total:     201.34882644,
+				Free:      201.34882644,
+			})
+			exp.Set(currency.BTC, accounts.Balance{
+				UpdatedAt: time.UnixMilli(1672364262482),
+				Total:     0.06488393,
+				Free:      0.06488393,
+			})
+			assert.Equal(t, exp, v[0].Balances, "Balances should be correct")
 		case *GreeksResponse:
 			assert.Equal(t, "592324fa945a30-2603-49a5-b865-21668c29f2a6", v.ID, "ID should be correct")
 			assert.Equal(t, "greeks", v.Topic, "Topic should be correct")
@@ -3172,7 +3148,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, 0.3374, v[0].Price, "price should be correct")
 			assert.Equal(t, 25.0, v[0].Amount, "amount should be correct")
 		default:
-			t.Errorf("Unexpected data received: %v", v)
+			t.Errorf("Unexpected data received: %T %v", v, v)
 		}
 	}
 }
