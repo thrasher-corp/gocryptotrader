@@ -143,7 +143,11 @@ func (e *Exchange) WebsocketAuthenticateTradeConnection(ctx context.Context, con
 		return err
 	}
 	if response.ReturnCode != 0 {
-		return fmt.Errorf("%s failed - code:%d [%v] msg:%s", response.Operation, response.ReturnCode, retCode[response.ReturnCode], response.ReturnMessage)
+		c, ok := retCode[response.ReturnCode]
+		if !ok {
+			c = "unknown return error code"
+		}
+		return fmt.Errorf("%s failed - code:%d [%v] msg:%s", response.Operation, response.ReturnCode, c, response.ReturnMessage)
 	}
 	return nil
 }

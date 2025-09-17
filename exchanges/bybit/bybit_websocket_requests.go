@@ -137,4 +137,5 @@ var retCode = map[int64]string{
 	10016: "internal server error",
 	10019: "ws trade service is restarting, please reconnect",
 	20003: "too frequent requests under the same session",
+	10403: "exceed IP rate limit. 3000 requests per second per IP",
 }
