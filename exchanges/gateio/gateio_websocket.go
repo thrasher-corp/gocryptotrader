@@ -201,7 +201,7 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 	case spotOrderbookChannel:
 		return e.processOrderbookSnapshot(push.Result, push.Time)
 	case spotOrderbookUpdateWithSnapshotChannel:
-		return e.processOrderbookUpdateWithSnapshot(conn, push.Result, push.Time)
+		return e.processOrderbookUpdateWithSnapshot(conn, push.Result, push.Time, asset.Spot)
 	case spotOrdersChannel:
 		return e.processSpotOrders(respRaw)
 	case spotUserTradesChannel:
@@ -441,7 +441,7 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 	return nil
 }
 
-func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection, incoming []byte, lastPushed time.Time) error {
+func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection, incoming []byte, lastPushed time.Time, a asset.Item) error {
 	var data WsOrderbookUpdateWithSnapshot
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -468,38 +468,31 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 		return err
 	}
 
-	var errs error
-	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := e.CurrencyPairs.IsPairEnabled(pair, a); !enabled {
-			continue
+	if data.Full {
+		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:     e.Name,
+			Pair:         pair,
+			Asset:        a,
+			LastUpdated:  data.UpdateTime.Time(),
+			LastPushed:   lastPushed,
+			LastUpdateID: data.LastUpdateID,
+			Bids:         bids,
+			Asks:         asks,
+		}); err != nil {
+			return err
 		}
-		if data.Full {
-			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Exchange:     e.Name,
-				Pair:         pair,
-				Asset:        a,
-				LastUpdated:  data.UpdateTime.Time(),
-				LastPushed:   lastPushed,
-				LastUpdateID: data.LastUpdateID,
-				Bids:         bids,
-				Asks:         asks,
-			}); err != nil {
-				return err
-			}
-			e.wsOBResubMgr.CompletedResubscribe(pair, defaultExclusiveAsset)
-			continue
-		}
+		e.wsOBResubMgr.CompletedResubscribe(pair, a)
+		return nil
+	}
 
-		if e.wsOBResubMgr.IsResubscribing(pair, defaultExclusiveAsset) {
-			continue // Drop incremental updates; waiting for a fresh snapshot
-		}
+	if e.wsOBResubMgr.IsResubscribing(pair, a) {
+		return nil // Drop incremental updates; waiting for a fresh snapshot
+	}
 
-		if lastUpdateID, _ := e.Websocket.Orderbook.LastUpdateID(pair, a); lastUpdateID+1 != data.FirstUpdateID {
-			errs = common.AppendError(errs, e.wsOBResubMgr.Resubscribe(e, conn, data.Channel, pair, defaultExclusiveAsset))
-			continue
-		}
+	lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(pair, a)
 
-		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
+	if lastUpdateID+1 == data.FirstUpdateID {
+		if err = e.Websocket.Orderbook.Update(&orderbook.Update{
 			Pair:       pair,
 			Asset:      a,
 			UpdateTime: data.UpdateTime.Time(),
@@ -508,11 +501,12 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 			Bids:       bids,
 			Asks:       asks,
 			AllowEmpty: true,
-		}); err != nil {
-			return err
+		}); err == nil {
+			return nil
 		}
 	}
-	return errs
+
+	return common.AppendError(err, e.wsOBResubMgr.Resubscribe(e, conn, data.Channel, pair, a))
 }
 
 func (e *Exchange) processSpotOrders(data []byte) error {

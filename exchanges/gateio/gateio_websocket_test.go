@@ -229,7 +229,6 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 		{payload: []byte(`{"s":"ob.50"}`), err: errMalformedData},
 		{payload: []byte(`{"s":"ob..50"}`), err: currency.ErrCannotCreatePair},
 		{payload: []byte(`{"s":"ob.BTC_USDT.50","full":true}`), err: orderbook.ErrLastUpdatedNotSet},
-		{payload: []byte(`{"s":"ob.DING_USDT.50","full":true}`), err: nil}, // asset not enabled
 		{
 			// Simulate orderbook update already resubscribing
 			payload: []byte(`{"t":1757377580073,"s":"ob.BTC_USDT.50","u":27053258987,"U":27053258982,"b":[["111666","0.146841"]],"a":[["111666.1","0.791633"],["111676.8","0.014"]]}`),
@@ -251,7 +250,7 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 			err:     nil,
 		},
 	} {
-		err := e.processOrderbookUpdateWithSnapshot(conn, tc.payload, time.Now())
+		err := e.processOrderbookUpdateWithSnapshot(conn, tc.payload, time.Now(), asset.Spot)
 		if tc.err != nil {
 			require.ErrorIs(t, err, tc.err)
 			continue
