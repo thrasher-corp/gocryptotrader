@@ -1665,6 +1665,7 @@ func TestString(t *testing.T) {
 		{WebsocketUSDTMargined, websocketUSDTMarginedURL},
 		{WebsocketUSDCMargined, websocketUSDCMarginedURL},
 		{WebsocketOptions, websocketOptionsURL},
+		{WebsocketTrade, websocketTradeURL},
 		{WebsocketPrivate, websocketPrivateURL},
 		{WebsocketSpotSupplementary, websocketSpotSupplementaryURL},
 		{ChainAnalysis, chainAnalysisURL},
@@ -1828,6 +1829,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		{Endpoint: websocketUSDTMarginedURL, Expected: WebsocketUSDTMargined},
 		{Endpoint: websocketUSDCMarginedURL, Expected: WebsocketUSDCMargined},
 		{Endpoint: websocketOptionsURL, Expected: WebsocketOptions},
+		{Endpoint: websocketTradeURL, Expected: WebsocketTrade},
 		{Endpoint: websocketPrivateURL, Expected: WebsocketPrivate},
 		{Endpoint: websocketSpotSupplementaryURL, Expected: WebsocketSpotSupplementary},
 		{Endpoint: chainAnalysisURL, Expected: ChainAnalysis},
@@ -2874,6 +2876,18 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 func TestWebsocketSubmitOrders(t *testing.T) {
 	t.Parallel()
 	_, err := (&Base{}).WebsocketSubmitOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketModifyOrder(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).WebsocketModifyOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketCancelOrder(t *testing.T) {
+	t.Parallel()
+	err := (&Base{}).WebsocketCancelOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 

@@ -57,10 +57,6 @@ const (
 
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
-
-	// Used for orderbook resubscription management so as to not compete with margin/cross-margin updates as they use
-	// the same orderbook
-	defaultExclusiveAsset = asset.Spot
 )
 
 var defaultSubscriptions = subscription.List{
