@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -6085,6 +6086,46 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp = subscription.List{{Channel: channelGridPositions, QualifiedChannel: `{"channel":"grid-positions"}`}}
 	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestBusinessWSCandleSubscriptions(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Setup must not error")
+
+	err := e.WsConnectBusiness(t.Context())
+	require.NoError(t, err, "WsConnectBusiness must not error")
+
+	err = e.BusinessSubscribe(t.Context(), subscription.List{{Channel: channelCandle1D}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	p := currency.Pairs{
+		mainPair,
+		currency.NewPairWithDelimiter("ETH", "USDT", "-"),
+		currency.NewPairWithDelimiter("OKB", "USDT", "-"),
+	}
+
+	for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
+		err := e.BusinessSubscribe(t.Context(), subscription.List{{Channel: ch, Pairs: p[i : i+1]}})
+		require.NoErrorf(t, err, "BusinessSubscribe %s-%s must not error", ch, p[i])
+	}
+
+	var got currency.Pairs
+	assert.Eventually(t, func() bool {
+		select {
+		case a := <-e.Websocket.DataHandler:
+			switch v := a.(type) {
+			case websocket.KlineData:
+				got = got.Add(v.Pair)
+			case []CandlestickMarkPrice:
+				if len(v) > 0 {
+					got = got.Add(v[0].Pair)
+				}
+			}
+		default:
+		}
+		return len(got) == 3
+	}, 4*time.Second, 100*time.Millisecond, "Should eventually get candles from the datahandler")
 }
 
 const (

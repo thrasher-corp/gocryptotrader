@@ -769,7 +769,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		End:       defaultEnd.Format(common.SimpleTimeFormatWithTimezone),
 		AssetType: asset.Spot.String(),
 	})
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	_, err = s.GetHistoricCandles(t.Context(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: "bruh",
@@ -1319,7 +1319,7 @@ func TestGetOrders(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Pair:      p,
 	})
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	_, err = s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
 		Exchange:  "bruh",
@@ -1838,7 +1838,7 @@ func TestGetManagedOrders(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Pair:      p,
 	})
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	_, err = s.GetManagedOrders(t.Context(), &gctrpc.GetOrdersRequest{
 		Exchange:  "bruh",
@@ -2336,7 +2336,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 	}
 
 	_, err = s.GetTechnicalAnalysis(t.Context(), &gctrpc.GetTechnicalAnalysisRequest{})
-	require.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	_, err = s.GetTechnicalAnalysis(t.Context(), &gctrpc.GetTechnicalAnalysisRequest{
 		Exchange: fakeExchangeName,
@@ -2572,7 +2572,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 	request := &gctrpc.GetMarginRatesHistoryRequest{}
 	_, err = s.GetMarginRatesHistory(t.Context(), request)
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	request.Exchange = fakeExchangeName
 	_, err = s.GetMarginRatesHistory(t.Context(), request)
@@ -2725,7 +2725,7 @@ func TestGetFundingRates(t *testing.T) {
 		IncludePayments:  false,
 	}
 	_, err = s.GetFundingRates(t.Context(), request)
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	request.Exchange = exch.GetName()
 	_, err = s.GetFundingRates(t.Context(), request)
@@ -2818,7 +2818,7 @@ func TestGetLatestFundingRate(t *testing.T) {
 		IncludePredicted: false,
 	}
 	_, err = s.GetLatestFundingRate(t.Context(), request)
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	request.Exchange = exch.GetName()
 	_, err = s.GetLatestFundingRate(t.Context(), request)
@@ -2910,7 +2910,7 @@ func TestGetManagedPosition(t *testing.T) {
 		Quote:     "USD",
 	}
 	_, err = s.GetManagedPosition(t.Context(), request)
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	request.Exchange = fakeExchangeName
 	_, err = s.GetManagedPosition(t.Context(), request)
@@ -3095,7 +3095,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 
 	req := &gctrpc.GetOrderbookMovementRequest{}
 	_, err = s.GetOrderbookMovement(t.Context(), req)
-	require.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	req.Exchange = "fake"
 	_, err = s.GetOrderbookMovement(t.Context(), req)
@@ -3188,7 +3188,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 
 	req := &gctrpc.GetOrderbookAmountByNominalRequest{}
 	_, err = s.GetOrderbookAmountByNominal(t.Context(), req)
-	require.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	req.Exchange = "fake"
 	_, err = s.GetOrderbookAmountByNominal(t.Context(), req)
@@ -3274,7 +3274,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 
 	req := &gctrpc.GetOrderbookAmountByImpactRequest{}
 	_, err = s.GetOrderbookAmountByImpact(t.Context(), req)
-	require.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	req.Exchange = "fake"
 	_, err = s.GetOrderbookAmountByImpact(t.Context(), req)
@@ -3610,7 +3610,7 @@ func TestSetCollateralMode(t *testing.T) {
 
 	req := &gctrpc.SetCollateralModeRequest{}
 	_, err = s.SetCollateralMode(t.Context(), req)
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	req.Exchange = fakeExchangeName
 	req.Asset = asset.USDTMarginedFutures.String()
@@ -3647,7 +3647,7 @@ func TestGetCollateralMode(t *testing.T) {
 
 	req := &gctrpc.GetCollateralModeRequest{}
 	_, err = s.GetCollateralMode(t.Context(), req)
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	req.Exchange = fakeExchangeName
 	req.Asset = asset.USDTMarginedFutures.String()
@@ -3682,7 +3682,7 @@ func TestGetOpenInterest(t *testing.T) {
 
 	req := &gctrpc.GetOpenInterestRequest{}
 	_, err = s.GetOpenInterest(t.Context(), req)
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	req.Exchange = fakeExchangeName
 	_, err = s.GetOpenInterest(t.Context(), req)
@@ -3868,7 +3868,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 
 	req := &gctrpc.GetCurrencyTradeURLRequest{}
 	_, err = s.GetCurrencyTradeURL(t.Context(), req)
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	req.Exchange = fakeExchangeName
 	_, err = s.GetCurrencyTradeURL(t.Context(), req)

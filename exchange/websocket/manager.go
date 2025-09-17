@@ -25,11 +25,11 @@ import (
 var (
 	ErrWebsocketNotEnabled     = errors.New("websocket not enabled")
 	ErrAlreadyDisabled         = errors.New("websocket already disabled")
+	ErrWebsocketAlreadyEnabled = errors.New("websocket already enabled")
 	ErrNotConnected            = errors.New("websocket is not connected")
 	ErrSignatureTimeout        = errors.New("websocket timeout waiting for response with signature")
 	ErrRequestRouteNotFound    = errors.New("request route not found")
 	ErrSignatureNotSet         = errors.New("signature not set")
-	ErrWebsocketAlreadyEnabled = errors.New("websocket already enabled")
 )
 
 // Private websocket errors
