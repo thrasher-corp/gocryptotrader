@@ -1489,23 +1489,25 @@ func modifyOrder(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	modifyOrderParams := &ModifyOrderParams{}
-	modifyOrderParams.AssetType = strings.ToLower(modifyOrderParams.AssetType)
-	if !validAsset(modifyOrderParams.AssetType) {
+	arg := &ModifyOrderParams{}
+	if err := UnmarshalCLIFields(c, arg); err != nil {
+		return err
+	}
+	arg.AssetType = strings.ToLower(arg.AssetType)
+	if !validAsset(arg.AssetType) {
 		return errInvalidAsset
 	}
 
-	if !validPair(modifyOrderParams.CurrencyPair) {
+	if !validPair(arg.CurrencyPair) {
 		return errInvalidPair
 	}
 
-	p, err := currency.NewPairDelimiter(modifyOrderParams.CurrencyPair, pairDelimiter)
+	p, err := currency.NewPairFromString(arg.CurrencyPair)
 	if err != nil {
 		return err
 	}
 
-	if modifyOrderParams.Price == 0 && modifyOrderParams.Amount == 0 {
+	if arg.Price == 0 && arg.Amount == 0 {
 		return errors.New("either --price or --amount should be present")
 	}
 
@@ -1518,32 +1520,32 @@ func modifyOrder(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.ModifyOrder(c.Context, &gctrpc.ModifyOrderRequest{
-		Exchange: modifyOrderParams.ExchangeName,
-		OrderId:  modifyOrderParams.OrderID,
+		Exchange: arg.ExchangeName,
+		OrderId:  arg.OrderID,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		Asset:             modifyOrderParams.AssetType,
-		Price:             modifyOrderParams.Price,
-		Amount:            modifyOrderParams.Amount,
-		Type:              modifyOrderParams.OrderType,
-		Side:              modifyOrderParams.OrderSide,
-		TimeInForce:       modifyOrderParams.TimeInForce,
-		ClientOrderId:     modifyOrderParams.ClientOrderID,
-		TriggerPrice:      modifyOrderParams.TriggerPrice,
-		TriggerLimitPrice: modifyOrderParams.TriggerLimitPrice,
-		TriggerPriceType:  modifyOrderParams.TriggerPriceType,
+		Asset:             arg.AssetType,
+		Price:             arg.Price,
+		Amount:            arg.Amount,
+		Type:              arg.OrderType,
+		Side:              arg.OrderSide,
+		TimeInForce:       arg.TimeInForce,
+		ClientOrderId:     arg.ClientOrderID,
+		TriggerPrice:      arg.TriggerPrice,
+		TriggerLimitPrice: arg.TriggerLimitPrice,
+		TriggerPriceType:  arg.TriggerPriceType,
 		StopLoss: &gctrpc.RiskManagement{
-			Price:      modifyOrderParams.SlPrice,
-			LimitPrice: modifyOrderParams.SlLimitPrice,
-			PriceType:  modifyOrderParams.SlPriceType,
+			Price:      arg.SlPrice,
+			LimitPrice: arg.SlLimitPrice,
+			PriceType:  arg.SlPriceType,
 		},
 		TakeProfit: &gctrpc.RiskManagement{
-			Price:      modifyOrderParams.TpPrice,
-			LimitPrice: modifyOrderParams.TpLimitPrice,
-			PriceType:  modifyOrderParams.TpPriceType,
+			Price:      arg.TpPrice,
+			LimitPrice: arg.TpLimitPrice,
+			PriceType:  arg.TpPriceType,
 		},
 	})
 	if err != nil {

@@ -1217,20 +1217,24 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		Hidden:            r.Hidden,
 		Iceberg:           r.Iceberg,
 		AutoBorrow:        r.AutoBorrow,
-		StopLoss: order.RiskManagement{
+		TrackingMode:      order.StringToTrackingMode(r.TrackingMode),
+		TrackingValue:     r.TrackingValue,
+		RetrieveFees:      r.RetrieveFees,
+		RetrieveFeeDelay:  time.Millisecond * time.Duration(r.RetrieveFeeDelayMs),
+	}
+	if r.StopLoss != nil {
+		submission.StopLoss = order.RiskManagement{
 			Price:            r.StopLoss.Price,
 			LimitPrice:       r.StopLoss.LimitPrice,
 			TriggerPriceType: order.StringToPriceType(r.StopLoss.PriceType),
-		},
-		TakeProfit: order.RiskManagement{
+		}
+	}
+	if r.TakeProfit != nil {
+		submission.TakeProfit = order.RiskManagement{
 			Price:            r.TakeProfit.Price,
 			LimitPrice:       r.TakeProfit.LimitPrice,
 			TriggerPriceType: order.StringToPriceType(r.TakeProfit.PriceType),
-		},
-		TrackingMode:     order.StringToTrackingMode(r.TrackingMode),
-		TrackingValue:    r.TrackingValue,
-		RetrieveFees:     r.RetrieveFees,
-		RetrieveFeeDelay: time.Millisecond * time.Duration(r.RetrieveFeeDelayMs),
+		}
 	}
 	if r.MarginType != "" {
 		submission.MarginType = marginType
@@ -1533,7 +1537,7 @@ func (s *RPCServer) ModifyOrder(ctx context.Context, r *gctrpc.ModifyOrderReques
 	if err != nil {
 		return nil, err
 	}
-	resp, err := s.OrderManager.Modify(ctx, &order.Modify{
+	arg := &order.Modify{
 		Exchange:          r.Exchange,
 		AssetType:         assetType,
 		Pair:              pair,
@@ -1547,17 +1551,22 @@ func (s *RPCServer) ModifyOrder(ctx context.Context, r *gctrpc.ModifyOrderReques
 		TriggerPrice:      r.TriggerPrice,
 		TriggerLimitPrice: r.TriggerLimitPrice,
 		TriggerPriceType:  order.StringToPriceType(r.TriggerPriceType),
-		StopLoss: order.RiskManagement{
+	}
+	if r.StopLoss != nil {
+		arg.StopLoss = order.RiskManagement{
 			Price:            r.StopLoss.Price,
 			LimitPrice:       r.StopLoss.LimitPrice,
 			TriggerPriceType: order.StringToPriceType(r.StopLoss.PriceType),
-		},
-		TakeProfit: order.RiskManagement{
+		}
+	}
+	if r.TakeProfit != nil {
+		arg.TakeProfit = order.RiskManagement{
 			Price:            r.TakeProfit.Price,
 			LimitPrice:       r.TakeProfit.LimitPrice,
 			TriggerPriceType: order.StringToPriceType(r.TakeProfit.PriceType),
-		},
-	})
+		}
+	}
+	resp, err := s.OrderManager.Modify(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
