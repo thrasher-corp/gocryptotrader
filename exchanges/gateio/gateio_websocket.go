@@ -595,7 +595,7 @@ func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) e
 		})
 		subAccts = subAccts.Merge(a)
 	}
-	if err = e.Accounts.Save(ctx, subAccts, false); err != nil {
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- subAccts

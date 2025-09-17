@@ -48,7 +48,7 @@ type websocketBalancesTest struct {
 	expected    accounts.SubAccounts
 }
 
-func TestProcessSpotBalances(t *testing.T) {
+func TestProcessSpotBalances(t *testing.T) { //nolint:tparallel // Sequential tests, do not use t.Parallel(); Some timestamps are deliberately identical from trading activity
 	t.Parallel()
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	e.SetDefaults()
@@ -118,7 +118,7 @@ func TestProcessSpotBalances(t *testing.T) {
 	}
 }
 
-func TestProcessBalancePushData(t *testing.T) {
+func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential tests, do not use t.Parallel(); Some timestamps are deliberately identical from trading activity
 	t.Parallel()
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	e.SetDefaults()
