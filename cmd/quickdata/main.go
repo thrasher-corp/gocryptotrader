@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchange/quickspy"
+	"github.com/thrasher-corp/gocryptotrader/exchange/quickdata"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -47,7 +47,7 @@ type appConfig struct {
 	Exchange     string
 	Asset        asset.Item
 	Pair         currency.Pair
-	FocusType    quickspy.FocusType
+	FocusType    quickdata.FocusType
 	UseWebsocket bool
 	PollInterval time.Duration
 	BookLevels   int
@@ -64,12 +64,12 @@ func main() {
 	defer cancel()
 	ctx = account.DeployCredentialsToContext(ctx, cfg.Credentials)
 	k := key.NewExchangeAssetPair(cfg.Exchange, cfg.Asset, cfg.Pair)
-	qsChan, err := quickspy.NewQuickestSpy(ctx, &k, cfg.FocusType)
+	qsChan, err := quickdata.NewQuickestData(ctx, &k, cfg.FocusType)
 	if err != nil {
 		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
 		return
 	}
-	outPrintln("Quickspy setup, waiting for initial data...")
+	outPrintln("QuickData setup, waiting for initial data...")
 	if err := streamData(ctx, qsChan, cfg); err != nil {
 		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
 		return
@@ -116,7 +116,7 @@ func parseFlags() *appConfig {
 
 	// Parse focus type and defaults
 	fType := parseFocusType(*focusStr)
-	if fType == quickspy.UnsetFocusType {
+	if fType == quickdata.UnsetFocusType {
 		fatalErr(fmt.Errorf("unsupported focusType: %s", *focusStr))
 	}
 
@@ -127,7 +127,7 @@ func parseFlags() *appConfig {
 
 	// Credentials (only applied when supplied or required by focus)
 	var creds *account.Credentials
-	if quickspy.RequiresAuth(fType) {
+	if quickdata.RequiresAuth(fType) {
 		creds = &account.Credentials{
 			Key:             strings.TrimSpace(*apiKey),
 			Secret:          strings.TrimSpace(*apiSecret),
@@ -167,7 +167,7 @@ func streamData(ctx context.Context, c <-chan any, cfg *appConfig) error {
 				heading := fmt.Sprintf("%s | %s | %s", cfg.Exchange, cfg.Asset, cfg.Pair)
 				outPrintf("%s%s%s\n", ansiBold, heading, ansiReset)
 				renderPrettyPayload(d, cfg.BookLevels)
-				if cfg.FocusType != quickspy.TickerFocusType && cfg.FocusType != quickspy.KlineFocusType && cfg.FocusType != quickspy.OrderBookFocusType {
+				if cfg.FocusType != quickdata.TickerFocusType && cfg.FocusType != quickdata.KlineFocusType && cfg.FocusType != quickdata.OrderBookFocusType {
 					// executive decision to not render large payloads
 					emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Data: d})
 				}
@@ -183,34 +183,34 @@ func emit(ev eventEnvelope) {
 	}
 }
 
-func parseFocusType(s string) quickspy.FocusType {
+func parseFocusType(s string) quickdata.FocusType {
 	// returns (focusType, useWebsocketDefault)
 	s = strings.TrimSpace(strings.ToLower(s))
 	switch s {
 	case "ticker", "tick":
-		return quickspy.TickerFocusType
+		return quickdata.TickerFocusType
 	case "orderbook", "order_book", "ob", "book":
-		return quickspy.OrderBookFocusType
+		return quickdata.OrderBookFocusType
 	case "kline", "candles", "candle", "ohlc":
-		return quickspy.KlineFocusType
+		return quickdata.KlineFocusType
 	case "trades", "trade":
-		return quickspy.TradesFocusType
+		return quickdata.TradesFocusType
 	case "openinterest", "oi":
-		return quickspy.OpenInterestFocusType
+		return quickdata.OpenInterestFocusType
 	case "fundingrate", "funding":
-		return quickspy.FundingRateFocusType
+		return quickdata.FundingRateFocusType
 	case "accountholdings", "account", "holdings", "balances":
-		return quickspy.AccountHoldingsFocusType
+		return quickdata.AccountHoldingsFocusType
 	case "activeorders", "orders":
-		return quickspy.ActiveOrdersFocusType
+		return quickdata.ActiveOrdersFocusType
 	case "orderexecution", "executionlimits", "limits":
-		return quickspy.OrderLimitsFocusType
+		return quickdata.OrderLimitsFocusType
 	case "url", "tradeurl", "trade_url":
-		return quickspy.URLFocusType
+		return quickdata.URLFocusType
 	case "contract":
-		return quickspy.ContractFocusType
+		return quickdata.ContractFocusType
 	default:
-		return quickspy.UnsetFocusType
+		return quickdata.UnsetFocusType
 	}
 }
 

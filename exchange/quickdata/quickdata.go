@@ -1,4 +1,4 @@
-package quickspy
+package quickdata
 
 import (
 	"context"
@@ -25,8 +25,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// NewQuickSpy returns a running quickspy if everything passed in is valid
-func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (*QuickSpy, error) {
+// NewQuickData returns a running quickData if everything passed in is valid
+func NewQuickData(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (*QuickData, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -48,7 +48,7 @@ func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (
 		sm.Upsert(focuses[i].focusType, focuses[i])
 	}
 
-	q := &QuickSpy{
+	q := &QuickData{
 		key:                k,
 		dataHandlerChannel: make(chan any, 10),
 		focuses:            sm,
@@ -74,10 +74,10 @@ func NewQuickSpy(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (
 	return q, nil
 }
 
-// NewQuickerSpy spins up a quickspy with a single focus to quickly return data to the user
+// NewQuickerData spins up a quickData with a single focus to quickly return data to the user
 // auto opt-in to use websocket as it has REST fallback
 // imbue context with credentials to utilise private endpoints
-func NewQuickerSpy(ctx context.Context, k *key.ExchangeAssetPair, focus FocusType) (*QuickSpy, error) {
+func NewQuickerData(ctx context.Context, k *key.ExchangeAssetPair, focus FocusType) (*QuickData, error) {
 	if err := common.NilGuard(k); err != nil {
 		return nil, err
 	}
@@ -93,17 +93,17 @@ func NewQuickerSpy(ctx context.Context, k *key.ExchangeAssetPair, focus FocusTyp
 		ExchangeAssetPair: *k,
 		Credentials:       account.GetCredentialsFromContext(ctx),
 	}
-	q, err := NewQuickSpy(ctx, ck, []*FocusData{focusData})
+	q, err := NewQuickData(ctx, ck, []*FocusData{focusData})
 	if err != nil {
 		return nil, err
 	}
 	return q, nil
 }
 
-// NewQuickestSpy spins up a quickspy with a single focus and returns the data channel which streams results
+// NewQuickestData spins up a quickData with a single focus and returns the data channel which streams results
 // auto opt-in to use websocket as it has REST fallback
 // imbue context with credentials to utilise private endpoints
-func NewQuickestSpy(ctx context.Context, k *key.ExchangeAssetPair, focus FocusType) (chan any, error) {
+func NewQuickestData(ctx context.Context, k *key.ExchangeAssetPair, focus FocusType) (chan any, error) {
 	if err := common.NilGuard(k); err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func NewQuickestSpy(ctx context.Context, k *key.ExchangeAssetPair, focus FocusTy
 		ExchangeAssetPair: *k,
 		Credentials:       account.GetCredentialsFromContext(ctx),
 	}
-	q, err := NewQuickSpy(ctx, ck, []*FocusData{focusData})
+	q, err := NewQuickData(ctx, ck, []*FocusData{focusData})
 	if err != nil {
 		return nil, err
 	}
@@ -131,8 +131,8 @@ func NewQuickestSpy(ctx context.Context, k *key.ExchangeAssetPair, focus FocusTy
 	return fd.Stream, nil
 }
 
-// AnyRequiresWebsocket tells a quickspy whether to setup the websocket
-func (q *QuickSpy) AnyRequiresWebsocket() bool {
+// AnyRequiresWebsocket tells a quickData whether to setup the websocket
+func (q *QuickData) AnyRequiresWebsocket() bool {
 	for _, focus := range q.focuses.List() {
 		if focus.UseWebsocket() {
 			return true
@@ -141,8 +141,8 @@ func (q *QuickSpy) AnyRequiresWebsocket() bool {
 	return false
 }
 
-// AnyRequiresAuth tells quickspy if valid credentials should be present
-func (q *QuickSpy) AnyRequiresAuth() bool {
+// AnyRequiresAuth tells quickData if valid credentials should be present
+func (q *QuickData) AnyRequiresAuth() bool {
 	for _, focus := range q.focuses.List() {
 		if RequiresAuth(focus.focusType) {
 			return true
@@ -151,9 +151,9 @@ func (q *QuickSpy) AnyRequiresAuth() bool {
 	return false
 }
 
-// GetAndWaitForFocusByKey is a convenience function to wait for a quickspy to be setup and have data
+// GetAndWaitForFocusByKey is a convenience function to wait for a quickData to be setup and have data
 // before utilising the desired focus type
-func (q *QuickSpy) GetAndWaitForFocusByKey(ctx context.Context, focusType FocusType, timeout time.Duration) (*FocusData, error) {
+func (q *QuickData) GetAndWaitForFocusByKey(ctx context.Context, focusType FocusType, timeout time.Duration) (*FocusData, error) {
 	focus, err := q.GetFocusByKey(focusType)
 	if err != nil {
 		return nil, err
@@ -170,7 +170,7 @@ func (q *QuickSpy) GetAndWaitForFocusByKey(ctx context.Context, focusType FocusT
 }
 
 // GetFocusByKey returns FocusData based on its type allowing for streaming data results
-func (q *QuickSpy) GetFocusByKey(focusType FocusType) (*FocusData, error) {
+func (q *QuickData) GetFocusByKey(focusType FocusType) (*FocusData, error) {
 	focus := q.focuses.GetByFocusType(focusType)
 	if focus == nil {
 		return nil, fmt.Errorf("%w %q", errKeyNotFound, focusType)
@@ -178,7 +178,7 @@ func (q *QuickSpy) GetFocusByKey(focusType FocusType) (*FocusData, error) {
 	return focus, nil
 }
 
-func (q *QuickSpy) setupExchange() error {
+func (q *QuickData) setupExchange() error {
 	q.m.Lock()
 	defer q.m.Unlock()
 
@@ -204,13 +204,13 @@ func (q *QuickSpy) setupExchange() error {
 		if !errors.Is(err, errNoSubSwitchingToREST) {
 			return err
 		}
-		log.Warnf(log.QuickSpy, "%s websocket setup failed: %v. Disabling websocket focuses", q.key.ExchangeAssetPair, err)
+		log.Warnf(log.QuickData, "%s websocket setup failed: %v. Disabling websocket focuses", q.key.ExchangeAssetPair, err)
 		q.focuses.DisableWebsocketFocuses()
 	}
 	return nil
 }
 
-func (q *QuickSpy) setupExchangeDefaults(e exchange.IBotExchange, b *exchange.Base) error {
+func (q *QuickData) setupExchangeDefaults(e exchange.IBotExchange, b *exchange.Base) error {
 	e.SetDefaults()
 	exchCfg, err := b.GetStandardConfig()
 	if err != nil {
@@ -226,7 +226,7 @@ func (q *QuickSpy) setupExchangeDefaults(e exchange.IBotExchange, b *exchange.Ba
 	return nil
 }
 
-func (q *QuickSpy) setupCurrencyPairs(b *exchange.Base) error {
+func (q *QuickData) setupCurrencyPairs(b *exchange.Base) error {
 	var rFmt, cFmt *currency.PairFormat
 	if b.CurrencyPairs.UseGlobalFormat {
 		rFmt = b.CurrencyPairs.RequestFormat
@@ -254,14 +254,14 @@ func (q *QuickSpy) setupCurrencyPairs(b *exchange.Base) error {
 	return nil
 }
 
-func (q *QuickSpy) checkRateLimits(b *exchange.Base) error {
+func (q *QuickData) checkRateLimits(b *exchange.Base) error {
 	if len(b.GetRateLimiterDefinitions()) == 0 {
 		return fmt.Errorf("%s %w", q.key.ExchangeAssetPair, errNoRateLimits)
 	}
 	return nil
 }
 
-func (q *QuickSpy) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) error {
+func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) error {
 	if q.AnyRequiresWebsocket() {
 		if !e.SupportsWebsocket() {
 			return fmt.Errorf("exchange %s has no websocket. Websocket requirement was enabled", q.key.ExchangeAssetPair.Exchange)
@@ -328,7 +328,7 @@ func (q *QuickSpy) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) err
 	return nil
 }
 
-func (q *QuickSpy) validateSubscriptions(newSubs []*subscription.Subscription) error {
+func (q *QuickData) validateSubscriptions(newSubs []*subscription.Subscription) error {
 	if len(newSubs) == 0 {
 		if err := q.stopWebsocket(); err != nil {
 			return err
@@ -375,7 +375,7 @@ func (q *QuickSpy) validateSubscriptions(newSubs []*subscription.Subscription) e
 
 // stopWebsocket reverts all focuses to REST when websocket does not utilise proper subscriptions
 // eg multi connection websockets
-func (q *QuickSpy) stopWebsocket() error {
+func (q *QuickData) stopWebsocket() error {
 	b := q.exch.GetBase()
 	if err := b.Websocket.Shutdown(); err != nil && !errors.Is(err, websocket.ErrNotConnected) {
 		return err
@@ -386,12 +386,12 @@ func (q *QuickSpy) stopWebsocket() error {
 	return nil
 }
 
-func (q *QuickSpy) run() {
+func (q *QuickData) run() {
 	if q.AnyRequiresWebsocket() {
 		q.wg.Go(func() {
 			err := q.handleWS()
 			if err != nil {
-				log.Errorf(log.QuickSpy, "%s websocket handler error: %v", q.key.ExchangeAssetPair, err)
+				log.Errorf(log.QuickData, "%s websocket handler error: %v", q.key.ExchangeAssetPair, err)
 			}
 		})
 	}
@@ -413,7 +413,7 @@ func (q *QuickSpy) run() {
 	}
 }
 
-func (q *QuickSpy) handleWS() error {
+func (q *QuickData) handleWS() error {
 	for {
 		select {
 		case <-q.shutdown:
@@ -422,13 +422,13 @@ func (q *QuickSpy) handleWS() error {
 			return q.credContext.Err()
 		case d := <-q.dataHandlerChannel:
 			if err := q.handleWSData(d); err != nil {
-				log.Errorf(log.QuickSpy, "%s %s", q.key.ExchangeAssetPair, err)
+				log.Errorf(log.QuickData, "%s %s", q.key.ExchangeAssetPair, err)
 			}
 		}
 	}
 }
 
-func (q *QuickSpy) handleWSData(d any) error {
+func (q *QuickData) handleWSData(d any) error {
 	switch data := d.(type) {
 	case account.Change:
 		return q.handleWSAccountChange(&data)
@@ -453,7 +453,7 @@ func (q *QuickSpy) handleWSData(d any) error {
 	}
 }
 
-func (q *QuickSpy) runRESTRoutine(f *FocusData) error {
+func (q *QuickData) runRESTRoutine(f *FocusData) error {
 	if f.useWebsocket {
 		return nil
 	}
@@ -477,7 +477,7 @@ func (q *QuickSpy) runRESTRoutine(f *FocusData) error {
 	}
 }
 
-func (q *QuickSpy) processRESTFocus(f *FocusData) error {
+func (q *QuickData) processRESTFocus(f *FocusData) error {
 	err := q.handleFocusType(f.focusType, f)
 	if err != nil {
 		if errors.Is(err, common.ErrFunctionNotSupported) || errors.Is(err, common.ErrNotYetImplemented) {
@@ -496,7 +496,7 @@ func (q *QuickSpy) processRESTFocus(f *FocusData) error {
 	return nil
 }
 
-func (q *QuickSpy) handleFocusType(focusType FocusType, focus *FocusData) error {
+func (q *QuickData) handleFocusType(focusType FocusType, focus *FocusData) error {
 	var err error
 	switch focusType {
 	case URLFocusType:
@@ -532,14 +532,14 @@ func (q *QuickSpy) handleFocusType(focusType FocusType, focus *FocusData) error 
 }
 
 // Shutdown stops all routines and websocket connections
-func (q *QuickSpy) Shutdown() {
+func (q *QuickData) Shutdown() {
 	close(q.shutdown)
 	q.wg.Wait()
 }
 
 // HasBeenSuccessful returns whether a focus type has ever been successful
 // or an error if the focus type does not exist
-func (q *QuickSpy) HasBeenSuccessful(focusType FocusType) (bool, error) {
+func (q *QuickData) HasBeenSuccessful(focusType FocusType) (bool, error) {
 	focus := q.focuses.GetByFocusType(focusType)
 	if focus == nil {
 		return false, fmt.Errorf("%w %q", errKeyNotFound, focusType)
@@ -550,7 +550,7 @@ func (q *QuickSpy) HasBeenSuccessful(focusType FocusType) (bool, error) {
 // LatestData returns the latest focus-specific payload guarded by the
 // internal read lock. It returns an error if no data has been collected yet
 // for the requested focus type.
-func (q *QuickSpy) LatestData(focusType FocusType) (any, error) {
+func (q *QuickData) LatestData(focusType FocusType) (any, error) {
 	focus := q.focuses.GetByFocusType(focusType)
 	if focus == nil {
 		return false, fmt.Errorf("%w %q", errKeyNotFound, focusType)
@@ -590,7 +590,7 @@ func (q *QuickSpy) LatestData(focusType FocusType) (any, error) {
 }
 
 // DumpJSON conveniently gives you JSON output of all gathered data
-func (q *QuickSpy) DumpJSON() ([]byte, error) {
+func (q *QuickData) DumpJSON() ([]byte, error) {
 	q.m.RLock()
 	defer q.m.RUnlock()
 	b, err := json.MarshalIndent(q.data, "", "  ")
@@ -600,13 +600,13 @@ func (q *QuickSpy) DumpJSON() ([]byte, error) {
 	return b, nil
 }
 
-// Data returns the internal Data struct pointer and is unsafe while quickspy is running
-func (q *QuickSpy) Data() *Data {
+// Data returns the internal Data struct pointer and is unsafe while quickData is running
+func (q *QuickData) Data() *Data {
 	return q.data
 }
 
 // WaitForInitialData allows a caller to wait for a response before doing other actions
-func (q *QuickSpy) WaitForInitialData(ctx context.Context, focusType FocusType) error {
+func (q *QuickData) WaitForInitialData(ctx context.Context, focusType FocusType) error {
 	focus := q.focuses.GetByFocusType(focusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, focusType)
@@ -620,7 +620,7 @@ func (q *QuickSpy) WaitForInitialData(ctx context.Context, focusType FocusType) 
 }
 
 // WaitForInitialDataWithTimer waits for initial data for a focus type or cancels when ctx is done.
-func (q *QuickSpy) WaitForInitialDataWithTimer(ctx context.Context, focusType FocusType, tt time.Duration) error {
+func (q *QuickData) WaitForInitialDataWithTimer(ctx context.Context, focusType FocusType, tt time.Duration) error {
 	if tt == 0 {
 		return fmt.Errorf("%w: timer cannot be 0", errTimerNotSet)
 	}

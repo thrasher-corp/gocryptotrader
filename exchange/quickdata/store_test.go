@@ -1,4 +1,4 @@
-package quickspy
+package quickdata
 
 import (
 	"testing"

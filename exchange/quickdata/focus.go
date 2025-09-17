@@ -1,4 +1,4 @@
-package quickspy
+package quickdata
 
 import (
 	"errors"
@@ -20,10 +20,10 @@ var (
 	ErrNoCredentials                   = errors.New("no credentials provided")
 )
 
-// FocusType is an identifier for data types that quickspy can gather
+// FocusType is an identifier for data types that quickData can gather
 type FocusType int
 
-// FocusData contains information on what data quickspy should gather
+// FocusData contains information on what data quickData should gather
 // how it should be gathered as well as a channel for delivering that data
 type FocusData struct {
 	focusType             FocusType
@@ -157,7 +157,7 @@ func (f *FocusData) HasBeenSuccessful() bool {
 	return f.hasBeenSuccessful
 }
 
-// FocusTypes are what quickspy uses to grant permission for it to grab data
+// FocusTypes are what quickData uses to grant permission for it to grab data
 const (
 	UnsetFocusType FocusType = iota
 	OpenInterestFocusType

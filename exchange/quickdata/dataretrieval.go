@@ -1,4 +1,4 @@
-package quickspy
+package quickdata
 
 import (
 	"errors"
@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
-func (q *QuickSpy) handleWSAccountChange(data *account.Change) error {
+func (q *QuickData) handleWSAccountChange(data *account.Change) error {
 	if err := common.NilGuard(data); err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func (q *QuickSpy) handleWSAccountChange(data *account.Change) error {
 	return nil
 }
 
-func (q *QuickSpy) handleWSAccountChanges(data []account.Change) error {
+func (q *QuickData) handleWSAccountChanges(data []account.Change) error {
 	focus := q.focuses.GetByFocusType(AccountHoldingsFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, AccountHoldingsFocusType)
@@ -66,7 +66,7 @@ func (q *QuickSpy) handleWSAccountChanges(data []account.Change) error {
 	return nil
 }
 
-func (q *QuickSpy) handleWSOrderDetail(data *order.Detail) error {
+func (q *QuickData) handleWSOrderDetail(data *order.Detail) error {
 	if err := common.NilGuard(data); err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func (q *QuickSpy) handleWSOrderDetail(data *order.Detail) error {
 		return fmt.Errorf("%w %q", errKeyNotFound, ActiveOrdersFocusType)
 	}
 	q.m.Lock()
-	// managing an order list properly goes against the simplicity of quickspy.
+	// managing an order list properly goes against the simplicity of quickData.
 	// If you're trying to track everything effectively, use our order manager or PRs welcome
 	q.data.Orders = []order.Detail{*data}
 	q.m.Unlock()
@@ -89,7 +89,7 @@ func (q *QuickSpy) handleWSOrderDetail(data *order.Detail) error {
 	return nil
 }
 
-func (q *QuickSpy) handleWSOrderDetails(data []order.Detail) error {
+func (q *QuickData) handleWSOrderDetails(data []order.Detail) error {
 	focus := q.focuses.GetByFocusType(ActiveOrdersFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, ActiveOrdersFocusType)
@@ -112,7 +112,7 @@ func (q *QuickSpy) handleWSOrderDetails(data []order.Detail) error {
 	return nil
 }
 
-func (q *QuickSpy) handleWSTickers(data []ticker.Price) error {
+func (q *QuickData) handleWSTickers(data []ticker.Price) error {
 	focus := q.focuses.GetByFocusType(TickerFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, TickerFocusType)
@@ -142,7 +142,7 @@ func (q *QuickSpy) handleWSTickers(data []ticker.Price) error {
 	return nil
 }
 
-func (q *QuickSpy) handleWSTicker(data *ticker.Price) error {
+func (q *QuickData) handleWSTicker(data *ticker.Price) error {
 	if err := common.NilGuard(data); err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (q *QuickSpy) handleWSTicker(data *ticker.Price) error {
 	return nil
 }
 
-func (q *QuickSpy) handleWSOrderbook(data *orderbook.Depth) error {
+func (q *QuickData) handleWSOrderbook(data *orderbook.Depth) error {
 	if err := common.NilGuard(data); err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func (q *QuickSpy) handleWSOrderbook(data *orderbook.Depth) error {
 	return nil
 }
 
-func (q *QuickSpy) handleWSTrade(data *trade.Data) error {
+func (q *QuickData) handleWSTrade(data *trade.Data) error {
 	if err := common.NilGuard(data); err != nil {
 		return err
 	}
@@ -212,7 +212,7 @@ func (q *QuickSpy) handleWSTrade(data *trade.Data) error {
 	return nil
 }
 
-func (q *QuickSpy) handleWSTrades(data []trade.Data) error {
+func (q *QuickData) handleWSTrades(data []trade.Data) error {
 	focus := q.focuses.GetByFocusType(TradesFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, TradesFocusType)
@@ -238,7 +238,7 @@ func (q *QuickSpy) handleWSTrades(data []trade.Data) error {
 	return nil
 }
 
-func (q *QuickSpy) handleURLFocus(focus *FocusData) error {
+func (q *QuickData) handleURLFocus(focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
@@ -256,7 +256,7 @@ func (q *QuickSpy) handleURLFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickSpy) handleContractFocus(focus *FocusData) error {
+func (q *QuickData) handleContractFocus(focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
@@ -282,7 +282,7 @@ func (q *QuickSpy) handleContractFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickSpy) handleKlineFocus(focus *FocusData) error {
+func (q *QuickData) handleKlineFocus(focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
@@ -326,7 +326,7 @@ func (q *QuickSpy) handleKlineFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickSpy) handleOpenInterestFocus(focus *FocusData) error {
+func (q *QuickData) handleOpenInterestFocus(focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
@@ -349,7 +349,7 @@ func (q *QuickSpy) handleOpenInterestFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickSpy) handleTickerFocus(focus *FocusData) error {
+func (q *QuickData) handleTickerFocus(focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
@@ -365,7 +365,7 @@ func (q *QuickSpy) handleTickerFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickSpy) handleOrdersFocus(focus *FocusData) error {
+func (q *QuickData) handleOrdersFocus(focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
@@ -385,7 +385,7 @@ func (q *QuickSpy) handleOrdersFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickSpy) handleAccountHoldingsFocus(focus *FocusData) error {
+func (q *QuickData) handleAccountHoldingsFocus(focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
@@ -417,7 +417,7 @@ func (q *QuickSpy) handleAccountHoldingsFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickSpy) handleOrderBookFocus(focus *FocusData) error {
+func (q *QuickData) handleOrderBookFocus(focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
@@ -432,7 +432,7 @@ func (q *QuickSpy) handleOrderBookFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickSpy) handleTradesFocus(focus *FocusData) error {
+func (q *QuickData) handleTradesFocus(focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
@@ -447,7 +447,7 @@ func (q *QuickSpy) handleTradesFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickSpy) handleOrderExecutionFocus(focus *FocusData) error {
+func (q *QuickData) handleOrderExecutionFocus(focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
@@ -469,7 +469,7 @@ func (q *QuickSpy) handleOrderExecutionFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickSpy) handleFundingRateFocus(focus *FocusData) error {
+func (q *QuickData) handleFundingRateFocus(focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}

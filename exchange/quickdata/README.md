@@ -1,16 +1,16 @@
-# GoCryptoTrader package Quickspy
+# GoCryptoTrader package Quickdata
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchange/quickspy)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchange/quickdata)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This quickspy package is part of the GoCryptoTrader codebase.
+This quickdata package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Overview
 
-The `quickspy` package provides a means to quickly request and receive data for an individual exchange, asset and currency pair. For the times you just really want to get some data without fussing about with configs - setting currency pairs or API keys - or `SetDefaults()` functions.
+The `quickdata` package provides a means to quickly request and receive data for an individual exchange, asset and currency pair. For the times you just really want to get some data without fussing about with configs - setting currency pairs or API keys - or `SetDefaults()` functions.
 
 ## Features
 
@@ -28,10 +28,10 @@ The `quickspy` package provides a means to quickly request and receive data for 
 - Supports a range of focus data types allowing for a more tailored approach to data retrieval
 - Supports both REST and Websocket data retrieval methods
 - Supports both public and authenticated data retrieval methods
-- Three types of quickspy implementations:
-  - `Quickspy` - supports multiple focus data types, has the finest level of control over data retrieval method and frequency
-  - `QuickerSpy` - supports a single focus data type, prioritises websocket and allows for control over the quickspy instance
-  - `QuickestSpy` - supports a single focus data type, prioritises websocket and returns a chan of data for the caller to consume
+- Three types of QuickData implementations:
+  - `QuickData` - supports multiple focus data types, has the finest level of control over data retrieval method and frequency
+  - `QuickerData` - supports a single focus data type, prioritises websocket and allows for control over the quickData instance
+  - `QuickestData` - supports a single focus data type, prioritises websocket and returns a chan of data for the caller to consume
 
 
 ### Focus Data Types
@@ -51,25 +51,25 @@ The `quickspy` package provides a means to quickly request and receive data for 
 
 ## Usage
 
-There are multiple ways to utilise a quickspy. See `/cmd/quickspy` for a basic way of establishing a single purpose quickspy that subscribes to data and prints it to console.
+There are multiple ways to utilise a quickData. See `/cmd/quickData` for a basic way of establishing a single purpose quickData that subscribes to data and prints it to console.
 
-### Quickspy with two focus types
+### QuickData with two focus types
 ```go
 func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	isOnceOff := false
 	useWebsocket := true
-	tickerFocusType := quickspy.NewFocusData(quickspy.TickerFocusType, isOnceOff, useWebsocket, time.Second)
-	orderbookFocusType := quickspy.NewFocusData(quickspy.OrderBookFocusType, isOnceOff, useWebsocket, time.Second)
-	focusTypes := []*quickspy.FocusData{tickerFocusType, orderbookFocusType}
+	tickerFocusType := quickdata.NewFocusData(quickdata.TickerFocusType, isOnceOff, useWebsocket, time.Second)
+	orderbookFocusType := quickdata.NewFocusData(quickdata.OrderBookFocusType, isOnceOff, useWebsocket, time.Second)
+	focusTypes := []*quickdata.FocusData{tickerFocusType, orderbookFocusType}
 
-	k := &quickspy.CredentialsKey{
+	k := &quickdata.CredentialsKey{
 		ExchangeAssetPair: key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewBTCUSDT()),
 	}
 
-	qs, err := quickspy.NewQuickSpy(ctx, k, focusTypes)
+	qs, err := quickdata.NewQuickData(ctx, k, focusTypes)
 	if err != nil {
-		log.Fatalf("could not create quickspy instance: %v", err)
+		log.Fatalf("could not create quickData instance: %v", err)
 	}
 
 	fmt.Println(<-tickerFocusType.Stream)
@@ -79,7 +79,7 @@ func main() {
 }
 ```
 
-### Quickerspy for account info focus type with credentials provided by context
+### QuickerData for account info focus type with credentials provided by context
 ```go
 func main() {
 	ctx := context.Background()
@@ -90,15 +90,15 @@ func main() {
 	ctx = account.DeployCredentialsToContext(ctx, credentials)
 	k := key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewBTCUSDT())
 
-	qs, err := quickspy.NewQuickerSpy(ctx, &k, quickspy.AccountHoldingsFocusType)
+	qs, err := quickdata.NewQuickerData(ctx, &k, quickdata.AccountHoldingsFocusType)
 	if err != nil {
-		log.Fatalf("could not create quickspy instance: %v", err)
+		log.Fatalf("could not create quickData instance: %v", err)
 	}
 
-	if err := qs.WaitForInitialData(ctx, quickspy.AccountHoldingsFocusType); err != nil {
+	if err := qs.WaitForInitialData(ctx, quickdata.AccountHoldingsFocusType); err != nil {
 		log.Fatalf("could not get initial data: %v", err)
 	}
-	data, err := qs.LatestData(quickspy.AccountHoldingsFocusType)
+	data, err := qs.LatestData(quickdata.AccountHoldingsFocusType)
 	if err != nil {
 		log.Fatalf("could not get latest data: %v", err)
 	}
@@ -106,14 +106,14 @@ func main() {
 }
 ```
 
-### Quickestspy to stream ticker data as fast as possible
+### QuickestData to stream ticker data as fast as possible
 ```go
 func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	k := key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewBTCUSDT())
-	qs, err := quickspy.NewQuickestSpy(ctx, &k, quickspy.TickerFocusType)
+	qs, err := quickdata.NewQuickestData(ctx, &k, quickdata.TickerFocusType)
 	if err != nil {
-		log.Fatalf("could not create quickspy instance: %v", err)
+		log.Fatalf("could not create quickData instance: %v", err)
 	}
 	parseData(ctx, qs)
 }

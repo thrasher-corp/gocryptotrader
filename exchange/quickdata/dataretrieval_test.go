@@ -1,4 +1,4 @@
-package quickspy
+package quickdata
 
 import (
 	"testing"
@@ -19,7 +19,7 @@ import (
 
 func TestHandleWSAccountChange(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, AccountHoldingsFocusType)
+	q := mustQuickData(t, AccountHoldingsFocusType)
 	require.ErrorIs(t, q.handleWSAccountChange(nil), common.ErrNilPointer)
 
 	d := &account.Change{
@@ -57,7 +57,7 @@ func TestHandleWSAccountChange(t *testing.T) {
 
 func TestHandleWSAccountChanges(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, AccountHoldingsFocusType)
+	q := mustQuickData(t, AccountHoldingsFocusType)
 	require.NoError(t, q.handleWSAccountChanges(nil))
 
 	d := account.Change{
@@ -95,7 +95,7 @@ func TestHandleWSAccountChanges(t *testing.T) {
 
 func TestHandleWSOrderDetail(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, ActiveOrdersFocusType)
+	q := mustQuickData(t, ActiveOrdersFocusType)
 	require.ErrorIs(t, q.handleWSOrderDetail(nil), common.ErrNilPointer)
 
 	d := &order.Detail{
@@ -119,7 +119,7 @@ func TestHandleWSOrderDetail(t *testing.T) {
 
 func TestHandleWSOrderDetails(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, ActiveOrdersFocusType)
+	q := mustQuickData(t, ActiveOrdersFocusType)
 
 	d := []order.Detail{
 		{
@@ -149,7 +149,7 @@ func TestAccountHoldingsFocusType(t *testing.T) {
 	if apiKey == "abc" || apiSecret == "123" {
 		t.Skip("API credentials not set; skipping test that requires them")
 	}
-	qs := mustQuickSpy(t, AccountHoldingsFocusType)
+	qs := mustQuickData(t, AccountHoldingsFocusType)
 	f, err := qs.GetFocusByKey(AccountHoldingsFocusType)
 	require.NoError(t, err)
 	require.NotNil(t, f)
@@ -160,7 +160,7 @@ func TestAccountHoldingsFocusType(t *testing.T) {
 
 func TestHandleWSTickers(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, TickerFocusType)
+	q := mustQuickData(t, TickerFocusType)
 
 	require.NoError(t, q.handleWSTickers(nil))
 	assert.Nil(t, q.data.Ticker)
@@ -204,7 +204,7 @@ func TestHandleWSTickers(t *testing.T) {
 // Newly added websocket handler tests
 func TestHandleWSTicker(t *testing.T) {
 	t.Parallel()
-	q := mustQuickSpy(t, TickerFocusType)
+	q := mustQuickData(t, TickerFocusType)
 	require.ErrorIs(t, q.handleWSTicker(nil), common.ErrNilPointer)
 	p := &ticker.Price{AssetType: q.key.ExchangeAssetPair.Asset, Pair: q.key.ExchangeAssetPair.Pair(), Last: 999}
 	require.NoError(t, q.handleWSTicker(p))
@@ -213,7 +213,7 @@ func TestHandleWSTicker(t *testing.T) {
 }
 
 func TestHandleWSOrderbook(t *testing.T) {
-	q := mustQuickSpy(t, OrderBookFocusType)
+	q := mustQuickData(t, OrderBookFocusType)
 	require.ErrorIs(t, q.handleWSOrderbook(nil), common.ErrNilPointer)
 	id, _ := uuid.NewV4()
 	depth := orderbook.NewDepth(id)
@@ -233,7 +233,7 @@ func TestHandleWSOrderbook(t *testing.T) {
 }
 
 func TestHandleWSTrade(t *testing.T) {
-	q := mustQuickSpy(t, TradesFocusType)
+	q := mustQuickData(t, TradesFocusType)
 	require.ErrorIs(t, q.handleWSTrade(nil), common.ErrNilPointer)
 	trd := &trade.Data{
 		Exchange:     q.key.ExchangeAssetPair.Exchange,
@@ -249,7 +249,7 @@ func TestHandleWSTrade(t *testing.T) {
 }
 
 func TestHandleWSTrades(t *testing.T) {
-	q := mustQuickSpy(t, TradesFocusType)
+	q := mustQuickData(t, TradesFocusType)
 	require.NoError(t, q.handleWSTrades(nil))
 	require.Empty(t, q.data.Trades)
 	trs := []trade.Data{

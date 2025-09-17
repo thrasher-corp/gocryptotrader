@@ -1,4 +1,4 @@
-package quickspy
+package quickdata
 
 import (
 	"context"
@@ -26,7 +26,7 @@ var (
 	errNoCredentials                  = errors.New("credentials required but none provided")
 	errFocusDataTimeout               = errors.New("focus did not receive data in time")
 	errNoRateLimits                   = errors.New("exchange has no rate limits set")
-	errNoWebsocketSupportForFocusType = errors.New("quickspy does not support websocket for this focus type")
+	errNoWebsocketSupportForFocusType = errors.New("quickData does not support websocket for this focus type")
 	errNoSubSwitchingToREST           = errors.New("no subscription found, switching to REST")
 	errTimerNotSet                    = errors.New("timer not set")
 	errNoDataYet                      = errors.New("no data received yet")
@@ -41,10 +41,10 @@ type CredentialsKey struct {
 	ExchangeAssetPair key.ExchangeAssetPair `json:"exchangeAssetPair"`
 }
 
-// QuickSpy is a struct that holds data on a single exchange pair asset
+// QuickData is a struct that holds data on a single exchange pair asset
 // Its purpose is to continuously generate metadata on the market
 // it is write-side oriented vs the comparer
-type QuickSpy struct {
+type QuickData struct {
 	// credContext is the context for credentials
 	// also used for cancelling goroutines
 	credContext context.Context //nolint:containedctx // allows for repeated credential usage and cancellation. Happy to hear of other ways
@@ -69,7 +69,7 @@ type QuickSpy struct {
 	shutdown chan any
 }
 
-// Data holds the GCT types that QuickSpy gathers
+// Data holds the GCT types that QuickData gathers
 type Data struct {
 	Key             *CredentialsKey                 `json:"key"`
 	Contract        *futures.Contract               `json:"contract,omitempty"`

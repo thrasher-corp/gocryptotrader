@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchange/quickspy"
+	"github.com/thrasher-corp/gocryptotrader/exchange/quickdata"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -48,25 +48,25 @@ func TestIntMin(t *testing.T) {
 }
 
 func TestParseFocusType(t *testing.T) {
-	cases := map[quickspy.FocusType][]string{
-		quickspy.TickerFocusType:          {"ticker", "tick", "TICK"},
-		quickspy.OrderBookFocusType:       {"orderbook", "order_book", "ob", "book"},
-		quickspy.KlineFocusType:           {"kline", "candles", "candle", "ohlc"},
-		quickspy.TradesFocusType:          {"trades", "trade"},
-		quickspy.OpenInterestFocusType:    {"openinterest", "oi"},
-		quickspy.FundingRateFocusType:     {"fundingrate", "funding"},
-		quickspy.AccountHoldingsFocusType: {"accountholdings", "account", "holdings", "balances"},
-		quickspy.ActiveOrdersFocusType:    {"activeorders", "orders"},
-		quickspy.OrderLimitsFocusType:     {"orderexecution", "executionlimits", "limits"},
-		quickspy.URLFocusType:             {"url", "tradeurl", "trade_url"},
-		quickspy.ContractFocusType:        {"contract"},
+	cases := map[quickdata.FocusType][]string{
+		quickdata.TickerFocusType:          {"ticker", "tick", "TICK"},
+		quickdata.OrderBookFocusType:       {"orderbook", "order_book", "ob", "book"},
+		quickdata.KlineFocusType:           {"kline", "candles", "candle", "ohlc"},
+		quickdata.TradesFocusType:          {"trades", "trade"},
+		quickdata.OpenInterestFocusType:    {"openinterest", "oi"},
+		quickdata.FundingRateFocusType:     {"fundingrate", "funding"},
+		quickdata.AccountHoldingsFocusType: {"accountholdings", "account", "holdings", "balances"},
+		quickdata.ActiveOrdersFocusType:    {"activeorders", "orders"},
+		quickdata.OrderLimitsFocusType:     {"orderexecution", "executionlimits", "limits"},
+		quickdata.URLFocusType:             {"url", "tradeurl", "trade_url"},
+		quickdata.ContractFocusType:        {"contract"},
 	}
 	for expected, inputs := range cases {
 		for _, in := range inputs {
 			require.Equalf(t, expected, parseFocusType(in), "parseFocusType(%s) mismatch", in)
 		}
 	}
-	require.Equal(t, quickspy.UnsetFocusType, parseFocusType("unknownblah"))
+	require.Equal(t, quickdata.UnsetFocusType, parseFocusType("unknownblah"))
 }
 
 func TestRenderFunctions_NoPanicAndOutput(t *testing.T) {
@@ -149,7 +149,7 @@ func TestRenderFunctions_NoPanicAndOutput(t *testing.T) {
 func TestStreamDataCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan any, 1)
-	cfg := &appConfig{FocusType: quickspy.TickerFocusType, JSONOnly: true}
+	cfg := &appConfig{FocusType: quickdata.TickerFocusType, JSONOnly: true}
 	ch <- "test-data"
 	done := make(chan error, 1)
 	go func() { done <- streamData(ctx, ch, cfg) }()
@@ -169,12 +169,12 @@ func TestParseFlags_Success(t *testing.T) {
 	origArgs := os.Args
 	defer func() { os.Args = origArgs }()
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	os.Args = []string{"quickspy", "--exchange", "BiNaNcE", "--asset", "spot", "--currencyPair", "ETH-BTC", "--focusType", "ticker", "--poll", "10s", "--book-levels", "20", "--json"}
+	os.Args = []string{"quickData", "--exchange", "BiNaNcE", "--asset", "spot", "--currencyPair", "ETH-BTC", "--focusType", "ticker", "--poll", "10s", "--book-levels", "20", "--json"}
 	cfg := parseFlags()
 	require.Equal(t, "binance", cfg.Exchange)
 	require.Equal(t, asset.Spot, cfg.Asset)
 	require.Equal(t, "ETH-BTC", cfg.Pair.String())
-	require.Equal(t, quickspy.TickerFocusType, cfg.FocusType)
+	require.Equal(t, quickdata.TickerFocusType, cfg.FocusType)
 	require.Equal(t, 10*time.Second, cfg.PollInterval)
 	require.Equal(t, 20, cfg.BookLevels)
 	require.True(t, cfg.JSONOnly)
@@ -185,9 +185,9 @@ func TestParseFlags_AuthRequired(t *testing.T) {
 	origArgs := os.Args
 	defer func() { os.Args = origArgs }()
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	os.Args = []string{"quickspy", "--exchange", "okx", "--asset", "spot", "--currencyPair", "BTC-USDT", "--focusType", "account", "--apiKey", "k123", "--apiSecret", "s456"}
+	os.Args = []string{"quickData", "--exchange", "okx", "--asset", "spot", "--currencyPair", "BTC-USDT", "--focusType", "account", "--apiKey", "k123", "--apiSecret", "s456"}
 	cfg := parseFlags()
-	require.Equal(t, quickspy.AccountHoldingsFocusType, cfg.FocusType)
+	require.Equal(t, quickdata.AccountHoldingsFocusType, cfg.FocusType)
 	require.NotNil(t, cfg.Credentials)
 	require.Equal(t, "k123", cfg.Credentials.Key)
 	require.Equal(t, "s456", cfg.Credentials.Secret)
@@ -203,7 +203,7 @@ func TestStreamData_DefaultRendering(t *testing.T) {
 	enc = json.NewEncoder(os.Stdout)
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan any, 1)
-	cfg := &appConfig{Exchange: "testexch", Asset: asset.Spot, Pair: pair, FocusType: quickspy.TradesFocusType, JSONOnly: false, BookLevels: 10}
+	cfg := &appConfig{Exchange: "testexch", Asset: asset.Spot, Pair: pair, FocusType: quickdata.TradesFocusType, JSONOnly: false, BookLevels: 10}
 	ch <- []trade.Data{{Price: 101, Amount: 0.5, Timestamp: time.Now(), Side: order.Buy}}
 	done := make(chan error, 1)
 	go func() { done <- streamData(ctx, ch, cfg) }()
