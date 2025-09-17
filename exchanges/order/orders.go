@@ -110,11 +110,11 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 		return fmt.Errorf("submit validation error %w, client order ID must be set to satisfy submission requirements", ErrClientOrderIDMustBeSet)
 	}
 
-	if requirements.SpotMarketOrderAmountPurchaseQuotationOnly && s.QuoteAmount == 0 && s.Type == Market && s.AssetType == asset.Spot && s.Side.IsLong() {
+	if requirements.SpotMarketBuyQuotation && s.QuoteAmount == 0 && s.Type == Market && s.AssetType == asset.Spot && s.Side.IsLong() {
 		return fmt.Errorf("submit validation error %w, quote amount to be sold must be set to 'QuoteAmount' field to satisfy trading requirements", ErrAmountMustBeSet)
 	}
 
-	if requirements.SpotMarketOrderAmountSellBaseOnly && s.Amount == 0 && s.Type == Market && s.AssetType == asset.Spot && s.Side.IsShort() {
+	if requirements.SpotMarketSellBase && s.Amount == 0 && s.Type == Market && s.AssetType == asset.Spot && s.Side.IsShort() {
 		return fmt.Errorf("submit validation error %w, base amount being sold must be set to 'Amount' field to satisfy trading requirements", ErrAmountMustBeSet)
 	}
 
@@ -137,9 +137,9 @@ func (s *Submit) GetTradeAmount(tr protocol.TradingRequirements) float64 {
 		return 0
 	}
 	switch {
-	case tr.SpotMarketOrderAmountPurchaseQuotationOnly && s.AssetType == asset.Spot && s.Type == Market && s.Side.IsLong():
+	case tr.SpotMarketBuyQuotation && s.AssetType == asset.Spot && s.Type == Market && s.Side.IsLong():
 		return s.QuoteAmount
-	case tr.SpotMarketOrderAmountSellBaseOnly && s.AssetType == asset.Spot && s.Type == Market && s.Side.IsShort():
+	case tr.SpotMarketSellBase && s.AssetType == asset.Spot && s.Type == Market && s.Side.IsShort():
 		return s.Amount
 	}
 	return s.Amount
