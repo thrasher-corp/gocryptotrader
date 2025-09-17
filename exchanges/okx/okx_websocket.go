@@ -282,7 +282,6 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 		Delay:       time.Second * 20,
 	})
 	return e.authenticateConnection(ctx, e.Websocket.AuthConn)
-
 }
 
 func (e *Exchange) authenticateConnection(ctx context.Context, conn websocket.Connection) error {
@@ -328,12 +327,10 @@ func (e *Exchange) authenticateConnection(ctx context.Context, conn websocket.Co
 	}
 
 	return getStatusError(intermediary.Code, intermediary.Message)
-
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
 func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
-	defer e.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
