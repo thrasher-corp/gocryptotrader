@@ -217,14 +217,14 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 }
 
 // GetByUUID returns a trade by its unique ID
-func GetByUUID(uuid string) (td Data, err error) {
+func GetByUUID(u string) (td Data, err error) {
 	if repository.GetSQLDialect() == database.DBSQLite3 || repository.GetSQLDialect() == database.DBSQLite {
-		td, err = getByUUIDSQLite(uuid)
+		td, err = getByUUIDSQLite(u)
 		if err != nil {
 			return td, fmt.Errorf("trade.Get getByUUIDSQLite %w", err)
 		}
 	} else {
-		td, err = getByUUIDPostgres(uuid)
+		td, err = getByUUIDPostgres(u)
 		if err != nil {
 			return td, fmt.Errorf("trade.Get getByUUIDPostgres %w", err)
 		}
@@ -233,10 +233,10 @@ func GetByUUID(uuid string) (td Data, err error) {
 	return td, nil
 }
 
-func getByUUIDSQLite(uuid string) (Data, error) {
+func getByUUIDSQLite(u string) (Data, error) {
 	var td Data
 	var ts time.Time
-	query := sqlite3.Trades(qm.Where("id = ?", uuid))
+	query := sqlite3.Trades(qm.Where("id = ?", u))
 	result, err := query.One(context.TODO(), database.DB.SQL)
 	if err != nil {
 		return td, err
@@ -262,8 +262,8 @@ func getByUUIDSQLite(uuid string) (Data, error) {
 	return td, nil
 }
 
-func getByUUIDPostgres(uuid string) (td Data, err error) {
-	query := postgres.Trades(qm.Where("id = ?", uuid))
+func getByUUIDPostgres(u string) (td Data, err error) {
+	query := postgres.Trades(qm.Where("id = ?", u))
 	var result *postgres.Trade
 	result, err = query.One(context.TODO(), database.DB.SQL)
 	if err != nil {

@@ -1,7 +1,7 @@
-FROM golang:1.24-alpine
+FROM golang:1.25
 
-# Install GCC and musl-dev (needed for SQLite library)
-RUN apk add --no-cache gcc musl-dev
+# Install GCC with multi-architecture support (needed for SQLite library)
+RUN apt-get update && apt-get install -y gcc-multilib && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

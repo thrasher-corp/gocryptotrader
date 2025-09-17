@@ -2,7 +2,6 @@ package engine
 
 import (
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -65,21 +64,25 @@ func TestSetupLiveDataHandler(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	dc := &dataChecker{
+
+	var dc *dataChecker
+	err := dc.Start()
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
+	dc = &dataChecker{
 		shutdown: make(chan bool),
 	}
-	err := dc.Start()
-	assert.NoError(t, err)
+	err = dc.Start()
+	require.NoError(t, err)
 
 	close(dc.shutdown)
 	dc.wg.Wait()
-	atomic.CompareAndSwapUint32(&dc.started, 0, 1)
+
+	dc = &dataChecker{
+		started: 1,
+	}
 	err = dc.Start()
 	assert.ErrorIs(t, err, engine.ErrSubSystemAlreadyStarted)
-
-	var dh *dataChecker
-	err = dh.Start()
-	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestDataCheckerIsRunning(t *testing.T) {
@@ -135,12 +138,9 @@ func TestLiveHandlerStopFromError(t *testing.T) {
 
 	dc.started = 1
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err = dc.SignalStopFromError(errNoCredsNoLive)
-		assert.NoError(t, err)
-	}()
+	wg.Go(func() {
+		assert.NoError(t, dc.SignalStopFromError(errNoCredsNoLive))
+	})
 	wg.Wait()
 
 	var dh *dataChecker
@@ -177,19 +177,15 @@ func TestUpdated(t *testing.T) {
 		dataUpdated: make(chan bool, 10),
 	}
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		_ = dc.Updated()
-		wg.Done()
-	}()
+	})
 	wg.Wait()
 
 	dc = nil
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		_ = dc.Updated()
-		wg.Done()
-	}()
+	})
 	wg.Wait()
 }
 

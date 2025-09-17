@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -95,6 +96,7 @@ var (
 var (
 	intervalMap         = map[kline.Interval]string{kline.OneMin: "1", kline.ThreeMin: "3", kline.FiveMin: "5", kline.FifteenMin: "15", kline.ThirtyMin: "30", kline.OneHour: "60", kline.TwoHour: "120", kline.FourHour: "240", kline.SixHour: "360", kline.SevenHour: "720", kline.OneDay: "D", kline.OneWeek: "W", kline.OneMonth: "M"}
 	stringToIntervalMap = map[string]kline.Interval{"1": kline.OneMin, "3": kline.ThreeMin, "5": kline.FiveMin, "15": kline.FifteenMin, "30": kline.ThirtyMin, "60": kline.OneHour, "120": kline.TwoHour, "240": kline.FourHour, "360": kline.SixHour, "720": kline.SevenHour, "D": kline.OneDay, "W": kline.OneWeek, "M": kline.OneMonth}
+	validCategory       = []string{cSpot, cLinear, cOption, cInverse}
 )
 
 func intervalToString(interval kline.Interval) (string, error) {
@@ -249,7 +251,23 @@ func (e *Exchange) GetOrderBook(ctx context.Context, category, symbol string, li
 	if err != nil {
 		return nil, err
 	}
-	return constructOrderbook(&resp)
+
+	return &Orderbook{
+		Symbol:         resp.Symbol,
+		UpdateID:       resp.UpdateID,
+		GenerationTime: resp.Timestamp.Time(),
+		Bids:           processOB(resp.Bids),
+		Asks:           processOB(resp.Asks),
+	}, nil
+}
+
+func processOB(ob [][2]types.Number) []orderbook.Level {
+	o := make([]orderbook.Level, len(ob))
+	for x := range ob {
+		o[x].Price = ob[x][0].Float64()
+		o[x].Amount = ob[x][1].Float64()
+	}
+	return o
 }
 
 func fillCategoryAndSymbol(category, symbol string, optionalSymbol ...bool) (url.Values, error) {
@@ -464,109 +482,37 @@ func isValidCategory(category string) error {
 }
 
 // PlaceOrder creates an order for spot, spot margin, USDT perpetual, USDC perpetual, USDC futures, inverse futures and options.
-func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderResponse, error) {
-	if arg == nil {
-		return nil, errNilArgument
-	}
-	err := isValidCategory(arg.Category)
-	if err != nil {
+func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*OrderResponse, error) {
+	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	if arg.Symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	if arg.WhetherToBorrow {
-		arg.IsLeverage = 1
-	}
-	// specifies whether to borrow or to trade.
-	if arg.IsLeverage != 0 && arg.IsLeverage != 1 {
-		return nil, errors.New("please provide a valid isLeverage value; must be 0 for unified spot and 1 for margin trading")
-	}
-	if arg.Side == "" {
-		return nil, order.ErrSideIsInvalid
-	}
-	if arg.OrderType == "" { // Market and Limit order types are allowed
-		return nil, order.ErrTypeIsInvalid
-	}
-	if arg.OrderQuantity <= 0 {
-		return nil, order.ErrAmountBelowMin
-	}
-	switch arg.TriggerDirection {
-	case 0, 1, 2: // 0: None, 1: triggered when market price rises to triggerPrice, 2: triggered when market price falls to triggerPrice
-	default:
-		return nil, fmt.Errorf("%w, triggerDirection: %d", errInvalidTriggerDirection, arg.TriggerDirection)
-	}
-	if arg.OrderFilter != "" && arg.Category == cSpot {
-		switch arg.OrderFilter {
-		case "Order", "tpslOrder", "StopOrder":
-		default:
-			return nil, fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, arg.OrderFilter)
-		}
-	}
-	switch arg.TriggerPriceType {
-	case "", "LastPrice", "IndexPrice", "MarkPrice":
-	default:
-		return nil, errInvalidTriggerPriceType
-	}
-	var resp OrderResponse
-
 	epl := createOrderEPL
-	if arg.Category == "spot" {
+	if arg.Category == cSpot {
 		epl = createSpotOrderEPL
 	}
-	return &resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create", nil, arg, &resp, epl)
+	var resp *OrderResponse
+	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create", nil, arg, &resp, epl)
 }
 
 // AmendOrder amends an open unfilled or partially filled orders.
-func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderResponse, error) {
-	if arg == nil {
-		return nil, errNilArgument
-	}
-	if arg.OrderID == "" && arg.OrderLinkID == "" {
-		return nil, errEitherOrderIDOROrderLinkIDRequired
-	}
-	err := isValidCategory(arg.Category)
-	if err != nil {
+func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderRequest) (*OrderResponse, error) {
+	if err := arg.Validate(); err != nil {
 		return nil, err
-	}
-	if arg.Symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *OrderResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/amend", nil, arg, &resp, amendOrderEPL)
 }
 
 // CancelTradeOrder cancels an open unfilled or partially filled order.
-func (e *Exchange) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (*OrderResponse, error) {
-	if arg == nil {
-		return nil, errNilArgument
-	}
-	if arg.OrderID == "" && arg.OrderLinkID == "" {
-		return nil, errEitherOrderIDOROrderLinkIDRequired
-	}
-	err := isValidCategory(arg.Category)
-	if err != nil {
+func (e *Exchange) CancelTradeOrder(ctx context.Context, arg *CancelOrderRequest) (*OrderResponse, error) {
+	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	if arg.Symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	switch {
-	case arg.OrderFilter != "" && arg.Category == cSpot:
-		switch arg.OrderFilter {
-		case "Order", "tpslOrder", "StopOrder":
-		default:
-			return nil, fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, arg.OrderFilter)
-		}
-	case arg.OrderFilter != "":
-		return nil, fmt.Errorf("%w, orderFilter is valid for 'spot' only", errInvalidCategory)
-	}
-	var resp *OrderResponse
-
 	epl := cancelOrderEPL
-	if arg.Category == "spot" {
+	if arg.Category == cSpot {
 		epl = cancelSpotEPL
 	}
+	var resp *OrderResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel", nil, arg, &resp, epl)
 }
 
@@ -614,12 +560,12 @@ func (e *Exchange) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrder
 	if err != nil {
 		return nil, err
 	}
-	if arg.OrderFilter != "" && (arg.Category != "linear" && arg.Category != "inverse") {
+	if arg.OrderFilter != "" && (arg.Category != cLinear && arg.Category != cInverse) {
 		return nil, fmt.Errorf("%w, only used for category=linear or inverse", errInvalidOrderFilter)
 	}
 	var resp CancelAllResponse
 	epl := cancelAllEPL
-	if arg.Category == "spot" {
+	if arg.Category == cSpot {
 		epl = cancelAllSpotEPL
 	}
 	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-all", nil, arg, &resp, epl)
@@ -698,7 +644,7 @@ func (e *Exchange) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderPara
 			return nil, order.ErrTypeIsInvalid
 		}
 		if arg.Request[a].OrderQuantity <= 0 {
-			return nil, order.ErrAmountBelowMin
+			return nil, limits.ErrAmountBelowMin
 		}
 	}
 	var resp BatchOrdersList
@@ -1245,10 +1191,10 @@ func (e *Exchange) UpgradeToUnifiedAccount(ctx context.Context) (*UnifiedAccount
 }
 
 // GetBorrowHistory retrieves interest records, sorted in reverse order of creation time.
-func (e *Exchange) GetBorrowHistory(ctx context.Context, currency, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
+func (e *Exchange) GetBorrowHistory(ctx context.Context, ccy, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
 	params := url.Values{}
-	if currency != "" {
-		params.Set("currency", currency)
+	if ccy != "" {
+		params.Set("currency", ccy)
 	}
 	if cursor != "" {
 		params.Set("cursor", cursor)
@@ -1286,10 +1232,10 @@ func (e *Exchange) SetCollateralCoin(ctx context.Context, coin currency.Code, co
 // GetCollateralInfo retrieves the collateral information of the current unified margin account,
 // including loan interest rate, loanable amount, collateral conversion rate,
 // whether it can be mortgaged as margin, etc.
-func (e *Exchange) GetCollateralInfo(ctx context.Context, currency string) (*CollateralInfo, error) {
+func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy string) (*CollateralInfo, error) {
 	params := url.Values{}
-	if currency != "" {
-		params.Set("currency", currency)
+	if ccy != "" {
+		params.Set("currency", ccy)
 	}
 	var resp *CollateralInfo
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/collateral-info", params, nil, &resp, defaultEPL)
@@ -1854,7 +1800,7 @@ func (e *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawalParam) (
 		return "", errMissingAddressInfo
 	}
 	if arg.Amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", limits.ErrAmountBelowMin
 	}
 	if arg.Timestamp == 0 {
 		arg.Timestamp = time.Now().UnixMilli()
@@ -2067,7 +2013,7 @@ func (e *Exchange) PurchaseLeverageToken(ctx context.Context, ltCoin currency.Co
 		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	arg := &struct {
 		LTCoin       string  `json:"ltCoin"`
@@ -2088,7 +2034,7 @@ func (e *Exchange) RedeemLeverageToken(ctx context.Context, ltCoin currency.Code
 		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if quantity <= 0 {
-		return nil, fmt.Errorf("%w, quantity=%f", order.ErrAmountBelowMin, quantity)
+		return nil, fmt.Errorf("%w, quantity=%f", limits.ErrAmountBelowMin, quantity)
 	}
 	arg := &struct {
 		LTCoin       string  `json:"ltCoin"`
@@ -2157,13 +2103,13 @@ func (e *Exchange) SetSpotMarginTradeLeverage(ctx context.Context, leverage floa
 }
 
 // GetVIPMarginData retrieves public VIP Margin data
-func (e *Exchange) GetVIPMarginData(ctx context.Context, vipLevel, currency string) (*VIPMarginData, error) {
+func (e *Exchange) GetVIPMarginData(ctx context.Context, vipLevel, ccy string) (*VIPMarginData, error) {
 	params := url.Values{}
 	if vipLevel != "" {
 		params.Set("vipLevel", vipLevel)
 	}
-	if currency != "" {
-		params.Set("currency", currency)
+	if ccy != "" {
+		params.Set("currency", ccy)
 	}
 	var resp *VIPMarginData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "spot-cross-margin-trade/data", defaultEPL, &resp)
@@ -2219,7 +2165,7 @@ func (e *Exchange) Borrow(ctx context.Context, arg *LendArgument) (*BorrowRespon
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.AmountToBorrow <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *BorrowResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/loan", nil, arg, &resp, spotCrossMarginTradeLoanEPL)
@@ -2234,7 +2180,7 @@ func (e *Exchange) Repay(ctx context.Context, arg *LendArgument) (*RepayResponse
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.AmountToBorrow <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *RepayResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/repay", nil, arg, &resp, spotCrossMarginTradeRepayEPL)
@@ -2404,7 +2350,7 @@ func (e *Exchange) C2CDepositFunds(ctx context.Context, arg *C2CLendingFundsPara
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *C2CLendingFundResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/lending/purchase", nil, &arg, &resp, defaultEPL)
@@ -2419,7 +2365,7 @@ func (e *Exchange) C2CRedeemFunds(ctx context.Context, arg *C2CLendingFundsParam
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *C2CLendingFundResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/lending/redeem", nil, &arg, &resp, defaultEPL)
@@ -2489,15 +2435,6 @@ func (e *Exchange) GetBrokerEarning(ctx context.Context, businessType, cursor st
 	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/broker/earning-record", params, nil, &resp, defaultEPL)
 }
 
-func processOB(ob [][2]types.Number) []orderbook.Level {
-	o := make([]orderbook.Level, len(ob))
-	for x := range ob {
-		o[x].Price = ob[x][0].Float64()
-		o[x].Amount = ob[x][1].Float64()
-	}
-	return o
-}
-
 // SendHTTPRequest sends an unauthenticated request
 func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := e.API.Endpoints.GetURL(ePath)
@@ -2513,12 +2450,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path
 	}
 	err = e.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
-			Method:        http.MethodGet,
-			Path:          endpointPath + bybitAPIVersion + path,
-			Result:        response,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 http.MethodGet,
+			Path:                   endpointPath + bybitAPIVersion + path,
+			Result:                 response,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
@@ -2576,30 +2514,31 @@ func (e *Exchange) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL
 		}
 		headers["X-BAPI-SIGN"] = hmacSignedStr
 		return &request.Item{
-			Method:        method,
-			Path:          endpointPath + common.EncodeURLValues(path, params),
-			Headers:       headers,
-			Body:          bytes.NewBuffer(payload),
-			Result:        &response,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   endpointPath + common.EncodeURLValues(path, params),
+			Headers:                headers,
+			Body:                   bytes.NewBuffer(payload),
+			Result:                 &response,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if response.RetCode != 0 && response.RetMsg != "" {
 		return fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, response.RetCode, response.RetMsg)
 	}
 	if len(response.RetExtInfo.List) > 0 && response.RetCode != 0 {
-		var errMessage string
+		var errMessage strings.Builder
 		var failed bool
 		for i := range response.RetExtInfo.List {
 			if response.RetExtInfo.List[i].Code != 0 {
 				failed = true
-				errMessage += fmt.Sprintf("code: %d message: %s ", response.RetExtInfo.List[i].Code, response.RetExtInfo.List[i].Message)
+				errMessage.WriteString(fmt.Sprintf("code: %d message: %s ", response.RetExtInfo.List[i].Code, response.RetExtInfo.List[i].Message))
 			}
 		}
 		if failed {
-			return fmt.Errorf("%w %s", request.ErrAuthRequestFailed, errMessage)
+			return fmt.Errorf("%w %s", request.ErrAuthRequestFailed, errMessage.String())
 		}
 	}
 	return err
@@ -2671,6 +2610,20 @@ func (e *Exchange) FetchAccountType(ctx context.Context) (AccountType, error) {
 		e.account.accountType = AccountType(accInfo.IsUnifiedTradeAccount + 1)
 	}
 	return e.account.accountType, nil
+}
+
+// String returns the account type as a string
+func (a AccountType) String() string {
+	switch a {
+	case 0:
+		return "unset"
+	case accountTypeNormal:
+		return "normal"
+	case accountTypeUnified:
+		return "unified"
+	default:
+		return "unknown"
+	}
 }
 
 // RequiresUnifiedAccount checks account type and returns error if not unified

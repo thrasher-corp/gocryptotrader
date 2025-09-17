@@ -2,17 +2,19 @@ name: proto-checks
 'on':
   - push
   - pull_request
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   proto-lint:
     name: proto-checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: 1.24.x
+          go-version: 1.25.x
 
       - name: Setup build depends
         run: |
@@ -22,6 +24,8 @@ jobs:
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
       - uses: bufbuild/buf-setup-action@v1.50.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: buf generate
         working-directory: ./gctrpc

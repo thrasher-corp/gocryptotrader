@@ -15,7 +15,7 @@ import (
 
 // CalculateFundingStatistics calculates funding statistics for total USD strategy results
 // along with individual funding item statistics
-func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[key.ExchangePairAsset]*CurrencyPairStatistic, riskFreeRate decimal.Decimal, interval gctkline.Interval) (*FundingStatistics, error) {
+func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[key.ExchangeAssetPair]*CurrencyPairStatistic, riskFreeRate decimal.Decimal, interval gctkline.Interval) (*FundingStatistics, error) {
 	if currStats == nil {
 		return nil, gctcommon.ErrNilPointer
 	}

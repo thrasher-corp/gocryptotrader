@@ -196,11 +196,10 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, instrumentID, start, lim
 }
 
 // GetIndexTicker returns the index ticker for an asset
-func (e *Exchange) GetIndexTicker(ctx context.Context, asset string) (IndexTicker, error) {
+func (e *Exchange) GetIndexTicker(ctx context.Context, a string) (IndexTicker, error) {
 	var result IndexTicker
 	params := make(map[string]any)
-	params["asset"] = asset
-
+	params["asset"] = a
 	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutIndexTicker, params, false, &result)
 }
 
@@ -214,12 +213,11 @@ func (e *Exchange) GetDerivativeInstruments(ctx context.Context, secType string)
 }
 
 // GetOptionChain returns option chain
-func (e *Exchange) GetOptionChain(ctx context.Context, asset, secType string) (OptionChainResponse, error) {
+func (e *Exchange) GetOptionChain(ctx context.Context, a, secType string) (OptionChainResponse, error) {
 	var result OptionChainResponse
 	params := make(map[string]any)
-	params["asset"] = asset
+	params["asset"] = a
 	params["sec_type"] = secType
-
 	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutOptionChain, params, false, &result)
 }
 
@@ -297,15 +295,16 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequ
 		headers["Content-Type"] = "application/json"
 
 		return &request.Item{
-			Method:        http.MethodPost,
-			Path:          endpoint,
-			Headers:       headers,
-			Body:          bytes.NewBuffer(payload),
-			Result:        &rawMsg,
-			NonceEnabled:  true,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 http.MethodPost,
+			Path:                   endpoint,
+			Headers:                headers,
+			Body:                   bytes.NewBuffer(payload),
+			Result:                 &rawMsg,
+			NonceEnabled:           true,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, requestType)
 	if err != nil {

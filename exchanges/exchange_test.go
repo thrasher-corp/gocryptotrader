@@ -7,12 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -59,53 +61,26 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	}
 }
 
-func TestCreateMap(t *testing.T) {
+func TestSetRunningURL(t *testing.T) {
 	t.Parallel()
-	b := Base{
-		Name: "HELOOOOOOOO",
-	}
+	b := Base{Name: "HELOOOOOOOO"}
 	b.API.Endpoints = b.NewEndpoints()
-	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
-		EdgeCase1: "http://test1url.com/",
-		EdgeCase2: "http://test2url.com/",
-	})
-	if err != nil {
-		t.Error(err)
-	}
-	val, ok := b.API.Endpoints.defaults[EdgeCase1.String()]
-	if !ok || val != "http://test1url.com/" {
-		t.Errorf("CreateMap failed, incorrect value received for the given key")
-	}
-}
+	assert.ErrorIs(t, b.API.Endpoints.SetRunningURL("meep", "http://google.com/"), errInvalidEndpointKey)
 
-func TestSet(t *testing.T) {
-	t.Parallel()
-	b := Base{
-		Name: "HELOOOOOOOO",
-	}
-	b.API.Endpoints = b.NewEndpoints()
 	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1url.com/",
 		EdgeCase2: "http://test2url.com/",
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "SetDefaultEndpoints should not error")
 	err = b.API.Endpoints.SetRunningURL(EdgeCase2.String(), "http://google.com/")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "SetRunningURL should not error")
+
 	val, ok := b.API.Endpoints.defaults[EdgeCase2.String()]
-	if !ok {
-		t.Error("set method or createmap failed")
-	}
-	if val != "http://google.com/" {
-		t.Errorf("vals didn't match. expecting: %s, got: %s\n", "http://google.com/", val)
-	}
+	assert.True(t, ok, "SetRunningURL should have set the value in defaults")
+	assert.Equal(t, "http://google.com/", val)
+
 	err = b.API.Endpoints.SetRunningURL(EdgeCase3.String(), "Added Edgecase3")
-	if err != nil {
-		t.Errorf("not expecting an error since invalid url val err should be logged but received: %v", err)
-	}
+	assert.ErrorContains(t, err, "invalid URI for request", "SetRunningURL should error on invalid endpoint key")
 }
 
 func TestGetURL(t *testing.T) {
@@ -166,30 +141,22 @@ func TestGetAll(t *testing.T) {
 
 func TestSetDefaultEndpoints(t *testing.T) {
 	t.Parallel()
-	b := Base{
-		Name: "HELLLLLLO",
-	}
+	b := Base{Name: "HELLLLLLO"}
 	b.API.Endpoints = b.NewEndpoints()
 	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1.com.au/",
 		EdgeCase2: "http://test2.com.au/",
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "SetDefaultEndpoints should not error")
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		URL(1337): "http://test2.com.au/",
 	})
-	if err == nil {
-		t.Error("expecting an error due to invalid url key")
-	}
+	assert.ErrorIs(t, err, errInvalidEndpointKey, "SetDefaultEndpoints should error on invalid endpoint key")
 	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "",
 	})
-	if err != nil {
-		t.Errorf("expecting a warning due to invalid url value but got an error: %v", err)
-	}
+	assert.ErrorContains(t, err, "empty url")
 }
 
 func TestSetClientProxyAddress(t *testing.T) {
@@ -455,33 +422,18 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		ConfigFormat: &currency.PairFormat{Delimiter: "~"},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Store must not error")
 	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
 		ConfigFormat: &currency.PairFormat{Delimiter: ":)"},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = b.SetCurrencyPairFormat()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Store must not error")
+	require.NoError(t, b.SetCurrencyPairFormat(), "SetCurrencyPairFormat must not error")
 	spot, err = b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if spot.Delimiter != "~" {
-		t.Error("incorrect pair format delimiter")
-	}
-	futures, err := b.GetPairFormat(asset.Futures, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if futures.Delimiter != ":)" {
-		t.Error("incorrect pair format delimiter")
-	}
+	require.NoError(t, err, "GetPairFormat must not error")
+	assert.Equal(t, "~", spot.Delimiter, "GetPairFormat should return a format with correct delimiter")
+	f, err := b.GetPairFormat(asset.Futures, false)
+	require.NoError(t, err, "GetPairFormat must not error")
+	assert.Equal(t, ":)", f.Delimiter, "GetPairFormat should return a format with correct delimiter")
 }
 
 func TestLoadConfigPairs(t *testing.T) {
@@ -1713,6 +1665,7 @@ func TestString(t *testing.T) {
 		{WebsocketUSDTMargined, websocketUSDTMarginedURL},
 		{WebsocketUSDCMargined, websocketUSDCMarginedURL},
 		{WebsocketOptions, websocketOptionsURL},
+		{WebsocketTrade, websocketTradeURL},
 		{WebsocketPrivate, websocketPrivateURL},
 		{WebsocketSpotSupplementary, websocketSpotSupplementaryURL},
 		{ChainAnalysis, chainAnalysisURL},
@@ -1785,10 +1738,8 @@ func TestSetAPIURL(t *testing.T) {
 	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
 	b.API.Endpoints = b.NewEndpoints()
 	b.Config.API.OldEndPoints.URL = "heloo"
-	err = b.SetAPIURL()
-	if err != nil {
-		t.Errorf("expecting a warning since invalid oldendpoints url but got an error: %v", err)
-	}
+	assert.ErrorContains(t, b.SetAPIURL(), "invalid URI for request")
+
 	mappy.Mappymap = make(map[string]string)
 	b.Config.API.OldEndPoints = &config.APIEndpointsConfig{}
 	b.Config.API.Endpoints = mappy.Mappymap
@@ -1813,17 +1764,6 @@ func TestSetAPIURL(t *testing.T) {
 	}
 	if urlData != "https://www.bitstamp.net/" {
 		t.Error("oldendpoints url setting failed")
-	}
-}
-
-func TestSetRunningURL(t *testing.T) {
-	b := Base{
-		Name: "HELOOOOOOOO",
-	}
-	b.API.Endpoints = b.NewEndpoints()
-	err := b.API.Endpoints.SetRunningURL(EdgeCase1.String(), "http://google.com/")
-	if err != nil {
-		t.Error(err)
 	}
 }
 
@@ -1889,6 +1829,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		{Endpoint: websocketUSDTMarginedURL, Expected: WebsocketUSDTMargined},
 		{Endpoint: websocketUSDCMarginedURL, Expected: WebsocketUSDCMargined},
 		{Endpoint: websocketOptionsURL, Expected: WebsocketOptions},
+		{Endpoint: websocketTradeURL, Expected: WebsocketTrade},
 		{Endpoint: websocketPrivateURL, Expected: WebsocketPrivate},
 		{Endpoint: websocketSpotSupplementaryURL, Expected: WebsocketSpotSupplementary},
 		{Endpoint: chainAnalysisURL, Expected: ChainAnalysis},
@@ -2059,10 +2000,10 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCAUD")
-	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
+	require.ErrorIs(t, err, ErrSymbolNotMatched)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
-	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
+	require.ErrorIs(t, err, ErrSymbolNotMatched)
 
 	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
 	require.NoError(t, err)
@@ -2711,12 +2652,7 @@ type FakeBase struct{ Base }
 func (f *FakeBase) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	return []futures.OpenInterest{
 		{
-			Key: key.ExchangePairAsset{
-				Exchange: f.Name,
-				Base:     currency.BTC.Item,
-				Quote:    currency.BONK.Item,
-				Asset:    asset.Futures,
-			},
+			Key:          key.NewExchangeAssetPair(f.Name, asset.Futures, currency.NewPair(currency.BTC, currency.BONK)),
 			OpenInterest: 1337,
 		},
 	}, nil
@@ -2893,12 +2829,73 @@ func TestSetConfigPairFormatFromExchange(t *testing.T) {
 	assert.Equal(t, "🦥", b.Config.CurrencyPairs.Pairs[asset.Spot].RequestFormat.Delimiter, "RequestFormat should be correct and kinda lazy")
 }
 
+func TestGetOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	exch := Base{
+		Name: "TESTNAME",
+	}
+	cp := currency.NewBTCUSDT()
+	k := key.NewExchangeAssetPair("TESTNAME", asset.Spread, cp)
+	l := limits.MinMaxLevel{
+		Key:      k,
+		MaxPrice: 1337,
+	}
+	err := limits.Load([]limits.MinMaxLevel{l})
+	require.NoError(t, err, "Load must not error")
+
+	_, err = exch.GetOrderExecutionLimits(asset.Spread, cp)
+	require.NoError(t, err)
+}
+
+func TestCheckOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	exch := Base{
+		Name: "TESTNAME",
+	}
+	cp := currency.NewBTCUSDT()
+	k := key.NewExchangeAssetPair("TESTNAME", asset.Spread, cp)
+	l := limits.MinMaxLevel{
+		Key:      k,
+		MaxPrice: 1337,
+	}
+	err := limits.Load([]limits.MinMaxLevel{
+		l,
+	})
+	require.NoError(t, err, "Load must not error")
+
+	err = exch.CheckOrderExecutionLimits(asset.Spread, cp, 1338.0, 1.0, order.Market)
+	require.NoError(t, err, "CheckOrderExecutionLimits must not error")
+}
+
 func TestWebsocketSubmitOrder(t *testing.T) {
+	t.Parallel()
 	_, err := (&Base{}).WebsocketSubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestWebsocketSubmitOrders(t *testing.T) {
+	t.Parallel()
 	_, err := (&Base{}).WebsocketSubmitOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketModifyOrder(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).WebsocketModifyOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketCancelOrder(t *testing.T) {
+	t.Parallel()
+	err := (&Base{}).WebsocketCancelOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestMessageID(t *testing.T) {
+	t.Parallel()
+	id := (new(Base)).MessageID()
+	require.NotEmpty(t, id, "MessageID must return a non-empty message ID")
+	u, err := uuid.FromString(id)
+	require.NoError(t, err, "MessageID must return a valid UUID")
+	assert.Equal(t, byte(0x7), u.Version(), "MessageID should return a V7 uuid")
 }
