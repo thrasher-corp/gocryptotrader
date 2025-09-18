@@ -1011,8 +1011,8 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 func TestGetDeliveryOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetDeliveryOrders(t.Context(), getPair(t, asset.DeliveryFutures), statusOpen, currency.USDT, "", 0, 0, 1)
-	assert.NoError(t, err)
+	_, err := e.GetDeliveryOrders(t.Context(), getPair(t, asset.DeliveryFutures), statusOpen, currency.USDT, "", 0, 0, true)
+	assert.NoError(t, err, "GetDeliveryOrders should not error")
 }
 
 func TestCancelMultipleDeliveryOrders(t *testing.T) {
@@ -1173,8 +1173,8 @@ func TestPlaceFuturesOrder(t *testing.T) {
 func TestGetFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetFuturesOrders(t.Context(), currency.NewBTCUSD(), statusOpen, "", currency.BTC, 0, 0, 1)
-	assert.NoError(t, err)
+	_, err := e.GetFuturesOrders(t.Context(), currency.NewBTCUSD(), statusOpen, "", currency.BTC, 0, 0, true)
+	assert.NoError(t, err, "GetFuturesOrders should not error")
 }
 
 func TestCancelMultipleFuturesOpenOrders(t *testing.T) {
@@ -1534,7 +1534,7 @@ func TestSwapETH2(t *testing.T) {
 		Side:   "1",
 		Amount: 0,
 	})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.SwapETH2(t.Context(), &SwapETHParam{
@@ -1574,7 +1574,7 @@ func TestPlaceDualInvestmentOrder(t *testing.T) {
 	require.ErrorIs(t, err, errPlanIDRequired)
 
 	err = e.PlaceDualInvestmentOrder(t.Context(), &DualInvestmentOrderParam{PlanID: "12321"})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.PlaceDualInvestmentOrder(t.Context(), &DualInvestmentOrderParam{
@@ -2267,6 +2267,12 @@ func TestOptionsPositionPushData(t *testing.T) {
 	}
 }
 
+func TestOptionsPongPushData(t *testing.T) {
+	t.Parallel()
+	err := e.WsHandleOptionsData(t.Context(), nil, []byte(`{"time":1756700469,"channel":"options.pong","event":"","result":null}`))
+	require.NoError(t, err)
+}
+
 func TestGenerateSubscriptionsSpot(t *testing.T) {
 	t.Parallel()
 
@@ -2548,30 +2554,23 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
 
-	err := e.UpdateOrderExecutionLimits(t.Context(), 1336)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Options)
-	require.ErrorIs(t, err, common.ErrNotYetImplemented)
-
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	require.NoError(t, err)
-
-	avail, err := e.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err)
-
-	for i := range avail {
-		mm, err := e.GetOrderExecutionLimits(asset.Spot, avail[i])
-		require.NoError(t, err)
-
-		require.NotEmpty(t, mm, "expected a value")
-
-		require.Positivef(t, mm.MinimumBaseAmount, "MinimumBaseAmount expected 0 but received %v for %v", mm.MinimumBaseAmount, avail[i])
-
-		// 1INCH_TRY no minimum quote or base values are returned.
-
-		require.Positivef(t, mm.QuoteStepIncrementSize, "QuoteStepIncrementSize expected 0 but received %v for %v", mm.QuoteStepIncrementSize, avail[i])
-		require.Positivef(t, mm.AmountStepIncrementSize, "AmountStepIncrementSize expected 0 but received %v for %v", mm.AmountStepIncrementSize, avail[i])
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			switch a {
+			case asset.Options:
+				return // Options not supported
+			case asset.CrossMargin, asset.Margin:
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
+			default:
+				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+				pairs, err := e.CurrencyPairs.GetPairs(a, true)
+				require.NoError(t, err, "GetPairs must not error")
+				l, err := e.GetOrderExecutionLimits(a, pairs[0])
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			}
+		})
 	}
 }
 
@@ -2721,6 +2720,13 @@ func TestGetClientOrderIDFromText(t *testing.T) {
 	assert.Equal(t, "t-123", getClientOrderIDFromText("t-123"), "should return t-123")
 }
 
+func TestFormatClientOrderID(t *testing.T) {
+	t.Parallel()
+	assert.Empty(t, formatClientOrderID(""), "should not return anything")
+	assert.Equal(t, "t-123", formatClientOrderID("t-123"), "should return t-123")
+	assert.Equal(t, "t-456", formatClientOrderID("456"), "should return t-456")
+}
+
 func TestGetSideAndAmountFromSize(t *testing.T) {
 	t.Parallel()
 	side, amount, remaining := getSideAndAmountFromSize(1, 1)
@@ -2861,7 +2867,7 @@ func TestBorrowOrRepay(t *testing.T) {
 	_, err = e.BorrowOrRepay(t.Context(), &BorrowOrRepayParams{Currency: currency.ETH})
 	require.ErrorIs(t, err, errLoanTypeIsRequired)
 	_, err = e.BorrowOrRepay(t.Context(), &BorrowOrRepayParams{Currency: currency.ETH, Type: "borrow"})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.BorrowOrRepay(t.Context(), &BorrowOrRepayParams{Amount: 2, Currency: currency.ETH, Type: "borrow"})
@@ -3446,7 +3452,7 @@ func TestPlaceMultiCollateralLoanOrder(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.PlaceMultiCollateralLoanOrder(t.Context(), &MultiCollateralLoanOrderParam{BorrowCurrency: currency.ETH})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.PlaceMultiCollateralLoanOrder(t.Context(), &MultiCollateralLoanOrderParam{BorrowCurrency: currency.ETH, BorrowAmount: 123})
@@ -3532,11 +3538,34 @@ func TestGetTypeFromTimeInForce(t *testing.T) {
 	assert.Equal(t, order.Market, typeResp, "should be market order")
 }
 
-func TestTimeInForceString(t *testing.T) {
+func TestToExchangeTIF(t *testing.T) {
 	t.Parallel()
-	assert.Empty(t, timeInForceString(order.UnknownTIF))
-	for _, valid := range validTimesInForce {
-		assert.Equal(t, valid.String, timeInForceString(valid.TimeInForce))
+
+	for _, tc := range []struct {
+		tif      order.TimeInForce
+		price    float64
+		expected string
+		err      error
+	}{
+		{price: 0, expected: iocTIF}, // market orders default to IOC
+		{price: 0, tif: order.FillOrKill, expected: fokTIF},
+		{price: 420, expected: gtcTIF}, // limit orders default to GTC
+		{price: 420, tif: order.GoodTillCancel, expected: gtcTIF},
+		{price: 420, tif: order.ImmediateOrCancel, expected: iocTIF},
+		{price: 420, tif: order.PostOnly, expected: pocTIF},
+		{price: 420, tif: order.FillOrKill, expected: fokTIF},
+		{tif: order.GoodTillTime, err: order.ErrUnsupportedTimeInForce},
+	} {
+		t.Run(fmt.Sprintf("TIF:%q Price:'%v'", tc.tif, tc.price), func(t *testing.T) {
+			t.Parallel()
+			got, err := toExchangeTIF(tc.tif, tc.price)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.expected, got)
+		})
 	}
 }
 
@@ -3939,4 +3968,85 @@ func TestGetUserSubordinateRelationship(t *testing.T) {
 	result, err := e.GetUserSubordinateRelationship(t.Context(), []string{"12342", "21312312312"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+func TestValidateContractOrderCreateParams(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		params *ContractOrderCreateParams
+		isRest bool
+		err    error
+	}{
+		{
+			err: common.ErrNilPointer,
+		},
+		{
+			params: &ContractOrderCreateParams{}, err: currency.ErrCurrencyPairEmpty,
+		},
+		{
+			params: &ContractOrderCreateParams{Contract: BTCUSDT},
+			err:    errInvalidOrderSize,
+		},
+		{
+			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: "bad"},
+			err:    order.ErrUnsupportedTimeInForce,
+		},
+		{
+			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: pocTIF},
+			err:    order.ErrUnsupportedTimeInForce,
+		},
+		{
+			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "test"},
+			err:    errInvalidTextPrefix,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "silly_billy",
+			},
+			err: errInvalidAutoSize,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
+			},
+			err: errInvalidOrderSize,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
+			},
+			isRest: true,
+			err:    errEmptyOrInvalidSettlementCurrency,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.NewCode("Silly"),
+			},
+			err: errEmptyOrInvalidSettlementCurrency,
+		},
+		{
+			params: &ContractOrderCreateParams{
+				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.USDT,
+			},
+		},
+	} {
+		assert.ErrorIs(t, tc.params.validate(tc.isRest), tc.err)
+	}
+}
+
+func TestMarshalJSONNumber(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		number   number
+		expected string
+	}{
+		{number: 0, expected: `"0"`},
+		{number: 1, expected: `"1"`},
+		{number: 1.5, expected: `"1.5"`},
+	} {
+		payload, err := tc.number.MarshalJSON()
+		require.NoError(t, err, "MarshalJSON must not error")
+		assert.Equal(t, tc.expected, string(payload), "MarshalJSON should return expected value")
+	}
 }

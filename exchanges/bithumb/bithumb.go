@@ -15,11 +15,12 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -533,12 +534,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		return err
 	}
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
@@ -581,15 +583,16 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 		return &request.Item{
-			Method:        http.MethodPost,
-			Path:          endpoint + path,
-			Headers:       headers,
-			Body:          bytes.NewBufferString(payload),
-			Result:        &intermediary,
-			NonceEnabled:  true,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 http.MethodPost,
+			Path:                   endpoint + path,
+			Headers:                headers,
+			Body:                   bytes.NewBufferString(payload),
+			Result:                 &intermediary,
+			NonceEnabled:           true,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
@@ -697,21 +700,20 @@ func (e *Exchange) GetCandleStick(ctx context.Context, symbol, interval string) 
 }
 
 // FetchExchangeLimits fetches spot order execution limits
-func (e *Exchange) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
+func (e *Exchange) FetchExchangeLimits(ctx context.Context) ([]limits.MinMaxLevel, error) {
 	ticks, err := e.GetAllTickers(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	limits := make([]order.MinMaxLevel, 0, len(ticks))
+	l := make([]limits.MinMaxLevel, 0, len(ticks))
 	for code, data := range ticks {
-		limits = append(limits, order.MinMaxLevel{
-			Pair:              currency.NewPair(currency.NewCode(code), currency.KRW),
-			Asset:             asset.Spot,
+		l = append(l, limits.MinMaxLevel{
+			Key:               key.NewExchangeAssetPair(e.Name, asset.Spot, currency.NewPair(currency.NewCode(code), currency.KRW)),
 			MinimumBaseAmount: getAmountMinimum(data.ClosingPrice),
 		})
 	}
-	return limits, nil
+	return l, nil
 }
 
 // getAmountMinimum derives the minimum amount based on current price. This

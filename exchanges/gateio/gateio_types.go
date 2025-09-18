@@ -658,7 +658,7 @@ type FuturesContract struct {
 	InDelisting           bool         `json:"in_delisting"`
 	RiskLimitBase         string       `json:"risk_limit_base"`
 	InterestRate          string       `json:"interest_rate"`
-	OrderPriceRound       string       `json:"order_price_round"`
+	OrderPriceRound       types.Number `json:"order_price_round"`
 	OrderSizeMin          int64        `json:"order_size_min"`
 	RefRebateRate         string       `json:"ref_rebate_rate"`
 	FundingInterval       int64        `json:"funding_interval"`
@@ -873,7 +873,7 @@ type OptionContract struct {
 	Underlying        string       `json:"underlying"`
 	UnderlyingPrice   types.Number `json:"underlying_price"`
 	Multiplier        string       `json:"multiplier"`
-	OrderPriceRound   string       `json:"order_price_round"`
+	OrderPriceRound   types.Number `json:"order_price_round"`
 	MarkPriceRound    string       `json:"mark_price_round"`
 	MakerFeeRate      string       `json:"maker_fee_rate"`
 	TakerFeeRate      string       `json:"taker_fee_rate"`
@@ -1946,12 +1946,19 @@ type DualModeResponse struct {
 	} `json:"history"`
 }
 
+// number represents a number type for JSON marshaling with zero value as "0"
+type number float64
+
+func (n number) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strconv.FormatFloat(float64(n), 'f', -1, 64) + `"`), nil
+}
+
 // ContractOrderCreateParams represents future order creation parameters
 type ContractOrderCreateParams struct {
 	Contract                  currency.Pair `json:"contract"`
 	Size                      float64       `json:"size"`              // positive long, negative short
 	Iceberg                   int64         `json:"iceberg,omitempty"` // required; can be zero
-	Price                     float64       `json:"price"`             // NOTE: Market orders require string "0"
+	Price                     number        `json:"price"`             // NOTE: Market orders require string "0"
 	TimeInForce               string        `json:"tif"`
 	Text                      string        `json:"text,omitempty"`  // errors when empty; Either populated or omitted
 	ClosePosition             bool          `json:"close,omitempty"` // Size needs to be zero if true
@@ -2266,12 +2273,15 @@ type WsUserPersonalTrade struct {
 
 // WsSpotBalance represents a spot balance.
 type WsSpotBalance struct {
-	Timestamp types.Time   `json:"timestamp_ms"`
-	User      string       `json:"user"`
-	Currency  string       `json:"currency"`
-	Change    types.Number `json:"change"`
-	Total     types.Number `json:"total"`
-	Available types.Number `json:"available"`
+	Timestamp    types.Time    `json:"timestamp_ms"`
+	User         string        `json:"user"`
+	Currency     currency.Code `json:"currency"`
+	Change       types.Number  `json:"change"`
+	Total        types.Number  `json:"total"`
+	Available    types.Number  `json:"available"`
+	Freeze       types.Number  `json:"freeze"`
+	FreezeChange types.Number  `json:"freeze_change"`
+	ChangeType   string        `json:"change_type"` // e.g. "order-create", "order-match"
 }
 
 // WsMarginBalance represents margin account balance push data
@@ -2476,12 +2486,13 @@ type WsPositionClose struct {
 
 // WsBalance represents a options and futures balance push data
 type WsBalance struct {
-	Balance float64    `json:"balance"`
-	Change  float64    `json:"change"`
-	Text    string     `json:"text"`
-	Time    types.Time `json:"time_ms"`
-	Type    string     `json:"type"`
-	User    string     `json:"user"`
+	Balance  float64       `json:"balance"`
+	Change   float64       `json:"change"`
+	Currency currency.Code `json:"currency"`
+	Text     string        `json:"text"`
+	Time     types.Time    `json:"time_ms"`
+	Type     string        `json:"type"`
+	User     string        `json:"user"`
 }
 
 // WsFuturesReduceRiskLimitNotification represents a futures reduced risk limit push data

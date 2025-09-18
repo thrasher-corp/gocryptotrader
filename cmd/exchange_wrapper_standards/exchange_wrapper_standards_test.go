@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -91,22 +92,18 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	exch.SetDefaults()
 	exchCfg.API.AuthenticatedSupport = true
 	exchCfg.API.Credentials = getExchangeCredentials(name)
-
 	err = exch.Setup(exchCfg)
 	if err != nil {
 		t.Fatalf("Cannot setup %v exchange Setup %v", name, err)
 	}
-
 	err = exch.UpdateTradablePairs(ctx, true)
 	require.Truef(t, errors.Is(err, context.DeadlineExceeded) || err == nil, "Exchange %s UpdateTradablePairs must not error: %s", name, err)
 	b := exch.GetBase()
-
 	assets := b.CurrencyPairs.GetAssetTypes(false)
 	require.NotEmptyf(t, assets, "Exchange %s must have assets", name)
 	for _, a := range assets {
 		require.NoErrorf(t, b.CurrencyPairs.SetAssetEnabled(a, true), "Exchange %s SetAssetEnabled must not error for asset %s: %s", name, a, err)
 	}
-
 	// Add +1 to len to verify that exchanges can handle requests with unset pairs and assets
 	assetPairs := make([]assetPair, 0, len(assets)+1)
 assets:
@@ -146,7 +143,6 @@ assets:
 		})
 	}
 	assetPairs = append(assetPairs, assetPair{})
-
 	return exch, assetPairs
 }
 
@@ -190,7 +186,6 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 			continue
 		}
 		method := actualExchange.MethodByName(methodName)
-
 		var assetLen int
 		for y := range method.Type().NumIn() {
 			input := method.Type().In(y)
@@ -390,6 +385,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Description:   "1337",
 			Amount:        1,
 			ClientOrderID: "1337",
+			WalletID:      "7331",
 		}
 		if argGenerator.MethodName == "WithdrawCryptocurrencyFunds" {
 			req.Type = withdraw.Crypto
@@ -613,10 +609,9 @@ var unsupportedAssets = []asset.Item{
 
 var unsupportedExchangeNames = []string{
 	"testexch",
-	"bitflyer",    // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"btse",        // 	TODO rm once timeout issues resolved
-	"poloniex",    // 	outdated API // TODO rm once updated
-	"coinbasepro", // 	outdated API // TODO rm once updated
+	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
+	"btse",     // 	TODO rm once timeout issues resolved
+	"poloniex", // 	outdated API // TODO rm once updated
 }
 
 // cryptoChainPerExchange holds the deposit address chain per exchange
@@ -644,10 +639,9 @@ var acceptableErrors = []error{
 	futures.ErrNotFuturesAsset,           // Is thrown when a futures function receives a non-futures asset
 	currency.ErrSymbolStringEmpty,        // Is thrown when a symbol string is empty for blank MatchSymbol func checks
 	futures.ErrNotPerpetualFuture,        // Is thrown when a futures function receives a non-perpetual future
-	order.ErrExchangeLimitNotLoaded,      // Is thrown when the limits aren't loaded for a particular exchange, asset, pair
-	order.ErrCannotValidateAsset,         // Is thrown when attempting to get order limits from an asset that is not yet loaded
-	order.ErrCannotValidateBaseCurrency,  // Is thrown when attempting to get order limits from an base currency that is not yet loaded
-	order.ErrCannotValidateQuoteCurrency, // Is thrown when attempting to get order limits from an quote currency that is not yet loaded
+	limits.ErrExchangeLimitNotLoaded,     // Is thrown when the limits aren't loaded for a particular exchange, asset, pair
+	limits.ErrOrderLimitNotFound,         // Is thrown when the order limit isn't found for a particular exchange, asset, pair
+	limits.ErrEmptyLevels,                // Is thrown if limits are not provided for the asset
 	account.ErrExchangeHoldingsNotFound,
 	ticker.ErrTickerNotFound,
 	orderbook.ErrOrderbookNotFound,

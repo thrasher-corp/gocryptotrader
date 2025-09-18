@@ -77,43 +77,50 @@ const (
 )
 
 var (
-	errInvalidOrMissingContractParam = errors.New("invalid or empty contract")
-	errNoValidResponseFromServer     = errors.New("no valid response from server")
-	errInvalidUnderlying             = errors.New("missing underlying")
-	errInvalidOrderSize              = errors.New("invalid order size")
-	errInvalidSubAccount             = errors.New("invalid or empty subaccount")
-	errInvalidTransferDirection      = errors.New("invalid transfer direction")
-	errDifferentAccount              = errors.New("account type must be identical for all orders")
-	errInvalidPrice                  = errors.New("invalid price")
-	errNoValidParameterPassed        = errors.New("no valid parameter passed")
-	errInvalidCountdown              = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
-	errInvalidOrderStatus            = errors.New("invalid order status")
-	errInvalidLoanSide               = errors.New("invalid loan side, only 'lend' and 'borrow'")
-	errInvalidLoanID                 = errors.New("missing loan ID")
-	errInvalidRepayMode              = errors.New("invalid repay mode specified, must be 'all' or 'partial'")
-	errMissingPreviewID              = errors.New("missing required parameter: preview_id")
-	errChangeHasToBePositive         = errors.New("change has to be positive")
-	errInvalidLeverageValue          = errors.New("invalid leverage value")
-	errInvalidRiskLimit              = errors.New("new position risk limit")
-	errInvalidCountTotalValue        = errors.New("invalid \"count_total\" value, supported \"count_total\" values are 0 and 1")
-	errInvalidAutoSizeValue          = errors.New("invalid \"auto_size\" value, only \"close_long\" and \"close_short\" are supported")
-	errTooManyOrderRequest           = errors.New("too many order creation request")
-	errInvalidTimeout                = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
-	errNoTickerData                  = errors.New("no ticker data available")
-	errInvalidTimezone               = errors.New("invalid timezone")
-	errMultipleOrders                = errors.New("multiple orders passed")
-	errMissingWithdrawalID           = errors.New("missing withdrawal ID")
-	errInvalidSubAccountUserID       = errors.New("sub-account user id is required")
-	errInvalidSettlementQuote        = errors.New("symbol quote currency does not match asset settlement currency")
-	errInvalidSettlementBase         = errors.New("symbol base currency does not match asset settlement currency")
-	errMissingAPIKey                 = errors.New("missing API key information")
-	errInvalidTextValue              = errors.New("invalid text value, requires prefix `t-`")
-	errSingleAssetRequired           = errors.New("single asset type required")
-	errLoanTypeIsRequired            = errors.New("loan type is required")
-	errUserIDRequired                = errors.New("user id is required")
-	errSTPGroupNameRequired          = errors.New("self-trade prevention group name required")
-	errSTPGroupIDRequired            = errors.New("self-trade prevention group id required")
-	errPlanIDRequired                = errors.New("plan ID required")
+	errInvalidLeverageValue             = errors.New("invalid leverage value")
+	errInvalidCountTotalValue           = errors.New("invalid \"count_total\" value, supported \"count_total\" values are 0 and 1")
+	errInvalidAutoSizeValue             = errors.New("invalid \"auto_size\" value, only \"close_long\" and \"close_short\" are supported")
+	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
+	errLoanTypeIsRequired               = errors.New("loan type is required")
+	errUserIDRequired                   = errors.New("user id is required")
+	errSTPGroupNameRequired             = errors.New("self-trade prevention group name required")
+	errSTPGroupIDRequired               = errors.New("self-trade prevention group id required")
+	errPlanIDRequired                   = errors.New("plan ID required")
+	errEmptyOrInvalidSettlementCurrency = errors.New("empty or invalid settlement currency")
+	errInvalidOrMissingContractParam    = errors.New("invalid or empty contract")
+	errNoValidResponseFromServer        = errors.New("no valid response from server")
+	errInvalidUnderlying                = errors.New("missing underlying")
+	errInvalidOrderSize                 = errors.New("invalid order size")
+	errInvalidOrderID                   = errors.New("invalid order id")
+	errInvalidAmount                    = errors.New("invalid amount")
+	errInvalidSubAccount                = errors.New("invalid or empty subaccount")
+	errInvalidTransferDirection         = errors.New("invalid transfer direction")
+	errDifferentAccount                 = errors.New("account type must be identical for all orders")
+	errInvalidPrice                     = errors.New("invalid price")
+	errNoValidParameterPassed           = errors.New("no valid parameter passed")
+	errInvalidCountdown                 = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
+	errInvalidOrderStatus               = errors.New("invalid order status")
+	errInvalidLoanSide                  = errors.New("invalid loan side, only 'lend' and 'borrow'")
+	errInvalidLoanID                    = errors.New("missing loan ID")
+	errInvalidRepayMode                 = errors.New("invalid repay mode specified, must be 'all' or 'partial'")
+	errMissingPreviewID                 = errors.New("missing required parameter: preview_id")
+	errChangeHasToBePositive            = errors.New("change has to be positive")
+	errInvalidLeverage                  = errors.New("invalid leverage value")
+	errInvalidRiskLimit                 = errors.New("new position risk limit")
+	errInvalidAutoSize                  = errors.New("invalid autoSize")
+	errTooManyOrderRequest              = errors.New("too many order creation request")
+	errInvalidTimeout                   = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
+	errNoTickerData                     = errors.New("no ticker data available")
+	errNilArgument                      = errors.New("null argument")
+	errInvalidTimezone                  = errors.New("invalid timezone")
+	errMultipleOrders                   = errors.New("multiple orders passed")
+	errMissingWithdrawalID              = errors.New("missing withdrawal ID")
+	errInvalidSubAccountUserID          = errors.New("sub-account user id is required")
+	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
+	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
+	errMissingAPIKey                    = errors.New("missing API key information")
+	errInvalidTextPrefix                = errors.New("invalid text value, requires prefix `t-`")
+	errSingleAssetRequired              = errors.New("single asset type required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -568,7 +575,7 @@ func (e *Exchange) BorrowOrRepay(ctx context.Context, arg *BorrowOrRepayParams) 
 		return "", errLoanTypeIsRequired
 	}
 	if arg.Amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", order.ErrAmountIsInvalid
 	}
 	resp := &struct {
 		TransactionID string `json:"tran_id"`
@@ -1000,14 +1007,15 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			payload = string(byteData)
 		}
 		return &request.Item{
-			Method:        method,
-			Path:          urlPath,
-			Headers:       headers,
-			Body:          strings.NewReader(payload),
-			Result:        &intermediary,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   urlPath,
+			Headers:                headers,
+			Body:                   strings.NewReader(payload),
+			Result:                 &intermediary,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
@@ -1038,12 +1046,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 		return err
 	}
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil
@@ -2236,7 +2245,7 @@ func (e *Exchange) UpdateFuturesPositionLeverage(ctx context.Context, settle cur
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if leverage < 0 {
-		return nil, errInvalidLeverageValue
+		return nil, fmt.Errorf("%w: %f", errInvalidLeverage, leverage)
 	}
 	params := url.Values{}
 	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
@@ -2312,7 +2321,7 @@ func (e *Exchange) UpdatePositionLeverageInDualMode(ctx context.Context, settle 
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if leverage < 0 {
-		return nil, errInvalidLeverageValue
+		return nil, fmt.Errorf("%w: %f", errInvalidLeverage, leverage)
 	}
 	params := url.Values{}
 	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
@@ -2348,22 +2357,8 @@ func (e *Exchange) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle
 // In single position mode, to close a position, you need to set size to 0 and close to true
 // In dual position mode, to close one side position, you need to set auto_size side, reduce_only to true and size to 0
 func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
-	if arg.Contract.IsEmpty() {
-		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
-	}
-	if arg.TimeInForce != "" {
-		if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
-			return nil, err
-		}
-	}
-	if arg.Price == 0 && arg.TimeInForce != iocTIF && arg.TimeInForce != fokTIF {
-		return nil, fmt.Errorf("%w: %q; only 'IOC' and 'FOK' allowed for market order", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
-	}
-	if arg.AutoSize != "" && (arg.AutoSize != "close_long" && arg.AutoSize != "close_short") {
-		return nil, errInvalidAutoSizeValue
-	}
-	if arg.Settle.IsEmpty() {
-		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
+	if err := arg.validate(true); err != nil {
+		return nil, err
 	}
 	var response *Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSubmitOrderEPL, http.MethodPost, futuresPath+arg.Settle.Item.Lower+ordersPath, nil, &arg, &response)
@@ -2371,7 +2366,7 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCrea
 
 // GetFuturesOrders retrieves list of futures orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal int64) ([]Order, error) {
+func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal bool) ([]Order, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2392,10 +2387,8 @@ func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair,
 	if lastID != "" {
 		params.Set("last_id", lastID)
 	}
-	if countTotal == 1 && status != statusOpen {
-		params.Set("count_total", strconv.FormatInt(countTotal, 10))
-	} else if countTotal != 0 && countTotal != 1 {
-		return nil, errInvalidCountTotalValue
+	if countTotal && status != statusOpen {
+		params.Set("count_total", "1")
 	}
 	var response []Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetOrdersEPL, http.MethodGet, futuresPath+settle.Item.Lower+ordersPath, params, nil, &response)
@@ -2435,10 +2428,7 @@ func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.
 		return nil, errTooManyOrderRequest
 	}
 	for x := range args {
-		if args[x].Size == 0 {
-			return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
-		}
-		if _, err := timeInForceFromString(args[x].TimeInForce); err != nil {
+		if err := args[x].validate(true); err != nil {
 			return nil, err
 		}
 		if args[x].Price <= 0 && args[x].TimeInForce != iocTIF && args[x].TimeInForce != fokTIF {
@@ -2450,8 +2440,8 @@ func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.
 		if args[x].AutoSize != "" && (args[x].AutoSize == "close_long" || args[x].AutoSize == "close_short") {
 			return nil, errInvalidAutoSizeValue
 		}
-		if !args[x].Settle.Equal(currency.BTC) && !args[x].Settle.Equal(currency.USDT) {
-			return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
+		if !args[x].Settle.Equal(settle) {
+			return nil, fmt.Errorf("%w: %q expected %q", errEmptyOrInvalidSettlementCurrency, args[x].Settle, settle)
 		}
 	}
 	var response []Order
@@ -2881,7 +2871,7 @@ func (e *Exchange) UpdateDeliveryPositionLeverage(ctx context.Context, settle cu
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if leverage < 0 {
-		return nil, errInvalidLeverageValue
+		return nil, errInvalidLeverage
 	}
 	params := url.Values{}
 	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
@@ -2907,22 +2897,8 @@ func (e *Exchange) UpdateDeliveryPositionRiskLimit(ctx context.Context, settle c
 // PlaceDeliveryOrder create a futures order
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
 func (e *Exchange) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
-	if arg.Contract.IsEmpty() {
-		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
-	}
-	if arg.Size == 0 {
-		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
-	}
-	if arg.TimeInForce != "" {
-		if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
-			return nil, err
-		}
-	}
-	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
-		return nil, errInvalidAutoSizeValue
-	}
-	if arg.Settle.IsEmpty() {
-		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
+	if err := arg.validate(true); err != nil {
+		return nil, err
 	}
 	var response *Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliverySubmitOrderEPL, http.MethodPost, deliveryPath+arg.Settle.Item.Lower+ordersPath, nil, &arg, &response)
@@ -2930,7 +2906,7 @@ func (e *Exchange) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCre
 
 // GetDeliveryOrders list futures orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal int64) ([]Order, error) {
+func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal bool) ([]Order, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2951,10 +2927,8 @@ func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair
 	if lastID != "" {
 		params.Set("last_id", lastID)
 	}
-	if countTotal == 1 && status != statusOpen {
-		params.Set("count_total", strconv.FormatInt(countTotal, 10))
-	} else if countTotal != 0 && countTotal != 1 {
-		return nil, errInvalidCountTotalValue
+	if countTotal && status != statusOpen {
+		params.Set("count_total", "1")
 	}
 	var response []Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryGetOrdersEPL, http.MethodGet, deliveryPath+settle.Item.Lower+ordersPath, params, nil, &response)
@@ -3695,7 +3669,7 @@ func (e *Exchange) SwapETH2(ctx context.Context, arg *SwapETHParam) error {
 		return order.ErrSideIsInvalid
 	}
 	if arg.Amount <= 0 {
-		return order.ErrAmountBelowMin
+		return order.ErrAmountIsInvalid
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/staking/eth2/swap", nil, arg, nil)
 }
@@ -3747,7 +3721,7 @@ func (e *Exchange) PlaceDualInvestmentOrder(ctx context.Context, arg *DualInvest
 		return errPlanIDRequired
 	}
 	if arg.Amount <= 0 {
-		return order.ErrAmountBelowMin
+		return order.ErrAmountIsInvalid
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/dual/orders", nil, arg, nil)
 }
@@ -3952,7 +3926,7 @@ func (e *Exchange) PlaceMultiCollateralLoanOrder(ctx context.Context, arg *Multi
 		return 0, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.BorrowAmount <= 0 {
-		return 0, order.ErrAmountBelowMin
+		return 0, order.ErrAmountIsInvalid
 	}
 	resp := &struct {
 		OrderID uint64 `json:"order_id"`
@@ -4191,4 +4165,43 @@ func (e *Exchange) GetUserSubordinateRelationship(ctx context.Context, userIDLis
 	params.Set("user_id_list", strings.Join(userIDList, ","))
 	var resp *UserRebaseSubRelation
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/user/sub_relation", params, nil, &resp)
+}
+
+// validate validates the ContractOrderCreateParams
+func (c *ContractOrderCreateParams) validate(isRest bool) error {
+	if err := common.NilGuard(c); err != nil {
+		return err
+	}
+	if c.Contract.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if c.Size == 0 && c.AutoSize == "" {
+		return errInvalidOrderSize
+	}
+	if c.TimeInForce != "" {
+		if _, err := timeInForceFromString(c.TimeInForce); err != nil {
+			return err
+		}
+	}
+	if c.Price == 0 && c.TimeInForce != iocTIF && c.TimeInForce != fokTIF {
+		return fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, c.TimeInForce)
+	}
+	if c.Text != "" && !strings.HasPrefix(c.Text, "t-") {
+		return errInvalidTextPrefix
+	}
+	if c.AutoSize != "" {
+		if c.AutoSize != "close_long" && c.AutoSize != "close_short" {
+			return fmt.Errorf("%w: %q", errInvalidAutoSize, c.AutoSize)
+		}
+		if c.Size != 0 {
+			return fmt.Errorf("%w: size needs to be zero when auto size is set", errInvalidOrderSize)
+		}
+	}
+	// REST requests require a settlement currency, but it can be anything
+	// Websocket requests may have an empty settlement currency, or it must be BTC or USDT
+	if (isRest && c.Settle.IsEmpty()) ||
+		(!isRest && !c.Settle.IsEmpty() && !c.Settle.Equal(currency.BTC) && !c.Settle.Equal(currency.USDT)) {
+		return errEmptyOrInvalidSettlementCurrency
+	}
+	return nil
 }

@@ -13,10 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var (
-	errInvalidAutoSize = errors.New("invalid auto size")
-	errStatusNotSet    = errors.New("status not set")
-)
+var errStatusNotSet = errors.New("status not set")
 
 // authenticateFutures sends an authentication message to the websocket connection
 func (e *Exchange) authenticateFutures(ctx context.Context, conn websocket.Connection) error {
@@ -42,7 +39,7 @@ func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Ite
 	}
 
 	for _, o := range orders {
-		if err := validateFuturesPairAsset(o.Contract, a); err != nil {
+		if err := o.validate(false); err != nil {
 			return nil, err
 		}
 
@@ -61,6 +58,9 @@ func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Ite
 			if o.Size != 0 {
 				return nil, fmt.Errorf("%w: size needs to be zero when auto size is set", order.ErrAmountIsInvalid)
 			}
+		}
+		if _, err := getSettlementCurrency(o.Contract, a); err != nil {
+			return nil, err
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -42,7 +43,7 @@ func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 // Update stores orderbook data
 func (s *store) Update(b *Book) error {
 	s.m.RLock()
-	book, ok := s.orderbooks[key.ExchangePairAsset{Exchange: b.Exchange, Base: b.Pair.Base.Item, Quote: b.Pair.Quote.Item, Asset: b.Asset}]
+	book, ok := s.orderbooks[key.ExchangeAssetPair{Exchange: b.Exchange, Base: b.Pair.Base.Item, Quote: b.Pair.Quote.Item, Asset: b.Asset}]
 	s.m.RUnlock()
 	if !ok {
 		var err error
@@ -73,14 +74,14 @@ func (s *store) track(b *Book) (book, error) {
 	depth := NewDepth(id)
 	depth.AssignOptions(b)
 	ob := book{RouterID: id, Depth: depth}
-	s.orderbooks[key.ExchangePairAsset{Exchange: b.Exchange, Base: b.Pair.Base.Item, Quote: b.Pair.Quote.Item, Asset: b.Asset}] = ob
+	s.orderbooks[key.ExchangeAssetPair{Exchange: b.Exchange, Base: b.Pair.Base.Item, Quote: b.Pair.Quote.Item, Asset: b.Asset}] = ob
 	return ob, nil
 }
 
 // DeployDepth used for subsystem deployment creates a depth item in the struct then returns a ptr to that Depth item
 func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	if exchange == "" {
-		return nil, ErrExchangeNameEmpty
+		return nil, common.ErrExchangeNameNotSet
 	}
 	if p.IsEmpty() {
 		return nil, errPairNotSet
@@ -90,7 +91,7 @@ func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*De
 	}
 
 	s.m.RLock()
-	ob, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	ob, ok := s.orderbooks[key.ExchangeAssetPair{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	s.m.RUnlock()
 	var err error
 	if !ok {
@@ -102,10 +103,10 @@ func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*De
 // GetDepth returns the actual depth struct for potential subsystems and strategies to interact with
 func (s *store) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	s.m.RLock()
-	ob, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	ob, ok := s.orderbooks[key.ExchangeAssetPair{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	s.m.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("%w for %s %s %s", ErrOrderbookNotFound, exchange, p, a)
+		return nil, fmt.Errorf("%w for %q %q %q", ErrOrderbookNotFound, exchange, p, a)
 	}
 	return ob.Depth, nil
 }
@@ -117,13 +118,13 @@ func (s *store) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Book,
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !a.IsValid() {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	s.m.RLock()
-	ob, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	ob, ok := s.orderbooks[key.ExchangeAssetPair{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	s.m.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("%w for %s %s %s", ErrOrderbookNotFound, exchange, p, a)
+		return nil, fmt.Errorf("%w for %q %q %q", ErrOrderbookNotFound, exchange, p, a)
 	}
 	return ob.Depth.Retrieve()
 }
@@ -157,7 +158,7 @@ func (b *Book) TotalAsksAmount() (amountCollated, total float64) {
 // list
 func (b *Book) Process() error {
 	if b.Exchange == "" {
-		return ErrExchangeNameEmpty
+		return common.ErrExchangeNameNotSet
 	}
 
 	if b.Pair.IsEmpty() {
