@@ -281,11 +281,12 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequ
 				return nil, err
 			}
 			headers["X-USER"] = creds.ClientID
-			if hmac, err := crypto.GetHMAC(crypto.HashSHA256, payload, []byte(creds.Key)); err != nil {
+			var hmac []byte
+			hmac, err = crypto.GetHMAC(crypto.HashSHA256, payload, []byte(creds.Key))
+			if err != nil {
 				return nil, err
-			} else {
-				headers["X-SIGNATURE"] = hex.EncodeToString(hmac)
 			}
+			headers["X-SIGNATURE"] = hex.EncodeToString(hmac)
 		}
 		headers["Content-Type"] = "application/json"
 
