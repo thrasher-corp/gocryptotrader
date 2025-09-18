@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -43,30 +44,30 @@ func TestFuturesNewOrderRequest_Unmarshal(t *testing.T) {
 	var x FuturesOrderPlaceData
 	require.NoError(t, json.Unmarshal([]byte(inp), &x))
 	exp := FuturesOrderPlaceData{
-		OrderID:       18662274680,
-		Symbol:        "ETHUSD_PERP",
-		Pair:          "ETHUSD",
-		Status:        "NEW",
-		ClientOrderID: "customID",
-		Price:         4096.0,
-		AvgPrice:      2.0,
-		OrigQty:       8.0,
-		ExecuteQty:    4.0,
-		CumQty:        32.0,
-		CumBase:       16.0,
-		TimeInForce:   "GTC",
-		OrderType:     cfuturesLimit,
-		ReduceOnly:    true,
-		ClosePosition: true,
-		StopPrice:     2048.0,
-		Side:          "BUY",
-		PositionSide:  "BOTH",
-		WorkingType:   "CONTRACT_PRICE",
-		PriceProtect:  true,
-		OrigType:      cfuturesMarket,
-		UpdateTime:    types.Time(time.UnixMilli(1635931801320)),
-		ActivatePrice: 64.0,
-		PriceRate:     32.0,
+		OrderID:            18662274680,
+		Symbol:             "ETHUSD_PERP",
+		Pair:               "ETHUSD",
+		Status:             "NEW",
+		ClientOrderID:      "customID",
+		Price:              4096.0,
+		AveragePrice:       2.0,
+		OriginalQuantity:   8.0,
+		ExecutedQuantity:   4.0,
+		CumulativeQuantity: 32.0,
+		CumulativeBase:     16.0,
+		TimeInForce:        order.GoodTillCancel,
+		OrderType:          "MARKET",
+		ReduceOnly:         true,
+		ClosePosition:      true,
+		StopPrice:          2048.0,
+		Side:               "BUY",
+		PositionSide:       "BOTH",
+		WorkingType:        "CONTRACT_PRICE",
+		PriceProtect:       true,
+		OriginalType:       "MARKET",
+		UpdateTime:         types.Time(time.UnixMilli(1635931801320)),
+		ActivatePrice:      64.0,
+		PriceRate:          32.0,
 	}
 	assert.Equal(t, exp, x)
 }
