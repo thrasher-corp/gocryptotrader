@@ -47,7 +47,6 @@ var (
 	errInvalidPath            = errors.New("invalid path")
 	errHeaderResponseMapIsNil = errors.New("header response map is nil")
 	errFailedToRetryRequest   = errors.New("failed to retry request")
-	errContextRequired        = errors.New("context is required")
 	errTransportNotSet        = errors.New("transport not set, cannot set timeout")
 	errRequestTypeUnpopulated = errors.New("request type bool is not populated")
 )
@@ -77,22 +76,14 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Req
 
 // SendPayload handles sending HTTP/HTTPS requests
 func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType) error {
-	if r == nil {
-		return ErrRequestSystemIsNil
-	}
-
-	if ctx == nil {
-		return errContextRequired
+	if err := common.NilGuard(r, newRequest); err != nil {
+		return err
 	}
 	if requestType == UnsetRequest {
 		return errRequestTypeUnpopulated
 	}
 
 	defer r.timedLock.UnlockIfLocked()
-
-	if newRequest == nil {
-		return errRequestFunctionIsNil
-	}
 
 	err := r.doRequest(ctx, ep, newRequest)
 	if err != nil && requestType == AuthenticatedRequest {

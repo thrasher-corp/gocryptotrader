@@ -75,10 +75,7 @@ func (f *FocusData) Init() {
 // Validate checks if the FocusData instance is good to go
 // It is assumed that this will be called before use rather than willy-nilly
 func (f *FocusData) Validate(k *CredentialsKey) error {
-	if err := common.NilGuard(f); err != nil {
-		return err
-	}
-	if err := common.NilGuard(k); err != nil {
+	if err := common.NilGuard(f, k); err != nil {
 		return err
 	}
 	if f.focusType == UnsetFocusType {

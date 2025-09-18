@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -115,9 +117,9 @@ func parseFlags() *appConfig {
 	}
 
 	// Parse focus type and defaults
-	fType := parseFocusType(*focusStr)
-	if fType == quickdata.UnsetFocusType {
-		fatalErr(fmt.Errorf("unsupported focusType: %s", *focusStr))
+	fType, err := parseFocusType(*focusStr)
+	if err != nil {
+		fatalErr(err)
 	}
 
 	pollDur, err := time.ParseDuration(*pollStr)
@@ -129,15 +131,20 @@ func parseFlags() *appConfig {
 	var creds *account.Credentials
 	if quickdata.RequiresAuth(fType) {
 		creds = &account.Credentials{
-			Key:             strings.TrimSpace(*apiKey),
-			Secret:          strings.TrimSpace(*apiSecret),
-			SubAccount:      strings.TrimSpace(*subAccount),
-			ClientID:        strings.TrimSpace(*clientID),
-			OneTimePassword: strings.TrimSpace(*otp),
-			PEMKey:          strings.TrimSpace(*pemKey),
+			Key:             *apiKey,
+			Secret:          *apiSecret,
+			SubAccount:      *subAccount,
+			ClientID:        *clientID,
+			OneTimePassword: *otp,
+			PEMKey:          *pemKey,
 		}
 		if creds.IsEmpty() {
 			fatalErr(fmt.Errorf("focus %s requires credentials; provide --apiKey and --apiSecret (and others as needed)", fType.String()))
+		}
+		if creds.PEMKey != "" {
+			if block, _ := pem.Decode([]byte(creds.PEMKey)); block == nil {
+				fatalErr(errors.New("invalid PEM key format"))
+			}
 		}
 	}
 
@@ -154,6 +161,7 @@ func parseFlags() *appConfig {
 }
 
 func streamData(ctx context.Context, c <-chan any, cfg *appConfig) error {
+	heading := fmt.Sprintf("%s | %s | %s", cfg.Exchange, cfg.Asset, cfg.Pair)
 	for {
 		select {
 		case <-ctx.Done():
@@ -164,7 +172,6 @@ func streamData(ctx context.Context, c <-chan any, cfg *appConfig) error {
 				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Data: d})
 			default:
 				clearScreen()
-				heading := fmt.Sprintf("%s | %s | %s", cfg.Exchange, cfg.Asset, cfg.Pair)
 				outPrintf("%s%s%s\n", ansiBold, heading, ansiReset)
 				renderPrettyPayload(d, cfg.BookLevels)
 				if cfg.FocusType != quickdata.TickerFocusType && cfg.FocusType != quickdata.KlineFocusType && cfg.FocusType != quickdata.OrderBookFocusType {
@@ -183,34 +190,33 @@ func emit(ev eventEnvelope) {
 	}
 }
 
-func parseFocusType(s string) quickdata.FocusType {
-	// returns (focusType, useWebsocketDefault)
+func parseFocusType(s string) (quickdata.FocusType, error) {
 	s = strings.TrimSpace(strings.ToLower(s))
 	switch s {
 	case "ticker", "tick":
-		return quickdata.TickerFocusType
+		return quickdata.TickerFocusType, nil
 	case "orderbook", "order_book", "ob", "book":
-		return quickdata.OrderBookFocusType
+		return quickdata.OrderBookFocusType, nil
 	case "kline", "candles", "candle", "ohlc":
-		return quickdata.KlineFocusType
+		return quickdata.KlineFocusType, nil
 	case "trades", "trade":
-		return quickdata.TradesFocusType
+		return quickdata.TradesFocusType, nil
 	case "openinterest", "oi":
-		return quickdata.OpenInterestFocusType
+		return quickdata.OpenInterestFocusType, nil
 	case "fundingrate", "funding":
-		return quickdata.FundingRateFocusType
+		return quickdata.FundingRateFocusType, nil
 	case "accountholdings", "account", "holdings", "balances":
-		return quickdata.AccountHoldingsFocusType
+		return quickdata.AccountHoldingsFocusType, nil
 	case "activeorders", "orders":
-		return quickdata.ActiveOrdersFocusType
+		return quickdata.ActiveOrdersFocusType, nil
 	case "orderexecution", "executionlimits", "limits":
-		return quickdata.OrderLimitsFocusType
+		return quickdata.OrderLimitsFocusType, nil
 	case "url", "tradeurl", "trade_url":
-		return quickdata.URLFocusType
+		return quickdata.URLFocusType, nil
 	case "contract":
-		return quickdata.ContractFocusType
+		return quickdata.ContractFocusType, nil
 	default:
-		return quickdata.UnsetFocusType
+		return quickdata.UnsetFocusType, fmt.Errorf("unknown focus type: %s", s)
 	}
 }
 

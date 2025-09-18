@@ -27,9 +27,6 @@ import (
 
 // NewQuickData returns a running quickData if everything passed in is valid
 func NewQuickData(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (*QuickData, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	if k == nil {
 		return nil, errNoKey
 	}
@@ -84,20 +81,13 @@ func NewQuickerData(ctx context.Context, k *key.ExchangeAssetPair, focus FocusTy
 	if err := focus.Valid(); err != nil {
 		return nil, err
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	useWS := slices.Contains(wsSupportedFocusList, focus)
 	focusData := NewFocusData(focus, false, useWS, time.Second)
 	ck := &CredentialsKey{
 		ExchangeAssetPair: *k,
 		Credentials:       account.GetCredentialsFromContext(ctx),
 	}
-	q, err := NewQuickData(ctx, ck, []*FocusData{focusData})
-	if err != nil {
-		return nil, err
-	}
-	return q, nil
+	return NewQuickData(ctx, ck, []*FocusData{focusData})
 }
 
 // NewQuickestData spins up a quickData with a single focus and returns the data channel which streams results
@@ -110,10 +100,6 @@ func NewQuickestData(ctx context.Context, k *key.ExchangeAssetPair, focus FocusT
 	if err := focus.Valid(); err != nil {
 		return nil, err
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	useWS := slices.Contains(wsSupportedFocusList, focus)
 	focusData := NewFocusData(focus, false, useWS, time.Second)
 	ck := &CredentialsKey{
@@ -158,13 +144,12 @@ func (q *QuickData) GetAndWaitForFocusByKey(ctx context.Context, focusType Focus
 	if err != nil {
 		return nil, err
 	}
-	timer := time.NewTimer(timeout)
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-focus.hasBeenSuccessfulChan:
 		return focus, nil
-	case <-timer.C:
+	case <-time.After(timeout):
 		return nil, fmt.Errorf("%w %q", errFocusDataTimeout, focusType)
 	}
 }
@@ -277,7 +262,7 @@ func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) er
 		return fmt.Errorf("%s %w", q.key.ExchangeAssetPair, err)
 	}
 	// allows routing of all websocket data to our custom one
-	b.Websocket.ToRoutine = q.dataHandlerChannel
+	q.dataHandlerChannel = b.Websocket.ToRoutine
 	focusList := q.focuses.List()
 	newSubs := make([]*subscription.Subscription, 0, len(focusList))
 	for _, f := range focusList {
