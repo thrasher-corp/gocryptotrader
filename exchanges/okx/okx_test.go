@@ -591,7 +591,7 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 
 	arg.Underlying = mainPair.String()
 	r, err := e.GetInsuranceFundInformation(contextGenerate(), arg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Positive(t, r.Total, "Total should be positive")
 	assert.NotEmpty(t, r.Details, "Should have some details")
 	for _, d := range r.Details {
@@ -605,7 +605,7 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 		Underlying:     mainPair.String(),
 		Limit:          2,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Positive(t, r.Total, "Total should be positive")
 	assert.NotEmpty(t, r.Details, "Should have some details")
 	for _, d := range r.Details {
