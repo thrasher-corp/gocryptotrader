@@ -529,7 +529,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		for key, bal := range resp {
 			c := assetTranslator.LookupAltName(key)
 			if c == "" {
-				log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n", e.Name, key)
+				log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s", e.Name, key)
 				continue
 			}
 			subAccts[0].Balances.Set(currency.NewCode(c), accounts.Balance{
