@@ -80,7 +80,7 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	}
 
 	arg := &FindMisingSavedTradeIntervalsParams{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 	if !validPair(arg.Pair) {
@@ -139,7 +139,7 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 	}
 
 	arg := &SetExchangeTradeProcessingParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func getSavedTrades(c *cli.Context) error {
 	}
 
 	arg := &GetTradesParams{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 	if !validPair(arg.Pair) {
@@ -231,7 +231,7 @@ func getRecentTrades(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetRecentTradesParams{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 	if !validPair(arg.Pair) {
@@ -277,7 +277,7 @@ func getHistoricTrades(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetTradesParams{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 	if !validPair(arg.Pair) {
@@ -364,7 +364,7 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 	}
 
 	arg := &ConvertSavedTradesToCandlesParams{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 

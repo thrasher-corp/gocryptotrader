@@ -335,3 +335,17 @@ type EnableDisableExchangeAssetParams struct {
 	Asset    string `name:"asset"      required:"t"  usage:"asset"`
 	Enable   bool   `hidden:"t"        name:"enable"`
 }
+
+// CurrencyPairStateParams defines command-line flags for exchange currency pair state retrieval and unmarshal their values.
+type CurrencyPairStateParams struct {
+	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to act on"`
+	Pair     string `name:"pair,p"     required:"t" usage:"the currency pair e.g. btc-usd"`
+	Asset    string `name:"asset,a"    required:"t" usage:"the asset type"`
+}
+
+// CurrencyCodeStateParams defines command-line flags for exchange currency code state retrieval and unmarshal their values.
+type CurrencyCodeStateParams struct {
+	Exchange string `name:"exchange,e" required:"t"              usage:"the exchange to act on"`
+	Code     string `name:"code,c"     usage:"the currency code"`
+	Asset    string `name:"asset,a"    usage:"the asset type"`
+}

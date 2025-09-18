@@ -100,7 +100,7 @@ func TestUnmarshalCLIFields(t *testing.T) {
 	app := &cli.App{
 		Flags: flags,
 		Action: func(ctx *cli.Context) error {
-			return UnmarshalCLIFields(ctx, &target)
+			return unmarshalCLIFields(ctx, &target)
 		},
 	}
 	err := app.Run([]string{"test", "-exchange", "", "-order_id", "1234", "-client_order_id", "5678"})

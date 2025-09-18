@@ -749,7 +749,7 @@ func whaleBomb(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &WhaleBombParams{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 

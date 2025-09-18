@@ -480,7 +480,7 @@ func getTicker(c *cli.Context) error {
 	}
 
 	arg := &GetTickerParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -823,7 +823,7 @@ func addPortfolioAddress(c *cli.Context) error {
 	}
 
 	arg := &AddPortfolioAddressParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -866,7 +866,7 @@ func removePortfolioAddress(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &RemovePortfolioAddressParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -959,7 +959,7 @@ func getOrders(c *cli.Context) error {
 		Start: time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 		End:   time.Now().Format(time.DateTime),
 	}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1031,7 +1031,7 @@ func getManagedOrders(c *cli.Context) error {
 	}
 
 	arg := &GetManagedOrdersParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1087,7 +1087,7 @@ func getOrder(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetOrderParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1145,7 +1145,7 @@ func submitOrder(c *cli.Context) error {
 	}
 
 	arg := &SubmitOrderParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1250,7 +1250,7 @@ func simulateOrder(c *cli.Context) error {
 	}
 
 	arg := &SimulateOrderParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1311,7 +1311,7 @@ func cancelOrder(c *cli.Context) error {
 	}
 
 	arg := &CancelOrderParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1384,7 +1384,7 @@ func cancelBatchOrders(c *cli.Context) error {
 	}
 
 	arg := &CancelOrderParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1490,7 +1490,7 @@ func modifyOrder(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &ModifyOrderParams{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 	arg.AssetType = strings.ToLower(arg.AssetType)
@@ -1593,7 +1593,7 @@ func addEvent(c *cli.Context) error {
 	}
 
 	arg := &AddEventParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1751,7 +1751,7 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 	}
 
 	arg := &GetCryptoCurrencyDepositAddressCommandParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1805,7 +1805,7 @@ func getAvailableTransferChains(c *cli.Context) error {
 	}
 
 	arg := &GetAvailableTransferChainsParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1848,7 +1848,7 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &WithdrawCryptoCurrencyFundParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -1894,7 +1894,7 @@ func withdrawFiatFunds(c *cli.Context) error {
 	}
 
 	arg := &WithdrawFiatFundParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -2010,7 +2010,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 	var in *gctrpc.WithdrawalEventsByExchangeRequest
 	if c.Command.Name == "byexchangeid" {
 		arg := &WithdrawlRequestByExchangeIDParams{}
-		err := UnmarshalCLIFields(c, arg)
+		err := unmarshalCLIFields(c, arg)
 		if err != nil {
 			return err
 		}
@@ -2022,7 +2022,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		}
 	} else {
 		arg := &WithdrawlRequestByExchangeParams{}
-		err := UnmarshalCLIFields(c, arg)
+		err := unmarshalCLIFields(c, arg)
 		if err != nil {
 			return err
 		}
@@ -2034,7 +2034,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 
 		in = &gctrpc.WithdrawalEventsByExchangeRequest{
 			Exchange:  arg.Exchange,
-			Limit:     int32(arg.Limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
+			Limit:     int32(arg.Limit), //nolint:gosec // TODO: SQL boiler's QueryMod limit only accepts the int type
 			Currency:  arg.Currency,
 			AssetType: arg.Asset,
 		}
@@ -2062,7 +2062,7 @@ func withdrawlRequestByDate(c *cli.Context) error {
 	}
 
 	arg := &WithdrawalRequestByDateParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -2231,7 +2231,7 @@ func getTickerStream(c *cli.Context) error {
 	}
 
 	arg := &GetTickerStreamParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -2376,7 +2376,7 @@ var getAuditEventCommand = &cli.Command{
 
 func getAuditEvent(c *cli.Context) error {
 	arg := &GetAuditEventParam{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -2408,7 +2408,7 @@ func getAuditEvent(c *cli.Context) error {
 		&gctrpc.GetAuditEventRequest{
 			StartDate: s.Format(common.SimpleTimeFormatWithTimezone),
 			EndDate:   e.Format(common.SimpleTimeFormatWithTimezone),
-			Limit:     int32(arg.Limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
+			Limit:     int32(arg.Limit), //nolint:gosec // TODO: SQL boiler's QueryMod limit only accepts the int type
 			OrderBy:   arg.Order,
 		})
 	if err != nil {
@@ -2859,7 +2859,7 @@ func getHistoricCandles(c *cli.Context) error {
 	}
 
 	arg := &HistoricCandlesParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -2928,7 +2928,7 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	}
 
 	arg := &GetHistoricCandlesParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -3014,7 +3014,7 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	}
 
 	arg := &FindMissingSavedCandleIntervalsParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -3115,7 +3115,7 @@ func getMarginRatesHistory(c *cli.Context) error {
 	}
 
 	arg := &MarginRateHistoryParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -3180,7 +3180,7 @@ func getCurrencyTradeURL(c *cli.Context) error {
 	}
 
 	arg := &CurrencyTradeURLParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -3222,7 +3222,7 @@ func getCurrencyTradeURL(c *cli.Context) error {
 	return nil
 }
 
-func UnmarshalCLIFields(c *cli.Context, params any) error {
+func unmarshalCLIFields(c *cli.Context, params any) error {
 	val := reflect.ValueOf(params).Elem()
 	typ := val.Type()
 	for i := range typ.NumField() {

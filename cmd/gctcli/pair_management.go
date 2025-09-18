@@ -122,7 +122,7 @@ func enableDisableExchangePair(c *cli.Context) error {
 	}
 
 	arg := &EnableDisableExchangePairParams{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 
@@ -226,7 +226,7 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 	}
 
 	arg := &EnableDisableExchangeAssetParams{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 	arg.Asset = strings.ToLower(arg.Asset)

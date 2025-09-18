@@ -149,7 +149,7 @@ func getManagedPosition(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetManagedPositionsParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -204,7 +204,7 @@ func getManagedPosition(c *cli.Context) error {
 
 func getAllManagedPositions(c *cli.Context) error {
 	arg := &GetAllManagedPositions{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -241,7 +241,7 @@ func getCollateral(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetCollateralParams{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func getFundingRates(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetFundingRates{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -347,7 +347,7 @@ func getLatestFundingRate(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetLatestFundingRateParams{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 
@@ -397,7 +397,7 @@ func getCollateralMode(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetCollateralMode{}
-	err := UnmarshalCLIFields(c, arg)
+	err := unmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
 	}
@@ -431,7 +431,7 @@ func setCollateralMode(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &SetCollateralMode{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 
@@ -469,7 +469,7 @@ func setLeverage(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &SetLeverage{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 
@@ -529,7 +529,7 @@ func getLeverage(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &LeverageInfo{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 	if err := isFuturesAsset(arg.Asset); err != nil {
@@ -586,7 +586,7 @@ func changePositionMargin(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &ChangePositionMargin{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 
@@ -638,7 +638,7 @@ func getFuturesPositionSummary(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetFuturesPositionSummary{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 	if err := isFuturesAsset(arg.Asset); err != nil {
@@ -699,7 +699,7 @@ func getFuturePositionOrders(c *cli.Context) error {
 		Start: time.Now().AddDate(0, 0, -7).Truncate(time.Hour).Format(time.DateTime),
 		End:   time.Now().Format(time.DateTime),
 	}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 
@@ -779,7 +779,7 @@ func setMarginType(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &SetMarginType{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 	if err := isFuturesAsset(arg.Asset); err != nil {
@@ -828,7 +828,7 @@ func getOpenInterest(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetOpenInterest{}
-	if err := UnmarshalCLIFields(c, arg); err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 	if arg.Asset != "" {
