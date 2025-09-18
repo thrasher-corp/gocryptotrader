@@ -20,9 +20,6 @@ type exchangeMap map[exchange]*Accounts
 type exchange interface {
 	GetName() string
 	GetCredentials(context.Context) (*Credentials, error)
-}
-
-type exchangeWrapper interface {
 	GetBase() exchange
 }
 
@@ -49,11 +46,8 @@ func GetStore() *Store {
 func (s *Store) GetExchangeAccounts(e exchange) (a *Accounts, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if w, ok := e.(exchangeWrapper); ok {
-		// Because SetupDefaults is called on Base, it's easiest to just use the Base pointer as the key
-		e = w.GetBase()
-	}
-	a, ok := s.exchangeAccounts[e]
+	// Using GetBase allows this to be called from methods on both *Base and *Exchange
+	a, ok := s.exchangeAccounts[e.GetBase()]
 	if !ok {
 		a, err = NewAccounts(e, s.mux)
 		s.exchangeAccounts[e] = a
