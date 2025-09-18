@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -69,7 +70,7 @@ func (e *Exchange) PlaceV3FuturesOrder(ctx context.Context, arg *FuturesParams) 
 		return nil, order.ErrTypeIsInvalid
 	}
 	if arg.Size <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *FuturesV3OrderIDResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/order", nil, arg, &resp, true)
@@ -107,7 +108,7 @@ func validationOrderCreationParam(arg *FuturesParams) error {
 		return order.ErrTypeIsInvalid
 	}
 	if arg.Size <= 0 {
-		return order.ErrAmountBelowMin
+		return limits.ErrAmountBelowMin
 	}
 	return nil
 }
@@ -339,7 +340,7 @@ func (e *Exchange) AdjustMarginForIsolatedMarginTradingPositions(ctx context.Con
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if adjustType == "" {
 		return nil, errMarginAdjustTypeMissing

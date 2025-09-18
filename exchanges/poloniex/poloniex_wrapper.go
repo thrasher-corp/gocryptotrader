@@ -11,8 +11,10 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -1265,7 +1267,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 		return nil, withdraw.ErrRequestCannotBeNil
 	}
 	if withdrawRequest.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if withdrawRequest.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -1895,15 +1897,14 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-		limits := make([]order.MinMaxLevel, len(instruments))
+		l := make([]limits.MinMaxLevel, len(instruments))
 		for x := range instruments {
 			pair, err := currency.NewPairFromString(instruments[x].Symbol)
 			if err != nil {
 				return err
 			}
-			limits[x] = order.MinMaxLevel{
-				Pair:                    pair,
-				Asset:                   a,
+			l[x] = limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 				PriceStepIncrementSize:  instruments[x].SymbolTradeLimit.PriceScale,
 				MinimumBaseAmount:       instruments[x].SymbolTradeLimit.MinQuantity.Float64(),
 				MinimumQuoteAmount:      instruments[x].SymbolTradeLimit.MinAmount.Float64(),
@@ -1911,22 +1912,21 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				QuoteStepIncrementSize:  instruments[x].SymbolTradeLimit.QuantityScale,
 			}
 		}
-		return e.LoadLimits(limits)
+		return limits.Load(l)
 	}
 
 	instruments, err := e.GetV3FuturesAllProductInfo(ctx, "")
 	if err != nil {
 		return err
 	}
-	limits := make([]order.MinMaxLevel, len(instruments))
+	l := make([]limits.MinMaxLevel, len(instruments))
 	for x := range instruments {
 		pair, err := currency.NewPairFromString(instruments[x].Symbol)
 		if err != nil {
 			return err
 		}
-		limits[x] = order.MinMaxLevel{
-			Pair:                   pair,
-			Asset:                  a,
+		l[x] = limits.MinMaxLevel{
+			Key:                    key.NewExchangeAssetPair(e.Name, a, pair),
 			MinPrice:               instruments[x].MinPrice.Float64(),
 			MaxPrice:               instruments[x].MaxPrice.Float64(),
 			PriceStepIncrementSize: instruments[x].TickSize.Float64(),
@@ -1937,7 +1937,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			MarketMaxQty:           instruments[x].MaxQuantity.Float64(),
 		}
 	}
-	return e.LoadLimits(limits)
+	return limits.Load(l)
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair

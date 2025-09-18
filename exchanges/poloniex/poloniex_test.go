@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -416,7 +417,7 @@ func TestWithdraw(t *testing.T) {
 		},
 	}
 	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.Amount = 1000
 	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), arg)
@@ -1170,7 +1171,7 @@ func TestWithdrawCurrency(t *testing.T) {
 	_, err = e.WithdrawCurrency(t.Context(), &WithdrawCurrencyParam{
 		Currency: currency.BTC.String() + "TRON", // Sends BTC through the TRON chain
 	})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.WithdrawCurrency(t.Context(), &WithdrawCurrencyParam{Currency: currency.BTC.String(), Amount: 1})
 	require.ErrorIs(t, err, errAddressRequired)
 
@@ -1187,7 +1188,7 @@ func TestWithdrawCurrencyV2(t *testing.T) {
 	_, err := e.WithdrawCurrencyV2(t.Context(), &WithdrawCurrencyV2Param{})
 	require.ErrorIs(t, err, errNilArgument)
 	_, err = e.WithdrawCurrencyV2(t.Context(), &WithdrawCurrencyV2Param{Coin: currency.BTC})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.WithdrawCurrencyV2(t.Context(), &WithdrawCurrencyV2Param{Coin: currency.BTC, Amount: 1})
 	require.ErrorIs(t, err, errInvalidWithdrawalChain)
 	_, err = e.WithdrawCurrencyV2(t.Context(), &WithdrawCurrencyV2Param{Coin: currency.BTC, Amount: 1, Network: "BTC"})
@@ -1772,7 +1773,7 @@ func TestPlaceV3FuturesOrder(t *testing.T) {
 
 	arg.OrderType = "limit_maker"
 	_, err = e.PlaceV3FuturesOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.PlaceV3FuturesOrder(t.Context(), &FuturesParams{
@@ -1815,7 +1816,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 
 	arg.OrderType = "limit_maker"
 	_, err = e.PlaceV3FuturesMultipleOrders(t.Context(), []FuturesParams{arg})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.PlaceV3FuturesMultipleOrders(t.Context(), []FuturesParams{
@@ -1967,7 +1968,7 @@ func TestAdjustMarginForIsolatedMarginTradingPositions(t *testing.T) {
 	_, err := e.AdjustMarginForIsolatedMarginTradingPositions(t.Context(), "", "", "ADD", 123)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	_, err = e.AdjustMarginForIsolatedMarginTradingPositions(t.Context(), "DOT_USDT_PERP", "", "ADD", 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.AdjustMarginForIsolatedMarginTradingPositions(t.Context(), "DOT_USDT_PERP", "", "", 123)
 	require.ErrorIs(t, err, errMarginAdjustTypeMissing)
 
