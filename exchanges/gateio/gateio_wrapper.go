@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -56,8 +57,8 @@ func (e *Exchange) SetDefaults() {
 			currency.NewCode("MBABYDOGE"): currency.BABYDOGE,
 		}),
 		TradingRequirements: protocol.TradingRequirements{
-			SpotMarketOrderAmountPurchaseQuotationOnly: true,
-			SpotMarketOrderAmountSellBaseOnly:          true,
+			SpotMarketBuyQuotation: true,
+			SpotMarketSellBase:     true,
 		},
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -422,9 +423,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				continue
 			}
 			p := strings.ToUpper(tradables[x].ID)
-			if !e.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -443,9 +441,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				continue
 			}
 			p := strings.ToUpper(tradables[x].Base + currency.UnderscoreDelimiter + tradables[x].Quote)
-			if !e.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -468,9 +463,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				continue
 			}
 			p := strings.ToUpper(contracts[i].Name)
-			if !e.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -489,9 +481,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				continue
 			}
 			p := strings.ToUpper(contracts[i].Name)
-			if !e.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -511,9 +500,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				return nil, err
 			}
 			for c := range contracts {
-				if !e.IsValidPairString(contracts[c].Name) {
-					continue
-				}
 				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
 				if err != nil {
 					return nil, err
@@ -683,7 +669,7 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 	case asset.Options:
 		o, err = e.GetOptionsOrderbook(ctx, p, "", limit, true)
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	if err != nil {
 		return nil, err
@@ -932,6 +918,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, err
 	}
 
+	s.ClientOrderID = formatClientOrderID(s.ClientOrderID)
+
 	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return nil, err
@@ -975,29 +963,19 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		//	* iceberg orders
 		//	* auto_size (close_long, close_short)
 		// 	* stp_act (self trade prevention)
-		amountWithDirection, err := getFutureOrderSize(s)
+		fOrder, err := getFuturesOrderRequest(s)
 		if err != nil {
 			return nil, err
 		}
-		settle, err := getSettlementCurrency(s.Pair, s.AssetType)
+		fOrder.Settle, err = getSettlementCurrency(s.Pair, s.AssetType)
 		if err != nil {
 			return nil, err
 		}
-		orderParams := &ContractOrderCreateParams{
-			Contract:    s.Pair,
-			Size:        amountWithDirection,
-			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64), // Cannot be an empty string, requires "0" for market orders.
-			Settle:      settle,
-			ReduceOnly:  s.ReduceOnly,
-			TimeInForce: timeInForceString(s.TimeInForce),
-			Text:        s.ClientOrderID,
-		}
-		var o *Order
+		op := e.PlaceFuturesOrder
 		if s.AssetType == asset.DeliveryFutures {
-			o, err = e.PlaceDeliveryOrder(ctx, orderParams)
-		} else {
-			o, err = e.PlaceFuturesOrder(ctx, orderParams)
+			op = e.PlaceDeliveryOrder
 		}
+		o, err := op(ctx, fOrder)
 		if err != nil {
 			return nil, err
 		}
@@ -1005,13 +983,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
+		resp.Status = order.Open
 		if o.Status != statusOpen {
-			resp.Status, err = order.StringToOrderStatus(o.FinishAs)
-			if err != nil {
+			if resp.Status, err = order.StringToOrderStatus(o.FinishAs); err != nil {
 				return nil, err
 			}
-		} else {
-			resp.Status = order.Open
 		}
 		resp.Date = o.CreateTime.Time()
 		resp.ClientOrderID = getClientOrderIDFromText(o.Text)
@@ -1496,9 +1472,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		}
 		var futuresOrders []Order
 		if req.AssetType == asset.DeliveryFutures {
-			futuresOrders, err = e.GetDeliveryOrders(ctx, currency.EMPTYPAIR, statusOpen, settle, "", 0, 0, 0)
+			futuresOrders, err = e.GetDeliveryOrders(ctx, currency.EMPTYPAIR, statusOpen, settle, "", 0, 0, false)
 		} else {
-			futuresOrders, err = e.GetFuturesOrders(ctx, currency.EMPTYPAIR, statusOpen, "", settle, 0, 0, 0)
+			futuresOrders, err = e.GetFuturesOrders(ctx, currency.EMPTYPAIR, statusOpen, "", settle, 0, 0, false)
 		}
 		if err != nil {
 			return nil, err
@@ -1824,7 +1800,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 		return nil, futures.ErrNotFuturesAsset
 	}
 	if !e.SupportsAsset(a) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	settle, err := getSettlementCurrency(currency.EMPTYPAIR, a)
 	if err != nil {
@@ -1920,7 +1896,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 		}
 		return resp, nil
 	}
-	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
@@ -1929,7 +1905,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	var limits []order.MinMaxLevel
+	var l []limits.MinMaxLevel
 	switch a {
 	case asset.Spot:
 		pairsData, err := e.ListSpotCurrencyPairs(ctx)
@@ -1937,7 +1913,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return err
 		}
 
-		limits = make([]order.MinMaxLevel, 0, len(pairsData))
+		l = make([]limits.MinMaxLevel, 0, len(pairsData))
 		for i := range pairsData {
 			if pairsData[i].TradeStatus == "untradable" {
 				continue
@@ -1954,21 +1930,110 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
 			}
 
-			limits = append(limits, order.MinMaxLevel{
-				Asset:                   a,
-				Pair:                    pair,
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[i].Precision)),
 				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
 				MinimumBaseAmount:       minBaseAmount,
 				MinimumQuoteAmount:      pairsData[i].MinQuoteAmount.Float64(),
 			})
 		}
+	case asset.CoinMarginedFutures:
+		btcContracts, err := e.GetAllFutureContracts(ctx, currency.BTC)
+		if err != nil {
+			return err
+		}
+		l = make([]limits.MinMaxLevel, 0, len(btcContracts))
+		for x := range btcContracts {
+			p := strings.ToUpper(btcContracts[x].Name)
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
+				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
+				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
+				PriceStepIncrementSize:  btcContracts[x].OrderPriceRound.Float64(),
+				AmountStepIncrementSize: 1,
+			})
+		}
+	case asset.USDTMarginedFutures:
+		usdtContracts, err := e.GetAllFutureContracts(ctx, currency.USDT)
+		if err != nil {
+			return err
+		}
+		l = make([]limits.MinMaxLevel, 0, len(usdtContracts))
+		for x := range usdtContracts {
+			p := strings.ToUpper(usdtContracts[x].Name)
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
+				MinimumBaseAmount:       float64(usdtContracts[x].OrderSizeMin),
+				MaximumBaseAmount:       float64(usdtContracts[x].OrderSizeMax),
+				PriceStepIncrementSize:  usdtContracts[x].OrderPriceRound.Float64(),
+				AmountStepIncrementSize: 1,
+			})
+		}
+	case asset.DeliveryFutures:
+		btcContracts, err := e.GetAllDeliveryContracts(ctx, currency.BTC)
+		if err != nil {
+			return err
+		}
+		usdtContracts, err := e.GetAllDeliveryContracts(ctx, currency.USDT)
+		if err != nil {
+			return err
+		}
+		btcContracts = append(btcContracts, usdtContracts...)
+		l = make([]limits.MinMaxLevel, 0, len(btcContracts))
+		for x := range btcContracts {
+			p := strings.ToUpper(btcContracts[x].Name)
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
+				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
+				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
+				PriceStepIncrementSize:  btcContracts[x].OrderPriceRound.Float64(),
+				AmountStepIncrementSize: 1,
+			})
+		}
+	case asset.Options:
+		underlyings, err := e.GetAllOptionsUnderlyings(ctx)
+		if err != nil {
+			return err
+		}
+		for x := range underlyings {
+			contracts, err := e.GetAllContractOfUnderlyingWithinExpiryDate(ctx, underlyings[x].Name, time.Time{})
+			if err != nil {
+				return err
+			}
+			l = make([]limits.MinMaxLevel, 0, len(contracts))
+			for c := range contracts {
+				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
+				if err != nil {
+					return err
+				}
+				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
+				l = append(l, limits.MinMaxLevel{
+					Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
+					MinimumBaseAmount:       float64(contracts[c].OrderSizeMin),
+					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
+					PriceStepIncrementSize:  contracts[c].OrderPriceRound.Float64(),
+					AmountStepIncrementSize: 1,
+				})
+			}
+		}
 	default:
-		// TODO: Add in other assets
-		return fmt.Errorf("%s %w", a, common.ErrNotYetImplemented)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 
-	return e.LoadLimits(limits)
+	return limits.Load(l)
 }
 
 // GetHistoricalFundingRates returns historical funding rates for a futures contract
@@ -2091,11 +2156,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	}
 	resp := make([]fundingrate.LatestRateResponse, 0, len(contracts))
 	for i := range contracts {
-		p := strings.ToUpper(contracts[i].Name)
-		if !e.IsValidPairString(p) {
-			continue
-		}
-		cp, err := currency.NewPairFromString(p)
+		cp, err := currency.NewPairFromString(contracts[i].Name)
 		if err != nil {
 			return nil, err
 		}
@@ -2183,7 +2244,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 				}
 			}
 			resp = append(resp, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
+				Key: key.ExchangeAssetPair{
 					Exchange: e.Name,
 					Base:     p.Base.Item,
 					Quote:    p.Quote.Item,
@@ -2258,6 +2319,13 @@ func getClientOrderIDFromText(text string) string {
 	return ""
 }
 
+func formatClientOrderID(clientOrderID string) string {
+	if clientOrderID == "" || strings.HasPrefix(clientOrderID, "t-") {
+		return clientOrderID
+	}
+	return "t-" + clientOrderID
+}
+
 // getTypeFromTimeInForce returns the order type and if the order is post only
 func getTypeFromTimeInForce(tif string, price float64) (orderType order.Type) {
 	switch tif {
@@ -2313,7 +2381,7 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		}
 		return tradeBaseURL + futuresPath + settle.String() + "/" + cp.Upper().String(), nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }
 
@@ -2324,6 +2392,8 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
+
+	s.ClientOrderID = formatClientOrderID(s.ClientOrderID)
 
 	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
@@ -2364,31 +2434,39 @@ func getFuturesOrderRequest(s *order.Submit) (*ContractOrderCreateParams, error)
 		return nil, err
 	}
 
+	tif, err := toExchangeTIF(s.TimeInForce, s.Price)
+	if err != nil {
+		return nil, err
+	}
+
 	return &ContractOrderCreateParams{
 		Contract:    s.Pair,
 		Size:        amountWithDirection,
-		Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
+		Price:       number(s.Price),
 		ReduceOnly:  s.ReduceOnly,
-		TimeInForce: timeInForceString(s.TimeInForce),
+		TimeInForce: tif,
 		Text:        s.ClientOrderID,
 	}, nil
 }
 
-// timeInForceString returns the most relevant time-in-force exchange string for a TimeInForce
-// Any TIF value that is combined with POC, IOC or FOK will just return that
-// Otherwise the lowercase representation is returned
-func timeInForceString(tif order.TimeInForce) string {
+// toExchangeTIF converts a TimeInForce to its corresponding exchange-compatible string.
+func toExchangeTIF(tif order.TimeInForce, price float64) (string, error) {
 	switch {
+	case tif == order.UnknownTIF:
+		if price == 0 {
+			return iocTIF, nil // Market orders default to IOC
+		}
+		return gtcTIF, nil // Default to GTC for limit orders
 	case tif.Is(order.PostOnly):
-		return "poc"
+		return pocTIF, nil
 	case tif.Is(order.ImmediateOrCancel):
-		return iocTIF
+		return iocTIF, nil
 	case tif.Is(order.FillOrKill):
-		return fokTIF
+		return fokTIF, nil
 	case tif.Is(order.GoodTillCancel):
-		return gtcTIF
+		return gtcTIF, nil
 	default:
-		return tif.Lower()
+		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, tif)
 	}
 }
 
@@ -2548,12 +2626,9 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 		return nil, order.ErrSideIsInvalid
 	}
 
-	var timeInForce string
-	switch s.TimeInForce {
-	case order.ImmediateOrCancel, order.FillOrKill, order.GoodTillCancel:
-		timeInForce = s.TimeInForce.Lower()
-	case order.PostOnly:
-		timeInForce = "poc"
+	tif, err := toExchangeTIF(s.TimeInForce, s.Price)
+	if err != nil {
+		return nil, err
 	}
 
 	return &CreateOrderRequest{
@@ -2564,7 +2639,7 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 		Price:        types.Number(s.Price),
 		CurrencyPair: s.Pair,
 		Text:         s.ClientOrderID,
-		TimeInForce:  timeInForce,
+		TimeInForce:  tif,
 	}, nil
 }
 

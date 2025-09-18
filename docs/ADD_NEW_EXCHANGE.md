@@ -145,7 +145,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
-| CoinbasePro | Yes | Yes | No|
+| Coinbase | Yes | Yes | No|
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
@@ -171,7 +171,7 @@ var Exchanges = []string{
     "btc markets",
     "btse",
     "bybit",
-    "coinbasepro",
+    "coinbase",
     "coinut",
     "deribit",
     "exmo",
@@ -252,12 +252,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any)
     // This is used to generate the *http.Request, used in conjunction with the
     // generate functionality below. 
     item := &request.Item{  
-        Method:        http.MethodGet,
-        Path:          path,
-        Result:        result,
-        Verbose:       e.Verbose,
-        HTTPDebugging: e.HTTPDebugging,
-        HTTPRecording: e.HTTPRecording,
+        Method:                 http.MethodGet,
+        Path:                   path,
+        Result:                 result,
+        Verbose:                e.Verbose,
+        HTTPDebugging:          e.HTTPDebugging,
+        HTTPRecording:          e.HTTPRecording,
+        HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
     }
 
     // Request function that closes over the above request.Item values, which
@@ -358,6 +359,11 @@ Alternatively you can use `request.WithVerbose(context.Background())` as the `co
 
 Ensure each endpoint is implemented and has an associated test to improve test coverage and increase confidence
 
+#### Message IDs
+
+Use e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs. Otherwise override MessageID with a suitable alternative.
+For example: Consider common.Counter for simple integer IDs if uniqueness isn't critical.
+
 #### Authenticated functions
 
 Authenticated request function is created based on the way the exchange documentation specifies. For example, see the [Binance Spot API - Endpoint Security Types](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/endpoint-security-type).
@@ -402,13 +408,14 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, 
         headers["X-MBX-APIKEY"] = creds.Key
         fullPath := common.EncodeURLValues(endpointPath+path, params) + "&signature=" + hex.EncodeToString(hmacSigned)
         return &request.Item{
-            Method:        method,
-            Path:          fullPath,
-            Headers:       headers,
-            Result:        &interim,
-            Verbose:       e.Verbose,
-            HTTPDebugging: e.HTTPDebugging,
-            HTTPRecording: e.HTTPRecording,
+            Method:                 method,
+            Path:                   fullPath,
+            Headers:                headers,
+            Result:                 &interim,
+            Verbose:                e.Verbose,
+            HTTPDebugging:          e.HTTPDebugging,
+            HTTPRecording:          e.HTTPRecording,
+            HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
         }, nil
     }, request.AuthenticatedRequest)
     if err != nil {

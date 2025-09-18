@@ -57,15 +57,20 @@ type Connection interface {
 	Shutdown() error
 	// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
 	RequireMatchWithData(signature any, incoming []byte) error
+	// IncomingWithData routes incoming data using the connection specific match system to the correct handler
+	IncomingWithData(signature any, data []byte) bool
+	// MatchReturnResponses sets up a channel to listen for an expected number of responses.
+	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
 }
 
 // ConnectionSetup defines variables for an individual stream connection
 type ConnectionSetup struct {
-	ResponseCheckTimeout    time.Duration
-	ResponseMaxLimit        time.Duration
-	RateLimit               *request.RateLimiterWithWeight
-	Authenticated           bool
-	ConnectionLevelReporter Reporter
+	ResponseCheckTimeout     time.Duration
+	ResponseMaxLimit         time.Duration
+	RateLimit                *request.RateLimiterWithWeight
+	Authenticated            bool // unused for multi-connection websocket
+	SubscriptionsNotRequired bool
+	ConnectionLevelReporter  Reporter
 
 	// URL defines the websocket server URL to connect to
 	URL string
@@ -92,7 +97,8 @@ type ConnectionSetup struct {
 	// This is useful for when an exchange connection requires a unique or
 	// structured message ID for each message sent.
 	RequestIDGenerator func() int64
-	Authenticate       func(ctx context.Context, conn Connection) error
+	// Authenticate will be called to authenticate the connection
+	Authenticate func(ctx context.Context, conn Connection) error
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.
 	MessageFilter any
@@ -233,9 +239,7 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 		})
 		return
 	}
-	c.Wg.Add(1)
-	go func() {
-		defer c.Wg.Done()
+	c.Wg.Go(func() {
 		ticker := time.NewTicker(handler.Delay)
 		for {
 			select {
@@ -250,7 +254,7 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 				}
 			}
 		}
-	}()
+	})
 }
 
 // setConnectedStatus sets connection status if changed it will return true.
@@ -284,7 +288,7 @@ func (c *connection) ReadMessage() Response {
 			// method on WebsocketConnection type has been called and can
 			// be skipped.
 			select {
-			case c.readMessageErrors <- fmt.Errorf("%w: %w", err, errConnectionFault):
+			case c.readMessageErrors <- fmt.Errorf("%w: %w (%q)", err, errConnectionFault, c.URL):
 			default:
 				// bypass if there is no receiver, as this stops it returning
 				// when shutdown is called.
@@ -469,6 +473,30 @@ inspection:
 	return resps, nil
 }
 
+// MatchedResponse encapsulates the matched responses along with any errors encountered.
+type MatchedResponse struct {
+	Responses [][]byte
+	Err       error
+}
+
+// MatchReturnResponses returns channel of exactly expected matched responses
+func (c *connection) MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error) {
+	connectionListen, err := c.Match.Set(signature, expected)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan MatchedResponse, 1) // buffered so routine below doesn't block if no receiver
+
+	go func() {
+		resps, err := c.waitForResponses(ctx, signature, connectionListen, expected, nil)
+		out <- MatchedResponse{Responses: resps, Err: err}
+		close(out)
+	}()
+
+	return out, nil
+}
+
 func removeURLQueryString(u string) string {
 	if index := strings.Index(u, "?"); index != -1 {
 		return u[:index]
@@ -479,4 +507,9 @@ func removeURLQueryString(u string) string {
 // RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
 func (c *connection) RequireMatchWithData(signature any, incoming []byte) error {
 	return c.Match.RequireMatchWithData(signature, incoming)
+}
+
+// IncomingWithData routes incoming data using the connection specific match system to the correct handler
+func (c *connection) IncomingWithData(signature any, data []byte) bool {
+	return c.Match.IncomingWithData(signature, data)
 }

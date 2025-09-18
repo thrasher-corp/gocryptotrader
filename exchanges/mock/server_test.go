@@ -2,6 +2,7 @@ package mock
 
 import (
 	"bytes"
+	"net"
 	"net/http"
 	"os"
 	"testing"
@@ -25,7 +26,7 @@ const (
 
 func TestNewVCRServer(t *testing.T) {
 	_, _, err := NewVCRServer("")
-	assert.Error(t, err, "NewVCRServer error cannot be nil")
+	assert.ErrorIs(t, err, errJSONMockFilePathRequired)
 
 	// Set up mock data
 	test1 := VCRMock{}
@@ -37,19 +38,19 @@ func TestNewVCRServer(t *testing.T) {
 		Amount:   1,
 		Currency: "bitcoin",
 	})
-	require.NoErrorf(t, err, "marshal error: %v", err)
+	require.NoError(t, err, "Marshal must not error")
 
 	testValue := HTTPResponse{Data: rp, QueryString: queryString, BodyParams: queryString}
 	test1.Routes["/test"][http.MethodGet] = []HTTPResponse{testValue}
 
 	payload, err := json.Marshal(test1)
-	require.NoErrorf(t, err, "marshal error: %v", err)
+	require.NoError(t, err, "Marshal must not error")
 
 	err = os.WriteFile(testFile, payload, os.ModePerm)
-	require.NoErrorf(t, err, "marshal error: %v", err)
+	require.NoError(t, err, "WriteFile must not error")
 
 	deets, client, err := NewVCRServer(testFile)
-	assert.NoErrorf(t, err, "NewVCRServer error: %v", err)
+	assert.NoError(t, err, "NewVCRServer should not error")
 
 	err = common.SetHTTPClient(client) // Set common package global HTTP Client
 	require.NoError(t, err)
@@ -59,7 +60,8 @@ func TestNewVCRServer(t *testing.T) {
 		"http://localhost:300/somethingElse?"+queryString,
 		nil,
 		bytes.NewBufferString(""), true)
-	assert.Error(t, err, "Sending http request expected an error")
+	var netErr *net.OpError
+	assert.ErrorAs(t, err, &netErr, "SendHTTPRequest should return a net.OpError for an invalid host")
 
 	// Expected good outcome
 	r, err := common.SendHTTPRequest(t.Context(),
@@ -67,24 +69,24 @@ func TestNewVCRServer(t *testing.T) {
 		deets,
 		nil,
 		bytes.NewBufferString(""), true)
-	assert.NoErrorf(t, err, "Sending http request error: %v", err)
-	assert.Containsf(t, string(r), "404 page not found", "Was not expecting any value returned: %s", string(r))
+	assert.NoError(t, err, "SendHTTPRequest should not error")
+	assert.Contains(t, string(r), "404 page not found", "SendHTTPRequest return should only contain 404")
 
 	r, err = common.SendHTTPRequest(t.Context(),
 		http.MethodGet,
 		deets+"/test?"+queryString,
 		nil,
 		bytes.NewBufferString(""), true)
-	assert.NoErrorf(t, err, "Sending http request error: %v", err)
+	assert.NoError(t, err, "SendHTTPRequest should not error")
 
 	var res responsePayload
 	err = json.Unmarshal(r, &res)
-	assert.NoErrorf(t, err, "unmarshal error: %v", err)
+	assert.NoError(t, err, "Unmarshal should not error")
 	assert.Equalf(t, 8000.0, res.Price, "response error expected 8000 but received: %f", res.Price)
 	assert.Equalf(t, 1.0, res.Amount, "response error expected 1 but received: %f", res.Amount)
 	assert.Equalf(t, "bitcoin", res.Currency, "response error expected \"bitcoin\" but received: %s", res.Currency)
 
 	// clean up test.json file
 	err = os.Remove(testFile)
-	require.NoErrorf(t, err, "Remove error: %v", err)
+	require.NoError(t, err, "Remove testFile must not error")
 }

@@ -20,10 +20,10 @@ func TestMatchURLVals(t *testing.T) {
 	nonceVal1.Add("nonce", "012349723587")
 	nonceVal2.Add("nonce", "9327373874")
 
-	args := []struct {
-		Src1     url.Values
-		Src2     url.Values
-		Expected bool
+	tests := []struct {
+		a   url.Values
+		b   url.Values
+		exp bool
 	}{
 		{testVal, emptyVal, false},
 		{emptyVal, testVal, false},
@@ -35,27 +35,24 @@ func TestMatchURLVals(t *testing.T) {
 		{testVal, testVal, true},
 		{nonceVal1, nonceVal2, true},
 	}
-	for a := range args {
-		received := MatchURLVals(args[a].Src1, args[a].Src2)
-		assert.Equalf(t, args[a].Expected, received, "MatchURLVals error expected %v received %v", args[a].Expected, received)
+	for _, tc := range tests {
+		got := MatchURLVals(tc.a, tc.b)
+		assert.Equalf(t, tc.exp, got, "MatchURLVals should return correctly for (%q, %q)", tc.a, tc.b)
 	}
 }
 
 func TestDeriveURLValsFromJSON(t *testing.T) {
+	type class struct {
+		Numbers    []int   `json:"numbers"`
+		Number     float64 `json:"number"`
+		SomeString string  `json:"somestring"`
+	}
 	test1 := struct {
 		Things []string `json:"things"`
-		Data   struct {
-			Numbers    []int   `json:"numbers"`
-			Number     float64 `json:"number"`
-			SomeString string  `json:"somestring"`
-		} `json:"data"`
+		Data   class    `json:"data"`
 	}{
 		Things: []string{"hello", "world"},
-		Data: struct {
-			Numbers    []int   `json:"numbers"`
-			Number     float64 `json:"number"`
-			SomeString string  `json:"somestring"`
-		}{
+		Data: class{
 			Numbers:    []int{1, 3, 3, 7},
 			Number:     3.14,
 			SomeString: "hello, peoples",
@@ -63,10 +60,11 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	}
 
 	payload, err := json.Marshal(test1)
-	require.NoErrorf(t, err, "marshal error: %v", err)
+	require.NoError(t, err, "Marshal must not error")
 
-	_, err = DeriveURLValsFromJSONMap(payload)
-	assert.NoErrorf(t, err, "DeriveURLValsFromJSON error: %v", err)
+	values, err := DeriveURLValsFromJSONMap(payload)
+	assert.NoError(t, err, "DeriveURLValsFromJSONMap should not error")
+	assert.Len(t, values, 2)
 
 	test2 := map[string]string{
 		"val":  "1",
@@ -79,13 +77,13 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	}
 
 	payload, err = json.Marshal(test2)
-	require.NoErrorf(t, err, "marshal error: %v", err)
+	require.NoError(t, err, "Marshal must not error")
 
-	values, err := DeriveURLValsFromJSONMap(payload)
-	require.NoErrorf(t, err, "DeriveURLValsFromJSON error: %v", err)
-	require.Len(t, values, 7)
+	values, err = DeriveURLValsFromJSONMap(payload)
+	require.NoError(t, err, "DeriveURLValsFromJSONMap must not error")
+	require.Equal(t, 7, len(values), "DeriveURLValsFromJSONMap must return the correct number of values")
 	for key, val := range values {
 		require.Len(t, val, 1)
-		assert.Equalf(t, val[0], test2[key], "DeriveURLValsFromJSON unexpected value: ^%v", val[0])
+		assert.Equalf(t, test2[key], val[0], "DeriveURLValsFromJSON should return the correct value for %s", key)
 	}
 }

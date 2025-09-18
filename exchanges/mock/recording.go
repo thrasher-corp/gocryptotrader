@@ -19,6 +19,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
+// defaultDataSliceLimit the mock slice data size limit to a default of 5
+const defaultDataSliceLimit = 5
+
 // HTTPResponse defines expected response from the end point including request
 // data for pathing on the VCR server
 type HTTPResponse struct {
@@ -30,7 +33,8 @@ type HTTPResponse struct {
 
 // HTTPRecord will record the request and response to a default JSON file for
 // mocking purposes
-func HTTPRecord(res *http.Response, service string, respContents []byte) error {
+// mockDataSliceLimit defaults to 5
+func HTTPRecord(res *http.Response, service string, respContents []byte, mockDataSliceLimit int) error {
 	if res == nil {
 		return errors.New("http.Response cannot be nil")
 	}
@@ -47,7 +51,9 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 		return errors.New("service not supplied cannot access correct mock file")
 	}
 	service = strings.ToLower(service)
-
+	if mockDataSliceLimit == 0 {
+		mockDataSliceLimit = defaultDataSliceLimit
+	}
 	outputFilePath := filepath.Join(DefaultDirectory, service, service+".json")
 	_, err := os.Stat(outputFilePath)
 	if err != nil {
@@ -77,13 +83,13 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 		m.Routes = make(map[string]map[string][]HTTPResponse)
 	}
 
-	items, err := GetExcludedItems()
+	items, err := getExcludedItems()
 	if err != nil {
 		return err
 	}
 
 	var httpResponse HTTPResponse
-	cleanedContents, err := CheckResponsePayload(respContents, items)
+	cleanedContents, err := CheckResponsePayload(respContents, items, mockDataSliceLimit)
 	if err != nil {
 		return err
 	}
@@ -263,13 +269,13 @@ func GetFilteredURLVals(vals url.Values, items Exclusion) string {
 
 // CheckResponsePayload checks to see if there are any response body variables
 // that should not be there.
-func CheckResponsePayload(data []byte, items Exclusion) ([]byte, error) {
+func CheckResponsePayload(data []byte, items Exclusion, mockDataSliceLimit int) ([]byte, error) {
 	var intermediary any
 	if err := json.Unmarshal(data, &intermediary); err != nil {
 		return nil, err
 	}
 
-	payload, err := CheckJSON(intermediary, &items, 5)
+	payload, err := CheckJSON(intermediary, &items, mockDataSliceLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +285,6 @@ func CheckResponsePayload(data []byte, items Exclusion) ([]byte, error) {
 
 // Reflection consts
 const (
-	Int64   = "int64"
 	Float64 = "float64"
 	Slice   = "slice"
 	String  = "string"
@@ -292,30 +297,19 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 	if value, ok := data.([]any); ok {
 		var sData []any
 		for i := range value {
-			switch subvalues := value[i].(type) {
-			case []any:
-				if len(subvalues) > 0 {
-					if _, ok := subvalues[0].(map[string]any); ok && len(subvalues) > limit {
-						subvalues = subvalues[:limit]
-					}
-				}
-				checkedData, err := CheckJSON(subvalues, excluded, limit)
+			switch subvalue := value[i].(type) {
+			case []any, map[string]any:
+				checkedData, err := CheckJSON(subvalue, excluded, limit)
 				if err != nil {
 					return nil, err
 				}
 				sData = append(sData, checkedData)
-			case map[string]any:
-				checkedData, err := CheckJSON(subvalues, excluded, limit)
-				if err != nil {
-					return nil, err
+				if limit > 0 && len(sData) >= limit {
+					return sData, nil
 				}
-				sData = append(sData, checkedData)
 			default:
 				// Primitive value doesn't need exclusions applied, e.g. float64 or string
-				sData = append(sData, subvalues)
-			}
-			if limit > 0 && len(sData) >= limit {
-				return sData, nil
+				sData = append(sData, subvalue)
 			}
 		}
 		return sData, nil
@@ -326,70 +320,55 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 		return nil, err
 	}
 
-	var context map[string]any
-	err = json.Unmarshal(conv, &context)
+	var contextValue map[string]any
+	err = json.Unmarshal(conv, &contextValue)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(context) == 0 {
+	if len(contextValue) == 0 {
 		// Nil for some reason, should error out before in json.Unmarshal
-		return nil, nil
+		return contextValue, nil
 	}
 
-	for key, val := range context {
+	for key, val := range contextValue {
 		switch reflect.ValueOf(val).Kind().String() {
 		case String:
 			if IsExcluded(key, excluded.Variables) {
-				context[key] = "" // Zero val string
-			}
-		case Int64:
-			if IsExcluded(key, excluded.Variables) {
-				context[key] = 0 // Zero val int
+				contextValue[key] = "" // Zero val string
 			}
 		case Float64:
 			if IsExcluded(key, excluded.Variables) {
-				context[key] = 0.0 // Zero val float
+				contextValue[key] = 0.0 // Zero val float
 			}
 		case Slice:
 			slice, ok := val.([]any)
 			if !ok {
 				return nil, common.GetTypeAssertError("[]any", val)
 			}
-			if len(slice) < 1 {
+			switch {
+			case len(slice) == 0:
 				// Empty slice found
-				context[key] = slice
-			} else {
-				if _, ok := slice[0].(map[string]any); ok {
-					if len(slice) > limit {
-						slice = slice[:limit]
-					}
-					var cleanSlice []any
-					for i := range slice {
-						cleanMap, sErr := CheckJSON(slice[i], excluded, limit)
-						if sErr != nil {
-							return nil, sErr
-						}
-						cleanSlice = append(cleanSlice, cleanMap)
-					}
-					context[key] = cleanSlice
-				} else if IsExcluded(key, excluded.Variables) {
-					context[key] = nil // Zero val slice
+				contextValue[key] = slice
+			case IsExcluded(key, excluded.Variables):
+				contextValue[key] = nil // Zero val slice
+			default:
+				contextValue[key], err = CheckJSON(slice, excluded, limit)
+				if err != nil {
+					return nil, err
 				}
 			}
-
 		case Bool, Invalid: // Skip these bad boys for now
 		default:
 			// Recursively check map data
-			contextValue, err := CheckJSON(val, excluded, limit)
+			contextValue[key], err = CheckJSON(val, excluded, limit)
 			if err != nil {
 				return nil, err
 			}
-			context[key] = contextValue
 		}
 	}
 
-	return context, nil
+	return contextValue, nil
 }
 
 // IsExcluded cross references the key with the excluded variables
@@ -435,9 +414,9 @@ type Exclusion struct {
 	Variables []string `json:"variables"`
 }
 
-// GetExcludedItems checks to see if the variable is in the exclusion list as to
+// getExcludedItems checks to see if the variable is in the exclusion list as to
 // not display secure items in mock file generator output
-func GetExcludedItems() (Exclusion, error) {
+func getExcludedItems() (Exclusion, error) {
 	m.Lock()
 	defer m.Unlock()
 	if !set {

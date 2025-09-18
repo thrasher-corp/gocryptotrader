@@ -7,6 +7,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
@@ -65,7 +66,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	err = f.AddUSDTrackingData(dfk)
 	assert.ErrorIs(t, err, funding.ErrUSDTrackingDisabled)
 
-	cs := make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
+	cs := make(map[key.ExchangeAssetPair]*CurrencyPairStatistic)
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	assert.NoError(t, err)
 
@@ -79,14 +80,9 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = f.AddUSDTrackingData(dfk)
-	assert.NoError(t, err)
+	require.NoError(t, err, "AddUSDTrackingData must not error")
 
-	cs[key.ExchangePairAsset{
-		Exchange: "binance",
-		Base:     currency.LTC.Item,
-		Quote:    currency.USD.Item,
-		Asset:    asset.Spot,
-	}] = &CurrencyPairStatistic{}
+	cs[key.NewExchangeAssetPair("binance", asset.Spot, currency.NewPair(currency.LTC, currency.USD))] = &CurrencyPairStatistic{}
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	assert.ErrorIs(t, err, errMissingSnapshots)
 
@@ -94,14 +90,9 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = f.CreateSnapshot(usdKline.Candles[1].Time)
-	assert.NoError(t, err)
+	require.NoError(t, err, "CreateSnapshot must not error")
 
-	cs[key.ExchangePairAsset{
-		Exchange: "binance",
-		Base:     currency.LTC.Item,
-		Quote:    currency.USD.Item,
-		Asset:    asset.Spot,
-	}] = &CurrencyPairStatistic{}
+	cs[key.NewExchangeAssetPair("binance", asset.Spot, currency.NewPair(currency.LTC, currency.USD))] = &CurrencyPairStatistic{}
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	assert.NoError(t, err)
 }
