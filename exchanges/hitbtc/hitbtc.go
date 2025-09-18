@@ -204,19 +204,11 @@ func (e *Exchange) GetCandles(ctx context.Context, currencyPair, limit, period s
 // GetBalances returns full balance for your account
 func (e *Exchange) GetBalances(ctx context.Context) (map[currency.Code]Balance, error) {
 	var result []Balance
-	err := e.SendAuthenticatedHTTPRequest(ctx,
-		exchange.RestSpot,
-		http.MethodGet,
-		apiV2Balance,
-		url.Values{},
-		otherRequests,
-		&result)
-	ret := make(map[currency.Code]Balance)
-
-	if err != nil {
-		return ret, err
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, apiV2Balance, url.Values{}, otherRequests, &result); err != nil {
+		return nil, err
 	}
 
+	ret := make(map[currency.Code]Balance)
 	for _, item := range result {
 		ret[item.Currency] = item
 	}
