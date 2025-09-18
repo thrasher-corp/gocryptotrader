@@ -347,14 +347,13 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		return nil, err
 	}
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
-	for curr, bal := range resp.Currency {
+	for curr, bal := range resp {
 		subAccts[0].Balances.Set(curr, accounts.Balance{Total: bal})
 	}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
-// GetAccountFundingHistory returns funding history, deposits and
-// withdrawals
+// GetAccountFundingHistory returns funding history, deposits and withdrawals
 func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	end := time.Now()
 	walletActivity, err := e.WalletActivity(ctx, end.Add(-time.Hour*24*365), end, "")
