@@ -406,7 +406,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(e.Name, fPair, assetType)
 }
 
-// UpdateAccountBalances retrieves balances for all enabled currencies on the Bitfinex exchange
+// UpdateAccountBalances retrieves balances for all enabled currencies
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	resp, err := e.GetAccountBalance(ctx)
 	if err != nil {
