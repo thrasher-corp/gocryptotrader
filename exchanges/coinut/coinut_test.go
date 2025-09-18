@@ -348,14 +348,10 @@ func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	if apiKey != "" || clientID != "" {
 		_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
-		if err != nil {
-			t.Error("GetAccountInfo() error", err)
-		}
+		require.NoError(t, err, "UpdateAccountBalances must not error")
 	} else {
 		_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
-		if err == nil {
-			t.Error("GetAccountInfo() Expected error")
-		}
+		require.Error(t, err, "UpdateAccountBalances must error")
 	}
 }
 
