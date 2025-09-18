@@ -149,15 +149,15 @@ func TestFunctionsAndStructHandling(t *testing.T) {
 		{function: getOpenInterest, val: &GetOpenInterest{}, args: []string{"test", "-e", "kucoin"}},
 
 		// Trade commands handler
-		{function: setExchangeTradeProcessing, val: &SetExchangeTradeProcessing{}, args: []string{"test", "-e", "binance", "-status"}},
+		{function: setExchangeTradeProcessing, val: &SetExchangeTradeProcessingParams{}, args: []string{"test", "-e", "binance", "-status"}},
 
 		// Orderbook commands handler
-		{function: whaleBomb, val: &WhaleBomb{}, args: []string{"test", "--exchange", "okx", "-asset", "something", "-p", "btc_usdt"}, missingRequiredFlag: "side"},
-		{function: whaleBomb, val: &WhaleBomb{}, args: []string{"test", "--exchange", "okx", "-asset", "something", "-p", "btc_usdt", "-s", ""}, err: ErrRequiredValueMissing},
-		{function: whaleBomb, val: &WhaleBomb{}, args: []string{"test", "--exchange", "okx", "-asset", "something", "-p", "btc_usdt", "-s", "sell"}},
+		{function: whaleBomb, val: &WhaleBombParams{}, args: []string{"test", "--exchange", "okx", "-asset", "something", "-p", "btc_usdt"}, missingRequiredFlag: "side"},
+		{function: whaleBomb, val: &WhaleBombParams{}, args: []string{"test", "--exchange", "okx", "-asset", "something", "-p", "btc_usdt", "-s", ""}, err: ErrRequiredValueMissing},
+		{function: whaleBomb, val: &WhaleBombParams{}, args: []string{"test", "--exchange", "okx", "-asset", "something", "-p", "btc_usdt", "-s", "sell"}},
 
 		// Pair management commands handler
-		{function: enableDisableExchangePair, val: &EnableDisableExchangePair{}, args: []string{"test", "-e", "okx", "-p", "btc-usdt", "-asset", "spot"}},
+		{function: enableDisableExchangePair, val: &EnableDisableExchangePairParams{}, args: []string{"test", "-e", "okx", "-p", "btc-usdt", "-asset", "spot"}},
 	}
 
 	for a := range funcAndValue {

@@ -185,8 +185,8 @@ type FindMissingSavedCandleIntervalsParams struct {
 	End      string `name:"end"        usage:"<end> rounded down to the nearest hour"`
 }
 
-// MarginRateHistoryParam defines command-line flags for exchange currency margin rate history retrieval and unmarshal their values.
-type MarginRateHistoryParam struct {
+// MarginRateHistoryParams defines command-line flags for exchange currency margin rate history retrieval and unmarshal their values.
+type MarginRateHistoryParams struct {
 	Exchange           string `name:"exchange,e"                   required:"t"                                                                         usage:"the exchange to get the candles from"`
 	Asset              string `name:"asset,a"                      required:"t"                                                                         usage:"the asset type of the currency pair"`
 	Currency           string `name:"currency,c"                   required:"t"                                                                         usage:"must be an enabled currency"`
@@ -225,65 +225,65 @@ type GetOrdersCommandParams struct {
 	End      string `name:"end"        usage:"end date, optional. Will filter any results after this date"`
 }
 
-// SimulateOrderCommandParams defines command-line flags for simulate exchange order and unmarshal their values.
-type SimulateOrderCommandParams struct {
+// SimulateOrderParams defines command-line flags for simulate exchange order and unmarshal their values.
+type SimulateOrderParams struct {
 	Exchange  string  `name:"exchange,e" required:"t" usage:"the exchange to simulate the order for"`
 	Pair      string  `name:"pair,p"     required:"t" usage:"the currency pair"`
 	OrderSide string  `name:"side"       required:"t" usage:"the order side to use (BUY OR SELL)"`
 	Amount    float64 `name:"amount"     required:"t" usage:"the amount for the order"`
 }
 
-// RemovePortfolioAddressCommandParam defines command-line flags for simulate exchange order and unmarshal their values.
-type RemovePortfolioAddressCommandParam struct {
+// RemovePortfolioAddressParams defines command-line flags for simulate exchange order and unmarshal their values.
+type RemovePortfolioAddressParams struct {
 	Address     string `name:"address"     usage:"the address to add to the portfolio"`
 	CoinType    string `name:"coin_type"   usage:"the coin type e.g ('BTC')"`
 	Description string `name:"description" usage:"description of the address"`
 }
 
-// GetManagedOrdersCommandParams defines command-line flags for managed orders retrieval and unmarshal their values.
-type GetManagedOrdersCommandParams struct {
+// GetManagedOrdersParams defines command-line flags for managed orders retrieval and unmarshal their values.
+type GetManagedOrdersParams struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get orders for"`
 	Asset    string `name:"asset"      required:"t" usage:"the asset type to get orders for"`
 	Pair     string `name:"pair,p"     required:"t" usage:"the currency pair to get orders for"`
 }
 
-// WithdrawalRequestByDate defines command-line flags for withdrawal request by date and unmarshal their values.
-type WithdrawalRequestByDate struct {
+// WithdrawalRequestByDateParams defines command-line flags for withdrawal request by date and unmarshal their values.
+type WithdrawalRequestByDateParams struct {
 	Exchange string `name:"exchange,e" required:"t"                                                                                     usage:"the currency used in to withdraw"`
 	Start    string `name:"start"      usage:"the start date to get withdrawals from. Any withdrawal before this date will be filtered"`
 	End      string `name:"end"        usage:"the end date to get withdrawals from. Any withdrawal after this date will be filtered"`
 	Limit    int64  `name:"limit"      usage:"max number of withdrawals to return"`
 }
 
-// WithdrawlRequestByExchangeID defines command-line flags for withdrawal request by exchange id and unmarshal their values.
-type WithdrawlRequestByExchangeID struct {
+// WithdrawlRequestByExchangeIDParams defines command-line flags for withdrawal request by exchange id and unmarshal their values.
+type WithdrawlRequestByExchangeIDParams struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"exchange name"`
 	ID       string `name:"id"         required:"t" usage:"withdrawal id"`
 }
 
-// WithdrawlRequestByExchange defines command-line flags for withdrawal request by exchange and unmarshal their values.
-type WithdrawlRequestByExchange struct {
+// WithdrawlRequestByExchangeParams defines command-line flags for withdrawal request by exchange and unmarshal their values.
+type WithdrawlRequestByExchangeParams struct {
 	Exchange string `name:"exchange,e" required:"t"                                usage:"exchange name"`
 	Asset    string `name:"asset"      usage:"the asset type of the currency pair"`
 	Limit    int64  `name:"limit"      usage:"max number of withdrawals to return"`
 	Currency string `name:"currency"   usage:"<currency>"`
 }
 
-// SetExchangeTradeProcessing defines command-line flags for setting exchange trade processing and unmarshal their values.
-type SetExchangeTradeProcessing struct {
+// SetExchangeTradeProcessingParams defines command-line flags for setting exchange trade processing and unmarshal their values.
+type SetExchangeTradeProcessingParams struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to change the status of"`
 	Status   bool   `name:"status"     required:"t" usage:"<true>/<false>"`
 }
 
-// GetRecentTrades defines command-line flags for exchange trades retrieval and unmarshal their values.
-type GetRecentTrades struct {
+// GetRecentTradesParams defines command-line flags for exchange trades retrieval and unmarshal their values.
+type GetRecentTradesParams struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get the trades from"`
 	Pair     string `name:"pair,p"     required:"t" usage:"the currency pair to get the trades for"`
 	Asset    string `name:"asset,a"    required:"t" usage:"the asset type of the currency pair"`
 }
 
-// GetTrades defines command-line flags for exchange trades retrieval and unmarshal their values.
-type GetTrades struct {
+// GetTradesParams defines command-line flags for exchange trades retrieval and unmarshal their values.
+type GetTradesParams struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to get the trades from"`
 	Pair     string `name:"pair,p"     required:"t" usage:"the currency pair to get the trades for"`
 	Asset    string `name:"asset,a"    required:"t" usage:"the asset type of the currency pair"`
@@ -291,8 +291,8 @@ type GetTrades struct {
 	End      string `name:"end"        required:"t" usage:"<end> WARNING: large date ranges may take considerable time"`
 }
 
-// FindMisingSavedTradeIntervals defines command-line flags for exchange missing saved trade intervals retrieval and unmarshal their values.
-type FindMisingSavedTradeIntervals struct {
+// FindMisingSavedTradeIntervalsParams defines command-line flags for exchange missing saved trade intervals retrieval and unmarshal their values.
+type FindMisingSavedTradeIntervalsParams struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to find the missing trades"`
 	Pair     string `name:"pair,p"     required:"t" usage:"the currency pair"`
 	Asset    string `name:"asset,a"    required:"t" usage:"the asset type of the currency pair"`
@@ -300,8 +300,8 @@ type FindMisingSavedTradeIntervals struct {
 	End      string `name:"end"        required:"t" usage:"<end> rounded down to the nearest hour"`
 }
 
-// ConvertSavedTradesToCandles defines command-line flags for exchange saved trades to candles conversion and unmarshal their values.
-type ConvertSavedTradesToCandles struct {
+// ConvertSavedTradesToCandlesParams defines command-line flags for exchange saved trades to candles conversion and unmarshal their values.
+type ConvertSavedTradesToCandlesParams struct {
 	Exchange string `name:"exchange,e" required:"t"                                                                                                                                                                                                                                                                     usage:"the exchange to find the missing trades"`
 	Pair     string `name:"pair,p"     required:"t"                                                                                                                                                                                                                                                                     usage:"the currency pair"`
 	Asset    string `name:"asset,a"    required:"t"                                                                                                                                                                                                                                                                     usage:"the asset type of the currency pair"`
@@ -312,8 +312,8 @@ type ConvertSavedTradesToCandles struct {
 	Force    bool   `name:"force,f"    usage:"will overwrite any conflicting candle data on save <true/false>"`
 }
 
-// WhaleBomb defines command-line flags for exchange whale bomb amount required to reach a price target and unmarshal their values.
-type WhaleBomb struct {
+// WhaleBombParams defines command-line flags for exchange whale bomb amount required to reach a price target and unmarshal their values.
+type WhaleBombParams struct {
 	Exchange string  `name:"exchange,e" required:"t"             usage:"the exchange to whale bomb"`
 	Pair     string  `name:"pair,p"     required:"t"             usage:"the currency pair"`
 	Side     string  `name:"side,s"     required:"t"             usage:"the order side to use (BUY OR SELL)"`
@@ -321,16 +321,16 @@ type WhaleBomb struct {
 	Price    float64 `name:"price"      usage:"the price target"`
 }
 
-// EnableDisableExchangePair defines command-line flags for exchange pair toggling and unmarshal their values.
-type EnableDisableExchangePair struct {
+// EnableDisableExchangePairParams defines command-line flags for exchange pair toggling and unmarshal their values.
+type EnableDisableExchangePairParams struct {
 	Exchange string `name:"exchange,e" required:"t"  usage:"the exchange to act on"`
 	Pairs    string `name:"pairs,p"    required:"t"  usage:"either a single currency pair string or comma delimiter string of pairs e.g. \"BTC-USD,XRP-USD\""`
 	Asset    string `name:"asset"      required:"t"  usage:"asset"`
 	Enable   bool   `hidden:"t"        name:"enable"`
 }
 
-// EnableDisableExchangeAsset defines command-line flags for exchange asset toggling and unmarshal their values.
-type EnableDisableExchangeAsset struct {
+// EnableDisableExchangeAssetParams defines command-line flags for exchange asset toggling and unmarshal their values.
+type EnableDisableExchangeAssetParams struct {
 	Exchange string `name:"exchange,e" required:"t"  usage:"the exchange to act on"`
 	Asset    string `name:"asset"      required:"t"  usage:"asset"`
 	Enable   bool   `hidden:"t"        name:"enable"`

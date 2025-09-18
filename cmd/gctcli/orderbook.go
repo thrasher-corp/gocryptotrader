@@ -741,14 +741,14 @@ var whaleBombCommand = &cli.Command{
 	Usage:     "whale bomb finds the amount required to reach a price target",
 	ArgsUsage: "<exchange> <pair> <side> <asset> <price>",
 	Action:    whaleBomb,
-	Flags:     FlagsFromStruct(&WhaleBomb{}),
+	Flags:     FlagsFromStruct(&WhaleBombParams{}),
 }
 
 func whaleBomb(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	arg := &WhaleBomb{}
+	arg := &WhaleBombParams{}
 	if err := UnmarshalCLIFields(c, arg); err != nil {
 		return err
 	}

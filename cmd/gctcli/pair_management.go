@@ -47,19 +47,19 @@ var exchangePairManagerCommand = &cli.Command{
 		{
 			Name:   "enableasset",
 			Usage:  "enables asset type",
-			Flags:  FlagsFromStruct(&EnableDisableExchangeAsset{Enable: true}),
+			Flags:  FlagsFromStruct(&EnableDisableExchangeAssetParams{Enable: true}),
 			Action: enableDisableExchangeAsset,
 		},
 		{
 			Name:   "disable",
 			Usage:  "disable pairs by asset type",
-			Flags:  FlagsFromStruct(&EnableDisableExchangePair{}),
+			Flags:  FlagsFromStruct(&EnableDisableExchangePairParams{}),
 			Action: enableDisableExchangePair,
 		},
 		{
 			Name:  "enable",
 			Usage: "enable pairs by asset type",
-			Flags: FlagsFromStruct(&EnableDisableExchangePair{
+			Flags: FlagsFromStruct(&EnableDisableExchangePairParams{
 				Enable: true,
 			}),
 			Action: enableDisableExchangePair,
@@ -121,7 +121,7 @@ func enableDisableExchangePair(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	arg := &EnableDisableExchangePair{}
+	arg := &EnableDisableExchangePairParams{}
 	if err := UnmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
@@ -225,7 +225,7 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	arg := &EnableDisableExchangeAsset{}
+	arg := &EnableDisableExchangeAssetParams{}
 	if err := UnmarshalCLIFields(c, arg); err != nil {
 		return err
 	}

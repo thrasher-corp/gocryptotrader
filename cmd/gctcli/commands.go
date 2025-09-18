@@ -26,7 +26,7 @@ var getInfoCommand = &cli.Command{
 	Action: getInfo,
 }
 
-// error declarations
+// Public Errors
 var (
 	ErrRequiredValueMissing = errors.New("required value missing")
 )
@@ -858,14 +858,14 @@ var removePortfolioAddressCommand = &cli.Command{
 	Usage:     "removes an address from the portfolio",
 	ArgsUsage: "<address> <coin_type> <description>",
 	Action:    removePortfolioAddress,
-	Flags:     FlagsFromStruct(&RemovePortfolioAddressCommandParam{}),
+	Flags:     FlagsFromStruct(&RemovePortfolioAddressParams{}),
 }
 
 func removePortfolioAddress(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	arg := &RemovePortfolioAddressCommandParam{}
+	arg := &RemovePortfolioAddressParams{}
 	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
@@ -1022,7 +1022,7 @@ var getManagedOrdersCommand = &cli.Command{
 	Usage:     "gets the current orders from the order manager",
 	ArgsUsage: "<exchange> <asset> <pair>",
 	Action:    getManagedOrders,
-	Flags:     FlagsFromStruct(&GetManagedOrdersCommandParams{}),
+	Flags:     FlagsFromStruct(&GetManagedOrdersParams{}),
 }
 
 func getManagedOrders(c *cli.Context) error {
@@ -1030,7 +1030,7 @@ func getManagedOrders(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	arg := &GetManagedOrdersCommandParams{}
+	arg := &GetManagedOrdersParams{}
 	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
@@ -1241,7 +1241,7 @@ var simulateOrderCommand = &cli.Command{
 	Usage:     "simulate order simulates an exchange order",
 	ArgsUsage: "<exchange> <pair> <side> <amount>",
 	Action:    simulateOrder,
-	Flags:     FlagsFromStruct(&SimulateOrderCommandParams{}),
+	Flags:     FlagsFromStruct(&SimulateOrderParams{}),
 }
 
 func simulateOrder(c *cli.Context) error {
@@ -1249,7 +1249,7 @@ func simulateOrder(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	arg := &SimulateOrderCommandParams{}
+	arg := &SimulateOrderParams{}
 	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
@@ -1943,21 +1943,21 @@ var withdrawalRequestCommand = &cli.Command{
 			Name:      "byexchangeid",
 			Usage:     "exchange id",
 			ArgsUsage: "<id>",
-			Flags:     FlagsFromStruct(&WithdrawlRequestByExchangeID{}),
+			Flags:     FlagsFromStruct(&WithdrawlRequestByExchangeIDParams{}),
 			Action:    withdrawlRequestByExchangeID,
 		},
 		{
 			Name:      "byexchange",
 			Usage:     "exchange limit",
 			ArgsUsage: "<id>",
-			Flags:     FlagsFromStruct(&WithdrawlRequestByExchange{}),
+			Flags:     FlagsFromStruct(&WithdrawlRequestByExchangeParams{}),
 			Action:    withdrawlRequestByExchangeID,
 		},
 		{
 			Name:      "bydate",
 			Usage:     "exchange start end limit",
 			ArgsUsage: "<exchange> <start> <end> <limit>",
-			Flags: FlagsFromStruct(&WithdrawalRequestByDate{
+			Flags: FlagsFromStruct(&WithdrawalRequestByDateParams{
 				Start: time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 				End:   time.Now().Format(time.DateTime),
 			}),
@@ -2009,7 +2009,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 
 	var in *gctrpc.WithdrawalEventsByExchangeRequest
 	if c.Command.Name == "byexchangeid" {
-		arg := &WithdrawlRequestByExchangeID{}
+		arg := &WithdrawlRequestByExchangeIDParams{}
 		err := UnmarshalCLIFields(c, arg)
 		if err != nil {
 			return err
@@ -2021,7 +2021,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 			Limit:    1,
 		}
 	} else {
-		arg := &WithdrawlRequestByExchange{}
+		arg := &WithdrawlRequestByExchangeParams{}
 		err := UnmarshalCLIFields(c, arg)
 		if err != nil {
 			return err
@@ -2061,7 +2061,7 @@ func withdrawlRequestByDate(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	arg := &WithdrawalRequestByDate{}
+	arg := &WithdrawalRequestByDateParams{}
 	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
@@ -3103,7 +3103,7 @@ var getMarginRatesHistoryCommand = &cli.Command{
 	Usage:     "returns margin lending/borrow rates for a period",
 	ArgsUsage: "<exchange> <asset> <currency> <start> <end> <getpredictedrate> <getlendingpayments> <getborrowrates> <getborrowcosts> <includeallrates>",
 	Action:    getMarginRatesHistory,
-	Flags: FlagsFromStruct(&MarginRateHistoryParam{
+	Flags: FlagsFromStruct(&MarginRateHistoryParams{
 		Start: time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
 		End:   time.Now().Format(time.DateTime),
 	}),
@@ -3114,7 +3114,7 @@ func getMarginRatesHistory(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	arg := &MarginRateHistoryParam{}
+	arg := &MarginRateHistoryParams{}
 	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err

@@ -21,21 +21,21 @@ var tradeCommand = &cli.Command{
 			Usage:     "sets whether an exchange can save trades to the database",
 			ArgsUsage: "<exchange> <status>",
 			Action:    setExchangeTradeProcessing,
-			Flags:     FlagsFromStruct(&SetExchangeTradeProcessing{}),
+			Flags:     FlagsFromStruct(&SetExchangeTradeProcessingParams{}),
 		},
 		{
 			Name:      "getrecent",
 			Usage:     "gets recent trades",
 			ArgsUsage: "<exchange> <pair> <asset>",
 			Action:    getRecentTrades,
-			Flags:     FlagsFromStruct(&GetRecentTrades{}),
+			Flags:     FlagsFromStruct(&GetRecentTradesParams{}),
 		},
 		{
 			Name:      "gethistoric",
 			Usage:     "gets trades between two periods",
 			ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
 			Action:    getHistoricTrades,
-			Flags: FlagsFromStruct(&GetTrades{
+			Flags: FlagsFromStruct(&GetTradesParams{
 				Start: time.Now().Add(-time.Hour * 6).Format(time.DateTime),
 				End:   time.Now().Format(time.DateTime),
 			}),
@@ -45,7 +45,7 @@ var tradeCommand = &cli.Command{
 			Usage:     "gets trades from the database",
 			ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
 			Action:    getSavedTrades,
-			Flags: FlagsFromStruct(&GetTrades{
+			Flags: FlagsFromStruct(&GetTradesParams{
 				Start: time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 				End:   time.Now().Format(time.DateTime),
 			}),
@@ -55,7 +55,7 @@ var tradeCommand = &cli.Command{
 			Usage:     "will highlight any interval that is missing trade data so you can fill that gap",
 			ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
 			Action:    findMissingSavedTradeIntervals,
-			Flags: FlagsFromStruct(&FindMisingSavedTradeIntervals{
+			Flags: FlagsFromStruct(&FindMisingSavedTradeIntervalsParams{
 				Start: time.Now().Add(-time.Hour * 24).Truncate(time.Hour).Format(time.DateTime),
 				End:   time.Now().Truncate(time.Hour).Format(time.DateTime),
 			}),
@@ -65,7 +65,7 @@ var tradeCommand = &cli.Command{
 			Usage:     "explicitly converts stored trade data to candles and saves the result to the database",
 			ArgsUsage: "<exchange> <pair> <asset> <interval> <start> <end>",
 			Action:    convertSavedTradesToCandles,
-			Flags: FlagsFromStruct(&ConvertSavedTradesToCandles{
+			Flags: FlagsFromStruct(&ConvertSavedTradesToCandlesParams{
 				Interval: 86400,
 				Start:    time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 				End:      time.Now().Format(time.DateTime),
@@ -79,7 +79,7 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	arg := &FindMisingSavedTradeIntervals{}
+	arg := &FindMisingSavedTradeIntervalsParams{}
 	if err := UnmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	arg := &SetExchangeTradeProcessing{}
+	arg := &SetExchangeTradeProcessingParams{}
 	err := UnmarshalCLIFields(c, arg)
 	if err != nil {
 		return err
@@ -169,7 +169,7 @@ func getSavedTrades(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	arg := &GetTrades{}
+	arg := &GetTradesParams{}
 	if err := UnmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func getRecentTrades(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	arg := &GetRecentTrades{}
+	arg := &GetRecentTradesParams{}
 	if err := UnmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
@@ -276,7 +276,7 @@ func getHistoricTrades(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	arg := &GetTrades{}
+	arg := &GetTradesParams{}
 	if err := UnmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
@@ -363,7 +363,7 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	arg := &ConvertSavedTradesToCandles{}
+	arg := &ConvertSavedTradesToCandlesParams{}
 	if err := UnmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
