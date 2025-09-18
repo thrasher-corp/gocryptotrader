@@ -39,4 +39,9 @@ func TestGetExchangeAccounts(t *testing.T) {
 	got, err = s.GetExchangeAccounts(m)
 	require.NoError(t, err)
 	assert.Same(t, s.exchangeAccounts[m], got, "Should retrieve the new exchange")
+
+	w := &mockExBase{m}
+	got, err = s.GetExchangeAccounts(w)
+	require.NoError(t, err)
+	require.NotNil(t, got)
 }
