@@ -765,7 +765,7 @@ type StopOrder struct {
 type AccountInfo struct {
 	ID          string        `json:"id"`
 	Currency    currency.Code `json:"currency"`
-	AccountType string        `json:"type"` // Account type:，main、trade、trade_hf、margin
+	AccountType string        `json:"type"` // Account type: main, trade, trade_hf, margin
 	Balance     types.Number  `json:"balance"`
 	Available   types.Number  `json:"available"`
 	Holds       types.Number  `json:"holds"`
