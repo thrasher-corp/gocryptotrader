@@ -351,6 +351,8 @@ const (
 	Cancelling
 	Liquidated
 	STP
+	Holding
+	SystemHolding
 )
 
 // Type enforces a standard for order types across the code base
