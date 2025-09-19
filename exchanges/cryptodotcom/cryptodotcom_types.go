@@ -1282,6 +1282,7 @@ type DepositInfoItem struct {
 	} `json:"bank_details"`
 }
 
+// FiatDepositHistoryParam holds a fiat deposit history request parameter
 type FiatDepositHistoryParam struct {
 	Page            int    `json:"page"`
 	PageSize        int    `json:"page_size"`
