@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// Consts for WalletAccountType
+// WalletAccountTypes
 const (
 	Funding  WalletAccountType = "eb_convert_funding"
 	Uta      WalletAccountType = "eb_convert_uta"
