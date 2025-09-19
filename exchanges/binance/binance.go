@@ -269,40 +269,42 @@ func (e *Exchange) GetAggregatedTrades(ctx context.Context, arg *AggregatedTrade
 	}
 	var resp []AggregatedTrade
 	path := aggregatedTrades + "?" + params.Encode()
-	return resp, e.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // batchAggregateTrades fetches trades in multiple requests
-// first phase, hourly requests until the first trade (or end time) is reached
-// second phase, limit requests from previous trade until end time (or limit) is reached
-func (e *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
+// If no args.FromID is passed, requests are made intervals doubling from 10s until we get a viable starting position.
+// Once the starting set is found, we continue scanning until we have all the trades in the time window
+func (e *Exchange) batchAggregateTrades(ctx context.Context, args *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
 	var resp []AggregatedTrade
 	// prepare first request with only first hour and max limit
-	if arg.Limit == 0 || arg.Limit > 1000 {
+	if args.Limit == 0 || args.Limit > 1000 {
 		// Extend from the default of 500
 		params.Set("limit", "1000")
 	}
 
 	var fromID int64
-	if arg.FromID > 0 {
-		fromID = arg.FromID
+	if args.FromID > 0 {
+		fromID = args.FromID
 	} else {
-		// Only 10 seconds is used to prevent limit of 1000 being reached in the first request,
-		// cutting off trades for high activity pairs
+		// Only 10 seconds is used to prevent limit of 1000 being reached in the first request, cutting off trades for high activity pairs
+		// If we don't find anything we keep increasing the window by doubling the interval and scanning again
 		increment := time.Second * 10
-		for start := arg.StartTime; len(resp) == 0; start = start.Add(increment) {
-			if !arg.EndTime.IsZero() && start.After(arg.EndTime) {
-				// All requests returned empty
+		for start := args.StartTime; len(resp) == 0; start, increment = start.Add(increment), increment*2 {
+			if !args.EndTime.IsZero() && start.After(args.EndTime) || increment <= 0 {
+				// All requests returned empty or we searched until increment overflowed
 				return nil, nil
 			}
 			params.Set("startTime", strconv.FormatInt(start.UnixMilli(), 10))
-			params.Set("endTime", strconv.FormatInt(start.Add(increment).UnixMilli(), 10))
+			end := start.Add(increment)
+			if !args.EndTime.IsZero() && end.After(args.EndTime) {
+				end = args.EndTime
+			}
+			params.Set("endTime", strconv.FormatInt(end.UnixMilli(), 10))
 			path := aggregatedTrades + "?" + params.Encode()
-			err := e.SendHTTPRequest(ctx,
-				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+			err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
-				return resp, fmt.Errorf("%w %v", err, arg.Symbol)
+				return resp, fmt.Errorf("%w %v", err, args.Symbol)
 			}
 		}
 		fromID = resp[len(resp)-1].ATradeID
@@ -311,38 +313,34 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTrad
 	// other requests follow from the last aggregate trade id and have no time window
 	params.Del("startTime")
 	params.Del("endTime")
-	// while we haven't reached the limit
-	for ; arg.Limit == 0 || len(resp) < arg.Limit; fromID = resp[len(resp)-1].ATradeID {
+outer:
+	for ; args.Limit == 0 || len(resp) < args.Limit; fromID = resp[len(resp)-1].ATradeID {
 		// Keep requesting new data after last retrieved trade
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 		path := aggregatedTrades + "?" + params.Encode()
 		var additionalTrades []AggregatedTrade
-		err := e.SendHTTPRequest(ctx,
-			exchange.RestSpotSupplementary,
-			path,
-			spotDefaultRate,
-			&additionalTrades)
-		if err != nil {
-			return resp, fmt.Errorf("%w %v", err, arg.Symbol)
+		if err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &additionalTrades); err != nil {
+			return resp, fmt.Errorf("%w %v", err, args.Symbol)
 		}
-		lastIndex := len(additionalTrades)
-		if !arg.EndTime.IsZero() {
-			// get index for truncating to end time
-			lastIndex = sort.Search(len(additionalTrades), func(i int) bool {
-				return arg.EndTime.Before(additionalTrades[i].TimeStamp.Time())
-			})
+		switch len(additionalTrades) {
+		case 0, 1:
+			break outer // We only got the one we already have
+		default:
+			additionalTrades = additionalTrades[1:] // Remove the record we already have
 		}
-		// don't include the first as the request was inclusive from last ATradeID
-		resp = append(resp, additionalTrades[1:lastIndex]...)
-		// If only the starting trade is returned or if we received trades after end time
-		if len(additionalTrades) == 1 || lastIndex < len(additionalTrades) {
-			// We found the end
-			break
+		if !args.EndTime.IsZero() {
+			// Check if only some of the results are before EndTime
+			if afterEnd := sort.Search(len(additionalTrades), func(i int) bool {
+				return args.EndTime.Before(additionalTrades[i].TimeStamp.Time())
+			}); afterEnd < len(additionalTrades) {
+				resp = append(resp, additionalTrades[:afterEnd]...)
+				break
+			}
 		}
+		resp = append(resp, additionalTrades...)
 	}
-	// Truncate if necessary
-	if arg.Limit > 0 && len(resp) > arg.Limit {
-		resp = resp[:arg.Limit]
+	if args.Limit > 0 && len(resp) > args.Limit {
+		resp = resp[:args.Limit]
 	}
 	return resp, nil
 }
