@@ -2489,11 +2489,35 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			default:
 				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-				pairs, err := e.CurrencyPairs.GetPairs(a, true)
-				require.NoError(t, err, "GetPairs must not error")
-				l, err := e.GetOrderExecutionLimits(a, pairs[0])
-				require.NoError(t, err, "GetOrderExecutionLimits must not error")
-				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				avail, err := e.GetAvailablePairs(a)
+				require.NoError(t, err, "GetAvailablePairs must not error")
+
+				for _, pair := range avail {
+					l, err := e.GetOrderExecutionLimits(a, pair)
+					require.NoError(t, err, "GetOrderExecutionLimits must not error")
+
+					assert.Equal(t, a, l.Key.Asset, "asset should equal")
+					assert.True(t, pair.Equal(l.Key.Pair()), "pair should equal")
+					assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+					assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+
+					if l.Delisting {
+						assert.NotZero(t, l.DelistingAt, "DelistingAt should be populated")
+						if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
+							assert.NotZero(t, l.DelistedAt, "DelistedAt should be populated")
+							assert.True(t, l.DelistedAt.After(l.DelistingAt), "DelistedAt should be after DelistingAt")
+						}
+					}
+
+					if a == asset.Spot {
+						assert.Positive(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive")
+						assert.Positive(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive")
+					}
+
+					if a == asset.USDTMarginedFutures {
+						assert.Positive(t, l.MultiplierDecimal, "MultiplierDecimal should be positive")
+					}
+				}
 			}
 		})
 	}
