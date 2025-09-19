@@ -76,7 +76,7 @@ func (e *Exchange) RequestAQuote(ctx context.Context, params *RequestAQuoteReque
 	}
 
 	if params.Amount <= 0 {
-		return nil, fmt.Errorf("amount %w", order.ErrAmountIsInvalid)
+		return nil, fmt.Errorf("%w: %v", order.ErrAmountIsInvalid, params.Amount)
 	}
 
 	params.From = params.From.Upper()
