@@ -1,3 +1,4 @@
+// Package signaler provides cross-platform signal handling for graceful application shutdown
 package signaler
 
 import (
@@ -6,20 +7,12 @@ import (
 	"syscall"
 )
 
-var s = make(chan os.Signal, 1)
-
-func init() {
-	sigs := []os.Signal{
-		os.Interrupt,
-		os.Kill,
-		syscall.SIGTERM,
-		syscall.SIGABRT,
-	}
-	signal.Notify(s, sigs...)
-}
-
-// WaitForInterrupt waits until a os.Signal is
-// received and returns the result
+// WaitForInterrupt blocks until a termination signal is received and returns it.
+// It registers a temporary channel, unregisters it via signal.Stop() and returns the received signal.
 func WaitForInterrupt() os.Signal {
-	return <-s
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	s := <-c
+	signal.Stop(c) // unregister to avoid keeping channel referenced/registered
+	return s
 }
