@@ -18,8 +18,8 @@ const (
 // WalletAccountType represents the different types of wallet accounts
 type WalletAccountType string
 
-// CoinResponse represents a coin that can be converted
-type CoinResponse struct {
+// ConvertCoinResponse represents a coin that can be converted
+type ConvertCoinResponse struct {
 	Coin               currency.Code `json:"coin"`
 	FullName           string        `json:"fullName"`
 	Icon               string        `json:"icon"`
