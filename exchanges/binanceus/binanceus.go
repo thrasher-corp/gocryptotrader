@@ -883,7 +883,7 @@ func (e *Exchange) GetSubaccountStatusList(ctx context.Context, email string) ([
 func (e *Exchange) GetOrderRateLimits(ctx context.Context, recvWindow uint) ([]OrderRateLimit, error) {
 	params := url.Values{}
 	timestamp := time.Now().UnixMilli()
-	params.Set("timestamp", strconv.Itoa(int(timestamp)))
+	params.Set("timestamp", strconv.FormatInt(timestamp, 10))
 	if recvWindow > 1000 && recvWindow < 60000 {
 		params.Set("recvWindow", strconv.Itoa(int(recvWindow)))
 	} else {
@@ -963,7 +963,7 @@ func (e *Exchange) GetOrder(ctx context.Context, arg *OrderRequestParams) (*Orde
 		params.Set("orderId", strconv.FormatUint(arg.OrderID, 10))
 	}
 	timestamp := time.Now().UnixMilli()
-	params.Set("timestamp", strconv.Itoa(int(timestamp)))
+	params.Set("timestamp", strconv.FormatInt(timestamp, 10))
 	if arg.OrigClientOrderID != "" {
 		params.Set("origClientOrderId", arg.OrigClientOrderID)
 	}
@@ -986,7 +986,7 @@ func (e *Exchange) GetAllOpenOrders(ctx context.Context, symbol string) ([]Order
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	params.Set("timestamp", strconv.Itoa(int(timestamp)))
+	params.Set("timestamp", strconv.FormatInt(timestamp, 10))
 	params.Set("recvWindow", recvWindowSize5000String)
 	var rateLimit request.EndpointLimit
 	if symbol != "" {
@@ -1032,7 +1032,7 @@ func (e *Exchange) CancelOpenOrdersForSymbol(ctx context.Context, symbol string)
 		return nil, errMissingCurrencySymbol
 	}
 	params.Set("symbol", symbol)
-	params.Set("timestamp", strconv.Itoa(int(time.Now().UnixMilli())))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	params.Set("recvWindow", "5000")
 	var response []Order
 	return response, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
@@ -1048,7 +1048,7 @@ func (e *Exchange) GetTrades(ctx context.Context, arg *GetTradesParams) ([]Trade
 		return nil, errIncompleteArguments
 	}
 	params.Set("symbol", arg.Symbol)
-	params.Set("timestamp", strconv.Itoa(int(time.Now().UnixMilli())))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	if arg.RecvWindow > 3000 {
 		params.Set("recvWindow", strconv.FormatUint(arg.RecvWindow, 10))
 	}
@@ -1427,10 +1427,10 @@ func (e *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawa
 	var response FiatAssetsHistory
 	params := url.Values{}
 	if !(arg.EndTime.IsZero()) && !(arg.EndTime.Before(time.Now())) {
-		params.Set("endTime", strconv.Itoa(int(arg.EndTime.UnixMilli())))
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	if !arg.StartTime.IsZero() && !(arg.StartTime.After(time.Now())) {
-		params.Set("startTime", strconv.Itoa(int(arg.StartTime.UnixMilli())))
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if arg.FiatCurrency != "" {
 		params.Set("fiatCurrency", arg.FiatCurrency)
@@ -1444,7 +1444,7 @@ func (e *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawa
 	if arg.PaymentMethod != "" {
 		params.Set("paymentMethod", arg.PaymentMethod)
 	}
-	params.Set("timestamp", strconv.Itoa(int(time.Now().UnixMilli())))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return response, e.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, fiatWithdrawalHistory,
@@ -1455,7 +1455,7 @@ func (e *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawa
 // returns the Order ID as string
 func (e *Exchange) WithdrawFiat(ctx context.Context, arg *WithdrawFiatRequestParams) (string, error) {
 	params := url.Values{}
-	timestamp := strconv.Itoa(int(time.Now().UnixMilli()))
+	timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	if arg == nil {
 		return "", errIncompleteArguments
 	}
