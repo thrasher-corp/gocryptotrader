@@ -19,14 +19,17 @@ func TestGetConvertCoinList(t *testing.T) {
 	_, err = e.GetConvertCoinList(t.Context(), Uta, currency.EMPTYCODE, true)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	if mockTests {
-		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	list, err := e.GetConvertCoinList(t.Context(), Uta, currency.EMPTYCODE, false)
+	buylist, err := e.GetConvertCoinList(t.Context(), Uta, currency.USDT, true)
 	require.NoError(t, err)
-	assert.NotEmpty(t, list)
+	assert.NotEmpty(t, buylist)
+
+	sellList, err := e.GetConvertCoinList(t.Context(), Uta, currency.EMPTYCODE, false)
+	require.NoError(t, err)
+	assert.NotEmpty(t, sellList)
 }
 
 func TestRequestQuote(t *testing.T) {
@@ -103,10 +106,9 @@ func TestGetConvertStatus(t *testing.T) {
 	_, err = e.GetConvertStatus(t.Context(), Uta, "")
 	assert.ErrorIs(t, err, errQuoteTransactionIDEmpty)
 
-	if mockTests {
-		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	status, err := e.GetConvertStatus(t.Context(), Uta, "10414247553864074960678912")
 	require.NoError(t, err)
@@ -120,11 +122,10 @@ func TestGetConvertHistory(t *testing.T) {
 	assert.ErrorIs(t, err, errUnsupportedAccountType)
 
 	if mockTests {
-		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	history, err := e.GetConvertHistory(t.Context(), nil, 0, 0)
+	history, err := e.GetConvertHistory(t.Context(), []WalletAccountType{Uta}, 0, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, history)
 }
