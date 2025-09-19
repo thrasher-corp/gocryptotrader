@@ -57,7 +57,7 @@ func (e *Exchange) RequestAQuote(ctx context.Context, params *RequestAQuoteReque
 	}
 
 	if params.From.IsEmpty() {
-		return nil, fmt.Errorf("from %w", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: `from` coin", currency.ErrCurrencyCodeEmpty)
 	}
 	if params.To.IsEmpty() {
 		return nil, fmt.Errorf("to %w", currency.ErrCurrencyCodeEmpty)
