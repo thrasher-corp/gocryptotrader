@@ -25,7 +25,7 @@ var (
 )
 
 // GetConvertCoinList returns a list of coins you can convert to/from
-func (e *Exchange) GetConvertCoinList(ctx context.Context, accountType WalletAccountType, coin currency.Code, isCoinToBuy bool) ([]CoinResponse, error) {
+func (e *Exchange) GetConvertCoinList(ctx context.Context, accountType WalletAccountType, coin currency.Code, isCoinToBuy bool) ([]ConvertCoinResponse, error) {
 	if !slices.Contains(supportedAccountTypes, accountType) {
 		return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, accountType)
 	}
@@ -44,7 +44,7 @@ func (e *Exchange) GetConvertCoinList(ctx context.Context, accountType WalletAcc
 	}
 
 	var resp struct {
-		List []CoinResponse `json:"coins"`
+		List []ConvertCoinResponse `json:"coins"`
 	}
 
 	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/query-coin-list", params, nil, &resp, defaultEPL)
@@ -60,7 +60,7 @@ func (e *Exchange) RequestQuote(ctx context.Context, params *RequestQuoteRequest
 		return nil, fmt.Errorf("%w: `from` coin", currency.ErrCurrencyCodeEmpty)
 	}
 	if params.To.IsEmpty() {
-		return nil, fmt.Errorf("to %w", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: `to` coin", currency.ErrCurrencyCodeEmpty)
 	}
 
 	if params.From.Equal(params.To) {
@@ -83,12 +83,12 @@ func (e *Exchange) RequestQuote(ctx context.Context, params *RequestQuoteRequest
 	params.To = params.To.Upper()
 	params.RequestCoin = params.RequestCoin.Upper()
 
-	var resp *RequestAQuoteResponse
+	var resp *RequestQuoteResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/exchange/quote-apply", nil, params, &resp, defaultEPL)
 }
 
-// ConfirmAQuote confirms a quote transaction and executes the conversion
-func (e *Exchange) ConfirmAQuote(ctx context.Context, quoteTransactionID string) (*ConfirmAQuoteResponse, error) {
+// ConfirmQuote confirms a quote transaction and executes the conversion
+func (e *Exchange) ConfirmQuote(ctx context.Context, quoteTransactionID string) (*ConfirmQuoteResponse, error) {
 	if quoteTransactionID == "" {
 		return nil, errQuoteTransactionIDEmpty
 	}
@@ -99,7 +99,7 @@ func (e *Exchange) ConfirmAQuote(ctx context.Context, quoteTransactionID string)
 		QuoteTransactionID: quoteTransactionID,
 	}
 
-	var resp *ConfirmAQuoteResponse
+	var resp *ConfirmQuoteResponse
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/exchange/convert-execute", nil, payload, &resp, defaultEPL)
 }
 

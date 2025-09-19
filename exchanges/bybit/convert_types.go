@@ -32,18 +32,17 @@ type ConvertCoinResponse struct {
 	SingleFromMaxLimit types.Number  `json:"singleFromMaxLimit"` // The maximum amount of fromCoin per transaction
 	DisableFrom        bool          `json:"disableFrom"`        // true: the coin is disabled to be fromCoin, false: the coin is allowed to be fromCoin
 	DisableTo          bool          `json:"disableTo"`          // true: the coin is disabled to be toCoin, false: the coin is allowed to be toCoin
-	// Reserved fields, ignored for now
-	TimePeriod        int64        `json:"timePeriod"`
-	SingleToMinLimit  types.Number `json:"singleToMinLimit"`
-	SingleToMaxLimit  types.Number `json:"singleToMaxLimit"`
-	DailyFromMinLimit types.Number `json:"dailyFromMinLimit"`
-	DailyFromMaxLimit types.Number `json:"dailyFromMaxLimit"`
-	DailyToMinLimit   types.Number `json:"dailyToMinLimit"`
-	DailyToMaxLimit   types.Number `json:"dailyToMaxLimit"`
+	TimePeriod         int64         `json:"timePeriod"`
+	SingleToMinLimit   types.Number  `json:"singleToMinLimit"`
+	SingleToMaxLimit   types.Number  `json:"singleToMaxLimit"`
+	DailyFromMinLimit  types.Number  `json:"dailyFromMinLimit"`
+	DailyFromMaxLimit  types.Number  `json:"dailyFromMaxLimit"`
+	DailyToMinLimit    types.Number  `json:"dailyToMinLimit"`
+	DailyToMaxLimit    types.Number  `json:"dailyToMaxLimit"`
 }
 
-// RequestAQuoteRequest holds the parameters for requesting a quote
-type RequestAQuoteRequest struct {
+// RequestQuoteRequest holds the parameters for requesting a quote
+type RequestQuoteRequest struct {
 	// Required fields
 	AccountType WalletAccountType
 	From        currency.Code // Convert from coin (coin to sell)
@@ -58,8 +57,8 @@ type RequestAQuoteRequest struct {
 	RequestID    string
 }
 
-// RequestAQuoteResponse represents a response for a request a quote
-type RequestAQuoteResponse struct {
+// RequestQuoteResponse represents a response for a request a quote
+type RequestQuoteResponse struct {
 	QuoteTransactionID string          `json:"quoteTxId"` // Quote transaction ID. It is system generated, and it is used to confirm quote and query the result of transaction
 	ExchangeRate       types.Number    `json:"exchangeRate"`
 	FromCoin           currency.Code   `json:"fromCoin"`
@@ -73,8 +72,8 @@ type RequestAQuoteResponse struct {
 	ExtTaxAndFee       json.RawMessage `json:"extTaxAndFee"` // Compliance-related field. Currently returns an empty array, which may be used in the future
 }
 
-// ConfirmAQuoteResponse represents a response for confirming a quote
-type ConfirmAQuoteResponse struct {
+// ConfirmQuoteResponse represents a response for confirming a quote
+type ConfirmQuoteResponse struct {
 	ExchangeStatus     string `json:"exchangeStatus"`
 	QuoteTransactionID string `json:"quoteTxId"`
 }
