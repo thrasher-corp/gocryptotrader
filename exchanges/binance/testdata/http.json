@@ -90752,86 +90752,162 @@
   "/fapi/v1/indexInfo": {
    "GET": [
     {
-     "data": {
-      "baseAssetList": [
-       {
-        "baseAsset": "AAVE",
-        "weightInPercentage": "0.07255900",
-        "weightInQuantity": "0.57321317"
-       },
-       {
-        "baseAsset": "ALPHA",
-        "weightInPercentage": "0.02039700",
-        "weightInQuantity": "60.33241822"
-       },
-       {
-        "baseAsset": "BAL",
-        "weightInPercentage": "0.02362800",
-        "weightInQuantity": "1.24967422"
-       },
-       {
-        "baseAsset": "BAND",
-        "weightInPercentage": "0.03501400",
-        "weightInQuantity": "3.29870857"
-       },
-       {
-        "baseAsset": "BEL",
-        "weightInPercentage": "0.01843900",
-        "weightInQuantity": "8.75756110"
-       },
-       {
-        "baseAsset": "BZRX",
-        "weightInPercentage": "0.02294900",
-        "weightInQuantity": "67.18425714"
-       }
-      ],
-      "symbol": "DEFIUSDT",
-      "time": 1608086821000
-     },
-     "queryString": "symbol=DEFIUSDT",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
      "data": [
       {
        "baseAssetList": [
         {
-         "baseAsset": "AAVE",
-         "weightInPercentage": "0.07255900",
-         "weightInQuantity": "0.57321317"
+         "baseAsset": "BTC",
+         "quoteAsset": "AAVE",
+         "weightInPercentage": "0.00376500",
+         "weightInQuantity": "0.03738265"
         },
         {
-         "baseAsset": "ALPHA",
-         "weightInPercentage": "0.02039700",
-         "weightInQuantity": "60.33241822"
+         "baseAsset": "BTC",
+         "quoteAsset": "ADA",
+         "weightInPercentage": "0.02638100",
+         "weightInQuantity": "0.00078048"
         },
         {
-         "baseAsset": "BAL",
-         "weightInPercentage": "0.02362800",
-         "weightInQuantity": "1.24967422"
+         "baseAsset": "BTC",
+         "quoteAsset": "AVAX",
+         "weightInPercentage": "0.01082800",
+         "weightInQuantity": "0.01147365"
         },
         {
-         "baseAsset": "BAND",
-         "weightInPercentage": "0.03501400",
-         "weightInQuantity": "3.29870857"
+         "baseAsset": "BTC",
+         "quoteAsset": "BCH",
+         "weightInPercentage": "0.00992300",
+         "weightInQuantity": "0.20359666"
         },
         {
-         "baseAsset": "BEL",
-         "weightInPercentage": "0.01843900",
-         "weightInQuantity": "8.75756110"
-        },
-        {
-         "baseAsset": "BZRX",
-         "weightInPercentage": "0.02294900",
-         "weightInQuantity": "67.18425714"
+         "baseAsset": "BTC",
+         "quoteAsset": "BNB",
+         "weightInPercentage": "0.11126600",
+         "weightInQuantity": "3.58068053"
         }
        ],
-       "symbol": "DEFIUSDT",
-       "time": 1608086822007
+       "component": "quoteAsset",
+       "symbol": "BTCDOMUSDT",
+       "time": 1758250144006
+      },
+      {
+       "baseAssetList": [
+        {
+         "baseAsset": "1000000BOB",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00204918",
+         "weightInQuantity": "0.04619791"
+        },
+        {
+         "baseAsset": "1000000MOG",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00204918",
+         "weightInQuantity": "0.00254617"
+        },
+        {
+         "baseAsset": "1000BONK",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00204918",
+         "weightInQuantity": "0.10008223"
+        },
+        {
+         "baseAsset": "1000CAT",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00204918",
+         "weightInQuantity": "0.29881191"
+        },
+        {
+         "baseAsset": "1000CHEEMS",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00204918",
+         "weightInQuantity": "1.98279472"
+        }
+       ],
+       "component": "baseAsset",
+       "symbol": "ALLUSDT",
+       "time": 1758250144006
+      },
+      {
+       "baseAssetList": [
+        {
+         "baseAsset": "1000000BOB",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "0.21446069"
+        },
+        {
+         "baseAsset": "1000WHY",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "333.26983733"
+        },
+        {
+         "baseAsset": "1000X",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "0.22663334"
+        },
+        {
+         "baseAsset": "AGT",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "1.63266620"
+        },
+        {
+         "baseAsset": "AIN",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "0.08414804"
+        }
+       ],
+       "component": "baseAsset",
+       "symbol": "SMALLUSDT",
+       "time": 1758250144006
       }
      ],
      "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "baseAssetList": [
+       {
+        "baseAsset": "BTC",
+        "quoteAsset": "AAVE",
+        "weightInPercentage": "0.00376500",
+        "weightInQuantity": "0.03738265"
+       },
+       {
+        "baseAsset": "BTC",
+        "quoteAsset": "ADA",
+        "weightInPercentage": "0.02638100",
+        "weightInQuantity": "0.00078048"
+       },
+       {
+        "baseAsset": "BTC",
+        "quoteAsset": "AVAX",
+        "weightInPercentage": "0.01082800",
+        "weightInQuantity": "0.01147365"
+       },
+       {
+        "baseAsset": "BTC",
+        "quoteAsset": "BCH",
+        "weightInPercentage": "0.00992300",
+        "weightInQuantity": "0.20359666"
+       },
+       {
+        "baseAsset": "BTC",
+        "quoteAsset": "BNB",
+        "weightInPercentage": "0.11126600",
+        "weightInQuantity": "3.58068053"
+       }
+      ],
+      "component": "quoteAsset",
+      "symbol": "BTCDOMUSDT",
+      "time": 1758250145000
+     },
+     "queryString": "symbol=BTCDOMUSDT",
      "bodyParams": "",
      "headers": {}
     }

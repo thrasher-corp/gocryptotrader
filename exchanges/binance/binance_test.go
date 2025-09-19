@@ -368,18 +368,20 @@ func TestUTakerBuySellVol(t *testing.T) {
 
 func TestUCompositeIndexInfo(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("DEFI-USDT")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = e.UCompositeIndexInfo(t.Context(), cp)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = e.UCompositeIndexInfo(t.Context(), currency.EMPTYPAIR)
-	if err != nil {
-		t.Error(err)
-	}
+	r, err := e.UCompositeIndexInfo(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "UCompositeIndexInfo with no pair must not error")
+	require.NotEmpty(t, r, "UCompositeIndexInfo must return composite index info")
+	cp, err := currency.NewPairFromString(r[0].Symbol)
+	require.NoErrorf(t, err, "NewPairFromString must not error for symbol %s", r[0].Symbol)
+	r, err = e.UCompositeIndexInfo(t.Context(), cp)
+	require.NoErrorf(t, err, "UCompositeIndexInfo for pair %s must not error", cp)
+	require.NotEmptyf(t, r, "UCompositeIndexInfo for pair %s must return composite index info", cp)
+	require.NotEmptyf(t, r[0].BaseAssetList, "UCompositeIndexInfo for pair %s must return a non empty base asset list", cp)
+	b := r[0].BaseAssetList[0]
+	assert.NotEmpty(t, b.BaseAsset, "BaseAsset should be set")
+	assert.NotEmpty(t, b.QuoteAsset, "QuoteAsset asset should be set")
+	assert.NotZero(t, b.WeightInQuantity, "WeightInQuantity should be set")
+	assert.NotZero(t, b.WeightInPercentage, "WeightInPercentage should be set")
 }
 
 func TestUFuturesNewOrder(t *testing.T) {
