@@ -168,7 +168,7 @@ func (c *CustomEx) SubmitOrder(_ context.Context, _ *order.Submit) (*order.Submi
 }
 
 // ModifyOrder is a mock method for CustomEx
-func (c *CustomEx) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+func (c *CustomEx) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, nil
 }
 
