@@ -50,8 +50,8 @@ func (e *Exchange) GetConvertCoinList(ctx context.Context, accountType WalletAcc
 	return resp.List, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/query-coin-list", params, nil, &resp, defaultEPL)
 }
 
-// RequestAQuote requests a conversion quote between two coins with the specified parameters.
-func (e *Exchange) RequestAQuote(ctx context.Context, params *RequestAQuoteRequest) (*RequestAQuoteResponse, error) {
+// RequestQuote requests a conversion quote between two coins with the specified parameters.
+func (e *Exchange) RequestQuote(ctx context.Context, params *RequestQuoteRequest) (*RequestQuoteResponse, error) {
 	if !slices.Contains(supportedAccountTypes, params.AccountType) {
 		return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, params.AccountType)
 	}
