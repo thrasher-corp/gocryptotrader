@@ -123,7 +123,7 @@ func (e *Exchange) GetConvertStatus(ctx context.Context, accountType WalletAccou
 	return resp.ConvertStatus, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/exchange/convert-result-query", params, nil, &resp, defaultEPL)
 }
 
-// GetConvertHistory retrieves the conversion history for the specified account types.
+// GetConvertHistory retrieves the conversion history.
 // All params are optional
 func (e *Exchange) GetConvertHistory(ctx context.Context, accountTypes []WalletAccountType, index, limit uint64) ([]ConvertHistoryResponse, error) {
 	atOut := make([]string, 0, len(accountTypes))
