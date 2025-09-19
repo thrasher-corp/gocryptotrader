@@ -289,7 +289,7 @@ type Account struct {
 
 // Balance holds query order data
 type Balance struct {
-	Asset  string          `json:"asset"`
+	Asset  currency.Code   `json:"asset"`
 	Free   decimal.Decimal `json:"free"`
 	Locked decimal.Decimal `json:"locked"`
 }

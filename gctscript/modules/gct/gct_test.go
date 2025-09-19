@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
@@ -103,16 +103,16 @@ func TestExchangePairs(t *testing.T) {
 	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 }
 
-func TestAccountInfo(t *testing.T) {
+func TestAccountBalances(t *testing.T) {
 	t.Parallel()
 
-	_, err := ExchangeAccountInfo()
+	_, err := ExchangeAccountBalances()
 	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
-	_, err = ExchangeAccountInfo(ctx, exch, assetType)
+	_, err = ExchangeAccountBalances(ctx, exch, assetType)
 	assert.NoError(t, err)
 
-	_, err = ExchangeAccountInfo(ctx, exchError, assetType)
+	_, err = ExchangeAccountBalances(ctx, exchError, assetType)
 	assert.NoError(t, err)
 }
 
@@ -391,7 +391,7 @@ func TestSetSubAccount(t *testing.T) {
 		t.Fatal("should not be nil")
 	}
 
-	subaccount, ok := ctx.Value(account.ContextSubAccountFlag).(string)
+	subaccount, ok := ctx.Value(accounts.ContextSubAccountFlag).(string)
 	if !ok {
 		t.Fatal("wrong type")
 	}

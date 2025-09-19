@@ -341,10 +341,10 @@ type MarginLimits struct {
 
 // Balance holds current balance data
 type Balance struct {
-	Type      string  `json:"type"`
-	Currency  string  `json:"currency"`
-	Amount    float64 `json:"amount,string"`
-	Available float64 `json:"available,string"`
+	Type      string        `json:"type"`
+	Currency  currency.Code `json:"currency"`
+	Amount    float64       `json:"amount,string"`
+	Available float64       `json:"available,string"`
 }
 
 // WalletTransfer holds status of wallet to wallet content transfer on exchange

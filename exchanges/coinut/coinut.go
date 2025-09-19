@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -277,16 +276,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequ
 
 		headers := make(map[string]string)
 		if authenticated {
-			var creds *account.Credentials
-			creds, err = e.GetCredentials(ctx)
+			creds, err := e.GetCredentials(ctx)
 			if err != nil {
 				return nil, err
 			}
 			headers["X-USER"] = creds.ClientID
 			var hmac []byte
-			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-				payload,
-				[]byte(creds.Key))
+			hmac, err = crypto.GetHMAC(crypto.HashSHA256, payload, []byte(creds.Key))
 			if err != nil {
 				return nil, err
 			}
