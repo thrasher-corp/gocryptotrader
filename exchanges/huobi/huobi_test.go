@@ -1810,6 +1810,8 @@ var expiryWindows = map[string]uint{
 	"NQ": 282,
 }
 
+// TestPairFromContractExpiryCode ensures at least some contract codes are available and loaded with sane dates
+// Expectations are relaxed because dates are unpredictable and codes disappear intermittently
 func TestPairFromContractExpiryCode(t *testing.T) {
 	t.Parallel()
 
@@ -1825,30 +1827,27 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 	today := time.Now()
 	today = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, tz) // Do not use Truncate; https://github.com/golang/go/issues/55921
 
-	for _, cType := range contractExpiryNames {
-		p, err := e.pairFromContractExpiryCode(currency.Pair{
-			Base:  currency.BTC,
-			Quote: currency.NewCode(cType),
+	require.NotEmpty(t, e.futureContractCodes, "At least one contract code must be loaded")
+
+	for cType, cachedContract := range e.futureContractCodes {
+		t.Run(cType, func(t *testing.T) {
+			t.Parallel()
+			p, err := e.pairFromContractExpiryCode(currency.Pair{
+				Base:  currency.BTC,
+				Quote: currency.NewCode(cType),
+			})
+			require.NoError(t, err)
+			assert.Equal(t, currency.BTC, p.Base, "pair Base should be BTC")
+			assert.Equal(t, cachedContract, p.Quote, "pair Quote should match futureContractCodes value")
+			exp, err := time.ParseInLocation("060102", p.Quote.String(), tz)
+			require.NoError(t, err, "currency code must be a parsable date")
+			require.Falsef(t, exp.Before(today), "expiry must be today or after; Got: %q", exp)
+			diff := uint(exp.Sub(today).Hours() / 24)
+			require.LessOrEqualf(t, diff, expiryWindows[cType], "expiry must be within expected update window; Today: %q, Expiry: %q",
+				today.Format(time.DateOnly),
+				exp.Format(time.DateOnly),
+			)
 		})
-		if cType == "NQ" && err != nil {
-			continue // Next Quarter is intermittently present
-		}
-		require.NoErrorf(t, err, "pairFromContractExpiryCode must not error for %s code", cType)
-		assert.Equal(t, currency.BTC, p.Base, "pair Base should be BTC")
-		e.futureContractCodesMutex.RLock()
-		cachedContract, ok := e.futureContractCodes[cType]
-		e.futureContractCodesMutex.RUnlock()
-		require.Truef(t, ok, "%s type must be in futureContractCodes", cType)
-		assert.Equal(t, cachedContract, p.Quote, "pair Quote should match contractExpiryNames")
-		exp, err := time.ParseInLocation("060102", p.Quote.String(), tz)
-		require.NoError(t, err, "currency code must be a parsable date")
-		require.Falsef(t, exp.Before(today), "%s expiry must be today or after; Got: %q", cType, exp)
-		diff := uint(exp.Sub(today).Hours() / 24)
-		require.LessOrEqualf(t, diff, expiryWindows[cType], "%s expiry must be within expected update window; Today: %q, Expiry: %q",
-			cType,
-			today.Format(time.DateOnly),
-			exp.Format(time.DateOnly),
-		)
 	}
 }
 
