@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1664,6 +1665,7 @@ func TestString(t *testing.T) {
 		{WebsocketUSDTMargined, websocketUSDTMarginedURL},
 		{WebsocketUSDCMargined, websocketUSDCMarginedURL},
 		{WebsocketOptions, websocketOptionsURL},
+		{WebsocketTrade, websocketTradeURL},
 		{WebsocketPrivate, websocketPrivateURL},
 		{WebsocketSpotSupplementary, websocketSpotSupplementaryURL},
 		{ChainAnalysis, chainAnalysisURL},
@@ -1827,6 +1829,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		{Endpoint: websocketUSDTMarginedURL, Expected: WebsocketUSDTMargined},
 		{Endpoint: websocketUSDCMarginedURL, Expected: WebsocketUSDCMargined},
 		{Endpoint: websocketOptionsURL, Expected: WebsocketOptions},
+		{Endpoint: websocketTradeURL, Expected: WebsocketTrade},
 		{Endpoint: websocketPrivateURL, Expected: WebsocketPrivate},
 		{Endpoint: websocketSpotSupplementaryURL, Expected: WebsocketSpotSupplementary},
 		{Endpoint: chainAnalysisURL, Expected: ChainAnalysis},
@@ -1997,10 +2000,10 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCAUD")
-	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
+	require.ErrorIs(t, err, ErrSymbolNotMatched)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
-	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
+	require.ErrorIs(t, err, ErrSymbolNotMatched)
 
 	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
 	require.NoError(t, err)
@@ -2865,11 +2868,34 @@ func TestCheckOrderExecutionLimits(t *testing.T) {
 }
 
 func TestWebsocketSubmitOrder(t *testing.T) {
+	t.Parallel()
 	_, err := (&Base{}).WebsocketSubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestWebsocketSubmitOrders(t *testing.T) {
+	t.Parallel()
 	_, err := (&Base{}).WebsocketSubmitOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketModifyOrder(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).WebsocketModifyOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketCancelOrder(t *testing.T) {
+	t.Parallel()
+	err := (&Base{}).WebsocketCancelOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestMessageID(t *testing.T) {
+	t.Parallel()
+	id := (new(Base)).MessageID()
+	require.NotEmpty(t, id, "MessageID must return a non-empty message ID")
+	u, err := uuid.FromString(id)
+	require.NoError(t, err, "MessageID must return a valid UUID")
+	assert.Equal(t, byte(0x7), u.Version(), "MessageID should return a V7 uuid")
 }

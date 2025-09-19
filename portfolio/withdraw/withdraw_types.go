@@ -40,8 +40,6 @@ const (
 var (
 	// ErrRequestCannotBeNil message to return when a request is nil
 	ErrRequestCannotBeNil = errors.New("request cannot be nil")
-	// ErrExchangeNameUnset message to return when an exchange name is unset
-	ErrExchangeNameUnset = errors.New("exchange name unset")
 	// ErrInvalidRequest message to return when a request type is invalid
 	ErrInvalidRequest = errors.New("invalid request type")
 	// ErrStrAddressNotWhiteListed occurs when a withdrawal attempts to withdraw from a non-whitelisted address
@@ -83,6 +81,27 @@ type FiatRequest struct {
 	WireCurrency                  string
 }
 
+// TravelAddress holds the address information required for travel rule compliance
+type TravelAddress struct {
+	Address1   string
+	Address2   string
+	Address3   string
+	City       string
+	State      string
+	Country    string
+	PostalCode string
+}
+
+// TravelRule stores the information that may need to be provided to comply with local regulations
+type TravelRule struct {
+	BeneficiaryWalletType           string
+	IsSelf                          bool
+	BeneficiaryName                 string
+	BeneficiaryAddress              TravelAddress
+	BeneficiaryFinancialInstitution string
+	TransferPurpose                 string
+}
+
 // Request holds complete details for request
 type Request struct {
 	Exchange    string        `json:"exchange"`
@@ -97,6 +116,8 @@ type Request struct {
 	// Used exclusively in Binance.US
 	ClientOrderID string `json:"clientID"`
 
+	WalletID string `json:"walletID"`
+
 	// Used exclusively in OKX to classify internal represented by '3' or on chain represented by '4'
 	InternalTransfer bool
 
@@ -106,6 +127,10 @@ type Request struct {
 
 	Crypto CryptoRequest `json:"crypto"`
 	Fiat   FiatRequest   `json:"fiat"`
+
+	Travel TravelRule `json:"travel_rule"`
+
+	IdempotencyToken string
 }
 
 // Response holds complete details for Response
