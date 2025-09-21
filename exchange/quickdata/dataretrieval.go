@@ -20,9 +20,6 @@ import (
 )
 
 func (q *QuickData) handleWSAccountChange(data *account.Change) error {
-	if err := common.NilGuard(data); err != nil {
-		return err
-	}
 	focus := q.focuses.GetByFocusType(AccountHoldingsFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, AccountHoldingsFocusType)
@@ -67,9 +64,6 @@ func (q *QuickData) handleWSAccountChanges(data []account.Change) error {
 }
 
 func (q *QuickData) handleWSOrderDetail(data *order.Detail) error {
-	if err := common.NilGuard(data); err != nil {
-		return err
-	}
 	if data.AssetType != q.key.ExchangeAssetPair.Asset || !data.Pair.Equal(q.key.ExchangeAssetPair.Pair()) {
 		// these WS checks are here due to the inability to fully know how a subscription is transformed
 		// it is not an error to get other data, just ignore it
@@ -143,9 +137,6 @@ func (q *QuickData) handleWSTickers(data []ticker.Price) error {
 }
 
 func (q *QuickData) handleWSTicker(data *ticker.Price) error {
-	if err := common.NilGuard(data); err != nil {
-		return err
-	}
 	focus := q.focuses.GetByFocusType(TickerFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, TickerFocusType)
@@ -164,9 +155,6 @@ func (q *QuickData) handleWSTicker(data *ticker.Price) error {
 }
 
 func (q *QuickData) handleWSOrderbook(data *orderbook.Depth) error {
-	if err := common.NilGuard(data); err != nil {
-		return err
-	}
 	focus := q.focuses.GetByFocusType(OrderBookFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, OrderBookFocusType)
@@ -190,9 +178,6 @@ func (q *QuickData) handleWSOrderbook(data *orderbook.Depth) error {
 }
 
 func (q *QuickData) handleWSTrade(data *trade.Data) error {
-	if err := common.NilGuard(data); err != nil {
-		return err
-	}
 	focus := q.focuses.GetByFocusType(TradesFocusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, TradesFocusType)
@@ -361,7 +346,6 @@ func (q *QuickData) handleTickerFocus(focus *FocusData) error {
 	q.data.Ticker = resp
 	q.m.Unlock()
 	focus.stream(resp)
-
 	return nil
 }
 

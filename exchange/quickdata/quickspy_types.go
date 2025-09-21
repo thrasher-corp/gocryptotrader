@@ -58,7 +58,7 @@ type QuickData struct {
 	// dataHandlerChannel is used for receiving data from websockets
 	dataHandlerChannel chan any
 	// m is used for concurrent read/write operations
-	m *sync.RWMutex
+	m sync.RWMutex
 	// wg is used for synchronizing goroutines
 	wg sync.WaitGroup
 	// Data contains all the market data

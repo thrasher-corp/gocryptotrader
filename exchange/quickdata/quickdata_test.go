@@ -149,7 +149,6 @@ func TestSetupExchange(t *testing.T) {
 	q = &QuickData{
 		key:                &CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("butts", assetType, currencyPair)},
 		dataHandlerChannel: make(chan any),
-		m:                  new(sync.RWMutex),
 		wg:                 sync.WaitGroup{},
 	}
 	err = q.setupExchange()
@@ -283,7 +282,7 @@ func TestLatestData(t *testing.T) {
 	t.Run("illegal Focus default scenario", func(t *testing.T) {
 		t.Parallel()
 		q := mustQuickData(t, TickerFocusType)
-		_, err := q.LatestData(999)
+		_, err := q.LatestData(111)
 		require.ErrorIs(t, err, errKeyNotFound)
 	})
 }
@@ -298,14 +297,14 @@ func TestWaitForInitialDataWithTimer(t *testing.T) {
 	f.Init()
 	qs.focuses.Upsert(TickerFocusType, f)
 	ctx, cancel := context.WithCancel(t.Context())
-	require.Error(t, qs.WaitForInitialDataWithTimer(ctx, TickerFocusType, 1))
+	require.Error(t, qs.WaitForInitialDataWithTimeout(ctx, TickerFocusType, 1))
 
 	f.setSuccessful()
-	require.NoError(t, qs.WaitForInitialDataWithTimer(t.Context(), TickerFocusType, time.Second))
-	require.Error(t, qs.WaitForInitialDataWithTimer(t.Context(), OrderBookFocusType, 1))
+	require.NoError(t, qs.WaitForInitialDataWithTimeout(t.Context(), TickerFocusType, time.Second))
+	require.Error(t, qs.WaitForInitialDataWithTimeout(t.Context(), OrderBookFocusType, 1))
 	cancel()
 
-	require.NoError(t, qs.WaitForInitialDataWithTimer(t.Context(), TickerFocusType, time.Second))
+	require.NoError(t, qs.WaitForInitialDataWithTimeout(t.Context(), TickerFocusType, time.Second))
 }
 
 func TestWaitForInitialData(t *testing.T) {
@@ -379,7 +378,7 @@ func TestDump(t *testing.T) {
 func TestWaitForInitialDataWithTimer_Zero(t *testing.T) {
 	t.Parallel()
 	qs := &QuickData{focuses: NewFocusStore()}
-	require.Error(t, qs.WaitForInitialDataWithTimer(t.Context(), TickerFocusType, 0))
+	require.Error(t, qs.WaitForInitialDataWithTimeout(t.Context(), TickerFocusType, 0))
 }
 
 func TestShutdown(t *testing.T) {
@@ -419,10 +418,10 @@ func TestGetAndWaitForFocusByKey(t *testing.T) {
 
 func TestNewQuickerData(t *testing.T) {
 	t.Parallel()
-	_, err := NewQuickerData(nil, nil, -1) //nolint:staticcheck // testing nil context
+	_, err := NewQuickerData(nil, nil, 111) //nolint:staticcheck // testing nil context
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = NewQuickerData(t.Context(), &key.ExchangeAssetPair{}, -1)
+	_, err = NewQuickerData(t.Context(), &key.ExchangeAssetPair{}, 111)
 	require.ErrorIs(t, err, ErrUnsupportedFocusType)
 
 	_, err = NewQuickerData(t.Context(), &key.ExchangeAssetPair{}, TickerFocusType)
@@ -446,10 +445,10 @@ func TestNewQuickerData(t *testing.T) {
 
 func TestNewQuickestData(t *testing.T) {
 	t.Parallel()
-	_, err := NewQuickestData(nil, nil, -1) //nolint:staticcheck // testing nil context
+	_, err := NewQuickestData(nil, nil, 111) //nolint:staticcheck // testing nil context
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = NewQuickestData(t.Context(), &key.ExchangeAssetPair{}, -1)
+	_, err = NewQuickestData(t.Context(), &key.ExchangeAssetPair{}, 111)
 	require.ErrorIs(t, err, ErrUnsupportedFocusType)
 
 	_, err = NewQuickestData(t.Context(), &key.ExchangeAssetPair{}, TickerFocusType)
@@ -514,13 +513,13 @@ func TestProcessRESTFocus(t *testing.T) {
 	f := qs.focuses.GetByFocusType(TickerFocusType)
 	require.NoError(t, qs.processRESTFocus(f))
 
-	fd := NewFocusData(999, false, false, time.Second)
+	fd := NewFocusData(111, false, false, time.Second)
 	fd.Init()
 	fd.FailureTolerance = 2
 	require.NoError(t, qs.processRESTFocus(fd))
 	require.ErrorIs(t, qs.processRESTFocus(fd), errOverMaxFailures)
 
-	fd = NewFocusData(999, false, false, time.Second)
+	fd = NewFocusData(111, false, false, time.Second)
 	fd.Init()
 	fd.setSuccessful()
 	require.NoError(t, qs.processRESTFocus(fd))

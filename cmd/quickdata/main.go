@@ -413,8 +413,8 @@ func renderPrettyPayload(payload any, bookLevels int) {
 	case *orderbook.Book:
 		renderOrderbook(v, bookLevels)
 	case []ticker.Price:
-		if len(v) > 0 {
-			renderTicker(&v[0])
+		for i := range v {
+			renderTicker(&v[i])
 		}
 	case *ticker.Price:
 		renderTicker(v)

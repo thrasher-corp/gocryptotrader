@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -51,7 +50,6 @@ func NewQuickData(ctx context.Context, k *CredentialsKey, focuses []*FocusData) 
 		focuses:            sm,
 		credContext:        ctx,
 		data:               &Data{Key: k},
-		m:                  new(sync.RWMutex),
 		shutdown:           make(chan any),
 	}
 	err := q.setupExchange()
@@ -301,16 +299,12 @@ func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) er
 		// EnableAndConnect returns an error if the websocket is already enabled,
 		// but a connection still needs to be established. In this case, we manually
 		// call Connect to ensure the websocket is connected.
-		err = b.Websocket.Connect()
-		if err != nil {
+		if err := b.Websocket.Connect(); err != nil {
 			return fmt.Errorf("%s: %w", q.key.ExchangeAssetPair, err)
+
 		}
 	}
-	err := q.validateSubscriptions(newSubs)
-	if err != nil {
-		return err
-	}
-	return nil
+	return q.validateSubscriptions(newSubs)
 }
 
 func (q *QuickData) validateSubscriptions(newSubs []*subscription.Subscription) error {
@@ -374,8 +368,7 @@ func (q *QuickData) stopWebsocket() error {
 func (q *QuickData) run() {
 	if q.AnyRequiresWebsocket() {
 		q.wg.Go(func() {
-			err := q.handleWS()
-			if err != nil {
+			if err := q.handleWS(); err != nil {
 				log.Errorf(log.QuickData, "%s websocket handler error: %v", q.key.ExchangeAssetPair, err)
 			}
 		})
@@ -387,8 +380,7 @@ func (q *QuickData) run() {
 		q.wg.Add(1) // wg.Go doesn't work here as we have to pass in the focus variable
 		go func(f *FocusData) {
 			defer q.wg.Done()
-			err := q.runRESTRoutine(f)
-			if err != nil {
+			if err := q.runRESTRoutine(f); err != nil {
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return
 				}
@@ -414,6 +406,9 @@ func (q *QuickData) handleWS() error {
 }
 
 func (q *QuickData) handleWSData(d any) error {
+	if err := common.NilGuard(d); err != nil {
+		return err
+	}
 	switch data := d.(type) {
 	case account.Change:
 		return q.handleWSAccountChange(&data)
@@ -450,8 +445,7 @@ func (q *QuickData) runRESTRoutine(f *FocusData) error {
 		case <-q.credContext.Done():
 			return q.credContext.Err()
 		case <-timer.C:
-			err := q.processRESTFocus(f)
-			if err != nil {
+			if err := q.processRESTFocus(f); err != nil {
 				return err
 			}
 			if f.isOnceOff {
@@ -578,11 +572,7 @@ func (q *QuickData) LatestData(focusType FocusType) (any, error) {
 func (q *QuickData) DumpJSON() ([]byte, error) {
 	q.m.RLock()
 	defer q.m.RUnlock()
-	b, err := json.MarshalIndent(q.data, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
+	return json.MarshalIndent(q.data, "", "  ")
 }
 
 // Data returns the internal Data struct pointer and is unsafe while quickData is running
@@ -604,22 +594,21 @@ func (q *QuickData) WaitForInitialData(ctx context.Context, focusType FocusType)
 	}
 }
 
-// WaitForInitialDataWithTimer waits for initial data for a focus type or cancels when ctx is done.
-func (q *QuickData) WaitForInitialDataWithTimer(ctx context.Context, focusType FocusType, tt time.Duration) error {
-	if tt == 0 {
+// WaitForInitialDataWithTimeout waits for initial data for a focus type or cancels when ctx is done.
+func (q *QuickData) WaitForInitialDataWithTimeout(ctx context.Context, focusType FocusType, timeout time.Duration) error {
+	if timeout == 0 {
 		return fmt.Errorf("%w: timer cannot be 0", errTimerNotSet)
 	}
 	focus := q.focuses.GetByFocusType(focusType)
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, focusType)
 	}
-	t := time.NewTimer(tt)
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-focus.hasBeenSuccessfulChan:
 		return nil
-	case <-t.C:
+	case <-time.After(timeout):
 		return fmt.Errorf("%w %q", errFocusDataTimeout, focusType)
 	}
 }

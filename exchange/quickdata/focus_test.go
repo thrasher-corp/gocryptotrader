@@ -125,7 +125,7 @@ func TestFocusType_String(t *testing.T) {
 		ContractFocusType:        "ContractFocusType",
 		OrderLimitsFocusType:     "OrderLimitsFocusType",
 		URLFocusType:             "URLFocusType",
-		FocusType(999):           "Unset/Unknown FocusType",
+		FocusType(111):           "Unset/Unknown FocusType",
 	}
 	for in, exp := range cases {
 		t.Run(in.String(), func(t *testing.T) {

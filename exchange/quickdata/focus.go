@@ -21,7 +21,7 @@ var (
 )
 
 // FocusType is an identifier for data types that quickData can gather
-type FocusType int
+type FocusType uint8
 
 // FocusData contains information on what data quickData should gather
 // how it should be gathered as well as a channel for delivering that data
@@ -29,7 +29,7 @@ type FocusData struct {
 	focusType             FocusType
 	useWebsocket          bool
 	restPollTime          time.Duration
-	m                     *sync.RWMutex
+	m                     sync.RWMutex
 	isOnceOff             bool
 	hasBeenSuccessful     bool
 	hasBeenSuccessfulChan chan any
@@ -63,7 +63,6 @@ func NewFocusData(focusType FocusType, isOnceOff, useWebsocket bool, restPollTim
 
 // Init called to ensure that data is properly initialised
 func (f *FocusData) Init() {
-	f.m = new(sync.RWMutex)
 	f.hasBeenSuccessfulChan = make(chan any)
 	f.Stream = make(chan any, 1)
 	f.hasBeenSuccessful = false
@@ -86,7 +85,7 @@ func (f *FocusData) Validate(k *CredentialsKey) error {
 	}
 	// lazy initialisation of mutex and channels
 	// we could error and cause a fuss because a silly user didn't call init, but what good is it to be annoying?
-	if f.m == nil || f.hasBeenSuccessfulChan == nil || f.Stream == nil {
+	if f.hasBeenSuccessfulChan == nil || f.Stream == nil {
 		f.Init()
 	}
 	if f.FailureTolerance == 0 {
