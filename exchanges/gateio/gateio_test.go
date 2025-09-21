@@ -2874,6 +2874,13 @@ func TestBorrowOrRepay(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetLoans(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetLoans(context.Background(), currency.ETH, "repay", 0, 1000)
+	assert.NoError(t, err)
+}
+
 func TestGetSettlementCurrency(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {

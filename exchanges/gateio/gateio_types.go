@@ -3131,3 +3131,13 @@ type UserRebaseSubRelation struct {
 		UID    uint64 `json:"uid"`
 	} `json:"list"`
 }
+
+// LoadDetail represents a borrow or repay action detail information
+type LoadDetail struct {
+	Currency     string       `json:"currency"`
+	CurrencyPair string       `json:"currency_pair"`
+	Amount       types.Number `json:"amount"`
+	ActionType   string       `json:"type"`
+	ChangeTime   types.Time   `json:"change_time"`
+	CreateTime   types.Time   `json:"create_time"`
+}

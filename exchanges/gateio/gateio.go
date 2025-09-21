@@ -575,12 +575,31 @@ func (e *Exchange) BorrowOrRepay(ctx context.Context, arg *BorrowOrRepayParams) 
 		return "", errLoanTypeIsRequired
 	}
 	if arg.Amount <= 0 {
-		return "", order.ErrAmountIsInvalid
+		return "", fmt.Errorf("%w: borrow or repay amount is required", order.ErrAmountIsInvalid)
 	}
 	resp := &struct {
 		TransactionID string `json:"tran_id"`
 	}{}
 	return resp.TransactionID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUnifiedSpotEPL, http.MethodPost, "unified/loans", nil, arg, &resp)
+}
+
+// GetLoans retrieves a list of borrow or repay loan actions detail
+func (e *Exchange) GetLoans(ctx context.Context, ccy currency.Code, loanType string, page, limit uint64) ([]LoadDetail, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if loanType != "" {
+		params.Set("type", loanType)
+	}
+	var resp []LoadDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/loans", params, nil, &resp)
 }
 
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
