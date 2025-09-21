@@ -2900,21 +2900,15 @@ type BorrowOrRepayParams struct {
 
 // MultiCollateralLoanOrderParam holds a multi-collateral loan order parameters
 type MultiCollateralLoanOrderParam struct {
-	OrderID              string                                  `json:"order_id"`
-	OrderType            string                                  `json:"order_type"`
-	FixedType            string                                  `json:"fixed_type"`
-	FixedRate            float64                                 `json:"fixed_rate"`
-	AutoRenew            bool                                    `json:"auto_renew"`
-	AutoRepay            bool                                    `json:"auto_repay"`
-	BorrowCurrency       currency.Code                           `json:"borrow_currency"`
-	BorrowAmount         float64                                 `json:"borrow_amount"`
-	CollateralCurrencies []MultiCollateralLoanCollateralCurrency `json:"collateral_currencies"`
-}
-
-// MultiCollateralLoanCollateralCurrency
-type MultiCollateralLoanCollateralCurrency struct {
-	Currency currency.Code `json:"currency"`
-	Amount   float64       `json:"amount"`
+	OrderID              string              `json:"order_id"`
+	OrderType            string              `json:"order_type"`
+	FixedType            string              `json:"fixed_type"`
+	FixedRate            float64             `json:"fixed_rate"`
+	AutoRenew            bool                `json:"auto_renew"`
+	AutoRepay            bool                `json:"auto_repay"`
+	BorrowCurrency       currency.Code       `json:"borrow_currency"`
+	BorrowAmount         float64             `json:"borrow_amount"`
+	CollateralCurrencies []CurrencyAndAmount `json:"collateral_currencies"`
 }
 
 // MultiCollateralLoanOrderDetail queries a multi-collateral loan order detail
@@ -3004,9 +2998,9 @@ type MultiCurrencyDetail struct {
 
 // AddOrWithdrawCollateralParams holds a request parameter for adding or withdrawing collateral
 type AddOrWithdrawCollateralParams struct {
-	OrderID       uint64                                  `json:"order_id"`
-	OperationType string                                  `json:"type"`
-	Collaterals   []MultiCollateralLoanCollateralCurrency `json:"collaterals"`
+	OrderID       uint64              `json:"order_id"`
+	OperationType string              `json:"type"`
+	Collaterals   []CurrencyAndAmount `json:"collaterals"`
 }
 
 // CollateralAddOrRemoveResponse holds a request parameter after adding or removing a collateral

@@ -2493,25 +2493,25 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	integerJSON := `{"number": 1684981731098}`
 	float64JSON := `{"number": 1684981731.098}`
 
-	time := time.UnixMilli(timeWhenTesting)
+	tm := time.UnixMilli(timeWhenTesting)
 	var in types.Time
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	require.NoError(t, err)
-	require.True(t, in.Time().Equal(time), "found %v, but expected %v", in.Time(), time)
+	require.True(t, in.Time().Equal(tm), "found %v, but expected %v", in.Time(), tm)
 
 	inInteger := struct {
 		Number types.Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	require.NoError(t, err)
-	require.Truef(t, inInteger.Number.Time().Equal(time), "found %v, but expected %v", inInteger.Number.Time(), time)
+	require.Truef(t, inInteger.Number.Time().Equal(tm), "found %v, but expected %v", inInteger.Number.Time(), tm)
 
 	inFloat64 := struct {
 		Number types.Time `json:"number"`
 	}{}
 	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
 	require.NoError(t, err)
-	require.True(t, inFloat64.Number.Time().Equal(time), "found %v, but expected %v", inFloat64.Number.Time(), time)
+	require.True(t, inFloat64.Number.Time().Equal(tm), "found %v, but expected %v", inFloat64.Number.Time(), tm)
 }
 
 func TestParseTimeUnmarshal(t *testing.T) {
@@ -3868,6 +3868,7 @@ func TestAddOrWithdrawCollateral(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestWebsocketSubmitOrders(t *testing.T) {
 	t.Parallel()
 
@@ -3976,6 +3977,7 @@ func TestGetUserSubordinateRelationship(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestValidateContractOrderCreateParams(t *testing.T) {
 	t.Parallel()
 

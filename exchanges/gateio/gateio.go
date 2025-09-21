@@ -77,8 +77,6 @@ const (
 )
 
 var (
-	errInvalidLeverageValue             = errors.New("invalid leverage value")
-	errInvalidCountTotalValue           = errors.New("invalid \"count_total\" value, supported \"count_total\" values are 0 and 1")
 	errInvalidAutoSizeValue             = errors.New("invalid \"auto_size\" value, only \"close_long\" and \"close_short\" are supported")
 	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
 	errLoanTypeIsRequired               = errors.New("loan type is required")
@@ -91,8 +89,6 @@ var (
 	errNoValidResponseFromServer        = errors.New("no valid response from server")
 	errInvalidUnderlying                = errors.New("missing underlying")
 	errInvalidOrderSize                 = errors.New("invalid order size")
-	errInvalidOrderID                   = errors.New("invalid order id")
-	errInvalidAmount                    = errors.New("invalid amount")
 	errInvalidSubAccount                = errors.New("invalid or empty subaccount")
 	errInvalidTransferDirection         = errors.New("invalid transfer direction")
 	errDifferentAccount                 = errors.New("account type must be identical for all orders")
@@ -111,7 +107,6 @@ var (
 	errTooManyOrderRequest              = errors.New("too many order creation request")
 	errInvalidTimeout                   = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
 	errNoTickerData                     = errors.New("no ticker data available")
-	errNilArgument                      = errors.New("null argument")
 	errInvalidTimezone                  = errors.New("invalid timezone")
 	errMultipleOrders                   = errors.New("multiple orders passed")
 	errMissingWithdrawalID              = errors.New("missing withdrawal ID")
@@ -3785,6 +3780,7 @@ func (e *Exchange) GetStructuredProductOrderList(ctx context.Context, from, to t
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/structured/orders", params, nil, &resp)
 }
 
+// PlaceStructuredProductOrder retrieves structured product orders
 func (e *Exchange) PlaceStructuredProductOrder(ctx context.Context, arg *StructuredOrder) (*StructuredOrder, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
