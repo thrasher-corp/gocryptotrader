@@ -2065,7 +2065,7 @@ type WsOrderbookUpdate struct {
 type WsOrderbookUpdateWithSnapshot struct {
 	UpdateTime    types.Time        `json:"t"`
 	Full          bool              `json:"full"`
-	Channel       string            `json:"s"` // returns ob.<pair>.<level> which needs further processing
+	Channel       string            `json:"s"`
 	FirstUpdateID int64             `json:"U"` // First update order book id in this event since last update
 	LastUpdateID  int64             `json:"u"`
 	Bids          [][2]types.Number `json:"b"`
