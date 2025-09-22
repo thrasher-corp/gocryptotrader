@@ -56,7 +56,8 @@ There are multiple ways to utilise a quickData. See `/cmd/quickData` for a basic
 ### QuickData with two focus types
 ```go
 func main() {
-	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
 	isOnceOff := false
 	useWebsocket := true
 	tickerFocusType := quickdata.NewFocusData(quickdata.TickerFocusType, isOnceOff, useWebsocket, time.Second)
@@ -74,20 +75,17 @@ func main() {
 
 	fmt.Println(<-tickerFocusType.Stream)
 	fmt.Println(<-orderbookFocusType.Stream)
-
-	qs.Shutdown()
 }
 ```
 
 ### QuickerData for account info focus type with credentials provided by context
 ```go
 func main() {
-	ctx := context.Background()
 	credentials := &account.Credentials{
 		Key:    "abc",
 		Secret: "123",
 	}
-	ctx = account.DeployCredentialsToContext(ctx, credentials)
+	ctx := account.DeployCredentialsToContext(context.Background(), credentials)
 	k := key.NewExchangeAssetPair("Binance", asset.Spot, currency.NewBTCUSDT())
 
 	qs, err := quickdata.NewQuickerData(ctx, &k, quickdata.AccountHoldingsFocusType)
@@ -118,11 +116,11 @@ func main() {
 	parseData(ctx, qs)
 }
 
-func parseData(ctx context.Context, c <-chan any) {
+func parseData(ctx context.Context, c <-chan any) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		case data := <-c:
 			log.Printf("%+v", data)
 		}

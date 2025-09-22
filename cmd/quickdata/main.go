@@ -82,8 +82,8 @@ func main() {
 func parseFlags() *appConfig {
 	exch := flag.String("exchange", "", "Exchange name, e.g. binance, okx")
 	assetStr := flag.String("asset", "spot", "Asset type, e.g. spot, futures, perpetualswap")
-	pairStr := flag.String("currencyPair", "BTC-USDT", "Currency pair, e.g. BTC-USDT or ETHUSD")
-	focusStr := flag.String("focusType", "ticker", "Focus type: ticker, orderbook, kline, trades, openinterest, fundingrate, accountholdings, activeorders, orderexecution, url, contract")
+	pairStr := flag.String("pair", "BTC-USDT", "Currency pair, e.g. BTC-USDT or ETHUSD")
+	focusStr := flag.String("data", "ticker", "Data type: ticker, orderbook, kline, trades, openinterest, fundingrate, accountholdings, activeorders, orderexecution, url, contract")
 	pollStr := flag.String("poll", "5s", "Poll interval for REST focus and timeout for websocket initial data wait")
 	bookLevels := flag.Int("book-levels", 15, "Number of levels to render per side for orderbook focus")
 	jsonOnly := flag.Bool("json", false, "Emit NDJSON only (no ANSI rendering/headers)")
@@ -99,7 +99,8 @@ func parseFlags() *appConfig {
 	flag.Parse()
 
 	if strings.TrimSpace(*exch) == "" || strings.TrimSpace(*assetStr) == "" || strings.TrimSpace(*pairStr) == "" || strings.TrimSpace(*focusStr) == "" {
-		_, _ = fmt.Fprintln(os.Stderr, "missing required flags: --exchange, --asset, --currencyPair, --focusType")
+		_, _ = fmt.Fprintln(os.Stderr, "missing required flags: --exchange, --asset, --pair, --focusType")
+		_, _ = fmt.Fprintln(os.Stderr, "please read the readme for more information")
 		flag.Usage()
 		os.Exit(2)
 	}
@@ -216,7 +217,7 @@ func parseFocusType(s string) (quickdata.FocusType, error) {
 	case "contract":
 		return quickdata.ContractFocusType, nil
 	default:
-		return quickdata.UnsetFocusType, fmt.Errorf("unknown focus type: %s", s)
+		return quickdata.UnsetFocusType, quickdata.ErrUnsupportedFocusType
 	}
 }
 

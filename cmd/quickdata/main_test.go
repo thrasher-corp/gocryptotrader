@@ -47,29 +47,42 @@ func TestIntMin(t *testing.T) {
 	require.Equal(t, -1, intMin(-1, 5))
 }
 
-/*
-	func TestParseFocusType(t *testing.T) {
-		cases := map[quickdata.FocusType][]string{
-			quickdata.TickerFocusType:          {"ticker", "tick", "TICK"},
-			quickdata.OrderBookFocusType:       {"orderbook", "order_book", "ob", "book"},
-			quickdata.KlineFocusType:           {"kline", "candles", "candle", "ohlc"},
-			quickdata.TradesFocusType:          {"trades", "trade"},
-			quickdata.OpenInterestFocusType:    {"openinterest", "oi"},
-			quickdata.FundingRateFocusType:     {"fundingrate", "funding"},
-			quickdata.AccountHoldingsFocusType: {"accountholdings", "account", "holdings", "balances"},
-			quickdata.ActiveOrdersFocusType:    {"activeorders", "orders"},
-			quickdata.OrderLimitsFocusType:     {"orderexecution", "executionlimits", "limits"},
-			quickdata.URLFocusType:             {"url", "tradeurl", "trade_url"},
-			quickdata.ContractFocusType:        {"contract"},
-		}
-		for expected, inputs := range cases {
-			for _, in := range inputs {
-				//require.Equalf(t, expected, parseFocusType(in), "parseFocusType(%s) mismatch", in)
-			}
-		}
-		//require.Equal(t, quickdata.UnsetFocusType, parseFocusType("unknownblah"))
+func TestParseFocusType(t *testing.T) {
+	type caseDef struct {
+		inputs   []string
+		expected quickdata.FocusType
+		error    error
 	}
-*/
+	cases := []caseDef{
+		{inputs: []string{"ticker", "tick", "TICK"}, expected: quickdata.TickerFocusType},
+		{inputs: []string{"orderbook", "order_book", "ob", "book"}, expected: quickdata.OrderBookFocusType},
+		{inputs: []string{"kline", "candles", "candle", "ohlc"}, expected: quickdata.KlineFocusType},
+		{inputs: []string{"trades", "trade"}, expected: quickdata.TradesFocusType},
+		{inputs: []string{"openinterest", "oi"}, expected: quickdata.OpenInterestFocusType},
+		{inputs: []string{"fundingrate", "funding"}, expected: quickdata.FundingRateFocusType},
+		{inputs: []string{"accountholdings", "account", "holdings", "balances"}, expected: quickdata.AccountHoldingsFocusType},
+		{inputs: []string{"activeorders", "orders"}, expected: quickdata.ActiveOrdersFocusType},
+		{inputs: []string{"orderexecution", "executionlimits", "limits"}, expected: quickdata.OrderLimitsFocusType},
+		{inputs: []string{"url", "tradeurl", "trade_url"}, expected: quickdata.URLFocusType},
+		{inputs: []string{"contract"}, expected: quickdata.ContractFocusType},
+		{inputs: []string{"butts"}, error: quickdata.ErrUnsupportedFocusType},
+	}
+	for _, tc := range cases {
+		for _, in := range tc.inputs {
+			t.Run(in, func(t *testing.T) {
+				t.Parallel()
+				resp, err := parseFocusType(in)
+				if tc.error != nil {
+					require.ErrorIs(t, err, tc.error)
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, tc.expected, resp)
+				}
+			})
+		}
+	}
+}
+
 func TestRenderFunctions_NoPanicAndOutput(t *testing.T) {
 	// orderbook
 	ob := &orderbook.Book{Bids: orderbook.Levels{{Price: 50000, Amount: 1}}, Asks: orderbook.Levels{{Price: 50010, Amount: 2}}}
