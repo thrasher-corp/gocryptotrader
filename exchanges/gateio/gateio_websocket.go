@@ -454,7 +454,7 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 		bids[x].Amount = data.Bids[x][1].Float64()
 	}
 
-	splitChannel := strings.Split(data.Channel, ".")
+	channelParts := strings.Split(data.Channel, ".")
 	if len(splitChannel) < 3 {
 		return fmt.Errorf("%w: %q", errMalformedData, data.Channel)
 	}
