@@ -54,7 +54,7 @@ func createSnapshot(pair currency.Pair) (holder *Orderbook, asks, bids orderbook
 
 	newBook := make(map[key.PairAsset]*orderbookHolder)
 
-	relay := message.NewRelay(1)
+	relay := message.NewRelay(10)
 	go func(relay *message.Relay) { // reader
 		for range relay.Read() {
 			continue
@@ -710,7 +710,7 @@ func TestSetup(t *testing.T) {
 	require.ErrorIs(t, err, errUnsetDataHandler)
 
 	exchangeConfig.Orderbook.WebsocketBufferEnabled = true
-	err = w.Setup(exchangeConfig, bufferConf, message.NewRelay(0))
+	err = w.Setup(exchangeConfig, bufferConf, message.NewRelay(1))
 	require.ErrorIs(t, err, errIssueBufferEnabledButNoLimit)
 
 	exchangeConfig.Orderbook.WebsocketBufferLimit = 1337
@@ -718,7 +718,7 @@ func TestSetup(t *testing.T) {
 	exchangeConfig.Name = "test"
 	bufferConf.SortBuffer = true
 	bufferConf.SortBufferByUpdateIDs = true
-	err = w.Setup(exchangeConfig, bufferConf, message.NewRelay(0))
+	err = w.Setup(exchangeConfig, bufferConf, message.NewRelay(1))
 	require.NoError(t, err)
 
 	require.Equal(t, 1337, w.obBufferLimit)
