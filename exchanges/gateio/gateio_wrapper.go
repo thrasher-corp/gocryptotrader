@@ -454,7 +454,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(contracts))
 		for i := range contracts {
-			if !contracts[i].DelistedTime.Time().IsZero() && time.Since(contracts[i].DelistedTime.Time()) > 0 {
+			if !contracts[i].DelistedTime.Time().IsZero() && contracts[i].DelistedTime.Time().Before(time.Now()) {
 				continue
 			}
 			pairs = append(pairs, contracts[i].Name)
@@ -1912,16 +1912,13 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
 			}
 
-			delistingTime := pairsData[i].DelistingTime.Time()
-
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, currency.NewPair(pairsData[i].Base, pairsData[i].Quote)),
-				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[i].Precision)),
+				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
 				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
 				MinimumBaseAmount:       minBaseAmount,
 				MinimumQuoteAmount:      pairsData[i].MinQuoteAmount.Float64(),
-				Delisting:               !delistingTime.IsZero(),
-				DelistingAt:             delistingTime,
+				Delisting:               pairsData[i].DelistingTime.Time(),
 			})
 		}
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
@@ -1950,9 +1947,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				AmountStepIncrementSize: 1, // 1 Contract
 				MultiplierDecimal:       contractInfo[i].QuantoMultiplier.Float64(),
 				PriceDivisor:            priceDiv,
-				Delisting:               contractInfo[i].InDelisting,
-				DelistingAt:             contractInfo[i].DelistingTime.Time(),
-				DelistedAt:              contractInfo[i].DelistedTime.Time(),
+				Delisting:               contractInfo[i].DelistingTime.Time(),
+				Delisted:                contractInfo[i].DelistedTime.Time(),
 			})
 		}
 	case asset.DeliveryFutures:
@@ -2197,7 +2193,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 			if p.IsEmpty() { // If not exactly one key provided
 				p, err = e.MatchSymbolWithAvailablePairs(c.contractName(), a, true)
 				if err != nil {
-					if !errors.Is(err, currency.ErrPairNotFound) { // contract delisted
+					if err := common.ExcludeError(err, currency.ErrPairNotFound); err != nil {
 						errs = common.AppendError(errs, fmt.Errorf("%w from %s contract %s", err, a, c.contractName()))
 					}
 					continue

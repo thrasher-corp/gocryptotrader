@@ -2494,28 +2494,26 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 				for _, pair := range avail {
 					l, err := e.GetOrderExecutionLimits(a, pair)
-					require.NoError(t, err, "GetOrderExecutionLimits must not error")
+					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s")
+					require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", pair)
+					assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", pair)
+					assert.Truef(t, pair.Equal(l.Key.Pair()), "pair should equal for %s", pair)
+					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
+					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", pair)
 
-					assert.Equal(t, a, l.Key.Asset, "asset should equal")
-					assert.True(t, pair.Equal(l.Key.Pair()), "pair should equal")
-					assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
-					assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-
-					if l.Delisting {
-						assert.NotZero(t, l.DelistingAt, "DelistingAt should be populated")
-						if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
-							assert.NotZero(t, l.DelistedAt, "DelistedAt should be populated")
-							assert.True(t, l.DelistedAt.After(l.DelistingAt), "DelistedAt should be after DelistingAt")
+					if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
+						if !l.Delisted.IsZero() {
+							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", pair)
 						}
 					}
 
 					if a == asset.Spot {
-						assert.Positive(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive")
-						assert.Positive(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive")
+						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", pair)
+						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", pair)
 					}
 
 					if a == asset.USDTMarginedFutures {
-						assert.Positive(t, l.MultiplierDecimal, "MultiplierDecimal should be positive")
+						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", pair)
 					}
 				}
 			}
