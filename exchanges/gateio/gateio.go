@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -116,6 +117,7 @@ var (
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidTextPrefix                = errors.New("invalid text value, requires prefix `t-`")
 	errSingleAssetRequired              = errors.New("single asset type required")
+	errMissingUnifiedAccountMode        = errors.New("unified account mode is required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -639,7 +641,58 @@ func (e *Exchange) GetUserRiskUnitDetails(ctx context.Context) (*UserRiskUnitDet
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/risk_units", nil, nil, &resp)
 }
 
-// func (e *Exchange) SetUnifiedAccountMode(ctx context.Context, )
+// SetUnifiedAccountMode sets unified account mode
+// Possible unified account modes:
+// "classic": Classic account mode
+// "multi_currency": Cross-currency margin mode
+// "portfolio": Portfolio margin mode
+// "single_currency": Single-currency margin mode
+func (e *Exchange) SetUnifiedAccountMode(ctx context.Context, arg *UnifiedAccountMode) error {
+	if arg == nil || *arg == (UnifiedAccountMode{}) {
+		return common.ErrNilPointer
+	}
+	if arg.Mode == "" {
+		return errMissingUnifiedAccountMode
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPut, "unified/unified_mode", nil, arg, nil)
+}
+
+// GetUnifiedAccountMode query mode of the unified account
+func (e *Exchange) GetUnifiedAccountMode(ctx context.Context) (*UnifiedAccountMode, error) {
+	var resp *UnifiedAccountMode
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/unified_mode", nil, nil, &resp)
+}
+
+// GetUnifiedAccountEstimatedInterestRate retrieves unified account estimated interest rate
+// Interest rates fluctuate hourly based on lending depth, so exact rates cannot be provided. When a currency is not supported, the interest rate returned will be an empty string
+func (e *Exchange) GetUnifiedAccountEstimatedInterestRate(ctx context.Context, currencies []string) (map[currency.Code]types.Number, error) {
+	if len(currencies) == 0 || slices.Contains(currencies, "") {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currencies", strings.Join(currencies, ","))
+	var resp map[currency.Code]types.Number
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/estimate_rate", params, nil, &resp)
+}
+
+// GetUnifiedAccountTiered retrieves unified account tiered
+func (e *Exchange) GetUnifiedAccountTiered(ctx context.Context) ([]UnifiedAccountTieredDetail, error) {
+	var resp []UnifiedAccountTieredDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/currency_discount_tiers", nil, nil, &resp)
+}
+
+// GetUnifiedAccountTieredLoanMargin query unified account tiered loan margin
+func (e *Exchange) GetUnifiedAccountTieredLoanMargin(ctx context.Context) ([]UnifiedAccountLoanMargin, error) {
+	var resp []UnifiedAccountLoanMargin
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/loan_margin_tiers", nil, nil, &resp)
+}
+
+// CalculatePortfolioMargin portfolio margin calculator
+func (e *Exchange) CalculatePortfolioMargin(ctx context.Context, arg *PortfolioMarginCalculatorParams) (*PortfolioMarginCalculationResponse, error) {
+	// TODO: ...
+	var resp *PortfolioMarginCalculationResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "unified/portfolio_calculator", nil, arg, &resp)
+}
 
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
 // maximum 10 orders each, are allowed in one request No mixture of spot orders and margin orders, i.e. account must be identical for all orders

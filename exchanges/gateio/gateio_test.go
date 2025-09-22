@@ -2902,6 +2902,57 @@ func TestGetUserRiskUnitDetails(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestSetUnifiedAccountMode(t *testing.T) {
+	t.Parallel()
+	err := e.SetUnifiedAccountMode(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	err = e.SetUnifiedAccountMode(t.Context(), &UnifiedAccountMode{Settings: &UnifiedAccountModeSettings{}})
+	require.ErrorIs(t, err, errMissingUnifiedAccountMode)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.SetUnifiedAccountMode(t.Context(), &UnifiedAccountMode{Mode: "portfolio"})
+	assert.NoError(t, err)
+}
+
+func TestGetUnifiedAccountMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUnifiedAccountMode(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUnifiedAccountEstimatedInterestRate(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetUnifiedAccountEstimatedInterestRate(t.Context(), nil)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetUnifiedAccountEstimatedInterestRate(t.Context(), []string{"BTC", "USDT", ""})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUnifiedAccountEstimatedInterestRate(t.Context(), []string{"BTC", "USDT", "ETH"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUnifiedAccountTiered(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUnifiedAccountTiered(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUnifiedAccountTieredLoanMargin(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUnifiedAccountTieredLoanMargin(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetSettlementCurrency(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {

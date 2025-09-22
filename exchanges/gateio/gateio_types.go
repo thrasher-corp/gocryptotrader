@@ -3165,3 +3165,110 @@ type UserRiskUnitDetail struct {
 		Vega           types.Number `json:"vega"`
 	} `json:"risk_units"`
 }
+
+// UnifiedAccountMode holds a request parameter for setting a unified account mode
+type UnifiedAccountMode struct {
+	Mode     string                      `json:"mode,omitempty"`
+	Settings *UnifiedAccountModeSettings `json:"settings,omitempty"`
+}
+
+// UnifiedAccountModeSettings holds a unified account mode settings
+type UnifiedAccountModeSettings struct {
+	SpotHedge   bool `json:"spot_hedge,omitempty"`
+	USDTFutures bool `json:"usdt_futures,omitempty"`
+	Options     bool `json:"options,omitempty"`
+}
+
+// UnifiedAccountTieredDetail unified account tiered list
+type UnifiedAccountTieredDetail struct {
+	Currency      string `json:"currency"`
+	DiscountTiers []struct {
+		Tier       string       `json:"tier"`
+		Discount   types.Number `json:"discount"`
+		LowerLimit types.Number `json:"lower_limit"`
+		Leverage   types.Number `json:"leverage"`
+		UpperLimit types.Number `json:"upper_limit"`
+	} `json:"discount_tiers"`
+}
+
+// UnifiedAccountLoanMargin holds unified account loan margin tiered detail
+type UnifiedAccountLoanMargin struct {
+	Currency    string `json:"currency"`
+	MarginTiers []struct {
+		Tier       string       `json:"tier"`
+		MarginRate types.Number `json:"margin_rate"`
+		LowerLimit types.Number `json:"lower_limit"`
+		UpperLimit types.Number `json:"upper_limit"`
+		Leverage   types.Number `json:"leverage"`
+	} `json:"margin_tiers"`
+}
+
+// PortfolioMarginCalculatorParams holds a request parameters for a portfolio margin calculation
+type PortfolioMarginCalculatorParams struct {
+	SpotBalances     []SpotBalanceParams `json:"spot_balances,omitempty"`
+	SpotOrders       []SpotOrderParams   `json:"spot_orders,omitempty"`
+	FuturesPositions []FuturesOrderInfo  `json:"futures_positions,omitempty"`
+	FuturesOrders    []FuturesOrderInfo  `json:"futures_orders,omitempty"`
+	OptionsPositions []OptionsOrderInfo  `json:"options_positions,omitempty"`
+	OptionsOrders    []OptionsOrderInfo  `json:"options_orders,omitempty"`
+	SpotHedge        bool                `json:"spot_hedge,omitempty"`
+}
+
+// SpotBalanceParams holds a spot balance parameters
+type SpotBalanceParams struct {
+	Currency string  `json:"currency"`
+	Equity   float64 `json:"equity,omitempty,string"`
+	Freeze   float64 `json:"freeze,omitempty,string"`
+}
+
+// SpotOrderParams represents a unified account margin calculator spot order parameters
+type SpotOrderParams struct {
+	CurrencyPairs string  `json:"currency_pairs"`
+	OrderPrice    float64 `json:"order_price,omitempty,string"`
+	Size          float64 `json:"size,omitempty"`
+	Left          float64 `json:"left,omitempty"`
+	Type          string  `json:"type,omitempty"`
+}
+
+// FuturesOrderInfo holds option unified account margin calculator parameters
+type FuturesOrderInfo struct {
+	Contract string  `json:"contract,omitempty"`
+	Size     float64 `json:"size,string,omitempty"`
+	Left     float64 `json:"left,string,omitempty"`
+}
+
+// OptionsOrderInfo holds option unified account margin calculator parameters
+type OptionsOrderInfo struct {
+	OptionsName string  `json:"options_name,omitempty"`
+	Size        float64 `json:"size,omitempty,string"`
+	Left        float64 `json:"left,omitempty,string"`
+}
+
+// PortfolioMarginCalculationResponse holds a portfolio margin calculation response
+type PortfolioMarginCalculationResponse struct {
+	MaintainMarginTotal types.Number `json:"maintain_margin_total"`
+	InitialMarginTotal  types.Number `json:"initial_margin_total"`
+	CalculateTime       types.Time   `json:"calculate_time"`
+	RiskUnit            []struct {
+		Symbol       string `json:"symbol"`
+		MarginResult []struct {
+			Type             string `json:"type"`
+			ProfitLossRanges []struct {
+				PricePercentage             types.Number `json:"price_percentage"`
+				ImpliedVolatilityPercentage types.Number `json:"implied_volatility_percentage"`
+				ProfitLoss                  types.Number `json:"profit_loss"`
+			} `json:"profit_loss_ranges"`
+			MaxLoss struct {
+				PricePercentage             types.Number `json:"price_percentage"`
+				ImpliedVolatilityPercentage types.Number `json:"implied_volatility_percentage"`
+				ProfitLoss                  types.Number `json:"profit_loss"`
+			} `json:"max_loss"`
+			Mr1 types.Number `json:"mr1"`
+			Mr2 types.Number `json:"mr2"`
+			Mr3 types.Number `json:"mr3"`
+			Mr4 types.Number `json:"mr4"`
+		} `json:"margin_result"`
+		MaintainMargin types.Number `json:"maintain_margin"`
+		InitialMargin  types.Number `json:"initial_margin"`
+	} `json:"risk_unit"`
+}
