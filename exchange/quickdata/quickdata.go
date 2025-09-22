@@ -59,7 +59,7 @@ func NewQuickData(ctx context.Context, k *CredentialsKey, focuses []*FocusData) 
 		if k.Credentials.IsEmpty() {
 			return nil, fmt.Errorf("%w for %s", errNoCredentials, k.ExchangeAssetPair)
 		}
-		ctx = account.DeployCredentialsToContext(context.Background(), k.Credentials)
+		ctx = account.DeployCredentialsToContext(ctx, k.Credentials)
 		b := q.exch.GetBase()
 		b.API.AuthenticatedSupport = true
 		b.API.AuthenticatedWebsocketSupport = true
@@ -509,9 +509,13 @@ func (q *QuickData) handleFocusType(ctx context.Context, focusType FocusType, fo
 }
 
 // Shutdown stops all routines and websocket connections
-func (q *QuickData) Shutdown() {
+func (q *QuickData) Shutdown() error {
+	if err := q.exch.Shutdown(); err != nil {
+		return err
+	}
 	close(q.shutdown)
 	q.wg.Wait()
+	return nil
 }
 
 // HasBeenSuccessful returns whether a focus type has ever been successful

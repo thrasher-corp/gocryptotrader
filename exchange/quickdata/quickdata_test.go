@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -383,10 +384,14 @@ func TestWaitForInitialDataWithTimer_Zero(t *testing.T) {
 
 func TestShutdown(t *testing.T) {
 	t.Parallel()
-	qs := &QuickData{shutdown: make(chan any)}
-	require.NotPanics(t, func() { qs.Shutdown() }, "shutdown with set context must not panic")
-	qs = &QuickData{}
-	require.Panics(t, func() { qs.Shutdown() }, "shutdown with nil shutdown chan must panic")
+	qs := &QuickData{}
+	require.Panics(t, func() { _ = qs.Shutdown() }, "shutdown with nil shutdown chan must panic")
+	qs.shutdown = make(chan any)
+	require.Panics(t, func() { _ = qs.Shutdown() }, "shutdown with set context must not panic")
+	qs.exch = new(binance.Exchange)
+	qs.exch.SetDefaults()
+	require.NotPanics(t, func() { _ = qs.Shutdown() }, "shutdown with set context must not panic")
+
 }
 
 func TestGetAndWaitForFocusByKey(t *testing.T) {
