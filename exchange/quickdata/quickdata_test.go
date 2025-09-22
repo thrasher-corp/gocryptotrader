@@ -391,7 +391,6 @@ func TestShutdown(t *testing.T) {
 	qs.exch = new(binance.Exchange)
 	qs.exch.SetDefaults()
 	require.NotPanics(t, func() { _ = qs.Shutdown() }, "shutdown with set context must not panic")
-
 }
 
 func TestGetAndWaitForFocusByKey(t *testing.T) {
