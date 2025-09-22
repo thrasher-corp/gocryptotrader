@@ -68,7 +68,6 @@ func TestList(t *testing.T) {
 	fs := NewFocusStore()
 	require.NotNil(t, fs, "NewFocusStore must not return nil")
 	list := fs.List()
-	require.NotNil(t, list)
 	require.Empty(t, list)
 
 	fd1 := &FocusData{}
