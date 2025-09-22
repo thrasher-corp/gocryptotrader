@@ -1106,13 +1106,12 @@ func TestUpdatePairs(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, unset)
 
-	// preserve existing pairs for available list
 	err = UAC.UpdatePairs(currency.Pairs{}, asset.Spot, false)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "Purging all available pairs must error")
 
 	avail, err := UAC.GetAvailablePairs(asset.Spot)
 	require.NoError(t, err)
-	require.NotEmpty(t, avail)
+	assert.NotEmpty(t, avail, "Failed attempt to purge available pairs should not effect store")
 }
 
 func TestSupportsWebsocket(t *testing.T) {
