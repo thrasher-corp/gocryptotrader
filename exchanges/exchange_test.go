@@ -1110,7 +1110,7 @@ func TestUpdatePairs(t *testing.T) {
 
 	avail, err := UAC.GetAvailablePairs(asset.Spot)
 	require.NoError(t, err)
-	assert.NotEmpty(t, avail, "Failed attempt to purge available pairs should not effect store")
+	assert.NotEmpty(t, avail, "Failed attempt to purge available pairs should not affect store")
 }
 
 func TestSupportsWebsocket(t *testing.T) {
