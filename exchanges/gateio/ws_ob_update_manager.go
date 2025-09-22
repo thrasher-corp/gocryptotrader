@@ -190,9 +190,8 @@ func (c *updateCache) extractOrderbookLimit(e *Exchange, a asset.Item) (uint64, 
 
 // waitForUpdate waits for an update with an ID >= nextUpdateID
 func (c *updateCache) waitForUpdate(ctx context.Context, nextUpdateID int64) error {
-	var updateListLastUpdateID int64
 	c.mtx.Lock()
-	updateListLastUpdateID = c.updates[len(c.updates)-1].update.UpdateID
+	updateListLastUpdateID := c.updates[len(c.updates)-1].update.UpdateID
 	c.mtx.Unlock()
 
 	if updateListLastUpdateID >= nextUpdateID {

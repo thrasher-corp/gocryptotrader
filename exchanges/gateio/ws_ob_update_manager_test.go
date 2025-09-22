@@ -214,7 +214,7 @@ func TestWaitForUpdate(t *testing.T) {
 	})
 	cache.ch <- 1338
 	wg.Wait()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 func TestApplyPendingUpdates(t *testing.T) {
@@ -277,7 +277,7 @@ func TestClearWithLock(t *testing.T) {
 	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}, updating: true}
 	cache.clearWithLock()
 	require.Empty(t, cache.updates)
-	require.False(t, cache.updating)
+	assert.False(t, cache.updating)
 }
 
 func TestClearWithNoLock(t *testing.T) {
@@ -285,5 +285,5 @@ func TestClearWithNoLock(t *testing.T) {
 	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}, updating: true}
 	cache.clearNoLock()
 	require.Empty(t, cache.updates)
-	require.False(t, cache.updating)
+	assert.False(t, cache.updating)
 }
