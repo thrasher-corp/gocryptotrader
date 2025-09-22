@@ -1102,9 +1102,9 @@ func TestUpdatePairs(t *testing.T) {
 	err = UAC.UpdatePairs(currency.Pairs{}, asset.Spot, true)
 	require.NoError(t, err)
 
-	unset, err := UAC.GetEnabledPairs(asset.Spot)
+	pairs, err := UAC.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err)
-	require.Empty(t, unset)
+	require.Empty(t, pairs)
 
 	err = UAC.UpdatePairs(currency.Pairs{}, asset.Spot, false)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "Purging all available pairs must error")
