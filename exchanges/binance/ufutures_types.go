@@ -175,9 +175,10 @@ type UCompositeIndexInfoData struct {
 	Symbol        string     `json:"symbol"`
 	Time          types.Time `json:"time"`
 	BaseAssetList []struct {
-		BaseAsset          string  `json:"baseAsset"`
-		WeightInQuantity   float64 `json:"weightInQuantity,string"`
-		WeightInPercentage float64 `json:"weightInPercentage,string"`
+		BaseAsset          currency.Code `json:"baseAsset"`
+		QuoteAsset         currency.Code `json:"quoteAsset"`
+		WeightInQuantity   float64       `json:"weightInQuantity,string"`
+		WeightInPercentage float64       `json:"weightInPercentage,string"`
 	} `json:"baseAssetList"`
 }
 

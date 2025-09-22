@@ -69,7 +69,7 @@ _b in this context is an `IBotExchange` implemented struct_
 | BTCMarkets | Yes | Yes       | No  |
 | BTSE | Yes | Yes | No |
 | Bybit | Yes | Yes | Yes |
-| CoinbasePro | Yes | Yes | No|
+| Coinbase | Yes | Yes | No|
 | COINUT | Yes | Yes | No |
 | Deribit | Yes | Yes | Yes |
 | Exmo | Yes | NA | No |

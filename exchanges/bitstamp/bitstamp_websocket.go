@@ -269,7 +269,7 @@ func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, op st
 			if creds == nil {
 				return request.ErrAuthRequestFailed
 			}
-			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(creds.UserID))
+			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.FormatInt(creds.UserID, 10)
 			req.Data.Auth = creds.Token
 		}
 		_, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, op+":"+req.Data.Channel, req)

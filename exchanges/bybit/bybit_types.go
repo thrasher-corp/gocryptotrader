@@ -12,8 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-var validCategory = []string{"spot", "linear", "inverse", "option"}
-
 // supportedOptionsTypes Bybit does not offer a way to retrieve option denominations via its API
 var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
 
@@ -132,11 +130,6 @@ type KlineItem struct {
 	// not available for mark and index price kline data
 	TradeVolume types.Number
 	Turnover    types.Number
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface for KlineItem
-func (k *KlineItem) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[7]any{&k.StartTime, &k.Open, &k.High, &k.Low, &k.Close, &k.TradeVolume, &k.Turnover})
 }
 
 // MarkPriceKlineResponse represents a kline data item.
@@ -295,17 +288,17 @@ type DeliveryPrice struct {
 	} `json:"list"`
 }
 
-// PlaceOrderParams represents
-type PlaceOrderParams struct {
+// PlaceOrderRequest represents
+type PlaceOrderRequest struct {
 	Category               string        `json:"category"`   // Required
 	Symbol                 currency.Pair `json:"symbol"`     // Required
 	Side                   string        `json:"side"`       // Required
 	OrderType              string        `json:"orderType"`  // Required // Market, Limit
 	OrderQuantity          float64       `json:"qty,string"` // Required // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
 	Price                  float64       `json:"price,string,omitempty"`
-	TimeInForce            string        `json:"timeInForce,omitempty"`      // IOC and GTC
-	OrderLinkID            string        `json:"orderLinkId,omitempty"`      // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
-	WhetherToBorrow        bool          `json:"-"`                          // '0' for default spot, '1' for Margin trading.
+	TimeInForce            string        `json:"timeInForce,omitempty"` // IOC and GTC
+	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
+	EnableBorrow           bool          `json:"-"`
 	IsLeverage             int64         `json:"isLeverage,omitempty"`       // Required   // '0' for default spot, '1' for Margin trading.
 	OrderFilter            string        `json:"orderFilter,omitempty"`      // Valid for spot only. Order,tpslOrder. If not passed, Order by default
 	TriggerDirection       int64         `json:"triggerDirection,omitempty"` // Required // Conditional order param. Used to identify the expected direction of the conditional order. '1': triggered when market price rises to triggerPrice '2': triggered when market price falls to triggerPrice
@@ -338,16 +331,18 @@ type OrderResponse struct {
 	OrderLinkID string `json:"orderLinkId"`
 }
 
-// AmendOrderParams represents a parameter for amending order.
-type AmendOrderParams struct {
-	Category               string        `json:"category,omitempty"`
-	Symbol                 currency.Pair `json:"symbol,omitzero"`
-	OrderID                string        `json:"orderId,omitempty"`
-	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
-	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
-	TriggerPrice           float64       `json:"triggerPrice,omitempty,string"`
-	OrderQuantity          float64       `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
-	Price                  float64       `json:"price,string,omitempty"`
+// AmendOrderRequest represents a parameter for amending order.
+type AmendOrderRequest struct {
+	Category    string        `json:"category"`              // Required
+	Symbol      currency.Pair `json:"symbol"`                // Required
+	OrderID     string        `json:"orderId,omitempty"`     // This or OrderLinkID required
+	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
+
+	// At least one of the following fields is required
+	OrderImpliedVolatility string  `json:"orderIv,omitempty"`
+	TriggerPrice           float64 `json:"triggerPrice,omitempty,string"`
+	OrderQuantity          float64 `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
+	Price                  float64 `json:"price,string,omitempty"`
 
 	TakeProfitPrice float64 `json:"takeProfit,omitempty,string"`
 	StopLossPrice   float64 `json:"stopLoss,omitempty,string"`
@@ -367,14 +362,13 @@ type AmendOrderParams struct {
 	TPSLMode string `json:"tpslMode,omitempty"`
 }
 
-// CancelOrderParams represents a cancel order parameters.
-type CancelOrderParams struct {
-	Category    string        `json:"category,omitempty"`
-	Symbol      currency.Pair `json:"symbol,omitzero"`
+// CancelOrderRequest represents a cancel order parameters.
+type CancelOrderRequest struct {
+	Category    string        `json:"category"`
+	Symbol      currency.Pair `json:"symbol"`
 	OrderID     string        `json:"orderId,omitempty"`
 	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
-
-	OrderFilter string `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
+	OrderFilter string        `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
 }
 
 // TradeOrders represents category and list of trade orders of the category.
@@ -537,8 +531,8 @@ type BatchAmendOrderParamItem struct {
 
 // CancelBatchOrder represents a batch cancel request parameters.
 type CancelBatchOrder struct {
-	Category string              `json:"category"`
-	Request  []CancelOrderParams `json:"request"`
+	Category string               `json:"category"`
+	Request  []CancelOrderRequest `json:"request"`
 }
 
 // CancelBatchResponseItem represents a batch cancel response item.
@@ -1764,11 +1758,11 @@ type WsOrderbookDetail struct {
 
 // SubscriptionResponse represents a subscription response.
 type SubscriptionResponse struct {
-	Success   bool   `json:"success"`
-	RetMsg    string `json:"ret_msg"`
-	ConnID    string `json:"conn_id"`
-	RequestID string `json:"req_id"`
-	Operation string `json:"op"`
+	Success       bool   `json:"success"`
+	ReturnMessage string `json:"ret_msg"`
+	ConnectionID  string `json:"conn_id"`
+	RequestID     string `json:"req_id"`
+	Operation     string `json:"op"`
 }
 
 // WebsocketResponse represents push data response struct.
@@ -2044,17 +2038,3 @@ type accountTypeHolder struct {
 
 // AccountType constants
 type AccountType uint8
-
-// String returns the account type as a string
-func (a AccountType) String() string {
-	switch a {
-	case 0:
-		return "unset"
-	case accountTypeNormal:
-		return "normal"
-	case accountTypeUnified:
-		return "unified"
-	default:
-		return "unknown"
-	}
-}
