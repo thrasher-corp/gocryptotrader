@@ -2066,7 +2066,7 @@ type WsOrderbookUpdateWithSnapshot struct {
 	UpdateTime    types.Time        `json:"t"`
 	Full          bool              `json:"full"`
 	Channel       string            `json:"s"`
-	FirstUpdateID int64             `json:"U"` // First update order book id in this event since last update
+	FirstUpdateID int64             `json:"U"`
 	LastUpdateID  int64             `json:"u"`
 	Bids          [][2]types.Number `json:"b"`
 	Asks          [][2]types.Number `json:"a"`
