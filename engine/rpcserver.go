@@ -2991,7 +2991,7 @@ func (s *RPCServer) WebsocketSetEnabled(ctx context.Context, r *gctrpc.Websocket
 	}
 
 	if r.Enable {
-		err = w.Enable(ctx)
+		err = w.Enable(s.rpcContextToLongLivedSession(ctx))
 		if err != nil {
 			return nil, err
 		}
@@ -3051,7 +3051,7 @@ func (s *RPCServer) WebsocketSetProxy(ctx context.Context, r *gctrpc.WebsocketSe
 		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
 	}
 
-	err = w.SetProxyAddress(ctx, r.Proxy)
+	err = w.SetProxyAddress(s.rpcContextToLongLivedSession(ctx), r.Proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -5940,4 +5940,15 @@ func (s *RPCServer) GetCurrencyTradeURL(ctx context.Context, r *gctrpc.GetCurren
 	return &gctrpc.GetCurrencyTradeURLResponse{
 		Url: url,
 	}, nil
+}
+
+// rpcContextToLongLivedSession converts a short-lived incoming context to a long-lived outgoing context, this is due
+// to the incoming context being cancelled when the RPC call completes.
+func (s *RPCServer) rpcContextToLongLivedSession(ctx context.Context) context.Context {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		md = metadata.New(nil) // Fallback to empty metadata
+	}
+	// TODO: Capture RPC server context for cancellations and use it here
+	return metadata.NewOutgoingContext(context.TODO(), md)
 }

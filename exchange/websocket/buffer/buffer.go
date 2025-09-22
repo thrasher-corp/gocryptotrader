@@ -84,8 +84,7 @@ func (o *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 	}
 
 	holder.ob.Publish()
-	o.dataHandler.Send(ctx, holder.ob)
-	return nil
+	return o.dataHandler.Send(ctx, holder.ob)
 }
 
 // Update updates a stored pointer to an orderbook.Depth struct containing bid and ask Tranches, this switches between
@@ -111,8 +110,7 @@ func (o *Orderbook) Update(u *orderbook.Update) error {
 
 	// Publish all state changes, disregarding verbosity or sync requirements.
 	holder.ob.Publish()
-	o.dataHandler.Send(ctx, holder.ob)
-	return nil
+	return o.dataHandler.Send(ctx, holder.ob)
 }
 
 // processBufferUpdate stores update into buffer, when buffer at capacity as

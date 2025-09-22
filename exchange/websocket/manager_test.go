@@ -170,27 +170,27 @@ func TestConnectionMessageErrors(t *testing.T) {
 	wsWrong.connector = func() error { return nil }
 
 	err := wsWrong.Connect(t.Context())
-	require.ErrorIs(t, err, common.ErrNilPointer, "Connect should error correctly")
+	require.ErrorIs(t, err, common.ErrNilPointer, "Connect must error correctly")
 
 	wsWrong.DataHandler = message.NewRelay(1)
 	err = wsWrong.Connect(t.Context())
-	require.ErrorIs(t, err, ErrWebsocketNotEnabled, "Connect should error correctly")
+	require.ErrorIs(t, err, ErrWebsocketNotEnabled, "Connect must error correctly")
 
 	wsWrong.setEnabled(true)
 	wsWrong.setState(connectingState)
 	err = wsWrong.Connect(t.Context())
-	require.ErrorIs(t, err, errAlreadyReconnecting, "Connect should error correctly")
+	require.ErrorIs(t, err, errAlreadyReconnecting, "Connect must error correctly")
 
 	wsWrong.setState(disconnectedState)
 	err = wsWrong.Connect(t.Context())
-	require.ErrorIs(t, err, common.ErrNilPointer, "Connect should get a nil pointer error")
-	require.ErrorContains(t, err, "subscriptions", "Connect should get a nil pointer error about subscriptions")
+	require.ErrorIs(t, err, common.ErrNilPointer, "Connect must get a nil pointer error")
+	require.ErrorContains(t, err, "subscriptions", "Connect must get a nil pointer error about subscriptions")
 
 	wsWrong.subscriptions = subscription.NewStore()
 	wsWrong.setState(disconnectedState)
 	wsWrong.connector = func() error { return errDastardlyReason }
 	err = wsWrong.Connect(t.Context())
-	require.ErrorIs(t, err, errDastardlyReason, "Connect should error correctly")
+	require.ErrorIs(t, err, errDastardlyReason, "Connect must error correctly")
 
 	ws := NewManager()
 	err = ws.Setup(newDefaultSetup())
@@ -630,9 +630,9 @@ type reporter struct {
 	t    time.Duration
 }
 
-func (r *reporter) Latency(name string, message []byte, t time.Duration) {
+func (r *reporter) Latency(name string, payload []byte, t time.Duration) {
 	r.name = name
-	r.msg = message
+	r.msg = payload
 	r.t = t
 }
 

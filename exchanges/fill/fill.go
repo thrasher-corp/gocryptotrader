@@ -29,7 +29,5 @@ func (f *Fills) Update(data ...Data) error {
 		return ErrFeedDisabled
 	}
 
-	f.dataHandler.Send(ctx, data)
-
-	return nil
+	return f.dataHandler.Send(ctx, data)
 }

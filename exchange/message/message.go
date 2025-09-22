@@ -13,9 +13,9 @@ type Relay struct {
 	comm chan Payload
 }
 
-// Payload represents a relayed message with a context for tracing and metrics
+// Payload represents a relayed message with a context
 type Payload struct {
-	Ctx  context.Context
+	Ctx  context.Context // nolint:containedctx // context needed for tracing/metrics
 	Data any
 }
 

@@ -129,7 +129,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 		for i := range orders {
-			o, err := e.parseOrderContainer(ctx, &orders[i])
+			o, err := e.parseOrderContainer(&orders[i])
 			if err != nil {
 				return err
 			}
@@ -344,7 +344,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		o, err := e.parseOrderContainer(ctx, &orderContainer)
+		o, err := e.parseOrderContainer(&orderContainer)
 		if err != nil {
 			return err
 		}
@@ -371,7 +371,7 @@ func stringToOrderStatus(status string, quantity float64) (order.Status, error) 
 	}
 }
 
-func (e *Exchange) parseOrderContainer(ctx context.Context, oContainer *wsOrderContainer) (*order.Detail, error) {
+func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detail, error) {
 	var oSide order.Side
 	var oStatus order.Status
 	var err error
@@ -379,30 +379,18 @@ func (e *Exchange) parseOrderContainer(ctx context.Context, oContainer *wsOrderC
 	if oContainer.Side != "" {
 		oSide, err = order.StringToOrderSide(oContainer.Side)
 		if err != nil {
-			e.Websocket.DataHandler.Send(ctx, order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			})
+			return nil, err
 		}
 	} else if oContainer.Order.Side != "" {
 		oSide, err = order.StringToOrderSide(oContainer.Order.Side)
 		if err != nil {
-			e.Websocket.DataHandler.Send(ctx, order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			})
+			return nil, err
 		}
 	}
 
 	oStatus, err = stringToOrderStatus(oContainer.Reply, oContainer.OpenQuantity)
 	if err != nil {
-		e.Websocket.DataHandler.Send(ctx, order.ClassificationError{
-			Exchange: e.Name,
-			OrderID:  orderID,
-			Err:      err,
-		})
+		return nil, err
 	}
 	if oContainer.Status[0] != "OK" {
 		return nil, fmt.Errorf("%s - Order rejected: %v", e.Name, oContainer.Status)
@@ -426,11 +414,7 @@ func (e *Exchange) parseOrderContainer(ctx context.Context, oContainer *wsOrderC
 	if oContainer.Reply == "order_filled" {
 		o.Side, err = order.StringToOrderSide(oContainer.Order.Side)
 		if err != nil {
-			e.Websocket.DataHandler.Send(ctx, order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			})
+			return nil, err
 		}
 		o.RemainingAmount = oContainer.Order.OpenQuantity
 		o.Amount = oContainer.Order.Quantity
@@ -749,7 +733,7 @@ func (e *Exchange) wsSubmitOrder(ctx context.Context, o *WsSubmitOrderParameters
 		return nil, err
 	}
 	var ord *order.Detail
-	ord, err = e.parseOrderContainer(ctx, &incoming)
+	ord, err = e.parseOrderContainer(&incoming)
 	if err != nil {
 		return nil, err
 	}
@@ -796,7 +780,7 @@ func (e *Exchange) wsSubmitOrders(ctx context.Context, orders []WsSubmitOrderPar
 
 	ordersResponse := make([]order.Detail, 0, len(incoming))
 	for i := range incoming {
-		o, err := e.parseOrderContainer(ctx, &incoming[i])
+		o, err := e.parseOrderContainer(&incoming[i])
 		if err != nil {
 			errs = append(errs, err)
 			continue

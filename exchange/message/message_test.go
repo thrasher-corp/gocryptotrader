@@ -9,7 +9,7 @@ import (
 
 func TestNewRelay(t *testing.T) {
 	t.Parallel()
-	assert.Panics(t, func() { NewRelay(0) }, "buffer size must be greater than 0")
+	assert.Panics(t, func() { NewRelay(0) }, "buffer size should be greater than 0")
 	r := NewRelay(5)
 	require.NotNil(t, r)
 	assert.Equal(t, 5, cap(r.comm))

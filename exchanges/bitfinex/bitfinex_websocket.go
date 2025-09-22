@@ -220,7 +220,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				if _, ok := snapBundle[0].([]any); ok {
 					for i := range snapBundle {
 						if positionData, ok := snapBundle[i].([]any); ok {
-							return e.wsHandleOrder(ctx, positionData)
+							if err := e.wsHandleOrder(ctx, positionData); err != nil {
+								return err
+							}
 						}
 					}
 				}

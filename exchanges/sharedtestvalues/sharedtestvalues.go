@@ -76,16 +76,16 @@ func SkipTestIfCredentialsUnset(t *testing.T, exch exchange.IBotExchange, canMan
 		return
 	}
 
-	message := []string{warningSkip}
+	out := []string{warningSkip}
 	if !areTestAPICredentialsSet {
-		message = append(message, warningKeys)
+		out = append(out, warningKeys)
 	}
 
 	if supportsManipulatingOrders && !allowedToManipulateOrders {
-		message = append(message, warningManipulateOrders)
+		out = append(out, warningManipulateOrders)
 	}
-	message = append(message, warningHowTo)
-	t.Skip(strings.Join(message, ", "))
+	out = append(out, warningHowTo)
+	t.Skip(strings.Join(out, ", "))
 }
 
 // SkipTestIfCannotManipulateOrders will only skip if the credentials are set

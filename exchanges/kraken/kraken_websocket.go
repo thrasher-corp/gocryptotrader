@@ -329,29 +329,21 @@ func (e *Exchange) wsProcessOpenOrders(ctx context.Context, ownOrdersResp json.R
 			}
 
 			if val.Description.Pair != "" {
-				if strings.Contains(val.Description.Order, "sell") {
-					d.Side = order.Sell
-				} else {
-					if oSide, err := order.StringToOrderSide(val.Description.Type); err != nil {
-						return err
-					} else {
-						d.Side = oSide
-					}
-				}
-
-				if oType, err := order.StringToOrderType(val.Description.OrderType); err != nil {
-					return err
-				} else {
-					d.Type = oType
-				}
-
-				if p, err := currency.NewPairFromString(val.Description.Pair); err != nil {
-					return err
-				} else {
-					d.Pair = p
-					if d.AssetType, err = e.GetPairAssetType(p); err != nil {
+				var err error
+				d.Side = order.Sell
+				if !strings.Contains(val.Description.Order, "sell") {
+					if d.Side, err = order.StringToOrderSide(val.Description.Type); err != nil {
 						return err
 					}
+				}
+				if d.Type, err = order.StringToOrderType(val.Description.OrderType); err != nil {
+					return err
+				}
+				if d.Pair, err = currency.NewPairFromString(val.Description.Pair); err != nil {
+					return err
+				}
+				if d.AssetType, err = e.GetPairAssetType(d.Pair); err != nil {
+					return err
 				}
 			}
 

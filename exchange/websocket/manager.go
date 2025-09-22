@@ -943,7 +943,9 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 				log.Errorln(log.WebsocketMgr, connectErr)
 			}
 		}
-		m.DataHandler.Send(ctx, err) // hand over the error to the data handler (shutdown and reconnection is priority)
+		if err := m.DataHandler.Send(ctx, err); err != nil { // hand over the error to the data handler (shutdown and reconnection is priority)
+			log.Errorf(log.WebsocketMgr, "%v websocket: connectionMonitor data handler err: %s", m.exchangeName, err)
+		}
 	case <-t.C:
 		if m.verbose {
 			log.Debugf(log.WebsocketMgr, "%v websocket: running connection monitor cycle", m.exchangeName)

@@ -47,7 +47,9 @@ func (t *Trade) Update(save bool, data ...Data) error {
 	}
 
 	if t.tradeFeedEnabled {
-		t.dataHandler.Send(ctx, data)
+		if err := t.dataHandler.Send(ctx, data); err != nil {
+			return err
+		}
 	}
 
 	if save {
