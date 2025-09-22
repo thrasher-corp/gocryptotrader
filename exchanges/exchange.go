@@ -1351,6 +1351,8 @@ func (u URL) String() string {
 		return websocketUSDCMarginedURL
 	case WebsocketOptions:
 		return websocketOptionsURL
+	case WebsocketTrade:
+		return websocketTradeURL
 	case WebsocketPrivate:
 		return websocketPrivateURL
 	case WebsocketSpotSupplementary:
@@ -1399,6 +1401,8 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return WebsocketUSDCMargined, nil
 	case websocketOptionsURL:
 		return WebsocketOptions, nil
+	case websocketTradeURL:
+		return WebsocketTrade, nil
 	case websocketPrivateURL:
 		return WebsocketPrivate, nil
 	case websocketSpotSupplementaryURL:
@@ -1939,6 +1943,16 @@ func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.Submit
 // WebsocketSubmitOrders submits multiple orders (batch) via the websocket connection
 func (*Base) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses []*order.SubmitResponse, err error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketModifyOrder modifies an order via the websocket connection
+func (*Base) WebsocketModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketCancelOrder cancels an order via the websocket connection
+func (*Base) WebsocketCancelOrder(context.Context, *order.Cancel) error {
+	return common.ErrFunctionNotSupported
 }
 
 // MessageID returns a universally unique id using UUID V7

@@ -140,10 +140,14 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	pair := currency.Pair{Base: currency.BTC, Quote: currency.USD}
-	_, err := e.GetHistoricTrades(t.Context(), pair, asset.Spot, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error("Binanceus GetHistoricTrades() error", err)
+	p := currency.NewBTCUSDT()
+	start := time.Now().Add(-time.Hour * 24 * 90).Truncate(time.Minute) // 3 months ago
+	end := start.Add(15 * time.Minute)
+	result, err := e.GetHistoricTrades(t.Context(), p, asset.Spot, start, end)
+	require.NoError(t, err, "GetHistoricTrades must not error")
+	assert.NotEmpty(t, result, "GetHistoricTrades should have trades")
+	for _, r := range result {
+		require.WithinRange(t, r.Timestamp, start, end, "All trades must be within time range")
 	}
 }
 
@@ -1754,5 +1758,52 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
+	}
+}
+
+// TestGetAggregatedTradesBatched exercises TestGetAggregatedTradesBatched to ensure our date and limit scanning works correctly
+// This test is susceptible to failure if volumes change a lot, during wash trading or zero-fee periods
+// In live tests, 6 hours is expected to return about 1000 records
+func TestGetAggregatedTradesBatched(t *testing.T) {
+	t.Parallel()
+	type testCase struct {
+		name    string
+		args    *AggregatedTradeRequestParams
+		expFunc func(*testing.T, []AggregatedTrade)
+	}
+
+	var tests []testCase
+	start := time.Now().Add(-time.Hour * 24 * 90).Truncate(time.Minute) // 3 months ago
+	tests = []testCase{
+		{
+			name: "batch with timerange",
+			args: &AggregatedTradeRequestParams{StartTime: start, EndTime: start.Add(6 * time.Hour)},
+			expFunc: func(t *testing.T, results []AggregatedTrade) {
+				t.Helper()
+				require.NotEmpty(t, results, "must have records")
+				assert.Less(t, len(results), 10000, "should return a quantity below a sane threshold of records")
+				assert.WithinDuration(t, results[len(results)-1].TimeStamp.Time(), start, 6*time.Hour, "last record should be within range of start time")
+			},
+		},
+		{
+			name: "custom limit with start time set, no end time",
+			args: &AggregatedTradeRequestParams{StartTime: start, Limit: 2042},
+			expFunc: func(t *testing.T, results []AggregatedTrade) {
+				t.Helper()
+				// 2000 records in was about 32 hours in 2025; Adjust if BinanceUS enters a phase of zero-fees or low-volume
+				require.Equal(t, 2042, len(results), "must return exactly the limit number of records")
+				assert.WithinDuration(t, results[len(results)-1].TimeStamp.Time(), start, 72*time.Hour, "last record should be within 72 hours of start time")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tt.args.Symbol = currency.NewBTCUSDT()
+			results, err := e.GetAggregateTrades(t.Context(), tt.args)
+			require.NoError(t, err)
+			tt.expFunc(t, results)
+		})
 	}
 }
