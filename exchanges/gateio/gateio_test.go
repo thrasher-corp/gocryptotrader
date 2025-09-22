@@ -2494,7 +2494,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 				for _, pair := range avail {
 					l, err := e.GetOrderExecutionLimits(a, pair)
-					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s")
+					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", pair)
 					require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", pair)
 					assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", pair)
 					assert.Truef(t, pair.Equal(l.Key.Pair()), "pair should equal for %s", pair)
