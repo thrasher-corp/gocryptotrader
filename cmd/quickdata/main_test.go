@@ -48,6 +48,7 @@ func TestIntMin(t *testing.T) {
 }
 
 func TestParseFocusType(t *testing.T) {
+	t.Parallel()
 	type caseDef struct {
 		inputs   []string
 		expected quickdata.FocusType

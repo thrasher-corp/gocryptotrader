@@ -48,7 +48,6 @@ func NewQuickData(ctx context.Context, k *CredentialsKey, focuses []*FocusData) 
 		key:                k,
 		dataHandlerChannel: make(chan any, 10),
 		focuses:            sm,
-		credContext:        ctx,
 		data:               &Data{Key: k},
 		shutdown:           make(chan any),
 	}
@@ -60,12 +59,12 @@ func NewQuickData(ctx context.Context, k *CredentialsKey, focuses []*FocusData) 
 		if k.Credentials.IsEmpty() {
 			return nil, fmt.Errorf("%w for %s", errNoCredentials, k.ExchangeAssetPair)
 		}
-		q.credContext = account.DeployCredentialsToContext(context.Background(), k.Credentials)
+		ctx = account.DeployCredentialsToContext(context.Background(), k.Credentials)
 		b := q.exch.GetBase()
 		b.API.AuthenticatedSupport = true
 		b.API.AuthenticatedWebsocketSupport = true
 	}
-	q.run()
+	q.run(ctx)
 	return q, nil
 }
 
@@ -301,7 +300,6 @@ func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) er
 		// call Connect to ensure the websocket is connected.
 		if err := b.Websocket.Connect(); err != nil {
 			return fmt.Errorf("%s: %w", q.key.ExchangeAssetPair, err)
-
 		}
 	}
 	return q.validateSubscriptions(newSubs)
@@ -365,10 +363,10 @@ func (q *QuickData) stopWebsocket() error {
 	return nil
 }
 
-func (q *QuickData) run() {
+func (q *QuickData) run(ctx context.Context) {
 	if q.AnyRequiresWebsocket() {
 		q.wg.Go(func() {
-			if err := q.handleWS(); err != nil {
+			if err := q.handleWS(ctx); err != nil {
 				log.Errorf(log.QuickData, "%s websocket handler error: %v", q.key.ExchangeAssetPair, err)
 			}
 		})
@@ -380,7 +378,7 @@ func (q *QuickData) run() {
 		q.wg.Add(1) // wg.Go doesn't work here as we have to pass in the focus variable
 		go func(f *FocusData) {
 			defer q.wg.Done()
-			if err := q.runRESTRoutine(f); err != nil {
+			if err := q.runRESTRoutine(ctx, f); err != nil {
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return
 				}
@@ -390,13 +388,13 @@ func (q *QuickData) run() {
 	}
 }
 
-func (q *QuickData) handleWS() error {
+func (q *QuickData) handleWS(ctx context.Context) error {
 	for {
 		select {
 		case <-q.shutdown:
 			return nil
-		case <-q.credContext.Done():
-			return q.credContext.Err()
+		case <-ctx.Done():
+			return ctx.Err()
 		case d := <-q.dataHandlerChannel:
 			if err := q.handleWSData(d); err != nil {
 				log.Errorf(log.QuickData, "%s %s", q.key.ExchangeAssetPair, err)
@@ -433,7 +431,7 @@ func (q *QuickData) handleWSData(d any) error {
 	}
 }
 
-func (q *QuickData) runRESTRoutine(f *FocusData) error {
+func (q *QuickData) runRESTRoutine(ctx context.Context, f *FocusData) error {
 	if f.useWebsocket {
 		return nil
 	}
@@ -442,10 +440,10 @@ func (q *QuickData) runRESTRoutine(f *FocusData) error {
 		select {
 		case <-q.shutdown:
 			return nil
-		case <-q.credContext.Done():
-			return q.credContext.Err()
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-timer.C:
-			if err := q.processRESTFocus(f); err != nil {
+			if err := q.processRESTFocus(ctx, f); err != nil {
 				return err
 			}
 			if f.isOnceOff {
@@ -456,8 +454,8 @@ func (q *QuickData) runRESTRoutine(f *FocusData) error {
 	}
 }
 
-func (q *QuickData) processRESTFocus(f *FocusData) error {
-	err := q.handleFocusType(f.focusType, f)
+func (q *QuickData) processRESTFocus(ctx context.Context, f *FocusData) error {
+	err := q.handleFocusType(ctx, f.focusType, f)
 	if err != nil {
 		if errors.Is(err, common.ErrFunctionNotSupported) || errors.Is(err, common.ErrNotYetImplemented) {
 			return err
@@ -475,31 +473,31 @@ func (q *QuickData) processRESTFocus(f *FocusData) error {
 	return nil
 }
 
-func (q *QuickData) handleFocusType(focusType FocusType, focus *FocusData) error {
+func (q *QuickData) handleFocusType(ctx context.Context, focusType FocusType, focus *FocusData) error {
 	var err error
 	switch focusType {
 	case URLFocusType:
-		err = q.handleURLFocus(focus)
+		err = q.handleURLFocus(ctx, focus)
 	case ContractFocusType:
-		err = q.handleContractFocus(focus)
+		err = q.handleContractFocus(ctx, focus)
 	case KlineFocusType:
-		err = q.handleKlineFocus(focus)
+		err = q.handleKlineFocus(ctx, focus)
 	case OpenInterestFocusType:
-		err = q.handleOpenInterestFocus(focus)
+		err = q.handleOpenInterestFocus(ctx, focus)
 	case TickerFocusType:
-		err = q.handleTickerFocus(focus)
+		err = q.handleTickerFocus(ctx, focus)
 	case ActiveOrdersFocusType:
-		err = q.handleOrdersFocus(focus)
+		err = q.handleOrdersFocus(ctx, focus)
 	case AccountHoldingsFocusType:
-		err = q.handleAccountHoldingsFocus(focus)
+		err = q.handleAccountHoldingsFocus(ctx, focus)
 	case OrderBookFocusType:
-		err = q.handleOrderBookFocus(focus)
+		err = q.handleOrderBookFocus(ctx, focus)
 	case TradesFocusType:
-		err = q.handleTradesFocus(focus)
+		err = q.handleTradesFocus(ctx, focus)
 	case OrderLimitsFocusType:
-		err = q.handleOrderExecutionFocus(focus)
+		err = q.handleOrderExecutionFocus(ctx, focus)
 	case FundingRateFocusType:
-		err = q.handleFundingRateFocus(focus)
+		err = q.handleFundingRateFocus(ctx, focus)
 	default:
 		return fmt.Errorf("%w %v", ErrUnsupportedFocusType, focusType)
 	}

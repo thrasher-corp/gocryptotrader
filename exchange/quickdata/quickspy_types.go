@@ -1,7 +1,6 @@
 package quickdata
 
 import (
-	"context"
 	"errors"
 	"sync"
 
@@ -45,9 +44,6 @@ type CredentialsKey struct {
 // Its purpose is to continuously generate metadata on the market
 // it is write-side oriented vs the comparer
 type QuickData struct {
-	// credContext is the context for credentials
-	// also used for cancelling goroutines
-	credContext context.Context //nolint:containedctx // allows for repeated credential usage and cancellation. Happy to hear of other ways
 	// exch is the exchange interface
 	exch exchange.IBotExchange
 	// Key contains exchange, pair, and asset information

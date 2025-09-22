@@ -12,7 +12,6 @@ func TestNewStore(t *testing.T) {
 	fs := NewFocusStore()
 	require.NotNil(t, fs)
 	require.NotNil(t, fs.s)
-	require.NotNil(t, fs.m)
 }
 
 func TestUpsert(t *testing.T) {
@@ -26,7 +25,6 @@ func TestUpsert(t *testing.T) {
 	fs.Upsert(TickerFocusType, fd)
 	require.Len(t, fs.s, 1)
 	require.Equal(t, TickerFocusType, fs.s[TickerFocusType].focusType)
-	require.NotNil(t, fs.s[TickerFocusType].m)
 
 	fd2 := &FocusData{}
 	fs.Upsert(TickerFocusType, fd2)
@@ -59,7 +57,6 @@ func TestGetByFocusType(t *testing.T) {
 	fs.Upsert(TickerFocusType, fd)
 	result = fs.GetByFocusType(TickerFocusType)
 	require.NotNil(t, result)
-	require.NotNil(t, result.m)
 	require.Equal(t, TickerFocusType, result.focusType)
 }
 

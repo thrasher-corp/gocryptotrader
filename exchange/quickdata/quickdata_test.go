@@ -76,7 +76,7 @@ func mustQuickDataAllFocuses(t *testing.T) *QuickData {
 
 func TestNewQuickData(t *testing.T) {
 	t.Parallel()
-	_, err := NewQuickData(nil, nil, nil) //nolint:staticcheck // testing nil context
+	_, err := NewQuickData(t.Context(), nil, nil)
 	require.ErrorIs(t, err, errNoKey)
 
 	_, err = NewQuickData(t.Context(), &CredentialsKey{}, nil)
@@ -107,7 +107,6 @@ func TestNewQuickData(t *testing.T) {
 	}}, []*FocusData{{focusType: AccountHoldingsFocusType, restPollTime: 10}})
 	require.NoError(t, err)
 	require.NotNil(t, qs)
-	assert.NotEmpty(t, qs.credContext.Value(account.ContextCredentialsFlag), "credentials should be popultated in context")
 }
 
 func TestAnyRequiresWebsocket(t *testing.T) {
@@ -240,7 +239,6 @@ func TestFocusDataValidateAndInit(t *testing.T) {
 	for _, ft := range allFocusList {
 		fd := &FocusData{focusType: ft, restPollTime: time.Second}
 		fd.Init()
-		require.NotNil(t, fd.m)
 		if slices.Contains(authFocusList, ft) {
 			assert.Truef(t, RequiresAuth(fd.focusType), "expected %v to require auth", ft)
 		} else {
@@ -354,7 +352,8 @@ func TestHandleFocusType(t *testing.T) {
 			}
 			fd := &FocusData{focusType: tc.ft, restPollTime: time.Second}
 			fd.Init()
-			assert.NoError(t, q.handleFocusType(tc.ft, fd))
+			ctx := account.DeployCredentialsToContext(t.Context(), q.key.Credentials)
+			assert.NoError(t, q.handleFocusType(ctx, tc.ft, fd))
 			assert.NotEmpty(t, <-fd.Stream)
 		})
 	}
@@ -368,7 +367,8 @@ func TestDump(t *testing.T) {
 		if slices.Contains(authFocusList, fd.focusType) && apiKey == "abc" && apiSecret == "123" {
 			continue
 		}
-		require.NoError(t, q.handleFocusType(fd.focusType, fd))
+		ctx := account.DeployCredentialsToContext(t.Context(), q.key.Credentials)
+		require.NoError(t, q.handleFocusType(ctx, fd.focusType, fd))
 	}
 	d, err := q.DumpJSON()
 	require.NoError(t, err)
@@ -383,9 +383,9 @@ func TestWaitForInitialDataWithTimer_Zero(t *testing.T) {
 
 func TestShutdown(t *testing.T) {
 	t.Parallel()
-	qs := &QuickData{credContext: t.Context(), shutdown: make(chan any)}
+	qs := &QuickData{shutdown: make(chan any)}
 	require.NotPanics(t, func() { qs.Shutdown() }, "shutdown with set context must not panic")
-	qs = &QuickData{credContext: t.Context()}
+	qs = &QuickData{}
 	require.Panics(t, func() { qs.Shutdown() }, "shutdown with nil shutdown chan must panic")
 }
 
@@ -418,7 +418,7 @@ func TestGetAndWaitForFocusByKey(t *testing.T) {
 
 func TestNewQuickerData(t *testing.T) {
 	t.Parallel()
-	_, err := NewQuickerData(nil, nil, 111) //nolint:staticcheck // testing nil context
+	_, err := NewQuickerData(t.Context(), nil, 111)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = NewQuickerData(t.Context(), &key.ExchangeAssetPair{}, 111)
@@ -445,7 +445,7 @@ func TestNewQuickerData(t *testing.T) {
 
 func TestNewQuickestData(t *testing.T) {
 	t.Parallel()
-	_, err := NewQuickestData(nil, nil, 111) //nolint:staticcheck // testing nil context
+	_, err := NewQuickestData(t.Context(), nil, 111)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = NewQuickestData(t.Context(), &key.ExchangeAssetPair{}, 111)
@@ -511,18 +511,18 @@ func TestProcessRESTFocus(t *testing.T) {
 	t.Parallel()
 	qs := mustQuickData(t, TickerFocusType)
 	f := qs.focuses.GetByFocusType(TickerFocusType)
-	require.NoError(t, qs.processRESTFocus(f))
+	require.NoError(t, qs.processRESTFocus(t.Context(), f))
 
 	fd := NewFocusData(111, false, false, time.Second)
 	fd.Init()
 	fd.FailureTolerance = 2
-	require.NoError(t, qs.processRESTFocus(fd))
-	require.ErrorIs(t, qs.processRESTFocus(fd), errOverMaxFailures)
+	require.NoError(t, qs.processRESTFocus(t.Context(), fd))
+	require.ErrorIs(t, qs.processRESTFocus(t.Context(), fd), errOverMaxFailures)
 
 	fd = NewFocusData(111, false, false, time.Second)
 	fd.Init()
 	fd.setSuccessful()
-	require.NoError(t, qs.processRESTFocus(fd))
+	require.NoError(t, qs.processRESTFocus(t.Context(), fd))
 	sErr := <-fd.Stream
 	err, ok := sErr.(error)
 	require.True(t, ok)

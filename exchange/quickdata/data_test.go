@@ -153,8 +153,8 @@ func TestAccountHoldingsFocusType(t *testing.T) {
 	f, err := qs.GetFocusByKey(AccountHoldingsFocusType)
 	require.NoError(t, err)
 	require.NotNil(t, f)
-
-	require.NoError(t, qs.handleFocusType(f.focusType, f))
+	ctx := account.DeployCredentialsToContext(t.Context(), qs.key.Credentials)
+	require.NoError(t, qs.handleFocusType(ctx, f.focusType, f))
 	require.NotEmpty(t, qs.data.AccountBalance)
 }
 

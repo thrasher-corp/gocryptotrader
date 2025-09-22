@@ -21,7 +21,6 @@ func TestNewFocusDataAndInit(t *testing.T) {
 	require.False(t, fd.useWebsocket)
 	require.False(t, fd.isOnceOff)
 	require.Equal(t, time.Second, fd.restPollTime)
-	require.NotNil(t, fd.m, "mutex not initialised")
 	require.NotNil(t, fd.hasBeenSuccessfulChan, "hasBeenSuccessfulChan not initialised")
 	require.NotNil(t, fd.Stream, "Stream channel not initialised")
 	select {
@@ -39,7 +38,6 @@ func TestNewFocusDataAndInit(t *testing.T) {
 	}
 	oldChan := fd.hasBeenSuccessfulChan
 	fd.Init()
-	require.NotNil(t, fd.m)
 	require.NotNil(t, fd.hasBeenSuccessfulChan)
 	require.NotNil(t, fd.Stream)
 	require.NotEqual(t, oldChan, fd.hasBeenSuccessfulChan, "Init must create a new hasBeenSuccessfulChan")

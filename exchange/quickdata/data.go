@@ -1,6 +1,7 @@
 package quickdata
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -242,19 +243,18 @@ func (q *QuickData) handleWSTrades(data []trade.Data) error {
 		return nil
 	}
 	q.m.Lock()
-	q.data.Trades = data
-	payload := q.data.Trades
+	q.data.Trades = relevantTrades
 	q.m.Unlock()
-	focus.stream(payload)
+	focus.stream(q.data.Trades)
 	focus.setSuccessful()
 	return nil
 }
 
-func (q *QuickData) handleURLFocus(focus *FocusData) error {
+func (q *QuickData) handleURLFocus(ctx context.Context, focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	resp, err := q.exch.GetCurrencyTradeURL(q.credContext, q.key.ExchangeAssetPair.Asset, q.key.ExchangeAssetPair.Pair())
+	resp, err := q.exch.GetCurrencyTradeURL(ctx, q.key.ExchangeAssetPair.Asset, q.key.ExchangeAssetPair.Pair())
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
 	}
@@ -268,11 +268,11 @@ func (q *QuickData) handleURLFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickData) handleContractFocus(focus *FocusData) error {
+func (q *QuickData) handleContractFocus(ctx context.Context, focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	contracts, err := q.exch.GetFuturesContractDetails(q.credContext, q.key.ExchangeAssetPair.Asset)
+	contracts, err := q.exch.GetFuturesContractDetails(ctx, q.key.ExchangeAssetPair.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
 	}
@@ -294,16 +294,16 @@ func (q *QuickData) handleContractFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickData) handleKlineFocus(focus *FocusData) error {
+func (q *QuickData) handleKlineFocus(ctx context.Context, focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
 	ett := time.Now()
 	stt := ett.Add(-kline.OneMonth.Duration())
-	k, err := q.exch.GetHistoricCandlesExtended(q.credContext, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset, kline.OneHour, stt, ett)
+	k, err := q.exch.GetHistoricCandlesExtended(ctx, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset, kline.OneHour, stt, ett)
 	if err != nil {
 		if errors.Is(err, common.ErrFunctionNotSupported) || errors.Is(err, common.ErrNotYetImplemented) {
-			k, err = q.exch.GetHistoricCandles(q.credContext, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset, kline.OneHour, stt, ett)
+			k, err = q.exch.GetHistoricCandles(ctx, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset, kline.OneHour, stt, ett)
 		}
 		if err != nil {
 			return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
@@ -338,11 +338,11 @@ func (q *QuickData) handleKlineFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickData) handleOpenInterestFocus(focus *FocusData) error {
+func (q *QuickData) handleOpenInterestFocus(ctx context.Context, focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	oi, err := q.exch.GetOpenInterest(q.credContext, key.PairAsset{
+	oi, err := q.exch.GetOpenInterest(ctx, key.PairAsset{
 		Base:  q.key.ExchangeAssetPair.Pair().Base.Item,
 		Quote: q.key.ExchangeAssetPair.Pair().Quote.Item,
 		Asset: q.key.ExchangeAssetPair.Asset,
@@ -361,11 +361,11 @@ func (q *QuickData) handleOpenInterestFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickData) handleTickerFocus(focus *FocusData) error {
+func (q *QuickData) handleTickerFocus(ctx context.Context, focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	resp, err := q.exch.UpdateTicker(q.credContext, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset)
+	resp, err := q.exch.UpdateTicker(ctx, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
 	}
@@ -376,11 +376,11 @@ func (q *QuickData) handleTickerFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickData) handleOrdersFocus(focus *FocusData) error {
+func (q *QuickData) handleOrdersFocus(ctx context.Context, focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	resp, err := q.exch.GetActiveOrders(q.credContext, &order.MultiOrderRequest{
+	resp, err := q.exch.GetActiveOrders(ctx, &order.MultiOrderRequest{
 		Pairs:     []currency.Pair{q.key.ExchangeAssetPair.Pair()},
 		AssetType: q.key.ExchangeAssetPair.Asset,
 		Side:      order.AnySide,
@@ -396,11 +396,11 @@ func (q *QuickData) handleOrdersFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickData) handleAccountHoldingsFocus(focus *FocusData) error {
+func (q *QuickData) handleAccountHoldingsFocus(ctx context.Context, focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	ais, err := q.exch.UpdateAccountInfo(q.credContext, q.key.ExchangeAssetPair.Asset)
+	ais, err := q.exch.UpdateAccountInfo(ctx, q.key.ExchangeAssetPair.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w",
 			q.key.ExchangeAssetPair, focus.focusType.String(), err)
@@ -428,11 +428,11 @@ func (q *QuickData) handleAccountHoldingsFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickData) handleOrderBookFocus(focus *FocusData) error {
+func (q *QuickData) handleOrderBookFocus(ctx context.Context, focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	ob, err := q.exch.UpdateOrderbook(q.credContext, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset)
+	ob, err := q.exch.UpdateOrderbook(ctx, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
 	}
@@ -443,11 +443,11 @@ func (q *QuickData) handleOrderBookFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickData) handleTradesFocus(focus *FocusData) error {
+func (q *QuickData) handleTradesFocus(ctx context.Context, focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	tr, err := q.exch.GetRecentTrades(q.credContext, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset)
+	tr, err := q.exch.GetRecentTrades(ctx, q.key.ExchangeAssetPair.Pair(), q.key.ExchangeAssetPair.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
 	}
@@ -458,13 +458,13 @@ func (q *QuickData) handleTradesFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickData) handleOrderExecutionFocus(focus *FocusData) error {
+func (q *QuickData) handleOrderExecutionFocus(ctx context.Context, focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
 	el, err := q.exch.GetOrderExecutionLimits(q.key.ExchangeAssetPair.Asset, q.key.ExchangeAssetPair.Pair())
 	if err != nil {
-		err = q.exch.UpdateOrderExecutionLimits(q.credContext, q.key.ExchangeAssetPair.Asset)
+		err = q.exch.UpdateOrderExecutionLimits(ctx, q.key.ExchangeAssetPair.Asset)
 		if err != nil {
 			return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType.String(), err)
 		}
@@ -480,7 +480,7 @@ func (q *QuickData) handleOrderExecutionFocus(focus *FocusData) error {
 	return nil
 }
 
-func (q *QuickData) handleFundingRateFocus(focus *FocusData) error {
+func (q *QuickData) handleFundingRateFocus(ctx context.Context, focus *FocusData) error {
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
@@ -491,7 +491,7 @@ func (q *QuickData) handleFundingRateFocus(focus *FocusData) error {
 	if !isPerp {
 		return fmt.Errorf("%s %q %w", q.key.ExchangeAssetPair, focus.focusType, futures.ErrNotPerpetualFuture)
 	}
-	fr, err := q.exch.GetLatestFundingRates(q.credContext, &fundingrate.LatestRateRequest{
+	fr, err := q.exch.GetLatestFundingRates(ctx, &fundingrate.LatestRateRequest{
 		Asset: q.key.ExchangeAssetPair.Asset,
 		Pair:  q.key.ExchangeAssetPair.Pair(),
 	})
