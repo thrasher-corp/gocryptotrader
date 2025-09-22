@@ -61,7 +61,7 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 	// incorrectly converted to DUS-KUSDT, ELKRW (Bithumb) which will convert
 	// converted to ELK-RW and HTUSDT (Lbank) which will be incorrectly
 	// converted to HTU-SDT.
-	return fmt.Errorf("%w from %s cannot ensure pair is in correct format, please use exchange method MatchSymbolWithAvailablePairs", ErrCannotCreatePair, pair)
+	return fmt.Errorf("%w from %s cannot ensure pair is in correct format, please use exchange method MatchSymbolWithAvailablePairs", ErrCreatingPair, pair)
 }
 
 // MarshalJSON conforms type to the marshaler interface

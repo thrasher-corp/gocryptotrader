@@ -38,22 +38,22 @@ import (
 const (
 	gateioWebsocketEndpoint = "wss://api.gateio.ws/ws/v4/"
 
-	spotPingChannel                        = "spot.ping"
-	spotPongChannel                        = "spot.pong"
-	spotTickerChannel                      = "spot.tickers"
-	spotTradesChannel                      = "spot.trades"
-	spotCandlesticksChannel                = "spot.candlesticks"
-	spotOrderbookTickerChannel             = "spot.book_ticker"       // Best bid or ask price
-	spotOrderbookUpdateChannel             = "spot.order_book_update" // Changed order book levels
-	spotOrderbookChannel                   = "spot.order_book"        // Limited-Level Full Order Book Snapshot
-	spotOrderbookUpdateWithSnapshotChannel = "spot.obu"
-	spotOrdersChannel                      = "spot.orders"
-	spotUserTradesChannel                  = "spot.usertrades"
-	spotBalancesChannel                    = "spot.balances"
-	marginBalancesChannel                  = "spot.margin_balances"
-	spotFundingBalanceChannel              = "spot.funding_balances"
-	crossMarginBalanceChannel              = "spot.cross_balances"
-	crossMarginLoanChannel                 = "spot.cross_loan"
+	spotPingChannel            = "spot.ping"
+	spotPongChannel            = "spot.pong"
+	spotTickerChannel          = "spot.tickers"
+	spotTradesChannel          = "spot.trades"
+	spotCandlesticksChannel    = "spot.candlesticks"
+	spotOrderbookTickerChannel = "spot.book_ticker"       // Best bid or ask price
+	spotOrderbookUpdateChannel = "spot.order_book_update" // Changed order book levels
+	spotOrderbookChannel       = "spot.order_book"        // Limited-Level Full Order Book Snapshot
+	spotOrderbookV2            = "spot.obu"
+	spotOrdersChannel          = "spot.orders"
+	spotUserTradesChannel      = "spot.usertrades"
+	spotBalancesChannel        = "spot.balances"
+	marginBalancesChannel      = "spot.margin_balances"
+	spotFundingBalanceChannel  = "spot.funding_balances"
+	crossMarginBalanceChannel  = "spot.cross_balances"
+	crossMarginLoanChannel     = "spot.cross_loan"
 
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
@@ -65,7 +65,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
 	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.TenMilliseconds, Levels: 1},
 	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
-	{Enabled: false, Channel: spotOrderbookUpdateWithSnapshotChannel, Asset: asset.Spot, Levels: 50},
+	{Enabled: false, Channel: spotOrderbookV2, Asset: asset.Spot, Levels: 50},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
@@ -84,10 +84,7 @@ var (
 	validPingChannels        = []string{optionsPingChannel, futuresPingChannel, spotPingChannel}
 )
 
-var (
-	errInvalidPingChannel = errors.New("invalid ping channel")
-	errMalformedData      = errors.New("malformed data")
-)
+var errInvalidPingChannel = errors.New("invalid ping channel")
 
 // WsConnectSpot initiates a websocket connection
 func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
@@ -196,7 +193,7 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 		return e.processOrderbookUpdate(ctx, push.Result, push.Time)
 	case spotOrderbookChannel:
 		return e.processOrderbookSnapshot(push.Result, push.Time)
-	case spotOrderbookUpdateWithSnapshotChannel:
+	case spotOrderbookV2:
 		return e.processOrderbookUpdateWithSnapshot(conn, push.Result, push.Time, asset.Spot)
 	case spotOrdersChannel:
 		return e.processSpotOrders(respRaw)
@@ -331,7 +328,7 @@ func (e *Exchange) processCandlestick(incoming []byte) error {
 	}
 	icp := strings.Split(data.NameOfSubscription, currency.UnderscoreDelimiter)
 	if len(icp) < 3 {
-		return errors.New("malformed candlestick websocket push data")
+		return fmt.Errorf("%w: candlestick websocket", common.ErrMalformedData)
 	}
 	currencyPair, err := currency.NewPairFromString(strings.Join(icp[1:], currency.UnderscoreDelimiter))
 	if err != nil {
@@ -455,11 +452,11 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 	}
 
 	channelParts := strings.Split(data.Channel, ".")
-	if len(splitChannel) < 3 {
-		return fmt.Errorf("%w: %q", errMalformedData, data.Channel)
+	if len(channelParts) < 3 {
+		return fmt.Errorf("%w: %q", common.ErrMalformedData, data.Channel)
 	}
 
-	pair, err := currency.NewPairFromString(splitChannel[1])
+	pair, err := currency.NewPairFromString(channelParts[1])
 	if err != nil {
 		return err
 	}
@@ -811,7 +808,7 @@ func channelName(s *subscription.Subscription) string {
 // singleSymbolChannel returns if the channel should be fanned out into single symbol requests
 func singleSymbolChannel(name string) bool {
 	switch name {
-	case spotCandlesticksChannel, spotOrderbookUpdateChannel, spotOrderbookChannel, spotOrderbookUpdateWithSnapshotChannel:
+	case spotCandlesticksChannel, spotOrderbookUpdateChannel, spotOrderbookChannel, spotOrderbookV2:
 		return true
 	}
 	return false
@@ -850,7 +847,7 @@ func isSingleOrderbookChannel(name string) bool {
 	case spotOrderbookUpdateChannel,
 		spotOrderbookChannel,
 		spotOrderbookTickerChannel,
-		spotOrderbookUpdateWithSnapshotChannel,
+		spotOrderbookV2,
 		futuresOrderbookChannel,
 		futuresOrderbookTickerChannel,
 		futuresOrderbookUpdateChannel,
@@ -921,10 +918,10 @@ func orderbookChannelInterval(s *subscription.Subscription, a asset.Item) (strin
 
 var channelLevelsMap = map[asset.Item]map[string][]int{
 	asset.Spot: {
-		spotOrderbookTickerChannel:             {},
-		spotOrderbookUpdateChannel:             {},
-		spotOrderbookChannel:                   {1, 5, 10, 20, 50, 100},
-		spotOrderbookUpdateWithSnapshotChannel: {50, 400},
+		spotOrderbookTickerChannel: {},
+		spotOrderbookUpdateChannel: {},
+		spotOrderbookChannel:       {1, 5, 10, 20, 50, 100},
+		spotOrderbookV2:            {50, 400},
 	},
 	asset.Futures: {
 		futuresOrderbookChannel:       {1, 5, 10, 20, 50, 100},
@@ -966,7 +963,7 @@ func channelLevels(s *subscription.Subscription, a asset.Item) (string, error) {
 }
 
 func isCompactOrderbookPayload(channel string) bool {
-	return channel == spotOrderbookUpdateWithSnapshotChannel
+	return channel == spotOrderbookV2
 }
 
 const subTplText = `

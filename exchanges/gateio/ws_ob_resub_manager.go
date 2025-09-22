@@ -12,24 +12,24 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-type wsObResubManager struct {
+type wsOBResubManager struct {
 	lookup map[key.PairAsset]bool
 	m      sync.RWMutex
 }
 
-func newWSObResubManager() *wsObResubManager {
-	return &wsObResubManager{lookup: make(map[key.PairAsset]bool)}
+func newWSOBResubManager() *wsOBResubManager {
+	return &wsOBResubManager{lookup: make(map[key.PairAsset]bool)}
 }
 
 // IsResubscribing checks if a subscription is currently being resubscribed
-func (m *wsObResubManager) IsResubscribing(pair currency.Pair, a asset.Item) bool {
+func (m *wsOBResubManager) IsResubscribing(pair currency.Pair, a asset.Item) bool {
 	m.m.RLock()
 	defer m.m.RUnlock()
 	return m.lookup[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}]
 }
 
 // Resubscribe marks a subscription as resubscribing and starts the unsubscribe/resubscribe process
-func (m *wsObResubManager) Resubscribe(e *Exchange, conn websocket.Connection, qualifiedChannel string, pair currency.Pair, a asset.Item) error {
+func (m *wsOBResubManager) Resubscribe(e *Exchange, conn websocket.Connection, qualifiedChannel string, pair currency.Pair, a asset.Item) error {
 	if err := e.Websocket.Orderbook.InvalidateOrderbook(pair, a); err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (m *wsObResubManager) Resubscribe(e *Exchange, conn websocket.Connection, q
 }
 
 // CompletedResubscribe marks a subscription as completed
-func (m *wsObResubManager) CompletedResubscribe(pair currency.Pair, a asset.Item) {
+func (m *wsOBResubManager) CompletedResubscribe(pair currency.Pair, a asset.Item) {
 	m.m.Lock()
 	defer m.m.Unlock()
 	delete(m.lookup, key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a})

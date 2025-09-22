@@ -14,10 +14,10 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestNewWSObResubManager(t *testing.T) {
+func TestNewWSOBResubManager(t *testing.T) {
 	t.Parallel()
 
-	m := newWSObResubManager()
+	m := newWSOBResubManager()
 	require.NotNil(t, m)
 	assert.NotNil(t, m.lookup)
 }
@@ -25,7 +25,7 @@ func TestNewWSObResubManager(t *testing.T) {
 func TestIsResubscribing(t *testing.T) {
 	t.Parallel()
 
-	m := newWSObResubManager()
+	m := newWSOBResubManager()
 	m.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = true
 	assert.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 	assert.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Futures))
@@ -34,7 +34,7 @@ func TestIsResubscribing(t *testing.T) {
 func TestResubscribe(t *testing.T) {
 	t.Parallel()
 
-	m := newWSObResubManager()
+	m := newWSOBResubManager()
 
 	conn := &FixtureConnection{}
 
@@ -61,7 +61,7 @@ func TestResubscribe(t *testing.T) {
 	require.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 
 	e.Features.Subscriptions = subscription.List{
-		{Enabled: true, Channel: spotOrderbookUpdateWithSnapshotChannel, Asset: asset.Spot, Levels: 50},
+		{Enabled: true, Channel: spotOrderbookV2, Asset: asset.Spot, Levels: 50},
 	}
 	expanded, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err)
@@ -86,7 +86,7 @@ func TestResubscribe(t *testing.T) {
 func TestCompletedResubscribe(t *testing.T) {
 	t.Parallel()
 
-	m := newWSObResubManager()
+	m := newWSOBResubManager()
 	m.CompletedResubscribe(currency.NewBTCUSDT(), asset.Spot) // no-op
 	require.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 	m.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = true

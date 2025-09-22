@@ -54,7 +54,7 @@ func TestPairUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, "usd", p.Quote.String(), "Quote should be correct")
 	assert.Equal(t, "_", p.Delimiter, "Delimiter should be correct")
 
-	assert.ErrorIs(t, p.UnmarshalJSON([]byte(`"btcusd"`)), ErrCannotCreatePair, "UnmarshalJSON with no delimiter should error")
+	assert.ErrorIs(t, p.UnmarshalJSON([]byte(`"btcusd"`)), ErrCreatingPair, "UnmarshalJSON with no delimiter should error")
 
 	assert.NoError(t, p.UnmarshalJSON([]byte(`""`)), "UnmarshalJSON should not error on empty value")
 	assert.Equal(t, EMPTYPAIR, p, "UnmarshalJSON empty value should give EMPTYPAIR")

@@ -9,6 +9,7 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -210,13 +211,13 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 	require.NoError(t, testexch.Setup(e))
 	e.Name = "ProcessOrderbookUpdateWithSnapshot"
 	e.Features.Subscriptions = subscription.List{
-		{Enabled: true, Channel: spotOrderbookUpdateWithSnapshotChannel, Asset: asset.Spot, Levels: 50},
+		{Enabled: true, Channel: spotOrderbookV2, Asset: asset.Spot, Levels: 50},
 	}
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err)
 
 	conn := &FixtureConnection{}
-	err = e.Websocket.AddSubscriptions(conn, expanded...)
+	err = e.Websocket.AddSubscriptions(conn, subs...)
 	require.NoError(t, err)
 
 	e.wsOBResubMgr.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = true
@@ -226,13 +227,12 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 		err     error
 	}{
 		{payload: []byte(`{"t":"bingbong"}`), err: strconv.ErrSyntax},
-		{payload: []byte(`{"s":"ob.50"}`), err: errMalformedData},
-		{payload: []byte(`{"s":"ob..50"}`), err: currency.ErrCannotCreatePair},
+		{payload: []byte(`{"s":"ob.50"}`), err: common.ErrMalformedData},
+		{payload: []byte(`{"s":"ob..50"}`), err: currency.ErrCreatingPair},
 		{payload: []byte(`{"s":"ob.BTC_USDT.50","full":true}`), err: orderbook.ErrLastUpdatedNotSet},
 		{
 			// Simulate orderbook update already resubscribing
 			payload: []byte(`{"t":1757377580073,"s":"ob.BTC_USDT.50","u":27053258987,"U":27053258982,"b":[["111666","0.146841"]],"a":[["111666.1","0.791633"],["111676.8","0.014"]]}`),
-			err:     nil,
 		},
 		{
 			// Full snapshot will reset resubscribing state
@@ -241,12 +241,10 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 		{
 			// Incremental update will apply correctly
 			payload: []byte(`{"t":1757377580073,"s":"ob.BTC_USDT.50","u":27053258987,"U":27053258982,"b":[["111666","0.146841"]],"a":[["111666.1","0.791633"],["111676.8","0.014"]]}`),
-			err:     nil,
 		},
 		{
 			// Incremental update out of order will force resubscription
 			payload: []byte(`{"t":1757377580073,"s":"ob.BTC_USDT.50","u":27053258987,"U":27053258982,"b":[["111666","0.146841"]],"a":[["111666.1","0.791633"],["111676.8","0.014"]]}`),
-			err:     nil,
 		},
 	} {
 		err := e.processOrderbookUpdateWithSnapshot(conn, tc.payload, time.Now(), asset.Spot)

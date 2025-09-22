@@ -248,7 +248,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respData []byte) error {
 	case marketCandlesChannel:
 		symbolAndInterval := strings.Split(topicInfo[1], currency.UnderscoreDelimiter)
 		if len(symbolAndInterval) != 2 {
-			return errMalformedData
+			return common.ErrMalformedData
 		}
 		return e.processCandlesticks(resp.Data, symbolAndInterval[0], symbolAndInterval[1], topicInfo[0])
 	case marketMatchChannel:
