@@ -52,7 +52,7 @@ type MinMaxLevel struct {
 	MinPrice                float64
 	MaxPrice                float64
 	PriceStepIncrementSize  float64
-	PriceDivisor            float64 // Divisor for price normalisation
+	PriceDivisor            float64
 	MultiplierUp            float64
 	MultiplierDown          float64
 	MultiplierDecimal       float64
