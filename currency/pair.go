@@ -9,7 +9,7 @@ import (
 
 // Public errors
 var (
-	ErrCannotCreatePair = errors.New("cannot create currency pair")
+	ErrCreatingPair = errors.New("error creating currency pair")
 )
 
 var (
