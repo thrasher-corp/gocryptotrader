@@ -7,7 +7,7 @@ import (
 	"unicode"
 )
 
-// Public error vars
+// Public errors
 var (
 	ErrCannotCreatePair = errors.New("cannot create currency pair")
 )
