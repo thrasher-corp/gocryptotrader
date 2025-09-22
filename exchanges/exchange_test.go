@@ -1099,7 +1099,7 @@ func TestUpdatePairs(t *testing.T) {
 	}
 
 	err = UAC.UpdatePairs(currency.Pairs{}, asset.Spot, true)
-	require.NoError(t, err, "purging all pairs should not error")
+	require.NoError(t, err, "purging all pairs must not error")
 
 	pairs, err = UAC.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err)
