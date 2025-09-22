@@ -321,10 +321,9 @@ func (e *Exchange) wsProcessOpenOrders(ctx context.Context, ownOrdersResp json.R
 			}
 
 			if val.Status != "" {
-				if s, err := order.StringToOrderStatus(val.Status); err != nil {
+				var err error
+				if d.Status, err = order.StringToOrderStatus(val.Status); err != nil {
 					return err
-				} else {
-					d.Status = s
 				}
 			}
 
