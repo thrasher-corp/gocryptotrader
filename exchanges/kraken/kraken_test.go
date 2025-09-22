@@ -1003,7 +1003,7 @@ func TestWsResubscribe(t *testing.T) {
 	err = subs[0].SetState(subscription.UnsubscribingState)
 	require.NoError(t, err)
 
-	err = e.Websocket.ResubscribeToChannel(e.Websocket.Conn, subs[0])
+	err = e.Websocket.ResubscribeToChannel(t.Context(), e.Websocket.Conn, subs[0])
 	require.NoError(t, err, "Resubscribe must not error")
 	require.Equal(t, subscription.SubscribedState, subs[0].State(), "subscription must be subscribed again")
 }
@@ -1202,25 +1202,25 @@ func TestWSProcessTrades(t *testing.T) {
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair}, Channel: subscription.AllTradesChannel, Key: 18788})
 	require.NoError(t, err, "AddSubscriptions must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
-	close(e.Websocket.DataHandler)
+	e.Websocket.DataHandler.Close()
 
 	invalid := []any{"trades", []any{[]any{"95873.80000", "0.00051182", "1708731380.3791859"}}}
 	rawBytes, err := json.Marshal(invalid)
 	require.NoError(t, err, "Marshal must not error marshalling invalid trade data")
 
 	pair := currency.NewPair(currency.XBT, currency.USD)
-	err = e.wsProcessTrades(json.RawMessage(rawBytes), pair)
+	err = e.wsProcessTrades(t.Context(), json.RawMessage(rawBytes), pair)
 	require.ErrorContains(t, err, "error unmarshalling trade data")
 
 	expJSON := []string{
 		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"BUY","Price":95873.80000,"Amount":0.00051182,"Timestamp":"2025-02-23T23:29:40.379186Z"}`,
 		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"SELL","Price":95940.90000,"Amount":0.00011069,"Timestamp":"2025-02-24T02:01:12.853682Z"}`,
 	}
-	require.Len(t, e.Websocket.DataHandler, len(expJSON), "Must see correct number of trades")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	require.Len(t, e.Websocket.DataHandler.Read(), len(expJSON), "Must see correct number of trades")
+	for resp := range e.Websocket.DataHandler.Read() {
+		switch v := resp.Data.(type) {
 		case trade.Data:
-			i := 1 - len(e.Websocket.DataHandler)
+			i := 1 - len(e.Websocket.DataHandler.Read())
 			exp := trade.Data{Exchange: e.Name, CurrencyPair: spotTestPair}
 			require.NoErrorf(t, json.Unmarshal([]byte(expJSON[i]), &exp), "Must not error unmarshalling json %d: %s", i, expJSON[i])
 			require.Equalf(t, exp, v, "Trade [%d] must be correct", i)
@@ -1238,12 +1238,12 @@ func TestWsOpenOrders(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, e)
 	testexch.FixtureToDataHandler(t, "testdata/wsOpenTrades.json", e.wsHandleData)
-	close(e.Websocket.DataHandler)
-	assert.Len(t, e.Websocket.DataHandler, 7, "Should see 7 orders")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	e.Websocket.DataHandler.Close()
+	assert.Len(t, e.Websocket.DataHandler.Read(), 7, "Should see 7 orders")
+	for resp := range e.Websocket.DataHandler.Read() {
+		switch v := resp.Data.(type) {
 		case *order.Detail:
-			switch len(e.Websocket.DataHandler) {
+			switch len(e.Websocket.DataHandler.Read()) {
 			case 6:
 				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
 				assert.Equal(t, order.Limit, v.Type, "order type")

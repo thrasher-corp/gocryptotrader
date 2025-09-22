@@ -55,21 +55,21 @@ func TestWsHandleData(t *testing.T) {
 	dummy.API.Endpoints = e.NewEndpoints()
 
 	welcomeMsg := []byte(`{"status":"0000","resmsg":"Connected Successfully"}`)
-	err := dummy.wsHandleData(welcomeMsg)
+	err := dummy.wsHandleData(t.Context(), welcomeMsg)
 	require.NoError(t, err)
 
-	err = dummy.wsHandleData([]byte(`{"status":"1336","resmsg":"Failed"}`))
+	err = dummy.wsHandleData(t.Context(), []byte(`{"status":"1336","resmsg":"Failed"}`))
 	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure)
 
-	err = dummy.wsHandleData(wsTransResp)
+	err = dummy.wsHandleData(t.Context(), wsTransResp)
 	require.NoError(t, err)
 
-	err = dummy.wsHandleData(wsOrderbookResp)
+	err = dummy.wsHandleData(t.Context(), wsOrderbookResp)
 	require.NoError(t, err)
 
-	err = dummy.wsHandleData(wsTickerResp)
+	err = dummy.wsHandleData(t.Context(), wsTickerResp)
 	require.NoError(t, err)
-	assert.IsType(t, new(ticker.Price), <-dummy.Websocket.DataHandler, "ticker should send a price to the DataHandler")
+	assert.IsType(t, new(ticker.Price), (<-dummy.Websocket.DataHandler.Read()).Data, "ticker should send a price to the DataHandler")
 }
 
 func TestSubToReq(t *testing.T) {

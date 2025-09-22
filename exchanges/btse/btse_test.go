@@ -472,7 +472,7 @@ func TestWSTrades(t *testing.T) {
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
-	close(e.Websocket.DataHandler)
+	e.Websocket.DataHandler.Close()
 
 	exp := []trade.Data{
 		{
@@ -496,11 +496,11 @@ func TestWSTrades(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 	}
-	require.Len(t, e.Websocket.DataHandler, 2, "Must see the correct number of trades")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	require.Len(t, e.Websocket.DataHandler.Read(), 2, "Must see the correct number of trades")
+	for resp := range e.Websocket.DataHandler.Read() {
+		switch v := resp.Data.(type) {
 		case trade.Data:
-			i := 1 - len(e.Websocket.DataHandler)
+			i := 1 - len(e.Websocket.DataHandler.Read())
 			require.Equalf(t, exp[i], v, "Trade [%d] must be correct", i)
 		case error:
 			t.Error(v)

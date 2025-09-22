@@ -180,11 +180,11 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
 	case spotTickerChannel:
-		return e.processTicker(push.Result, push.Time)
+		return e.processTicker(ctx, push.Result, push.Time)
 	case spotTradesChannel:
 		return e.processTrades(push.Result)
 	case spotCandlesticksChannel:
-		return e.processCandlestick(push.Result)
+		return e.processCandlestick(ctx, push.Result)
 	case spotOrderbookTickerChannel:
 		return e.processOrderbookTicker(push.Result, push.Time)
 	case spotOrderbookUpdateChannel:
@@ -192,7 +192,7 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 	case spotOrderbookChannel:
 		return e.processOrderbookSnapshot(push.Result, push.Time)
 	case spotOrdersChannel:
-		return e.processSpotOrders(respRaw)
+		return e.processSpotOrders(ctx, respRaw)
 	case spotUserTradesChannel:
 		return e.processUserPersonalTrades(respRaw)
 	case spotBalancesChannel:
@@ -200,17 +200,16 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 	case marginBalancesChannel:
 		return e.processMarginBalances(ctx, respRaw)
 	case spotFundingBalanceChannel:
-		return e.processFundingBalances(respRaw)
+		return e.processFundingBalances(ctx, respRaw)
 	case crossMarginBalanceChannel:
 		return e.processCrossMarginBalance(ctx, respRaw)
 	case crossMarginLoanChannel:
-		return e.processCrossMarginLoans(respRaw)
+		return e.processCrossMarginLoans(ctx, respRaw)
 	case spotPongChannel:
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
-		}
-		return errors.New(websocket.UnhandledMessage)
+		})
 	}
 	return nil
 }
@@ -254,7 +253,7 @@ func parseWSHeader(msg []byte) (r *WSResponse, errs error) {
 	return r, errs
 }
 
-func (e *Exchange) processTicker(incoming []byte, pushTime time.Time) error {
+func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime time.Time) error {
 	var data WsTicker
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -277,8 +276,7 @@ func (e *Exchange) processTicker(incoming []byte, pushTime time.Time) error {
 			})
 		}
 	}
-	e.Websocket.DataHandler <- out
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, out)
 }
 
 func (e *Exchange) processTrades(incoming []byte) error {
@@ -317,7 +315,7 @@ func (e *Exchange) processTrades(incoming []byte) error {
 	return nil
 }
 
-func (e *Exchange) processCandlestick(incoming []byte) error {
+func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) error {
 	var data WsCandlesticks
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -348,8 +346,7 @@ func (e *Exchange) processCandlestick(incoming []byte) error {
 			})
 		}
 	}
-	e.Websocket.DataHandler <- out
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, out)
 }
 
 func (e *Exchange) processOrderbookTicker(incoming []byte, lastPushed time.Time) error {
@@ -430,7 +427,7 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 	return nil
 }
 
-func (e *Exchange) processSpotOrders(data []byte) error {
+func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    types.Time    `json:"time"`
 		Channel string        `json:"channel"`
@@ -470,8 +467,7 @@ func (e *Exchange) processSpotOrders(data []byte) error {
 			LastUpdated:    resp.Result[x].UpdateTime.Time(),
 		}
 	}
-	e.Websocket.DataHandler <- details
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, details)
 }
 
 func (e *Exchange) processUserPersonalTrades(data []byte) error {
@@ -535,7 +531,9 @@ func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
 			},
 		}
 	}
-	e.Websocket.DataHandler <- changes
+	if err := e.Websocket.DataHandler.Send(ctx, changes); err != nil {
+		return err
+	}
 	return account.ProcessChange(e.Name, changes, creds)
 }
 
@@ -567,11 +565,13 @@ func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error
 			},
 		}
 	}
-	e.Websocket.DataHandler <- changes
+	if err := e.Websocket.DataHandler.Send(ctx, changes); err != nil {
+		return err
+	}
 	return account.ProcessChange(e.Name, changes, creds)
 }
 
-func (e *Exchange) processFundingBalances(data []byte) error {
+func (e *Exchange) processFundingBalances(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    types.Time         `json:"time"`
 		Channel string             `json:"channel"`
@@ -582,8 +582,7 @@ func (e *Exchange) processFundingBalances(data []byte) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) error {
@@ -614,11 +613,13 @@ func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) e
 			},
 		}
 	}
-	e.Websocket.DataHandler <- changes
+	if err := e.Websocket.DataHandler.Send(ctx, changes); err != nil {
+		return err
+	}
 	return account.ProcessChange(e.Name, changes, creds)
 }
 
-func (e *Exchange) processCrossMarginLoans(data []byte) error {
+func (e *Exchange) processCrossMarginLoans(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
@@ -629,8 +630,7 @@ func (e *Exchange) processCrossMarginLoans(data []byte) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 // generateSubscriptionsSpot returns configured subscriptions

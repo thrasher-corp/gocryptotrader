@@ -3913,12 +3913,12 @@ func TestOrderPushData(t *testing.T) {
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", e.WsHandleData)
-	close(e.Websocket.DataHandler)
-	require.Len(t, e.Websocket.DataHandler, 4, "Should see 4 orders")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	e.Websocket.DataHandler.Close()
+	require.Len(t, e.Websocket.DataHandler.Read(), 4, "Should see 4 orders")
+	for resp := range e.Websocket.DataHandler.Read() {
+		switch v := resp.Data.(type) {
 		case *order.Detail:
-			switch len(e.Websocket.DataHandler) {
+			switch len(e.Websocket.DataHandler.Read()) {
 			case 3:
 				assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
 				assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
@@ -4093,13 +4093,13 @@ func TestWSProcessTrades(t *testing.T) {
 	}
 
 	total := len(assets) * len(exp)
-	require.Len(t, e.Websocket.DataHandler, total, "Must see correct number of trades")
+	require.Len(t, e.Websocket.DataHandler.Read(), total, "Must see correct number of trades")
 
 	trades := make(map[asset.Item][]trade.Data)
 
-	for len(e.Websocket.DataHandler) > 0 {
-		resp := <-e.Websocket.DataHandler
-		switch v := resp.(type) {
+	for len(e.Websocket.DataHandler.Read()) > 0 {
+		resp := <-e.Websocket.DataHandler.Read()
+		switch v := resp.Data.(type) {
 		case trade.Data:
 			trades[v.AssetType] = append(trades[v.AssetType], v)
 		case error:
@@ -6115,8 +6115,8 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 	var got currency.Pairs
 	assert.Eventually(t, func() bool {
 		select {
-		case a := <-e.Websocket.DataHandler:
-			switch v := a.(type) {
+		case a := <-e.Websocket.DataHandler.Read():
+			switch v := a.Data.(type) {
 			case websocket.KlineData:
 				got = got.Add(v.Pair)
 			case []CandlestickMarkPrice:
@@ -6152,13 +6152,13 @@ func TestWsProcessPublicSpreadTrades(t *testing.T) {
 
 func TestWsProcessPublicSpreadTicker(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessPublicSpreadTicker([]byte(okxSpreadPublicTickerJSON))
+	err := e.wsProcessPublicSpreadTicker(t.Context(), []byte(okxSpreadPublicTickerJSON))
 	assert.NoError(t, err)
 }
 
 func TestWsProcessSpreadOrders(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessSpreadOrders([]byte(wsProcessSpreadOrdersJSON))
+	err := e.wsProcessSpreadOrders(t.Context(), []byte(wsProcessSpreadOrdersJSON))
 	assert.NoError(t, err)
 }
 

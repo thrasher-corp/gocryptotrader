@@ -720,7 +720,7 @@ func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
         case <-ticks.C:
             err := e.MaintainWsAuthStreamKey(ctx)
             if err != nil {
-                e.Websocket.DataHandler <- err
+                e.Websocket.DataHandler.Send(ctx, err)
                 log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", e.Name)
             }
         }
@@ -848,7 +848,7 @@ func (e *Exchange) wsReadData() {
 
             err := e.wsHandleData(resp.Raw)
             if err != nil {
-                e.Websocket.DataHandler <- err
+                e.Websocket.DataHandler.Send(ctx, err)
             }
         }
     }

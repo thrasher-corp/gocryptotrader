@@ -228,13 +228,13 @@ func (e *Exchange) wsHandleTradeData(conn websocket.Connection, respRaw []byte) 
 	}
 }
 
-func (e *Exchange) wsHandleData(conn websocket.Connection, assetType asset.Item, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, assetType asset.Item, respRaw []byte) error {
 	var result WebsocketResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	if result.Topic == "" {
-		return e.handleNoTopicWebsocketResponse(conn, &result, respRaw)
+		return e.handleNoTopicWebsocketResponse(ctx, conn, &result, respRaw)
 	}
 	topicSplit := strings.Split(result.Topic, ".")
 	switch topicSplit[0] {
@@ -243,17 +243,17 @@ func (e *Exchange) wsHandleData(conn websocket.Connection, assetType asset.Item,
 	case chanPublicTrade:
 		return e.wsProcessPublicTrade(assetType, &result)
 	case chanPublicTicker:
-		return e.wsProcessPublicTicker(assetType, &result)
+		return e.wsProcessPublicTicker(ctx, assetType, &result)
 	case chanKline:
-		return e.wsProcessKline(assetType, &result, topicSplit)
+		return e.wsProcessKline(ctx, assetType, &result, topicSplit)
 	case chanLiquidation:
-		return e.wsProcessLiquidation(&result)
+		return e.wsProcessLiquidation(ctx, &result)
 	case chanLeverageTokenKline:
-		return e.wsProcessLeverageTokenKline(assetType, &result, topicSplit)
+		return e.wsProcessLeverageTokenKline(ctx, assetType, &result, topicSplit)
 	case chanLeverageTokenTicker:
-		return e.wsProcessLeverageTokenTicker(assetType, &result)
+		return e.wsProcessLeverageTokenTicker(ctx, assetType, &result)
 	case chanLeverageTokenNav:
-		return e.wsLeverageTokenNav(&result)
+		return e.wsLeverageTokenNav(ctx, &result)
 	}
 	return fmt.Errorf("%w %s", errUnhandledStreamData, string(respRaw))
 }
@@ -264,14 +264,14 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket
 		return err
 	}
 	if result.Topic == "" {
-		return e.handleNoTopicWebsocketResponse(conn, &result, respRaw)
+		return e.handleNoTopicWebsocketResponse(ctx, conn, &result, respRaw)
 	}
 	topicSplit := strings.Split(result.Topic, ".")
 	switch topicSplit[0] {
 	case chanPositions:
-		return e.wsProcessPosition(&result)
+		return e.wsProcessPosition(ctx, &result)
 	case chanExecution:
-		return e.wsProcessExecution(&result)
+		return e.wsProcessExecution(ctx, &result)
 	case chanOrder:
 		// Use first order's orderLinkId to match with an entire batch of order change requests
 		if id, err := jsonparser.GetString(respRaw, "data", "[0]", "orderLinkId"); err == nil {
@@ -279,16 +279,16 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket
 				return nil // If the data has been routed, return
 			}
 		}
-		return e.wsProcessOrder(&result)
+		return e.wsProcessOrder(ctx, &result)
 	case chanWallet:
 		return e.wsProcessWalletPushData(ctx, respRaw)
 	case chanGreeks:
-		return e.wsProcessGreeks(respRaw)
+		return e.wsProcessGreeks(ctx, respRaw)
 	}
 	return fmt.Errorf("%w %s", errUnhandledStreamData, string(respRaw))
 }
 
-func (e *Exchange) handleNoTopicWebsocketResponse(conn websocket.Connection, result *WebsocketResponse, respRaw []byte) error {
+func (e *Exchange) handleNoTopicWebsocketResponse(ctx context.Context, conn websocket.Connection, result *WebsocketResponse, respRaw []byte) error {
 	switch result.Operation {
 	case "subscribe", "unsubscribe", "auth":
 		if result.RequestID != "" {
@@ -296,18 +296,17 @@ func (e *Exchange) handleNoTopicWebsocketResponse(conn websocket.Connection, res
 		}
 	case "ping", "pong":
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: string(respRaw)}
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: string(respRaw)})
 	}
 	return nil
 }
 
-func (e *Exchange) wsProcessGreeks(resp []byte) error {
+func (e *Exchange) wsProcessGreeks(ctx context.Context, resp []byte) error {
 	var result GreeksResponse
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &result
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, &result)
 }
 
 func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) error {
@@ -333,12 +332,14 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) err
 			})
 		}
 	}
-	e.Websocket.DataHandler <- changes
+	if err := e.Websocket.DataHandler.Send(ctx, changes); err != nil {
+		return err
+	}
 	return account.ProcessChange(e.Name, changes, creds)
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.
-func (e *Exchange) wsProcessOrder(resp *WebsocketResponse) error {
+func (e *Exchange) wsProcessOrder(ctx context.Context, resp *WebsocketResponse) error {
 	var result []WebsocketOrderDetails
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
@@ -377,11 +378,10 @@ func (e *Exchange) wsProcessOrder(resp *WebsocketResponse) error {
 			LastUpdated:          result[x].UpdatedTime.Time(),
 		}
 	}
-	e.Websocket.DataHandler <- execution
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, execution)
 }
 
-func (e *Exchange) wsProcessExecution(resp *WebsocketResponse) error {
+func (e *Exchange) wsProcessExecution(ctx context.Context, resp *WebsocketResponse) error {
 	var result WsExecutions
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
@@ -409,29 +409,26 @@ func (e *Exchange) wsProcessExecution(resp *WebsocketResponse) error {
 			Amount:        result[x].ExecQty.Float64(),
 		}
 	}
-	e.Websocket.DataHandler <- executions
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, executions)
 }
 
-func (e *Exchange) wsProcessPosition(resp *WebsocketResponse) error {
+func (e *Exchange) wsProcessPosition(ctx context.Context, resp *WebsocketResponse) error {
 	var result WsPositions
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- result
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, result)
 }
 
-func (e *Exchange) wsLeverageTokenNav(resp *WebsocketResponse) error {
+func (e *Exchange) wsLeverageTokenNav(ctx context.Context, resp *WebsocketResponse) error {
 	var result LTNav
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- result
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, result)
 }
 
-func (e *Exchange) wsProcessLeverageTokenTicker(assetType asset.Item, resp *WebsocketResponse) error {
+func (e *Exchange) wsProcessLeverageTokenTicker(ctx context.Context, assetType asset.Item, resp *WebsocketResponse) error {
 	var result TickerWebsocket
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
@@ -440,7 +437,7 @@ func (e *Exchange) wsProcessLeverageTokenTicker(assetType asset.Item, resp *Webs
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		Last:         result.LastPrice.Float64(),
 		High:         result.HighPrice24H.Float64(),
 		Low:          result.LowPrice24H.Float64(),
@@ -448,11 +445,10 @@ func (e *Exchange) wsProcessLeverageTokenTicker(assetType asset.Item, resp *Webs
 		ExchangeName: e.Name,
 		AssetType:    assetType,
 		LastUpdated:  resp.PushTimestamp.Time(),
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) wsProcessLeverageTokenKline(assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {
+func (e *Exchange) wsProcessLeverageTokenKline(ctx context.Context, assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {
 	var result LTKlines
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
@@ -481,20 +477,18 @@ func (e *Exchange) wsProcessLeverageTokenKline(assetType asset.Item, resp *Webso
 			LowPrice:   result[x].Low.Float64(),
 		}
 	}
-	e.Websocket.DataHandler <- result
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, ltKline)
 }
 
-func (e *Exchange) wsProcessLiquidation(resp *WebsocketResponse) error {
+func (e *Exchange) wsProcessLiquidation(ctx context.Context, resp *WebsocketResponse) error {
 	var result WebsocketLiquidation
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- result
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, result)
 }
 
-func (e *Exchange) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {
+func (e *Exchange) wsProcessKline(ctx context.Context, assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {
 	var result WsKlines
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
@@ -524,11 +518,10 @@ func (e *Exchange) wsProcessKline(assetType asset.Item, resp *WebsocketResponse,
 			Volume:     result[x].Volume.Float64(),
 		}
 	}
-	e.Websocket.DataHandler <- spotCandlesticks
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, spotCandlesticks)
 }
 
-func (e *Exchange) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResponse) error {
+func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.Item, resp *WebsocketResponse) error {
 	var tickResp TickerWebsocket
 	if err := json.Unmarshal(resp.Data, &tickResp); err != nil {
 		return err
@@ -552,8 +545,7 @@ func (e *Exchange) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketRe
 	if err := ticker.ProcessTicker(tick); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- tick
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, tick)
 }
 
 func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {

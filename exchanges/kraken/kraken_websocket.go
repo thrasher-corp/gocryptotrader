@@ -105,10 +105,8 @@ func (e *Exchange) WsConnect() error {
 		return err
 	}
 
-	comms := make(chan websocket.Response)
-	e.Websocket.Wg.Add(2)
-	go e.wsReadData(ctx, comms)
-	go e.wsFunnelConnectionData(e.Websocket.Conn, comms)
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(ctx, e.Websocket.Conn)
 
 	if e.IsWebsocketAuthenticationSupported() {
 		if authToken, err := e.GetWebsocketToken(ctx); err != nil {
@@ -122,7 +120,7 @@ func (e *Exchange) WsConnect() error {
 				e.setWebsocketAuthToken(authToken)
 				e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				e.Websocket.Wg.Add(1)
-				go e.wsFunnelConnectionData(e.Websocket.AuthConn, comms)
+				go e.wsReadData(ctx, e.Websocket.AuthConn)
 				e.startWsPingHandler(e.Websocket.AuthConn)
 			}
 		}
@@ -134,47 +132,22 @@ func (e *Exchange) WsConnect() error {
 }
 
 // wsFunnelConnectionData funnels both auth and public ws data into one manageable place
-func (e *Exchange) wsFunnelConnectionData(ws websocket.Connection, comms chan websocket.Response) {
+func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
 	defer e.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		comms <- resp
-	}
-}
-
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context, comms chan websocket.Response) {
-	defer e.Websocket.Wg.Done()
-
-	for {
-		select {
-		case <-e.Websocket.ShutdownC:
-			select {
-			case resp := <-comms:
-				err := e.wsHandleData(ctx, resp.Raw)
-				if err != nil {
-					select {
-					case e.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", e.Name, err)
-					}
-				}
-			default:
-			}
-			return
-		case resp := <-comms:
-			err := e.wsHandleData(ctx, resp.Raw)
-			if err != nil {
-				e.Websocket.DataHandler <- err
+		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, ws.GetURL(), errSend, err)
 			}
 		}
 	}
 }
 
-func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "[") {
 		var msg []json.RawMessage
 		if err := json.Unmarshal(respRaw, &msg); err != nil {
@@ -200,7 +173,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			pair = p
 		}
 
-		return e.wsReadDataResponse(chanName, pair, msg)
+		return e.wsReadDataResponse(ctx, chanName, pair, msg)
 	}
 
 	event, err := jsonparser.GetString(respRaw, "event")
@@ -230,12 +203,10 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 	case krakenWsSystemStatus:
 		return e.wsProcessSystemStatus(respRaw)
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 			Message: fmt.Sprintf("%s: %s", websocket.UnhandledMessage, respRaw),
-		}
+		})
 	}
-
-	return nil
 }
 
 // startWsPingHandler sets up a websocket ping handler to maintain a connection
@@ -248,26 +219,26 @@ func (e *Exchange) startWsPingHandler(conn websocket.Connection) {
 }
 
 // wsReadDataResponse classifies the WS response and sends to appropriate handler
-func (e *Exchange) wsReadDataResponse(c string, pair currency.Pair, response []json.RawMessage) error {
+func (e *Exchange) wsReadDataResponse(ctx context.Context, c string, pair currency.Pair, response []json.RawMessage) error {
 	switch c {
 	case krakenWsTicker:
-		return e.wsProcessTickers(response[1], pair)
+		return e.wsProcessTickers(ctx, response[1], pair)
 	case krakenWsSpread:
 		return e.wsProcessSpread(response[1], pair)
 	case krakenWsTrade:
-		return e.wsProcessTrades(response[1], pair)
+		return e.wsProcessTrades(ctx, response[1], pair)
 	case krakenWsOwnTrades:
-		return e.wsProcessOwnTrades(response[0])
+		return e.wsProcessOwnTrades(ctx, response[0])
 	case krakenWsOpenOrders:
-		return e.wsProcessOpenOrders(response[0])
+		return e.wsProcessOpenOrders(ctx, response[0])
 	}
 
 	channelType := strings.TrimRight(c, "-0123456789")
 	switch channelType {
 	case krakenWsOHLC:
-		return e.wsProcessCandle(c, response[1], pair)
+		return e.wsProcessCandle(ctx, c, response[1], pair)
 	case krakenWsOrderbook:
-		return e.wsProcessOrderBook(c, response, pair)
+		return e.wsProcessOrderBook(ctx, c, response, pair)
 	default:
 		return fmt.Errorf("received unidentified data for subscription %s: %+v", c, response)
 	}
@@ -279,7 +250,7 @@ func (e *Exchange) wsProcessSystemStatus(respRaw []byte) error {
 		return fmt.Errorf("%s parsing system status: %s", err, respRaw)
 	}
 	if systemStatus.Status != "online" {
-		e.Websocket.DataHandler <- fmt.Errorf("system status not online: %v", systemStatus.Status)
+		return fmt.Errorf("system status not online: %v", systemStatus.Status)
 	}
 	if systemStatus.Version > krakenWSSupportedVersion {
 		log.Warnf(log.ExchangeSys, "%v New version of Websocket API released. Was %v Now %v", e.Name, krakenWSSupportedVersion, systemStatus.Version)
@@ -287,7 +258,7 @@ func (e *Exchange) wsProcessSystemStatus(respRaw []byte) error {
 	return nil
 }
 
-func (e *Exchange) wsProcessOwnTrades(ownOrdersRaw json.RawMessage) error {
+func (e *Exchange) wsProcessOwnTrades(ctx context.Context, ownOrdersRaw json.RawMessage) error {
 	var result []map[string]*WsOwnTrade
 	if err := json.Unmarshal(ownOrdersRaw, &result); err != nil {
 		return err
@@ -300,21 +271,13 @@ func (e *Exchange) wsProcessOwnTrades(ownOrdersRaw json.RawMessage) error {
 	for key, val := range result[0] {
 		oSide, err := order.StringToOrderSide(val.Type)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  key,
-				Err:      err,
-			}
+			return err
 		}
 		oType, err := order.StringToOrderType(val.OrderType)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  key,
-				Err:      err,
-			}
+			return err
 		}
-		e.Websocket.DataHandler <- &order.Detail{
+		if err := e.Websocket.DataHandler.Send(ctx, &order.Detail{
 			Exchange: e.Name,
 			OrderID:  val.OrderTransactionID,
 			Trades: []order.TradeHistory{
@@ -329,13 +292,15 @@ func (e *Exchange) wsProcessOwnTrades(ownOrdersRaw json.RawMessage) error {
 					Timestamp: val.Time.Time(),
 				},
 			},
+		}); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 // wsProcessOpenOrders processes open orders from the websocket response
-func (e *Exchange) wsProcessOpenOrders(ownOrdersResp json.RawMessage) error {
+func (e *Exchange) wsProcessOpenOrders(ctx context.Context, ownOrdersResp json.RawMessage) error {
 	var result []map[string]*WsOpenOrder
 	if err := json.Unmarshal(ownOrdersResp, &result); err != nil {
 		return err
@@ -357,11 +322,7 @@ func (e *Exchange) wsProcessOpenOrders(ownOrdersResp json.RawMessage) error {
 
 			if val.Status != "" {
 				if s, err := order.StringToOrderStatus(val.Status); err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  key,
-						Err:      err,
-					}
+					return err
 				} else {
 					d.Status = s
 				}
@@ -372,40 +333,24 @@ func (e *Exchange) wsProcessOpenOrders(ownOrdersResp json.RawMessage) error {
 					d.Side = order.Sell
 				} else {
 					if oSide, err := order.StringToOrderSide(val.Description.Type); err != nil {
-						e.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: e.Name,
-							OrderID:  key,
-							Err:      err,
-						}
+						return err
 					} else {
 						d.Side = oSide
 					}
 				}
 
 				if oType, err := order.StringToOrderType(val.Description.OrderType); err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  key,
-						Err:      err,
-					}
+					return err
 				} else {
 					d.Type = oType
 				}
 
 				if p, err := currency.NewPairFromString(val.Description.Pair); err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  key,
-						Err:      err,
-					}
+					return err
 				} else {
 					d.Pair = p
 					if d.AssetType, err = e.GetPairAssetType(p); err != nil {
-						e.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: e.Name,
-							OrderID:  key,
-							Err:      err,
-						}
+						return err
 					}
 				}
 			}
@@ -419,20 +364,22 @@ func (e *Exchange) wsProcessOpenOrders(ownOrdersResp json.RawMessage) error {
 				// Note: Volume and ExecutedVolume are only populated when status is open
 				d.RemainingAmount = val.Volume - val.ExecutedVolume
 			}
-			e.Websocket.DataHandler <- d
+			if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
 // wsProcessTickers converts ticker data and sends it to the datahandler
-func (e *Exchange) wsProcessTickers(dataRaw json.RawMessage, pair currency.Pair) error {
+func (e *Exchange) wsProcessTickers(ctx context.Context, dataRaw json.RawMessage, pair currency.Pair) error {
 	var t wsTicker
 	if err := json.Unmarshal(dataRaw, &t); err != nil {
 		return fmt.Errorf("error unmarshalling ticker data: %w", err)
 	}
 
-	e.Websocket.DataHandler <- &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
 		Ask:          t.Ask[0].Float64(),
 		Bid:          t.Bid[0].Float64(),
@@ -443,8 +390,7 @@ func (e *Exchange) wsProcessTickers(dataRaw json.RawMessage, pair currency.Pair)
 		Open:         t.Open[0].Float64(),
 		AssetType:    asset.Spot,
 		Pair:         pair,
-	}
-	return nil
+	})
 }
 
 // wsProcessSpread converts spread/orderbook data and sends it to the datahandler
@@ -467,7 +413,7 @@ func (e *Exchange) wsProcessSpread(rawData json.RawMessage, pair currency.Pair) 
 }
 
 // wsProcessTrades converts trade data and sends it to the datahandler
-func (e *Exchange) wsProcessTrades(respRaw json.RawMessage, pair currency.Pair) error {
+func (e *Exchange) wsProcessTrades(ctx context.Context, respRaw json.RawMessage, pair currency.Pair) error {
 	saveTradeData := e.IsSaveTradeDataEnabled()
 	tradeFeed := e.IsTradeFeedEnabled()
 	if !saveTradeData && !tradeFeed {
@@ -497,7 +443,9 @@ func (e *Exchange) wsProcessTrades(respRaw json.RawMessage, pair currency.Pair) 
 	}
 	if tradeFeed {
 		for i := range trades {
-			e.Websocket.DataHandler <- trades[i]
+			if err := e.Websocket.DataHandler.Send(ctx, trades[i]); err != nil {
+				return err
+			}
 		}
 	}
 	if saveTradeData {
@@ -515,7 +463,7 @@ func hasKey(raw json.RawMessage, key string) bool {
 }
 
 // wsProcessOrderBook handles both partial and full orderbook updates
-func (e *Exchange) wsProcessOrderBook(c string, response []json.RawMessage, pair currency.Pair) error {
+func (e *Exchange) wsProcessOrderBook(ctx context.Context, c string, response []json.RawMessage, pair currency.Pair) error {
 	key := &subscription.Subscription{
 		Channel: c,
 		Asset:   asset.Spot,
@@ -551,7 +499,7 @@ func (e *Exchange) wsProcessOrderBook(c string, response []json.RawMessage, pair
 		if errors.Is(err, errInvalidChecksum) {
 			log.Debugf(log.Global, "%s Resubscribing to invalid %s orderbook", e.Name, pair)
 			go func() {
-				if e2 := e.Websocket.ResubscribeToChannel(e.Websocket.Conn, s); e2 != nil && !errors.Is(e2, subscription.ErrInStateAlready) {
+				if e2 := e.Websocket.ResubscribeToChannel(ctx, e.Websocket.Conn, s); e2 != nil && !errors.Is(e2, subscription.ErrInStateAlready) {
 					log.Errorf(log.ExchangeSys, "%s resubscription failure for %v: %v", e.Name, pair, e2)
 				}
 			}()
@@ -696,7 +644,7 @@ func trim(s string) string {
 }
 
 // wsProcessCandle converts candle data and sends it to the data handler
-func (e *Exchange) wsProcessCandle(c string, resp json.RawMessage, pair currency.Pair) error {
+func (e *Exchange) wsProcessCandle(ctx context.Context, c string, resp json.RawMessage, pair currency.Pair) error {
 	var data wsCandle
 	if err := json.Unmarshal(resp, &data); err != nil {
 		return fmt.Errorf("error unmarshalling candle data: %w", err)
@@ -709,7 +657,7 @@ func (e *Exchange) wsProcessCandle(c string, resp json.RawMessage, pair currency
 	}
 	interval := parts[1]
 
-	e.Websocket.DataHandler <- websocket.KlineData{
+	return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
 		AssetType:  asset.Spot,
 		Pair:       pair,
 		Timestamp:  time.Now(),
@@ -722,8 +670,7 @@ func (e *Exchange) wsProcessCandle(c string, resp json.RawMessage, pair currency
 		ClosePrice: data.Close.Float64(),
 		Volume:     data.Volume.Float64(),
 		Interval:   interval,
-	}
-	return nil
+	})
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
@@ -1055,10 +1002,12 @@ func (e *Exchange) wsAddOrder(ctx context.Context, req *WsAddOrderRequest) (stri
 	if resp.Status == "error" {
 		return "", errors.New("AddOrder error: " + resp.ErrorMessage)
 	}
-	e.Websocket.DataHandler <- &order.Detail{
+	if err := e.Websocket.DataHandler.Send(ctx, &order.Detail{
 		Exchange: e.Name,
 		OrderID:  resp.TransactionID,
 		Status:   order.New,
+	}); err != nil {
+		return "", err
 	}
 	return resp.TransactionID, nil
 }

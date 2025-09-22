@@ -1294,39 +1294,15 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		typeDetails := strings.Split(respData.Type, "-")
 		orderSide, err := order.StringToOrderSide(typeDetails[0])
 		if err != nil {
-			if e.Websocket.IsConnected() {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
-			} else {
-				return nil, err
-			}
+			return nil, err
 		}
 		orderType, err := order.StringToOrderType(typeDetails[1])
 		if err != nil {
-			if e.Websocket.IsConnected() {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
-			} else {
-				return nil, err
-			}
+			return nil, err
 		}
 		orderStatus, err := order.StringToOrderStatus(respData.State)
 		if err != nil {
-			if e.Websocket.IsConnected() {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
-			} else {
-				return nil, err
-			}
+			return nil, err
 		}
 		var p currency.Pair
 		var a asset.Item

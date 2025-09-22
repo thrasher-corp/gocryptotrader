@@ -2991,13 +2991,13 @@ func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
 	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.wsHandleData)
-	close(ku.Websocket.DataHandler)
-	assert.Len(t, ku.Websocket.DataHandler, 4, "Should see 4 tickers")
+	ku.Websocket.DataHandler.Close()
+	assert.Len(t, ku.Websocket.DataHandler.Read(), 4, "Should see 4 tickers")
 	seenAssetTypes := map[asset.Item]int{}
-	for resp := range ku.Websocket.DataHandler {
-		switch v := resp.(type) {
+	for resp := range ku.Websocket.DataHandler.Read() {
+		switch v := resp.Data.(type) {
 		case *ticker.Price:
-			switch len(ku.Websocket.DataHandler) {
+			switch len(ku.Websocket.DataHandler.Read()) {
 			case 3:
 				assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
 				assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
@@ -4423,7 +4423,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 func TestProcessFuturesKline(t *testing.T) {
 	t.Parallel()
 	data := fmt.Sprintf(`{"symbol":%q,"candles":["1714964400","63815.1","63890.8","63928.5","63797.8","17553.0","17553"],"time":1714964823722}`, futuresTradablePair.String())
-	err := e.processFuturesKline([]byte(data), "1hour")
+	err := e.processFuturesKline(t.Context(), []byte(data), "1hour")
 	assert.NoError(t, err)
 }
 

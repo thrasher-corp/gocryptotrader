@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -9,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/message"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
@@ -24,7 +26,7 @@ var (
 )
 
 // Setup sets private variables
-func (o *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler chan<- any) error {
+func (o *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler *message.Relay) error {
 	if exchangeConfig == nil { // exchange config fields are checked in websocket package prior to calling this, so further checks are not needed
 		return fmt.Errorf(packageError, errExchangeConfigNil)
 	}
@@ -54,6 +56,7 @@ func (o *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandle
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
 func (o *Orderbook) LoadSnapshot(book *orderbook.Book) error {
+	ctx := context.TODO()
 	if err := book.Validate(); err != nil {
 		return err
 	}
@@ -81,13 +84,14 @@ func (o *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 	}
 
 	holder.ob.Publish()
-	o.dataHandler <- holder.ob
+	o.dataHandler.Send(ctx, holder.ob)
 	return nil
 }
 
 // Update updates a stored pointer to an orderbook.Depth struct containing bid and ask Tranches, this switches between
 // the usage of a buffered update
 func (o *Orderbook) Update(u *orderbook.Update) error {
+	ctx := context.TODO()
 	o.m.RLock()
 	holder, ok := o.ob[key.PairAsset{Base: u.Pair.Base.Item, Quote: u.Pair.Quote.Item, Asset: u.Asset}]
 	o.m.RUnlock()
@@ -107,7 +111,7 @@ func (o *Orderbook) Update(u *orderbook.Update) error {
 
 	// Publish all state changes, disregarding verbosity or sync requirements.
 	holder.ob.Publish()
-	o.dataHandler <- holder.ob
+	o.dataHandler.Send(ctx, holder.ob)
 	return nil
 }
 

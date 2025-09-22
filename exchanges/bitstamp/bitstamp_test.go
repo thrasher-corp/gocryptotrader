@@ -744,12 +744,12 @@ func TestWsOrderUpdate(t *testing.T) {
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", e.wsHandleData)
-	close(e.Websocket.DataHandler)
-	assert.Len(t, e.Websocket.DataHandler, 8, "Should see 8 orders")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	e.Websocket.DataHandler.Close()
+	assert.Len(t, e.Websocket.DataHandler.Read(), 8, "Should see 8 orders")
+	for resp := range e.Websocket.DataHandler.Read() {
+		switch v := resp.Data.(type) {
 		case *order.Detail:
-			switch len(e.Websocket.DataHandler) {
+			switch len(e.Websocket.DataHandler.Read()) {
 			case 7:
 				assert.Equal(t, "1658864794234880", v.OrderID, "OrderID")
 				assert.Equal(t, time.UnixMicro(1693831262313000), v.Date, "Date")

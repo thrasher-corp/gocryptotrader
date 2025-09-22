@@ -87,9 +87,10 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 
 		if strings.HasPrefix(string(resp.Raw), "[") {
 			var incoming []wsResponse
-			err := json.Unmarshal(resp.Raw, &incoming)
-			if err != nil {
-				e.Websocket.DataHandler <- err
+			if err := json.Unmarshal(resp.Raw, &incoming); err != nil {
+				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+				}
 				continue
 			}
 			for i := range incoming {
@@ -98,45 +99,43 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 						break
 					}
 				}
-				var individualJSON []byte
-				individualJSON, err = json.Marshal(incoming[i])
+				individualJSON, err := json.Marshal(incoming[i])
 				if err != nil {
-					e.Websocket.DataHandler <- err
+					if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+						log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+					}
 					continue
 				}
-				err = e.wsHandleData(ctx, individualJSON)
-				if err != nil {
-					e.Websocket.DataHandler <- err
+				if err := e.wsHandleData(ctx, individualJSON); err != nil {
+					if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+						log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+					}
 				}
 			}
 		} else {
-			var incoming wsResponse
-			err := json.Unmarshal(resp.Raw, &incoming)
-			if err != nil {
-				e.Websocket.DataHandler <- err
-				continue
-			}
-			err = e.wsHandleData(ctx, resp.Raw)
-			if err != nil {
-				e.Websocket.DataHandler <- err
+			if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+				}
 			}
 		}
 	}
 }
 
-func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "[") {
 		var orders []wsOrderContainer
-		err := json.Unmarshal(respRaw, &orders)
-		if err != nil {
+		if err := json.Unmarshal(respRaw, &orders); err != nil {
 			return err
 		}
 		for i := range orders {
-			o, err2 := e.parseOrderContainer(&orders[i])
-			if err2 != nil {
-				return err2
+			o, err := e.parseOrderContainer(ctx, &orders[i])
+			if err != nil {
+				return err
 			}
-			e.Websocket.DataHandler <- o
+			if err := e.Websocket.DataHandler.Send(ctx, o); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -176,13 +175,13 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- &order.Detail{
+		return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 			Exchange:    e.Name,
 			OrderID:     strconv.FormatInt(cancel.OrderID, 10),
 			Status:      order.Cancelled,
 			LastUpdated: time.Now(),
 			AssetType:   asset.Spot,
-		}
+		})
 	case "cancel_orders":
 		var cancels WsCancelOrdersResponse
 		err := json.Unmarshal(respRaw, &cancels)
@@ -190,12 +189,14 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			return err
 		}
 		for i := range cancels.Results {
-			e.Websocket.DataHandler <- &order.Detail{
+			if err := e.Websocket.DataHandler.Send(ctx, &order.Detail{
 				Exchange:    e.Name,
 				OrderID:     strconv.FormatInt(cancels.Results[i].OrderID, 10),
 				Status:      order.Cancelled,
 				LastUpdated: time.Now(),
 				AssetType:   asset.Spot,
+			}); err != nil {
+				return err
 			}
 		}
 	case "trade_history":
@@ -233,7 +234,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			return err
 		}
 
-		e.Websocket.DataHandler <- &ticker.Price{
+		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 			ExchangeName: e.Name,
 			Volume:       wsTicker.Volume24,
 			QuoteVolume:  wsTicker.Volume24Quote,
@@ -245,27 +246,21 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			LastUpdated:  wsTicker.Timestamp.Time(),
 			AssetType:    asset.Spot,
 			Pair:         p,
-		}
+		})
 	case "inst_order_book":
 		var orderbookSnapshot WsOrderbookSnapshot
 		err := json.Unmarshal(respRaw, &orderbookSnapshot)
 		if err != nil {
 			return err
 		}
-		err = e.WsProcessOrderbookSnapshot(&orderbookSnapshot)
-		if err != nil {
-			return err
-		}
+		return e.WsProcessOrderbookSnapshot(&orderbookSnapshot)
 	case "inst_order_book_update":
 		var orderbookUpdate WsOrderbookUpdate
 		err := json.Unmarshal(respRaw, &orderbookUpdate)
 		if err != nil {
 			return err
 		}
-		err = e.WsProcessOrderbookUpdate(&orderbookUpdate)
-		if err != nil {
-			return err
-		}
+		return e.WsProcessOrderbookUpdate(&orderbookUpdate)
 	case "inst_trade":
 		if !e.IsSaveTradeDataEnabled() {
 			return nil
@@ -291,10 +286,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 
 			tSide, err := order.StringToOrderSide(tradeSnap.Trades[i].Side)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 
 			trades = append(trades, trade.Data{
@@ -333,10 +325,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 
 		tSide, err := order.StringToOrderSide(tradeUpdate.Side)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				Err:      err,
-			}
+			return err
 		}
 
 		return trade.AddTradesToBuffer(trade.Data{
@@ -355,14 +344,13 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		o, err := e.parseOrderContainer(&orderContainer)
+		o, err := e.parseOrderContainer(ctx, &orderContainer)
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- o
+		return e.Websocket.DataHandler.Send(ctx, o)
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 	}
 	return nil
 }
@@ -383,7 +371,7 @@ func stringToOrderStatus(status string, quantity float64) (order.Status, error) 
 	}
 }
 
-func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detail, error) {
+func (e *Exchange) parseOrderContainer(ctx context.Context, oContainer *wsOrderContainer) (*order.Detail, error) {
 	var oSide order.Side
 	var oStatus order.Status
 	var err error
@@ -391,30 +379,30 @@ func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 	if oContainer.Side != "" {
 		oSide, err = order.StringToOrderSide(oContainer.Side)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
+			e.Websocket.DataHandler.Send(ctx, order.ClassificationError{
 				Exchange: e.Name,
 				OrderID:  orderID,
 				Err:      err,
-			}
+			})
 		}
 	} else if oContainer.Order.Side != "" {
 		oSide, err = order.StringToOrderSide(oContainer.Order.Side)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
+			e.Websocket.DataHandler.Send(ctx, order.ClassificationError{
 				Exchange: e.Name,
 				OrderID:  orderID,
 				Err:      err,
-			}
+			})
 		}
 	}
 
 	oStatus, err = stringToOrderStatus(oContainer.Reply, oContainer.OpenQuantity)
 	if err != nil {
-		e.Websocket.DataHandler <- order.ClassificationError{
+		e.Websocket.DataHandler.Send(ctx, order.ClassificationError{
 			Exchange: e.Name,
 			OrderID:  orderID,
 			Err:      err,
-		}
+		})
 	}
 	if oContainer.Status[0] != "OK" {
 		return nil, fmt.Errorf("%s - Order rejected: %v", e.Name, oContainer.Status)
@@ -438,11 +426,11 @@ func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 	if oContainer.Reply == "order_filled" {
 		o.Side, err = order.StringToOrderSide(oContainer.Order.Side)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
+			e.Websocket.DataHandler.Send(ctx, order.ClassificationError{
 				Exchange: e.Name,
 				OrderID:  orderID,
 				Err:      err,
-			}
+			})
 		}
 		o.RemainingAmount = oContainer.Order.OpenQuantity
 		o.Amount = oContainer.Order.Quantity
@@ -761,7 +749,7 @@ func (e *Exchange) wsSubmitOrder(ctx context.Context, o *WsSubmitOrderParameters
 		return nil, err
 	}
 	var ord *order.Detail
-	ord, err = e.parseOrderContainer(&incoming)
+	ord, err = e.parseOrderContainer(ctx, &incoming)
 	if err != nil {
 		return nil, err
 	}
@@ -808,7 +796,7 @@ func (e *Exchange) wsSubmitOrders(ctx context.Context, orders []WsSubmitOrderPar
 
 	ordersResponse := make([]order.Detail, 0, len(incoming))
 	for i := range incoming {
-		o, err := e.parseOrderContainer(&incoming[i])
+		o, err := e.parseOrderContainer(ctx, &incoming[i])
 		if err != nil {
 			errs = append(errs, err)
 			continue

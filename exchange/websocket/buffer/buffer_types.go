@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/exchange/message"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
@@ -26,7 +27,7 @@ type Orderbook struct {
 	sortBuffer            bool
 	sortBufferByUpdateIDs bool // When timestamps aren't provided, an id can help sort
 	exchangeName          string
-	dataHandler           chan<- any
+	dataHandler           *message.Relay
 	verbose               bool
 
 	m sync.RWMutex

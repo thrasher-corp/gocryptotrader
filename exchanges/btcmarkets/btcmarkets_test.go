@@ -1,6 +1,7 @@
 package btcmarkets
 
 import (
+	"encoding/base64"
 	"log"
 	"os"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -488,7 +490,7 @@ func TestWSTrade(t *testing.T) {
 	assert.ErrorContains(t, fErrs[0].Err, "WRONG", "Side.UnmarshalJSON errors should propagate correctly")
 	assert.ErrorIs(t, fErrs[1].Err, order.ErrSideIsInvalid, "wsHandleData errors should propagate correctly")
 	assert.ErrorContains(t, fErrs[1].Err, "ANY", "wsHandleData errors should propagate correctly")
-	close(e.Websocket.DataHandler)
+	e.Websocket.DataHandler.Close()
 
 	exp := []trade.Data{
 		{
@@ -512,12 +514,12 @@ func TestWSTrade(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 	}
-	require.Len(t, e.Websocket.DataHandler, 2, "Must see correct number of trades")
+	require.Len(t, e.Websocket.DataHandler.Read(), 2, "Must see correct number of trades")
 
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	for resp := range e.Websocket.DataHandler.Read() {
+		switch v := resp.Data.(type) {
 		case trade.Data:
-			i := 1 - len(e.Websocket.DataHandler)
+			i := 1 - len(e.Websocket.DataHandler.Read())
 			require.Equalf(t, exp[i], v, "Trade[%d] must be correct", i)
 		case error:
 			t.Error(v)
@@ -612,6 +614,10 @@ func TestWsHeartbeats(t *testing.T) {
 }
 
 func TestWsOrders(t *testing.T) {
+	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
+		Key:    "testkey",
+		Secret: base64.StdEncoding.EncodeToString([]byte("testsecret")),
+	})
 	pressXToJSON := []byte(`{ 
 	"orderId": 79003,
     "marketId": "BTC-AUD",
@@ -624,7 +630,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:19.339Z",
     "messageType": "orderChange"
   }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -647,7 +653,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:50:39.658Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -664,7 +670,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -687,7 +693,7 @@ func TestWsOrders(t *testing.T) {
 	"timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -704,7 +710,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
