@@ -646,7 +646,7 @@ type FuturesContract struct {
 	FundingRateIndicative types.Number  `json:"funding_rate_indicative"`
 	MarkPriceRound        types.Number  `json:"mark_price_round"`
 	FundingOffset         types.Number  `json:"funding_offset"`
-	InDelisting           bool          `json:"in_delisting"`
+	Delisting           bool          `json:"in_delisting"`
 	RiskLimitBase         types.Number  `json:"risk_limit_base"`
 	InterestRate          types.Number  `json:"interest_rate"`
 	OrderPriceRound       types.Number  `json:"order_price_round"`
