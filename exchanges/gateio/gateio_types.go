@@ -3128,10 +3128,40 @@ type UserRebaseSubRelation struct {
 
 // LoadDetail represents a borrow or repay action detail information
 type LoadDetail struct {
-	Currency     string       `json:"currency"`
+	ID            int64        `json:"id"`
+	Currency      string       `json:"currency"`
+	CurrencyPair  string       `json:"currency_pair"`
+	Amount        types.Number `json:"amount"`
+	ActionType    string       `json:"type"`
+	ChangeTime    types.Time   `json:"change_time"`
+	CreateTime    types.Time   `json:"create_time"`
+	MarginMode    string       `json:"margin_mode"`
+	RepaymentType string       `json:"repayment_type"`
+}
+
+// InterestDeductionRecord holds an interest deduction record
+type InterestDeductionRecord struct {
+	Status       int64        `json:"status"`
 	CurrencyPair string       `json:"currency_pair"`
-	Amount       types.Number `json:"amount"`
-	ActionType   string       `json:"type"`
-	ChangeTime   types.Time   `json:"change_time"`
+	Currency     string       `json:"currency"`
+	ActualRate   types.Number `json:"actual_rate"`
+	Interest     string       `json:"interest"`
+	LoanType     string       `json:"type"`
 	CreateTime   types.Time   `json:"create_time"`
+}
+
+// UserRiskUnitDetail holds a user unit risk detail
+type UserRiskUnitDetail struct {
+	UserID    uint64 `json:"user_id"`
+	SpotHedge bool   `json:"spot_hedge"`
+	RiskUnits []struct {
+		Symbol         string       `json:"symbol"`
+		SpotInUse      string       `json:"spot_in_use"`
+		MaintainMargin types.Number `json:"maintain_margin"`
+		InitialMargin  types.Number `json:"initial_margin"`
+		Delta          types.Number `json:"delta"`
+		Gamma          types.Number `json:"gamma"`
+		Theta          types.Number `json:"theta"`
+		Vega           types.Number `json:"vega"`
+	} `json:"risk_units"`
 }

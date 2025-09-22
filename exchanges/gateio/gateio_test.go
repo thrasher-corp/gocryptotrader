@@ -2877,7 +2877,28 @@ func TestBorrowOrRepay(t *testing.T) {
 func TestGetLoans(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetLoans(context.Background(), currency.ETH, "repay", 0, 1000)
+	_, err := e.GetLoans(t.Context(), currency.ETH, "repay", 0, 1000)
+	assert.NoError(t, err)
+}
+
+func TestGetLoanRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetLoanRecords(t.Context(), currency.ETH, "repay", 0, 1000)
+	assert.NoError(t, err)
+}
+
+func TestGetInterestDeductionRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetInterestDeductionRecords(t.Context(), currency.BTC, 0, 10, time.Time{}, time.Time{}, "platform")
+	assert.NoError(t, err)
+}
+
+func TestGetUserRiskUnitDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetUserRiskUnitDetails(t.Context())
 	assert.NoError(t, err)
 }
 

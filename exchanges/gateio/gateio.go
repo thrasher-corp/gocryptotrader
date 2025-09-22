@@ -580,6 +580,15 @@ func (e *Exchange) BorrowOrRepay(ctx context.Context, arg *BorrowOrRepayParams) 
 
 // GetLoans retrieves a list of borrow or repay loan actions detail
 func (e *Exchange) GetLoans(ctx context.Context, ccy currency.Code, loanType string, page, limit uint64) ([]LoadDetail, error) {
+	return e.getLoans(ctx, ccy, loanType, "unified/loans", page, limit)
+}
+
+// GetLoanRecords retrieves a borrow and repay loan types records
+func (e *Exchange) GetLoanRecords(ctx context.Context, ccy currency.Code, loanType string, page, limit uint64) ([]LoadDetail, error) {
+	return e.getLoans(ctx, ccy, loanType, "unified/loan_records", page, limit)
+}
+
+func (e *Exchange) getLoans(ctx context.Context, ccy currency.Code, loanType, path string, page, limit uint64) ([]LoadDetail, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -594,8 +603,43 @@ func (e *Exchange) GetLoans(ctx context.Context, ccy currency.Code, loanType str
 		params.Set("type", loanType)
 	}
 	var resp []LoadDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/loans", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, path, params, nil, &resp)
 }
+
+// GetInterestDeductionRecords retrieves interest deduction records
+func (e *Exchange) GetInterestDeductionRecords(ctx context.Context, ccy currency.Code, page, limit uint64, startTime, endTime time.Time, loanType string) ([]InterestDeductionRecord, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("from", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if loanType != "" {
+		params.Set("type", loanType)
+	}
+	var resp []InterestDeductionRecord
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/interest_records", params, nil, &resp)
+}
+
+// GetUserRiskUnitDetails holds a user risk unit details
+func (e *Exchange) GetUserRiskUnitDetails(ctx context.Context) (*UserRiskUnitDetail, error) {
+	var resp *UserRiskUnitDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/risk_units", nil, nil, &resp)
+}
+
+// func (e *Exchange) SetUnifiedAccountMode(ctx context.Context, )
 
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
 // maximum 10 orders each, are allowed in one request No mixture of spot orders and margin orders, i.e. account must be identical for all orders
