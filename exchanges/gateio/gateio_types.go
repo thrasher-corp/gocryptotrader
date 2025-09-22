@@ -496,8 +496,8 @@ type CurrencyPairDetail struct {
 	MaxBaseAmount   types.Number  `json:"max_base_amount"`
 	MaxQuoteAmount  types.Number  `json:"max_quote_amount"`
 	AmountPrecision float64       `json:"amount_precision"`
-	PricePrecision       float64       `json:"precision"`
-	TradeStatus     string        `json:"trade_status"`     // e.g. "untradable", "buyable", "sellable", "tradable"
+	PricePrecision  float64       `json:"precision"`
+	TradeStatus     string        `json:"trade_status"` // e.g. "untradable", "buyable", "sellable", "tradable"
 	SellStart       types.Time    `json:"sell_start"`
 	BuyStart        types.Time    `json:"buy_start"`
 	DelistingTime   types.Time    `json:"delisting_time"`
@@ -646,7 +646,7 @@ type FuturesContract struct {
 	FundingRateIndicative types.Number  `json:"funding_rate_indicative"`
 	MarkPriceRound        types.Number  `json:"mark_price_round"`
 	FundingOffset         types.Number  `json:"funding_offset"`
-	Delisting           bool          `json:"in_delisting"`
+	Delisting             bool          `json:"in_delisting"`
 	RiskLimitBase         types.Number  `json:"risk_limit_base"`
 	InterestRate          types.Number  `json:"interest_rate"`
 	OrderPriceRound       types.Number  `json:"order_price_round"`
