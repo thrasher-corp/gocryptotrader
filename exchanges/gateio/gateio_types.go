@@ -495,8 +495,8 @@ type CurrencyPairDetail struct {
 	MinQuoteAmount  types.Number  `json:"min_quote_amount"`
 	MaxBaseAmount   types.Number  `json:"max_base_amount"`
 	MaxQuoteAmount  types.Number  `json:"max_quote_amount"`
-	AmountPrecision float64       `json:"amount_precision"` // Amount scale
-	Precision       float64       `json:"precision"`        // Price scale
+	AmountPrecision float64       `json:"amount_precision"`
+	PricePrecision       float64       `json:"precision"`
 	TradeStatus     string        `json:"trade_status"`     // e.g. "untradable", "buyable", "sellable", "tradable"
 	SellStart       types.Time    `json:"sell_start"`
 	BuyStart        types.Time    `json:"buy_start"`
