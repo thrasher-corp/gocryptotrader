@@ -168,7 +168,7 @@ func (e *Exchange) wsHandleV2ping(ctx context.Context, respRaw []byte) error {
 	if err != nil {
 		return fmt.Errorf("error getting ts from auth ping: %w", err)
 	}
-	if err := e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.Itoa(int(ts))+`}}`)); err != nil {
+	if err := e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.FormatInt(ts, 10)+`}}`)); err != nil {
 		return fmt.Errorf("error sending auth pong response: %w", err)
 	}
 	return nil

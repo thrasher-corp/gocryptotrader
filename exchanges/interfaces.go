@@ -47,7 +47,7 @@ type IBotExchange interface {
 	GetCachedOrderbook(p currency.Pair, a asset.Item) (*orderbook.Book, error)
 	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error)
 	FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error)
-	UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
+	UpdateTradablePairs(ctx context.Context) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
 	GetPairFormat(asset.Item, bool) (currency.PairFormat, error)
@@ -135,6 +135,8 @@ type OrderManagement interface {
 	GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
 	WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error)
 	WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) (responses []*order.SubmitResponse, err error)
+	WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error)
+	WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error
 }
 
 // CurrencyStateManagement defines functionality for currency state management

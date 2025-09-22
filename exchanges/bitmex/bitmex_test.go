@@ -747,7 +747,7 @@ func TestWsAuth(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), true)
+	err := e.UpdateTradablePairs(t.Context())
 	require.NoError(t, err)
 }
 
@@ -942,7 +942,7 @@ func TestWsTrades(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), false)
+	err := e.UpdateTradablePairs(t.Context())
 	require.NoError(t, err)
 	currencyPair := e.CurrencyPairs.Pairs[asset.Futures].Available[0]
 	_, err = e.GetRecentTrades(t.Context(), currencyPair, asset.Futures)
@@ -951,7 +951,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), false)
+	err := e.UpdateTradablePairs(t.Context())
 	require.NoError(t, err)
 	currencyPair := e.CurrencyPairs.Pairs[asset.Futures].Available[0]
 	_, err = e.GetHistoricTrades(t.Context(), currencyPair, asset.Futures, time.Now().Add(-time.Minute), time.Now())
