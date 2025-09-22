@@ -212,7 +212,7 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 	e.Features.Subscriptions = subscription.List{
 		{Enabled: true, Channel: spotOrderbookUpdateWithSnapshotChannel, Asset: asset.Spot, Levels: 50},
 	}
-	expanded, err := e.Features.Subscriptions.ExpandTemplates(e)
+	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err)
 
 	conn := &FixtureConnection{}
