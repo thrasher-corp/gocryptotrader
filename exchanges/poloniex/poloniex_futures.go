@@ -54,9 +54,6 @@ func (e *Exchange) GetAccountBills(ctx context.Context, startTime, endTime time.
 
 // PlaceV3FuturesOrder place an order in futures trading.
 func (e *Exchange) PlaceV3FuturesOrder(ctx context.Context, arg *FuturesParams) (*FuturesV3OrderIDResponse, error) {
-	if arg == nil || *arg == (FuturesParams{}) {
-		return nil, common.ErrEmptyParams
-	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -92,9 +89,6 @@ func (e *Exchange) PlaceV3FuturesMultipleOrders(ctx context.Context, args []Futu
 }
 
 func validationOrderCreationParam(arg *FuturesParams) error {
-	if *arg == (FuturesParams{}) {
-		return common.ErrEmptyParams
-	}
 	if arg.Symbol == "" {
 		return currency.ErrSymbolStringEmpty
 	}
@@ -115,9 +109,6 @@ func validationOrderCreationParam(arg *FuturesParams) error {
 
 // CancelV3FuturesOrder cancels an order in futures trading.
 func (e *Exchange) CancelV3FuturesOrder(ctx context.Context, arg *CancelOrderParams) (*FuturesV3OrderIDResponse, error) {
-	if arg == nil || *arg == (CancelOrderParams{}) {
-		return nil, common.ErrEmptyParams
-	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -130,9 +121,6 @@ func (e *Exchange) CancelV3FuturesOrder(ctx context.Context, arg *CancelOrderPar
 
 // CancelMultipleV3FuturesOrders cancel orders in a batch. A maximum of 10 orders can be cancelled per request.
 func (e *Exchange) CancelMultipleV3FuturesOrders(ctx context.Context, args *CancelOrdersParams) ([]FuturesV3OrderIDResponse, error) {
-	if args == nil {
-		return nil, common.ErrEmptyParams
-	}
 	if args.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -567,7 +555,7 @@ func (e *Exchange) GetV3IndexPriceComponents(ctx context.Context, symbol string)
 }
 
 // GetIndexPriceKlineData obtain the K-line data for the index price.
-func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (interface{}, error) {
+func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (any, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}

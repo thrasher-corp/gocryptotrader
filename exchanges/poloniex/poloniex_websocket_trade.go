@@ -30,7 +30,7 @@ func (e *Exchange) WsCreateOrder(arg *PlaceOrderParams) (*PlaceOrderResponse, er
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errInvalidResponse
+		return nil, common.ErrInvalidResponse
 	} else if resp[0].Code != 0 {
 		return nil, fmt.Errorf("error code: %d message: %s", resp[0].Code, resp[0].Message)
 	}
@@ -63,14 +63,14 @@ func (e *Exchange) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]WsC
 }
 
 // SendWebsocketRequest represents a websocket request through the authenticated connections.
-func (e *Exchange) SendWebsocketRequest(event string, arg, response interface{}) error {
+func (e *Exchange) SendWebsocketRequest(event string, arg, response any) error {
 	if !e.Websocket.IsConnected() || !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	input := &struct {
-		ID     string      `json:"id"`
-		Event  string      `json:"event"`
-		Params interface{} `json:"params"`
+		ID     string `json:"id"`
+		Event  string `json:"event"`
+		Params any    `json:"params"`
 	}{
 		ID:     strconv.FormatInt(e.Websocket.Conn.GenerateMessageID(false), 10),
 		Event:  event,

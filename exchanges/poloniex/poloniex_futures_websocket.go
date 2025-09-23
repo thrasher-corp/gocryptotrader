@@ -24,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -73,54 +72,32 @@ var defaultFuturesChannels = []string{
 var onceFuturesOrderbook map[string]bool
 
 // WsFuturesConnect establishes a websocket connection to the futures websocket server.
-func (e *Exchange) WsFuturesConnect() error {
+func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	ctx := context.TODO()
-	var dialer gws.Dialer
 	onceFuturesOrderbook = make(map[string]bool)
-	err := e.Websocket.SetWebsocketURL(futuresWebsocketPublicURL, false, false)
-	if err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Delay:       time.Second * 15,
 		Message:     []byte(`{"type":"ping"}`),
 		MessageType: gws.TextMessage,
 	})
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err = e.AuthConnect()
-		if err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", e.Name, err)
-		}
-	}
-	e.Websocket.Wg.Add(1)
-	go e.wsFuturesReadData(e.Websocket.Conn)
 	return nil
 }
 
-// AuthConnect establishes a websocket and authenticates to futures private websocket
-func (e *Exchange) AuthConnect() error {
-	creds, err := e.GetCredentials(context.Background())
+// FuturesAuthConnect establishes a websocket and authenticates to futures private websocket
+func (e *Exchange) FuturesAuthConnect(ctx context.Context, conn websocket.Connection) error {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	var dialer gws.Dialer
-	err = e.Websocket.SetWebsocketURL(futuresWebsocketPrivateURL, false, false)
-	if err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	err = e.Websocket.Conn.Dial(context.Background(), &dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	e.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Delay:       time.Second * 15,
 		Message:     []byte(`{"type":"ping"}`),
 		MessageType: gws.TextMessage,
@@ -135,9 +112,7 @@ func (e *Exchange) AuthConnect() error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsFuturesReadData(e.Websocket.AuthConn)
-	data, err := e.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, "auth", &SubscriptionPayload{
+	data, err := conn.SendMessageReturnResponse(ctx, request.Auth, "auth", &SubscriptionPayload{
 		Event:   "subscribe",
 		Channel: []string{"auth"},
 		Params: map[string]any{
@@ -160,22 +135,7 @@ func (e *Exchange) AuthConnect() error {
 	return nil
 }
 
-// wsFuturesReadData handles data from the websocket connection for futures instruments subscriptions.
-func (e *Exchange) wsFuturesReadData(conn websocket.Connection) {
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := e.wsFuturesHandleData(resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- fmt.Errorf("%s: %w", e.Name, err)
-		}
-	}
-}
-
-func (e *Exchange) wsFuturesHandleData(respRaw []byte) error {
+func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connection, respRaw []byte) error {
 	var result *FuturesSubscriptionResp
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
@@ -183,7 +143,7 @@ func (e *Exchange) wsFuturesHandleData(respRaw []byte) error {
 	}
 	switch result.Channel {
 	case cnlAuth:
-		if !e.Websocket.Match.IncomingWithData("auth", respRaw) {
+		if !conn.IncomingWithData("auth", respRaw) {
 			return fmt.Errorf("could not match data with %s %s", "auth", respRaw)
 		}
 		return nil
@@ -405,7 +365,7 @@ func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(data []byte, inte
 	return nil
 }
 
-func (e *Exchange) processData(data []byte, respStruct interface{}) error {
+func (e *Exchange) processData(data []byte, respStruct any) error {
 	err := json.Unmarshal(data, &respStruct)
 	if err != nil {
 		return err
@@ -485,15 +445,14 @@ func (e *Exchange) processFuturesTickers(data []byte) error {
 			return err
 		}
 		tickerPrices[a] = ticker.Price{
-			High:        resp[a].HighPrice.Float64(),
-			Low:         resp[a].LowPrice.Float64(),
-			Bid:         resp[a].BestBidPrice.Float64(),
-			BidSize:     resp[a].BestBidSize.Float64(),
-			Ask:         resp[a].BestAskPrice.Float64(),
-			AskSize:     resp[a].BestAskSize.Float64(),
-			Volume:      resp[a].Quantity.Float64(),
-			QuoteVolume: resp[a].Amount.Float64(),
-			// PriceATH
+			High:         resp[a].HighPrice.Float64(),
+			Low:          resp[a].LowPrice.Float64(),
+			Bid:          resp[a].BestBidPrice.Float64(),
+			BidSize:      resp[a].BestBidSize.Float64(),
+			Ask:          resp[a].BestAskPrice.Float64(),
+			AskSize:      resp[a].BestAskSize.Float64(),
+			Volume:       resp[a].Quantity.Float64(),
+			QuoteVolume:  resp[a].Amount.Float64(),
 			Open:         resp[a].OpeningPrice.Float64(),
 			Close:        resp[a].ClosingPrice.Float64(),
 			MarkPrice:    resp[a].MarkPrice.Float64(),
@@ -639,29 +598,29 @@ func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscript
 }
 
 // SubscribeFutures sends a websocket message to receive data from the channel
-func (e *Exchange) SubscribeFutures(subs subscription.List) error {
+func (e *Exchange) SubscribeFutures(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	payloads := e.handleFuturesSubscriptions("subscribe", subs)
 	var err error
 	for i := range payloads {
-		err = e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
+		err = conn.SendJSONMessage(ctx, request.UnAuth, payloads[i])
 		if err != nil {
 			return err
 		}
 	}
-	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subs...)
+	return e.Websocket.AddSuccessfulSubscriptions(conn, subs...)
 }
 
 // UnsubscribeFutures sends a websocket message to stop receiving data from the channel
-func (e *Exchange) UnsubscribeFutures(unsub subscription.List) error {
+func (e *Exchange) UnsubscribeFutures(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
 	payloads := e.handleFuturesSubscriptions("unsubscribe", unsub)
 	var err error
 	for i := range payloads {
-		err = e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
+		err = conn.SendJSONMessage(ctx, request.UnAuth, payloads[i])
 		if err != nil {
 			return err
 		}
 	}
-	return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, unsub...)
+	return e.Websocket.RemoveSubscriptions(conn, unsub...)
 }
 
 // ----------------------------------------------------------------

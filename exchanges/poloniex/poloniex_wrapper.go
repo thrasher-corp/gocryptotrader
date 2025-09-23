@@ -163,20 +163,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            poloniexWebsocketAddress,
-		RunningURL:            wsRunningURL,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig: exch,
+		FillsFeed:      e.Features.Enabled.FillsFeed,
+		TradeFeed:      e.Features.Enabled.TradeFeed,
+		Features:       &e.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -186,20 +177,64 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  poloniexWebsocketAddress,
-		RateLimit:            request.NewWeightedRateLimitByDuration(500 * time.Millisecond),
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		URL:                   poloniexWebsocketAddress,
+		RateLimit:             request.NewWeightedRateLimitByDuration(500 * time.Millisecond),
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		GenerateSubscriptions: e.GenerateDefaultSubscriptions,
+		Handler:               e.wsHandleData,
+		Connector:             e.WsConnect,
+		MessageFilter:         asset.Spot.String() + ":public",
 	})
 	if err != nil {
 		return err
 	}
+	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		URL:                   poloniexPrivateWebsocketAddress,
+		RateLimit:             request.NewWeightedRateLimitByDuration(500 * time.Millisecond),
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		GenerateSubscriptions: e.GenerateDefaultSubscriptions,
+		Handler:               e.wsHandleData,
+		Connector:             e.wsAuthConn,
+		MessageFilter:         asset.Spot.String() + ":private",
+		Authenticated:         true,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Futures Public Connection
+	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   futuresWebsocketPublicURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Handler:               e.wsFuturesHandleData,
+		Subscriber:            e.SubscribeFutures,
+		Unsubscriber:          e.UnsubscribeFutures,
+		GenerateSubscriptions: e.GenerateFuturesDefaultSubscriptions,
+		Connector:             e.WsFuturesConnect,
+		MessageFilter:         asset.Futures,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Futures Private Connection
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  poloniexPrivateWebsocketAddress,
-		RateLimit:            request.NewWeightedRateLimitByDuration(500 * time.Millisecond),
-		Authenticated:        true,
+		URL:                   futuresWebsocketPrivateURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Handler:               e.wsFuturesHandleData,
+		Subscriber:            e.SubscribeFutures,
+		Unsubscriber:          e.UnsubscribeFutures,
+		GenerateSubscriptions: e.GenerateFuturesDefaultSubscriptions,
+		Connector:             e.FuturesAuthConnect,
+		MessageFilter:         asset.Futures,
 	})
 }
 
@@ -301,7 +336,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 		}
 	case asset.Futures:
-		ticks, err := e.GetV3FuturesMarketInfo(context.Background(), "")
+		ticks, err := e.GetV3FuturesMarketInfo(ctx, "")
 		if err != nil {
 			return err
 		}
@@ -665,7 +700,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	switch s.AssetType {
 	case asset.Spot:
 		var smartOrder bool
-		var response *PlaceOrderResponse
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop:
 			smartOrder = true
@@ -705,11 +739,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			TimeInForce:   tif,
 			ClientOrderID: s.ClientOrderID,
 		}
-		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			response, err = e.WsCreateOrder(arg)
-		} else {
-			response, err = e.PlaceOrder(ctx, arg)
-		}
+		var response *PlaceOrderResponse
+		response, err = e.PlaceOrder(ctx, arg)
 		if err != nil {
 			return nil, err
 		}
@@ -781,7 +812,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	}
 	switch action.Type {
 	case order.Market, order.Limit, order.LimitMaker:
-		resp, err := e.CancelReplaceOrder(ctx, &CancelReplaceOrderParam{
+		resp, err := e.CancelReplaceOrder(ctx, &CancelReplaceOrderRequest{
 			orderID:       action.OrderID,
 			ClientOrderID: action.ClientOrderID,
 			Price:         action.Price,
@@ -869,7 +900,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
 		}
 		if assetType != o[i].AssetType {
-			return nil, errOrderAssetTypeMismatch
+			return nil, fmt.Errorf("%w: order asset type mismatch detected", asset.ErrInvalidAsset)
 		}
 		if !slices.Contains([]order.Type{order.Market, order.Limit, order.AnyType, order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit, order.UnknownType}, o[i].Type) {
 			return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, commonOrderType.String())
@@ -889,7 +920,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			if o[i].Pair.String() == "" {
 				return nil, currency.ErrSymbolStringEmpty
 			} else if pairString != o[i].Pair.String() {
-				return nil, errPairStringMismatch
+				return nil, currency.ErrCurrencyNotFound
 			}
 		}
 	}
@@ -1956,6 +1987,61 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	default:
 		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
+}
+
+// WebsocketSubmitOrder submits an order to the exchange via a websocket connection
+func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if s == nil || *s == (order.Submit{}) {
+		return nil, common.ErrEmptyParams
+	}
+	var err error
+	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	oTypeString, err := OrderTypeString(s.Type)
+	if err != nil {
+		return nil, err
+	}
+	var tif string
+	tif, err = TimeInForceString(s.TimeInForce)
+	if err != nil {
+		return nil, err
+	}
+	if s.AssetType != asset.Spot {
+		return nil, fmt.Errorf("%w: websocket order submit is not supported for asset type: %v", asset.ErrNotSupported, s.AssetType)
+	}
+	arg := &PlaceOrderParams{
+		Symbol:        s.Pair,
+		Price:         s.Price,
+		Amount:        s.Amount,
+		AllowBorrow:   false,
+		Type:          oTypeString,
+		Side:          s.Side.String(),
+		TimeInForce:   tif,
+		ClientOrderID: s.ClientOrderID,
+	}
+	var response *PlaceOrderResponse
+	response, err = e.WsCreateOrder(arg)
+	if err != nil {
+		return nil, err
+	}
+	return s.DeriveSubmitResponse(response.ID)
+}
+
+// WebsocketSubmitOrders submits multiple orders (batch) via the websocket connection
+func (e *Exchange) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses []*order.SubmitResponse, err error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketModifyOrder modifies an order via the websocket connection
+func (e *Exchange) WebsocketModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketCancelOrder cancels an order via the websocket connection
+func (e *Exchange) WebsocketCancelOrder(context.Context, *order.Cancel) error {
+	return common.ErrFunctionNotSupported
 }
 
 // OrderTypeString return a string representation of order type

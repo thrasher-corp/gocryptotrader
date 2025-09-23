@@ -6170,7 +6170,6 @@ func TestWsProcessSpreadTradesJSON(t *testing.T) {
 
 func TestOrderTypeFromString(t *testing.T) {
 	t.Parallel()
-
 	orderTypeStrings := map[string]struct {
 		OType order.Type
 		TIF   order.TimeInForce

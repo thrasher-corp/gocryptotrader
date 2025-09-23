@@ -225,7 +225,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 }
 
 // MessageWriteJSON writes JSON to a connection
-func MessageWriteJSON(w http.ResponseWriter, status int, data interface{}) {
+func MessageWriteJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set(contentType, applicationJSON)
 	w.WriteHeader(status)
 	if data != nil {

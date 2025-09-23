@@ -292,6 +292,72 @@ func TestSubmitOrder(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestWebsocketSubmitOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.WebsocketSubmitOrder(t.Context(), &order.Submit{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	arg := &order.Submit{AssetType: asset.Futures, TimeInForce: order.GoodTillCrossing}
+	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	arg.Pair = futuresTradablePair
+	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrInvalidTimeInForce)
+
+	arg.TimeInForce = order.GoodTillCancel
+	arg.AssetType = asset.Options
+	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	arg.AssetType = asset.Spot
+	arg.Type = order.Liquidation
+	arg.Pair = spotTradablePair
+	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.WebsocketSubmitOrder(generateContext(), &order.Submit{
+		Exchange:  e.Name,
+		Pair:      spotTradablePair,
+		Side:      order.Buy,
+		Type:      order.Market,
+		Price:     10,
+		Amount:    10000000,
+		AssetType: asset.Spot,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.WebsocketSubmitOrder(generateContext(), &order.Submit{
+		Exchange:     e.Name,
+		Pair:         spotTradablePair,
+		Side:         order.Buy,
+		Type:         order.StopLimit,
+		TriggerPrice: 11,
+		Price:        10,
+		Amount:       10000000,
+		ClientID:     "hi",
+		AssetType:    asset.Spot,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.WebsocketSubmitOrder(generateContext(), &order.Submit{
+		Exchange:     e.Name,
+		Pair:         spotTradablePair,
+		Side:         order.Buy,
+		Type:         order.Market,
+		TriggerPrice: 11,
+		Price:        10,
+		Amount:       10000000,
+		ClientID:     "hi",
+		AssetType:    asset.Futures,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
 	arg := &order.Cancel{
@@ -605,13 +671,13 @@ func TestCancelBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233", Pair: futuresTradablePair}, {AssetType: asset.Spot, Pair: futuresTradablePair}})
-	require.ErrorIs(t, err, errOrderAssetTypeMismatch)
+	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233"}, {AssetType: asset.Futures}})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{Pair: futuresTradablePair, AssetType: asset.Futures, OrderID: "1233"}, {OrderID: "1233", AssetType: asset.Futures, Pair: spotTradablePair}})
-	require.ErrorIs(t, err, errPairStringMismatch)
+	require.ErrorIs(t, err, currency.ErrPairNotFound)
 
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Spot, OrderID: "1233", Type: order.Liquidation}, {AssetType: asset.Spot, OrderID: "123444", Type: order.StopLimit}})
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
@@ -1150,7 +1216,7 @@ func TestWalletActivity(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestNewCurrencyDepoditAddress(t *testing.T) {
+func TestNewCurrencyDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := e.NewCurrencyDepositAddress(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
@@ -1323,15 +1389,15 @@ func TestPlaceBatchOrders(t *testing.T) {
 
 func TestCancelReplaceOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderParam{})
+	_, err := e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderRequest{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderParam{
+	_, err = e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderRequest{
 		TimeInForce: "GTC",
 	})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderParam{
+	result, err := e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderRequest{
 		orderID:       "29772698821328896",
 		ClientOrderID: "1234Abc",
 		Price:         18000,
@@ -1396,13 +1462,13 @@ func TestCancelAllTradeOrders(t *testing.T) {
 
 func TestKillSwitch(t *testing.T) {
 	t.Parallel()
-	_, err := e.KillSwitch(t.Context(), "")
+	_, err := e.KillSwitch(t.Context(), 0)
 	require.ErrorIs(t, err, errInvalidTimeout)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.KillSwitch(generateContext(), "30")
+	result, err := e.KillSwitch(generateContext(), time.Second*30)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1585,8 +1651,11 @@ var pushMessages = map[string]string{
 func TestWsPushData(t *testing.T) {
 	t.Parallel()
 	for key, value := range pushMessages {
-		err := e.wsHandleData([]byte(value))
-		assert.NoErrorf(t, err, "%s error %s: %v", e.Name, key, err)
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+			err := e.wsHandleData(t.Context(), e.Websocket.Conn, []byte(value))
+			assert.NoError(t, err)
+		})
 	}
 }
 
@@ -1684,8 +1753,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		pairs, err := e.CurrencyPairs.GetPairs(a, false)
-		assert.NoError(t, err, "cannot get pairs for %s", a)
-		assert.NotEmpty(t, pairs, "no pairs for %s", a)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, pairs)
 
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		assert.NoError(t, err)
@@ -1715,8 +1784,11 @@ func TestWsFuturesHandleData(t *testing.T) {
 	t.Parallel()
 	var err error
 	for title, data := range futuresPushDataMap {
-		err = e.wsFuturesHandleData([]byte(data))
-		assert.NoErrorf(t, err, "%s: unexpected error %v", title, err)
+		t.Run(title, func(t *testing.T) {
+			t.Parallel()
+			err = e.wsFuturesHandleData(t.Context(), e.Websocket.Conn, []byte(data))
+			assert.NoError(t, err)
+		})
 	}
 }
 
@@ -1751,12 +1823,10 @@ func TestGetAccountBills(t *testing.T) {
 
 func TestPlaceV3FuturesOrder(t *testing.T) {
 	t.Parallel()
-	arg := &FuturesParams{}
+	arg := &FuturesParams{
+		ReduceOnly: true,
+	}
 	_, err := e.PlaceV3FuturesOrder(t.Context(), arg)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-
-	arg.ReduceOnly = true
-	_, err = e.PlaceV3FuturesOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	arg.Symbol = "BTC_USDT_PERP"
@@ -1794,12 +1864,10 @@ func TestPlaceV3FuturesOrder(t *testing.T) {
 
 func TestPlaceMultipleOrders(t *testing.T) {
 	t.Parallel()
-	arg := FuturesParams{}
+	arg := FuturesParams{
+		ReduceOnly: true,
+	}
 	_, err := e.PlaceV3FuturesMultipleOrders(t.Context(), []FuturesParams{arg})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-
-	arg.ReduceOnly = true
-	_, err = e.PlaceV3FuturesMultipleOrders(t.Context(), []FuturesParams{arg})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	arg.Symbol = "BTC_USDT_PERP"
@@ -1840,10 +1908,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 
 func TestCancelV3FuturesOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelV3FuturesOrder(t.Context(), &CancelOrderParams{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-
-	_, err = e.CancelV3FuturesOrder(t.Context(), &CancelOrderParams{OrderID: "1234"})
+	_, err := e.CancelV3FuturesOrder(t.Context(), &CancelOrderParams{OrderID: "1234"})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = e.CancelV3FuturesOrder(t.Context(), &CancelOrderParams{Symbol: futuresTradablePair.String()})
@@ -1858,10 +1923,7 @@ func TestCancelV3FuturesOrder(t *testing.T) {
 
 func TestCancelMultipleV3FuturesOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelMultipleV3FuturesOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-
-	_, err = e.CancelMultipleV3FuturesOrders(t.Context(), &CancelOrdersParams{})
+	_, err := e.CancelMultipleV3FuturesOrders(t.Context(), &CancelOrdersParams{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	if !mockTests {

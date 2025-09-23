@@ -57,14 +57,11 @@ var defaultSubscriptions = []string{
 var onceOrderbook map[string]struct{}
 
 // WsConnect initiates a websocket connection
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
+func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	pingMessage := &struct {
@@ -73,29 +70,21 @@ func (e *Exchange) WsConnect() error {
 		Event: "ping",
 	}
 	var pingPayload []byte
-	pingPayload, err = json.Marshal(pingMessage)
+	pingPayload, err := json.Marshal(pingMessage)
 	if err != nil {
 		return err
 	}
-	e.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.TextMessage,
 		Message:           pingPayload,
 		Delay:             30,
 	})
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err := e.wsAuthConn()
-		if err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
 	onceOrderbook = make(map[string]struct{})
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(e.Websocket.Conn)
 	return nil
 }
 
-func (e *Exchange) wsAuthConn() error {
+func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return err
@@ -122,8 +111,6 @@ func (e *Exchange) wsAuthConn() error {
 		Message:           pingPayload,
 		Delay:             30,
 	})
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(e.Websocket.AuthConn)
 	timestamp := time.Now()
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(fmt.Sprintf("GET\n/ws\nsignTimestamp=%d", timestamp.UnixMilli())),
@@ -160,29 +147,14 @@ func (e *Exchange) wsAuthConn() error {
 	return nil
 }
 
-// wsReadData handles data from the websocket connection
-func (e *Exchange) wsReadData(conn websocket.Connection) {
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := e.wsHandleData(resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- fmt.Errorf("%s: %w", e.Name, err)
-		}
-	}
-}
-
-func (e *Exchange) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var result SubscriptionResponse
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
 		return err
 	}
 	if result.ID != "" {
-		if !e.Websocket.Match.IncomingWithData(result.ID, respRaw) {
+		if !conn.IncomingWithData(result.ID, respRaw) {
 			return fmt.Errorf("could not match trade response with ID: %s Event: %s ", result.ID, result.Event)
 		}
 		return nil
@@ -193,7 +165,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 	}
 	switch result.Channel {
 	case cnlAuth:
-		if !e.Websocket.Match.IncomingWithData("auth", respRaw) {
+		if !conn.IncomingWithData("auth", respRaw) {
 			return fmt.Errorf("could not match data with %s %s", "auth", respRaw)
 		}
 		return nil
@@ -452,7 +424,7 @@ func (e *Exchange) processCandlestickData(result *SubscriptionResponse) error {
 	return nil
 }
 
-func (e *Exchange) processResponse(result *SubscriptionResponse, instance interface{}) error {
+func (e *Exchange) processResponse(result *SubscriptionResponse, instance any) error {
 	err := json.Unmarshal(result.Data, instance)
 	if err != nil {
 		return err
@@ -477,9 +449,9 @@ func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 	for i := range channels {
 		switch channels[i] {
 		case cnlSymbols, cnlTrades, cnlTicker, cnlBooks, cnlBookLevel2:
-			var params map[string]interface{}
+			var params map[string]any
 			if channels[i] == cnlBooks {
-				params = map[string]interface{}{
+				params = map[string]any{
 					"depth": 20,
 				}
 			}
@@ -512,7 +484,7 @@ func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[i],
 				Pairs:   enabledCurrencies,
-				Params: map[string]interface{}{
+				Params: map[string]any{
 					"interval": kline.FiveMin,
 				},
 			})
@@ -585,14 +557,14 @@ func (e *Exchange) handleSubscriptions(operation string, subscs subscription.Lis
 				Channel: []string{subscs[x].Channel},
 			})
 		default:
-			return nil, errChannelNotSupported
+			return nil, subscription.ErrNotSupported
 		}
 	}
 	return payloads, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (e *Exchange) Subscribe(subs subscription.List) error {
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	payloads, err := e.handleSubscriptions("subscribe", subs)
 	if err != nil {
 		return err
@@ -601,23 +573,23 @@ func (e *Exchange) Subscribe(subs subscription.List) error {
 		switch payloads[i].Channel[0] {
 		case cnlBalances, cnlOrders:
 			if e.Websocket.CanUseAuthenticatedEndpoints() {
-				err = e.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
+				err = conn.SendJSONMessage(ctx, request.UnAuth, payloads[i])
 				if err != nil {
 					return err
 				}
 			}
 		default:
-			err = e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
+			err = conn.SendJSONMessage(ctx, request.UnAuth, payloads[i])
 			if err != nil {
 				return err
 			}
 		}
 	}
-	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subs...)
+	return e.Websocket.AddSuccessfulSubscriptions(conn, subs...)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) Unsubscribe(unsub subscription.List) error {
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
 	payloads, err := e.handleSubscriptions("unsubscribe", unsub)
 	if err != nil {
 		return err
@@ -626,17 +598,17 @@ func (e *Exchange) Unsubscribe(unsub subscription.List) error {
 		switch payloads[i].Channel[0] {
 		case cnlBalances, cnlOrders:
 			if e.IsWebsocketAuthenticationSupported() && e.Websocket.CanUseAuthenticatedEndpoints() {
-				err = e.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
+				err = conn.SendJSONMessage(ctx, request.UnAuth, payloads[i])
 				if err != nil {
 					return err
 				}
 			}
 		default:
-			err = e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, payloads[i])
+			err = conn.SendJSONMessage(ctx, request.UnAuth, payloads[i])
 			if err != nil {
 				return err
 			}
 		}
 	}
-	return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, unsub...)
+	return e.Websocket.RemoveSubscriptions(conn, unsub...)
 }

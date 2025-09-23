@@ -551,8 +551,8 @@ type PlaceBatchOrderRespItem struct {
 	Message       string `json:"message,omitempty"`
 }
 
-// CancelReplaceOrderParam represents a cancellation and order replacement request parameter.
-type CancelReplaceOrderParam struct {
+// CancelReplaceOrderRequest represents a cancellation and order replacement request parameter.
+type CancelReplaceOrderRequest struct {
 	orderID           string  // orderID: used in order path parameter.
 	ClientOrderID     string  `json:"clientOrderId"`
 	Price             float64 `json:"price,omitempty,string"`
@@ -778,10 +778,10 @@ func (a *SubscriptionResponse) GetWsResponse() *WsResponse {
 
 // WsResponse represents a websocket push data instance.
 type WsResponse struct {
-	Event   string      `json:"event"`
-	Channel string      `json:"channel"`
-	Action  string      `json:"action"`
-	Data    interface{} `json:"data"`
+	Event   string `json:"event"`
+	Channel string `json:"channel"`
+	Action  string `json:"action"`
+	Data    any    `json:"data"`
 }
 
 // WsSymbol represents a subscription
@@ -954,8 +954,8 @@ type WsTradeBalance struct {
 
 // WebsocketResponse represents a websocket responses.
 type WebsocketResponse struct {
-	ID   string      `json:"id"`
-	Data interface{} `json:"data"`
+	ID   string `json:"id"`
+	Data any    `json:"data"`
 }
 
 // FuturesSubscriptionInput represents a subscription input through the futures stream.
