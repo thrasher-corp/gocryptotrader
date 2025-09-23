@@ -628,7 +628,7 @@ func (e *Exchange) processData(respRaw []byte, result any) error {
 
 func (e *Exchange) processCandleChart(respRaw []byte, channels []string) error {
 	if len(channels) != 4 {
-		return fmt.Errorf("%w, expected format 'chart.trades.{instrument_name}.{resolution}', but found %s", common.ErrMalformedData, strings.Join(channels, "."))
+		return fmt.Errorf("%w, expected format 'chart.trades.{instrument_name}.{resolution}', but found %s", common.ErrInvalidResponse, strings.Join(channels, "."))
 	}
 	a, cp, err := getAssetPairByInstrument(channels[2])
 	if err != nil {
