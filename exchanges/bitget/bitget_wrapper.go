@@ -49,7 +49,7 @@ func (e *Exchange) GetDefaultConfig(ctx context.Context) (*config.Exchange, erro
 		return nil, err
 	}
 	if e.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = e.UpdateTradablePairs(ctx, true)
+		err = e.UpdateTradablePairs(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -180,9 +180,9 @@ func (e *Exchange) SetDefaults() {
 		},
 		Subscriptions: defaultSubscriptions.Clone(),
 		TradingRequirements: protocol.TradingRequirements{
-			SpotMarketOrderAmountPurchaseQuotationOnly: false,
-			SpotMarketOrderAmountSellBaseOnly:          true,
-			ClientOrderID:                              false,
+			SpotMarketBuyQuotation: false,
+			SpotMarketSellBase:     true,
+			ClientOrderID:          false,
 		},
 	}
 	e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(GetRateLimits()))
@@ -252,7 +252,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  wsPub,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            GetRateLimits()[RateSubscription],
+		RateLimit:            GetRateLimits()[rateSubscription],
 	})
 	if err != nil {
 		return err
@@ -262,7 +262,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Authenticated:        true,
-		RateLimit:            GetRateLimits()[RateSubscription],
+		RateLimit:            GetRateLimits()[rateSubscription],
 	})
 }
 
@@ -323,7 +323,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	assetTypes := e.GetAssetTypes(false)
 	for x := range assetTypes {
 		pairs, err := e.FetchTradablePairs(ctx, assetTypes[x])
@@ -336,7 +336,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 				return err
 			}
 		}
-		err = e.UpdatePairs(pairs, assetTypes[x], false, forceUpdate)
+		err = e.UpdatePairs(pairs, assetTypes[x], false)
 		if err != nil {
 			return err
 		}
@@ -941,7 +941,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	case asset.Spot:
 		IDs, err = e.PlaceSpotOrder(ctx, s.Pair, s.Side.String(), s.Type.Lower(), strategy, cID.String(), "", s.Price, s.Amount, s.TriggerPrice, 0, 0, 0, 0, false, 0)
 	case asset.Futures:
-		IDs, err = e.PlaceFuturesOrder(ctx, s.Pair, getProductType(s.Pair), marginStringer(s.MarginType), sideEncoder(s.Side, false), "", s.Type.Lower(), strategy, cID.String(), "", s.Pair.Quote, 0, 0, s.Amount, s.Price, s.ReduceOnly, false)
+		IDs, err = e.PlaceFuturesOrder(ctx, s.Pair, getProductType(s.Pair), marginStringer(s.MarginType), sideEncoder(s.Side, false), "", s.Type.Lower(), strategy, cID.String(), "", s.Pair.Quote, 0, 0, s.Amount, s.Price, YesNoBool(s.ReduceOnly), false)
 	case asset.Margin, asset.CrossMargin:
 		loanType := "normal"
 		if s.AutoBorrow {
@@ -1868,24 +1868,24 @@ func (e *Exchange) UpdateCurrencyStates(ctx context.Context, a asset.Item) error
 		return err
 	}
 	for i := range resp {
-		var withdraw bool
-		var deposit bool
-		var trade bool
+		var isWithdraw bool
+		var isDeposit bool
+		var isTrade bool
 		for j := range resp[i].Chains {
 			if resp[i].Chains[j].Withdrawable {
-				withdraw = true
+				isWithdraw = true
 			}
 			if resp[i].Chains[j].Rechargeable {
-				deposit = true
+				isDeposit = true
 			}
 		}
-		if withdraw && deposit {
-			trade = true
+		if isWithdraw && isDeposit {
+			isTrade = true
 		}
 		payload[resp[i].Coin] = currencystate.Options{
-			Withdraw: &withdraw,
-			Deposit:  &deposit,
-			Trade:    &trade,
+			Withdraw: &isWithdraw,
+			Deposit:  &isDeposit,
+			Trade:    &isTrade,
 		}
 	}
 	return e.States.UpdateAll(a, payload)
@@ -1894,7 +1894,7 @@ func (e *Exchange) UpdateCurrencyStates(ctx context.Context, a asset.Item) error
 // GetAvailableTransferChains returns a list of supported transfer chains based on the supplied cryptocurrency
 func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cur currency.Code) ([]string, error) {
 	if cur.IsEmpty() {
-		return nil, errCurrencyEmpty
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	resp, err := e.GetCoinInfo(ctx, cur)
 	if err != nil {
@@ -2369,11 +2369,11 @@ func typeDecoder(s string) order.Type {
 }
 
 // WithdrawalHistGrabber is a helper function that repeatedly calls GetWithdrawalRecords and returns all data
-func (e *Exchange) withdrawalHistGrabber(ctx context.Context, currency currency.Code) ([]WithdrawRecordsResp, error) {
+func (e *Exchange) withdrawalHistGrabber(ctx context.Context, cur currency.Code) ([]WithdrawRecordsResp, error) {
 	var allData []WithdrawRecordsResp
 	var pagination int64
 	for {
-		resp, err := e.GetWithdrawalRecords(ctx, currency, "", time.Now().Add(-time.Hour*24*90), time.Now(), pagination, 0, 100)
+		resp, err := e.GetWithdrawalRecords(ctx, cur, "", time.Now().Add(-time.Hour*24*90), time.Now(), pagination, 0, 100)
 		if err != nil {
 			return nil, err
 		}
@@ -2512,7 +2512,7 @@ func (e *Exchange) activeFuturesOrderHelper(ctx context.Context, productType str
 func (e *Exchange) spotHistoricPlanOrdersHelper(ctx context.Context, pairCan currency.Pair, resp []order.Detail, fillMap map[int64][]order.TradeHistory) ([]order.Detail, error) {
 	var pagination int64
 	for {
-		genOrds, err := e.GetSpotPlanOrderHistory(ctx, pairCan, time.Now().Add(-time.Hour*24*90), time.Now() /*.Add(-time.Second)*/, 100, pagination)
+		genOrds, err := e.GetSpotPlanOrderHistory(ctx, pairCan, time.Now().Add(-time.Hour*24*90), time.Now().Add(-time.Second), 100, pagination) // Even with time synced, the exchange's clock can lag behind and reject requests; bumping time back by a second to account for this
 		if err != nil {
 			return nil, err
 		}

@@ -444,7 +444,7 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 		return err
 	}
 	if wsResponse.Action[0] == 's' {
-		orderbook := orderbook.Book{
+		ob := orderbook.Book{
 			Pair:                   pair,
 			Asset:                  itemDecoder(wsResponse.Arg.InstrumentType),
 			Bids:                   bids,
@@ -454,7 +454,7 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 			ValidateOrderbook:      e.ValidateOrderbook,
 			ChecksumStringRequired: true,
 		}
-		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook)
+		err = e.Websocket.Orderbook.LoadSnapshot(&ob)
 		if err != nil {
 			return err
 		}
@@ -1164,7 +1164,7 @@ func (e *Exchange) manageSubs(op string, subs subscription.List) error {
 			wg.Add(1)
 			go func(req WsRequest) {
 				defer wg.Done()
-				err := e.Websocket.Conn.SendJSONMessage(context.TODO(), RateSubscription, req)
+				err := e.Websocket.Conn.SendJSONMessage(context.TODO(), rateSubscription, req)
 				if err != nil {
 					errC <- err
 				}
@@ -1176,7 +1176,7 @@ func (e *Exchange) manageSubs(op string, subs subscription.List) error {
 			wg.Add(1)
 			go func(req WsRequest) {
 				defer wg.Done()
-				err := e.Websocket.AuthConn.SendJSONMessage(context.TODO(), RateSubscription, req)
+				err := e.Websocket.AuthConn.SendJSONMessage(context.TODO(), rateSubscription, req)
 				if err != nil {
 					errC <- err
 				}

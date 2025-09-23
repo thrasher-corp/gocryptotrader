@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"strings"
@@ -34,6 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // User-defined constants to aid testing
@@ -116,7 +118,6 @@ func TestMain(m *testing.M) {
 	case "encoding/json":
 		errUnmarshalArray = "cannot unmarshal array"
 	}
-	e.Verbose = true
 	os.Exit(m.Run())
 }
 
@@ -276,18 +277,107 @@ func TestGetFuturesActiveVolume(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesActiveVolume(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	resp, err := e.GetFuturesActiveVolume(t.Context(), testPair, "")
+	te := new(Exchange) // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
+	err = testexch.Setup(te)
 	require.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/"+bitgetMix+bitgetMarket+bitgetTakerBuySell, r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write([]byte(`{"code":"00000","msg":"success","requestTime":1758610429242,"data":[{"sellVolume":"61.87730903","buyVolume":"21.44177026","ts":"1758601500000"},{"sellVolume":"144.01881548","buyVolume":"112.84393002","ts":"1758601800000"},{"sellVolume":"43.49533167","buyVolume":"96.40228133","ts":"1758602100000"},{"sellVolume":"101.4114906","buyVolume":"213.27441876","ts":"1758602400000"},{"sellVolume":"31.2574504","buyVolume":"29.26275559","ts":"1758602700000"},{"sellVolume":"28.17317576","buyVolume":"43.50686056","ts":"1758603000000"},{"sellVolume":"26.3517612","buyVolume":"21.58492462","ts":"1758603300000"}]}`))
+		assert.NoError(t, err)
+	}))
+	defer server.Close()
+	err = te.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/")
+	require.NoError(t, err)
+	expectedData := []ActiveVolumeResp{
+		{
+			SellVolume: 61.87730903,
+			BuyVolume:  21.44177026,
+			Timestamp:  types.Time(time.UnixMilli(1758601500000)),
+		},
+		{
+			SellVolume: 144.01881548,
+			BuyVolume:  112.84393002,
+			Timestamp:  types.Time(time.UnixMilli(1758601800000)),
+		},
+		{
+			SellVolume: 43.49533167,
+			BuyVolume:  96.40228133,
+			Timestamp:  types.Time(time.UnixMilli(1758602100000)),
+		},
+		{
+			SellVolume: 101.4114906,
+			BuyVolume:  213.27441876,
+			Timestamp:  types.Time(time.UnixMilli(1758602400000)),
+		},
+		{
+			SellVolume: 31.2574504,
+			BuyVolume:  29.26275559,
+			Timestamp:  types.Time(time.UnixMilli(1758602700000)),
+		},
+		{
+			SellVolume: 28.17317576,
+			BuyVolume:  43.50686056,
+			Timestamp:  types.Time(time.UnixMilli(1758603000000)),
+		},
+		{
+			SellVolume: 26.3517612,
+			BuyVolume:  21.58492462,
+			Timestamp:  types.Time(time.UnixMilli(1758603300000)),
+		},
+	}
+	result, err := te.GetFuturesActiveVolume(t.Context(), testPair, "")
+	require.NoError(t, err)
+	assert.Equal(t, expectedData, result)
 }
 
 func TestGetFuturesPositionRatios(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesPositionRatios(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	resp, err := e.GetFuturesPositionRatios(t.Context(), testPair, "")
+	te := new(Exchange) // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
+	err = testexch.Setup(te)
 	require.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/"+bitgetMix+bitgetMarket+bitgetPositionLongShort, r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write([]byte(`{"code":"00000","msg":"success","requestTime":1758611552124,"data":[{"longPositionRatio":"0.5061","shortPositionRatio":"0.4939","longShortPositionRatio":"0.0102","ts":"1758602400000"},{"longPositionRatio":"0.5058","shortPositionRatio":"0.4942","longShortPositionRatio":"0.0102","ts":"1758602700000"},{"longPositionRatio":"0.5058","shortPositionRatio":"0.4942","longShortPositionRatio":"0.0102","ts":"1758603000000"},{"longPositionRatio":"0.5055","shortPositionRatio":"0.4945","longShortPositionRatio":"0.0102","ts":"1758603300000"}]}`))
+		assert.NoError(t, err)
+	}))
+	defer server.Close()
+	err = te.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/")
+	require.NoError(t, err)
+	expectedData := []PosRatFutureResp{
+		{
+			LongPositionRatio:      0.5061,
+			ShortPositionRatio:     0.4939,
+			LongShortPositionRatio: 0.0102,
+			Timestamp:              types.Time(time.UnixMilli(1758602400000)),
+		},
+		{
+			LongPositionRatio:      0.5058,
+			ShortPositionRatio:     0.4942,
+			LongShortPositionRatio: 0.0102,
+			Timestamp:              types.Time(time.UnixMilli(1758602700000)),
+		},
+		{
+			LongPositionRatio:      0.5058,
+			ShortPositionRatio:     0.4942,
+			LongShortPositionRatio: 0.0102,
+			Timestamp:              types.Time(time.UnixMilli(1758603000000)),
+		},
+		{
+			LongPositionRatio:      0.5055,
+			ShortPositionRatio:     0.4945,
+			LongShortPositionRatio: 0.0102,
+			Timestamp:              types.Time(time.UnixMilli(1758603300000)),
+		},
+	}
+	result, err := te.GetFuturesPositionRatios(t.Context(), testPair, "")
+	require.NoError(t, err)
+	assert.Equal(t, expectedData, result)
 }
 
 func TestGetMarginPositionRatios(t *testing.T) {
@@ -321,9 +411,48 @@ func TestGetFuturesRatios(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesRatios(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	resp, err := e.GetFuturesRatios(t.Context(), testPair, "")
+	te := new(Exchange) // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
+	err = testexch.Setup(te)
 	require.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/"+bitgetMix+bitgetMarket+bitgetLongShort, r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write([]byte(`{"code":"00000","msg":"success","requestTime":1758611911133,"data":[{"longRatio":"0.7743","shortRatio":"0.2257","longShortRatio":"0.0343","ts":"1758602700000"},{"longRatio":"0.7743","shortRatio":"0.2257","longShortRatio":"0.0343","ts":"1758603000000"},{"longRatio":"0.7753","shortRatio":"0.2247","longShortRatio":"0.0345","ts":"1758603300000"},{"longRatio":"0.7753","shortRatio":"0.2247","longShortRatio":"0.0345","ts":"1758603600000"}]}`))
+		assert.NoError(t, err)
+	}))
+	defer server.Close()
+	err = te.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/")
+	require.NoError(t, err)
+	expectedData := []RatioResp{
+		{
+			LongRatio:      0.7743,
+			ShortRatio:     0.2257,
+			LongShortRatio: 0.0343,
+			Timestamp:      types.Time(time.UnixMilli(1758602700000)),
+		},
+		{
+			LongRatio:      0.7743,
+			ShortRatio:     0.2257,
+			LongShortRatio: 0.0343,
+			Timestamp:      types.Time(time.UnixMilli(1758603000000)),
+		},
+		{
+			LongRatio:      0.7753,
+			ShortRatio:     0.2247,
+			LongShortRatio: 0.0345,
+			Timestamp:      types.Time(time.UnixMilli(1758603300000)),
+		},
+		{
+			LongRatio:      0.7753,
+			ShortRatio:     0.2247,
+			LongShortRatio: 0.0345,
+			Timestamp:      types.Time(time.UnixMilli(1758603600000)),
+		},
+	}
+	result, err := te.GetFuturesRatios(t.Context(), testPair, "")
+	require.NoError(t, err)
+	assert.Equal(t, expectedData, result)
 }
 
 func TestGetSpotFundFlows(t *testing.T) {
@@ -349,9 +478,48 @@ func TestGetFuturesAccountRatios(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesAccountRatios(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	resp, err := e.GetFuturesAccountRatios(t.Context(), testPair, "")
+	te := new(Exchange) // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
+	err = testexch.Setup(te)
 	require.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/"+bitgetMix+bitgetMarket+bitgetAccountLongShort, r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write([]byte(`{"code":"00000","msg":"success","requestTime":1758612172170,"data":[{"longAccountRatio":"0.7724","shortAccountRatio":"0.2276","longShortAccountRatio":"0.0339","ts":"1758603000000"},{"longAccountRatio":"0.7734","shortAccountRatio":"0.2266","longShortAccountRatio":"0.0341","ts":"1758603300000"},{"longAccountRatio":"0.7735","shortAccountRatio":"0.2265","longShortAccountRatio":"0.0341","ts":"1758603600000"},{"longAccountRatio":"0.7737","shortAccountRatio":"0.2263","longShortAccountRatio":"0.0341","ts":"1758603900000"}]}`))
+		assert.NoError(t, err)
+	}))
+	defer server.Close()
+	err = te.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/")
+	require.NoError(t, err)
+	expectedData := []AccountRatioResp{
+		{
+			LongAccountRatio:      0.7724,
+			ShortAccountRatio:     0.2276,
+			LongShortAccountRatio: 0.0339,
+			Timestamp:             types.Time(time.UnixMilli(1758603000000)),
+		},
+		{
+			LongAccountRatio:      0.7734,
+			ShortAccountRatio:     0.2266,
+			LongShortAccountRatio: 0.0341,
+			Timestamp:             types.Time(time.UnixMilli(1758603300000)),
+		},
+		{
+			LongAccountRatio:      0.7735,
+			ShortAccountRatio:     0.2265,
+			LongShortAccountRatio: 0.0341,
+			Timestamp:             types.Time(time.UnixMilli(1758603600000)),
+		},
+		{
+			LongAccountRatio:      0.7737,
+			ShortAccountRatio:     0.2263,
+			LongShortAccountRatio: 0.0341,
+			Timestamp:             types.Time(time.UnixMilli(1758603900000)),
+		},
+	}
+	result, err := te.GetFuturesAccountRatios(t.Context(), testPair, "")
+	require.NoError(t, err)
+	assert.Equal(t, expectedData, result)
 }
 
 func TestCreateVirtualSubaccounts(t *testing.T) {
@@ -478,7 +646,7 @@ func TestGetConvertCoints(t *testing.T) {
 func TestGetQuotedPrice(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetQuotedPrice(t.Context(), currency.Code{}, currency.Code{}, 0, 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.GetQuotedPrice(t.Context(), currency.NewCode("meow"), currency.NewCode("woof"), 0, 0)
 	assert.ErrorIs(t, err, errFromToMutex)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -507,7 +675,7 @@ func TestGetBGBConvertCoins(t *testing.T) {
 func TestConvertBGB(t *testing.T) {
 	t.Parallel()
 	// No matter what currency I use, this returns the error "currency does not support convert"; possibly a bad error message, with the true issue being lack of funds?
-	testGetOneArg(t, e.ConvertBGB, nil, []currency.Code{testCrypto3}, errCurrencyEmpty, false, true, canManipulateRealOrders)
+	testGetOneArg(t, e.ConvertBGB, nil, []currency.Code{testCrypto3}, currency.ErrCurrencyCodeEmpty, false, true, canManipulateRealOrders)
 }
 
 func TestGetBGBConvertHistory(t *testing.T) {
@@ -845,7 +1013,7 @@ func TestModifyDepositAccount(t *testing.T) {
 	_, err := e.ModifyDepositAccount(t.Context(), "", currency.Code{})
 	assert.ErrorIs(t, err, errAccountTypeEmpty)
 	_, err = e.ModifyDepositAccount(t.Context(), "meow", currency.Code{})
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	resp, err := e.ModifyDepositAccount(t.Context(), "spot", testFiat)
 	assert.NoError(t, err)
@@ -912,7 +1080,7 @@ func TestSubaccountTransfer(t *testing.T) {
 func TestWithdrawFunds(t *testing.T) {
 	t.Parallel()
 	_, err := e.WithdrawFunds(t.Context(), currency.Code{}, "", "", "", "", "", "", "", "", "", "", "", "", "", 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.WithdrawFunds(t.Context(), testCrypto, "", "", "", "", "", "", "", "", "", "", "", "", "", 0)
 	assert.ErrorIs(t, err, errTransferTypeEmpty)
 	_, err = e.WithdrawFunds(t.Context(), testCrypto, "woof", "", "", "", "", "", "", "", "", "", "", "", "", 0)
@@ -936,7 +1104,7 @@ func TestGetSubaccountTransferRecord(t *testing.T) {
 func TestGetTransferRecord(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTransferRecord(t.Context(), currency.Code{}, "", "", time.Time{}, time.Time{}, 0, 0, 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.GetTransferRecord(t.Context(), testCrypto, "", "", time.Time{}, time.Time{}, 0, 0, 0)
 	assert.ErrorIs(t, err, errFromTypeEmpty)
 	_, err = e.GetTransferRecord(t.Context(), testCrypto, "woof", "", time.Now().Add(time.Hour), time.Time{}, 0, 0, 0)
@@ -955,7 +1123,7 @@ func TestSwitchBGBDeductionStatus(t *testing.T) {
 func TestGetDepositAddressForCurrency(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDepositAddressForCurrency(t.Context(), currency.Code{}, "", 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	resp, err := e.GetDepositAddressForCurrency(t.Context(), testCrypto, "", 0)
 	require.NoError(t, err)
@@ -967,7 +1135,7 @@ func TestGetSubaccountDepositAddress(t *testing.T) {
 	_, err := e.GetSubaccountDepositAddress(t.Context(), "", "", currency.Code{}, 0)
 	assert.ErrorIs(t, err, errSubaccountEmpty)
 	_, err = e.GetSubaccountDepositAddress(t.Context(), "meow", "", currency.Code{}, 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	resp, err := e.GetSubaccountDepositAddress(t.Context(), deposSubaccID, "", testCrypto, 0)
 	require.NoError(t, err)
@@ -1029,7 +1197,7 @@ func TestGetFuturesVIPFeeRate(t *testing.T) {
 
 func TestGetInterestRateHistory(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, e.GetInterestRateHistory, currency.Code{}, testFiat, errCurrencyEmpty, true, false, false)
+	testGetOneArg(t, e.GetInterestRateHistory, currency.Code{}, testFiat, currency.ErrCurrencyCodeEmpty, true, false, false)
 }
 
 func TestGetInterestExchangeRate(t *testing.T) {
@@ -1248,7 +1416,7 @@ func TestAdjustMargin(t *testing.T) {
 	err = e.AdjustMargin(t.Context(), testPair2, "woof", "", currency.Code{}, 0)
 	assert.ErrorIs(t, err, errMarginCoinEmpty)
 	err = e.AdjustMargin(t.Context(), testPair2, "woof", "", testFiat2, 0)
-	assert.ErrorIs(t, err, errAmountEmpty)
+	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
 	err = e.AdjustMargin(t.Context(), testPair2, "woof", "", testFiat2, 1)
 	assert.ErrorIs(t, err, errHoldSideEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1460,6 +1628,7 @@ func TestGetFuturesOrderFillHistory(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	// Keeps getting "Parameter verification failed" error and I can't figure out why
 	// Now it's "Parameter verification failed 500"
+	// And now it's "Parameter validation failed 510"
 	resp, err := e.GetFuturesOrderFillHistory(t.Context(), currency.Pair{}, testFiat2.String()+"-FUTURES", 0, 1<<62, 5, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	if len(resp.FillList) == 0 {
@@ -1717,7 +1886,7 @@ func TestGetCrossAccountAssets(t *testing.T) {
 func TestCrossBorrow(t *testing.T) {
 	t.Parallel()
 	_, err := e.CrossBorrow(t.Context(), currency.Code{}, "", 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.CrossBorrow(t.Context(), testFiat, "", 0)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1728,7 +1897,7 @@ func TestCrossBorrow(t *testing.T) {
 func TestCrossRepay(t *testing.T) {
 	t.Parallel()
 	_, err := e.CrossRepay(t.Context(), currency.Code{}, 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.CrossRepay(t.Context(), testFiat, 0)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1744,22 +1913,22 @@ func TestGetCrossRiskRate(t *testing.T) {
 
 func TestGetCrossMaxBorrowable(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, e.GetCrossMaxBorrowable, currency.Code{}, testFiat, errCurrencyEmpty, false, true, true)
+	testGetOneArg(t, e.GetCrossMaxBorrowable, currency.Code{}, testFiat, currency.ErrCurrencyCodeEmpty, false, true, true)
 }
 
 func TestGetCrossMaxTransferable(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, e.GetCrossMaxTransferable, currency.Code{}, testFiat, errCurrencyEmpty, false, true, true)
+	testGetOneArg(t, e.GetCrossMaxTransferable, currency.Code{}, testFiat, currency.ErrCurrencyCodeEmpty, false, true, true)
 }
 
 func TestGetCrossInterestRateAndMaxBorrowable(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, e.GetCrossInterestRateAndMaxBorrowable, currency.Code{}, testFiat, errCurrencyEmpty, false, true, true)
+	testGetOneArg(t, e.GetCrossInterestRateAndMaxBorrowable, currency.Code{}, testFiat, currency.ErrCurrencyCodeEmpty, false, true, true)
 }
 
 func TestGetCrossTierConfiguration(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, e.GetCrossTierConfiguration, currency.Code{}, testFiat, errCurrencyEmpty, false, true, true)
+	testGetOneArg(t, e.GetCrossTierConfiguration, currency.Code{}, testFiat, currency.ErrCurrencyCodeEmpty, false, true, true)
 }
 
 func TestCrossFlashRepay(t *testing.T) {
@@ -1942,7 +2111,7 @@ func TestIsolatedBorrow(t *testing.T) {
 	_, err := e.IsolatedBorrow(t.Context(), currency.Pair{}, currency.Code{}, "", 0)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.IsolatedBorrow(t.Context(), testPair, currency.Code{}, "", 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.IsolatedBorrow(t.Context(), testPair, testFiat, "", 0)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1955,7 +2124,7 @@ func TestIsolatedRepay(t *testing.T) {
 	_, err := e.IsolatedRepay(t.Context(), 0, currency.Code{}, currency.Pair{}, "")
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.IsolatedRepay(t.Context(), 1, currency.Code{}, currency.Pair{}, "")
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.IsolatedRepay(t.Context(), 1, testFiat, currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -2103,7 +2272,7 @@ func TestGetIsolatedLiquidationOrders(t *testing.T) {
 func TestGetSavingsProductList(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSavingsProductList(t.Context(), currency.Code{}, "")
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetSavingsProductList(t.Context(), testCrypto, "")
 	assert.NoError(t, err)
@@ -2259,7 +2428,7 @@ func TestGetEarnAccountAssets(t *testing.T) {
 func TestGetSharkFinProducts(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSharkFinProducts(t.Context(), currency.Code{}, 0, 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetSharkFinProducts(t.Context(), testCrypto, 5, 1<<62)
 	assert.NoError(t, err)
@@ -2339,7 +2508,7 @@ func TestGetSharkFinSubscriptionResult(t *testing.T) {
 
 func TestGetLoanCurrencyList(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, e.GetLoanCurrencyList, currency.Code{}, testFiat, errCurrencyEmpty, false, true, true)
+	testGetOneArg(t, e.GetLoanCurrencyList, currency.Code{}, testFiat, currency.ErrCurrencyCodeEmpty, false, true, true)
 }
 
 func TestGetEstimatedInterestAndBorrowable(t *testing.T) {
@@ -2475,7 +2644,7 @@ func TestGetLoanToValue(t *testing.T) {
 func TestGetTransferableAmount(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTransferableAmount(t.Context(), "", currency.Code{})
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetTransferableAmount(t.Context(), "", testFiat)
 	assert.NoError(t, err)
@@ -2738,7 +2907,7 @@ func TestGetOrderInfo(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDepositAddress(t.Context(), currency.NewCode(""), "", "")
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetDepositAddress(t.Context(), testCrypto, "", "")
 	assert.NoError(t, err)
@@ -2927,7 +3096,7 @@ func TestUpdateCurrencyStates(t *testing.T) {
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, e.GetAvailableTransferChains, currency.EMPTYCODE, testCrypto, errCurrencyEmpty, false, false, true)
+	testGetOneArg(t, e.GetAvailableTransferChains, currency.EMPTYCODE, testCrypto, currency.ErrCurrencyCodeEmpty, false, false, true)
 	_, err := e.GetAvailableTransferChains(t.Context(), fakeCurrency)
 	assert.Error(t, err)
 }
@@ -3047,7 +3216,7 @@ func TestGetLeverage(t *testing.T) {
 	_, err = e.GetLeverage(t.Context(), asset.Margin, testPair, 0, 0)
 	assert.NoError(t, err)
 	_, err = e.GetLeverage(t.Context(), asset.CrossMargin, currency.Pair{}, 0, 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.GetLeverage(t.Context(), asset.CrossMargin, testPair, 0, 0)
 	assert.NoError(t, err)
 }
@@ -3091,7 +3260,7 @@ func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
 // The following 20 tests aren't parallel due to collisions with each other, and some other tests
 func TestCommitConversion(t *testing.T) {
 	_, err := e.CommitConversion(t.Context(), currency.Code{}, currency.Code{}, "", 0, 0, 0)
-	assert.ErrorIs(t, err, errCurrencyEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.CommitConversion(t.Context(), testCrypto, testFiat, "", 0, 0, 0)
 	assert.ErrorIs(t, err, errTraceIDEmpty)
 	_, err = e.CommitConversion(t.Context(), testCrypto, testFiat, "1", 0, 0, 0)
@@ -3817,7 +3986,7 @@ type getOneArgResp interface {
 }
 
 type getOneArgParam interface {
-	string | int64 | []string | bool | asset.Item | *fundingrate.LatestRateRequest | currency.Code | *margin.RateHistoryRequest | *fundingrate.HistoricalRatesRequest | *futures.PositionsRequest | *withdraw.Request | *margin.PositionChangeRequest | currency.Pair | []currency.Code | currency.Pairs
+	string | int64 | []string | bool | asset.Item | *fundingrate.LatestRateRequest | currency.Code | *margin.RateHistoryRequest | *fundingrate.HistoricalRatesRequest | *futures.PositionsRequest | *withdraw.Request | *margin.PositionChangeRequest | currency.Pair | []currency.Code | currency.Pairs | OnOffBool
 }
 
 type getOneArgGen[R getOneArgResp, P getOneArgParam] func(context.Context, P) (R, error)
