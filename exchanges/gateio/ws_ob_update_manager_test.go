@@ -280,7 +280,7 @@ func TestClearWithLock(t *testing.T) {
 	assert.False(t, cache.updating)
 }
 
-func TestClearWithNoLock(t *testing.T) {
+func TestClearNoLock(t *testing.T) {
 	t.Parallel()
 	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}, updating: true}
 	cache.clearNoLock()
