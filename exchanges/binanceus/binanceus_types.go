@@ -129,8 +129,8 @@ type AggregatedTradeRequestParams struct {
 	// The first trade to retrieve
 	FromID int64
 	// The API seems to accept (start and end time) or FromID and no other combinations
-	StartTime int64
-	EndTime   int64
+	StartTime time.Time
+	EndTime   time.Time
 	// Default 500; max 1000.
 	Limit int
 }

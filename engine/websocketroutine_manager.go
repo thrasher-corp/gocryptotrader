@@ -329,7 +329,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 	case order.ClassificationError:
 		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case websocket.UnhandledMessageWarning:
-		log.Warnln(log.WebsocketMgr, d.Message)
+		log.Warnf(log.WebsocketMgr, "%s unhandled message - %s", exchName, d.Message)
 	case account.Change:
 		if m.verbose {
 			m.printAccountHoldingsChangeSummary(exchName, d)
