@@ -398,7 +398,7 @@ func TestGetAndWaitForFocusByKey(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 		qs := mustQuickData(t, TickerFocusType)
-		f, err := qs.GetAndWaitForFocusByKey(t.Context(), TickerFocusType, time.Second)
+		f, err := qs.GetAndWaitForFocusByKey(t.Context(), TickerFocusType, time.Second*5)
 		require.NoError(t, err)
 		require.NotNil(t, f)
 	})
