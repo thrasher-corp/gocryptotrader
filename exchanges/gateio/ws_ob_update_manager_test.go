@@ -277,7 +277,7 @@ func TestClearWithLock(t *testing.T) {
 	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}, updating: true}
 	cache.clearWithLock()
 	require.Empty(t, cache.updates)
-	assert.False(t, cache.updating)
+	assert.False(t, cache.updating, "updating should be correct after clearWithLock")
 }
 
 func TestClearNoLock(t *testing.T) {
@@ -285,5 +285,5 @@ func TestClearNoLock(t *testing.T) {
 	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}, updating: true}
 	cache.clearNoLock()
 	require.Empty(t, cache.updates)
-	assert.False(t, cache.updating)
+	assert.False(t, cache.updating, "updating should be correct after clearWithNoLock")
 }

@@ -166,7 +166,7 @@ func TestChannelKeyMatch(t *testing.T) {
 	require.Panics(t, func() { key.Match(nil) }, "Match on a nil must panic")
 	require.False(t, key.Match(try), "Match must reject a different channel")
 	try.Channel = TickerChannel
-	assert.True(t, key.Match(try), "Match must accept an identical channel")
+	assert.True(t, key.Match(try), "Match should accept an identical channel")
 }
 
 func TestChannelKeyGetSubscription(t *testing.T) {
