@@ -639,12 +639,12 @@ func TestCancelBatchOrders(t *testing.T) {
 		{
 			OrderID:   "134",
 			AssetType: asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USD),
+			Pair:      currency.NewBTCUSD(),
 		},
 		{
 			OrderID:   "234",
 			AssetType: asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USD),
+			Pair:      currency.NewBTCUSD(),
 		},
 	})
 	require.NoError(t, err)
