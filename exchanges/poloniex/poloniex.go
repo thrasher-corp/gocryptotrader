@@ -25,17 +25,16 @@ import (
 )
 
 const (
-	poloniexAPIURL = "https://api.poloniex.com"
-	tradeSpot      = "/trade/"
-	tradeFutures   = "/futures" + tradeSpot
-	marketEps      = "/markets/"
+	poloniexAPIURL   = "https://api.poloniex.com"
+	tradeSpotPath    = "/trade/"
+	tradeFuturesPath = "/futures" + tradeSpotPath
+	marketsPath      = "/markets/"
 )
 
 var (
-	errNilArgument             = errors.New("nil argument")
 	errAddressRequired         = errors.New("address is required")
 	errInvalidWithdrawalChain  = errors.New("invalid withdrawal chain")
-	errInvalidTimeout          = errors.New("timeout must not be empty")
+	errInvalidTimeout          = errors.New("invalid timeout")
 	errChainsNotFound          = errors.New("chains not found")
 	errChannelNotSupported     = errors.New("channel not supported")
 	errAccountIDRequired       = errors.New("missing account ID")
@@ -52,7 +51,8 @@ type Exchange struct {
 	exchange.Base
 }
 
-// GetSymbolInformation all symbols and their tradeLimit info. priceScale is referring to the max number of decimals allowed for a given symbol.
+// GetSymbolInformation returns symbol information
+// symbol may be an empty currency.Pair to return all symbols
 func (e *Exchange) GetSymbolInformation(ctx context.Context, symbol currency.Pair) ([]SymbolDetail, error) {
 	path := "/markets"
 	if !symbol.IsEmpty() {
@@ -62,8 +62,8 @@ func (e *Exchange) GetSymbolInformation(ctx context.Context, symbol currency.Pai
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, path, &resp)
 }
 
-// GetCurrenciesInformation retrieves list of currencies and theiir detailed information.
-func (e *Exchange) GetCurrenciesInformation(ctx context.Context) ([]CurrencyDetail, error) {
+// GetCurrencies returns all currencies and their info
+func (e *Exchange) GetCurrencies(ctx context.Context) ([]CurrencyDetail, error) {
 	var resp []CurrencyDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies", &resp)
 }
@@ -71,9 +71,7 @@ func (e *Exchange) GetCurrenciesInformation(ctx context.Context) ([]CurrencyDeta
 // GetVolume returns a list of currencies with associated volume
 func (e *Exchange) GetVolume(ctx context.Context) (any, error) {
 	var resp any
-	path := "/public?command=return24hVolume"
-
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, path, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/public?command=return24hVolume", &resp)
 }
 
 // GetCurrencyInformation retrieves currency and their detailed information.
@@ -85,18 +83,18 @@ func (e *Exchange) GetCurrencyInformation(ctx context.Context, ccy currency.Code
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies/"+ccy.String(), &resp)
 }
 
-// GetV2CurrencyInformation retrieves list of currency details for V2 API.
-func (e *Exchange) GetV2CurrencyInformation(ctx context.Context) ([]CurrencyV2Information, error) {
-	var resp []CurrencyV2Information
+// GetCurrency retrieves currency and details
+func (e *Exchange) GetCurrency(ctx context.Context) ([]CurrencyInformation, error) {
+	var resp []CurrencyInformation
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies", &resp)
 }
 
 // GetV2FuturesCurrencyInformation retrieves currency details for V2 API.
-func (e *Exchange) GetV2FuturesCurrencyInformation(ctx context.Context, ccy currency.Code) (*CurrencyV2Information, error) {
+func (e *Exchange) GetV2FuturesCurrencyInformation(ctx context.Context, ccy currency.Code) (*CurrencyInformation, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp *CurrencyV2Information
+	var resp *CurrencyInformation
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies/"+ccy.String(), &resp)
 }
 
@@ -112,13 +110,14 @@ func (e *Exchange) GetMarketPrices(ctx context.Context) ([]MarketPrice, error) {
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/price", &resp)
 }
 
-// GetMarketPrice retrieves latest trade price for all symbols.
+// GetMarketPrice retrieves latest trade price for symbols
+// If symbol is empty then all symbols will be returned
 func (e *Exchange) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*MarketPrice, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *MarketPrice
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+symbol.String()+"/price", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String()+"/price", &resp)
 }
 
 // GetMarkPrices retrieves latest mark price for a single cross margin
@@ -133,21 +132,19 @@ func (e *Exchange) GetMarkPrice(ctx context.Context, symbol currency.Pair) (*Mar
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *MarkPrice
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+symbol.String()+"/markPrice", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String()+"/markPrice", &resp)
 }
 
-// MarkPriceComponents retrieves components of the mark price for a given symbol.
-func (e *Exchange) MarkPriceComponents(ctx context.Context, symbol currency.Pair) (*MarkPriceComponent, error) {
+// GetMarkPriceComponents retrieves components of the mark price for a given symbol.
+func (e *Exchange) GetMarkPriceComponents(ctx context.Context, symbol currency.Pair) (*MarkPriceComponent, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *MarkPriceComponent
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+symbol.String()+"/markPriceComponents", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String()+"/markPriceComponents", &resp)
 }
 
-// GetOrderbook retrieves the order book for a given symbol. Scale and limit values are optional.
-// For valid scale values, please refer to the scale values defined for each symbol .
-// If scale is not supplied, then no grouping/aggregation will be applied.
+// GetOrderbook retrieves the order book for a given symbol
 func (e *Exchange) GetOrderbook(ctx context.Context, symbol currency.Pair, scale, limit int64) (*OrderbookData, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -160,7 +157,7 @@ func (e *Exchange) GetOrderbook(ctx context.Context, symbol currency.Pair, scale
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *OrderbookData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketEps+symbol.String()+"/orderBook", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/orderBook", params), &resp)
 }
 
 // GetCandlesticks retrieves OHLC for a symbol at given timeframe (interval).
@@ -188,7 +185,7 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []CandlestickData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketEps+symbol.String()+"/candles", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/candles", params), &resp)
 }
 
 // GetTrades returns a list of recent trades, request param limit is optional, its default value is 500, and max value is 1000.
@@ -201,7 +198,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair, limit in
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []Trade
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, common.EncodeURLValues(marketEps+symbol.String()+"/trades", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/trades", params), &resp)
 }
 
 // GetTickers retrieve ticker in last 24 hours for all symbols.
@@ -216,7 +213,7 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *TickerData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, marketEps+symbol.String()+"/ticker24h", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, marketsPath+symbol.String()+"/ticker24h", &resp)
 }
 
 // GetCollateralInfos retrieves collateral information for all currencies.
@@ -228,7 +225,7 @@ func (e *Exchange) GetCollateralInfos(ctx context.Context) ([]CollateralInfo, er
 // GetCollateralInfo retrieves collateral information for all currencies.
 func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy currency.Code) (*CollateralInfo, error) {
 	var resp *CollateralInfo
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+ccy.String()+"/collateralInfo", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+ccy.String()+"/collateralInfo", &resp)
 }
 
 // GetBorrowRateInfo retrieves borrow rates information for all tiers and currencies.
@@ -267,7 +264,6 @@ func (e *Exchange) GetAllBalance(ctx context.Context, accountID, accountType str
 }
 
 // GetAllAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
-// Type of activity: ALL: 200, AIRDROP: 201, COMMISSION_REBATE: 202, STAKING: 203, REFERRAL_REBATE: 204, SWAP: 205, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
 func (e *Exchange) GetAllAccountActivities(ctx context.Context, startTime, endTime time.Time, activityType, limit, from int64, direction string, ccy currency.Code) ([]AccountActivity, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -297,10 +293,10 @@ func (e *Exchange) GetAllAccountActivities(ctx context.Context, startTime, endTi
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/accounts/activity", params, nil, &resp)
 }
 
-// AccountsTransfer transfer amount of currency from an account to another account for a user.
+// AccountsTransfer transfers currencies between accounts
 func (e *Exchange) AccountsTransfer(ctx context.Context, arg *AccountTransferParams) (*AccountTransferResponse, error) {
 	if *arg == (AccountTransferParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	if arg.Ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -309,10 +305,10 @@ func (e *Exchange) AccountsTransfer(ctx context.Context, arg *AccountTransferPar
 		return nil, fmt.Errorf("%w, amount has to be greater than zero", order.ErrAmountIsInvalid)
 	}
 	if arg.FromAccount == "" {
-		return nil, fmt.Errorf("%w, fromAccount=''", errAddressRequired)
+		return nil, fmt.Errorf("%w: FromAccount", errAddressRequired)
 	}
 	if arg.ToAccount == "" {
-		return nil, fmt.Errorf("%w, toAccount=''", errAddressRequired)
+		return nil, fmt.Errorf("%w: ToAccount", errAddressRequired)
 	}
 	var resp *AccountTransferResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/accounts/transfer", nil, arg, &resp)
@@ -345,7 +341,7 @@ func (e *Exchange) GetAccountTransferRecords(ctx context.Context, startTime, end
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/transfer", params, nil, &resp)
 }
 
-// GetAccountTransferRecord gets a transfer records of a user.
+// GetAccountTransferRecord gets a transfer record of a user.
 func (e *Exchange) GetAccountTransferRecord(ctx context.Context, accountID string) ([]AccountTransferRecord, error) {
 	if accountID == "" {
 		return nil, errAccountIDRequired
@@ -409,12 +405,12 @@ func (e *Exchange) GetSubAccountBalance(ctx context.Context, subAccountID string
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts/"+subAccountID+"/balances", nil, nil, &resp)
 }
 
-// SubAccountTransfer transfer amount of currency from an account and account type to another account and account type among the accounts in the account group.
+// SubAccountTransfer transfers currencies between accounts in the account group.
 // Primary account can transfer to and from any subaccounts as well as transfer between 2 subaccounts across account types.
 // Subaccount can only transfer to the primary account across account types.
 func (e *Exchange) SubAccountTransfer(ctx context.Context, arg *SubAccountTransferParam) (*AccountTransferResponse, error) {
 	if *arg == (SubAccountTransferParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -423,22 +419,22 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg *SubAccountTransf
 		return nil, order.ErrAmountIsInvalid
 	}
 	if arg.FromAccountID == "" {
-		return nil, fmt.Errorf("%w, fromAccountID=''", errAccountIDRequired)
+		return nil, fmt.Errorf("%w: FromAccountID", errAccountIDRequired)
 	}
 	if arg.ToAccountID == "" {
-		return nil, fmt.Errorf("%w, toAccountID=''", errAccountIDRequired)
+		return nil, fmt.Errorf("%w: ToAccountID", errAccountIDRequired)
 	}
 	if arg.FromAccountType == "" {
-		return nil, fmt.Errorf("%w, fromAccountType=''", errAccountTypeRequired)
+		return nil, fmt.Errorf("%w: FromAccountType", errAccountTypeRequired)
 	}
 	if arg.ToAccountType == "" {
-		return nil, fmt.Errorf("%w, toAccountType=''", errAccountTypeRequired)
+		return nil, fmt.Errorf("%w: ToAccountType", errAccountTypeRequired)
 	}
 	var resp *AccountTransferResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/subaccounts/transfer", nil, arg, &resp)
 }
 
-// GetSubAccountTransferRecords get a list of transfer records of a user. Max interval for start and end time is 6 months.
+// GetSubAccountTransferRecords gets a list of transfer records of a user. Max interval for start and end time is 6 months.
 // If no start/end time params are specified then records for last 7 days will be returned.
 func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, fromAccountID, toAccountID, fromAccountType, toAccountType, direction string, from, limit int64) ([]SubAccountTransfer, error) {
 	params := url.Values{}
@@ -554,7 +550,7 @@ func stringToInterval(interval string) (kline.Interval, error) {
 // like fees or if they"re disabled, by adding the "includeMultiChainCurrencies" optional parameter to the /currencies endpoint.
 func (e *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawCurrencyParam) (*Withdraw, error) {
 	if *arg == (WithdrawCurrencyParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	if arg.Currency == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -574,7 +570,7 @@ func (e *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawCurrencyPa
 // In order to use this method, withdrawal privilege must be enabled for your API key.
 func (e *Exchange) WithdrawCurrencyV2(ctx context.Context, arg *WithdrawCurrencyV2Param) (*Withdraw, error) {
 	if *arg == (WithdrawCurrencyV2Param{}) {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	if arg.Coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -626,7 +622,7 @@ func (e *Exchange) MaximumBuySellAmount(ctx context.Context, symbol currency.Pai
 // PlaceOrder places an order for an account.
 func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*PlaceOrderResponse, error) {
 	if *arg == (PlaceOrderParams{}) {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -648,7 +644,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*Plac
 // PlaceBatchOrders places a batch of order for an account.
 func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderParams) ([]PlaceBatchOrderRespItem, error) {
 	if len(args) == 0 {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	for x := range args {
 		if args[x].Symbol.IsEmpty() {
@@ -671,7 +667,7 @@ func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderParams
 // it is possible that the new order will fail due to low available balance.
 func (e *Exchange) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrderParam) (*CancelReplaceOrderResponse, error) {
 	if *arg == (CancelReplaceOrderParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	if arg.orderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -729,7 +725,7 @@ func (e *Exchange) CancelOrderByID(ctx context.Context, id string) (*CancelOrder
 // CancelMultipleOrdersByIDs batch cancel one or many active orders in an account by IDs.
 func (e *Exchange) CancelMultipleOrdersByIDs(ctx context.Context, args *OrderCancellationParams) ([]CancelOrderResponse, error) {
 	if args == nil {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	if len(args.ClientOrderIDs) == 0 && len(args.OrderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
@@ -774,7 +770,7 @@ func (e *Exchange) GetKillSwitchStatus(ctx context.Context) (*KillSwitchStatus, 
 // CreateSmartOrder create a smart order for an account. Funds will only be frozen when the smart order triggers, not upon smart order creation.
 func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestParam) (*PlaceOrderResponse, error) {
 	if *arg == (SmartOrderRequestParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -799,7 +795,7 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestP
 // The proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
 func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelReplaceSmartOrderParam) (*CancelReplaceSmartOrderResponse, error) {
 	if *arg == (CancelReplaceSmartOrderParam{}) {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	var path string
 	switch {
@@ -858,7 +854,7 @@ func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedI
 // CancelMultipleSmartOrders performs a batch cancel one or many smart orders in an account by IDs.
 func (e *Exchange) CancelMultipleSmartOrders(ctx context.Context, args *OrderCancellationParams) ([]CancelOrderResponse, error) {
 	if args == nil {
-		return nil, errNilArgument
+		return nil, common.ErrNilPointer
 	}
 	if len(args.ClientOrderIDs) == 0 && len(args.OrderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
@@ -935,10 +931,7 @@ func (e *Exchange) GetOrdersHistory(ctx context.Context, symbol currency.Pair, a
 		return nil, err
 	}
 	var resp []TradeOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet,
-		"/orders/history",
-		params,
-		nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders/history", params, nil, &resp)
 }
 
 // GetSmartOrderHistory get a list of historical smart orders in an account.
@@ -951,10 +944,7 @@ func (e *Exchange) GetSmartOrderHistory(ctx context.Context, symbol currency.Pai
 		return nil, err
 	}
 	var resp []SmartOrderItem
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot,
-		authResourceIntensiveEPL, http.MethodGet, "/smartorders/history",
-		params,
-		nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/smartorders/history", params, nil, &resp)
 }
 
 // GetTradeHistory get a list of all trades for an account. Currently, trade history is supported since 07/30/2021.

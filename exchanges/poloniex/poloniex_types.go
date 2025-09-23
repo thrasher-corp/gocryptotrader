@@ -123,8 +123,8 @@ type CurrencyDetail map[string]struct {
 	ChildChains           []string `json:"childChains"`
 }
 
-// CurrencyV2Information represents all supported currencies
-type CurrencyV2Information struct {
+// CurrencyInformation represents all supported currencies
+type CurrencyInformation struct {
 	ID          int64  `json:"id"`
 	Coin        string `json:"coin"`
 	Delisted    bool   `json:"delisted"`
@@ -296,7 +296,7 @@ type AccountActivity struct {
 	State        string       `json:"state"`
 	CreateTime   types.Time   `json:"createTime"`
 	Description  string       `json:"description"`
-	ActivityType int64        `json:"activityType"`
+	ActivityType int64        `json:"activityType"` // possible values: 'ALL': 200, 'AIRDROP': 201, 'COMMISSION_REBATE': 202, 'STAKING': 203, 'REFERRAL_REBATE': 204, 'SWAP': 205, 'CREDIT_ADJUSTMENT': 104, 'DEBIT_ADJUSTMENT': 105, 'OTHER': 199
 }
 
 // AccountTransferParams request parameter for account fund transfer.

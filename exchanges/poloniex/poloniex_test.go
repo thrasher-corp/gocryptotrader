@@ -737,14 +737,14 @@ func TestGetSymbolInformation(t *testing.T) {
 
 func TestGetCurrenciesInformation(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetCurrenciesInformation(t.Context())
+	result, err := e.GetCurrencies(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetV2CurrencyInformation(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetV2CurrencyInformation(t.Context())
+	result, err := e.GetCurrency(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -792,10 +792,10 @@ func TestGetMarkPrice(t *testing.T) {
 
 func TestMarkPriceComponents(t *testing.T) {
 	t.Parallel()
-	_, err := e.MarkPriceComponents(t.Context(), currency.EMPTYPAIR)
+	_, err := e.GetMarkPriceComponents(t.Context(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	result, err := e.MarkPriceComponents(t.Context(), spotTradablePair)
+	result, err := e.GetMarkPriceComponents(t.Context(), spotTradablePair)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -940,7 +940,7 @@ func TestGetAllAccountActivities(t *testing.T) {
 func TestAccountsTransfer(t *testing.T) {
 	t.Parallel()
 	_, err := e.AccountsTransfer(t.Context(), &AccountTransferParams{})
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.AccountsTransfer(t.Context(), &AccountTransferParams{Amount: 1232.221})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.AccountsTransfer(t.Context(), &AccountTransferParams{
@@ -1042,7 +1042,7 @@ func TestGetSubAccountBalance(t *testing.T) {
 func TestSubAccountTransfer(t *testing.T) {
 	t.Parallel()
 	_, err := e.SubAccountTransfer(t.Context(), &SubAccountTransferParam{})
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.SubAccountTransfer(t.Context(), &SubAccountTransferParam{Amount: 12.34})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.SubAccountTransfer(t.Context(), &SubAccountTransferParam{
@@ -1166,7 +1166,7 @@ func TestNewCurrencyDepoditAddress(t *testing.T) {
 func TestWithdrawCurrency(t *testing.T) {
 	t.Parallel()
 	_, err := e.WithdrawCurrency(t.Context(), &WithdrawCurrencyParam{})
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = e.WithdrawCurrency(t.Context(), &WithdrawCurrencyParam{
 		Currency: currency.BTC.String() + "TRON", // Sends BTC through the TRON chain
@@ -1186,7 +1186,7 @@ func TestWithdrawCurrency(t *testing.T) {
 func TestWithdrawCurrencyV2(t *testing.T) {
 	t.Parallel()
 	_, err := e.WithdrawCurrencyV2(t.Context(), &WithdrawCurrencyV2Param{})
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.WithdrawCurrencyV2(t.Context(), &WithdrawCurrencyV2Param{Coin: currency.BTC})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.WithdrawCurrencyV2(t.Context(), &WithdrawCurrencyV2Param{Coin: currency.BTC, Amount: 1})
@@ -1235,7 +1235,7 @@ func TestMaximumBuySellAmount(t *testing.T) {
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.PlaceOrder(t.Context(), &PlaceOrderParams{})
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderParams{Amount: 1})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderParams{Symbol: spotTradablePair})
@@ -1258,7 +1258,7 @@ func TestPlaceOrder(t *testing.T) {
 func TestPlaceBatchOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.PlaceBatchOrders(t.Context(), nil)
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.PlaceBatchOrders(t.Context(), []PlaceOrderParams{{}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.PlaceBatchOrders(t.Context(), []PlaceOrderParams{
@@ -1324,7 +1324,7 @@ func TestPlaceBatchOrders(t *testing.T) {
 func TestCancelReplaceOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderParam{})
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderParam{
 		TimeInForce: "GTC",
 	})
@@ -1376,7 +1376,7 @@ func TestCancelOrderByID(t *testing.T) {
 func TestCancelMultipleOrdersByIDs(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelMultipleOrdersByIDs(t.Context(), nil)
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.CancelMultipleOrdersByIDs(t.Context(), &OrderCancellationParams{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -1420,7 +1420,7 @@ func TestGetKillSwitchStatus(t *testing.T) {
 func TestCreateSmartOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.CreateSmartOrder(t.Context(), &SmartOrderRequestParam{})
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestParam{Side: "BUY"})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
@@ -1445,7 +1445,7 @@ func TestCreateSmartOrder(t *testing.T) {
 func TestCancelReplaceSmartOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelReplaceSmartOrder(t.Context(), &CancelReplaceSmartOrderParam{})
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.CancelReplaceSmartOrder(t.Context(), &CancelReplaceSmartOrderParam{Price: 18000})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -1495,7 +1495,7 @@ func TestCancelSmartOrderByID(t *testing.T) {
 func TestCancelMultipleSmartOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelMultipleSmartOrders(t.Context(), nil)
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.CancelMultipleSmartOrders(t.Context(), &OrderCancellationParams{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -1593,7 +1593,7 @@ func TestWsPushData(t *testing.T) {
 func TestWsCreateOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.WsCreateOrder(&PlaceOrderParams{})
-	require.ErrorIs(t, err, errNilArgument)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.WsCreateOrder(&PlaceOrderParams{Amount: 1})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.WsCreateOrder(&PlaceOrderParams{
@@ -1653,12 +1653,12 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, instrument)
 
-	limits, err := e.GetOrderExecutionLimits(asset.Futures, futuresTradablePair)
+	lms, err := e.GetOrderExecutionLimits(asset.Futures, futuresTradablePair)
 	require.NoError(t, err)
-	require.NotNil(t, limits)
-	require.Equal(t, limits.PriceStepIncrementSize, instrument.TickSize.Float64())
-	require.Equal(t, limits.MinimumBaseAmount, instrument.MinQuantity.Float64())
-	assert.Equal(t, limits.MinimumQuoteAmount, instrument.MinSize.Float64())
+	require.NotNil(t, lms)
+	require.Equal(t, lms.PriceStepIncrementSize, instrument.TickSize.Float64())
+	require.Equal(t, lms.MinimumBaseAmount, instrument.MinQuantity.Float64())
+	assert.Equal(t, lms.MinimumQuoteAmount, instrument.MinSize.Float64())
 
 	// sample test for spot instrument order execution limit
 
@@ -1669,12 +1669,12 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, instrument)
 
-	limits, err = e.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
+	lms, err = e.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
 	require.NoError(t, err)
 	require.Len(t, spotInstruments, 1)
-	require.Equal(t, limits.PriceStepIncrementSize, spotInstruments[0].SymbolTradeLimit.PriceScale)
-	require.Equal(t, limits.MinimumBaseAmount, spotInstruments[0].SymbolTradeLimit.MinQuantity.Float64())
-	assert.Equal(t, limits.MinimumQuoteAmount, spotInstruments[0].SymbolTradeLimit.MinAmount.Float64())
+	require.Equal(t, lms.PriceStepIncrementSize, spotInstruments[0].SymbolTradeLimit.PriceScale)
+	require.Equal(t, lms.MinimumBaseAmount, spotInstruments[0].SymbolTradeLimit.MinQuantity.Float64())
+	assert.Equal(t, lms.MinimumQuoteAmount, spotInstruments[0].SymbolTradeLimit.MinAmount.Float64())
 }
 
 // ---- Futures endpoints ---
@@ -1843,7 +1843,6 @@ func TestCancelV3FuturesOrder(t *testing.T) {
 	_, err := e.CancelV3FuturesOrder(t.Context(), &CancelOrderParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
-	e.Verbose = true
 	_, err = e.CancelV3FuturesOrder(t.Context(), &CancelOrderParams{OrderID: "1234"})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 

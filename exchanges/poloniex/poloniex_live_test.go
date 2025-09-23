@@ -19,7 +19,7 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	e = new(Poloniex)
+	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 }
 
 func populateTradablePairs() error {
-	err := e.UpdateTradablePairs(context.Background(), false)
+	err := e.UpdateTradablePairs(context.Background())
 	if err != nil {
 		return err
 	}

@@ -1949,10 +1949,10 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	switch a {
 	case asset.Spot:
 		cp.Delimiter = currency.UnderscoreDelimiter
-		return poloniexAPIURL + tradeSpot + cp.Upper().String(), nil
+		return poloniexAPIURL + tradeSpotPath + cp.Upper().String(), nil
 	case asset.Futures:
 		cp.Delimiter = ""
-		return poloniexAPIURL + tradeFutures + cp.Upper().String(), nil
+		return poloniexAPIURL + tradeFuturesPath + cp.Upper().String(), nil
 	default:
 		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
