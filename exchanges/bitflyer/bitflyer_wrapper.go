@@ -240,7 +240,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(e.Name, fPair, assetType)
 }
 
-// UpdateAccountBalances retrieves balances for all enabled currencies
+// UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(_ context.Context, _ asset.Item) (accounts.SubAccounts, error) {
 	return accounts.SubAccounts{}, common.ErrNotYetImplemented
 }

@@ -406,7 +406,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 	return orderbook.Get(e.Name, p, a)
 }
 
-// UpdateAccountBalances retrieves balances for all enabled currencies
+// UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)

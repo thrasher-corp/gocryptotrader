@@ -653,7 +653,7 @@ func (e *Exchange) GetAccountID(ctx context.Context) ([]Account, error) {
 	return acc, nil
 }
 
-// UpdateAccountBalances retrieves balances for all enabled currencies for the HUOBI exchange
+// UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	switch assetType {
 	case asset.Spot:
