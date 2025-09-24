@@ -215,7 +215,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	return e.EnsureOnePairEnabled()
 }
 
-// UpdateAccountBalances Retrieves balances for all enabled currencies for the Gemini exchange
+// UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	resp, err := e.GetBalances(ctx)
 	if err != nil {

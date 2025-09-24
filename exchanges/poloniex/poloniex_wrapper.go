@@ -339,7 +339,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	return orderbook.Get(e.Name, pair, assetType)
 }
 
-// UpdateAccountBalances retrieves balances for all enabled currencies for the Poloniex exchange
+// UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	resp, err := e.GetBalances(ctx)
 	if err != nil {

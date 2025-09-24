@@ -675,7 +675,7 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 	return orderbook.Get(e.Name, p, a)
 }
 
-// UpdateAccountBalances retrieves balances for all enabled currencies for the
+// UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(a, "")}
 	switch a {

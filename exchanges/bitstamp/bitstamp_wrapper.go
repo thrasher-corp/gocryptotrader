@@ -336,7 +336,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(e.Name, fPair, assetType)
 }
 
-// UpdateAccountBalances retrieves balances for all enabled currencies for the Bitstamp exchange
+// UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	accountBalance, err := e.GetBalance(ctx)
 	if err != nil {
