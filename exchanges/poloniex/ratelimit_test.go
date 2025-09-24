@@ -16,7 +16,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"unauth":                      unauthEPL,
 		"reference Data":              referenceDataEPL,
 	}
-	rl, err := request.New("rateLimitTest2", http.DefaultClient, request.WithLimiter(GetRateLimit()))
+	rl, err := request.New("rateLimitTest2", http.DefaultClient, request.WithLimiter(rateLimits))
 	require.NoError(t, err)
 
 	for name, tt := range testTable {

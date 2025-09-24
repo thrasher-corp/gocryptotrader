@@ -14,8 +14,8 @@ import (
 )
 
 // WsCreateOrder create an order for an account.
-func (e *Exchange) WsCreateOrder(arg *PlaceOrderParams) (*PlaceOrderResponse, error) {
-	if *arg == (PlaceOrderParams{}) {
+func (e *Exchange) WsCreateOrder(arg *PlaceOrderRequest) (*PlaceOrderResponse, error) {
+	if *arg == (PlaceOrderRequest{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.Symbol.IsEmpty() {
@@ -32,13 +32,13 @@ func (e *Exchange) WsCreateOrder(arg *PlaceOrderParams) (*PlaceOrderResponse, er
 	if len(resp) == 0 {
 		return nil, common.ErrInvalidResponse
 	} else if resp[0].Code != 0 {
-		return nil, fmt.Errorf("error code: %d message: %s", resp[0].Code, resp[0].Message)
+		return nil, fmt.Errorf("%w: error code: %d message: %s", common.ErrNoResponse, resp[0].Code, resp[0].Message)
 	}
 	return &resp[0], nil
 }
 
 // WsCancelMultipleOrdersByIDs batch cancel one or many active orders in an account by IDs through the websocket stream.
-func (e *Exchange) WsCancelMultipleOrdersByIDs(args *OrderCancellationParams) ([]WsCancelOrderResponse, error) {
+func (e *Exchange) WsCancelMultipleOrdersByIDs(args *CancelOrdersRequest) ([]WsCancelOrderResponse, error) {
 	if args == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -46,7 +46,16 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(args *OrderCancellationParams) ([
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []WsCancelOrderResponse
-	return resp, e.SendWebsocketRequest("cancelOrders", args, &resp)
+	err := e.SendWebsocketRequest("cancelOrders", args, &resp)
+	if err != nil {
+		return nil, err
+	}
+	for r := range resp {
+		if resp[r].Code != 0 {
+			return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp[r].Code, resp[r].Message)
+		}
+	}
+	return resp, nil
 }
 
 // WsCancelAllTradeOrders batch cancel all orders in an account.
@@ -59,7 +68,16 @@ func (e *Exchange) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]WsC
 		args["accountTypes"] = accountTypes
 	}
 	var resp []WsCancelOrderResponse
-	return resp, e.SendWebsocketRequest("cancelAllOrders", args, &resp)
+	err := e.SendWebsocketRequest("cancelAllOrders", args, &resp)
+	if err != nil {
+		return nil, err
+	}
+	for r := range resp {
+		if resp[r].Code != 0 {
+			return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp[r].Code, resp[r].Message)
+		}
+	}
+	return resp, nil
 }
 
 // SendWebsocketRequest represents a websocket request through the authenticated connections.
@@ -76,7 +94,11 @@ func (e *Exchange) SendWebsocketRequest(event string, arg, response any) error {
 		Event:  event,
 		Params: arg,
 	}
-	result, err := e.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, input.ID, input)
+	conn, err := e.Websocket.GetConnection(connSpotPrivate)
+	if err != nil {
+		return err
+	}
+	result, err := conn.SendMessageReturnResponse(context.Background(), request.Auth, input.ID, input)
 	if err != nil {
 		return err
 	}

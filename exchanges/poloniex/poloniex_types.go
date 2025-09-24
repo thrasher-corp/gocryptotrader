@@ -1,6 +1,8 @@
 package poloniex
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -77,22 +79,22 @@ var WithdrawalFees = map[currency.Code]float64{
 
 // SymbolDetail represents a symbol(currency pair) detailed information.
 type SymbolDetail struct {
-	Symbol            string     `json:"symbol"`
-	BaseCurrencyName  string     `json:"baseCurrencyName"`
-	QuoteCurrencyName string     `json:"quoteCurrencyName"`
-	DisplayName       string     `json:"displayName"`
-	State             string     `json:"state"`
-	VisibleStartTime  types.Time `json:"visibleStartTime"`
-	TradableStartTime types.Time `json:"tradableStartTime"`
+	Symbol            currency.Pair `json:"symbol"`
+	BaseCurrencyName  string        `json:"baseCurrencyName"`
+	QuoteCurrencyName string        `json:"quoteCurrencyName"`
+	DisplayName       string        `json:"displayName"`
+	State             string        `json:"state"`
+	VisibleStartTime  types.Time    `json:"visibleStartTime"`
+	TradableStartTime types.Time    `json:"tradableStartTime"`
 	SymbolTradeLimit  struct {
-		Symbol        string       `json:"symbol"`
-		PriceScale    float64      `json:"priceScale"`
-		QuantityScale float64      `json:"quantityScale"`
-		AmountScale   float64      `json:"amountScale"`
-		MinQuantity   types.Number `json:"minQuantity"`
-		MinAmount     types.Number `json:"minAmount"`
-		HighestBid    types.Number `json:"highestBid"`
-		LowestAsk     types.Number `json:"lowestAsk"`
+		Symbol        currency.Pair `json:"symbol"`
+		PriceScale    float64       `json:"priceScale"`
+		QuantityScale float64       `json:"quantityScale"`
+		AmountScale   float64       `json:"amountScale"`
+		MinQuantity   types.Number  `json:"minQuantity"`
+		MinAmount     types.Number  `json:"minAmount"`
+		HighestBid    types.Number  `json:"highestBid"`
+		LowestAsk     types.Number  `json:"lowestAsk"`
 	} `json:"symbolTradeLimit"`
 	CrossMargin struct {
 		SupportCrossMargin bool    `json:"supportCrossMargin"`
@@ -155,31 +157,31 @@ type ServerSystemTime struct {
 
 // MarketPrice represents ticker information.
 type MarketPrice struct {
-	Symbol        string       `json:"symbol"`
-	DailyChange   types.Number `json:"dailyChange"`
-	Price         types.Number `json:"price"`
-	Timestamp     types.Time   `json:"time"`
-	PushTimestamp types.Time   `json:"ts"`
+	Symbol        currency.Pair `json:"symbol"`
+	DailyChange   types.Number  `json:"dailyChange"`
+	Price         types.Number  `json:"price"`
+	Timestamp     types.Time    `json:"time"`
+	PushTimestamp types.Time    `json:"ts"`
 }
 
 // MarkPrice represents latest mark price for all cross margin symbols.
 type MarkPrice struct {
-	Symbol          string       `json:"symbol"`
-	MarkPrice       types.Number `json:"markPrice"`
-	RecordTimestamp types.Time   `json:"time"`
+	Symbol          currency.Pair `json:"symbol"`
+	MarkPrice       types.Number  `json:"markPrice"`
+	RecordTimestamp types.Time    `json:"time"`
 }
 
 // MarkPriceComponent represents a mark price component instance.
 type MarkPriceComponent struct {
-	Symbol     string       `json:"symbol"`
-	Timestamp  types.Time   `json:"ts"`
-	MarkPrice  types.Number `json:"markPrice"`
+	Symbol     currency.Pair `json:"symbol"`
+	Timestamp  types.Time    `json:"ts"`
+	MarkPrice  types.Number  `json:"markPrice"`
 	Components []struct {
-		Symbol       string       `json:"symbol"`
-		Exchange     string       `json:"exchange"`
-		SymbolPrice  types.Number `json:"symbolPrice"`
-		Weight       types.Number `json:"weight"`
-		ConvertPrice types.Number `json:"convertPrice"`
+		Symbol       currency.Pair `json:"symbol"`
+		Exchange     string        `json:"exchange"`
+		SymbolPrice  types.Number  `json:"symbolPrice"`
+		Weight       types.Number  `json:"weight"`
+		ConvertPrice types.Number  `json:"convertPrice"`
 	} `json:"components"`
 }
 
@@ -229,24 +231,24 @@ type Trade struct {
 
 // TickerData represents a price ticker information.
 type TickerData struct {
-	Symbol      string       `json:"symbol"`
-	Open        types.Number `json:"open"`
-	Low         types.Number `json:"low"`
-	High        types.Number `json:"high"`
-	Close       types.Number `json:"close"`
-	Quantity    types.Number `json:"quantity"`
-	Amount      types.Number `json:"amount"`
-	TradeCount  int64        `json:"tradeCount"`
-	StartTime   types.Time   `json:"startTime"`
-	CloseTime   types.Time   `json:"closeTime"`
-	DisplayName string       `json:"displayName"`
-	DailyChange string       `json:"dailyChange"`
-	Bid         types.Number `json:"bid"`
-	BidQuantity types.Number `json:"bidQuantity"`
-	Ask         types.Number `json:"ask"`
-	AskQuantity types.Number `json:"askQuantity"`
-	Timestamp   types.Time   `json:"ts"`
-	MarkPrice   types.Number `json:"markPrice"`
+	Symbol      currency.Pair `json:"symbol"`
+	Open        types.Number  `json:"open"`
+	Low         types.Number  `json:"low"`
+	High        types.Number  `json:"high"`
+	Close       types.Number  `json:"close"`
+	Quantity    types.Number  `json:"quantity"`
+	Amount      types.Number  `json:"amount"`
+	TradeCount  int64         `json:"tradeCount"`
+	StartTime   types.Time    `json:"startTime"`
+	CloseTime   types.Time    `json:"closeTime"`
+	DisplayName string        `json:"displayName"`
+	DailyChange string        `json:"dailyChange"`
+	Bid         types.Number  `json:"bid"`
+	BidQuantity types.Number  `json:"bidQuantity"`
+	Ask         types.Number  `json:"ask"`
+	AskQuantity types.Number  `json:"askQuantity"`
+	Timestamp   types.Time    `json:"ts"`
+	MarkPrice   types.Number  `json:"markPrice"`
 }
 
 // CollateralInfo represents collateral information.
@@ -299,9 +301,9 @@ type AccountActivity struct {
 	ActivityType int64        `json:"activityType"` // possible values: 'ALL': 200, 'AIRDROP': 201, 'COMMISSION_REBATE': 202, 'STAKING': 203, 'REFERRAL_REBATE': 204, 'SWAP': 205, 'CREDIT_ADJUSTMENT': 104, 'DEBIT_ADJUSTMENT': 105, 'OTHER': 199
 }
 
-// AccountTransferParams request parameter for account fund transfer.
-type AccountTransferParams struct {
-	Ccy         currency.Code `json:"currency"`
+// AccountTransferRequest request parameter for account fund transfer.
+type AccountTransferRequest struct {
+	Currency    currency.Code `json:"currency"`
 	Amount      float64       `json:"amount,string"`
 	FromAccount string        `json:"fromAccount"`
 	ToAccount   string        `json:"toAccount"`
@@ -349,16 +351,16 @@ type FeeInfo struct {
 	TakerRate           types.Number `json:"takerRate"`
 	Volume30D           types.Number `json:"volume30D"`
 	SpecialFeeRates     []struct {
-		Symbol    string       `json:"symbol"`
-		MakerRate types.Number `json:"makerRate"`
-		TakerRate types.Number `json:"takerRate"`
+		Symbol    currency.Pair `json:"symbol"`
+		MakerRate types.Number  `json:"makerRate"`
+		TakerRate types.Number  `json:"takerRate"`
 	} `json:"specialFeeRates"`
 }
 
 // InterestHistory represents an interest history.
 type InterestHistory struct {
 	ID                  string       `json:"id"`
-	CurrencyName        string       `json:"currencyName"`
+	Currency            string       `json:"currencyName"`
 	Principal           types.Number `json:"principal"`
 	Interest            types.Number `json:"interest"`
 	InterestRate        types.Number `json:"interestRate"`
@@ -373,30 +375,33 @@ type SubAccount struct {
 	IsPrimary    string `json:"isPrimary"`
 }
 
-// SubAccountBalance represents a users account balance.
-type SubAccountBalance struct {
-	AccountID   string `json:"accountId"`
-	AccountName string `json:"accountName"`
-	AccountType string `json:"accountType"`
-	IsPrimary   string `json:"isPrimary"`
-	Balances    []struct {
-		Currency              string       `json:"currency"`
-		Available             types.Number `json:"available"`
-		Hold                  types.Number `json:"hold"`
-		MaxAvailable          types.Number `json:"maxAvailable"`
-		AccountEquity         string       `json:"accountEquity,omitempty"`
-		UnrealisedPNL         string       `json:"unrealisedPNL,omitempty"`
-		MarginBalance         string       `json:"marginBalance,omitempty"`
-		PositionMargin        string       `json:"positionMargin,omitempty"`
-		OrderMargin           string       `json:"orderMargin,omitempty"`
-		FrozenFunds           string       `json:"frozenFunds,omitempty"`
-		AvailableBalance      types.Number `json:"availableBalance,omitempty"`
-		RealizedProfitAndLoss string       `json:"pnl,omitempty"`
-	} `json:"balances"`
+// SubAccountDetailAndBalance represents a users account details and balances
+type SubAccountDetailAndBalance struct {
+	AccountID   string              `json:"accountId"`
+	AccountName string              `json:"accountName"`
+	AccountType string              `json:"accountType"`
+	IsPrimary   string              `json:"isPrimary"`
+	Balances    []SubAccountBalance `json:"balances"`
 }
 
-// SubAccountTransferParam represents a sub-account transfer request parameters.
-type SubAccountTransferParam struct {
+// SubAccountBalance holds a subaccount balance detail
+type SubAccountBalance struct {
+	Currency              string       `json:"currency"`
+	Available             types.Number `json:"available"`
+	Hold                  types.Number `json:"hold"`
+	MaxAvailable          types.Number `json:"maxAvailable"`
+	AccountEquity         string       `json:"accountEquity,omitempty"`
+	UnrealisedPNL         string       `json:"unrealisedPNL,omitempty"`
+	MarginBalance         string       `json:"marginBalance,omitempty"`
+	PositionMargin        string       `json:"positionMargin,omitempty"`
+	OrderMargin           string       `json:"orderMargin,omitempty"`
+	FrozenFunds           string       `json:"frozenFunds,omitempty"`
+	AvailableBalance      types.Number `json:"availableBalance,omitempty"`
+	RealizedProfitAndLoss string       `json:"pnl,omitempty"`
+}
+
+// SubAccountTransferRequest represents a sub-account transfer request parameters.
+type SubAccountTransferRequest struct {
 	Currency        currency.Code `json:"currency"`
 	Amount          float64       `json:"amount,string"`
 	FromAccountID   string        `json:"fromAccountId"`
@@ -457,17 +462,8 @@ type Withdraw struct {
 	WithdrawRequestID int64 `json:"withdrawalRequestsId"`
 }
 
-// WithdrawCurrencyParam represents a currency withdrawal parameter.
-type WithdrawCurrencyParam struct {
-	Currency    string  `json:"currency"`
-	Amount      float64 `json:"amount,string"`
-	Address     string  `json:"address"`
-	PaymentID   string  `json:"paymentId,omitempty"`
-	AllowBorrow bool    `json:"allowBorrow,omitempty"`
-}
-
-// WithdrawCurrencyV2Param represents a V2 currency withdrawal parameter.
-type WithdrawCurrencyV2Param struct {
+// WithdrawCurrencyRequest represents a V2 currency withdrawal parameter.
+type WithdrawCurrencyRequest struct {
 	Coin        currency.Code `json:"coin"`
 	Network     string        `json:"network"`
 	Amount      float64       `json:"amount,string"`
@@ -500,16 +496,16 @@ type BorroweStatus struct {
 
 // MaxBuySellAmount represents a maximum buy and sell amount.
 type MaxBuySellAmount struct {
-	Symbol           string       `json:"symbol"`
-	MaxLeverage      int64        `json:"maxLeverage"`
-	AvailableBuy     types.Number `json:"availableBuy"`
-	MaxAvailableBuy  types.Number `json:"maxAvailableBuy"`
-	AvailableSell    types.Number `json:"availableSell"`
-	MaxAvailableSell types.Number `json:"maxAvailableSell"`
+	Symbol           currency.Pair `json:"symbol"`
+	MaxLeverage      int64         `json:"maxLeverage"`
+	AvailableBuy     types.Number  `json:"availableBuy"`
+	MaxAvailableBuy  types.Number  `json:"maxAvailableBuy"`
+	AvailableSell    types.Number  `json:"availableSell"`
+	MaxAvailableSell types.Number  `json:"maxAvailableSell"`
 }
 
-// PlaceOrderParams represents place order parameters.
-type PlaceOrderParams struct {
+// PlaceOrderRequest represents place order parameters.
+type PlaceOrderRequest struct {
 	Symbol      currency.Pair `json:"symbol"`
 	Side        string        `json:"side"`
 	Type        string        `json:"type,omitempty"`
@@ -543,8 +539,8 @@ type PlaceOrderResponse struct {
 	Code    int64  `json:"code,omitempty"`
 }
 
-// PlaceBatchOrderRespItem represents a single batch order response item.
-type PlaceBatchOrderRespItem struct {
+// PlaceBatchOrderItem represents a single batch order response item.
+type PlaceBatchOrderItem struct {
 	ID            string `json:"id,omitempty"`
 	ClientOrderID string `json:"clientOrderId"`
 	Code          int64  `json:"code,omitempty"`
@@ -575,11 +571,26 @@ type CancelReplaceOrderResponse struct {
 	Message       string     `json:"message"`
 }
 
+// OrdersHistoryRequest holds a orders history request parameters
+type OrdersHistoryRequest struct {
+	Symbol      currency.Pair
+	AccountType string
+	OrderType   string
+	Side        string
+	Direction   string
+	States      string
+	From        int64
+	Limit       int64
+	StartTime   time.Time
+	EndTime     time.Time
+	HideCancel  bool
+}
+
 // TradeOrder represents a trade order instance.
 type TradeOrder struct {
 	ID             string            `json:"id"`
 	ClientOrderID  string            `json:"clientOrderId"`
-	Symbol         string            `json:"symbol"`
+	Symbol         currency.Pair     `json:"symbol"`
 	State          string            `json:"state"`
 	AccountType    string            `json:"accountType"`
 	Side           string            `json:"side"`
@@ -598,11 +609,11 @@ type TradeOrder struct {
 	CancelReason   int64             `json:"cancelReason"`
 }
 
-// SmartOrderItem represents a smart order detail.
-type SmartOrderItem struct {
+// SmartOrder represents a smart order detail.
+type SmartOrder struct {
 	ID            string            `json:"id"`
 	ClientOrderID string            `json:"clientOrderId"`
-	Symbol        string            `json:"symbol"`
+	Symbol        currency.Pair     `json:"symbol"`
 	State         string            `json:"state"`
 	AccountType   string            `json:"accountType"`
 	Side          string            `json:"side"`
@@ -631,10 +642,11 @@ type WsCancelOrderResponse struct {
 	CancelOrderResponse
 }
 
-// OrderCancellationParams represents an order cancellation parameters.
-type OrderCancellationParams struct {
-	OrderIDs       []string `json:"orderIds,omitempty"`
-	ClientOrderIDs []string `json:"clientOrderIds,omitempty"`
+// CancelOrdersRequest represents cancel order request parameters
+type CancelOrdersRequest struct {
+	Symbol         currency.Pair `json:"symbol,omitempty"`
+	OrderIDs       []string      `json:"ordIds,omitempty"`
+	ClientOrderIDs []string      `json:"clOrdIds,omitempty"`
 }
 
 // KillSwitchStatus represents a kill switch response
@@ -643,8 +655,8 @@ type KillSwitchStatus struct {
 	CancellationTime types.Time `json:"cancellationTime"`
 }
 
-// SmartOrderRequestParam represents a smart trade order parameters
-type SmartOrderRequestParam struct {
+// SmartOrderRequestRequest represents a smart trade order parameters
+type SmartOrderRequestRequest struct {
 	Symbol        currency.Pair `json:"symbol"`
 	Side          string        `json:"side"`
 	TimeInForce   string        `json:"timeInForce,omitempty"`
@@ -657,8 +669,8 @@ type SmartOrderRequestParam struct {
 	ClientOrderID string        `json:"clientOrderId,omitempty"`
 }
 
-// CancelReplaceSmartOrderParam represents a cancellation and order replacement request parameter for smart orders.
-type CancelReplaceSmartOrderParam struct {
+// CancelReplaceSmartOrderRequest represents a cancellation and order replacement request parameter for smart orders.
+type CancelReplaceSmartOrderRequest struct {
 	orderID          string  // orderID: will be used in request path.
 	ClientOrderID    string  `json:"clientOrderId"`
 	Price            float64 `json:"price,omitempty,string"`
@@ -684,7 +696,7 @@ type CancelReplaceSmartOrderResponse struct {
 type SmartOrderDetail struct {
 	ID             string            `json:"id"`
 	ClientOrderID  string            `json:"clientOrderId"`
-	Symbol         string            `json:"symbol"`
+	Symbol         currency.Pair     `json:"symbol"`
 	State          string            `json:"state"`
 	AccountType    string            `json:"accountType"`
 	Side           string            `json:"side"`
@@ -697,22 +709,22 @@ type SmartOrderDetail struct {
 	CreateTime     types.Time        `json:"createTime"`
 	UpdateTime     types.Time        `json:"updateTime"`
 	TriggeredOrder struct {
-		ID             string       `json:"id"`
-		ClientOrderID  string       `json:"clientOrderId"`
-		Symbol         string       `json:"symbol"`
-		State          string       `json:"state"`
-		AccountType    string       `json:"accountType"`
-		Side           string       `json:"side"`
-		Type           string       `json:"type"`
-		TimeInForce    string       `json:"timeInForce"`
-		Quantity       types.Number `json:"quantity"`
-		Price          types.Number `json:"price"`
-		AvgPrice       types.Number `json:"avgPrice"`
-		Amount         types.Number `json:"amount"`
-		FilledQuantity types.Number `json:"filledQuantity"`
-		FilledAmount   types.Number `json:"filledAmount"`
-		CreateTime     types.Time   `json:"createTime"`
-		UpdateTime     types.Time   `json:"updateTime"`
+		ID             string        `json:"id"`
+		ClientOrderID  string        `json:"clientOrderId"`
+		Symbol         currency.Pair `json:"symbol"`
+		State          string        `json:"state"`
+		AccountType    string        `json:"accountType"`
+		Side           string        `json:"side"`
+		Type           string        `json:"type"`
+		TimeInForce    string        `json:"timeInForce"`
+		Quantity       types.Number  `json:"quantity"`
+		Price          types.Number  `json:"price"`
+		AvgPrice       types.Number  `json:"avgPrice"`
+		Amount         types.Number  `json:"amount"`
+		FilledQuantity types.Number  `json:"filledQuantity"`
+		FilledAmount   types.Number  `json:"filledAmount"`
+		CreateTime     types.Time    `json:"createTime"`
+		UpdateTime     types.Time    `json:"updateTime"`
 	} `json:"triggeredOrder"`
 }
 
@@ -725,23 +737,23 @@ type CancelSmartOrderResponse struct {
 	Message       string `json:"message"`
 }
 
-// TradeHistoryItem represents an order trade history instance.
-type TradeHistoryItem struct {
-	ID            string       `json:"id"`
-	ClientOrderID string       `json:"clientOrderId"`
-	Symbol        string       `json:"symbol"`
-	AccountType   string       `json:"accountType"`
-	OrderID       string       `json:"orderId"`
-	Side          string       `json:"side"`
-	Type          string       `json:"type"`
-	MatchRole     string       `json:"matchRole"`
-	Price         types.Number `json:"price"`
-	Quantity      types.Number `json:"quantity"`
-	Amount        types.Number `json:"amount"`
-	FeeCurrency   string       `json:"feeCurrency"`
-	FeeAmount     types.Number `json:"feeAmount"`
-	PageID        string       `json:"pageId"`
-	CreateTime    types.Time   `json:"createTime"`
+// TradeHistory represents an order trade history instance.
+type TradeHistory struct {
+	ID            string        `json:"id"`
+	ClientOrderID string        `json:"clientOrderId"`
+	Symbol        currency.Pair `json:"symbol"`
+	AccountType   string        `json:"accountType"`
+	OrderID       string        `json:"orderId"`
+	Side          string        `json:"side"`
+	Type          string        `json:"type"`
+	MatchRole     string        `json:"matchRole"`
+	Price         types.Number  `json:"price"`
+	Quantity      types.Number  `json:"quantity"`
+	Amount        types.Number  `json:"amount"`
+	FeeCurrency   string        `json:"feeCurrency"`
+	FeeAmount     types.Number  `json:"feeAmount"`
+	PageID        string        `json:"pageId"`
+	CreateTime    types.Time    `json:"createTime"`
 }
 
 // SubscriptionPayload represents a subscriptions request instance structure.
@@ -786,26 +798,26 @@ type WsResponse struct {
 
 // WsSymbol represents a subscription
 type WsSymbol struct {
-	Symbol            string     `json:"symbol"`
-	BaseCurrencyName  string     `json:"baseCurrencyName"`
-	QuoteCurrencyName string     `json:"quoteCurrencyName"`
-	DisplayName       string     `json:"displayName"`
-	State             string     `json:"state"`
-	VisibleStartTime  types.Time `json:"visibleStartTime"`
-	TradableStartTime types.Time `json:"tradableStartTime"`
+	Symbol            currency.Pair `json:"symbol"`
+	BaseCurrencyName  string        `json:"baseCurrencyName"`
+	QuoteCurrencyName string        `json:"quoteCurrencyName"`
+	DisplayName       string        `json:"displayName"`
+	State             string        `json:"state"`
+	VisibleStartTime  types.Time    `json:"visibleStartTime"`
+	TradableStartTime types.Time    `json:"tradableStartTime"`
 	CrossMargin       struct {
 		SupportCrossMargin bool         `json:"supportCrossMargin"`
 		MaxLeverage        types.Number `json:"maxLeverage"`
 	} `json:"crossMargin"`
 	SymbolTradeLimit struct {
-		Symbol        string       `json:"symbol"`
-		PriceScale    float64      `json:"priceScale"`
-		QuantityScale float64      `json:"quantityScale"`
-		AmountScale   float64      `json:"amountScale"`
-		MinQuantity   types.Number `json:"minQuantity"`
-		MinAmount     types.Number `json:"minAmount"`
-		HighestBid    types.Number `json:"highestBid"`
-		LowestAsk     types.Number `json:"lowestAsk"`
+		Symbol        currency.Pair `json:"symbol"`
+		PriceScale    float64       `json:"priceScale"`
+		QuantityScale float64       `json:"quantityScale"`
+		AmountScale   float64       `json:"amountScale"`
+		MinQuantity   types.Number  `json:"minQuantity"`
+		MinAmount     types.Number  `json:"minAmount"`
+		HighestBid    types.Number  `json:"highestBid"`
+		LowestAsk     types.Number  `json:"lowestAsk"`
 	} `json:"symbolTradeLimit"`
 }
 
@@ -840,51 +852,51 @@ type WsExchangeStatus []struct {
 
 // WsCandles represents a candlestick data instance.
 type WsCandles struct {
-	Symbol     string       `json:"symbol"`
-	Open       types.Number `json:"open"`
-	High       types.Number `json:"high"`
-	Low        types.Number `json:"low"`
-	Close      types.Number `json:"close"`
-	Quantity   types.Number `json:"quantity"`
-	Amount     types.Number `json:"amount"`
-	TradeCount int64        `json:"tradeCount"`
-	StartTime  types.Time   `json:"startTime"`
-	CloseTime  types.Time   `json:"closeTime"`
-	Timestamp  types.Time   `json:"ts"`
+	Symbol     currency.Pair `json:"symbol"`
+	Open       types.Number  `json:"open"`
+	High       types.Number  `json:"high"`
+	Low        types.Number  `json:"low"`
+	Close      types.Number  `json:"close"`
+	Quantity   types.Number  `json:"quantity"`
+	Amount     types.Number  `json:"amount"`
+	TradeCount int64         `json:"tradeCount"`
+	StartTime  types.Time    `json:"startTime"`
+	CloseTime  types.Time    `json:"closeTime"`
+	Timestamp  types.Time    `json:"ts"`
 }
 
 // WsTrade represents websocket trade data
 type WsTrade struct {
-	ID         string       `json:"id"`
-	Symbol     string       `json:"symbol"`
-	Amount     types.Number `json:"amount"`
-	Quantity   types.Number `json:"quantity"`
-	TakerSide  string       `json:"takerSide"`
-	Price      types.Number `json:"price"`
-	CreateTime types.Time   `json:"createTime"`
-	Timestamp  types.Time   `json:"ts"`
+	ID         string        `json:"id"`
+	Symbol     currency.Pair `json:"symbol"`
+	Amount     types.Number  `json:"amount"`
+	Quantity   types.Number  `json:"quantity"`
+	TakerSide  string        `json:"takerSide"`
+	Price      types.Number  `json:"price"`
+	CreateTime types.Time    `json:"createTime"`
+	Timestamp  types.Time    `json:"ts"`
 }
 
 // WsTicker represents a websocket ticker information.
 type WsTicker struct {
-	TradeCount  int64        `json:"tradeCount"`
-	Symbol      string       `json:"symbol"`
-	StartTime   types.Time   `json:"startTime"`
-	Open        types.Number `json:"open"`
-	High        types.Number `json:"high"`
-	Low         types.Number `json:"low"`
-	Close       types.Number `json:"close"`
-	Quantity    types.Number `json:"quantity"`
-	Amount      types.Number `json:"amount"`
-	DailyChange types.Number `json:"dailyChange"`
-	MarkPrice   types.Number `json:"markPrice"`
-	CloseTime   types.Time   `json:"closeTime"`
-	Timestamp   types.Time   `json:"ts"`
+	TradeCount  int64         `json:"tradeCount"`
+	Symbol      currency.Pair `json:"symbol"`
+	StartTime   types.Time    `json:"startTime"`
+	Open        types.Number  `json:"open"`
+	High        types.Number  `json:"high"`
+	Low         types.Number  `json:"low"`
+	Close       types.Number  `json:"close"`
+	Quantity    types.Number  `json:"quantity"`
+	Amount      types.Number  `json:"amount"`
+	DailyChange types.Number  `json:"dailyChange"`
+	MarkPrice   types.Number  `json:"markPrice"`
+	CloseTime   types.Time    `json:"closeTime"`
+	Timestamp   types.Time    `json:"ts"`
 }
 
 // WsBook represents an orderbook.
 type WsBook struct {
-	Symbol     string           `json:"symbol"`
+	Symbol     currency.Pair    `json:"symbol"`
 	Asks       [][]types.Number `json:"asks"`
 	Bids       [][]types.Number `json:"bids"`
 	ID         int64            `json:"id"`
@@ -894,8 +906,8 @@ type WsBook struct {
 	LastID int64 `json:"lastId"`
 }
 
-// AuthParams represents websocket authenticaten parameters
-type AuthParams struct {
+// AuthRequest represents websocket authenticaten parameters
+type AuthRequest struct {
 	Key              string `json:"key"`
 	SignTimestamp    int64  `json:"signTimestamp"`
 	SignatureMethod  string `json:"signatureMethod,omitempty"`
@@ -912,30 +924,30 @@ type WebsocketAuthenticationResponse struct {
 
 // WebsocketTradeOrder represents a websocket trade order.
 type WebsocketTradeOrder struct {
-	Symbol         string       `json:"symbol"`
-	Type           string       `json:"type"`
-	Quantity       types.Number `json:"quantity"`
-	OrderID        string       `json:"orderId"`
-	TradeFee       types.Number `json:"tradeFee"`
-	ClientOrderID  string       `json:"clientOrderId"`
-	AccountType    string       `json:"accountType"`
-	FeeCurrency    string       `json:"feeCurrency"`
-	EventType      string       `json:"eventType"`
-	Source         string       `json:"source"`
-	Side           string       `json:"side"`
-	FilledQuantity types.Number `json:"filledQuantity"`
-	FilledAmount   types.Number `json:"filledAmount"`
-	MatchRole      string       `json:"matchRole"`
-	State          string       `json:"state"`
-	TradeTime      types.Time   `json:"tradeTime"`
-	TradeAmount    types.Number `json:"tradeAmount"`
-	OrderAmount    types.Number `json:"orderAmount"`
-	CreateTime     types.Time   `json:"createTime"`
-	Price          types.Number `json:"price"`
-	TradeQty       types.Number `json:"tradeQty"`
-	TradePrice     types.Number `json:"tradePrice"`
-	TradeID        string       `json:"tradeId"`
-	Timestamp      types.Time   `json:"ts"`
+	Symbol         currency.Pair `json:"symbol"`
+	Type           string        `json:"type"`
+	Quantity       types.Number  `json:"quantity"`
+	OrderID        string        `json:"orderId"`
+	TradeFee       types.Number  `json:"tradeFee"`
+	ClientOrderID  string        `json:"clientOrderId"`
+	AccountType    string        `json:"accountType"`
+	FeeCurrency    string        `json:"feeCurrency"`
+	EventType      string        `json:"eventType"`
+	Source         string        `json:"source"`
+	Side           string        `json:"side"`
+	FilledQuantity types.Number  `json:"filledQuantity"`
+	FilledAmount   types.Number  `json:"filledAmount"`
+	MatchRole      string        `json:"matchRole"`
+	State          string        `json:"state"`
+	TradeTime      types.Time    `json:"tradeTime"`
+	TradeAmount    types.Number  `json:"tradeAmount"`
+	OrderAmount    types.Number  `json:"orderAmount"`
+	CreateTime     types.Time    `json:"createTime"`
+	Price          types.Number  `json:"price"`
+	TradeQty       types.Number  `json:"tradeQty"`
+	TradePrice     types.Number  `json:"tradePrice"`
+	TradeID        string        `json:"tradeId"`
+	Timestamp      types.Time    `json:"ts"`
 }
 
 // WsTradeBalance represents a balance information through the websocket channel
@@ -996,7 +1008,7 @@ type FuturesOrders struct {
 // FuturesOrder represents a futures order detail.
 type FuturesOrder struct {
 	OrderID             string            `json:"id"`
-	Symbol              string            `json:"symbol"`
+	Symbol              currency.Pair     `json:"symbol"`
 	OrderType           string            `json:"type"`
 	Side                string            `json:"side"`
 	Price               types.Number      `json:"price"`

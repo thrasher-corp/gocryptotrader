@@ -54,7 +54,7 @@ var defaultSubscriptions = []string{
 	cnlBooks,
 }
 
-var onceOrderbook map[string]struct{}
+var onceOrderbook map[currency.Pair]struct{}
 
 // WsConnect initiates a websocket connection
 func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
@@ -80,19 +80,17 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 		Message:           pingPayload,
 		Delay:             30,
 	})
-	onceOrderbook = make(map[string]struct{})
+	onceOrderbook = make(map[currency.Pair]struct{})
 	return nil
 }
 
 func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) error {
-	creds, err := e.GetCredentials(context.Background())
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
 
-	var dialer gws.Dialer
-	err = e.Websocket.AuthConn.Dial(context.Background(), &dialer, http.Header{})
-	if err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	pingMessage := &struct {
@@ -105,7 +103,7 @@ func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) er
 	if err != nil {
 		return err
 	}
-	e.Websocket.AuthConn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.TextMessage,
 		Message:           pingPayload,
@@ -113,26 +111,26 @@ func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) er
 	})
 	timestamp := time.Now()
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(fmt.Sprintf("GET\n/ws\nsignTimestamp=%d", timestamp.UnixMilli())),
+		fmt.Appendf(nil, "GET\n/ws\nsignTimestamp=%d", timestamp.UnixMilli()),
 		[]byte(creds.Secret))
 	if err != nil {
 		return err
 	}
 	auth := &struct {
-		Event   string     `json:"event"`
-		Channel []string   `json:"channel"`
-		Params  AuthParams `json:"params"`
+		Event   string      `json:"event"`
+		Channel []string    `json:"channel"`
+		Params  AuthRequest `json:"params"`
 	}{
 		Event:   "subscribe",
 		Channel: []string{cnlAuth},
-		Params: AuthParams{
+		Params: AuthRequest{
 			Key:             creds.Key,
 			SignatureMethod: "hmacSHA256",
 			SignTimestamp:   timestamp.UnixMilli(),
 			Signature:       base64.StdEncoding.EncodeToString(hmac),
 		},
 	}
-	data, err := e.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, cnlAuth, auth)
+	data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, cnlAuth, auth)
 	if err != nil {
 		return err
 	}
@@ -147,7 +145,7 @@ func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) er
 	return nil
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+func (e *Exchange) wsHandleData(_ context.Context, conn websocket.Connection, respRaw []byte) error {
 	var result SubscriptionResponse
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
@@ -229,10 +227,6 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 	}
 	orderDetails := make([]order.Detail, len(response))
 	for x := range response {
-		pair, err := currency.NewPairFromString(response[x].Symbol)
-		if err != nil {
-			return err
-		}
 		oType, err := order.StringToOrderType(response[x].Type)
 		if err != nil {
 			return err
@@ -262,7 +256,7 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 			AssetType:       stringToAccountType(response[x].AccountType),
 			Date:            response[x].CreateTime.Time(),
 			LastUpdated:     response[x].TradeTime.Time(),
-			Pair:            pair,
+			Pair:            response[x].Symbol,
 			Trades: []order.TradeHistory{
 				{
 					Price:     response[x].TradePrice.Float64(),
@@ -290,17 +284,13 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 		return err
 	}
 	for x := range resp {
-		pair, err := currency.NewPairFromString(resp[x].Symbol)
-		if err != nil {
-			return err
-		}
 		_, okay := onceOrderbook[resp[x].Symbol]
 		if !okay {
 			if onceOrderbook == nil {
-				onceOrderbook = make(map[string]struct{})
+				onceOrderbook = make(map[currency.Pair]struct{})
 			}
 			var orderbooks *orderbook.Book
-			orderbooks, err = e.UpdateOrderbook(context.Background(), pair, asset.Spot)
+			orderbooks, err = e.UpdateOrderbook(context.Background(), resp[x].Symbol, asset.Spot)
 			if err != nil {
 				return err
 			}
@@ -311,7 +301,7 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 			onceOrderbook[resp[x].Symbol] = struct{}{}
 		}
 		update := orderbook.Update{
-			Pair:       pair,
+			Pair:       resp[x].Symbol,
 			UpdateTime: resp[x].Timestamp.Time(),
 			UpdateID:   resp[x].ID,
 			Action:     orderbook.UpdateOrInsertAction,
@@ -348,10 +338,6 @@ func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 	}
 	tickerData := make([]ticker.Price, len(resp))
 	for x := range resp {
-		pair, err := currency.NewPairFromString(resp[x].Symbol)
-		if err != nil {
-			return err
-		}
 		tickerData[x] = ticker.Price{
 			Last:         resp[x].MarkPrice.Float64(),
 			High:         resp[x].High.Float64(),
@@ -360,7 +346,7 @@ func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 			QuoteVolume:  resp[x].Amount.Float64(),
 			Open:         resp[x].Open.Float64(),
 			Close:        resp[x].Close.Float64(),
-			Pair:         pair,
+			Pair:         resp[x].Symbol,
 			AssetType:    asset.Spot,
 			ExchangeName: e.Name,
 			LastUpdated:  resp[x].Timestamp.Time(),
@@ -378,14 +364,10 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 	}
 	trades := make([]trade.Data, len(resp))
 	for x := range resp {
-		pair, err := currency.NewPairFromString(resp[x].Symbol)
-		if err != nil {
-			return err
-		}
 		trades[x] = trade.Data{
 			TID:          resp[x].ID,
 			Exchange:     e.Name,
-			CurrencyPair: pair,
+			CurrencyPair: resp[x].Symbol,
 			Price:        resp[x].Price.Float64(),
 			Amount:       resp[x].Amount.Float64(),
 			Timestamp:    resp[x].Timestamp.Time(),
@@ -400,15 +382,10 @@ func (e *Exchange) processCandlestickData(result *SubscriptionResponse) error {
 	if err != nil {
 		return err
 	}
-	var pair currency.Pair
 	candles := make([]websocket.KlineData, len(resp))
 	for x := range resp {
-		pair, err = currency.NewPairFromString(resp[x].Symbol)
-		if err != nil {
-			return err
-		}
 		candles[x] = websocket.KlineData{
-			Pair:       pair,
+			Pair:       resp[x].Symbol,
 			Exchange:   e.Name,
 			Timestamp:  resp[x].Timestamp.Time(),
 			StartTime:  resp[x].StartTime.Time(),

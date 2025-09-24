@@ -49,34 +49,29 @@ const (
 	fGetFundingRateEPL
 )
 
-// GetRateLimit returns the rate limit for the exchange
-// If your account's volume is over $5 million in 30 day volume,
-// you may be eligible for an API rate limit increase.
-// Please email poloniex@circle.com.
+// rateLimits returns the rate limit for the exchange
 // As per https://docs.poloniex.com/#http-api
-func GetRateLimit() request.RateLimitDefinitions {
-	return request.RateLimitDefinitions{
-		authNonResourceIntensiveEPL:        request.NewRateLimitWithWeight(rateInterval, authNonResourceIntensiveRate, 1),
-		authResourceIntensiveEPL:           request.NewRateLimitWithWeight(rateInterval, authResourceIntensiveRate, 1),
-		unauthEPL:                          request.NewRateLimitWithWeight(rateInterval, unauthRate, 1),
-		referenceDataEPL:                   request.NewRateLimitWithWeight(rateInterval, referenceDataRate, 1),
-		accountOverviewEPL:                 request.NewRateLimitWithWeight(rateInterval, accountOverviewRate, 1),
-		fTransactionHistoryEPL:             request.NewRateLimitWithWeight(threeSecondsInterval, fTransactionHistoryRate, 1),
-		fOrderEPL:                          request.NewRateLimitWithWeight(threeSecondsInterval, fOrderRate, 1),
-		fCancelOrderEPL:                    request.NewRateLimitWithWeight(threeSecondsInterval, fCancelOrderRate, 1),
-		fCancelAllLimitOrdersEPL:           request.NewRateLimitWithWeight(threeSecondsInterval, 1, 1),
-		fCancelMultipleLimitOrdersEPL:      request.NewRateLimitWithWeight(threeSecondsInterval, 3, 1),
-		fCancelAllStopOrdersEPL:            request.NewRateLimitWithWeight(tenSecondsInterval, 2, 1),
-		fGetOrdersEPL:                      request.NewRateLimitWithWeight(threeSecondsInterval, 3, 1),
-		fGetUntriggeredStopOrderEPL:        request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
-		fGetCompleted24HrEPL:               request.NewRateLimitWithWeight(threeSecondsInterval, 3, 1),
-		fGetSingleOrderDetailEPL:           request.NewRateLimitWithWeight(threeSecondsInterval, 40, 1),
-		fGetFuturesOrdersV2EPL:             request.NewRateLimitWithWeight(threeSecondsInterval, 30, 1),
-		fGetFuturesFillsEPL:                request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
-		fGetActiveOrderValueCalculationEPL: request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
-		fGetFillsV2EPL:                     request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
-		fGetFuturesPositionDetailsEPL:      request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
-		fGetPositionListEPL:                request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
-		fGetFundingRateEPL:                 request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
-	}
+var rateLimits = request.RateLimitDefinitions{
+	authNonResourceIntensiveEPL:        request.NewRateLimitWithWeight(rateInterval, authNonResourceIntensiveRate, 1),
+	authResourceIntensiveEPL:           request.NewRateLimitWithWeight(rateInterval, authResourceIntensiveRate, 1),
+	unauthEPL:                          request.NewRateLimitWithWeight(rateInterval, unauthRate, 1),
+	referenceDataEPL:                   request.NewRateLimitWithWeight(rateInterval, referenceDataRate, 1),
+	accountOverviewEPL:                 request.NewRateLimitWithWeight(rateInterval, accountOverviewRate, 1),
+	fTransactionHistoryEPL:             request.NewRateLimitWithWeight(threeSecondsInterval, fTransactionHistoryRate, 1),
+	fOrderEPL:                          request.NewRateLimitWithWeight(threeSecondsInterval, fOrderRate, 1),
+	fCancelOrderEPL:                    request.NewRateLimitWithWeight(threeSecondsInterval, fCancelOrderRate, 1),
+	fCancelAllLimitOrdersEPL:           request.NewRateLimitWithWeight(threeSecondsInterval, 1, 1),
+	fCancelMultipleLimitOrdersEPL:      request.NewRateLimitWithWeight(threeSecondsInterval, 3, 1),
+	fCancelAllStopOrdersEPL:            request.NewRateLimitWithWeight(tenSecondsInterval, 2, 1),
+	fGetOrdersEPL:                      request.NewRateLimitWithWeight(threeSecondsInterval, 3, 1),
+	fGetUntriggeredStopOrderEPL:        request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
+	fGetCompleted24HrEPL:               request.NewRateLimitWithWeight(threeSecondsInterval, 3, 1),
+	fGetSingleOrderDetailEPL:           request.NewRateLimitWithWeight(threeSecondsInterval, 40, 1),
+	fGetFuturesOrdersV2EPL:             request.NewRateLimitWithWeight(threeSecondsInterval, 30, 1),
+	fGetFuturesFillsEPL:                request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
+	fGetActiveOrderValueCalculationEPL: request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
+	fGetFillsV2EPL:                     request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
+	fGetFuturesPositionDetailsEPL:      request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
+	fGetPositionListEPL:                request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
+	fGetFundingRateEPL:                 request.NewRateLimitWithWeight(threeSecondsInterval, 9, 1),
 }

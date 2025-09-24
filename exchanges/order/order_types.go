@@ -385,7 +385,7 @@ const (
 	StopLimit         = Stop | Limit
 	StopMarket        = Stop | Market
 	TakeProfitMarket  = TakeProfit | Market
-	TrailingStopLimit = TakeProfit | Limit
+	TrailingStopLimit = TrailingStop | Limit
 	Bracket           = Stop | TakeProfit
 )
 
