@@ -211,7 +211,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	return e.EnsureOnePairEnabled()
 }
 
-// UpdateAccountBalances retrieves balances for all enabled currencies
+// UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	for cursor := int64(0); ; {
 		resp, err := e.ListAccounts(ctx, 250, cursor)
