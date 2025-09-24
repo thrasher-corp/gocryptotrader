@@ -66,16 +66,15 @@ func TestRequestQuote(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
-	if mockTests {
-		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	quote, err := e.RequestQuote(t.Context(), &RequestQuoteRequest{
 		AccountType: Uta,
-		From:        currency.BTC,
+		From:        currency.XRP,
 		To:          currency.USDT,
-		Amount:      69.420,
+		Amount:      0.0088,
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, quote.QuoteTransactionID)
@@ -87,12 +86,11 @@ func TestConfirmQuote(t *testing.T) {
 	_, err := e.ConfirmQuote(t.Context(), "")
 	assert.ErrorIs(t, err, errQuoteTransactionIDEmpty)
 
-	if mockTests {
-		t.Skip(skipAuthenticatedFunctionsForMockTesting)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	quote, err := e.ConfirmQuote(t.Context(), "10414247553864074960678912")
+	quote, err := e.ConfirmQuote(t.Context(), "10175108571334212336947200")
 	require.NoError(t, err)
 	assert.NotEmpty(t, quote.QuoteTransactionID)
 }
