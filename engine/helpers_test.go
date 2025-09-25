@@ -1243,20 +1243,19 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 
 func TestStartPPROF(t *testing.T) {
 	t.Parallel()
-	assert.NoError(t, StartPPROF(nil), "StartPPROF with a nil config should not error")
-	assert.NoError(t, StartPPROF(&config.Profiler{Enabled: false}), "StartPPROF with a disabled config should not error")
+	assert.NoError(t, StartPPROF(t.Context(), &config.Profiler{Enabled: false}), "StartPPROF with a disabled config should not error")
 	pprofConfig := &config.Profiler{
 		Enabled:              true,
 		ListenAddress:        "",
 		MutexProfileFraction: 1,
 		BlockProfileRate:     1,
 	}
-	require.NoError(t, StartPPROF(pprofConfig), "StartPPROF with a valid config must not error")
+	require.NoError(t, StartPPROF(t.Context(), pprofConfig), "StartPPROF with a valid config must not error")
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://localhost:8085/debug/pprof/mutex", http.NoBody)
 	require.NoError(t, err, "NewRequestWithContext must not error")
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err, "Do must not error")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "Get response status must be OK")
 	resp.Body.Close()
-	assert.Error(t, StartPPROF(pprofConfig), "StartPPROF with a valid config on already used port should error")
+	assert.Error(t, StartPPROF(t.Context(), pprofConfig), "StartPPROF with a valid config on already used port should error")
 }

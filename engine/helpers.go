@@ -1018,10 +1018,11 @@ func NewExchangeByNameWithDefaults(ctx context.Context, name string) (exchange.I
 }
 
 // StartPPROF starts a pprof profiler if enabled
-func StartPPROF(cfg *config.Profiler) error {
-	if cfg == nil || !cfg.Enabled {
+func StartPPROF(ctx context.Context, cfg *config.Profiler) error {
+	if !cfg.Enabled {
 		return nil
 	}
+
 	runtime.SetMutexProfileFraction(cfg.MutexProfileFraction)
 	runtime.SetBlockProfileRate(cfg.BlockProfileRate)
 
@@ -1031,7 +1032,7 @@ func StartPPROF(cfg *config.Profiler) error {
 	}
 
 	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.TODO(), "tcp", listenAddr)
+	ln, err := lc.Listen(ctx, "tcp", listenAddr)
 	if err != nil {
 		return fmt.Errorf("pprof listen error: %w", err)
 	}

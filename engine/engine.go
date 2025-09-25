@@ -297,7 +297,7 @@ func (bot *Engine) Start() error {
 	defer newEngineMutex.Unlock()
 
 	if bot.Config.Profiler.Enabled {
-		if err := StartPPROF(&bot.Config.Profiler); err != nil {
+		if err := StartPPROF(context.TODO(), &bot.Config.Profiler); err != nil {
 			gctlog.Errorf(gctlog.Global, "Failed to start pprof: %v", err)
 		}
 	}
