@@ -1323,6 +1323,28 @@ func (e *Exchange) ConvertSmallBalances(ctx context.Context, currs ...currency.C
 
 // ********************************* Margin *******************************************
 
+// GetEstimatedInterestRate retrieves estimated interest rate for provided currencies
+func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, codes currency.Currencies) (map[string]types.Number, error) {
+	if len(codes) == 0 {
+		return nil, errors.New("at least one currency code is required")
+	}
+	if len(codes) > 10 {
+		return nil, errors.New("a maximum of 10 currencies can be queried at a time")
+	}
+	var currencies strings.Builder
+	for i := range codes {
+		if i != 0 {
+			currencies.WriteString(",")
+		}
+		currencies.WriteString(codes[i].String())
+	}
+	params := url.Values{}
+	params.Set("currencies", currencies.String())
+
+	var response map[string]types.Number
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairsMarginEPL, http.MethodGet, "margin/uni/estimate_rate", params, nil, &response)
+}
+
 // GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
 func (e *Exchange) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]MarginCurrencyPairInfo, error) {
 	var currenciePairsInfo []MarginCurrencyPairInfo
