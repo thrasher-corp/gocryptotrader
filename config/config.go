@@ -1580,7 +1580,7 @@ func (c *Config) Save(writerProvider func() (io.Writer, error)) error {
 }
 
 func setIfZeroAndWarn[T comparable](scope, name string, p *T, def T) {
-	if common.SetIfZeroAck(p, def) {
+	if common.SetIfZero(p, def) {
 		log.Warnf(log.ConfigMgr, "%s field %q not set, defaulting to `%v`", scope, name, def)
 	}
 }
