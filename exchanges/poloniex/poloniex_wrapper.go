@@ -65,7 +65,7 @@ func (e *Exchange) SetDefaults() {
 
 	for a, ps := range assetPairStores {
 		if err := e.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", e.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, a, err)
 		}
 	}
 
@@ -1214,7 +1214,7 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 		return nil, err
 	}
 
-	coinParams, ok := currencies[cryptocurrency.Upper().String()]
+	coinParams, ok := currencies[cryptocurrency.String()]
 	if !ok {
 		return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
 	}
@@ -1244,7 +1244,7 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 				coinParams.ChildChains)
 		}
 
-		coinParams, ok = currencies[cryptocurrency.Upper().String()]
+		coinParams, ok = currencies[cryptocurrency.String()]
 		if !ok {
 			return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
 		}

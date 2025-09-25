@@ -58,17 +58,17 @@ func (e *Exchange) GetSymbolInformation(ctx context.Context, symbol currency.Pai
 }
 
 // GetCurrencies returns all currencies and their info
-func (e *Exchange) GetCurrencies(ctx context.Context) ([]CurrencyDetail, error) {
-	var resp []CurrencyDetail
+func (e *Exchange) GetCurrencies(ctx context.Context) ([]map[string]CurrencyDetail, error) {
+	var resp []map[string]CurrencyDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies", &resp)
 }
 
 // GetCurrencyInformation retrieves currency and their detailed information.
-func (e *Exchange) GetCurrencyInformation(ctx context.Context, ccy currency.Code) (CurrencyDetail, error) {
+func (e *Exchange) GetCurrencyInformation(ctx context.Context, ccy currency.Code) (map[string]CurrencyDetail, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp CurrencyDetail
+	var resp map[string]CurrencyDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies/"+ccy.String(), &resp)
 }
 
@@ -100,7 +100,6 @@ func (e *Exchange) GetMarketPrices(ctx context.Context) ([]MarketPrice, error) {
 }
 
 // GetMarketPrice retrieves latest trade price for symbols
-// If symbol is empty then all symbols will be returned
 func (e *Exchange) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*MarketPrice, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -165,7 +164,10 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
@@ -254,7 +256,10 @@ func (e *Exchange) GetAllBalance(ctx context.Context, accountID, accountType str
 // GetAllAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
 func (e *Exchange) GetAllAccountActivities(ctx context.Context, startTime, endTime time.Time, activityType, limit, from int64, direction string, ccy currency.Code) ([]AccountActivity, error) {
 	params := url.Values{}
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
@@ -298,7 +303,10 @@ func (e *Exchange) AccountsTransfer(ctx context.Context, arg *AccountTransferReq
 // GetAccountTransferRecords gets a list of transfer records of a user. Max interval for start and end time is 6 months. If no start/end time params are specified then records for last 7 days will be returned.
 func (e *Exchange) GetAccountTransferRecords(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit int64) ([]AccountTransferRecord, error) {
 	params := url.Values{}
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
@@ -338,7 +346,10 @@ func (e *Exchange) GetFeeInfo(ctx context.Context) (*FeeInfo, error) {
 // If no start/end time params are specified then records for last 7 days will be returned.
 func (e *Exchange) GetInterestHistory(ctx context.Context, startTime, endTime time.Time, direction string, from, limit int64) ([]InterestHistory, error) {
 	params := url.Values{}
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
@@ -378,7 +389,7 @@ func (e *Exchange) GetSubAccountBalance(ctx context.Context, subAccountID string
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts/"+subAccountID+"/balances", nil, nil, &resp)
 }
 
-// SubAccountTransfer transfers currencies between accounts in the account group.
+// SubAccountTransfer transfers currencies between accounts in the account group
 // Primary account can transfer to and from any subaccounts as well as transfer between 2 subaccounts across account types.
 // Subaccount can only transfer to the primary account across account types.
 func (e *Exchange) SubAccountTransfer(ctx context.Context, arg *SubAccountTransferRequest) (*AccountTransferResponse, error) {
@@ -406,35 +417,38 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg *SubAccountTransf
 
 // GetSubAccountTransferRecords gets a list of transfer records of a user. Max interval for start and end time is 6 months.
 // If no start/end time params are specified then records for last 7 days will be returned.
-func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, fromAccountID, toAccountID, fromAccountType, toAccountType, direction string, from, limit int64) ([]SubAccountTransfer, error) {
+func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, arg *SubAccountTransferRecordRequest) ([]SubAccountTransfer, error) {
 	params := url.Values{}
-	if !ccy.IsEmpty() {
-		params.Set("currency", ccy.String())
+	if !arg.Currency.IsEmpty() {
+		params.Set("currency", arg.Currency.String())
 	}
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
-		params.Set("startTime", startTime.String())
-		params.Set("endTime", endTime.String())
+	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
+		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
+			return nil, err
+		}
+		params.Set("startTime", arg.StartTime.String())
+		params.Set("endTime", arg.EndTime.String())
 	}
-	if fromAccountID != "" {
-		params.Set("fromAccountID", fromAccountID)
+	if arg.FromAccountID != "" {
+		params.Set("fromAccountID", arg.FromAccountID)
 	}
-	if toAccountID != "" {
-		params.Set("toAccountID", toAccountID)
+	if arg.ToAccountID != "" {
+		params.Set("toAccountID", arg.ToAccountID)
 	}
-	if fromAccountType != "" {
-		params.Set("fromAccountType", fromAccountType)
+	if arg.FromAccountType != "" {
+		params.Set("fromAccountType", arg.FromAccountType)
 	}
-	if toAccountType != "" {
-		params.Set("toAccountType", toAccountType)
+	if arg.ToAccountType != "" {
+		params.Set("toAccountType", arg.ToAccountType)
 	}
-	if direction != "" {
-		params.Set("direction", direction)
+	if arg.Direction != "" {
+		params.Set("direction", arg.Direction)
 	}
-	if from > 0 {
-		params.Set("from", strconv.FormatInt(from, 10))
+	if arg.From > 0 {
+		params.Set("from", strconv.FormatUint(arg.From, 10))
 	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+	if arg.Limit > 0 {
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp []SubAccountTransfer
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/transfer", params, nil, &resp)
@@ -652,14 +666,7 @@ func (e *Exchange) CancelOrderByID(ctx context.Context, id string) (*CancelOrder
 		return nil, fmt.Errorf("%w; order 'id' is required", order.ErrOrderIDNotSet)
 	}
 	var resp *CancelOrderResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/"+id, nil, nil, &resp)
-	if err != nil {
-		return nil, err
-	}
-	if resp.Code != 0 {
-		return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/"+id, nil, nil, &resp)
 }
 
 // CancelOrdersByIDs cancels multiple orders
@@ -668,19 +675,7 @@ func (e *Exchange) CancelOrdersByIDs(ctx context.Context, args *CancelOrdersRequ
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []*CancelOrderResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/cancelByIds", nil, args, &resp)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 0 {
-		return nil, common.ErrNoResults
-	}
-	for _, r := range resp {
-		if r.Code != 0 {
-			return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, r.Code, r.Message)
-		}
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/cancelByIds", nil, args, &resp)
 }
 
 // CancelAllTradeOrders batch cancel all orders in an account.
@@ -693,37 +688,26 @@ func (e *Exchange) CancelAllTradeOrders(ctx context.Context, symbols, accountTyp
 		args["accountTypes"] = accountTypes
 	}
 	var resp []*CancelOrderResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders", nil, args, &resp)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 0 {
-		return nil, common.ErrNoResults
-	}
-	for _, r := range resp {
-		if r.Code != 0 {
-			return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, r.Code, r.Message)
-		}
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders", nil, args, &resp)
 }
 
 // KillSwitch set a timer that cancels all regular and smartorders after the timeout has expired.
 // Timeout can be reset by calling this command again with a new timeout value.
-// A timeout value of -1 disables the timer. Timeout is defined in seconds.
-// timeout value in seconds; range is -1 and 10 to 600
+// timeout value in seconds; range is 10 seconds to 10 minutes or 600 seconds
 func (e *Exchange) KillSwitch(ctx context.Context, timeout time.Duration) (*KillSwitchStatus, error) {
 	var timeoutString string
-	switch {
-	case timeout < time.Second*10:
-		timeoutString = "-1"
-	case timeout <= time.Minute*10:
-		timeoutString = strconv.FormatInt(int64(timeout.Seconds()), 10)
-	default:
-		return nil, errInvalidTimeout
+	if timeout < time.Second*10 || timeout > time.Minute*10 {
+		return nil, fmt.Errorf("%w: timeout possible values must be between 10 second to 10 minute", errInvalidTimeout)
 	}
+	timeoutString = strconv.FormatInt(int64(timeout.Seconds()), 10)
 	var resp *KillSwitchStatus
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/orders/killSwitch", nil, map[string]any{"timeout": timeoutString}, &resp)
+}
+
+// DisableKillSwitch disables the timer to cancels all regular and smartorders
+func (e *Exchange) DisableKillSwitch(ctx context.Context) (*KillSwitchStatus, error) {
+	var resp *KillSwitchStatus
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/orders/killSwitch", nil, map[string]any{"timeout": "-1"}, &resp)
 }
 
 // GetKillSwitchStatus get status of kill switch
@@ -741,14 +725,7 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestR
 		return nil, order.ErrSideIsInvalid
 	}
 	var resp *PlaceOrderResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp)
-	if err != nil {
-		return nil, err
-	}
-	if resp.Code != 200 {
-		return nil, fmt.Errorf("code: %d msg: %s", resp.Code, resp.Message)
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp)
 }
 
 func orderPath(orderID, idPath, clientOrderID, clientIDPath string) (string, error) {
@@ -772,7 +749,7 @@ func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPut, path, nil, arg, &resp)
 }
 
-// GetSmartOpenOrders get a list of (pending) smart orders for an account.
+// GetSmartOpenOrders get a list of (pending) smart orders for an account
 func (e *Exchange) GetSmartOpenOrders(ctx context.Context, limit int64) ([]SmartOrder, error) {
 	params := url.Values{}
 	if limit > 0 {
@@ -818,16 +795,7 @@ func (e *Exchange) CancelMultipleSmartOrders(ctx context.Context, args *CancelOr
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []*CancelOrderResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp)
-	if err != nil {
-		return nil, err
-	}
-	for _, r := range resp {
-		if r.Code != 0 {
-			return nil, fmt.Errorf("%w: code: %d msg: %s", common.ErrNoResponse, r.Code, r.Message)
-		}
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp)
 }
 
 // CancelAllSmartOrders cancels all smart orders in an account.
@@ -843,16 +811,7 @@ func (e *Exchange) CancelAllSmartOrders(ctx context.Context, symbols, accountTyp
 		args["orderTypes"] = orderTypes
 	}
 	var resp []*CancelOrderResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders", nil, args, &resp)
-	if err != nil {
-		return nil, err
-	}
-	for _, r := range resp {
-		if r.Code != 0 {
-			return nil, fmt.Errorf("%w: code: %d msg: %s", common.ErrNoResponse, r.Code, r.Message)
-		}
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders", nil, args, &resp)
 }
 
 func orderFillParams(arg *OrdersHistoryRequest) url.Values {
@@ -909,7 +868,10 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, symbols currency.Pairs, 
 	if len(symbols) != 0 {
 		params.Set("symbols", symbols.Join())
 	}
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}

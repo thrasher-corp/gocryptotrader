@@ -102,8 +102,8 @@ type SymbolDetail struct {
 	} `json:"crossMargin"`
 }
 
-// CurrencyDetail represents all supported currencies.
-type CurrencyDetail map[string]struct {
+// CurrencyDetail holds a currency detail for V3 API
+type CurrencyDetail struct {
 	ID                    int64    `json:"id"`
 	Name                  string   `json:"name"`
 	Description           string   `json:"description"`
@@ -1055,4 +1055,18 @@ type AuthenticationResponse struct {
 		Timestamp types.Time `json:"ts"`
 	} `json:"data"`
 	Channel string `json:"channel"`
+}
+
+// SubAccountTransferRecordRequest represents a sub-account transfer record retrieval parameters
+type SubAccountTransferRecordRequest struct {
+	Currency        currency.Code
+	StartTime       time.Time
+	EndTime         time.Time
+	FromAccountID   string
+	ToAccountID     string
+	FromAccountType string
+	ToAccountType   string
+	Direction       string
+	From            uint64
+	Limit           uint64
 }

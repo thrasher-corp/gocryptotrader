@@ -15,9 +15,6 @@ import (
 
 // WsCreateOrder create an order for an account.
 func (e *Exchange) WsCreateOrder(arg *PlaceOrderRequest) (*PlaceOrderResponse, error) {
-	if *arg == (PlaceOrderRequest{}) {
-		return nil, common.ErrNilPointer
-	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -103,11 +100,9 @@ func (e *Exchange) SendWebsocketRequest(event string, arg, response any) error {
 		return err
 	}
 
-	resp := &WebsocketResponse{
+	if err := json.Unmarshal(result, &WebsocketResponse{
 		Data: response,
-	}
-	err = json.Unmarshal(result, &resp)
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 	return nil

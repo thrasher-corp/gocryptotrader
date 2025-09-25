@@ -135,8 +135,7 @@ func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) er
 		return err
 	}
 	var resp *AuthenticationResponse
-	err = json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	if !resp.Data.Success {
@@ -147,8 +146,7 @@ func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) er
 
 func (e *Exchange) wsHandleData(_ context.Context, conn websocket.Connection, respRaw []byte) error {
 	var result SubscriptionResponse
-	err := json.Unmarshal(respRaw, &result)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	if result.ID != "" {
@@ -197,8 +195,7 @@ func (e *Exchange) wsHandleData(_ context.Context, conn websocket.Connection, re
 
 func (e *Exchange) processBalance(result *SubscriptionResponse) error {
 	var resp []WsTradeBalance
-	err := json.Unmarshal(result.Data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
 	accountChanges := make([]account.Change, len(resp))
@@ -221,8 +218,7 @@ func (e *Exchange) processBalance(result *SubscriptionResponse) error {
 
 func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 	response := []WebsocketTradeOrder{}
-	err := json.Unmarshal(result.Data, &response)
-	if err != nil {
+	if err := json.Unmarshal(result.Data, &response); err != nil {
 		return err
 	}
 	orderDetails := make([]order.Detail, len(response))
@@ -279,8 +275,7 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 
 func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 	var resp []WsBook
-	err := json.Unmarshal(result.Data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
 	for x := range resp {
@@ -289,13 +284,15 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 			if onceOrderbook == nil {
 				onceOrderbook = make(map[currency.Pair]struct{})
 			}
-			var orderbooks *orderbook.Book
+			var (
+				orderbooks *orderbook.Book
+				err        error
+			)
 			orderbooks, err = e.UpdateOrderbook(context.Background(), resp[x].Symbol, asset.Spot)
 			if err != nil {
 				return err
 			}
-			err = e.Websocket.Orderbook.LoadSnapshot(orderbooks)
-			if err != nil {
+			if err := e.Websocket.Orderbook.LoadSnapshot(orderbooks); err != nil {
 				return err
 			}
 			onceOrderbook[resp[x].Symbol] = struct{}{}
@@ -322,8 +319,7 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 			}
 		}
 		update.UpdateID = resp[x].LastID
-		err = e.Websocket.Orderbook.Update(&update)
-		if err != nil {
+		if err := e.Websocket.Orderbook.Update(&update); err != nil {
 			return err
 		}
 	}
@@ -332,8 +328,7 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 
 func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 	var resp []WsTicker
-	err := json.Unmarshal(result.Data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
 	tickerData := make([]ticker.Price, len(resp))
@@ -358,8 +353,7 @@ func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 
 func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 	var resp []WsTrade
-	err := json.Unmarshal(result.Data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
 	trades := make([]trade.Data, len(resp))
@@ -378,8 +372,7 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 
 func (e *Exchange) processCandlestickData(result *SubscriptionResponse) error {
 	var resp []WsCandles
-	err := json.Unmarshal(result.Data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
 	candles := make([]websocket.KlineData, len(resp))
@@ -402,8 +395,7 @@ func (e *Exchange) processCandlestickData(result *SubscriptionResponse) error {
 }
 
 func (e *Exchange) processResponse(result *SubscriptionResponse, instance any) error {
-	err := json.Unmarshal(result.Data, instance)
-	if err != nil {
+	if err := json.Unmarshal(result.Data, instance); err != nil {
 		return err
 	}
 	fullResp := result.GetWsResponse()
@@ -550,14 +542,12 @@ func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, sub
 		switch payloads[i].Channel[0] {
 		case cnlBalances, cnlOrders:
 			if e.Websocket.CanUseAuthenticatedEndpoints() {
-				err = conn.SendJSONMessage(ctx, request.UnAuth, payloads[i])
-				if err != nil {
+				if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
 					return err
 				}
 			}
 		default:
-			err = conn.SendJSONMessage(ctx, request.UnAuth, payloads[i])
-			if err != nil {
+			if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
 				return err
 			}
 		}
@@ -575,14 +565,12 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, u
 		switch payloads[i].Channel[0] {
 		case cnlBalances, cnlOrders:
 			if e.IsWebsocketAuthenticationSupported() && e.Websocket.CanUseAuthenticatedEndpoints() {
-				err = conn.SendJSONMessage(ctx, request.UnAuth, payloads[i])
-				if err != nil {
+				if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
 					return err
 				}
 			}
 		default:
-			err = conn.SendJSONMessage(ctx, request.UnAuth, payloads[i])
-			if err != nil {
+			if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
 				return err
 			}
 		}

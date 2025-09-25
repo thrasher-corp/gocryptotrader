@@ -28,7 +28,10 @@ func (e *Exchange) GetAccountBalance(ctx context.Context) (*FuturesAccountBalanc
 // GetAccountBills retrieve the account’s bills.
 func (e *Exchange) GetAccountBills(ctx context.Context, startTime, endTime time.Time, offset, limit int64, direction, billType string) ([]BillDetail, error) {
 	params := url.Values{}
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
@@ -75,8 +78,7 @@ func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []Future
 		return nil, common.ErrEmptyParams
 	}
 	for x := range args {
-		err := validationOrderCreationParam(&args[x])
-		if err != nil {
+		if err := validationOrderCreationParam(&args[x]); err != nil {
 			return nil, err
 		}
 	}
@@ -112,8 +114,7 @@ func (e *Exchange) CancelFuturesOrder(ctx context.Context, arg *CancelOrderReque
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *FuturesOrderIDResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "/v3/trade/order", nil, arg, &resp, true)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "/v3/trade/order", nil, arg, &resp, true); err != nil {
 		return nil, err
 	}
 	if resp.Code != 0 {
@@ -128,19 +129,7 @@ func (e *Exchange) CancelMultipleFuturesOrders(ctx context.Context, args *Cancel
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp []FuturesOrderIDResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "/v3/trade/batchOrders", nil, args, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 0 {
-		return nil, common.ErrNoResults
-	}
-	for _, r := range resp {
-		if r.Code != 0 {
-			return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, r.Code, r.Message)
-		}
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "/v3/trade/batchOrders", nil, args, &resp, true)
 }
 
 // CancelAllFuturesOrders cancel all current pending orders.
@@ -156,19 +145,7 @@ func (e *Exchange) CancelAllFuturesOrders(ctx context.Context, symbol, side stri
 		Side:   side,
 	}
 	var resp []FuturesOrderIDResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "/v3/trade/allOrders", nil, arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 0 {
-		return nil, common.ErrNoResults
-	}
-	for _, r := range resp {
-		if r.Code != 0 {
-			return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, r.Code, r.Message)
-		}
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "/v3/trade/allOrders", nil, arg, &resp, true)
 }
 
 // CloseAtMarketPrice close orders at market price.
@@ -194,32 +171,13 @@ func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol, marginMode, p
 		PositionSide: positionSide,
 	}
 	var resp *FuturesOrderIDResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/position", nil, arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if resp.Code != 0 {
-		return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/position", nil, arg, &resp, true)
 }
 
 // CloseAllAtMarketPrice close all orders at market price.
 func (e *Exchange) CloseAllAtMarketPrice(ctx context.Context) ([]FuturesOrderIDResponse, error) {
 	var resp []FuturesOrderIDResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/positionAll", nil, nil, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 0 {
-		return nil, common.ErrNoResults
-	}
-	for _, r := range resp {
-		if r.Code != 0 {
-			return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, r.Code, r.Message)
-		}
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/positionAll", nil, nil, &resp, true)
 }
 
 // GetCurrentFuturesOrders get unfilled futures orders. If no request parameters are specified, you will get all open orders sorted on the creation time in chronological order.
@@ -253,7 +211,10 @@ func (e *Exchange) GetCurrentFuturesOrders(ctx context.Context, symbol, side, or
 // GetOrderExecutionDetails retrieves detailed information about your executed futures order
 func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, symbol, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit int64) ([]FuturesTradeFill, error) {
 	params := url.Values{}
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
@@ -282,7 +243,10 @@ func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, symbol, orderID
 // GetFuturesOrderHistory retrieves previous futures orders. Orders that are completely canceled (no transaction has occurred) initiated through the API can only be queried for 4 hours.
 func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol, orderType, side, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit int64) ([]FuturesOrderDetail, error) {
 	params := url.Values{}
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
@@ -339,7 +303,10 @@ func (e *Exchange) GetFuturesPositionHistory(ctx context.Context, symbol, margin
 	if positionSide != "" {
 		params.Set("posSide", positionSide)
 	}
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
@@ -475,7 +442,10 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol string, inter
 	}
 	params.Set("symbol", symbol)
 	params.Set("interval", intervalString)
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
@@ -487,8 +457,7 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol string, inter
 		Message string            `json:"msg"`
 		Data    TypeFuturesCandle `json:"data"`
 	}{}
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/candles", params), &resp)
-	if err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/candles", params), &resp); err != nil {
 		return nil, err
 	}
 	if resp.Code != 200 {
@@ -503,8 +472,7 @@ type TypeFuturesCandle []FuturesCandle
 // UnmarshalJSON deserializes byte data into list of FuturesCandle
 func (t *TypeFuturesCandle) UnmarshalJSON(data []byte) error {
 	var result []FuturesCandle
-	err := json.Unmarshal(data, &result)
-	if err != nil {
+	if err := json.Unmarshal(data, &result); err != nil {
 		return err
 	}
 	*t = result
@@ -528,7 +496,10 @@ func (e *Exchange) GetFuturesExecutionInfo(ctx context.Context, symbol string, l
 // GetLiquidiationOrder get Liquidation Order Interface
 func (e *Exchange) GetLiquidiationOrder(ctx context.Context, symbol, direction string, startTime, endTime time.Time, offset, limit int64) ([]LiquidiationPrice, error) {
 	params := url.Values{}
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -580,7 +551,7 @@ func (e *Exchange) GetIndexPriceComponents(ctx context.Context, symbol string) (
 }
 
 // GetIndexPriceKlineData obtain the K-line data for the index price.
-func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (any, error) {
+func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]FuturesIndexPriceData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -591,7 +562,10 @@ func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol string, in
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("interval", intervalString)
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -624,7 +598,10 @@ func (e *Exchange) GetMarkPriceKlineData(ctx context.Context, symbol string, int
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("interval", intervalString)
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -673,7 +650,10 @@ func (e *Exchange) GetFuturesHistoricalFundingRates(ctx context.Context, symbol 
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if !startTime.IsZero() && !endTime.IsZero() && common.StartEndTimeCheck(startTime, endTime) != nil {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
