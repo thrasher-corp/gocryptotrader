@@ -16,9 +16,7 @@ func (*Version) UpgradeConfig(_ context.Context, e []byte) ([]byte, error) {
 	return e, nil
 }
 
-// DowngradeConfig is a no-op
+// DowngradeConfig is a no-op. It does not restore deprecatedRPC or websocketRPC on downgrade as their removal is permanent
 func (*Version) DowngradeConfig(_ context.Context, e []byte) ([]byte, error) {
-	// Note: We do NOT restore deprecatedRPC or websocketRPC on downgrade.
-	// Their removal is permanent as those subsystems have been eliminated
 	return e, nil
 }
