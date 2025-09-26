@@ -1919,6 +1919,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				MinimumBaseAmount:       minBaseAmount,
 				MinimumQuoteAmount:      pairsData[i].MinQuoteAmount.Float64(),
 				Delisting:               pairsData[i].DelistingTime.Time(),
+				Delisted:                pairsData[i].DelistingTime.Time(),
 			})
 		}
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
@@ -1949,6 +1950,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				PriceDivisor:            priceDiv,
 				Delisting:               contractInfo[i].DelistingTime.Time(),
 				Delisted:                contractInfo[i].DelistedTime.Time(),
+				Launch:                  contractInfo[i].LaunchTime.Time(),
 			})
 		}
 	case asset.DeliveryFutures:

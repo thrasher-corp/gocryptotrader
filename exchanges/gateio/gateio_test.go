@@ -2510,10 +2510,14 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					if a == asset.Spot {
 						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", pair)
 						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", pair)
+						if !l.Delisted.IsZero() {
+							assert.Truef(t, l.Delisted.Equal(l.Delisting), "Delisted should be equal to Delisting for %s", pair)
+						}
 					}
 
 					if a == asset.USDTMarginedFutures {
 						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", pair)
+						assert.NotZerof(t, l.Launch, "Launch should be populated for %s", pair)
 					}
 				}
 			}
