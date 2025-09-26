@@ -39,7 +39,6 @@ var (
 	// ErrBadStatus is a wrapping error to denote that the HTTP status code was unsuccessful
 	ErrBadStatus = errors.New("unsuccessful HTTP status code")
 
-	errRequestFunctionIsNil   = errors.New("request function is nil")
 	errRequestItemNil         = errors.New("request item is nil")
 	errInvalidPath            = errors.New("invalid path")
 	errHeaderResponseMapIsNil = errors.New("header response map is nil")

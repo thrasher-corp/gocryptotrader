@@ -303,10 +303,9 @@ func TestWaitForInitialDataWithTimeout(t *testing.T) {
 	require.Error(t, qs.WaitForInitialDataWithTimeout(t.Context(), OrderBookFocusType, 1))
 	cancel()
 
-	require.NoError(t, qs.WaitForInitialDataWithTimeout(t.Context(), TickerFocusType, time.Second))
-
 	require.ErrorIs(t, qs.WaitForInitialDataWithTimeout(t.Context(), TickerFocusType, 0), errTimerNotSet)
 
+	require.NoError(t, qs.WaitForInitialDataWithTimeout(t.Context(), TickerFocusType, time.Second))
 }
 
 func TestWaitForInitialData(t *testing.T) {
