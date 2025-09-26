@@ -20,11 +20,17 @@ import (
 func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 
-	m := newWsOBUpdateManager(0, 0)
+	m := newWsOBUpdateManager(time.Millisecond*200, time.Millisecond*200)
 	err := m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
+	cache, err := m.LoadCache(pair, asset.USDTMarginedFutures)
+	require.NoError(t, err)
+	cache.mtx.Lock()
+	assert.Equal(t, cacheStateInitialised, cache.state)
+	cache.mtx.Unlock()
+
 	err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Exchange:     e.Name,
 		Pair:         pair,
@@ -37,6 +43,49 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	// demonstrate an update is queued
+	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
+		UpdateID:   1338,
+		Pair:       pair,
+		Asset:      asset.USDTMarginedFutures,
+		AllowEmpty: true,
+		UpdateTime: time.Now(),
+	})
+	require.NoError(t, err)
+	cache.mtx.Lock()
+	assert.Equal(t, cacheStateQueuing, cache.state)
+	cache.mtx.Unlock()
+	// demonstrate an additional update is queued
+	var wg1, wg2 sync.WaitGroup
+	wg1.Add(1)
+	wg2.Go(func() {
+		wg1.Done()
+		updatedID := <-cache.ch
+		assert.Equal(t, int64(1339), updatedID)
+	})
+	wg1.Wait()
+	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
+		UpdateID:   1339,
+		Pair:       pair,
+		Asset:      asset.USDTMarginedFutures,
+		AllowEmpty: true,
+		UpdateTime: time.Now(),
+	})
+	wg2.Wait()
+
+	require.NoError(t, err)
+	cache.mtx.Lock()
+	assert.Equal(t, cacheStateQueuing, cache.state)
+	cache.mtx.Unlock()
+
+	// demonstrate an error state is entered
+	assert.Eventually(t, func() bool {
+		cache.mtx.Lock()
+		defer cache.mtx.Unlock()
+		return cache.state == cacheStateError
+	}, time.Second, time.Millisecond*10, "sync should eventually fail as BABYBABYDOGE is not a supported pair")
+
+	// demonstrate an error state is recovered
 	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
 		UpdateID:   1338,
 		Pair:       pair,
@@ -46,9 +95,23 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Test orderbook snapshot is behind update
-	err = m.ProcessOrderbookUpdate(t.Context(), e, 1340, &orderbook.Update{
-		UpdateID:   1341,
+	// demonstrate successful processing
+	err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:     e.Name,
+		Pair:         pair,
+		Asset:        asset.USDTMarginedFutures,
+		Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
+		Asks:         []orderbook.Level{{Price: 1, Amount: 1}},
+		LastUpdated:  time.Now(),
+		LastPushed:   time.Now(),
+		LastUpdateID: 1336,
+	})
+	require.NoError(t, err)
+	cache.mtx.Lock()
+	cache.state = cacheStateSynced
+	cache.mtx.Unlock()
+	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
+		UpdateID:   1338,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,
 		AllowEmpty: true,
@@ -56,35 +119,32 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cache, err := m.LoadCache(pair, asset.USDTMarginedFutures)
-	require.NoError(t, err, "LoadCache must not error")
-
+	// demonstrate when applying, no new updates are queued
 	cache.mtx.Lock()
-	assert.Len(t, cache.updates, 1)
-	assert.True(t, cache.updating)
+	lenCheck := len(cache.updates)
+	cache.state = cacheStateApplying
 	cache.mtx.Unlock()
-
-	// Test orderbook snapshot is behind update
-	err = m.ProcessOrderbookUpdate(t.Context(), e, 1342, &orderbook.Update{
-		UpdateID:   1343,
+	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
+		UpdateID:   1339,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,
 		AllowEmpty: true,
 		UpdateTime: time.Now(),
 	})
 	require.NoError(t, err)
+	assert.Equal(t, lenCheck, len(cache.updates))
 
 	cache.mtx.Lock()
-	assert.Len(t, cache.updates, 2)
-	assert.True(t, cache.updating)
+	cache.state = 100
 	cache.mtx.Unlock()
-
-	time.Sleep(time.Millisecond * 2) // Allow sync delay to pass
-
-	cache.mtx.Lock()
-	assert.Empty(t, cache.updates)
-	assert.False(t, cache.updating)
-	cache.mtx.Unlock()
+	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
+		UpdateID:   1339,
+		Pair:       pair,
+		Asset:      asset.USDTMarginedFutures,
+		AllowEmpty: true,
+		UpdateTime: time.Now(),
+	})
+	require.ErrorIs(t, err, errUnhandledCacheState)
 }
 
 func TestLoadCache(t *testing.T) {
@@ -147,47 +207,6 @@ func TestSyncOrderbook(t *testing.T) {
 	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.USDTMarginedFutures, UpdateID: math.MaxInt64}}}
 	err = cache.SyncOrderbook(t.Context(), e, pair, asset.USDTMarginedFutures, 0, time.Second)
 	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid)
-}
-
-func TestExtractOrderbookLimit(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup must not error")
-	cache := &updateCache{}
-
-	_, err := cache.extractOrderbookLimit(e, 1337)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = cache.extractOrderbookLimit(e, asset.Spot)
-	require.ErrorIs(t, err, subscription.ErrNotFound)
-
-	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.Interval(time.Millisecond * 420)})
-	require.NoError(t, err)
-
-	_, err = cache.extractOrderbookLimit(e, asset.Spot)
-	require.ErrorIs(t, err, errInvalidOrderbookUpdateInterval)
-
-	err = e.Websocket.RemoveSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.Interval(time.Millisecond * 420)})
-	require.NoError(t, err)
-
-	// Add dummy subscription so that it can be matched and a limit/level can be extracted for initial orderbook sync spot.
-	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
-	require.NoError(t, err)
-
-	for _, tc := range []struct {
-		asset asset.Item
-		exp   uint64
-	}{
-		{asset: asset.Spot, exp: 100},
-		{asset: asset.USDTMarginedFutures, exp: futuresOrderbookUpdateLimit},
-		{asset: asset.CoinMarginedFutures, exp: futuresOrderbookUpdateLimit},
-		{asset: asset.DeliveryFutures, exp: deliveryFuturesUpdateLimit},
-		{asset: asset.Options, exp: optionOrderbookUpdateLimit},
-	} {
-		limit, err := cache.extractOrderbookLimit(e, tc.asset)
-		require.NoError(t, err)
-		require.Equal(t, tc.exp, limit)
-	}
 }
 
 func TestWaitForUpdate(t *testing.T) {
@@ -274,16 +293,14 @@ func TestApplyPendingUpdates(t *testing.T) {
 
 func TestClearWithLock(t *testing.T) {
 	t.Parallel()
-	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}, updating: true}
+	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}}
 	cache.clearWithLock()
 	require.Empty(t, cache.updates)
-	assert.False(t, cache.updating, "updating should be correct after clearWithLock")
 }
 
 func TestClearNoLock(t *testing.T) {
 	t.Parallel()
-	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}, updating: true}
+	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}}
 	cache.clearNoLock()
 	require.Empty(t, cache.updates)
-	assert.False(t, cache.updating, "updating should be correct after clearWithNoLock")
 }

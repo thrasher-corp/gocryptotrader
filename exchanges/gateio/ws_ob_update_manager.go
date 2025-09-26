@@ -23,6 +23,7 @@ var (
 	defaultWSOrderbookUpdateDeadline  = time.Minute * 2
 	defaultWsOrderbookUpdateTimeDelay = time.Second * 2
 	spotOrderbookUpdateKey            = subscription.MustChannelKey(subscription.OrderbookChannel)
+	errUnhandledCacheState            = errors.New("unhandled cache state")
 )
 
 type wsOBUpdateManager struct {
@@ -33,11 +34,21 @@ type wsOBUpdateManager struct {
 }
 
 type updateCache struct {
-	updates  []pendingUpdate
-	updating bool
-	ch       chan int64
-	mtx      sync.Mutex
+	updates []pendingUpdate
+	ch      chan int64
+	mtx     sync.Mutex
+	state   cacheState
 }
+
+type cacheState uint32
+
+const (
+	cacheStateInitialised cacheState = iota
+	cacheStateQueuing
+	cacheStateApplying
+	cacheStateSynced
+	cacheStateError
+)
 
 type pendingUpdate struct {
 	update        *orderbook.Update
@@ -57,42 +68,74 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 
 	cache.mtx.Lock()
 	defer cache.mtx.Unlock()
-
-	if cache.updating {
+	switch cache.state {
+	case cacheStateSynced: // first scenario for most tiny of speed bits, move if confusing
+		return m.handleSynchronisedState(ctx, e, firstUpdateID, update, cache)
+	case cacheStateInitialised:
+		m.initialiseOrderbookCache(ctx, e, firstUpdateID, update, cache)
+	case cacheStateQueuing:
 		cache.updates = append(cache.updates, pendingUpdate{update: update, firstUpdateID: firstUpdateID})
 		select {
 		case cache.ch <- update.UpdateID: // Notify SyncOrderbook of most recent update ID for inspection
 		default:
 		}
-		return nil
+	case cacheStateError:
+		return m.handleInvalidCache(ctx, e, firstUpdateID, update, cache)
+	case cacheStateApplying:
+		// while applying, don't queue anything, let it resolve itself
+	default:
+		return fmt.Errorf("%w: %d for %v %v", errUnhandledCacheState, cache.state, update.Pair, update.Asset)
 	}
+	return nil
+}
 
-	lastUpdateID, updateErr := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
-	if updateErr == nil && lastUpdateID+1 == firstUpdateID {
-		if updateErr = e.Websocket.Orderbook.Update(update); updateErr == nil {
-			return nil
-		}
+// handleSynchronisedState checks that the incoming update can be applied and applies it, otherwise invalidates the cache
+// assumes lock already active on cache
+func (m *wsOBUpdateManager) handleSynchronisedState(ctx context.Context, e *Exchange, firstUpdateID int64, update *orderbook.Update, cache *updateCache) error {
+	lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
+	if err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
+		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
+		cache.state = cacheStateError
+		return m.handleInvalidCache(ctx, e, firstUpdateID, update, cache)
 	}
-
-	if updateErr != nil && errors.Is(updateErr, orderbook.ErrDepthNotFound) {
-		updateErr = nil // silence error as this is expected initial sync behaviour
+	if lastUpdateID != 0 && lastUpdateID+1 != firstUpdateID {
+		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
+		cache.state = cacheStateError
+		return m.handleInvalidCache(ctx, e, firstUpdateID, update, cache)
 	}
+	if err := e.Websocket.Orderbook.Update(update); err != nil {
+		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
+		cache.state = cacheStateError
+		return m.handleInvalidCache(ctx, e, firstUpdateID, update, cache)
+	}
+	return nil
+}
 
-	// Orderbook notifications are desynced, therefore invalidate store.
+// handleInvalidCache invalidates the existing orderbook, clears the update queue and reinitialises the orderbook cache
+// assumes lock already active on cache
+func (m *wsOBUpdateManager) handleInvalidCache(ctx context.Context, e *Exchange, firstUpdateID int64, update *orderbook.Update, cache *updateCache) error {
 	if err := e.Websocket.Orderbook.InvalidateOrderbook(update.Pair, update.Asset); err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
 		return err
 	}
+	cache.clearNoLock()
+	m.initialiseOrderbookCache(ctx, e, firstUpdateID, update, cache)
+	return nil
+}
 
-	cache.updating = true
+// initialiseOrderbookCache sets the cache state to queuing, appends the update to the cache and spawns a goroutine
+// to fetch and synchronise the orderbook snapshot
+// assumes lock already active on cache
+func (m *wsOBUpdateManager) initialiseOrderbookCache(ctx context.Context, e *Exchange, firstUpdateID int64, update *orderbook.Update, cache *updateCache) {
+	cache.state = cacheStateQueuing
 	cache.updates = append(cache.updates, pendingUpdate{update: update, firstUpdateID: firstUpdateID})
-
 	go func() {
 		if err := cache.SyncOrderbook(ctx, e, update.Pair, update.Asset, m.delay, m.deadline); err != nil {
 			log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
+			cache.mtx.Lock()
+			cache.state = cacheStateError // don't reinitialise on this old bad update, let the next ws update begin the process again
+			cache.mtx.Unlock()
 		}
 	}()
-
-	return updateErr
 }
 
 // LoadCache loads the cache for the given pair and asset. If the cache does not exist, it creates a new one.
@@ -118,7 +161,7 @@ func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) (*updateCac
 // SyncOrderbook fetches and synchronises an orderbook snapshot to the limit size so that pending updates can be
 // applied to the orderbook.
 func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair currency.Pair, a asset.Item, delay, deadline time.Duration) error {
-	limit, err := c.extractOrderbookLimit(e, a)
+	limit, err := e.extractOrderbookLimit(a)
 	if err != nil {
 		c.clearWithLock()
 		return err
@@ -162,38 +205,11 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair curre
 	return c.applyPendingUpdates(e)
 }
 
-// TODO: When subscription config is added for all assets update limits to use sub.Levels
-func (c *updateCache) extractOrderbookLimit(e *Exchange, a asset.Item) (uint64, error) {
-	switch a {
-	case asset.Spot:
-		sub := e.Websocket.GetSubscription(spotOrderbookUpdateKey)
-		if sub == nil {
-			return 0, fmt.Errorf("%w for %q", subscription.ErrNotFound, spotOrderbookUpdateKey)
-		}
-		// There is no way to set levels when we subscribe for this specific channel
-		// Extract limit from interval e.g. 20ms == 20 limit book and 100ms == 100 limit book.
-		lim := uint64(sub.Interval.Duration().Milliseconds()) //nolint:gosec // No overflow risk
-		if lim != 20 && lim != 100 {
-			return 0, fmt.Errorf("%w: %d. Valid limits are 20 and 100", errInvalidOrderbookUpdateInterval, lim)
-		}
-		return lim, nil
-	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
-		return futuresOrderbookUpdateLimit, nil
-	case asset.DeliveryFutures:
-		return deliveryFuturesUpdateLimit, nil
-	case asset.Options:
-		return optionOrderbookUpdateLimit, nil
-	default:
-		return 0, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
-	}
-}
-
 // waitForUpdate waits for an update with an ID >= nextUpdateID
 func (c *updateCache) waitForUpdate(ctx context.Context, nextUpdateID int64) error {
 	c.mtx.Lock()
 	updateListLastUpdateID := c.updates[len(c.updates)-1].update.UpdateID
 	c.mtx.Unlock()
-
 	if updateListLastUpdateID >= nextUpdateID {
 		return nil
 	}
@@ -211,8 +227,9 @@ func (c *updateCache) waitForUpdate(ctx context.Context, nextUpdateID int64) err
 }
 
 // applyPendingUpdates applies all pending updates to the orderbook
-// Does not lock cache
+// assumes lock already active on cache
 func (c *updateCache) applyPendingUpdates(e *Exchange) error {
+	c.state = cacheStateApplying
 	var updated bool
 	for _, data := range c.updates {
 		bookLastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(data.update.Pair, data.update.Asset)
@@ -243,7 +260,7 @@ func (c *updateCache) applyPendingUpdates(e *Exchange) error {
 	if !updated {
 		return errPendingUpdatesNotApplied
 	}
-
+	c.state = cacheStateSynced
 	return nil
 }
 
@@ -255,5 +272,4 @@ func (c *updateCache) clearWithLock() {
 
 func (c *updateCache) clearNoLock() {
 	c.updates = nil
-	c.updating = false
 }
