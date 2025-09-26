@@ -106,6 +106,7 @@ func (e *Exchange) GetMarketPrices(ctx context.Context) ([]MarketPrice, error) {
 }
 
 // GetMarketPrice retrieves latest trade price for symbols
+// If symbol is empty then all symbols will be returned
 func (e *Exchange) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*MarketPrice, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -375,9 +376,9 @@ func (e *Exchange) GetSubAccountInformation(ctx context.Context) ([]SubAccount, 
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts", nil, nil, &resp)
 }
 
-// GetSubAccountBalances get balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
-// This is only functional for a primary user.
-// A subaccount user can call /accounts/balances for SPOT account type and the futures API overview for its FUTURES balances.
+// GetSubAccountBalances retrieves balances by currency and account type (SPOT or FUTURES)
+// for all accounts in the group. Available only to the primary user.
+// Subaccounts should use GetAllBalances() for SPOT and the Futures API for FUTURES.
 func (e *Exchange) GetSubAccountBalances(ctx context.Context) ([]SubAccountBalances, error) {
 	var resp []SubAccountBalances
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
@@ -479,8 +480,7 @@ func (e *Exchange) GetDepositAddresses(ctx context.Context, ccy currency.Code) (
 // WalletActivity returns the wallet activity between set start and end time
 func (e *Exchange) WalletActivity(ctx context.Context, start, end time.Time, activityType string) (*WalletActivityResponse, error) {
 	values := url.Values{}
-	err := common.StartEndTimeCheck(start, end)
-	if err != nil {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
 	}
 	values.Set("start", strconv.FormatInt(start.Unix(), 10))
@@ -817,7 +817,7 @@ func (e *Exchange) CancelAllSmartOrders(ctx context.Context, symbols, accountTyp
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders", nil, args, &resp)
 }
 
-func orderFillParams(arg *OrdersHistoryRequest) url.Values {
+func orderFillParams(arg *OrdersHistoryRequest) (url.Values, error) {
 	params := url.Values{}
 	if arg.AccountType != "" {
 		params.Set("accountType", arg.AccountType)
@@ -846,23 +846,34 @@ func orderFillParams(arg *OrdersHistoryRequest) url.Values {
 	if arg.HideCancel {
 		params.Set("hideCancel", "true")
 	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() && common.StartEndTimeCheck(arg.StartTime, arg.EndTime) != nil {
+	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
+		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
+			return nil, err
+		}
 		params.Set("startTime", arg.StartTime.String())
 		params.Set("endTime", arg.EndTime.String())
 	}
-	return params
+	return params, nil
 }
 
 // GetOrdersHistory get a list of historical orders in an account
 func (e *Exchange) GetOrdersHistory(ctx context.Context, arg *OrdersHistoryRequest) ([]TradeOrder, error) {
+	params, err := orderFillParams(arg)
+	if err != nil {
+		return nil, err
+	}
 	var resp []TradeOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders/history", orderFillParams(arg), nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders/history", params, nil, &resp)
 }
 
 // GetSmartOrderHistory get a list of historical smart orders in an account
 func (e *Exchange) GetSmartOrderHistory(ctx context.Context, arg *OrdersHistoryRequest) ([]SmartOrder, error) {
+	params, err := orderFillParams(arg)
+	if err != nil {
+		return nil, err
+	}
 	var resp []SmartOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/smartorders/history", orderFillParams(arg), nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/smartorders/history", params, nil, &resp)
 }
 
 // GetTradeHistory get a list of all trades for an account
