@@ -36,7 +36,7 @@ var (
 
 func mustQuickData(t *testing.T, ft FocusType) *QuickData {
 	t.Helper()
-	ftd := NewFocusData(ft, false, true, time.Second)
+	ftd := NewFocusData(ft, false, false, time.Second)
 	ftd.Init()
 	qs, err := NewQuickData(
 		t.Context(),
@@ -113,6 +113,7 @@ func TestNewQuickData(t *testing.T) {
 func TestAnyRequiresWebsocket(t *testing.T) {
 	t.Parallel()
 	q := mustQuickData(t, TickerFocusType)
+	q.focuses.Upsert(TickerFocusType, &FocusData{focusType: TickerFocusType, restPollTime: time.Second, useWebsocket: true})
 	require.True(t, q.AnyRequiresWebsocket())
 
 	q.focuses.Upsert(TickerFocusType, &FocusData{focusType: TickerFocusType, restPollTime: time.Second, useWebsocket: false})
@@ -142,14 +143,17 @@ func TestGetFocusByKey(t *testing.T) {
 
 func TestSetupExchange(t *testing.T) {
 	t.Parallel()
-	q := mustQuickData(t, TickerFocusType)
+	q := &QuickData{
+		key:                &CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair(exchangeName, assetType, currencyPair)},
+		dataHandlerChannel: make(chan any),
+		wg:                 sync.WaitGroup{},
+		focuses:            NewFocusStore(),
+	}
 	err := q.setupExchange()
 	require.NoError(t, err)
 
 	q = &QuickData{
-		key:                &CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("butts", assetType, currencyPair)},
-		dataHandlerChannel: make(chan any),
-		wg:                 sync.WaitGroup{},
+		key: &CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair("butts", assetType, currencyPair)},
 	}
 	err = q.setupExchange()
 	require.ErrorIs(t, err, engine.ErrExchangeNotFound)
@@ -491,7 +495,20 @@ func TestValidateSubscriptions(t *testing.T) {
 		Asset:   futuresAssetType,
 	}}), errNoSubSwitchingToREST)
 
-	qs = mustQuickData(t, TickerFocusType)
+	ftd := NewFocusData(TickerFocusType, false, true, time.Second)
+	ftd.Init()
+	qs, err := NewQuickData(
+		t.Context(),
+		&CredentialsKey{
+			ExchangeAssetPair: key.NewExchangeAssetPair(exchangeName, assetType, currencyPair),
+			Credentials: &account.Credentials{
+				Key:    apiKey,
+				Secret: apiSecret,
+			},
+		},
+		[]*FocusData{ftd})
+	require.NoError(t, err)
+	require.NotNil(t, qs)
 	assert.NoError(t, qs.validateSubscriptions([]*subscription.Subscription{{
 		Enabled: true,
 		Channel: subscription.TickerChannel,

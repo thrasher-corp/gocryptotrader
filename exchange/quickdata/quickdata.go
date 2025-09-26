@@ -358,7 +358,9 @@ func (q *QuickData) stopWebsocket() error {
 		return err
 	}
 	for _, f := range q.focuses.List() {
+		f.m.Lock()
 		f.useWebsocket = false
+		f.m.Unlock()
 	}
 	return nil
 }
@@ -372,7 +374,7 @@ func (q *QuickData) run(ctx context.Context) {
 		})
 	}
 	for _, focus := range q.focuses.List() {
-		if focus.useWebsocket {
+		if focus.UseWebsocket() {
 			continue
 		}
 		q.wg.Add(1) // wg.Go doesn't work here as we have to pass in the focus variable
@@ -432,7 +434,7 @@ func (q *QuickData) handleWSData(d any) error {
 }
 
 func (q *QuickData) runRESTRoutine(ctx context.Context, f *FocusData) error {
-	if f.useWebsocket {
+	if f.UseWebsocket() {
 		return nil
 	}
 	timer := time.NewTimer(0)
