@@ -798,20 +798,20 @@ func TestFetchTradablePairs(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetSymbolInformation(t *testing.T) {
+func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetSymbolInformation(t.Context(), spotTradablePair)
+	result, err := e.GetSymbol(t.Context(), spotTradablePair)
 	require.NoError(t, err)
 	require.NotNil(t, result)
+	assert.Len(t, result, 1)
 
-	result, err = e.GetSymbolInformation(t.Context(), currency.EMPTYPAIR)
+	result, err = e.GetSymbols(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetCurrenciesInformation(t *testing.T) {
 	t.Parallel()
-	e.Verbose = true
 	result, err := e.GetCurrencies(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -944,7 +944,11 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetCollateralInfos(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetAllCollateralInfo(t.Context())
+	result, err := e.GetCollateralInfo(t.Context(), currency.EMPTYCODE)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetCollateralInfo(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1409,13 +1413,13 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrderDetail(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOrderDetail(t.Context(), "", "")
+	_, err := e.GetOrder(t.Context(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetOrderDetail(generateContext(), "12345536545645", "")
+	result, err := e.GetOrder(generateContext(), "12345536545645", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1749,7 +1753,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	require.NoError(t, err)
 
-	spotInstruments, err := e.GetSymbolInformation(t.Context(), spotTradablePair)
+	spotInstruments, err := e.GetSymbol(t.Context(), spotTradablePair)
 	require.NoError(t, err)
 	require.NotNil(t, instrument)
 
@@ -1809,10 +1813,10 @@ func TestWsFuturesHandleData(t *testing.T) {
 
 func TestGetCurrencyInformation(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCurrencyInformation(t.Context(), currency.EMPTYCODE)
+	_, err := e.GetCurrencyInfo(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := e.GetCurrencyInformation(t.Context(), currency.ETH)
+	result, err := e.GetCurrencyInfo(t.Context(), currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

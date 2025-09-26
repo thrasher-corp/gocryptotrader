@@ -77,7 +77,7 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.ZEC:   0.001,
 }
 
-// SymbolDetail represents a symbol(currency pair) detailed information.
+// SymbolDetail represents a currency symbol
 type SymbolDetail struct {
 	Symbol            currency.Pair `json:"symbol"`
 	BaseCurrencyName  string        `json:"baseCurrencyName"`
@@ -251,6 +251,24 @@ type TickerData struct {
 	MarkPrice   types.Number  `json:"markPrice"`
 }
 
+// CollateralInfoList holds a list of collateral info detail
+type CollateralInfoList []CollateralInfo
+
+func (c *CollateralInfoList) UnmarshalJSON(data []byte) error {
+	var targets []CollateralInfo
+	err := json.Unmarshal(data, &targets)
+	if err != nil {
+		var target *CollateralInfo
+		err = json.Unmarshal(data, &target)
+		if err != nil {
+			return err
+		}
+		targets = append(targets, *target)
+	}
+	*c = targets
+	return nil
+}
+
 // CollateralInfo represents collateral information.
 type CollateralInfo struct {
 	Currency              string       `json:"currency"`
@@ -375,8 +393,8 @@ type SubAccount struct {
 	IsPrimary    string `json:"isPrimary"`
 }
 
-// SubAccountDetailAndBalance represents a users account details and balances
-type SubAccountDetailAndBalance struct {
+// SubAccountBalances represents a users account details and balances
+type SubAccountBalances struct {
 	AccountID   string              `json:"accountId"`
 	AccountName string              `json:"accountName"`
 	AccountType string              `json:"accountType"`
@@ -644,7 +662,7 @@ type WsCancelOrderResponse struct {
 
 // CancelOrdersRequest represents cancel order request parameters
 type CancelOrdersRequest struct {
-	Symbol         currency.Pair `json:"symbol,omitempty"`
+	Symbol         currency.Pair `json:"symbol"`
 	OrderIDs       []string      `json:"ordIds,omitempty"`
 	ClientOrderIDs []string      `json:"clOrdIds,omitempty"`
 }

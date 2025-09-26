@@ -255,7 +255,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
 	switch assetType {
 	case asset.Spot, asset.Margin:
-		resp, err := e.GetSymbolInformation(ctx, currency.EMPTYPAIR)
+		resp, err := e.GetSymbols(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -1073,7 +1073,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			}
 		}
 		var smartOrders []SmartOrderDetail
-		resp, err := e.GetOrderDetail(ctx, orderID, "")
+		resp, err := e.GetOrder(ctx, orderID, "")
 		if err != nil {
 			smartOrders, err = e.GetSmartOrderDetail(ctx, orderID, "")
 			if err != nil {
@@ -1209,7 +1209,7 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 	}
 	// Some coins use a main address, so we must use this in conjunction with the returned
 	// deposit address to produce the full deposit address and payment-id
-	currencies, err := e.GetCurrencyInformation(ctx, cryptocurrency)
+	currencies, err := e.GetCurrencyInfo(ctx, cryptocurrency)
 	if err != nil {
 		return nil, err
 	}
@@ -1744,7 +1744,7 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 	if cryptocurrency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	currencies, err := e.GetV2FuturesCurrencyInformation(ctx, cryptocurrency)
+	currencies, err := e.GetFuturesCurrency(ctx, cryptocurrency)
 	if err != nil {
 		return nil, err
 	}
@@ -1872,7 +1872,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return fmt.Errorf("%w asset: %v", asset.ErrNotSupported, a)
 	}
 	if a == asset.Spot {
-		instruments, err := e.GetSymbolInformation(ctx, currency.EMPTYPAIR)
+		instruments, err := e.GetSymbols(ctx)
 		if err != nil {
 			return err
 		}

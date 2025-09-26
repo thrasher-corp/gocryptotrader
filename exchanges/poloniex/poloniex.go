@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -46,15 +47,20 @@ type Exchange struct {
 	exchange.Base
 }
 
-// GetSymbolInformation returns symbol information
-// symbol may be an empty currency.Pair to return all symbols
-func (e *Exchange) GetSymbolInformation(ctx context.Context, symbol currency.Pair) ([]SymbolDetail, error) {
-	path := "/markets"
-	if !symbol.IsEmpty() {
-		path = path + "/" + symbol.String()
+// GetSymbol returns symbol detail
+func (e *Exchange) GetSymbol(ctx context.Context, symbol currency.Pair) ([]SymbolDetail, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp []SymbolDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, path, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/"+symbol.String(), &resp)
+}
+
+// GetSymbols returns symbol information
+// symbol may be an empty currency.Pair to return all symbols
+func (e *Exchange) GetSymbols(ctx context.Context) ([]SymbolDetail, error) {
+	var resp []SymbolDetail
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets", &resp)
 }
 
 // GetCurrencies returns all currencies and their info
@@ -63,8 +69,8 @@ func (e *Exchange) GetCurrencies(ctx context.Context) ([]map[string]CurrencyDeta
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies", &resp)
 }
 
-// GetCurrencyInformation retrieves currency and their detailed information.
-func (e *Exchange) GetCurrencyInformation(ctx context.Context, ccy currency.Code) (map[string]CurrencyDetail, error) {
+// GetCurrencyInfo retrieves currency and their detailed information.
+func (e *Exchange) GetCurrencyInfo(ctx context.Context, ccy currency.Code) (map[string]CurrencyDetail, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -78,8 +84,8 @@ func (e *Exchange) GetCurrency(ctx context.Context) ([]CurrencyInformation, erro
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies", &resp)
 }
 
-// GetV2FuturesCurrencyInformation retrieves currency details for V2 API.
-func (e *Exchange) GetV2FuturesCurrencyInformation(ctx context.Context, ccy currency.Code) (*CurrencyInformation, error) {
+// GetFuturesCurrency retrieves currency details for V2 API.
+func (e *Exchange) GetFuturesCurrency(ctx context.Context, ccy currency.Code) (*CurrencyInformation, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -203,19 +209,16 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, marketsPath+symbol.String()+"/ticker24h", &resp)
 }
 
-// GetAllCollateralInfo retrieves collateral information for all currencies.
-func (e *Exchange) GetAllCollateralInfo(ctx context.Context) ([]CollateralInfo, error) {
-	var resp []CollateralInfo
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/collateralInfo", &resp)
-}
-
-// GetCollateralInfo retrieves collateral information for all currencies.
-func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy currency.Code) (*CollateralInfo, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
+// GetCollateralInfo retrieves collateral information for currency
+func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy currency.Code) ([]CollateralInfo, error) {
+	var path string
+	if !ccy.IsEmpty() {
+		path = marketsPath + ccy.String() + "/collateralInfo"
+	} else {
+		path = "/markets/collateralInfo"
 	}
-	var resp *CollateralInfo
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+ccy.String()+"/collateralInfo", &resp)
+	var resp CollateralInfoList
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, path, &resp)
 }
 
 // GetBorrowRateInfo retrieves borrow rates information for all tiers and currencies.
@@ -375,17 +378,17 @@ func (e *Exchange) GetSubAccountInformation(ctx context.Context) ([]SubAccount, 
 // GetSubAccountBalances get balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
 // This is only functional for a primary user.
 // A subaccount user can call /accounts/balances for SPOT account type and the futures API overview for its FUTURES balances.
-func (e *Exchange) GetSubAccountBalances(ctx context.Context) ([]SubAccountDetailAndBalance, error) {
-	var resp []SubAccountDetailAndBalance
+func (e *Exchange) GetSubAccountBalances(ctx context.Context) ([]SubAccountBalances, error) {
+	var resp []SubAccountBalances
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
 }
 
 // GetSubAccountBalance get balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
-func (e *Exchange) GetSubAccountBalance(ctx context.Context, subAccountID string) ([]SubAccountDetailAndBalance, error) {
+func (e *Exchange) GetSubAccountBalance(ctx context.Context, subAccountID string) ([]SubAccountBalances, error) {
 	if subAccountID == "" {
 		return nil, fmt.Errorf("%w: empty subAccountID", errAccountIDRequired)
 	}
-	var resp []SubAccountDetailAndBalance
+	var resp []SubAccountBalances
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts/"+subAccountID+"/balances", nil, nil, &resp)
 }
 
@@ -645,8 +648,8 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, side
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders", nil, nil, &resp)
 }
 
-// GetOrderDetail gets an order’s status by orderId or clientOrderId
-func (e *Exchange) GetOrderDetail(ctx context.Context, id, clientOrderID string) (*TradeOrder, error) {
+// GetOrder gets an order’s status by orderId or clientOrderId
+func (e *Exchange) GetOrder(ctx context.Context, id, clientOrderID string) (*TradeOrder, error) {
 	var path string
 	switch {
 	case id != "":
@@ -660,7 +663,7 @@ func (e *Exchange) GetOrderDetail(ctx context.Context, id, clientOrderID string)
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp)
 }
 
-// CancelOrderByID cancel an active order
+// CancelOrderByID cancels an active order
 func (e *Exchange) CancelOrderByID(ctx context.Context, id string) (*CancelOrderResponse, error) {
 	if id == "" {
 		return nil, fmt.Errorf("%w; order 'id' is required", order.ErrOrderIDNotSet)
@@ -766,7 +769,7 @@ func (e *Exchange) GetSmartOrderDetail(ctx context.Context, orderID, clientSuppl
 		return nil, err
 	}
 	var resp []SmartOrderDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp, true)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp)
 }
 
 // CancelSmartOrderByID cancel a smart order by its id.
@@ -928,7 +931,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, endpoint string, values url.Values, body, result any, useAsData ...bool) error {
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, endpoint string, values url.Values, body, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -979,7 +982,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["signTimestamp"] = signTimestamp
 		values.Del("signTimestamp")
 		resp := result
-		if len(useAsData) > 0 && useAsData[0] {
+		if strings.HasPrefix(endpoint, v3Path) {
 			resp = &struct {
 				Code int64  `json:"code"`
 				Msg  string `json:"msg"`
