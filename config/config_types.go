@@ -112,6 +112,7 @@ type Config struct {
 	Exchanges            []Exchange                `json:"exchanges"`
 	BankAccounts         []banking.Account         `json:"bankAccounts"`
 
+	// Deprecated config settings, will be removed at a future date
 	CurrencyPairFormat  *currency.PairFormat  `json:"currencyPairFormat,omitempty"`
 	FiatDisplayCurrency *currency.Code        `json:"fiatDispayCurrency,omitempty"`
 	Cryptocurrencies    *currency.Currencies  `json:"cryptocurrencies,omitempty"`

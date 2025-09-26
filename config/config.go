@@ -1579,7 +1579,7 @@ func (c *Config) Save(writerProvider func() (io.Writer, error)) error {
 	return err
 }
 
-func setIfZeroAndWarn[T comparable](scope, name string, p *T, def T) {
+func setDefaultIfZeroWarn[T comparable](scope, name string, p *T, def T) {
 	if common.SetIfZero(p, def) {
 		log.Warnf(log.ConfigMgr, "%s field %q not set, defaulting to `%v`", scope, name, def)
 	}
@@ -1590,10 +1590,10 @@ func (c *Config) CheckRemoteControlConfig() {
 	m.Lock()
 	defer m.Unlock()
 
-	setIfZeroAndWarn("Remote control", "username", &c.RemoteControl.Username, DefaultGRPCUsername)
-	setIfZeroAndWarn("Remote control", "password", &c.RemoteControl.Password, DefaultGRPCPassword)
-	setIfZeroAndWarn("Remote control gRPC", "listen address", &c.RemoteControl.GRPC.ListenAddress, "localhost:9052")
-	setIfZeroAndWarn("Remote control gRPC", "gRPC proxy listen address", &c.RemoteControl.GRPC.GRPCProxyListenAddress, "localhost:9053")
+	setDefaultIfZeroWarn("Remote control", "username", &c.RemoteControl.Username, DefaultGRPCUsername)
+	setDefaultIfZeroWarn("Remote control", "password", &c.RemoteControl.Password, DefaultGRPCPassword)
+	setDefaultIfZeroWarn("Remote control gRPC", "listen address", &c.RemoteControl.GRPC.ListenAddress, "localhost:9052")
+	setDefaultIfZeroWarn("Remote control gRPC", "gRPC proxy listen address", &c.RemoteControl.GRPC.GRPCProxyListenAddress, "localhost:9053")
 
 	if c.RemoteControl.GRPC.GRPCProxyEnabled && !c.RemoteControl.GRPC.Enabled {
 		log.Warnln(log.ConfigMgr, "gRPC proxy cannot be enabled when gRPC is disabled, disabling gRPC proxy")
