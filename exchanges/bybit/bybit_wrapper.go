@@ -1653,26 +1653,77 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	}
 	l := make([]limits.MinMaxLevel, 0, len(allInstrumentsInfo.List))
 	for x := range allInstrumentsInfo.List {
-		if allInstrumentsInfo.List[x].Status != "Trading" {
-			continue
-		}
 		symbol := allInstrumentsInfo.List[x].transformSymbol(a)
 		pair, err := e.MatchSymbolWithAvailablePairs(symbol, a, true)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "%s unable to load limits for %s %v, pair data missing", e.Name, a, symbol)
 			continue
 		}
+
+		priceDivisor := 1.0
+		if symbol[:2] == "10" { // handle 1000SHIBUSDT, 1000PEPEUSDT etc; screen 1INCHUSDT
+			for _, r := range symbol[1:] {
+				if r != '0' {
+					break
+				}
+				priceDivisor *= 10
+			}
+		}
+
+		var delistingAt time.Time
+		var delistedAt time.Time
+		var delivery time.Time
+		if !allInstrumentsInfo.List[x].DeliveryTime.Time().IsZero() {
+			switch a {
+			case asset.Options:
+				delivery = allInstrumentsInfo.List[x].DeliveryTime.Time()
+			case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.USDCMarginedFutures:
+				if allInstrumentsInfo.List[x].ContractType == "LinearFutures" ||
+					allInstrumentsInfo.List[x].ContractType == "InverseFutures" {
+					delivery = allInstrumentsInfo.List[x].DeliveryTime.Time()
+				} else {
+					delistedAt = allInstrumentsInfo.List[x].DeliveryTime.Time()
+					// Not entirely accurate but from docs the system will use the average index price in the last
+					// 30 minutes before the delisting time. See: https://www.bybit.com/en/help-center/article/Bybit-Derivatives-Delisting-Mechanism-DDM
+					delistingAt = delistedAt.Add(-30 * time.Minute)
+				}
+			case asset.Spot:
+				// asset.Spot does not return a delivery time and there is no API field for delisting time
+				log.Warnf(log.ExchangeSys, "%s %s: delivery time returned for spot asset", e.Name, pair)
+			}
+		}
+
+		baseStepAmount := allInstrumentsInfo.List[x].LotSizeFilter.QtyStep.Float64()
+		if a == asset.Spot {
+			baseStepAmount = allInstrumentsInfo.List[x].LotSizeFilter.BasePrecision.Float64()
+		}
+
+		maxBaseAmount := allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64()
+		if a != asset.Spot && a != asset.Options {
+			maxBaseAmount = allInstrumentsInfo.List[x].LotSizeFilter.MaxMarketOrderQuantity.Float64()
+		}
+
+		minQuoteAmount := allInstrumentsInfo.List[x].LotSizeFilter.MinOrderAmt.Float64()
+		if a != asset.Spot {
+			minQuoteAmount = allInstrumentsInfo.List[x].LotSizeFilter.MinNotionalValue.Float64()
+		}
+
 		l = append(l, limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 			MinimumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),
-			MaximumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64(),
+			MaximumBaseAmount:       maxBaseAmount,
 			MinPrice:                allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
 			MaxPrice:                allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
 			PriceStepIncrementSize:  allInstrumentsInfo.List[x].PriceFilter.TickSize.Float64(),
-			AmountStepIncrementSize: allInstrumentsInfo.List[x].LotSizeFilter.BasePrecision.Float64(),
+			AmountStepIncrementSize: baseStepAmount,
 			QuoteStepIncrementSize:  allInstrumentsInfo.List[x].LotSizeFilter.QuotePrecision.Float64(),
-			MinimumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
-			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
+			MinimumQuoteAmount:      minQuoteAmount,
+			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderAmt.Float64(),
+			Delisting:               delistingAt,
+			Delisted:                delistedAt,
+			Delivery:                delivery,
+			PriceDivisor:            priceDivisor,
+			MultiplierDecimal:       1, // All assets on Bybit are 1x
 		})
 	}
 	return limits.Load(l)
