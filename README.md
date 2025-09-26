@@ -154,7 +154,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [dependabot[bot]](https://github.com/apps/dependabot) | 407 |
 | [shazbert](https://github.com/shazbert) | 383 |
 | [gloriousCode](https://github.com/gloriousCode) | 239 |
-| [gbjk](https://github.com/gbjk) | 137 |
+| [gbjk](https://github.com/gbjk) | 138 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |

@@ -95,7 +95,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not create quickData instance: %v", err)
 	}
-	parseData(ctx, qs)
+	if err := parseData(ctx, qs); err != nil {
+	    log.Fatalf("could not parse data: %v", err)
+	}
 }
 
 func parseData(ctx context.Context, c <-chan any) error {

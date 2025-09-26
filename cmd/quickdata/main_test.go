@@ -240,21 +240,3 @@ func TestStreamData_DefaultRendering(t *testing.T) {
 	assert.Contains(t, out, "Trades:")
 	assert.Contains(t, out, "\"focus\":\"TradesFocusType\"")
 }
-
-func returnTicker() *ticker.Price {
-	return nil
-}
-
-func transferStuff(a any) <-chan any {
-	ch := make(chan any, 1)
-	ch <- a
-	return ch
-}
-
-func TestButts(t *testing.T) {
-	c := transferStuff(returnTicker())
-	assert.IsType(t, &ticker.Price{}, <-c)
-
-	c = transferStuff(returnTicker())
-	assert.IsNotType(t, &order.Detail{}, <-c)
-}

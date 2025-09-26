@@ -286,7 +286,7 @@ func TestLatestData(t *testing.T) {
 	})
 }
 
-func TestWaitForInitialDataWithTimer(t *testing.T) {
+func TestWaitForInitialDataWithTimeout(t *testing.T) {
 	t.Parallel()
 	qs := &QuickData{
 		key:     &CredentialsKey{ExchangeAssetPair: key.NewExchangeAssetPair(exchangeName, assetType, currencyPair)},
@@ -304,6 +304,9 @@ func TestWaitForInitialDataWithTimer(t *testing.T) {
 	cancel()
 
 	require.NoError(t, qs.WaitForInitialDataWithTimeout(t.Context(), TickerFocusType, time.Second))
+
+	require.ErrorIs(t, qs.WaitForInitialDataWithTimeout(t.Context(), TickerFocusType, 0), errTimerNotSet)
+
 }
 
 func TestWaitForInitialData(t *testing.T) {
@@ -374,12 +377,6 @@ func TestDump(t *testing.T) {
 	d, err := q.DumpJSON()
 	require.NoError(t, err)
 	require.NotEmpty(t, d)
-}
-
-func TestWaitForInitialDataWithTimer_Zero(t *testing.T) {
-	t.Parallel()
-	qs := &QuickData{focuses: NewFocusStore()}
-	require.Error(t, qs.WaitForInitialDataWithTimeout(t.Context(), TickerFocusType, 0))
 }
 
 func TestShutdown(t *testing.T) {
