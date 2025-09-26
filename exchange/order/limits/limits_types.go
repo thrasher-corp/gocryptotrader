@@ -73,4 +73,5 @@ type MinMaxLevel struct {
 	Launch                  time.Time
 	Delisting               time.Time
 	Delisted                time.Time
+	Delivery                time.Time
 }
