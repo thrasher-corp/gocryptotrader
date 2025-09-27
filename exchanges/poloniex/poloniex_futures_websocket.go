@@ -382,17 +382,21 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 			bids[a].Price = resp[x].Bids[a][0].Float64()
 			bids[a].Amount = resp[x].Bids[a][1].Float64()
 		}
-		_, okay := onceFuturesOrderbook[resp[x].Symbol.String()]
+		cp, err := currency.NewPairFromString(resp[x].Symbol)
+		if err != nil {
+			return err
+		}
+		_, okay := onceFuturesOrderbook[resp[x].Symbol]
 		if !okay || action == "snapshot" {
 			if onceFuturesOrderbook == nil {
 				onceFuturesOrderbook = make(map[string]bool)
 			}
-			onceFuturesOrderbook[resp[x].Symbol.String()] = true
+			onceFuturesOrderbook[resp[x].Symbol] = true
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Bids:         bids,
 				Asks:         asks,
 				Exchange:     e.Name,
-				Pair:         resp[x].Symbol,
+				Pair:         cp,
 				Asset:        asset.Futures,
 				LastUpdated:  resp[x].CreationTime.Time(),
 				LastUpdateID: resp[x].ID.Int64(),
@@ -407,7 +411,7 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 			LastPushed: resp[x].Timestamp.Time(),
 			Asset:      asset.Futures,
 			Action:     orderbook.UpdateOrInsertAction,
-			Pair:       resp[x].Symbol,
+			Pair:       cp,
 			Bids:       bids,
 			Asks:       asks,
 		}); err != nil {
@@ -424,6 +428,10 @@ func (e *Exchange) processFuturesTickers(data []byte) error {
 	}
 	tickerPrices := make([]ticker.Price, len(resp))
 	for a := range resp {
+		cp, err := currency.NewPairFromString(resp[a].Symbol)
+		if err != nil {
+			return err
+		}
 		tickerPrices[a] = ticker.Price{
 			High:         resp[a].HighPrice.Float64(),
 			Low:          resp[a].LowPrice.Float64(),
@@ -436,7 +444,7 @@ func (e *Exchange) processFuturesTickers(data []byte) error {
 			Open:         resp[a].OpeningPrice.Float64(),
 			Close:        resp[a].ClosingPrice.Float64(),
 			MarkPrice:    resp[a].MarkPrice.Float64(),
-			Pair:         resp[a].Symbol,
+			Pair:         cp,
 			ExchangeName: e.Name,
 			AssetType:    asset.Futures,
 			LastUpdated:  resp[a].Timestamp.Time(),

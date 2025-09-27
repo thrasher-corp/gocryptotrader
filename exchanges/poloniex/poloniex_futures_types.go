@@ -215,7 +215,7 @@ type FuturesOrderbook struct {
 	Timestamp     types.Time       `json:"ts"`
 	LastVersionID int64            `json:"lid"`
 	ID            types.Number     `json:"id"`
-	Symbol        currency.Pair    `json:"s"`
+	Symbol        string           `json:"s"`
 	CreationTime  types.Time       `json:"cT"`
 }
 
@@ -250,33 +250,33 @@ type FuturesExecutionInfo struct {
 
 // LiquidiationPrice represents a liquidiation price detail for an instrument
 type LiquidiationPrice struct {
-	Symbol                         currency.Pair `json:"symbol"`
-	PositionSide                   string        `json:"posSide"`
-	Side                           string        `json:"side"`
-	Size                           types.Number  `json:"sz"`
-	PriceOfCommissionedTransaction types.Number  `json:"bkPx"`
-	UpdateTime                     types.Time    `json:"uTime"`
+	Symbol                         string       `json:"symbol"`
+	PositionSide                   string       `json:"posSide"`
+	Side                           string       `json:"side"`
+	Size                           types.Number `json:"sz"`
+	PriceOfCommissionedTransaction types.Number `json:"bkPx"`
+	UpdateTime                     types.Time   `json:"uTime"`
 }
 
 // FuturesTickerDetail represents a v3 futures instrument ticker detail
 type FuturesTickerDetail struct {
-	Symbol       currency.Pair `json:"s"`
-	OpeningPrice types.Number  `json:"o"`
-	LowPrice     types.Number  `json:"l"`
-	HighPrice    types.Number  `json:"h"`
-	ClosingPrice types.Number  `json:"c"`
-	Quantity     types.Number  `json:"qty"`
-	Amount       types.Number  `json:"amt"`
-	TradeCount   int64         `json:"tC"`
-	StartTime    types.Time    `json:"sT"`
-	EndTime      types.Time    `json:"cT"`
-	DailyPrice   types.Number  `json:"dC"`
-	BestBidPrice types.Number  `json:"bPx"`
-	BestBidSize  types.Number  `json:"bSz"`
-	BestAskPrice types.Number  `json:"aPx"`
-	BestAskSize  types.Number  `json:"aSz"`
-	MarkPrice    types.Number  `json:"mPx"`
-	Timestamp    types.Time    `json:"ts"`
+	Symbol       string       `json:"s"`
+	OpeningPrice types.Number `json:"o"`
+	LowPrice     types.Number `json:"l"`
+	HighPrice    types.Number `json:"h"`
+	ClosingPrice types.Number `json:"c"`
+	Quantity     types.Number `json:"qty"`
+	Amount       types.Number `json:"amt"`
+	TradeCount   int64        `json:"tC"`
+	StartTime    types.Time   `json:"sT"`
+	EndTime      types.Time   `json:"cT"`
+	DailyPrice   types.Number `json:"dC"`
+	BestBidPrice types.Number `json:"bPx"`
+	BestBidSize  types.Number `json:"bSz"`
+	BestAskPrice types.Number `json:"aPx"`
+	BestAskSize  types.Number `json:"aSz"`
+	MarkPrice    types.Number `json:"mPx"`
+	Timestamp    types.Time   `json:"ts"`
 }
 
 // InstrumentIndexPrice represents a symbols index price
@@ -391,8 +391,8 @@ type InsuranceFundInfo struct {
 
 // RiskLimit represents a risk limit of futures instrument
 type RiskLimit struct {
-	NotionalCap types.Number  `json:"notionalCap"`
-	Symbol      currency.Pair `json:"symbol"`
+	NotionalCap types.Number `json:"notionalCap"`
+	Symbol      string       `json:"symbol"`
 }
 
 // WsFuturesCandlesctick represents a kline data for futures instrument

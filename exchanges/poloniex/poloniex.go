@@ -912,13 +912,13 @@ func (e *Exchange) GetTradesByOrderID(ctx context.Context, orderID string) ([]Tr
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result any, useAsItIs ...bool) error {
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result any) error {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
 	resp := result
-	if len(useAsItIs) > 0 && useAsItIs[0] {
+	if strings.HasPrefix(path, v3Path) {
 		resp = &struct {
 			Code int64  `json:"code"`
 			Msg  string `json:"msg"`
@@ -993,7 +993,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["signTimestamp"] = signTimestamp
 		values.Del("signTimestamp")
 		resp := result
-		if strings.HasPrefix(endpoint, v3Path) {
+		if strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/") {
 			resp = &struct {
 				Code int64  `json:"code"`
 				Msg  string `json:"msg"`

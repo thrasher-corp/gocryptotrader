@@ -2,7 +2,6 @@ package poloniex
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -122,13 +121,7 @@ func (e *Exchange) CancelFuturesOrder(ctx context.Context, arg *CancelOrderReque
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *FuturesOrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, tradePathV3+"order", nil, arg, &resp); err != nil {
-		return nil, err
-	}
-	if resp.Code != 0 {
-		return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, tradePathV3+"order", nil, arg, &resp)
 }
 
 // CancelMultipleFuturesOrders cancel orders in a batch. A maximum of 10 orders can be cancelled per request.
@@ -460,18 +453,8 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol string, inter
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	resp := &struct {
-		Code    int64             `json:"code"`
-		Message string            `json:"msg"`
-		Data    TypeFuturesCandle `json:"data"`
-	}{}
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues(marketsPathV3+"candles", params), &resp); err != nil {
-		return nil, err
-	}
-	if resp.Code != 200 {
-		return nil, fmt.Errorf("code: %d, msg: %s", resp.Code, resp.Message)
-	}
-	return resp.Data, nil
+	var resp TypeFuturesCandle
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues(marketsPathV3+"candles", params), &resp)
 }
 
 // TypeFuturesCandle holds and handles futures candle data

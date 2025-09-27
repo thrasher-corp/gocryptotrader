@@ -340,12 +340,16 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			return err
 		}
 		for i := range ticks {
-			if !enabledPairs.Contains(ticks[i].Symbol, true) {
+			cp, err := currency.NewPairFromString(ticks[i].Symbol)
+			if err != nil {
+				return err
+			}
+			if !enabledPairs.Contains(cp, true) {
 				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				AssetType:    assetType,
-				Pair:         ticks[i].Symbol,
+				Pair:         cp,
 				ExchangeName: e.Name,
 				LastUpdated:  ticks[i].EndTime.Time(),
 				Volume:       ticks[i].Quantity.Float64(),

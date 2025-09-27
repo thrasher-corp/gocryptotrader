@@ -254,6 +254,7 @@ type TickerData struct {
 // CollateralInfoList holds a list of collateral info detail
 type CollateralInfoList []CollateralInfo
 
+// UnmarshalJSON deserializes byte data into list of CollateralInfo instances
 func (c *CollateralInfoList) UnmarshalJSON(data []byte) error {
 	var targets []CollateralInfo
 	err := json.Unmarshal(data, &targets)
