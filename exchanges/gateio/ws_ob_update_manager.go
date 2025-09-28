@@ -45,9 +45,7 @@ type cacheState uint32
 const (
 	cacheStateInitialised cacheState = iota
 	cacheStateQueuing
-	cacheStateApplying
 	cacheStateSynced
-	cacheStateError
 )
 
 type pendingUpdate struct {
@@ -69,8 +67,8 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 	cache.mtx.Lock()
 	defer cache.mtx.Unlock()
 	switch cache.state {
-	case cacheStateSynced: // first scenario for most tiny of speed bits, move if confusing
-		return m.handleSynchronisedState(ctx, e, firstUpdateID, update, cache)
+	case cacheStateSynced:
+		return m.handleSynchronisedState(ctx, e, cache, firstUpdateID, update)
 	case cacheStateInitialised:
 		m.initialiseOrderbookCache(ctx, e, firstUpdateID, update, cache)
 	case cacheStateQueuing:
@@ -79,10 +77,6 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 		case cache.ch <- update.UpdateID: // Notify SyncOrderbook of most recent update ID for inspection
 		default:
 		}
-	case cacheStateError:
-		return m.handleInvalidCache(ctx, e, firstUpdateID, update, cache)
-	case cacheStateApplying:
-		// while applying, don't queue anything, let it resolve itself
 	default:
 		return fmt.Errorf("%w: %d for %v %v", errUnhandledCacheState, cache.state, update.Pair, update.Asset)
 	}
@@ -91,21 +85,20 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 
 // handleSynchronisedState checks that the incoming update can be applied and applies it, otherwise invalidates the cache
 // assumes lock already active on cache
-func (m *wsOBUpdateManager) handleSynchronisedState(ctx context.Context, e *Exchange, firstUpdateID int64, update *orderbook.Update, cache *updateCache) error {
+func (m *wsOBUpdateManager) handleSynchronisedState(ctx context.Context, e *Exchange, cache *updateCache, firstUpdateID int64, update *orderbook.Update) error {
 	lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
-	if err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
+	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
-		cache.state = cacheStateError
 		return m.handleInvalidCache(ctx, e, firstUpdateID, update, cache)
 	}
-	if lastUpdateID != 0 && lastUpdateID+1 != firstUpdateID {
-		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
-		cache.state = cacheStateError
+	if lastUpdateID+1 != firstUpdateID {
+		if e.Verbose { // disconnection will pollute logs
+			log.Warnf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: desync detected", e.Name, update.Pair, update.Asset)
+		}
 		return m.handleInvalidCache(ctx, e, firstUpdateID, update, cache)
 	}
 	if err := e.Websocket.Orderbook.Update(update); err != nil {
 		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
-		cache.state = cacheStateError
 		return m.handleInvalidCache(ctx, e, firstUpdateID, update, cache)
 	}
 	return nil
@@ -114,10 +107,9 @@ func (m *wsOBUpdateManager) handleSynchronisedState(ctx context.Context, e *Exch
 // handleInvalidCache invalidates the existing orderbook, clears the update queue and reinitialises the orderbook cache
 // assumes lock already active on cache
 func (m *wsOBUpdateManager) handleInvalidCache(ctx context.Context, e *Exchange, firstUpdateID int64, update *orderbook.Update, cache *updateCache) error {
-	if err := e.Websocket.Orderbook.InvalidateOrderbook(update.Pair, update.Asset); err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
+	if err := e.Websocket.Orderbook.InvalidateOrderbook(update.Pair, update.Asset); err != nil {
 		return err
 	}
-	cache.clearNoLock()
 	m.initialiseOrderbookCache(ctx, e, firstUpdateID, update, cache)
 	return nil
 }
@@ -131,9 +123,6 @@ func (m *wsOBUpdateManager) initialiseOrderbookCache(ctx context.Context, e *Exc
 	go func() {
 		if err := cache.SyncOrderbook(ctx, e, update.Pair, update.Asset, m.delay, m.deadline); err != nil {
 			log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
-			cache.mtx.Lock()
-			cache.state = cacheStateError // don't reinitialise on this old bad update, let the next ws update begin the process again
-			cache.mtx.Unlock()
 		}
 	}()
 }
@@ -229,7 +218,6 @@ func (c *updateCache) waitForUpdate(ctx context.Context, nextUpdateID int64) err
 // applyPendingUpdates applies all pending updates to the orderbook
 // assumes lock already active on cache
 func (c *updateCache) applyPendingUpdates(e *Exchange) error {
-	c.state = cacheStateApplying
 	var updated bool
 	for _, data := range c.updates {
 		bookLastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(data.update.Pair, data.update.Asset)

@@ -78,11 +78,11 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	assert.Equal(t, cacheStateQueuing, cache.state)
 	cache.mtx.Unlock()
 
-	// demonstrate an error state is entered
+	// demonstrate an error state and forces everything to queue
 	assert.Eventually(t, func() bool {
 		cache.mtx.Lock()
 		defer cache.mtx.Unlock()
-		return cache.state == cacheStateError
+		return cache.state == cacheStateQueuing
 	}, time.Second, time.Millisecond*10, "sync should eventually fail as BABYBABYDOGE is not a supported pair")
 
 	// demonstrate an error state is recovered
@@ -118,21 +118,6 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 		UpdateTime: time.Now(),
 	})
 	require.NoError(t, err)
-
-	// demonstrate when applying, no new updates are queued
-	cache.mtx.Lock()
-	lenCheck := len(cache.updates)
-	cache.state = cacheStateApplying
-	cache.mtx.Unlock()
-	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
-		UpdateID:   1339,
-		Pair:       pair,
-		Asset:      asset.USDTMarginedFutures,
-		AllowEmpty: true,
-		UpdateTime: time.Now(),
-	})
-	require.NoError(t, err)
-	assert.Equal(t, lenCheck, len(cache.updates))
 
 	cache.mtx.Lock()
 	cache.state = 100
@@ -303,4 +288,71 @@ func TestClearNoLock(t *testing.T) {
 	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}}
 	cache.clearNoLock()
 	require.Empty(t, cache.updates)
+}
+
+func TestHandleSynchronisedState(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	err := testexch.Setup(e)
+	require.NoError(t, err, "Setup must not error")
+	e.Name = "HandleSyncStateTest"
+
+	m := newWsOBUpdateManager(0, 0)
+	cache, err := m.LoadCache(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
+	require.NoError(t, err, "LoadCache must not error")
+
+	err = m.handleSynchronisedState(t.Context(), e, cache, 1, &orderbook.Update{
+		Pair:  currency.NewBTCUSDT(),
+		Asset: asset.USDTMarginedFutures,
+	})
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "handleSynchronisedState must error when not initialised")
+
+	snapshot := &orderbook.Book{
+		Exchange:     e.Name,
+		Pair:         currency.NewBTCUSDT(),
+		Asset:        asset.USDTMarginedFutures,
+		Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
+		Asks:         []orderbook.Level{{Price: 1, Amount: 1}},
+		LastUpdated:  time.Now(),
+		LastPushed:   time.Now(),
+		LastUpdateID: 1336,
+	}
+
+	err = e.Websocket.Orderbook.LoadSnapshot(snapshot)
+	require.NoError(t, err)
+
+	err = m.handleSynchronisedState(t.Context(), e, cache, 1, &orderbook.Update{
+		UpdateID: 1338,
+		Pair:     currency.NewBTCUSDT(),
+		Asset:    asset.USDTMarginedFutures,
+	})
+	require.NoError(t, err, "handleSynchronisedState must not error when desynced")
+
+	_, err = e.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "LastUpdateID must error after handleInvalidCache is called")
+
+	err = e.Websocket.Orderbook.LoadSnapshot(snapshot)
+	require.NoError(t, err)
+
+	err = m.handleSynchronisedState(t.Context(), e, cache, 1337, &orderbook.Update{
+		UpdateID: 1339,
+		Pair:     currency.NewBTCUSDT(),
+		Asset:    asset.USDTMarginedFutures,
+	})
+	require.NoError(t, err, "handleSynchronisedState must not error when in sync but update failed to apply")
+
+	_, err = e.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "LastUpdateID must error after handleInvalidCache is called")
+
+	err = e.Websocket.Orderbook.LoadSnapshot(snapshot)
+	require.NoError(t, err)
+
+	err = m.handleSynchronisedState(t.Context(), e, cache, 1337, &orderbook.Update{
+		UpdateID:   1338,
+		Pair:       currency.NewBTCUSDT(),
+		Asset:      asset.USDTMarginedFutures,
+		AllowEmpty: true,
+	})
+	require.NoError(t, err, "handleSynchronisedState must not error when in sync and update applied")
 }
