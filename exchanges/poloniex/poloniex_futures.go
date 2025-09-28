@@ -90,7 +90,7 @@ func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []Future
 		}
 	}
 	var resp []FuturesInfo
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"orders", nil, args, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, tradePathV3+"orders", nil, args, &resp)
 }
 
 func validationOrderCreationParam(arg *FuturesOrderRequest) error {

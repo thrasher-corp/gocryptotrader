@@ -90,24 +90,24 @@ type CancelOrderRequest struct {
 
 // FuturesTradeFill represents a trade executions
 type FuturesTradeFill struct {
-	Symbol         currency.Pair `json:"symbol"`
-	Side           string        `json:"side"`
-	OrderID        string        `json:"ordId"`
-	ClientOrderID  string        `json:"clOrdId"`
-	Role           string        `json:"role"`
-	TradeID        string        `json:"trdId"`
-	FeeCurrency    string        `json:"feeCcy"`
-	FeeAmount      types.Number  `json:"feeAmt"`
-	DeductCurrency string        `json:"deductCcy"`
-	DeductAmount   types.Number  `json:"deductAmt"`
-	FillPrice      types.Number  `json:"fpx"`
-	FillQuantity   types.Number  `json:"fqty"`
-	UpdateTime     types.Time    `json:"uTime"`
+	Symbol         string       `json:"symbol"`
+	Side           string       `json:"side"`
+	OrderID        string       `json:"ordId"`
+	ClientOrderID  string       `json:"clOrdId"`
+	Role           string       `json:"role"`
+	TradeID        string       `json:"trdId"`
+	FeeCurrency    string       `json:"feeCcy"`
+	FeeAmount      types.Number `json:"feeAmt"`
+	DeductCurrency string       `json:"deductCcy"`
+	DeductAmount   types.Number `json:"deductAmt"`
+	FillPrice      types.Number `json:"fpx"`
+	FillQuantity   types.Number `json:"fqty"`
+	UpdateTime     types.Time   `json:"uTime"`
 }
 
 // FuturesInfo represents a sample futures order item info
 type FuturesInfo struct {
-	Symbol              currency.Pair     `json:"symbol"`
+	Symbol              string            `json:"symbol"`
 	Side                string            `json:"side"`
 	MarginMode          string            `json:"mgnMode"`
 	PositionSide        string            `json:"posSide"`
@@ -122,7 +122,7 @@ type FuturesInfo struct {
 
 // FuturesOrderDetail represents a futures v3 order detail
 type FuturesOrderDetail struct {
-	Symbol                     currency.Pair     `json:"symbol"`
+	Symbol                     string            `json:"symbol"`
 	Side                       string            `json:"side"`
 	MarginMode                 string            `json:"mgnMode"`
 	PositionSide               string            `json:"posSide"`
@@ -163,49 +163,49 @@ type FuturesOrderDetail struct {
 
 // FuturesPosition represents a v3 futures position detail
 type FuturesPosition struct {
-	AutoDeleveraging       string        `json:"adl"`
-	AvailQuantity          types.Number  `json:"availQty"`
-	CreationTime           types.Time    `json:"cTime"`
-	InitialMargin          types.Number  `json:"im"`
-	Leverage               types.Number  `json:"lever"`
-	LiqudiationPrice       types.Number  `json:"liqPx"`
-	MarkPrice              types.Number  `json:"markPx"`
-	IsolatedPositionMargin string        `json:"mgn"`
-	MarginMode             string        `json:"mgnMode"`
-	PositionSide           string        `json:"posSide"`
-	MarginRatio            types.Number  `json:"mgnRatio"`
-	MaintenanceMargin      string        `json:"mm"`
-	OpenAveragePrice       types.Number  `json:"openAvgPx"`
-	ProfitAndLoss          types.Number  `json:"pnl"`
-	Quantity               types.Number  `json:"qty"`
-	Side                   string        `json:"side"`
-	State                  string        `json:"state"`
-	Symbol                 currency.Pair `json:"symbol"`
-	UpdateTime             types.Time    `json:"uTime"`
-	UnrealizedPNL          types.Number  `json:"upl"`
-	UnrealizedPNLRatio     types.Number  `json:"uplRatio"`
-	CloseAvgPx             string        `json:"closeAvgPx"`
-	ClosedQty              string        `json:"closedQty"`
-	FFee                   string        `json:"fFee"`
-	Fee                    string        `json:"fee"`
-	ID                     string        `json:"id"`
+	AutoDeleveraging       string       `json:"adl"`
+	AvailQuantity          types.Number `json:"availQty"`
+	CreationTime           types.Time   `json:"cTime"`
+	InitialMargin          types.Number `json:"im"`
+	Leverage               types.Number `json:"lever"`
+	LiqudiationPrice       types.Number `json:"liqPx"`
+	MarkPrice              types.Number `json:"markPx"`
+	IsolatedPositionMargin string       `json:"mgn"`
+	MarginMode             string       `json:"mgnMode"`
+	PositionSide           string       `json:"posSide"`
+	MarginRatio            types.Number `json:"mgnRatio"`
+	MaintenanceMargin      string       `json:"mm"`
+	OpenAveragePrice       types.Number `json:"openAvgPx"`
+	ProfitAndLoss          types.Number `json:"pnl"`
+	Quantity               types.Number `json:"qty"`
+	Side                   string       `json:"side"`
+	State                  string       `json:"state"`
+	Symbol                 string       `json:"symbol"`
+	UpdateTime             types.Time   `json:"uTime"`
+	UnrealizedPNL          types.Number `json:"upl"`
+	UnrealizedPNLRatio     types.Number `json:"uplRatio"`
+	CloseAvgPx             string       `json:"closeAvgPx"`
+	ClosedQty              string       `json:"closedQty"`
+	FFee                   string       `json:"fFee"`
+	Fee                    string       `json:"fee"`
+	ID                     string       `json:"id"`
 }
 
 // AdjustFuturesMarginResponse represents a response data after adjusting futures margin positions
 type AdjustFuturesMarginResponse struct {
-	Amount       types.Number  `json:"amt"`
-	Leverage     types.Number  `json:"lever"`
-	Symbol       currency.Pair `json:"symbol"`
-	PositionSide string        `json:"posSide"`
-	OrderType    string        `json:"type"`
+	Amount       types.Number `json:"amt"`
+	Leverage     types.Number `json:"lever"`
+	Symbol       string       `json:"symbol"`
+	PositionSide string       `json:"posSide"`
+	OrderType    string       `json:"type"`
 }
 
 // FuturesLeverage represents futures symbols leverage information
 type FuturesLeverage struct {
-	Leverage     types.Number  `json:"lever"`
-	MarginMode   string        `json:"mgnMode"`
-	PositionSide string        `json:"posSide"`
-	Symbol       currency.Pair `json:"symbol"`
+	Leverage     types.Number `json:"lever"`
+	MarginMode   string       `json:"mgnMode"`
+	PositionSide string       `json:"posSide"`
+	Symbol       string       `json:"symbol"`
 }
 
 // FuturesOrderbook represents an orderbook data for v3 futures instruments
@@ -281,9 +281,9 @@ type FuturesTickerDetail struct {
 
 // InstrumentIndexPrice represents a symbols index price
 type InstrumentIndexPrice struct {
-	Symbol     currency.Pair `json:"symbol"`
-	Timestamp  types.Time    `json:"ts"`
-	IndexPrice types.Number  `json:"iPx"`
+	Symbol     string       `json:"symbol"`
+	Timestamp  types.Time   `json:"ts"`
+	IndexPrice types.Number `json:"iPx"`
 }
 
 // IndexPriceComponent represents an index price component detail
@@ -316,9 +316,9 @@ func (v *FuturesIndexPriceData) UnmarshalJSON(data []byte) error {
 
 // FuturesMarkPrice represents a mark price instance
 type FuturesMarkPrice struct {
-	MarkPrice types.Number  `json:"mPx"`
-	Symbol    currency.Pair `json:"symbol"`
-	Timestamp types.Time    `json:"ts"`
+	MarkPrice types.Number `json:"mPx"`
+	Symbol    string       `json:"symbol"`
+	Timestamp types.Time   `json:"ts"`
 }
 
 // FuturesMarkPriceCandle represents a k-line data for mark price
@@ -339,47 +339,47 @@ func (v *FuturesMarkPriceCandle) UnmarshalJSON(data []byte) error {
 
 // ProductInfo represents basic information of the all product
 type ProductInfo struct {
-	Alias                 string        `json:"alias"`
-	BaseAsset             string        `json:"bAsset"`
-	BaseCurrency          string        `json:"bCcy"`
-	ContractType          string        `json:"ctType"`
-	ContractValue         types.Number  `json:"ctVal"`
-	InitialMarginRate     types.Number  `json:"iM"`
-	Leverage              types.Number  `json:"lever"`
-	LotSize               types.Number  `json:"lotSz"`
-	MaintenanceMarginRate types.Number  `json:"mM"`
-	MaximumRiskLimit      types.Number  `json:"mR"`
-	MaxLeverage           string        `json:"maxLever"`
-	MaxPrice              types.Number  `json:"maxPx"`
-	MaxQuantity           types.Number  `json:"maxQty"`
-	MinPrice              types.Number  `json:"minPx"`
-	MinQuantity           types.Number  `json:"minQty"`
-	MinSize               types.Number  `json:"minSz"`
-	ListingDate           types.Time    `json:"oDate"`
-	PriceScale            string        `json:"pxScale"`
-	QuoteCurrency         string        `json:"qCcy"`
-	SettlementCurrency    string        `json:"sCcy"`
-	Status                string        `json:"status"`
-	Symbol                currency.Pair `json:"symbol"`
-	TickSize              types.Number  `json:"tSz"`
-	TradableStartTime     types.Time    `json:"tradableStartTime"`
-	VisibleStartTime      types.Time    `json:"visibleStartTime"`
+	Alias                 string       `json:"alias"`
+	BaseAsset             string       `json:"bAsset"`
+	BaseCurrency          string       `json:"bCcy"`
+	ContractType          string       `json:"ctType"`
+	ContractValue         types.Number `json:"ctVal"`
+	InitialMarginRate     types.Number `json:"iM"`
+	Leverage              types.Number `json:"lever"`
+	LotSize               types.Number `json:"lotSz"`
+	MaintenanceMarginRate types.Number `json:"mM"`
+	MaximumRiskLimit      types.Number `json:"mR"`
+	MaxLeverage           string       `json:"maxLever"`
+	MaxPrice              types.Number `json:"maxPx"`
+	MaxQuantity           types.Number `json:"maxQty"`
+	MinPrice              types.Number `json:"minPx"`
+	MinQuantity           types.Number `json:"minQty"`
+	MinSize               types.Number `json:"minSz"`
+	ListingDate           types.Time   `json:"oDate"`
+	PriceScale            string       `json:"pxScale"`
+	QuoteCurrency         string       `json:"qCcy"`
+	SettlementCurrency    string       `json:"sCcy"`
+	Status                string       `json:"status"`
+	Symbol                string       `json:"symbol"`
+	TickSize              types.Number `json:"tSz"`
+	TradableStartTime     types.Time   `json:"tradableStartTime"`
+	VisibleStartTime      types.Time   `json:"visibleStartTime"`
 }
 
 // FuturesFundingRate represents symbols funding rate information
 type FuturesFundingRate struct {
-	Symbol                   currency.Pair `json:"s"`
-	FundingRate              types.Number  `json:"fR"`
-	FundingRateSettleTime    types.Time    `json:"fT"`
-	NextPredictedFundingRate types.Number  `json:"nFR"`
-	NextFundingTime          types.Time    `json:"nFT"`
-	Timestamp                types.Time    `json:"ts"`
+	Symbol                   string       `json:"s"`
+	FundingRate              types.Number `json:"fR"`
+	FundingRateSettleTime    types.Time   `json:"fT"`
+	NextPredictedFundingRate types.Number `json:"nFR"`
+	NextFundingTime          types.Time   `json:"nFT"`
+	Timestamp                types.Time   `json:"ts"`
 }
 
 // OpenInterestData represents an open interest data
 type OpenInterestData struct {
-	CurrentOpenInterest types.Number  `json:"oInterest"`
-	Symbol              currency.Pair `json:"s"`
+	CurrentOpenInterest types.Number `json:"oInterest"`
+	Symbol              string       `json:"s"`
 }
 
 // InsuranceFundInfo represents an insurance fund information of a currency
@@ -397,7 +397,7 @@ type RiskLimit struct {
 
 // WsFuturesCandlesctick represents a kline data for futures instrument
 type WsFuturesCandlesctick struct {
-	Symbol       currency.Pair
+	Symbol       string
 	LowestPrice  types.Number
 	HighestPrice types.Number
 	OpenPrice    types.Number
@@ -418,14 +418,14 @@ func (o *WsFuturesCandlesctick) UnmarshalJSON(data []byte) error {
 
 // FuturesTrades represents a futures trades detail
 type FuturesTrades struct {
-	ID           int64         `json:"id"`
-	Timestamp    types.Time    `json:"ts"`
-	Symbol       currency.Pair `json:"s"`
-	Price        types.Number  `json:"px"`
-	Quantity     types.Number  `json:"qty"`
-	Amount       types.Number  `json:"amt"`
-	Side         string        `json:"side"`
-	CreationTime types.Time    `json:"cT"`
+	ID           int64        `json:"id"`
+	Timestamp    types.Time   `json:"ts"`
+	Symbol       string       `json:"s"`
+	Price        types.Number `json:"px"`
+	Quantity     types.Number `json:"qty"`
+	Amount       types.Number `json:"amt"`
+	Side         string       `json:"side"`
+	CreationTime types.Time   `json:"cT"`
 }
 
 // WsFuturesMarkAndIndexPriceCandle represents a websocket k-line data for mark/index candlestick data
@@ -436,7 +436,7 @@ type WsFuturesMarkAndIndexPriceCandle struct {
 	ClosingPrice  types.Number
 	StartTime     types.Time
 	EndTime       types.Time
-	Symbol        currency.Pair
+	Symbol        string
 	PushTimestamp types.Time
 }
 

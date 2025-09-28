@@ -84,6 +84,25 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 	return nil
 }
 
+// TemporarySpotAuthReader reads and handles data from a specific connection temporarily
+func (e *Exchange) TemporarySpotAuthReader(ctx context.Context, conn websocket.Connection, done chan bool) {
+	defer e.Websocket.Wg.Done()
+	for {
+		select {
+		case <-done:
+			return
+		default:
+			resp := conn.ReadMessage()
+			if resp.Raw == nil {
+				return // Connection has been closed
+			}
+			if err := e.wsHandleData(ctx, conn, resp.Raw); err != nil {
+				e.Websocket.DataHandler <- fmt.Errorf("connection URL:[%v] error: %w", conn.GetURL(), err)
+			}
+		}
+	}
+}
+
 func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
@@ -93,6 +112,14 @@ func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) er
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
+	done := make(chan bool, 1)
+	defer func() {
+		done <- true
+	}()
+
+	e.Websocket.Wg.Add(1)
+	go e.TemporarySpotAuthReader(ctx, conn, done)
+
 	pingMessage := &struct {
 		Event string `json:"event"`
 	}{
@@ -235,6 +262,10 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 		if err != nil {
 			return err
 		}
+		cp, err := currency.NewPairFromString(response[x].Symbol)
+		if err != nil {
+			return err
+		}
 		orderDetails[x] = order.Detail{
 			Price:           response[x].Price.Float64(),
 			Amount:          response[x].Quantity.Float64(),
@@ -252,7 +283,7 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 			AssetType:       stringToAccountType(response[x].AccountType),
 			Date:            response[x].CreateTime.Time(),
 			LastUpdated:     response[x].TradeTime.Time(),
-			Pair:            response[x].Symbol,
+			Pair:            cp,
 			Trades: []order.TradeHistory{
 				{
 					Price:     response[x].TradePrice.Float64(),
@@ -279,7 +310,11 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 		return err
 	}
 	for x := range resp {
-		_, okay := onceOrderbook[resp[x].Symbol]
+		cp, err := currency.NewPairFromString(resp[x].Symbol)
+		if err != nil {
+			return err
+		}
+		_, okay := onceOrderbook[cp]
 		if !okay {
 			if onceOrderbook == nil {
 				onceOrderbook = make(map[currency.Pair]struct{})
@@ -288,35 +323,39 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 				orderbooks *orderbook.Book
 				err        error
 			)
-			orderbooks, err = e.UpdateOrderbook(context.Background(), resp[x].Symbol, asset.Spot)
+			orderbooks, err = e.UpdateOrderbook(context.Background(), cp, asset.Spot)
 			if err != nil {
 				return err
 			}
 			if err := e.Websocket.Orderbook.LoadSnapshot(orderbooks); err != nil {
 				return err
 			}
-			onceOrderbook[resp[x].Symbol] = struct{}{}
+			onceOrderbook[cp] = struct{}{}
 		}
 		update := orderbook.Update{
-			Pair:       resp[x].Symbol,
+			Pair:       cp,
 			UpdateTime: resp[x].Timestamp.Time(),
 			UpdateID:   resp[x].ID,
 			Action:     orderbook.UpdateOrInsertAction,
 			Asset:      asset.Spot,
 		}
-		update.Asks = make(orderbook.Levels, len(resp[x].Asks))
 		for i := range resp[x].Asks {
-			update.Asks[i] = orderbook.Level{
+			if resp[x].Asks[i][1].Float64() <= 0 {
+				continue
+			}
+			update.Asks = append(update.Asks, orderbook.Level{
 				Price:  resp[x].Asks[i][0].Float64(),
 				Amount: resp[x].Asks[i][1].Float64(),
-			}
+			})
 		}
-		update.Bids = make(orderbook.Levels, len(resp[x].Bids))
 		for i := range resp[x].Bids {
-			update.Bids[i] = orderbook.Level{
+			if resp[x].Bids[i][1].Float64() <= 0 {
+				continue
+			}
+			update.Bids = append(update.Bids, orderbook.Level{
 				Price:  resp[x].Bids[i][0].Float64(),
 				Amount: resp[x].Bids[i][1].Float64(),
-			}
+			})
 		}
 		update.UpdateID = resp[x].LastID
 		if err := e.Websocket.Orderbook.Update(&update); err != nil {
@@ -333,6 +372,10 @@ func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 	}
 	tickerData := make([]ticker.Price, len(resp))
 	for x := range resp {
+		cp, err := currency.NewPairFromString(resp[x].Symbol)
+		if err != nil {
+			return err
+		}
 		tickerData[x] = ticker.Price{
 			Last:         resp[x].MarkPrice.Float64(),
 			High:         resp[x].High.Float64(),
@@ -341,7 +384,7 @@ func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 			QuoteVolume:  resp[x].Amount.Float64(),
 			Open:         resp[x].Open.Float64(),
 			Close:        resp[x].Close.Float64(),
-			Pair:         resp[x].Symbol,
+			Pair:         cp,
 			AssetType:    asset.Spot,
 			ExchangeName: e.Name,
 			LastUpdated:  resp[x].Timestamp.Time(),
@@ -358,10 +401,14 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 	}
 	trades := make([]trade.Data, len(resp))
 	for x := range resp {
+		cp, err := currency.NewPairFromString(resp[x].Symbol)
+		if err != nil {
+			return err
+		}
 		trades[x] = trade.Data{
 			TID:          resp[x].ID,
 			Exchange:     e.Name,
-			CurrencyPair: resp[x].Symbol,
+			CurrencyPair: cp,
 			Price:        resp[x].Price.Float64(),
 			Amount:       resp[x].Amount.Float64(),
 			Timestamp:    resp[x].Timestamp.Time(),
@@ -377,8 +424,12 @@ func (e *Exchange) processCandlestickData(result *SubscriptionResponse) error {
 	}
 	candles := make([]websocket.KlineData, len(resp))
 	for x := range resp {
+		cp, err := currency.NewPairFromString(resp[x].Symbol)
+		if err != nil {
+			return err
+		}
 		candles[x] = websocket.KlineData{
-			Pair:       resp[x].Symbol,
+			Pair:       cp,
 			Exchange:   e.Name,
 			Timestamp:  resp[x].Timestamp.Time(),
 			StartTime:  resp[x].StartTime.Time(),
@@ -405,14 +456,16 @@ func (e *Exchange) processResponse(result *SubscriptionResponse, instance any) e
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateDefaultSubscriptions(auth bool) (subscription.List, error) {
 	enabledCurrencies, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	channels := defaultSubscriptions
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	var channels []string
+	if auth {
 		channels = append(channels, []string{cnlOrders, cnlBalances}...)
+	} else {
+		channels = defaultSubscriptions
 	}
 	subscriptions := make(subscription.List, 0, 6*len(enabledCurrencies))
 	for i := range channels {

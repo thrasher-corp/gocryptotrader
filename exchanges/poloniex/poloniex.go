@@ -524,6 +524,7 @@ var supportedIntervals = []struct {
 }
 
 func stringToInterval(interval string) (kline.Interval, error) {
+	interval = strings.ToUpper(interval)
 	for x := range supportedIntervals {
 		if supportedIntervals[x].key == interval {
 			return supportedIntervals[x].val, nil
@@ -936,9 +937,22 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 		HTTPRecording:          e.HTTPRecording,
 		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
-	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
+	if err := e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil
-	}, request.UnauthenticatedRequest)
+	}, request.UnauthenticatedRequest); err != nil {
+		return err
+	}
+	if reflect.ValueOf(result).IsNil() {
+		return common.ErrNoResponse
+	}
+	if strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/") {
+		if val, ok := resp.(*V3ResponseWrapper); ok {
+			if val.Code != 0 && val.Code != 200 {
+				return fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, val.Code, val.Msg)
+			}
+		}
+	}
+	return nil
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -950,6 +964,12 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	ePoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
+	}
+	resp := result
+	if strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/") {
+		resp = &V3ResponseWrapper{
+			Data: result,
+		}
 	}
 	requestFunc := func() (*request.Item, error) {
 		headers := make(map[string]string)
@@ -992,16 +1012,6 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["signature"] = base64.StdEncoding.EncodeToString(hmac)
 		headers["signTimestamp"] = signTimestamp
 		values.Del("signTimestamp")
-		resp := result
-		if strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/") {
-			resp = &struct {
-				Code int64  `json:"code"`
-				Msg  string `json:"msg"`
-				Data any    `json:"data"`
-			}{
-				Data: result,
-			}
-		}
 
 		path := common.EncodeURLValues(ePoint+endpoint, values)
 		req := &request.Item{
@@ -1023,6 +1033,13 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
 	} else if reflect.ValueOf(result).IsNil() {
 		return common.ErrNoResponse
+	}
+	if strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/") {
+		if val, ok := resp.(*V3ResponseWrapper); ok {
+			if val.Code != 0 && val.Code != 200 {
+				return fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, val.Code, val.Msg)
+			}
+		}
 	}
 	return nil
 }

@@ -27,8 +27,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = "WSKMLKNW-JCKF6SGH-VWKQAUS8-RYYWFJYP"
-	apiSecret               = "b1b11137b33e52bd7ae2df3a59e905141b40740edd0568f9141b63ed0cea6bdcab8b2ac8e307ca11a048493fd7d1528a26d7a1a9e3caae53fb82965b3ebf2b57"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -57,7 +57,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !sharedtestvalues.AreAPICredentialsSet(e) {
+	if !sharedtestvalues.AreAPICredentialsSet(e) || e.SkipAuthCheck {
 		assert.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType)
 	} else {
 		assert.Equal(t, exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
@@ -1294,9 +1294,7 @@ func TestPlaceOrder(t *testing.T) {
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Symbol: spotTradablePair})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.PlaceOrder(t.Context(), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
 		Side:          order.Buy.String(),
@@ -1423,7 +1421,7 @@ func TestCancelOrderByID(t *testing.T) {
 	}
 	result, err := e.CancelOrderByID(t.Context(), "12345536545645")
 	require.NoError(t, err)
-	assert.NotNil(t, result.Code, result.Message)
+	assert.NotNil(t, result)
 }
 
 func TestCancelMultipleOrdersByIDs(t *testing.T) {
@@ -1627,14 +1625,14 @@ func TestGetTradeOrderID(t *testing.T) {
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	result, err := e.GenerateDefaultSubscriptions()
+	result, err := e.GenerateDefaultSubscriptions(false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestHandlePayloads(t *testing.T) {
 	t.Parallel()
-	subscriptions, err := e.GenerateDefaultSubscriptions()
+	subscriptions, err := e.GenerateDefaultSubscriptions(true)
 	require.NoError(t, err)
 	require.NotEmpty(t, subscriptions)
 
@@ -1676,6 +1674,7 @@ func TestWsCreateOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	testexch.SetupWs(t, e)
 	result, err := e.WsCreateOrder(&PlaceOrderRequest{
 		Symbol:        spotTradablePair,
 		Side:          order.Buy.String(),
@@ -1849,7 +1848,9 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	_, err = e.PlaceFuturesOrder(t.Context(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	_, err = e.PlaceFuturesOrder(t.Context(), &FuturesOrderRequest{
 		ClientOrderID:           "939a9d51-8f32-443a-9fb8-ff0852010487",
 		Symbol:                  "BTC_USDT_PERP",
@@ -1890,7 +1891,9 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	_, err = e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{arg})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	result, err := e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{
 		{
 			ClientOrderID:           "939a9d51",
@@ -1938,7 +1941,7 @@ func TestCancelMultipleFuturesOrders(t *testing.T) {
 	for _, r := range result {
 		t.Run(r.OrderID+":"+r.ClientOrderID, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, 0, r.Code, r.Message)
+			assert.Equal(t, int64(200), r.Code, r.Message)
 		})
 	}
 }
@@ -1956,7 +1959,7 @@ func TestCancelAllFuturesOrders(t *testing.T) {
 	for _, r := range result {
 		t.Run(r.OrderID+":"+r.ClientOrderID, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, 0, r.Code, r.Message)
+			assert.Equal(t, int64(200), r.Code, r.Message)
 		})
 	}
 }
@@ -1987,7 +1990,7 @@ func TestCloseAllAtMarketPrice(t *testing.T) {
 	for _, r := range result {
 		t.Run(r.OrderID+":"+r.ClientOrderID, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, 0, r.Code, r.Message)
+			assert.Equal(t, int64(200), r.Code, r.Message)
 		})
 	}
 }

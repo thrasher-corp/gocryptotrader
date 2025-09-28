@@ -82,20 +82,20 @@ func (e *Exchange) SendWebsocketRequest(event string, arg, response any) error {
 	if !e.Websocket.IsConnected() || !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return websocket.ErrWebsocketNotEnabled
 	}
+	authConn, err := e.Websocket.GetConnection(connSpotPrivate)
+	if err != nil {
+		return err
+	}
 	input := &struct {
 		ID     string `json:"id"`
 		Event  string `json:"event"`
 		Params any    `json:"params"`
 	}{
-		ID:     strconv.FormatInt(e.Websocket.Conn.GenerateMessageID(false), 10),
+		ID:     strconv.FormatInt(authConn.GenerateMessageID(false), 10),
 		Event:  event,
 		Params: arg,
 	}
-	conn, err := e.Websocket.GetConnection(connSpotPrivate)
-	if err != nil {
-		return err
-	}
-	result, err := conn.SendMessageReturnResponse(context.Background(), request.Auth, input.ID, input)
+	result, err := authConn.SendMessageReturnResponse(context.Background(), request.Auth, input.ID, input)
 	if err != nil {
 		return err
 	}

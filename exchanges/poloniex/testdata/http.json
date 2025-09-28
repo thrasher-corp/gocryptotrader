@@ -25147,47 +25147,26 @@
     {
      "data": [
       {
-       "baseCurrencyName": "BTS",
+       "baseCurrencyName": "BTC",
        "crossMargin": {
         "maxLeverage": 1,
         "supportCrossMargin": false
        },
-       "displayName": "BTS/USDT",
-       "quoteCurrencyName": "BTC",
+       "displayName": "BTC/USDT",
+       "quoteCurrencyName": "USDT",
        "state": "NORMAL",
-       "symbol": "BTS_USDT",
-       "symbolTradeLimit": {
-        "amountScale": 8,
-        "highestBid": "0",
-        "lowestAsk": "0",
-        "minAmount": "0.00001",
-        "minQuantity": "100",
-        "priceScale": 10,
-        "quantityScale": 0,
-        "symbol": "BTS_USDT"
-       },
-       "tradableStartTime": 1659018816626,
-       "visibleStartTime": 1659018816626
-      },
-      {
-       "baseCurrencyName": "DASH",
-       "crossMargin": {
-        "maxLeverage": 1,
-        "supportCrossMargin": false
-       },
-       "displayName": "DASH/BTC",
-       "quoteCurrencyName": "BTC",
-       "state": "NORMAL",
-       "symbol": "DASH_BTC",
+       "symbol": "BTC_USDT",
        "symbolTradeLimit": {
         "amountScale": 6,
         "highestBid": "0",
         "lowestAsk": "0",
+        "maxAmount": "0",
+        "maxQuantity": "0",
         "minAmount": "0.00001",
         "minQuantity": "0.01",
         "priceScale": 6,
         "quantityScale": 2,
-        "symbol": "DASH_BTC"
+        "symbol": "BTC_USDT"
        },
        "tradableStartTime": 1659018817267,
        "visibleStartTime": 1659018817267
@@ -25206,6 +25185,8 @@
         "amountScale": 8,
         "highestBid": "0",
         "lowestAsk": "0",
+        "maxAmount": "0",
+        "maxQuantity": "0",
         "minAmount": "0.00001",
         "minQuantity": "10",
         "priceScale": 9,
@@ -25229,6 +25210,8 @@
         "amountScale": 6,
         "highestBid": "0",
         "lowestAsk": "0",
+        "maxAmount": "0",
+        "maxQuantity": "0",
         "minAmount": "0.00001",
         "minQuantity": "0.01",
         "priceScale": 6,
@@ -25252,6 +25235,8 @@
         "amountScale": 8,
         "highestBid": "0",
         "lowestAsk": "0",
+        "maxAmount": "0",
+        "maxQuantity": "0",
         "minAmount": "0.00001",
         "minQuantity": "10",
         "priceScale": 9,
@@ -25260,6 +25245,31 @@
        },
        "tradableStartTime": 1659018818660,
        "visibleStartTime": 1659018818660
+      },
+      {
+       "baseCurrencyName": "XEM",
+       "crossMargin": {
+        "maxLeverage": 1,
+        "supportCrossMargin": false
+       },
+       "displayName": "XEM/BTC",
+       "quoteCurrencyName": "BTC",
+       "state": "NORMAL",
+       "symbol": "XEM_BTC",
+       "symbolTradeLimit": {
+        "amountScale": 8,
+        "highestBid": "0",
+        "lowestAsk": "0",
+        "maxAmount": "0",
+        "maxQuantity": "0",
+        "minAmount": "0.00001",
+        "minQuantity": "10",
+        "priceScale": 9,
+        "quantityScale": 0,
+        "symbol": "XEM_BTC"
+       },
+       "tradableStartTime": 1659018819284,
+       "visibleStartTime": 1659018819284
       }
      ],
      "queryString": "",
@@ -25403,6 +25413,8 @@
         "amountScale": 2,
         "highestBid": "0",
         "lowestAsk": "0",
+        "maxAmount": "2000000",
+        "maxQuantity": "20",
         "minAmount": "1",
         "minQuantity": "0.000001",
         "priceScale": 2,
@@ -65403,104 +65415,104 @@
     {
      "data": [
       {
-       "amount": "0",
-       "ask": "0.0000000125",
-       "askQuantity": "15281",
-       "bid": "0.0000000076",
-       "bidQuantity": "61199",
-       "close": "0.000000014",
-       "closeTime": 1742819106055,
-       "dailyChange": "0.00",
-       "displayName": "BTS/USDT",
-       "high": "0.000000014",
-       "low": "0.000000014",
-       "markPrice": "",
-       "open": "0.000000014",
-       "quantity": "0",
-       "startTime": 1742732700000,
-       "symbol": "BTS_USDT",
-       "tradeCount": 0,
-       "ts": 1742819149480
+       "amount": "0.05958902",
+       "ask": "0.000192",
+       "askQuantity": "16.30",
+       "bid": "0.000189",
+       "bidQuantity": "19.75",
+       "close": "0.000191",
+       "closeTime": 1759092211836,
+       "dailyChange": "-0.0052",
+       "displayName": "BTC/USDT",
+       "high": "0.000192",
+       "low": "0.000188",
+       "markPrice": "0.000189",
+       "open": "0.000192",
+       "quantity": "313.44",
+       "startTime": 1759005780000,
+       "symbol": "BTC_USDT",
+       "tradeCount": 195,
+       "ts": 1759092211843
       },
       {
-       "amount": "0.0000271",
-       "ask": "0.000275",
-       "askQuantity": "14.97",
-       "bid": "0.00027",
-       "bidQuantity": "4.44",
-       "close": "0.000271",
-       "closeTime": 1742820730307,
-       "dailyChange": "-0.0109",
-       "displayName": "DASH/BTC",
-       "high": "0.000274",
-       "low": "0.000271",
-       "markPrice": "0.000272",
-       "open": "0.000274",
-       "quantity": "0.1",
-       "startTime": 1742734320000,
-       "symbol": "DASH_BTC",
-       "tradeCount": 1,
-       "ts": 1742820730645
-      },
-      {
-       "amount": "0.090890705",
-       "ask": "0.000002095",
-       "askQuantity": "99",
-       "bid": "0.000002068",
-       "bidQuantity": "14983",
-       "close": "0.000002075",
-       "closeTime": 1742830641648,
-       "dailyChange": "0.0202",
+       "amount": "0.066806043",
+       "ask": "0.000002108",
+       "askQuantity": "3677",
+       "bid": "0.000002105",
+       "bidQuantity": "7139",
+       "close": "0.000002078",
+       "closeTime": 1759067177981,
+       "dailyChange": "-0.0142",
        "displayName": "DOGE/BTC",
-       "high": "0.000002075",
-       "low": "0.000001986",
-       "markPrice": "0.000002069",
-       "open": "0.000002034",
-       "quantity": "44410",
-       "startTime": 1742744220000,
+       "high": "0.000002108",
+       "low": "0.000002065",
+       "markPrice": "0.000002102",
+       "open": "0.000002108",
+       "quantity": "32123",
+       "startTime": 1758980760000,
        "symbol": "DOGE_BTC",
-       "tradeCount": 42,
-       "ts": 1742830642641
+       "tradeCount": 31,
+       "ts": 1759067178857
       },
       {
-       "amount": "0.05862106",
-       "ask": "0.001071",
-       "askQuantity": "0.52",
-       "bid": "0.001063",
-       "bidQuantity": "27.82",
-       "close": "0.001064",
-       "closeTime": 1742828508604,
-       "dailyChange": "-0.0194",
+       "amount": "0.03332093",
+       "ask": "0.000958",
+       "askQuantity": "19.56",
+       "bid": "0.000941",
+       "bidQuantity": "0.06",
+       "close": "0.000958",
+       "closeTime": 1759091023416,
+       "dailyChange": "0.001",
        "displayName": "LTC/BTC",
-       "high": "0.001085",
-       "low": "0.001062",
-       "markPrice": "0.001065",
-       "open": "0.001085",
-       "quantity": "54.31",
-       "startTime": 1742742060000,
+       "high": "0.000958",
+       "low": "0.000941",
+       "markPrice": "0.000955",
+       "open": "0.000957",
+       "quantity": "35.32",
+       "startTime": 1759004580000,
        "symbol": "LTC_BTC",
-       "tradeCount": 46,
-       "ts": 1742828508646
+       "tradeCount": 24,
+       "ts": 1759091023859
       },
       {
-       "amount": "0.00009905",
-       "ask": "0.000003372",
-       "askQuantity": "47",
-       "bid": "0.000003287",
-       "bidQuantity": "5758",
-       "close": "0.000003341",
-       "closeTime": 1742819123972,
-       "dailyChange": "0.0149",
+       "amount": "0",
+       "ask": "0.000003337",
+       "askQuantity": "82",
+       "bid": "0.000003221",
+       "bidQuantity": "42",
+       "close": "0.0000033",
+       "closeTime": 1758998016659,
+       "dailyChange": "0.00",
        "displayName": "XLM/BTC",
-       "high": "0.000003341",
-       "low": "0.000003257",
-       "markPrice": "0.000003308",
-       "open": "0.000003292",
-       "quantity": "30",
-       "startTime": 1742732700000,
+       "high": "0.0000033",
+       "low": "0.0000033",
+       "markPrice": "0.000003289",
+       "open": "0.0000033",
+       "quantity": "0",
+       "startTime": 1758911580000,
        "symbol": "XLM_BTC",
-       "tradeCount": 3,
-       "ts": 1742819149480
+       "tradeCount": 0,
+       "ts": 1758998016849
+      },
+      {
+       "amount": "0",
+       "ask": "0.000000018",
+       "askQuantity": "1010",
+       "bid": "0.000000015",
+       "bidQuantity": "1199",
+       "close": "0.000000017",
+       "closeTime": 1758889805140,
+       "dailyChange": "0.00",
+       "displayName": "XEM/BTC",
+       "high": "0.000000017",
+       "low": "0.000000017",
+       "markPrice": "0.000000017",
+       "open": "0.000000017",
+       "quantity": "0",
+       "startTime": 1758803400000,
+       "symbol": "XEM_BTC",
+       "tradeCount": 0,
+       "ts": 1758889805843
       }
      ],
      "queryString": "",
@@ -65717,6 +65729,53 @@
    ]
   },
   "/orders/12345536545645": {
+   "DELETE": [
+    {
+     "data": {
+      "id": "21934611974062080",
+      "clientOrderId": "123",
+      "symbol": "TRX_USDC",
+      "state": "NEW",
+      "accountType": "SPOT",
+      "side": "SELL",
+      "type": "LIMIT",
+      "timeInForce": "GTC",
+      "quantity": "1.00",
+      "price": "10.00",
+      "avgPrice": "0.00",
+      "amount": "0.00",
+      "filledQuantity": "0.00",
+      "filledAmount": "0.00",
+      "createTime": 1646196019020,
+      "updateTime": 1646196019020,
+      "orderSource": "API",
+      "loan": false,
+      "cancelReason": 0
+     },
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "+Ri/71SAvgnGCA/WARlt1o+pRxKj7hO5m5lhKvW+j18="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1759091754121"
+      ]
+     }
+    }
+   ],
    "GET": [
     {
      "data": {
@@ -65893,6 +65952,34 @@
      },
      "queryString": "",
      "bodyParams": "{\"timeout\":\"30\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "hG0dZC5WEYPqHwZfFa8KPV7Ca876xuliC/02eH0Shb0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743968868231"
+      ]
+     }
+    },
+    {
+     "data": {
+      "startTime": "1665456160",
+      "cancellationTime": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"timeout\":\"-1\"}",
      "headers": {
       "Content-Type": [
        "application/json"
@@ -66116,8 +66203,43 @@
    "GET": [
     {
      "data": {
-      "code": 607,
-      "data": [],
+      "code": 200,
+      "data": [
+       {
+        "id": "14368195657859072",
+        "clientOrderId": "18113",
+        "symbol": "BTC_USDT",
+        "state": "TRIGGERED",
+        "accountType": "SPOT",
+        "side": "BUY",
+        "type": "STOP",
+        "timeInForce": "GTC",
+        "quantity": "0.2",
+        "price": "41920",
+        "amount": "10",
+        "stopPrice": "41946",
+        "createTime": 1644392044793,
+        "updateTime": 0,
+        "triggeredOrder": {
+         "id": "24106600339865600",
+         "clientOrderId": "18113",
+         "symbol": "BTC_USDT",
+         "state": "PARTIALLY_FILLED",
+         "accountType": "SPOT",
+         "side": "BUY",
+         "type": "MARKET",
+         "timeInForce": "GTC",
+         "quantity": "0.00",
+         "price": "0.00",
+         "avgPrice": "39991.10",
+         "amount": "10.00",
+         "filledQuantity": "0.00025005",
+         "filledAmount": "9.999774555",
+         "createTime": 1646713861400,
+         "updateTime": 1646713861400
+        }
+       }
+      ],
       "message": "Data not found"
      },
      "queryString": "",
@@ -99689,6 +99811,39 @@
     }
    ]
   },
+  "/v2/wallets/withdraw": {
+   "POST": [
+    {
+     "data": {
+        "currency": "ETH",
+        "amount": "1.50",
+        "address": "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"
+    },
+     "queryString": "",
+     "bodyParams": "{\"coin\":\"BTC\",\"network\":\"ERP\",\"amount\":\"1\",\"address\":\"bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "P/vq7oFw/yOSVG1zZHfK7ymz1sJNBkXK8whPu31IJ5M="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1759093194968"
+      ]
+     }
+    }
+   ]
+  },
   "/v3/account/balance": {
    "GET": [
     {
@@ -100649,14 +100804,15 @@
        "alias": "",
        "bAsset": ".PXBTUSDT",
        "bCcy": "BTC",
-       "buyLmt": "",
        "ctType": "LINEAR",
        "ctVal": "0.001",
        "iM": "0.0133",
        "lever": "20",
+       "limitMaxQty": "1000000",
        "lotSz": 1,
        "mM": "0.006",
        "mR": "5000",
+       "marketMaxQty": "10000",
        "maxLever": "75",
        "maxPx": "1000000",
        "maxQty": "1000000",
@@ -100664,10 +100820,10 @@
        "minQty": "1",
        "minSz": 1,
        "oDate": "1547435912000",
+       "ordPxRange": "0.05",
        "pxScale": "0.01,0.1,1,10,100",
        "qCcy": "USDT",
        "sCcy": "USDT",
-       "sellLmt": "",
        "status": "OPEN",
        "symbol": "BTC_USDT_PERP",
        "tSz": "0.01",
@@ -101539,8 +101695,14 @@
    "POST": [
     {
      "data": {
-      "code": 30003,
-      "msg": "Account not exists"
+      "code": 200,
+      "data": {
+       "lever": "7",
+       "symbol": "DOGE_USDT_PERP",
+       "mgnMode": "CROSS",
+       "posSide": "BOTH"
+      },
+      "msg": "Success"
      },
      "queryString": "",
      "bodyParams": "{\"lever\":\"10\",\"mgnMode\":\"CROSS\",\"posSide\":\"LONG\",\"symbol\":\"BTC_USDT_PERP\"}",
@@ -101677,9 +101839,28 @@
    "DELETE": [
     {
      "data": {
-      "code": 400,
-      "data": [],
-      "msg": "Param error symbol"
+      "code": 200,
+      "data": [
+       {
+        "clOrdId": "b93fe6bd-30eb-4d0e-8c99-0288a9156837",
+        "code": 200,
+        "msg": "Success",
+        "ordId": "331378951169769472"
+       },
+       {
+        "clOrdId": "225c8607-d98f-4a2e-a27b-faea04fe718f",
+        "code": 200,
+        "msg": "Success",
+        "ordId": "331378951182352384"
+       },
+       {
+        "clOrdId": "9e36e89c-6cab-45c6-9c8a-245b7547601a",
+        "code": 200,
+        "msg": "Success",
+        "ordId": "331378951199129601"
+       }
+      ],
+      "msg": "Success"
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTCUSDT_PERP\",\"side\":\"BUY\"}",
@@ -101710,9 +101891,28 @@
    "DELETE": [
     {
      "data": {
-      "code": 400,
-      "data": [],
-      "msg": "Param error symbol"
+      "code": 200,
+      "data": [
+       {
+        "clOrdId": "b93fe6bd-30eb-4d0e-8c99-0288a9156837",
+        "code": 200,
+        "msg": "Success",
+        "ordId": "331378951169769472"
+       },
+       {
+        "clOrdId": "225c8607-d98f-4a2e-a27b-faea04fe718f",
+        "code": 200,
+        "msg": "Success",
+        "ordId": "331378951182352384"
+       },
+       {
+        "clOrdId": "9e36e89c-6cab-45c6-9c8a-245b7547601a",
+        "code": 200,
+        "msg": "Success",
+        "ordId": "331378951199129601"
+       }
+      ],
+      "msg": "Success"
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTCUSDT_PERP\"}",
@@ -101743,8 +101943,12 @@
    "DELETE": [
     {
      "data": {
-      "code": 11008,
-      "msg": "The order does not exist"
+      "code": 200,
+      "data": {
+       "clOrdId": "1e073485-dfdc-44b9-9523-3daa871984f3",
+       "ordId": "331378951194935296"
+      },
+      "msg": "Success"
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"ordId\":\"12345\"}",
@@ -101824,6 +102028,38 @@
       ],
       "Signtimestamp": [
        "1744210776381"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": {
+       "clOrdId": "939a9d51-8f32-443a-9fb8-ff0852010487",
+       "ordId": "331375826421678080"
+      },
+      "msg": "Success"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"side\":\"buy\",\"mgnMode\":\"CROSS\",\"posSide\":\"LONG\",\"type\":\"limit_maker\",\"clOrdId\":\"939a9d51-8f32-443a-9fb8-ff0852010487\",\"px\":\"46050\",\"sz\":\"10\",\"timeInForce\":\"GTC\",\"stpMode\":\"EXPIRE_TAKER\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "MK72Vc1EZ4H5RapViCE7qIs7bD/vuVehj2rbMCcuwpM="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1759075010078"
       ]
      }
     }
@@ -102435,8 +102671,12 @@
     },
     {
      "data": {
-      "code": 21001,
-      "msg": "Position not exists"
+      "code": 200,
+      "data": {
+       "clOrdId": "12345",
+       "ordId": "331380687661957120"
+      },
+      "msg": "Success"
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"mgnMode\":\"CROSS\",\"clOrdId\":\"123123\"}",
@@ -102528,8 +102768,15 @@
     },
     {
      "data": {
-      "code": 500,
-      "msg": "Internal System Error"
+      "code": 200,
+      "data": {
+       "amt": "50",
+       "lever": "20",
+       "symbol": "DOT_USDT_PERP",
+       "posSide": "BOTH",
+       "type": "ADD"
+      },
+      "msg": "Success"
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"amt\":\"123\",\"type\":\"ADD\"}",
@@ -102593,8 +102840,34 @@
    "POST": [
     {
      "data": {
-      "code": 401,
-      "message": "Invaid of signature"
+      "code": 200,
+      "data": [
+       {
+        "clOrdId": "polo331381602829729792",
+        "code": 200,
+        "msg": "",
+        "ordId": "331381602829729792"
+       },
+       {
+        "clOrdId": "polo331381602854895616",
+        "code": 200,
+        "msg": "",
+        "ordId": "331381602854895616"
+       },
+       {
+        "clOrdId": "polo331381602863284224",
+        "code": 200,
+        "msg": "",
+        "ordId": "331381602863284224"
+       },
+       {
+        "clOrdId": "polo331381602871672832",
+        "code": 200,
+        "msg": "",
+        "ordId": "331381602871672832"
+       }
+      ],
+      "msg": "Success"
      },
      "queryString": "",
      "bodyParams": "{}",
