@@ -356,3 +356,41 @@ func TestHandleSynchronisedState(t *testing.T) {
 	})
 	require.NoError(t, err, "handleSynchronisedState must not error when in sync and update applied")
 }
+
+func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Setup must not error")
+	e.Name = "ManagerHTTPMocked"
+	err := testexch.MockHTTPInstance(e, "/api/v4/")
+	require.NoError(t, err, "MockHTTPInstance must not error")
+
+	// Add dummy subscription so that it can be matched and a limit/level can be extracted for initial orderbook sync spot.
+	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.TwentyMilliseconds})
+	require.NoError(t, err)
+
+	m := newWsOBUpdateManager(0, defaultWSOrderbookUpdateDeadline)
+	err = m.ProcessOrderbookUpdate(t.Context(), e, 27596272446, &orderbook.Update{
+		UpdateID:   27596272447,
+		Pair:       currency.NewBTCUSDT(),
+		Asset:      asset.Spot,
+		AllowEmpty: true,
+		UpdateTime: time.Now(),
+	})
+	require.NoError(t, err, "ProcessOrderbookUpdate must not error")
+
+	time.Sleep(time.Millisecond * 100) // allow some time for rest mock request routine to complete
+
+	err = m.ProcessOrderbookUpdate(t.Context(), e, 27596272448, &orderbook.Update{
+		UpdateID:   27596272449,
+		Pair:       currency.NewBTCUSDT(),
+		Asset:      asset.Spot,
+		AllowEmpty: true,
+		UpdateTime: time.Now(),
+	})
+	require.NoError(t, err, "ProcessOrderbookUpdate must not error on synced orderbook")
+
+	id, err := e.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.Spot)
+	require.NoError(t, err, "LastUpdateID must not error")
+	assert.Equal(t, int64(27596272449), id, "LastUpdateID must be updated to last update")
+}
