@@ -23,7 +23,7 @@ func TestHandleWSAccountChange(t *testing.T) {
 	require.ErrorIs(t, q.handleWSAccountChange(nil), common.ErrNilPointer)
 
 	d := &account.Change{
-		AssetType: q.key.ExchangeAssetPair.Asset,
+		AssetType: q.key.Asset,
 		Balance: &account.Balance{
 			Currency:               currency.BTC,
 			Total:                  1337,
@@ -61,7 +61,7 @@ func TestHandleWSAccountChanges(t *testing.T) {
 	require.NoError(t, q.handleWSAccountChanges(nil))
 
 	d := account.Change{
-		AssetType: q.key.ExchangeAssetPair.Asset,
+		AssetType: q.key.Asset,
 		Balance: &account.Balance{
 			Currency:               currency.BTC,
 			Total:                  1337,
@@ -99,9 +99,9 @@ func TestHandleWSOrderDetail(t *testing.T) {
 	require.ErrorIs(t, q.handleWSOrderDetail(nil), common.ErrNilPointer)
 
 	d := &order.Detail{
-		AssetType: q.key.ExchangeAssetPair.Asset,
+		AssetType: q.key.Asset,
 		Amount:    1337,
-		Pair:      q.key.ExchangeAssetPair.Pair(),
+		Pair:      q.key.Pair(),
 	}
 	require.NoError(t, q.handleWSOrderDetail(d))
 	require.Len(t, q.data.Orders, 1)
@@ -123,9 +123,9 @@ func TestHandleWSOrderDetails(t *testing.T) {
 
 	d := []order.Detail{
 		{
-			AssetType: q.key.ExchangeAssetPair.Asset,
+			AssetType: q.key.Asset,
 			Amount:    1337,
-			Pair:      q.key.ExchangeAssetPair.Pair(),
+			Pair:      q.key.Pair(),
 		},
 	}
 	require.NoError(t, q.handleWSOrderDetails(d))
@@ -153,7 +153,10 @@ func TestAccountHoldingsFocusType(t *testing.T) {
 	f, err := qs.GetFocusByKey(AccountHoldingsFocusType)
 	require.NoError(t, err)
 	require.NotNil(t, f)
-	ctx := account.DeployCredentialsToContext(t.Context(), qs.key.Credentials)
+	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
+		Key:    apiKey,
+		Secret: apiSecret,
+	})
 	require.NoError(t, qs.handleFocusType(ctx, f.focusType, f))
 	require.NotEmpty(t, qs.data.AccountBalance)
 }
@@ -168,10 +171,10 @@ func TestHandleWSTickers(t *testing.T) {
 	assert.Nil(t, q.data.Ticker)
 
 	solo := ticker.Price{
-		AssetType:    q.key.ExchangeAssetPair.Asset,
-		Pair:         q.key.ExchangeAssetPair.Pair(),
+		AssetType:    q.key.Asset,
+		Pair:         q.key.Pair(),
 		Last:         100,
-		ExchangeName: q.key.ExchangeAssetPair.Exchange,
+		ExchangeName: q.key.Exchange,
 	}
 	require.NoError(t, q.handleWSTickers([]ticker.Price{solo}))
 	require.NotNil(t, q.data.Ticker)
@@ -183,10 +186,10 @@ func TestHandleWSTickers(t *testing.T) {
 		Last:      1,
 	}
 	match := ticker.Price{
-		AssetType:    q.key.ExchangeAssetPair.Asset,
-		Pair:         q.key.ExchangeAssetPair.Pair(),
+		AssetType:    q.key.Asset,
+		Pair:         q.key.Pair(),
 		Last:         200,
-		ExchangeName: q.key.ExchangeAssetPair.Exchange,
+		ExchangeName: q.key.Exchange,
 	}
 	require.NoError(t, q.handleWSTickers([]ticker.Price{mismatch, match}))
 	require.NotNil(t, q.data.Ticker)
@@ -206,7 +209,7 @@ func TestHandleWSTicker(t *testing.T) {
 	t.Parallel()
 	q := mustQuickData(t, TickerFocusType)
 	require.ErrorIs(t, q.handleWSTicker(nil), common.ErrNilPointer)
-	p := &ticker.Price{AssetType: q.key.ExchangeAssetPair.Asset, Pair: q.key.ExchangeAssetPair.Pair(), Last: 999}
+	p := &ticker.Price{AssetType: q.key.Asset, Pair: q.key.Pair(), Last: 999}
 	require.NoError(t, q.handleWSTicker(p))
 	require.NotNil(t, q.data.Ticker)
 	assert.Equal(t, 999.0, q.data.Ticker.Last)
@@ -220,9 +223,9 @@ func TestHandleWSOrderbook(t *testing.T) {
 	bk := &orderbook.Book{
 		Bids:        orderbook.Levels{{Price: 10, Amount: 1}},
 		Asks:        orderbook.Levels{{Price: 11, Amount: 2}},
-		Exchange:    q.key.ExchangeAssetPair.Exchange,
-		Asset:       q.key.ExchangeAssetPair.Asset,
-		Pair:        q.key.ExchangeAssetPair.Pair(),
+		Exchange:    q.key.Exchange,
+		Asset:       q.key.Asset,
+		Pair:        q.key.Pair(),
 		LastUpdated: time.Now(),
 	}
 	depth.AssignOptions(bk)
@@ -236,9 +239,9 @@ func TestHandleWSTrade(t *testing.T) {
 	q := mustQuickData(t, TradesFocusType)
 	require.ErrorIs(t, q.handleWSTrade(nil), common.ErrNilPointer)
 	trd := &trade.Data{
-		Exchange:     q.key.ExchangeAssetPair.Exchange,
-		CurrencyPair: q.key.ExchangeAssetPair.Pair(),
-		AssetType:    q.key.ExchangeAssetPair.Asset,
+		Exchange:     q.key.Exchange,
+		CurrencyPair: q.key.Pair(),
+		AssetType:    q.key.Asset,
 		Price:        123.45,
 		Amount:       0.5,
 		Timestamp:    time.Now(),
@@ -254,17 +257,17 @@ func TestHandleWSTrades(t *testing.T) {
 	require.Empty(t, q.data.Trades)
 	trs := []trade.Data{
 		{
-			Exchange:     q.key.ExchangeAssetPair.Exchange,
-			CurrencyPair: q.key.ExchangeAssetPair.Pair(),
-			AssetType:    q.key.ExchangeAssetPair.Asset,
+			Exchange:     q.key.Exchange,
+			CurrencyPair: q.key.Pair(),
+			AssetType:    q.key.Asset,
 			Price:        1,
 			Amount:       1,
 			Timestamp:    time.Now(),
 		},
 		{
-			Exchange:     q.key.ExchangeAssetPair.Exchange,
-			CurrencyPair: q.key.ExchangeAssetPair.Pair(),
-			AssetType:    q.key.ExchangeAssetPair.Asset,
+			Exchange:     q.key.Exchange,
+			CurrencyPair: q.key.Pair(),
+			AssetType:    q.key.Asset,
 			Price:        2,
 			Amount:       2,
 			Timestamp:    time.Now(),

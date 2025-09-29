@@ -8,9 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 func TestNewFocusDataAndInit(t *testing.T) {
@@ -133,39 +131,31 @@ func TestFocusType_String(t *testing.T) {
 	}
 }
 
-// helper to build a CredentialsKey with provided asset and creds
-func makeCredKey(tb testing.TB, a asset.Item, creds *account.Credentials) *CredentialsKey {
-	tb.Helper()
-	k := key.NewExchangeAssetPair("Binance", a, currency.NewBTCUSD())
-	return &CredentialsKey{Credentials: creds, ExchangeAssetPair: k}
-}
-
 func TestValidate(t *testing.T) {
 	t.Parallel()
 	// Spot ticker via REST
 	fd := &FocusData{focusType: TickerFocusType, useWebsocket: false, restPollTime: time.Second}
-	k := makeCredKey(t, asset.Spot, nil)
-	require.NoError(t, fd.Validate(k))
-	// Futures-specific type allowed on futures asset with websocket
+	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
+		Key:    apiKey,
+		Secret: apiSecret,
+	})
+	k := key.NewExchangeAssetPair(exchangeName, assetType, pair)
+	require.NoError(t, fd.Validate(ctx, &k))
 	fd = &FocusData{focusType: OpenInterestFocusType, useWebsocket: true}
-	k = makeCredKey(t, asset.Futures, nil)
-	require.NoError(t, fd.Validate(k))
 	// Futures-specific type fails on spot asset
-	k = makeCredKey(t, asset.Spot, nil)
-	require.ErrorIs(t, fd.Validate(k), ErrInvalidAssetForFocusType)
+	require.ErrorIs(t, fd.Validate(ctx, &k), ErrInvalidAssetForFocusType)
+	// Futures-specific type allowed on futures asset with websocket
+	k = key.NewExchangeAssetPair(exchangeName, futuresAssetType, pair)
+	require.NoError(t, fd.Validate(ctx, &k))
 	// Auth-required type passes when credentials are provided
 	fd = &FocusData{focusType: AccountHoldingsFocusType, useWebsocket: false, restPollTime: time.Second}
-	k = makeCredKey(t, asset.Spot, &account.Credentials{})
-	require.ErrorIs(t, fd.Validate(k), ErrNoCredentials)
+	require.ErrorIs(t, fd.Validate(t.Context(), &k), ErrCredentialsRequiredForFocusType)
 	// invalid REST poll time
 	fd = &FocusData{focusType: TickerFocusType, useWebsocket: false, restPollTime: 0}
-	k = makeCredKey(t, asset.Spot, nil)
-	require.ErrorIs(t, fd.Validate(k), ErrInvalidRESTPollTime)
+	require.ErrorIs(t, fd.Validate(ctx, &k), ErrInvalidRESTPollTime)
 	fd = &FocusData{focusType: UnsetFocusType, useWebsocket: true}
-	k = makeCredKey(t, asset.Spot, nil)
-	require.ErrorIs(t, fd.Validate(k), ErrUnsetFocusType)
+	require.ErrorIs(t, fd.Validate(ctx, &k), ErrUnsetFocusType)
 	// nil stuff
 	fd = nil
-	k = makeCredKey(t, asset.Spot, nil)
-	require.ErrorIs(t, fd.Validate(k), common.ErrNilPointer)
+	require.ErrorIs(t, fd.Validate(t.Context(), nil), common.ErrNilPointer)
 }

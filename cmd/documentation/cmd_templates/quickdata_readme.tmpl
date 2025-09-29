@@ -2,11 +2,11 @@
 {{template "header" .}}
 
 ## Current Features for {{.Name}}
-QuickData is an applet to quickly fetch data from an exchange without needing to fuss about with configs or setting currency pairs or calling functions like `SetDefaults()`.
+quickdata fetches targeted data from an exchange with minimal setup. It supports both public and authenticated data retrieval methods.
 
 ## Usage
 ```go
-go run . --exchange="Binance" --asset="Spot" --pair="BTCUSDT" -datatype=Ticker
+go run . --exchange="Binance" --asset="Spot" --pair="BTCUSDT" -data=Ticker
 ```
 
 ```go
@@ -18,18 +18,22 @@ go run . --exchange="binance" --asset="spot" --pair="btc-usdt" --data="orders" -
 go run . --help
 ```
 
-### Supported Data Types:
-	- "ticker", "tick":
-	- "orderbook", "order_book", "ob", "book":
-	- "kline", "candles", "candle", "ohlc":
-	- "trades", "trade":
-	- "openinterest", "oi":
-	- "fundingrate", "funding":
-	- "accountholdings", "account", "holdings", "balances":
-	- "activeorders", "orders":
-	- "orderexecution", "executionlimits", "limits":
-	- "url", "tradeurl", "trade_url":
-	- "contract":
+### Data support
+
+| Data Type | Accepted --data flags |
+| --------- | -------------- |
+| Ticker | "ticker", "tick" |
+| Orderbook | "orderbook", "order_book", "ob", "book" |
+| Kline | "kline", "candles", "candle", "ohlc" |
+| Trades | "trades", "trade" |
+| Open Interest | "openinterest", "oi" |
+| Funding Rate | "fundingrate", "funding" |
+| Account Info | "accountholdings", "account", "holdings", "balances" |
+| Active Orders | "activeorders", "orders" |
+| Order Execution Limits | "orderexecution", "executionlimits", "limits" |
+| URL | "url", "tradeurl", "trade_url" |
+| Contract Info | "contract" |
+
 
 ## Further Reading
 For more  details about QuickData, see the [quickData package documentation](/exchange/quickData/README.md).

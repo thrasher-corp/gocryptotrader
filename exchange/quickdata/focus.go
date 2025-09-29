@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
@@ -17,7 +18,6 @@ var (
 	ErrInvalidRESTPollTime             = errors.New("invalid REST poll time")
 	ErrInvalidAssetForFocusType        = errors.New("invalid asset for focus type")
 	ErrCredentialsRequiredForFocusType = errors.New("credentials required for this focus type")
-	ErrNoCredentials                   = errors.New("no credentials provided")
 )
 
 // FocusType is an identifier for data types that quickData can gather
@@ -73,7 +73,7 @@ func (f *FocusData) Init() {
 
 // Validate checks if the FocusData instance is good to go
 // It is assumed that this will be called before use rather than willy-nilly
-func (f *FocusData) Validate(k *CredentialsKey) error {
+func (f *FocusData) Validate(k *key.ExchangeAssetPair) error {
 	if err := common.NilGuard(f, k); err != nil {
 		return err
 	}
@@ -91,15 +91,7 @@ func (f *FocusData) Validate(k *CredentialsKey) error {
 	if f.FailureTolerance == 0 {
 		f.FailureTolerance = 5
 	}
-	if k.Credentials != nil && k.Credentials.IsEmpty() {
-		return ErrNoCredentials
-	}
-
-	if slices.Contains(authFocusList, f.focusType) &&
-		(k.Credentials == nil || k.Credentials.IsEmpty()) {
-		return ErrCredentialsRequiredForFocusType
-	}
-	if slices.Contains(futuresOnlyFocusList, f.focusType) && !k.ExchangeAssetPair.Asset.IsFutures() {
+	if slices.Contains(futuresOnlyFocusList, f.focusType) && !k.Asset.IsFutures() {
 		return ErrInvalidAssetForFocusType
 	}
 	return nil

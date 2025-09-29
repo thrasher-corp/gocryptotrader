@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -12,10 +13,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -24,8 +28,45 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+var (
+	errKeyNotFound                    = errors.New("key not found")
+	errNoKey                          = errors.New("no key provided")
+	errNoFocus                        = errors.New("no focuses provided")
+	errValidationFailed               = errors.New("validation failed")
+	errNoCredentials                  = errors.New("credentials required but none provided")
+	errFocusDataTimeout               = errors.New("focus did not receive data in time")
+	errNoRateLimits                   = errors.New("exchange has no rate limits set")
+	errNoWebsocketSupportForFocusType = errors.New("quickData does not support websocket for this focus type")
+	errNoSubSwitchingToREST           = errors.New("no subscription found, switching to REST")
+	errTimerNotSet                    = errors.New("timer not set")
+	errNoDataYet                      = errors.New("no data received yet")
+	errOverMaxFailures                = errors.New("exceeded maximum allowed failures")
+	errUnhandledWebsocketData         = errors.New("unhandled websocket data type")
+
+	// ErrContextMustBeAbleToFinish returned as quickspy must be able to close
+	ErrContextMustBeAbleToFinish = errors.New("context must be able to finish via timeout, deadline or cancellation, view package readme for details")
+)
+
+// QuickData is a helper struct to gather data from an exchange quickly
+// It supports both public and private data (if credentials are provided)
+// It can gather data via websocket (if supported by the exchange) or REST
+type QuickData struct {
+	exch exchange.IBotExchange
+	key  *key.ExchangeAssetPair
+	// focuses is a map of focus types to focus options
+	// Don't access directly, use functions to handle locking
+	focuses *FocusStore
+	// dataHandlerChannel is used for receiving data from websockets
+	dataHandlerChannel chan any
+	// m is used for concurrent read/write operations
+	m    sync.RWMutex
+	wg   sync.WaitGroup
+	data *Data
+}
+
 // NewQuickData returns a running quickData if everything passed in is valid
-func NewQuickData(ctx context.Context, k *CredentialsKey, focuses []*FocusData) (*QuickData, error) {
+// imbue context with credentials to utilise private endpoints
+func NewQuickData(k *key.ExchangeAssetPair, focuses []*FocusData) (*QuickData, error) {
 	if k == nil {
 		return nil, errNoKey
 	}
@@ -49,29 +90,22 @@ func NewQuickData(ctx context.Context, k *CredentialsKey, focuses []*FocusData) 
 		dataHandlerChannel: make(chan any, 10),
 		focuses:            sm,
 		data:               &Data{Key: k},
-		shutdown:           make(chan any),
 	}
 	err := q.setupExchange()
 	if err != nil {
 		return nil, err
 	}
 	if q.AnyRequiresAuth() {
-		if k.Credentials.IsEmpty() {
-			return nil, fmt.Errorf("%w for %s", errNoCredentials, k.ExchangeAssetPair)
-		}
-		ctx = account.DeployCredentialsToContext(ctx, k.Credentials)
 		b := q.exch.GetBase()
 		b.API.AuthenticatedSupport = true
 		b.API.AuthenticatedWebsocketSupport = true
 	}
-	q.run(ctx)
 	return q, nil
 }
 
 // NewQuickerData spins up a quickData with a single focus to quickly return data to the user
 // auto opt-in to use websocket as it has REST fallback
-// imbue context with credentials to utilise private endpoints
-func NewQuickerData(ctx context.Context, k *key.ExchangeAssetPair, focus FocusType) (*QuickData, error) {
+func NewQuickerData(k *key.ExchangeAssetPair, focus FocusType) (*QuickData, error) {
 	if err := common.NilGuard(k); err != nil {
 		return nil, err
 	}
@@ -80,16 +114,13 @@ func NewQuickerData(ctx context.Context, k *key.ExchangeAssetPair, focus FocusTy
 	}
 	useWS := slices.Contains(wsSupportedFocusList, focus)
 	focusData := NewFocusData(focus, false, useWS, time.Second)
-	ck := &CredentialsKey{
-		ExchangeAssetPair: *k,
-		Credentials:       account.GetCredentialsFromContext(ctx),
-	}
-	return NewQuickData(ctx, ck, []*FocusData{focusData})
+	return NewQuickData(k, []*FocusData{focusData})
 }
 
 // NewQuickestData spins up a quickData with a single focus and returns the data channel which streams results
 // auto opt-in to use websocket as it has REST fallback
 // imbue context with credentials to utilise private endpoints
+// Automatically starts gathering data as only a channel is used
 func NewQuickestData(ctx context.Context, k *key.ExchangeAssetPair, focus FocusType) (chan any, error) {
 	if err := common.NilGuard(k); err != nil {
 		return nil, err
@@ -99,12 +130,11 @@ func NewQuickestData(ctx context.Context, k *key.ExchangeAssetPair, focus FocusT
 	}
 	useWS := slices.Contains(wsSupportedFocusList, focus)
 	focusData := NewFocusData(focus, false, useWS, time.Second)
-	ck := &CredentialsKey{
-		ExchangeAssetPair: *k,
-		Credentials:       account.GetCredentialsFromContext(ctx),
-	}
-	q, err := NewQuickData(ctx, ck, []*FocusData{focusData})
+	q, err := NewQuickData(k, []*FocusData{focusData})
 	if err != nil {
+		return nil, err
+	}
+	if err := q.Run(ctx); err != nil {
 		return nil, err
 	}
 	fd, err := q.GetFocusByKey(focus)
@@ -112,6 +142,45 @@ func NewQuickestData(ctx context.Context, k *key.ExchangeAssetPair, focus FocusT
 		return nil, err
 	}
 	return fd.Stream, nil
+}
+
+// Run starts all routines to gather data based on the focuses provided
+// imbue context with credentials to utilise private endpoints
+func (q *QuickData) Run(ctx context.Context) error {
+	if _, ok := ctx.Deadline(); !ok && ctx.Done() == nil {
+		return ErrContextMustBeAbleToFinish
+	}
+	if creds := account.GetCredentialsFromContext(ctx); q.AnyRequiresAuth() && creds == nil {
+		return fmt.Errorf("%w for %s", errNoCredentials, q.key)
+	}
+	if q.AnyRequiresWebsocket() {
+		q.wg.Go(func() {
+			if err := q.handleWS(ctx); err != nil {
+				log.Errorf(log.QuickData, "%s websocket handler error: %v", q.key, err)
+			}
+		})
+	}
+	for _, focus := range q.focuses.List() {
+		if focus.UseWebsocket() {
+			continue
+		}
+		q.wg.Go(func() {
+			if err := q.runRESTRoutine(ctx, focus); err != nil {
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return
+				}
+				focus.stream(err)
+			}
+		})
+	}
+	q.wg.Go(func() {
+		<-ctx.Done()
+		if err := q.exch.Shutdown(); err != nil {
+			log.Errorf(log.QuickData, "%s exchange shutdown error: %v", q.key, err)
+		}
+	})
+
+	return nil
 }
 
 // AnyRequiresWebsocket tells a quickData whether to setup the websocket
@@ -164,7 +233,7 @@ func (q *QuickData) setupExchange() error {
 	q.m.Lock()
 	defer q.m.Unlock()
 
-	e, err := engine.NewSupportedExchangeByName(q.key.ExchangeAssetPair.Exchange)
+	e, err := engine.NewSupportedExchangeByName(q.key.Exchange)
 	if err != nil {
 		return err
 	}
@@ -186,7 +255,7 @@ func (q *QuickData) setupExchange() error {
 		if !errors.Is(err, errNoSubSwitchingToREST) {
 			return err
 		}
-		log.Warnf(log.QuickData, "%s websocket setup failed: %v. Disabling websocket focuses", q.key.ExchangeAssetPair, err)
+		log.Warnf(log.QuickData, "%s websocket setup failed: %v. Disabling websocket focuses", q.key, err)
 		q.focuses.DisableWebsocketFocuses()
 	}
 	return nil
@@ -196,14 +265,14 @@ func (q *QuickData) setupExchangeDefaults(e exchange.IBotExchange, b *exchange.B
 	e.SetDefaults()
 	exchCfg, err := b.GetStandardConfig()
 	if err != nil {
-		return fmt.Errorf("%s: %w", q.key.ExchangeAssetPair, err)
+		return fmt.Errorf("%s: %w", q.key, err)
 	}
 	if err := b.SetupDefaults(exchCfg); err != nil {
-		return fmt.Errorf("%s: %w", q.key.ExchangeAssetPair, err)
+		return fmt.Errorf("%s: %w", q.key, err)
 	}
 	exchCfg.Features.Enabled.TradeFeed = true
 	if err := e.Setup(exchCfg); err != nil {
-		return fmt.Errorf("%s: %w", q.key.ExchangeAssetPair, err)
+		return fmt.Errorf("%s: %w", q.key, err)
 	}
 	return nil
 }
@@ -214,23 +283,23 @@ func (q *QuickData) setupCurrencyPairs(b *exchange.Base) error {
 		rFmt = b.CurrencyPairs.RequestFormat
 		cFmt = b.CurrencyPairs.ConfigFormat
 	} else {
-		rFmt = b.CurrencyPairs.Pairs[q.key.ExchangeAssetPair.Asset].RequestFormat
-		cFmt = b.CurrencyPairs.Pairs[q.key.ExchangeAssetPair.Asset].ConfigFormat
+		rFmt = b.CurrencyPairs.Pairs[q.key.Asset].RequestFormat
+		cFmt = b.CurrencyPairs.Pairs[q.key.Asset].ConfigFormat
 	}
 	b.CurrencyPairs.DisableAllPairs()
 	// no formatting occurs for websocket subscription generation
 	// so do it here to cover for it
-	cFmtPair := q.key.ExchangeAssetPair.Pair().Format(*cFmt)
-	b.CurrencyPairs.Pairs[q.key.ExchangeAssetPair.Asset] = &currency.PairStore{
+	cFmtPair := q.key.Pair().Format(*cFmt)
+	b.CurrencyPairs.Pairs[q.key.Asset] = &currency.PairStore{
 		AssetEnabled:  true,
 		RequestFormat: rFmt,
 		ConfigFormat:  cFmt,
 	}
 
-	if err := b.CurrencyPairs.StorePairs(q.key.ExchangeAssetPair.Asset, currency.Pairs{cFmtPair}, false); err != nil {
+	if err := b.CurrencyPairs.StorePairs(q.key.Asset, currency.Pairs{cFmtPair}, false); err != nil {
 		return err
 	}
-	if err := b.CurrencyPairs.StorePairs(q.key.ExchangeAssetPair.Asset, currency.Pairs{cFmtPair}, true); err != nil {
+	if err := b.CurrencyPairs.StorePairs(q.key.Asset, currency.Pairs{cFmtPair}, true); err != nil {
 		return err
 	}
 	return nil
@@ -238,7 +307,7 @@ func (q *QuickData) setupCurrencyPairs(b *exchange.Base) error {
 
 func (q *QuickData) checkRateLimits(b *exchange.Base) error {
 	if len(b.GetRateLimiterDefinitions()) == 0 {
-		return fmt.Errorf("%s %w", q.key.ExchangeAssetPair, errNoRateLimits)
+		return fmt.Errorf("%s %w", q.key, errNoRateLimits)
 	}
 	return nil
 }
@@ -246,17 +315,17 @@ func (q *QuickData) checkRateLimits(b *exchange.Base) error {
 func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) error {
 	if q.AnyRequiresWebsocket() {
 		if !e.SupportsWebsocket() {
-			return fmt.Errorf("exchange %s has no websocket. Websocket requirement was enabled", q.key.ExchangeAssetPair.Exchange)
+			return fmt.Errorf("exchange %s has no websocket. Websocket requirement was enabled", q.key.Exchange)
 		}
 	} else {
 		return nil
 	}
 
 	if !b.Features.Supports.Websocket {
-		return fmt.Errorf("exchange %s has no websocket. Websocket requirement was enabled", q.key.ExchangeAssetPair.Exchange)
+		return fmt.Errorf("exchange %s has no websocket. Websocket requirement was enabled", q.key.Exchange)
 	}
 	if err := common.NilGuard(b.Websocket); err != nil {
-		return fmt.Errorf("%s %w", q.key.ExchangeAssetPair, err)
+		return fmt.Errorf("%s %w", q.key, err)
 	}
 	// allows routing of all websocket data to our custom one
 	q.dataHandlerChannel = b.Websocket.ToRoutine
@@ -268,24 +337,24 @@ func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) er
 		}
 		ch, ok := focusToSub[f.focusType]
 		if !ok || ch == "" {
-			return fmt.Errorf("%s %s %w", q.key.ExchangeAssetPair, f.focusType, errNoWebsocketSupportForFocusType)
+			return fmt.Errorf("%s %s %w", q.key, f.focusType, errNoWebsocketSupportForFocusType)
 		}
 		var sub *subscription.Subscription
 		for _, s := range b.Config.Features.Subscriptions {
 			if s.Channel != ch {
 				continue
 			}
-			if s.Asset != q.key.ExchangeAssetPair.Asset &&
+			if s.Asset != q.key.Asset &&
 				s.Asset != asset.All && s.Asset != asset.Empty {
 				continue
 			}
 			sub = s
 		}
 		if sub == nil {
-			return fmt.Errorf("%s %s %w", q.key.ExchangeAssetPair, f.focusType, errNoSubSwitchingToREST)
+			return fmt.Errorf("%s %s %w", q.key, f.focusType, errNoSubSwitchingToREST)
 		}
 		s := sub.Clone()
-		rFmtPair := q.key.ExchangeAssetPair.Pair().Format(*b.CurrencyPairs.Pairs[q.key.ExchangeAssetPair.Asset].RequestFormat)
+		rFmtPair := q.key.Pair().Format(*b.CurrencyPairs.Pairs[q.key.Asset].RequestFormat)
 		s.Pairs.Add(rFmtPair)
 		newSubs = append(newSubs, s)
 	}
@@ -293,13 +362,13 @@ func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) er
 	b.Features.Subscriptions = newSubs
 	if err := b.Websocket.EnableAndConnect(); err != nil {
 		if !errors.Is(err, websocket.ErrWebsocketAlreadyEnabled) {
-			return fmt.Errorf("%s: %w", q.key.ExchangeAssetPair, err)
+			return fmt.Errorf("%s: %w", q.key, err)
 		}
 		// EnableAndConnect returns an error if the websocket is already enabled,
 		// but a connection still needs to be established. In this case, we manually
 		// call Connect to ensure the websocket is connected.
 		if err := b.Websocket.Connect(); err != nil {
-			return fmt.Errorf("%s: %w", q.key.ExchangeAssetPair, err)
+			return fmt.Errorf("%s: %w", q.key, err)
 		}
 	}
 	return q.validateSubscriptions(newSubs)
@@ -310,7 +379,7 @@ func (q *QuickData) validateSubscriptions(newSubs []*subscription.Subscription) 
 		if err := q.stopWebsocket(); err != nil {
 			return err
 		}
-		return fmt.Errorf("%s %w", q.key.ExchangeAssetPair, errNoSubSwitchingToREST)
+		return fmt.Errorf("%s %w", q.key, errNoSubSwitchingToREST)
 	}
 	b := q.exch.GetBase()
 	generatedSubs := b.Websocket.GetSubscriptions()
@@ -318,7 +387,7 @@ func (q *QuickData) validateSubscriptions(newSubs []*subscription.Subscription) 
 		if err := q.stopWebsocket(); err != nil {
 			return err
 		}
-		return fmt.Errorf("%s %w", q.key.ExchangeAssetPair, errNoSubSwitchingToREST)
+		return fmt.Errorf("%s %w", q.key, errNoSubSwitchingToREST)
 	}
 	for i := range generatedSubs {
 		for _, f := range q.focuses.List() {
@@ -332,18 +401,18 @@ func (q *QuickData) validateSubscriptions(newSubs []*subscription.Subscription) 
 			if generatedSubs[i].Channel != ch {
 				continue
 			}
-			if generatedSubs[i].Asset != q.key.ExchangeAssetPair.Asset &&
+			if generatedSubs[i].Asset != q.key.Asset &&
 				generatedSubs[i].Asset != asset.All && generatedSubs[i].Asset != asset.Empty {
 				if err := q.stopWebsocket(); err != nil {
 					return err
 				}
-				return fmt.Errorf("%s %s %w", q.key.ExchangeAssetPair, f.focusType, errNoSubSwitchingToREST)
+				return fmt.Errorf("%s %s %w", q.key, f.focusType, errNoSubSwitchingToREST)
 			}
-			if !generatedSubs[i].Pairs.Contains(q.key.ExchangeAssetPair.Pair(), false) {
+			if !generatedSubs[i].Pairs.Contains(q.key.Pair(), false) {
 				if err := q.stopWebsocket(); err != nil {
 					return err
 				}
-				return fmt.Errorf("%s %s %w", q.key.ExchangeAssetPair, f.focusType, errNoSubSwitchingToREST)
+				return fmt.Errorf("%s %s %w", q.key, f.focusType, errNoSubSwitchingToREST)
 			}
 		}
 	}
@@ -365,41 +434,14 @@ func (q *QuickData) stopWebsocket() error {
 	return nil
 }
 
-func (q *QuickData) run(ctx context.Context) {
-	if q.AnyRequiresWebsocket() {
-		q.wg.Go(func() {
-			if err := q.handleWS(ctx); err != nil {
-				log.Errorf(log.QuickData, "%s websocket handler error: %v", q.key.ExchangeAssetPair, err)
-			}
-		})
-	}
-	for _, focus := range q.focuses.List() {
-		if focus.UseWebsocket() {
-			continue
-		}
-		q.wg.Add(1) // wg.Go doesn't work here as we have to pass in the focus variable
-		go func(f *FocusData) {
-			defer q.wg.Done()
-			if err := q.runRESTRoutine(ctx, f); err != nil {
-				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-					return
-				}
-				f.stream(err)
-			}
-		}(focus)
-	}
-}
-
 func (q *QuickData) handleWS(ctx context.Context) error {
 	for {
 		select {
-		case <-q.shutdown:
-			return nil
 		case <-ctx.Done():
 			return ctx.Err()
 		case d := <-q.dataHandlerChannel:
 			if err := q.handleWSData(d); err != nil {
-				log.Errorf(log.QuickData, "%s %s", q.key.ExchangeAssetPair, err)
+				log.Errorf(log.QuickData, "%s %s", q.key, err)
 			}
 		}
 	}
@@ -440,8 +482,6 @@ func (q *QuickData) runRESTRoutine(ctx context.Context, f *FocusData) error {
 	timer := time.NewTimer(0)
 	for {
 		select {
-		case <-q.shutdown:
-			return nil
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-timer.C:
@@ -466,7 +506,7 @@ func (q *QuickData) processRESTFocus(ctx context.Context, f *FocusData) error {
 			f.failures++
 			if f.failures >= f.FailureTolerance {
 				return fmt.Errorf("%w: %v/%v %s failed, focus type: %s err: %w",
-					errOverMaxFailures, f.failures, f.FailureTolerance, q.key.ExchangeAssetPair, f.focusType, err)
+					errOverMaxFailures, f.failures, f.FailureTolerance, q.key, f.focusType, err)
 			}
 		}
 		f.stream(err)
@@ -510,16 +550,6 @@ func (q *QuickData) handleFocusType(ctx context.Context, focusType FocusType, fo
 	return nil
 }
 
-// Shutdown stops all routines and websocket connections
-func (q *QuickData) Shutdown() error {
-	if err := q.exch.Shutdown(); err != nil {
-		return err
-	}
-	close(q.shutdown)
-	q.wg.Wait()
-	return nil
-}
-
 // HasBeenSuccessful returns whether a focus type has ever been successful
 // or an error if the focus type does not exist
 func (q *QuickData) HasBeenSuccessful(focusType FocusType) (bool, error) {
@@ -528,6 +558,22 @@ func (q *QuickData) HasBeenSuccessful(focusType FocusType) (bool, error) {
 		return false, fmt.Errorf("%w %q", errKeyNotFound, focusType)
 	}
 	return focus.HasBeenSuccessful(), nil
+}
+
+// Data holds the GCT types that QuickData gathers
+type Data struct {
+	Key             *key.ExchangeAssetPair          `json:"key"`
+	Contract        *futures.Contract               `json:"contract,omitempty"`
+	Orderbook       *orderbook.Book                 `json:"orderbook,omitempty"`
+	Ticker          *ticker.Price                   `json:"ticker,omitempty"`
+	Kline           []websocket.KlineData           `json:"kline,omitempty"`
+	AccountBalance  []account.Balance               `json:"accountBalance,omitempty"`
+	Orders          []order.Detail                  `json:"orders,omitempty"`
+	FundingRate     *fundingrate.LatestRateResponse `json:"fundingRate,omitempty"`
+	Trades          []trade.Data                    `json:"trades,omitempty"`
+	ExecutionLimits *limits.MinMaxLevel             `json:"executionLimits,omitempty"`
+	URL             string                          `json:"url,omitzero"`
+	OpenInterest    float64                         `json:"openInterest,omitzero"`
 }
 
 // LatestData returns the latest focus-specific payload guarded by the

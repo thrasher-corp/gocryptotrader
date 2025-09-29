@@ -184,7 +184,7 @@ func TestParseFlags_Success(t *testing.T) {
 	origArgs := os.Args
 	defer func() { os.Args = origArgs }()
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	os.Args = []string{"quickData", "--exchange", "BiNaNcE", "--asset", "spot", "--pair", "ETH-BTC", "--focusType", "ticker", "--poll", "10s", "--book-levels", "20", "--json"}
+	os.Args = []string{"quickData", "--exchange", "BiNaNcE", "--asset", "spot", "--pair", "ETH-BTC", "--data", "ticker", "--poll", "10s", "--book-levels", "20", "--json"}
 	cfg := parseFlags()
 	require.Equal(t, "binance", cfg.Exchange)
 	require.Equal(t, asset.Spot, cfg.Asset)
@@ -200,7 +200,7 @@ func TestParseFlags_AuthRequired(t *testing.T) {
 	origArgs := os.Args
 	defer func() { os.Args = origArgs }()
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	os.Args = []string{"quickData", "--exchange", "okx", "--asset", "spot", "--pair", "BTC-USDT", "--focusType", "account", "--apiKey", "k123", "--apiSecret", "s456"}
+	os.Args = []string{"quickData", "--exchange", "okx", "--asset", "spot", "--pair", "BTC-USDT", "--data", "account", "--apiKey", "k123", "--apiSecret", "s456"}
 	cfg := parseFlags()
 	require.Equal(t, quickdata.AccountHoldingsFocusType, cfg.FocusType)
 	require.NotNil(t, cfg.Credentials)
