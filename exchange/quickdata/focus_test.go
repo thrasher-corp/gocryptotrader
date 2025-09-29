@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 )
 
 func TestNewFocusDataAndInit(t *testing.T) {
@@ -135,27 +134,20 @@ func TestValidate(t *testing.T) {
 	t.Parallel()
 	// Spot ticker via REST
 	fd := &FocusData{focusType: TickerFocusType, useWebsocket: false, restPollTime: time.Second}
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
-		Key:    apiKey,
-		Secret: apiSecret,
-	})
 	k := key.NewExchangeAssetPair(exchangeName, assetType, pair)
-	require.NoError(t, fd.Validate(ctx, &k))
+	require.NoError(t, fd.Validate(&k))
 	fd = &FocusData{focusType: OpenInterestFocusType, useWebsocket: true}
 	// Futures-specific type fails on spot asset
-	require.ErrorIs(t, fd.Validate(ctx, &k), ErrInvalidAssetForFocusType)
+	require.ErrorIs(t, fd.Validate(&k), ErrInvalidAssetForFocusType)
 	// Futures-specific type allowed on futures asset with websocket
 	k = key.NewExchangeAssetPair(exchangeName, futuresAssetType, pair)
-	require.NoError(t, fd.Validate(ctx, &k))
-	// Auth-required type passes when credentials are provided
-	fd = &FocusData{focusType: AccountHoldingsFocusType, useWebsocket: false, restPollTime: time.Second}
-	require.ErrorIs(t, fd.Validate(t.Context(), &k), ErrCredentialsRequiredForFocusType)
+	require.NoError(t, fd.Validate(&k))
 	// invalid REST poll time
 	fd = &FocusData{focusType: TickerFocusType, useWebsocket: false, restPollTime: 0}
-	require.ErrorIs(t, fd.Validate(ctx, &k), ErrInvalidRESTPollTime)
+	require.ErrorIs(t, fd.Validate(&k), ErrInvalidRESTPollTime)
 	fd = &FocusData{focusType: UnsetFocusType, useWebsocket: true}
-	require.ErrorIs(t, fd.Validate(ctx, &k), ErrUnsetFocusType)
+	require.ErrorIs(t, fd.Validate(&k), ErrUnsetFocusType)
 	// nil stuff
 	fd = nil
-	require.ErrorIs(t, fd.Validate(t.Context(), nil), common.ErrNilPointer)
+	require.ErrorIs(t, fd.Validate(nil), common.ErrNilPointer)
 }

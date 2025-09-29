@@ -38,14 +38,8 @@ func mustQuickData(t *testing.T, ft FocusType) *QuickData {
 	t.Helper()
 	ftd := NewFocusData(ft, false, false, time.Second)
 	ftd.Init()
-	ctx := account.DeployCredentialsToContext(
-		t.Context(),
-		&account.Credentials{
-			Key:    apiKey,
-			Secret: apiSecret,
-		})
 	k := key.NewExchangeAssetPair(exchangeName, assetType, pair)
-	qs, err := NewQuickData(ctx, &k, []*FocusData{ftd})
+	qs, err := NewQuickData(&k, []*FocusData{ftd})
 	require.NoError(t, err)
 	require.NotNil(t, qs)
 	return qs
@@ -58,14 +52,8 @@ func mustQuickDataAllFocuses(t *testing.T) *QuickData {
 		ftd := NewFocusData(ft, false, false, time.Second)
 		focuses = append(focuses, ftd)
 	}
-	ctx := account.DeployCredentialsToContext(
-		t.Context(),
-		&account.Credentials{
-			Key:    apiKey,
-			Secret: apiSecret,
-		})
 	k := key.NewExchangeAssetPair(exchangeName, futuresAssetType, pair)
-	qs, err := NewQuickData(ctx, &k, focuses)
+	qs, err := NewQuickData(&k, focuses)
 	require.NoError(t, err)
 	require.NotNil(t, qs)
 	return qs
@@ -73,35 +61,24 @@ func mustQuickDataAllFocuses(t *testing.T) *QuickData {
 
 func TestNewQuickData(t *testing.T) {
 	t.Parallel()
-	_, err := NewQuickData(t.Context(), nil, nil)
+	_, err := NewQuickData(nil, nil)
 	require.ErrorIs(t, err, errNoKey)
 
-	_, err = NewQuickData(context.Background(), &key.ExchangeAssetPair{}, nil)
-	require.ErrorIs(t, err, ErrContextMustBeAbleToFinish)
-
-	_, err = NewQuickData(t.Context(), &key.ExchangeAssetPair{}, nil)
+	_, err = NewQuickData(&key.ExchangeAssetPair{}, nil)
 	require.ErrorIs(t, err, errNoFocus)
 
-	_, err = NewQuickData(t.Context(), &key.ExchangeAssetPair{}, []*FocusData{{}})
+	_, err = NewQuickData(&key.ExchangeAssetPair{}, []*FocusData{{}})
 	require.ErrorIs(t, err, ErrUnsupportedFocusType)
 
-	_, err = NewQuickData(t.Context(), &key.ExchangeAssetPair{}, []*FocusData{{focusType: OrderBookFocusType, restPollTime: -1}})
+	_, err = NewQuickData(&key.ExchangeAssetPair{}, []*FocusData{{focusType: OrderBookFocusType, restPollTime: -1}})
 	require.ErrorIs(t, err, ErrInvalidRESTPollTime)
 
 	k := key.NewExchangeAssetPair(exchangeName, asset.Binary, pair)
-	_, err = NewQuickData(t.Context(), &k, []*FocusData{{focusType: OpenInterestFocusType, restPollTime: 10}})
+	_, err = NewQuickData(&k, []*FocusData{{focusType: OpenInterestFocusType, restPollTime: 10}})
 	require.ErrorIs(t, err, ErrInvalidAssetForFocusType)
 
-	k = key.NewExchangeAssetPair(exchangeName, futuresAssetType, pair)
-	_, err = NewQuickData(t.Context(), &k, []*FocusData{{focusType: AccountHoldingsFocusType, restPollTime: 10}})
-	require.ErrorIs(t, err, ErrCredentialsRequiredForFocusType)
-
 	k = key.NewExchangeAssetPair(exchangeName, assetType, pair)
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
-		Key:    apiKey,
-		Secret: apiSecret,
-	})
-	qs, err := NewQuickData(ctx, &k, []*FocusData{{focusType: AccountHoldingsFocusType, restPollTime: 10}})
+	qs, err := NewQuickData(&k, []*FocusData{{focusType: AccountHoldingsFocusType, restPollTime: 10}})
 	require.NoError(t, err)
 	require.NotNil(t, qs)
 }
@@ -211,25 +188,21 @@ func TestCheckRateLimits(t *testing.T) {
 func TestFocusDataValidateAndInit(t *testing.T) {
 	t.Parallel()
 	var f *FocusData
-	require.ErrorIs(t, f.Validate(t.Context(), nil), common.ErrNilPointer)
+	require.ErrorIs(t, f.Validate(nil), common.ErrNilPointer)
 
 	f = &FocusData{}
-	require.ErrorIs(t, f.Validate(t.Context(), &key.ExchangeAssetPair{}), ErrUnsetFocusType)
+	require.ErrorIs(t, f.Validate(&key.ExchangeAssetPair{}), ErrUnsetFocusType)
 
 	f = &FocusData{focusType: TickerFocusType}
-	require.ErrorIs(t, f.Validate(t.Context(), &key.ExchangeAssetPair{}), ErrInvalidRESTPollTime)
+	require.ErrorIs(t, f.Validate(&key.ExchangeAssetPair{}), ErrInvalidRESTPollTime)
 
 	f = &FocusData{focusType: OpenInterestFocusType, restPollTime: time.Second}
 	k := key.NewExchangeAssetPair(exchangeName, assetType, pair)
-	require.ErrorIs(t, f.Validate(t.Context(), &k), ErrInvalidAssetForFocusType)
-
-	f = &FocusData{focusType: AccountHoldingsFocusType, restPollTime: time.Second}
-	k = key.NewExchangeAssetPair(exchangeName, asset.Futures, pair)
-	require.ErrorIs(t, f.Validate(t.Context(), &k), ErrCredentialsRequiredForFocusType)
+	require.ErrorIs(t, f.Validate(&k), ErrInvalidAssetForFocusType)
 
 	k = key.NewExchangeAssetPair(exchangeName, assetType, pair)
 	f = &FocusData{focusType: TickerFocusType, restPollTime: time.Second, useWebsocket: true}
-	require.NoError(t, f.Validate(t.Context(), &k))
+	require.NoError(t, f.Validate(&k))
 
 	f.Init()
 	go f.setSuccessful()
@@ -329,7 +302,6 @@ func TestWaitForInitialData(t *testing.T) {
 	f.setSuccessful()
 	require.NoError(t, qs.WaitForInitialData(t.Context(), TickerFocusType))
 	require.Error(t, qs.WaitForInitialData(t.Context(), OrderBookFocusType))
-
 }
 
 func TestHandleFocusType(t *testing.T) {
@@ -419,13 +391,13 @@ func TestGetAndWaitForFocusByKey(t *testing.T) {
 
 func TestNewQuickerData(t *testing.T) {
 	t.Parallel()
-	_, err := NewQuickerData(t.Context(), nil, 111)
+	_, err := NewQuickerData(nil, 111)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = NewQuickerData(t.Context(), &key.ExchangeAssetPair{}, 111)
+	_, err = NewQuickerData(&key.ExchangeAssetPair{}, 111)
 	require.ErrorIs(t, err, ErrUnsupportedFocusType)
 
-	_, err = NewQuickerData(t.Context(), &key.ExchangeAssetPair{}, TickerFocusType)
+	_, err = NewQuickerData(&key.ExchangeAssetPair{}, TickerFocusType)
 	require.ErrorIs(t, err, engine.ErrExchangeNotFound)
 
 	k := &key.ExchangeAssetPair{
@@ -434,7 +406,7 @@ func TestNewQuickerData(t *testing.T) {
 		Base:     pair.Base.Item,
 		Quote:    pair.Quote.Item,
 	}
-	qs, err := NewQuickerData(t.Context(), k, TickerFocusType)
+	qs, err := NewQuickerData(k, TickerFocusType)
 	require.NoError(t, err)
 	require.NotNil(t, qs)
 	require.NoError(t, qs.Run(t.Context()), "Run must not error")
@@ -495,15 +467,9 @@ func TestValidateSubscriptions(t *testing.T) {
 
 	ftd := NewFocusData(TickerFocusType, false, true, time.Second)
 	ftd.Init()
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
-		Key:    apiKey,
-		Secret: apiSecret,
-	})
+
 	k := key.NewExchangeAssetPair(exchangeName, assetType, pair)
-	qs, err := NewQuickData(
-		ctx,
-		&k,
-		[]*FocusData{ftd})
+	qs, err := NewQuickData(&k, []*FocusData{ftd})
 	require.NoError(t, err)
 	require.NotNil(t, qs)
 	assert.NoError(t, qs.validateSubscriptions([]*subscription.Subscription{{
