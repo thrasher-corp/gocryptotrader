@@ -303,7 +303,7 @@ func (e *Exchange) AccountsTransfer(ctx context.Context, arg *AccountTransferReq
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/accounts/transfer", nil, arg, &resp)
 }
 
-// GetAccountTransferRecords gets a list of transfer records of a user. Max interval for start and end time is 6 months. If no start/end time params are specified then records for last 7 days will be returned.
+// GetAccountTransferRecords gets a list of transfer records of a user
 func (e *Exchange) GetAccountTransferRecords(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit int64) ([]AccountTransferRecord, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -345,8 +345,6 @@ func (e *Exchange) GetFeeInfo(ctx context.Context) (*FeeInfo, error) {
 }
 
 // GetInterestHistory get a list of interest collection records of a user.
-// Max interval for start and end time is 90 days.
-// If no start/end time params are specified then records for last 7 days will be returned.
 func (e *Exchange) GetInterestHistory(ctx context.Context, startTime, endTime time.Time, direction string, from, limit int64) ([]InterestHistory, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -419,7 +417,6 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg *SubAccountTransf
 }
 
 // GetSubAccountTransferRecords gets a list of transfer records of a user. Max interval for start and end time is 6 months.
-// If no start/end time params are specified then records for last 7 days will be returned.
 func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, arg *SubAccountTransferRecordRequest) ([]SubAccountTransfer, error) {
 	params := url.Values{}
 	if !arg.Currency.IsEmpty() {
