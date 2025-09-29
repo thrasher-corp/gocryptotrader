@@ -20,12 +20,12 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Overview
 
-The `quickdata` package provides a means to quickly request and receive data for an individual exchange, asset and currency pair. For the times you just really want to get some data without fussing about with configs - setting currency pairs or API keys - or `SetDefaults()` functions.
+This package provides a means to quickly request and receive data for an individual exchange, asset and currency pair. For the times you just really want to get some data without config and minimal setup.
 
 ## Features
 
-- Quickly creates an exchange with only the selected asset and currency pair enabled
-- Supports a range of focus data types allowing for a more tailored approach to data retrieval
+- Creates an exchange with only the selected asset and currency pair enabled
+- Supports a range of focused data types
 - Supports both REST and Websocket data retrieval methods
 - Supports both public and authenticated data retrieval methods
 - Three types of QuickData implementations:
