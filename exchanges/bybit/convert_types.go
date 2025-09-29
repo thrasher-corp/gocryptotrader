@@ -43,18 +43,16 @@ type ConvertCoinResponse struct {
 
 // RequestQuoteRequest holds the parameters for requesting a quote
 type RequestQuoteRequest struct {
-	// Required fields
-	AccountType WalletAccountType `json:"accountType"`   // Account type
-	From        currency.Code     `json:"fromCoin"`      // Convert from coin (coin to sell)
-	To          currency.Code     `json:"toCoin"`        // Convert to coin (coin to buy)
-	Amount      types.Number      `json:"requestAmount"` // Convert amount
-	// Optional fields
-	RequestCoin  currency.Code `json:"requestCoin"`            // This will default to FromCoin
-	FromCoinType string        `json:"fromCoinType,omitempty"` // "crypto"
-	ToCoinType   string        `json:"toCoinType,omitempty"`   // "crypto"
-	ParamType    string        `json:"paramType,omitempty"`    // "opFrom", mainly used for API broker user
-	ParamValue   string        `json:"paramValue,omitempty"`   // Broker ID, mainly used for API broker user
-	RequestID    string        `json:"requestId,omitempty"`    // Request ID
+	RequestID     string            `json:"requestId,omitempty"`
+	AccountType   WalletAccountType `json:"accountType"`
+	FromCoin      currency.Code     `json:"fromCoin"`
+	ToCoin        currency.Code     `json:"toCoin"`
+	RequestCoin   currency.Code     `json:"requestCoin"` // Must be same as FromCoin
+	RequestAmount types.Number      `json:"requestAmount"`
+	FromCoinType  string            `json:"fromCoinType,omitempty"` // "crypto"
+	ToCoinType    string            `json:"toCoinType,omitempty"`   // "crypto"
+	ParamType     string            `json:"paramType,omitempty"`    // "opFrom", mainly used for API broker user
+	ParamValue    string            `json:"paramValue,omitempty"`   // Broker ID, mainly used for API broker user
 }
 
 // RequestQuoteResponse represents a response for a request a quote

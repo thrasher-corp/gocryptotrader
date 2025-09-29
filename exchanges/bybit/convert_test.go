@@ -41,28 +41,28 @@ func TestRequestQuote(t *testing.T) {
 	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{AccountType: Uta})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{AccountType: Uta, From: currency.BTC})
+	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{AccountType: Uta, FromCoin: currency.BTC})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{
 		AccountType: Uta,
-		From:        currency.BTC,
-		To:          currency.BTC,
+		FromCoin:    currency.BTC,
+		ToCoin:      currency.BTC,
 	})
 	assert.ErrorIs(t, err, errCurrencyCodesEqual)
 
 	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{
 		AccountType: Uta,
-		From:        currency.BTC,
-		To:          currency.USDT,
+		FromCoin:    currency.BTC,
+		ToCoin:      currency.USDT,
 		RequestCoin: currency.WOO,
 	})
 	assert.ErrorIs(t, err, errRequestCoinInvalid)
 
 	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{
 		AccountType: Uta,
-		From:        currency.BTC,
-		To:          currency.USDT,
+		FromCoin:    currency.BTC,
+		ToCoin:      currency.USDT,
 	})
 	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
@@ -71,10 +71,10 @@ func TestRequestQuote(t *testing.T) {
 	}
 
 	quote, err := e.RequestQuote(t.Context(), &RequestQuoteRequest{
-		AccountType: Uta,
-		From:        currency.XRP,
-		To:          currency.USDT,
-		Amount:      0.0088,
+		AccountType:   Uta,
+		FromCoin:      currency.XRP,
+		ToCoin:        currency.USDT,
+		RequestAmount: 0.0088,
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, quote.QuoteTransactionID)

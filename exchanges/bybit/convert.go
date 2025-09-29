@@ -56,31 +56,31 @@ func (e *Exchange) RequestQuote(ctx context.Context, params *RequestQuoteRequest
 		return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, params.AccountType)
 	}
 
-	if params.From.IsEmpty() {
+	if params.FromCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w: `from` coin", currency.ErrCurrencyCodeEmpty)
 	}
-	if params.To.IsEmpty() {
+	if params.ToCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w: `to` coin", currency.ErrCurrencyCodeEmpty)
 	}
 
-	if params.From.Equal(params.To) {
+	if params.FromCoin.Equal(params.ToCoin) {
 		return nil, errCurrencyCodesEqual
 	}
 
 	if !params.RequestCoin.IsEmpty() {
-		if !params.RequestCoin.Equal(params.From) {
+		if !params.RequestCoin.Equal(params.FromCoin) {
 			return nil, errRequestCoinInvalid
 		}
 	} else {
-		params.RequestCoin = params.From
+		params.RequestCoin = params.FromCoin
 	}
 
-	if params.Amount <= 0 {
-		return nil, fmt.Errorf("%w: %v", order.ErrAmountIsInvalid, params.Amount)
+	if params.RequestAmount <= 0 {
+		return nil, fmt.Errorf("%w: %v", order.ErrAmountIsInvalid, params.RequestAmount)
 	}
 
-	params.From = params.From.Upper()
-	params.To = params.To.Upper()
+	params.FromCoin = params.FromCoin.Upper()
+	params.ToCoin = params.ToCoin.Upper()
 	params.RequestCoin = params.RequestCoin.Upper()
 
 	var resp *RequestQuoteResponse
