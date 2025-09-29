@@ -392,5 +392,5 @@ func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 
 	id, err := e.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.Spot)
 	require.NoError(t, err, "LastUpdateID must not error")
-	assert.Equal(t, int64(27596272449), id, "LastUpdateID must be updated to last update")
+	assert.Equal(t, int64(27596272449), id, "LastUpdateID should be updated to orderbook.Update.UpdateID")
 }
