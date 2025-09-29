@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"hash/crc32"
 	"net/http"
@@ -236,8 +235,7 @@ var subscriptionNames = map[string]string{
 }
 
 // WsConnect initiates a websocket connection
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
+func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -245,43 +243,16 @@ func (e *Exchange) WsConnect() error {
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	err := conn.Dial(ctx, &dialer, http.Header{})
+	if err != nil {
 		return err
 	}
-	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.Conn) })
-	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "Successful connection to %v", e.Websocket.GetWebsocketURL())
-	}
-	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := e.WsAuth(ctx); err != nil {
-			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
 	return nil
-}
-
-// WsAuth will connect to Okx's Private websocket connection and Authenticate with a login payload.
-func (e *Exchange) WsAuth(ctx context.Context) error {
-	if !e.AreCredentialsValid(ctx) || !e.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
-	}
-	var dialer gws.Dialer
-	if err := e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}); err != nil {
-		return err
-	}
-	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.AuthConn) })
-	e.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		MessageType: gws.TextMessage,
-		Message:     pingMsg,
-		Delay:       time.Second * 20,
-	})
-	return e.authenticateConnection(ctx, e.Websocket.AuthConn)
 }
 
 func (e *Exchange) authenticateConnection(ctx context.Context, conn websocket.Connection) error {
@@ -336,27 +307,25 @@ func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
 		if resp.Raw == nil {
 			return
 		}
-		if err := e.WsHandleData(ctx, resp.Raw); err != nil {
+		if err := e.WsHandleData(ctx, ws, resp.Raw); err != nil {
 			e.Websocket.DataHandler <- err
 		}
 	}
 }
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
-func (e *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
-	ctx := context.TODO()
-	return e.handleSubscription(ctx, operationSubscribe, channelsToSubscribe)
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
+	return e.handleSubscription(ctx, conn, operationSubscribe, channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (e *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
-	ctx := context.TODO()
-	return e.handleSubscription(ctx, operationUnsubscribe, channelsToUnsubscribe)
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+	return e.handleSubscription(ctx, conn, operationUnsubscribe, channelsToUnsubscribe)
 }
 
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (e *Exchange) handleSubscription(ctx context.Context, operation string, subs subscription.List) error {
+func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, operation string, subs subscription.List) error {
 	reqs := WSSubscriptionInformationList{Operation: operation}
 	authRequests := WSSubscriptionInformationList{Operation: operation}
 	var channels subscription.List
@@ -443,7 +412,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, operation string, sub
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (e *Exchange) WsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	if id, _ := jsonparser.GetString(respRaw, "id"); id != "" {
 		return e.Websocket.Match.RequireMatchWithData(id, respRaw)
 	}
@@ -982,22 +951,22 @@ func (e *Exchange) wsProcessOrderBooks(data []byte) error {
 			}
 			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
 		}
-		if err != nil {
-			if errors.Is(err, errInvalidChecksum) {
-				err = e.Subscribe(subscription.List{
-					{
-						Channel: response.Argument.Channel,
-						Asset:   assets[0],
-						Pairs:   currency.Pairs{response.Argument.InstrumentID},
-					},
-				})
-				if err != nil {
-					e.Websocket.DataHandler <- err
+		/*		if err != nil {
+				if errors.Is(err, errInvalidChecksum) {
+					err = e.Subscribe(subscription.List{
+						{
+							Channel: response.Argument.Channel,
+							Asset:   assets[0],
+							Pairs:   currency.Pairs{response.Argument.InstrumentID},
+						},
+					})
+					if err != nil {
+						e.Websocket.DataHandler <- err
+					}
+				} else {
+					return err
 				}
-			} else {
-				return err
-			}
-		}
+			}*/
 	}
 	if e.Verbose {
 		log.Debugf(log.ExchangeSys, "%s passed checksum for pair %s", e.Name, response.Argument.InstrumentID)
