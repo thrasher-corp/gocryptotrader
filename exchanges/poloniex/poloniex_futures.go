@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -76,11 +77,17 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderReque
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *FuturesOrderIDResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"order", nil, arg, &resp)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"order", nil, arg, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Code != 0 && resp.Code != 200 {
+		return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	}
+	return resp, nil
 }
 
 // PlaceFuturesMultipleOrders place orders in a batch. A maximum of 10 orders can be placed per request.
-func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []FuturesOrderRequest) ([]FuturesInfo, error) {
+func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []FuturesOrderRequest) ([]FuturesOrderIDResponse, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -89,8 +96,8 @@ func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []Future
 			return nil, err
 		}
 	}
-	var resp []FuturesInfo
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, tradePathV3+"orders", nil, args, &resp)
+	var resp []FuturesOrderIDResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"orders", nil, args, &resp)
 }
 
 func validationOrderCreationParam(arg *FuturesOrderRequest) error {
@@ -121,7 +128,13 @@ func (e *Exchange) CancelFuturesOrder(ctx context.Context, arg *CancelOrderReque
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *FuturesOrderIDResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, tradePathV3+"order", nil, arg, &resp)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, tradePathV3+"order", nil, arg, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Code != 0 && resp.Code != 200 {
+		return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	}
+	return resp, nil
 }
 
 // CancelMultipleFuturesOrders cancel orders in a batch. A maximum of 10 orders can be cancelled per request.
@@ -130,7 +143,16 @@ func (e *Exchange) CancelMultipleFuturesOrders(ctx context.Context, args *Cancel
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp []FuturesOrderIDResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, tradePathV3+"batchOrders", nil, args, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, tradePathV3+"batchOrders", nil, args, &resp)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range resp {
+		if r.Code != 0 && r.Code != 200 {
+			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, r.Code, r.Message))
+		}
+	}
+	return resp, err
 }
 
 // CancelAllFuturesOrders cancel all current pending orders.
@@ -146,7 +168,16 @@ func (e *Exchange) CancelAllFuturesOrders(ctx context.Context, symbol, side stri
 		Side:   side,
 	}
 	var resp []FuturesOrderIDResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, tradePathV3+"allOrders", nil, arg, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, tradePathV3+"allOrders", nil, arg, &resp)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range resp {
+		if r.Code != 0 && r.Code != 200 {
+			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, r.Code, r.Message))
+		}
+	}
+	return resp, err
 }
 
 // CloseAtMarketPrice close orders at market price.
@@ -172,13 +203,28 @@ func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol, marginMode, p
 		PositionSide: positionSide,
 	}
 	var resp *FuturesOrderIDResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"position", nil, arg, &resp)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"position", nil, arg, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Code != 0 && resp.Code != 200 {
+		return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	}
+	return resp, nil
 }
 
 // CloseAllAtMarketPrice close all orders at market price.
 func (e *Exchange) CloseAllAtMarketPrice(ctx context.Context) ([]FuturesOrderIDResponse, error) {
 	var resp []FuturesOrderIDResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"positionAll", nil, nil, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"positionAll", nil, nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range resp {
+		if r.Code != 0 && r.Code != 200 {
+			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, r.Code, r.Message))
+		}
+	}
+	return resp, err
 }
 
 // GetCurrentFuturesOrders get unfilled futures orders. If no request parameters are specified, you will get all open orders sorted on the creation time in chronological order.

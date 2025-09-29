@@ -9,8 +9,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// DepositAddressesResponse holds the full address per crypto-currency
-type DepositAddressesResponse map[string]string
+// DepositAddresses holds the full address per crypto-currency
+type DepositAddresses map[string]string
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change, using highest value
@@ -257,14 +257,13 @@ type CollateralInfoList []CollateralInfo
 // UnmarshalJSON deserializes byte data into list of CollateralInfo instances
 func (c *CollateralInfoList) UnmarshalJSON(data []byte) error {
 	var targets []CollateralInfo
-	err := json.Unmarshal(data, &targets)
-	if err != nil {
-		var target *CollateralInfo
+	if err := json.Unmarshal(data, &targets); err != nil {
+		var target CollateralInfo
 		err = json.Unmarshal(data, &target)
 		if err != nil {
 			return err
 		}
-		targets = append(targets, *target)
+		targets = []CollateralInfo{target}
 	}
 	*c = targets
 	return nil
@@ -350,14 +349,13 @@ type AccountTransferRecords []AccountTransferRecord
 // UnmarshalJSON deserializes a byte data into a slice of AccountTransferRecord instances
 func (a *AccountTransferRecords) UnmarshalJSON(data []byte) error {
 	var sTarget []AccountTransferRecord
-	err := json.Unmarshal(data, &sTarget)
-	if err != nil {
-		oTarget := &AccountTransferRecord{}
+	if err := json.Unmarshal(data, &sTarget); err != nil {
+		oTarget := AccountTransferRecord{}
 		err = json.Unmarshal(data, &oTarget)
 		if err != nil {
 			return err
 		}
-		sTarget = append(sTarget, *oTarget)
+		sTarget = []AccountTransferRecord{oTarget}
 	}
 	*a = sTarget
 	return nil
@@ -444,8 +442,8 @@ type SubAccountTransfer struct {
 	CreateTime      types.Time   `json:"createTime"`
 }
 
-// WalletActivityResponse holds wallet activity info
-type WalletActivityResponse struct {
+// WalletActivity holds wallet activity info
+type WalletActivity struct {
 	Deposits    []WalletDeposits    `json:"deposits"`
 	Withdrawals []WalletWithdrawals `json:"withdrawals"`
 }
@@ -777,6 +775,7 @@ type TradeHistory struct {
 
 // SubscriptionPayload represents a subscriptions request instance structure.
 type SubscriptionPayload struct {
+	ID         string         `json:"id"`
 	Event      string         `json:"event"`
 	Channel    []string       `json:"channel"`
 	Symbols    []string       `json:"symbols,omitempty"`
@@ -987,15 +986,6 @@ type WsTradeBalance struct {
 type WebsocketResponse struct {
 	ID   string `json:"id"`
 	Data any    `json:"data"`
-}
-
-// FuturesSubscriptionInput represents a subscription input through the futures stream.
-type FuturesSubscriptionInput struct {
-	ID             string `json:"id"`
-	Type           string `json:"type"`
-	Topic          string `json:"topic"`
-	PrivateChannel bool   `json:"privateChannel,omitempty"`
-	Response       bool   `json:"response"`
 }
 
 // FuturesSubscriptionResp represents a subscription response item.

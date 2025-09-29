@@ -25149,27 +25149,27 @@
       {
        "baseCurrencyName": "BTC",
        "crossMargin": {
-        "maxLeverage": 1,
-        "supportCrossMargin": false
+        "maxLeverage": 3,
+        "supportCrossMargin": true
        },
        "displayName": "BTC/USDT",
        "quoteCurrencyName": "USDT",
        "state": "NORMAL",
        "symbol": "BTC_USDT",
        "symbolTradeLimit": {
-        "amountScale": 6,
+        "amountScale": 2,
         "highestBid": "0",
         "lowestAsk": "0",
-        "maxAmount": "0",
-        "maxQuantity": "0",
-        "minAmount": "0.00001",
-        "minQuantity": "0.01",
-        "priceScale": 6,
-        "quantityScale": 2,
+        "maxAmount": "2000000",
+        "maxQuantity": "20",
+        "minAmount": "1",
+        "minQuantity": "0.000001",
+        "priceScale": 2,
+        "quantityScale": 6,
         "symbol": "BTC_USDT"
        },
-       "tradableStartTime": 1659018817267,
-       "visibleStartTime": 1659018817267
+       "tradableStartTime": 1659018819512,
+       "visibleStartTime": 1659018819512
       },
       {
        "baseCurrencyName": "DOGE",
@@ -25270,40 +25270,6 @@
        },
        "tradableStartTime": 1659018819284,
        "visibleStartTime": 1659018819284
-      }
-     ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
-    }
-   ]
-  },
-  "/markets/AMCSOL_USDT": {
-   "GET": [
-    {
-     "data": [
-      {
-       "baseCurrencyName": "AMCSOL",
-       "crossMargin": {
-        "maxLeverage": 1,
-        "supportCrossMargin": false
-       },
-       "displayName": "AMCSOL/USDT",
-       "quoteCurrencyName": "USDT",
-       "state": "NORMAL",
-       "symbol": "AMCSOL_USDT",
-       "symbolTradeLimit": {
-        "amountScale": 5,
-        "highestBid": "0",
-        "lowestAsk": "0",
-        "minAmount": "1",
-        "minQuantity": "0.001",
-        "priceScale": 5,
-        "quantityScale": 3,
-        "symbol": "AMCSOL_USDT"
-       },
-       "tradableStartTime": 1715767200000,
-       "visibleStartTime": 1715745600000
       }
      ],
      "queryString": "",
@@ -65579,11 +65545,11 @@
    "POST": [
     {
      "data": {
-      "code": 403,
-      "message": "Trading operation is not allowed."
+      "id": "29772698821328896",
+      "clientOrderId": "1234Abc"
      },
      "queryString": "",
-     "bodyParams": "{\"symbol\":\"BTC_LTC\",\"side\":\"BUY\",\"type\":\"MARKET\",\"amount\":\"10000000\",\"price\":\"10\"}",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"type\":\"MARKET\",\"amount\":\"100\",\"price\":\"40000.5\",\"timeInForce\":\"GTC\",\"clientOrderId\":\"1234Abc\"}",
      "headers": {
       "Content-Type": [
        "application/json"
@@ -65595,73 +65561,13 @@
        "1500"
       ],
       "Signature": [
-       "hu+TgLs7MQT0K7sMMWNXhaAhV+HGbNbFxXZWq+CBDWs="
+       "5ZAw+roGshoL3o91+XBQoNayuX+ZxUBkMu9e/Srdt9M="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1743944927348"
-      ]
-     }
-    },
-    {
-     "data": {
-      "code": 403,
-      "message": "Trading operation is not allowed."
-     },
-     "queryString": "",
-     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"type\":\"MARKET\",\"amount\":\"10000000\",\"price\":\"10\"}",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ],
-      "Key": [
-       ""
-      ],
-      "Recvwindow": [
-       "1500"
-      ],
-      "Signature": [
-       "LubYbOB6TnNieWcFgKX7BPAjKWIAyY9szG0iiX4mcDA="
-      ],
-      "Signaturemethod": [
-       "hmacSHA256"
-      ],
-      "Signtimestamp": [
-       "1744210774948"
-      ]
-     }
-    }
-   ]
-  },
-  "/orders/123": {
-   "DELETE": [
-    {
-     "data": {
-      "code": 21301,
-      "message": "Order not exists"
-     },
-     "queryString": "",
-     "bodyParams": "{}",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ],
-      "Key": [
-       ""
-      ],
-      "Recvwindow": [
-       "1500"
-      ],
-      "Signature": [
-       "N3gSB/PZbfI8rCnXEw2bjTjDOJJ2m6lxoT0XjEnncqw="
-      ],
-      "Signaturemethod": [
-       "hmacSHA256"
-      ],
-      "Signtimestamp": [
-       "1742815284618"
+       "1759182889740"
       ]
      }
     }
@@ -65687,13 +65593,13 @@
        "1500"
       ],
       "Signature": [
-       "naAgUOCDsvtJaIzeNBM1fqBsvH2WTbNj07HnPrUINqg="
+       "8m4n2/KOedAaH396EE1OZzrsLe+EICrdGomdFAGLGmU="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1758203665397"
+       "1759183330720"
       ]
      }
     }
@@ -65716,13 +65622,13 @@
        "1500"
       ],
       "Signature": [
-       "CSxwvyAr0hE4HjWYm5TehHfeC6rQwj0qCM1iWtufbu8="
+       "ig2zn2rGpszK9cejQnB8YNiitLuQt/nEfreC9xwOcag="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1754250972134"
+       "1759183330279"
       ]
      }
     }
@@ -65831,6 +65737,50 @@
       ],
       "Signtimestamp": [
        "1754250970356"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/cancelByIds": {
+   "DELETE": [
+    {
+     "data": [
+      {
+       "orderId": "12345",
+       "clientOrderId": "33344",
+       "state": "PENDING_CANCEL",
+       "code": 200,
+       "message": ""
+      },
+      {
+       "orderId": "67890",
+       "clientOrderId": "myId-1",
+       "state": "PENDING_CANCEL",
+       "code": 200,
+       "message": ""
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"\",\"ordIds\":[\"1234\"],\"clOrdIds\":[\"5678\"]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "pR/0/oW7M+M5WPsCygE7YphaA934SX0OGxhKBPhcKeM="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1759177951020"
       ]
      }
     }
@@ -66271,9 +66221,41 @@
    "GET": [
     {
      "data": {
-      "code": 607,
-      "data": [],
-      "message": "Data not found"
+      "code": 200,
+      "data": [{
+        "id": "14368195657859072",
+        "clientOrderId": "18113",
+        "symbol": "BTC_USDT",
+        "state": "TRIGGERED",
+        "accountType": "SPOT",
+        "side": "BUY",
+        "type": "STOP",
+        "timeInForce": "GTC",
+        "quantity": "0.2",
+        "price": "41920",
+        "amount": "10",
+        "stopPrice": "41946",
+        "createTime": 1644392044793,
+        "updateTime": 0,
+        "triggeredOrder": {
+            "id": "24106600339865600",
+            "clientOrderId": "18113",
+            "symbol": "BTC_USDT",
+            "state": "PARTIALLY_FILLED",
+            "accountType": "SPOT",
+            "side": "BUY",
+            "type": "MARKET",
+            "timeInForce": "GTC",
+            "quantity": "0.00",
+            "price": "0.00",
+            "avgPrice": "39991.10",
+            "amount": "10.00",
+            "filledQuantity": "0.00025005",
+            "filledAmount": "9.999774555",
+            "createTime": 1646713861400,
+            "updateTime": 1646713861400
+        }
+    }]
      },
      "queryString": "",
      "bodyParams": "",
@@ -66288,13 +66270,13 @@
        "1500"
       ],
       "Signature": [
-       "rMJkZ0hxb6IWN6vsLgS7S0GcrJoDG46VRSXR0/ruSz8="
+       "9MCnUVl5gNX71NAp/MeiaA7+5U2ANO6NovSWJTUC4Uw="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1744289811376"
+       "1759183331229"
       ]
      }
     }
@@ -66327,6 +66309,53 @@
       ],
       "Signtimestamp": [
        "1743968951008"
+      ]
+     }
+    }
+   ]
+  },
+  "/smartorders/cancelByIds": {
+   "DELETE": [
+    {
+     "data": {
+      "code": 0,
+      "data": [
+       {
+        "orderId": "9876543",
+        "clientOrderId": "88888",
+        "state": "CANCELED",
+        "code": 200,
+        "message": ""
+       },
+       {
+        "orderId": "111222333",
+        "clientOrderId": "myId-2",
+        "state": "CANCELED",
+        "code": 200,
+        "message": ""
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"\",\"ordIds\":[\"1234\"],\"clOrdIds\":[\"5678\"]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "nslIRCTPjh8nNSMxPMtj9QxrBPGOLpj4EVfSKsBQe7I="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1759175937783"
       ]
      }
     }
@@ -99815,10 +99844,10 @@
    "POST": [
     {
      "data": {
-        "currency": "ETH",
-        "amount": "1.50",
-        "address": "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"
-    },
+      "currency": "ETH",
+      "amount": "1.50",
+      "address": "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"
+     },
      "queryString": "",
      "bodyParams": "{\"coin\":\"BTC\",\"network\":\"ERP\",\"amount\":\"1\",\"address\":\"bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc\"}",
      "headers": {
@@ -99918,7 +99947,7 @@
        {
         "alias": "",
         "bAsset": ".PBNBUSDT",
-        "bCcy": "BNB",
+        "bCcy": "BTC",
         "ctType": "LINEAR",
         "ctVal": "0.1",
         "iM": "0.02",
@@ -99940,7 +99969,7 @@
         "qCcy": "USDT",
         "sCcy": "USDT",
         "status": "OPEN",
-        "symbol": "BNB_USDT_PERP",
+        "symbol": "BTC_USDT_PERP",
         "tSz": "0.001",
         "tradableStartTime": "1620390600000",
         "visibleStartTime": "1620390600000"
@@ -100802,33 +100831,33 @@
       "code": 200,
       "data": {
        "alias": "",
-       "bAsset": ".PXBTUSDT",
+       "bAsset": ".PBNBUSDT",
        "bCcy": "BTC",
        "ctType": "LINEAR",
-       "ctVal": "0.001",
-       "iM": "0.0133",
-       "lever": "20",
+       "ctVal": "0.1",
+       "iM": "0.02",
+       "lever": "10",
        "limitMaxQty": "1000000",
        "lotSz": 1,
-       "mM": "0.006",
-       "mR": "5000",
-       "marketMaxQty": "10000",
-       "maxLever": "75",
+       "mM": "0.0115",
+       "mR": "2000",
+       "marketMaxQty": "2800",
+       "maxLever": "50",
        "maxPx": "1000000",
        "maxQty": "1000000",
-       "minPx": "0.01",
+       "minPx": "0.001",
        "minQty": "1",
        "minSz": 1,
-       "oDate": "1547435912000",
+       "oDate": "1620287590000",
        "ordPxRange": "0.05",
-       "pxScale": "0.01,0.1,1,10,100",
+       "pxScale": "0.001,0.01,0.1,1,10",
        "qCcy": "USDT",
        "sCcy": "USDT",
        "status": "OPEN",
        "symbol": "BTC_USDT_PERP",
-       "tSz": "0.01",
-       "tradableStartTime": "1584721775000",
-       "visibleStartTime": "1584721775000"
+       "tSz": "0.001",
+       "tradableStartTime": "1620390600000",
+       "visibleStartTime": "1620390600000"
       },
       "msg": "Success"
      },
@@ -102610,12 +102639,19 @@
    "POST": [
     {
      "data": {
-      "code": 10042,
-      "data": [],
-      "msg": "Trading operation is not allowed."
+      "code": 200,
+      "data": [
+       {
+        "clOrdId": "c9a20e43-1dda-45f4-9f69-3c0656b53161",
+        "code": 200,
+        "msg": "Success",
+        "ordId": "331377100621873152"
+       }
+      ],
+      "msg": "Success"
      },
      "queryString": "",
-     "bodyParams": "[{\"symbol\":\"BTC_USDT_PERP\",\"side\":\"buy\",\"mgnMode\":\"CROSS\",\"posSide\":\"LONG\",\"type\":\"limit_maker\",\"clOrdId\":\"939a9d51\",\"px\":\"46050\",\"sz\":10,\"timeInForce\":\"GTC\",\"stpMode\":\"EXPIRE_TAKER\"}]",
+     "bodyParams": "[{\"symbol\":\"BTC_USDT_PERP\",\"side\":\"buy\",\"mgnMode\":\"CROSS\",\"posSide\":\"LONG\",\"type\":\"limit_maker\",\"clOrdId\":\"939a9d51\",\"px\":\"46050\",\"sz\":\"10\",\"timeInForce\":\"GTC\",\"stpMode\":\"EXPIRE_TAKER\"}]",
      "headers": {
       "Content-Type": [
        "application/json"
@@ -102627,13 +102663,13 @@
        "1500"
       ],
       "Signature": [
-       "cY3b0wVXf7X6jK3VBBXTYaT0M4i3cdGsvdfgrYTYMfM="
+       "vz7DHvBeZnpiFFZ5FIZIAPQ+A7VBTIgeDoKTQ36spTk="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1744204829911"
+       "1759181822102"
       ]
      }
     }

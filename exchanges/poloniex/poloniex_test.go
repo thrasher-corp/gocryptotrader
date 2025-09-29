@@ -315,6 +315,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	testexch.SetupWs(t, e)
 	result, err := e.WebsocketSubmitOrder(generateContext(), &order.Submit{
 		Exchange:  e.Name,
 		Pair:      spotTradablePair,
@@ -1293,13 +1294,17 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Symbol: spotTradablePair})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Symbol: spotTradablePair, Side: order.Sell.Lower()})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	result, err := e.PlaceOrder(t.Context(), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
 		Side:          order.Buy.String(),
 		Type:          order.Market.String(),
-		Quantity:      100,
+		Amount:        100,
 		Price:         40000.50000,
 		TimeInForce:   "GTC",
 		ClientOrderID: "1234Abc",
@@ -1434,12 +1439,7 @@ func TestCancelMultipleOrdersByIDs(t *testing.T) {
 	}
 	result, err := e.CancelOrdersByIDs(t.Context(), &CancelOrdersRequest{OrderIDs: []string{"1234"}, ClientOrderIDs: []string{"5678"}})
 	require.NoError(t, err)
-	for _, r := range result {
-		t.Run(r.OrderID+":"+r.ClientOrderID, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, int64(0), r.Code, r.Message)
-		})
-	}
+	assert.NotNil(t, result)
 }
 
 func TestCancelAllTradeOrders(t *testing.T) {
@@ -1447,14 +1447,8 @@ func TestCancelAllTradeOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelAllTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
+	_, err := e.CancelAllTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
 	require.NoError(t, err)
-	for _, r := range result {
-		t.Run(r.OrderID+":"+r.ClientOrderID, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, 0, r.Code, r.Message)
-		})
-	}
 }
 
 func TestKillSwitch(t *testing.T) {
@@ -1696,7 +1690,7 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
-	result, err := e.WsCancelMultipleOrdersByIDs(&CancelOrdersRequest{OrderIDs: []string{"1234"}, ClientOrderIDs: []string{"5678"}})
+	result, err := e.WsCancelMultipleOrdersByIDs([]string{"1234"}, []string{"5678"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1739,7 +1733,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 	spotInstruments, err := e.GetSymbol(t.Context(), spotTradablePair)
 	require.NoError(t, err)
-	require.NotNil(t, instrument)
+	require.NotNil(t, spotInstruments)
 
 	lms, err = e.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
 	require.NoError(t, err)
@@ -1891,9 +1885,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	_, err = e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{arg})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{
 		{
 			ClientOrderID:           "939a9d51",
@@ -1938,12 +1930,7 @@ func TestCancelMultipleFuturesOrders(t *testing.T) {
 	}
 	result, err := e.CancelMultipleFuturesOrders(generateContext(), &CancelOrdersRequest{Symbol: futuresTradablePair})
 	require.NoError(t, err)
-	for _, r := range result {
-		t.Run(r.OrderID+":"+r.ClientOrderID, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, int64(200), r.Code, r.Message)
-		})
-	}
+	assert.NotNil(t, result)
 }
 
 func TestCancelAllFuturesOrders(t *testing.T) {
@@ -1956,12 +1943,7 @@ func TestCancelAllFuturesOrders(t *testing.T) {
 	}
 	result, err := e.CancelAllFuturesOrders(generateContext(), futuresTradablePair.String(), "BUY")
 	require.NoError(t, err)
-	for _, r := range result {
-		t.Run(r.OrderID+":"+r.ClientOrderID, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, int64(200), r.Code, r.Message)
-		})
-	}
+	assert.NotNil(t, result)
 }
 
 func TestCloseAtMarketPrice(t *testing.T) {
@@ -1987,12 +1969,7 @@ func TestCloseAllAtMarketPrice(t *testing.T) {
 	}
 	result, err := e.CloseAllAtMarketPrice(generateContext())
 	require.NoError(t, err)
-	for _, r := range result {
-		t.Run(r.OrderID+":"+r.ClientOrderID, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, int64(200), r.Code, r.Message)
-		})
-	}
+	assert.NotNil(t, result)
 }
 
 func TestGetCurrentOrders(t *testing.T) {

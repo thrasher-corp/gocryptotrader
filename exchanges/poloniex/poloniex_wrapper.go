@@ -212,6 +212,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Connector:             e.wsAuthConn,
 		MessageFilter:         connSpotPrivate,
 		Authenticated:         true,
+		Authenticate:          e.authenticateSpotAuthConn,
 	})
 	if err != nil {
 		return err
@@ -248,6 +249,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		},
 		Connector:     e.FuturesAuthConnect,
 		MessageFilter: connFuturesPrivate,
+		Authenticate:  e.authenticateFuturesAuthConn,
 	})
 }
 
@@ -1037,7 +1039,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 					return cancelAllOrdersResponse, err
 				}
 				for x := range wsResponse {
-					cancelAllOrdersResponse.Status[strconv.FormatInt(wsResponse[x].OrderID, 10)] = wsResponse[x].State
+					if wsResponse[x].Code == 0 {
+						cancelAllOrdersResponse.Status[strconv.FormatInt(wsResponse[x].OrderID, 10)] = wsResponse[x].State
+					}
 				}
 			} else {
 				resp, err = e.CancelAllTradeOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
@@ -1045,7 +1049,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 					return cancelAllOrdersResponse, err
 				}
 				for x := range resp {
-					cancelAllOrdersResponse.Status[resp[x].OrderID] = resp[x].State
+					if resp[x].Code == 0 {
+						cancelAllOrdersResponse.Status[resp[x].OrderID] = resp[x].State
+					}
 				}
 			}
 		}
@@ -2048,7 +2054,7 @@ func (e *Exchange) WebsocketCancelOrder(_ context.Context, req *order.Cancel) er
 	if err := req.Validate(req.StandardCancel()); err != nil {
 		return err
 	}
-	resp, err := e.WsCancelMultipleOrdersByIDs(&CancelOrdersRequest{OrderIDs: []string{req.OrderID}, ClientOrderIDs: []string{req.ClientOrderID}})
+	resp, err := e.WsCancelMultipleOrdersByIDs([]string{req.OrderID}, []string{req.ClientOrderID})
 	if err != nil {
 		return err
 	}

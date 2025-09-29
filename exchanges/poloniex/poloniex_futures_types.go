@@ -105,21 +105,6 @@ type FuturesTradeFill struct {
 	UpdateTime     types.Time   `json:"uTime"`
 }
 
-// FuturesInfo represents a sample futures order item info
-type FuturesInfo struct {
-	Symbol              string            `json:"symbol"`
-	Side                string            `json:"side"`
-	MarginMode          string            `json:"mgnMode"`
-	PositionSide        string            `json:"posSide"`
-	OrderType           string            `json:"type"`
-	Price               types.Number      `json:"px"`
-	Size                types.Number      `json:"sz"`
-	TimeInForce         order.TimeInForce `json:"timeInForce"`
-	SelfTradePrevention string            `json:"stpMode"`
-	ReduceOnly          bool              `json:"reduceOnly"`
-	ClientOrderID       string            `json:"clOrdId"`
-}
-
 // FuturesOrderDetail represents a futures v3 order detail
 type FuturesOrderDetail struct {
 	Symbol                     string            `json:"symbol"`

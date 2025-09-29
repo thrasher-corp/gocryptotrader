@@ -97,10 +97,6 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 
 // FuturesAuthConnect establishes a websocket and authenticates to futures private websocket
 func (e *Exchange) FuturesAuthConnect(ctx context.Context, conn websocket.Connection) error {
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
@@ -109,6 +105,16 @@ func (e *Exchange) FuturesAuthConnect(ctx context.Context, conn websocket.Connec
 		Message:     []byte(`{"type":"ping"}`),
 		MessageType: gws.TextMessage,
 	})
+	return nil
+}
+
+// authenticateFuturesAuthConn authenticates a futures websocket connection
+func (e *Exchange) authenticateFuturesAuthConn(ctx context.Context, conn websocket.Connection) error {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
 	timestamp := time.Now().UnixMilli()
 	signatureStrings := "GET\n/ws\nsignTimestamp=" + strconv.FormatInt(timestamp, 10)
 
@@ -547,16 +553,16 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(authenticated bool) (subs
 	subscriptions := subscription.List{}
 	for i := range channels {
 		switch channels[i] {
-		case cnlFuturesPrivatePositions,
-			cnlFuturesPrivateOrders,
-			cnlFuturesPrivateTrades,
-			cnlFuturesAccount:
+		case cnlFuturesAccount:
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel:       channels[i],
 				Asset:         asset.Futures,
 				Authenticated: true,
 			})
-		case cnlFuturesSymbol,
+		case cnlFuturesPrivatePositions,
+			cnlFuturesPrivateOrders,
+			cnlFuturesPrivateTrades,
+			cnlFuturesSymbol,
 			cnlFuturesOrderbookLvl2,
 			cnlFuturesOrderbook,
 			cnlFuturesTickers,
@@ -575,32 +581,22 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(authenticated bool) (subs
 	return subscriptions, nil
 }
 
-func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscription.List) []FuturesSubscriptionInput {
-	conn, err := e.Websocket.GetConnection(connFuturesPublic)
-	if err != nil {
-		return nil
-	}
-	payloads := []FuturesSubscriptionInput{}
+func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscription.List) []SubscriptionPayload {
+	payloads := []SubscriptionPayload{}
 	for x := range subscs {
 		if len(subscs[x].Pairs) == 0 {
-			input := FuturesSubscriptionInput{
-				ID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
-				Type:  operation,
-				Topic: subscs[x].Channel,
+			input := SubscriptionPayload{
+				Event:   operation,
+				Channel: []string{subscs[x].Channel},
 			}
 			payloads = append(payloads, input)
 		} else {
-			for i := range subscs[x].Pairs {
-				input := FuturesSubscriptionInput{
-					ID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
-					Type:  operation,
-					Topic: subscs[x].Channel,
-				}
-				if !subscs[x].Pairs[x].IsEmpty() {
-					input.Topic += ":" + subscs[x].Pairs[i].String()
-				}
-				payloads = append(payloads, input)
+			input := SubscriptionPayload{
+				Event:   operation,
+				Channel: []string{subscs[x].Channel},
 			}
+			input.Symbols = subscs[x].Pairs.Strings()
+			payloads = append(payloads, input)
 		}
 	}
 	return payloads

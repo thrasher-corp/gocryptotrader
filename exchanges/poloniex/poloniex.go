@@ -106,7 +106,6 @@ func (e *Exchange) GetMarketPrices(ctx context.Context) ([]MarketPrice, error) {
 }
 
 // GetMarketPrice retrieves latest trade price for symbols
-// If symbol is empty then all symbols will be returned
 func (e *Exchange) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*MarketPrice, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -468,17 +467,17 @@ func (e *Exchange) GetSubAccountTransferRecord(ctx context.Context, id string) (
 }
 
 // GetDepositAddresses get all deposit addresses for a user.
-func (e *Exchange) GetDepositAddresses(ctx context.Context, ccy currency.Code) (*DepositAddressesResponse, error) {
+func (e *Exchange) GetDepositAddresses(ctx context.Context, ccy currency.Code) (*DepositAddresses, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	var addresses *DepositAddressesResponse
+	var addresses *DepositAddresses
 	return addresses, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/wallets/addresses", params, nil, &addresses)
 }
 
 // WalletActivity returns the wallet activity between set start and end time
-func (e *Exchange) WalletActivity(ctx context.Context, start, end time.Time, activityType string) (*WalletActivityResponse, error) {
+func (e *Exchange) WalletActivity(ctx context.Context, start, end time.Time, activityType string) (*WalletActivity, error) {
 	values := url.Values{}
 	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
@@ -488,7 +487,7 @@ func (e *Exchange) WalletActivity(ctx context.Context, start, end time.Time, act
 	if activityType != "" {
 		values.Set("activityType", activityType)
 	}
-	var resp *WalletActivityResponse
+	var resp *WalletActivity
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/wallets/activity", values, nil, &resp)
 }
 
@@ -578,8 +577,8 @@ func (e *Exchange) MaximumBuySellAmount(ctx context.Context, symbol currency.Pai
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
-	var resp MaxBuySellAmount
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/maxSize", params, nil, &resp)
+	var resp *MaxBuySellAmount
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/maxSize", params, nil, &resp)
 }
 
 // PlaceOrder places an order
@@ -590,13 +589,16 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*Pla
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
+	if arg.Amount <= 0 {
+		return nil, limits.ErrAmountBelowMin
+	}
 	var resp *PlaceOrderResponse
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders", nil, arg, &resp)
 	if err != nil {
 		return nil, err
 	}
-	if resp.Code != 200 {
-		return nil, fmt.Errorf("code: %d msg: %s", resp.Code, resp.Message)
+	if resp.Code != 0 && resp.Code != 200 {
+		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -615,7 +617,16 @@ func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderReques
 		}
 	}
 	var resp []PlaceBatchOrderItem
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders/batch", nil, args, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders/batch", nil, args, &resp)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range resp {
+		if r.Code != 0 && r.Code != 200 {
+			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, r.Code, r.Message))
+		}
+	}
+	return resp, err
 }
 
 // CancelReplaceOrder cancels an existing active order, new or partially filled, and places a new order
@@ -624,7 +635,14 @@ func (e *Exchange) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrd
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *CancelReplaceOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPut, "/orders/"+arg.orderID, nil, arg, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPut, "/orders/"+arg.orderID, nil, arg, &resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Code != 0 && resp.Code != 200 {
+		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	}
+	return resp, nil
 }
 
 // GetOpenOrders retrieves a list of active orders
@@ -670,7 +688,14 @@ func (e *Exchange) CancelOrderByID(ctx context.Context, id string) (*CancelOrder
 		return nil, fmt.Errorf("%w; order 'id' is required", order.ErrOrderIDNotSet)
 	}
 	var resp *CancelOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/"+id, nil, nil, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/"+id, nil, nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Code != 0 && resp.Code != 200 {
+		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	}
+	return resp, nil
 }
 
 // CancelOrdersByIDs cancels multiple orders
@@ -679,7 +704,16 @@ func (e *Exchange) CancelOrdersByIDs(ctx context.Context, args *CancelOrdersRequ
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []*CancelOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/cancelByIds", nil, args, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/cancelByIds", nil, args, &resp)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range resp {
+		if r.Code != 0 && r.Code != 200 {
+			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, r.Code, r.Message))
+		}
+	}
+	return resp, err
 }
 
 // CancelAllTradeOrders batch cancel all orders in an account.
@@ -692,7 +726,16 @@ func (e *Exchange) CancelAllTradeOrders(ctx context.Context, symbols, accountTyp
 		args["accountTypes"] = accountTypes
 	}
 	var resp []*CancelOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders", nil, args, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders", nil, args, &resp)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range resp {
+		if r.Code != 0 && r.Code != 200 {
+			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, r.Code, r.Message))
+		}
+	}
+	return resp, err
 }
 
 // KillSwitch set a timer that cancels all regular and smartorders after the timeout has expired.
@@ -729,7 +772,14 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestR
 		return nil, order.ErrSideIsInvalid
 	}
 	var resp *PlaceOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Code != 0 && resp.Code != 200 {
+		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	}
+	return resp, nil
 }
 
 func orderPath(orderID, idPath, clientOrderID, clientIDPath string) (string, error) {
@@ -750,7 +800,13 @@ func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 		return nil, err
 	}
 	var resp *CancelReplaceSmartOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPut, path, nil, arg, &resp)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPut, path, nil, arg, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Code != 0 && resp.Code != 200 {
+		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	}
+	return resp, nil
 }
 
 // GetSmartOpenOrders get a list of (pending) smart orders for an account
@@ -784,8 +840,8 @@ func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedI
 	if err != nil {
 		return nil, err
 	}
-	if resp.Code != 0 {
-		return nil, fmt.Errorf("%w: code: %d msg: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	if resp.Code != 0 && resp.Code != 200 {
+		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -799,7 +855,16 @@ func (e *Exchange) CancelMultipleSmartOrders(ctx context.Context, args *CancelOr
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []*CancelOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range resp {
+		if r.Code != 0 && r.Code != 200 {
+			err = common.AppendError(err, fmt.Errorf("%w: code: %d message:%s", common.ErrNoResponse, r.Code, r.Message))
+		}
+	}
+	return resp, err
 }
 
 // CancelAllSmartOrders cancels all smart orders in an account.
@@ -815,7 +880,16 @@ func (e *Exchange) CancelAllSmartOrders(ctx context.Context, symbols, accountTyp
 		args["orderTypes"] = orderTypes
 	}
 	var resp []*CancelOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders", nil, args, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders", nil, args, &resp)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range resp {
+		if r.Code != 0 && r.Code != 200 {
+			err = common.AppendError(err, fmt.Errorf("%w: code: %d message:%s", common.ErrNoResponse, r.Code, r.Message))
+		}
+	}
+	return resp, err
 }
 
 func orderFillParams(arg *OrdersHistoryRequest) (url.Values, error) {
@@ -966,7 +1040,8 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return err
 	}
 	resp := result
-	if strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/") {
+	needsWrapper := strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/")
+	if needsWrapper {
 		resp = &V3ResponseWrapper{
 			Data: result,
 		}
@@ -1034,7 +1109,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	} else if reflect.ValueOf(result).IsNil() {
 		return common.ErrNoResponse
 	}
-	if strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/") {
+	if needsWrapper {
 		if val, ok := resp.(*V3ResponseWrapper); ok {
 			if val.Code != 0 && val.Code != 200 {
 				return fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, val.Code, val.Msg)

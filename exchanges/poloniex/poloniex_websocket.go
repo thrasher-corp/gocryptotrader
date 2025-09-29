@@ -48,10 +48,10 @@ const (
 )
 
 var defaultSubscriptions = []string{
-	cnlCandles,
+	// cnlCandles,
 	cnlTrades,
-	cnlTicker,
-	cnlBooks,
+	// cnlTicker,
+	// cnlBooks,
 }
 
 var onceOrderbook map[currency.Pair]struct{}
@@ -84,49 +84,17 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 	return nil
 }
 
-// TemporarySpotAuthReader reads and handles data from a specific connection temporarily
-func (e *Exchange) TemporarySpotAuthReader(ctx context.Context, conn websocket.Connection, done chan bool) {
-	defer e.Websocket.Wg.Done()
-	for {
-		select {
-		case <-done:
-			return
-		default:
-			resp := conn.ReadMessage()
-			if resp.Raw == nil {
-				return // Connection has been closed
-			}
-			if err := e.wsHandleData(ctx, conn, resp.Raw); err != nil {
-				e.Websocket.DataHandler <- fmt.Errorf("connection URL:[%v] error: %w", conn.GetURL(), err)
-			}
-		}
-	}
-}
-
 func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) error {
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	done := make(chan bool, 1)
-	defer func() {
-		done <- true
-	}()
-
-	e.Websocket.Wg.Add(1)
-	go e.TemporarySpotAuthReader(ctx, conn, done)
 
 	pingMessage := &struct {
 		Event string `json:"event"`
 	}{
 		Event: "ping",
 	}
-	var pingPayload []byte
-	pingPayload, err = json.Marshal(pingMessage)
+	pingPayload, err := json.Marshal(pingMessage)
 	if err != nil {
 		return err
 	}
@@ -136,6 +104,15 @@ func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) er
 		Message:           pingPayload,
 		Delay:             30,
 	})
+	return nil
+}
+
+// authenticateSpotAuthConn authenticates a futures websocket connection
+func (e *Exchange) authenticateSpotAuthConn(ctx context.Context, conn websocket.Connection) error {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
 	timestamp := time.Now()
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		fmt.Appendf(nil, "GET\n/ws\nsignTimestamp=%d", timestamp.UnixMilli()),
@@ -547,7 +524,7 @@ func (e *Exchange) handleSubscriptions(operation string, subscs subscription.Lis
 				Currencies: []string{},
 			}
 			for _, p := range subscs[x].Pairs {
-				if !slices.Contains[[]string](sp.Currencies, p.Base.String()) {
+				if !slices.Contains(sp.Currencies, p.Base.String()) {
 					sp.Currencies = append(sp.Currencies, p.Base.String())
 				}
 			}
@@ -592,17 +569,8 @@ func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, sub
 		return err
 	}
 	for i := range payloads {
-		switch payloads[i].Channel[0] {
-		case cnlBalances, cnlOrders:
-			if e.Websocket.CanUseAuthenticatedEndpoints() {
-				if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
-					return err
-				}
-			}
-		default:
-			if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
-				return err
-			}
+		if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
+			return err
 		}
 	}
 	return e.Websocket.AddSuccessfulSubscriptions(conn, subs...)
