@@ -70,7 +70,7 @@ type MinMaxLevel struct {
 	MarketStepIncrementSize float64
 	MaxTotalOrders          int64
 	MaxAlgoOrders           int64
-	Launch                  time.Time
+	Listed                  time.Time
 	Delisting               time.Time
 	Delisted                time.Time
 }
