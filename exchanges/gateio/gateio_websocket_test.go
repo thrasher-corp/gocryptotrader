@@ -203,7 +203,7 @@ func checkAccountChange(ctx context.Context, t *testing.T, exch *Exchange, tc *w
 
 func TestExtractOrderbookLimit(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) // nolint:govet // Intentional shadow
+	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	_, err := e.extractOrderbookLimit(1337)
 	require.ErrorIs(t, err, asset.ErrNotSupported)

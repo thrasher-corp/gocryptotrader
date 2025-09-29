@@ -293,7 +293,7 @@ func TestClearNoLock(t *testing.T) {
 func TestHandleSynchronisedState(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	err := testexch.Setup(e)
 	require.NoError(t, err, "Setup must not error")
 	e.Name = "HandleSyncStateTest"
