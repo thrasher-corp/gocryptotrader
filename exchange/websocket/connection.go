@@ -19,6 +19,7 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -226,7 +227,6 @@ func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit,
 
 // SetupPingHandler will automatically send ping or pong messages based on
 // WebsocketPingHandler configuration
-// roll back
 func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHandler) {
 	if handler.UseGorillaHandler {
 		c.Connection.SetPingHandler(func(msg string) error {
@@ -366,8 +366,8 @@ func (c *connection) defaultGenerateMessageID(highPrec bool) int64 {
 
 // Shutdown shuts down and closes specific connection
 func (c *connection) Shutdown() error {
-	if c == nil || c.Connection == nil {
-		return nil
+	if err := common.NilGuard(c, c.Connection); err != nil {
+		return err
 	}
 	c.setConnectedStatus(false)
 	c.writeControl.Lock()

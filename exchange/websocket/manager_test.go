@@ -1336,3 +1336,51 @@ func TestGetConnection(t *testing.T) {
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
 }
+
+func TestShutdown(t *testing.T) {
+	t.Parallel()
+	m := Manager{}
+	m.setState(connectingState)
+	require.ErrorIs(t, m.Shutdown(), errAlreadyReconnecting, "Shutdown must error correctly")
+	m.setState(disconnectedState)
+	require.ErrorIs(t, m.Shutdown(), ErrNotConnected, "Shutdown must error correctly")
+	m.setState(connectedState)
+	require.Panics(t, func() { m.Shutdown() }, "Shutdown must panic on nil shutdown channel")
+	m.ShutdownC = make(chan struct{})
+	require.NoError(t, m.Shutdown(), "Shutdown must not error with no connections")
+	m.setState(connectedState)
+	m.Conn = &struct{ *connection }{&connection{}}
+	m.AuthConn = &struct{ *connection }{&connection{}}
+	require.ErrorIs(t, m.Shutdown(), common.ErrTypeAssertFailure, "Shutdown must error with with unhandled connection type")
+
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	defer mock.Close()
+
+	wsURL := "ws" + mock.URL[len("http"):] + "/ws"
+	conn, _, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	require.NoError(t, err, "DialContext must not error")
+
+	m.AuthConn = nil
+	m.Conn = nil
+	m.connectionManager = []*connectionWrapper{{connection: &connection{Connection: nil}}, {connection: &connection{Connection: conn}}}
+	m.setState(connectedState)
+	require.NoError(t, m.Shutdown(), "Shutdown must not error with faulty connection in connectionManager")
+
+	gwsConnAuth, _, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	require.NoError(t, err, "DialContext must not error")
+
+	gwsConnUnAuth, _, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	require.NoError(t, err, "DialContext must not error")
+
+	m.connectionManager = nil
+	authConn := &connection{Connection: gwsConnAuth, shutdown: m.ShutdownC}
+	m.AuthConn = authConn
+	unauthConn := &connection{Connection: gwsConnUnAuth, shutdown: m.ShutdownC}
+	m.Conn = unauthConn
+
+	m.setState(connectedState)
+	require.NoError(t, m.Shutdown(), "Shutdown must not error with good connections")
+
+	require.Equal(t, m.ShutdownC, authConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
+	require.Equal(t, m.ShutdownC, unauthConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
+}
