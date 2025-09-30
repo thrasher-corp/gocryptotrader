@@ -808,21 +808,24 @@ func TestGetSymbols(t *testing.T) {
 	require.NotNil(t, result)
 	assert.Len(t, result, 1)
 
-	result, err = e.GetSymbols(t.Context())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetCurrenciesInformation(t *testing.T) {
-	t.Parallel()
-	result, err := e.GetCurrencies(t.Context())
+	result, err = e.GetExecutionLimits(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetCurrency(t.Context())
+	result, err := e.GetCurrencies(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCurrency(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetCurrency(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	result, err := e.GetCurrency(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1789,16 +1792,6 @@ func TestWsFuturesHandleData(t *testing.T) {
 	}
 }
 
-func TestGetCurrencyInformation(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetCurrencyInfo(t.Context(), currency.EMPTYCODE)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	result, err := e.GetCurrencyInfo(t.Context(), currency.ETH)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
@@ -2263,7 +2256,7 @@ func TestIntervalString(t *testing.T) {
 	var err error
 	var is string
 	for key, val := range params {
-		is, err = IntervalString(key)
+		is, err = IntervalToString(key)
 		require.Equal(t, val.IntervalString, is)
 		require.ErrorIs(t, err, val.Error, err)
 	}

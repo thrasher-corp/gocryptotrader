@@ -102,52 +102,32 @@ type SymbolDetail struct {
 	} `json:"crossMargin"`
 }
 
-// CurrencyDetail holds a currency detail for V3 API
-type CurrencyDetail struct {
-	ID                    int64    `json:"id"`
-	Name                  string   `json:"name"`
-	Description           string   `json:"description"`
-	Type                  string   `json:"type"`
-	WithdrawalFee         string   `json:"withdrawalFee"`
-	MinConf               int64    `json:"minConf"`
-	DepositAddress        string   `json:"depositAddress"`
-	Blockchain            string   `json:"blockchain"`
-	Delisted              bool     `json:"delisted"`
-	TradingState          string   `json:"tradingState"`
-	WalletState           string   `json:"walletState"`
-	WalletDepositState    string   `json:"walletDepositState"`
-	WalletWithdrawalState string   `json:"walletWithdrawalState"`
-	ParentChain           string   `json:"parentChain"`
-	IsMultiChain          bool     `json:"isMultiChain"`
-	IsChildChain          bool     `json:"isChildChain"`
-	SupportCollateral     bool     `json:"supportCollateral"`
-	SupportBorrow         bool     `json:"supportBorrow"`
-	ChildChains           []string `json:"childChains"`
+// Currency represents all supported currencies
+type Currency struct {
+	ID                int64                  `json:"id"`
+	Coin              string                 `json:"coin"`
+	Delisted          bool                   `json:"delisted"`
+	TradeEnable       bool                   `json:"tradeEnable"`
+	Name              string                 `json:"name"`
+	NetworkList       []*CryptoNetworkDetail `json:"networkList"`
+	SupportCollateral bool                   `json:"supportCollateral,omitempty"`
+	SupportBorrow     bool                   `json:"supportBorrow,omitempty"`
 }
 
-// CurrencyInformation represents all supported currencies
-type CurrencyInformation struct {
-	ID          int64  `json:"id"`
-	Coin        string `json:"coin"`
-	Delisted    bool   `json:"delisted"`
-	TradeEnable bool   `json:"tradeEnable"`
-	Name        string `json:"name"`
-	NetworkList []struct {
-		ID               int64        `json:"id"`
-		Coin             string       `json:"coin"`
-		Name             string       `json:"name"`
-		CurrencyType     string       `json:"currencyType"`
-		Blockchain       string       `json:"blockchain"`
-		WithdrawalEnable bool         `json:"withdrawalEnable"`
-		DepositEnable    bool         `json:"depositEnable"`
-		DepositAddress   string       `json:"depositAddress"`
-		Decimals         float64      `json:"decimals"`
-		MinConfirm       float64      `json:"minConfirm"`
-		WithdrawMin      types.Number `json:"withdrawMin"`
-		WithdrawFee      types.Number `json:"withdrawFee"`
-	} `json:"networkList"`
-	SupportCollateral bool `json:"supportCollateral,omitempty"`
-	SupportBorrow     bool `json:"supportBorrow,omitempty"`
+// CryptoNetworkDetail holds a crypto network detail
+type CryptoNetworkDetail struct {
+	ID               int64        `json:"id"`
+	Coin             string       `json:"coin"`
+	Name             string       `json:"name"`
+	CurrencyType     string       `json:"currencyType"`
+	Blockchain       string       `json:"blockchain"`
+	WithdrawalEnable bool         `json:"withdrawalEnable"`
+	DepositEnable    bool         `json:"depositEnable"`
+	DepositAddress   string       `json:"depositAddress"`
+	Decimals         float64      `json:"decimals"`
+	MinConfirm       float64      `json:"minConfirm"`
+	WithdrawMin      types.Number `json:"withdrawMin"`
+	WithdrawFee      types.Number `json:"withdrawFee"`
 }
 
 // ServerSystemTime represents a server time.
@@ -252,18 +232,17 @@ type TickerData struct {
 }
 
 // CollateralInfoList holds a list of collateral info detail
-type CollateralInfoList []CollateralInfo
+type CollateralInfoList []*CollateralInfo
 
 // UnmarshalJSON deserializes byte data into list of CollateralInfo instances
 func (c *CollateralInfoList) UnmarshalJSON(data []byte) error {
-	var targets []CollateralInfo
+	var targets []*CollateralInfo
 	if err := json.Unmarshal(data, &targets); err != nil {
-		var target CollateralInfo
-		err = json.Unmarshal(data, &target)
-		if err != nil {
+		var target *CollateralInfo
+		if err := json.Unmarshal(data, &target); err != nil {
 			return err
 		}
-		targets = []CollateralInfo{target}
+		targets = []*CollateralInfo{target}
 	}
 	*c = targets
 	return nil
@@ -344,18 +323,18 @@ type AccountTransferRecord struct {
 }
 
 // AccountTransferRecords holds list of account transfer records
-type AccountTransferRecords []AccountTransferRecord
+type AccountTransferRecords []*AccountTransferRecord
 
 // UnmarshalJSON deserializes a byte data into a slice of AccountTransferRecord instances
 func (a *AccountTransferRecords) UnmarshalJSON(data []byte) error {
-	var sTarget []AccountTransferRecord
+	var sTarget []*AccountTransferRecord
 	if err := json.Unmarshal(data, &sTarget); err != nil {
-		oTarget := AccountTransferRecord{}
+		var oTarget *AccountTransferRecord
 		err = json.Unmarshal(data, &oTarget)
 		if err != nil {
 			return err
 		}
-		sTarget = []AccountTransferRecord{oTarget}
+		sTarget = []*AccountTransferRecord{oTarget}
 	}
 	*a = sTarget
 	return nil

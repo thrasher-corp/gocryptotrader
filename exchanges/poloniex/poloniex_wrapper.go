@@ -257,7 +257,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
 	switch assetType {
 	case asset.Spot, asset.Margin:
-		resp, err := e.GetSymbols(ctx)
+		resp, err := e.GetExecutionLimits(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -571,7 +571,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 	var resp []trade.Data
 	switch assetType {
 	case asset.Spot:
-		var tradeData []Trade
+		var tradeData []*Trade
 		tradeData, err = e.GetTrades(ctx, pair, 0)
 		if err != nil {
 			return nil, err
@@ -593,7 +593,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 			})
 		}
 	case asset.Futures:
-		var tradeData []FuturesExecutionInfo
+		var tradeData []*FuturesExecutionInfo
 		tradeData, err = e.GetFuturesExecutionInfo(ctx, pair.String(), 0)
 		if err != nil {
 			return nil, err
@@ -639,7 +639,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 	var resp []trade.Data
 	switch assetType {
 	case asset.Spot:
-		var tradeData []Trade
+		var tradeData []*Trade
 		tradeData, err = e.GetTrades(ctx, pair, 1000)
 		if err != nil {
 			return nil, err
@@ -665,7 +665,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 			})
 		}
 	case asset.Futures:
-		var tradeData []FuturesExecutionInfo
+		var tradeData []*FuturesExecutionInfo
 		tradeData, err = e.GetFuturesExecutionInfo(ctx, pair.String(), 0)
 		if err != nil {
 			return nil, err
@@ -1033,7 +1033,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			}
 		default:
 			if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				var wsResponse []WsCancelOrderResponse
+				var wsResponse []*WsCancelOrderResponse
 				wsResponse, err = e.WsCancelAllTradeOrders(pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
 				if err != nil {
 					return cancelAllOrdersResponse, err
@@ -1056,7 +1056,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			}
 		}
 	case asset.Futures:
-		var result []FuturesOrderIDResponse
+		var result []*FuturesOrderIDResponse
 		result, err = e.CancelAllFuturesOrders(ctx, cancelOrd.Pair.String(), cancelOrd.Side.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
@@ -1098,7 +1098,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				Type:      StringToOrderType(trades[i].Type),
 			}
 		}
-		var smartOrders []SmartOrderDetail
+		var smartOrders []*SmartOrderDetail
 		resp, err := e.GetOrder(ctx, orderID, "")
 		if err != nil {
 			smartOrders, err = e.GetSmartOrderDetail(ctx, orderID, "")
@@ -1163,7 +1163,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if len(fResults) != 1 {
 			return nil, order.ErrOrderNotFound
 		}
-		orderDetail := &fResults[0]
+		orderDetail := fResults[0]
 		cp, err := currency.NewPairFromString(orderDetail.Symbol)
 		if err != nil {
 			return nil, err
@@ -1243,57 +1243,48 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 	}
 	// Some coins use a main address, so we must use this in conjunction with the returned
 	// deposit address to produce the full deposit address and payment-id
-	currencies, err := e.GetCurrencyInfo(ctx, cryptocurrency)
+	currencyDetail, err := e.GetCurrency(ctx, cryptocurrency)
 	if err != nil {
 		return nil, err
 	}
 
-	coinParams, ok := currencies[cryptocurrency.String()]
-	if !ok {
-		return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
+	for _, networkDetail := range currencyDetail.NetworkList {
+		if networkDetail.CurrencyType == "address-payment-id" && networkDetail.DepositAddress != "" && (networkDetail.Blockchain == "" || networkDetail.Blockchain != chain) {
+			paymentID, ok := (*depositAddrs)[cryptocurrency.Upper().String()]
+			if !ok {
+				newAddr, err := e.NewCurrencyDepositAddress(ctx, cryptocurrency)
+				if err != nil {
+					return nil, err
+				}
+				paymentID = newAddr
+			}
+			return &deposit.Address{
+				Address: networkDetail.DepositAddress,
+				Tag:     paymentID,
+				Chain:   networkDetail.Blockchain,
+			}, nil
+		}
 	}
 
-	var address, paymentID string
-	if coinParams.Type == "address-payment-id" && coinParams.DepositAddress != "" {
-		paymentID, ok = (*depositAddrs)[cryptocurrency.Upper().String()]
-		if !ok {
+	var chainName string
+	address, ok := (*depositAddrs)[cryptocurrency.Upper().String()]
+	if !ok {
+		for _, networkDetail := range currencyDetail.NetworkList {
+			if !networkDetail.DepositEnable {
+				return nil, fmt.Errorf("deposits and withdrawals for %v are currently disabled", cryptocurrency.Upper().String())
+			}
+
 			newAddr, err := e.NewCurrencyDepositAddress(ctx, cryptocurrency)
 			if err != nil {
 				return nil, err
 			}
-			paymentID = newAddr
+			address = newAddr
+			chainName = networkDetail.Blockchain
 		}
-		return &deposit.Address{
-			Address: coinParams.DepositAddress,
-			Tag:     paymentID,
-			Chain:   coinParams.ParentChain,
-		}, nil
-	}
-
-	address, ok = (*depositAddrs)[cryptocurrency.Upper().String()]
-	if !ok {
-		if len(coinParams.ChildChains) > 1 && chain != "" && !slices.Contains(coinParams.ChildChains, chain) {
-			return nil, fmt.Errorf("currency %s has %v chains available, one of these must be specified",
-				cryptocurrency,
-				coinParams.ChildChains)
-		}
-
-		coinParams, ok = currencies[cryptocurrency.String()]
-		if !ok {
-			return nil, fmt.Errorf("unable to find currency %s in map", cryptocurrency)
-		}
-		if coinParams.WalletDepositState != "ENABLED" {
-			return nil, fmt.Errorf("deposits and withdrawals for %v are currently disabled", cryptocurrency.Upper().String())
-		}
-
-		newAddr, err := e.NewCurrencyDepositAddress(ctx, cryptocurrency)
-		if err != nil {
-			return nil, err
-		}
-		address = newAddr
 	}
 	return &deposit.Address{
 		Address: address,
+		Chain:   chainName,
 	}, nil
 }
 
@@ -1798,16 +1789,16 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 	if cryptocurrency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	currencies, err := e.GetFuturesCurrency(ctx, cryptocurrency)
+	currencyDetail, err := e.GetCurrency(ctx, cryptocurrency)
 	if err != nil {
 		return nil, err
 	}
-	if len(currencies.NetworkList) == 0 {
+	if len(currencyDetail.NetworkList) == 0 {
 		return nil, fmt.Errorf("%w for currency %v", errChainsNotFound, cryptocurrency)
 	}
-	chains := make([]string, len(currencies.NetworkList))
-	for a := range currencies.NetworkList {
-		chains[a] = currencies.NetworkList[a].Blockchain
+	chains := make([]string, len(currencyDetail.NetworkList))
+	for a := range currencyDetail.NetworkList {
+		chains[a] = currencyDetail.NetworkList[a].Blockchain
 	}
 	return chains, nil
 }
@@ -1934,7 +1925,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return fmt.Errorf("%w asset: %v", asset.ErrNotSupported, a)
 	}
 	if a == asset.Spot {
-		instruments, err := e.GetSymbols(ctx)
+		instruments, err := e.GetExecutionLimits(ctx)
 		if err != nil {
 			return err
 		}

@@ -534,7 +534,7 @@ func (e *Exchange) handleSubscriptions(operation string, subscs subscription.Lis
 			if !okay {
 				interval = kline.FiveMin
 			}
-			intervalString, err := IntervalString(interval)
+			intervalString, err := IntervalToString(interval)
 			if err != nil {
 				return nil, err
 			}

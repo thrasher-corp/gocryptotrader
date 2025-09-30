@@ -48,48 +48,33 @@ type Exchange struct {
 }
 
 // GetSymbol returns symbol detail
-func (e *Exchange) GetSymbol(ctx context.Context, symbol currency.Pair) ([]SymbolDetail, error) {
+func (e *Exchange) GetSymbol(ctx context.Context, symbol currency.Pair) ([]*SymbolDetail, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	var resp []SymbolDetail
+	var resp []*SymbolDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/"+symbol.String(), &resp)
 }
 
-// GetSymbols returns symbol information
+// GetExecutionLimits returns execution limits
 // symbol may be an empty currency.Pair to return all symbols
-func (e *Exchange) GetSymbols(ctx context.Context) ([]SymbolDetail, error) {
-	var resp []SymbolDetail
+func (e *Exchange) GetExecutionLimits(ctx context.Context) ([]*SymbolDetail, error) {
+	var resp []*SymbolDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets", &resp)
 }
 
-// GetCurrencies returns all currencies and their info
-func (e *Exchange) GetCurrencies(ctx context.Context) ([]map[string]CurrencyDetail, error) {
-	var resp []map[string]CurrencyDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies", &resp)
-}
-
-// GetCurrencyInfo retrieves currency and their detailed information.
-func (e *Exchange) GetCurrencyInfo(ctx context.Context, ccy currency.Code) (map[string]CurrencyDetail, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	var resp map[string]CurrencyDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies/"+ccy.String(), &resp)
-}
-
-// GetCurrency retrieves currency and details
-func (e *Exchange) GetCurrency(ctx context.Context) ([]CurrencyInformation, error) {
-	var resp []CurrencyInformation
+// GetCurrencies retrieves currencies and their details
+func (e *Exchange) GetCurrencies(ctx context.Context) ([]*Currency, error) {
+	var resp []*Currency
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies", &resp)
 }
 
-// GetFuturesCurrency retrieves currency details for V2 API.
-func (e *Exchange) GetFuturesCurrency(ctx context.Context, ccy currency.Code) (*CurrencyInformation, error) {
+// GetCurrency retrieves currency details for V2 API.
+func (e *Exchange) GetCurrency(ctx context.Context, ccy currency.Code) (*Currency, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp *CurrencyInformation
+	var resp *Currency
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies/"+ccy.String(), &resp)
 }
 
@@ -100,8 +85,8 @@ func (e *Exchange) GetSystemTimestamp(ctx context.Context) (*ServerSystemTime, e
 }
 
 // GetMarketPrices retrieves latest trade price for all symbols.
-func (e *Exchange) GetMarketPrices(ctx context.Context) ([]MarketPrice, error) {
-	var resp []MarketPrice
+func (e *Exchange) GetMarketPrices(ctx context.Context) ([]*MarketPrice, error) {
+	var resp []*MarketPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/price", &resp)
 }
 
@@ -114,9 +99,9 @@ func (e *Exchange) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*M
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String()+"/price", &resp)
 }
 
-// GetMarkPrices retrieves latest mark price for a single cross margin
-func (e *Exchange) GetMarkPrices(ctx context.Context) ([]MarkPrice, error) {
-	var resp []MarkPrice
+// GetMarkPrices retrieves latest mark prices for all currencies
+func (e *Exchange) GetMarkPrices(ctx context.Context) ([]*MarkPrice, error) {
+	var resp []*MarkPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/markPrice", &resp)
 }
 
@@ -129,7 +114,7 @@ func (e *Exchange) GetMarkPrice(ctx context.Context, symbol currency.Pair) (*Mar
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String()+"/markPrice", &resp)
 }
 
-// GetMarkPriceComponents retrieves components of the mark price for a given symbol.
+// GetMarkPriceComponents retrieves components of the mark price
 func (e *Exchange) GetMarkPriceComponents(ctx context.Context, symbol currency.Pair) (*MarkPriceComponent, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -155,11 +140,11 @@ func (e *Exchange) GetOrderbook(ctx context.Context, symbol currency.Pair, scale
 }
 
 // GetCandlesticks retrieves OHLC for a symbol at given timeframe (interval).
-func (e *Exchange) GetCandlesticks(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]CandlestickData, error) {
+func (e *Exchange) GetCandlesticks(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*CandlestickData, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	intervalString, err := IntervalString(interval)
+	intervalString, err := IntervalToString(interval)
 	if err != nil {
 		return nil, err
 	} else if intervalString == "" {
@@ -177,12 +162,12 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	var resp []CandlestickData
+	var resp []*CandlestickData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/candles", params), &resp)
 }
 
 // GetTrades returns a list of recent trades, request param limit is optional, its default value is 500, and max value is 1000.
-func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair, limit int64) ([]Trade, error) {
+func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair, limit int64) ([]*Trade, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -190,13 +175,13 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair, limit in
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []Trade
+	var resp []*Trade
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/trades", params), &resp)
 }
 
 // GetTickers retrieve ticker in last 24 hours for all symbols.
-func (e *Exchange) GetTickers(ctx context.Context) ([]TickerData, error) {
-	var resp []TickerData
+func (e *Exchange) GetTickers(ctx context.Context) ([]*TickerData, error) {
+	var resp []*TickerData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/markets/ticker24h", &resp)
 }
 
@@ -210,7 +195,7 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker
 }
 
 // GetCollateralInfo retrieves collateral information for currency
-func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy currency.Code) ([]CollateralInfo, error) {
+func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy currency.Code) ([]*CollateralInfo, error) {
 	var path string
 	if !ccy.IsEmpty() {
 		path = marketsPath + ccy.String() + "/collateralInfo"
@@ -222,29 +207,29 @@ func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy currency.Code) ([]
 }
 
 // GetBorrowRateInfo retrieves borrow rates information for all tiers and currencies.
-func (e *Exchange) GetBorrowRateInfo(ctx context.Context) ([]BorrowRateInfo, error) {
-	var resp []BorrowRateInfo
+func (e *Exchange) GetBorrowRateInfo(ctx context.Context) ([]*BorrowRateInfo, error) {
+	var resp []*BorrowRateInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/borrowRatesInfo", &resp)
 }
 
 // GetAccountInformation retrieves all accounts of a user.
-func (e *Exchange) GetAccountInformation(ctx context.Context) ([]AccountInformation, error) {
-	var resp []AccountInformation
+func (e *Exchange) GetAccountInformation(ctx context.Context) ([]*AccountInformation, error) {
+	var resp []*AccountInformation
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts", nil, nil, &resp)
 }
 
 // GetAllBalances get a list of all accounts of a user with each account’s id, type and balances (assets).
-func (e *Exchange) GetAllBalances(ctx context.Context, accountType string) ([]AccountBalance, error) {
+func (e *Exchange) GetAllBalances(ctx context.Context, accountType string) ([]*AccountBalance, error) {
 	params := url.Values{}
 	if accountType != "" {
 		params.Set("accountType", accountType)
 	}
-	var resp []AccountBalance
+	var resp []*AccountBalance
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/balances", params, nil, &resp)
 }
 
 // GetAllBalance get an accounts of a user with each account’s id, type and balances (assets).
-func (e *Exchange) GetAllBalance(ctx context.Context, accountID, accountType string) ([]AccountBalance, error) {
+func (e *Exchange) GetAllBalance(ctx context.Context, accountID, accountType string) ([]*AccountBalance, error) {
 	if accountID == "" {
 		return nil, errAccountIDRequired
 	}
@@ -252,12 +237,12 @@ func (e *Exchange) GetAllBalance(ctx context.Context, accountID, accountType str
 	if accountType != "" {
 		params.Set("accountType", accountType)
 	}
-	var resp []AccountBalance
+	var resp []*AccountBalance
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/"+accountID+"/balances", params, nil, &resp)
 }
 
 // GetAllAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
-func (e *Exchange) GetAllAccountActivities(ctx context.Context, startTime, endTime time.Time, activityType, limit, from int64, direction string, ccy currency.Code) ([]AccountActivity, error) {
+func (e *Exchange) GetAllAccountActivities(ctx context.Context, startTime, endTime time.Time, activityType, limit, from int64, direction string, ccy currency.Code) ([]*AccountActivity, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -281,7 +266,7 @@ func (e *Exchange) GetAllAccountActivities(ctx context.Context, startTime, endTi
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	var resp []AccountActivity
+	var resp []*AccountActivity
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/accounts/activity", params, nil, &resp)
 }
 
@@ -304,7 +289,7 @@ func (e *Exchange) AccountsTransfer(ctx context.Context, arg *AccountTransferReq
 }
 
 // GetAccountTransferRecords gets a list of transfer records of a user
-func (e *Exchange) GetAccountTransferRecords(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit int64) ([]AccountTransferRecord, error) {
+func (e *Exchange) GetAccountTransferRecords(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit int64) ([]*AccountTransferRecord, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -325,12 +310,12 @@ func (e *Exchange) GetAccountTransferRecords(ctx context.Context, startTime, end
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []AccountTransferRecord
+	var resp []*AccountTransferRecord
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/transfer", params, nil, &resp)
 }
 
 // GetAccountTransferRecord gets a transfer record of a user.
-func (e *Exchange) GetAccountTransferRecord(ctx context.Context, accountID string) ([]AccountTransferRecord, error) {
+func (e *Exchange) GetAccountTransferRecord(ctx context.Context, accountID string) ([]*AccountTransferRecord, error) {
 	if accountID == "" {
 		return nil, errAccountIDRequired
 	}
@@ -345,7 +330,7 @@ func (e *Exchange) GetFeeInfo(ctx context.Context) (*FeeInfo, error) {
 }
 
 // GetInterestHistory get a list of interest collection records of a user.
-func (e *Exchange) GetInterestHistory(ctx context.Context, startTime, endTime time.Time, direction string, from, limit int64) ([]InterestHistory, error) {
+func (e *Exchange) GetInterestHistory(ctx context.Context, startTime, endTime time.Time, direction string, from, limit int64) ([]*InterestHistory, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -363,30 +348,30 @@ func (e *Exchange) GetInterestHistory(ctx context.Context, startTime, endTime ti
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []InterestHistory
+	var resp []*InterestHistory
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/interest/history", params, nil, &resp)
 }
 
 // GetSubAccountInformation get a list of all the accounts within an Account Group for a user.
-func (e *Exchange) GetSubAccountInformation(ctx context.Context) ([]SubAccount, error) {
-	var resp []SubAccount
+func (e *Exchange) GetSubAccountInformation(ctx context.Context) ([]*SubAccount, error) {
+	var resp []*SubAccount
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts", nil, nil, &resp)
 }
 
 // GetSubAccountBalances retrieves balances by currency and account type (SPOT or FUTURES)
 // for all accounts in the group. Available only to the primary user.
 // Subaccounts should use GetAllBalances() for SPOT and the Futures API for FUTURES.
-func (e *Exchange) GetSubAccountBalances(ctx context.Context) ([]SubAccountBalances, error) {
-	var resp []SubAccountBalances
+func (e *Exchange) GetSubAccountBalances(ctx context.Context) ([]*SubAccountBalances, error) {
+	var resp []*SubAccountBalances
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
 }
 
 // GetSubAccountBalance get balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
-func (e *Exchange) GetSubAccountBalance(ctx context.Context, subAccountID string) ([]SubAccountBalances, error) {
+func (e *Exchange) GetSubAccountBalance(ctx context.Context, subAccountID string) ([]*SubAccountBalances, error) {
 	if subAccountID == "" {
 		return nil, fmt.Errorf("%w: empty subAccountID", errAccountIDRequired)
 	}
-	var resp []SubAccountBalances
+	var resp []*SubAccountBalances
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts/"+subAccountID+"/balances", nil, nil, &resp)
 }
 
@@ -417,7 +402,7 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg *SubAccountTransf
 }
 
 // GetSubAccountTransferRecords gets a list of transfer records of a user. Max interval for start and end time is 6 months.
-func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, arg *SubAccountTransferRecordRequest) ([]SubAccountTransfer, error) {
+func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, arg *SubAccountTransferRecordRequest) ([]*SubAccountTransfer, error) {
 	params := url.Values{}
 	if !arg.Currency.IsEmpty() {
 		params.Set("currency", arg.Currency.String())
@@ -450,16 +435,16 @@ func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, arg *SubAcc
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []SubAccountTransfer
+	var resp []*SubAccountTransfer
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/transfer", params, nil, &resp)
 }
 
 // GetSubAccountTransferRecord retrieves a subaccount transfer record.
-func (e *Exchange) GetSubAccountTransferRecord(ctx context.Context, id string) ([]SubAccountTransfer, error) {
+func (e *Exchange) GetSubAccountTransferRecord(ctx context.Context, id string) ([]*SubAccountTransfer, error) {
 	if id == "" {
 		return nil, fmt.Errorf("%w: subAccountID is missing", errAccountIDRequired)
 	}
-	var resp []SubAccountTransfer
+	var resp []*SubAccountTransfer
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/transfer/"+id, nil, nil, &resp)
 }
 
@@ -558,12 +543,12 @@ func (e *Exchange) GetAccountMarginInfo(ctx context.Context, accountType string)
 }
 
 // GetBorrowStatus retrieves borrow status of currencies
-func (e *Exchange) GetBorrowStatus(ctx context.Context, ccy currency.Code) ([]BorroweStatus, error) {
+func (e *Exchange) GetBorrowStatus(ctx context.Context, ccy currency.Code) ([]*BorroweStatus, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	var resp []BorroweStatus
+	var resp []*BorroweStatus
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/borrowStatus", params, nil, &resp)
 }
 
@@ -601,7 +586,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*Pla
 }
 
 // PlaceBatchOrders places a batch of orders
-func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderRequest) ([]PlaceBatchOrderItem, error) {
+func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderRequest) ([]*PlaceBatchOrderItem, error) {
 	if len(args) == 0 {
 		return nil, common.ErrNilPointer
 	}
@@ -613,7 +598,7 @@ func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderReques
 			return nil, order.ErrSideIsInvalid
 		}
 	}
-	var resp []PlaceBatchOrderItem
+	var resp []*PlaceBatchOrderItem
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders/batch", nil, args, &resp)
 	if err != nil {
 		return nil, err
@@ -643,7 +628,7 @@ func (e *Exchange) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrd
 }
 
 // GetOpenOrders retrieves a list of active orders
-func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, side, direction, fromOrderID string, limit int64) ([]TradeOrder, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, side, direction, fromOrderID string, limit int64) ([]*TradeOrder, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
@@ -660,7 +645,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, side
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []TradeOrder
+	var resp []*TradeOrder
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders", nil, nil, &resp)
 }
 
@@ -807,22 +792,22 @@ func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 }
 
 // GetSmartOpenOrders get a list of (pending) smart orders for an account
-func (e *Exchange) GetSmartOpenOrders(ctx context.Context, limit int64) ([]SmartOrder, error) {
+func (e *Exchange) GetSmartOpenOrders(ctx context.Context, limit int64) ([]*SmartOrder, error) {
 	params := url.Values{}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []SmartOrder
+	var resp []*SmartOrder
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/smartorders", params, nil, &resp)
 }
 
 // GetSmartOrderDetail retrieves a smart order's detail
-func (e *Exchange) GetSmartOrderDetail(ctx context.Context, orderID, clientSuppliedID string) ([]SmartOrderDetail, error) {
+func (e *Exchange) GetSmartOrderDetail(ctx context.Context, orderID, clientSuppliedID string) ([]*SmartOrderDetail, error) {
 	path, err := orderPath(orderID, "/smartorders/", clientSuppliedID, "/smartorders/cid:")
 	if err != nil {
 		return nil, err
 	}
-	var resp []SmartOrderDetail
+	var resp []*SmartOrderDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp)
 }
 
@@ -929,27 +914,27 @@ func orderFillParams(arg *OrdersHistoryRequest) (url.Values, error) {
 }
 
 // GetOrdersHistory get a list of historical orders in an account
-func (e *Exchange) GetOrdersHistory(ctx context.Context, arg *OrdersHistoryRequest) ([]TradeOrder, error) {
+func (e *Exchange) GetOrdersHistory(ctx context.Context, arg *OrdersHistoryRequest) ([]*TradeOrder, error) {
 	params, err := orderFillParams(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp []TradeOrder
+	var resp []*TradeOrder
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders/history", params, nil, &resp)
 }
 
 // GetSmartOrderHistory get a list of historical smart orders in an account
-func (e *Exchange) GetSmartOrderHistory(ctx context.Context, arg *OrdersHistoryRequest) ([]SmartOrder, error) {
+func (e *Exchange) GetSmartOrderHistory(ctx context.Context, arg *OrdersHistoryRequest) ([]*SmartOrder, error) {
 	params, err := orderFillParams(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp []SmartOrder
+	var resp []*SmartOrder
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/smartorders/history", params, nil, &resp)
 }
 
 // GetTradeHistory get a list of all trades for an account
-func (e *Exchange) GetTradeHistory(ctx context.Context, symbols currency.Pairs, direction string, from, limit int64, startTime, endTime time.Time) ([]TradeHistory, error) {
+func (e *Exchange) GetTradeHistory(ctx context.Context, symbols currency.Pairs, direction string, from, limit int64, startTime, endTime time.Time) ([]*TradeHistory, error) {
 	params := url.Values{}
 	if len(symbols) != 0 {
 		params.Set("symbols", symbols.Join())
@@ -970,16 +955,16 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, symbols currency.Pairs, 
 	if direction != "" {
 		params.Set("direction", direction)
 	}
-	var resp []TradeHistory
+	var resp []*TradeHistory
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/trades", params, nil, &resp)
 }
 
 // GetTradesByOrderID gets trades for an order
-func (e *Exchange) GetTradesByOrderID(ctx context.Context, orderID string) ([]TradeHistory, error) {
+func (e *Exchange) GetTradesByOrderID(ctx context.Context, orderID string) ([]*TradeHistory, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	var resp []TradeHistory
+	var resp []*TradeHistory
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/orders/"+orderID+"/trades", nil, nil, &resp)
 }
 

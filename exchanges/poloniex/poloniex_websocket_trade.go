@@ -39,7 +39,7 @@ func (e *Exchange) WsCreateOrder(arg *PlaceOrderRequest) (*PlaceOrderResponse, e
 }
 
 // WsCancelMultipleOrdersByIDs batch cancel one or many active orders in an account by IDs through the websocket stream.
-func (e *Exchange) WsCancelMultipleOrdersByIDs(orderIDs, clientOrderIDs []string) ([]WsCancelOrderResponse, error) {
+func (e *Exchange) WsCancelMultipleOrdersByIDs(orderIDs, clientOrderIDs []string) ([]*WsCancelOrderResponse, error) {
 	if len(clientOrderIDs) == 0 && len(orderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -54,7 +54,7 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(orderIDs, clientOrderIDs []string
 	if err != nil {
 		return nil, err
 	}
-	var resp []WsCancelOrderResponse
+	var resp []*WsCancelOrderResponse
 	err = e.SendWebsocketRequest(authConn, "cancelOrders", params, &resp)
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(orderIDs, clientOrderIDs []string
 }
 
 // WsCancelAllTradeOrders batch cancel all orders in an account.
-func (e *Exchange) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]WsCancelOrderResponse, error) {
+func (e *Exchange) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]*WsCancelOrderResponse, error) {
 	args := make(map[string][]string)
 	if len(symbols) > 0 {
 		args["symbols"] = symbols
@@ -80,7 +80,7 @@ func (e *Exchange) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]WsC
 	if err != nil {
 		return nil, err
 	}
-	var resp []WsCancelOrderResponse
+	var resp []*WsCancelOrderResponse
 	err = e.SendWebsocketRequest(authConn, "cancelAllOrders", args, &resp)
 	if err != nil {
 		return nil, err
