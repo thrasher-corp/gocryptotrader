@@ -9,7 +9,7 @@ import (
 // WalletAccountTypes
 const (
 	Funding  WalletAccountType = "eb_convert_funding"
-	UTA WalletAccountType = "eb_convert_uta"
+	UTA      WalletAccountType = "eb_convert_uta"
 	Spot     WalletAccountType = "eb_convert_spot"
 	Contract WalletAccountType = "eb_convert_contract"
 	Inverse  WalletAccountType = "eb_convert_inverse"
