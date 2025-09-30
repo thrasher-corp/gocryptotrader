@@ -939,18 +939,38 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 	switch s.AssetType {
 	case asset.Spot:
-		IDs, err = e.PlaceSpotOrder(ctx, s.Pair, s.Side.String(), s.Type.Lower(), strategy, cID.String(), "", s.Price, s.Amount, s.TriggerPrice, 0, 0, 0, 0, false, 0)
+		IDs, err = e.PlaceSpotOrder(ctx, &PlaceSingleSpotOrderParams{Pair: s.Pair, Side: s.Side.String(), OrderType: s.Type.Lower(), Strategy: strategy, ClientOrderID: cID.String(), Price: s.Price, Amount: s.Amount, TriggerPrice: s.TriggerPrice}, false)
 	case asset.Futures:
-		IDs, err = e.PlaceFuturesOrder(ctx, s.Pair, getProductType(s.Pair), marginStringer(s.MarginType), sideEncoder(s.Side, false), "", s.Type.Lower(), strategy, cID.String(), "", s.Pair.Quote, 0, 0, s.Amount, s.Price, YesNoBool(s.ReduceOnly), false)
+		IDs, err = e.PlaceFuturesOrder(ctx, &PlaceSingleFuturesOrderParams{Pair: s.Pair, ProductType: getProductType(s.Pair), MarginMode: marginStringer(s.MarginType), Side: sideEncoder(s.Side, false), OrderType: s.Type.Lower(), Strategy: strategy, ClientOrderID: cID.String(), MarginCoin: s.Pair.Quote, Amount: s.Amount, Price: s.Price, ReduceOnly: YesNoBool(s.ReduceOnly)}, false)
 	case asset.Margin, asset.CrossMargin:
 		loanType := "normal"
 		if s.AutoBorrow {
 			loanType = "autoLoan"
 		}
 		if s.AssetType == asset.Margin {
-			IDs, err = e.PlaceIsolatedOrder(ctx, s.Pair, s.Type.Lower(), loanType, strategy, cID.String(), s.Side.String(), "", s.Price, s.Amount, s.QuoteAmount)
+			IDs, err = e.PlaceIsolatedOrder(ctx, &PlaceMarginOrderParams{
+				Pair:          s.Pair,
+				OrderType:     s.Type.Lower(),
+				LoanType:      loanType,
+				Strategy:      strategy,
+				ClientOrderID: cID.String(),
+				Side:          s.Side.String(),
+				Price:         s.Price,
+				BaseAmount:    s.Amount,
+				QuoteAmount:   s.QuoteAmount,
+			})
 		} else {
-			IDs, err = e.PlaceCrossOrder(ctx, s.Pair, s.Type.Lower(), loanType, strategy, cID.String(), s.Side.String(), "", s.Price, s.Amount, s.QuoteAmount)
+			IDs, err = e.PlaceCrossOrder(ctx, &PlaceMarginOrderParams{
+				Pair:          s.Pair,
+				OrderType:     s.Type.Lower(),
+				LoanType:      loanType,
+				Strategy:      strategy,
+				ClientOrderID: cID.String(),
+				Side:          s.Side.String(),
+				Price:         s.Price,
+				BaseAmount:    s.Amount,
+				QuoteAmount:   s.QuoteAmount,
+			})
 		}
 	default:
 		return nil, asset.ErrNotSupported
@@ -986,7 +1006,15 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		if err != nil {
 			return nil, err
 		}
-		IDs, err = e.ModifyFuturesOrder(ctx, originalID, action.ClientOrderID, getProductType(action.Pair), cID.String(), action.Pair, action.Amount, action.Price, 0, 0)
+		IDs, err = e.ModifyFuturesOrder(ctx, &ModifyFuturesOrderParams{
+			OrderID:          originalID,
+			ClientOrderID:    action.ClientOrderID,
+			ProductType:      getProductType(action.Pair),
+			NewClientOrderID: cID.String(),
+			Pair:             action.Pair,
+			NewAmount:        action.Amount,
+			NewPrice:         action.Price,
+		})
 	default:
 		return nil, asset.ErrNotSupported
 	}
@@ -1050,9 +1078,9 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel)
 			switch assetType {
 			case asset.Spot:
 				// This no longer needs to be batched by pair, refactor if many others get similar changes
-				batchConv := make([]CancelSpotOrderStruct, len(batch))
+				batchConv := make([]CancelSpotOrderParams, len(batch))
 				for i := range batch {
-					batchConv[i] = CancelSpotOrderStruct{
+					batchConv[i] = CancelSpotOrderParams{
 						OrderID:       int64(batch[i].OrderID),
 						ClientOrderID: batch[i].ClientOrderID,
 					}
@@ -1281,7 +1309,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if err != nil {
 		return nil, err
 	}
-	resp, err := e.WithdrawFunds(ctx, withdrawRequest.Currency, "on_chain", withdrawRequest.Crypto.Address, withdrawRequest.Crypto.Chain, "", "", withdrawRequest.Crypto.AddressTag, withdrawRequest.Description, "", "", "", "", "", "", withdrawRequest.Amount)
+	resp, err := e.WithdrawFunds(ctx, &WithdrawFundsParams{Cur: withdrawRequest.Currency, TransferType: "on_chain", Address: withdrawRequest.Crypto.Address, Chain: withdrawRequest.Crypto.Chain, Tag: withdrawRequest.Crypto.AddressTag, Note: withdrawRequest.Description, Amount: withdrawRequest.Amount})
 	if err != nil {
 		return nil, err
 	}
@@ -2255,18 +2283,6 @@ func strategyTruthTable(tif order.TimeInForce) (string, error) {
 		return "post_only", nil
 	}
 	return "gtc", nil
-}
-
-// ClientIDGenerator is a helper function that generates a unique client ID
-func clientIDGenerator() string {
-	// Making the bits corresponding to smaller timescales more significant, to cheaply increase uniqueness across small timeframes
-	i := time.Now().UnixNano()>>29 + time.Now().UnixNano()<<35
-	// ClientID supports alphanumeric characters, so use the largest prime bases that fit within 50 characters to minimize chance of collisions
-	cID := strconv.FormatInt(i, 31) + strconv.FormatInt(i, 29) + strconv.FormatInt(i, 23) + strconv.FormatInt(i, 19)
-	if len(cID) > 50 {
-		cID = cID[:50]
-	}
-	return cID
 }
 
 // MarginStringer is a helper function that returns the appropriate string for a given margin type

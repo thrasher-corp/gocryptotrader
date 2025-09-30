@@ -692,8 +692,42 @@ type MarketFillsResp struct {
 	Timestamp types.Time   `json:"ts"`
 }
 
-// PlaceSpotOrderStruct contains information on an order to be placed
-type PlaceSpotOrderStruct struct {
+// PlaceSingleSpotOrderParams contains information on an order to be placed
+type PlaceSingleSpotOrderParams struct {
+	Pair                   currency.Pair `json:"symbol"`
+	Side                   string        `json:"side"`
+	OrderType              string        `json:"orderType"`
+	Strategy               string        `json:"force"`
+	Price                  float64       `json:"price,string"`
+	Amount                 float64       `json:"size,string"`
+	STPMode                string        `json:"stpMode"`
+	RequestTime            string        `json:"requestTime"`
+	TriggerPrice           float64       `json:"triggerPrice,omitempty,string"`
+	TPSLType               string        `json:"tpslType,omitempty"`
+	ClientOrderID          string        `json:"clientOid,omitempty"`
+	ReceiveWindow          int64         `json:"receiveWindow,omitempty,string"`
+	PresetTakeProfitPrice  float64       `json:"presetTakeProfitPrice,omitempty,string"`
+	ExecuteTakeProfitPrice float64       `json:"executeTakeProfitPrice,omitempty,string"`
+	PresetStopLossPrice    float64       `json:"presetStopLossPrice,omitempty,string"`
+	ExecuteStopLossPrice   float64       `json:"executeStopLossPrice,omitempty,string"`
+}
+
+// CancelAndPlaceSpotOrderParams contains information on an order to be cancelled and replaced
+type CancelAndPlaceSpotOrderParams struct {
+	Pair                   currency.Pair `json:"symbol"`
+	Price                  float64       `json:"price,string"`
+	Amount                 float64       `json:"size,string"`
+	OldClientOrderID       string        `json:"clientOid,omitempty"`
+	OrderID                int64         `json:"orderId,omitempty,string"`
+	NewClientOrderID       string        `json:"newClientOid,omitempty"`
+	PresetTakeProfitPrice  float64       `json:"presetTakeProfitPrice,omitempty,string"`
+	ExecuteTakeProfitPrice float64       `json:"executeTakeProfitPrice,omitempty,string"`
+	PresetStopLossPrice    float64       `json:"presetStopLossPrice,omitempty,string"`
+	ExecuteStopLossPrice   float64       `json:"executeStopLossPrice,omitempty,string"`
+}
+
+// PlaceSpotOrderParams contains information on an order to be placed
+type PlaceSpotOrderParams struct {
 	// Symbol needs to be included, despite it being absent in the documentation, or the exchange will return an error
 	Pair                   currency.Pair `json:"symbol"`
 	Side                   string        `json:"side"`
@@ -709,8 +743,8 @@ type PlaceSpotOrderStruct struct {
 	ExecuteStopLossPrice   types.Number  `json:"executeStopLossPrice,omitempty"`
 }
 
-// CancelSpotOrderStruct contains information on an order to be cancelled
-type CancelSpotOrderStruct struct {
+// CancelSpotOrderParams contains information on an order to be cancelled
+type CancelSpotOrderParams struct {
 	Pair          currency.Pair `json:"symbol"`
 	OrderID       int64         `json:"orderId,string,omitempty"`
 	ClientOrderID string        `json:"clientOid,omitempty"`
@@ -854,6 +888,21 @@ type SpotFillsResp struct {
 	UpdateTime   types.Time        `json:"uTime"`
 }
 
+// PlaceSpotPlanOrderParams contains information on a planned order to be placed
+type PlaceSpotPlanOrderParams struct {
+	Pair          currency.Pair `json:"symbol"`
+	Side          string        `json:"side"`
+	TriggerPrice  float64       `json:"triggerPrice,string"`
+	OrderType     string        `json:"orderType"`
+	ExecutePrice  float64       `json:"executePrice,string"`
+	PlanType      string        `json:"planType"`
+	Amount        float64       `json:"size,string"`
+	TriggerType   string        `json:"triggerType"`
+	Strategy      string        `json:"force"`
+	STPMode       string        `json:"stpMode"`
+	ClientOrderID string        `json:"clientOid,omitempty"`
+}
+
 // CancelAndPlaceResp contains information on the success or failure of a replaced order
 type CancelAndPlaceResp struct {
 	OrderID       EmptyInt    `json:"orderId"`
@@ -862,8 +911,8 @@ type CancelAndPlaceResp struct {
 	Message       string      `json:"msg"`
 }
 
-// ReplaceSpotOrderStruct contains information on an order to be replaced
-type ReplaceSpotOrderStruct struct {
+// ReplaceSpotOrderParams contains information on an order to be replaced
+type ReplaceSpotOrderParams struct {
 	Pair                   currency.Pair `json:"symbol"`
 	Price                  types.Number  `json:"price"`
 	Amount                 types.Number  `json:"size"`
@@ -954,6 +1003,37 @@ type SpotAccBillResp struct {
 type TransferResp struct {
 	TransferID    int64  `json:"transferId,string"`
 	ClientOrderID string `json:"clientOid"`
+}
+
+// SubaccountTransferParams contains information on an asset transfer between sub-accounts
+type SubaccountTransferParams struct {
+	FromType      string        `json:"fromType"`
+	ToType        string        `json:"toType"`
+	Amount        float64       `json:"amount,string"`
+	Cur           currency.Code `json:"coin"`
+	Pair          currency.Pair `json:"symbol"`
+	FromID        string        `json:"fromUserId"`
+	ToID          string        `json:"toUserId"`
+	ClientOrderID string        `json:"clientOid,omitempty"`
+}
+
+// WithdrawFundsParams contains information on a withdrawal
+type WithdrawFundsParams struct {
+	Cur              currency.Code `json:"coin"`
+	TransferType     string        `json:"transferType"`
+	Address          string        `json:"address"`
+	Chain            string        `json:"chain"`
+	InnerAddressType string        `json:"innerToType"`
+	AreaCode         string        `json:"areaCode"`
+	Tag              string        `json:"tag"`
+	Amount           float64       `json:"size,string"`
+	Note             string        `json:"remark"`
+	MemberCode       string        `json:"memberCode"`
+	IdentityType     string        `json:"identityType"`
+	CompanyName      string        `json:"companyName"`
+	FirstName        string        `json:"firstName"`
+	LastName         string        `json:"lastName"`
+	ClientOrderID    string        `json:"clientOid,omitempty"`
 }
 
 // SubaccTfrRecResp contains detailed information on asset transfers between sub-accounts
@@ -1403,19 +1483,62 @@ type HistPositionResp struct {
 	EndID int64           `json:"endId,string"`
 }
 
-// PlaceFuturesOrderStruct contains information on an order to be placed
-type PlaceFuturesOrderStruct struct {
+// PlaceSingleFuturesOrderParams contains information on a futures order to be placed
+type PlaceSingleFuturesOrderParams struct {
+	Pair             currency.Pair `json:"symbol"`
+	ProductType      string        `json:"productType"`
+	MarginMode       string        `json:"marginMode"`
+	MarginCoin       currency.Code `json:"marginCoin"`
+	Side             string        `json:"side"`
+	TradeSide        string        `json:"tradeSide"`
+	OrderType        string        `json:"orderType"`
+	Strategy         string        `json:"force"`
+	Amount           float64       `json:"size,string"`
+	Price            float64       `json:"price,string"`
+	STPMode          string        `json:"stpMode"`
+	ClientOrderID    string        `json:"clientOid,omitempty"`
+	ReduceOnly       YesNoBool     `json:"reduceOnly"`
+	StopSurplusPrice float64       `json:"presetStopSurplusPrice,omitempty,string"`
+	StopLossPrice    float64       `json:"presetStopLossPrice,omitempty,string"`
+}
+
+// PlaceReversalParams contains information on a reversal order to be placed
+type PlaceReversalParams struct {
+	Pair          currency.Pair `json:"symbol"`
+	MarginCoin    currency.Code `json:"marginCoin"`
+	ProductType   string        `json:"productType"`
+	Side          string        `json:"side"`
+	TradeSide     string        `json:"tradeSide"`
+	Amount        float64       `json:"size,string"`
+	ClientOrderID string        `json:"clientOid,omitempty"`
+}
+
+// PlaceFuturesOrderParams contains information on an order to be placed
+type PlaceFuturesOrderParams struct {
 	Size            types.Number `json:"size"`
 	Price           types.Number `json:"price"`
 	Side            string       `json:"side"`
 	TradeSide       string       `json:"tradeSide"`
 	OrderType       string       `json:"orderType"`
 	Strategy        string       `json:"force"`
-	ClientOID       string       `json:"clientOId,omitempty"`
+	ClientOrderID   string       `json:"clientOId,omitempty"`
 	ReduceOnly      YesNoBool    `json:"reduceOnly"`
 	TakeProfitValue types.Number `json:"presetStopSurplusPrice,omitempty"`
 	StopLossValue   types.Number `json:"presetStopLossPrice,omitempty"`
 	STPMode         string       `json:"stpMode,omitempty"`
+}
+
+// ModifyFuturesOrderParams contains information on a futures order to be modified
+type ModifyFuturesOrderParams struct {
+	Pair             currency.Pair `json:"symbol"`
+	ProductType      string        `json:"productType"`
+	NewClientOrderID string        `json:"newClientOid"`
+	NewTakeProfit    float64       `json:"newPresetStopSurplusPrice,string"`
+	NewStopLoss      float64       `json:"newPresetStopLossPrice,string"`
+	OrderID          int64         `json:"orderId,omitempty"`
+	ClientOrderID    string        `json:"clientOid,omitempty"`
+	NewAmount        float64       `json:"newSize,omitempty,string"`
+	NewPrice         float64       `json:"newPrice,omitempty,string"`
 }
 
 // FuturesOrderDetailResp contains information on a futures order
@@ -1556,6 +1679,97 @@ type HistFuturesOrder struct {
 type HistFuturesOrdResp struct {
 	EntrustedList []FuturesOrder `json:"entrustedList"`
 	EndID         EmptyInt       `json:"endId"`
+}
+
+// PlaceTPSLFuturesOrderParams contains information on a take profit/stop loss futures order to be placed
+type PlaceTPSLFuturesOrderParams struct {
+	MarginCoin    currency.Code `json:"marginCoin"`
+	ProductType   string        `json:"productType"`
+	Pair          currency.Pair `json:"symbol"`
+	PlanType      string        `json:"planType"`
+	TriggerType   string        `json:"triggerType"`
+	HoldSide      string        `json:"holdSide"`
+	RangeRate     string        `json:"rangeRate,omitempty"`
+	STPMode       string        `json:"stpMode"`
+	TriggerPrice  float64       `json:"triggerPrice,string"`
+	ExecutePrice  float64       `json:"executePrice,string"`
+	Amount        float64       `json:"size,string"`
+	ClientOrderID string        `json:"clientOid,omitempty"`
+}
+
+// PlaceTPAndSLFuturesOrderParams contains information on a take profit and stop loss futures order to be placed
+type PlaceTPAndSLFuturesOrderParams struct {
+	MarginCoin             currency.Code `json:"marginCoin"`
+	ProductType            string        `json:"productType"`
+	Pair                   currency.Pair `json:"symbol"`
+	TakeProfitTriggerPrice float64       `json:"stopSurplusTriggerPrice"`
+	TakeProfitTriggerType  string        `json:"stopSurplusTriggerType"`
+	TakeProfitExecutePrice float64       `json:"stopSurplusExecutePrice"`
+	StopLossTriggerPrice   float64       `json:"stopLossTriggerPrice"`
+	StopLossTriggerType    string        `json:"stopLossTriggerType"`
+	StopLossExecutePrice   float64       `json:"stopLossExecutePrice"`
+	HoldSide               string        `json:"holdSide"`
+	STPMode                string        `json:"stpMode"`
+}
+
+// PlaceTriggerFuturesOrderParams contains information on a trigger futures order to be placed
+type PlaceTriggerFuturesOrderParams struct {
+	PlanType               string        `json:"planType"`
+	Pair                   currency.Pair `json:"symbol"`
+	ProductType            string        `json:"productType"`
+	MarginMode             string        `json:"marginMode"`
+	MarginCoin             currency.Code `json:"marginCoin"`
+	TriggerType            string        `json:"triggerType"`
+	Side                   string        `json:"side"`
+	TradeSide              string        `json:"tradeSide"`
+	OrderType              string        `json:"orderType"`
+	STPMode                string        `json:"stpMode"`
+	Amount                 float64       `json:"size,string"`
+	ExecutePrice           float64       `json:"price,string"`
+	TriggerPrice           float64       `json:"triggerPrice,string"`
+	CallbackRatio          float64       `json:"callbackRatio,string"`
+	ReduceOnly             YesNoBool     `json:"reduceOnly"`
+	ClientOrderID          string        `json:"clientOid,omitempty"`
+	TakeProfitTriggerPrice float64       `json:"stopSurplusTriggerPrice,omitempty,string"`
+	TakeProfitExecutePrice float64       `json:"stopSurplusExecutePrice,omitempty,string"`
+	TakeProfitTriggerType  string        `json:"stopSurplusTriggerType,omitempty"`
+	StopLossTriggerPrice   float64       `json:"stopLossTriggerPrice,omitempty,string"`
+	StopLossExecutePrice   float64       `json:"stopLossExecutePrice,omitempty,string"`
+	StopLossTriggerType    string        `json:"stopLossTriggerType,omitempty"`
+}
+
+// ModifyTPSLFuturesOrderParams contains information on a take profit/stop loss futures order to be modified
+type ModifyTPSLFuturesOrderParams struct {
+	OrderID       int64         `json:"orderId,string"`
+	ClientOrderID string        `json:"clientOid"`
+	MarginCoin    currency.Code `json:"marginCoin"`
+	ProductType   string        `json:"productType"`
+	Pair          currency.Pair `json:"symbol"`
+	TriggerType   string        `json:"triggerType"`
+	TriggerPrice  float64       `json:"triggerPrice,string"`
+	ExecutePrice  float64       `json:"executePrice,string"`
+	Amount        float64       `json:"size,string"`
+	RangeRate     float64       `json:"rangeRate,omitempty,string"`
+}
+
+// ModifyTriggerFuturesOrderParams contains information on a trigger futures order to be modified
+type ModifyTriggerFuturesOrderParams struct {
+	// See whether planType is accepted
+	// See whether symbol is accepted
+	OrderID                int64   `json:"orderId,string"`
+	ClientOrderID          string  `json:"clientOid"`
+	ProductType            string  `json:"productType"`
+	TriggerType            string  `json:"newTriggerType"`
+	Amount                 float64 `json:"newSize,string"`
+	ExecutePrice           float64 `json:"newPrice,string"`
+	CallbackRatio          float64 `json:"newCallbackRatio,string"`
+	TriggerPrice           float64 `json:"newTriggerPrice,string"`
+	TakeProfitTriggerType  string  `json:"newStopSurplusTriggerType"`
+	StopLossTriggerType    string  `json:"newStopLossTriggerType"`
+	TakeProfitTriggerPrice float64 `json:"newStopSurplusTriggerPrice,omitempty,string"`
+	TakeProfitExecutePrice float64 `json:"newStopSurplusExecutePrice,omitempty,string"`
+	StopLossTriggerPrice   float64 `json:"newStopLossTriggerPrice,omitempty,string"`
+	StopLossExecutePrice   float64 `json:"newStopLossExecutePrice,omitempty,string"`
 }
 
 // PlanFuturesOrder is a sub-struct containing information on planned futures orders
@@ -1836,6 +2050,20 @@ type FlashRepayCross struct {
 type FlashRepayResult struct {
 	RepayID int64  `json:"repayId,string"`
 	Status  string `json:"status"`
+}
+
+// PlaceMarginOrderParams contains information on a margin order to be placed
+type PlaceMarginOrderParams struct {
+	Pair          currency.Pair `json:"symbol"`
+	OrderType     string        `json:"orderType"`
+	LoanType      string        `json:"loanType"`
+	Strategy      string        `json:"force"`
+	ClientOrderID string        `json:"clientOid"`
+	Side          string        `json:"side"`
+	STPMode       string        `json:"stpMode"`
+	Price         float64       `json:"price,string"`
+	BaseAmount    float64       `json:"baseSize,string,omitempty"`
+	QuoteAmount   float64       `json:"quoteSize,string,omitempty"`
 }
 
 // MarginOrderData contains information on a margin order

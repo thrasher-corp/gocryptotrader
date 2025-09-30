@@ -762,32 +762,53 @@ func TestGetSpotMarketTrades(t *testing.T) {
 
 func TestPlaceSpotOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceSpotOrder(t.Context(), currency.Pair{}, "", "", "", "", "", 0, 0, 0, 0, 0, 0, 0, false, 0)
+	p := &PlaceSingleSpotOrderParams{}
+	_, err := e.PlaceSpotOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.PlaceSpotOrder(t.Context(), testPair, "", "", "", "", "", 0, 0, 0, 0, 0, 0, 0, false, 0)
+	p.Pair = testPair
+	_, err = e.PlaceSpotOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errSideEmpty)
-	_, err = e.PlaceSpotOrder(t.Context(), testPair, "sell", "", "", "", "", 0, 0, 0, 0, 0, 0, 0, false, 0)
+	p.Side = "sell"
+	_, err = e.PlaceSpotOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	_, err = e.PlaceSpotOrder(t.Context(), testPair, "sell", "limit", "", "", "", 0, 0, 0, 0, 0, 0, 0, false, 0)
+	p.OrderType = "limit"
+	_, err = e.PlaceSpotOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errStrategyEmpty)
-	_, err = e.PlaceSpotOrder(t.Context(), testPair, "sell", "limit", "IOC", "", "", 0, 0, 0, 0, 0, 0, 0, false, 0)
+	p.Strategy = "IOC"
+	_, err = e.PlaceSpotOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errLimitPriceEmpty)
-	_, err = e.PlaceSpotOrder(t.Context(), testPair, "sell", "limit", "IOC", "", "", testPrice, 0, 0, 0, 0, 0, 0, false, 0)
+	p.Price = testPrice
+	_, err = e.PlaceSpotOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.PlaceSpotOrder(t.Context(), testPair, "sell", "limit", "IOC", "abc123", "", testPrice, testAmount, 0, testPrice-1, testPrice-2, testPrice+1, testPrice+2, true, 0)
+	p.ClientOrderID = "abc123"
+	p.Amount = testAmount
+	p.PresetTakeProfitPrice = testPrice - 1
+	p.ExecuteTakeProfitPrice = testPrice - 2
+	p.PresetStopLossPrice = testPrice + 1
+	p.ExecuteStopLossPrice = testPrice + 2
+	_, err = e.PlaceSpotOrder(t.Context(), p, true)
 	assert.NoError(t, err)
-	_, err = e.PlaceSpotOrder(t.Context(), testPair, "sell", "limit", "IOC", "321cba", "", testPrice, testAmount, testPrice/10, 0, 0, 0, 0, false, time.Minute)
+	p.ClientOrderID = "321cba"
+	p.TriggerPrice = testPrice / 10
+	p.PresetTakeProfitPrice = 0
+	p.ExecuteTakeProfitPrice = 0
+	p.PresetStopLossPrice = 0
+	p.ExecuteStopLossPrice = 0
+	_, err = e.PlaceSpotOrder(t.Context(), p, false)
 	assert.NoError(t, err)
 }
 
 func TestCancelAndPlaceSpotOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelAndPlaceSpotOrder(t.Context(), currency.Pair{}, "", "", 0, 0, 0, 0, 0, 0, 0)
+	p := &CancelAndPlaceSpotOrderParams{}
+	_, err := e.CancelAndPlaceSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.CancelAndPlaceSpotOrder(t.Context(), testPair, "", "", 0, 0, 0, 0, 0, 0, 0)
+	p.Pair = testPair
+	_, err = e.CancelAndPlaceSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.CancelAndPlaceSpotOrder(t.Context(), testPair, "meow", "", 0, 0, 0, 0, 0, 0, 0)
+	p.OldClientOrderID = "meow"
+	_, err = e.CancelAndPlaceSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	resp, err := e.GetUnfilledOrders(t.Context(), testPair, "", time.Time{}, time.Time{}, 5, 1<<62, 0, time.Minute)
@@ -795,14 +816,13 @@ func TestCancelAndPlaceSpotOrder(t *testing.T) {
 	if len(resp) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
-	cID := clientIDGenerator()
-	_, err = e.CancelAndPlaceSpotOrder(t.Context(), testPair, resp[0].ClientOrderID, cID, testPrice, testAmount, testPrice-1, testPrice-2, testPrice+1, testPrice+2, int64(resp[0].OrderID))
+	_, err = e.CancelAndPlaceSpotOrder(t.Context(), &CancelAndPlaceSpotOrderParams{Pair: testPair, OldClientOrderID: resp[0].ClientOrderID, NewClientOrderID: "a", Price: testPrice, Amount: testAmount, PresetTakeProfitPrice: testPrice - 1, ExecuteTakeProfitPrice: testPrice - 2, PresetStopLossPrice: testPrice + 1, ExecuteStopLossPrice: testPrice + 2, OrderID: int64(resp[0].OrderID)})
 	assert.NoError(t, err)
 }
 
 func TestBatchCancelAndPlaceSpotOrders(t *testing.T) {
 	t.Parallel()
-	var req []ReplaceSpotOrderStruct
+	var req []ReplaceSpotOrderParams
 	_, err := e.BatchCancelAndPlaceSpotOrders(t.Context(), req)
 	assert.ErrorIs(t, err, errOrdersEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -813,7 +833,7 @@ func TestBatchCancelAndPlaceSpotOrders(t *testing.T) {
 	}
 	newPair, err := pairFromStringHelper(resp[0].Symbol)
 	require.NoError(t, err)
-	req = append(req, ReplaceSpotOrderStruct{
+	req = append(req, ReplaceSpotOrderParams{
 		OrderID:          int64(resp[0].OrderID),
 		OldClientOrderID: resp[0].ClientOrderID,
 		Price:            testPrice,
@@ -842,13 +862,13 @@ func TestCancelSpotOrderByID(t *testing.T) {
 
 func TestBatchPlaceSpotOrders(t *testing.T) {
 	t.Parallel()
-	var req []PlaceSpotOrderStruct
+	var req []PlaceSpotOrderParams
 	_, err := e.BatchPlaceSpotOrders(t.Context(), currency.Pair{}, false, false, req)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.BatchPlaceSpotOrders(t.Context(), testPair, false, false, req)
 	assert.ErrorIs(t, err, errOrdersEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	req = append(req, PlaceSpotOrderStruct{
+	req = append(req, PlaceSpotOrderParams{
 		Side:      "sell",
 		OrderType: "limit",
 		Strategy:  "IOC",
@@ -863,7 +883,7 @@ func TestBatchPlaceSpotOrders(t *testing.T) {
 
 func TestBatchCancelOrders(t *testing.T) {
 	t.Parallel()
-	var req []CancelSpotOrderStruct
+	var req []CancelSpotOrderParams
 	_, err := e.BatchCancelOrders(t.Context(), currency.Pair{}, false, req)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.BatchCancelOrders(t.Context(), testPair, false, req)
@@ -876,7 +896,7 @@ func TestBatchCancelOrders(t *testing.T) {
 	}
 	pair, err := pairFromStringHelper(resp[0].Symbol)
 	assert.NoError(t, err)
-	req = append(req, CancelSpotOrderStruct{
+	req = append(req, CancelSpotOrderParams{
 		OrderID:       int64(resp[0].OrderID),
 		ClientOrderID: resp[0].ClientOrderID,
 		Pair:          pair,
@@ -931,22 +951,29 @@ func TestGetSpotFills(t *testing.T) {
 
 func TestPlacePlanSpotOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlacePlanSpotOrder(t.Context(), currency.Pair{}, "", "", "", "", "", "", "", 0, 0, 0)
+	p := &PlaceSpotPlanOrderParams{}
+	_, err := e.PlacePlanSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.PlacePlanSpotOrder(t.Context(), testPair, "", "", "", "", "", "", "", 0, 0, 0)
+	p.Pair = testPair
+	_, err = e.PlacePlanSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errSideEmpty)
-	_, err = e.PlacePlanSpotOrder(t.Context(), testPair, "woof", "", "", "", "", "", "", 0, 0, 0)
+	p.Side = "woof"
+	_, err = e.PlacePlanSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errTriggerPriceEmpty)
-	_, err = e.PlacePlanSpotOrder(t.Context(), testPair, "woof", "", "", "", "", "", "", 1, 0, 0)
+	p.TriggerPrice = 1
+	_, err = e.PlacePlanSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	_, err = e.PlacePlanSpotOrder(t.Context(), testPair, "woof", "limit", "", "", "", "", "", 1, 0, 0)
+	p.OrderType = "limit"
+	_, err = e.PlacePlanSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errLimitPriceEmpty)
-	_, err = e.PlacePlanSpotOrder(t.Context(), testPair, "woof", "neigh", "", "", "", "", "", 1, 0, 0)
+	p.OrderType = "neigh"
+	_, err = e.PlacePlanSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	_, err = e.PlacePlanSpotOrder(t.Context(), currency.NewPairWithDelimiter("meow", "woof", ""), "neigh", "oink", "", "", "", "", "", 1, 0, 1)
+	p.Amount = 1
+	_, err = e.PlacePlanSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errTriggerTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	resp, err := e.PlacePlanSpotOrder(t.Context(), testPair, "sell", "limit", "", "fill_price", clientIDGenerator(), "ioc", "none", testPrice, testPrice, testAmount)
+	resp, err := e.PlacePlanSpotOrder(t.Context(), &PlaceSpotPlanOrderParams{Pair: testPair, Side: "sell", OrderType: "limit", TriggerType: "fill_price", ClientOrderID: "a", Strategy: "ioc", STPMode: "none", TriggerPrice: testPrice, ExecutePrice: testPrice, Amount: testAmount})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -1040,7 +1067,7 @@ func TestTransferAsset(t *testing.T) {
 	_, err = e.TransferAsset(t.Context(), "meow", "woof", "", currency.Code{}, testPair, 0)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.TransferAsset(t.Context(), "spot", "p2p", clientIDGenerator(), testCrypto, testPair, testAmount)
+	_, err = e.TransferAsset(t.Context(), "spot", "p2p", "a", testCrypto, testPair, testAmount)
 	assert.NoError(t, err)
 }
 
@@ -1058,37 +1085,47 @@ func TestGetTransferableCoinList(t *testing.T) {
 
 func TestSubaccountTransfer(t *testing.T) {
 	t.Parallel()
-	_, err := e.SubaccountTransfer(t.Context(), "", "", "", "", "", currency.Code{}, currency.Pair{}, 0)
+	p := &SubaccountTransferParams{}
+	_, err := e.SubaccountTransfer(t.Context(), p)
 	assert.ErrorIs(t, err, errFromTypeEmpty)
-	_, err = e.SubaccountTransfer(t.Context(), "meow", "", "", "", "", currency.Code{}, currency.Pair{}, 0)
+	p.FromType = "meow"
+	_, err = e.SubaccountTransfer(t.Context(), p)
 	assert.ErrorIs(t, err, errToTypeEmpty)
-	_, err = e.SubaccountTransfer(t.Context(), "meow", "woof", "", "", "", currency.Code{}, currency.Pair{}, 0)
+	p.ToType = "woof"
+	_, err = e.SubaccountTransfer(t.Context(), p)
 	assert.ErrorIs(t, err, errCurrencyAndPairEmpty)
-	_, err = e.SubaccountTransfer(t.Context(), "meow", "woof", "", "", "", testCrypto, currency.Pair{}, 0)
+	p.Cur = testCrypto
+	_, err = e.SubaccountTransfer(t.Context(), p)
 	assert.ErrorIs(t, err, errFromIDEmpty)
-	_, err = e.SubaccountTransfer(t.Context(), "meow", "woof", "", "neigh", "", testCrypto, currency.Pair{}, 0)
+	p.FromID = "neigh"
+	_, err = e.SubaccountTransfer(t.Context(), p)
 	assert.ErrorIs(t, err, errToIDEmpty)
-	_, err = e.SubaccountTransfer(t.Context(), "meow", "woof", "", "neigh", "moo", testCrypto, currency.Pair{}, 0)
+	p.ToID = "moo"
+	_, err = e.SubaccountTransfer(t.Context(), p)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	fromID := subAccTestHelper(t, "", strings.ToLower(testSubaccountName[:3])+"****@virtual-bitget.com")
 	toID := subAccTestHelper(t, strings.ToLower(testSubaccountName[:3])+"****@virtual-bitget.com", "")
-	_, err = e.SubaccountTransfer(t.Context(), "spot", "p2p", clientIDGenerator(), fromID, toID, testCrypto, testPair, testAmount)
+	_, err = e.SubaccountTransfer(t.Context(), &SubaccountTransferParams{FromType: "spot", ToType: "p2p", ClientOrderID: "a", FromID: fromID, ToID: toID, Cur: testCrypto, Pair: testPair, Amount: testAmount})
 	assert.NoError(t, err)
 }
 
 func TestWithdrawFunds(t *testing.T) {
 	t.Parallel()
-	_, err := e.WithdrawFunds(t.Context(), currency.Code{}, "", "", "", "", "", "", "", "", "", "", "", "", "", 0)
+	p := &WithdrawFundsParams{}
+	_, err := e.WithdrawFunds(t.Context(), p)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.WithdrawFunds(t.Context(), testCrypto, "", "", "", "", "", "", "", "", "", "", "", "", "", 0)
+	p.Cur = testCrypto
+	_, err = e.WithdrawFunds(t.Context(), p)
 	assert.ErrorIs(t, err, errTransferTypeEmpty)
-	_, err = e.WithdrawFunds(t.Context(), testCrypto, "woof", "", "", "", "", "", "", "", "", "", "", "", "", 0)
+	p.TransferType = "woof"
+	_, err = e.WithdrawFunds(t.Context(), p)
 	assert.ErrorIs(t, err, errAddressEmpty)
-	_, err = e.WithdrawFunds(t.Context(), testCrypto, "woof", "neigh", "", "", "", "", "", "", "", "", "", "", "", 0)
+	p.Address = "neigh"
+	_, err = e.WithdrawFunds(t.Context(), p)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.WithdrawFunds(t.Context(), testCrypto, "on_chain", testAddress, testCrypto.String(), "", "", "", "", clientIDGenerator(), "", "", "", "", "", testAmount)
+	_, err = e.WithdrawFunds(t.Context(), &WithdrawFundsParams{Cur: testCrypto, TransferType: "on_chain", Address: testAddress, Chain: testCrypto.String(), ClientOrderID: "a", Amount: testAmount})
 	assert.NoError(t, err)
 }
 
@@ -1153,7 +1190,14 @@ func TestCancelWithdrawal(t *testing.T) {
 	_, err := e.CancelWithdrawal(t.Context(), 0)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	resp, err := e.WithdrawFunds(t.Context(), testCrypto, "on_chain", testAddress, testCrypto.String(), "", "", "", "", clientIDGenerator(), "", "", "", "", "", testAmount)
+	resp, err := e.WithdrawFunds(t.Context(), &WithdrawFundsParams{
+		Cur:           testCrypto,
+		TransferType:  "on_chain",
+		Address:       testAddress,
+		Chain:         testCrypto.String(),
+		ClientOrderID: "a",
+		Amount:        testAmount,
+	})
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.OrderID)
 	_, err = e.CancelWithdrawal(t.Context(), int64(resp.OrderID))
@@ -1531,40 +1575,52 @@ func TestGetHistoricalPositions(t *testing.T) {
 
 func TestPlaceFuturesOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceFuturesOrder(t.Context(), currency.Pair{}, "", "", "", "", "", "", "", "", currency.Code{}, 0, 0, 0, 0, false, false)
+	p := &PlaceSingleFuturesOrderParams{}
+	_, err := e.PlaceFuturesOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.PlaceFuturesOrder(t.Context(), testPair2, "", "", "", "", "", "", "", "", currency.Code{}, 0, 0, 0, 0, false, false)
+	p.Pair = testPair2
+	_, err = e.PlaceFuturesOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = e.PlaceFuturesOrder(t.Context(), testPair2, "woof", "", "", "", "", "", "", "", currency.Code{}, 0, 0, 0, 0, false, false)
+	p.ProductType = "woof"
+	_, err = e.PlaceFuturesOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errMarginModeEmpty)
-	_, err = e.PlaceFuturesOrder(t.Context(), testPair2, "woof", "neigh", "", "", "", "", "", "", currency.Code{}, 0, 0, 0, 0, false, false)
+	p.MarginMode = "neigh"
+	_, err = e.PlaceFuturesOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errMarginCoinEmpty)
-	_, err = e.PlaceFuturesOrder(t.Context(), testPair2, "woof", "neigh", "", "", "", "", "", "", testFiat2, 0, 0, 0, 0, false, false)
+	p.MarginCoin = testFiat2
+	_, err = e.PlaceFuturesOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errSideEmpty)
-	_, err = e.PlaceFuturesOrder(t.Context(), testPair2, "woof", "neigh", "oink", "", "", "", "", "", testFiat2, 0, 0, 0, 0, false, false)
+	p.Side = "oink"
+	_, err = e.PlaceFuturesOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	_, err = e.PlaceFuturesOrder(t.Context(), testPair2, "woof", "neigh", "oink", "", "limit", "", "", "", testFiat2, 0, 0, 0, 0, false, false)
+	p.OrderType = "limit"
+	_, err = e.PlaceFuturesOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	_, err = e.PlaceFuturesOrder(t.Context(), testPair2, "woof", "neigh", "oink", "", "limit", "", "", "", testFiat2, 0, 0, 1, 0, false, false)
+	p.Amount = testAmount2
+	_, err = e.PlaceFuturesOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errLimitPriceEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	resp, err := e.PlaceFuturesOrder(t.Context(), testPair2, testFiat2.String()+"-FUTURES", "isolated", "buy", "open", "limit", "GTC", clientIDGenerator(), "", testFiat2, testPrice2+1, testPrice2-1, testAmount2, testPrice2, true, true)
+	resp, err := e.PlaceFuturesOrder(t.Context(), &PlaceSingleFuturesOrderParams{Pair: testPair2, ProductType: testFiat2.String() + "-FUTURES", MarginMode: "isolated", Side: "buy", TradeSide: "open", OrderType: "limit", Strategy: "GTC", ClientOrderID: "a", MarginCoin: testFiat2, StopSurplusPrice: testPrice2 + 1, StopLossPrice: testPrice2 - 1, Amount: testAmount2, Price: testPrice2, ReduceOnly: true}, true)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
 
 func TestPlaceReversal(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceReversal(t.Context(), currency.Pair{}, currency.Code{}, "", "", "", "", 0, false)
+	p := &PlaceReversalParams{}
+	_, err := e.PlaceReversal(t.Context(), p, false)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.PlaceReversal(t.Context(), testPair2, currency.Code{}, "", "", "", "", 0, false)
+	p.Pair = testPair2
+	_, err = e.PlaceReversal(t.Context(), p, false)
 	assert.ErrorIs(t, err, errMarginCoinEmpty)
-	_, err = e.PlaceReversal(t.Context(), testPair2, testFiat2, "", "", "", "", 0, false)
+	p.MarginCoin = testFiat2
+	_, err = e.PlaceReversal(t.Context(), p, false)
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = e.PlaceReversal(t.Context(), testPair2, testFiat2, "neigh", "", "", "", 0, false)
+	p.ProductType = "neigh"
+	_, err = e.PlaceReversal(t.Context(), p, false)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.PlaceReversal(t.Context(), testPair, testFiat, testFiat.String()+"-FUTURES", "Buy", "Open", clientIDGenerator(), 30, true)
+	_, err = e.PlaceReversal(t.Context(), &PlaceReversalParams{Pair: testPair2, MarginCoin: testFiat2, ProductType: testFiat2.String() + "-FUTURES", Side: "Buy", TradeSide: "Open", ClientOrderID: "a", Amount: 30}, true)
 	assert.NoError(t, err)
 }
 
@@ -1581,7 +1637,7 @@ func TestBatchPlaceFuturesOrders(t *testing.T) {
 	_, err = e.BatchPlaceFuturesOrders(t.Context(), testPair2, "woof", "neigh", testFiat2, nil, false)
 	assert.ErrorIs(t, err, errOrdersEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	orders := []PlaceFuturesOrderStruct{
+	orders := []PlaceFuturesOrderParams{
 		{
 			Size:      testAmount,
 			Price:     testPrice,
@@ -1690,103 +1746,134 @@ func TestGetFuturesTriggerOrderByID(t *testing.T) {
 
 func TestPlaceTPSLFuturesOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceTPSLFuturesOrder(t.Context(), currency.Code{}, "", "", "", "", "", "", "", currency.Pair{}, 0, 0, 0)
+	p := &PlaceTPSLFuturesOrderParams{}
+	_, err := e.PlaceTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errMarginCoinEmpty)
-	_, err = e.PlaceTPSLFuturesOrder(t.Context(), testFiat2, "", "", "", "", "", "", "", currency.Pair{}, 0, 0, 0)
+	p.MarginCoin = testFiat2
+	_, err = e.PlaceTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = e.PlaceTPSLFuturesOrder(t.Context(), testFiat2, "woof", "", "", "", "", "", "", currency.Pair{}, 0, 0, 0)
+	p.ProductType = "woof"
+	_, err = e.PlaceTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.PlaceTPSLFuturesOrder(t.Context(), testFiat2, "woof", "", "", "", "", "", "", testPair2, 0, 0, 0)
+	p.Pair = testPair2
+	_, err = e.PlaceTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errPlanTypeEmpty)
-	_, err = e.PlaceTPSLFuturesOrder(t.Context(), testFiat2, "woof", "neigh", "", "", "", "", "", testPair2, 0, 0, 0)
+	p.PlanType = "neigh"
+	_, err = e.PlaceTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errHoldSideEmpty)
-	_, err = e.PlaceTPSLFuturesOrder(t.Context(), testFiat2, "woof", "neigh", "", "quack", "", "", "", testPair2, 0, 0, 0)
+	p.HoldSide = "quack"
+	_, err = e.PlaceTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errTriggerPriceEmpty)
-	_, err = e.PlaceTPSLFuturesOrder(t.Context(), testFiat2, "woof", "neigh", "", "quack", "", "", "", testPair2, 1, 0, 0)
+	p.TriggerPrice = 1
+	_, err = e.PlaceTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	cID := clientIDGenerator()
-	resp, err := e.PlaceTPSLFuturesOrder(t.Context(), testFiat2, testFiat2.String()+"-FUTURES", "profit_plan", "", "short", "", cID, "", testPair2, testPrice2+2, 0, testAmount2)
+	resp, err := e.PlaceTPSLFuturesOrder(t.Context(), &PlaceTPSLFuturesOrderParams{MarginCoin: testFiat2, ProductType: testFiat2.String() + "-FUTURES", PlanType: "profit_plan", HoldSide: "short", ClientOrderID: "a", Pair: testPair2, TriggerPrice: testPrice2 + 2, Amount: testAmount2})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
 
 func TestPlaceTPAndSLFuturesOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceTPAndSLFuturesOrder(t.Context(), currency.Code{}, "", "", "", "", "", currency.Pair{}, 0, 0, 0, 0)
+	p := &PlaceTPAndSLFuturesOrderParams{}
+	_, err := e.PlaceTPAndSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errMarginCoinEmpty)
-	_, err = e.PlaceTPAndSLFuturesOrder(t.Context(), testFiat2, "", "", "", "", "", currency.Pair{}, 0, 0, 0, 0)
+	p.MarginCoin = testFiat2
+	_, err = e.PlaceTPAndSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = e.PlaceTPAndSLFuturesOrder(t.Context(), testFiat2, "woof", "", "", "", "", currency.Pair{}, 0, 0, 0, 0)
+	p.ProductType = "woof"
+	_, err = e.PlaceTPAndSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.PlaceTPAndSLFuturesOrder(t.Context(), testFiat2, "woof", "", "", "", "", testPair2, 0, 0, 0, 0)
+	p.Pair = testPair2
+	_, err = e.PlaceTPAndSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errTakeProfitTriggerPriceEmpty)
-	_, err = e.PlaceTPAndSLFuturesOrder(t.Context(), testFiat2, "woof", "", "", "", "", testPair2, 1, 0, 0, 0)
+	p.TakeProfitTriggerPrice = 1
+	_, err = e.PlaceTPAndSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errStopLossTriggerPriceEmpty)
-	_, err = e.PlaceTPAndSLFuturesOrder(t.Context(), testFiat2, "woof", "", "", "", "", testPair2, 1, 0, 1, 0)
+	p.StopLossTriggerPrice = 1
+	_, err = e.PlaceTPAndSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errHoldSideEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	resp, err := e.PlaceTPAndSLFuturesOrder(t.Context(), testFiat2, testFiat2.String()+"-FUTURES", "fill_price", "fill_price", "short", "", testPair2, 2*testPrice2+1, 2*testPrice2, testPrice2-1, testPrice2)
+	resp, err := e.PlaceTPAndSLFuturesOrder(t.Context(), &PlaceTPAndSLFuturesOrderParams{MarginCoin: testFiat2, ProductType: testFiat2.String() + "-FUTURES", TakeProfitTriggerType: "fill_price", StopLossTriggerType: "fill_price", HoldSide: "short", Pair: testPair2, TakeProfitTriggerPrice: 2*testPrice2 + 1, TakeProfitExecutePrice: 2 * testPrice2, StopLossTriggerPrice: testPrice2 - 1, StopLossExecutePrice: testPrice2})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
 
 func TestPlaceTriggerFuturesOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceTriggerFuturesOrder(t.Context(), "", "", "", "", "", "", "", "", "", "", "", currency.Pair{}, currency.Code{}, 0, 0, 0, 0, 0, 0, 0, 0, false)
+	p := &PlaceTriggerFuturesOrderParams{}
+	_, err := e.PlaceTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errPlanTypeEmpty)
-	_, err = e.PlaceTriggerFuturesOrder(t.Context(), "meow", "", "", "", "", "", "", "", "", "", "", currency.Pair{}, currency.Code{}, 0, 0, 0, 0, 0, 0, 0, 0, false)
+	p.PlanType = "meow"
+	_, err = e.PlaceTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.PlaceTriggerFuturesOrder(t.Context(), "meow", "", "", "", "", "", "", "", "", "", "", testPair2, currency.Code{}, 0, 0, 0, 0, 0, 0, 0, 0, false)
+	p.Pair = testPair2
+	_, err = e.PlaceTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = e.PlaceTriggerFuturesOrder(t.Context(), "meow", "woof", "", "", "", "", "", "", "", "", "", testPair2, currency.Code{}, 0, 0, 0, 0, 0, 0, 0, 0, false)
+	p.ProductType = "woof"
+	_, err = e.PlaceTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errMarginModeEmpty)
-	_, err = e.PlaceTriggerFuturesOrder(t.Context(), "meow", "woof", "neigh", "", "", "", "", "", "", "", "", testPair2, currency.Code{}, 0, 0, 0, 0, 0, 0, 0, 0, false)
+	p.MarginMode = "neigh"
+	_, err = e.PlaceTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errMarginCoinEmpty)
-	_, err = e.PlaceTriggerFuturesOrder(t.Context(), "meow", "woof", "neigh", "", "", "", "", "", "", "", "", testPair2, testFiat2, 0, 0, 0, 0, 0, 0, 0, 0, false)
+	p.MarginCoin = testFiat2
+	_, err = e.PlaceTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errTriggerTypeEmpty)
-	_, err = e.PlaceTriggerFuturesOrder(t.Context(), "meow", "woof", "neigh", "oink", "", "", "", "", "", "", "", testPair2, testFiat2, 0, 0, 0, 0, 0, 0, 0, 0, false)
+	p.TriggerType = "oink"
+	_, err = e.PlaceTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errSideEmpty)
-	_, err = e.PlaceTriggerFuturesOrder(t.Context(), "meow", "woof", "neigh", "oink", "quack", "", "", "", "", "", "", testPair2, testFiat2, 0, 0, 0, 0, 0, 0, 0, 0, false)
+	p.Side = "quack"
+	_, err = e.PlaceTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	_, err = e.PlaceTriggerFuturesOrder(t.Context(), "meow", "woof", "neigh", "oink", "quack", "", "cluck", "", "", "", "", testPair2, testFiat2, 0, 0, 0, 0, 0, 0, 0, 0, false)
+	p.OrderType = "cluck"
+	_, err = e.PlaceTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	_, err = e.PlaceTriggerFuturesOrder(t.Context(), "meow", "woof", "neigh", "oink", "quack", "", "cluck", "", "", "", "", testPair2, testFiat2, 1, 0, 0, 0, 0, 0, 0, 0, false)
+	p.Amount = 1
+	_, err = e.PlaceTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errExecutePriceEmpty)
-	_, err = e.PlaceTriggerFuturesOrder(t.Context(), "meow", "woof", "neigh", "oink", "quack", "", "cluck", "", "", "", "", testPair2, testFiat2, 1, 1, 0, 0, 0, 0, 0, 0, false)
+	p.ExecutePrice = 1
+	_, err = e.PlaceTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errTriggerPriceEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	// This returns the error "The parameter does not meet the specification d delegateType is error". The documentation doesn't mention that parameter anywhere, nothing seems similar to it, and attempts to send that parameter with various values, or to tweak other parameters, yielded no difference
-	resp, err := e.PlaceTriggerFuturesOrder(t.Context(), "normal_plan", testFiat2.String()+"-FUTURES", "isolated", "mark_price", "Sell", "", "limit", clientIDGenerator(), "fill_price", "fill_price", "", testPair2, testFiat2, testAmount2*1000, testPrice2+2, 0, testPrice2+1, testPrice2+3, testPrice2-2, testPrice2-1, testPrice2/2, true)
+	resp, err := e.PlaceTriggerFuturesOrder(t.Context(), &PlaceTriggerFuturesOrderParams{PlanType: "normal_plan", ProductType: testFiat2.String() + "-FUTURES", MarginMode: "isolated", TriggerType: "mark_price", Side: "Sell", OrderType: "limit", ClientOrderID: "a", TakeProfitTriggerType: "fill_price", StopLossTriggerType: "fill_price", Pair: testPair2, MarginCoin: testFiat2, Amount: testAmount2 * 1000, ExecutePrice: testPrice2 + 2, TriggerPrice: testPrice2 + 1, TakeProfitTriggerPrice: testPrice2 + 3, TakeProfitExecutePrice: testPrice2 - 2, StopLossTriggerPrice: testPrice2 - 1, StopLossExecutePrice: testPrice2 / 2, ReduceOnly: true})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
 
 func TestModifyTPSLFuturesOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.ModifyTPSLFuturesOrder(t.Context(), 0, "", "", "", currency.Code{}, currency.Pair{}, 0, 0, 0, 0)
+	p := &ModifyTPSLFuturesOrderParams{}
+	_, err := e.ModifyTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.ModifyTPSLFuturesOrder(t.Context(), 1, "", "", "", currency.Code{}, currency.Pair{}, 0, 0, 0, 0)
+	p.OrderID = 1
+	_, err = e.ModifyTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errMarginCoinEmpty)
-	_, err = e.ModifyTPSLFuturesOrder(t.Context(), 1, "", "", "", testFiat2, currency.Pair{}, 0, 0, 0, 0)
+	p.MarginCoin = testFiat2
+	_, err = e.ModifyTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = e.ModifyTPSLFuturesOrder(t.Context(), 1, "", "meow", "", testFiat2, currency.Pair{}, 0, 0, 0, 0)
+	p.ProductType = "meow"
+	_, err = e.ModifyTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.ModifyTPSLFuturesOrder(t.Context(), 1, "", "meow", "", testFiat2, testPair2, 0, 0, 0, 0)
+	p.Pair = testPair2
+	_, err = e.ModifyTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errTriggerPriceEmpty)
-	_, err = e.ModifyTPSLFuturesOrder(t.Context(), 1, "", "meow", "", testFiat2, testPair2, 1, 0, 0, 0)
+	p.TriggerPrice = 1
+	_, err = e.ModifyTPSLFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	resp, err := e.ModifyTPSLFuturesOrder(t.Context(), 1, "a", testFiat2.String()+"-FUTURES", "", testFiat2, testPair2, testPrice2-1, testPrice2+2, testAmount2, 0.1)
+	resp, err := e.ModifyTPSLFuturesOrder(t.Context(), &ModifyTPSLFuturesOrderParams{OrderID: 1, ClientOrderID: "a", ProductType: testFiat2.String() + "-FUTURES", MarginCoin: testFiat2, Pair: testPair2, TriggerPrice: testPrice2 - 1, ExecutePrice: testPrice2 + 2, Amount: testAmount2, RangeRate: 0.1})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
 
 func TestModifyTriggerFuturesOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.ModifyTriggerFuturesOrder(t.Context(), 0, "", "", "", "", "", 0, 0, 0, 0, 0, 0, 0, 0)
+	p := &ModifyTriggerFuturesOrderParams{}
+	_, err := e.ModifyTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.ModifyTriggerFuturesOrder(t.Context(), 1, "", "", "", "", "", 0, 0, 0, 0, 0, 0, 0, 0)
+	p.OrderID = 1
+	_, err = e.ModifyTriggerFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	t.Skip("TODO: Finish once PlaceTriggerFuturesOrder is fixed")
@@ -1890,7 +1977,7 @@ func TestCrossBorrow(t *testing.T) {
 	_, err = e.CrossBorrow(t.Context(), testFiat, "", 0)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.CrossBorrow(t.Context(), testFiat, clientIDGenerator(), testAmount)
+	_, err = e.CrossBorrow(t.Context(), testFiat, "a", testAmount)
 	assert.NoError(t, err)
 }
 
@@ -1951,20 +2038,26 @@ func TestGetCrossFlashRepayResult(t *testing.T) {
 
 func TestPlaceCrossOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceCrossOrder(t.Context(), currency.Pair{}, "", "", "", "", "", "", 0, 0, 0)
+	p := &PlaceMarginOrderParams{}
+	_, err := e.PlaceCrossOrder(t.Context(), p)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.PlaceCrossOrder(t.Context(), testPair, "", "", "", "", "", "", 0, 0, 0)
+	p.Pair = testPair
+	_, err = e.PlaceCrossOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	_, err = e.PlaceCrossOrder(t.Context(), testPair, "woof", "", "", "", "", "", 0, 0, 0)
+	p.OrderType = "woof"
+	_, err = e.PlaceCrossOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errLoanTypeEmpty)
-	_, err = e.PlaceCrossOrder(t.Context(), testPair, "woof", "neigh", "", "", "", "", 0, 0, 0)
+	p.LoanType = "neigh"
+	_, err = e.PlaceCrossOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errStrategyEmpty)
-	_, err = e.PlaceCrossOrder(t.Context(), testPair, "woof", "neigh", "oink", "", "", "", 0, 0, 0)
+	p.Strategy = "oink"
+	_, err = e.PlaceCrossOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errSideEmpty)
-	_, err = e.PlaceCrossOrder(t.Context(), testPair, "woof", "neigh", "oink", "", "quack", "", 0, 0, 0)
+	p.Side = "quack"
+	_, err = e.PlaceCrossOrder(t.Context(), p)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.PlaceCrossOrder(t.Context(), testPair, "limit", "normal", "GTC", "", "sell", "", testPrice, testAmount, testAmount*testPrice)
+	_, err = e.PlaceCrossOrder(t.Context(), &PlaceMarginOrderParams{Pair: testPair, OrderType: "limit", LoanType: "normal", Strategy: "GTC", Side: "Sell", Price: testPrice, BaseAmount: testAmount, QuoteAmount: testAmount * testPrice})
 	assert.NoError(t, err)
 }
 
@@ -2179,20 +2272,26 @@ func TestGetIsolatedFlashRepayResult(t *testing.T) {
 
 func TestPlaceIsolatedOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceIsolatedOrder(t.Context(), currency.Pair{}, "", "", "", "", "", "", 0, 0, 0)
+	p := &PlaceMarginOrderParams{}
+	_, err := e.PlaceIsolatedOrder(t.Context(), p)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.PlaceIsolatedOrder(t.Context(), testPair, "", "", "", "", "", "", 0, 0, 0)
+	p.Pair = testPair
+	_, err = e.PlaceIsolatedOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	_, err = e.PlaceIsolatedOrder(t.Context(), testPair, "meow", "", "", "", "", "", 0, 0, 0)
+	p.OrderType = "meow"
+	_, err = e.PlaceIsolatedOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errLoanTypeEmpty)
-	_, err = e.PlaceIsolatedOrder(t.Context(), testPair, "meow", "woof", "", "", "", "", 0, 0, 0)
+	p.LoanType = "woof"
+	_, err = e.PlaceIsolatedOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errStrategyEmpty)
-	_, err = e.PlaceIsolatedOrder(t.Context(), testPair, "meow", "woof", "neigh", "", "", "", 0, 0, 0)
+	p.Strategy = "neigh"
+	_, err = e.PlaceIsolatedOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errSideEmpty)
-	_, err = e.PlaceIsolatedOrder(t.Context(), testPair, "meow", "woof", "neigh", "", "quack", "", 0, 0, 0)
+	p.Side = "quack"
+	_, err = e.PlaceIsolatedOrder(t.Context(), p)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.PlaceIsolatedOrder(t.Context(), testPair, "limit", "normal", "GTC", "", "sell", "", testPrice, testAmount, testPrice*testAmount)
+	_, err = e.PlaceIsolatedOrder(t.Context(), &PlaceMarginOrderParams{Pair: testPair, OrderType: "limit", LoanType: "normal", Strategy: "GTC", Side: "Sell", Price: testPrice, BaseAmount: testAmount, QuoteAmount: testAmount * testPrice})
 	assert.NoError(t, err)
 }
 
@@ -3377,16 +3476,20 @@ func TestRepayLoan(t *testing.T) {
 }
 
 func TestModifyFuturesOrder(t *testing.T) {
-	_, err := e.ModifyFuturesOrder(t.Context(), 0, "", "", "", currency.Pair{}, 0, 0, 0, 0)
+	p := &ModifyFuturesOrderParams{}
+	_, err := e.ModifyFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.ModifyFuturesOrder(t.Context(), 1, "", "", "", currency.Pair{}, 0, 0, 0, 0)
+	p.OrderID = 1
+	_, err = e.ModifyFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.ModifyFuturesOrder(t.Context(), 1, "", "", "", currency.NewPairWithDelimiter("meow", "woof", ""), 0, 0, 0, 0)
+	p.Pair = testPair2
+	_, err = e.ModifyFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = e.ModifyFuturesOrder(t.Context(), 1, "", "meow", "", currency.NewPairWithDelimiter("meow", "woof", ""), 0, 0, 0, 0)
+	p.ProductType = "meow"
+	_, err = e.ModifyFuturesOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errNewClientOrderIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.ModifyFuturesOrder(t.Context(), 1, "a", testFiat2.String()+"-FUTURES", clientIDGenerator(), testPair2, testAmount2+1, testPrice2+2, testPrice2+1, testPrice2/10)
+	_, err = e.ModifyFuturesOrder(t.Context(), &ModifyFuturesOrderParams{OrderID: 1, ClientOrderID: "a", ProductType: testFiat2.String() + "-FUTURES", NewClientOrderID: "a", Pair: testPair2, NewAmount: testAmount2 + 1, NewPrice: testPrice2 + 2, NewTakeProfit: testPrice2 + 1, NewStopLoss: testPrice2 / 10})
 	assert.NoError(t, err)
 }
 

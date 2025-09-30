@@ -36,6 +36,23 @@ const (
 	bitgetPrivateWSURL        = "wss://ws.bitget.com/v2/ws/private"
 	bitgetPublicSandboxWSUrl  = "wss://wspap.bitget.com/v2/ws/public"
 	bitgetPrivateSandboxWSUrl = "wss://wspap.bitget.com/v2/ws/private"
+
+	// Websocket endpoints
+	// Unauthenticated
+	bitgetCandleDailyChannel = "candle1D" // There's one of these for each time period, but we'll ignore those for now
+	bitgetBookFullChannel    = "books"    // There's more of these for varying orderbook depths, ignored for now
+	bitgetIndexPriceChannel  = "index-price"
+
+	// Authenticated
+	bitgetFillChannel             = "fill"
+	bitgetOrdersChannel           = "orders"
+	bitgetOrdersAlgoChannel       = "orders-algo"
+	bitgetPositionsChannel        = "positions"
+	bitgetPositionsHistoryChannel = "positions-history"
+	bitgetAccountCrossedChannel   = "account-crossed"
+	bitgetOrdersCrossedChannel    = "orders-crossed"
+	bitgetAccountIsolatedChannel  = "account-isolated"
+	bitgetOrdersIsolatedChannel   = "orders-isolated"
 )
 
 var subscriptionNames = map[asset.Item]map[string]string{

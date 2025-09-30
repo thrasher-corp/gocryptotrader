@@ -225,23 +225,6 @@ const (
 	bitgetLoanOrder                = "loan-order"
 	bitgetRepaidHistory            = "repaid-history"
 
-	// Websocket endpoints
-	// Unauthenticated
-	bitgetCandleDailyChannel = "candle1D" // There's one of these for each time period, but we'll ignore those for now
-	bitgetBookFullChannel    = "books"    // There's more of these for varying orderbook depths, ignored for now
-	bitgetIndexPriceChannel  = "index-price"
-
-	// Authenticated
-	bitgetFillChannel             = "fill"
-	bitgetOrdersChannel           = "orders"
-	bitgetOrdersAlgoChannel       = "orders-algo"
-	bitgetPositionsChannel        = "positions"
-	bitgetPositionsHistoryChannel = "positions-history"
-	bitgetAccountCrossedChannel   = "account-crossed"
-	bitgetOrdersCrossedChannel    = "orders-crossed"
-	bitgetAccountIsolatedChannel  = "account-isolated"
-	bitgetOrdersIsolatedChannel   = "orders-isolated"
-
 	// Error strings
 	errIntervalNotSupported = "interval not supported"
 	errWebsocketGeneric     = "%v - Websocket error, code: %v message: %v"
@@ -1101,62 +1084,31 @@ func (e *Exchange) GetSpotMarketTrades(ctx context.Context, pair currency.Pair, 
 }
 
 // PlaceSpotOrder places a spot order on the exchange
-func (e *Exchange) PlaceSpotOrder(ctx context.Context, pair currency.Pair, side, orderType, strategy, clientOrderID, stpMode string, price, amount, triggerPrice, presetTPPrice, executeTPPrice, presetSLPrice, executeSLPrice float64, isCopyTradeLeader bool, acceptableDelay time.Duration) (*OrderIDStruct, error) {
-	if pair.IsEmpty() {
+func (e *Exchange) PlaceSpotOrder(ctx context.Context, p *PlaceSingleSpotOrderParams, isCopyTradeLeader bool) (*OrderIDStruct, error) {
+	if p == nil {
+		return nil, fmt.Errorf("%T %w", p, common.ErrNilPointer)
+	}
+	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if side == "" {
+	if p.Side == "" {
 		return nil, errSideEmpty
 	}
-	if orderType == "" {
+	if p.OrderType == "" {
 		return nil, errOrderTypeEmpty
 	}
-	if strategy == "" {
+	if p.Strategy == "" {
 		return nil, errStrategyEmpty
 	}
-	if orderType == "limit" && price <= 0 {
+	if p.OrderType == "limit" && p.Price <= 0 {
 		return nil, errLimitPriceEmpty
 	}
-	if amount <= 0 {
+	if p.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
-	req := struct {
-		Symbol                 currency.Pair `json:"symbol"`
-		Side                   string        `json:"side"`
-		OrderType              string        `json:"orderType"`
-		Force                  string        `json:"force"`
-		Price                  float64       `json:"price,string"`
-		Size                   float64       `json:"size,string"`
-		STPMode                string        `json:"stpMode"`
-		RequestTime            string        `json:"requestTime"`
-		TriggerPrice           float64       `json:"triggerPrice,omitempty,string"`
-		TPSLType               string        `json:"tpslType,omitempty"`
-		ClientOrderID          string        `json:"clientOid,omitempty"`
-		ReceiveWindow          int64         `json:"receiveWindow,omitempty,string"`
-		PresetTakeProfitPrice  float64       `json:"presetTakeProfitPrice,omitempty,string"`
-		ExecuteTakeProfitPrice float64       `json:"executeTakeProfitPrice,omitempty,string"`
-		PresetStopLossPrice    float64       `json:"presetStopLossPrice,omitempty,string"`
-		ExecuteStopLossPrice   float64       `json:"executeStopLossPrice,omitempty,string"`
-	}{
-		Symbol:                 pair,
-		Side:                   side,
-		OrderType:              orderType,
-		Force:                  strategy,
-		Price:                  price,
-		Size:                   amount,
-		STPMode:                stpMode,
-		RequestTime:            strconv.FormatInt(time.Now().UnixMilli(), 10),
-		TriggerPrice:           triggerPrice,
-		ReceiveWindow:          acceptableDelay.Milliseconds(),
-		PresetTakeProfitPrice:  presetTPPrice,
-		ExecuteTakeProfitPrice: executeTPPrice,
-		PresetStopLossPrice:    presetSLPrice,
-		ExecuteStopLossPrice:   executeSLPrice,
-	}
-	if triggerPrice > 0 {
-		req.TPSLType = "tpsl"
-	} else if clientOrderID != "" {
-		req.ClientOrderID = clientOrderID
+	if p.TriggerPrice > 0 {
+		p.TPSLType = "tpsl"
+		p.ClientOrderID = ""
 	}
 	path := bitgetSpot + bitgetTrade + bitgetPlaceOrder
 	var resp *OrderIDStruct
@@ -1165,55 +1117,32 @@ func (e *Exchange) PlaceSpotOrder(ctx context.Context, pair currency.Pair, side,
 	if isCopyTradeLeader {
 		rLim = rate1
 	}
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, p, &resp)
 }
 
 // CancelAndPlaceSpotOrder cancels an order and places a new one on the exchange
-func (e *Exchange) CancelAndPlaceSpotOrder(ctx context.Context, pair currency.Pair, oldClientOrderID, newClientOrderID string, price, amount, presetTPPrice, executeTPPrice, presetSLPrice, executeSLPrice float64, orderID int64) (*CancelAndPlaceResp, error) {
-	if pair.IsEmpty() {
+func (e *Exchange) CancelAndPlaceSpotOrder(ctx context.Context, p *CancelAndPlaceSpotOrderParams) (*CancelAndPlaceResp, error) {
+	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if oldClientOrderID == "" && orderID == 0 {
+	if p.OldClientOrderID == "" && p.OrderID == 0 {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if price <= 0 {
+	if p.Price <= 0 {
 		return nil, limits.ErrPriceBelowMin
-	}
-	req := struct {
-		Pair                   currency.Pair `json:"symbol"`
-		Price                  float64       `json:"price,string"`
-		Size                   float64       `json:"size,string"`
-		OldClientOrderID       string        `json:"clientOid,omitempty"`
-		OrderID                int64         `json:"orderId,omitempty,string"`
-		NewClientOrderID       string        `json:"newClientOid,omitempty"`
-		PresetTakeProfitPrice  float64       `json:"presetTakeProfitPrice,omitempty,string"`
-		ExecuteTakeProfitPrice float64       `json:"executeTakeProfitPrice,omitempty,string"`
-		PresetStopLossPrice    float64       `json:"presetStopLossPrice,omitempty,string"`
-		ExecuteStopLossPrice   float64       `json:"executeStopLossPrice,omitempty,string"`
-	}{
-		Pair:                   pair,
-		Price:                  price,
-		Size:                   amount,
-		OldClientOrderID:       oldClientOrderID,
-		OrderID:                orderID,
-		NewClientOrderID:       newClientOrderID,
-		PresetTakeProfitPrice:  presetTPPrice,
-		ExecuteTakeProfitPrice: executeTPPrice,
-		PresetStopLossPrice:    presetSLPrice,
-		ExecuteStopLossPrice:   executeSLPrice,
 	}
 	path := bitgetSpot + bitgetTrade + bitgetCancelReplaceOrder
 	var resp *CancelAndPlaceResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate5, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate5, http.MethodPost, path, nil, p, &resp)
 }
 
 // BatchCancelAndPlaceSpotOrders cancels and places up to fifty orders on the exchange
-func (e *Exchange) BatchCancelAndPlaceSpotOrders(ctx context.Context, orders []ReplaceSpotOrderStruct) ([]CancelAndPlaceResp, error) {
+func (e *Exchange) BatchCancelAndPlaceSpotOrders(ctx context.Context, orders []ReplaceSpotOrderParams) ([]CancelAndPlaceResp, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
 	req := struct {
-		OrderList []ReplaceSpotOrderStruct `json:"orderList"`
+		OrderList []ReplaceSpotOrderParams `json:"orderList"`
 	}{
 		OrderList: orders,
 	}
@@ -1247,7 +1176,7 @@ func (e *Exchange) CancelSpotOrderByID(ctx context.Context, pair currency.Pair, 
 }
 
 // BatchPlaceSpotOrders places up to fifty orders on the exchange
-func (e *Exchange) BatchPlaceSpotOrders(ctx context.Context, pair currency.Pair, multiCurrencyMode, isCopyTradeLeader bool, orders []PlaceSpotOrderStruct) (*BatchOrderResp, error) {
+func (e *Exchange) BatchPlaceSpotOrders(ctx context.Context, pair currency.Pair, multiCurrencyMode, isCopyTradeLeader bool, orders []PlaceSpotOrderParams) (*BatchOrderResp, error) {
 	if pair.IsEmpty() && !multiCurrencyMode {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1256,7 +1185,7 @@ func (e *Exchange) BatchPlaceSpotOrders(ctx context.Context, pair currency.Pair,
 	}
 	req := struct {
 		Symbol    currency.Pair          `json:"symbol"`
-		OrderList []PlaceSpotOrderStruct `json:"orderList"`
+		OrderList []PlaceSpotOrderParams `json:"orderList"`
 		BatchMode string                 `json:"batchMode,omitempty"`
 	}{
 		Symbol:    pair,
@@ -1275,7 +1204,7 @@ func (e *Exchange) BatchPlaceSpotOrders(ctx context.Context, pair currency.Pair,
 }
 
 // BatchCancelOrders cancels up to fifty orders on the exchange
-func (e *Exchange) BatchCancelOrders(ctx context.Context, pair currency.Pair, multiCurrencyMode bool, orderIDs []CancelSpotOrderStruct) (*BatchOrderResp, error) {
+func (e *Exchange) BatchCancelOrders(ctx context.Context, pair currency.Pair, multiCurrencyMode bool, orderIDs []CancelSpotOrderParams) (*BatchOrderResp, error) {
 	if pair.IsEmpty() && !multiCurrencyMode {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1284,7 +1213,7 @@ func (e *Exchange) BatchCancelOrders(ctx context.Context, pair currency.Pair, mu
 	}
 	req := struct {
 		Symbol    currency.Pair           `json:"symbol"`
-		OrderList []CancelSpotOrderStruct `json:"orderList"`
+		OrderList []CancelSpotOrderParams `json:"orderList"`
 		BatchMode string                  `json:"batchMode,omitempty"`
 	}{
 		Symbol:    pair,
@@ -1405,56 +1334,31 @@ func (e *Exchange) GetSpotFills(ctx context.Context, pair currency.Pair, startTi
 }
 
 // PlacePlanSpotOrder sets up an order to be placed after certain conditions are met
-func (e *Exchange) PlacePlanSpotOrder(ctx context.Context, pair currency.Pair, side, orderType, planType, triggerType, clientOrderID, strategy, stpMode string, triggerPrice, executePrice, amount float64) (*OrderIDStruct, error) {
-	if pair.IsEmpty() {
+func (e *Exchange) PlacePlanSpotOrder(ctx context.Context, p *PlaceSpotPlanOrderParams) (*OrderIDStruct, error) {
+	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if side == "" {
+	if p.Side == "" {
 		return nil, errSideEmpty
 	}
-	if triggerPrice <= 0 {
+	if p.TriggerPrice <= 0 {
 		return nil, errTriggerPriceEmpty
 	}
-	if orderType == "" {
+	if p.OrderType == "" {
 		return nil, errOrderTypeEmpty
 	}
-	if orderType == "limit" && executePrice <= 0 {
+	if p.OrderType == "limit" && p.ExecutePrice <= 0 {
 		return nil, errLimitPriceEmpty
 	}
-	if amount <= 0 {
+	if p.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
-	if triggerType == "" {
+	if p.TriggerType == "" {
 		return nil, errTriggerTypeEmpty
-	}
-	req := struct {
-		Symbol       currency.Pair `json:"symbol"`
-		Side         string        `json:"side"`
-		TriggerPrice float64       `json:"triggerPrice,string"`
-		OrderType    string        `json:"orderType"`
-		ExecutePrice float64       `json:"executePrice,string"`
-		PlanType     string        `json:"planType"`
-		Size         float64       `json:"size,string"`
-		TriggerType  string        `json:"triggerType"`
-		Force        string        `json:"force"`
-		STPMode      string        `json:"stpMode"`
-		ClientOID    string        `json:"clientOid,omitempty"`
-	}{
-		Symbol:       pair,
-		Side:         side,
-		TriggerPrice: triggerPrice,
-		OrderType:    orderType,
-		ExecutePrice: executePrice,
-		PlanType:     planType,
-		Size:         amount,
-		TriggerType:  triggerType,
-		Force:        strategy,
-		STPMode:      stpMode,
-		ClientOID:    clientOrderID,
 	}
 	path := bitgetSpot + bitgetTrade + bitgetPlacePlanOrder
 	var resp *OrderIDStruct
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodPost, path, nil, p, &resp)
 }
 
 // ModifyPlanSpotOrder alters the price, trigger price, amount, or order type of a plan order
@@ -1573,7 +1477,7 @@ func (e *Exchange) GetSpotPlanOrderHistory(ctx context.Context, pair currency.Pa
 // BatchCancelSpotPlanOrders cancels all plan orders, with the option to restrict to only those for particular pairs
 func (e *Exchange) BatchCancelSpotPlanOrders(ctx context.Context, pairs currency.Pairs) (*BatchOrderResp, error) {
 	req := struct {
-		SymbolList []currency.Pair `json:"symbolList,omitempty"`
+		SymbolList []currency.Pair `json:"symbolList,omitzero"`
 	}{
 		SymbolList: pairs,
 	}
@@ -1671,8 +1575,8 @@ func (e *Exchange) TransferAsset(ctx context.Context, fromType, toType, clientOr
 	req := struct {
 		FromType      string        `json:"fromType"`
 		ToType        string        `json:"toType"`
-		Coin          currency.Code `json:"coin,omitempty"`
-		Symbol        currency.Pair `json:"symbol,omitempty"`
+		Coin          currency.Code `json:"coin,omitzero"`
+		Symbol        currency.Pair `json:"symbol,omitzero"`
 		Amount        float64       `json:"amount,string"`
 		ClientOrderID string        `json:"clientOid,omitempty"`
 	}{
@@ -1705,99 +1609,47 @@ func (e *Exchange) GetTransferableCoinList(ctx context.Context, fromType, toType
 }
 
 // SubaccountTransfer transfers assets between sub-accounts
-func (e *Exchange) SubaccountTransfer(ctx context.Context, fromType, toType, clientOrderID, fromID, toID string, cur currency.Code, pair currency.Pair, amount float64) (*TransferResp, error) {
-	if fromType == "" {
+func (e *Exchange) SubaccountTransfer(ctx context.Context, p *SubaccountTransferParams) (*TransferResp, error) {
+	if p.FromType == "" {
 		return nil, errFromTypeEmpty
 	}
-	if toType == "" {
+	if p.ToType == "" {
 		return nil, errToTypeEmpty
 	}
-	if cur.IsEmpty() && pair.IsEmpty() {
+	if p.Cur.IsEmpty() && p.Pair.IsEmpty() {
 		return nil, errCurrencyAndPairEmpty
 	}
-	if fromID == "" {
+	if p.FromID == "" {
 		return nil, errFromIDEmpty
 	}
-	if toID == "" {
+	if p.ToID == "" {
 		return nil, errToIDEmpty
 	}
-	if amount <= 0 {
+	if p.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
-	}
-	req := struct {
-		FromType   string        `json:"fromType"`
-		ToType     string        `json:"toType"`
-		Amount     float64       `json:"amount,string"`
-		Coin       currency.Code `json:"coin"`
-		Symbol     currency.Pair `json:"symbol"`
-		FromUserID string        `json:"fromUserId"`
-		ToUserID   string        `json:"toUserId"`
-		ClientOID  string        `json:"clientOid,omitempty"`
-	}{
-		FromType:   fromType,
-		ToType:     toType,
-		Amount:     amount,
-		Coin:       cur,
-		Symbol:     pair,
-		FromUserID: fromID,
-		ToUserID:   toID,
-		ClientOID:  clientOrderID,
 	}
 	path := bitgetSpot + bitgetWallet + bitgetSubaccountTransfer
 	var resp *TransferResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, p, &resp)
 }
 
 // WithdrawFunds withdraws funds from the user's account
-func (e *Exchange) WithdrawFunds(ctx context.Context, cur currency.Code, transferType, address, chain, innerAddressType, areaCode, tag, note, clientOrderID, memberCode, identityType, companyName, firstName, lastName string, amount float64) (*OrderIDStruct, error) {
-	if cur.IsEmpty() {
+func (e *Exchange) WithdrawFunds(ctx context.Context, p *WithdrawFundsParams) (*OrderIDStruct, error) {
+	if p.Cur.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if transferType == "" {
+	if p.TransferType == "" {
 		return nil, errTransferTypeEmpty
 	}
-	if address == "" {
+	if p.Address == "" {
 		return nil, errAddressEmpty
 	}
-	if amount <= 0 {
+	if p.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
-	}
-	req := struct {
-		Coin         currency.Code `json:"coin"`
-		TransferType string        `json:"transferType"`
-		Address      string        `json:"address"`
-		Chain        string        `json:"chain"`
-		InnerToType  string        `json:"innerToType"`
-		AreaCode     string        `json:"areaCode"`
-		Tag          string        `json:"tag"`
-		Size         float64       `json:"size,string"`
-		Remark       string        `json:"remark"`
-		MemberCode   string        `json:"memberCode"`
-		IdentityType string        `json:"identityType"`
-		CompanyName  string        `json:"companyName"`
-		FirstName    string        `json:"firstName"`
-		LastName     string        `json:"lastName"`
-		ClientOID    string        `json:"clientOid,omitempty"`
-	}{
-		Coin:         cur,
-		TransferType: transferType,
-		Address:      address,
-		Chain:        chain,
-		InnerToType:  innerAddressType,
-		AreaCode:     areaCode,
-		Tag:          tag,
-		Size:         amount,
-		Remark:       note,
-		MemberCode:   memberCode,
-		IdentityType: identityType,
-		CompanyName:  companyName,
-		FirstName:    firstName,
-		LastName:     lastName,
-		ClientOID:    clientOrderID,
 	}
 	path := bitgetSpot + bitgetWallet + bitgetWithdrawal
 	var resp *OrderIDStruct
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate5, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate5, http.MethodPost, path, nil, p, &resp)
 }
 
 // GetSubaccountTransferRecord returns the user's sub-account transfer history
@@ -2637,63 +2489,30 @@ func (e *Exchange) GetHistoricalPositions(ctx context.Context, pair currency.Pai
 }
 
 // PlaceFuturesOrder places a futures order on the exchange
-func (e *Exchange) PlaceFuturesOrder(ctx context.Context, pair currency.Pair, productType, marginMode, side, tradeSide, orderType, strategy, clientOID, stpMode string, marginCoin currency.Code, stopSurplusPrice, stopLossPrice, amount, price float64, reduceOnly YesNoBool, isCopyTradeLeader bool) (*OrderIDStruct, error) {
-	if pair.IsEmpty() {
+func (e *Exchange) PlaceFuturesOrder(ctx context.Context, p *PlaceSingleFuturesOrderParams, isCopyTradeLeader bool) (*OrderIDStruct, error) {
+	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if productType == "" {
+	if p.ProductType == "" {
 		return nil, errProductTypeEmpty
 	}
-	if marginMode == "" {
+	if p.MarginMode == "" {
 		return nil, errMarginModeEmpty
 	}
-	if marginCoin.IsEmpty() {
+	if p.MarginCoin.IsEmpty() {
 		return nil, errMarginCoinEmpty
 	}
-	if side == "" {
+	if p.Side == "" {
 		return nil, errSideEmpty
 	}
-	if orderType == "" {
+	if p.OrderType == "" {
 		return nil, errOrderTypeEmpty
 	}
-	if amount <= 0 {
+	if p.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
-	if orderType == "limit" && price <= 0 {
+	if p.OrderType == "limit" && p.Price <= 0 {
 		return nil, errLimitPriceEmpty
-	}
-	req := struct {
-		Symbol                 currency.Pair `json:"symbol"`
-		ProductType            string        `json:"productType"`
-		MarginMode             string        `json:"marginMode"`
-		MarginCoin             currency.Code `json:"marginCoin"`
-		Side                   string        `json:"side"`
-		TradeSide              string        `json:"tradeSide"`
-		OrderType              string        `json:"orderType"`
-		Force                  string        `json:"force"`
-		Size                   float64       `json:"size,string"`
-		Price                  float64       `json:"price,string"`
-		STPMode                string        `json:"stpMode"`
-		ClientOID              string        `json:"clientOid,omitempty"`
-		ReduceOnly             YesNoBool     `json:"reduceOnly"`
-		PresetStopSurplusPrice float64       `json:"presetStopSurplusPrice,omitempty,string"`
-		PresetStopLossPrice    float64       `json:"presetStopLossPrice,omitempty,string"`
-	}{
-		Symbol:                 pair,
-		ProductType:            productType,
-		MarginMode:             marginMode,
-		MarginCoin:             marginCoin,
-		Side:                   side,
-		TradeSide:              tradeSide,
-		OrderType:              orderType,
-		Force:                  strategy,
-		Size:                   amount,
-		Price:                  price,
-		STPMode:                stpMode,
-		ClientOID:              clientOID,
-		ReduceOnly:             reduceOnly,
-		PresetStopSurplusPrice: stopSurplusPrice,
-		PresetStopLossPrice:    stopLossPrice,
 	}
 	path := bitgetMix + bitgetOrder + bitgetPlaceOrder
 	rLim := rate10
@@ -2701,39 +2520,22 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, pair currency.Pair, pr
 		rLim = rate1
 	}
 	var resp *OrderIDStruct
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, p, &resp)
 }
 
 // PlaceReversal attempts to close a position, in part or in whole, and opens a position of corresponding size on the opposite side. This operation may only be done in part under certain margin levels, market conditions, or other unspecified factors. If a reversal is attempted for an amount greater than the current outstanding position, that position will be closed, and a new position will be opened for the amount of the closed position; not the amount specified in the request. The side specified in the parameter should correspond to the side of the position you're attempting to close; if the original is open_long, use close_long; if the original is open_short, use close_short; if the original is sell_single, use buy_single. If the position is sell_single or buy_single, the amount parameter will be ignored, and the entire position will be closed, with a corresponding amount opened on the opposite side.
-func (e *Exchange) PlaceReversal(ctx context.Context, pair currency.Pair, marginCoin currency.Code, productType, side, tradeSide, clientOID string, amount float64, isCopyTradeLeader bool) (*OrderIDStruct, error) {
-	if pair.IsEmpty() {
+func (e *Exchange) PlaceReversal(ctx context.Context, p *PlaceReversalParams, isCopyTradeLeader bool) (*OrderIDStruct, error) {
+	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if marginCoin.IsEmpty() {
+	if p.MarginCoin.IsEmpty() {
 		return nil, errMarginCoinEmpty
 	}
-	if productType == "" {
+	if p.ProductType == "" {
 		return nil, errProductTypeEmpty
 	}
-	if amount <= 0 {
+	if p.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
-	}
-	req := struct {
-		Symbol      currency.Pair `json:"symbol"`
-		MarginCoin  currency.Code `json:"marginCoin"`
-		ProductType string        `json:"productType"`
-		Side        string        `json:"side"`
-		TradeSide   string        `json:"tradeSide"`
-		Size        float64       `json:"size,string"`
-		ClientOID   string        `json:"clientOid,omitempty"`
-	}{
-		Symbol:      pair,
-		MarginCoin:  marginCoin,
-		ProductType: productType,
-		Side:        side,
-		TradeSide:   tradeSide,
-		Size:        amount,
-		ClientOID:   clientOID,
 	}
 	path := bitgetMix + bitgetOrder + bitgetClickBackhand
 	rLim := rate10
@@ -2741,11 +2543,11 @@ func (e *Exchange) PlaceReversal(ctx context.Context, pair currency.Pair, margin
 		rLim = rate1
 	}
 	var resp *OrderIDStruct
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, p, &resp)
 }
 
 // BatchPlaceFuturesOrders places multiple orders at once. Can also be used to modify the take-profit and stop-loss of an open position.
-func (e *Exchange) BatchPlaceFuturesOrders(ctx context.Context, pair currency.Pair, productType, marginMode string, marginCoin currency.Code, orders []PlaceFuturesOrderStruct, isCopyTradeLeader bool) (*BatchOrderResp, error) {
+func (e *Exchange) BatchPlaceFuturesOrders(ctx context.Context, pair currency.Pair, productType, marginMode string, marginCoin currency.Code, orders []PlaceFuturesOrderParams, isCopyTradeLeader bool) (*BatchOrderResp, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -2766,7 +2568,7 @@ func (e *Exchange) BatchPlaceFuturesOrders(ctx context.Context, pair currency.Pa
 		ProductType string                    `json:"productType"`
 		MarginCoin  currency.Code             `json:"marginCoin"`
 		MarginMode  string                    `json:"marginMode"`
-		OrderList   []PlaceFuturesOrderStruct `json:"orderList"`
+		OrderList   []PlaceFuturesOrderParams `json:"orderList"`
 	}{
 		Symbol:      pair,
 		ProductType: productType,
@@ -2784,43 +2586,22 @@ func (e *Exchange) BatchPlaceFuturesOrders(ctx context.Context, pair currency.Pa
 }
 
 // ModifyFuturesOrder can change the size, price, take-profit, and stop-loss of an order. Size and price have to be modified at the same time, or the request will fail. If size and price are altered, the old order will be cancelled, and a new one will be created asynchronously. Due to the asynchronous creation of a new order, a new ClientOrderID must be supplied so it can be tracked.
-func (e *Exchange) ModifyFuturesOrder(ctx context.Context, orderID int64, clientOrderID, productType, newClientOrderID string, pair currency.Pair, newAmount, newPrice, newTakeProfit, newStopLoss float64) (*OrderIDStruct, error) {
-	if orderID == 0 && clientOrderID == "" {
+func (e *Exchange) ModifyFuturesOrder(ctx context.Context, p *ModifyFuturesOrderParams) (*OrderIDStruct, error) {
+	if p.OrderID == 0 && p.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if pair.IsEmpty() {
+	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if productType == "" {
+	if p.ProductType == "" {
 		return nil, errProductTypeEmpty
 	}
-	if newClientOrderID == "" {
+	if p.NewClientOrderID == "" {
 		return nil, errNewClientOrderIDEmpty
-	}
-	req := struct {
-		Symbol        currency.Pair `json:"symbol"`
-		ProductType   string        `json:"productType"`
-		NewClientOID  string        `json:"newClientOid"`
-		NewTakeProfit float64       `json:"newPresetStopSurplusPrice,string"`
-		NewStopLoss   float64       `json:"newPresetStopLossPrice,string"`
-		OrderID       int64         `json:"orderId,omitempty"`
-		ClientOID     string        `json:"clientOid,omitempty"`
-		NewSize       float64       `json:"newSize,omitempty,string"`
-		NewPrice      float64       `json:"newPrice,omitempty,string"`
-	}{
-		Symbol:        pair,
-		ProductType:   productType,
-		NewClientOID:  newClientOrderID,
-		NewTakeProfit: newTakeProfit,
-		NewStopLoss:   newStopLoss,
-		OrderID:       orderID,
-		ClientOID:     clientOrderID,
-		NewSize:       newAmount,
-		NewPrice:      newPrice,
 	}
 	path := bitgetMix + bitgetOrder + bitgetModifyOrder
 	var resp *OrderIDStruct
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, p, &resp)
 }
 
 // CancelFuturesOrder cancels an order on the exchange
@@ -3071,291 +2852,136 @@ func (e *Exchange) GetFuturesTriggerOrderByID(ctx context.Context, planType, pro
 }
 
 // PlaceTPSLFuturesOrder places a take-profit or stop-loss futures order
-func (e *Exchange) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin currency.Code, productType, planType, triggerType, holdSide, rangeRate, clientOrderID, stpMode string, pair currency.Pair, triggerPrice, executePrice, amount float64) (*OrderIDStruct, error) {
-	if marginCoin.IsEmpty() {
+func (e *Exchange) PlaceTPSLFuturesOrder(ctx context.Context, p *PlaceTPSLFuturesOrderParams) (*OrderIDStruct, error) {
+	if p.MarginCoin.IsEmpty() {
 		return nil, errMarginCoinEmpty
 	}
-	if productType == "" {
+	if p.ProductType == "" {
 		return nil, errProductTypeEmpty
 	}
-	if pair.IsEmpty() {
+	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if planType == "" {
+	if p.PlanType == "" {
 		return nil, errPlanTypeEmpty
 	}
-	if holdSide == "" {
+	if p.HoldSide == "" {
 		return nil, errHoldSideEmpty
 	}
-	if triggerPrice <= 0 {
+	if p.TriggerPrice <= 0 {
 		return nil, errTriggerPriceEmpty
 	}
-	if amount <= 0 {
+	if p.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
-	}
-	req := struct {
-		MarginCoin   currency.Code `json:"marginCoin"`
-		ProductType  string        `json:"productType"`
-		Symbol       currency.Pair `json:"symbol"`
-		PlanType     string        `json:"planType"`
-		TriggerType  string        `json:"triggerType"`
-		HoldSide     string        `json:"holdSide"`
-		RangeRate    string        `json:"rangeRate,omitempty"`
-		StpMode      string        `json:"stpMode"`
-		TriggerPrice float64       `json:"triggerPrice,string"`
-		ExecutePrice float64       `json:"executePrice,string"`
-		Size         float64       `json:"size,string"`
-		ClientOID    string        `json:"clientOid,omitempty"`
-	}{
-		MarginCoin:   marginCoin,
-		ProductType:  productType,
-		Symbol:       pair,
-		PlanType:     planType,
-		TriggerType:  triggerType,
-		HoldSide:     holdSide,
-		RangeRate:    rangeRate,
-		StpMode:      stpMode,
-		TriggerPrice: triggerPrice,
-		ExecutePrice: executePrice,
-		Size:         amount,
-		ClientOID:    clientOrderID,
 	}
 	path := bitgetMix + bitgetOrder + bitgetPlaceTPSLOrder
 	var resp *OrderIDStruct
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, p, &resp)
 }
 
 // PlaceTPAndSLFuturesOrder places a take-profit and stop-loss futures order
-func (e *Exchange) PlaceTPAndSLFuturesOrder(ctx context.Context, marginCoin currency.Code, productType, takeProfitTriggerType, stopLossTriggerType, holdSide, stpMode string, pair currency.Pair, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64) ([]int64, error) {
-	if marginCoin.IsEmpty() {
+func (e *Exchange) PlaceTPAndSLFuturesOrder(ctx context.Context, p *PlaceTPAndSLFuturesOrderParams) ([]int64, error) {
+	if p.MarginCoin.IsEmpty() {
 		return nil, errMarginCoinEmpty
 	}
-	if productType == "" {
+	if p.ProductType == "" {
 		return nil, errProductTypeEmpty
 	}
-	if pair.IsEmpty() {
+	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if takeProfitTriggerPrice <= 0 {
+	if p.TakeProfitTriggerPrice <= 0 {
 		return nil, errTakeProfitTriggerPriceEmpty
 	}
-	if stopLossTriggerPrice <= 0 {
+	if p.StopLossTriggerPrice <= 0 {
 		return nil, errStopLossTriggerPriceEmpty
 	}
-	if holdSide == "" {
+	if p.HoldSide == "" {
 		return nil, errHoldSideEmpty
-	}
-	req := struct {
-		MarginCoin              currency.Code `json:"marginCoin"`
-		ProductType             string        `json:"productType"`
-		Symbol                  currency.Pair `json:"symbol"`
-		StopSurplusTriggerPrice float64       `json:"stopSurplusTriggerPrice"`
-		StopSurplusTriggerType  string        `json:"stopSurplusTriggerType"`
-		StopSurplusExecutePrice float64       `json:"stopSurplusExecutePrice"`
-		StopLossTriggerPrice    float64       `json:"stopLossTriggerPrice"`
-		StopLossTriggerType     string        `json:"stopLossTriggerType"`
-		StopLossExecutePrice    float64       `json:"stopLossExecutePrice"`
-		HoldSide                string        `json:"holdSide"`
-		StpMode                 string        `json:"stpMode"`
-	}{
-		MarginCoin:              marginCoin,
-		ProductType:             productType,
-		Symbol:                  pair,
-		StopSurplusTriggerPrice: takeProfitTriggerPrice,
-		StopSurplusTriggerType:  takeProfitTriggerType,
-		StopSurplusExecutePrice: takeProfitExecutePrice,
-		StopLossTriggerPrice:    stopLossTriggerPrice,
-		StopLossTriggerType:     stopLossTriggerType,
-		StopLossExecutePrice:    stopLossExecutePrice,
-		HoldSide:                holdSide,
-		StpMode:                 stpMode,
 	}
 	path := bitgetMix + bitgetOrder + bitgetPlacePOSTPSL
 	var resp struct {
 		OrderIDs []int64 `json:"orderIds"`
 	}
-	return resp.OrderIDs, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, req, &resp)
+	return resp.OrderIDs, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, p, &resp)
 }
 
 // PlaceTriggerFuturesOrder places a trigger futures order
-func (e *Exchange) PlaceTriggerFuturesOrder(ctx context.Context, planType, productType, marginMode, triggerType, side, tradeSide, orderType, clientOrderID, takeProfitTriggerType, stopLossTriggerType, stpMode string, pair currency.Pair, marginCoin currency.Code, amount, executePrice, callbackRatio, triggerPrice, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64, reduceOnly YesNoBool) (*OrderIDStruct, error) {
-	if planType == "" {
+func (e *Exchange) PlaceTriggerFuturesOrder(ctx context.Context, p *PlaceTriggerFuturesOrderParams) (*OrderIDStruct, error) {
+	if p.PlanType == "" {
 		return nil, errPlanTypeEmpty
 	}
-	if pair.IsEmpty() {
+	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if productType == "" {
+	if p.ProductType == "" {
 		return nil, errProductTypeEmpty
 	}
-	if marginMode == "" {
+	if p.MarginMode == "" {
 		return nil, errMarginModeEmpty
 	}
-	if marginCoin.IsEmpty() {
+	if p.MarginCoin.IsEmpty() {
 		return nil, errMarginCoinEmpty
 	}
-	if triggerType == "" {
+	if p.TriggerType == "" {
 		return nil, errTriggerTypeEmpty
 	}
-	if side == "" {
+	if p.Side == "" {
 		return nil, errSideEmpty
 	}
-	if orderType == "" {
+	if p.OrderType == "" {
 		return nil, errOrderTypeEmpty
 	}
-	if amount <= 0 {
+	if p.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
-	if executePrice <= 0 {
+	if p.ExecutePrice <= 0 {
 		return nil, errExecutePriceEmpty
 	}
-	if triggerPrice <= 0 {
+	if p.TriggerPrice <= 0 {
 		return nil, errTriggerPriceEmpty
-	}
-	req := struct {
-		PlanType                string        `json:"planType"`
-		Symbol                  currency.Pair `json:"symbol"`
-		ProductType             string        `json:"productType"`
-		MarginMode              string        `json:"marginMode"`
-		MarginCoin              currency.Code `json:"marginCoin"`
-		TriggerType             string        `json:"triggerType"`
-		Side                    string        `json:"side"`
-		TradeSide               string        `json:"tradeSide"`
-		OrderType               string        `json:"orderType"`
-		STPMode                 string        `json:"stpMode"`
-		Size                    float64       `json:"size,string"`
-		Price                   float64       `json:"price,string"`
-		TriggerPrice            float64       `json:"triggerPrice,string"`
-		CallbackRatio           float64       `json:"callbackRatio,string"`
-		ReduceOnly              YesNoBool     `json:"reduceOnly"`
-		ClientOID               string        `json:"clientOid,omitempty"`
-		StopSurplusTriggerPrice float64       `json:"stopSurplusTriggerPrice,omitempty,string"`
-		StopSurplusExecutePrice float64       `json:"stopSurplusExecutePrice,omitempty,string"`
-		StopSurplusTriggerType  string        `json:"stopSurplusTriggerType,omitempty"`
-		StopLossTriggerPrice    float64       `json:"stopLossTriggerPrice,omitempty,string"`
-		StopLossExecutePrice    float64       `json:"stopLossExecutePrice,omitempty,string"`
-		StopLossTriggerType     string        `json:"stopLossTriggerType,omitempty"`
-	}{
-		PlanType:                planType,
-		Symbol:                  pair,
-		ProductType:             productType,
-		MarginMode:              marginMode,
-		MarginCoin:              marginCoin,
-		TriggerType:             triggerType,
-		Side:                    side,
-		TradeSide:               tradeSide,
-		OrderType:               orderType,
-		STPMode:                 stpMode,
-		Size:                    amount,
-		Price:                   executePrice,
-		TriggerPrice:            triggerPrice,
-		CallbackRatio:           callbackRatio,
-		ReduceOnly:              reduceOnly,
-		ClientOID:               clientOrderID,
-		StopSurplusTriggerPrice: takeProfitTriggerPrice,
-		StopSurplusExecutePrice: takeProfitExecutePrice,
-		StopSurplusTriggerType:  takeProfitTriggerType,
-		StopLossTriggerPrice:    stopLossTriggerPrice,
-		StopLossExecutePrice:    stopLossExecutePrice,
-		StopLossTriggerType:     stopLossTriggerType,
 	}
 	path := bitgetMix + bitgetOrder + bitgetPlacePlanOrder
 	var resp *OrderIDStruct
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, p, &resp)
 }
 
 // ModifyTPSLFuturesOrder modifies a take-profit or stop-loss futures order
-func (e *Exchange) ModifyTPSLFuturesOrder(ctx context.Context, orderID int64, clientOrderID, productType, triggerType string, marginCoin currency.Code, pair currency.Pair, triggerPrice, executePrice, amount, rangeRate float64) (*OrderIDStruct, error) {
-	if orderID == 0 && clientOrderID == "" {
+func (e *Exchange) ModifyTPSLFuturesOrder(ctx context.Context, p *ModifyTPSLFuturesOrderParams) (*OrderIDStruct, error) {
+	if p.OrderID == 0 && p.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if marginCoin.IsEmpty() {
+	if p.MarginCoin.IsEmpty() {
 		return nil, errMarginCoinEmpty
 	}
-	if productType == "" {
+	if p.ProductType == "" {
 		return nil, errProductTypeEmpty
 	}
-	if pair.IsEmpty() {
+	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if triggerPrice <= 0 {
+	if p.TriggerPrice <= 0 {
 		return nil, errTriggerPriceEmpty
 	}
-	if amount <= 0 {
+	if p.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
-	}
-	req := struct {
-		OrderID      int64         `json:"orderId,string"`
-		ClientOID    string        `json:"clientOid"`
-		MarginCoin   currency.Code `json:"marginCoin"`
-		ProductType  string        `json:"productType"`
-		Symbol       currency.Pair `json:"symbol"`
-		TriggerType  string        `json:"triggerType"`
-		TriggerPrice float64       `json:"triggerPrice,string"`
-		ExecutePrice float64       `json:"executePrice,string"`
-		Size         float64       `json:"size,string"`
-		RangeRate    float64       `json:"rangeRate,omitempty,string"`
-	}{
-		OrderID:      orderID,
-		ClientOID:    clientOrderID,
-		MarginCoin:   marginCoin,
-		ProductType:  productType,
-		Symbol:       pair,
-		TriggerType:  triggerType,
-		TriggerPrice: triggerPrice,
-		ExecutePrice: executePrice,
-		Size:         amount,
-		RangeRate:    rangeRate,
 	}
 	path := bitgetMix + bitgetOrder + bitgetModifyTPSLOrder
 	var resp *OrderIDStruct
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, p, &resp)
 }
 
 // ModifyTriggerFuturesOrder modifies a trigger futures order
-func (e *Exchange) ModifyTriggerFuturesOrder(ctx context.Context, orderID int64, clientOrderID, productType, triggerType, takeProfitTriggerType, stopLossTriggerType string, amount, executePrice, callbackRatio, triggerPrice, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64) (*OrderIDStruct, error) {
-	if orderID == 0 && clientOrderID == "" {
+func (e *Exchange) ModifyTriggerFuturesOrder(ctx context.Context, p *ModifyTriggerFuturesOrderParams) (*OrderIDStruct, error) {
+	if p.OrderID == 0 && p.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if productType == "" {
+	if p.ProductType == "" {
 		return nil, errProductTypeEmpty
-	}
-	req := struct {
-		// See whether planType is accepted
-		// See whether symbol is accepted
-		OrderID                    int64   `json:"orderId,string"`
-		ClientOID                  string  `json:"clientOid"`
-		ProductType                string  `json:"productType"`
-		NewTriggerType             string  `json:"newTriggerType"`
-		NewSize                    float64 `json:"newSize,string"`
-		NewPrice                   float64 `json:"newPrice,string"`
-		NewCallbackRatio           float64 `json:"newCallbackRatio,string"`
-		NewTriggerPrice            float64 `json:"newTriggerPrice,string"`
-		NewStopSurplusTriggerType  string  `json:"newStopSurplusTriggerType"`
-		NewStropLossTriggerType    string  `json:"newStopLossTriggerType"`
-		NewStopSurplusTriggerPrice float64 `json:"newStopSurplusTriggerPrice,omitempty,string"`
-		NewStopSurplusExecutePrice float64 `json:"newStopSurplusExecutePrice,omitempty,string"`
-		NewStopLossTriggerPrice    float64 `json:"newStopLossTriggerPrice,omitempty,string"`
-		NewStopLossExecutePrice    float64 `json:"newStopLossExecutePrice,omitempty,string"`
-	}{
-		OrderID:                    orderID,
-		ClientOID:                  clientOrderID,
-		ProductType:                productType,
-		NewTriggerType:             triggerType,
-		NewSize:                    amount,
-		NewPrice:                   executePrice,
-		NewCallbackRatio:           callbackRatio,
-		NewTriggerPrice:            triggerPrice,
-		NewStopSurplusTriggerType:  takeProfitTriggerType,
-		NewStropLossTriggerType:    stopLossTriggerType,
-		NewStopSurplusTriggerPrice: takeProfitTriggerPrice,
-		NewStopSurplusExecutePrice: takeProfitExecutePrice,
-		NewStopLossTriggerPrice:    stopLossTriggerPrice,
-		NewStopLossExecutePrice:    stopLossExecutePrice,
 	}
 	path := bitgetMix + bitgetOrder + bitgetModifyPlanOrder
 	var resp *OrderIDStruct
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, p, &resp)
 }
 
 // GetPendingTriggerFuturesOrders returns information on pending trigger orders
@@ -3705,51 +3331,28 @@ func (e *Exchange) GetCrossFlashRepayResult(ctx context.Context, idList []int64)
 }
 
 // PlaceCrossOrder places an order using cross margin
-func (e *Exchange) PlaceCrossOrder(ctx context.Context, pair currency.Pair, orderType, loanType, strategy, clientOrderID, side, stpMode string, price, baseAmount, quoteAmount float64) (*OrderIDStruct, error) {
-	if pair.IsEmpty() {
+func (e *Exchange) PlaceCrossOrder(ctx context.Context, p *PlaceMarginOrderParams) (*OrderIDStruct, error) {
+	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if orderType == "" {
+	if p.OrderType == "" {
 		return nil, errOrderTypeEmpty
 	}
-	if loanType == "" {
+	if p.LoanType == "" {
 		return nil, errLoanTypeEmpty
 	}
-	if strategy == "" {
+	if p.Strategy == "" {
 		return nil, errStrategyEmpty
 	}
-	if side == "" {
+	if p.Side == "" {
 		return nil, errSideEmpty
 	}
-	if baseAmount <= 0 && quoteAmount <= 0 {
+	if p.BaseAmount <= 0 && p.QuoteAmount <= 0 {
 		return nil, limits.ErrAmountBelowMin
-	}
-	req := struct {
-		Symbol    currency.Pair `json:"symbol"`
-		OrderType string        `json:"orderType"`
-		LoanType  string        `json:"loanType"`
-		Force     string        `json:"force"`
-		ClientOID string        `json:"clientOid"`
-		Side      string        `json:"side"`
-		STPMode   string        `json:"stpMode"`
-		Price     float64       `json:"price,string"`
-		BaseSize  float64       `json:"baseSize,string,omitempty"`
-		QuoteSize float64       `json:"quoteSize,string,omitempty"`
-	}{
-		Symbol:    pair,
-		OrderType: orderType,
-		LoanType:  loanType,
-		Force:     strategy,
-		ClientOID: clientOrderID,
-		Side:      side,
-		STPMode:   stpMode,
-		Price:     price,
-		BaseSize:  baseAmount,
-		QuoteSize: quoteAmount,
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetPlaceOrder
 	var resp *OrderIDStruct
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, p, &resp)
 }
 
 // BatchPlaceCrossOrders places multiple orders using cross margin
@@ -4204,51 +3807,28 @@ func (e *Exchange) GetIsolatedFlashRepayResult(ctx context.Context, idList []int
 }
 
 // PlaceIsolatedOrder places an order using isolated margin
-func (e *Exchange) PlaceIsolatedOrder(ctx context.Context, pair currency.Pair, orderType, loanType, strategy, clientOrderID, side, stpMode string, price, baseAmount, quoteAmount float64) (*OrderIDStruct, error) {
-	if pair.IsEmpty() {
+func (e *Exchange) PlaceIsolatedOrder(ctx context.Context, p *PlaceMarginOrderParams) (*OrderIDStruct, error) {
+	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if orderType == "" {
+	if p.OrderType == "" {
 		return nil, errOrderTypeEmpty
 	}
-	if loanType == "" {
+	if p.LoanType == "" {
 		return nil, errLoanTypeEmpty
 	}
-	if strategy == "" {
+	if p.Strategy == "" {
 		return nil, errStrategyEmpty
 	}
-	if side == "" {
+	if p.Side == "" {
 		return nil, errSideEmpty
 	}
-	if baseAmount <= 0 && quoteAmount <= 0 {
+	if p.BaseAmount <= 0 && p.QuoteAmount <= 0 {
 		return nil, limits.ErrAmountBelowMin
-	}
-	req := struct {
-		Symbol    currency.Pair `json:"symbol"`
-		OrderType string        `json:"orderType"`
-		LoanType  string        `json:"loanType"`
-		Force     string        `json:"force"`
-		ClientOID string        `json:"clientOid"`
-		Side      string        `json:"side"`
-		STPMode   string        `json:"stpMode"`
-		Price     float64       `json:"price,string"`
-		BaseSize  float64       `json:"baseSize,omitempty,string"`
-		QuoteSize float64       `json:"quoteSize,omitempty,string"`
-	}{
-		Symbol:    pair,
-		OrderType: orderType,
-		LoanType:  loanType,
-		Force:     strategy,
-		ClientOID: clientOrderID,
-		Side:      side,
-		STPMode:   stpMode,
-		Price:     price,
-		BaseSize:  baseAmount,
-		QuoteSize: quoteAmount,
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetPlaceOrder
 	var resp *OrderIDStruct
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, req, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodPost, path, nil, p, &resp)
 }
 
 // BatchPlaceIsolatedOrders places multiple orders using isolated margin
