@@ -37,7 +37,6 @@ var (
 	errNilExchangeManager           = errors.New("cannot start with nil exchange manager")
 	errNilDatabaseConnectionManager = errors.New("cannot start with nil database connection manager")
 	errNilConfig                    = errors.New("received nil config")
-	errAlreadyRunning               = errors.New("subsystem is already running")
 )
 
 // iExchangeManager limits exposure of accessible functions to exchange manager
