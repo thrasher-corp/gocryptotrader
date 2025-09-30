@@ -200,50 +200,42 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig: exch,
-		Features:       &e.Features.Supports.WebsocketCapabilities,
-		//MaxWebsocketSubscriptionsPerConnection: 240,
-		UseMultiConnectionManagement: true,
-		FillsFeed:                    e.Features.Enabled.FillsFeed,
-		TradeFeed:                    e.Features.Enabled.TradeFeed,
-		RateLimitDefinitions:         rateLimits,
+		ExchangeConfig:                         exch,
+		DefaultURL:                             apiWebsocketPublicURL,
+		RunningURL:                             wsRunningEndpoint,
+		Connector:                              e.WsConnect,
+		Subscriber:                             e.Subscribe,
+		Unsubscriber:                           e.Unsubscribe,
+		GenerateSubscriptions:                  e.generateSubscriptions,
+		Features:                               &e.Features.Supports.WebsocketCapabilities,
+		MaxWebsocketSubscriptionsPerConnection: 240,
+		RateLimitDefinitions:                   rateLimits,
 	}); err != nil {
 		return err
 	}
 
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   apiWebsocketPublicURL,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      websocketResponseMaxLimit,
-		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
-		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
-			return e.WsHandleData(ctx, conn, resp)
-		},
+		URL:                  apiWebsocketPublicURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     websocketResponseMaxLimit,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		RequestIDGenerator:   e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   apiWebsocketPrivateURL,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      websocketResponseMaxLimit,
-		Authenticated:         true,
-		Authenticate:          e.authenticateConnection,
-		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
-		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
-			return e.WsHandleData(ctx, conn, resp)
-		},
+		URL:                  apiWebsocketPrivateURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     websocketResponseMaxLimit,
+		Authenticated:        true,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		RequestIDGenerator:   e.messageIDSeq.IncrementAndGet,
 	})
 }
 
