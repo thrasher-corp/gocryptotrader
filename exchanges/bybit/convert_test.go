@@ -2,12 +2,14 @@ package bybit
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestGetConvertCoinList(t *testing.T) {
@@ -126,4 +128,24 @@ func TestGetConvertHistory(t *testing.T) {
 	history, err := e.GetConvertHistory(t.Context(), []WalletAccountType{UTA}, 0, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, history)
+
+	if mockTests {
+		require.Equal(t, 4, len(history), "GetConvertHistory must return 4 items in mock test")
+		exp := ConvertHistoryResponse{
+			AccountType:           UTA,
+			ExchangeTransactionID: "104231555340214158196736",
+			UserID:                "74199870",
+			FromCoin:              currency.NewCode("UXLINK"),
+			FromCoinType:          "crypto",
+			FromAmount:            7.9952,
+			ToCoin:                currency.USDT,
+			ToCoinType:            "crypto",
+			ToAmount:              2.84509740190888,
+			ExchangeStatus:        "success",
+			ExtInfo:               []byte("{}"),
+			ConvertRate:           0.35585068565,
+			CreatedAt:             types.Time(time.UnixMilli(1754880224953)),
+		}
+		require.Equal(t, exp, history[0])
+	}
 }
