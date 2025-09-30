@@ -42,6 +42,7 @@ var (
 )
 
 // WsConnectBusiness connects to a business websocket channel.
+// roll back
 func (e *Exchange) WsConnectBusiness(ctx context.Context) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled

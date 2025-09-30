@@ -220,6 +220,7 @@ func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit,
 
 // SetupPingHandler will automatically send ping or pong messages based on
 // WebsocketPingHandler configuration
+// roll back
 func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHandler) {
 	if handler.UseGorillaHandler {
 		c.Connection.SetPingHandler(func(msg string) error {
