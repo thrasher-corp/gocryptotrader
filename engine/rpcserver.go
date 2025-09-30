@@ -64,7 +64,6 @@ var (
 	errExchangeNotEnabled      = errors.New("exchange is not enabled")
 	errExchangeBaseNotFound    = errors.New("cannot get exchange base")
 	errInvalidArguments        = errors.New("invalid arguments received")
-	errExchangeNameUnset       = errors.New("exchange name unset")
 	errCurrencyPairUnset       = errors.New("currency pair unset")
 	errInvalidTimes            = errors.New("invalid start and end times")
 	errAssetTypeUnset          = errors.New("asset type unset")
@@ -2102,7 +2101,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 // GetExchangeOrderbookStream streams all orderbooks associated with an exchange
 func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStreamRequest, stream gctrpc.GoCryptoTraderService_GetExchangeOrderbookStreamServer) error {
 	if r.Exchange == "" {
-		return errExchangeNameUnset
+		return common.ErrExchangeNameNotSet
 	}
 
 	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
@@ -2172,7 +2171,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 // GetTickerStream streams the requested updated ticker
 func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gctrpc.GoCryptoTraderService_GetTickerStreamServer) error {
 	if r.Exchange == "" {
-		return errExchangeNameUnset
+		return common.ErrExchangeNameNotSet
 	}
 
 	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
@@ -2244,7 +2243,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 // GetExchangeTickerStream streams all tickers associated with an exchange
 func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamRequest, stream gctrpc.GoCryptoTraderService_GetExchangeTickerStreamServer) error {
 	if r.Exchange == "" {
-		return errExchangeNameUnset
+		return common.ErrExchangeNameNotSet
 	}
 
 	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
@@ -2926,8 +2925,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.
 			errors.New("cannot auto pair update for exchange, a manual update is needed")
 	}
 
-	err = exch.UpdateTradablePairs(ctx, false)
-	if err != nil {
+	if err := exch.UpdateTradablePairs(ctx); err != nil {
 		return nil, err
 	}
 

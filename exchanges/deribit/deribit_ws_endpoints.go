@@ -2304,7 +2304,7 @@ func (e *Exchange) SendWSRequest(ctx context.Context, epl request.EndpointLimit,
 	}
 	input := &WsRequest{
 		JSONRPCVersion: rpcVersion,
-		ID:             e.Websocket.Conn.GenerateMessageID(true),
+		ID:             e.MessageID(),
 		Method:         method,
 		Params:         params,
 	}

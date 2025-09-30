@@ -63,6 +63,8 @@ var (
 	errRefreshTokenRequired                = errors.New("refresh token is required")
 	errSubjectIDRequired                   = errors.New("subject id is required")
 	errMissingSignature                    = errors.New("missing signature")
+	errStartingHeartbeat                   = errors.New("error starting heartbeat")
+	errSendingHeartbeat                    = errors.New("error sending heartbeat")
 
 	websocketRequestTimeout = time.Second * 30
 
@@ -844,7 +846,7 @@ type TransactionsData struct {
 // response
 type wsInput struct {
 	JSONRPCVersion string         `json:"jsonrpc,omitempty"`
-	ID             int64          `json:"id,omitempty"`
+	ID             string         `json:"id,omitempty"`
 	Method         string         `json:"method"`
 	Params         map[string]any `json:"params,omitempty"`
 }
@@ -853,7 +855,7 @@ type wsInput struct {
 // response
 type WsRequest struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
-	ID             int64  `json:"id,omitempty"`
+	ID             string `json:"id,omitempty"`
 	Method         string `json:"method"`
 	Params         any    `json:"params,omitempty"`
 }
@@ -862,16 +864,22 @@ type WsRequest struct {
 // response
 type WsSubscriptionInput struct {
 	JSONRPCVersion string              `json:"jsonrpc,omitempty"`
-	ID             int64               `json:"id,omitempty"`
+	ID             string              `json:"id,omitempty"`
 	Method         string              `json:"method"`
 	Params         map[string][]string `json:"params,omitempty"`
 }
 
 type wsResponse struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
-	ID             int64  `json:"id,omitempty"`
-	Result         any    `json:"result,omitempty"`
-	Error          struct {
+	ID             string `json:"id,omitempty"`
+	Method         string `json:"method"`
+	Params         struct {
+		Data    any    `json:"data"`
+		Channel string `json:"channel"`
+		Type    string `json:"type"` // Used in heartbeat and test_request messages
+	} `json:"params"`
+	Result any `json:"result,omitempty"`
+	Error  struct {
 		Message string `json:"message,omitempty"`
 		Code    int64  `json:"code,omitempty"`
 		Data    any    `json:"data"`
@@ -880,7 +888,7 @@ type wsResponse struct {
 
 type wsLoginResponse struct {
 	JSONRPCVersion string          `json:"jsonrpc"`
-	ID             int64           `json:"id"`
+	ID             string          `json:"id"`
 	Method         string          `json:"method"`
 	Result         map[string]any  `json:"result"`
 	Error          *UnmarshalError `json:"error"`
@@ -888,7 +896,7 @@ type wsLoginResponse struct {
 
 type wsSubscriptionResponse struct {
 	JSONRPCVersion string   `json:"jsonrpc"`
-	ID             int64    `json:"id"`
+	ID             string   `json:"id"`
 	Method         string   `json:"method"`
 	Result         []string `json:"result"`
 }
@@ -1061,23 +1069,6 @@ type BlockTradeMoveResponse struct {
 	InstrumentName      string  `json:"instrument_name"`
 	Direction           string  `json:"direction"`
 	Amount              float64 `json:"amount"`
-}
-
-// WsResponse represents generalized websocket subscription push data and immediate websocket call responses.
-type WsResponse struct {
-	ID     int64 `json:"id,omitempty"`
-	Params struct {
-		Data    any    `json:"data"`
-		Channel string `json:"channel"`
-
-		// Used in heartbead and test_request messages.
-		Type string `json:"type"`
-	} `json:"params"`
-	Method         string `json:"method"`
-	JSONRPCVersion string `json:"jsonrpc"`
-
-	// for status "ok" and "version" push data messages
-	Result any `json:"result"`
 }
 
 // VersionInformation represents websocket version information
