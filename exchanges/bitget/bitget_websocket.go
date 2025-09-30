@@ -211,13 +211,13 @@ func (e *Exchange) wsReadData(ws websocket.Connection) {
 
 // wsHandleData handles data from the websocket connection
 func (e *Exchange) wsHandleData(respRaw []byte) error {
-	var wsResponse WsResponse
 	if respRaw != nil && string(respRaw[:4]) == "pong" {
 		if e.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket pong received\n", e.Name)
 		}
 		return nil
 	}
+	var wsResponse WsResponse
 	err := json.Unmarshal(respRaw, &wsResponse)
 	if err != nil {
 		return err
@@ -412,11 +412,11 @@ func (e *Exchange) candleDataHandler(wsResponse *WsResponse) error {
 
 // TradeDataHandler handles trade data, as functionality is shared between updates and snapshots
 func (e *Exchange) tradeDataHandler(wsResponse *WsResponse) error {
-	var trades []WsTradeResponse
 	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
 	if err != nil {
 		return err
 	}
+	var trades []WsTradeResponse
 	err = json.Unmarshal(wsResponse.Data, &trades)
 	if err != nil {
 		return err
@@ -440,11 +440,11 @@ func (e *Exchange) tradeDataHandler(wsResponse *WsResponse) error {
 
 // OrderbookDataHandler handles orderbook data, as functionality is shared between updates and snapshots
 func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
-	var ob []WsOrderBookResponse
 	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
 	if err != nil {
 		return err
 	}
+	var ob []WsOrderBookResponse
 	err = json.Unmarshal(wsResponse.Data, &ob)
 	if err != nil {
 		return err
@@ -471,10 +471,7 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 			ValidateOrderbook:      e.ValidateOrderbook,
 			ChecksumStringRequired: true,
 		}
-		err = e.Websocket.Orderbook.LoadSnapshot(&ob)
-		if err != nil {
-			return err
-		}
+		return e.Websocket.Orderbook.LoadSnapshot(&ob)
 	} else {
 		update := orderbook.Update{
 			Bids:             bids,
@@ -484,16 +481,10 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 			Asset:            itemDecoder(wsResponse.Arg.InstrumentType),
 			GenerateChecksum: e.CalculateUpdateOrderbookChecksum,
 			ExpectedChecksum: uint32(ob[0].Checksum), //nolint:gosec // The exchange sends it as ints expecting overflows to be handled as Go does by default
+			AllowEmpty:       true,
 		}
-		// Sometimes the exchange returns updates with no new asks or bids, just a checksum and timestamp
-		if len(update.Bids) != 0 || len(update.Asks) != 0 {
-			err = e.Websocket.Orderbook.Update(&update)
-			if err != nil {
-				return err
-			}
-		}
+		return e.Websocket.Orderbook.Update(&update)
 	}
-	return nil
 }
 
 // AccountSnapshotDataHandler handles account snapshot data

@@ -102,10 +102,10 @@ type MerchantList struct {
 	TotalBuy            int64        `json:"totalBuy,string"`
 	TotalSell           int64        `json:"totalSell,string"`
 	TotalCompletionRate types.Number `json:"totalCompletionRate"`
-	Trades30D           int64        `json:"trades30d,string"`
-	Sell30D             types.Number `json:"sell30d"`
-	Buy30D              types.Number `json:"buy30d"`
-	CompletionRate30D   types.Number `json:"completionRate30d"`
+	Trades30Day         int64        `json:"trades30d,string"`
+	Sell30Day           types.Number `json:"sell30d"`
+	Buy30Day            types.Number `json:"buy30d"`
+	CompletionRate30Day types.Number `json:"completionRate30d"`
 }
 
 // P2PMerListResp holds information on P2P merchant lists
@@ -128,10 +128,10 @@ type P2PMerInfoResp struct {
 	TotalBuy            int64        `json:"totalBuy,string"`
 	TotalSell           int64        `json:"totalSell,string"`
 	TotalCompletionRate types.Number `json:"totalCompletionRate"`
-	Trades30D           int64        `json:"trades30d,string"`
-	Sell30D             types.Number `json:"sell30d"`
-	Buy30D              types.Number `json:"buy30d"`
-	CompletionRate30D   types.Number `json:"completionRate30d"`
+	Trades30Day         int64        `json:"trades30d,string"`
+	Sell30Day           types.Number `json:"sell30d"`
+	Buy30Day            types.Number `json:"buy30d"`
+	CompletionRate30Day types.Number `json:"completionRate30d"`
 	KYCStatus           YesNoBool    `json:"kycStatus"`
 	EmailBindStatus     YesNoBool    `json:"emailBindStatus"`
 	MobileBindStatus    YesNoBool    `json:"mobileBindStatus"`
@@ -189,7 +189,7 @@ type UserLimitList struct {
 	MaximumOrderQuantity int64        `json:"maxCompleteNum,string"`
 	PlaceOrderNumber     int64        `json:"placeOrderNum,string"`
 	AllowMerchantPlace   YesNoBool    `json:"allowMerchantPlace"`
-	CompleteRate30D      types.Number `json:"completeRate30d"`
+	CompleteRate30Day    types.Number `json:"completeRate30d"`
 	Country              string       `json:"country"`
 }
 
@@ -569,14 +569,13 @@ type SymbolInfoResp struct {
 
 // VIPFeeRateResp contains information on the different levels of VIP fee rates
 type VIPFeeRateResp struct {
-	Level        uint8        `json:"level,string"`
-	DealAmount   types.Number `json:"dealAmount"`
-	AssetAmount  types.Number `json:"assetAmount"`
-	TakerFeeRate types.Number `json:"takerFeeRate"`
-	MakerFeeRate types.Number `json:"makerFeeRate"`
-	// 24-hour withdrawal limits
-	BTCWithdrawAmount  types.Number `json:"btcWithdrawAmount"`
-	USDTWithdrawAmount types.Number `json:"usdtWithdrawAmount"`
+	Level              uint8        `json:"level,string"`
+	DealAmount         types.Number `json:"dealAmount"`
+	AssetAmount        types.Number `json:"assetAmount"`
+	TakerFeeRate       types.Number `json:"takerFeeRate"`
+	MakerFeeRate       types.Number `json:"makerFeeRate"`
+	BTCWithdrawAmount  types.Number `json:"btcWithdrawAmount"`  // 24-hour withdrawal limit
+	USDTWithdrawAmount types.Number `json:"usdtWithdrawAmount"` // 24-hour withdrawal limit
 }
 
 // InterestRateHistory contains information on the interest rate history
@@ -2792,7 +2791,7 @@ type WsArgument struct {
 	InstrumentType string        `json:"instType"`
 	Channel        string        `json:"channel"`
 	InstrumentID   string        `json:"instId,omitempty"`
-	Coin           currency.Code `json:"coin,omitempty"`
+	Coin           currency.Code `json:"coin,omitzero"`
 }
 
 // WsRequest contains information on a websocket request

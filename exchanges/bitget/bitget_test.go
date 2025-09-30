@@ -277,8 +277,8 @@ func TestGetFuturesActiveVolume(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesActiveVolume(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	te := new(Exchange) // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
-	err = testexch.Setup(te)
+	e := new(Exchange) // nolint:govet // Intentional shadow // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
+	err = testexch.Setup(e)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
@@ -288,7 +288,7 @@ func TestGetFuturesActiveVolume(t *testing.T) {
 		assert.NoError(t, err)
 	}))
 	defer server.Close()
-	err = te.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/")
+	err = e.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/")
 	require.NoError(t, err)
 	expectedData := []ActiveVolumeResp{
 		{
@@ -327,7 +327,7 @@ func TestGetFuturesActiveVolume(t *testing.T) {
 			Timestamp:  types.Time(time.UnixMilli(1758603300000)),
 		},
 	}
-	result, err := te.GetFuturesActiveVolume(t.Context(), testPair, "")
+	result, err := e.GetFuturesActiveVolume(t.Context(), testPair, "")
 	require.NoError(t, err)
 	assert.Equal(t, expectedData, result)
 }
@@ -336,8 +336,8 @@ func TestGetFuturesPositionRatios(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesPositionRatios(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	te := new(Exchange) // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
-	err = testexch.Setup(te)
+	e := new(Exchange) // nolint:govet // Intentional shadow // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
+	err = testexch.Setup(e)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
@@ -347,7 +347,7 @@ func TestGetFuturesPositionRatios(t *testing.T) {
 		assert.NoError(t, err)
 	}))
 	defer server.Close()
-	err = te.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/")
+	err = e.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/")
 	require.NoError(t, err)
 	expectedData := []PosRatFutureResp{
 		{
@@ -375,7 +375,7 @@ func TestGetFuturesPositionRatios(t *testing.T) {
 			Timestamp:              types.Time(time.UnixMilli(1758603300000)),
 		},
 	}
-	result, err := te.GetFuturesPositionRatios(t.Context(), testPair, "")
+	result, err := e.GetFuturesPositionRatios(t.Context(), testPair, "")
 	require.NoError(t, err)
 	assert.Equal(t, expectedData, result)
 }
@@ -411,8 +411,8 @@ func TestGetFuturesRatios(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesRatios(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	te := new(Exchange) // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
-	err = testexch.Setup(te)
+	e := new(Exchange) // nolint:govet // Intentional shadow // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
+	err = testexch.Setup(e)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
@@ -422,7 +422,7 @@ func TestGetFuturesRatios(t *testing.T) {
 		assert.NoError(t, err)
 	}))
 	defer server.Close()
-	err = te.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/")
+	err = e.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/")
 	require.NoError(t, err)
 	expectedData := []RatioResp{
 		{
@@ -450,7 +450,7 @@ func TestGetFuturesRatios(t *testing.T) {
 			Timestamp:      types.Time(time.UnixMilli(1758603600000)),
 		},
 	}
-	result, err := te.GetFuturesRatios(t.Context(), testPair, "")
+	result, err := e.GetFuturesRatios(t.Context(), testPair, "")
 	require.NoError(t, err)
 	assert.Equal(t, expectedData, result)
 }
@@ -478,8 +478,8 @@ func TestGetFuturesAccountRatios(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesAccountRatios(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	te := new(Exchange) // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
-	err = testexch.Setup(te)
+	e := new(Exchange) // nolint:govet // Intentional shadow // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
+	err = testexch.Setup(e)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
@@ -489,7 +489,7 @@ func TestGetFuturesAccountRatios(t *testing.T) {
 		assert.NoError(t, err)
 	}))
 	defer server.Close()
-	err = te.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/")
+	err = e.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/")
 	require.NoError(t, err)
 	expectedData := []AccountRatioResp{
 		{
@@ -517,7 +517,7 @@ func TestGetFuturesAccountRatios(t *testing.T) {
 			Timestamp:             types.Time(time.UnixMilli(1758603900000)),
 		},
 	}
-	result, err := te.GetFuturesAccountRatios(t.Context(), testPair, "")
+	result, err := e.GetFuturesAccountRatios(t.Context(), testPair, "")
 	require.NoError(t, err)
 	assert.Equal(t, expectedData, result)
 }
