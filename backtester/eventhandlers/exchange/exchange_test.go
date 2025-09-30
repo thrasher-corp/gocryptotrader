@@ -202,7 +202,7 @@ func TestPlaceOrder(t *testing.T) {
 		Base: &event.Base{},
 	}
 	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
-	assert.ErrorIs(t, err, engine.ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, gctcommon.ErrExchangeNameNotSet)
 
 	f.Exchange = testExchange
 	require.NoError(t, exch.UpdateOrderExecutionLimits(t.Context(), asset.Spot), "UpdateOrderExecutionLimits must not error")

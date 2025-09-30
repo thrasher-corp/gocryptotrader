@@ -223,7 +223,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	assets := e.GetAssetTypes(false)
 	errs := common.CollectErrors(len(assets))
 	for x := range assets {
@@ -234,7 +234,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 				errs.C <- err
 				return
 			}
-			errs.C <- e.UpdatePairs(pairs, assets[x], false, forceUpdate)
+			errs.C <- e.UpdatePairs(pairs, assets[x], false)
 		}(x)
 	}
 	return errs.Collect()
@@ -254,7 +254,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 	if err != nil {
 		return nil, err
 	}
-	instrumentID := e.formatPairString(assetType, p)
+	instrumentID := formatPairString(assetType, p)
 	var tickerData *TickerData
 	if e.Websocket.IsConnected() {
 		tickerData, err = e.WSRetrievePublicTicker(ctx, instrumentID)
@@ -294,7 +294,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if err != nil {
 		return nil, err
 	}
-	instrumentID := e.formatPairString(assetType, p)
+	instrumentID := formatPairString(assetType, p)
 	var obData *Orderbook
 	if e.Websocket.IsConnected() {
 		obData, err = e.WSRetrieveOrderbookData(ctx, instrumentID, 50)
@@ -477,7 +477,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	if err != nil {
 		return nil, err
 	}
-	instrumentID := e.formatPairString(assetType, p)
+	instrumentID := formatPairString(assetType, p)
 	resp := []trade.Data{}
 	var trades *PublicTradesData
 	if e.Websocket.IsConnected() {
@@ -521,7 +521,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 	var instrumentID string
 	switch assetType {
 	case asset.Futures, asset.Options, asset.Spot:
-		instrumentID = e.formatPairString(assetType, p)
+		instrumentID = formatPairString(assetType, p)
 	default:
 		return nil, fmt.Errorf("%w asset type %v", asset.ErrNotSupported, assetType)
 	}
@@ -634,8 +634,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
+// ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
@@ -1050,43 +1049,50 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	case asset.Futures, asset.Spot:
 		var tradingViewData *TVChartData
 		if e.Websocket.IsConnected() {
-			tradingViewData, err = e.WSRetrievesTradingViewChartData(ctx, e.formatFuturesTradablePair(req.RequestFormatted), intervalString, start, end)
+			tradingViewData, err = e.WSRetrievesTradingViewChartData(ctx, formatFuturesTradablePair(req.RequestFormatted), intervalString, start, end)
 		} else {
-			tradingViewData, err = e.GetTradingViewChart(ctx, e.formatFuturesTradablePair(req.RequestFormatted), intervalString, start, end)
+			tradingViewData, err = e.GetTradingViewChart(ctx, formatFuturesTradablePair(req.RequestFormatted), intervalString, start, end)
 		}
 		if err != nil {
 			return nil, err
-		} else if len(tradingViewData.Ticks) == 0 {
-			return nil, kline.ErrNoTimeSeriesDataToConvert
 		}
-		checkLen := len(tradingViewData.Ticks)
-		if len(tradingViewData.Open) != checkLen ||
-			len(tradingViewData.High) != checkLen ||
-			len(tradingViewData.Low) != checkLen ||
-			len(tradingViewData.Close) != checkLen ||
-			len(tradingViewData.Volume) != checkLen {
-			return nil, fmt.Errorf("%s - %v: invalid trading view chart data received", a, req.RequestFormatted)
-		}
-		listCandles := make([]kline.Candle, 0, len(tradingViewData.Ticks))
-		for x := range tradingViewData.Ticks {
-			timeInfo := time.UnixMilli(tradingViewData.Ticks[x]).UTC()
-			if timeInfo.Before(start) {
-				continue
-			}
-			listCandles = append(listCandles, kline.Candle{
-				Open:   tradingViewData.Open[x],
-				High:   tradingViewData.High[x],
-				Low:    tradingViewData.Low[x],
-				Close:  tradingViewData.Close[x],
-				Volume: tradingViewData.Volume[x],
-				Time:   timeInfo,
-			})
+		listCandles, err := appendCandles(tradingViewData, start)
+		if err != nil {
+			return nil, err
 		}
 		return req.ProcessResponse(listCandles)
-	case asset.OptionCombo, asset.FutureCombo, asset.Options:
-		// TODO: candlestick data for asset item option_combo, future_combo, and option not supported yet
 	}
 	return nil, fmt.Errorf("%w candlestick data for asset type %v", asset.ErrNotSupported, a)
+}
+
+func appendCandles(tradingViewData *TVChartData, start time.Time) ([]kline.Candle, error) {
+	if tradingViewData == nil || len(tradingViewData.Ticks) == 0 {
+		return nil, kline.ErrNoTimeSeriesDataToConvert
+	}
+	checkLen := len(tradingViewData.Ticks)
+	if len(tradingViewData.Open) != checkLen ||
+		len(tradingViewData.High) != checkLen ||
+		len(tradingViewData.Low) != checkLen ||
+		len(tradingViewData.Close) != checkLen ||
+		len(tradingViewData.Volume) != checkLen {
+		return nil, fmt.Errorf("%w: ohlcv len must be equal", kline.ErrInsufficientCandleData)
+	}
+	listCandles := make([]kline.Candle, 0, len(tradingViewData.Ticks))
+	for x := range tradingViewData.Ticks {
+		timeInfo := time.UnixMilli(tradingViewData.Ticks[x]).UTC()
+		if timeInfo.Before(start) {
+			continue
+		}
+		listCandles = append(listCandles, kline.Candle{
+			Open:   tradingViewData.Open[x],
+			High:   tradingViewData.High[x],
+			Low:    tradingViewData.Low[x],
+			Close:  tradingViewData.Close[x],
+			Volume: tradingViewData.Volume[x],
+			Time:   timeInfo,
+		})
+	}
+	return listCandles, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -1105,39 +1111,19 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 				return nil, err
 			}
 			if e.Websocket.IsConnected() {
-				tradingViewData, err = e.WSRetrievesTradingViewChartData(ctx, e.formatFuturesTradablePair(req.RequestFormatted), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+				tradingViewData, err = e.WSRetrievesTradingViewChartData(ctx, formatFuturesTradablePair(req.RequestFormatted), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			} else {
-				tradingViewData, err = e.GetTradingViewChart(ctx, e.formatFuturesTradablePair(req.RequestFormatted), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+				tradingViewData, err = e.GetTradingViewChart(ctx, formatFuturesTradablePair(req.RequestFormatted), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			}
 			if err != nil {
 				return nil, err
 			}
-			checkLen := len(tradingViewData.Ticks)
-			if len(tradingViewData.Open) != checkLen ||
-				len(tradingViewData.High) != checkLen ||
-				len(tradingViewData.Low) != checkLen ||
-				len(tradingViewData.Close) != checkLen ||
-				len(tradingViewData.Volume) != checkLen {
-				return nil, fmt.Errorf("%s - %v: invalid trading view chart data received", a, e.formatFuturesTradablePair(req.RequestFormatted))
-			}
-			for i := range tradingViewData.Ticks {
-				timeInfo := time.UnixMilli(tradingViewData.Ticks[i]).UTC()
-				if timeInfo.Before(start) {
-					continue
-				}
-				timeSeries = append(timeSeries, kline.Candle{
-					Open:   tradingViewData.Open[i],
-					High:   tradingViewData.High[i],
-					Low:    tradingViewData.Low[i],
-					Close:  tradingViewData.Close[i],
-					Volume: tradingViewData.Volume[i],
-					Time:   timeInfo,
-				})
+			timeSeries, err = appendCandles(tradingViewData, start)
+			if err != nil {
+				return nil, err
 			}
 		}
 		return req.ProcessResponse(timeSeries)
-	case asset.OptionCombo, asset.FutureCombo, asset.Options:
-		// TODO: candlestick data for asset item option_combo, future_combo, and option not supported yet
 	}
 	return nil, fmt.Errorf("%w candlestick data for asset type %v", asset.ErrNotSupported, a)
 }
@@ -1352,7 +1338,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			return nil, err
 		}
 		cp := k[i].Pair().Format(pFmt)
-		p := e.formatPairString(k[i].Asset, cp)
+		p := formatPairString(k[i].Asset, cp)
 		var oi []BookSummaryData
 		if e.Websocket.IsConnected() {
 			oi, err = e.WSRetrieveBookSummaryByInstrument(ctx, p)
@@ -1446,7 +1432,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		return nil, err
 	}
 	cp := r.Pair.Format(pFmt)
-	p := e.formatPairString(r.Asset, cp)
+	p := formatPairString(r.Asset, cp)
 	var fri []FundingRateHistory
 	fri, err = e.GetFundingRateHistory(ctx, p, time.Now().Add(-time.Hour*16), time.Now())
 	if err != nil {
@@ -1503,7 +1489,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		return nil, err
 	}
 	cp := r.Pair.Format(pFmt)
-	p := e.formatPairString(r.Asset, cp)
+	p := formatPairString(r.Asset, cp)
 	ed := r.EndDate
 
 	var fundingRates []fundingrate.Rate
@@ -1555,12 +1541,14 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	}, nil
 }
 
-func (e *Exchange) formatPairString(assetType asset.Item, pair currency.Pair) string {
+func formatPairString(assetType asset.Item, pair currency.Pair) string {
 	switch assetType {
 	case asset.Futures:
-		return e.formatFuturesTradablePair(pair)
+		return formatFuturesTradablePair(pair)
 	case asset.Options:
-		return e.optionPairToString(pair)
+		return optionPairToString(pair)
+	case asset.OptionCombo:
+		return optionComboPairToString(pair)
 	}
 	return pair.String()
 }
