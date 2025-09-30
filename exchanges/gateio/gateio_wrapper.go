@@ -1967,6 +1967,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 					MaximumBaseAmount:       float64(contractInfo[x].OrderSizeMax),
 					PriceStepIncrementSize:  contractInfo[x].OrderPriceRound.Float64(),
 					AmountStepIncrementSize: 1,
+					Expiry:                  contractInfo[x].ExpireTime.Time(),
 				})
 			}
 		}

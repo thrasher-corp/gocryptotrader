@@ -2491,7 +2491,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 				avail, err := e.GetAvailablePairs(a)
 				require.NoError(t, err, "GetAvailablePairs must not error")
-
 				for _, pair := range avail {
 					l, err := e.GetOrderExecutionLimits(a, pair)
 					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", pair)
@@ -2501,20 +2500,20 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
 					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", pair)
 
-					if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
+					switch a {
+					case asset.USDTMarginedFutures:
+						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", pair)
+						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", pair)
+						fallthrough
+					case asset.CoinMarginedFutures:
 						if !l.Delisted.IsZero() {
 							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", pair)
 						}
-					}
-
-					if a == asset.Spot {
+					case asset.Spot:
 						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", pair)
 						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", pair)
-					}
-
-					if a == asset.USDTMarginedFutures {
-						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", pair)
-						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", pair)
+					case asset.DeliveryFutures:
+						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", pair)
 					}
 				}
 			}
