@@ -16,18 +16,18 @@ func TestGetConvertCoinList(t *testing.T) {
 	_, err := e.GetConvertCoinList(t.Context(), "", currency.EMPTYCODE, true)
 	assert.ErrorIs(t, err, errUnsupportedAccountType)
 
-	_, err = e.GetConvertCoinList(t.Context(), Uta, currency.EMPTYCODE, true)
+	_, err = e.GetConvertCoinList(t.Context(), UTA, currency.EMPTYCODE, true)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 
-	buylist, err := e.GetConvertCoinList(t.Context(), Uta, currency.USDT, true)
+	buylist, err := e.GetConvertCoinList(t.Context(), UTA, currency.USDT, true)
 	require.NoError(t, err)
 	assert.NotEmpty(t, buylist)
 
-	sellList, err := e.GetConvertCoinList(t.Context(), Uta, currency.EMPTYCODE, false)
+	sellList, err := e.GetConvertCoinList(t.Context(), UTA, currency.EMPTYCODE, false)
 	require.NoError(t, err)
 	assert.NotEmpty(t, sellList)
 }
@@ -38,21 +38,21 @@ func TestRequestQuote(t *testing.T) {
 	_, err := e.RequestQuote(t.Context(), &RequestQuoteRequest{})
 	assert.ErrorIs(t, err, errUnsupportedAccountType)
 
-	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{AccountType: Uta})
+	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{AccountType: UTA})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{AccountType: Uta, FromCoin: currency.BTC})
+	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{AccountType: UTA, FromCoin: currency.BTC})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{
-		AccountType: Uta,
+		AccountType: UTA,
 		FromCoin:    currency.BTC,
 		ToCoin:      currency.BTC,
 	})
 	assert.ErrorIs(t, err, errCurrencyCodesEqual)
 
 	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{
-		AccountType: Uta,
+		AccountType: UTA,
 		FromCoin:    currency.BTC,
 		ToCoin:      currency.USDT,
 		RequestCoin: currency.WOO,
@@ -60,7 +60,7 @@ func TestRequestQuote(t *testing.T) {
 	assert.ErrorIs(t, err, errRequestCoinInvalid)
 
 	_, err = e.RequestQuote(t.Context(), &RequestQuoteRequest{
-		AccountType: Uta,
+		AccountType: UTA,
 		FromCoin:    currency.BTC,
 		ToCoin:      currency.USDT,
 	})
@@ -71,7 +71,7 @@ func TestRequestQuote(t *testing.T) {
 	}
 
 	quote, err := e.RequestQuote(t.Context(), &RequestQuoteRequest{
-		AccountType:   Uta,
+		AccountType:   UTA,
 		FromCoin:      currency.XRP,
 		ToCoin:        currency.USDT,
 		RequestAmount: 0.0088,
@@ -101,14 +101,14 @@ func TestGetConvertStatus(t *testing.T) {
 	_, err := e.GetConvertStatus(t.Context(), "", "")
 	assert.ErrorIs(t, err, errUnsupportedAccountType)
 
-	_, err = e.GetConvertStatus(t.Context(), Uta, "")
+	_, err = e.GetConvertStatus(t.Context(), UTA, "")
 	assert.ErrorIs(t, err, errQuoteTransactionIDEmpty)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 
-	status, err := e.GetConvertStatus(t.Context(), Uta, "10414247553864074960678912")
+	status, err := e.GetConvertStatus(t.Context(), UTA, "10414247553864074960678912")
 	require.NoError(t, err)
 	assert.NotEmpty(t, status)
 }
@@ -119,11 +119,11 @@ func TestGetConvertHistory(t *testing.T) {
 	_, err := e.GetConvertHistory(t.Context(), []WalletAccountType{""}, 0, 0)
 	assert.ErrorIs(t, err, errUnsupportedAccountType)
 
-	if mockTests {
+	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 
-	history, err := e.GetConvertHistory(t.Context(), []WalletAccountType{Uta}, 0, 0)
+	history, err := e.GetConvertHistory(t.Context(), []WalletAccountType{UTA}, 0, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, history)
 }

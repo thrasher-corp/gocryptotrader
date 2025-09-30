@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var supportedAccountTypes = []WalletAccountType{Funding, Uta, Spot, Contract, Inverse}
+var supportedAccountTypes = []WalletAccountType{Funding, UTA, Spot, Contract, Inverse}
 
 var (
 	errUnsupportedAccountType  = errors.New("unsupported account type")
