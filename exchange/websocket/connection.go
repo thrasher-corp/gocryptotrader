@@ -490,3 +490,13 @@ var _ MessageFilter = AssetFilter(asset.Spot)
 func (a AssetFilter) MatchesSub(s *subscription.Subscription) bool {
 	return s.Asset == asset.Item(a)
 }
+
+// AuthenticatedFilter is a MessageFilter for filtering connections by Authenticated
+type AuthenticatedFilter bool
+
+var _ MessageFilter = AuthenticatedFilter(true)
+
+// MatchesSub returns if the subscription Authenticated matches the AuthenticatedFilter
+func (a AuthenticatedFilter) MatchesSub(s *subscription.Subscription) bool {
+	return s.Authenticated == bool(a)
+}

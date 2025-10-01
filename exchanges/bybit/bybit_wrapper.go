@@ -372,7 +372,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return e.wsHandleTradeData(conn, resp)
 		},
 		Authenticate:             e.WebsocketAuthenticateTradeConnection,
-		MessageFilter:            OutboundTradeConnection,
+		MessageFilter:            outboundTradeConnection,
 		SubscriptionsNotRequired: true,
 	}); err != nil {
 		return err
@@ -395,7 +395,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.authUnsubscribe,
 		Handler:               e.wsHandleAuthenticatedData,
 		Authenticate:          e.WebsocketAuthenticatePrivateConnection,
-		MessageFilter:         InboundPrivateConnection,
+		MessageFilter:         inboundPrivateConnection,
 	})
 }
 
