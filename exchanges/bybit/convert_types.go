@@ -24,7 +24,7 @@ type ConvertCoinResponse struct {
 	FullName           string        `json:"fullName"`
 	Icon               string        `json:"icon"`
 	IconNight          string        `json:"iconNight"`
-	AccuracyLength     int64         `json:"accuracyLength"`
+	AccuracyLength     uint8         `json:"accuracyLength"`
 	CoinType           string        `json:"coinType"`
 	Balance            types.Number  `json:"balance"`
 	BalanceInUSDT      types.Number  `json:"uBalance"`
@@ -67,7 +67,7 @@ type RequestQuoteResponse struct {
 	ToAmount           types.Number    `json:"toAmount"`
 	ExpiredTime        types.Time      `json:"expiredTime"` // The expiry time for this quote (15 seconds)
 	RequestID          string          `json:"requestId"`
-	ExtTaxAndFee       json.RawMessage `json:"extTaxAndFee"` // Compliance-related field. Currently returns an empty array, which may be used in the future
+	ExtendedTaxAndFee  json.RawMessage `json:"extTaxAndFee"` // Compliance-related field. Currently returns an empty array, which may be used in the future
 }
 
 // ConfirmQuoteResponse represents a response for confirming a quote
@@ -88,24 +88,30 @@ type ConvertStatusResponse struct {
 	ToCoinType            string            `json:"toCoinType"`
 	ToAmount              types.Number      `json:"toAmount"`
 	ExchangeStatus        string            `json:"exchangeStatus"`
-	ExtInfo               json.RawMessage   `json:"extInfo"` // Reserved field, ignored for now
+	ExtendedInfo          json.RawMessage   `json:"extInfo"` // Reserved field, ignored for now
 	ConvertRate           types.Number      `json:"convertRate"`
 	CreatedAt             types.Time        `json:"createdAt"`
 }
 
 // ConvertHistoryResponse represents a response for conversion history
 type ConvertHistoryResponse struct {
-	AccountType           WalletAccountType `json:"accountType"`
-	ExchangeTransactionID string            `json:"exchangeTxId"`
-	UserID                string            `json:"userId"`
-	FromCoin              currency.Code     `json:"fromCoin"`
-	FromCoinType          string            `json:"fromCoinType"`
-	FromAmount            types.Number      `json:"fromAmount"`
-	ToCoin                currency.Code     `json:"toCoin"`
-	ToCoinType            string            `json:"toCoinType"`
-	ToAmount              types.Number      `json:"toAmount"`
-	ExchangeStatus        string            `json:"exchangeStatus"`
-	ExtInfo               json.RawMessage   `json:"extInfo"`
-	ConvertRate           types.Number      `json:"convertRate"`
-	CreatedAt             types.Time        `json:"createdAt"`
+	AccountType           WalletAccountType           `json:"accountType"`
+	ExchangeTransactionID string                      `json:"exchangeTxId"`
+	UserID                string                      `json:"userId"`
+	FromCoin              currency.Code               `json:"fromCoin"`
+	FromCoinType          string                      `json:"fromCoinType"`
+	FromAmount            types.Number                `json:"fromAmount"`
+	ToCoin                currency.Code               `json:"toCoin"`
+	ToCoinType            string                      `json:"toCoinType"`
+	ToAmount              types.Number                `json:"toAmount"`
+	ExchangeStatus        string                      `json:"exchangeStatus"`
+	ExtendedInfo          ExtendedInfoHistoryResponse `json:"extInfo"`
+	ConvertRate           types.Number                `json:"convertRate"`
+	CreatedAt             types.Time                  `json:"createdAt"`
+}
+
+// ExtendedInfoHistoryResponse represents the extended information for conversion history
+type ExtendedInfoHistoryResponse struct {
+	ParamType  string `json:"paramType"`
+	ParamValue string `json:"paramValue"`
 }

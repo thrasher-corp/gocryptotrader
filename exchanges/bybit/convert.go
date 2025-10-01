@@ -32,7 +32,6 @@ func (e *Exchange) GetConvertCoinList(ctx context.Context, accountType WalletAcc
 
 	params := url.Values{}
 	params.Set("accountType", string(accountType))
-
 	if isCoinToBuy {
 		if coin.IsEmpty() {
 			return nil, currency.ErrCurrencyCodeEmpty
@@ -55,18 +54,15 @@ func (e *Exchange) RequestQuote(ctx context.Context, params *RequestQuoteRequest
 	if !slices.Contains(supportedAccountTypes, params.AccountType) {
 		return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, params.AccountType)
 	}
-
 	if params.FromCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w: `from` coin", currency.ErrCurrencyCodeEmpty)
 	}
 	if params.ToCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w: `to` coin", currency.ErrCurrencyCodeEmpty)
 	}
-
 	if params.FromCoin.Equal(params.ToCoin) {
 		return nil, errCurrencyCodesEqual
 	}
-
 	if !params.RequestCoin.IsEmpty() {
 		if !params.RequestCoin.Equal(params.FromCoin) {
 			return nil, errRequestCoinInvalid
@@ -74,7 +70,6 @@ func (e *Exchange) RequestQuote(ctx context.Context, params *RequestQuoteRequest
 	} else {
 		params.RequestCoin = params.FromCoin
 	}
-
 	if params.RequestAmount <= 0 {
 		return nil, fmt.Errorf("%w: %v", order.ErrAmountIsInvalid, params.RequestAmount)
 	}
@@ -108,7 +103,6 @@ func (e *Exchange) GetConvertStatus(ctx context.Context, accountType WalletAccou
 	if !slices.Contains(supportedAccountTypes, accountType) {
 		return nil, fmt.Errorf("%w: %q", errUnsupportedAccountType, accountType)
 	}
-
 	if quoteTransactionID == "" {
 		return nil, errQuoteTransactionIDEmpty
 	}
@@ -138,11 +132,9 @@ func (e *Exchange) GetConvertHistory(ctx context.Context, accountTypes []WalletA
 	if len(atOut) > 0 {
 		params.Add("accountType", strings.Join(atOut, ","))
 	}
-
 	if index != 0 {
 		params.Set("index", strconv.FormatUint(index, 10))
 	}
-
 	if limit != 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}

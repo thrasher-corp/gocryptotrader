@@ -142,7 +142,7 @@ func TestGetConvertHistory(t *testing.T) {
 			ToCoinType:            "crypto",
 			ToAmount:              2.84509740190888,
 			ExchangeStatus:        "success",
-			ExtInfo:               []byte("{}"),
+			ExtendedInfo:          ExtendedInfoHistoryResponse{},
 			ConvertRate:           0.35585068565,
 			CreatedAt:             types.Time(time.UnixMilli(1754880224953)),
 		}
