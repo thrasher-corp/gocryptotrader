@@ -364,7 +364,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return nil, common.ErrNotYetImplemented
 }
 
-// ModifyOrder will allow changing of orderbook placements and limit to market conversions
+// ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err

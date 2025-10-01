@@ -8,7 +8,6 @@ require (
 	github.com/bytedance/sonic v1.14.1
 	github.com/d5/tengo/v2 v2.17.0
 	github.com/gofrs/uuid v4.4.0+incompatible
-	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2
@@ -35,6 +34,7 @@ require (
 )
 
 require (
+	cloud.google.com/go/compute/metadata v0.8.4 // indirect
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.3.0 // indirect
