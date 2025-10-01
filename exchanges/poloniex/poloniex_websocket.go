@@ -48,10 +48,10 @@ const (
 )
 
 var defaultSubscriptions = []string{
-	// cnlCandles,
+	cnlCandles,
 	cnlTrades,
-	// cnlTicker,
-	// cnlBooks,
+	cnlTicker,
+	cnlBooks,
 }
 
 var onceOrderbook map[currency.Pair]struct{}
@@ -534,7 +534,7 @@ func (e *Exchange) handleSubscriptions(operation string, subscs subscription.Lis
 			if !okay {
 				interval = kline.FiveMin
 			}
-			intervalString, err := IntervalToString(interval)
+			intervalString, err := intervalToString(interval)
 			if err != nil {
 				return nil, err
 			}

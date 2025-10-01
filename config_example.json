@@ -2317,10 +2317,6 @@
      "delimiter": "_"
     },
     "useGlobalFormat": true,
-    "assetTypes": [
-     "spot",
-     "futures"
-    ],
     "pairs": {
      "spot": {
       "assetEnabled": true,

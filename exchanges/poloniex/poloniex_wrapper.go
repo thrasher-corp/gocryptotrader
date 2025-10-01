@@ -1034,7 +1034,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 		default:
 			if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				var wsResponse []*WsCancelOrderResponse
-				wsResponse, err = e.WsCancelAllTradeOrders(pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
+				wsResponse, err = e.WsCancelAllTradeOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
@@ -1991,7 +1991,7 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 }
 
 // WebsocketSubmitOrder submits an order to the exchange via a websocket connection
-func (e *Exchange) WebsocketSubmitOrder(_ context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	var err error
 	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
@@ -2020,7 +2020,7 @@ func (e *Exchange) WebsocketSubmitOrder(_ context.Context, s *order.Submit) (*or
 		ClientOrderID: s.ClientOrderID,
 	}
 	var response *PlaceOrderResponse
-	response, err = e.WsCreateOrder(arg)
+	response, err = e.WsCreateOrder(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -2038,14 +2038,14 @@ func (e *Exchange) WebsocketModifyOrder(context.Context, *order.Modify) (*order.
 }
 
 // WebsocketCancelOrder cancels an order via the websocket connection
-func (e *Exchange) WebsocketCancelOrder(_ context.Context, req *order.Cancel) error {
+func (e *Exchange) WebsocketCancelOrder(ctx context.Context, req *order.Cancel) error {
 	if req.OrderID == "" && req.ClientOrderID == "" {
 		return order.ErrOrderIDNotSet
 	}
 	if err := req.Validate(req.StandardCancel()); err != nil {
 		return err
 	}
-	resp, err := e.WsCancelMultipleOrdersByIDs([]string{req.OrderID}, []string{req.ClientOrderID})
+	resp, err := e.WsCancelMultipleOrdersByIDs(ctx, []string{req.OrderID}, []string{req.ClientOrderID})
 	if err != nil {
 		return err
 	}

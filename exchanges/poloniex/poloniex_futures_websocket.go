@@ -63,20 +63,22 @@ const (
 		"index_candles_hour_12", "index_candles_day_1", "index_candles_day_3", "index_candles_week_1"
 )
 
-var defaultFuturesChannels = []string{
-	cnlFuturesTickers,
-	cnlFuturesOrderbook,
-	candles15Min,
-}
+var (
+	defaultFuturesChannels = []string{
+		cnlFuturesTickers,
+		cnlFuturesOrderbook,
+		candles15Min,
+	}
 
-var defaultPrivateFuturesChannels = []string{
-	cnlFuturesPrivatePositions,
-	cnlFuturesPrivateOrders,
-	cnlFuturesPrivateTrades,
-	cnlFuturesAccount,
-}
+	defaultPrivateFuturesChannels = []string{
+		cnlFuturesPrivatePositions,
+		cnlFuturesPrivateOrders,
+		cnlFuturesPrivateTrades,
+		cnlFuturesAccount,
+	}
 
-var onceFuturesOrderbook map[string]bool
+	onceFuturesOrderbook map[string]bool
+)
 
 // WsFuturesConnect establishes a websocket connection to the futures websocket server.
 func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {

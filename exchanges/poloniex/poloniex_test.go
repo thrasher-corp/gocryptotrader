@@ -1663,16 +1663,16 @@ func TestWsPushData(t *testing.T) {
 
 func TestWsCreateOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsCreateOrder(&PlaceOrderRequest{Amount: 1})
+	_, err := e.WsCreateOrder(t.Context(), &PlaceOrderRequest{Amount: 1})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.WsCreateOrder(&PlaceOrderRequest{
+	_, err = e.WsCreateOrder(t.Context(), &PlaceOrderRequest{
 		Symbol: spotTradablePair,
 	})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
-	result, err := e.WsCreateOrder(&PlaceOrderRequest{
+	result, err := e.WsCreateOrder(t.Context(), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
 		Side:          order.Buy.String(),
 		Type:          order.Market.String(),
@@ -1693,7 +1693,7 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
-	result, err := e.WsCancelMultipleOrdersByIDs([]string{"1234"}, []string{"5678"})
+	result, err := e.WsCancelMultipleOrdersByIDs(t.Context(), []string{"1234"}, []string{"5678"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1705,7 +1705,7 @@ func TestWsCancelAllTradeOrders(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
-	result, err := e.WsCancelAllTradeOrders([]string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
+	result, err := e.WsCancelAllTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2253,11 +2253,9 @@ func TestIntervalString(t *testing.T) {
 		kline.OneWeek:    {IntervalString: "WEEK_1"},
 		kline.TwoWeek:    {Error: kline.ErrUnsupportedInterval},
 	}
-	var err error
-	var is string
 	for key, val := range params {
-		is, err = IntervalToString(key)
-		require.Equal(t, val.IntervalString, is)
+		s, err := intervalToString(key)
+		require.Equal(t, val.IntervalString, s)
 		require.ErrorIs(t, err, val.Error, err)
 	}
 }

@@ -467,23 +467,13 @@ func (e *Exchange) GetFuturesOrderBook(ctx context.Context, symbol string, depth
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues(marketsPathV3+"orderBook", params), &resp)
 }
 
-// IntervalToString returns a string representation of kline.Interval instance.
-func IntervalToString(interval kline.Interval) (string, error) {
-	for x := range supportedIntervals {
-		if supportedIntervals[x].val == interval {
-			return supportedIntervals[x].key, nil
-		}
-	}
-	return "", kline.ErrUnsupportedInterval
-}
-
 // GetFuturesKlineData retrieves K-line data of the designated trading pair
 func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*FuturesCandle, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	intervalString, err := IntervalToString(interval)
+	intervalString, err := intervalToString(interval)
 	if err != nil {
 		return nil, err
 	}
@@ -592,7 +582,7 @@ func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol string, in
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	intervalString, err := IntervalToString(interval)
+	intervalString, err := intervalToString(interval)
 	if err != nil {
 		return nil, err
 	}
@@ -628,7 +618,7 @@ func (e *Exchange) GetMarkPriceKlineData(ctx context.Context, symbol string, int
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	intervalString, err := IntervalToString(interval)
+	intervalString, err := intervalToString(interval)
 	if err != nil {
 		return nil, err
 	}

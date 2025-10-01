@@ -37,32 +37,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// var err error
-	spotTradablePair, err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
-	if err != nil {
-		log.Fatal(err)
-	}
-	futuresTradablePair, err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT_PERP", ""), asset.Futures)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, true)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, false)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, true)
-	if err != nil {
-		log.Fatal(err)
-	}
-	e.HTTPRecording = true
 	os.Exit(m.Run())
 }
 

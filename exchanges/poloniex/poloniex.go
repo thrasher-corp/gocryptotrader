@@ -144,7 +144,7 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	intervalString, err := IntervalToString(interval)
+	intervalString, err := intervalToString(interval)
 	if err != nil {
 		return nil, err
 	} else if intervalString == "" {
@@ -194,7 +194,7 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, marketsPath+symbol.String()+"/ticker24h", &resp)
 }
 
-// GetCollateralInfo retrieves collateral information for currency
+// GetCollateralInfo retrieves collateral information
 func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy currency.Code) ([]*CollateralInfo, error) {
 	var path string
 	if !ccy.IsEmpty() {
@@ -512,6 +512,16 @@ func stringToInterval(interval string) (kline.Interval, error) {
 		}
 	}
 	return kline.Interval(0), fmt.Errorf("%w: %q", kline.ErrUnsupportedInterval, interval)
+}
+
+// intervalToString returns a string representation of kline.Interval instance.
+func intervalToString(interval kline.Interval) (string, error) {
+	for x := range supportedIntervals {
+		if supportedIntervals[x].val == interval {
+			return supportedIntervals[x].key, nil
+		}
+	}
+	return "", kline.ErrUnsupportedInterval
 }
 
 // WithdrawCurrency withdraws a currency to a specific delegated address

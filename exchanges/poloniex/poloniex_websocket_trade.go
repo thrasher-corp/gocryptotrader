@@ -14,20 +14,15 @@ import (
 )
 
 // WsCreateOrder create an order for an account.
-func (e *Exchange) WsCreateOrder(arg *PlaceOrderRequest) (*PlaceOrderResponse, error) {
+func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*PlaceOrderResponse, error) {
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
-	authConn, err := e.Websocket.GetConnection(connSpotPrivate)
-	if err != nil {
-		return nil, err
-	}
 	var resp []PlaceOrderResponse
-	err = e.SendWebsocketRequest(authConn, "createOrder", arg, &resp)
-	if err != nil {
+	if err := e.SendWebsocketRequest(ctx, connSpotPrivate, "createOrder", arg, &resp); err != nil {
 		return nil, err
 	}
 	if len(resp) == 0 {
@@ -39,7 +34,7 @@ func (e *Exchange) WsCreateOrder(arg *PlaceOrderRequest) (*PlaceOrderResponse, e
 }
 
 // WsCancelMultipleOrdersByIDs batch cancel one or many active orders in an account by IDs through the websocket stream.
-func (e *Exchange) WsCancelMultipleOrdersByIDs(orderIDs, clientOrderIDs []string) ([]*WsCancelOrderResponse, error) {
+func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clientOrderIDs []string) ([]*WsCancelOrderResponse, error) {
 	if len(clientOrderIDs) == 0 && len(orderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -50,12 +45,8 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(orderIDs, clientOrderIDs []string
 	if len(orderIDs) > 0 {
 		params["orderIds"] = orderIDs
 	}
-	authConn, err := e.Websocket.GetConnection(connSpotPrivate)
-	if err != nil {
-		return nil, err
-	}
 	var resp []*WsCancelOrderResponse
-	err = e.SendWebsocketRequest(authConn, "cancelOrders", params, &resp)
+	err := e.SendWebsocketRequest(ctx, connSpotPrivate, "cancelOrders", params, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +59,7 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(orderIDs, clientOrderIDs []string
 }
 
 // WsCancelAllTradeOrders batch cancel all orders in an account.
-func (e *Exchange) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]*WsCancelOrderResponse, error) {
+func (e *Exchange) WsCancelAllTradeOrders(ctx context.Context, symbols, accountTypes []string) ([]*WsCancelOrderResponse, error) {
 	args := make(map[string][]string)
 	if len(symbols) > 0 {
 		args["symbols"] = symbols
@@ -76,12 +67,8 @@ func (e *Exchange) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]*Ws
 	if len(accountTypes) > 0 {
 		args["accountTypes"] = accountTypes
 	}
-	authConn, err := e.Websocket.GetConnection(connSpotPrivate)
-	if err != nil {
-		return nil, err
-	}
 	var resp []*WsCancelOrderResponse
-	err = e.SendWebsocketRequest(authConn, "cancelAllOrders", args, &resp)
+	err := e.SendWebsocketRequest(ctx, connSpotPrivate, "cancelAllOrders", args, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -94,9 +81,13 @@ func (e *Exchange) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]*Ws
 }
 
 // SendWebsocketRequest represents a websocket request through the authenticated connections.
-func (e *Exchange) SendWebsocketRequest(conn websocket.Connection, event string, arg, response any) error {
+func (e *Exchange) SendWebsocketRequest(ctx context.Context, connMessageFilter, event string, arg, response any) error {
 	if !e.Websocket.IsConnected() || !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return websocket.ErrWebsocketNotEnabled
+	}
+	conn, err := e.Websocket.GetConnection(connMessageFilter)
+	if err != nil {
+		return err
 	}
 	input := &struct {
 		ID     string `json:"id"`
@@ -107,7 +98,7 @@ func (e *Exchange) SendWebsocketRequest(conn websocket.Connection, event string,
 		Event:  event,
 		Params: arg,
 	}
-	result, err := conn.SendMessageReturnResponse(context.Background(), request.Auth, input.ID, input)
+	result, err := conn.SendMessageReturnResponse(ctx, request.Auth, input.ID, input)
 	if err != nil {
 		return err
 	}
