@@ -3,6 +3,7 @@ package kucoin
 import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -85,11 +86,11 @@ type FuturesTicker struct {
 }
 
 type futuresOrderbookResponse struct {
-	Asks     [][2]float64 `json:"asks"`
-	Bids     [][2]float64 `json:"bids"`
-	Time     types.Time   `json:"ts"`
-	Sequence int64        `json:"sequence"`
-	Symbol   string       `json:"symbol"`
+	Asks     orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids     orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Time     types.Time                       `json:"ts"`
+	Sequence int64                            `json:"sequence"`
+	Symbol   string                           `json:"symbol"`
 }
 
 // FuturesTrade stores trade data

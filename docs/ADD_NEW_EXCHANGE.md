@@ -1,6 +1,6 @@
 # GoCryptoTrader ADD NEW EXCHANGE
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
+<img src="/docs/assets/page-logo.png" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -145,7 +145,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
-| CoinbasePro | Yes | Yes | No|
+| Coinbase | Yes | Yes | No|
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
@@ -171,7 +171,7 @@ var Exchanges = []string{
     "btc markets",
     "btse",
     "bybit",
-    "coinbasepro",
+    "coinbase",
     "coinut",
     "deribit",
     "exmo",

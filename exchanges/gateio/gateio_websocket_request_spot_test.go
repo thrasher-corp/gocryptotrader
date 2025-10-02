@@ -192,8 +192,8 @@ func TestWebsocketSpotGetOrderStatus(t *testing.T) {
 	require.NotEmpty(t, got)
 }
 
-// getWebsocketInstance returns a websocket instance copy for testing.
-// This restricts the pairs to a single asset type to reduce test time.
+// newExchangeWithWebsocket returns a websocket instance copy for testing.
+// This restricts the pairs to a single pair per asset type to reduce test time.
 func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 	t.Helper()
 	if apiKey == "" || apiSecret == "" {

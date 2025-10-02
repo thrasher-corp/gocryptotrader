@@ -40,12 +40,11 @@ var (
 	ErrAmountMustBeSet             = errors.New("amount must be set")
 	ErrClientOrderIDMustBeSet      = errors.New("client order ID must be set")
 	ErrUnknownSubmissionAmountType = errors.New("unknown submission amount type")
+	ErrUnrecognisedOrderType       = errors.New("unrecognised order type")
 )
 
 var (
-	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
-	errExchangeNameUnset        = errors.New("exchange name unset")
 	errOrderSubmitIsNil         = errors.New("order submit is nil")
 	errOrderSubmitResponseIsNil = errors.New("order submit response is nil")
 	errOrderDetailIsNil         = errors.New("order detail is nil")
@@ -64,7 +63,7 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 	}
 
 	if s.Exchange == "" {
-		return errExchangeNameUnset
+		return common.ErrExchangeNameNotSet
 	}
 
 	if s.Pair.IsEmpty() {
@@ -83,7 +82,7 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 		return fmt.Errorf("%w %v", ErrSideIsInvalid, s.Side)
 	}
 
-	if s.Type != Market && s.Type != Limit {
+	if AllOrderTypes&s.Type != s.Type || s.Type == UnknownType {
 		return ErrTypeIsInvalid
 	}
 
@@ -111,11 +110,11 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 		return fmt.Errorf("submit validation error %w, client order ID must be set to satisfy submission requirements", ErrClientOrderIDMustBeSet)
 	}
 
-	if requirements.SpotMarketOrderAmountPurchaseQuotationOnly && s.QuoteAmount == 0 && s.Type == Market && s.AssetType == asset.Spot && s.Side.IsLong() {
+	if requirements.SpotMarketBuyQuotation && s.QuoteAmount == 0 && s.Type == Market && s.AssetType == asset.Spot && s.Side.IsLong() {
 		return fmt.Errorf("submit validation error %w, quote amount to be sold must be set to 'QuoteAmount' field to satisfy trading requirements", ErrAmountMustBeSet)
 	}
 
-	if requirements.SpotMarketOrderAmountSellBaseOnly && s.Amount == 0 && s.Type == Market && s.AssetType == asset.Spot && s.Side.IsShort() {
+	if requirements.SpotMarketSellBase && s.Amount == 0 && s.Type == Market && s.AssetType == asset.Spot && s.Side.IsShort() {
 		return fmt.Errorf("submit validation error %w, base amount being sold must be set to 'Amount' field to satisfy trading requirements", ErrAmountMustBeSet)
 	}
 
@@ -138,9 +137,9 @@ func (s *Submit) GetTradeAmount(tr protocol.TradingRequirements) float64 {
 		return 0
 	}
 	switch {
-	case tr.SpotMarketOrderAmountPurchaseQuotationOnly && s.AssetType == asset.Spot && s.Type == Market && s.Side.IsLong():
+	case tr.SpotMarketBuyQuotation && s.AssetType == asset.Spot && s.Type == Market && s.Side.IsLong():
 		return s.QuoteAmount
-	case tr.SpotMarketOrderAmountSellBaseOnly && s.AssetType == asset.Spot && s.Type == Market && s.Side.IsShort():
+	case tr.SpotMarketSellBase && s.AssetType == asset.Spot && s.Type == Market && s.Side.IsShort():
 		return s.Amount
 	}
 	return s.Amount
@@ -697,6 +696,8 @@ func (t Type) String() string {
 		return orderTrigger
 	case OCO:
 		return orderOCO
+	case Bracket:
+		return orderBracket
 	case OptimalLimit:
 		return orderOptimalLimit
 	case MarketMakerProtection:
@@ -1136,8 +1137,10 @@ func StringToOrderType(oType string) (Type, error) {
 		return TakeProfit, nil
 	case orderLiquidation:
 		return Liquidation, nil
+	case orderBracket, "TRIGGER_BRACKET":
+		return Bracket, nil
 	default:
-		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
+		return UnknownType, fmt.Errorf("'%v' %w", oType, ErrUnrecognisedOrderType)
 	}
 }
 
@@ -1263,7 +1266,7 @@ func (g *MultiOrderRequest) Validate(opt ...validate.Checker) error {
 	}
 
 	if g.Type == UnknownType {
-		return errUnrecognisedOrderType
+		return ErrUnrecognisedOrderType
 	}
 
 	var errs error

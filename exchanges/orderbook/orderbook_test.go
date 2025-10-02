@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -223,7 +224,7 @@ func TestBookGetDepth(t *testing.T) {
 func TestDeployDepth(t *testing.T) {
 	pair := currency.NewBTCUSD()
 	_, err := DeployDepth("", pair, asset.Spot)
-	require.ErrorIs(t, err, ErrExchangeNameEmpty)
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, errPairNotSet)
 	_, err = DeployDepth("test", pair, asset.Empty)
@@ -560,4 +561,21 @@ func BenchmarkProcess(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+}
+
+func TestLevelsArrayPriceAmountUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+
+	var asks LevelsArrayPriceAmount
+	err := asks.UnmarshalJSON([]byte(`[[1,2],["3","4"]]`))
+	require.NoError(t, err)
+	assert.Len(t, asks, 2)
+	assert.Equal(t, 1.0, asks[0].Price)
+	assert.Equal(t, 2.0, asks[0].Amount)
+	assert.Equal(t, 3.0, asks[1].Price)
+	assert.Equal(t, 4.0, asks[1].Amount)
+	assert.Equal(t, 2, len(asks.Levels()))
+
+	err = asks.UnmarshalJSON([]byte(`invalid`))
+	assert.Error(t, err)
 }

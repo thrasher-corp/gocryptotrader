@@ -940,18 +940,18 @@ func TestUpdatePairs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true)
 	if err != nil {
 		t.Errorf("TestUpdatePairs error: %s", err)
 	}
 
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false)
 	if err != nil {
 		t.Errorf("TestUpdatePairs error: %s", err)
 	}
 
 	// Test updating the same new products, diff should be 0
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true)
 	if err != nil {
 		t.Errorf("TestUpdatePairs error: %s", err)
 	}
@@ -962,7 +962,7 @@ func TestUpdatePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, true)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true)
 	if err != nil {
 		t.Errorf("TestUpdatePairs error: %s", err)
 	}
@@ -978,13 +978,13 @@ func TestUpdatePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 	UAC.Name = defaultTestExchange
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false)
 	if err != nil {
 		t.Errorf("Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test updating the same new products, diff should be 0
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false)
 	if err != nil {
 		t.Errorf("Exchange UpdatePairs() error: %s", err)
 	}
@@ -994,7 +994,7 @@ func TestUpdatePairs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, true)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false)
 	if err != nil {
 		t.Errorf("Forced Exchange UpdatePairs() error: %s", err)
 	}
@@ -1004,21 +1004,21 @@ func TestUpdatePairs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false)
 	if err != nil {
 		t.Errorf("Exchange UpdatePairs() error: %s", err)
 	}
 
-	err = UAC.UpdatePairs(currency.Pairs{currency.EMPTYPAIR, btcusdPair}, asset.Spot, true, true)
+	err = UAC.UpdatePairs(currency.Pairs{currency.EMPTYPAIR, btcusdPair}, asset.Spot, true)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UpdatePairs should error on empty pairs")
 
-	err = UAC.UpdatePairs(currency.Pairs{btcusdPair, btcusdPair}, asset.Spot, false, true)
+	err = UAC.UpdatePairs(currency.Pairs{btcusdPair, btcusdPair}, asset.Spot, false)
 	assert.ErrorIs(t, err, currency.ErrPairDuplication, "UpdatePairs should error on Duplicates")
 
-	err = UAC.UpdatePairs(currency.Pairs{btcusdPair}, asset.Spot, false, true)
+	err = UAC.UpdatePairs(currency.Pairs{btcusdPair}, asset.Spot, false)
 	assert.NoError(t, err, "UpdatePairs should not error")
 
-	err = UAC.UpdatePairs(currency.Pairs{btcusdPair}, asset.Spot, true, true)
+	err = UAC.UpdatePairs(currency.Pairs{btcusdPair}, asset.Spot, true)
 	assert.NoError(t, err, "UpdatePairs should not error")
 
 	UAC.CurrencyPairs.UseGlobalFormat = true
@@ -1034,7 +1034,7 @@ func TestUpdatePairs(t *testing.T) {
 		currency.NewPair(currency.LTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.USDT),
 	}
-	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
+	err = UAC.UpdatePairs(pairs, asset.Spot, true)
 	require.NoError(t, err)
 
 	pairs = currency.Pairs{
@@ -1043,7 +1043,7 @@ func TestUpdatePairs(t *testing.T) {
 		currency.NewPair(currency.LARIX, currency.USD),
 		currency.NewPair(currency.LTC, currency.USDT),
 	}
-	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
+	err = UAC.UpdatePairs(pairs, asset.Spot, false)
 	require.NoError(t, err)
 
 	uacEnabledPairs, err := UAC.GetEnabledPairs(asset.Spot)
@@ -1075,7 +1075,7 @@ func TestUpdatePairs(t *testing.T) {
 		unintentionalInput,
 	}
 
-	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
+	err = UAC.UpdatePairs(pairs, asset.Spot, true)
 	require.NoError(t, err)
 
 	pairs = currency.Pairs{
@@ -1086,7 +1086,7 @@ func TestUpdatePairs(t *testing.T) {
 		currency.NewPair(currency.LINK, currency.USD),
 	}
 
-	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
+	err = UAC.UpdatePairs(pairs, asset.Spot, false)
 	require.NoError(t, err)
 
 	uacEnabledPairs, err = UAC.GetEnabledPairs(asset.Spot)
@@ -1097,6 +1097,20 @@ func TestUpdatePairs(t *testing.T) {
 	if !uacEnabledPairs.Contains(currency.NewPair(currency.LINK, currency.USD), true) {
 		t.Fatalf("received: '%v' but expected: '%v'", false, true)
 	}
+
+	err = UAC.UpdatePairs(currency.Pairs{}, asset.Spot, true)
+	require.NoError(t, err, "purging all pairs must not error")
+
+	pairs, err = UAC.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err)
+	require.Empty(t, pairs)
+
+	err = UAC.UpdatePairs(currency.Pairs{}, asset.Spot, false)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "Purging all available pairs must error")
+
+	avail, err := UAC.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err)
+	assert.NotEmpty(t, avail, "Failed attempt to purge available pairs should not affect store")
 }
 
 func TestSupportsWebsocket(t *testing.T) {
@@ -1665,6 +1679,7 @@ func TestString(t *testing.T) {
 		{WebsocketUSDTMargined, websocketUSDTMarginedURL},
 		{WebsocketUSDCMargined, websocketUSDCMarginedURL},
 		{WebsocketOptions, websocketOptionsURL},
+		{WebsocketTrade, websocketTradeURL},
 		{WebsocketPrivate, websocketPrivateURL},
 		{WebsocketSpotSupplementary, websocketSpotSupplementaryURL},
 		{ChainAnalysis, chainAnalysisURL},
@@ -1828,6 +1843,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		{Endpoint: websocketUSDTMarginedURL, Expected: WebsocketUSDTMargined},
 		{Endpoint: websocketUSDCMarginedURL, Expected: WebsocketUSDCMargined},
 		{Endpoint: websocketOptionsURL, Expected: WebsocketOptions},
+		{Endpoint: websocketTradeURL, Expected: WebsocketTrade},
 		{Endpoint: websocketPrivateURL, Expected: WebsocketPrivate},
 		{Endpoint: websocketSpotSupplementaryURL, Expected: WebsocketSpotSupplementary},
 		{Endpoint: chainAnalysisURL, Expected: ChainAnalysis},
@@ -1998,10 +2014,10 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCAUD")
-	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
+	require.ErrorIs(t, err, ErrSymbolNotMatched)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
-	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
+	require.ErrorIs(t, err, ErrSymbolNotMatched)
 
 	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
 	require.NoError(t, err)
@@ -2661,7 +2677,7 @@ func (f *FakeBase) SetDefaults() {
 	f.Requester, _ = request.New("test", common.NewHTTPClientWithTimeout(time.Second))
 	f.Features.Supports.RESTCapabilities.AutoPairUpdates = true
 }
-func (f *FakeBase) UpdateTradablePairs(context.Context, bool) error { return nil }
+func (f *FakeBase) UpdateTradablePairs(context.Context) error { return nil }
 
 func (f *FakeBase) Setup(*config.Exchange) error {
 	return nil
@@ -2874,6 +2890,18 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 func TestWebsocketSubmitOrders(t *testing.T) {
 	t.Parallel()
 	_, err := (&Base{}).WebsocketSubmitOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketModifyOrder(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).WebsocketModifyOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketCancelOrder(t *testing.T) {
+	t.Parallel()
+	err := (&Base{}).WebsocketCancelOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 

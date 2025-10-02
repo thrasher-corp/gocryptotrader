@@ -747,7 +747,7 @@ func TestWsAuth(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), true)
+	err := e.UpdateTradablePairs(t.Context())
 	require.NoError(t, err)
 }
 
@@ -934,7 +934,7 @@ func TestWsTrades(t *testing.T) {
 	require.NoError(t, e.wsHandleData(msg), "Must not error handling a standard stream of trades")
 
 	msg = []byte(`{"table":"trade","action":"insert","data":[{"timestamp":"2020-02-17T01:35:36.442Z","symbol":".BGCT","size":14,"price":258.2,"side":"sell"}]}`)
-	require.ErrorIs(t, e.wsHandleData(msg), exchange.ErrSymbolCannotBeMatched, "Must error correctly with an unknown symbol")
+	require.ErrorIs(t, e.wsHandleData(msg), exchange.ErrSymbolNotMatched, "Must error correctly with an unknown symbol")
 
 	msg = []byte(`{"table":"trade","action":"insert","data":[{"timestamp":"2020-02-17T01:35:36.442Z","symbol":".BGCT","size":0,"price":258.2,"side":"sell"}]}`)
 	require.NoError(t, e.wsHandleData(msg), "Must not error that symbol is unknown when index trade is ignored due to zero size")
@@ -942,7 +942,7 @@ func TestWsTrades(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), false)
+	err := e.UpdateTradablePairs(t.Context())
 	require.NoError(t, err)
 	currencyPair := e.CurrencyPairs.Pairs[asset.Futures].Available[0]
 	_, err = e.GetRecentTrades(t.Context(), currencyPair, asset.Futures)
@@ -951,7 +951,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), false)
+	err := e.UpdateTradablePairs(t.Context())
 	require.NoError(t, err)
 	currencyPair := e.CurrencyPairs.Pairs[asset.Futures].Available[0]
 	_, err = e.GetHistoricTrades(t.Context(), currencyPair, asset.Futures, time.Now().Add(-time.Minute), time.Now())

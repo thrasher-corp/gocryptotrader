@@ -53,8 +53,12 @@ const (
 	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
-// ErrSymbolCannotBeMatched returned on symbol matching failure
-var ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+// Public Errors
+var (
+	ErrSettingProxyAddress  = errors.New("error setting proxy address")
+	ErrEndpointPathNotFound = errors.New("no endpoint path found for the given key")
+	ErrSymbolNotMatched     = errors.New("symbol cannot be matched")
+)
 
 var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
@@ -81,8 +85,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 	proxy, err := url.Parse(addr)
 	if err != nil {
-		return fmt.Errorf("setting proxy address error %s",
-			err)
+		return fmt.Errorf("%w %w", ErrSettingProxyAddress, err)
 	}
 
 	err = b.Requester.SetProxy(proxy)
@@ -204,7 +207,7 @@ func (b *Base) GetLastPairsUpdateTime() int64 {
 	return b.CurrencyPairs.LastUpdated
 }
 
-// GetAssetTypes returns the either the enabled or available asset types for an
+// GetAssetTypes returns either the enabled or available asset types for an
 // individual exchange
 func (b *Base) GetAssetTypes(enabled bool) asset.Items {
 	return b.CurrencyPairs.GetAssetTypes(enabled)
@@ -251,7 +254,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.EMPTYPAIR, asset.Empty, ErrSymbolCannotBeMatched
+	return currency.EMPTYPAIR, asset.Empty, ErrSymbolNotMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -641,9 +644,13 @@ func (b *Base) EnsureOnePairEnabled() error {
 	return nil
 }
 
-// UpdatePairs updates the exchange currency pairs for either enabledPairs or
-// availablePairs
-func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force bool) error {
+// UpdatePairs updates the exchange currency pairs for either enabledPairs or availablePairs
+func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) error {
+	if len(incoming) == 0 && !enabled {
+		// Exchange reports a successful response (HTTP 200) but provides no currency pairs, so we preserve the existing
+		// available pairs.
+		return fmt.Errorf("%w: updating available pairs", currency.ErrCurrencyPairsEmpty)
+	}
 	pFmt, err := b.GetPairFormat(a, false)
 	if err != nil {
 		return err
@@ -664,46 +671,27 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		return err
 	}
 
-	if force || len(diff.New) != 0 || len(diff.Remove) != 0 || diff.FormatDifference {
-		var updateType string
-		if enabled {
-			updateType = "enabled"
-		} else {
-			updateType = "available"
-		}
+	updateType := "enabled"
+	if !enabled {
+		updateType = "available"
+	}
 
-		if force {
-			log.Debugf(log.ExchangeSys,
-				"%s forced update of %s [%v] pairs.",
-				b.Name,
-				updateType,
-				strings.ToUpper(a.String()))
-		} else {
-			if len(diff.New) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Added: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.New)
-			}
-			if len(diff.Remove) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Removed: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.Remove)
-			}
-		}
-		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
-		if err != nil {
-			return err
-		}
-		err = b.CurrencyPairs.StorePairs(a, incoming, enabled)
-		if err != nil {
-			return err
-		}
+	if len(diff.New) > 0 {
+		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.New)
+	}
+	if len(diff.Remove) > 0 {
+		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Removed: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.Remove)
+	}
+
+	if err := common.NilGuard(b.Config, b.Config.CurrencyPairs); err != nil {
+		return err
+	}
+
+	if err := b.Config.CurrencyPairs.StorePairs(a, incoming, enabled); err != nil {
+		return err
+	}
+	if err := b.CurrencyPairs.StorePairs(a, incoming, enabled); err != nil {
+		return err
 	}
 
 	if enabled {
@@ -769,21 +757,14 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		if err != nil {
 			return err
 		}
-		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n",
-			b.Name,
-			strings.ToUpper(a.String()),
-			randomPair)
+		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n", b.Name, strings.ToUpper(a.String()), randomPair)
 		enabledPairs = currency.Pairs{randomPair}
 	}
 
 	if len(diff.Remove) > 0 {
-		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
-			b.Name,
-			strings.ToUpper(a.String()),
-			diff.Remove)
+		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n", b.Name, strings.ToUpper(a.String()), diff.Remove)
 	}
-	err = b.Config.CurrencyPairs.StorePairs(a, enabledPairs, true)
-	if err != nil {
+	if err := b.Config.CurrencyPairs.StorePairs(a, enabledPairs, true); err != nil {
 		return err
 	}
 	return b.CurrencyPairs.StorePairs(a, enabledPairs, true)
@@ -1278,7 +1259,7 @@ func (e *Endpoints) GetURL(endpoint URL) (string, error) {
 	defer e.mu.RUnlock()
 	val, ok := e.defaults[endpoint.String()]
 	if !ok {
-		return "", fmt.Errorf("no endpoint path found for the given key: %v", endpoint)
+		return "", fmt.Errorf("%w %v", ErrEndpointPathNotFound, endpoint)
 	}
 	return val, nil
 }
@@ -1370,6 +1351,8 @@ func (u URL) String() string {
 		return websocketUSDCMarginedURL
 	case WebsocketOptions:
 		return websocketOptionsURL
+	case WebsocketTrade:
+		return websocketTradeURL
 	case WebsocketPrivate:
 		return websocketPrivateURL
 	case WebsocketSpotSupplementary:
@@ -1418,6 +1401,8 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return WebsocketUSDCMargined, nil
 	case websocketOptionsURL:
 		return WebsocketOptions, nil
+	case websocketTradeURL:
+		return WebsocketTrade, nil
 	case websocketPrivateURL:
 		return WebsocketPrivate, nil
 	case websocketSpotSupplementaryURL:
@@ -1827,7 +1812,7 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 	}
 
 	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+		if err := b.UpdateTradablePairs(ctx); err != nil {
 			return fmt.Errorf("failed to update tradable pairs: %w", err)
 		}
 	}
@@ -1886,13 +1871,12 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 		return nil, err
 	}
 
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
+	if err := b.SetupDefaults(exchCfg); err != nil {
 		return nil, err
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = exch.UpdateTradablePairs(ctx, true)
+		err = exch.UpdateTradablePairs(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -1959,6 +1943,16 @@ func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.Submit
 // WebsocketSubmitOrders submits multiple orders (batch) via the websocket connection
 func (*Base) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses []*order.SubmitResponse, err error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketModifyOrder modifies an order via the websocket connection
+func (*Base) WebsocketModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketCancelOrder cancels an order via the websocket connection
+func (*Base) WebsocketCancelOrder(context.Context, *order.Cancel) error {
+	return common.ErrFunctionNotSupported
 }
 
 // MessageID returns a universally unique id using UUID V7

@@ -55,6 +55,7 @@ var (
 
 // Public common Errors
 var (
+	ErrExchangeNameNotSet        = errors.New("exchange name not set")
 	ErrNotYetImplemented         = errors.New("not yet implemented")
 	ErrFunctionNotSupported      = errors.New("unsupported wrapper function")
 	ErrAddressIsEmptyOrInvalid   = errors.New("address is empty or invalid")
@@ -681,4 +682,14 @@ func (c *Counter) IncrementAndGet() int64 {
 		return 1
 	}
 	return newID
+}
+
+// SetIfZero sets the value of p to def if p is the zero value for its type and returns true if it was set
+func SetIfZero[T comparable](p *T, def T) bool {
+	var zero T
+	if *p != zero {
+		return false
+	}
+	*p = def
+	return true
 }
