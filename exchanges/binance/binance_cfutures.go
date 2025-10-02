@@ -84,7 +84,7 @@ func (e *Exchange) FuturesExchangeInfo(ctx context.Context) (CExchangeInfo, erro
 }
 
 // GetFuturesOrderbook gets orderbook data for CoinMarginedFutures,
-func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (*OrderBookResponse, error) {
+func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit uint64) (*OrderBookResponse, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
