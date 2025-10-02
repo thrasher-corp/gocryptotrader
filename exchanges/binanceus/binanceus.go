@@ -318,7 +318,7 @@ outer:
 }
 
 // GetOrderBookDepth to get the order book depth. Please note the limits in the table below.
-func (e *Exchange) GetOrderBookDepth(ctx context.Context, pair currency.Pair, limit int64) (*OrderBook, error) {
+func (e *Exchange) GetOrderBookDepth(ctx context.Context, pair currency.Pair, limit uint64) (*OrderBook, error) {
 	params := url.Values{}
 	symbol, err := e.FormatSymbol(pair, asset.Spot)
 	if err != nil {
