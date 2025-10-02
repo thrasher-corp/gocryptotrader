@@ -1163,7 +1163,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 	case o.Side.IsLong():
 		side = order.Bid.Lower()
 	case o.Side.IsShort():
-		side = sideAsk
+		side = order.ask.Lower()
 	case o.Side == order.UnknownSide, o.Side == order.AnySide:
 	default:
 		return resp, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, o.Side)
