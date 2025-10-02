@@ -1088,7 +1088,7 @@ func TestConnectionShutdown(t *testing.T) {
 	t.Parallel()
 	wc := connection{shutdown: make(chan struct{})}
 	err := wc.Shutdown()
-	assert.NoError(t, err, "Shutdown should not error")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Shutdown should error correctly")
 
 	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
 	assert.ErrorContains(t, err, "malformed ws or wss URL", "Dial should error correctly")
