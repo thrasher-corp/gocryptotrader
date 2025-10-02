@@ -26,7 +26,6 @@ var (
 
 	errInvalidResponseReceiver    = errors.New("invalid response receiver")
 	errInvalidStopPriceType       = errors.New("stopPriceType is required")
-	errMalformedData              = errors.New("malformed data")
 	errNoDepositAddress           = errors.New("no deposit address found")
 	errAddressRequired            = errors.New("address is required")
 	errMultipleDepositAddress     = errors.New("multiple deposit addresses")
