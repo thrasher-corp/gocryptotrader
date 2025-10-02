@@ -593,11 +593,6 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 				c.Key.Asset)
 		}
 		m.PrintTickerSummary(result, "REST", err)
-		if err == nil {
-			if m.remoteConfig.WebsocketRPC.Enabled {
-				relayWebsocketEvent(result, "ticker_update", c.Key.Asset.String(), exchangeName)
-			}
-		}
 		updateErr := m.update(c, SyncItemTicker, err)
 		if updateErr != nil {
 			log.Errorln(log.SyncMgr, updateErr)
@@ -642,11 +637,6 @@ func (m *SyncManager) syncOrderbook(c *currencyPairSyncAgent, e exchange.IBotExc
 			c.Pair,
 			c.Key.Asset)
 		m.PrintOrderbookSummary(result, "REST", err)
-		if err == nil {
-			if m.remoteConfig.WebsocketRPC.Enabled {
-				relayWebsocketEvent(result, "orderbook_update", c.Key.Asset.String(), e.GetName())
-			}
-		}
 		updateErr := m.update(c, SyncItemOrderbook, err)
 		if updateErr != nil {
 			log.Errorln(log.SyncMgr, updateErr)
@@ -885,20 +875,6 @@ func (m *SyncManager) WaitForInitialSync() error {
 
 	m.initSyncWG.Wait()
 	return nil
-}
-
-func relayWebsocketEvent(result any, event, assetType, exchangeName string) {
-	evt := WebsocketEvent{
-		Data:      result,
-		Event:     event,
-		AssetType: assetType,
-		Exchange:  exchangeName,
-	}
-	err := BroadcastWebsocketMessage(evt)
-	if err != nil && !errors.Is(err, ErrWebsocketServiceNotRunning) {
-		log.Errorf(log.APIServerMgr, "Failed to broadcast websocket event %v. Error: %v",
-			event, err)
-	}
 }
 
 func greatestCommonDivisor(a, b time.Duration) time.Duration {

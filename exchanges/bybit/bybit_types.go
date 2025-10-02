@@ -16,11 +16,11 @@ import (
 var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
 
 type orderbookResponse struct {
-	Symbol    string            `json:"s"`
-	Asks      [][2]types.Number `json:"a"`
-	Bids      [][2]types.Number `json:"b"`
-	Timestamp types.Time        `json:"ts"`
-	UpdateID  int64             `json:"u"`
+	Symbol    string                           `json:"s"`
+	Asks      orderbook.LevelsArrayPriceAmount `json:"a"`
+	Bids      orderbook.LevelsArrayPriceAmount `json:"b"`
+	Timestamp types.Time                       `json:"ts"`
+	UpdateID  int64                            `json:"u"`
 }
 
 // Authenticate stores authentication variables required
@@ -1749,11 +1749,11 @@ type Orderbook struct {
 
 // WsOrderbookDetail represents an orderbook detail information.
 type WsOrderbookDetail struct {
-	Symbol   string            `json:"s"`
-	Bids     [][2]types.Number `json:"b"`
-	Asks     [][2]types.Number `json:"a"`
-	UpdateID int64             `json:"u"`
-	Sequence int64             `json:"seq"`
+	Symbol   string                           `json:"s"`
+	Bids     orderbook.LevelsArrayPriceAmount `json:"b"`
+	Asks     orderbook.LevelsArrayPriceAmount `json:"a"`
+	UpdateID int64                            `json:"u"`
+	Sequence int64                            `json:"seq"`
 }
 
 // SubscriptionResponse represents a subscription response.
