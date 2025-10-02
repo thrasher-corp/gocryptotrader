@@ -1161,7 +1161,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 	var side string
 	switch {
 	case o.Side.IsLong():
-		side = sideBid
+		side = order.Bid.Lower()
 	case o.Side.IsShort():
 		side = sideAsk
 	case o.Side == order.UnknownSide, o.Side == order.AnySide:
