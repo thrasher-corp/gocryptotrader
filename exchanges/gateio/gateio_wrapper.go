@@ -2052,10 +2052,6 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
 	}
 
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("include predicted rate %w", common.ErrNotYetImplemented)
-	}
-
 	fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
 	if err != nil {
 		return nil, err
@@ -2127,7 +2123,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			return nil, err
 		}
 		return []fundingrate.LatestRateResponse{
-			contractToFundingRate(e.Name, r.Asset, fPair, contract, r.IncludePredictedRate),
+			contractToFundingRate(e.Name, r.Asset, fPair, contract),
 		}, nil
 	}
 
@@ -2149,13 +2145,13 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		if !pairs.Contains(cp, false) {
 			continue
 		}
-		resp = append(resp, contractToFundingRate(e.Name, r.Asset, cp, &contracts[i], r.IncludePredictedRate))
+		resp = append(resp, contractToFundingRate(e.Name, r.Asset, cp, &contracts[i]))
 	}
 
 	return slices.Clip(resp), nil
 }
 
-func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract, includeUpcomingRate bool) fundingrate.LatestRateResponse {
+func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract) fundingrate.LatestRateResponse {
 	resp := fundingrate.LatestRateResponse{
 		Exchange: name,
 		Asset:    item,
@@ -2167,11 +2163,9 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 		TimeOfNextRate: contract.FundingNextApply.Time(),
 		TimeChecked:    time.Now(),
 	}
-	if includeUpcomingRate {
-		resp.PredictedUpcomingRate = fundingrate.Rate{
-			Time: contract.FundingNextApply.Time(),
-			Rate: contract.FundingRateIndicative.Decimal(),
-		}
+	resp.PredictedUpcomingRate = fundingrate.Rate{
+		Time: contract.FundingNextApply.Time(),
+		Rate: contract.FundingRateIndicative.Decimal(),
 	}
 	return resp
 }
