@@ -80,7 +80,7 @@ func (e *Exchange) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Contex
 		return nil, err
 	}
 
-	if side != "" && side != sideAsk && side != sideBid {
+	if side != "" && side != order.Ask.Lower() && side != order.Bid.Lower() {
 		return nil, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, side)
 	}
 
