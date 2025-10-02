@@ -118,7 +118,7 @@ func (e *Exchange) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 }
 
 // GetOrderBook returns full orderbook information
-func (e *Exchange) GetOrderBook(ctx context.Context, pair currency.Pair, limit int) (*OrderBookResponse, error) {
+func (e *Exchange) GetOrderBook(ctx context.Context, pair currency.Pair, limit uint64) (*OrderBookResponse, error) {
 	params := url.Values{}
 	symbol, err := e.FormatSymbol(pair, asset.Spot)
 	if err != nil {
