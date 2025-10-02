@@ -1337,6 +1337,7 @@ func TestGetConnection(t *testing.T) {
 	assert.Same(t, expected, conn)
 }
 
+// go
 func TestShutdown(t *testing.T) {
 	t.Parallel()
 	m := Manager{}
@@ -1345,20 +1346,21 @@ func TestShutdown(t *testing.T) {
 	m.setState(disconnectedState)
 	require.ErrorIs(t, m.Shutdown(), ErrNotConnected, "Shutdown must error correctly")
 	m.setState(connectedState)
-	require.Panics(t, func() { m.Shutdown() }, "Shutdown must panic on nil shutdown channel")
+	require.Panics(t, func() { _ = m.Shutdown() }, "Shutdown must panic on nil shutdown channel")
 	m.ShutdownC = make(chan struct{})
 	require.NoError(t, m.Shutdown(), "Shutdown must not error with no connections")
 	m.setState(connectedState)
 	m.Conn = &struct{ *connection }{&connection{}}
 	m.AuthConn = &struct{ *connection }{&connection{}}
-	require.ErrorIs(t, m.Shutdown(), common.ErrTypeAssertFailure, "Shutdown must error with with unhandled connection type")
+	require.ErrorIs(t, m.Shutdown(), common.ErrTypeAssertFailure, "Shutdown must error with unhandled connection type")
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
 
 	wsURL := "ws" + mock.URL[len("http"):] + "/ws"
-	conn, _, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	conn, resp, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
 	require.NoError(t, err, "DialContext must not error")
+	defer resp.Body.Close()
 
 	m.AuthConn = nil
 	m.Conn = nil
@@ -1366,11 +1368,13 @@ func TestShutdown(t *testing.T) {
 	m.setState(connectedState)
 	require.NoError(t, m.Shutdown(), "Shutdown must not error with faulty connection in connectionManager")
 
-	gwsConnAuth, _, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	gwsConnAuth, respAuth, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
 	require.NoError(t, err, "DialContext must not error")
+	defer respAuth.Body.Close()
 
-	gwsConnUnAuth, _, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	gwsConnUnAuth, respUnAuth, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
 	require.NoError(t, err, "DialContext must not error")
+	defer respUnAuth.Body.Close()
 
 	m.connectionManager = nil
 	authConn := &connection{Connection: gwsConnAuth, shutdown: m.ShutdownC}
