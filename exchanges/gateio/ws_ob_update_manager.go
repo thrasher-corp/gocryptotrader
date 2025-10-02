@@ -85,7 +85,7 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 
 // handleSynchronisedState checks that the incoming update can be applied and applies it, otherwise invalidates the cache
 // assumes lock already active on cache
-func (m *wsOBUpdateManager) handleSynchronisedState(ctx context.Context, e *Exchange, cache *updateCache, firstUpdateID int64, update *orderbook.Update) error {
+func (m *wsOBUpdateManager) applyUpdate(ctx context.Context, e *Exchange, cache *updateCache, firstUpdateID int64, update *orderbook.Update) error {
 	lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
