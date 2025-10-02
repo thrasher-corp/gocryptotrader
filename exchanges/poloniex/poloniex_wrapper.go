@@ -214,13 +214,12 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, _ asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpgrade bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	pairs, err := e.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = e.UpdatePairs(pairs, asset.Spot, false, forceUpgrade)
-	if err != nil {
+	if err := e.UpdatePairs(pairs, asset.Spot, false); err != nil {
 		return err
 	}
 	return e.EnsureOnePairEnabled()
@@ -533,8 +532,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return s.DeriveSubmitResponse(strconv.FormatInt(response.OrderNumber, 10))
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
+// ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err

@@ -115,7 +115,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), false)
+	err := e.UpdateTradablePairs(t.Context())
 	if err != nil {
 		t.Error("Binanceus UpdateTradablePairs() error", err)
 	}

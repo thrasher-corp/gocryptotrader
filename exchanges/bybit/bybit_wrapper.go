@@ -500,15 +500,14 @@ func getCategoryName(a asset.Item) string {
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	assetTypes := e.GetAssetTypes(true)
 	for i := range assetTypes {
 		pairs, err := e.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
 			return err
 		}
-		err = e.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
-		if err != nil {
+		if err := e.UpdatePairs(pairs, assetTypes[i], false); err != nil {
 			return err
 		}
 	}
@@ -939,7 +938,7 @@ func getOrderTypeString(oType order.Type) string {
 	}
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to market conversion
+// ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	arg, err := e.deriveAmendOrderArguments(action)
 	if err != nil {

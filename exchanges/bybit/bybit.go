@@ -1627,7 +1627,7 @@ func (e *Exchange) GetAllowedDepositCoinInfo(ctx context.Context, coin, chain, c
 	return resp, e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-allowed-list", params, nil, &resp, defaultEPL)
 }
 
-// SetDepositAccount sets auto transfer account after deposit. The same function as the setting for Deposit on web GUI
+// SetDepositAccount sets the auto transfer account after deposit (mirrors the behaviour available via the Bybit account settings interface)
 // account types: CONTRACT Derivatives Account
 // 'SPOT' Spot Account 'INVESTMENT' ByFi Account (The service has been offline) 'OPTION' USDC Account 'UNIFIED' UMA or UTA 'FUND' Funding Account
 func (e *Exchange) SetDepositAccount(ctx context.Context, accountType string) (*StatusResponse, error) {

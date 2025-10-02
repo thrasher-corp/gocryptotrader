@@ -223,7 +223,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	assets := e.GetAssetTypes(false)
 	errs := common.CollectErrors(len(assets))
 	for x := range assets {
@@ -234,7 +234,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 				errs.C <- err
 				return
 			}
-			errs.C <- e.UpdatePairs(pairs, assets[x], false, forceUpdate)
+			errs.C <- e.UpdatePairs(pairs, assets[x], false)
 		}(x)
 	}
 	return errs.Collect()
@@ -634,8 +634,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
+// ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
