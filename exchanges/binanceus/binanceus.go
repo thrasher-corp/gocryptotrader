@@ -325,7 +325,7 @@ func (e *Exchange) GetOrderBookDepth(ctx context.Context, pair currency.Pair, li
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.FormatInt(limit, 10))
+	params.Set("limit", strconv.FormatUint(limit, 10))
 
 	var resp *OrderBookData
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(limit), &resp); err != nil {

@@ -119,13 +119,13 @@ func (e *Exchange) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 
 // GetOrderBook returns full orderbook information
 func (e *Exchange) GetOrderBook(ctx context.Context, pair currency.Pair, limit uint64) (*OrderBookResponse, error) {
-	params := url.Values{}
 	symbol, err := e.FormatSymbol(pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.Itoa(limit))
+	params.Set("limit", strconv.FormatUint(limit, 10))
 
 	var resp *OrderBookResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(limit), &resp)

@@ -93,7 +93,7 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 
 	rateBudget := cFuturesOrderbook1000Rate
