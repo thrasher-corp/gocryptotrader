@@ -1337,7 +1337,6 @@ func TestGetConnection(t *testing.T) {
 	assert.Same(t, expected, conn)
 }
 
-// go
 func TestShutdown(t *testing.T) {
 	t.Parallel()
 	m := Manager{}
