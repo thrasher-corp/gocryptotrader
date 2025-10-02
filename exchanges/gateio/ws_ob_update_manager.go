@@ -43,7 +43,8 @@ type updateCache struct {
 type cacheState uint32
 
 const (
-	cacheStateInitialised cacheState = iota
+	cacheStateUninitialised cacheState = iota
+	cacheStateInitialised	
 	cacheStateQueuing
 	cacheStateSynced
 )
