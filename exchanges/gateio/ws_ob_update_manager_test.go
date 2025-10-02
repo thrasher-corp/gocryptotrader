@@ -27,9 +27,9 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
 	cache, err := m.LoadCache(pair, asset.USDTMarginedFutures)
 	require.NoError(t, err)
-	cache.mtx.Lock()
+	cache.m.Lock()
 	assert.Equal(t, cacheStateInitialised, cache.state)
-	cache.mtx.Unlock()
+	cache.m.Unlock()
 
 	err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Exchange:     e.Name,
@@ -43,7 +43,6 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// demonstrate an update is queued
 	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
 		UpdateID:   1338,
 		Pair:       pair,
@@ -52,16 +51,15 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 		UpdateTime: time.Now(),
 	})
 	require.NoError(t, err)
-	cache.mtx.Lock()
-	assert.Equal(t, cacheStateQueuing, cache.state)
-	cache.mtx.Unlock()
-	// demonstrate an additional update is queued
+	cache.m.Lock()
+	assert.Equal(t, cacheStateQueuing, cache.state, "state should be queuing after first update")
+	cache.m.Unlock()
 	var wg1, wg2 sync.WaitGroup
 	wg1.Add(1)
 	wg2.Go(func() {
 		wg1.Done()
 		updatedID := <-cache.ch
-		assert.Equal(t, int64(1339), updatedID)
+		assert.Equal(t, int64(1339), updatedID, "should ensure update was queued")
 	})
 	wg1.Wait()
 	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
@@ -74,18 +72,16 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	wg2.Wait()
 
 	require.NoError(t, err)
-	cache.mtx.Lock()
+	cache.m.Lock()
 	assert.Equal(t, cacheStateQueuing, cache.state)
-	cache.mtx.Unlock()
+	cache.m.Unlock()
 
-	// demonstrate an error state and forces everything to queue
 	assert.Eventually(t, func() bool {
-		cache.mtx.Lock()
-		defer cache.mtx.Unlock()
+		cache.m.Lock()
+		defer cache.m.Unlock()
 		return cache.state == cacheStateQueuing
-	}, time.Second, time.Millisecond*10, "sync should eventually fail as BABYBABYDOGE is not a supported pair")
+	}, time.Second, time.Millisecond*10, "sync should eventually fail as BABYBABYDOGE is not a supported pair an error state and forces everything to queue")
 
-	// demonstrate an error state is recovered
 	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
 		UpdateID:   1338,
 		Pair:       pair,
@@ -93,9 +89,8 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 		AllowEmpty: true,
 		UpdateTime: time.Now(),
 	})
-	require.NoError(t, err)
+	require.NoError(t, err, "ProcessOrderbookUpdate must not error as an error state is recovered")
 
-	// demonstrate successful processing
 	err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Exchange:     e.Name,
 		Pair:         pair,
@@ -106,10 +101,10 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 		LastPushed:   time.Now(),
 		LastUpdateID: 1336,
 	})
-	require.NoError(t, err)
-	cache.mtx.Lock()
+	require.NoError(t, err, "LoadSnapshot must not error while ensuring successful processing")
+	cache.m.Lock()
 	cache.state = cacheStateSynced
-	cache.mtx.Unlock()
+	cache.m.Unlock()
 	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
 		UpdateID:   1338,
 		Pair:       pair,
@@ -117,11 +112,11 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 		AllowEmpty: true,
 		UpdateTime: time.Now(),
 	})
-	require.NoError(t, err)
+	require.NoError(t, err, "ProcessOrderbookUpdate must not error while ensuring successful processing")
 
-	cache.mtx.Lock()
+	cache.m.Lock()
 	cache.state = 100
-	cache.mtx.Unlock()
+	cache.m.Unlock()
 	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
 		UpdateID:   1339,
 		Pair:       pair,
@@ -129,7 +124,7 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 		AllowEmpty: true,
 		UpdateTime: time.Now(),
 	})
-	require.ErrorIs(t, err, errUnhandledCacheState)
+	require.ErrorIs(t, err, errUnhandledCacheState, "ProcessOrderbookUpdate must error due to unhandled state")
 }
 
 func TestLoadCache(t *testing.T) {
@@ -146,11 +141,13 @@ func TestLoadCache(t *testing.T) {
 	require.NoError(t, err, "LoadCache must not error")
 	assert.NotNil(t, cache)
 	assert.Len(t, m.lookup, 1)
+	cache.m.Lock()
+	assert.Equal(t, cacheStateInitialised, cache.state, "state should be initialised after first load")
+	cache.m.Unlock()
 
-	// Test cache is reused
 	cache2, err := m.LoadCache(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
 	require.NoError(t, err, "LoadCache must not error")
-	assert.Equal(t, cache, cache2)
+	assert.Equal(t, cache, cache2, "should be the same cache instance")
 }
 
 func TestSyncOrderbook(t *testing.T) {
@@ -290,23 +287,23 @@ func TestClearNoLock(t *testing.T) {
 	require.Empty(t, cache.updates)
 }
 
-func TestHandleSynchronisedState(t *testing.T) {
+func TestApplyUpdate(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange)
 	err := testexch.Setup(e)
 	require.NoError(t, err, "Setup must not error")
-	e.Name = "HandleSyncStateTest"
+	e.Name = "ApplyUpdateTest"
 
 	m := newWsOBUpdateManager(0, 0)
 	cache, err := m.LoadCache(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
 	require.NoError(t, err, "LoadCache must not error")
 
-	err = m.handleSynchronisedState(t.Context(), e, cache, 1, &orderbook.Update{
+	err = m.applyUpdate(t.Context(), e, cache, 1, &orderbook.Update{
 		Pair:  currency.NewBTCUSDT(),
 		Asset: asset.USDTMarginedFutures,
 	})
-	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "handleSynchronisedState must error when not initialised")
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "applyUpdate must error when not initialised")
 
 	snapshot := &orderbook.Book{
 		Exchange:     e.Name,
@@ -322,39 +319,39 @@ func TestHandleSynchronisedState(t *testing.T) {
 	err = e.Websocket.Orderbook.LoadSnapshot(snapshot)
 	require.NoError(t, err)
 
-	err = m.handleSynchronisedState(t.Context(), e, cache, 1, &orderbook.Update{
+	err = m.applyUpdate(t.Context(), e, cache, 1, &orderbook.Update{
 		UpdateID: 1338,
 		Pair:     currency.NewBTCUSDT(),
 		Asset:    asset.USDTMarginedFutures,
 	})
-	require.NoError(t, err, "handleSynchronisedState must not error when desynced")
+	require.NoError(t, err, "applyUpdate must not error when desynced")
 
 	_, err = e.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
-	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "LastUpdateID must error after handleInvalidCache is called")
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "LastUpdateID must error after invalidateCache is called")
 
 	err = e.Websocket.Orderbook.LoadSnapshot(snapshot)
 	require.NoError(t, err)
 
-	err = m.handleSynchronisedState(t.Context(), e, cache, 1337, &orderbook.Update{
+	err = m.applyUpdate(t.Context(), e, cache, 1337, &orderbook.Update{
 		UpdateID: 1339,
 		Pair:     currency.NewBTCUSDT(),
 		Asset:    asset.USDTMarginedFutures,
 	})
-	require.NoError(t, err, "handleSynchronisedState must not error when in sync but update failed to apply")
+	require.NoError(t, err, "applyUpdate must not error when in sync but update failed to apply")
 
 	_, err = e.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
-	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "LastUpdateID must error after handleInvalidCache is called")
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "LastUpdateID must error after invalidateCache is called")
 
 	err = e.Websocket.Orderbook.LoadSnapshot(snapshot)
 	require.NoError(t, err)
 
-	err = m.handleSynchronisedState(t.Context(), e, cache, 1337, &orderbook.Update{
+	err = m.applyUpdate(t.Context(), e, cache, 1337, &orderbook.Update{
 		UpdateID:   1338,
 		Pair:       currency.NewBTCUSDT(),
 		Asset:      asset.USDTMarginedFutures,
 		AllowEmpty: true,
 	})
-	require.NoError(t, err, "handleSynchronisedState must not error when in sync and update applied")
+	require.NoError(t, err, "applyUpdate must not error when in sync and update applied")
 }
 
 func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {

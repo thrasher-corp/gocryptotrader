@@ -36,7 +36,7 @@ type wsOBUpdateManager struct {
 type updateCache struct {
 	updates []pendingUpdate
 	ch      chan int64
-	m     sync.Mutex
+	m       sync.Mutex
 	state   cacheState
 }
 
@@ -44,7 +44,7 @@ type cacheState uint32
 
 const (
 	cacheStateUninitialised cacheState = iota
-	cacheStateInitialised	
+	cacheStateInitialised
 	cacheStateQueuing
 	cacheStateSynced
 )
@@ -65,11 +65,11 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 		return err
 	}
 
-	cache.mtx.Lock()
-	defer cache.mtx.Unlock()
+	cache.m.Lock()
+	defer cache.m.Unlock()
 	switch cache.state {
 	case cacheStateSynced:
-		return m.handleSynchronisedState(ctx, e, cache, firstUpdateID, update)
+		return m.applyUpdate(ctx, e, cache, firstUpdateID, update)
 	case cacheStateInitialised:
 		m.initialiseOrderbookCache(ctx, e, firstUpdateID, update, cache)
 	case cacheStateQueuing:
@@ -91,22 +91,22 @@ func (m *wsOBUpdateManager) applyUpdate(ctx context.Context, e *Exchange, cache 
 	lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
-		return m.handleInvalidCache(ctx, e, firstUpdateID, update, cache)
+		return m.invalidateCache(ctx, e, firstUpdateID, update, cache)
 	}
 	if lastUpdateID+1 != firstUpdateID {
 		if e.Verbose { // disconnection will pollute logs
 			log.Warnf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: desync detected", e.Name, update.Pair, update.Asset)
 		}
-		return m.handleInvalidCache(ctx, e, firstUpdateID, update, cache)
+		return m.invalidateCache(ctx, e, firstUpdateID, update, cache)
 	}
 	if err := e.Websocket.Orderbook.Update(update); err != nil {
 		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
-		return m.handleInvalidCache(ctx, e, firstUpdateID, update, cache)
+		return m.invalidateCache(ctx, e, firstUpdateID, update, cache)
 	}
 	return nil
 }
 
-// handleInvalidCache invalidates the existing orderbook, clears the update queue and reinitialises the orderbook cache
+// invalidateCache invalidates the existing orderbook, clears the update queue and reinitialises the orderbook cache
 // assumes lock already active on cache
 func (m *wsOBUpdateManager) invalidateCache(ctx context.Context, e *Exchange, firstUpdateID int64, update *orderbook.Update, cache *updateCache) error {
 	if err := e.Websocket.Orderbook.InvalidateOrderbook(update.Pair, update.Asset); err != nil {
@@ -141,7 +141,7 @@ func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) (*updateCac
 	cache, ok := m.lookup[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	m.mtx.RUnlock()
 	if !ok {
-		cache = &updateCache{ch: make(chan int64)}
+		cache = &updateCache{ch: make(chan int64), state: cacheStateInitialised}
 		m.mtx.Lock()
 		m.lookup[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}] = cache
 		m.mtx.Unlock()
@@ -183,10 +183,10 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair curre
 		return err
 	}
 
-	c.mtx.Lock() // Lock here to prevent ws handle data interference with REST request above.
+	c.m.Lock() // Lock here to prevent ws handle data interference with REST request above.
 	defer func() {
 		c.clearNoLock()
-		c.mtx.Unlock()
+		c.m.Unlock()
 	}()
 
 	if err := e.Websocket.Orderbook.LoadSnapshot(book); err != nil {
@@ -198,9 +198,9 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair curre
 
 // waitForUpdate waits for an update with an ID >= nextUpdateID
 func (c *updateCache) waitForUpdate(ctx context.Context, nextUpdateID int64) error {
-	c.mtx.Lock()
+	c.m.Lock()
 	updateListLastUpdateID := c.updates[len(c.updates)-1].update.UpdateID
-	c.mtx.Unlock()
+	c.m.Unlock()
 	if updateListLastUpdateID >= nextUpdateID {
 		return nil
 	}
@@ -255,8 +255,8 @@ func (c *updateCache) applyPendingUpdates(e *Exchange) error {
 }
 
 func (c *updateCache) clearWithLock() {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
+	c.m.Lock()
+	defer c.m.Unlock()
 	c.clearNoLock()
 }
 
