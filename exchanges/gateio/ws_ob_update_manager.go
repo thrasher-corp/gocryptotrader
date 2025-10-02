@@ -36,7 +36,7 @@ type wsOBUpdateManager struct {
 type updateCache struct {
 	updates []pendingUpdate
 	ch      chan int64
-	mtx     sync.Mutex
+	m     sync.Mutex
 	state   cacheState
 }
 
