@@ -107,7 +107,7 @@ func (m *wsOBUpdateManager) applyUpdate(ctx context.Context, e *Exchange, cache 
 
 // handleInvalidCache invalidates the existing orderbook, clears the update queue and reinitialises the orderbook cache
 // assumes lock already active on cache
-func (m *wsOBUpdateManager) handleInvalidCache(ctx context.Context, e *Exchange, firstUpdateID int64, update *orderbook.Update, cache *updateCache) error {
+func (m *wsOBUpdateManager) invalidateCache(ctx context.Context, e *Exchange, firstUpdateID int64, update *orderbook.Update, cache *updateCache) error {
 	if err := e.Websocket.Orderbook.InvalidateOrderbook(update.Pair, update.Asset); err != nil {
 		return err
 	}
