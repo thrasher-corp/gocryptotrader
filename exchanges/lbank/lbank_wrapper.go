@@ -211,17 +211,17 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	if err := (&orderbook.Book{
+	ob := &orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
 		Asset:             assetType,
 		ValidateOrderbook: e.ValidateOrderbook,
 		Asks:              d.Data.Asks.Levels(),
 		Bids:              d.Data.Bids.Levels(),
-	}).Process(); err != nil {
+	}
+	if err := ob.Process(); err != nil {
 		return nil, err
 	}
-
 	return orderbook.Get(e.Name, p, assetType)
 }
 
