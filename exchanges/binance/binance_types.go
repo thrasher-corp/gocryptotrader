@@ -126,7 +126,7 @@ type CoinInfo struct {
 
 // OrderBookResponse is resp data from orderbook endpoint
 type OrderBookResponse struct {
-	Code         int                              `json:"code"`
+	Code         int64                            `json:"code"`
 	Msg          string                           `json:"msg"`
 	LastUpdateID int64                            `json:"lastUpdateId"`
 	Timestamp    types.Time                       `json:"T"`
