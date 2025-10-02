@@ -22,9 +22,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bybit
@@ -247,27 +245,16 @@ func (e *Exchange) GetOrderBook(ctx context.Context, category, symbol string, li
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp orderbookResponse
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/orderbook", params), defaultEPL, &resp)
-	if err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/orderbook", params), defaultEPL, &resp); err != nil {
 		return nil, err
 	}
-
 	return &Orderbook{
-		Symbol:         resp.Symbol,
 		UpdateID:       resp.UpdateID,
+		Symbol:         resp.Symbol,
 		GenerationTime: resp.Timestamp.Time(),
-		Bids:           processOB(resp.Bids),
-		Asks:           processOB(resp.Asks),
+		Bids:           resp.Bids.Levels(),
+		Asks:           resp.Asks.Levels(),
 	}, nil
-}
-
-func processOB(ob [][2]types.Number) []orderbook.Level {
-	o := make([]orderbook.Level, len(ob))
-	for x := range ob {
-		o[x].Price = ob[x][0].Float64()
-		o[x].Amount = ob[x][1].Float64()
-	}
-	return o
 }
 
 func fillCategoryAndSymbol(category, symbol string, optionalSymbol ...bool) (url.Values, error) {
