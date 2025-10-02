@@ -767,6 +767,7 @@ type SubscriptionPayload struct {
 type SubscriptionResponse struct {
 	ID      string          `json:"id"`
 	Event   string          `json:"event"`
+	Message string          `json:"message"`
 	Channel string          `json:"channel"`
 	Action  string          `json:"action"`
 	Data    json.RawMessage `json:"data"`
@@ -972,6 +973,8 @@ type FuturesSubscriptionResp struct {
 	Channel string          `json:"channel"`
 	Data    json.RawMessage `json:"data"`
 	Action  string          `json:"action"`
+	Event   string          `json:"event"`
+	Message string          `json:"message"`
 }
 
 // OrderIDResponse represents an order ID instance.

@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -66,7 +67,7 @@ const (
 var (
 	defaultFuturesChannels = []string{
 		cnlFuturesTickers,
-		cnlFuturesOrderbook,
+		cnlFuturesOrderbookLvl2,
 		candles15Min,
 	}
 
@@ -90,9 +91,9 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 		return err
 	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		Delay:       time.Second * 15,
-		Message:     []byte(`{"type":"ping"}`),
 		MessageType: gws.TextMessage,
+		Message:     []byte(`{"event": "ping"}`),
+		Delay:       time.Second * 15,
 	})
 	return nil
 }
@@ -103,9 +104,9 @@ func (e *Exchange) FuturesAuthConnect(ctx context.Context, conn websocket.Connec
 		return err
 	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		Delay:       time.Second * 15,
-		Message:     []byte(`{"type":"ping"}`),
 		MessageType: gws.TextMessage,
+		Message:     []byte(`{"event": "ping"}`),
+		Delay:       time.Second * 15,
 	})
 	return nil
 }
@@ -153,6 +154,20 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	var result *FuturesSubscriptionResp
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
+	}
+	if result.Event != "" {
+		switch result.Event {
+		case "pong", "subscribe":
+		case "error":
+			if result.Message == "user must be authenticated!" {
+				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+				log.Debugf(log.ExchangeSys, "authenticated websocket disabled%s", string(respRaw))
+			}
+			fallthrough
+		default:
+			log.Debugf(log.ExchangeSys, "Unexpected event message %s", string(respRaw))
+		}
+		return nil
 	}
 	switch result.Channel {
 	case cnlAuth:
@@ -433,8 +448,8 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 			UpdateID:   resp[x].ID.Int64(),
 			UpdateTime: resp[x].CreationTime.Time(),
 			LastPushed: resp[x].Timestamp.Time(),
+			Action:     orderbook.UpdateAction,
 			Asset:      asset.Futures,
-			Action:     orderbook.UpdateOrInsertAction,
 			Pair:       cp,
 			Bids:       bids,
 			Asks:       asks,

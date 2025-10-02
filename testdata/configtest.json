@@ -2351,10 +2351,6 @@
      "delimiter": "_"
     },
     "useGlobalFormat": true,
-    "assetTypes": [
-     "spot",
-     "futures"
-    ],
     "pairs": {
      "spot": {
       "enabled": "BTC_USDT,BTC_ETH,BTC_DOGE,BTC_DASH,BTC_XRP",

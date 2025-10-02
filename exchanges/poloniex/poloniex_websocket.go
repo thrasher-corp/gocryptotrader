@@ -51,7 +51,7 @@ var defaultSubscriptions = []string{
 	cnlCandles,
 	cnlTrades,
 	cnlTicker,
-	cnlBooks,
+	cnlBookLevel2,
 }
 
 var onceOrderbook map[currency.Pair]struct{}
@@ -64,21 +64,10 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	pingMessage := &struct {
-		Event string `json:"event"`
-	}{
-		Event: "ping",
-	}
-	var pingPayload []byte
-	pingPayload, err := json.Marshal(pingMessage)
-	if err != nil {
-		return err
-	}
 	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
-		UseGorillaHandler: true,
-		MessageType:       gws.TextMessage,
-		Message:           pingPayload,
-		Delay:             30,
+		MessageType: gws.TextMessage,
+		Message:     []byte(`{"event": "ping"}`),
+		Delay:       time.Second * 15,
 	})
 	onceOrderbook = make(map[currency.Pair]struct{})
 	return nil
@@ -89,20 +78,10 @@ func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) er
 		return err
 	}
 
-	pingMessage := &struct {
-		Event string `json:"event"`
-	}{
-		Event: "ping",
-	}
-	pingPayload, err := json.Marshal(pingMessage)
-	if err != nil {
-		return err
-	}
 	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
-		UseGorillaHandler: true,
-		MessageType:       gws.TextMessage,
-		Message:           pingPayload,
-		Delay:             30,
+		MessageType: gws.TextMessage,
+		Message:     []byte(`{"event": "ping"}`),
+		Delay:       time.Second * 15,
 	})
 	return nil
 }
@@ -160,7 +139,17 @@ func (e *Exchange) wsHandleData(_ context.Context, conn websocket.Connection, re
 		return nil
 	}
 	if result.Event != "" {
-		log.Debugf(log.ExchangeSys, "Unexpected event message %s", string(respRaw))
+		switch result.Event {
+		case "pong", "subscribe":
+		case "error":
+			if result.Message == "user must be authenticated!" {
+				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+				log.Debugf(log.ExchangeSys, "authenticated websocket disabled: %s", string(respRaw))
+			}
+			fallthrough
+		default:
+			log.Debugf(log.ExchangeSys, "Unexpected event message %s", string(respRaw))
+		}
 		return nil
 	}
 	switch result.Channel {
@@ -313,28 +302,19 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 			Pair:       cp,
 			UpdateTime: resp[x].Timestamp.Time(),
 			UpdateID:   resp[x].ID,
-			Action:     orderbook.UpdateOrInsertAction,
 			Asset:      asset.Spot,
+			Action:     orderbook.UpdateAction,
+			Asks:       make(orderbook.Levels, len(resp[x].Asks)),
+			Bids:       make(orderbook.Levels, len(resp[x].Bids)),
 		}
 		for i := range resp[x].Asks {
-			if resp[x].Asks[i][1].Float64() <= 0 {
-				continue
-			}
-			update.Asks = append(update.Asks, orderbook.Level{
-				Price:  resp[x].Asks[i][0].Float64(),
-				Amount: resp[x].Asks[i][1].Float64(),
-			})
+			update.Asks[i].Price = resp[x].Asks[i][0].Float64()
+			update.Asks[i].Amount = resp[x].Asks[i][1].Float64()
 		}
 		for i := range resp[x].Bids {
-			if resp[x].Bids[i][1].Float64() <= 0 {
-				continue
-			}
-			update.Bids = append(update.Bids, orderbook.Level{
-				Price:  resp[x].Bids[i][0].Float64(),
-				Amount: resp[x].Bids[i][1].Float64(),
-			})
+			update.Bids[i].Price = resp[x].Bids[i][0].Float64()
+			update.Bids[i].Amount = resp[x].Bids[i][1].Float64()
 		}
-		update.UpdateID = resp[x].LastID
 		if err := e.Websocket.Orderbook.Update(&update); err != nil {
 			return err
 		}
@@ -439,7 +419,7 @@ func (e *Exchange) GenerateDefaultSubscriptions(auth bool) (subscription.List, e
 		return nil, err
 	}
 	var channels []string
-	if auth {
+	if auth && e.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, []string{cnlOrders, cnlBalances}...)
 	} else {
 		channels = defaultSubscriptions
