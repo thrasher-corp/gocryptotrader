@@ -390,17 +390,12 @@ allTrades:
 			if tradeData[i].Timestamp.Before(timestampStart) || tradeData[i].Timestamp.After(timestampEnd) {
 				break allTrades
 			}
-			var side order.Side
-			side, err = order.StringToOrderSide(tradeData[i].Side)
-			if err != nil {
-				return nil, err
-			}
 			resp = append(resp, trade.Data{
 				Exchange:     e.Name,
 				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 				CurrencyPair: p,
 				AssetType:    assetType,
-				Side:         side,
+				Side:         tradeData[i].Side,
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Quantity,
 				Timestamp:    tradeData[i].Timestamp,
@@ -547,18 +542,13 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	}
 	pair = pair.Format(format)
 
-	var side order.Side
-	side, err = order.StringToOrderSide(resp.Side)
-	if err != nil {
-		return nil, err
-	}
 	return &order.Detail{
 		OrderID:  resp.ID,
 		Amount:   resp.Quantity,
 		Exchange: e.Name,
 		Price:    resp.Price,
 		Date:     resp.CreatedAt,
-		Side:     side,
+		Side:     resp.Side,
 		Pair:     pair,
 	}, nil
 }
@@ -652,18 +642,13 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		var side order.Side
-		side, err = order.StringToOrderSide(allOrders[i].Side)
-		if err != nil {
-			return nil, err
-		}
 		orders[i] = order.Detail{
 			OrderID:  allOrders[i].ID,
 			Amount:   allOrders[i].Quantity,
 			Exchange: e.Name,
 			Price:    allOrders[i].Price,
 			Date:     allOrders[i].CreatedAt,
-			Side:     side,
+			Side:     allOrders[i].Side,
 			Pair:     symbol,
 		}
 	}
@@ -699,21 +684,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 	orders := make([]order.Detail, len(allOrders))
 	for i := range allOrders {
-		var pair currency.Pair
-		pair, err = currency.NewPairDelimiter(allOrders[i].Symbol,
-			format.Delimiter)
+		pair, err := currency.NewPairDelimiter(allOrders[i].Symbol, format.Delimiter)
 		if err != nil {
 			return nil, err
-		}
-		var side order.Side
-		side, err = order.StringToOrderSide(allOrders[i].Side)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-		}
-		var status order.Status
-		status, err = order.StringToOrderStatus(allOrders[i].Status)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 		}
 		detail := order.Detail{
 			OrderID:              allOrders[i].ID,
@@ -725,8 +698,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			AverageExecutedPrice: allOrders[i].AvgPrice,
 			Date:                 allOrders[i].CreatedAt,
 			LastUpdated:          allOrders[i].UpdatedAt,
-			Side:                 side,
-			Status:               status,
+			Side:                 allOrders[i].Side,
+			Status:               allOrders[i].Status,
 			Pair:                 pair,
 		}
 		detail.InferCostsAndTimes()

@@ -973,7 +973,7 @@ func (e *Exchange) processFundingData(accHistory []DeposWithdrData, cryptoHistor
 			Status:       accHistory[i].Status,
 			TransferID:   accHistory[i].ID,
 			Timestamp:    accHistory[i].PayoutAt,
-			Currency:     accHistory[i].Amount.Currency.String(),
+			Currency:     accHistory[i].Amount.Currency,
 			Amount:       accHistory[i].Amount.Value.Float64(),
 			Fee:          accHistory[i].TotalFee.Amount.Value.Float64(),
 		}

@@ -346,7 +346,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			Status:          transfers[i].Status,
 			TransferID:      transfers[i].WithdrawalID,
 			Timestamp:       transfers[i].Timestamp.Time(),
-			Currency:        transfers[i].Currency.String(),
+			Currency:        transfers[i].Currency,
 			Amount:          transfers[i].Amount,
 			Fee:             transfers[i].FeeAmount,
 			TransferType:    transfers[i].Type,
@@ -375,7 +375,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a
 			Status:          transfers[i].Status,
 			TransferID:      transfers[i].WithdrawalID,
 			Timestamp:       transfers[i].Timestamp.Time(),
-			Currency:        transfers[i].Currency.String(),
+			Currency:        transfers[i].Currency,
 			Amount:          transfers[i].Amount,
 			Fee:             transfers[i].FeeAmount,
 			TransferType:    transfers[i].Type,
@@ -417,17 +417,12 @@ allTrades:
 				break allTrades
 			}
 
-			var side order.Side
-			side, err = order.StringToOrderSide(tradeData[i].Type)
-			if err != nil {
-				return nil, err
-			}
 			resp = append(resp, trade.Data{
 				Exchange:     e.Name,
 				TID:          strconv.FormatInt(tradeData[i].TID, 10),
 				CurrencyPair: p,
 				AssetType:    assetType,
-				Side:         side,
+				Side:         tradeData[i].Side,
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Amount,
 				Timestamp:    tradeTS,
@@ -555,11 +550,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		return nil, fmt.Errorf("unknown order type: %q", resp.Type)
 	}
 
-	var side order.Side
-	side, err = order.StringToOrderSide(resp.Side)
-	if err != nil {
-		return nil, err
-	}
 	return &order.Detail{
 		OrderID:         strconv.FormatInt(resp.OrderID, 10),
 		Amount:          resp.OriginalAmount,
@@ -570,7 +560,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		HiddenOrder:     resp.IsHidden,
 		ClientOrderID:   resp.ClientOrderID,
 		Type:            orderType,
-		Side:            side,
+		Side:            resp.Side,
 	}, nil
 }
 
@@ -669,12 +659,6 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			return nil, fmt.Errorf("unknown order type: %q", resp[i].Type)
 		}
 
-		var side order.Side
-		side, err = order.StringToOrderSide(resp[i].Side)
-		if err != nil {
-			return nil, err
-		}
-
 		orders[i] = order.Detail{
 			Amount:          resp[i].OriginalAmount,
 			RemainingAmount: resp[i].RemainingAmount,
@@ -682,7 +666,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			ExecutedAmount:  resp[i].ExecutedAmount,
 			Exchange:        e.Name,
 			Type:            orderType,
-			Side:            side,
+			Side:            resp[i].Side,
 			Price:           resp[i].Price,
 			Pair:            symbol,
 			Date:            resp[i].Timestamp.Time(),
@@ -731,18 +715,13 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 	orders := make([]order.Detail, len(trades))
 	for i := range trades {
-		var side order.Side
-		side, err = order.StringToOrderSide(trades[i].Type)
-		if err != nil {
-			return nil, err
-		}
 		detail := order.Detail{
 			OrderID:              strconv.FormatInt(trades[i].OrderID, 10),
 			Amount:               trades[i].Amount,
 			ExecutedAmount:       trades[i].Amount,
 			Exchange:             e.Name,
 			Date:                 trades[i].Timestamp.Time(),
-			Side:                 side,
+			Side:                 trades[i].Side,
 			Fee:                  trades[i].FeeAmount,
 			Price:                trades[i].Price,
 			AverageExecutedPrice: trades[i].Price,

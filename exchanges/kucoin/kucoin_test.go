@@ -692,7 +692,7 @@ func TestPostBulkOrder(t *testing.T) {
 	_, err = e.PostBulkOrder(t.Context(), spotTradablePair.String(), []OrderRequest{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	arg.Side = "Sell"
+	arg.Side = order.Sell.String()
 	_, err = e.PostBulkOrder(t.Context(), spotTradablePair.String(), []OrderRequest{arg})
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
@@ -704,14 +704,14 @@ func TestPostBulkOrder(t *testing.T) {
 	_, err = e.PostBulkOrder(t.Context(), spotTradablePair.String(), []OrderRequest{
 		{
 			ClientOID: "3d07008668054da6b3cb12e432c2b13a",
-			Side:      "buy",
+			Side:      order.Buy.String(),
 			Type:      "limit",
 			Price:     1000,
 			Size:      0.01,
 		},
 		{
 			ClientOID: "37245dbe6e134b5c97732bfb36cd4a9d",
-			Side:      "buy",
+			Side:      order.Buy.String(),
 			Type:      "limit",
 			Price:     1000,
 			Size:      0.01,

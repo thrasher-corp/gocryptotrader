@@ -349,27 +349,19 @@ func (e *Exchange) wsProcessOrder(resp *WebsocketResponse) error {
 		if err != nil {
 			return err
 		}
-		orderType, err := order.StringToOrderType(result[x].OrderType)
-		if err != nil {
-			return err
-		}
-		tif, err := order.StringToTimeInForce(result[x].TimeInForce)
-		if err != nil {
-			return err
-		}
 		execution[x] = order.Detail{
-			TimeInForce:          tif,
+			TimeInForce:          result[x].TimeInForce,
 			Amount:               result[x].Quantity.Float64(),
 			Exchange:             e.Name,
 			OrderID:              result[x].OrderID,
 			ClientOrderID:        result[x].OrderLinkID,
 			Side:                 result[x].Side,
-			Type:                 orderType,
+			Type:                 result[x].OrderType,
 			Pair:                 cp,
 			Cost:                 result[x].CumulativeExecutedQuantity.Float64() * result[x].AveragePrice.Float64(),
 			Fee:                  result[x].CumulativeExecutedFee.Float64(),
 			AssetType:            a,
-			Status:               StringToOrderStatus(result[x].OrderStatus),
+			Status:               result[x].OrderStatus,
 			Price:                result[x].Price.Float64(),
 			ExecutedAmount:       result[x].CumulativeExecutedQuantity.Float64(),
 			AverageExecutedPrice: result[x].AveragePrice.Float64(),
@@ -392,17 +384,13 @@ func (e *Exchange) wsProcessExecution(resp *WebsocketResponse) error {
 		if err != nil {
 			return err
 		}
-		side, err := order.StringToOrderSide(result[x].Side)
-		if err != nil {
-			return err
-		}
 		executions[x] = fill.Data{
 			ID:            result[x].ExecID,
 			Timestamp:     result[x].ExecTime.Time(),
 			Exchange:      e.Name,
 			AssetType:     a,
 			CurrencyPair:  cp,
-			Side:          side,
+			Side:          result[x].Side,
 			OrderID:       result[x].OrderID,
 			ClientOrderID: result[x].OrderLinkID,
 			Price:         result[x].ExecPrice.Float64(),
@@ -557,60 +545,35 @@ func (e *Exchange) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketRe
 }
 
 func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {
-	if resp.LastPrice.Float64() != 0 {
-		tick.Last = resp.LastPrice.Float64()
+	setIfNonZero := func(target *float64, value float64) {
+		if value != 0 {
+			*target = value
+		}
 	}
-	if resp.HighPrice24H.Float64() != 0 {
-		tick.High = resp.HighPrice24H.Float64()
-	}
-	if resp.LowPrice24H.Float64() != 0 {
-		tick.Low = resp.LowPrice24H.Float64()
-	}
-	if resp.Volume24H.Float64() != 0 {
-		tick.Volume = resp.Volume24H.Float64()
-	}
+	setIfNonZero(&tick.Last, resp.LastPrice.Float64())
+	setIfNonZero(&tick.High, resp.HighPrice24H.Float64())
+	setIfNonZero(&tick.Low, resp.LowPrice24H.Float64())
+	setIfNonZero(&tick.Volume, resp.Volume24H.Float64())
 
 	if tick.AssetType == asset.Spot {
 		return
 	}
 
-	if resp.MarkPrice.Float64() != 0 {
-		tick.MarkPrice = resp.MarkPrice.Float64()
-	}
-	if resp.IndexPrice.Float64() != 0 {
-		tick.IndexPrice = resp.IndexPrice.Float64()
-	}
-	if resp.OpenInterest.Float64() != 0 {
-		tick.OpenInterest = resp.OpenInterest.Float64()
-	}
+	setIfNonZero(&tick.MarkPrice, resp.MarkPrice.Float64())
+	setIfNonZero(&tick.IndexPrice, resp.IndexPrice.Float64())
+	setIfNonZero(&tick.OpenInterest, resp.OpenInterest.Float64())
 
 	switch tick.AssetType {
 	case asset.Options:
-		if resp.BidPrice.Float64() != 0 {
-			tick.Bid = resp.BidPrice.Float64()
-		}
-		if resp.BidSize.Float64() != 0 {
-			tick.BidSize = resp.BidSize.Float64()
-		}
-		if resp.AskPrice.Float64() != 0 {
-			tick.Ask = resp.AskPrice.Float64()
-		}
-		if resp.AskSize.Float64() != 0 {
-			tick.AskSize = resp.AskSize.Float64()
-		}
+		setIfNonZero(&tick.Bid, resp.BidPrice.Float64())
+		setIfNonZero(&tick.BidSize, resp.BidSize.Float64())
+		setIfNonZero(&tick.Ask, resp.AskPrice.Float64())
+		setIfNonZero(&tick.AskSize, resp.AskSize.Float64())
 	case asset.USDCMarginedFutures, asset.USDTMarginedFutures, asset.CoinMarginedFutures:
-		if resp.Bid1Price.Float64() != 0 {
-			tick.Bid = resp.Bid1Price.Float64()
-		}
-		if resp.Bid1Size.Float64() != 0 {
-			tick.BidSize = resp.Bid1Size.Float64()
-		}
-		if resp.Ask1Price.Float64() != 0 {
-			tick.Ask = resp.Ask1Price.Float64()
-		}
-		if resp.Ask1Size.Float64() != 0 {
-			tick.AskSize = resp.Ask1Size.Float64()
-		}
+		setIfNonZero(&tick.Bid, resp.Bid1Price.Float64())
+		setIfNonZero(&tick.BidSize, resp.Bid1Size.Float64())
+		setIfNonZero(&tick.Ask, resp.Ask1Price.Float64())
+		setIfNonZero(&tick.AskSize, resp.Ask1Size.Float64())
 	}
 }
 
@@ -625,10 +588,6 @@ func (e *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRes
 		if err != nil {
 			return err
 		}
-		side, err := order.StringToOrderSide(result[x].Side)
-		if err != nil {
-			return err
-		}
 		tradeDatas[x] = trade.Data{
 			Timestamp:    result[x].OrderFillTimestamp.Time(),
 			CurrencyPair: cp,
@@ -636,7 +595,7 @@ func (e *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRes
 			Exchange:     e.Name,
 			Price:        result[x].Price.Float64(),
 			Amount:       result[x].Size.Float64(),
-			Side:         side,
+			Side:         result[x].Side,
 			TID:          result[x].TradeID,
 		}
 	}

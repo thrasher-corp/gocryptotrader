@@ -3660,7 +3660,7 @@ func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, 
 				Status: ret[x].Status,
 			},
 			Request: &gctrpc.WithdrawalRequestEvent{
-				Currency:    ret[x].Currency,
+				Currency:    ret[x].Currency.String(),
 				Description: ret[x].Description,
 				Amount:      ret[x].Amount,
 			},

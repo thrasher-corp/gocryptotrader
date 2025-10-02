@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -561,7 +562,7 @@ type Trade struct {
 	ID          int64        `json:"id,string"`
 	CreateTime  types.Time   `json:"create_time_ms"`
 	OrderID     string       `json:"order_id"`
-	Side        string       `json:"side"`
+	Side        order.Side   `json:"side"`
 	Role        string       `json:"role"`
 	Amount      types.Number `json:"amount"`
 	Price       types.Number `json:"price"`
@@ -987,7 +988,7 @@ type OptionOrderParam struct {
 
 // OptionOrderResponse represents option order response detail
 type OptionOrderResponse struct {
-	Status               string       `json:"status"`
+	Status               order.Status `json:"status"`
 	Size                 float64      `json:"size"`
 	OptionOrderID        int64        `json:"id"`
 	Iceberg              int64        `json:"iceberg"`
@@ -1023,16 +1024,16 @@ type OptionTradingHistory struct {
 
 // WithdrawalResponse represents withdrawal response
 type WithdrawalResponse struct {
-	ID                string       `json:"id"`
-	Timestamp         types.Time   `json:"timestamp"`
-	Currency          string       `json:"currency"`
-	WithdrawalAddress string       `json:"address"`
-	TransactionID     string       `json:"txid"`
-	Amount            types.Number `json:"amount"`
-	Memo              string       `json:"memo"`
-	Status            string       `json:"status"`
-	Chain             string       `json:"chain"`
-	Fee               types.Number `json:"fee"`
+	ID                string        `json:"id"`
+	Timestamp         types.Time    `json:"timestamp"`
+	Currency          currency.Code `json:"currency"`
+	WithdrawalAddress string        `json:"address"`
+	TransactionID     string        `json:"txid"`
+	Amount            types.Number  `json:"amount"`
+	Memo              string        `json:"memo"`
+	Status            string        `json:"status"`
+	Chain             string        `json:"chain"`
+	Fee               types.Number  `json:"fee"`
 }
 
 // WithdrawalRequestParam represents currency withdrawal request param.
@@ -1381,10 +1382,10 @@ type SpotOrder struct {
 	CreateTime         types.Time   `json:"create_time_ms,omitzero"`
 	UpdateTime         types.Time   `json:"update_time_ms,omitzero"`
 	CurrencyPair       string       `json:"currency_pair,omitempty"`
-	Status             string       `json:"status,omitempty"`
-	Type               string       `json:"type,omitempty"`
+	Status             order.Status `json:"status,omitempty"`
+	Type               order.Type   `json:"type,omitempty"`
 	Account            string       `json:"account,omitempty"`
-	Side               string       `json:"side,omitempty"`
+	Side               order.Side   `json:"side,omitempty"`
 	Amount             types.Number `json:"amount,omitempty"`
 	Price              types.Number `json:"price,omitempty"`
 	TimeInForce        string       `json:"time_in_force,omitempty"`
@@ -1443,7 +1444,7 @@ type SpotPersonalTradeHistory struct {
 	CreateTime   types.Time   `json:"create_time_ms"`
 	CurrencyPair string       `json:"currency_pair"`
 	OrderID      string       `json:"order_id"`
-	Side         string       `json:"side"`
+	Side         order.Side   `json:"side"`
 	Role         string       `json:"role"`
 	Amount       types.Number `json:"amount"`
 	Price        types.Number `json:"price"`
@@ -2023,7 +2024,7 @@ type WsTicker struct {
 type WsTrade struct {
 	ID           int64         `json:"id"`
 	CreateTime   types.Time    `json:"create_time_ms"`
-	Side         string        `json:"side"`
+	Side         order.Side    `json:"side"`
 	CurrencyPair currency.Pair `json:"currency_pair"`
 	Amount       types.Number  `json:"amount"`
 	Price        types.Number  `json:"price"`
@@ -2079,9 +2080,9 @@ type WsSpotOrder struct {
 	Label              string        `json:"label,omitempty"`
 	Message            string        `json:"message,omitempty"`
 	CurrencyPair       currency.Pair `json:"currency_pair,omitzero"`
-	Type               string        `json:"type,omitempty"`
+	Type               order.Type    `json:"type,omitempty"`
 	Account            string        `json:"account,omitempty"`
-	Side               string        `json:"side,omitempty"`
+	Side               order.Side    `json:"side,omitempty"`
 	Amount             types.Number  `json:"amount,omitempty"`
 	Price              types.Number  `json:"price,omitempty"`
 	TimeInForce        string        `json:"time_in_force,omitempty"`
@@ -2107,7 +2108,7 @@ type WsUserPersonalTrade struct {
 	OrderID      string        `json:"order_id"`
 	CurrencyPair currency.Pair `json:"currency_pair"`
 	CreateTime   types.Time    `json:"create_time_ms"`
-	Side         string        `json:"side"`
+	Side         order.Side    `json:"side"`
 	Amount       types.Number  `json:"amount"`
 	Role         string        `json:"role"`
 	Price        types.Number  `json:"price"`
@@ -2132,15 +2133,15 @@ type WsSpotBalance struct {
 
 // WsMarginBalance represents margin account balance push data
 type WsMarginBalance struct {
-	Timestamp    types.Time   `json:"timestamp_ms"`
-	User         string       `json:"user"`
-	CurrencyPair string       `json:"currency_pair"`
-	Currency     string       `json:"currency"`
-	Change       types.Number `json:"change"`
-	Available    types.Number `json:"available"`
-	Freeze       types.Number `json:"freeze"`
-	Borrowed     string       `json:"borrowed"`
-	Interest     string       `json:"interest"`
+	Timestamp    types.Time    `json:"timestamp_ms"`
+	User         string        `json:"user"`
+	CurrencyPair string        `json:"currency_pair"`
+	Currency     currency.Code `json:"currency"`
+	Change       types.Number  `json:"change"`
+	Available    types.Number  `json:"available"`
+	Freeze       types.Number  `json:"freeze"`
+	Borrowed     string        `json:"borrowed"`
+	Interest     string        `json:"interest"`
 }
 
 // WsFundingBalance represents funding balance push data.
@@ -2155,12 +2156,12 @@ type WsFundingBalance struct {
 
 // WsCrossMarginBalance represents a cross margin balance detail
 type WsCrossMarginBalance struct {
-	Timestamp types.Time   `json:"timestamp_ms"`
-	User      string       `json:"user"`
-	Currency  string       `json:"currency"`
-	Change    string       `json:"change"`
-	Total     types.Number `json:"total"`
-	Available types.Number `json:"available"`
+	Timestamp types.Time    `json:"timestamp_ms"`
+	User      string        `json:"user"`
+	Currency  currency.Code `json:"currency"`
+	Change    string        `json:"change"`
+	Total     types.Number  `json:"total"`
+	Available types.Number  `json:"available"`
 }
 
 // WsCrossMarginLoan represents a cross margin loan push data

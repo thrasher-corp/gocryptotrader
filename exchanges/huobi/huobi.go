@@ -511,18 +511,13 @@ func (e *Exchange) CancelOpenOrdersBatch(ctx context.Context, accountID string, 
 }
 
 // GetOrder returns order information for the specified order
-func (e *Exchange) GetOrder(ctx context.Context, orderID int64) (OrderInfo, error) {
+func (e *Exchange) GetOrder(ctx context.Context, orderID int64) (*OrderInfo, error) {
 	resp := struct {
-		Order OrderInfo `json:"data"`
+		Order *OrderInfo `json:"data"`
 	}{}
 	urlVal := url.Values{}
 	urlVal.Set("clientOrderId", strconv.FormatInt(orderID, 10))
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		huobiGetOrder,
-		urlVal,
-		nil,
-		&resp,
-		false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiGetOrder, urlVal, nil, &resp, false)
 	return resp.Order, err
 }
 

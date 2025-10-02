@@ -239,10 +239,6 @@ func (e *Exchange) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []
 	}
 	trades := make([]trade.Data, 0, len(t.Tick.Data))
 	for i := range t.Tick.Data {
-		side := order.Buy
-		if t.Tick.Data[i].Direction != "buy" {
-			side = order.Sell
-		}
 		trades = append(trades, trade.Data{
 			Exchange:     e.Name,
 			AssetType:    s.Asset,
@@ -250,7 +246,7 @@ func (e *Exchange) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []
 			Timestamp:    t.Tick.Data[i].Timestamp.Time().UTC(),
 			Amount:       t.Tick.Data[i].Amount,
 			Price:        t.Tick.Data[i].Price,
-			Side:         side,
+			Side:         t.Tick.Data[i].Direction,
 			TID:          strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
 		})
 	}
@@ -292,52 +288,32 @@ func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
+
 	var update WsDepth
 	if err := json.Unmarshal(respRaw, &update); err != nil {
 		return err
 	}
-	bids := make(orderbook.Levels, len(update.Tick.Bids))
+
+	ob := orderbook.Book{
+		Pair:              s.Pairs[0],
+		Asset:             s.Asset,
+		Exchange:          e.Name,
+		ValidateOrderbook: e.ValidateOrderbook,
+		LastUpdated:       update.Timestamp.Time(),
+		Bids:              make(orderbook.Levels, len(update.Tick.Bids)),
+		Asks:              make(orderbook.Levels, len(update.Tick.Asks)),
+	}
+
 	for i := range update.Tick.Bids {
-		price, ok := update.Tick.Bids[i][0].(float64)
-		if !ok {
-			return errors.New("unable to type assert bid price")
-		}
-		amount, ok := update.Tick.Bids[i][1].(float64)
-		if !ok {
-			return errors.New("unable to type assert bid amount")
-		}
-		bids[i] = orderbook.Level{
-			Price:  price,
-			Amount: amount,
-		}
+		ob.Bids[i].Price = update.Tick.Bids[i][0]
+		ob.Bids[i].Amount = update.Tick.Bids[i][1]
 	}
-
-	asks := make(orderbook.Levels, len(update.Tick.Asks))
 	for i := range update.Tick.Asks {
-		price, ok := update.Tick.Asks[i][0].(float64)
-		if !ok {
-			return errors.New("unable to type assert ask price")
-		}
-		amount, ok := update.Tick.Asks[i][1].(float64)
-		if !ok {
-			return errors.New("unable to type assert ask amount")
-		}
-		asks[i] = orderbook.Level{
-			Price:  price,
-			Amount: amount,
-		}
+		ob.Asks[i].Price = update.Tick.Asks[i][0]
+		ob.Asks[i].Amount = update.Tick.Asks[i][1]
 	}
 
-	var newOrderBook orderbook.Book
-	newOrderBook.Asks = asks
-	newOrderBook.Bids = bids
-	newOrderBook.Pair = s.Pairs[0]
-	newOrderBook.Asset = asset.Spot
-	newOrderBook.Exchange = e.Name
-	newOrderBook.ValidateOrderbook = e.ValidateOrderbook
-	newOrderBook.LastUpdated = update.Timestamp.Time()
-
-	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	return e.Websocket.Orderbook.LoadSnapshot(&ob)
 }
 
 func (e *Exchange) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte) error {
@@ -360,6 +336,7 @@ func (e *Exchange) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []b
 		Side:            o.Side,
 		AssetType:       s.Asset,
 		Pair:            p,
+		Status:          o.OrderStatus,
 	}
 	if o.OrderID != 0 {
 		d.OrderID = strconv.FormatInt(o.OrderID, 10)
@@ -372,33 +349,11 @@ func (e *Exchange) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []b
 	case "trade":
 		d.LastUpdated = o.TradeTime.Time()
 	}
-	if d.Status, err = order.StringToOrderStatus(o.OrderStatus); err != nil {
-		return &order.ClassificationError{
-			Exchange: e.Name,
-			OrderID:  d.OrderID,
-			Err:      err,
-		}
+
+	if err := setOrderTypeAndSide(o.OrderType, o.Side, d); err != nil {
+		return fmt.Errorf("error setting order type and side: %w", err)
 	}
-	if o.Side == order.UnknownSide {
-		d.Side, err = stringToOrderSide(o.OrderType)
-		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  d.OrderID,
-				Err:      err,
-			}
-		}
-	}
-	if o.OrderType != "" {
-		d.Type, err = stringToOrderType(o.OrderType)
-		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  d.OrderID,
-				Err:      err,
-			}
-		}
-	}
+
 	e.Websocket.DataHandler <- d
 	if o.ErrCode != 0 {
 		return fmt.Errorf("error with order %q: %s (%v)", o.ClientOrderID, o.ErrMessage, o.ErrCode)
@@ -427,34 +382,13 @@ func (e *Exchange) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []b
 		Date:          t.OrderCreateTime.Time(),
 		LastUpdated:   t.TradeTime.Time(),
 		OrderID:       strconv.FormatInt(t.OrderID, 10),
+		Status:        t.OrderStatus,
 	}
-	if d.Status, err = order.StringToOrderStatus(t.OrderStatus); err != nil {
-		return &order.ClassificationError{
-			Exchange: e.Name,
-			OrderID:  d.OrderID,
-			Err:      err,
-		}
+
+	if err := setOrderTypeAndSide(t.OrderType, t.Side, d); err != nil {
+		return fmt.Errorf("error setting order type and side: %w", err)
 	}
-	if t.Side == order.UnknownSide {
-		d.Side, err = stringToOrderSide(t.OrderType)
-		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  d.OrderID,
-				Err:      err,
-			}
-		}
-	}
-	if t.OrderType != "" {
-		d.Type, err = stringToOrderType(t.OrderType)
-		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  d.OrderID,
-				Err:      err,
-			}
-		}
-	}
+
 	d.Trades = []order.TradeHistory{
 		{
 			Price:     t.TradePrice,
@@ -637,7 +571,7 @@ func stringToOrderSide(side string) (order.Side, error) {
 		return order.Sell, nil
 	}
 
-	return order.UnknownSide, errors.New(side + " not recognised as order side")
+	return order.UnknownSide, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, side)
 }
 
 func stringToOrderType(oType string) (order.Type, error) {
@@ -648,8 +582,25 @@ func stringToOrderType(oType string) (order.Type, error) {
 		return order.Market, nil
 	}
 
-	return order.UnknownType,
-		errors.New(oType + " not recognised as order type")
+	return order.UnknownType, fmt.Errorf("%w: %q", order.ErrUnrecognisedOrderType, oType)
+}
+
+func setOrderTypeAndSide(rawOrderType string, origSide order.Side, d *order.Detail) error {
+	var err error
+	if origSide == order.UnknownSide {
+		d.Side, err = stringToOrderSide(rawOrderType)
+		if err != nil {
+			return err
+		}
+	}
+
+	if rawOrderType != "" {
+		d.Type, err = stringToOrderType(rawOrderType)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 /*

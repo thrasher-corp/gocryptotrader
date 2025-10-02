@@ -222,8 +222,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 					}
 					settleTrail = currency.UnderscoreDelimiter + settlement[1]
 				}
-				pair, err = currency.NewPairFromStrings(marketInfo[x].Underlying,
-					marketInfo[x].QuoteCurrency+settleTrail)
+				pair, err = currency.NewPairFromStrings(marketInfo[x].Underlying, marketInfo[x].QuoteCurrency.String()+settleTrail)
 				if err != nil {
 					return nil, err
 				}
@@ -465,7 +464,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 
 		accountBalances[accountID] = append(
 			accountBalances[accountID], account.Balance{
-				Currency: currency.NewCode(wallet.Currency),
+				Currency: wallet.Currency,
 				Total:    wallet.Amount,
 			},
 		)
@@ -578,11 +577,6 @@ allTrades:
 			if tradeData[i].Timestamp.Before(timestampStart) || tradeData[i].Timestamp.After(timestampEnd) {
 				break allTrades
 			}
-			var side order.Side
-			side, err = order.StringToOrderSide(tradeData[i].Side)
-			if err != nil {
-				return nil, err
-			}
 			if tradeData[i].Price == 0 {
 				// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.
 				// These have a size of 0 and are used only to indicate a changing price.
@@ -592,7 +586,7 @@ allTrades:
 				Exchange:     e.Name,
 				CurrencyPair: p,
 				AssetType:    assetType,
-				Side:         side,
+				Side:         tradeData[i].Side,
 				Price:        tradeData[i].Price,
 				Amount:       float64(tradeData[i].Size),
 				Timestamp:    tradeData[i].Timestamp,
@@ -724,7 +718,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		return nil, err
 	}
 	for i := range cancelResponse {
-		resp.Status[cancelResponse[i].OrderID] = cancelResponse[i].OrdStatus
+		resp.Status[cancelResponse[i].OrderID] = cancelResponse[i].OrdStatus.String()
 	}
 	return resp, nil
 }
@@ -768,11 +762,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if resp[i].OrderID != orderID {
 			continue
 		}
-		var orderStatus order.Status
-		orderStatus, err = order.StringToOrderStatus(resp[i].OrdStatus)
-		if err != nil {
-			return nil, err
-		}
 		var oType order.Type
 		oType, err = e.getOrderType(resp[i].OrdType)
 		if err != nil {
@@ -787,7 +776,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Exchange:        e.Name,
 			OrderID:         resp[i].OrderID,
 			Side:            orderSideMap[resp[i].Side],
-			Status:          orderStatus,
+			Status:          resp[i].OrdStatus,
 			Type:            oType,
 			Pair:            pair,
 			AssetType:       assetType,
@@ -881,11 +870,6 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 
 	orders := make([]order.Detail, len(resp))
 	for i := range resp {
-		var orderStatus order.Status
-		orderStatus, err = order.StringToOrderStatus(resp[i].OrdStatus)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-		}
 		var oType order.Type
 		oType, err = e.getOrderType(resp[i].OrdType)
 		if err != nil {
@@ -900,7 +884,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			Exchange:        e.Name,
 			OrderID:         resp[i].OrderID,
 			Side:            orderSideMap[resp[i].Side],
-			Status:          orderStatus,
+			Status:          resp[i].OrdStatus,
 			Type:            oType,
 			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
@@ -921,8 +905,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 
-	params := OrdersRequest{}
-	resp, err := e.GetOrders(ctx, &params)
+	resp, err := e.GetOrders(ctx, &OrdersRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -934,17 +917,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 	orders := make([]order.Detail, len(resp))
 	for i := range resp {
-		orderSide := orderSideMap[resp[i].Side]
-		var orderStatus order.Status
-		orderStatus, err = order.StringToOrderStatus(resp[i].OrdStatus)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-		}
-
 		pair := currency.NewPairWithDelimiter(resp[i].Symbol, resp[i].SettlCurrency, format.Delimiter)
 
-		var oType order.Type
-		oType, err = e.getOrderType(resp[i].OrdType)
+		oType, err := e.getOrderType(resp[i].OrdType)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 		}
@@ -959,8 +934,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			CloseTime:            resp[i].Timestamp,
 			Exchange:             e.Name,
 			OrderID:              resp[i].OrderID,
-			Side:                 orderSide,
-			Status:               orderStatus,
+			Side:                 orderSideMap[resp[i].Side],
+			Status:               resp[i].OrdStatus,
 			Type:                 oType,
 			Pair:                 pair,
 		}
@@ -1023,15 +998,10 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			if marketInfo[x].Typ != perpetualContractID {
 				continue
 			}
-			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].QuoteCurrency)
-			if err != nil {
-				return nil, err
-			}
-			underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
-			if err != nil {
-				return nil, err
-			}
+
+			cp := currency.NewPair(marketInfo[x].RootSymbol, marketInfo[x].QuoteCurrency)
+			underlying := currency.NewPair(marketInfo[x].RootSymbol, marketInfo[x].SettleCurrency)
+
 			var s time.Time
 			if marketInfo[x].Front != "" {
 				s, err = time.Parse(time.RFC3339, marketInfo[x].Front)
@@ -1058,7 +1028,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				Status:               marketInfo[x].State,
 				Type:                 futures.Perpetual,
 				SettlementType:       contractSettlementType,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
+				SettlementCurrencies: currency.Currencies{marketInfo[x].SettleCurrency},
 				Multiplier:           marketInfo[x].Multiplier,
 				LatestRate: fundingrate.Rate{
 					Time: marketInfo[x].FundingTimestamp,
@@ -1071,15 +1041,10 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			if marketInfo[x].Typ != futuresID {
 				continue
 			}
-			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].Symbol[len(marketInfo[x].RootSymbol):])
-			if err != nil {
-				return nil, err
-			}
-			underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
-			if err != nil {
-				return nil, err
-			}
+
+			cp := currency.NewPair(marketInfo[x].RootSymbol, marketInfo[x].QuoteCurrency)
+			underlying := currency.NewPair(marketInfo[x].RootSymbol, marketInfo[x].SettleCurrency)
+
 			var startTime, endTime time.Time
 			if marketInfo[x].Front != "" {
 				startTime, err = time.Parse(time.RFC3339, marketInfo[x].Front)
@@ -1128,7 +1093,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				IsActive:             marketInfo[x].State == "Open",
 				Status:               marketInfo[x].State,
 				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
+				SettlementCurrencies: currency.Currencies{marketInfo[x].SettleCurrency},
 				Multiplier:           marketInfo[x].Multiplier,
 				SettlementType:       contractSettlementType,
 			})

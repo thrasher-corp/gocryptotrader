@@ -973,13 +973,13 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestNormalizeWalletInfo(t *testing.T) {
 	w := &WalletInfo{
-		Currency: "XBt",
+		Currency: currency.XBT,
 		Amount:   1e+08,
 	}
 
 	normalizeWalletInfo(w)
 
-	assert.Equal(t, "BTC", w.Currency, "Currency should be correct")
+	assert.Equal(t, currency.BTC, w.Currency, "Currency should be correct")
 	assert.Equal(t, 1.0, w.Amount, "Amount should be correct")
 }
 

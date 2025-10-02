@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -69,7 +70,7 @@ type Trade struct {
 	Price       float64    `json:"price,string"`
 	Amount      float64    `json:"amount,string"`
 	Exchange    string     `json:"exchange"`
-	Type        string     `json:"type"`
+	Side        order.Side `json:"type"`
 }
 
 // Auction is generalized response type
@@ -140,7 +141,7 @@ type Order struct {
 	Exchange          string     `json:"exchange"`
 	Price             float64    `json:"price,string"`
 	AvgExecutionPrice float64    `json:"avg_execution_price,string"`
-	Side              string     `json:"side"`
+	Side              order.Side `json:"side"`
 	Type              string     `json:"type"`
 	Timestamp         types.Time `json:"timestamp"`
 	TimestampMS       types.Time `json:"timestampms"`
@@ -161,7 +162,7 @@ type TradeHistory struct {
 	Amount          float64    `json:"amount,string"`
 	Timestamp       types.Time `json:"timestamp"`
 	TimestampMS     types.Time `json:"timestampms"`
-	Type            string     `json:"type"`
+	Side            order.Side `json:"side"`
 	FeeCurrency     string     `json:"fee_currency"`
 	FeeAmount       float64    `json:"fee_amount,string"`
 	TID             int64      `json:"tid"`
@@ -294,12 +295,12 @@ type WsOrderResponse struct {
 	EventID           string            `json:"event_id"`
 	CancelCommandID   string            `json:"cancel_command_id"`
 	Reason            string            `json:"reason"`
-	Type              string            `json:"type"`
+	Status            order.Status      `json:"type"`
 	OrderID           string            `json:"order_id"`
 	APISession        string            `json:"api_session"`
 	Symbol            string            `json:"symbol"`
-	Side              string            `json:"side"`
-	OrderType         string            `json:"order_type"`
+	Side              order.Side        `json:"side"`
+	OrderType         order.Type        `json:"order_type"`
 	Timestamp         types.Time        `json:"timestamp"`
 	Fill              WsOrderFilledData `json:"fill"`
 }
@@ -344,7 +345,7 @@ type wsTrade struct {
 	Timestamp types.Time `json:"timestamp"`
 	Price     float64    `json:"price,string"`
 	Quantity  float64    `json:"quantity,string"`
-	Side      string     `json:"side"`
+	Side      order.Side `json:"side"`
 }
 
 type wsAuctionResult struct {

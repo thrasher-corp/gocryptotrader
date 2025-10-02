@@ -601,8 +601,8 @@ func (e *Exchange) OpenOrders(ctx context.Context, pair currency.Pair) ([]QueryO
 
 // AllOrders Get all account orders; active, canceled, or filled.
 // orderId optional param
-// limit optional param, default 500; max 500
-func (e *Exchange) AllOrders(ctx context.Context, symbol currency.Pair, orderID, limit string) ([]QueryOrderData, error) {
+// limit optional param, default 500; max 1000
+func (e *Exchange) AllOrders(ctx context.Context, symbol currency.Pair, orderID, limit uint64) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 
 	params := url.Values{}
@@ -611,19 +611,13 @@ func (e *Exchange) AllOrders(ctx context.Context, symbol currency.Pair, orderID,
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if orderID != "" {
-		params.Set("orderId", orderID)
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatUint(orderID, 10))
 	}
-	if limit != "" {
-		params.Set("limit", limit)
+	if limit != 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if err := e.SendAuthHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		http.MethodGet,
-		allOrders,
-		params,
-		spotAllOrdersRate,
-		&resp); err != nil {
+	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, allOrders, params, spotAllOrdersRate, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil

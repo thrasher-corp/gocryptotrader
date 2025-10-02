@@ -1060,9 +1060,9 @@ func SortOrdersBySide(orders *[]Detail, reverse bool) {
 func StringToOrderSide(side string) (Side, error) {
 	side = strings.ToUpper(side)
 	switch side {
-	case Buy.String():
+	case Buy.String(), "MODE_BUY":
 		return Buy, nil
-	case Sell.String():
+	case Sell.String(), "MODE_SELL":
 		return Sell, nil
 	case Bid.String():
 		return Bid, nil
@@ -1083,9 +1083,8 @@ func StringToOrderSide(side string) (Side, error) {
 // It expects a quoted string input, and uses StringToOrderSide to parse it
 func (s *Side) UnmarshalJSON(data []byte) (err error) {
 	if !bytes.HasPrefix(data, []byte(`"`)) {
-		// Note that we don't need to worry about invalid JSON here, it wouldn't have made it past the deserialiser far
-		// TODO: Can use reflect.TypeFor[s]() when it's released, probably 1.21
-		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeOf(s), Offset: 1}
+		// Note: Invalid JSON is caught earlier by the JSON decoder
+		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeFor[Side]()}
 	}
 	*s, err = StringToOrderSide(string(data[1 : len(data)-1])) // Remove quotes
 	return
@@ -1101,9 +1100,9 @@ func (s Side) MarshalJSON() ([]byte, error) {
 func StringToOrderType(oType string) (Type, error) {
 	oType = strings.ToUpper(oType)
 	switch oType {
-	case orderLimit, "EXCHANGE LIMIT":
+	case orderLimit, "EXCHANGE LIMIT", "AUCTION_ONLY LIMIT", "INDICATION-OF-INTEREST LIMIT":
 		return Limit, nil
-	case orderMarket, "EXCHANGE MARKET":
+	case orderMarket, "EXCHANGE MARKET", "MARKET BUY", "MARKET SELL", "BLOCK_TRADE":
 		return Market, nil
 	case orderStop, "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
 		return Stop, nil
@@ -1144,6 +1143,17 @@ func StringToOrderType(oType string) (Type, error) {
 	}
 }
 
+// UnmarshalJSON parses the JSON-encoded order type and stores the result
+// It expects a quoted string input, and uses StringToOrderType to parse it
+func (t *Type) UnmarshalJSON(data []byte) (err error) {
+	if !bytes.HasPrefix(data, []byte(`"`)) {
+		// Note: Invalid JSON is caught earlier by the JSON decoder
+		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeFor[Type]()}
+	}
+	*t, err = StringToOrderType(string(data[1 : len(data)-1])) // Remove quotes
+	return
+}
+
 // StringToOrderStatus for converting case insensitive order status
 // and returning a real Status
 func StringToOrderStatus(status string) (Status, error) {
@@ -1151,29 +1161,29 @@ func StringToOrderStatus(status string) (Status, error) {
 	switch status {
 	case AnyStatus.String():
 		return AnyStatus, nil
-	case New.String(), "PLACED", "ACCEPTED", "SUBMITTED":
+	case New.String(), "PLACED", "ACCEPTED", "SUBMITTED", "RECEIVED", "ORDER_INSERTED", "TRIGGER_INSERTED":
 		return New, nil
-	case Active.String(), "STATUS_ACTIVE", "LIVE":
+	case Active.String(), "STATUS_ACTIVE", "LIVE", "CHANGE", "ACTIVATE", "TRIGGER_ACTIVATED", "BOOKED":
 		return Active, nil
-	case PartiallyFilled.String(), "PARTIAL-FILLED", "PARTIALLY MATCHED", "PARTIALLY FILLED":
+	case PartiallyFilled.String(), "PARTIAL-FILLED", "PARTIALLY MATCHED", "PARTIALLY FILLED", "PARTIALLYFILLED", "PARTIALLY_FILLED", "MATCH":
 		return PartiallyFilled, nil
-	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED", "EFFECTIVE":
+	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED", "EFFECTIVE", "DONE", "FILL":
 		return Filled, nil
 	case PartiallyCancelled.String(), "PARTIAL-CANCELED", "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
 		return PartiallyCancelled, nil
 	case PartiallyFilledCancelled.String(), "PARTIALLYFILLEDCANCELED":
 		return PartiallyFilledCancelled, nil
-	case Open.String():
+	case Open.String(), "CREATED", "TRIGGERED":
 		return Open, nil
-	case Closed.String(), "POSITION_CLOSED":
+	case Closed.String(), "POSITION_CLOSED", "DEACTIVATED":
 		return Closed, nil
 	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED":
 		return Cancelled, nil
 	case Pending.String():
 		return Pending, nil
-	case PendingCancel.String(), "PENDING CANCEL", "PENDING CANCELLATION":
+	case PendingCancel.String(), "PENDING CANCEL", "PENDING CANCELLATION", "PENDING_CANCEL", "UNTRIGGERED":
 		return PendingCancel, nil
-	case Rejected.String(), "FAILED", "ORDER_FAILED":
+	case Rejected.String(), "FAILED", "ORDER_FAILED", "cancel_rejected":
 		return Rejected, nil
 	case Expired.String():
 		return Expired, nil
@@ -1194,6 +1204,17 @@ func StringToOrderStatus(status string) (Status, error) {
 	default:
 		return UnknownStatus, fmt.Errorf("%q %w", status, errUnrecognisedOrderStatus)
 	}
+}
+
+// UnmarshalJSON parses the JSON-encoded order status and stores the result
+// It expects a quoted string input, and uses StringToOrderStatus to parse it
+func (s *Status) UnmarshalJSON(data []byte) (err error) {
+	if !bytes.HasPrefix(data, []byte(`"`)) {
+		// Note: Invalid JSON is caught earlier by the JSON decoder
+		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeFor[Status]()}
+	}
+	*s, err = StringToOrderStatus(string(data[1 : len(data)-1])) // Remove quotes
+	return
 }
 
 func (o *ClassificationError) Error() string {

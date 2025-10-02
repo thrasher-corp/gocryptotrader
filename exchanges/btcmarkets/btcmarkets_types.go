@@ -37,11 +37,11 @@ type Ticker struct {
 
 // Trade holds trade information
 type Trade struct {
-	TradeID   string    `json:"id"`
-	Amount    float64   `json:"amount,string"`
-	Price     float64   `json:"price,string"`
-	Timestamp time.Time `json:"timestamp"`
-	Side      string    `json:"side"`
+	TradeID   string     `json:"id"`
+	Amount    float64    `json:"amount,string"`
+	Price     float64    `json:"price,string"`
+	Timestamp time.Time  `json:"timestamp"`
+	Side      order.Side `json:"side"`
 }
 
 // tempOrderbook stores orderbook data
@@ -130,10 +130,10 @@ type TradeResponse struct {
 
 // AccountData stores account data
 type AccountData struct {
-	AssetName string  `json:"assetName"`
-	Balance   float64 `json:"balance,string"`
-	Available float64 `json:"available,string"`
-	Locked    float64 `json:"locked,string"`
+	AssetName currency.Code `json:"assetName"`
+	Balance   float64       `json:"balance,string"`
+	Available float64       `json:"available,string"`
+	Locked    float64       `json:"locked,string"`
 }
 
 // TradeHistoryData stores data of past trades
@@ -153,13 +153,13 @@ type TradeHistoryData struct {
 type OrderData struct {
 	OrderID      string        `json:"orderId"`
 	MarketID     currency.Pair `json:"marketId"`
-	Side         string        `json:"side"`
-	Type         string        `json:"type"`
+	Side         order.Side    `json:"side"`
+	Type         order.Type    `json:"type"`
 	CreationTime time.Time     `json:"creationTime"`
 	Price        float64       `json:"price,string"`
 	Amount       float64       `json:"amount,string"`
 	OpenAmount   float64       `json:"openAmount,string"`
-	Status       string        `json:"status"`
+	Status       order.Status  `json:"status"`
 	TargetAmount float64       `json:"targetAmount,string"`
 	TimeInForce  string        `json:"timeInForce"`
 }
@@ -422,10 +422,10 @@ type WsTradeData struct {
 type WsOrderChange struct {
 	OrderID       int64         `json:"orderId"`
 	MarketID      currency.Pair `json:"marketId"`
-	Side          string        `json:"side"`
-	OrderType     string        `json:"type"`
+	Side          order.Side    `json:"side"`
+	OrderType     order.Type    `json:"type"`
 	OpenVolume    float64       `json:"openVolume,string"`
-	Status        string        `json:"status"`
+	Status        order.Status  `json:"status"`
 	TriggerStatus string        `json:"triggerStatus"`
 	Trades        []WsTradeData `json:"trades"`
 	Timestamp     time.Time     `json:"timestamp"`

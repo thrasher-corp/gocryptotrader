@@ -628,16 +628,12 @@ func (e *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
 	}
 	trades := make([]trade.Data, len(resp.Data))
 	for x := range resp.Data {
-		oSide, err := order.StringToOrderSide(resp.Data[x].Side)
-		if err != nil {
-			return err
-		}
 		trades[x] = trade.Data{
 			Amount:       resp.Data[x].FillSize.Float64(),
 			AssetType:    asset.Spread,
 			CurrencyPair: pair,
 			Exchange:     e.Name,
-			Side:         oSide,
+			Side:         resp.Data[x].Side,
 			Timestamp:    resp.Data[x].Timestamp.Time(),
 			TID:          resp.Data[x].TradeID,
 			Price:        resp.Data[x].FillPrice.Float64(),
@@ -671,18 +667,6 @@ func (e *Exchange) wsProcessSpreadOrders(respRaw []byte) error {
 
 	orderDetails := make([]order.Detail, len(resp.Data))
 	for x := range resp.Data {
-		oSide, err := order.StringToOrderSide(resp.Data[x].Side)
-		if err != nil {
-			return err
-		}
-		oStatus, err := order.StringToOrderStatus(resp.Data[x].State)
-		if err != nil {
-			return err
-		}
-		oType, err := order.StringToOrderType(resp.Data[x].OrderType)
-		if err != nil {
-			return err
-		}
 		orderDetails[x] = order.Detail{
 			AssetType:            asset.Spread,
 			Amount:               resp.Data[x].Size.Float64(),
@@ -696,9 +680,9 @@ func (e *Exchange) wsProcessSpreadOrders(respRaw []byte) error {
 			Price:                resp.Data[x].Price.Float64(),
 			QuoteAmount:          resp.Data[x].Size.Float64() * resp.Data[x].Price.Float64(),
 			RemainingAmount:      resp.Data[x].Size.Float64() - resp.Data[x].FillSize.Float64(),
-			Side:                 oSide,
-			Status:               oStatus,
-			Type:                 oType,
+			Side:                 resp.Data[x].Side,
+			Status:               resp.Data[x].State,
+			Type:                 resp.Data[x].OrderType,
 			LastUpdated:          resp.Data[x].UpdateTime.Time(),
 		}
 	}
@@ -803,16 +787,12 @@ func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 	}
 	trades := make([]trade.Data, len(data))
 	for x := range data {
-		oSide, err := order.StringToOrderSide(data[x].Side)
-		if err != nil {
-			return err
-		}
 		trades[x] = trade.Data{
 			TID:          data[x].TradeID,
 			Exchange:     e.Name,
 			CurrencyPair: pair,
 			AssetType:    asset.Spread,
-			Side:         oSide,
+			Side:         data[x].Side,
 			Price:        data[x].Price.Float64(),
 			Amount:       data[x].Size.Float64(),
 			Timestamp:    data[x].Timestamp.Time(),
@@ -913,16 +893,12 @@ func (e *Exchange) wsProcessOptionTrades(data []byte) error {
 		if err != nil {
 			return err
 		}
-		oSide, err := order.StringToOrderSide(resp.Data[i].Side)
-		if err != nil {
-			return err
-		}
 		trades[i] = trade.Data{
 			Amount:       resp.Data[i].Size.Float64(),
 			AssetType:    asset.Options,
 			CurrencyPair: pair,
 			Exchange:     e.Name,
-			Side:         oSide,
+			Side:         resp.Data[i].Side,
 			Timestamp:    resp.Data[i].Timestamp.Time(),
 			TID:          resp.Data[i].TradeID,
 			Price:        resp.Data[i].Price.Float64(),
@@ -1213,22 +1189,6 @@ func (e *Exchange) wsProcessOrders(respRaw []byte) error {
 		return err
 	}
 	for x := range response.Data {
-		orderType, err := order.StringToOrderType(response.Data[x].OrderType)
-		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  response.Data[x].OrderID,
-				Err:      err,
-			}
-		}
-		orderStatus, err := order.StringToOrderStatus(response.Data[x].State)
-		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  response.Data[x].OrderID,
-				Err:      err,
-			}
-		}
 		pair, err := currency.NewPairFromString(response.Data[x].InstrumentID)
 		if err != nil {
 			return err
@@ -1242,7 +1202,7 @@ func (e *Exchange) wsProcessOrders(respRaw []byte) error {
 		if response.Data[x].SizeType == "quote_ccy" {
 			// Size is quote amount.
 			quoteAmount = orderAmount
-			if orderStatus == order.Filled {
+			if response.Data[x].State == order.Filled {
 				// We prefer to take execAmount over calculating from quoteAmount / avgPrice
 				// because it avoids rounding issues
 				orderAmount = execAmount
@@ -1259,7 +1219,7 @@ func (e *Exchange) wsProcessOrders(respRaw []byte) error {
 		var remainingAmount float64
 		// Float64 rounding may lead to execAmount > orderAmount by a tiny fraction
 		// noting that the order can be fully executed before it's marked as status Filled
-		if orderStatus != order.Filled && orderAmount > execAmount {
+		if response.Data[x].State != order.Filled && orderAmount > execAmount {
 			remainingAmount = orderAmount - execAmount
 		}
 
@@ -1279,10 +1239,10 @@ func (e *Exchange) wsProcessOrders(respRaw []byte) error {
 			QuoteAmount:          quoteAmount,
 			RemainingAmount:      remainingAmount,
 			Side:                 response.Data[x].Side,
-			Status:               orderStatus,
-			Type:                 orderType,
+			Status:               response.Data[x].State,
+			Type:                 response.Data[x].OrderType,
 		}
-		if orderStatus == order.Filled {
+		if response.Data[x].State == order.Filled {
 			d.CloseTime = response.Data[x].FillTime.Time()
 			if d.Amount == 0 {
 				d.Amount = d.ExecutedAmount
@@ -1424,16 +1384,12 @@ func (e *Exchange) wsProcessBlockPublicTrades(data []byte) error {
 		if err != nil {
 			return err
 		}
-		oSide, err := order.StringToOrderSide(resp.Data[i].Side)
-		if err != nil {
-			return err
-		}
 		trades[i] = trade.Data{
 			Amount:       resp.Data[i].Size.Float64(),
 			AssetType:    asset.Options,
 			CurrencyPair: pair,
 			Exchange:     e.Name,
-			Side:         oSide,
+			Side:         resp.Data[i].Side,
 			Timestamp:    resp.Data[i].Timestamp.Time(),
 			TID:          resp.Data[i].TradeID,
 			Price:        resp.Data[i].Price.Float64(),

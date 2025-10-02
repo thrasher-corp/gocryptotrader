@@ -396,18 +396,18 @@ type FuturesAccountInformation struct {
 
 // FuturesAccountAsset holds account asset information
 type FuturesAccountAsset struct {
-	Asset                  string  `json:"asset"`
-	WalletBalance          float64 `json:"walletBalance,string"`
-	UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
-	MarginBalance          float64 `json:"marginBalance,string"`
-	MaintenanceMargin      float64 `json:"maintMargin,string"`
-	InitialMargin          float64 `json:"initialMargin,string"`
-	PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
-	OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
-	MaxWithdrawAmount      float64 `json:"maxWithdrawAmount,string"`
-	CrossWalletBalance     float64 `json:"crossWalletBalance,string"`
-	CrossUnPNL             float64 `json:"crossUnPnl,string"`
-	AvailableBalance       float64 `json:"availableBalance,string"`
+	Asset                  currency.Code `json:"asset"`
+	WalletBalance          float64       `json:"walletBalance,string"`
+	UnrealizedProfit       float64       `json:"unrealizedProfit,string"`
+	MarginBalance          float64       `json:"marginBalance,string"`
+	MaintenanceMargin      float64       `json:"maintMargin,string"`
+	InitialMargin          float64       `json:"initialMargin,string"`
+	PositionInitialMargin  float64       `json:"positionInitialMargin,string"`
+	OpenOrderInitialMargin float64       `json:"openOrderInitialMargin,string"`
+	MaxWithdrawAmount      float64       `json:"maxWithdrawAmount,string"`
+	CrossWalletBalance     float64       `json:"crossWalletBalance,string"`
+	CrossUnPNL             float64       `json:"crossUnPnl,string"`
+	AvailableBalance       float64       `json:"availableBalance,string"`
 }
 
 // GenericAuthResponse is a general data response for a post auth request
@@ -489,12 +489,12 @@ type FuturesAccountTradeList struct {
 
 // FuturesIncomeHistoryData stores futures income history data
 type FuturesIncomeHistoryData struct {
-	Symbol     string     `json:"symbol"`
-	IncomeType string     `json:"incomeType"`
-	Income     float64    `json:"income,string"`
-	Asset      string     `json:"asset"`
-	Info       string     `json:"info"`
-	Timestamp  types.Time `json:"time"`
+	Symbol     string        `json:"symbol"`
+	IncomeType string        `json:"incomeType"`
+	Income     float64       `json:"income,string"`
+	Asset      currency.Code `json:"asset"`
+	Info       string        `json:"info"`
+	Timestamp  types.Time    `json:"time"`
 }
 
 // NotionalBracketData stores notional bracket data
@@ -586,25 +586,25 @@ type UFuturesExchangeInfo struct {
 // UFuturesSymbolInfo contains details of a currency symbol
 // for a usdt margined future contract
 type UFuturesSymbolInfo struct {
-	Symbol                   string     `json:"symbol"`
-	Pair                     string     `json:"pair"`
-	ContractType             string     `json:"contractType"`
-	DeliveryDate             types.Time `json:"deliveryDate"`
-	OnboardDate              types.Time `json:"onboardDate"`
-	Status                   string     `json:"status"`
-	MaintenanceMarginPercent float64    `json:"maintMarginPercent,string"`
-	RequiredMarginPercent    float64    `json:"requiredMarginPercent,string"`
-	BaseAsset                string     `json:"baseAsset"`
-	QuoteAsset               string     `json:"quoteAsset"`
-	MarginAsset              string     `json:"marginAsset"`
-	PricePrecision           int64      `json:"pricePrecision"`
-	QuantityPrecision        int64      `json:"quantityPrecision"`
-	BaseAssetPrecision       int64      `json:"baseAssetPrecision"`
-	QuotePrecision           int64      `json:"quotePrecision"`
-	UnderlyingType           string     `json:"underlyingType"`
-	UnderlyingSubType        []string   `json:"underlyingSubType"`
-	SettlePlan               float64    `json:"settlePlan"`
-	TriggerProtect           float64    `json:"triggerProtect,string"`
+	Symbol                   string        `json:"symbol"`
+	Pair                     string        `json:"pair"`
+	ContractType             string        `json:"contractType"`
+	DeliveryDate             types.Time    `json:"deliveryDate"`
+	OnboardDate              types.Time    `json:"onboardDate"`
+	Status                   string        `json:"status"`
+	MaintenanceMarginPercent float64       `json:"maintMarginPercent,string"`
+	RequiredMarginPercent    float64       `json:"requiredMarginPercent,string"`
+	BaseAsset                currency.Code `json:"baseAsset"`
+	QuoteAsset               currency.Code `json:"quoteAsset"`
+	MarginAsset              currency.Code `json:"marginAsset"`
+	PricePrecision           int64         `json:"pricePrecision"`
+	QuantityPrecision        int64         `json:"quantityPrecision"`
+	BaseAssetPrecision       int64         `json:"baseAssetPrecision"`
+	QuotePrecision           int64         `json:"quotePrecision"`
+	UnderlyingType           string        `json:"underlyingType"`
+	UnderlyingSubType        []string      `json:"underlyingSubType"`
+	SettlePlan               float64       `json:"settlePlan"`
+	TriggerProtect           float64       `json:"triggerProtect,string"`
 	Filters                  []struct {
 		FilterType        string  `json:"filterType"`
 		MinPrice          float64 `json:"minPrice,string"`
@@ -649,24 +649,24 @@ type CExchangeInfo struct {
 			MultiplierUp      float64 `json:"multiplierUp,string"`
 			MultiplierDecimal float64 `json:"multiplierDecimal,string"`
 		} `json:"filters"`
-		OrderTypes            []string   `json:"orderType"`
-		TimeInForce           []string   `json:"timeInForce"`
-		Symbol                string     `json:"symbol"`
-		Pair                  string     `json:"pair"`
-		ContractType          string     `json:"contractType"`
-		DeliveryDate          types.Time `json:"deliveryDate"`
-		OnboardDate           types.Time `json:"onboardDate"`
-		ContractStatus        string     `json:"contractStatus"`
-		ContractSize          int64      `json:"contractSize"`
-		QuoteAsset            string     `json:"quoteAsset"`
-		BaseAsset             string     `json:"baseAsset"`
-		MarginAsset           string     `json:"marginAsset"`
-		PricePrecision        int64      `json:"pricePrecision"`
-		QuantityPrecision     int64      `json:"quantityPrecision"`
-		BaseAssetPrecision    int64      `json:"baseAssetPrecision"`
-		QuotePrecision        int64      `json:"quotePrecision"`
-		MaintMarginPercent    float64    `json:"maintMarginPercent,string"`
-		RequiredMarginPercent float64    `json:"requiredMarginPercent,string"`
+		OrderTypes            []string      `json:"orderType"`
+		TimeInForce           []string      `json:"timeInForce"`
+		Symbol                string        `json:"symbol"`
+		Pair                  string        `json:"pair"`
+		ContractType          string        `json:"contractType"`
+		DeliveryDate          types.Time    `json:"deliveryDate"`
+		OnboardDate           types.Time    `json:"onboardDate"`
+		ContractStatus        string        `json:"contractStatus"`
+		ContractSize          int64         `json:"contractSize"`
+		QuoteAsset            currency.Code `json:"quoteAsset"`
+		BaseAsset             currency.Code `json:"baseAsset"`
+		MarginAsset           currency.Code `json:"marginAsset"`
+		PricePrecision        int64         `json:"pricePrecision"`
+		QuantityPrecision     int64         `json:"quantityPrecision"`
+		BaseAssetPrecision    int64         `json:"baseAssetPrecision"`
+		QuotePrecision        int64         `json:"quotePrecision"`
+		MaintMarginPercent    float64       `json:"maintMarginPercent,string"`
+		RequiredMarginPercent float64       `json:"requiredMarginPercent,string"`
 	} `json:"symbols"`
 	Timezone string `json:"timezone"`
 }
