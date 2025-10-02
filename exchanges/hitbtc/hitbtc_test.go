@@ -437,14 +437,14 @@ func setupWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go e.wsReadData()
+	go e.wsReadData(t.Context())
 	err = e.wsLogin(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
 	timer := time.NewTimer(time.Second)
 	select {
-	case loginError := <-e.Websocket.DataHandler:
+	case loginError := <-e.Websocket.DataHandler.Read():
 		t.Fatal(loginError)
 	case <-timer.C:
 	}
@@ -546,7 +546,7 @@ func TestWsGetActiveOrdersJSON(t *testing.T) {
     }
   ]
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -570,7 +570,7 @@ func TestWsGetCurrenciesJSON(t *testing.T) {
   },
   "id": 123
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -591,7 +591,7 @@ func TestWsGetSymbolsJSON(t *testing.T) {
   },
   "id": 123
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -614,7 +614,7 @@ func TestWsTicker(t *testing.T) {
     "symbol": "BTCUSD"
   }
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -658,7 +658,7 @@ func TestWsOrderbook(t *testing.T) {
     "timestamp": "2018-11-19T05:00:28.193Z"
   }
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -688,7 +688,7 @@ func TestWsOrderbook(t *testing.T) {
     "timestamp": "2018-11-19T05:00:28.700Z"
   }
 }`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -719,7 +719,7 @@ func TestWsOrderNotification(t *testing.T) {
     "tradeFee": "-0.000000005"
   }
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -746,7 +746,7 @@ func TestWsSubmitOrderJSON(t *testing.T) {
   },
   "id": 123
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -773,7 +773,7 @@ func TestWsCancelOrderJSON(t *testing.T) {
   },
   "id": 123
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -801,7 +801,7 @@ func TestWsCancelReplaceJSON(t *testing.T) {
   },
   "id": 123
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -829,7 +829,7 @@ func TestWsGetTradesRequestResponse(t *testing.T) {
   ],
   "id": 123
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -859,7 +859,7 @@ func TestWsGetActiveOrdersRequestJSON(t *testing.T) {
   ],
   "id": 123
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -896,7 +896,7 @@ func TestWsTrades(t *testing.T) {
     "symbol": "BTCUSD"
   }
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -917,7 +917,7 @@ func TestWsTrades(t *testing.T) {
     "symbol": "BTCUSD"
   }
 }    `)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}

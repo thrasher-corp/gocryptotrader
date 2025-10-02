@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -139,7 +140,7 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 				log.Errorf(log.WebsocketMgr, "%v", err)
 			}
 
-			if err := ws.Connect(); err != nil {
+			if err := ws.Connect(context.TODO()); err != nil {
 				log.Errorf(log.WebsocketMgr, "%v", err)
 			}
 		})
@@ -167,14 +168,13 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 			select {
 			case <-m.shutdown:
 				return
-			case data := <-ws.ToRoutine:
-				if data == nil {
+			case payload := <-ws.DataHandler.Read():
+				if payload.Data == nil {
 					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
 				}
 				m.mu.RLock()
 				for x := range m.dataHandlers {
-					err := m.dataHandlers[x](ws.GetName(), data)
-					if err != nil {
+					if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
 						log.Errorln(log.WebsocketMgr, err)
 					}
 				}

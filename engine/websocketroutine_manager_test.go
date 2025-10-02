@@ -258,16 +258,18 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	}
 
 	mock := websocket.NewManager()
-	mock.ToRoutine = make(chan any)
 	m.state = readyState
 	err = m.websocketDataReceiver(mock)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	mock.ToRoutine <- nil
-	mock.ToRoutine <- 1336
-	mock.ToRoutine <- "intercepted"
+	err = mock.DataHandler.Send(t.Context(), nil)
+	require.NoError(t, err)
+	err = mock.DataHandler.Send(t.Context(), 1336)
+	require.NoError(t, err)
+	err = mock.DataHandler.Send(t.Context(), "intercepted")
+	require.NoError(t, err)
 
 	if r := <-dataChan; r != "intercepted" {
 		t.Fatal("unexpected value received")

@@ -1123,8 +1123,8 @@ func TestWSAuth(t *testing.T) {
 	var resp map[string]any
 	catcher := func() (ok bool) {
 		select {
-		case v := <-e.Websocket.ToRoutine:
-			resp, ok = v.(map[string]any)
+		case v := <-e.Websocket.DataHandler.Read():
+			resp, ok = v.Data.(map[string]any)
 		default:
 		}
 		return
@@ -1192,8 +1192,8 @@ func TestWSSubscribe(t *testing.T) {
 	err := e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.NoError(t, err, "Subrcribe must not error")
 	catcher := func() (ok bool) {
-		i := <-e.Websocket.ToRoutine
-		_, ok = i.(*ticker.Price)
+		i := <-e.Websocket.DataHandler.Read()
+		_, ok = i.Data.(*ticker.Price)
 		return
 	}
 	assert.Eventually(t, catcher, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "Ticker response should arrive")
@@ -1204,13 +1204,6 @@ func TestWSSubscribe(t *testing.T) {
 
 	err = e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Duplicate subscription must error correctly")
-
-	assert.EventuallyWithT(t, func(t *assert.CollectT) {
-		i := <-e.Websocket.ToRoutine
-		e, ok := i.(error)
-		require.True(t, ok, "must find an error")
-		assert.ErrorContains(t, e, "subscribe: dup (code: 10301)", "error should be correct")
-	}, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "error response should go to ToRoutine")
 
 	subs, err = e.GetSubscriptions()
 	require.NoError(t, err, "GetSubscriptions must not error")
@@ -1382,7 +1375,7 @@ func TestWSAllTrades(t *testing.T) {
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.AllTradesChannel, Key: 18788})
 	require.NoError(t, err, "AddSubscriptions must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
-	close(e.Websocket.DataHandler)
+	e.Websocket.DataHandler.Close()
 	expJSON := []string{
 		`{"TID":"412685577","AssetType":"spot","Side":"BUY","Price":176.3,"Amount":11.1998,"Timestamp":"2020-01-29T03:27:24.802Z"}`,
 		`{"TID":"412685578","AssetType":"spot","Side":"SELL","Price":176.29952759,"Amount":5,"Timestamp":"2020-01-29T03:28:04.802Z"}`,
@@ -1392,11 +1385,11 @@ func TestWSAllTrades(t *testing.T) {
 		`{"TID":"5690221203","AssetType":"marginFunding","Side":"BUY","Price":102550,"Amount":0.00991467,"Timestamp":"2024-12-15T04:30:18.019Z"}`,
 		`{"TID":"5690221204","AssetType":"marginFunding","Side":"SELL","Price":102540,"Amount":0.01925285,"Timestamp":"2024-12-15T04:30:18.094Z"}`,
 	}
-	require.Len(t, e.Websocket.DataHandler, len(expJSON), "Must see correct number of trades")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	require.Len(t, e.Websocket.DataHandler.Read(), len(expJSON), "Must see correct number of trades")
+	for resp := range e.Websocket.DataHandler.Read() {
+		switch v := resp.Data.(type) {
 		case trade.Data:
-			i := 6 - len(e.Websocket.DataHandler)
+			i := 6 - len(e.Websocket.DataHandler.Read())
 			exp := trade.Data{
 				Exchange:     e.Name,
 				CurrencyPair: btcusdPair,

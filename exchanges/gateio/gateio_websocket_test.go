@@ -165,7 +165,7 @@ func TestProcessBalancePushData(t *testing.T) {
 			continue
 		}
 		require.NoError(t, err, "processBalancePushData must not error")
-		require.Len(t, e.Websocket.DataHandler, 1)
+		require.Len(t, e.Websocket.DataHandler.Read(), 1)
 		checkAccountChange(ctx, t, e, &tc)
 	}
 }
@@ -173,9 +173,9 @@ func TestProcessBalancePushData(t *testing.T) {
 func checkAccountChange(ctx context.Context, t *testing.T, exch *Exchange, tc *websocketBalancesTest) {
 	t.Helper()
 
-	require.Len(t, exch.Websocket.DataHandler, 1)
-	payload := <-exch.Websocket.DataHandler
-	received, ok := payload.([]account.Change)
+	require.Len(t, exch.Websocket.DataHandler.Read(), 1)
+	payload := <-exch.Websocket.DataHandler.Read()
+	received, ok := payload.Data.([]account.Change)
 	require.Truef(t, ok, "Expected account changes, got %T", payload)
 
 	require.Lenf(t, received, len(tc.expected), "Expected %d changes, got %d", len(tc.expected), len(received))
