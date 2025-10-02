@@ -30,7 +30,7 @@ type wsOBUpdateManager struct {
 	lookup   map[key.PairAsset]*updateCache
 	deadline time.Duration
 	delay    time.Duration
-	mtx      sync.RWMutex
+	m        sync.RWMutex
 }
 
 type updateCache struct {
@@ -137,14 +137,14 @@ func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) (*updateCac
 	if !a.IsValid() {
 		return nil, fmt.Errorf("%w: %q", asset.ErrInvalidAsset, a)
 	}
-	m.mtx.RLock()
+	m.m.RLock()
 	cache, ok := m.lookup[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
-	m.mtx.RUnlock()
+	m.m.RUnlock()
 	if !ok {
 		cache = &updateCache{ch: make(chan int64), state: cacheStateInitialised}
-		m.mtx.Lock()
+		m.m.Lock()
 		m.lookup[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}] = cache
-		m.mtx.Unlock()
+		m.m.Unlock()
 	}
 	return cache, nil
 }
