@@ -47,7 +47,6 @@ const (
 	canManipulateRealOrders = false
 
 	skipAuthenticatedFunctionsForMockTesting = "skipping authenticated function for mock testing"
-	skippingWebsocketFunctionsForMockTesting = "skipping websocket function for mock testing"
 )
 
 var (

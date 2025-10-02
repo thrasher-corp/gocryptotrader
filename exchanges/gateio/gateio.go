@@ -2820,7 +2820,7 @@ func (e *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract cu
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	params := url.Values{}
-	if side == "ask" || side == "bid" {
+	if side == order.Ask.Lower() || side == order.Bid.Lower() {
 		params.Set("side", side)
 	}
 	params.Set("contract", contract.String())
