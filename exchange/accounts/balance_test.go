@@ -33,7 +33,7 @@ func TestCurrencyBalancesAdd(t *testing.T) {
 	err := c.Add(currency.BTC, Balance{Total: 4.2})
 	require.NoError(t, err)
 
-	assert.Contains(t, c, currency.BTC, "should add an entry to an uninitialised CurrencyBalances")
+	require.Contains(t, c, currency.BTC, "must add an entry to an uninitialised CurrencyBalances")
 	assert.Equal(t, currency.BTC, c[currency.BTC].Currency, "should set the Currency")
 	assert.Equal(t, 4.2, c[currency.BTC].Total, "should initialise the Total")
 
@@ -44,6 +44,7 @@ func TestCurrencyBalancesAdd(t *testing.T) {
 
 	err = c.Add(currency.LTC, Balance{Currency: currency.LTC, Total: 14.3})
 	require.NoError(t, err)
+	require.Contains(t, c, currency.LTC, "must add an entry to an existing CurrencyBalances")
 	assert.Equal(t, 14.3, c[currency.LTC].Total, "should add when Balance.Currency is equal")
 
 	err = c.Add(currency.ETH, Balance{Currency: currency.LTC, Total: 14.2})
