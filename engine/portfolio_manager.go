@@ -125,7 +125,7 @@ func (m *portfolioManager) processPortfolio() {
 	m.m.Lock()
 	defer m.m.Unlock()
 	if err := m.updateExchangeBalances(); err != nil {
-		log.Errorln(log.PortfolioMgr, err)
+		log.Errorf(log.PortfolioMgr, "Portfolio updateExchangeBalances error: %v", err)
 	}
 
 	data := m.base.GetPortfolioAddressesGroupedByCoin()
@@ -152,7 +152,7 @@ func (m *portfolioManager) updateExchangeBalances() error {
 		}
 		if !e.IsRESTAuthenticationSupported() {
 			if m.base.Verbose {
-				log.Debugf(log.PortfolioMgr, "skipping %s due to disabled authenticated API support", e.GetName())
+				log.Debugf(log.PortfolioMgr, "Portfolio skipping %s due to disabled authenticated API support", e.GetName())
 			}
 			continue
 		}
