@@ -86,21 +86,32 @@ func TestAccountsCurrencyBalances(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNoBalances)
 	assert.ErrorContains(t, err, "Key:[3")
 
+	// Add a balance with inconsistent currencies to cover err from to currs.Add
+	a.subAccounts[*creds3] = map[key.SubAccountAsset]currencyBalances{
+		{Asset: asset.Futures}: {currency.DOGE.Item: &balance{internal: Balance{Currency: currency.ETH}}},
+	}
+
 	type cMap map[currency.Code]float64
 	for _, tc := range []struct {
 		c   *Credentials
 		aT  asset.Item
 		exp cMap
+		err error
 	}{
-		{nil, asset.All, cMap{currency.BTC: 6.0, currency.LTC: 30.0}},
-		{creds1, asset.All, cMap{currency.BTC: 3.0, currency.LTC: 30.0}},
-		{creds1, asset.Spot, cMap{currency.BTC: 3.0, currency.LTC: 10.0}},
-		{creds1, asset.Futures, cMap{currency.LTC: 20.0}},
-		{creds2, asset.Spot, cMap{currency.BTC: 3.0}},
+		{nil, asset.Spot, cMap{currency.BTC: 6.0, currency.LTC: 10.0}, nil},
+		{creds1, asset.All, cMap{currency.BTC: 3.0, currency.LTC: 30.0}, nil},
+		{creds1, asset.Spot, cMap{currency.BTC: 3.0, currency.LTC: 10.0}, nil},
+		{creds1, asset.Futures, cMap{currency.LTC: 20.0}, nil},
+		{creds2, asset.Spot, cMap{currency.BTC: 3.0}, nil},
+		{creds3, asset.Futures, cMap{currency.DOGE: 50.0}, errBalanceCurrencyMismatch},
 	} {
 		t.Run(fmt.Sprintf("%s/%s", tc.c, tc.aT), func(t *testing.T) {
 			t.Parallel()
 			b, err := a.CurrencyBalances(tc.c, tc.aT)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err)
+				return
+			}
 			require.NoError(t, err)
 			require.Equal(t, len(tc.exp), len(b), "must get correct number of balances")
 			for c, expBal := range tc.exp {
