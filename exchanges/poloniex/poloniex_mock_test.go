@@ -41,20 +41,16 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false)
-	if err != nil {
+	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false); err != nil {
 		log.Fatal(err)
 	}
-	err = e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, true)
-	if err != nil {
+	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, true); err != nil {
 		log.Fatal(err)
 	}
-	err = e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, false)
-	if err != nil {
+	if err := e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, false); err != nil {
 		log.Fatal(err)
 	}
-	err = e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, true)
-	if err != nil {
+	if err := e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, true); err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())

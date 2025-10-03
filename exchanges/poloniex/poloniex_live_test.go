@@ -33,16 +33,14 @@ func TestMain(m *testing.M) {
 
 	e.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	e.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	err := e.populateTradablePairs()
-	if err != nil {
+	if err := e.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())
 }
 
 func (e *Exchange) populateTradablePairs() error {
-	err := e.UpdateTradablePairs(context.Background())
-	if err != nil {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		return err
 	}
 	tradablePairs, err := e.GetEnabledPairs(asset.Spot)
