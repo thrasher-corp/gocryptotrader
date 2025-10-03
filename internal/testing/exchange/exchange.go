@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -34,8 +35,7 @@ func Setup(e exchange.IBotExchange) error {
 		return err
 	}
 
-	err = cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true)
-	if err != nil {
+	if err = cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true); err != nil {
 		return fmt.Errorf("LoadConfig() error: %w", err)
 	}
 	e.SetDefaults()
@@ -47,10 +47,13 @@ func Setup(e exchange.IBotExchange) error {
 	e.SetDefaults()
 	b := e.GetBase()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = e.Setup(exchConf)
-	if err != nil {
+
+	if err = e.Setup(exchConf); err != nil {
 		return fmt.Errorf("Setup() error: %w", err)
 	}
+
+	b.Accounts = accounts.MustNewAccounts(b)
+
 	return nil
 }
 

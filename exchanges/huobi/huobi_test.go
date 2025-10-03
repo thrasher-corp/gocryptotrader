@@ -1211,12 +1211,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	for _, a := range []asset.Item{asset.Spot, asset.CoinMarginedFutures, asset.Futures} {
-		_, err := e.UpdateAccountInfo(t.Context(), a)
-		assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
+		_, err := e.UpdateAccountBalances(t.Context(), a)
+		assert.NoErrorf(t, err, "UpdateAccountBalances should not error for asset %s", a)
 	}
 }
 
