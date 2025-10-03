@@ -90,24 +90,16 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		MessageType: gws.TextMessage,
-		Message:     []byte(`{"event": "ping"}`),
-		Delay:       time.Second * 15,
-	})
+	setupPingHandler(conn)
 	return nil
 }
 
-// FuturesAuthConnect establishes a websocket and authenticates to futures private websocket
-func (e *Exchange) FuturesAuthConnect(ctx context.Context, conn websocket.Connection) error {
+// futuresAuthConnect establishes a websocket and authenticates to futures private websocket
+func (e *Exchange) futuresAuthConnect(ctx context.Context, conn websocket.Connection) error {
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		MessageType: gws.TextMessage,
-		Message:     []byte(`{"event": "ping"}`),
-		Delay:       time.Second * 15,
-	})
+	setupPingHandler(conn)
 	return nil
 }
 
@@ -171,10 +163,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	}
 	switch result.Channel {
 	case cnlAuth:
-		if !conn.IncomingWithData("auth", respRaw) {
-			return fmt.Errorf("could not match data with %s %s", "auth", respRaw)
-		}
-		return nil
+		return conn.RequireMatchWithData("auth", respRaw)
 	case cnlFuturesSymbol:
 		var resp []ProductInfo
 		if err := json.Unmarshal(result.Data, &resp); err != nil {

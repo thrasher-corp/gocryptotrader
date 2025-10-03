@@ -56,19 +56,23 @@ var defaultSubscriptions = []string{
 
 var onceOrderbook map[currency.Pair]struct{}
 
-// WsConnect initiates a websocket connection
-func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
+func setupPingHandler(conn websocket.Connection) {
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		MessageType: gws.TextMessage,
+		Message:     []byte(`{"event": "ping"}`),
+		Delay:       time.Second * 15,
+	})
+}
+
+// wsConnect initiates a websocket connection
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
-		MessageType: gws.TextMessage,
-		Message:     []byte(`{"event": "ping"}`),
-		Delay:       time.Second * 15,
-	})
+	setupPingHandler(conn)
 	onceOrderbook = make(map[currency.Pair]struct{})
 	return nil
 }
@@ -77,12 +81,7 @@ func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) er
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-
-	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
-		MessageType: gws.TextMessage,
-		Message:     []byte(`{"event": "ping"}`),
-		Delay:       time.Second * 15,
-	})
+	setupPingHandler(conn)
 	return nil
 }
 

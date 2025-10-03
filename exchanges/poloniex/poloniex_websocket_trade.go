@@ -25,7 +25,7 @@ func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 	if err := e.SendWebsocketRequest(ctx, connSpotPrivate, "createOrder", arg, &resp); err != nil {
 		return nil, err
 	}
-	if len(resp) == 0 {
+	if len(resp) != 1 {
 		return nil, common.ErrInvalidResponse
 	} else if resp[0].Code != 0 {
 		return nil, fmt.Errorf("%w: error code: %d message: %s", common.ErrNoResponse, resp[0].Code, resp[0].Message)

@@ -20,9 +20,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -803,12 +806,18 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetSymbol(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
 	result, err := e.GetSymbol(t.Context(), spotTradablePair)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Len(t, result, 1)
+}
 
-	result, err = e.GetExecutionLimits(t.Context())
+func TestGetExecutionLimits(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetExecutionLimits(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -886,6 +895,7 @@ func TestGetOrderbook(t *testing.T) {
 	_, err := e.GetOrderbook(t.Context(), currency.EMPTYPAIR, 0, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
+	e.Verbose = true
 	result, err := e.GetOrderbook(t.Context(), spotTradablePair, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1692,7 +1702,9 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 		t.SkipNow()
 	}
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	if !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
+		testexch.SetupWs(t, e)
+	}
 	result, err := e.WsCancelMultipleOrdersByIDs(t.Context(), []string{"1234"}, []string{"5678"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1704,7 +1716,9 @@ func TestWsCancelAllTradeOrders(t *testing.T) {
 		t.SkipNow()
 	}
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	if !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
+		testexch.SetupWs(t, e)
+	}
 	result, err := e.WsCancelAllTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2347,16 +2361,13 @@ func TestStringToOrderSide(t *testing.T) {
 }
 
 func generateContext() context.Context {
-	ctx := context.Background()
 	if mockTests {
-		credStore := (&account.ContextCredentialsStore{})
-		credStore.Load(&account.Credentials{
+		return account.DeployCredentialsToContext(context.Background(), &account.Credentials{
 			Key:    "abcde",
 			Secret: "fghij",
 		})
-		ctx = context.WithValue(ctx, account.ContextCredentialsFlag, credStore)
 	}
-	return ctx
+	return context.Background()
 }
 
 func TestUnmarshalToFuturesCandle(t *testing.T) {
@@ -2375,4 +2386,76 @@ func TestUnmarshalToFuturesCandle(t *testing.T) {
 	assert.Equal(t, 0.0, resp[0].Trades.Float64())
 	assert.Equal(t, time.UnixMilli(1719975420000), resp[0].StartTime.Time())
 	assert.Equal(t, time.UnixMilli(1719975479999), resp[0].EndTime.Time())
+}
+
+func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
+	t.Parallel()
+	result, err := e.GenerateFuturesDefaultSubscriptions(true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestHandleFuturesSubscriptions(t *testing.T) {
+	t.Parallel()
+	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
+	require.NoError(t, err)
+
+	subscs := subscription.List{
+		{
+			Asset:   asset.Futures,
+			Channel: cnlFuturesTickers,
+			Pairs:   enabledPairs,
+		},
+		{
+			Asset:   asset.Futures,
+			Channel: cnlFuturesOrderbookLvl2,
+			Pairs:   enabledPairs,
+		},
+	}
+	payloads := []SubscriptionPayload{
+		{Event: "subscribe", Channel: []string{"tickers"}, Symbols: enabledPairs.Strings()},
+		{Event: "subscribe", Channel: []string{"book_lv2"}, Symbols: enabledPairs.Strings()},
+	}
+	result := e.handleFuturesSubscriptions("subscribe", subscs)
+	require.Len(t, payloads, 2)
+	for i := range subscs {
+		require.Equal(t, payloads[i], result[i])
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	if e.Websocket.IsConnected() {
+		return
+	}
+	err := e.Websocket.Connect()
+	require.NoError(t, err)
+}
+
+func TestWebsocketSubmitOrders(t *testing.T) {
+	t.Parallel()
+	_, err := e.WebsocketSubmitOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketModifyOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.WebsocketModifyOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestOrderbookLevelFromSlice(t *testing.T) {
+	t.Parallel()
+	var obData []types.Number
+	data := []byte(`["88350.22","0.019937","88376.19","0.000203","88376.58","0.000696"]`)
+	err := json.Unmarshal(data, &obData)
+	require.NoError(t, err)
+
+	target := []orderbook.Level{{Price: 88350.22, Amount: 0.019937}, {Price: 88376.19, Amount: 0.000203}, {Price: 88376.58, Amount: 0.000696}}
+	obLevels := orderbookLevelFromSlice(obData)
+	require.Len(t, obLevels, len(target))
+	for x := range obLevels {
+		require.Equal(t, target[x].Price, obLevels[x].Price)
+		require.Equal(t, target[x].Amount, obLevels[x].Amount)
+	}
 }
