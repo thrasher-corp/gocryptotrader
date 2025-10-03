@@ -1,40 +1,40 @@
 package main
 
-// SubmitOrderParams defines command-line flags for exchange order submission and unmarshal their values.
+// SubmitOrderParams defines command-line flags for exchange order submission
 type SubmitOrderParams struct {
-	ExchangeName       string  `name:"exchange"              required:"t"`
-	CurrencyPair       string  `name:"pair"                  required:"t"                                               usage:"the currency pair"`
-	OrderSide          string  `name:"side"                  required:"t"                                               usage:"the order side to use (BUY OR SELL)"`
-	OrderType          string  `name:"type"                  required:"t"                                               usage:"the order type (MARKET OR LIMIT)"`
-	Amount             float64 `name:"amount"                required:"t"`
-	AssetType          string  `name:"asset"                 required:"t"`
-	Price              float64 `name:"price"`
-	Leverage           float64 `name:"leverage"`
-	ClientOrderID      string  `name:"client_order_id"`
-	MarginType         string  `name:"margin_type"`
-	TimeInForce        string  `name:"time_in_force"`
-	QuoteAmount        float64 `name:"quote_amount"`
-	ClientID           string  `name:"client_id"`
-	TriggerPrice       float64 `name:"trigger_price"`
-	TriggerLimitPrice  float64 `name:"trigger_limit_price"`
-	TriggerPriceType   string  `name:"trigger_price_type"`
-	TpPrice            float64 `name:"tp_price"              usage:"the optional take-profit price for the order"`
-	TpLimitPrice       float64 `name:"tp_limit_price"        usage:"the optional take-profit limit price for the order"`
-	TpPriceType        string  `name:"tp_price_type"         usage:"the optional take-profit price type for the order"`
-	SlPrice            float64 `name:"sl_price"              usage:"the optional stop-loss price for the order"`
-	SlLimitPrice       float64 `name:"sl_limit_price"        usage:"the optional stop-loss limit price for the order"`
-	SlPriceType        string  `name:"sl_price_type"         usage:"the optional stop-loss price type for the order"`
-	TrackingMode       string  `name:"tracking_mode"`
-	TrackingValue      float64 `name:"tracking_value"`
-	Hidden             bool    `name:"hidden"`
-	Iceberg            bool    `name:"iceberg"`
-	AutoBorrow         bool    `name:"auto_borrow"`
-	ReduceOnly         bool    `name:"reduce_only"`
-	RetrieveFees       bool    `name:"retrieve_fees"`
-	RetrieveFeeDelayMs int64   `name:"retrieve_fee_delay_ms"`
+	ExchangeName         string  `name:"exchange"              required:"t"`
+	CurrencyPair         string  `name:"pair"                  required:"t"                                               usage:"the currency pair"`
+	OrderSide            string  `name:"side"                  required:"t"                                               usage:"the order side to use (BUY OR SELL)"`
+	OrderType            string  `name:"type"                  required:"t"                                               usage:"the order type (MARKET OR LIMIT)"`
+	Amount               float64 `name:"amount"                required:"t"`
+	AssetType            string  `name:"asset"                 required:"t"`
+	Price                float64 `name:"price"`
+	Leverage             float64 `name:"leverage"`
+	ClientOrderID        string  `name:"client_order_id"`
+	MarginType           string  `name:"margin_type"`
+	TimeInForce          string  `name:"time_in_force"`
+	QuoteAmount          float64 `name:"quote_amount"`
+	ClientID             string  `name:"client_id"`
+	TriggerPrice         float64 `name:"trigger_price"`
+	TriggerLimitPrice    float64 `name:"trigger_limit_price"`
+	TriggerPriceType     string  `name:"trigger_price_type"`
+	TpPrice              float64 `name:"tp_price"              usage:"the optional take-profit price for the order"`
+	TakeProfitLimitPrice float64 `name:"tp_limit_price"        usage:"the optional take-profit limit price for the order"`
+	TakeProfitPriceType  string  `name:"tp_price_type"         usage:"the optional take-profit price type for the order"`
+	StopLossPrice        float64 `name:"sl_price"              usage:"the optional stop-loss price for the order"`
+	StopLossLimitPrice   float64 `name:"sl_limit_price"        usage:"the optional stop-loss limit price for the order"`
+	StopLossPriceType    string  `name:"sl_price_type"         usage:"the optional stop-loss price type for the order"`
+	TrackingMode         string  `name:"tracking_mode"`
+	TrackingValue        float64 `name:"tracking_value"`
+	Hidden               bool    `name:"hidden"`
+	Iceberg              bool    `name:"iceberg"`
+	AutoBorrow           bool    `name:"auto_borrow"`
+	ReduceOnly           bool    `name:"reduce_only"`
+	RetrieveFees         bool    `name:"retrieve_fees"`
+	RetrieveFeeDelayMs   int64   `name:"retrieve_fee_delay_ms"`
 }
 
-// GetOrderParams defines command-line flags for exchange order retrieval and unmarshal their values.
+// GetOrderParams defines command-line flags for retrieving exchange orders
 type GetOrderParams struct {
 	Exchange     string `name:"exchange"`
 	Asset        string `name:"asset"    required:"t"`
@@ -44,25 +44,25 @@ type GetOrderParams struct {
 
 // ModifyOrderParams defines command-line flags for exchange order modification and unmarshal their values.
 type ModifyOrderParams struct {
-	ExchangeName      string  `name:"exchange"            required:"t"`
-	AssetType         string  `name:"asset"               required:"t"`
-	CurrencyPair      string  `name:"pair"                required:"t"                                                              usage:"the currency pair"`
-	OrderID           string  `name:"order_id"`
-	OrderType         string  `name:"type"                usage:"the order type (MARKET OR LIMIT)"`
-	OrderSide         string  `name:"side"                usage:"the order side of the order to be modified"`
-	Price             float64 `name:"price"`
-	Amount            float64 `name:"amount"`
-	ClientOrderID     string  `name:"client_order_id"`
-	TimeInForce       string  `name:"time_in_force"`
-	TriggerPrice      float64 `name:"trigger_price"`
-	TriggerLimitPrice float64 `name:"trigger_limit_price"`
-	TriggerPriceType  string  `name:"trigger_price_type"`
-	TpPrice           float64 `name:"tp_price"            usage:"the optional take-profit price for the order to be modified"`
-	TpLimitPrice      float64 `name:"tp_limit_price"      usage:"the optional take-profit limit price for the order to be modified"`
-	TpPriceType       string  `name:"tp_price_type"       usage:"the optional take-profit price type for the order to be modified"`
-	SlPrice           float64 `name:"sl_price"            usage:"the optional stop-loss price for the order to be modified"`
-	SlLimitPrice      float64 `name:"sl_limit_price"      usage:"the optional stop-loss limit price for the order to be modified"`
-	SlPriceType       string  `name:"sl_price_type"       usage:"the optional stop-loss price type for the order to be modified"`
+	ExchangeName         string  `name:"exchange"            required:"t"`
+	AssetType            string  `name:"asset"               required:"t"`
+	CurrencyPair         string  `name:"pair"                required:"t"                                                              usage:"the currency pair"`
+	OrderID              string  `name:"order_id"`
+	OrderType            string  `name:"type"                usage:"the order type (MARKET OR LIMIT)"`
+	OrderSide            string  `name:"side"                usage:"the order side of the order to be modified"`
+	Price                float64 `name:"price"`
+	Amount               float64 `name:"amount"`
+	ClientOrderID        string  `name:"client_order_id"`
+	TimeInForce          string  `name:"time_in_force"`
+	TriggerPrice         float64 `name:"trigger_price"`
+	TriggerLimitPrice    float64 `name:"trigger_limit_price"`
+	TriggerPriceType     string  `name:"trigger_price_type"`
+	TakeProfitPrice      float64 `name:"tp_price"            usage:"the optional take-profit price for the order to be modified"`
+	TakeProfitLimitPrice float64 `name:"tp_limit_price"      usage:"the optional take-profit limit price for the order to be modified"`
+	TakeProfitPriceType  string  `name:"tp_price_type"       usage:"the optional take-profit price type for the order to be modified"`
+	StopLossPrice        float64 `name:"sl_price"            usage:"the optional stop-loss price for the order to be modified"`
+	StopLossLimitPrice   float64 `name:"sl_limit_price"      usage:"the optional stop-loss limit price for the order to be modified"`
+	StopLossPriceType    string  `name:"sl_price_type"       usage:"the optional stop-loss price type for the order to be modified"`
 }
 
 // CancelOrderParams defines command-line flags for exchange order cancellation and unmarshal their values.
@@ -92,7 +92,7 @@ type WithdrawCryptoCurrencyFundParams struct {
 	Chain        string  `name:"chain"       usage:"chain to use for the withdrawal"`
 }
 
-// GetAvailableTransferChainsParams defines command-line flags for exchange currency available transfer chains retrieval and unmarshal their values.
+// GetAvailableTransferChainsParams defines command-line flags for retrieving available exchange currency transfer chains
 type GetAvailableTransferChainsParams struct {
 	Exchange string `name:"exchange"`
 	Currency string `name:"cryptocurrency"`

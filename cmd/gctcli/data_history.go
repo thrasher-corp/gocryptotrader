@@ -20,14 +20,14 @@ var (
 		ArgsUsage: "<command> <args>",
 		Subcommands: []*cli.Command{
 			{
-				Name:   "getactivejobs",
+				Name:   "getactive",
 				Usage:  "returns all jobs that are currently active",
 				Flags:  []cli.Flag{},
 				Action: getActiveDataHistoryJobs,
 			},
 			{
 				Name:  "getjobsbetweendates",
-				Usage: "returns all jobs with creation dates between the two provided dates",
+				Usage: "returns all jobs within creation date range",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  "start_date",
@@ -50,7 +50,7 @@ var (
 			},
 			{
 				Name:        "getjobwithdetailedresults",
-				Usage:       "returns a job by either its nickname along with all its data retrieval results",
+				Usage:       "returns a job and its results",
 				Description: "results may be large",
 				ArgsUsage:   "<nickname>",
 				Action:      getDataHistoryJob,
@@ -60,7 +60,7 @@ var (
 			},
 			{
 				Name:      "getjobstatussummary",
-				Usage:     "returns a job with human readable summary of its status",
+				Usage:     "returns a job status summary",
 				ArgsUsage: "<nickname>",
 				Action:    getDataHistoryJobSummary,
 				Flags: []cli.Flag{
@@ -70,7 +70,7 @@ var (
 			dataHistoryJobCommands,
 			{
 				Name:      "deletejob",
-				Usage:     "sets a jobs status to deleted so it no longer is processed",
+				Usage:     "sets a jobs status to deleted so it is no longer processed",
 				ArgsUsage: "<id> or <nickname>",
 				Flags:     specificJobSubCommands,
 				Action:    setDataHistoryJobStatus,

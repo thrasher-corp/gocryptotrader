@@ -144,23 +144,20 @@ var futuresCommands = &cli.Command{
 }
 
 func getManagedPosition(c *cli.Context) error {
-	println("runningg")
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetManagedPositionsParams{}
-	err := unmarshalCLIFields(c, arg)
-	if err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 
-	err = isFuturesAsset(arg.Asset)
-	if err != nil {
+	if err := isFuturesAsset(arg.Asset); err != nil {
 		return err
 	}
 
 	if !validPair(arg.Pair) {
-		return errInvalidPair
+		return fmt.Errorf("%w: %q", errInvalidPair, arg.Pair)
 	}
 
 	p, err := currency.NewPairFromString(arg.Pair)
@@ -168,8 +165,7 @@ func getManagedPosition(c *cli.Context) error {
 		return err
 	}
 
-	err = futures.CheckFundingRatePrerequisites(arg.GetFundingData, arg.IncludePredictedRate, arg.IncludeFundingEntries)
-	if err != nil {
+	if err := futures.CheckFundingRatePrerequisites(arg.GetFundingData, arg.IncludePredictedRate, arg.IncludeFundingEntries); err != nil {
 		return err
 	}
 
@@ -204,13 +200,11 @@ func getManagedPosition(c *cli.Context) error {
 
 func getAllManagedPositions(c *cli.Context) error {
 	arg := &GetAllManagedPositions{}
-	err := unmarshalCLIFields(c, arg)
-	if err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 
-	err = futures.CheckFundingRatePrerequisites(arg.GetFundingData, arg.IncludePredictedRate, arg.IncludeFundingEntries)
-	if err != nil {
+	if err := futures.CheckFundingRatePrerequisites(arg.GetFundingData, arg.IncludePredictedRate, arg.IncludeFundingEntries); err != nil {
 		return err
 	}
 
@@ -241,13 +235,11 @@ func getCollateral(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetCollateralParams{}
-	err := unmarshalCLIFields(c, arg)
-	if err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 
-	err = isFuturesAsset(arg.Asset)
-	if err != nil {
+	if err := isFuturesAsset(arg.Asset); err != nil {
 		return err
 	}
 
@@ -279,19 +271,20 @@ func getFundingRates(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetFundingRates{}
-	err := unmarshalCLIFields(c, arg)
-	if err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 
-	err = isFuturesAsset(arg.Asset)
-	if err != nil {
+	if err := isFuturesAsset(arg.Asset); err != nil {
 		return err
 	}
 	if !validPair(arg.Pair) {
 		return errInvalidPair
 	}
-	var p currency.Pair
+	var (
+		p   currency.Pair
+		err error
+	)
 	p, err = currency.NewPairFromString(arg.Pair)
 	if err != nil {
 		return err
@@ -397,12 +390,10 @@ func getCollateralMode(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	arg := &GetCollateralMode{}
-	err := unmarshalCLIFields(c, arg)
-	if err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
-	err = isFuturesAsset(arg.Asset)
-	if err != nil {
+	if err := isFuturesAsset(arg.Asset); err != nil {
 		return err
 	}
 
@@ -440,7 +431,7 @@ func setCollateralMode(c *cli.Context) error {
 	}
 
 	if !collateral.IsValidCollateralModeString(arg.CollateralMode) {
-		return fmt.Errorf("%w: %v", collateral.ErrInvalidCollateralMode, arg.CollateralMode)
+		return fmt.Errorf("%w: %q", collateral.ErrInvalidCollateralMode, arg.CollateralMode)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -478,7 +469,7 @@ func setLeverage(c *cli.Context) error {
 	}
 
 	if !validPair(arg.Pair) {
-		return fmt.Errorf("%w currencypair:%v", errInvalidPair, arg.Pair)
+		return fmt.Errorf("%w: %q", errInvalidPair, arg.Pair)
 	}
 	pair, err := currency.NewPairFromString(arg.Pair)
 	if err != nil {
@@ -486,7 +477,7 @@ func setLeverage(c *cli.Context) error {
 	}
 
 	if !margin.IsValidString(arg.MarginType) {
-		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, arg.MarginType)
+		return fmt.Errorf("%w: %q", margin.ErrInvalidMarginType, arg.MarginType)
 	}
 
 	if arg.Side != "" {
@@ -537,7 +528,7 @@ func getLeverage(c *cli.Context) error {
 	}
 
 	if !validPair(arg.Pair) {
-		return fmt.Errorf("%w currencypair:%v", errInvalidPair, arg.Pair)
+		return fmt.Errorf("%w: %q", errInvalidPair, arg.Pair)
 	}
 	pair, err := currency.NewPairFromString(arg.Pair)
 	if err != nil {
@@ -545,7 +536,7 @@ func getLeverage(c *cli.Context) error {
 	}
 
 	if !margin.IsValidString(arg.MarginType) {
-		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, arg.MarginType)
+		return fmt.Errorf("%w: %q", margin.ErrInvalidMarginType, arg.MarginType)
 	}
 	if arg.Side != "" {
 		_, err = order.StringToOrderSide(arg.Side)
@@ -594,7 +585,7 @@ func changePositionMargin(c *cli.Context) error {
 		return err
 	}
 	if !validPair(arg.Pair) {
-		return fmt.Errorf("%w currencypair:%v", errInvalidPair, arg.Pair)
+		return fmt.Errorf("%w: %q", errInvalidPair, arg.Pair)
 	}
 	pair, err := currency.NewPairFromString(arg.Pair)
 	if err != nil {
@@ -602,7 +593,7 @@ func changePositionMargin(c *cli.Context) error {
 	}
 
 	if !margin.IsValidString(arg.MarginType) {
-		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, arg.MarginType)
+		return fmt.Errorf("%w: %q", margin.ErrInvalidMarginType, arg.MarginType)
 	}
 	conn, cancel, err := setupClient(c)
 	if err != nil {
@@ -646,7 +637,7 @@ func getFuturesPositionSummary(c *cli.Context) error {
 	}
 
 	if !validPair(arg.Pair) {
-		return fmt.Errorf("%w currencypair:%v", errInvalidPair, arg.Pair)
+		return fmt.Errorf("%w: %q", errInvalidPair, arg.Pair)
 	}
 	pair, err := currency.NewPairFromString(arg.Pair)
 	if err != nil {
@@ -707,7 +698,7 @@ func getFuturePositionOrders(c *cli.Context) error {
 		return err
 	}
 	if !validPair(arg.Pair) {
-		return fmt.Errorf("%w currencypair:%v", errInvalidPair, arg.Pair)
+		return fmt.Errorf("%w: %q", errInvalidPair, arg.Pair)
 	}
 	pair, err := currency.NewPairFromString(arg.Pair)
 	if err != nil {
@@ -727,8 +718,7 @@ func getFuturePositionOrders(c *cli.Context) error {
 			return fmt.Errorf("invalid time format for start: %v", err)
 		}
 	}
-	err = common.StartEndTimeCheck(s, e)
-	if err != nil {
+	if err := common.StartEndTimeCheck(s, e); err != nil {
 		return err
 	}
 
@@ -786,7 +776,7 @@ func setMarginType(c *cli.Context) error {
 		return err
 	}
 	if !validPair(arg.Pair) {
-		return fmt.Errorf("%w currencypair:%v", errInvalidPair, arg.Pair)
+		return fmt.Errorf("%w: %q", errInvalidPair, arg.Pair)
 	}
 	pair, err := currency.NewPairFromString(arg.Pair)
 	if err != nil {
@@ -794,7 +784,7 @@ func setMarginType(c *cli.Context) error {
 	}
 
 	if !margin.IsValidString(arg.MarginType) {
-		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, arg.MarginType)
+		return fmt.Errorf("%w: %q", margin.ErrInvalidMarginType, arg.MarginType)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -832,8 +822,7 @@ func getOpenInterest(c *cli.Context) error {
 		return err
 	}
 	if arg.Asset != "" {
-		err := isFuturesAsset(arg.Asset)
-		if err != nil {
+		if err := isFuturesAsset(arg.Asset); err != nil {
 			return err
 		}
 	}
@@ -841,7 +830,7 @@ func getOpenInterest(c *cli.Context) error {
 	var pair currency.Pair
 	if arg.Pair != "" {
 		if !validPair(arg.Pair) {
-			return fmt.Errorf("%w currencypair:%v", errInvalidPair, arg.Pair)
+			return fmt.Errorf("%w: %q", errInvalidPair, arg.Pair)
 		}
 		var err error
 		pair, err = currency.NewPairDelimiter(arg.Pair, pairDelimiter)

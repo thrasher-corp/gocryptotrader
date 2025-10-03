@@ -139,8 +139,7 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 	}
 
 	arg := &SetExchangeTradeProcessingParams{}
-	err := unmarshalCLIFields(c, arg)
-	if err != nil {
+	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
 
