@@ -811,7 +811,6 @@ func TestSetupDefaults(t *testing.T) {
 	assert.Same(t, exp, b.Accounts, "SetupDefaults should default accounts from the global accounts store")
 	b.Accounts = accounts.MustNewAccounts(&b)
 	a := b.Accounts
-	require.NoError(t, err, "NewAccounts must not error")
 	require.NoError(t, b.SetupDefaults(&cfg))
 	assert.Same(t, a, b.Accounts, "SetDefaults should not overwrite Accounts override")
 }
