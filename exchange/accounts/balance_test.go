@@ -88,7 +88,7 @@ func TestBalanceAdd(t *testing.T) {
 	n1 := time.Now()
 	n2 := n1.Add(-2 * time.Minute)
 	b := new(Balance).Add(Balance{Total: 4.2, UpdatedAt: n2})
-	assert.Equal(t, 4.2, b.Total, "should initialize Total")
+	assert.Equal(t, 4.2, b.Total, "should initialise Total")
 	assert.Equal(t, n2, b.UpdatedAt, "should set UpdatedAt")
 	b = b.Add(Balance{Total: 1.3, Hold: 3.0, UpdatedAt: n1})
 	assert.Equal(t, 5.5, b.Total, "should add to Total")

@@ -17,7 +17,7 @@ func TestNewStore(t *testing.T) {
 
 func TestGetStore(t *testing.T) {
 	t.Parallel()
-	// Initialize global in case of -count=N+; No other tests should be relying on it
+	// Initialise global in case of -count=N+; No other tests should be relying on it
 	global.Store(nil)
 	s := GetStore()
 	require.NotNil(t, s, "GetStore must return a Store")
