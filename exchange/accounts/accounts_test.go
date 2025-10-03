@@ -31,7 +31,7 @@ func TestNewAccounts(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, a)
 	assert.Equal(t, "mocky", a.Exchange.GetName(), "Exchange name should set correctly")
-	assert.NotNil(t, a.subAccounts, "subAccounts should be initialized")
+	assert.NotNil(t, a.subAccounts, "subAccounts should be initialised")
 	assert.NotEmpty(t, a.routingID, "routingID should not be empty")
 	assert.NotNil(t, a.mux, "mux should be set correctly")
 	_, err = NewAccounts(nil, dispatch.GetNewMux(nil))
