@@ -566,8 +566,7 @@ func (f *FundManager) UpdateFundingFromLiveData(initialFundsSet bool) error {
 	}
 	for _, e := range exchanges {
 		eName := e.GetName()
-		assets := e.GetAssetTypes(false)
-		for _, a := range assets {
+		for _, a := range e.GetAssetTypes(false) {
 			if a.IsFutures() {
 				// we set all holdings as spot
 				// futures currency holdings are collateral in the collateral currency
