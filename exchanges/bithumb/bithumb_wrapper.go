@@ -309,7 +309,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	for k, totalAmount := range bal.Total {
 		hold, ok := bal.InUse[k]
 		if !ok {
-			return subAccts, fmt.Errorf("getAccountInfo error - in use item not found for currency %s", k)
+			return subAccts, fmt.Errorf("currency %s missing from InUse balances", k)
 		}
 		avail, ok := bal.Available[k]
 		if !ok {
