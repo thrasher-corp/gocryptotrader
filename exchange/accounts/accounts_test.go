@@ -480,6 +480,7 @@ func subscribeFixture(t *testing.T, a *Accounts) chan *SubAccount {
 func TestMerge(t *testing.T) {
 	t.Parallel()
 	s := subAccountsFixture(nil)
+	assert.Nil(t, s.Merge(nil), "Should return nil for a merge of nil SubAccounts")
 	exp := len(s)
 	a := &SubAccount{
 		ID:        "1a",
