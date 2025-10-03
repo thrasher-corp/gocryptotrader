@@ -43,5 +43,5 @@ func TestGetExchangeAccounts(t *testing.T) {
 	w := &mockExBase{m}
 	got, err = s.GetExchangeAccounts(w)
 	require.NoError(t, err)
-	require.NotNil(t, got)
+	assert.NotNil(t, got)
 }
