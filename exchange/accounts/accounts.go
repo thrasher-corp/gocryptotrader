@@ -54,7 +54,7 @@ type SubAccount struct {
 // SubAccounts contains a list of public SubAccounts
 type SubAccounts []*SubAccount
 
-// MustNewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts store
+// MustNewAccounts returns an initialised Accounts store for use in isolation from a global exchange accounts store
 // mux is set to the global dispatch.Dispatcher
 // Any errors in mux ID generation will panic, so users should balance risk vs utility accordingly depending on use-case
 func MustNewAccounts(e exchange) *Accounts {
@@ -65,7 +65,7 @@ func MustNewAccounts(e exchange) *Accounts {
 	return a
 }
 
-// NewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts store
+// NewAccounts returns an initialised Accounts store for use in isolation from a global exchange accounts store
 func NewAccounts(e exchange, mux *dispatch.Mux) (*Accounts, error) {
 	if err := common.NilGuard(e); err != nil {
 		return nil, err
