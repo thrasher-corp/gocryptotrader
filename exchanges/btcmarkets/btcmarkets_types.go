@@ -46,24 +46,18 @@ type Trade struct {
 
 // tempOrderbook stores orderbook data
 type tempOrderbook struct {
-	MarketID   currency.Pair     `json:"marketId"`
-	SnapshotID int64             `json:"snapshotId"`
-	Asks       [][2]types.Number `json:"asks"`
-	Bids       [][2]types.Number `json:"bids"`
-}
-
-// OBData stores orderbook data
-type OBData struct {
-	Price  float64
-	Volume float64
+	MarketID   currency.Pair                    `json:"marketId"`
+	SnapshotID int64                            `json:"snapshotId"`
+	Asks       orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids       orderbook.LevelsArrayPriceAmount `json:"bids"`
 }
 
 // Orderbook holds current orderbook information returned from the exchange
 type Orderbook struct {
 	MarketID   currency.Pair
 	SnapshotID int64
-	Asks       []OBData
-	Bids       []OBData
+	Asks       []orderbook.Level
+	Bids       []orderbook.Level
 }
 
 // MarketCandle stores candle data for a given pair

@@ -162,10 +162,10 @@ type Orderbook struct {
 }
 
 type orderbookResponse struct {
-	Asks     [][2]types.Number `json:"asks"`
-	Bids     [][2]types.Number `json:"bids"`
-	Time     types.Time        `json:"time"`
-	Sequence string            `json:"sequence"`
+	Asks     orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids     orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Time     types.Time                       `json:"time"`
+	Sequence types.Number                     `json:"sequence"`
 }
 
 // Trade stores trade data
@@ -1537,35 +1537,11 @@ type WsOrderbookLevel5 struct {
 
 // WsOrderbookLevel5Response represents a response data for an orderbook push data with depth level 5
 type WsOrderbookLevel5Response struct {
-	Sequence      int64             `json:"sequence"`
-	Bids          [][2]types.Number `json:"bids"`
-	Asks          [][2]types.Number `json:"asks"`
-	PushTimestamp types.Time        `json:"ts"`
-	Timestamp     types.Time        `json:"timestamp"`
-}
-
-// ExtractOrderbookItems returns WsOrderbookLevel5 instance from WsOrderbookLevel5Response
-func (a *WsOrderbookLevel5Response) ExtractOrderbookItems() *WsOrderbookLevel5 {
-	resp := WsOrderbookLevel5{
-		Timestamp:     a.Timestamp,
-		Sequence:      a.Sequence,
-		PushTimestamp: a.PushTimestamp,
-	}
-	resp.Asks = make([]orderbook.Level, len(a.Asks))
-	for x := range a.Asks {
-		resp.Asks[x] = orderbook.Level{
-			Price:  a.Asks[x][0].Float64(),
-			Amount: a.Asks[x][1].Float64(),
-		}
-	}
-	resp.Bids = make([]orderbook.Level, len(a.Bids))
-	for x := range a.Bids {
-		resp.Bids[x] = orderbook.Level{
-			Price:  a.Bids[x][0].Float64(),
-			Amount: a.Bids[x][1].Float64(),
-		}
-	}
-	return &resp
+	Sequence      int64                            `json:"sequence"`
+	Bids          orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Asks          orderbook.LevelsArrayPriceAmount `json:"asks"`
+	PushTimestamp types.Time                       `json:"ts"`
+	Timestamp     types.Time                       `json:"timestamp"`
 }
 
 // WsFundingRate represents the funding rate push data information through the websocket channel
@@ -2095,9 +2071,9 @@ type HFMarginOrderTransaction struct {
 // Level2Depth5Or20 stores the orderbook data for the level 5 or level 20
 // orderbook
 type Level2Depth5Or20 struct {
-	Asks      [][2]types.Number `json:"asks"`
-	Bids      [][2]types.Number `json:"bids"`
-	Timestamp types.Time        `json:"timestamp"`
+	Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Timestamp types.Time                       `json:"timestamp"`
 }
 
 // TradingPairFee represents actual fee information of a trading fee

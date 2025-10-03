@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -114,7 +115,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), false)
+	err := e.UpdateTradablePairs(t.Context())
 	if err != nil {
 		t.Error("Binanceus UpdateTradablePairs() error", err)
 	}
@@ -140,10 +141,14 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	pair := currency.Pair{Base: currency.BTC, Quote: currency.USD}
-	_, err := e.GetHistoricTrades(t.Context(), pair, asset.Spot, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error("Binanceus GetHistoricTrades() error", err)
+	p := currency.NewBTCUSDT()
+	start := time.Now().Add(-time.Hour * 24 * 90).Truncate(time.Minute) // 3 months ago
+	end := start.Add(15 * time.Minute)
+	result, err := e.GetHistoricTrades(t.Context(), p, asset.Spot, start, end)
+	require.NoError(t, err, "GetHistoricTrades must not error")
+	assert.NotEmpty(t, result, "GetHistoricTrades should have trades")
+	for _, r := range result {
+		require.WithinRange(t, r.Timestamp, start, end, "All trades must be within time range")
 	}
 }
 
@@ -444,13 +449,8 @@ func TestGetAggregateTrades(t *testing.T) {
 
 func TestGetOrderBookDepth(t *testing.T) {
 	t.Parallel()
-	_, er := e.GetOrderBookDepth(t.Context(), &OrderBookDataRequestParams{
-		Symbol: currency.NewBTCUSDT(),
-		Limit:  1000,
-	})
-	if er != nil {
-		t.Error("Binanceus GetOrderBook() error", er)
-	}
+	_, err := e.GetOrderBookDepth(t.Context(), currency.NewBTCUSDT(), 1000)
+	assert.NoError(t, err)
 }
 
 func TestGetCandlestickData(t *testing.T) {
@@ -1334,29 +1334,29 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	e.setupOrderbookManager(t.Context())
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
-		Asks: []OrderbookItem{
-			{Price: 6621.80000000, Quantity: 0.00198100},
-			{Price: 6622.14000000, Quantity: 4.00000000},
-			{Price: 6622.46000000, Quantity: 2.30000000},
-			{Price: 6622.47000000, Quantity: 1.18633300},
-			{Price: 6622.64000000, Quantity: 4.00000000},
-			{Price: 6622.73000000, Quantity: 0.02900000},
-			{Price: 6622.76000000, Quantity: 0.12557700},
-			{Price: 6622.81000000, Quantity: 2.08994200},
-			{Price: 6622.82000000, Quantity: 0.01500000},
-			{Price: 6623.17000000, Quantity: 0.16831300},
+		Asks: []orderbook.Level{
+			{Price: 6621.80000000, Amount: 0.00198100},
+			{Price: 6622.14000000, Amount: 4.00000000},
+			{Price: 6622.46000000, Amount: 2.30000000},
+			{Price: 6622.47000000, Amount: 1.18633300},
+			{Price: 6622.64000000, Amount: 4.00000000},
+			{Price: 6622.73000000, Amount: 0.02900000},
+			{Price: 6622.76000000, Amount: 0.12557700},
+			{Price: 6622.81000000, Amount: 2.08994200},
+			{Price: 6622.82000000, Amount: 0.01500000},
+			{Price: 6623.17000000, Amount: 0.16831300},
 		},
-		Bids: []OrderbookItem{
-			{Price: 6621.55000000, Quantity: 0.16356700},
-			{Price: 6621.45000000, Quantity: 0.16352600},
-			{Price: 6621.41000000, Quantity: 0.86091200},
-			{Price: 6621.25000000, Quantity: 0.16914100},
-			{Price: 6621.23000000, Quantity: 0.09193600},
-			{Price: 6621.22000000, Quantity: 0.00755100},
-			{Price: 6621.13000000, Quantity: 0.08432000},
-			{Price: 6621.03000000, Quantity: 0.00172000},
-			{Price: 6620.94000000, Quantity: 0.30506700},
-			{Price: 6620.93000000, Quantity: 0.00200000},
+		Bids: []orderbook.Level{
+			{Price: 6621.55000000, Amount: 0.16356700},
+			{Price: 6621.45000000, Amount: 0.16352600},
+			{Price: 6621.41000000, Amount: 0.86091200},
+			{Price: 6621.25000000, Amount: 0.16914100},
+			{Price: 6621.23000000, Amount: 0.09193600},
+			{Price: 6621.22000000, Amount: 0.00755100},
+			{Price: 6621.13000000, Amount: 0.08432000},
+			{Price: 6621.03000000, Amount: 0.00172000},
+			{Price: 6620.94000000, Amount: 0.30506700},
+			{Price: 6620.93000000, Amount: 0.00200000},
 		},
 		LastUpdateID: seedLastUpdateID,
 	}
@@ -1754,5 +1754,52 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
+	}
+}
+
+// TestGetAggregatedTradesBatched exercises TestGetAggregatedTradesBatched to ensure our date and limit scanning works correctly
+// This test is susceptible to failure if volumes change a lot, during wash trading or zero-fee periods
+// In live tests, 6 hours is expected to return about 1000 records
+func TestGetAggregatedTradesBatched(t *testing.T) {
+	t.Parallel()
+	type testCase struct {
+		name    string
+		args    *AggregatedTradeRequestParams
+		expFunc func(*testing.T, []AggregatedTrade)
+	}
+
+	var tests []testCase
+	start := time.Now().Add(-time.Hour * 24 * 90).Truncate(time.Minute) // 3 months ago
+	tests = []testCase{
+		{
+			name: "batch with timerange",
+			args: &AggregatedTradeRequestParams{StartTime: start, EndTime: start.Add(6 * time.Hour)},
+			expFunc: func(t *testing.T, results []AggregatedTrade) {
+				t.Helper()
+				require.NotEmpty(t, results, "must have records")
+				assert.Less(t, len(results), 10000, "should return a quantity below a sane threshold of records")
+				assert.WithinDuration(t, results[len(results)-1].TimeStamp.Time(), start, 6*time.Hour, "last record should be within range of start time")
+			},
+		},
+		{
+			name: "custom limit with start time set, no end time",
+			args: &AggregatedTradeRequestParams{StartTime: start, Limit: 2042},
+			expFunc: func(t *testing.T, results []AggregatedTrade) {
+				t.Helper()
+				// 2000 records in was about 32 hours in 2025; Adjust if BinanceUS enters a phase of zero-fees or low-volume
+				require.Equal(t, 2042, len(results), "must return exactly the limit number of records")
+				assert.WithinDuration(t, results[len(results)-1].TimeStamp.Time(), start, 72*time.Hour, "last record should be within 72 hours of start time")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tt.args.Symbol = currency.NewBTCUSDT()
+			results, err := e.GetAggregateTrades(t.Context(), tt.args)
+			require.NoError(t, err)
+			tt.expFunc(t, results)
+		})
 	}
 }

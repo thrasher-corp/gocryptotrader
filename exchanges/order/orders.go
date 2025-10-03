@@ -1392,3 +1392,11 @@ func StringToPriceType(priceType string) PriceType {
 		return UnsetPriceType
 	}
 }
+
+// Add adds a new orderID and status to the CancelAllResponse
+func (c *CancelAllResponse) Add(orderID, status string) {
+	if c.Status == nil {
+		c.Status = make(map[string]string)
+	}
+	c.Status[orderID] = status
+}

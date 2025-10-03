@@ -285,15 +285,14 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	assetTypes := e.GetAssetTypes(true)
 	for i := range assetTypes {
 		pairs, err := e.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
 			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
 		}
-		err = e.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
-		if err != nil {
+		if err := e.UpdatePairs(pairs, assetTypes[i], false); err != nil {
 			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
 		}
 	}
@@ -1104,7 +1103,7 @@ func (e *Exchange) marginTypeToString(m margin.Type) string {
 	return ""
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to market conversion
+// ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
