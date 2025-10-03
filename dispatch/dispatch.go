@@ -90,11 +90,11 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 	d.running = true
 
 	if workers < 1 {
-		log.Warnf(log.DispatchMgr, "workers cannot be zero, using default value %d\n", DefaultMaxWorkers)
+		log.Warnf(log.DispatchMgr, "Dispatcher workers cannot be zero, using default value %d\n", DefaultMaxWorkers)
 		workers = DefaultMaxWorkers
 	}
 	if channelCapacity < 1 {
-		log.Warnf(log.DispatchMgr, "jobs limit cannot be zero, using default values %d\n", DefaultJobsLimit)
+		log.Warnf(log.DispatchMgr, "Dispatcher jobs limit cannot be zero, using default values %d\n", DefaultJobsLimit)
 		channelCapacity = DefaultJobsLimit
 	}
 	d.jobs = make(chan job, channelCapacity)
