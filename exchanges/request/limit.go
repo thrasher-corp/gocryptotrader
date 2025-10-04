@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"golang.org/x/time/rate"
 )
 
@@ -15,9 +16,9 @@ var (
 	ErrRateLimiterAlreadyDisabled = errors.New("rate limiter already disabled")
 	ErrRateLimiterAlreadyEnabled  = errors.New("rate limiter already enabled")
 
-	errLimiterSystemIsNil       = errors.New("limiter system is nil")
-	errInvalidWeightCount       = errors.New("invalid weight count must equal or greater than 1")
-	errSpecificRateLimiterIsNil = errors.New("specific rate limiter is nil")
+	errLimiterSystemIsNil = errors.New("limiter system is nil")
+	errInvalidWeightCount = errors.New("invalid weight count must equal or greater than 1")
+	errNoDelayPermitted   = errors.New("no delay permitted")
 )
 
 // RateLimitNotRequired is a no-op rate limiter
@@ -46,18 +47,17 @@ type RateLimitDefinitions map[any]*RateLimiterWithWeight
 // refers to the number or weighting of the request. This is used to define
 // the rate limit for a specific endpoint.
 type RateLimiterWithWeight struct {
-	*rate.Limiter
-	Weight
+	limiter *rate.Limiter
+	weight  Weight
 }
 
 // Reservations is a slice of rate reservations
 type Reservations []*rate.Reservation
 
-// CancelAll cancels all potential reservations to free up rate limiter for
-// context cancellations and deadline exceeded cases.
-func (r Reservations) CancelAll() {
+// CancelAll cancels all potential reservations to free up rate limiter for context cancellations and deadline exceeded cases.
+func (r Reservations) CancelAll(at time.Time) {
 	for x := range r {
-		r[x].Cancel()
+		r[x].CancelAt(at)
 	}
 }
 
@@ -92,7 +92,7 @@ func NewWeightedRateLimitByDuration(interval time.Duration) *RateLimiterWithWeig
 // GetRateLimiterWithWeight couples a rate limiter with a weight count into an
 // accepted defined rate limiter with weight struct
 func GetRateLimiterWithWeight(l *rate.Limiter, weight Weight) *RateLimiterWithWeight {
-	return &RateLimiterWithWeight{l, weight}
+	return &RateLimiterWithWeight{limiter: l, weight: weight}
 }
 
 // NewBasicRateLimit returns an object that implements the limiter interface
@@ -116,7 +116,7 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 
 	rateLimiter := r.limiter[e]
 
-	err := RateLimit(ctx, rateLimiter)
+	err := rateLimiter.RateLimit(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
 	}
@@ -133,44 +133,51 @@ func (r *Requester) GetRateLimiterDefinitions() RateLimitDefinitions {
 	return r.limiter
 }
 
-// RateLimit is a function that will rate limit a request based on the rate
-// limiter provided. It will return an error if the context is cancelled or
-// deadline exceeded.
-func RateLimit(ctx context.Context, rateLimiter *RateLimiterWithWeight) error {
-	if rateLimiter == nil {
-		return errSpecificRateLimiterIsNil
+// RateLimit is a function that will rate limit a request based on the rate limiter provided. It will return an error if
+// the context is cancelled, deadline exceeded or if no delay is permitted via the context and a delay is required.
+func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
+	if err := common.NilGuard(r); err != nil {
+		return err
 	}
 
-	if rateLimiter.Weight <= 0 {
+	if r.weight == 0 {
 		return errInvalidWeightCount
 	}
 
+	tn := time.Now()
+	reservations := make(Reservations, r.weight)
 	var finalDelay time.Duration
-	reservations := make(Reservations, rateLimiter.Weight)
-	for i := Weight(0); i < rateLimiter.Weight; i++ {
-		// Consume 1 weight at a time as this avoids needing burst capacity in the limiter,
-		// which would otherwise allow the rate limit to be exceeded over short periods
-		reservations[i] = rateLimiter.Reserve()
-		finalDelay = reservations[i].Delay()
+	for i := range r.weight {
+		// Consume 1 weight at a time as this avoids needing burst capacity in the limiter, which would otherwise allow
+		// the rate limit to be exceeded over short periods
+		reservations[i] = r.limiter.ReserveN(tn, 1)
+		finalDelay = reservations[i].DelayFrom(tn)
 	}
 
-	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(finalDelay)) {
-		reservations.CancelAll()
-		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w",
-			finalDelay,
-			context.DeadlineExceeded)
+	if finalDelay == 0 {
+		return nil
 	}
 
-	tick := time.NewTimer(finalDelay)
+	if hasNoDelayPermitted(ctx) {
+		reservations.CancelAll(tn)
+		return errNoDelayPermitted
+	}
+
+	// Check deadline before waiting to fail fast
+	if dl, ok := ctx.Deadline(); ok {
+		if dl.Before(tn.Add(finalDelay)) {
+			reservations.CancelAll(tn)
+			return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", finalDelay, context.DeadlineExceeded)
+		}
+	}
+
 	select {
-	case <-tick.C:
+	case <-time.After(finalDelay):
 		return nil
 	case <-ctx.Done():
-		tick.Stop()
-		reservations.CancelAll()
+		reservations.CancelAll(tn)
 		return ctx.Err()
 	}
-	// TODO: Shutdown case
 }
 
 // DisableRateLimiter disables the rate limiting system for the exchange
@@ -193,4 +200,16 @@ func (r *Requester) EnableRateLimiter() error {
 		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyEnabled)
 	}
 	return nil
+}
+
+type noDelayPermittedKey struct{}
+
+// WithNoDelayPermitted adds a value to the context that indicates that no delay is permitted for rate limiting
+func WithNoDelayPermitted(ctx context.Context) context.Context {
+	return context.WithValue(ctx, noDelayPermittedKey{}, struct{}{})
+}
+
+func hasNoDelayPermitted(ctx context.Context) bool {
+	_, ok := ctx.Value(noDelayPermittedKey{}).(struct{})
+	return ok
 }
