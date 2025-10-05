@@ -33,19 +33,19 @@ const (
 )
 
 const (
-	cnlFuturesSymbol        = "symbol"
-	cnlFuturesOrderbookLvl2 = "book_lv2"
-	cnlFuturesOrderbook     = "book"
-	cnlFuturesTickers       = "tickers"
-	cnlFuturesTrades        = "trades"
-	cnlFuturesIndexPrice    = "index_price"
-	cnlFuturesMarkPrice     = "mark_price"
-	cnlFuturesFundingRate   = "funding_rate"
+	channelFuturesSymbol        = "symbol"
+	channelFuturesOrderbookLvl2 = "book_lv2"
+	channelFuturesOrderbook     = "book"
+	channelFuturesTickers       = "tickers"
+	channelFuturesTrades        = "trades"
+	channelFuturesIndexPrice    = "index_price"
+	channelFuturesMarkPrice     = "mark_price"
+	channelFuturesFundingRate   = "funding_rate"
 
-	cnlFuturesPrivatePositions = "positions"
-	cnlFuturesPrivateOrders    = "orders"
-	cnlFuturesPrivateTrades    = "trade"
-	cnlFuturesAccount          = "account"
+	channelFuturesPrivatePositions = "positions"
+	channelFuturesPrivateOrders    = "orders"
+	channelFuturesPrivateTrades    = "trade"
+	channelFuturesAccount          = "account"
 )
 
 const (
@@ -66,16 +66,16 @@ const (
 
 var (
 	defaultFuturesChannels = []string{
-		cnlFuturesTickers,
-		cnlFuturesOrderbookLvl2,
+		channelFuturesTickers,
+		channelFuturesOrderbookLvl2,
 		candles15Min,
 	}
 
 	defaultPrivateFuturesChannels = []string{
-		cnlFuturesPrivatePositions,
-		cnlFuturesPrivateOrders,
-		cnlFuturesPrivateTrades,
-		cnlFuturesAccount,
+		channelFuturesPrivatePositions,
+		channelFuturesPrivateOrders,
+		channelFuturesPrivateTrades,
+		channelFuturesAccount,
 	}
 
 	onceFuturesOrderbook map[string]bool
@@ -162,17 +162,17 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 		return nil
 	}
 	switch result.Channel {
-	case cnlAuth:
+	case channelAuth:
 		return conn.RequireMatchWithData("auth", respRaw)
-	case cnlFuturesSymbol:
+	case channelFuturesSymbol:
 		var resp []ProductInfo
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
 		e.Websocket.DataHandler <- resp
 		return nil
-	case cnlFuturesOrderbookLvl2,
-		cnlFuturesOrderbook:
+	case channelFuturesOrderbookLvl2,
+		channelFuturesOrderbook:
 		return e.processFuturesOrderbook(result.Data, result.Action)
 	case candles1Min, candles5Min, candles10Min, candles15Min, candles30Min, candles1Hr, candles2Hr, candles4Hr,
 		candles6Hr, candles12Hr, candles1Day, candles3Day, candles1Week, candles1Month:
@@ -181,18 +181,18 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 			return err
 		}
 		return e.processFuturesCandlesticks(result.Data, interval)
-	case cnlFuturesTickers:
+	case channelFuturesTickers:
 		return e.processFuturesTickers(result.Data)
-	case cnlFuturesTrades:
+	case channelFuturesTrades:
 		return e.processFuturesTrades(result.Data)
-	case cnlFuturesIndexPrice:
+	case channelFuturesIndexPrice:
 		var resp []InstrumentIndexPrice
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
 		e.Websocket.DataHandler <- resp
 		return nil
-	case cnlFuturesMarkPrice:
+	case channelFuturesMarkPrice:
 		var resp []FuturesMarkPrice
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
@@ -215,20 +215,20 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 			return err
 		}
 		return e.processFuturesMarkAndIndexPriceCandlesticks(result.Data, interval)
-	case cnlFuturesFundingRate:
+	case channelFuturesFundingRate:
 		return e.processFuturesFundingRate(result.Data)
-	case cnlFuturesPrivatePositions:
+	case channelFuturesPrivatePositions:
 		var resp []FuturesPosition
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
 		e.Websocket.DataHandler <- resp
 		return nil
-	case cnlFuturesPrivateOrders:
+	case channelFuturesPrivateOrders:
 		return e.processFuturesOrders(result.Data)
-	case cnlFuturesPrivateTrades:
+	case channelFuturesPrivateTrades:
 		return e.processFuturesTradeFills(result.Data)
-	case cnlFuturesAccount:
+	case channelFuturesAccount:
 		return e.processFuturesAccountData(result.Data)
 	default:
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
@@ -400,16 +400,6 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 		return err
 	}
 	for x := range resp {
-		asks := make([]orderbook.Level, len(resp[x].Asks))
-		for a := range resp[x].Asks {
-			asks[a].Price = resp[x].Asks[a][0].Float64()
-			asks[a].Amount = resp[x].Asks[a][1].Float64()
-		}
-		bids := make([]orderbook.Level, len(resp[x].Bids))
-		for a := range resp[x].Bids {
-			bids[a].Price = resp[x].Bids[a][0].Float64()
-			bids[a].Amount = resp[x].Bids[a][1].Float64()
-		}
 		cp, err := currency.NewPairFromString(resp[x].Symbol)
 		if err != nil {
 			return err
@@ -421,8 +411,8 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 			}
 			onceFuturesOrderbook[resp[x].Symbol] = true
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Bids:         bids,
-				Asks:         asks,
+				Bids:         resp[x].Bids.Levels(),
+				Asks:         resp[x].Asks.Levels(),
 				Exchange:     e.Name,
 				Pair:         cp,
 				Asset:        asset.Futures,
@@ -440,8 +430,8 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 			Action:     orderbook.UpdateAction,
 			Asset:      asset.Futures,
 			Pair:       cp,
-			Bids:       bids,
-			Asks:       asks,
+			Asks:       resp[x].Asks.Levels(),
+			Bids:       resp[x].Bids.Levels(),
 		}); err != nil {
 			return err
 		}
@@ -559,24 +549,24 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(authenticated bool) (subs
 	subscriptions := subscription.List{}
 	for i := range channels {
 		switch channels[i] {
-		case cnlFuturesAccount:
+		case channelFuturesAccount:
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel:       channels[i],
 				Asset:         asset.Futures,
 				Authenticated: true,
 			})
-		case cnlFuturesPrivatePositions,
-			cnlFuturesPrivateOrders,
-			cnlFuturesPrivateTrades,
-			cnlFuturesSymbol,
-			cnlFuturesOrderbookLvl2,
-			cnlFuturesOrderbook,
-			cnlFuturesTickers,
-			cnlFuturesTrades,
-			cnlFuturesIndexPrice,
-			cnlFuturesMarkPrice,
+		case channelFuturesPrivatePositions,
+			channelFuturesPrivateOrders,
+			channelFuturesPrivateTrades,
+			channelFuturesSymbol,
+			channelFuturesOrderbookLvl2,
+			channelFuturesOrderbook,
+			channelFuturesTickers,
+			channelFuturesTrades,
+			channelFuturesIndexPrice,
+			channelFuturesMarkPrice,
 			indexCandles1Min, indexCandles5Min, indexCandles10Min, indexCandles15Min, indexCandles30Min, indexCandles1Hr, indexCandles2Hr, indexCandles4Hr, indexCandles12Hr, indexCandles1Day, indexCandles3Day, indexCandles1Week,
-			cnlFuturesFundingRate:
+			channelFuturesFundingRate:
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[i],
 				Asset:   asset.Futures,

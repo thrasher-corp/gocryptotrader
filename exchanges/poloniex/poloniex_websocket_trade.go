@@ -103,10 +103,5 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, connMessageFilter, 
 		return err
 	}
 
-	if err := json.Unmarshal(result, &WebsocketResponse{
-		Data: response,
-	}); err != nil {
-		return err
-	}
-	return nil
+	return json.Unmarshal(result, &WebsocketResponse{Data: response})
 }

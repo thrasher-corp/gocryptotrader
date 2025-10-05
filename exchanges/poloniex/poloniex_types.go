@@ -77,29 +77,29 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.ZEC:   0.001,
 }
 
+// SymbolTradeLimit holds symbol's trade details
+type SymbolTradeLimit struct {
+	Symbol        string       `json:"symbol"`
+	PriceScale    float64      `json:"priceScale"`
+	QuantityScale float64      `json:"quantityScale"`
+	AmountScale   float64      `json:"amountScale"`
+	MinQuantity   types.Number `json:"minQuantity"`
+	MinAmount     types.Number `json:"minAmount"`
+	HighestBid    types.Number `json:"highestBid"`
+	LowestAsk     types.Number `json:"lowestAsk"`
+}
+
 // SymbolDetail represents a currency symbol
 type SymbolDetail struct {
-	Symbol            string     `json:"symbol"`
-	BaseCurrencyName  string     `json:"baseCurrencyName"`
-	QuoteCurrencyName string     `json:"quoteCurrencyName"`
-	DisplayName       string     `json:"displayName"`
-	State             string     `json:"state"`
-	VisibleStartTime  types.Time `json:"visibleStartTime"`
-	TradableStartTime types.Time `json:"tradableStartTime"`
-	SymbolTradeLimit  struct {
-		Symbol        string       `json:"symbol"`
-		PriceScale    float64      `json:"priceScale"`
-		QuantityScale float64      `json:"quantityScale"`
-		AmountScale   float64      `json:"amountScale"`
-		MinQuantity   types.Number `json:"minQuantity"`
-		MinAmount     types.Number `json:"minAmount"`
-		HighestBid    types.Number `json:"highestBid"`
-		LowestAsk     types.Number `json:"lowestAsk"`
-	} `json:"symbolTradeLimit"`
-	CrossMargin struct {
-		SupportCrossMargin bool    `json:"supportCrossMargin"`
-		MaxLeverage        float64 `json:"maxLeverage"`
-	} `json:"crossMargin"`
+	Symbol            string                 `json:"symbol"`
+	BaseCurrencyName  string                 `json:"baseCurrencyName"`
+	QuoteCurrencyName string                 `json:"quoteCurrencyName"`
+	DisplayName       string                 `json:"displayName"`
+	State             string                 `json:"state"`
+	VisibleStartTime  types.Time             `json:"visibleStartTime"`
+	TradableStartTime types.Time             `json:"tradableStartTime"`
+	SymbolTradeLimit  SymbolTradeLimit       `json:"symbolTradeLimit"`
+	CrossMargin       CrossMarginSupportInfo `json:"crossMargin"`
 }
 
 // Currency represents all supported currencies
@@ -794,29 +794,23 @@ type WsResponse struct {
 	Data    any    `json:"data"`
 }
 
+// CrossMarginSupportInfo represents information on whether cross margin support is enabled or not, and leverage detail
+type CrossMarginSupportInfo struct {
+	SupportCrossMargin bool         `json:"supportCrossMargin"`
+	MaxLeverage        types.Number `json:"maxLeverage"`
+}
+
 // WsSymbol represents a subscription
 type WsSymbol struct {
-	Symbol            string     `json:"symbol"`
-	BaseCurrencyName  string     `json:"baseCurrencyName"`
-	QuoteCurrencyName string     `json:"quoteCurrencyName"`
-	DisplayName       string     `json:"displayName"`
-	State             string     `json:"state"`
-	VisibleStartTime  types.Time `json:"visibleStartTime"`
-	TradableStartTime types.Time `json:"tradableStartTime"`
-	CrossMargin       struct {
-		SupportCrossMargin bool         `json:"supportCrossMargin"`
-		MaxLeverage        types.Number `json:"maxLeverage"`
-	} `json:"crossMargin"`
-	SymbolTradeLimit struct {
-		Symbol        string       `json:"symbol"`
-		PriceScale    float64      `json:"priceScale"`
-		QuantityScale float64      `json:"quantityScale"`
-		AmountScale   float64      `json:"amountScale"`
-		MinQuantity   types.Number `json:"minQuantity"`
-		MinAmount     types.Number `json:"minAmount"`
-		HighestBid    types.Number `json:"highestBid"`
-		LowestAsk     types.Number `json:"lowestAsk"`
-	} `json:"symbolTradeLimit"`
+	Symbol            string                 `json:"symbol"`
+	BaseCurrencyName  string                 `json:"baseCurrencyName"`
+	QuoteCurrencyName string                 `json:"quoteCurrencyName"`
+	DisplayName       string                 `json:"displayName"`
+	State             string                 `json:"state"`
+	VisibleStartTime  types.Time             `json:"visibleStartTime"`
+	TradableStartTime types.Time             `json:"tradableStartTime"`
+	CrossMargin       CrossMarginSupportInfo `json:"crossMargin"`
+	SymbolTradeLimit  SymbolTradeLimit       `json:"symbolTradeLimit"`
 }
 
 // WsCurrency represents a currency instance from websocket stream.
@@ -900,8 +894,7 @@ type WsBook struct {
 	ID         int64            `json:"id"`
 	Timestamp  types.Time       `json:"ts"`
 	CreateTime types.Time       `json:"createTime"`
-
-	LastID int64 `json:"lastId"`
+	LastID     int64            `json:"lastId"`
 }
 
 // AuthRequest represents websocket authenticaten parameters

@@ -514,7 +514,6 @@ func stringToInterval(interval string) (kline.Interval, error) {
 	return kline.Interval(0), fmt.Errorf("%w: %q", kline.ErrUnsupportedInterval, interval)
 }
 
-// intervalToString returns a string representation of kline.Interval instance.
 func intervalToString(interval kline.Interval) (string, error) {
 	for x := range supportedIntervals {
 		if supportedIntervals[x].val == interval {
@@ -585,8 +584,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*Pla
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *PlaceOrderResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders", nil, arg, &resp)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders", nil, arg, &resp); err != nil {
 		return nil, err
 	}
 	if resp.Code != 0 && resp.Code != 200 {
@@ -627,8 +625,7 @@ func (e *Exchange) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrd
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *CancelReplaceOrderResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPut, "/orders/"+arg.orderID, nil, arg, &resp)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPut, "/orders/"+arg.orderID, nil, arg, &resp); err != nil {
 		return nil, err
 	}
 	if resp.Code != 0 && resp.Code != 200 {
@@ -680,8 +677,7 @@ func (e *Exchange) CancelOrderByID(ctx context.Context, id string) (*CancelOrder
 		return nil, fmt.Errorf("%w; order 'id' is required", order.ErrOrderIDNotSet)
 	}
 	var resp *CancelOrderResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/"+id, nil, nil, &resp)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/"+id, nil, nil, &resp); err != nil {
 		return nil, err
 	}
 	if resp.Code != 0 && resp.Code != 200 {
@@ -764,8 +760,7 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestR
 		return nil, order.ErrSideIsInvalid
 	}
 	var resp *PlaceOrderResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp); err != nil {
 		return nil, err
 	}
 	if resp.Code != 0 && resp.Code != 200 {

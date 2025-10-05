@@ -27,31 +27,31 @@ import (
 )
 
 const (
-	poloniexWebsocketAddress        = "wss://ws.poloniex.com/ws/public"
-	poloniexPrivateWebsocketAddress = "wss://ws.poloniex.com/ws/private"
+	websocketURL        = "wss://ws.poloniex.com/ws/public"
+	privateWebsocketURL = "wss://ws.poloniex.com/ws/private"
 
-	cnlExchange = "exchange"
-	cnlAuth     = "auth"
+	channelExchange = "exchange"
+	channelAuth     = "auth"
 
 	// Public channels
-	cnlSymbols    = "symbols"
-	cnlCurrencies = "currencies"
-	cnlCandles    = "candles"
-	cnlTrades     = "trades"
-	cnlTicker     = "ticker"
-	cnlBooks      = "book"
-	cnlBookLevel2 = "book_lv2"
+	channelSymbols    = "symbols"
+	channelCurrencies = "currencies"
+	channelCandles    = "candles"
+	channelTrades     = "trades"
+	channelTicker     = "ticker"
+	channelBooks      = "book"
+	channelBookLevel2 = "book_lv2"
 
 	// Authenticated channels
-	cnlOrders   = "orders"
-	cnlBalances = "balances"
+	channelOrders   = "orders"
+	channelBalances = "balances"
 )
 
 var defaultSubscriptions = []string{
-	cnlCandles,
-	cnlTrades,
-	cnlTicker,
-	cnlBookLevel2,
+	channelCandles,
+	channelTrades,
+	channelTicker,
+	channelBookLevel2,
 }
 
 var onceOrderbook map[currency.Pair]struct{}
@@ -104,7 +104,7 @@ func (e *Exchange) authenticateSpotAuthConn(ctx context.Context, conn websocket.
 		Params  AuthRequest `json:"params"`
 	}{
 		Event:   "subscribe",
-		Channel: []string{cnlAuth},
+		Channel: []string{channelAuth},
 		Params: AuthRequest{
 			Key:             creds.Key,
 			SignatureMethod: "hmacSHA256",
@@ -112,7 +112,7 @@ func (e *Exchange) authenticateSpotAuthConn(ctx context.Context, conn websocket.
 			Signature:       base64.StdEncoding.EncodeToString(hmac),
 		},
 	}
-	data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, cnlAuth, auth)
+	data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, channelAuth, auth)
 	if err != nil {
 		return err
 	}
@@ -152,32 +152,31 @@ func (e *Exchange) wsHandleData(_ context.Context, conn websocket.Connection, re
 		return nil
 	}
 	switch result.Channel {
-	case cnlAuth:
-		if !conn.IncomingWithData("auth", respRaw) {
-			return fmt.Errorf("could not match data with %s %s", "auth", respRaw)
-		}
-		return nil
-	case cnlSymbols:
+	case channelAuth:
+		return conn.RequireMatchWithData("auth", respRaw)
+	case channelSymbols:
 		var response [][]WsSymbol
 		return e.processResponse(&result, &response)
-	case cnlCurrencies:
+	case channelCurrencies:
 		var response [][]WsCurrency
 		return e.processResponse(&result, &response)
-	case cnlExchange:
+	case channelExchange:
 		var response WsExchangeStatus
 		return e.processResponse(&result, &response)
-	case cnlTrades:
+	case channelTrades:
 		return e.processTrades(&result)
-	case cnlTicker:
+	case channelTicker:
 		return e.processTicker(&result)
-	case cnlBooks, cnlBookLevel2:
+	case channelBookLevel2:
+		return e.processBooksLevel2(&result)
+	case channelBooks:
 		return e.processBooks(&result)
-	case cnlOrders:
+	case channelOrders:
 		return e.processOrders(&result)
-	case cnlBalances:
+	case channelBalances:
 		return e.processBalance(&result)
 	default:
-		if strings.HasPrefix(result.Channel, cnlCandles) {
+		if strings.HasPrefix(result.Channel, channelCandles) {
 			return e.processCandlestickData(&result)
 		}
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
@@ -329,6 +328,66 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 	return nil
 }
 
+func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
+	var resp []WsBook
+	if err := json.Unmarshal(result.Data, &resp); err != nil {
+		return err
+	}
+	for x := range resp {
+		cp, err := currency.NewPairFromString(resp[x].Symbol)
+		if err != nil {
+			return err
+		}
+		var asks orderbook.Levels
+		var bids orderbook.Levels
+		for i := range resp[x].Asks {
+			if resp[x].Asks[i][1].Float64() <= 0 {
+				continue
+			}
+			asks = append(asks, orderbook.Level{
+				Price:  resp[x].Asks[i][0].Float64(),
+				Amount: resp[x].Asks[i][1].Float64(),
+			})
+		}
+		for i := range resp[x].Bids {
+			if resp[x].Bids[i][1].Float64() <= 0 {
+				continue
+			}
+			bids = append(bids, orderbook.Level{
+				Price:  resp[x].Bids[i][0].Float64(),
+				Amount: resp[x].Bids[i][1].Float64(),
+			})
+		}
+
+		if result.Action == "snapshot" {
+			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+				Exchange:     e.Name,
+				Pair:         cp,
+				Asset:        asset.Spot,
+				Asks:         asks,
+				Bids:         bids,
+				LastUpdateID: resp[x].LastID,
+				LastUpdated:  resp[x].Timestamp.Time(),
+			}); err != nil {
+				return err
+			}
+		}
+
+		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
+			Pair:       cp,
+			UpdateTime: resp[x].Timestamp.Time(),
+			UpdateID:   resp[x].ID,
+			Asset:      asset.Spot,
+			Action:     orderbook.UpdateOrInsertAction,
+			Asks:       asks,
+			Bids:       bids,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 	var resp []WsTicker
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
@@ -427,16 +486,16 @@ func (e *Exchange) GenerateDefaultSubscriptions(auth bool) (subscription.List, e
 	}
 	var channels []string
 	if auth && e.Websocket.CanUseAuthenticatedEndpoints() {
-		channels = append(channels, []string{cnlOrders, cnlBalances}...)
+		channels = append(channels, []string{channelOrders, channelBalances}...)
 	} else {
 		channels = defaultSubscriptions
 	}
 	subscriptions := make(subscription.List, 0, 6*len(enabledCurrencies))
 	for i := range channels {
 		switch channels[i] {
-		case cnlSymbols, cnlTrades, cnlTicker, cnlBooks, cnlBookLevel2:
+		case channelSymbols, channelTrades, channelTicker, channelBooks, channelBookLevel2:
 			var params map[string]any
-			if channels[i] == cnlBooks {
+			if channels[i] == channelBooks {
 				params = map[string]any{
 					"depth": 20,
 				}
@@ -446,7 +505,7 @@ func (e *Exchange) GenerateDefaultSubscriptions(auth bool) (subscription.List, e
 				Channel: channels[i],
 				Params:  params,
 			})
-		case cnlCurrencies:
+		case channelCurrencies:
 			currencyMaps := make(map[currency.Code]struct{})
 			for x := range enabledCurrencies {
 				_, okay := currencyMaps[enabledCurrencies[x].Base]
@@ -466,7 +525,7 @@ func (e *Exchange) GenerateDefaultSubscriptions(auth bool) (subscription.List, e
 					currencyMaps[enabledCurrencies[x].Quote] = struct{}{}
 				}
 			}
-		case cnlCandles:
+		case channelCandles:
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[i],
 				Pairs:   enabledCurrencies,
@@ -474,7 +533,7 @@ func (e *Exchange) GenerateDefaultSubscriptions(auth bool) (subscription.List, e
 					"interval": kline.FiveMin,
 				},
 			})
-		case cnlOrders, cnlBalances, cnlExchange:
+		case channelOrders, channelBalances, channelExchange:
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[i],
 			})
@@ -491,20 +550,20 @@ func (e *Exchange) handleSubscriptions(operation string, subscs subscription.Lis
 	payloads := []SubscriptionPayload{}
 	for x := range subscs {
 		switch subscs[x].Channel {
-		case cnlSymbols, cnlTrades, cnlTicker, cnlBooks, cnlBookLevel2:
+		case channelSymbols, channelTrades, channelTicker, channelBooks, channelBookLevel2:
 			sp := SubscriptionPayload{
 				Event:   operation,
 				Channel: []string{subscs[x].Channel},
 				Symbols: subscs[x].Pairs.Format(pairFormat).Strings(),
 			}
-			if subscs[x].Channel == cnlBooks {
+			if subscs[x].Channel == channelBooks {
 				depth, okay := subscs[x].Params["depth"]
 				if okay {
 					sp.Depth, _ = depth.(int64)
 				}
 			}
 			payloads = append(payloads, sp)
-		case cnlCurrencies:
+		case channelCurrencies:
 			sp := SubscriptionPayload{
 				Event:      operation,
 				Channel:    []string{subscs[x].Channel},
@@ -516,7 +575,7 @@ func (e *Exchange) handleSubscriptions(operation string, subscs subscription.Lis
 				}
 			}
 			payloads = append(payloads, sp)
-		case cnlCandles:
+		case channelCandles:
 			interval, okay := subscs[x].Params["interval"].(kline.Interval)
 			if !okay {
 				interval = kline.FiveMin
@@ -531,13 +590,13 @@ func (e *Exchange) handleSubscriptions(operation string, subscs subscription.Lis
 				Channel: []string{channelName},
 				Symbols: subscs[x].Pairs.Format(pairFormat).Strings(),
 			})
-		case cnlOrders:
+		case channelOrders:
 			payloads = append(payloads, SubscriptionPayload{
 				Event:   operation,
 				Channel: []string{subscs[x].Channel},
 				Symbols: []string{"all"},
 			})
-		case cnlBalances, cnlExchange:
+		case channelBalances, channelExchange:
 			payloads = append(payloads, SubscriptionPayload{
 				Event:   operation,
 				Channel: []string{subscs[x].Channel},
@@ -571,7 +630,7 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, u
 	}
 	for i := range payloads {
 		switch payloads[i].Channel[0] {
-		case cnlBalances, cnlOrders:
+		case channelBalances, channelOrders:
 			if e.IsWebsocketAuthenticationSupported() && e.Websocket.CanUseAuthenticatedEndpoints() {
 				if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
 					return err

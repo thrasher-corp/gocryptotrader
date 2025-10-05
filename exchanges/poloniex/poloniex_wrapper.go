@@ -146,8 +146,8 @@ func (e *Exchange) SetDefaults() {
 	e.API.Endpoints = e.NewEndpoints()
 	if err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:         poloniexAPIURL,
-		exchange.WebsocketSpot:    poloniexWebsocketAddress,
-		exchange.WebsocketPrivate: poloniexPrivateWebsocketAddress,
+		exchange.WebsocketSpot:    websocketURL,
+		exchange.WebsocketPrivate: privateWebsocketURL,
 	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -159,8 +159,7 @@ func (e *Exchange) SetDefaults() {
 
 // Setup sets user exchange configuration settings
 func (e *Exchange) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
@@ -184,10 +183,14 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}); err != nil {
 		return err
 	}
+	wsSpot, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		URL:                   poloniexWebsocketAddress,
+		URL:                   wsSpot,
 		RateLimit:             request.NewWeightedRateLimitByDuration(500 * time.Millisecond),
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
@@ -313,10 +316,6 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	enabledPairs, err := e.GetEnabledPairs(assetType)
-	if err != nil {
-		return err
-	}
 	switch assetType {
 	case asset.Spot:
 		ticks, err := e.GetTickers(ctx)
@@ -327,9 +326,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			cp, err := currency.NewPairFromString(ticks[i].Symbol)
 			if err != nil {
 				return err
-			}
-			if !enabledPairs.Contains(cp, true) {
-				continue
 			}
 			if err := ticker.ProcessTicker(&ticker.Price{
 				AssetType:    assetType,
@@ -356,9 +352,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if err != nil {
 				return err
 			}
-			if !enabledPairs.Contains(cp, true) {
-				continue
-			}
 			if err := ticker.ProcessTicker(&ticker.Price{
 				AssetType:    assetType,
 				Pair:         cp,
@@ -380,15 +373,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (e *Exchange) UpdateTicker(ctx context.Context, currencyPair currency.Pair, a asset.Item) (*ticker.Price, error) {
-	if err := e.UpdateTickers(ctx, a); err != nil {
-		return nil, err
-	}
-	pFormat, err := e.GetPairFormat(a, false)
-	if err != nil {
-		return nil, err
-	}
-	return ticker.GetTicker(e.Name, currencyPair.Format(pFormat), a)
+func (e *Exchange) UpdateTicker(_ context.Context, _ currency.Pair, _ asset.Item) (*ticker.Price, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 func orderbookLevelFromSlice(data []types.Number) orderbook.Levels {
@@ -405,10 +391,10 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	err := e.CurrencyPairs.IsAssetEnabled(assetType)
-	if err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
+	var err error
 	pair, err = e.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
 		return nil, err
@@ -434,16 +420,8 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		if err != nil {
 			return nil, err
 		}
-		book.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
-		for y := range book.Bids {
-			book.Bids[y].Price = orderbookNew.Bids[y][0].Float64()
-			book.Bids[y].Amount = orderbookNew.Bids[y][1].Float64()
-		}
-		book.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
-		for y := range book.Asks {
-			book.Asks[y].Price = orderbookNew.Asks[y][0].Float64()
-			book.Asks[y].Amount = orderbookNew.Asks[y][1].Float64()
-		}
+		book.Bids = orderbookNew.Bids.Levels()
+		book.Asks = orderbookNew.Asks.Levels()
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
 	}

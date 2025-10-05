@@ -4,6 +4,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -195,13 +196,13 @@ type FuturesLeverage struct {
 
 // FuturesOrderbook represents an orderbook data for v3 futures instruments
 type FuturesOrderbook struct {
-	Asks          [][]types.Number `json:"asks"`
-	Bids          [][]types.Number `json:"bids"`
-	Timestamp     types.Time       `json:"ts"`
-	LastVersionID int64            `json:"lid"`
-	ID            types.Number     `json:"id"`
-	Symbol        string           `json:"s"`
-	CreationTime  types.Time       `json:"cT"`
+	Asks          orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids          orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Timestamp     types.Time                       `json:"ts"`
+	LastVersionID int64                            `json:"lid"`
+	ID            types.Number                     `json:"id"`
+	Symbol        string                           `json:"s"`
+	CreationTime  types.Time                       `json:"cT"`
 }
 
 // FuturesCandle represents a kline data for v3 futures instrument
