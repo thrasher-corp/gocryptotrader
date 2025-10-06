@@ -938,7 +938,7 @@ func getOrderTypeString(oType order.Type) string {
 	}
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to market conversion
+// ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	arg, err := e.deriveAmendOrderArguments(action)
 	if err != nil {
@@ -1721,7 +1721,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderAmt.Float64(),
 			Delisting:               delistingAt,
 			Delisted:                delistedAt,
-			Delivery:                delivery,
+			Expiry:                  delivery,
 			PriceDivisor:            priceDivisor,
 			MultiplierDecimal:       1, // All assets on Bybit are 1x
 		})

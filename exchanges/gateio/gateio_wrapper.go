@@ -660,34 +660,24 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Book{
+
+	ob := &orderbook.Book{
 		Exchange:          e.Name,
 		Asset:             a,
 		ValidateOrderbook: e.ValidateOrderbook,
-		Pair:              p.Upper(),
+		Pair:              p,
 		LastUpdateID:      o.ID,
 		LastUpdated:       o.Update.Time(),
 		LastPushed:        o.Current.Time(),
+		Bids:              o.Bids.Levels(),
+		Asks:              o.Asks.Levels(),
 	}
-	book.Bids = make(orderbook.Levels, len(o.Bids))
-	for x := range o.Bids {
-		book.Bids[x] = orderbook.Level{
-			Amount: o.Bids[x].Amount.Float64(),
-			Price:  o.Bids[x].Price.Float64(),
-		}
+
+	if err := ob.Process(); err != nil {
+		return nil, err
 	}
-	book.Asks = make(orderbook.Levels, len(o.Asks))
-	for x := range o.Asks {
-		book.Asks[x] = orderbook.Level{
-			Amount: o.Asks[x].Amount.Float64(),
-			Price:  o.Asks[x].Price.Float64(),
-		}
-	}
-	err = book.Process()
-	if err != nil {
-		return book, err
-	}
-	return orderbook.Get(e.Name, book.Pair, a)
+
+	return orderbook.Get(e.Name, p, a)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
@@ -1010,8 +1000,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to market conversion
-func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+// ModifyOrder modifies an existing order
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1134,65 +1124,73 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.CancelAllResponse, error) {
-	err := o.Validate()
-	if err != nil {
-		return order.CancelAllResponse{}, err
+	var resp order.CancelAllResponse
+	if err := o.Validate(); err != nil {
+		return resp, err
 	}
-	var cancelAllOrdersResponse order.CancelAllResponse
-	cancelAllOrdersResponse.Status = map[string]string{}
+
+	fmtPair, err := e.FormatExchangeCurrency(o.Pair, o.AssetType)
+	if err != nil {
+		return resp, err
+	}
+
+	var side string
+	switch {
+	case o.Side.IsLong():
+		side = order.Bid.Lower()
+	case o.Side.IsShort():
+		side = order.Ask.Lower()
+	case o.Side == order.UnknownSide, o.Side == order.AnySide:
+	default:
+		return resp, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, o.Side)
+	}
+
 	switch o.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		if o.Pair.IsEmpty() {
-			return order.CancelAllResponse{}, currency.ErrCurrencyPairEmpty
-		}
-		var cancel []SpotPriceTriggeredOrder
-		cancel, err = e.CancelMultipleSpotOpenOrders(ctx, o.Pair, o.AssetType)
+		cancel, err := e.CancelMultipleSpotOpenOrders(ctx, fmtPair, o.AssetType)
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			return resp, err
 		}
 		for x := range cancel {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[x].AutoOrderID, 10)] = cancel[x].Status
+			resp.Add(strconv.FormatInt(cancel[x].AutoOrderID, 10), cancel[x].Status)
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
-		if o.Pair.IsEmpty() {
-			return cancelAllOrdersResponse, currency.ErrCurrencyPairEmpty
-		}
-		settle, err := getSettlementCurrency(o.Pair, o.AssetType)
+		settle, err := getSettlementCurrency(fmtPair, o.AssetType)
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			return resp, err
 		}
 		var cancel []Order
 		if o.AssetType == asset.DeliveryFutures {
-			cancel, err = e.CancelMultipleDeliveryOrders(ctx, o.Pair, o.Side.Lower(), settle)
+			cancel, err = e.CancelMultipleDeliveryOrders(ctx, fmtPair, side, settle)
 		} else {
-			cancel, err = e.CancelMultipleFuturesOpenOrders(ctx, o.Pair, o.Side.Lower(), settle)
+			cancel, err = e.CancelMultipleFuturesOpenOrders(ctx, fmtPair, side, settle)
 		}
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			return resp, err
 		}
 		for f := range cancel {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[f].ID, 10)] = cancel[f].Status
+			resp.Add(strconv.FormatInt(cancel[f].ID, 10), cancel[f].FinishAs)
 		}
 	case asset.Options:
 		var underlying currency.Pair
 		if !o.Pair.IsEmpty() {
 			underlying, err = e.GetUnderlyingFromCurrencyPair(o.Pair)
 			if err != nil {
-				return cancelAllOrdersResponse, err
+				return resp, err
 			}
 		}
-		cancel, err := e.CancelMultipleOptionOpenOrders(ctx, o.Pair, underlying.String(), o.Side.Lower())
+		cancel, err := e.CancelMultipleOptionOpenOrders(ctx, fmtPair, underlying.String(), side)
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			return resp, err
 		}
 		for x := range cancel {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(cancel[x].OptionOrderID, 10)] = cancel[x].Status
+			resp.Add(strconv.FormatInt(cancel[x].OptionOrderID, 10), cancel[x].FinishAs)
 		}
 	default:
-		return cancelAllOrdersResponse, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
+		return resp, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
 	}
 
-	return cancelAllOrdersResponse, nil
+	return resp, nil
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -1914,7 +1912,6 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
 				MinimumBaseAmount:       minBaseAmount,
 				MinimumQuoteAmount:      pairsData[i].MinQuoteAmount.Float64(),
-				Delisting:               pairsData[i].DelistingTime.Time(),
 				Delisted:                pairsData[i].DelistingTime.Time(),
 			})
 		}
@@ -1946,7 +1943,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				PriceDivisor:            priceDiv,
 				Delisting:               contractInfo[i].DelistingTime.Time(),
 				Delisted:                contractInfo[i].DelistedTime.Time(),
-				Launch:                  contractInfo[i].LaunchTime.Time(),
+				Listed:                  contractInfo[i].LaunchTime.Time(),
 			})
 		}
 	case asset.DeliveryFutures:
@@ -1968,6 +1965,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 					MaximumBaseAmount:       float64(contractInfo[x].OrderSizeMax),
 					PriceStepIncrementSize:  contractInfo[x].OrderPriceRound.Float64(),
 					AmountStepIncrementSize: 1,
+					Expiry:                  contractInfo[x].ExpireTime.Time(),
 				})
 			}
 		}
@@ -2583,13 +2581,14 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 }
 
 func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, error) {
+	var side string
 	switch {
 	case s.Side.IsLong():
-		s.Side = order.Buy
+		side = order.Buy.Lower()
 	case s.Side.IsShort():
-		s.Side = order.Sell
+		side = order.Sell.Lower()
 	default:
-		return nil, order.ErrSideIsInvalid
+		return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, s.Side)
 	}
 
 	tif, err := toExchangeTIF(s.TimeInForce, s.Price)
@@ -2598,7 +2597,7 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 	}
 
 	return &CreateOrderRequest{
-		Side:         s.Side.Lower(),
+		Side:         side,
 		Type:         s.Type.Lower(),
 		Account:      e.assetTypeToString(s.AssetType),
 		Amount:       types.Number(s.GetTradeAmount(e.GetTradingRequirements())),

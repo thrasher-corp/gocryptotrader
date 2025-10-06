@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -527,26 +528,41 @@ type Ticker struct {
 
 // OrderbookData holds orderbook ask and bid datas.
 type OrderbookData struct {
-	ID      int64             `json:"id"`
-	Current types.Time        `json:"current"` // The timestamp of the response data being generated (in milliseconds)
-	Update  types.Time        `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
-	Asks    [][2]types.Number `json:"asks"`
-	Bids    [][2]types.Number `json:"bids"`
+	ID      int64                            `json:"id"`
+	Current types.Time                       `json:"current"` // The timestamp of the response data being generated (in milliseconds)
+	Update  types.Time                       `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
+	Asks    orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids    orderbook.LevelsArrayPriceAmount `json:"bids"`
 }
 
 // MakeOrderbook converts OrderbookData into an Orderbook
 func (a *OrderbookData) MakeOrderbook() *Orderbook {
-	asks := make([]OrderbookItem, len(a.Asks))
-	for x := range a.Asks {
-		asks[x].Price = a.Asks[x][0]
-		asks[x].Amount = a.Asks[x][1]
+	return &Orderbook{ID: a.ID, Current: a.Current, Update: a.Update, Asks: OrderbookLevels(a.Asks.Levels()), Bids: OrderbookLevels(a.Bids.Levels())}
+}
+
+// OrderbookLevels represents a slice of orderbook levels.
+type OrderbookLevels orderbook.Levels
+
+// UnmarshalJSON implements the json.Unmarshaler interface for OrderbookLevels.
+func (o *OrderbookLevels) UnmarshalJSON(data []byte) error {
+	var levels []OrderbookItem
+	if err := json.Unmarshal(data, &levels); err != nil {
+		return err
 	}
-	bids := make([]OrderbookItem, len(a.Bids))
-	for x := range a.Bids {
-		bids[x].Price = a.Bids[x][0]
-		bids[x].Amount = a.Bids[x][1]
+
+	*o = make(OrderbookLevels, len(levels))
+	for x := range levels {
+		(*o)[x] = orderbook.Level{
+			Price:  levels[x].Price.Float64(),
+			Amount: levels[x].Amount.Float64(),
+		}
 	}
-	return &Orderbook{ID: a.ID, Current: a.Current, Update: a.Update, Asks: asks, Bids: bids}
+	return nil
+}
+
+// Levels converts OrderbookLevels to orderbook.Levels.
+func (o *OrderbookLevels) Levels() orderbook.Levels {
+	return orderbook.Levels(*o)
 }
 
 // OrderbookItem stores an orderbook item
@@ -560,8 +576,8 @@ type Orderbook struct {
 	ID      int64           `json:"id"`
 	Current types.Time      `json:"current"` // The timestamp of the response data being generated (in milliseconds)
 	Update  types.Time      `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
-	Bids    []OrderbookItem `json:"bids"`
-	Asks    []OrderbookItem `json:"asks"`
+	Bids    OrderbookLevels `json:"bids"`
+	Asks    OrderbookLevels `json:"asks"`
 }
 
 // Trade represents market trade.
@@ -2064,21 +2080,21 @@ type WsOrderbookTickerData struct {
 
 // WsOrderbookUpdate represents websocket orderbook update push data
 type WsOrderbookUpdate struct {
-	UpdateTime    types.Time        `json:"t"`
-	Pair          currency.Pair     `json:"s"`
-	FirstUpdateID int64             `json:"U"` // First update order book id in this event since last update
-	LastUpdateID  int64             `json:"u"`
-	Bids          [][2]types.Number `json:"b"`
-	Asks          [][2]types.Number `json:"a"`
+	UpdateTime    types.Time                       `json:"t"`
+	Pair          currency.Pair                    `json:"s"`
+	FirstUpdateID int64                            `json:"U"` // First update order book id in this event since last update
+	LastUpdateID  int64                            `json:"u"`
+	Bids          orderbook.LevelsArrayPriceAmount `json:"b"`
+	Asks          orderbook.LevelsArrayPriceAmount `json:"a"`
 }
 
 // WsOrderbookSnapshot represents a websocket orderbook snapshot push data
 type WsOrderbookSnapshot struct {
-	UpdateTime   types.Time        `json:"t"`
-	LastUpdateID int64             `json:"lastUpdateId"`
-	CurrencyPair currency.Pair     `json:"s"`
-	Bids         [][2]types.Number `json:"bids"`
-	Asks         [][2]types.Number `json:"asks"`
+	UpdateTime   types.Time                       `json:"t"`
+	LastUpdateID int64                            `json:"lastUpdateId"`
+	CurrencyPair currency.Pair                    `json:"s"`
+	Bids         orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
 
 // WsSpotOrder represents an order push data through the websocket channel.

@@ -653,16 +653,6 @@ func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespo
 	if err != nil {
 		return err
 	}
-	asks := make([]orderbook.Level, len(result.Asks))
-	for i := range result.Asks {
-		asks[i].Price = result.Asks[i][0].Float64()
-		asks[i].Amount = result.Asks[i][1].Float64()
-	}
-	bids := make([]orderbook.Level, len(result.Bids))
-	for i := range result.Bids {
-		bids[i].Price = result.Bids[i][0].Float64()
-		bids[i].Amount = result.Bids[i][1].Float64()
-	}
 
 	if resp.Type == "snapshot" {
 		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
@@ -672,14 +662,14 @@ func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespo
 			LastUpdated:  resp.OrderbookLastUpdated.Time(),
 			LastUpdateID: result.UpdateID,
 			LastPushed:   resp.PushTimestamp.Time(),
-			Asks:         asks,
-			Bids:         bids,
+			Asks:         result.Asks.Levels(),
+			Bids:         result.Bids.Levels(),
 		})
 	}
 	return e.Websocket.Orderbook.Update(&orderbook.Update{
 		Pair:       cp,
-		Asks:       asks,
-		Bids:       bids,
+		Asks:       result.Asks.Levels(),
+		Bids:       result.Bids.Levels(),
 		Asset:      assetType,
 		UpdateID:   result.UpdateID,
 		UpdateTime: resp.OrderbookLastUpdated.Time(),

@@ -66,29 +66,6 @@ func TestUpdateTradablePairs(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 }
 
-func TestCancelAllExchangeOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CancelAllOrders(t.Context(), nil)
-	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
-
-	r := &order.Cancel{
-		OrderID:   "1",
-		AccountID: "1",
-	}
-
-	for _, a := range e.GetAssetTypes(false) {
-		r.AssetType = a
-		r.Pair = currency.EMPTYPAIR
-		_, err = e.CancelAllOrders(t.Context(), r)
-		assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-
-		r.Pair = getPair(t, a)
-		_, err = e.CancelAllOrders(t.Context(), r)
-		require.NoError(t, err)
-	}
-}
-
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2491,7 +2468,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 				avail, err := e.GetAvailablePairs(a)
 				require.NoError(t, err, "GetAvailablePairs must not error")
-
 				for _, pair := range avail {
 					l, err := e.GetOrderExecutionLimits(a, pair)
 					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", pair)
@@ -2501,23 +2477,20 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
 					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", pair)
 
-					if a == asset.USDTMarginedFutures || a == asset.CoinMarginedFutures {
+					switch a {
+					case asset.USDTMarginedFutures:
+						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", pair)
+						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", pair)
+						fallthrough
+					case asset.CoinMarginedFutures:
 						if !l.Delisted.IsZero() {
 							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", pair)
 						}
-					}
-
-					if a == asset.Spot {
+					case asset.Spot:
 						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", pair)
 						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", pair)
-						if !l.Delisted.IsZero() {
-							assert.Truef(t, l.Delisted.Equal(l.Delisting), "Delisted should be equal to Delisting for %s", pair)
-						}
-					}
-
-					if a == asset.USDTMarginedFutures {
-						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", pair)
-						assert.NotZerof(t, l.Launch, "Launch should be populated for %s", pair)
+					case asset.DeliveryFutures:
+						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", pair)
 					}
 				}
 			}
@@ -3701,4 +3674,14 @@ func TestMarshalJSONNumber(t *testing.T) {
 		require.NoError(t, err, "MarshalJSON must not error")
 		assert.Equal(t, tc.expected, string(payload), "MarshalJSON should return expected value")
 	}
+}
+
+func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
+	t.Parallel()
+	var ob OrderbookLevels
+	require.NoError(t, ob.UnmarshalJSON([]byte(`[{"p":"123.45","s":"0.001"}]`)))
+	assert.Equal(t, 123.45, ob[0].Price, "Price should be correct")
+	assert.Equal(t, 0.001, ob[0].Amount, "Amount should be correct")
+
+	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
 }

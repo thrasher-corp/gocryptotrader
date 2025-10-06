@@ -210,28 +210,17 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	book := &orderbook.Book{
+	ob := &orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
 		Asset:             assetType,
 		ValidateOrderbook: e.ValidateOrderbook,
-		Asks:              make(orderbook.Levels, len(d.Data.Asks)),
-		Bids:              make(orderbook.Levels, len(d.Data.Bids)),
+		Asks:              d.Data.Asks.Levels(),
+		Bids:              d.Data.Bids.Levels(),
 	}
-
-	for i := range d.Data.Asks {
-		book.Asks[i].Price = d.Data.Asks[i][0].Float64()
-		book.Asks[i].Amount = d.Data.Asks[i][1].Float64()
-	}
-	for i := range d.Data.Bids {
-		book.Bids[i].Price = d.Data.Bids[i][0].Float64()
-		book.Bids[i].Amount = d.Data.Bids[i][1].Float64()
-	}
-
-	if err := book.Process(); err != nil {
+	if err := ob.Process(); err != nil {
 		return nil, err
 	}
-
 	return orderbook.Get(e.Name, p, assetType)
 }
 
@@ -400,9 +389,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return s.DeriveSubmitResponse(tempResp.OrderID)
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
-func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+// ModifyOrder modifies an existing order
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

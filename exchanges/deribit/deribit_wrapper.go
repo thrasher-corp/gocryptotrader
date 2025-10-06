@@ -634,8 +634,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
+// ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
@@ -694,17 +693,18 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
-	if err := orderCancellation.Validate(); err != nil {
-		return order.CancelAllResponse{}, err
+func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (order.CancelAllResponse, error) {
+	var resp order.CancelAllResponse
+	if err := cancel.Validate(); err != nil {
+		return resp, err
 	}
-	var cancelData *MultipleCancelResponse
-	pairFmt, err := e.GetPairFormat(orderCancellation.AssetType, true)
+
+	fPair, err := e.FormatExchangeCurrency(cancel.Pair, cancel.AssetType)
 	if err != nil {
-		return order.CancelAllResponse{}, err
+		return resp, err
 	}
 	var orderTypeStr string
-	switch orderCancellation.Type {
+	switch cancel.Type {
 	case order.Limit:
 		orderTypeStr = order.Limit.String()
 	case order.Market:
@@ -712,26 +712,24 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	case order.AnyType, order.UnknownType:
 		orderTypeStr = "all"
 	default:
-		return order.CancelAllResponse{}, fmt.Errorf("%s: orderType %v is not valid", e.Name, orderCancellation.Type)
+		return resp, fmt.Errorf("%s %w: %v", e.Name, order.ErrTypeIsInvalid, cancel.Type)
 	}
+
+	var cancelData *MultipleCancelResponse
 	if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		cancelData, err = e.WSSubmitCancelAllByInstrument(ctx, pairFmt.Format(orderCancellation.Pair), orderTypeStr, true, true)
+		cancelData, err = e.WSSubmitCancelAllByInstrument(ctx, fPair.String(), orderTypeStr, true, true)
 	} else {
-		cancelData, err = e.SubmitCancelAllByInstrument(ctx, pairFmt.Format(orderCancellation.Pair), orderTypeStr, true, true)
+		cancelData, err = e.SubmitCancelAllByInstrument(ctx, fPair.String(), orderTypeStr, true, true)
 	}
 	if err != nil {
-		return order.CancelAllResponse{}, err
+		return resp, err
 	}
-	response := order.CancelAllResponse{Count: cancelData.CancelCount}
-	if len(cancelData.CancelDetails) > 0 {
-		response.Status = make(map[string]string)
-		for a := range cancelData.CancelDetails {
-			for b := range cancelData.CancelDetails[a].Result {
-				response.Status[cancelData.CancelDetails[a].Result[b].OrderID] = cancelData.CancelDetails[a].Result[b].OrderState
-			}
+	for a := range cancelData.CancelDetails {
+		for b := range cancelData.CancelDetails[a].Result {
+			resp.Add(cancelData.CancelDetails[a].Result[b].OrderID, cancelData.CancelDetails[a].Result[b].OrderState)
 		}
 	}
-	return response, nil
+	return resp, nil
 }
 
 // GetOrderInfo returns order information based on order ID

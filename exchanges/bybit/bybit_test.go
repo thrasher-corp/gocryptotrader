@@ -47,7 +47,6 @@ const (
 	canManipulateRealOrders = false
 
 	skipAuthenticatedFunctionsForMockTesting = "skipping authenticated function for mock testing"
-	skippingWebsocketFunctionsForMockTesting = "skipping websocket function for mock testing"
 )
 
 var (
@@ -804,7 +803,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					}
 
 					if a == asset.USDTMarginedFutures && !pair.Quote.Equal(currency.USDT) {
-						assert.NotZero(t, l.Delivery, "Delivery should be set for USDT margined non-USDT pairs")
+						assert.NotZero(t, l.Expiry, "Expiry should be set for USDT margined non-USDT pairs")
 					}
 				})
 			}
