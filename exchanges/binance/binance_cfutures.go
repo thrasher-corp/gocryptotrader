@@ -84,7 +84,7 @@ func (e *Exchange) FuturesExchangeInfo(ctx context.Context) (CExchangeInfo, erro
 }
 
 // GetFuturesOrderbook gets orderbook data for CoinMarginedFutures,
-func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (*OrderBook, error) {
+func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit uint64) (*OrderBookResponse, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 
 	rateBudget := cFuturesOrderbook1000Rate
@@ -106,27 +106,8 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair
 		rateBudget = cFuturesOrderbook500Rate
 	}
 
-	var data *OrderbookData
-	if err := e.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesOrderbook+params.Encode(), rateBudget, &data); err != nil {
-		return nil, err
-	}
-
-	ob := &OrderBook{
-		Bids: make([]OrderbookItem, len(data.Bids)),
-		Asks: make([]OrderbookItem, len(data.Asks)),
-	}
-
-	for x := range data.Bids {
-		ob.Bids[x].Price = data.Bids[x][0].Float64()
-		ob.Bids[x].Quantity = data.Bids[x][1].Float64()
-	}
-
-	for x := range data.Asks {
-		ob.Asks[x].Price = data.Asks[x][0].Float64()
-		ob.Asks[x].Quantity = data.Asks[x][1].Float64()
-	}
-
-	return ob, nil
+	var resp *OrderBookResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesOrderbook+params.Encode(), rateBudget, &resp)
 }
 
 // GetFuturesPublicTrades gets recent public trades for CoinMarginedFutures,

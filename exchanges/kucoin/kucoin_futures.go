@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -117,12 +116,11 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol string) (*Ord
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var o futuresOrderbookResponse
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, futuresOrderbookEPL, common.EncodeURLValues("/v1/level2/snapshot", params), &o)
-	if err != nil {
+	var o *futuresOrderbookResponse
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, futuresOrderbookEPL, common.EncodeURLValues("/v1/level2/snapshot", params), &o); err != nil {
 		return nil, err
 	}
-	return constructFuturesOrderbook(&o), nil
+	return unifyFuturesOrderbook(o), nil
 }
 
 // GetFuturesPartOrderbook20 gets orderbook for a specified symbol with depth 20
@@ -132,12 +130,11 @@ func (e *Exchange) GetFuturesPartOrderbook20(ctx context.Context, symbol string)
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var o futuresOrderbookResponse
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, futuresPartOrderbookDepth20EPL, common.EncodeURLValues("/v1/level2/depth20", params), &o)
-	if err != nil {
+	var o *futuresOrderbookResponse
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, futuresPartOrderbookDepth20EPL, common.EncodeURLValues("/v1/level2/depth20", params), &o); err != nil {
 		return nil, err
 	}
-	return constructFuturesOrderbook(&o), nil
+	return unifyFuturesOrderbook(o), nil
 }
 
 // GetFuturesPartOrderbook100 gets orderbook for a specified symbol with depth 100
@@ -147,12 +144,15 @@ func (e *Exchange) GetFuturesPartOrderbook100(ctx context.Context, symbol string
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var o futuresOrderbookResponse
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, futuresPartOrderbookDepth100EPL, common.EncodeURLValues("/v1/level2/depth100", params), &o)
-	if err != nil {
+	var o *futuresOrderbookResponse
+	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, futuresPartOrderbookDepth100EPL, common.EncodeURLValues("/v1/level2/depth100", params), &o); err != nil {
 		return nil, err
 	}
-	return constructFuturesOrderbook(&o), nil
+	return unifyFuturesOrderbook(o), nil
+}
+
+func unifyFuturesOrderbook(o *futuresOrderbookResponse) *Orderbook {
+	return &Orderbook{Bids: o.Bids.Levels(), Asks: o.Asks.Levels(), Sequence: o.Sequence, Time: o.Time.Time()}
 }
 
 // GetFuturesTradeHistory get last 100 trades for symbol
@@ -820,26 +820,6 @@ func (e *Exchange) GetFuturesTransferOutList(ctx context.Context, ccy currency.C
 	}
 	var resp *TransferListsResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresTransferOutListEPL, http.MethodGet, common.EncodeURLValues("/v1/transfer-list", params), nil, &resp)
-}
-
-func processFuturesOB(ob [][2]float64) []orderbook.Level {
-	o := make([]orderbook.Level, len(ob))
-	for x := range ob {
-		o[x] = orderbook.Level{
-			Price:  ob[x][0],
-			Amount: ob[x][1],
-		}
-	}
-	return o
-}
-
-func constructFuturesOrderbook(o *futuresOrderbookResponse) *Orderbook {
-	return &Orderbook{
-		Bids:     processFuturesOB(o.Bids),
-		Asks:     processFuturesOB(o.Asks),
-		Sequence: o.Sequence,
-		Time:     o.Time.Time(),
-	}
 }
 
 // GetFuturesTradingPairsActualFees retrieves the actual fee rate of the trading pair. The fee rate of your sub-account is the same as that of the master account
