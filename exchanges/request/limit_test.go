@@ -136,9 +136,9 @@ func TestNewBasicRateLimit(t *testing.T) {
 
 	for _, key := range []EndpointLimit{Unset, Auth, UnAuth} {
 		r, ok := defs[key]
-		require.True(t, ok, "should have definition for %v", key)
-		assert.Equal(t, Weight(5), r.weight, "weight should be 5 for %v", key)
-		assert.Equal(t, rate.Limit(10), r.limiter.Limit(), "limit should be 10 per second for %v", key)
+		require.Truef(t, ok, "should have definition for %v", key)
+		assert.Equalf(t, Weight(5), r.weight, "weight should be 5 for %v", key)
+		assert.Equalf(t, rate.Limit(10), r.limiter.Limit(), "limit should be 10 per second for %v", key)
 	}
 
 	assert.Same(t, defs[Unset], defs[Auth], "Unset and Auth should be same instance")
