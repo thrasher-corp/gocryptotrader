@@ -529,11 +529,15 @@ func TestRun(t *testing.T) {
 	qs := mustQuickData(t, TickerFocusType)
 	require.ErrorIs(t, qs.Run(context.Background()), ErrContextMustBeAbleToFinish)
 
-	ctx, cancel := context.WithCancel(t.Context())
+	ctx, cancel := context.WithCancel(context.Background())
 	require.NoError(t, qs.Run(ctx))
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		wg.Done()
 		cancel()
 	}()
+	wg.Wait()
 	qs.wg.Wait()
 }
 
