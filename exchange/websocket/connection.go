@@ -246,7 +246,7 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 			case <-c.shutdown:
 				return
 			case <-time.After(handler.Delay):
-				if err := c.SendRawMessage(context.TODO(), epl, handler.MessageType, handler.Message); err != nil {
+				if err := c.SendRawMessage(context.Background(), epl, handler.MessageType, handler.Message); err != nil {
 					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]: %v", c.ExchangeName, handler.Message, err)
 					return
 				}

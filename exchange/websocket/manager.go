@@ -691,11 +691,11 @@ func (m *Manager) shutdown() error {
 		if conn == nil {
 			continue
 		}
-		underlying, ok := conn.(*connection)
+		conn, ok := conn.(*connection)
 		if !ok {
 			return fmt.Errorf("%s websocket: %w", m.exchangeName, common.GetTypeAssertError("*connection", conn))
 		}
-		underlying.shutdown = m.ShutdownC
+		conn.shutdown = m.ShutdownC
 	}
 
 	if m.verbose {
