@@ -260,7 +260,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
 	switch assetType {
 	case asset.Spot, asset.Margin:
-		resp, err := e.GetExecutionLimits(ctx)
+		resp, err := e.GetAllSymbolInformation(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -408,7 +408,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	switch assetType {
 	case asset.Spot:
 		var orderbookNew *OrderbookData
-		orderbookNew, err = e.GetOrderbook(ctx, pair, 0, 0)
+		orderbookNew, err = e.GetOrderbook(ctx, pair, 0, 150)
 		if err != nil {
 			return nil, err
 		}
@@ -416,7 +416,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		book.Asks = orderbookLevelFromSlice(orderbookNew.Asks)
 	case asset.Futures:
 		var orderbookNew *FuturesOrderbook
-		orderbookNew, err = e.GetFuturesOrderBook(ctx, pair.String(), 0, 0)
+		orderbookNew, err = e.GetFuturesOrderBook(ctx, pair.String(), 0, 150)
 		if err != nil {
 			return nil, err
 		}
@@ -1465,7 +1465,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 	switch req.AssetType {
 	case asset.Spot:
-		if req.Side != order.Buy && req.Side != order.Sell {
+		var orderSide string
+		switch req.Side {
+		case order.Sell, order.Buy:
+			orderSide = req.Side.String()
+		case order.UnknownSide, order.AnySide:
+		default:
 			return nil, fmt.Errorf("%w: %v", order.ErrSideIsInvalid, req.Side)
 		}
 		switch req.Type {
@@ -1474,12 +1479,14 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			resp, err := e.GetOrdersHistory(ctx, &OrdersHistoryRequest{Symbol: currency.EMPTYPAIR, AccountType: accountTypeString(req.AssetType), OrderType: oTypeString, Side: req.Side.String(), Direction: "", States: "", From: 0, Limit: 100, StartTime: req.StartTime, EndTime: req.EndTime, HideCancel: false})
+			resp, err := e.GetOrdersHistory(ctx, &OrdersHistoryRequest{Symbol: currency.EMPTYPAIR, AccountType: accountTypeString(req.AssetType), OrderType: oTypeString, Side: orderSide, Direction: "", States: "", From: 0, Limit: 100, StartTime: req.StartTime, EndTime: req.EndTime, HideCancel: false})
 			if err != nil {
 				return nil, err
 			}
-			var oSide order.Side
-			var oType order.Type
+			var (
+				oSide order.Side
+				oType order.Type
+			)
 			orders := make([]order.Detail, 0, len(resp))
 			for i := range resp {
 				cp, err := currency.NewPairFromString(resp[i].Symbol)
@@ -1544,8 +1551,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			var oSide order.Side
-			var oType order.Type
+			var (
+				oSide order.Side
+				oType order.Type
+			)
 			orders := make([]order.Detail, 0, len(smartOrders))
 			for i := range smartOrders {
 				cp, err := currency.NewPairFromString(smartOrders[i].Symbol)
@@ -1892,7 +1901,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return fmt.Errorf("%w asset: %v", asset.ErrNotSupported, a)
 	}
 	if a == asset.Spot {
-		instruments, err := e.GetExecutionLimits(ctx)
+		instruments, err := e.GetAllSymbolInformation(ctx)
 		if err != nil {
 			return err
 		}

@@ -47,8 +47,8 @@ type Exchange struct {
 	exchange.Base
 }
 
-// GetSymbol returns symbol detail
-func (e *Exchange) GetSymbol(ctx context.Context, symbol currency.Pair) ([]*SymbolDetail, error) {
+// GetSymbolInformation returns symbol and trade limit info
+func (e *Exchange) GetSymbolInformation(ctx context.Context, symbol currency.Pair) ([]*SymbolDetail, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -56,9 +56,9 @@ func (e *Exchange) GetSymbol(ctx context.Context, symbol currency.Pair) ([]*Symb
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/"+symbol.String(), &resp)
 }
 
-// GetExecutionLimits returns execution limits
+// GetAllSymbolInformation returns all symbol and trade limit info
 // symbol may be an empty currency.Pair to return all symbols
-func (e *Exchange) GetExecutionLimits(ctx context.Context) ([]*SymbolDetail, error) {
+func (e *Exchange) GetAllSymbolInformation(ctx context.Context) ([]*SymbolDetail, error) {
 	var resp []*SymbolDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets", &resp)
 }
@@ -194,16 +194,19 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, marketsPath+symbol.String()+"/ticker24h", &resp)
 }
 
-// GetCollateralInfo retrieves collateral information
-func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy currency.Code) ([]*CollateralInfo, error) {
-	var path string
-	if !ccy.IsEmpty() {
-		path = marketsPath + ccy.String() + "/collateralInfo"
-	} else {
-		path = "/markets/collateralInfo"
+// GetCollateralInfo retrieves collateral information of a single currency
+func (e *Exchange) GetCollateralInfo(ctx context.Context, ccy currency.Code) (*CollateralInfo, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp CollateralInfoList
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, path, &resp)
+	var resp *CollateralInfo
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+ccy.String()+"/collateralInfo", &resp)
+}
+
+// GetCollateralsInfo retrieves account's collaterals information
+func (e *Exchange) GetCollateralsInfo(ctx context.Context) ([]*CollateralInfo, error) {
+	var resp []*CollateralInfo
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/collateralInfo", &resp)
 }
 
 // GetBorrowRateInfo retrieves borrow rates information for all tiers and currencies.
@@ -228,8 +231,8 @@ func (e *Exchange) GetAllBalances(ctx context.Context, accountType string) ([]*A
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/balances", params, nil, &resp)
 }
 
-// GetAllBalance get an accounts of a user with each account’s id, type and balances (assets).
-func (e *Exchange) GetAllBalance(ctx context.Context, accountID, accountType string) ([]*AccountBalance, error) {
+// GetAllBalancesByID get an accounts of a user with each account’s id, type and balances (assets).
+func (e *Exchange) GetAllBalancesByID(ctx context.Context, accountID, accountType string) ([]*AccountBalance, error) {
 	if accountID == "" {
 		return nil, errAccountIDRequired
 	}
@@ -288,8 +291,8 @@ func (e *Exchange) AccountsTransfer(ctx context.Context, arg *AccountTransferReq
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/accounts/transfer", nil, arg, &resp)
 }
 
-// GetAccountTransferRecords gets a list of transfer records of a user
-func (e *Exchange) GetAccountTransferRecords(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit uint64) ([]*AccountTransferRecord, error) {
+// GetAccountsTransferRecordsByTransferID gets a list of transfer records of a user
+func (e *Exchange) GetAccountsTransferRecordsByTransferID(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit uint64) ([]*AccountTransferRecord, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -314,13 +317,13 @@ func (e *Exchange) GetAccountTransferRecords(ctx context.Context, startTime, end
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/transfer", params, nil, &resp)
 }
 
-// GetAccountTransferRecord gets a transfer record of a user.
-func (e *Exchange) GetAccountTransferRecord(ctx context.Context, accountID string) ([]*AccountTransferRecord, error) {
-	if accountID == "" {
+// GetAccountsTransferRecordByTransferID gets a transfer record of a user.
+func (e *Exchange) GetAccountsTransferRecordByTransferID(ctx context.Context, transferID string) ([]*AccountTransferRecord, error) {
+	if transferID == "" {
 		return nil, errAccountIDRequired
 	}
 	var resp AccountTransferRecords
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/transfer/"+accountID, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/transfer/"+transferID, nil, nil, &resp)
 }
 
 // GetFeeInfo retrieves fee rate for an account
@@ -1002,13 +1005,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	}, request.UnauthenticatedRequest); err != nil {
 		return err
 	}
-	if reflect.ValueOf(result).IsNil() {
+	if result == nil {
 		return common.ErrNoResponse
 	}
 	if strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/") {
 		if val, ok := resp.(*V3ResponseWrapper); ok {
 			if val.Code != 0 && val.Code != 200 {
-				return fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, val.Code, val.Msg)
+				return fmt.Errorf("code: %d message: %s", val.Code, val.Msg)
 			}
 		}
 	}

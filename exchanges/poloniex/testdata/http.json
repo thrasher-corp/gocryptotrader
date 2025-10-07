@@ -25355,7 +25355,7 @@
       "time": 1720103007642,
       "ts": 1720103007712
      },
-     "queryString": "",
+     "queryString": "limit=150",
      "bodyParams": "",
      "headers": {}
     }
@@ -27172,6 +27172,60 @@
   },
   "/markets/BTC_USDT/orderBook": {
    "GET": [
+    {
+     "data": {
+      "asks": [
+       "88350.22",
+       "0.019937",
+       "88376.19",
+       "0.000203",
+       "88376.58",
+       "0.000696",
+       "88416.98",
+       "0.09048",
+       "88450.09",
+       "0.000237",
+       "88475.29",
+       "0.003267",
+       "88475.3",
+       "0.051213",
+       "88480.39",
+       "0.000200",
+       "88489.33",
+       "0.000200",
+       "88489.93",
+       "0.000312"
+      ],
+      "bids": [
+       "88350.21",
+       "0.140201",
+       "88350.2",
+       "0.07",
+       "88345.01",
+       "0.607222",
+       "88345",
+       "0.724152",
+       "88344.99",
+       "0.644995",
+       "88344.97",
+       "1.419373",
+       "88324.8",
+       "0.041414",
+       "88248.5",
+       "0.49",
+       "88223",
+       "0.090549",
+       "88195.2",
+       "0.006480"
+      ],
+      "scale": "0.01",
+      "time": 1742832730542,
+      "ts": 1742832730577
+     },
+     "queryString": "limit=150",
+     "bodyParams": "",
+     "headers": {}
+    },
     {
      "data": {
       "asks": [
@@ -65793,7 +65847,7 @@
       "code": 601,
       "message": "Invalid side: ANY"
      },
-     "queryString": "accountType=SPOT\u0026limit=100\u0026side=ANY\u0026type=LIMIT",
+     "queryString": "accountType=SPOT\u0026limit=100\u0026type=LIMIT",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -101205,7 +101259,7 @@
       },
       "msg": "Success"
      },
-     "queryString": "symbol=BTC_USDT_PERP",
+     "queryString": "limit=150\u0026symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {}
     },

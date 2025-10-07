@@ -494,16 +494,14 @@ func (e *Exchange) GenerateDefaultSubscriptions(auth bool) (subscription.List, e
 	for i := range channels {
 		switch channels[i] {
 		case channelSymbols, channelTrades, channelTicker, channelBooks, channelBookLevel2:
-			var params map[string]any
+			var levels int
 			if channels[i] == channelBooks {
-				params = map[string]any{
-					"depth": 20,
-				}
+				levels = 20
 			}
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Pairs:   enabledCurrencies,
 				Channel: channels[i],
-				Params:  params,
+				Levels:  levels,
 			})
 		case channelCurrencies:
 			currencyMaps := make(map[currency.Code]struct{})
@@ -527,11 +525,9 @@ func (e *Exchange) GenerateDefaultSubscriptions(auth bool) (subscription.List, e
 			}
 		case channelCandles:
 			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channels[i],
-				Pairs:   enabledCurrencies,
-				Params: map[string]any{
-					"interval": kline.FiveMin,
-				},
+				Channel:  channels[i],
+				Pairs:    enabledCurrencies,
+				Interval: kline.FiveMin,
 			})
 		case channelOrders, channelBalances, channelExchange:
 			subscriptions = append(subscriptions, &subscription.Subscription{
@@ -557,10 +553,7 @@ func (e *Exchange) handleSubscriptions(operation string, subscs subscription.Lis
 				Symbols: subscs[x].Pairs.Format(pairFormat).Strings(),
 			}
 			if subscs[x].Channel == channelBooks {
-				depth, okay := subscs[x].Params["depth"]
-				if okay {
-					sp.Depth, _ = depth.(int64)
-				}
+				sp.Depth = subscs[x].Levels
 			}
 			payloads = append(payloads, sp)
 		case channelCurrencies:

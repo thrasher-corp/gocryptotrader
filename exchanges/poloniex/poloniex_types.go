@@ -231,23 +231,6 @@ type TickerData struct {
 	MarkPrice   types.Number `json:"markPrice"`
 }
 
-// CollateralInfoList holds a list of collateral info detail
-type CollateralInfoList []*CollateralInfo
-
-// UnmarshalJSON deserializes byte data into list of CollateralInfo instances
-func (c *CollateralInfoList) UnmarshalJSON(data []byte) error {
-	var targets []*CollateralInfo
-	if err := json.Unmarshal(data, &targets); err != nil {
-		var target *CollateralInfo
-		if err := json.Unmarshal(data, &target); err != nil {
-			return err
-		}
-		targets = []*CollateralInfo{target}
-	}
-	*c = targets
-	return nil
-}
-
 // CollateralInfo represents collateral information.
 type CollateralInfo struct {
 	Currency              string       `json:"currency"`
@@ -759,7 +742,7 @@ type SubscriptionPayload struct {
 	Channel    []string       `json:"channel"`
 	Symbols    []string       `json:"symbols,omitempty"`
 	Currencies []string       `json:"currencies,omitempty"`
-	Depth      int64          `json:"depth,omitempty"`
+	Depth      int            `json:"depth,omitempty"`
 	Params     map[string]any `json:"params,omitempty"`
 }
 
