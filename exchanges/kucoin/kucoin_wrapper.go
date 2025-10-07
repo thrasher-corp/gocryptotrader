@@ -368,41 +368,42 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
-	err := e.CurrencyPairs.IsAssetEnabled(assetType)
+func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+	err := e.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
 		return nil, err
 	}
-	pair, err = e.FormatExchangeCurrency(pair, assetType)
+	p, err = e.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 	var ordBook *Orderbook
-	switch assetType {
+	switch a {
 	case asset.Futures:
-		ordBook, err = e.GetFuturesOrderbook(ctx, pair.String())
+		ordBook, err = e.GetFuturesOrderbook(ctx, p.String())
 	case asset.Spot, asset.Margin:
-		ordBook, err = e.GetPartOrderbook100(ctx, pair.String())
+		ordBook, err = e.GetPartOrderbook100(ctx, p.String())
 	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	book := &orderbook.Book{
+	ob := &orderbook.Book{
 		Exchange:          e.Name,
-		Pair:              pair,
-		Asset:             assetType,
+		Pair:              p,
+		Asset:             a,
 		ValidateOrderbook: e.ValidateOrderbook,
 		Asks:              ordBook.Asks,
 		Bids:              ordBook.Bids,
 	}
-	err = book.Process()
-	if err != nil {
-		return book, err
+
+	if err := ob.Process(); err != nil {
+		return nil, err
 	}
-	return orderbook.Get(e.Name, pair, assetType)
+
+	return orderbook.Get(e.Name, p, a)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
@@ -818,9 +819,8 @@ func MarginModeToString(mType margin.Type) string {
 	}
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
-func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+// ModifyOrder modifies an existing order
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

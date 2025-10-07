@@ -73,7 +73,6 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Scripting support. See [gctscript](/gctscript/README.md).
 + Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
 + Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
-+ WebGUI (discontinued).
 + Exchange HTTP mock testing. See [mock](/exchanges/mock/README.md).
 + Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](/docs/MULTICHAIN_TRANSFER_SUPPORT.md).
 
@@ -134,7 +133,7 @@ go build -tags=sonic_on
 
 ## Donations
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+<img src="/docs/assets/donate.png" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 

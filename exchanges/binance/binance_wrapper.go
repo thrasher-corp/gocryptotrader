@@ -512,60 +512,44 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Book{
-		Exchange:          e.Name,
-		Pair:              p,
-		Asset:             assetType,
-		ValidateOrderbook: e.ValidateOrderbook,
-	}
-	var orderbookNew *OrderBook
-	var err error
 
-	switch assetType {
+	var orderbookNew *OrderBookResponse
+	var err error
+	switch a {
 	case asset.Spot, asset.Margin:
-		orderbookNew, err = e.GetOrderBook(ctx,
-			OrderBookDataRequestParams{
-				Symbol: p,
-				Limit:  1000,
-			})
+		orderbookNew, err = e.GetOrderBook(ctx, p, 1000)
 	case asset.USDTMarginedFutures:
 		orderbookNew, err = e.UFuturesOrderbook(ctx, p, 1000)
 	case asset.CoinMarginedFutures:
 		orderbookNew, err = e.GetFuturesOrderbook(ctx, p, 1000)
 	default:
-		return nil, fmt.Errorf("[%s] %w", assetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("[%s] %w", a, asset.ErrNotSupported)
 	}
 	if err != nil {
-		return book, err
+		return nil, err
 	}
 
-	book.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
-	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Level{
-			Amount: orderbookNew.Bids[x].Quantity,
-			Price:  orderbookNew.Bids[x].Price,
-		}
-	}
-	book.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
-	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Level{
-			Amount: orderbookNew.Asks[x].Quantity,
-			Price:  orderbookNew.Asks[x].Price,
-		}
+	ob := &orderbook.Book{
+		Exchange:          e.Name,
+		Pair:              p,
+		Asset:             a,
+		ValidateOrderbook: e.ValidateOrderbook,
+		Bids:              orderbookNew.Bids.Levels(),
+		Asks:              orderbookNew.Asks.Levels(),
 	}
 
-	err = book.Process()
-	if err != nil {
-		return book, err
+	if err := ob.Process(); err != nil {
+		return nil, err
 	}
-	return orderbook.Get(e.Name, p, assetType)
+
+	return orderbook.Get(e.Name, p, a)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
@@ -1013,9 +997,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
-func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+// ModifyOrder modifies an existing order
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
