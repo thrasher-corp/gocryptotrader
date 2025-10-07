@@ -84,7 +84,7 @@ var (
 )
 
 // NilGuard returns an ErrNilPointer with the type of the first nil argument
-func NilGuard(ptrs ...any) (errs error) {
+func NilGuard(ptrs ...any) error {
 	for _, p := range ptrs {
 		/* 	Internally interfaces contain a type and a value address
 		Obviously can't compare to nil, since the types won't match, so we look into the interface
@@ -93,10 +93,10 @@ func NilGuard(ptrs ...any) (errs error) {
 		We optimize here by converting to [2]uintptr and just checking the address, instead of casting to a local eface type
 		*/
 		if (*[2]uintptr)(unsafe.Pointer(&p))[1] == 0 {
-			errs = AppendError(errs, fmt.Errorf("%w: %T", ErrNilPointer, p))
+			return fmt.Errorf("%w: %T", ErrNilPointer, p)
 		}
 	}
-	return errs
+	return nil
 }
 
 // MatchesEmailPattern ensures that the string is an email address by regexp check

@@ -670,11 +670,6 @@ func TestNilGuard(t *testing.T) {
 
 	err = NilGuard(&s, nil, (*int)(nil))
 	assert.ErrorIs(t, err, ErrNilPointer)
-	assert.ErrorContains(t, err, "*int")
-	var mErr *multiError
-	require.ErrorAs(t, err, &mErr, "err must be a multiError")
-	assert.Len(t, mErr.Unwrap(), 2, "Should get 2 errors back")
-
 	assert.ErrorIs(t, NilGuard(nil), ErrNilPointer, "Unusual input of an untyped nil should still error correctly")
 
 	err = NilGuard()
