@@ -83,7 +83,8 @@ var (
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
 )
 
-// NilGuard returns an ErrNilPointer with the type of the first nil argument
+// NilGuard returns an ErrNilPointer with the type of the first nil value found in the arguments.
+// It returns immediately upon encountering the first nil, which may not be the first argument.
 func NilGuard(ptrs ...any) error {
 	for _, p := range ptrs {
 		/* 	Internally interfaces contain a type and a value address
