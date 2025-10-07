@@ -15,10 +15,10 @@ import (
 var (
 	ErrRateLimiterAlreadyDisabled = errors.New("rate limiter already disabled")
 	ErrRateLimiterAlreadyEnabled  = errors.New("rate limiter already enabled")
+	ErrNoDelayPermitted           = errors.New("no delay permitted")
 
 	errLimiterSystemIsNil = errors.New("limiter system is nil")
 	errInvalidWeightCount = errors.New("invalid weight count must equal or greater than 1")
-	errNoDelayPermitted   = errors.New("no delay permitted")
 )
 
 // RateLimitNotRequired is a no-op rate limiter
@@ -149,7 +149,7 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 
 	if hasNoDelayPermitted(ctx) {
 		reserved.CancelAt(tn.Add(finalDelay))
-		return errNoDelayPermitted
+		return ErrNoDelayPermitted
 	}
 
 	if dl, ok := ctx.Deadline(); ok {

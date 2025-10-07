@@ -51,7 +51,7 @@ func TestRateLimit(t *testing.T) {
 	assert.Less(t, secondElapsed, 150*time.Millisecond, "delay should not be excessive")
 
 	err = r.RateLimit(WithNoDelayPermitted(t.Context()))
-	assert.ErrorIs(t, err, errNoDelayPermitted, "should return correct error")
+	assert.ErrorIs(t, err, ErrNoDelayPermitted, "should return correct error")
 
 	var routineErr error
 	wg := sync.WaitGroup{}
