@@ -322,11 +322,10 @@ func (e *Exchange) authenticateConnection(ctx context.Context, conn websocket.Co
 		return err
 	}
 
-	if intermediary.Code == 0 {
-		return nil
+	if intermediary.Code != 0 {
+		return getStatusError(intermediary.Code, intermediary.Message)
 	}
-
-	return getStatusError(intermediary.Code, intermediary.Message)
+	return nil
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
