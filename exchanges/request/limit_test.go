@@ -132,11 +132,11 @@ func TestNewBasicRateLimit(t *testing.T) {
 
 	defs := NewBasicRateLimit(time.Second, 10, 5)
 	require.NotNil(t, defs, "definitions must not be nil")
-	require.Len(t, defs, 3, "should have 3 definitions")
+	require.Len(t, defs, 3, "must have 3 definitions")
 
 	for _, key := range []EndpointLimit{Unset, Auth, UnAuth} {
 		r, ok := defs[key]
-		require.Truef(t, ok, "should have definition for %v", key)
+		require.Truef(t, ok, "must have definition for %v", key)
 		assert.Equalf(t, Weight(5), r.weight, "weight should be 5 for %v", key)
 		assert.Equalf(t, rate.Limit(10), r.limiter.Limit(), "limit should be 10 per second for %v", key)
 	}
