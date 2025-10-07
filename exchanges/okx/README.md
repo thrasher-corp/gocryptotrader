@@ -117,7 +117,7 @@ if err != nil {
 	// Handle error
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to market conversion
+// ModifyOrder modifies an existing order
 updatedOrder, err := ok.ModifyOrder(...)
 if err != nil {
 	// Handle error
@@ -134,7 +134,7 @@ if err != nil {
 
 ## Donations
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+<img src="/docs/assets/donate.png" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 

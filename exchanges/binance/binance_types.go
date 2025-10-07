@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -123,35 +124,14 @@ type CoinInfo struct {
 	Withdrawing float64 `json:"withdrawing,string"`
 }
 
-// OrderBookDataRequestParams represents Klines request data.
-type OrderBookDataRequestParams struct {
-	Symbol currency.Pair `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
-	Limit  int           `json:"limit"`  // Default 100; max 5000. If limit > 5000, then the response will truncate to 5000
-}
-
-// OrderbookItem stores an individual orderbook item
-type OrderbookItem struct {
-	Price    float64
-	Quantity float64
-}
-
-// OrderBookData is resp data from orderbook endpoint
-type OrderBookData struct {
-	Code         int               `json:"code"`
-	Msg          string            `json:"msg"`
-	LastUpdateID int64             `json:"lastUpdateId"`
-	Bids         [][2]types.Number `json:"bids"`
-	Asks         [][2]types.Number `json:"asks"`
-}
-
-// OrderBook actual structured data that can be used for orderbook
-type OrderBook struct {
-	Symbol       string
-	LastUpdateID int64
-	Code         int
-	Msg          string
-	Bids         []OrderbookItem
-	Asks         []OrderbookItem
+// OrderBookResponse is resp data from orderbook endpoint
+type OrderBookResponse struct {
+	Code         int64                            `json:"code"`
+	Msg          string                           `json:"msg"`
+	LastUpdateID int64                            `json:"lastUpdateId"`
+	Timestamp    types.Time                       `json:"T"`
+	Bids         orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
 
 // DepthUpdateParams is used as an embedded type for WebsocketDepthStream
@@ -163,13 +143,13 @@ type DepthUpdateParams []struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string            `json:"e"`
-	Timestamp     types.Time        `json:"E"`
-	Pair          string            `json:"s"`
-	FirstUpdateID int64             `json:"U"`
-	LastUpdateID  int64             `json:"u"`
-	UpdateBids    [][2]types.Number `json:"b"`
-	UpdateAsks    [][2]types.Number `json:"a"`
+	Event         string                           `json:"e"`
+	Timestamp     types.Time                       `json:"E"`
+	Pair          string                           `json:"s"`
+	FirstUpdateID int64                            `json:"U"`
+	LastUpdateID  int64                            `json:"u"`
+	UpdateBids    orderbook.LevelsArrayPriceAmount `json:"b"`
+	UpdateAsks    orderbook.LevelsArrayPriceAmount `json:"a"`
 }
 
 // RecentTradeRequestParams represents Klines request data.

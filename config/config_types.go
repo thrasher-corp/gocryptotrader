@@ -69,6 +69,8 @@ const (
 	DefaultUnsetAPIKey            = "Key"
 	DefaultUnsetAPISecret         = "Secret"
 	DefaultUnsetAccountPlan       = "accountPlan"
+	DefaultGRPCUsername           = "admin"
+	DefaultGRPCPassword           = "Password"
 )
 
 // Public errors exported by this package
@@ -111,7 +113,6 @@ type Config struct {
 	BankAccounts         []banking.Account         `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
-	Webserver           *WebserverConfig      `json:"webserver,omitempty"`
 	CurrencyPairFormat  *currency.PairFormat  `json:"currencyPairFormat,omitempty"`
 	FiatDisplayCurrency *currency.Code        `json:"fiatDispayCurrency,omitempty"`
 	Cryptocurrencies    *currency.Currencies  `json:"cryptocurrencies,omitempty"`
@@ -216,8 +217,10 @@ type Exchange struct {
 
 // Profiler defines the profiler configuration to enable pprof
 type Profiler struct {
-	Enabled              bool `json:"enabled"`
-	MutexProfileFraction int  `json:"mutex_profile_fraction"`
+	Enabled              bool   `json:"enabled"`
+	MutexProfileFraction int    `json:"mutex_profile_fraction"`
+	ListenAddress        string `json:"listen_address"`
+	BlockProfileRate     int    `json:"block_profile_rate"`
 }
 
 // NTPClientConfig defines a network time protocol configuration to allow for
@@ -239,40 +242,11 @@ type GRPCConfig struct {
 	TimeInNanoSeconds      bool   `json:"timeInNanoSeconds"`
 }
 
-// DepcrecatedRPCConfig stores the deprecatedRPCConfig settings
-type DepcrecatedRPCConfig struct {
-	Enabled       bool   `json:"enabled"`
-	ListenAddress string `json:"listenAddress"`
-}
-
-// WebsocketRPCConfig stores the websocket config info
-type WebsocketRPCConfig struct {
-	Enabled             bool   `json:"enabled"`
-	ListenAddress       string `json:"listenAddress"`
-	ConnectionLimit     int    `json:"connectionLimit"`
-	MaxAuthFailures     int    `json:"maxAuthFailures"`
-	AllowInsecureOrigin bool   `json:"allowInsecureOrigin"`
-}
-
 // RemoteControlConfig stores the RPC services config
 type RemoteControlConfig struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-
-	GRPC          GRPCConfig           `json:"gRPC"`
-	DeprecatedRPC DepcrecatedRPCConfig `json:"deprecatedRPC"`
-	WebsocketRPC  WebsocketRPCConfig   `json:"websocketRPC"`
-}
-
-// WebserverConfig stores the old webserver config
-type WebserverConfig struct {
-	Enabled                      bool   `json:"enabled"`
-	AdminUsername                string `json:"adminUsername"`
-	AdminPassword                string `json:"adminPassword"`
-	ListenAddress                string `json:"listenAddress"`
-	WebsocketConnectionLimit     int    `json:"websocketConnectionLimit"`
-	WebsocketMaxAuthFailures     int    `json:"websocketMaxAuthFailures"`
-	WebsocketAllowInsecureOrigin bool   `json:"websocketAllowInsecureOrigin"`
+	Username string     `json:"username"`
+	Password string     `json:"password"`
+	GRPC     GRPCConfig `json:"gRPC"`
 }
 
 // Post holds the bot configuration data
