@@ -51,16 +51,6 @@ type RateLimiterWithWeight struct {
 	weight  Weight
 }
 
-// Reservations is a slice of rate reservations
-type Reservations []*rate.Reservation
-
-// CancelAll cancels all potential reservations to free up rate limiter for context cancellations and deadline exceeded cases.
-func (r Reservations) CancelAll(at time.Time) {
-	for x := range r {
-		r[x].CancelAt(at)
-	}
-}
-
 // NewRateLimit creates a new RateLimit based of time interval and how many
 // actions allowed and breaks it down to an actions-per-second basis -- Burst
 // rate is kept as one as this is not supported for out-bound requests.
@@ -145,38 +135,36 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	}
 
 	tn := time.Now()
-	reservations := make(Reservations, r.weight)
-	var finalDelay time.Duration
-	for i := range r.weight {
+	var reserved *rate.Reservation
+	for range r.weight {
 		// Consume 1 weight at a time as this avoids needing burst capacity in the limiter, which would otherwise allow
 		// the rate limit to be exceeded over short periods
-		reservations[i] = r.limiter.ReserveN(tn, 1)
-		finalDelay = reservations[i].DelayFrom(tn)
+		reserved = r.limiter.ReserveN(tn, 1)
 	}
 
+	finalDelay := reserved.DelayFrom(tn)
 	if finalDelay == 0 {
 		return nil
 	}
 
 	if hasNoDelayPermitted(ctx) {
-		reservations.CancelAll(tn)
+		reserved.CancelAt(tn.Add(finalDelay))
 		return errNoDelayPermitted
 	}
 
-	// Check deadline before waiting to fail fast
 	if dl, ok := ctx.Deadline(); ok {
 		if dl.Before(tn.Add(finalDelay)) {
-			reservations.CancelAll(tn)
+			reserved.CancelAt(tn.Add(finalDelay))
 			return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", finalDelay, context.DeadlineExceeded)
 		}
 	}
 
 	select {
+	case <-ctx.Done():
+		reserved.CancelAt(tn.Add(finalDelay))
+		return ctx.Err()
 	case <-time.After(finalDelay):
 		return nil
-	case <-ctx.Done():
-		reservations.CancelAll(tn)
-		return ctx.Err()
 	}
 }
 

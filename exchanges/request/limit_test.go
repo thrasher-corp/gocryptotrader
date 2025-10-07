@@ -2,6 +2,7 @@ package request
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,7 +18,7 @@ func TestRateLimit(t *testing.T) {
 	err := (*RateLimiterWithWeight)(nil).RateLimit(t.Context())
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
-	r := &RateLimiterWithWeight{limiter: rate.NewLimiter(rate.Limit(10), 1)}
+	r := &RateLimiterWithWeight{limiter: rate.NewLimiter(rate.Limit(1), 1)}
 	err = r.RateLimit(t.Context())
 	assert.ErrorIs(t, err, errInvalidWeightCount, "should return errInvalidWeightCount for zero weight")
 
@@ -52,37 +53,26 @@ func TestRateLimit(t *testing.T) {
 	err = r.RateLimit(WithNoDelayPermitted(t.Context()))
 	assert.ErrorIs(t, err, errNoDelayPermitted, "should return correct error")
 
+	var routineErr error
+	wg := sync.WaitGroup{}
+	wg.Go(func() { routineErr = r.RateLimit(t.Context()) })
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
+	time.Sleep(10 * time.Millisecond)
 	err = r.RateLimit(ctx)
 	assert.ErrorIs(t, err, context.Canceled, "should return correct error")
+	wg.Wait()
+	assert.NoError(t, routineErr, "routine should complete successfully will providing friction for above context cancellation")
 
+	wg.Go(func() { routineErr = r.RateLimit(t.Context()) })
 	ctx, cancel = context.WithDeadline(t.Context(), time.Now())
 	defer cancel()
+	time.Sleep(10 * time.Millisecond)
 
 	err = r.RateLimit(ctx)
 	assert.ErrorIs(t, err, context.DeadlineExceeded, "should return correct error")
-}
-
-func TestReservationsCancelAll(t *testing.T) {
-	t.Parallel()
-
-	var reservations Reservations
-	require.NotPanics(t, func() { reservations.CancelAll(time.Now()) }, "cancelling empty reservations must not panic")
-
-	r := NewRateLimitWithWeight(time.Millisecond*50, 1, 1)
-
-	err := r.RateLimit(t.Context())
-	require.NoError(t, err, "must not error and must be immediate when reservations are set")
-
-	err = r.RateLimit(WithNoDelayPermitted(t.Context()))
-	require.ErrorIs(t, err, errNoDelayPermitted, "must error when no delay permitted this will reset reservations")
-
-	tn := time.Now()
-	err = r.RateLimit(t.Context())
-	elapsed := time.Since(tn)
-	require.NoError(t, err, "RateLimit must not error")
-	assert.LessOrEqual(t, elapsed, 60*time.Millisecond, "should be delayed by approximately 50ms when reservations are reset on error")
+	wg.Wait()
+	assert.NoError(t, routineErr, "routine should complete successfully will providing friction for above context deadline exceeded")
 }
 
 func TestNewRateLimit(t *testing.T) {
