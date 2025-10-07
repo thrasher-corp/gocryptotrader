@@ -11,6 +11,7 @@ import (
 	"errors"
 	"math/big"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -99,10 +100,7 @@ func CreateTestBot(tb testing.TB) *Engine {
 }
 
 func TestGetSubsystemsStatus(t *testing.T) {
-	m := (&Engine{}).GetSubsystemsStatus()
-	if len(m) != 15 {
-		t.Fatalf("subsystem count is wrong expecting: %d but received: %d", 15, len(m))
-	}
+	assert.Len(t, (&Engine{}).GetSubsystemsStatus(), 13, "GetSubsystemStatus should return the correct number of subsystems")
 }
 
 func TestGetRPCEndpoints(t *testing.T) {
@@ -111,10 +109,7 @@ func TestGetRPCEndpoints(t *testing.T) {
 
 	m, err := (&Engine{Config: &config.Config{}}).GetRPCEndpoints()
 	require.NoError(t, err)
-
-	if len(m) != 4 {
-		t.Fatalf("expected length: %d but received: %d", 4, len(m))
-	}
+	assert.Len(t, m, 2, "GetRPCEndpoints should return the correct number of RPC endpoints")
 }
 
 func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() usage
@@ -174,19 +169,6 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 			Engine:       &Engine{Config: &config.Config{}},
 			EnableError:  nil,
 			DisableError: nil,
-		},
-
-		{
-			Subsystem:    DeprecatedName,
-			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
-			EnableError:  errServerDisabled,
-			DisableError: ErrSubSystemNotStarted,
-		},
-		{
-			Subsystem:    WebsocketName,
-			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
-			EnableError:  errServerDisabled,
-			DisableError: ErrSubSystemNotStarted,
 		},
 		{
 			Subsystem:    grpcName,
@@ -1257,4 +1239,23 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStartPPROF(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, StartPPROF(t.Context(), &config.Profiler{Enabled: false}), "StartPPROF with a disabled config should not error")
+	pprofConfig := &config.Profiler{
+		Enabled:              true,
+		ListenAddress:        "",
+		MutexProfileFraction: 1,
+		BlockProfileRate:     1,
+	}
+	require.NoError(t, StartPPROF(t.Context(), pprofConfig), "StartPPROF with a valid config must not error")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://localhost:8085/debug/pprof/mutex", http.NoBody)
+	require.NoError(t, err, "NewRequestWithContext must not error")
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err, "Do must not error")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "Get response status must be OK")
+	resp.Body.Close()
+	assert.Error(t, StartPPROF(t.Context(), pprofConfig), "StartPPROF with a valid config on already used port should error")
 }

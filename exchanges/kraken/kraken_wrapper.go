@@ -353,15 +353,14 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	assets := e.GetAssetTypes(false)
 	for x := range assets {
 		pairs, err := e.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
 			return err
 		}
-		err = e.UpdatePairs(pairs, assets[x], false, forceUpdate)
-		if err != nil {
+		if err := e.UpdatePairs(pairs, assets[x], false); err != nil {
 			return err
 		}
 	}
@@ -767,8 +766,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to market conversion
-func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+// ModifyOrder modifies an existing order
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -816,50 +815,48 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
+	var resp order.CancelAllResponse
 	if err := req.Validate(); err != nil {
-		return order.CancelAllResponse{}, err
-	}
-	cancelAllOrdersResponse := order.CancelAllResponse{
-		Status: make(map[string]string),
+		return resp, err
 	}
 	switch req.AssetType {
 	case asset.Spot:
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := e.wsCancelAllOrders(ctx)
+			cancel, err := e.wsCancelAllOrders(ctx)
 			if err != nil {
-				return cancelAllOrdersResponse, err
+				return resp, err
 			}
-
-			cancelAllOrdersResponse.Count = resp.Count
-			return cancelAllOrdersResponse, err
+			for i := range cancel.Count {
+				resp.Add(fmt.Sprintf("Unknown:%d", i+1), "cancelled")
+			}
+			return resp, err
 		}
-
-		var emptyOrderOptions OrderInfoOptions
-		openOrders, err := e.GetOpenOrders(ctx, emptyOrderOptions)
+		openOrders, err := e.GetOpenOrders(ctx, OrderInfoOptions{})
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			return resp, err
 		}
 		for orderID := range openOrders.Open {
-			var err error
 			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				err = e.wsCancelOrders(ctx, []string{orderID})
 			} else {
 				_, err = e.CancelExistingOrder(ctx, orderID)
 			}
 			if err != nil {
-				cancelAllOrdersResponse.Status[orderID] = err.Error()
+				resp.Add(orderID, err.Error())
+				continue
 			}
+			resp.Add(orderID, "cancelled")
 		}
 	case asset.Futures:
 		cancelData, err := e.FuturesCancelAllOrders(ctx, req.Pair)
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			return resp, err
 		}
 		for x := range cancelData.CancelStatus.CancelledOrders {
-			cancelAllOrdersResponse.Status[cancelData.CancelStatus.CancelledOrders[x].OrderID] = "cancelled"
+			resp.Add(cancelData.CancelStatus.CancelledOrders[x].OrderID, "cancelled")
 		}
 	}
-	return cancelAllOrdersResponse, nil
+	return resp, nil
 }
 
 // GetOrderInfo returns information on a current open order
