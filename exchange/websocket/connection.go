@@ -366,10 +366,7 @@ func (c *connection) defaultGenerateMessageID(highPrec bool) int64 {
 
 // Shutdown shuts down and closes specific connection
 func (c *connection) Shutdown() error {
-	if err := common.NilGuard(c); err != nil {
-		return err
-	}
-	if err := common.NilGuard(c.Connection); err != nil {
+	if err := common.NilGuard(c, c.Connection); err != nil {
 		return err
 	}
 	c.setConnectedStatus(false)
