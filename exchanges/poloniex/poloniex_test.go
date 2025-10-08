@@ -1621,22 +1621,37 @@ func TestGetTradeOrderID(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGenerateDefaultSubscriptions(t *testing.T) {
+func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	result, err := e.GenerateDefaultSubscriptions(false)
+	e.Features.Subscriptions = defaultSubscriptions
+	subs, err := e.generateSubscriptions()
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	exp := []string{"candles_minute_5", "trades", "ticker", "book_lv2"}
+	got := make([]string, len(subs))
+	for i := range subs {
+		got[i] = subs[i].QualifiedChannel
+	}
+	assert.Equal(t, exp, got)
 }
 
-func TestHandlePayloads(t *testing.T) {
+func TestHandleSubscription(t *testing.T) {
 	t.Parallel()
-	subscriptions, err := e.GenerateDefaultSubscriptions(true)
+	e.Features.Subscriptions = defaultSubscriptions
+	subs, err := e.generateSubscriptions()
 	require.NoError(t, err)
-	require.NotEmpty(t, subscriptions)
+	require.NotEmpty(t, subs)
 
-	result, err := e.handleSubscriptions("subscribe", subscriptions)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	for _, s := range subs {
+		if s.Authenticated {
+			continue // Skip authenticated channels
+		}
+		t.Run(s.QualifiedChannel, func(t *testing.T) {
+			t.Parallel()
+			payload, err := e.handleSubscription("subscribe", s)
+			require.NoError(t, err, "handleSubscription must not error")
+			assert.NotEmpty(t, payload.Channel, "Channel should not be empty")
+		})
+	}
 }
 
 var pushMessages = map[string]string{

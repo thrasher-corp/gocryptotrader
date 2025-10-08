@@ -41,10 +41,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false); err != nil {
+	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair, currency.NewPairWithDelimiter("BTC", "ETH", "_")}, false); err != nil {
 		log.Fatal(err)
 	}
-	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, true); err != nil {
+	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair, currency.NewPairWithDelimiter("BTC", "ETH", "_")}, true); err != nil {
 		log.Fatal(err)
 	}
 	if err := e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, false); err != nil {

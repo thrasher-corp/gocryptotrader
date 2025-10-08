@@ -7,9 +7,12 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -47,11 +50,22 @@ const (
 	channelBalances = "balances"
 )
 
-var defaultSubscriptions = []string{
-	channelCandles,
-	channelTrades,
-	channelTicker,
-	channelBookLevel2,
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.FiveMin},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+}
+
+var subscriptionNames = map[string]string{
+	subscription.CandlesChannel:   channelCandles,
+	subscription.AllTradesChannel: channelTrades,
+	subscription.TickerChannel:    channelTicker,
+	subscription.OrderbookChannel: channelBookLevel2,
+	subscription.MyOrdersChannel:  channelOrders,
+	subscription.MyAccountChannel: channelBalances,
 }
 
 var onceOrderbook map[currency.Pair]struct{}
@@ -478,162 +492,95 @@ func (e *Exchange) processResponse(result *SubscriptionResponse, instance any) e
 	return nil
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (e *Exchange) GenerateDefaultSubscriptions(auth bool) (subscription.List, error) {
-	enabledCurrencies, err := e.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	var channels []string
-	if auth && e.Websocket.CanUseAuthenticatedEndpoints() {
-		channels = append(channels, []string{channelOrders, channelBalances}...)
-	} else {
-		channels = defaultSubscriptions
-	}
-	subscriptions := make(subscription.List, 0, 6*len(enabledCurrencies))
-	for i := range channels {
-		switch channels[i] {
-		case channelSymbols, channelTrades, channelTicker, channelBooks, channelBookLevel2:
-			var levels int
-			if channels[i] == channelBooks {
-				levels = 20
-			}
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Pairs:   enabledCurrencies,
-				Channel: channels[i],
-				Levels:  levels,
-			})
-		case channelCurrencies:
-			currencyMaps := make(map[currency.Code]struct{})
-			for x := range enabledCurrencies {
-				_, okay := currencyMaps[enabledCurrencies[x].Base]
-				if !okay {
-					subscriptions = append(subscriptions, &subscription.Subscription{
-						Channel: channels[i],
-						Pairs:   []currency.Pair{{Base: enabledCurrencies[x].Base}},
-					})
-					currencyMaps[enabledCurrencies[x].Base] = struct{}{}
-				}
-				_, okay = currencyMaps[enabledCurrencies[x].Quote]
-				if !okay {
-					subscriptions = append(subscriptions, &subscription.Subscription{
-						Channel: channels[i],
-						Pairs:   []currency.Pair{{Base: enabledCurrencies[x].Quote}},
-					})
-					currencyMaps[enabledCurrencies[x].Quote] = struct{}{}
-				}
-			}
-		case channelCandles:
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel:  channels[i],
-				Pairs:    enabledCurrencies,
-				Interval: kline.FiveMin,
-			})
-		case channelOrders, channelBalances, channelExchange:
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channels[i],
-			})
-		}
-	}
-	return subscriptions, nil
-}
-
-func (e *Exchange) handleSubscriptions(operation string, subscs subscription.List) ([]SubscriptionPayload, error) {
+func (e *Exchange) handleSubscription(operation string, s *subscription.Subscription) (SubscriptionPayload, error) {
 	pairFormat, err := e.GetPairFormat(asset.Spot, true)
 	if err != nil {
-		return nil, err
+		return SubscriptionPayload{}, err
 	}
-	payloads := []SubscriptionPayload{}
-	for x := range subscs {
-		switch subscs[x].Channel {
-		case channelSymbols, channelTrades, channelTicker, channelBooks, channelBookLevel2:
-			sp := SubscriptionPayload{
-				Event:   operation,
-				Channel: []string{subscs[x].Channel},
-				Symbols: subscs[x].Pairs.Format(pairFormat).Strings(),
+	sp := SubscriptionPayload{
+		Event:   operation,
+		Channel: []string{strings.ToLower(s.QualifiedChannel)},
+	}
+	if len(s.Pairs) != 0 {
+		sp.Symbols = s.Pairs.Format(pairFormat).Strings()
+	}
+
+	switch s.Channel {
+	case channelBooks:
+		sp.Depth = s.Levels
+	case channelCurrencies:
+		for _, p := range s.Pairs {
+			if !slices.Contains(sp.Currencies, p.Base.String()) {
+				sp.Currencies = append(sp.Currencies, p.Base.String())
 			}
-			if subscs[x].Channel == channelBooks {
-				sp.Depth = subscs[x].Levels
-			}
-			payloads = append(payloads, sp)
-		case channelCurrencies:
-			sp := SubscriptionPayload{
-				Event:      operation,
-				Channel:    []string{subscs[x].Channel},
-				Currencies: []string{},
-			}
-			for _, p := range subscs[x].Pairs {
-				if !slices.Contains(sp.Currencies, p.Base.String()) {
-					sp.Currencies = append(sp.Currencies, p.Base.String())
-				}
-			}
-			payloads = append(payloads, sp)
-		case channelCandles:
-			interval, okay := subscs[x].Params["interval"].(kline.Interval)
-			if !okay {
-				interval = kline.FiveMin
-			}
-			intervalString, err := intervalToString(interval)
-			if err != nil {
-				return nil, err
-			}
-			channelName := fmt.Sprintf("%s_%s", subscs[x].Channel, strings.ToLower(intervalString))
-			payloads = append(payloads, SubscriptionPayload{
-				Event:   operation,
-				Channel: []string{channelName},
-				Symbols: subscs[x].Pairs.Format(pairFormat).Strings(),
-			})
-		case channelOrders:
-			payloads = append(payloads, SubscriptionPayload{
-				Event:   operation,
-				Channel: []string{subscs[x].Channel},
-				Symbols: []string{"all"},
-			})
-		case channelBalances, channelExchange:
-			payloads = append(payloads, SubscriptionPayload{
-				Event:   operation,
-				Channel: []string{subscs[x].Channel},
-			})
-		default:
-			return nil, subscription.ErrNotSupported
 		}
+	case subscription.MyOrdersChannel:
+		sp.Symbols = []string{"all"}
 	}
-	return payloads, nil
+	return sp, nil
+}
+
+func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+	return e.Features.Subscriptions.ExpandTemplates(e)
+}
+
+// GetSubscriptionTemplate returns a subscription channel template
+func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{
+		"channelName": channelName,
+		"interval":    intervalToString,
+	}).Parse(subTplText)
+}
+
+func channelName(s *subscription.Subscription) string {
+	if name, ok := subscriptionNames[s.Channel]; ok {
+		return name
+	}
+	return s.Channel
 }
 
 // Subscribe sends a websocket message to receive data from the channel
 func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	payloads, err := e.handleSubscriptions("subscribe", subs)
-	if err != nil {
-		return err
-	}
-	for i := range payloads {
-		if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
-			return err
-		}
-	}
-	return e.Websocket.AddSuccessfulSubscriptions(conn, subs...)
+	subs, errs := subs.ExpandTemplates(e)
+	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+		return e.manageSubs(ctx, conn, "subscribe", l)
+	}, 1))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
-	payloads, err := e.handleSubscriptions("unsubscribe", unsub)
-	if err != nil {
-		return err
-	}
-	for i := range payloads {
-		switch payloads[i].Channel[0] {
-		case channelBalances, channelOrders:
-			if e.IsWebsocketAuthenticationSupported() && e.Websocket.CanUseAuthenticatedEndpoints() {
-				if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
-					return err
-				}
-			}
-		default:
-			if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
-				return err
-			}
-		}
-	}
-	return e.Websocket.RemoveSubscriptions(conn, unsub...)
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	subs, errs := subs.ExpandTemplates(e)
+	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+		return e.manageSubs(ctx, conn, "unsubscribe", l)
+	}, 1))
 }
+
+func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, operation string, subs subscription.List) error {
+	var errs error
+	for _, s := range subs {
+		payload, err := e.handleSubscription(operation, s)
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		if err := conn.SendJSONMessage(ctx, request.UnAuth, payload); err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		if operation == "subscribe" {
+			err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
+		} else {
+			err = e.Websocket.RemoveSubscriptions(conn, s)
+		}
+		errs = common.AppendError(errs, err)
+	}
+	return errs
+}
+
+const subTplText = `
+{{- range $asset, $pairs := $.AssetPairs -}}
+	{{- channelName $.S -}}
+	{{- if eq $.S.Channel "candles" -}}_{{- interval $.S.Interval | lower -}}{{- end -}}
+	{{ $.AssetSeparator }}
+{{- end -}}
+`
