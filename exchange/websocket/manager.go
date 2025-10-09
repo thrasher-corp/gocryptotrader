@@ -686,7 +686,6 @@ func (m *Manager) shutdown() error {
 	m.Wg.Wait()
 	m.ShutdownC = make(chan struct{})
 
-	// Field connections are persistent once set, so we need to reassign the shutdown channel
 	for _, conn := range []Connection{m.Conn, m.AuthConn} {
 		if conn == nil {
 			continue
