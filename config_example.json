@@ -2324,11 +2324,6 @@
    "api": {
     "authenticatedSupport": false,
     "authenticatedWebsocketApiSupport": false,
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "credentials": {
      "key": "Key",
      "secret": "Secret"
@@ -2336,6 +2331,11 @@
     "credentialsValidator": {
      "requiresKey": true,
      "requiresSecret": true
+    },
+    "urlEndpoints": {
+     "RestSpotURL": "https://api.poloniex.com",
+     "WebsocketPrivateURL": "wss://ws.poloniex.com/ws/private",
+     "WebsocketSpotURL": "wss://ws.poloniex.com/ws/public"
     }
    },
    "features": {

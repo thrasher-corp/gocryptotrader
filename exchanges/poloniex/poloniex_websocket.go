@@ -558,6 +558,9 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, s
 func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, operation string, subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
+		if strings.HasSuffix(conn.GetURL(), "private") != s.Authenticated {
+			continue
+		}
 		payload, err := e.handleSubscription(operation, s)
 		if err != nil {
 			errs = common.AppendError(errs, err)

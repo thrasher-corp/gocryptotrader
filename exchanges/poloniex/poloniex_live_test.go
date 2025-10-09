@@ -24,12 +24,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
-		e.API.AuthenticatedSupport = true
-		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
-		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	}
+	e.setAPICredential(apiKey, apiSecret)
 
 	e.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	e.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()

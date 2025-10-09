@@ -370,13 +370,13 @@ type SubAccountBalance struct {
 	Hold                  types.Number `json:"hold"`
 	MaxAvailable          types.Number `json:"maxAvailable"`
 	AccountEquity         string       `json:"accountEquity,omitempty"`
-	UnrealisedPNL         string       `json:"unrealisedPNL,omitempty"`
-	MarginBalance         string       `json:"marginBalance,omitempty"`
-	PositionMargin        string       `json:"positionMargin,omitempty"`
-	OrderMargin           string       `json:"orderMargin,omitempty"`
-	FrozenFunds           string       `json:"frozenFunds,omitempty"`
+	UnrealisedPNL         types.Number `json:"unrealisedPNL,omitempty"`
+	MarginBalance         types.Number `json:"marginBalance,omitempty"`
+	PositionMargin        types.Number `json:"positionMargin,omitempty"`
+	OrderMargin           types.Number `json:"orderMargin,omitempty"`
+	FrozenFunds           types.Number `json:"frozenFunds,omitempty"`
 	AvailableBalance      types.Number `json:"availableBalance,omitempty"`
-	RealizedProfitAndLoss string       `json:"pnl,omitempty"`
+	RealizedProfitAndLoss types.Number `json:"pnl,omitempty"`
 }
 
 // SubAccountTransferRequest represents a sub-account transfer request parameters.
@@ -462,8 +462,8 @@ type AccountMargin struct {
 	MarginRatio       string       `json:"marginRatio"`
 }
 
-// BorroweStatus represents currency borrow status.
-type BorroweStatus struct {
+// BorrowStatus represents currency borrow status.
+type BorrowStatus struct {
 	Currency         string       `json:"currency"`
 	Available        types.Number `json:"available"`
 	Borrowed         types.Number `json:"borrowed"`
@@ -528,7 +528,7 @@ type PlaceBatchOrderItem struct {
 
 // CancelReplaceOrderRequest represents a cancellation and order replacement request parameter.
 type CancelReplaceOrderRequest struct {
-	orderID           string  // orderID: used in order path parameter.
+	orderID           string  `json:"-"` // orderID: used in order path parameter.
 	ClientOrderID     string  `json:"clientOrderId"`
 	Price             float64 `json:"price,omitempty,string"`
 	Quantity          float64 `json:"quantity,omitempty,string"`

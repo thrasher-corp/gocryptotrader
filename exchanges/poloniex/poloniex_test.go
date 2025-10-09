@@ -40,6 +40,15 @@ var (
 	spotTradablePair, futuresTradablePair currency.Pair
 )
 
+func (e *Exchange) setAPICredential(apiKey, apiSecret string) {
+	if apiKey != "" && apiSecret != "" {
+		e.API.AuthenticatedSupport = true
+		e.API.AuthenticatedWebsocketSupport = true
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	}
+}
+
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
 		Amount:  1,
@@ -1388,7 +1397,10 @@ func TestCancelReplaceOrder(t *testing.T) {
 	_, err := e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderRequest{TimeInForce: "GTC"})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
+
 	result, err := e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderRequest{
 		orderID:       "29772698821328896",
 		ClientOrderID: "1234Abc",
@@ -1404,6 +1416,9 @@ func TestGetOpenOrders(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	_, err := e.GetOpenOrders(generateContext(), spotTradablePair, "", "NEXT", "", 10)
+	require.NoError(t, err)
+
+	_, err = e.GetOpenOrders(generateContext(), spotTradablePair, "SELL", "NEXT", "ABCDEF", 10)
 	require.NoError(t, err)
 }
 
@@ -1627,6 +1642,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err)
 	exp := []string{"candles_minute_5", "trades", "ticker", "book_lv2"}
+
+	creds, err := e.GetCredentials(t.Context())
+	require.NoError(t, err)
+
+	if !creds.IsEmpty() {
+		exp = append(exp, "orders", "balances")
+	}
+
 	got := make([]string, len(subs))
 	for i := range subs {
 		got[i] = subs[i].QualifiedChannel
@@ -1684,6 +1707,9 @@ func TestWsPushData(t *testing.T) {
 
 func TestWsCreateOrder(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
 	_, err := e.WsCreateOrder(t.Context(), &PlaceOrderRequest{Amount: 1})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.WsCreateOrder(t.Context(), &PlaceOrderRequest{
@@ -1692,8 +1718,11 @@ func TestWsCreateOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	e.setAPICredential(apiKey, apiSecret)
+	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
+
 	testexch.SetupWs(t, e)
-	result, err := e.WsCreateOrder(t.Context(), &PlaceOrderRequest{
+	result, err := e.WsCreateOrder(generateContext(), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
 		Side:          order.Buy.String(),
 		Type:          order.Market.String(),
@@ -1709,6 +1738,8 @@ func TestWsCreateOrder(t *testing.T) {
 
 func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	if mockTests {
 		t.SkipNow()
 	}

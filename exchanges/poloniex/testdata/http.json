@@ -65571,8 +65571,75 @@
    ],
    "GET": [
     {
-     "data": null,
-     "queryString": "",
+     "data": [
+        {
+            "id": "24993088082542592",
+            "clientOrderId": "",
+            "symbol": "ELON_USDC",
+            "state": "NEW",
+            "accountType": "SPOT",
+            "side": "SELL",
+            "type": "MARKET",
+            "timeInForce": "GTC",
+            "quantity": "1.00",
+            "price": "0.00",
+            "avgPrice": "0.00",
+            "amount": "0.00",
+            "filledQuantity": "0.00",
+            "filledAmount": "0.00",
+            "createTime": 1646925216548,
+            "updateTime": 1646925216548,
+            "orderSource": "API",
+            "loan": false
+        }
+     ],
+     "queryString": "direction=NEXT\u0026limit=10\u0026symbol=BTC_USDT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "5XGZgY574VQR5PIBAy7ASNlv1Ec279Q3tbqWtmZVr8o="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1758203663135"
+      ]
+     }
+    },
+    {
+     "data": [
+        {
+            "id": "24993088082542592",
+            "clientOrderId": "",
+            "symbol": "ELON_USDC",
+            "state": "NEW",
+            "accountType": "SPOT",
+            "side": "SELL",
+            "type": "MARKET",
+            "timeInForce": "GTC",
+            "quantity": "1.00",
+            "price": "0.00",
+            "avgPrice": "0.00",
+            "amount": "0.00",
+            "filledQuantity": "0.00",
+            "filledAmount": "0.00",
+            "createTime": 1646925216548,
+            "updateTime": 1646925216548,
+            "orderSource": "API",
+            "loan": false
+        }
+     ],
+     "queryString": "direction=NEXT\u0026from=ABCDEF\u0026limit=10\u0026side=SELL\u0026symbol=BTC_USDT",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -65628,11 +65695,11 @@
    ]
   },
   "/orders/1234": {
-   "GET": [
+   "PUT": [
     {
      "data": {
-      "code": 21301,
-      "message": "Order not exists"
+        "id": "29772698821328896",
+        "clientOrderId": "1234Abc"
      },
      "queryString": "",
      "bodyParams": "",

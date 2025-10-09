@@ -135,6 +135,7 @@ func (e *Exchange) SetDefaults() {
 				GlobalResultLimit: 500,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	var err error
 	e.Requester, err = request.New(e.Name,
@@ -1879,11 +1880,9 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			TimeOfNextRate: contracts[i].NextFundingTime.Time(),
 			TimeChecked:    timeChecked,
 		}
-		if r.IncludePredictedRate {
-			rate.PredictedUpcomingRate = fundingrate.Rate{
-				Time: contracts[i].NextFundingTime.Time(),
-				Rate: decimal.NewFromFloat(contracts[i].NextPredictedFundingRate.Float64()),
-			}
+		rate.PredictedUpcomingRate = fundingrate.Rate{
+			Time: contracts[i].NextFundingTime.Time(),
+			Rate: decimal.NewFromFloat(contracts[i].NextPredictedFundingRate.Float64()),
 		}
 		resp = append(resp, rate)
 	}

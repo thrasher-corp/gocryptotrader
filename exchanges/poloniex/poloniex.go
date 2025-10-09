@@ -555,12 +555,12 @@ func (e *Exchange) GetAccountMarginInfo(ctx context.Context, accountType string)
 }
 
 // GetBorrowStatus retrieves borrow status of currencies
-func (e *Exchange) GetBorrowStatus(ctx context.Context, ccy currency.Code) ([]*BorroweStatus, error) {
+func (e *Exchange) GetBorrowStatus(ctx context.Context, ccy currency.Code) ([]*BorrowStatus, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	var resp []*BorroweStatus
+	var resp []*BorrowStatus
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/borrowStatus", params, nil, &resp)
 }
 
@@ -656,7 +656,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, side
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*TradeOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders", params, nil, &resp)
 }
 
 // GetOrder gets an order’s status by orderId or clientOrderId
