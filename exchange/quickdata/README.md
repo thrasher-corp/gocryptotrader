@@ -57,7 +57,7 @@ See Usage section below.
 
 ## Usage
 
-There are multiple ways to utilise a quickData. See `/cmd/quickData` for a basic way of establishing a single purpose quickData that subscribes to data and prints it to console.
+There are multiple ways to utilise a quickData. See `/cmd/quickdata` for a basic way of establishing a single purpose quickData that subscribes to data and prints it to console.
 
 ### QuickData with two focus types
 
@@ -151,7 +151,7 @@ func parseData(ctx context.Context, c <-chan any) error {
 
 ## Donations
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+<img src="/docs/assets/donate.png" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
