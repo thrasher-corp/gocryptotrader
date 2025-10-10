@@ -220,16 +220,6 @@ func TestAccountsGetBalance(t *testing.T) {
 	assert.Equal(t, 2.0, b.Total, "Total should be correct")
 }
 
-type saveTestCase struct {
-	name     string
-	creds    *Credentials
-	snapshot bool
-	accts    SubAccounts
-	pre      func(context.Context) context.Context
-	post     func(t *testing.T) // Any additional assertions
-	err      error
-}
-
 func TestAccountsSave(t *testing.T) { //nolint:tparallel // Save's internal tests are sequential
 	t.Parallel()
 
@@ -241,7 +231,15 @@ func TestAccountsSave(t *testing.T) { //nolint:tparallel // Save's internal test
 	assert.ErrorContains(t, (*Accounts)(nil).Save(ctx, nil, false), "nil pointer: *accounts.Accounts")
 	assert.ErrorContains(t, new(Accounts).Save(ctx, nil, false), "nil pointer: accounts.credSubAccounts")
 
-	tt := []saveTestCase{
+	for _, tc := range []struct {
+		name     string
+		creds    *Credentials
+		snapshot bool
+		accts    SubAccounts
+		pre      func(context.Context) context.Context
+		post     func(t *testing.T) // Any additional assertions
+		err      error
+	}{
 		{
 			name:  "NoCredentials",
 			accts: SubAccounts{},
@@ -355,9 +353,7 @@ func TestAccountsSave(t *testing.T) { //nolint:tparallel // Save's internal test
 			},
 			err: errPublish,
 		},
-	}
-
-	for _, tc := range tt {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := t.Context()
 			if tc.creds != nil {
