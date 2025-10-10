@@ -67,7 +67,6 @@ func TestSubscribe(t *testing.T) {
 	require.Empty(t, p.Channel(), "Pipe must be empty before Saving anything")
 }
 
-// TestAccountsCurrencyBalances exercises Accounts.CurrencyBalances
 func TestAccountsCurrencyBalances(t *testing.T) {
 	t.Parallel()
 
@@ -122,7 +121,6 @@ func TestAccountsCurrencyBalances(t *testing.T) {
 	}
 }
 
-// TestAccountsPrivateCurrencyBalances exercises Accounts.currencyBalances
 func TestAccountsPrivateCurrencyBalances(t *testing.T) {
 	t.Parallel()
 
@@ -151,7 +149,6 @@ func TestAccountsPrivateCurrencyBalances(t *testing.T) {
 
 type tKey key.SubAccountAsset
 
-// TestAccountsSubAccounts exercises Accounts.SubAccounts
 func TestAccountsSubAccounts(t *testing.T) {
 	t.Parallel()
 
@@ -189,7 +186,6 @@ func TestAccountsSubAccounts(t *testing.T) {
 	}
 }
 
-// TestAccountsGetBalance exercises Accounts.GetBalance
 func TestAccountsGetBalance(t *testing.T) {
 	t.Parallel()
 
@@ -234,7 +230,6 @@ type saveTestCase struct {
 	err      error
 }
 
-// TestAccountsSave exercises Accounts.Save
 func TestAccountsSave(t *testing.T) { //nolint:tparallel // Save's internal tests are sequential
 	t.Parallel()
 
