@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 )
 
-// Store contains exchanges accounts
+// Store contains acocunts for exchanges
 type Store struct {
 	exchangeAccounts exchangeMap
 	mu               sync.Mutex
