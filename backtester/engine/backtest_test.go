@@ -1643,12 +1643,7 @@ func TestExecuteStrategy(t *testing.T) {
 
 	// Wait for the async goroutine to complete before proceeding
 	// to avoid race condition where Stop() is called after we reset metadata
-	for i := 0; i < 100; i++ {
-		if bt.HasRan() {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+	assert.Eventually(t, bt.HasRan, time.Second, 10*time.Millisecond, "async goroutine should complete")
 
 	bt.m.Lock()
 	bt.MetaData.LiveTesting = true
