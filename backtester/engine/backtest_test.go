@@ -1641,6 +1641,15 @@ func TestExecuteStrategy(t *testing.T) {
 	err = bt.ExecuteStrategy(false)
 	require.NoError(t, err)
 
+	// Wait for the async goroutine to complete before proceeding
+	// to avoid race condition where Stop() is called after we reset metadata
+	for i := 0; i < 100; i++ {
+		if bt.HasRan() {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
 	bt.m.Lock()
 	bt.MetaData.LiveTesting = true
 	bt.MetaData.DateStarted = time.Time{}
