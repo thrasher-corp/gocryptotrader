@@ -2606,7 +2606,6 @@ func TestWSResetMMP(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-
 func TestSetMMPConfig(t *testing.T) {
 	t.Parallel()
 	err := e.SetMMPConfig(t.Context(), currency.EMPTYCODE, kline.FiveMin, 5, 0, 0)
