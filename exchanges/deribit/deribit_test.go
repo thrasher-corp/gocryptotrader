@@ -857,7 +857,6 @@ func TestWsRetrieveSupportedIndexNames(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-
 func TestGetTradeVolumes(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetTradeVolumes(t.Context(), false)
