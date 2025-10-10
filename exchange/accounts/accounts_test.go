@@ -85,7 +85,7 @@ func TestAccountsCurrencyBalances(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNoBalances)
 	assert.ErrorContains(t, err, "Key:[3")
 
-	// Add a balance with inconsistent currencies to cover err from to currs.Add
+	// Add a balance with inconsistent currencies to cover err from currs.Add
 	a.subAccounts[*creds3] = map[key.SubAccountAsset]currencyBalances{
 		{Asset: asset.Futures}: {currency.DOGE.Item: &balance{internal: Balance{Currency: currency.ETH}}},
 	}
