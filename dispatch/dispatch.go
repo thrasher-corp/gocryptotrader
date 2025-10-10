@@ -77,7 +77,7 @@ func IsRunning() bool {
 }
 
 // start sets defaults and config and spawns workers
-// Does not enjoy locking protection
+// Does not provide locking protection
 func (d *Dispatcher) start(workers, channelCapacity int) error {
 	if err := common.NilGuard(d); err != nil {
 		return err
