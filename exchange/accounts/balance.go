@@ -96,6 +96,7 @@ func (b *Balance) Add(a Balance) Balance { //nolint:gocritic // hugeparam not re
 	}
 }
 
+// Public returns a copy of the currencyBalances converted to CurrencyBalances for use outside this package
 func (c currencyBalances) Public() CurrencyBalances {
 	n := make(CurrencyBalances, len(c))
 	for curr, bal := range c {
