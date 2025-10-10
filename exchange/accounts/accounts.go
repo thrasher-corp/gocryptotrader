@@ -43,8 +43,8 @@ type (
 	subAccounts     map[key.SubAccountAsset]currencyBalances
 )
 
-// SubAccount contains a account for an asset type and its balances
-// The subAccount may be the main account depending on exchange structure
+// SubAccount contains an account for an asset type and its balances
+// The SubAccount may be the main account depending on exchange structure
 type SubAccount struct {
 	ID        string
 	AssetType asset.Item
