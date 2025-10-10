@@ -94,6 +94,9 @@ func NewSubAccount(a asset.Item, id string) *SubAccount {
 
 // Subscribe subscribes to your exchange accounts
 func (a *Accounts) Subscribe() (dispatch.Pipe, error) {
+	if err := common.NilGuard(a); err != nil {
+		return dispatch.Pipe{}, err
+	}
 	return a.mux.Subscribe(a.routingID)
 }
 
