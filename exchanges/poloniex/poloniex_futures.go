@@ -80,8 +80,10 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderReque
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"order", nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp.Code != 0 && resp.Code != 200 {
-		return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	} else if resp.Code != 0 && resp.Code != 200 {
+		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -131,8 +133,10 @@ func (e *Exchange) CancelFuturesOrder(ctx context.Context, arg *CancelOrderReque
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, tradePathV3+"order", nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp.Code != 0 && resp.Code != 200 {
-		return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	} else if resp.Code != 0 && resp.Code != 200 {
+		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -209,8 +213,10 @@ func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol, marginMode, p
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"position", nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp.Code != 0 && resp.Code != 200 {
-		return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	} else if resp.Code != 0 && resp.Code != 200 {
+		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
 	}
 	return resp, nil
 }

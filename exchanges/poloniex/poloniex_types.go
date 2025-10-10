@@ -542,12 +542,12 @@ type CancelReplaceOrderRequest struct {
 
 // CancelReplaceOrderResponse represents a response parameter for order cancellation and replacement operation.
 type CancelReplaceOrderResponse struct {
-	ID            string     `json:"id"`
-	ClientOrderID string     `json:"clientOrderId"`
-	Price         types.Time `json:"price"`
-	Quantity      types.Time `json:"quantity"`
-	Code          int64      `json:"code"`
-	Message       string     `json:"message"`
+	ID            string       `json:"id"`
+	ClientOrderID string       `json:"clientOrderId"`
+	Price         types.Number `json:"price"`
+	Quantity      types.Number `json:"quantity"`
+	Code          int64        `json:"code"`
+	Message       string       `json:"message"`
 }
 
 // OrdersHistoryRequest holds a orders history request parameters
@@ -666,8 +666,8 @@ type CancelReplaceSmartOrderRequest struct {
 type CancelReplaceSmartOrderResponse struct {
 	ID        string       `json:"id"`
 	StopPrice types.Number `json:"stopPrice"`
-	Price     types.Time   `json:"price"`
-	Quantity  types.Time   `json:"quantity"`
+	Price     types.Number `json:"price"`
+	Quantity  types.Number `json:"quantity"`
 	Code      int64        `json:"code"`
 	Message   string       `json:"message"`
 }

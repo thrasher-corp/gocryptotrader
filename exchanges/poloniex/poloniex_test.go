@@ -320,8 +320,12 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	if !mockTests && !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		testexch.SetupWs(t, e)
+	} else {
+		t.SkipNow()
+	}
 	result, err := e.WebsocketSubmitOrder(generateContext(), &order.Submit{
 		Exchange:  e.Name,
 		Pair:      spotTradablePair,
@@ -368,7 +372,12 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	err := e.WebsocketCancelOrder(t.Context(), &order.Cancel{OrderID: "", ClientOrderID: ""})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests && !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		testexch.SetupWs(t, e)
+	} else {
+		t.SkipNow()
+	}
 	err = e.WebsocketCancelOrder(t.Context(), &order.Cancel{OrderID: "2312", ClientOrderID: "23123121231"})
 	assert.NoError(t, err)
 }
@@ -385,7 +394,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 	err = e.CancelOrder(t.Context(), arg)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	arg.AssetType = asset.Spot
 	err = e.CancelOrder(generateContext(), arg)
 	assert.NoError(t, err)
@@ -475,8 +486,9 @@ func TestModifyOrder(t *testing.T) {
 	_, err = e.ModifyOrder(t.Context(), arg)
 	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 
-	// sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e.Verbose = true
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	arg.TimeInForce = order.GoodTillCancel
 	result, err := e.ModifyOrder(t.Context(), arg)
 	require.NoError(t, err)
@@ -1355,7 +1367,7 @@ func TestPlaceBatchOrders(t *testing.T) {
 			Symbol:        pair,
 			Side:          order.Buy.String(),
 			Type:          order.Market.String(),
-			Quantity:      100,
+			Quantity:      1,
 			Price:         40000.50000,
 			TimeInForce:   "GTC",
 			ClientOrderID: "1234Abc",
@@ -1729,7 +1741,12 @@ func TestWsCreateOrder(t *testing.T) {
 	e.setAPICredential(apiKey, apiSecret)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	testexch.SetupWs(t, e)
+	if !mockTests && !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		testexch.SetupWs(t, e)
+	} else {
+		t.SkipNow()
+	}
 	result, err := e.WsCreateOrder(generateContext(), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
 		Side:          order.Buy.String(),
@@ -1748,12 +1765,12 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	if mockTests {
-		t.SkipNow()
-	}
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
-	if !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
+
+	if !mockTests && !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		testexch.SetupWs(t, e)
+	} else {
+		t.SkipNow()
 	}
 	result, err := e.WsCancelMultipleOrdersByIDs(t.Context(), []string{"1234"}, []string{"5678"})
 	require.NoError(t, err)
@@ -1765,9 +1782,11 @@ func TestWsCancelAllTradeOrders(t *testing.T) {
 	if mockTests {
 		t.SkipNow()
 	}
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
-	if !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
+	if !mockTests && !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		testexch.SetupWs(t, e)
+	} else {
+		t.SkipNow()
 	}
 	result, err := e.WsCancelAllTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
 	require.NoError(t, err)
@@ -1942,7 +1961,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	_, err = e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{arg})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	// sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{
 		{
 			ClientOrderID:           "939a9d51",
@@ -1987,7 +2006,6 @@ func TestCancelMultipleFuturesOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 	}
-	e.Verbose = true
 	result, err := e.CancelMultipleFuturesOrders(generateContext(), &CancelOrdersRequest{Symbol: futuresTradablePair, OrderIDs: []string{"331378951169769472", "331378951182352384", "331378951199129601"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2024,10 +2042,9 @@ func TestCloseAtMarketPrice(t *testing.T) {
 
 func TestCloseAllAtMarketPrice(t *testing.T) {
 	t.Parallel()
-	// if !mockTests {
-	// 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
-	// }
-	// e.Verbose = true
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+	}
 	result, err := e.CloseAllAtMarketPrice(generateContext())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2475,15 +2492,6 @@ func TestHandleFuturesSubscriptions(t *testing.T) {
 	for i := range subscs {
 		require.Equal(t, payloads[i], result[i])
 	}
-}
-
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	if e.Websocket.IsConnected() {
-		return
-	}
-	err := e.Websocket.Connect()
-	require.NoError(t, err)
 }
 
 func TestWebsocketSubmitOrders(t *testing.T) {

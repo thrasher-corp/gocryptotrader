@@ -590,7 +590,9 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*Pla
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders", nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp.Code != 0 && resp.Code != 200 {
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	} else if resp.Code != 0 && resp.Code != 200 {
 		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
 	}
 	return resp, nil
@@ -631,7 +633,9 @@ func (e *Exchange) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrd
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPut, "/orders/"+arg.orderID, nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp.Code != 0 && resp.Code != 200 {
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	} else if resp.Code != 0 && resp.Code != 200 {
 		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
 	}
 	return resp, nil
@@ -683,7 +687,9 @@ func (e *Exchange) CancelOrderByID(ctx context.Context, id string) (*CancelOrder
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/"+id, nil, nil, &resp); err != nil {
 		return nil, err
 	}
-	if resp.Code != 0 && resp.Code != 200 {
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	} else if resp.Code != 0 && resp.Code != 200 {
 		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
 	}
 	return resp, nil
@@ -773,7 +779,9 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestR
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp.Code != 0 && resp.Code != 200 {
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	} else if resp.Code != 0 && resp.Code != 200 {
 		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
 	}
 	return resp, nil
@@ -800,7 +808,9 @@ func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPut, path, nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp.Code != 0 && resp.Code != 200 {
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	} else if resp.Code != 0 && resp.Code != 200 {
 		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
 	}
 	return resp, nil
@@ -836,7 +846,9 @@ func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedI
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodDelete, path, nil, nil, &resp); err != nil {
 		return nil, err
 	}
-	if resp.Code != 0 && resp.Code != 200 {
+	if resp == nil {
+		return nil, common.ErrNoResponse
+	} else if resp.Code != 0 && resp.Code != 200 {
 		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
 	}
 	return resp, nil
