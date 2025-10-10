@@ -111,10 +111,11 @@ func (a *Accounts) CurrencyBalances(creds *Credentials, assetType asset.Item) (C
 		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, asset.ErrNotSupported)
 	}
 
+	currs := CurrencyBalances{}
+
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	currs := CurrencyBalances{}
 	for credsKey, subAccountsForCreds := range a.subAccounts {
 		if !creds.IsEmpty() && *creds != credsKey {
 			continue
@@ -148,10 +149,11 @@ func (a *Accounts) SubAccounts(creds *Credentials, assetType asset.Item) (SubAcc
 		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, asset.ErrNotSupported)
 	}
 
+	var subAccts SubAccounts
+
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	var subAccts SubAccounts
 	for credsKey, subAccountsForCreds := range a.subAccounts {
 		if !creds.IsEmpty() && *creds != credsKey {
 			continue
@@ -233,10 +235,11 @@ func (a *Accounts) Save(ctx context.Context, subAccts SubAccounts, isSnapshot bo
 		return fmt.Errorf("%w: %w", errUpdatingBalance, errCredentialsEmpty)
 	}
 
+	var errs error
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	var errs error
 	for _, s := range subAccts {
 		if !s.AssetType.IsValid() {
 			errs = common.AppendError(errs, fmt.Errorf("error loading %s[%s] SubAccount holdings: %w", s.ID, s.AssetType, asset.ErrNotSupported))
