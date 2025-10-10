@@ -61,5 +61,5 @@ func (s *Store) GetExchangeAccounts(e exchange) (a *Accounts, err error) {
 		}
 		s.exchangeAccounts[e] = a
 	}
-	return a, err
+	return a, nil
 }
