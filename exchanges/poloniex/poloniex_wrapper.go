@@ -920,7 +920,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	if assetType == asset.Spot {
 		switch commonOrderType {
 		case order.Market, order.Limit, order.AnyType, order.UnknownType:
-			cancelledOrders, err := e.CancelOrdersByIDs(ctx, &CancelOrdersRequest{OrderIDs: orderIDs, ClientOrderIDs: clientOrderIDs})
+			cancelledOrders, err := e.CancelOrdersByIDs(ctx, orderIDs, clientOrderIDs)
 			if err != nil {
 				return nil, err
 			}

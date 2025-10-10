@@ -142,6 +142,9 @@ func (e *Exchange) CancelMultipleFuturesOrders(ctx context.Context, args *Cancel
 	if args.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	if len(args.OrderIDs) == 0 && len(args.ClientOrderIDs) == 0 {
+		return nil, order.ErrOrderIDNotSet
+	}
 	var resp []*FuturesOrderIDResponse
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, tradePathV3+"batchOrders", nil, args, &resp)
 	if err != nil {
@@ -215,7 +218,7 @@ func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol, marginMode, p
 // CloseAllAtMarketPrice close all orders at market price.
 func (e *Exchange) CloseAllAtMarketPrice(ctx context.Context) ([]*FuturesOrderIDResponse, error) {
 	var resp []*FuturesOrderIDResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"positionAll", nil, nil, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, tradePathV3+"positionAll", nil, nil, &resp)
 	if err != nil {
 		return nil, err
 	}

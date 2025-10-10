@@ -37,6 +37,7 @@ func TestMain(m *testing.M) {
 	if err = e.setEnabledPairs(spotTradablePair, futuresTradablePair); err != nil {
 		log.Fatal(err)
 	}
+	// e.HTTPRecording = true
 	os.Exit(m.Run())
 }
 

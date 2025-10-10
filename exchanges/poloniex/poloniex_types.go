@@ -534,8 +534,8 @@ type CancelReplaceOrderRequest struct {
 	Quantity          float64 `json:"quantity,omitempty,string"`
 	Amount            float64 `json:"amount,omitempty,string"`
 	AmendedType       string  `json:"type,omitempty,string"`
-	TimeInForce       string  `json:"timeInForce"`
-	AllowBorrow       bool    `json:"allowBorrow"`
+	TimeInForce       string  `json:"timeInForce,omitempty"`
+	AllowBorrow       bool    `json:"allowBorrow,omitempty"`
 	ProceedOnFailure  bool    `json:"proceedOnFailure,omitempty,string"`
 	SlippageTolerance float64 `json:"slippageTolerance,omitempty,string"`
 }
@@ -650,8 +650,9 @@ type SmartOrderRequestRequest struct {
 
 // CancelReplaceSmartOrderRequest represents a cancellation and order replacement request parameter for smart orders.
 type CancelReplaceSmartOrderRequest struct {
-	orderID          string  // orderID: will be used in request path.
-	ClientOrderID    string  `json:"clientOrderId"`
+	orderID          string  `json:"-"` // orderID: will be used in request path.
+	OldClientOrderID string  `json:"-"` // client order ID of the order to be replaced.
+	ClientOrderID    string  `json:"clientOrderId,omitempty"`
 	Price            float64 `json:"price,omitempty,string"`
 	StopPrice        float64 `json:"stopPrice,omitempty,string"`
 	Quantity         float64 `json:"quantity,omitempty,string"`

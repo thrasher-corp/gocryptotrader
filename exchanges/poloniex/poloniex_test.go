@@ -475,7 +475,8 @@ func TestModifyOrder(t *testing.T) {
 	_, err = e.ModifyOrder(t.Context(), arg)
 	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	// sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	e.Verbose = true
 	arg.TimeInForce = order.GoodTillCancel
 	result, err := e.ModifyOrder(t.Context(), arg)
 	require.NoError(t, err)
@@ -1400,7 +1401,6 @@ func TestCancelReplaceOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-
 	result, err := e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderRequest{
 		orderID:       "29772698821328896",
 		ClientOrderID: "1234Abc",
@@ -1450,13 +1450,13 @@ func TestCancelOrderByID(t *testing.T) {
 
 func TestCancelMultipleOrdersByIDs(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelOrdersByIDs(t.Context(), &CancelOrdersRequest{})
+	_, err := e.CancelOrdersByIDs(t.Context(), nil, nil)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelOrdersByIDs(t.Context(), &CancelOrdersRequest{OrderIDs: []string{"1234"}, ClientOrderIDs: []string{"5678"}})
+	result, err := e.CancelOrdersByIDs(t.Context(), []string{"1234"}, []string{"5678"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1511,7 +1511,9 @@ func TestCreateSmartOrder(t *testing.T) {
 	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	result, err := e.CreateSmartOrder(generateContext(), &SmartOrderRequestRequest{
 		Symbol:        spotTradablePair,
 		Type:          "STOP_LIMIT",
@@ -1523,7 +1525,7 @@ func TestCreateSmartOrder(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equalf(t, 0, result.Code, "CreateSmartOrder error with code: %d message: %s", result.Code, result.Message)
+	assert.Equalf(t, int64(200), result.Code, "CreateSmartOrder error with code: %d message: %s", result.Code, result.Message)
 }
 
 func TestCancelReplaceSmartOrder(t *testing.T) {
@@ -1531,7 +1533,9 @@ func TestCancelReplaceSmartOrder(t *testing.T) {
 	_, err := e.CancelReplaceSmartOrder(t.Context(), &CancelReplaceSmartOrderRequest{Price: 18000})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	result, err := e.CancelReplaceSmartOrder(t.Context(), &CancelReplaceSmartOrderRequest{
 		orderID:       "29772698821328896",
 		ClientOrderID: "1234Abc",
@@ -1568,7 +1572,9 @@ func TestCancelSmartOrderByID(t *testing.T) {
 	_, err := e.CancelSmartOrderByID(t.Context(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	result, err := e.CancelSmartOrderByID(t.Context(), "123313413", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1581,7 +1587,9 @@ func TestCancelMultipleSmartOrders(t *testing.T) {
 	_, err = e.CancelMultipleSmartOrders(t.Context(), &CancelOrdersRequest{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	result, err := e.CancelMultipleSmartOrders(t.Context(), &CancelOrdersRequest{OrderIDs: []string{"1234"}, ClientOrderIDs: []string{"5678"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1934,7 +1942,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	_, err = e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{arg})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	// sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{
 		{
 			ClientOrderID:           "939a9d51",
@@ -1973,11 +1981,14 @@ func TestCancelMultipleFuturesOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelMultipleFuturesOrders(t.Context(), &CancelOrdersRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = e.CancelMultipleFuturesOrders(t.Context(), &CancelOrdersRequest{Symbol: futuresTradablePair})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelMultipleFuturesOrders(generateContext(), &CancelOrdersRequest{Symbol: futuresTradablePair})
+	e.Verbose = true
+	result, err := e.CancelMultipleFuturesOrders(generateContext(), &CancelOrdersRequest{Symbol: futuresTradablePair, OrderIDs: []string{"331378951169769472", "331378951182352384", "331378951199129601"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2013,9 +2024,10 @@ func TestCloseAtMarketPrice(t *testing.T) {
 
 func TestCloseAllAtMarketPrice(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
-	}
+	// if !mockTests {
+	// 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+	// }
+	// e.Verbose = true
 	result, err := e.CloseAllAtMarketPrice(generateContext())
 	require.NoError(t, err)
 	assert.NotNil(t, result)

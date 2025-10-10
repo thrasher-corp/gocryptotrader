@@ -690,12 +690,19 @@ func (e *Exchange) CancelOrderByID(ctx context.Context, id string) (*CancelOrder
 }
 
 // CancelOrdersByIDs cancels multiple orders
-func (e *Exchange) CancelOrdersByIDs(ctx context.Context, args *CancelOrdersRequest) ([]*CancelOrderResponse, error) {
-	if len(args.ClientOrderIDs) == 0 && len(args.OrderIDs) == 0 {
+func (e *Exchange) CancelOrdersByIDs(ctx context.Context, orderIDs, clientOrderIDs []string) ([]*CancelOrderResponse, error) {
+	if len(orderIDs) == 0 && len(clientOrderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
 	}
+	params := make(map[string]any)
+	if len(orderIDs) > 0 {
+		params["orderIds"] = orderIDs
+	}
+	if len(clientOrderIDs) > 0 {
+		params["clientOrderIds"] = clientOrderIDs
+	}
 	var resp []*CancelOrderResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/cancelByIds", nil, args, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/cancelByIds", nil, params, &resp)
 	if err != nil {
 		return nil, err
 	}
