@@ -385,6 +385,7 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 			}); err != nil {
 				return err
 			}
+			continue
 		}
 
 		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
@@ -507,7 +508,7 @@ func (e *Exchange) handleSubscription(operation string, s *subscription.Subscrip
 
 	switch s.Channel {
 	case channelBooks:
-		sp.Depth = s.Levels
+		sp.Depth = int64(s.Levels)
 	case channelCurrencies:
 		for _, p := range s.Pairs {
 			if !slices.Contains(sp.Currencies, p.Base.String()) {
@@ -541,16 +542,22 @@ func channelName(s *subscription.Subscription) string {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	subs, errs := subs.ExpandTemplates(e)
-	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+	subs, err := subs.ExpandTemplates(e)
+	if err != nil {
+		return err
+	}
+	return common.AppendError(err, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
 		return e.manageSubs(ctx, conn, "subscribe", l)
 	}, 1))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	subs, errs := subs.ExpandTemplates(e)
-	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+	subs, err := subs.ExpandTemplates(e)
+	if err != nil {
+		return err
+	}
+	return common.AppendError(err, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
 		return e.manageSubs(ctx, conn, "unsubscribe", l)
 	}, 1))
 }

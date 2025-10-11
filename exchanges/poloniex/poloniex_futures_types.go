@@ -350,6 +350,9 @@ type ProductInfo struct {
 	TickSize              types.Number `json:"tSz"`
 	TradableStartTime     types.Time   `json:"tradableStartTime"`
 	VisibleStartTime      types.Time   `json:"visibleStartTime"`
+	OrderPriceRange       types.Number `json:"ordPxRange"`
+	MarketMaxQty          types.Number `json:"marketMaxQty"`
+	LimitMaxQty           types.Number `json:"limitMaxQty"`
 }
 
 // FuturesFundingRate represents symbols funding rate information

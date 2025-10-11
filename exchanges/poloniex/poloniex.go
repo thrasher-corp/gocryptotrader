@@ -720,7 +720,7 @@ func (e *Exchange) CancelOrdersByIDs(ctx context.Context, orderIDs, clientOrderI
 	return resp, err
 }
 
-// CancelAllTradeOrders batch cancel all orders in an account.
+// CancelAllTradeOrders batch cancel all orders in an account
 func (e *Exchange) CancelAllTradeOrders(ctx context.Context, symbols, accountTypes []string) ([]*CancelOrderResponse, error) {
 	args := make(map[string][]string)
 	if len(symbols) != 0 {
@@ -1106,7 +1106,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			HTTPDebugging: e.HTTPDebugging,
 			HTTPRecording: e.HTTPRecording,
 		}
-		if method != http.MethodGet && len(bodyPayload) > 0 {
+		if method != http.MethodGet && len(bodyPayload) > 0 && string(bodyPayload) != "{}" {
 			req.Body = bytes.NewBuffer(bodyPayload)
 		}
 		return req, nil

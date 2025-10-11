@@ -1430,7 +1430,7 @@ func TestGetOpenOrders(t *testing.T) {
 	_, err := e.GetOpenOrders(generateContext(), spotTradablePair, "", "NEXT", "", 10)
 	require.NoError(t, err)
 
-	_, err = e.GetOpenOrders(generateContext(), spotTradablePair, "SELL", "NEXT", "ABCDEF", 10)
+	_, err = e.GetOpenOrders(generateContext(), spotTradablePair, "SELL", "NEXT", "24993088082542592", 10)
 	require.NoError(t, err)
 }
 
@@ -1658,7 +1658,6 @@ func TestGetTradeOrderID(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	e.Features.Subscriptions = defaultSubscriptions
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err)
 	exp := []string{"candles_minute_5", "trades", "ticker", "book_lv2"}
@@ -1679,7 +1678,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestHandleSubscription(t *testing.T) {
 	t.Parallel()
-	e.Features.Subscriptions = defaultSubscriptions
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)

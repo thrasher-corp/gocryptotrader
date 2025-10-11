@@ -743,7 +743,7 @@ type SubscriptionPayload struct {
 	Channel    []string       `json:"channel"`
 	Symbols    []string       `json:"symbols,omitempty"`
 	Currencies []string       `json:"currencies,omitempty"`
-	Depth      int            `json:"depth,omitempty"`
+	Depth      int64          `json:"depth,omitempty"`
 	Params     map[string]any `json:"params,omitempty"`
 }
 

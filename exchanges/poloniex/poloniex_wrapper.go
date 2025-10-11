@@ -388,28 +388,28 @@ func orderbookLevelFromSlice(data []types.Number) orderbook.Levels {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
-	if pair.IsEmpty() {
+func (e *Exchange) UpdateOrderbook(ctx context.Context, fPair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+	if fPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
 	var err error
-	pair, err = e.FormatExchangeCurrency(pair, assetType)
+	fPair, err = e.FormatExchangeCurrency(fPair, assetType)
 	if err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
 		Exchange:          e.Name,
-		Pair:              pair,
+		Pair:              fPair,
 		Asset:             assetType,
 		ValidateOrderbook: e.ValidateOrderbook,
 	}
 	switch assetType {
 	case asset.Spot:
 		var orderbookNew *OrderbookData
-		orderbookNew, err = e.GetOrderbook(ctx, pair, 0, 150)
+		orderbookNew, err = e.GetOrderbook(ctx, fPair, 0, 150)
 		if err != nil {
 			return nil, err
 		}
@@ -417,7 +417,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		book.Asks = orderbookLevelFromSlice(orderbookNew.Asks)
 	case asset.Futures:
 		var orderbookNew *FuturesOrderbook
-		orderbookNew, err = e.GetFuturesOrderBook(ctx, pair.String(), 0, 150)
+		orderbookNew, err = e.GetFuturesOrderBook(ctx, fPair.String(), 0, 150)
 		if err != nil {
 			return nil, err
 		}
@@ -429,7 +429,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if err := book.Process(); err != nil {
 		return book, err
 	}
-	return orderbook.Get(e.Name, pair, assetType)
+	return orderbook.Get(e.Name, fPair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
@@ -1942,7 +1942,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			MaximumBaseAmount:       instruments[x].MaxQuantity.Float64(),
 			MinimumQuoteAmount:      instruments[x].MinSize.Float64(),
 			MarketMinQty:            instruments[x].MinQuantity.Float64(),
-			MarketMaxQty:            instruments[x].MaxQuantity.Float64(),
+			MarketMaxQty:            instruments[x].MarketMaxQty.Float64(),
 		}
 	}
 	return limits.Load(l)
