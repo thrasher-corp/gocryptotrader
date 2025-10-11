@@ -46,6 +46,9 @@ func TestGetExchangeAccounts(t *testing.T) {
 	got, err = s.GetExchangeAccounts(w)
 	require.NoError(t, err)
 	assert.NotNil(t, got)
+
+	_, err = s.GetExchangeAccounts(nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly on nil exchange")
 }
 
 type mockEx struct {
