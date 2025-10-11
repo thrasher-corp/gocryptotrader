@@ -23,8 +23,17 @@ func TestGlobalDispatcher(t *testing.T) {
 	assert.True(t, IsRunning(), "IsRunning should return true")
 
 	err = Stop()
-	assert.NoError(t, err, "Stop should not error")
+	require.NoError(t, err, "Stop must not error")
 	assert.False(t, IsRunning(), "IsRunning should return false")
+
+	err = EnsureRunning(0, 0)
+	require.NoError(t, err, "EnsureRunning must not error when starting")
+	assert.True(t, IsRunning(), "IsRunning should return true after EnsureRunning")
+
+	err = EnsureRunning(0, 0)
+	require.NoError(t, err, "EnsureRunning must not error when called twice")
+
+	assert.NoError(t, Stop(), "Stop should not error")
 }
 
 func TestStartStop(t *testing.T) {
