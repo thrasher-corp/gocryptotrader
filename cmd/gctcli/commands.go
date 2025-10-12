@@ -582,12 +582,14 @@ var getAccountBalancesCommand = &cli.Command{
 	Action:    getAccountBalances,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to get the account balances for",
+			Name:     "exchange",
+			Usage:    "the exchange to get the account balances for",
+			Required: true,
 		},
 		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type to get the account balances for",
+			Name:     "asset",
+			Usage:    "the asset type to get the account balances for",
+			Required: true,
 		},
 	},
 }
