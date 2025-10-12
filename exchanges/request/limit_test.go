@@ -238,7 +238,7 @@ func TestCancelAll(t *testing.T) {
 	reservations = append(reservations, r.ReserveN(tn, 1))
 	require.Equal(t, 0.0, r.TokensAt(tn), "must have zero tokens remaining")
 	reservations = append(reservations, r.ReserveN(tn, 1))
-	require.Equal(t, reservations[1].DelayFrom(tn), time.Second, "second reservation must have 1 second delay")
+	require.Equal(t, time.Second, reservations[1].DelayFrom(tn), "second reservation must have 1 second delay")
 	require.Equal(t, -1.0, r.TokensAt(tn), "must have negative tokens remaining")
 	cancelAll(reservations, tn)
 	require.Equal(t, 1.0, r.TokensAt(tn), "must have 1 token remaining after cancellation")
