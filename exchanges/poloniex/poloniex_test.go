@@ -1664,7 +1664,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	exp := []string{"candles_minute_5", "trades", "ticker", "book_lv2"}
 
 	creds, err := e.GetCredentials(t.Context())
-	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) { //nolint:govet // intentional error comparison
+	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
 		require.NoError(t, err)
 		if !creds.IsEmpty() {
 			exp = append(exp, "orders", "balances")
