@@ -146,9 +146,11 @@ func (e *Exchange) SetDefaults() {
 	}
 	e.API.Endpoints = e.NewEndpoints()
 	if err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:         poloniexAPIURL,
-		exchange.WebsocketSpot:    websocketURL,
-		exchange.WebsocketPrivate: privateWebsocketURL,
+		exchange.RestSpot:                apiURL,
+		exchange.WebsocketSpot:           websocketURL,
+		exchange.WebsocketPrivate:        privateWebsocketURL,
+		exchange.WebsocketFutures:        futuresWebsocketPublicURL,
+		exchange.WebsocketFuturesPrivate: futuresWebsocketPrivateURL,
 	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -222,10 +224,13 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}); err != nil {
 		return err
 	}
-
+	wsFutures, err := e.API.Endpoints.GetURL(exchange.WebsocketFutures)
+	if err != nil {
+		return err
+	}
 	// Futures Public Connection
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  futuresWebsocketPublicURL,
+		URL:                  wsFutures,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler:              e.wsFuturesHandleData,
@@ -240,9 +245,13 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	wsFuturesPrivate, err := e.API.Endpoints.GetURL(exchange.WebsocketFuturesPrivate)
+	if err != nil {
+		return err
+	}
 	// Futures Private Connection
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  futuresWebsocketPrivateURL,
+		URL:                  wsFuturesPrivate,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler:              e.wsFuturesHandleData,
@@ -721,7 +730,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		arg := &PlaceOrderRequest{
+		var response *PlaceOrderResponse
+		response, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
 			Symbol:        s.Pair,
 			Price:         s.Price,
 			Amount:        s.Amount,
@@ -730,9 +740,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Side:          s.Side.String(),
 			TimeInForce:   tif,
 			ClientOrderID: s.ClientOrderID,
-		}
-		var response *PlaceOrderResponse
-		response, err = e.PlaceOrder(ctx, arg)
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -1957,10 +1965,10 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	switch a {
 	case asset.Spot:
 		cp.Delimiter = currency.UnderscoreDelimiter
-		return poloniexAPIURL + tradeSpotPath + cp.Upper().String(), nil
+		return apiURL + tradeSpotPath + cp.Upper().String(), nil
 	case asset.Futures:
 		cp.Delimiter = ""
-		return poloniexAPIURL + tradeFuturesPath + cp.Upper().String(), nil
+		return apiURL + tradeFuturesPath + cp.Upper().String(), nil
 	default:
 		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}

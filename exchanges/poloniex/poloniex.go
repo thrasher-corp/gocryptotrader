@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	poloniexAPIURL   = "https://api.poloniex.com"
+	apiURL           = "https://api.poloniex.com"
 	tradeSpotPath    = "/trade/"
 	tradeFuturesPath = "/futures" + tradeSpotPath
 	marketsPath      = "/markets/"
@@ -481,9 +481,9 @@ func (e *Exchange) NewCurrencyDepositAddress(ctx context.Context, ccy currency.C
 	if ccy.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
-	resp := &struct {
+	var resp struct {
 		Address string `json:"address"`
-	}{}
+	}
 	return resp.Address, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/wallets/address", nil, map[string]string{"currency": ccy.String()}, &resp)
 }
 

@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -428,7 +429,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	arg := &order.Cancel{
 		OrderID:   "1",
@@ -1663,10 +1664,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 	exp := []string{"candles_minute_5", "trades", "ticker", "book_lv2"}
 
 	creds, err := e.GetCredentials(t.Context())
-	require.NoError(t, err)
-
-	if !creds.IsEmpty() {
-		exp = append(exp, "orders", "balances")
+	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
+		require.NoError(t, err)
+		if !creds.IsEmpty() {
+			exp = append(exp, "orders", "balances")
+		}
 	}
 
 	got := make([]string, len(subs))
@@ -2002,7 +2004,7 @@ func TestCancelMultipleFuturesOrders(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	result, err := e.CancelMultipleFuturesOrders(generateContext(), &CancelOrdersRequest{Symbol: futuresTradablePair, OrderIDs: []string{"331378951169769472", "331378951182352384", "331378951199129601"}})
 	require.NoError(t, err)
@@ -2015,7 +2017,7 @@ func TestCancelAllFuturesOrders(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	result, err := e.CancelAllFuturesOrders(generateContext(), futuresTradablePair.String(), "BUY")
 	require.NoError(t, err)
@@ -2032,7 +2034,7 @@ func TestCloseAtMarketPrice(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
 
 	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	_, err = e.CloseAtMarketPrice(generateContext(), futuresTradablePair.String(), "CROSS", "", "123123")
 	require.NoError(t, err)
@@ -2041,7 +2043,7 @@ func TestCloseAtMarketPrice(t *testing.T) {
 func TestCloseAllAtMarketPrice(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	result, err := e.CloseAllAtMarketPrice(generateContext())
 	require.NoError(t, err)

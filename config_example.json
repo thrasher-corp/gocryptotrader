@@ -2325,8 +2325,8 @@
     "authenticatedSupport": false,
     "authenticatedWebsocketApiSupport": false,
     "credentials": {
-     "key": "Key",
-     "secret": "Secret"
+     "key": "",
+     "secret": ""
     },
     "credentialsValidator": {
      "requiresKey": true,
@@ -2335,7 +2335,9 @@
     "urlEndpoints": {
      "RestSpotURL": "https://api.poloniex.com",
      "WebsocketPrivateURL": "wss://ws.poloniex.com/ws/private",
-     "WebsocketSpotURL": "wss://ws.poloniex.com/ws/public"
+     "WebsocketSpotURL": "wss://ws.poloniex.com/ws/public",
+     "WebsocketFuturesURL": "wss://ws.poloniex.com/ws/v3/public",
+     "WebsocketFuturesPrivateURL": "wss://ws.poloniex.com/ws/v3/private"
     }
    },
    "features": {
