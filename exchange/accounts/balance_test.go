@@ -30,6 +30,8 @@ func TestCurrencyBalancesAdd(t *testing.T) {
 	t.Parallel()
 
 	c := CurrencyBalances{}
+	assert.ErrorIs(t, c.Add(currency.EMPTYCODE, Balance{}), currency.ErrCurrencyCodeEmpty)
+
 	err := c.Add(currency.BTC, Balance{Total: 4.2})
 	require.NoError(t, err)
 

@@ -58,6 +58,9 @@ func (c *CurrencyBalances) Set(curr currency.Code, b Balance) {
 
 // Add will add to a currency balance
 func (c *CurrencyBalances) Add(curr currency.Code, b Balance) error { //nolint:gocritic // hugeparam not relevant; we want to store a value so we'd deref anyway
+	if curr == currency.EMPTYCODE {
+		return currency.ErrCurrencyCodeEmpty
+	}
 	if b.Currency != currency.EMPTYCODE && !b.Currency.Equal(curr) {
 		return fmt.Errorf("%w: %q != %q", errBalanceCurrencyMismatch, b.Currency, curr)
 	}
