@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -49,6 +51,7 @@ type RateLimitDefinitions map[any]*RateLimiterWithWeight
 type RateLimiterWithWeight struct {
 	limiter *rate.Limiter
 	weight  Weight
+	m       sync.Mutex
 }
 
 // NewRateLimit creates a new RateLimit based of time interval and how many
@@ -134,37 +137,47 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 		return errInvalidWeightCount
 	}
 
+	r.m.Lock()
 	tn := time.Now()
-	var reserved *rate.Reservation
+	reserved := make([]*rate.Reservation, 0, r.weight)
 	for range r.weight {
-		// Consume 1 weight at a time as this avoids needing burst capacity in the limiter, which would otherwise allow
-		// the rate limit to be exceeded over short periods
-		reserved = r.limiter.ReserveN(tn, 1)
+		// This avoids needing burst capacity in the limiter, which would otherwise allow the rate limit to be exceeded over short periods
+		reserved = append(reserved, r.limiter.ReserveN(tn, 1))
 	}
+	finalDelay := reserved[len(reserved)-1].DelayFrom(tn)
 
-	finalDelay := reserved.DelayFrom(tn)
 	if finalDelay == 0 {
+		r.m.Unlock()
 		return nil
 	}
 
 	if hasNoDelayPermitted(ctx) {
-		reserved.CancelAt(tn.Add(finalDelay))
+		cancelAll(reserved, tn)
+		r.m.Unlock()
 		return ErrNoDelayPermitted
 	}
 
-	if dl, ok := ctx.Deadline(); ok {
-		if dl.Before(tn.Add(finalDelay)) {
-			reserved.CancelAt(tn.Add(finalDelay))
-			return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", finalDelay, context.DeadlineExceeded)
-		}
+	if dl, ok := ctx.Deadline(); ok && dl.Before(tn.Add(finalDelay)) {
+		cancelAll(reserved, tn)
+		r.m.Unlock()
+		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", finalDelay, context.DeadlineExceeded)
 	}
+	r.m.Unlock()
 
 	select {
 	case <-ctx.Done():
-		reserved.CancelAt(tn.Add(finalDelay))
 		return ctx.Err()
 	case <-time.After(finalDelay):
 		return nil
+	}
+}
+
+// cancelAll cancels all reservations at a specific time, this must be called in a lock with reservations so that
+// correct reimbursement takes place due to concurrency.
+func cancelAll(reservations []*rate.Reservation, at time.Time) {
+	slices.Reverse(reservations) // cancel in reverse order for correct token reimbursement
+	for _, r := range reservations {
+		r.CancelAt(at)
 	}
 }
 

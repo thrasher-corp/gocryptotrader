@@ -75,6 +75,80 @@ func TestRateLimit(t *testing.T) {
 	assert.NoError(t, routineErr, "routine should complete successfully will providing friction for above context deadline exceeded")
 }
 
+func TestRateLimit_Concurrent_WithFailure(t *testing.T) {
+	t.Parallel()
+
+	r := NewRateLimitWithWeight(time.Second, 10, 1)
+	tn := time.Now()
+	var wg sync.WaitGroup
+	errs := make(chan error, 10)
+	for i := range 10 {
+		ctx := t.Context()
+		if i%2 == 0 {
+			ctx = WithNoDelayPermitted(ctx)
+		}
+		wg.Go(func() { errs <- r.RateLimit(ctx) })
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			require.ErrorIs(t, err, ErrNoDelayPermitted, "must return correct error")
+		}
+	}
+	assert.Less(t, time.Since(tn), time.Millisecond*600, "should complete within reasonable time")
+}
+
+func TestRateLimit_Concurrent(t *testing.T) {
+	t.Parallel()
+
+	r := NewRateLimitWithWeight(time.Second, 10, 1)
+	tn := time.Now()
+	var wg sync.WaitGroup
+	errs := make(chan error, 10)
+	for range 10 {
+		wg.Go(func() { errs <- r.RateLimit(t.Context()) })
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err, "rate limit must not error")
+	}
+	assert.Less(t, time.Since(tn), time.Second, "should complete within reasonable time")
+}
+
+func TestRateLimit_Linear_WithFailure(t *testing.T) {
+	t.Parallel()
+
+	r := NewRateLimitWithWeight(time.Second, 10, 1)
+	tn := time.Now()
+	var wg sync.WaitGroup
+	for i := range 10 {
+		ctx := t.Context()
+		if i%2 == 0 {
+			ctx = WithNoDelayPermitted(ctx)
+		}
+		if err := r.RateLimit(ctx); err != nil {
+			require.ErrorIs(t, err, ErrNoDelayPermitted, "must return correct error")
+		}
+	}
+	wg.Wait()
+	assert.Less(t, time.Since(tn), time.Millisecond*600, "should complete within reasonable time")
+}
+
+func TestRateLimit_Linear(t *testing.T) {
+	t.Parallel()
+
+	r := NewRateLimitWithWeight(time.Second, 10, 1)
+	tn := time.Now()
+	var wg sync.WaitGroup
+	for range 10 {
+		require.NoError(t, r.RateLimit(t.Context()))
+	}
+	wg.Wait()
+	assert.Less(t, time.Since(tn), time.Second, "should complete within reasonable time")
+}
+
 func TestNewRateLimit(t *testing.T) {
 	t.Parallel()
 
@@ -151,4 +225,21 @@ func TestWithNoDelayPermitted(t *testing.T) {
 	assert.True(t, hasNoDelayPermitted(WithNoDelayPermitted(t.Context())))
 	assert.False(t, hasNoDelayPermitted(t.Context()))
 	assert.False(t, hasNoDelayPermitted(WithVerbose(t.Context())))
+}
+
+func TestCancelAll(t *testing.T) {
+	t.Parallel()
+
+	var reservations []*rate.Reservation
+	cancelAll(reservations, time.Now())
+
+	r := rate.NewLimiter(rate.Limit(1), 1)
+	tn := time.Now()
+	reservations = append(reservations, r.ReserveN(tn, 1))
+	require.Equal(t, 0.0, r.TokensAt(tn), "must have zero tokens remaining")
+	reservations = append(reservations, r.ReserveN(tn, 1))
+	require.Equal(t, reservations[1].DelayFrom(tn), time.Second, "second reservation must have 1 second delay")
+	require.Equal(t, -1.0, r.TokensAt(tn), "must have negative tokens remaining")
+	cancelAll(reservations, tn)
+	require.Equal(t, 1.0, r.TokensAt(tn), "must have 1 token remaining after cancellation")
 }
