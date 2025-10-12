@@ -408,7 +408,7 @@ func TestGetAccountFees(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 func TestGetWithdrawalFee(t *testing.T) {
