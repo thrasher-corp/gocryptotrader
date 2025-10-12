@@ -125,7 +125,7 @@ func TestGetAccountByID(t *testing.T) {
 	require.True(t, longResp != nil && len(longResp.Accounts) > 0, errExpectedNonEmpty)
 	shortResp, err := e.GetAccountByID(t.Context(), longResp.Accounts[0].UUID)
 	require.NoError(t, err)
-	require.Equal(t, shortResp, longResp.Accounts[0])
+	assert.Equal(t, shortResp, longResp.Accounts[0])
 }
 
 func TestListAccounts(t *testing.T) {
