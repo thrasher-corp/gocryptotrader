@@ -28,6 +28,7 @@ func TestMatchReturnResponses(t *testing.T) {
 	require.True(t, conn.Match.IncomingWithData(nil, exp))
 	resp := <-ch
 	require.NoError(t, resp.Err)
+	require.NotEmpty(t, resp.Responses, "must have response data")
 	assert.Equal(t, exp, resp.Responses[0])
 }
 
