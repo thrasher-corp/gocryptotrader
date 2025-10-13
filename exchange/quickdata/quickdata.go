@@ -144,6 +144,11 @@ func NewQuickestData(ctx context.Context, k *key.ExchangeAssetPair, focus FocusT
 	return fd.Stream, nil
 }
 
+// Exchange returns the underlying exchange instance
+func (q *QuickData) Exchange() exchange.IBotExchange {
+	return q.exch
+}
+
 // Run starts all routines to gather data based on the focuses provided
 // imbue context with credentials to utilise private endpoints
 func (q *QuickData) Run(ctx context.Context) error {

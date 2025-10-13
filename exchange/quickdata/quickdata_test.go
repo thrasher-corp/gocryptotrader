@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -555,4 +556,12 @@ func TestHandleWS(t *testing.T) {
 		return errors.Is(qs.handleWS(ctx), context.Canceled)
 	}
 	assert.Eventually(t, ts, time.Second*2, time.Millisecond*100, "expected cancellation within 2 seconds")
+}
+
+func TestExchange(t *testing.T) {
+	t.Parallel()
+	qs := mustQuickData(t, TickerFocusType)
+	e := qs.Exchange()
+	assert.Equal(t, exchangeName, strings.ToLower(e.GetName()))
+	assert.Equal(t, qs.exch, e)
 }
