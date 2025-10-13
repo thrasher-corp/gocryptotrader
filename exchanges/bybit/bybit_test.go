@@ -793,11 +793,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 					pair := l.Key.Pair()
 					require.True(t, pair.Equal(p), "Pair must be equal to input")
+					require.Greater(t, len(pair.String()), 3, "pair string length must be > 3 to check for 1xxx rule")
 					require.Equal(t, e.Name, l.Key.Exchange, "Exchange must be equal to input")
 					require.Equal(t, a, l.Key.Asset, "Asset must be equal to input")
 
 					assert.Positive(t, l.PriceDivisor, "PriceDivisor should be positive")
-					require.Greater(t, len(pair.String()), 3, "pair string length must be > 3 to check for 1xxx rule")
 					if pair.String()[:2] == "10" {
 						assert.Greater(t, l.PriceDivisor, 1.0, "PriceDivisor for 1xxx pairs should be > 1.0")
 					}
