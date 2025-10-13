@@ -273,9 +273,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		return e.processData(respRaw, platformState)
 	case "quote": // Quote ticker information.
 		return e.processQuoteTicker(respRaw, channels)
-	case "rfq":
-		rfq := &wsRequestForQuote{}
-		return e.processData(respRaw, rfq)
 	case "ticker":
 		return e.processInstrumentTicker(respRaw, channels)
 	case "trades":
