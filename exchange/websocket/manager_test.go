@@ -213,7 +213,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	checkToRoutineResult := func(t *testing.T) {
 		t.Helper()
-		v, ok := <-ws.DataHandler.Read()
+		v, ok := <-ws.DataHandler.C
 		require.True(t, ok, "ToRoutine must not be closed on us")
 		switch err := v.Data.(type) {
 		case *gws.CloseError:
@@ -1231,7 +1231,7 @@ func TestMonitorConnection(t *testing.T) {
 	ws.ReadMessageErrors <- errConnectionFault
 	timer = time.NewTimer(time.Second)
 	require.False(t, ws.observeConnection(t.Context(), timer))
-	payload := <-ws.DataHandler.Read()
+	payload := <-ws.DataHandler.C
 	err, ok := payload.Data.(error)
 	require.True(t, ok)
 	require.ErrorIs(t, err, errConnectionFault)

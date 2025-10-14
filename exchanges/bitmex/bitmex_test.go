@@ -731,7 +731,7 @@ func TestWsAuth(t *testing.T) {
 	require.NoError(t, err)
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
-	case resp := <-e.Websocket.DataHandler.Read():
+	case resp := <-e.Websocket.DataHandler.C:
 		sub, ok := resp.Data.(WebsocketSubscribeResp)
 		if !ok {
 			t.Fatal("unable to type assert WebsocketSubscribeResp")

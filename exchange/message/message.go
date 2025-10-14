@@ -10,6 +10,7 @@ var errChannelBufferFull = errors.New("channel buffer is full")
 
 // Relay defines a channel relay for messages
 type Relay struct {
+	C    <-chan Payload
 	comm chan Payload
 }
 
@@ -24,7 +25,8 @@ func NewRelay(buffer uint) *Relay {
 	if buffer == 0 {
 		panic("buffer size must be greater than 0")
 	}
-	return &Relay{comm: make(chan Payload, buffer)}
+	comm := make(chan Payload, buffer)
+	return &Relay{comm: comm, C: comm}
 }
 
 // Send sends a message to the channel receiver
@@ -36,11 +38,6 @@ func (r *Relay) Send(ctx context.Context, data any) error {
 	default:
 		return fmt.Errorf("%w: failed to relay <%T>", errChannelBufferFull, data)
 	}
-}
-
-// Read returns the channel to receive messages
-func (r *Relay) Read() <-chan Payload {
-	return r.comm
 }
 
 // Close closes the relay channel

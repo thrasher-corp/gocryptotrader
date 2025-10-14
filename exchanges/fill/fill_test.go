@@ -31,7 +31,7 @@ func TestUpdateDisabledFeed(t *testing.T) {
 	assert.ErrorIs(t, fill.Update(testData), ErrFeedDisabled)
 
 	select {
-	case <-fill.dataHandler.Read():
+	case <-fill.dataHandler.C:
 		t.Errorf("Expected no data on channel, got data")
 	default:
 		// nothing to do
@@ -47,7 +47,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	select {
-	case data := <-fill.dataHandler.Read():
+	case data := <-fill.dataHandler.C:
 		dataSlice, ok := data.Data.([]Data)
 		if !ok {
 			t.Errorf("expected []Data, got %T", data)
@@ -69,7 +69,7 @@ func TestUpdateNoData(t *testing.T) {
 	}
 
 	select {
-	case <-fill.dataHandler.Read():
+	case <-fill.dataHandler.C:
 		t.Errorf("Expected no data on channel, got data")
 	default:
 		// pass, nothing to do
@@ -86,7 +86,7 @@ func TestUpdateMultipleData(t *testing.T) {
 	}
 
 	select {
-	case data := <-fill.dataHandler.Read():
+	case data := <-fill.dataHandler.C:
 		dataSlice, ok := data.Data.([]Data)
 		if !ok {
 			t.Errorf("expected []Data, got %T", data)

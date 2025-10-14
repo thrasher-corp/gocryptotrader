@@ -763,11 +763,11 @@ func TestWSProcessTrades(t *testing.T) {
 			AssetType:    a,
 		},
 	}
-	require.Len(t, e.Websocket.DataHandler.Read(), len(exp), "Must see the correct number of trades")
-	for resp := range e.Websocket.DataHandler.Read() {
+	require.Len(t, e.Websocket.DataHandler.C, len(exp), "Must see the correct number of trades")
+	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case trade.Data:
-			i := 1 - len(e.Websocket.DataHandler.Read())
+			i := 1 - len(e.Websocket.DataHandler.C)
 			require.Equalf(t, exp[i], v, "Trade [%d] must be correct", i)
 		case error:
 			t.Error(v)

@@ -1529,7 +1529,7 @@ func TestWsAuth(t *testing.T) {
 	assert.NoError(t, err)
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
-	case badResponse := <-e.Websocket.DataHandler.Read():
+	case badResponse := <-e.Websocket.DataHandler.C:
 		assert.IsType(t, []order.Detail{}, badResponse)
 	case <-timer.C:
 	}
@@ -1544,7 +1544,7 @@ func TestWsHandleData(t *testing.T) {
 	go func() {
 		for {
 			select {
-			case <-e.Websocket.DataHandler.Read():
+			case <-e.Websocket.DataHandler.C:
 				continue
 			case <-done:
 				return

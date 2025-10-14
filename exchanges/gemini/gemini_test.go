@@ -566,7 +566,7 @@ func TestWsAuth(t *testing.T) {
 	}
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
-	case resp := <-e.Websocket.DataHandler.Read():
+	case resp := <-e.Websocket.DataHandler.C:
 		subAck, ok := resp.Data.(WsSubscriptionAcknowledgementResponse)
 		if !ok {
 			t.Error("unable to type assert WsSubscriptionAcknowledgementResponse")

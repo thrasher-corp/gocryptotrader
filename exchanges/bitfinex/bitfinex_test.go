@@ -1123,7 +1123,7 @@ func TestWSAuth(t *testing.T) {
 	var resp map[string]any
 	catcher := func() (ok bool) {
 		select {
-		case v := <-e.Websocket.DataHandler.Read():
+		case v := <-e.Websocket.DataHandler.C:
 			resp, ok = v.Data.(map[string]any)
 		default:
 		}
@@ -1192,7 +1192,7 @@ func TestWSSubscribe(t *testing.T) {
 	err := e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.NoError(t, err, "Subrcribe must not error")
 	catcher := func() (ok bool) {
-		i := <-e.Websocket.DataHandler.Read()
+		i := <-e.Websocket.DataHandler.C
 		_, ok = i.Data.(*ticker.Price)
 		return
 	}
@@ -1385,11 +1385,11 @@ func TestWSAllTrades(t *testing.T) {
 		`{"TID":"5690221203","AssetType":"marginFunding","Side":"BUY","Price":102550,"Amount":0.00991467,"Timestamp":"2024-12-15T04:30:18.019Z"}`,
 		`{"TID":"5690221204","AssetType":"marginFunding","Side":"SELL","Price":102540,"Amount":0.01925285,"Timestamp":"2024-12-15T04:30:18.094Z"}`,
 	}
-	require.Len(t, e.Websocket.DataHandler.Read(), len(expJSON), "Must see correct number of trades")
-	for resp := range e.Websocket.DataHandler.Read() {
+	require.Len(t, e.Websocket.DataHandler.C, len(expJSON), "Must see correct number of trades")
+	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case trade.Data:
-			i := 6 - len(e.Websocket.DataHandler.Read())
+			i := 6 - len(e.Websocket.DataHandler.C)
 			exp := trade.Data{
 				Exchange:     e.Name,
 				CurrencyPair: btcusdPair,

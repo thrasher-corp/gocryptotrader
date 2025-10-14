@@ -444,7 +444,7 @@ func setupWsAuth(t *testing.T) {
 	}
 	timer := time.NewTimer(time.Second)
 	select {
-	case loginError := <-e.Websocket.DataHandler.Read():
+	case loginError := <-e.Websocket.DataHandler.C:
 		t.Fatal(loginError)
 	case <-timer.C:
 	}

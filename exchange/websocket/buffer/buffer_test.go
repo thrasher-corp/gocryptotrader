@@ -56,7 +56,7 @@ func createSnapshot(pair currency.Pair) (holder *Orderbook, asks, bids orderbook
 
 	relay := message.NewRelay(10)
 	go func(relay *message.Relay) { // reader
-		for range relay.Read() {
+		for range relay.C {
 			continue
 		}
 	}(relay)

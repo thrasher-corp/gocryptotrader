@@ -3017,10 +3017,10 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 		return e.wsHandleAuthenticatedData(ctx, &FixtureConnection{match: websocket.NewMatch()}, r)
 	})
 	e.Websocket.DataHandler.Close()
-	require.Len(t, e.Websocket.DataHandler.Read(), 6, "Should see correct number of messages")
+	require.Len(t, e.Websocket.DataHandler.C, 6, "Should see correct number of messages")
 
 	i := 0
-	for data := range e.Websocket.DataHandler.Read() {
+	for data := range e.Websocket.DataHandler.C {
 		i++
 		switch v := data.Data.(type) {
 		case WsPositions:
@@ -3182,12 +3182,12 @@ func TestWsTicker(t *testing.T) {
 	})
 	e.Websocket.DataHandler.Close()
 	expected := 8
-	require.Len(t, e.Websocket.DataHandler.Read(), expected, "Should see correct number of tickers")
-	for resp := range e.Websocket.DataHandler.Read() {
+	require.Len(t, e.Websocket.DataHandler.C, expected, "Should see correct number of tickers")
+	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case *ticker.Price:
 			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
-			switch expected - len(e.Websocket.DataHandler.Read()) {
+			switch expected - len(e.Websocket.DataHandler.C) {
 			case 1: // Spot
 				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
 				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")

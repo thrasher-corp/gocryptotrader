@@ -168,7 +168,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 			select {
 			case <-m.shutdown:
 				return
-			case payload := <-ws.DataHandler.Read():
+			case payload := <-ws.DataHandler.C:
 				if payload.Data == nil {
 					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
 				}

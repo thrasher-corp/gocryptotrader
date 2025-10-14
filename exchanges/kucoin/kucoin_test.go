@@ -2992,12 +2992,12 @@ func TestProcessMarketSnapshot(t *testing.T) {
 	ku := testInstance(t)
 	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.wsHandleData)
 	ku.Websocket.DataHandler.Close()
-	assert.Len(t, ku.Websocket.DataHandler.Read(), 4, "Should see 4 tickers")
+	assert.Len(t, ku.Websocket.DataHandler.C, 4, "Should see 4 tickers")
 	seenAssetTypes := map[asset.Item]int{}
-	for resp := range ku.Websocket.DataHandler.Read() {
+	for resp := range ku.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case *ticker.Price:
-			switch len(ku.Websocket.DataHandler.Read()) {
+			switch len(ku.Websocket.DataHandler.C) {
 			case 3:
 				assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
 				assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")

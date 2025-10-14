@@ -1975,7 +1975,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 	require.Len(bb, lines, 8)
 	go func() {
 		for {
-			<-e.Websocket.DataHandler.Read()
+			<-e.Websocket.DataHandler.C
 		}
 	}()
 	for bb.Loop() {
@@ -2537,7 +2537,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 drain:
 	for {
 		select {
-		case <-e.Websocket.DataHandler.Read():
+		case <-e.Websocket.DataHandler.C:
 		default:
 			break drain
 		}
@@ -2547,7 +2547,7 @@ drain:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res := <-e.Websocket.DataHandler.Read()
+	res := <-e.Websocket.DataHandler.C
 	switch r := res.Data.(type) {
 	case *order.Detail:
 		if !reflect.DeepEqual(expectedResult, *r) {

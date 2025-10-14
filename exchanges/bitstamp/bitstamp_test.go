@@ -745,11 +745,11 @@ func TestWsOrderUpdate(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", e.wsHandleData)
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.Read(), 8, "Should see 8 orders")
-	for resp := range e.Websocket.DataHandler.Read() {
+	assert.Len(t, e.Websocket.DataHandler.C, 8, "Should see 8 orders")
+	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case *order.Detail:
-			switch len(e.Websocket.DataHandler.Read()) {
+			switch len(e.Websocket.DataHandler.C) {
 			case 7:
 				assert.Equal(t, "1658864794234880", v.OrderID, "OrderID")
 				assert.Equal(t, time.UnixMicro(1693831262313000), v.Date, "Date")

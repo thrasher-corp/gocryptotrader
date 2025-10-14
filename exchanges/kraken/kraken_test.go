@@ -1216,11 +1216,11 @@ func TestWSProcessTrades(t *testing.T) {
 		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"BUY","Price":95873.80000,"Amount":0.00051182,"Timestamp":"2025-02-23T23:29:40.379186Z"}`,
 		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"SELL","Price":95940.90000,"Amount":0.00011069,"Timestamp":"2025-02-24T02:01:12.853682Z"}`,
 	}
-	require.Len(t, e.Websocket.DataHandler.Read(), len(expJSON), "Must see correct number of trades")
-	for resp := range e.Websocket.DataHandler.Read() {
+	require.Len(t, e.Websocket.DataHandler.C, len(expJSON), "Must see correct number of trades")
+	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case trade.Data:
-			i := 1 - len(e.Websocket.DataHandler.Read())
+			i := 1 - len(e.Websocket.DataHandler.C)
 			exp := trade.Data{Exchange: e.Name, CurrencyPair: spotTestPair}
 			require.NoErrorf(t, json.Unmarshal([]byte(expJSON[i]), &exp), "Must not error unmarshalling json %d: %s", i, expJSON[i])
 			require.Equalf(t, exp, v, "Trade [%d] must be correct", i)
@@ -1239,11 +1239,11 @@ func TestWsOpenOrders(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 	testexch.FixtureToDataHandler(t, "testdata/wsOpenTrades.json", e.wsHandleData)
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.Read(), 7, "Should see 7 orders")
-	for resp := range e.Websocket.DataHandler.Read() {
+	assert.Len(t, e.Websocket.DataHandler.C, 7, "Should see 7 orders")
+	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case *order.Detail:
-			switch len(e.Websocket.DataHandler.Read()) {
+			switch len(e.Websocket.DataHandler.C) {
 			case 6:
 				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
 				assert.Equal(t, order.Limit, v.Type, "order type")

@@ -1681,14 +1681,14 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 		LastUpdated:     time.UnixMilli(1616627567900),
 		Pair:            currency.NewBTCUSDT(),
 	}
-	for ch := e.Websocket.DataHandler.Read(); len(ch) > 0; {
+	for ch := e.Websocket.DataHandler.C; len(ch) > 0; {
 		<-ch
 	}
 	err := e.wsHandleData(t.Context(), payload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	res := <-e.Websocket.DataHandler.Read()
+	res := <-e.Websocket.DataHandler.C
 	switch r := res.Data.(type) {
 	case *order.Detail:
 		if !reflects.DeepEqual(expectedResult, *r) {

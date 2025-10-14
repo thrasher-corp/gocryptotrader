@@ -1295,8 +1295,8 @@ func TestWSCandles(t *testing.T) {
 	require.NoError(t, err, "AddSubscriptions must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsCandles.json", e.wsHandleData)
 	e.Websocket.DataHandler.Close()
-	require.Len(t, e.Websocket.DataHandler.Read(), 1, "Must see correct number of records")
-	cAny := <-e.Websocket.DataHandler.Read()
+	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
+	cAny := <-e.Websocket.DataHandler.C
 	c, ok := cAny.Data.(websocket.KlineData)
 	require.True(t, ok, "Must get the correct type from DataHandler")
 	exp := websocket.KlineData{
@@ -1322,8 +1322,8 @@ func TestWSOrderbook(t *testing.T) {
 	require.NoError(t, err, "AddSubscriptions must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsOrderbook.json", e.wsHandleData)
 	e.Websocket.DataHandler.Close()
-	require.Len(t, e.Websocket.DataHandler.Read(), 1, "Must see correct number of records")
-	dAny := <-e.Websocket.DataHandler.Read()
+	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
+	dAny := <-e.Websocket.DataHandler.C
 	d, ok := dAny.Data.(*orderbook.Depth)
 	require.True(t, ok, "Must get the correct type from DataHandler")
 	require.NotNil(t, d)
@@ -1373,11 +1373,11 @@ func TestWSHandleAllTradesMsg(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 	}
-	require.Len(t, e.Websocket.DataHandler.Read(), 2, "Must see correct number of trades")
-	for resp := range e.Websocket.DataHandler.Read() {
+	require.Len(t, e.Websocket.DataHandler.C, 2, "Must see correct number of trades")
+	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case trade.Data:
-			i := 1 - len(e.Websocket.DataHandler.Read())
+			i := 1 - len(e.Websocket.DataHandler.C)
 			require.Equalf(t, exp[i], v, "Trade [%d] must be correct", i)
 		case error:
 			t.Error(v)
@@ -1385,7 +1385,7 @@ func TestWSHandleAllTradesMsg(t *testing.T) {
 			t.Errorf("Unexpected type in DataHandler: %T(%s)", v, v)
 		}
 	}
-	require.Empty(t, e.Websocket.DataHandler.Read(), "Must not see any errors going to datahandler")
+	require.Empty(t, e.Websocket.DataHandler.C, "Must not see any errors going to datahandler")
 }
 
 func TestWSTicker(t *testing.T) {
@@ -1396,8 +1396,8 @@ func TestWSTicker(t *testing.T) {
 	require.NoError(t, err, "AddSubscriptions must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", e.wsHandleData)
 	e.Websocket.DataHandler.Close()
-	require.Len(t, e.Websocket.DataHandler.Read(), 1, "Must see correct number of records")
-	tickAny := <-e.Websocket.DataHandler.Read()
+	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
+	tickAny := <-e.Websocket.DataHandler.C
 	tick, ok := tickAny.Data.(*ticker.Price)
 	require.True(t, ok, "Must get the correct type from DataHandler")
 	require.NotNil(t, tick)
@@ -1426,14 +1426,14 @@ func TestWSAccountUpdate(t *testing.T) {
 	e.SetSaveTradeDataStatus(true)
 	testexch.FixtureToDataHandler(t, "testdata/wsMyAccount.json", e.wsHandleData)
 	e.Websocket.DataHandler.Close()
-	require.Len(t, e.Websocket.DataHandler.Read(), 3, "Must see correct number of records")
+	require.Len(t, e.Websocket.DataHandler.C, 3, "Must see correct number of records")
 	exp := []WsAccountUpdate{
 		{Currency: "btc", AccountID: 123456, Balance: 23.111, ChangeType: "transfer", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1568601800000)), SeqNum: 1},
 		{Currency: "btc", AccountID: 33385, Available: 2028.69, ChangeType: "order.match", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1574393385167)), SeqNum: 2},
 		{Currency: "usdt", AccountID: 14884859, Available: 20.29388158, Balance: 20.29388158, AccountType: "trade", SeqNum: 3},
 	}
 	for _, ex := range exp {
-		uAny := <-e.Websocket.DataHandler.Read()
+		uAny := <-e.Websocket.DataHandler.C
 		u, ok := uAny.Data.(WsAccountUpdate)
 		require.True(t, ok, "Must get the correct type from DataHandler")
 		require.NotNil(t, u)
@@ -1452,7 +1452,7 @@ func TestWSOrderUpdate(t *testing.T) {
 	e.Websocket.DataHandler.Close()
 	require.Equal(t, 1, len(errs), "Must receive the correct number of errors back")
 	require.ErrorContains(t, errs[0].Err, "error with order \"test1\": invalid.client.order.id (NT) (2002)")
-	require.Len(t, e.Websocket.DataHandler.Read(), 4, "Must see correct number of records")
+	require.Len(t, e.Websocket.DataHandler.C, 4, "Must see correct number of records")
 	exp := []*order.Detail{
 		{
 			Exchange:      e.Name,
@@ -1499,7 +1499,7 @@ func TestWSOrderUpdate(t *testing.T) {
 		},
 	}
 	for _, ex := range exp {
-		m := <-e.Websocket.DataHandler.Read()
+		m := <-e.Websocket.DataHandler.C
 		require.IsType(t, &order.Detail{}, m.Data, "Must get the correct type from DataHandler")
 		d, _ := m.Data.(*order.Detail)
 		require.NotNil(t, d)
@@ -1516,8 +1516,8 @@ func TestWSMyTrades(t *testing.T) {
 	e.SetSaveTradeDataStatus(true)
 	testexch.FixtureToDataHandler(t, "testdata/wsMyTrades.json", e.wsHandleData)
 	e.Websocket.DataHandler.Close()
-	require.Len(t, e.Websocket.DataHandler.Read(), 1, "Must see correct number of records")
-	m := <-e.Websocket.DataHandler.Read()
+	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
+	m := <-e.Websocket.DataHandler.C
 	exp := &order.Detail{
 		Exchange:      e.Name,
 		Pair:          btcusdtPair,

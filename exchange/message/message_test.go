@@ -27,11 +27,10 @@ func TestRead(t *testing.T) {
 	t.Parallel()
 	r := NewRelay(1)
 	require.NotNil(t, r)
-	readch := r.Read()
-	require.Empty(t, readch)
+	require.Empty(t, r.C)
 	assert.NoError(t, r.Send(t.Context(), "test"))
-	require.Len(t, readch, 1)
-	assert.Equal(t, "test", (<-readch).Data)
+	require.Len(t, r.C, 1)
+	assert.Equal(t, "test", (<-r.C).Data)
 }
 
 func TestClose(t *testing.T) {
@@ -39,6 +38,6 @@ func TestClose(t *testing.T) {
 	r := NewRelay(1)
 	require.NotNil(t, r)
 	r.Close()
-	_, ok := <-r.Read()
+	_, ok := <-r.C
 	assert.False(t, ok)
 }

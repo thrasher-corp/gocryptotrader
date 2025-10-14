@@ -69,7 +69,7 @@ func TestWsHandleData(t *testing.T) {
 
 	err = dummy.wsHandleData(t.Context(), wsTickerResp)
 	require.NoError(t, err)
-	assert.IsType(t, new(ticker.Price), (<-dummy.Websocket.DataHandler.Read()).Data, "ticker should send a price to the DataHandler")
+	assert.IsType(t, new(ticker.Price), (<-dummy.Websocket.DataHandler.C).Data, "ticker should send a price to the DataHandler")
 }
 
 func TestSubToReq(t *testing.T) {

@@ -561,7 +561,7 @@ func TestWsAuth(t *testing.T) {
 	}
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
-	case response := <-e.Websocket.DataHandler.Read():
+	case response := <-e.Websocket.DataHandler.C:
 		t.Error(response)
 	case <-timer.C:
 	}
