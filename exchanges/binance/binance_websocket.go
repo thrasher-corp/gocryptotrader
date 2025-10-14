@@ -431,11 +431,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 
 // SeedLocalCache seeds depth data
 func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
-	ob, err := e.GetOrderBook(ctx,
-		OrderBookDataRequestParams{
-			Symbol: p,
-			Limit:  1000,
-		})
+	ob, err := e.GetOrderBook(ctx, p, 1000)
 	if err != nil {
 		return err
 	}
@@ -443,28 +439,20 @@ func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
+func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBookResponse) error {
+	t := orderbookNew.Timestamp.Time()
+	if t.IsZero() {
+		t = time.Now() // Time not provided for this REST book.
+	}
 	newOrderBook := orderbook.Book{
 		Pair:              p,
 		Asset:             asset.Spot,
 		Exchange:          e.Name,
 		LastUpdateID:      orderbookNew.LastUpdateID,
 		ValidateOrderbook: e.ValidateOrderbook,
-		Bids:              make(orderbook.Levels, len(orderbookNew.Bids)),
-		Asks:              make(orderbook.Levels, len(orderbookNew.Asks)),
-		LastUpdated:       time.Now(), // Time not provided in REST book.
-	}
-	for i := range orderbookNew.Bids {
-		newOrderBook.Bids[i] = orderbook.Level{
-			Amount: orderbookNew.Bids[i].Quantity,
-			Price:  orderbookNew.Bids[i].Price,
-		}
-	}
-	for i := range orderbookNew.Asks {
-		newOrderBook.Asks[i] = orderbook.Level{
-			Amount: orderbookNew.Asks[i].Quantity,
-			Price:  orderbookNew.Asks[i].Price,
-		}
+		Bids:              orderbookNew.Bids.Levels(),
+		Asks:              orderbookNew.Asks.Levels(),
+		LastUpdated:       t,
 	}
 	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
@@ -598,23 +586,9 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 
 // ProcessOrderbookUpdate processes the websocket orderbook update
 func (e *Exchange) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
-	updateBid := make([]orderbook.Level, len(ws.UpdateBids))
-	for i := range ws.UpdateBids {
-		updateBid[i] = orderbook.Level{
-			Price:  ws.UpdateBids[i][0].Float64(),
-			Amount: ws.UpdateBids[i][1].Float64(),
-		}
-	}
-	updateAsk := make([]orderbook.Level, len(ws.UpdateAsks))
-	for i := range ws.UpdateAsks {
-		updateAsk[i] = orderbook.Level{
-			Price:  ws.UpdateAsks[i][0].Float64(),
-			Amount: ws.UpdateAsks[i][1].Float64(),
-		}
-	}
 	return e.Websocket.Orderbook.Update(&orderbook.Update{
-		Bids:       updateBid,
-		Asks:       updateAsk,
+		Bids:       ws.UpdateBids.Levels(),
+		Asks:       ws.UpdateAsks.Levels(),
 		Pair:       cp,
 		UpdateID:   ws.LastUpdateID,
 		UpdateTime: ws.Timestamp.Time(),
