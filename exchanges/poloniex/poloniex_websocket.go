@@ -55,6 +55,9 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+}
+
+var defaultSpotPrivateSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
 }
@@ -523,6 +526,10 @@ func (e *Exchange) handleSubscription(operation string, s *subscription.Subscrip
 
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
+}
+
+func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
+	return defaultSpotPrivateSubscriptions.ExpandTemplates(e)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template

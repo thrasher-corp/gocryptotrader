@@ -215,7 +215,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		RateLimit:             request.NewWeightedRateLimitByDuration(500 * time.Millisecond),
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
+		GenerateSubscriptions: e.generatePrivateSubscriptions,
 		Handler:               e.wsHandleData,
 		Connector:             e.wsAuthConn,
 		MessageFilter:         connSpotPrivate,
