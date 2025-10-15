@@ -32,30 +32,30 @@ var futuresWsURL = "wss://contract.mexc.com/edge"
 const (
 
 	// Public channels
-	cnlFTickers     = "tickers"
-	cnlFTicker      = "ticker"
-	cnlFDeal        = "deal"
-	cnlFDepthFull   = "depth.full"
-	cnlFKline       = "kline"
-	cnlFFundingRate = "funding.rate"
-	cnlFIndexPrice  = "index.price"
-	cnlFFairPrice   = "fair.price"
+	channelFTickers     = "tickers"
+	channelFTicker      = "ticker"
+	channelFDeal        = "deal"
+	channelFDepthFull   = "depth.full"
+	channelFKline       = "kline"
+	channelFFundingRate = "funding.rate"
+	channelFIndexPrice  = "index.price"
+	channelFFairPrice   = "fair.price"
 
 	// Private channels
-	cnlLogin              = "login"
-	cnlFPersonalPositions = "personal.position"
-	cnlFPersonalAssets    = "personal.asset"
-	cnlFPersonalOrder     = "personal.order"
-	cnlFPersonalADLLevel  = "personal.adl.level"
-	cnlFPersonalRiskLimit = "personal.risk.limit"
-	cnlFPositionMode      = "personal.position.mode"
+	channelLogin              = "login"
+	channelFPersonalPositions = "personal.position"
+	channelFPersonalAssets    = "personal.asset"
+	channelFPersonalOrder     = "personal.order"
+	channelFPersonalADLLevel  = "personal.adl.level"
+	channelFPersonalRiskLimit = "personal.risk.limit"
+	channelFPositionMode      = "personal.position.mode"
 )
 
 var defaultFuturesSubscriptions = []string{
-	cnlFTickers,
-	cnlFDeal,
-	cnlFDepthFull,
-	cnlFKline,
+	channelFTickers,
+	channelFDeal,
+	channelFDepthFull,
+	channelFKline,
 }
 
 // WsFuturesConnect established a futures websocket connection
@@ -68,19 +68,16 @@ func (e *Exchange) WsFuturesConnect() error {
 		ReadBufferSize:    8192,
 		WriteBufferSize:   8192,
 	}
-	err := e.Websocket.SetWebsocketURL(futuresWsURL, false, true)
-	if err != nil {
+	if err := e.Websocket.SetWebsocketURL(futuresWsURL, false, true); err != nil {
 		return err
 	}
-	err = e.Websocket.Conn.Dial(context.Background(), &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(context.Background(), &dialer, http.Header{}); err != nil {
 		return err
 	}
 	e.Websocket.Wg.Add(1)
 	go e.wsFuturesReadData(e.Websocket.Conn)
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err := e.wsAuth()
-		if err != nil {
+		if err := e.wsAuth(); err != nil {
 			log.Warnf(log.ExchangeSys, "authentication error: %v", err)
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
@@ -110,14 +107,13 @@ func (e *Exchange) wsAuth() error {
 	param.Signature = base64.StdEncoding.EncodeToString(hmac)
 	data, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.Auth, "rs.login", &WsSubscriptionPayload{
 		Param:  param,
-		Method: cnlLogin,
+		Method: channelLogin,
 	})
 	if err != nil {
 		return err
 	}
 	var result *WsFuturesLoginResponse
-	err = json.Unmarshal(data, &result)
-	if err != nil {
+	if err := json.Unmarshal(data, &result); err != nil {
 		return err
 	}
 	if result.Data != "success" {
@@ -130,7 +126,7 @@ func (e *Exchange) wsAuth() error {
 func (e *Exchange) GenerateDefaultFuturesSubscriptions() (subscription.List, error) {
 	channels := defaultFuturesSubscriptions
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		channels = append(channels, cnlFPersonalPositions, cnlFPersonalAssets, cnlFPersonalOrder, cnlFPersonalADLLevel, cnlFPersonalRiskLimit, cnlFPositionMode)
+		channels = append(channels, channelFPersonalPositions, channelFPersonalAssets, channelFPersonalOrder, channelFPersonalADLLevel, channelFPersonalRiskLimit, channelFPositionMode)
 	}
 	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
 	if err != nil {
@@ -139,19 +135,19 @@ func (e *Exchange) GenerateDefaultFuturesSubscriptions() (subscription.List, err
 	subscriptionsList := make(subscription.List, len(channels))
 	for c := range channels {
 		switch channels[c] {
-		case cnlFTicker, cnlFDeal, cnlFDepthFull, cnlFFundingRate, cnlFIndexPrice, cnlFFairPrice:
+		case channelFTicker, channelFDeal, channelFDepthFull, channelFFundingRate, channelFIndexPrice, channelFFairPrice:
 			subscriptionsList[c] = &subscription.Subscription{
 				Channel: channels[c],
 				Pairs:   enabledPairs,
 			}
-		case cnlFKline:
+		case channelFKline:
 			subscriptionsList[c] = &subscription.Subscription{
 				Channel:  channels[c],
 				Pairs:    enabledPairs,
 				Interval: kline.FifteenMin,
 			}
-		case cnlFTickers, cnlFPersonalPositions, cnlFPersonalAssets, cnlFPersonalOrder,
-			cnlFPersonalADLLevel, cnlFPersonalRiskLimit, cnlFPositionMode:
+		case channelFTickers, channelFPersonalPositions, channelFPersonalAssets, channelFPersonalOrder,
+			channelFPersonalADLLevel, channelFPersonalRiskLimit, channelFPositionMode:
 			subscriptionsList[c] = &subscription.Subscription{
 				Channel: channels[c],
 			}
@@ -173,34 +169,32 @@ func (e *Exchange) UnsubscribeFutures(subscriptions subscription.List) error {
 func (e *Exchange) handleSubscriptionFuturesPayload(subscriptionItems subscription.List, method string) error {
 	for x := range subscriptionItems {
 		switch subscriptionItems[x].Channel {
-		case cnlFDeal, cnlFTicker, cnlFDepthFull, cnlFKline, cnlFFundingRate, cnlFIndexPrice, cnlFFairPrice:
+		case channelFDeal, channelFTicker, channelFDepthFull, channelFKline, channelFFundingRate, channelFIndexPrice, channelFFairPrice:
 			params := make([]FWebsocketReqParam, len(subscriptionItems[x].Pairs))
 			for p := range subscriptionItems[x].Pairs {
 				params[p].Symbol = subscriptionItems[x].Pairs[p].String()
 				switch subscriptionItems[x].Channel {
-				case cnlFDeal:
+				case channelFDeal:
 					params[p].Compress = true
 					params[p].Limit = subscriptionItems[x].Levels
-				case cnlFKline:
+				case channelFKline:
 					intervalString, err := ContractIntervalString(subscriptionItems[x].Interval)
 					if err != nil {
 						return err
 					}
 					params[p].Interval = intervalString
 				}
-				err := e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsSubscriptionPayload{
+				if err := e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsSubscriptionPayload{
 					Method: method + "." + subscriptionItems[x].Channel,
 					Param:  &params[p],
-				})
-				if err != nil {
+				}); err != nil {
 					return err
 				}
 			}
 		default:
-			err := e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsSubscriptionPayload{
+			if err := e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsSubscriptionPayload{
 				Method: method + "." + subscriptionItems[x].Channel,
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 		}
@@ -225,8 +219,7 @@ func (e *Exchange) wsFuturesReadData(ws websocket.Connection) {
 // WsHandleFuturesData processed futures websocket data
 func (e *Exchange) WsHandleFuturesData(respRaw []byte) error {
 	var resp *WsFuturesData
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	if resp.Channel == "" {
@@ -244,72 +237,61 @@ func (e *Exchange) WsHandleFuturesData(respRaw []byte) error {
 	}
 	cnlSplits := strings.Split(resp.Channel, ".")
 	switch strings.Join(cnlSplits[1:], ".") {
-	case cnlFTickers:
+	case channelFTickers:
 		return e.processFuturesTickers(resp.Data)
-	case cnlFTicker:
+	case channelFTicker:
 		return e.processFuturesTicker(resp.Data)
-	case cnlFDeal:
+	case channelFDeal:
 		return e.processFuturesFillData(resp.Data, resp.Symbol)
-	case cnlFDepthFull:
+	case channelFDepthFull:
 		return e.processOrderbookDepth(resp.Data, resp.Symbol)
-	case cnlFKline:
+	case channelFKline:
 		return e.processFuturesKlineData(resp.Data, resp.Symbol)
-	case cnlFFundingRate:
-		return e.processFuturesFundingRate(resp.Data)
-	case cnlFIndexPrice:
+	case channelFFundingRate:
+		var data *FuturesWsFundingRate
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			return err
+		}
+		e.Websocket.DataHandler <- data
+		return nil
+	case channelFIndexPrice:
 		return e.processIndexPrice(resp.Data)
-	case cnlFFairPrice:
+	case channelFFairPrice:
 		return e.processFairPrice(resp.Data)
-	case cnlFPersonalPositions:
+	case channelFPersonalPositions:
 		return e.processPersonalPosition(resp.Data)
-	case cnlFPersonalAssets:
+	case channelFPersonalAssets:
 		return e.processPersonalAsset(resp.Data)
-	case cnlFPersonalOrder:
+	case channelFPersonalOrder:
 		return e.processPersonalOrder(resp.Data)
-	case cnlFPersonalADLLevel:
-		return e.processPersonalADLLevel(resp.Data)
-	case cnlFPersonalRiskLimit:
-		return e.processPersonalRiskLimit(resp.Data)
-	case cnlFPositionMode:
-		return e.processPersonalPositionMode(resp.Data)
+	case channelFPersonalADLLevel:
+		var data *FuturesADLLevel
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			return err
+		}
+		e.Websocket.DataHandler <- data
+		return nil
+	case channelFPersonalRiskLimit:
+		var data *FuturesWebsocketRiskLimit
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			return err
+		}
+		e.Websocket.DataHandler <- data
+		return nil
+	case channelFPositionMode:
+		var data *FuturesPositionMode
+		if err := json.Unmarshal(resp.Data, &data); err != nil {
+			return err
+		}
+		e.Websocket.DataHandler <- data
+		return nil
 	}
-	return nil
-}
-
-func (e *Exchange) processPersonalADLLevel(data []byte) error {
-	var resp *FuturesADLLevel
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
-		return err
-	}
-	e.Websocket.DataHandler <- resp
-	return nil
-}
-
-func (e *Exchange) processPersonalPositionMode(data []byte) error {
-	var resp *FuturesPositionMode
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
-		return err
-	}
-	e.Websocket.DataHandler <- resp
-	return nil
-}
-
-func (e *Exchange) processPersonalRiskLimit(data []byte) error {
-	var resp *FuturesWebsocketRiskLimit
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
-		return err
-	}
-	e.Websocket.DataHandler <- resp
 	return nil
 }
 
 func (e *Exchange) processPersonalPosition(data []byte) error {
 	var resp *FuturesWsPersonalPosition
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	cp, err := currency.NewPairFromString(resp.Symbol)
@@ -376,8 +358,7 @@ func (e *Exchange) processPersonalAsset(data []byte) error {
 
 func (e *Exchange) processPersonalOrder(data []byte) error {
 	var resp *WsFuturesPersonalOrder
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	cp, err := currency.NewPairFromString(resp.Symbol)
@@ -456,8 +437,7 @@ func (e *Exchange) processPersonalOrder(data []byte) error {
 
 func (e *Exchange) processFairPrice(data []byte) error {
 	var resp *PriceAndSymbol
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	cp, err := currency.NewPairFromString(resp.Symbol)
@@ -473,8 +453,7 @@ func (e *Exchange) processFairPrice(data []byte) error {
 
 func (e *Exchange) processIndexPrice(data []byte) error {
 	var resp *PriceAndSymbol
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	cp, err := currency.NewPairFromString(resp.Symbol)
@@ -488,20 +467,9 @@ func (e *Exchange) processIndexPrice(data []byte) error {
 	return nil
 }
 
-func (e *Exchange) processFuturesFundingRate(data []byte) error {
-	var resp *FuturesWsFundingRate
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
-		return err
-	}
-	e.Websocket.DataHandler <- resp
-	return nil
-}
-
 func (e *Exchange) processFuturesKlineData(data []byte, symbol string) error {
 	var resp *FuturesWebsocketKline
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	cp, err := currency.NewPairFromString(symbol)
@@ -525,33 +493,16 @@ func (e *Exchange) processFuturesKlineData(data []byte, symbol string) error {
 
 func (e *Exchange) processOrderbookDepth(data []byte, symbol string) error {
 	var resp *FuturesWsDepth
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	cp, err := currency.NewPairFromString(symbol)
 	if err != nil {
 		return err
 	}
-	asks := make(orderbook.Levels, len(resp.Asks))
-	for a := range resp.Asks {
-		asks[a] = orderbook.Level{
-			Price:      resp.Asks[a][0],
-			Amount:     resp.Asks[a][1],
-			OrderCount: int64(resp.Asks[a][2]),
-		}
-	}
-	bids := make(orderbook.Levels, len(resp.Bids))
-	for b := range resp.Bids {
-		bids[b] = orderbook.Level{
-			Price:      resp.Bids[b][0],
-			Amount:     resp.Bids[b][1],
-			OrderCount: int64(resp.Bids[b][2]),
-		}
-	}
 	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-		Bids:        bids,
-		Asks:        asks,
+		Bids:        resp.Bids.Levels(),
+		Asks:        resp.Asks.Levels(),
 		Exchange:    e.Name,
 		Pair:        cp,
 		Asset:       asset.Futures,
@@ -561,8 +512,7 @@ func (e *Exchange) processOrderbookDepth(data []byte, symbol string) error {
 
 func (e *Exchange) processFuturesFillData(data []byte, symbol string) error {
 	var resp []FuturesTransactionFills
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	cp, err := currency.NewPairFromString(symbol)
@@ -593,8 +543,7 @@ func (e *Exchange) processFuturesFillData(data []byte, symbol string) error {
 
 func (e *Exchange) processFuturesTicker(data []byte) error {
 	var resp *FuturesPriceTickerDetail
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	cp, err := currency.NewPairFromString(resp.Symbol)
@@ -619,8 +568,7 @@ func (e *Exchange) processFuturesTicker(data []byte) error {
 
 func (e *Exchange) processFuturesTickers(data []byte) error {
 	var tickers []FuturesTickerItem
-	err := json.Unmarshal(data, &tickers)
-	if err != nil {
+	if err := json.Unmarshal(data, &tickers); err != nil {
 		return err
 	}
 	priceTickers := make([]ticker.Price, len(tickers))

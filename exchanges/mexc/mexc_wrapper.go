@@ -210,14 +210,14 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	assetTypes := e.GetAssetTypes(false)
 	for x := range assetTypes {
 		pairs, err := e.FetchTradablePairs(ctx, assetTypes[x])
 		if err != nil {
 			return err
 		}
-		err = e.UpdatePairs(pairs, assetTypes[x], false, forceUpdate)
+		err = e.UpdatePairs(pairs, assetTypes[x], false)
 		if err != nil {
 			return err
 		}
@@ -435,7 +435,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 			return book, err
 		}
 	case asset.Futures:
-		result, err := e.GetContractDepthInformation(ctx, reqFormat.Format(pair), 1000)
+		result, err := e.GetContractOrderbook(ctx, reqFormat.Format(pair), 1000)
 		if err != nil {
 			return nil, err
 		}

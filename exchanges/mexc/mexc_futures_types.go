@@ -2,6 +2,7 @@ package mexc
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -80,9 +81,9 @@ type FuturesTransactionFills struct {
 
 // FuturesWsDepth holds futures instruments orderbook depth
 type FuturesWsDepth struct {
-	Asks    [][]float64 `json:"asks"`
-	Bids    [][]float64 `json:"bids"`
-	Version int64       `json:"version"`
+	Asks    orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids    orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Version int64                            `json:"version"`
 }
 
 // FuturesWebsocketKline holds candlestick data for futures instruments returned through websocket stream
@@ -173,7 +174,7 @@ type FuturesWsPersonalPosition struct {
 // FuturesWebsocketRiskLimit holds a futures asset risk limit information
 type FuturesWebsocketRiskLimit struct {
 	Symbol                string  `json:"symbol"`
-	PositionType          int     `json:"positionType"`
+	PositionType          int64   `json:"positionType"`
 	RiskSource            int64   `json:"riskSource"`
 	RiskLevel             int64   `json:"level"`
 	MaxVolume             float64 `json:"maxVol"`
@@ -184,11 +185,11 @@ type FuturesWebsocketRiskLimit struct {
 
 // FuturesADLLevel holds a futures adl
 type FuturesADLLevel struct {
-	AdlLevel   int `json:"adlLevel"`
-	PositionID int `json:"positionId"`
+	AdlLevel   int64 `json:"adlLevel"`
+	PositionID int64 `json:"positionId"`
 }
 
 // FuturesPositionMode holds futures account position mode information
 type FuturesPositionMode struct {
-	PositionMode int `json:"positionMode"`
+	PositionMode int64 `json:"positionMode"`
 }

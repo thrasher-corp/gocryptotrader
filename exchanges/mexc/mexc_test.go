@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -57,8 +56,7 @@ func TestMain(m *testing.M) {
 		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
-	err := populateTradablePairs()
-	if err != nil {
+	if err := populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
 	setupWs()
@@ -66,8 +64,7 @@ func TestMain(m *testing.M) {
 }
 
 func populateTradablePairs() error {
-	err := e.UpdateTradablePairs(context.Background(), false)
-	if err != nil {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		return err
 	}
 	tradablePairs, err := e.GetEnabledPairs(asset.Spot)
@@ -83,10 +80,7 @@ func populateTradablePairs() error {
 		return err
 	}
 	futuresTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Futures)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -430,14 +424,10 @@ func TestNewOrder(t *testing.T) {
 
 func TestCreateBatchOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateBatchOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{{}})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
 	arg := BatchOrderCreationParam{
 		NewClientOrderID: 1234,
 	}
-	_, err = e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{arg})
+	_, err := e.CreateBatchOrder(t.Context(), []BatchOrderCreationParam{arg})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	arg.Symbol = "BTCUSDT"
@@ -911,10 +901,10 @@ func TestGetTransferableCurrencies(t *testing.T) {
 
 func TestGetContractDepthInformation(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetContractDepthInformation(t.Context(), "", 10)
+	_, err := e.GetContractOrderbook(t.Context(), "", 10)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	result, err := e.GetContractDepthInformation(t.Context(), "BTC_USDT", 2)
+	result, err := e.GetContractOrderbook(t.Context(), "BTC_USDT", 2)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1293,13 +1283,10 @@ func TestChangePositionMode(t *testing.T) {
 
 func TestPlaceFuturesOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceFuturesOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
 	arg := &PlaceFuturesOrderParams{
 		ReduceOnly: true,
 	}
-	_, err = e.PlaceFuturesOrder(t.Context(), arg)
+	_, err := e.PlaceFuturesOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	arg.Symbol = "BTC_USDT"
 	_, err = e.PlaceFuturesOrder(t.Context(), arg)
@@ -1399,13 +1386,10 @@ func TestGetSubAccountStatus(t *testing.T) {
 
 func TestCreateBrokerSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateBrokerSubAccountAPIKey(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
 	arg := &BrokerSubAccountAPIKeyParams{
 		IP: []string{"127.0.0.1"},
 	}
-	_, err = e.CreateBrokerSubAccountAPIKey(t.Context(), arg)
+	_, err := e.CreateBrokerSubAccountAPIKey(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidSubAccountName)
 
 	arg.SubAccount = "my-subaccount-name"
@@ -1461,9 +1445,7 @@ func TestDeleteBrokerAPIKeySubAccount(t *testing.T) {
 
 func TestGenerateBrokerSubAccountDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := e.GenerateBrokerSubAccountDepositAddress(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = e.GenerateBrokerSubAccountDepositAddress(t.Context(), &BrokerSubAccountDepositAddressCreationParams{Network: "ERC20"})
+	_, err := e.GenerateBrokerSubAccountDepositAddress(t.Context(), &BrokerSubAccountDepositAddressCreationParams{Network: "ERC20"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.GenerateBrokerSubAccountDepositAddress(t.Context(), &BrokerSubAccountDepositAddressCreationParams{Coin: currency.ETH})
 	require.ErrorIs(t, err, errNetworkNameRequired)

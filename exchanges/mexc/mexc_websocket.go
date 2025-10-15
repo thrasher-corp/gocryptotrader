@@ -31,24 +31,24 @@ import (
 const (
 	wsURL = "wss://wbs-api.mexc.com/ws"
 
-	chnlBookTiker            = "public.aggre.bookTicker.v3.api.pb"
-	chnlAggregateDepthV3     = "public.aggre.depth.v3.api.pb"
-	chnlAggreDealsV3         = "public.aggre.deals.v3.api.pb"
-	chnlKlineV3              = "public.kline.v3.api.pb"
-	chnlLimitDepthV3         = "public.limit.depth.v3.api.pb"
-	chnlBookTickerBatch      = "public.bookTicker.batch.v3.api.pb"
-	chnlAccountV3            = "private.account.v3.api.pb"
-	chnlPrivateDealsV3       = "private.deals.v3.api.pb"
-	chnlPrivateOrdersAPI     = "private.orders.v3.api.pb"
-	chnlIncreaseDepthBatchV3 = "public.increase.depth.batch.v3.api.pb"
+	channelBookTiker            = "public.aggre.bookTicker.v3.api.pb"
+	channelAggregateDepthV3     = "public.aggre.depth.v3.api.pb"
+	channelAggreDealsV3         = "public.aggre.deals.v3.api.pb"
+	channelKlineV3              = "public.kline.v3.api.pb"
+	channelLimitDepthV3         = "public.limit.depth.v3.api.pb"
+	channelBookTickerBatch      = "public.bookTicker.batch.v3.api.pb"
+	channelAccountV3            = "private.account.v3.api.pb"
+	channelPrivateDealsV3       = "private.deals.v3.api.pb"
+	channelPrivateOrdersAPI     = "private.orders.v3.api.pb"
+	channelIncreaseDepthBatchV3 = "public.increase.depth.batch.v3.api.pb"
 )
 
 var defacultChannels = []string{
-	chnlBookTiker,
-	chnlKlineV3,
-	chnlAggreDealsV3,
-	chnlAggregateDepthV3,
-	chnlIncreaseDepthBatchV3,
+	channelBookTiker,
+	channelKlineV3,
+	channelAggreDealsV3,
+	channelAggregateDepthV3,
+	channelIncreaseDepthBatchV3,
 }
 
 // orderbookSnapshotLoadedPairs and syncOrderbookPairsLock holds list of symbols and if these instruments snapshot orderbook detail is loaded, and corresponding lock
@@ -124,21 +124,38 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 			Asset:   asset.Spot,
 		}
 		switch defacultChannels[c] {
-		case chnlBookTiker,
-			chnlAggregateDepthV3,
-			chnlAggreDealsV3:
+		case channelBookTiker,
+			channelAggregateDepthV3,
+			channelAggreDealsV3:
 			subscriptions[c].Interval = kline.HundredMilliseconds
-		case chnlKlineV3:
+		case channelKlineV3:
 			subscriptions[c].Interval = kline.FifteenMin
-		case chnlLimitDepthV3:
+		case channelLimitDepthV3:
 			subscriptions[c].Levels = 5
-		case chnlAccountV3,
-			chnlPrivateDealsV3,
-			chnlPrivateOrdersAPI:
+		case channelAccountV3,
+			channelPrivateDealsV3,
+			channelPrivateOrdersAPI:
 			subscriptions[c].Pairs = []currency.Pair{}
 		}
 	}
 	return subscriptions, nil
+}
+
+// var defaultSubscriptionsList = subscription.List{
+// 	{Channel: channelBookTiker},
+// }
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	// {Enabled: true, Asset: asset.Margin, Channel: subscription.AllTradesChannel},
+	// {Enabled: true, Asset: asset.Futures, Channel: futuresTradeOrderChannel, Authenticated: true},
+	// {Enabled: true, Asset: asset.Futures, Channel: futuresStopOrdersLifecycleEventChannel, Authenticated: true},
+	// {Enabled: true, Asset: asset.Futures, Channel: futuresAccountBalanceEventChannel, Authenticated: true},
+	// {Enabled: true, Asset: asset.Margin, Channel: marginPositionChannel, Authenticated: true},
+	// {Enabled: true, Asset: asset.Margin, Channel: marginLoanChannel, Authenticated: true},
+	// {Enabled: true, Channel: accountBalanceChannel, Authenticated: true},
 }
 
 // Subscribe subscribes to a channel
@@ -170,10 +187,10 @@ func (e *Exchange) handleSubscription(method string, subs subscription.List) err
 			return err
 		}
 		switch subs[s].Channel {
-		case chnlBookTiker,
-			chnlAggregateDepthV3,
-			chnlAggreDealsV3,
-			chnlKlineV3:
+		case channelBookTiker,
+			channelAggregateDepthV3,
+			channelAggreDealsV3,
+			channelKlineV3:
 			intervalString, err := intervalToString(subs[s].Interval, true)
 			if err != nil {
 				return err
@@ -182,7 +199,7 @@ func (e *Exchange) handleSubscription(method string, subs subscription.List) err
 			payloads[s].Method = method
 			payloads[s].Params = make([]string, len(subs[s].Pairs))
 			for p := range subs[s].Pairs {
-				if subs[s].Channel == chnlKlineV3 {
+				if subs[s].Channel == channelKlineV3 {
 					payloads[s].Params[p] = assetTypeString + "@" + subs[s].Channel + "@" + subs[s].Pairs[p].String() + "@" + intervalString
 				} else {
 					payloads[s].Params[p] = assetTypeString + "@" + subs[s].Channel + "@" + intervalString + "@" + subs[s].Pairs[p].String()
@@ -200,12 +217,12 @@ func (e *Exchange) handleSubscription(method string, subs subscription.List) err
 				failedSubscriptions = append(failedSubscriptions, subs[s])
 			}
 			successfulSubscriptions = append(successfulSubscriptions, subs[s])
-		case chnlLimitDepthV3:
+		case channelLimitDepthV3:
 			payloads[s].ID = e.Websocket.Conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = make([]string, len(subs[s].Pairs))
 			for p := range subs[s].Pairs {
-				payloads[s].Params[p] = assetTypeString + "@" + chnlLimitDepthV3 + "@" + subs[s].Pairs[p].String() + "@" + strconv.Itoa(subs[s].Levels)
+				payloads[s].Params[p] = assetTypeString + "@" + channelLimitDepthV3 + "@" + subs[s].Pairs[p].String() + "@" + strconv.Itoa(subs[s].Levels)
 			}
 			data, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
 			if err != nil {
@@ -216,7 +233,7 @@ func (e *Exchange) handleSubscription(method string, subs subscription.List) err
 			if err != nil {
 				return err
 			}
-		case chnlAccountV3, chnlPrivateDealsV3, chnlPrivateOrdersAPI:
+		case channelAccountV3, channelPrivateDealsV3, channelPrivateOrdersAPI:
 			payloads[s].ID = e.Websocket.Conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = []string{assetTypeString + "@" + subs[s].Channel}
@@ -229,7 +246,7 @@ func (e *Exchange) handleSubscription(method string, subs subscription.List) err
 			if err != nil {
 				return err
 			}
-		case chnlIncreaseDepthBatchV3, chnlBookTickerBatch:
+		case channelIncreaseDepthBatchV3, channelBookTickerBatch:
 			payloads[s].ID = e.Websocket.Conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = make([]string, len(subs[s].Pairs))
@@ -269,7 +286,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 	}
 	dataSplit := strings.Split(string(respRaw), "@")
 	switch dataSplit[1] {
-	case chnlBookTiker:
+	case channelBookTiker:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreBookTicker{},
 		}
@@ -324,7 +341,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 			Bids:       []orderbook.Level{bid},
 			UpdateTime: time.Now(),
 		})
-	case chnlAggregateDepthV3:
+	case channelAggregateDepthV3:
 		result := mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreDepths{},
 		}
@@ -387,7 +404,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 			Pair:       cp.Format(format),
 			UpdateTime: time.Now(),
 		})
-	case chnlAggreDealsV3:
+	case channelAggreDealsV3:
 		result := mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreDeals{},
 		}
@@ -427,7 +444,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		}
 		e.Websocket.DataHandler <- tradesDetail
 		return nil
-	case chnlKlineV3:
+	case channelKlineV3:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicSpotKline{},
 		}
@@ -473,7 +490,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		}
 		e.Websocket.DataHandler <- []websocket.KlineData{klineData}
 		return nil
-	case chnlIncreaseDepthBatchV3:
+	case channelIncreaseDepthBatchV3:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicIncreaseDepthsBatch{},
 		}
@@ -536,7 +553,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-	case chnlLimitDepthV3:
+	case channelLimitDepthV3:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicLimitDepths{},
 		}
@@ -578,7 +595,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 			Pair:        cp,
 			LastUpdated: time.Now(),
 		})
-	case chnlBookTickerBatch:
+	case channelBookTickerBatch:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicBookTickerBatch{},
 		}
@@ -617,7 +634,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		}
 		e.Websocket.DataHandler <- tickersDetail
 		return nil
-	case chnlAccountV3:
+	case channelAccountV3:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PrivateAccount{},
 		}
@@ -644,7 +661,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 			},
 		}
 		return nil
-	case chnlPrivateDealsV3:
+	case channelPrivateDealsV3:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PrivateDeals{},
 		}
@@ -687,7 +704,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 			},
 		}
 		return nil
-	case chnlPrivateOrdersAPI:
+	case channelPrivateOrdersAPI:
 		result := mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PrivateOrders{},
 		}

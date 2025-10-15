@@ -803,19 +803,10 @@ type TransferableCurrencies struct {
 
 // ContractOrderbook holds futures contracts orderbook details
 type ContractOrderbook struct {
-	Asks      []OrderbookData `json:"asks"`
-	Bids      []OrderbookData `json:"bids"`
-	Version   int64           `json:"version"`
-	Timestamp types.Time      `json:"timestamp"`
-}
-
-// OrderbookData holds orderbook depth detail
-type OrderbookData orderbook.Level
-
-// UnmarshalJSON deserializes slice of byte data into OrderbookData
-func (od *OrderbookData) UnmarshalJSON(data []byte) error {
-	target := [2]any{&od.Price, &od.Amount}
-	return json.Unmarshal(data, &target)
+	Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Version   int64                            `json:"version"`
+	Timestamp types.Time                       `json:"timestamp"`
 }
 
 // ContractOrderbookWithDepth holds orderbook depth details
@@ -945,11 +936,9 @@ type ContractTickersList []ContractTickerDetail
 // UnmarshalJSON deserializes a contract ticker byte data into ContractTickersList
 func (cts *ContractTickersList) UnmarshalJSON(data []byte) error {
 	var targets []ContractTickerDetail
-	err := json.Unmarshal(data, &targets)
-	if err != nil {
+	if err := json.Unmarshal(data, &targets); err != nil {
 		var target *ContractTickerDetail
-		err := json.Unmarshal(data, &target)
-		if err != nil {
+		if err := json.Unmarshal(data, &target); err != nil {
 			return err
 		}
 		targets = append(targets, *target)
@@ -1170,28 +1159,31 @@ type FuturesOrderTransaction struct {
 
 // FuturesTriggerOrders holds futures trigger orders
 type FuturesTriggerOrders struct {
-	Success bool   `json:"success"`
-	Code    int64  `json:"code"`
-	Message string `json:"message"`
-	Data    []struct {
-		ID           int64      `json:"id"`
-		Symbol       string     `json:"symbol"`
-		Leverage     int64      `json:"leverage"`
-		Side         int64      `json:"side"`
-		TriggerPrice float64    `json:"triggerPrice"`
-		Price        float64    `json:"price"`
-		Volume       float64    `json:"vol"`
-		OpenType     int64      `json:"openType"`
-		TriggerType  int64      `json:"triggerType"`
-		State        int64      `json:"state"`
-		ExecuteCycle int64      `json:"executeCycle"`
-		Trend        int64      `json:"trend"`
-		OrderType    int64      `json:"orderType"`
-		OrderID      int64      `json:"orderId"`
-		ErrorCode    int64      `json:"errorCode"`
-		CreateTime   types.Time `json:"createTime"`
-		UpdateTime   types.Time `json:"updateTime"`
-	} `json:"data"`
+	Success bool                        `json:"success"`
+	Code    int64                       `json:"code"`
+	Message string                      `json:"message"`
+	Data    []FuturesTriggerOrderDetail `json:"data"`
+}
+
+// FuturesTriggerOrderDetail holds a futures trigger order detail
+type FuturesTriggerOrderDetail struct {
+	ID           int64      `json:"id"`
+	Symbol       string     `json:"symbol"`
+	Leverage     int64      `json:"leverage"`
+	Side         int64      `json:"side"`
+	TriggerPrice float64    `json:"triggerPrice"`
+	Price        float64    `json:"price"`
+	Volume       float64    `json:"vol"`
+	OpenType     int64      `json:"openType"`
+	TriggerType  int64      `json:"triggerType"`
+	State        int64      `json:"state"`
+	ExecuteCycle int64      `json:"executeCycle"`
+	Trend        int64      `json:"trend"`
+	OrderType    int64      `json:"orderType"`
+	OrderID      int64      `json:"orderId"`
+	ErrorCode    int64      `json:"errorCode"`
+	CreateTime   types.Time `json:"createTime"`
+	UpdateTime   types.Time `json:"updateTime"`
 }
 
 // FuturesStopLimitOrders holds list of futures stop limit orders details

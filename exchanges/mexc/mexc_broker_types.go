@@ -64,8 +64,7 @@ type StringList []string
 
 // MarshalJSON deserializes a list of string into a comma-separated string representation
 func (sl StringList) MarshalJSON() ([]byte, error) {
-	joinedString := strings.Join(sl, ",")
-	return append(append([]byte("\""), []byte(joinedString)...), '"'), nil
+	return append(append([]byte("\""), []byte(strings.Join(sl, ","))...), '"'), nil
 }
 
 // BrokerSubAccountAPIKeys holds a list of subaccount API keys

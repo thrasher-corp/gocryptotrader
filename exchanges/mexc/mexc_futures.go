@@ -36,8 +36,8 @@ func (e *Exchange) GetTransferableCurrencies(ctx context.Context) (*Transferable
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getTransferableCurrenciesEPL, http.MethodGet, "contract/support_currencies", nil, nil, &resp)
 }
 
-// GetContractDepthInformation returns orderbook depth data of a contract
-func (e *Exchange) GetContractDepthInformation(ctx context.Context, symbol string, limit int64) (*ContractOrderbook, error) {
+// GetContractOrderbook returns orderbook depth data of a contract
+func (e *Exchange) GetContractOrderbook(ctx context.Context, symbol string, limit int64) (*ContractOrderbook, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -595,9 +595,6 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *PlaceFuturesOrder
 }
 
 func validateOrderParams(arg *PlaceFuturesOrderParams) (url.Values, error) {
-	if arg == nil || *arg == (PlaceFuturesOrderParams{}) {
-		return nil, common.ErrNilPointer
-	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
