@@ -240,15 +240,12 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 		return
 	}
 	c.Wg.Go(func() {
-		ticker := time.NewTicker(handler.Delay)
 		for {
 			select {
 			case <-c.shutdown:
-				ticker.Stop()
 				return
-			case <-ticker.C:
-				err := c.SendRawMessage(context.TODO(), epl, handler.MessageType, handler.Message)
-				if err != nil {
+			case <-time.After(handler.Delay):
+				if err := c.SendRawMessage(context.Background(), epl, handler.MessageType, handler.Message); err != nil {
 					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]: %v", c.ExchangeName, handler.Message, err)
 					return
 				}
@@ -370,8 +367,8 @@ func (c *connection) defaultGenerateMessageID(highPrec bool) int64 {
 
 // Shutdown shuts down and closes specific connection
 func (c *connection) Shutdown() error {
-	if c == nil || c.Connection == nil {
-		return nil
+	if err := common.NilGuard(c, c.Connection); err != nil {
+		return err
 	}
 	c.setConnectedStatus(false)
 	c.writeControl.Lock()
