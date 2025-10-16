@@ -17,7 +17,7 @@ import (
 var (
 	ErrRateLimiterAlreadyDisabled = errors.New("rate limiter already disabled")
 	ErrRateLimiterAlreadyEnabled  = errors.New("rate limiter already enabled")
-	ErrNoDelayPermitted           = errors.New("no delay permitted")
+	ErrDelayNotAllowed           = errors.New("delay not allowed")
 
 	errLimiterSystemIsNil = errors.New("limiter system is nil")
 	errInvalidWeightCount = errors.New("invalid weight count must equal or greater than 1")
