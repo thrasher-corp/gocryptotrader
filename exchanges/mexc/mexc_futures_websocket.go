@@ -27,7 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var futuresWsURL = "wss://contract.mexc.com/edge"
+var futuresWebsocketURL = "wss://contract.mexc.com/edge"
 
 const (
 
@@ -59,7 +59,7 @@ var defaultFuturesSubscriptions = []string{
 }
 
 // WsFuturesConnect established a futures websocket connection
-func (e *Exchange) WsFuturesConnect() error {
+func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -68,29 +68,20 @@ func (e *Exchange) WsFuturesConnect() error {
 		ReadBufferSize:    8192,
 		WriteBufferSize:   8192,
 	}
-	if err := e.Websocket.SetWebsocketURL(futuresWsURL, false, true); err != nil {
+	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
-	if err := e.Websocket.Conn.Dial(context.Background(), &dialer, http.Header{}); err != nil {
-		return err
-	}
-	e.Websocket.Wg.Add(1)
-	go e.wsFuturesReadData(e.Websocket.Conn)
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := e.wsAuth(); err != nil {
-			log.Warnf(log.ExchangeSys, "authentication error: %v", err)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
-	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "Successful connection to %v\n", e.Websocket.GetWebsocketURL())
-	}
+	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+		Message:     []byte(`{"method": "ping"}`),
+		MessageType: gws.TextMessage,
+		Delay:       time.Minute * 15,
+	})
 	return nil
 }
 
 // wsAuth authenticates a futures websocket connection
-func (e *Exchange) wsAuth() error {
-	credentials, err := e.GetCredentials(context.Background())
+func (e *Exchange) wsAuth(ctx context.Context, conn websocket.Connection) error {
+	credentials, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -105,7 +96,7 @@ func (e *Exchange) wsAuth() error {
 		return err
 	}
 	param.Signature = base64.StdEncoding.EncodeToString(hmac)
-	data, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.Auth, "rs.login", &WsSubscriptionPayload{
+	data, err := conn.SendMessageReturnResponse(ctx, request.Auth, "rs.login", &WsSubscriptionPayload{
 		Param:  param,
 		Method: channelLogin,
 	})
@@ -157,42 +148,47 @@ func (e *Exchange) GenerateDefaultFuturesSubscriptions() (subscription.List, err
 }
 
 // SubscribeFutures subscribes to a futures websocket channel
-func (e *Exchange) SubscribeFutures(subscriptions subscription.List) error {
-	return e.handleSubscriptionFuturesPayload(subscriptions, "sub")
+func (e *Exchange) SubscribeFutures(ctx context.Context, conn websocket.Connection, subscriptions subscription.List) error {
+	return e.handleSubscriptionFuturesPayload(ctx, conn, subscriptions, "sub")
 }
 
 // UnsubscribeFutures unsubscribes to a futures websocket channel
-func (e *Exchange) UnsubscribeFutures(subscriptions subscription.List) error {
-	return e.handleSubscriptionFuturesPayload(subscriptions, "unsub")
+func (e *Exchange) UnsubscribeFutures(ctx context.Context, conn websocket.Connection, subscriptions subscription.List) error {
+	return e.handleSubscriptionFuturesPayload(ctx, conn, subscriptions, "unsub")
 }
 
-func (e *Exchange) handleSubscriptionFuturesPayload(subscriptionItems subscription.List, method string) error {
+func (e *Exchange) handleSubscriptionFuturesPayload(ctx context.Context, conn websocket.Connection, subscriptionItems subscription.List, method string) error {
 	for x := range subscriptionItems {
 		switch subscriptionItems[x].Channel {
 		case channelFDeal, channelFTicker, channelFDepthFull, channelFKline, channelFFundingRate, channelFIndexPrice, channelFFairPrice:
-			params := make([]FWebsocketReqParam, len(subscriptionItems[x].Pairs))
+			var param *FWebsocketReqParam
 			for p := range subscriptionItems[x].Pairs {
-				params[p].Symbol = subscriptionItems[x].Pairs[p].String()
 				switch subscriptionItems[x].Channel {
 				case channelFDeal:
-					params[p].Compress = true
-					params[p].Limit = subscriptionItems[x].Levels
+					param = &FWebsocketReqParam{
+						Symbol:   subscriptionItems[x].Pairs[p].String(),
+						Compress: true,
+						Limit:    subscriptionItems[x].Levels,
+					}
 				case channelFKline:
 					intervalString, err := ContractIntervalString(subscriptionItems[x].Interval)
 					if err != nil {
 						return err
 					}
-					params[p].Interval = intervalString
+					param = &FWebsocketReqParam{
+						Symbol:   subscriptionItems[x].Pairs[p].String(),
+						Interval: intervalString,
+					}
 				}
-				if err := e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsSubscriptionPayload{
+				if err := conn.SendJSONMessage(ctx, request.UnAuth, &WsSubscriptionPayload{
 					Method: method + "." + subscriptionItems[x].Channel,
-					Param:  &params[p],
+					Param:  param,
 				}); err != nil {
 					return err
 				}
 			}
 		default:
-			if err := e.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsSubscriptionPayload{
+			if err := conn.SendJSONMessage(ctx, request.UnAuth, &WsSubscriptionPayload{
 				Method: method + "." + subscriptionItems[x].Channel,
 			}); err != nil {
 				return err
@@ -200,20 +196,6 @@ func (e *Exchange) handleSubscriptionFuturesPayload(subscriptionItems subscripti
 		}
 	}
 	return nil
-}
-
-// wsFuturesReadData sends futures assets related msgs from public and auth websockets to data handler
-func (e *Exchange) wsFuturesReadData(ws websocket.Connection) {
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if len(resp.Raw) == 0 {
-			return
-		}
-		if err := e.WsHandleFuturesData(resp.Raw); err != nil {
-			e.Websocket.DataHandler <- err
-		}
-	}
 }
 
 // WsHandleFuturesData processed futures websocket data

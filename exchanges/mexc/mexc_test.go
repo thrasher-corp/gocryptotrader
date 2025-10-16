@@ -59,7 +59,6 @@ func TestMain(m *testing.M) {
 	if err := populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
-	setupWs()
 	os.Exit(m.Run())
 }
 
@@ -1825,30 +1824,6 @@ func TestWsHandleFuturesData(t *testing.T) {
 			err := e.WsHandleFuturesData([]byte(futuresWsPushDataMap[elem]))
 			assert.NoErrorf(t, err, "%v: %s", err, elem)
 		})
-	}
-}
-
-func TestWsFuturesConnect(t *testing.T) {
-	t.Parallel()
-	if !e.Websocket.IsEnabled() {
-		err := e.Websocket.Enable()
-		require.NoError(t, err)
-	}
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	err := e.WsFuturesConnect()
-	assert.NoError(t, err)
-}
-
-func setupWs() {
-	if !e.Websocket.IsEnabled() {
-		return
-	}
-	if !sharedtestvalues.AreAPICredentialsSet(e) {
-		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	}
-	err := e.WsConnect()
-	if err != nil {
-		log.Fatal(err)
 	}
 }
 

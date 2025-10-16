@@ -24,12 +24,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"google.golang.org/protobuf/proto"
 )
 
 const (
-	wsURL = "wss://wbs-api.mexc.com/ws"
+	spotWebsocketURL = "wss://wbs-api.mexc.com/ws"
 
 	channelBookTiker            = "public.aggre.bookTicker.v3.api.pb"
 	channelAggregateDepthV3     = "public.aggre.depth.v3.api.pb"
@@ -58,7 +57,7 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (e *Exchange) WsConnect() error {
+func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -68,42 +67,22 @@ func (e *Exchange) WsConnect() error {
 		WriteBufferSize:   8192,
 	}
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err := e.GenerateListenKey(context.Background())
+		listenKey, err := e.GenerateListenKey(ctx)
 		if err != nil {
 			return err
 		}
-		e.Websocket.Conn.SetURL(e.Websocket.Conn.GetURL() + "?listenKey=" + listenKey)
+		conn.SetURL(conn.GetURL() + "?listenKey=" + listenKey)
 	}
-	err := e.Websocket.Conn.Dial(context.Background(), &dialer, http.Header{})
+	err := conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(e.Websocket.Conn)
-	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
-			e.Websocket.GetWebsocketURL())
-	}
-	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     []byte(`{"method": "PING"}`),
 		Delay:       time.Second * 20,
 	})
 	return nil
-}
-
-// wsReadData sends msgs from public and auth websockets to data handler
-func (e *Exchange) wsReadData(ws websocket.Connection) {
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if len(resp.Raw) == 0 {
-			return
-		}
-		if err := e.WsHandleData(resp.Raw); err != nil {
-			e.Websocket.DataHandler <- err
-		}
-	}
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
@@ -141,6 +120,25 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	return subscriptions, nil
 }
 
+// Subscribe subscribes to a channel
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
+	return e.handleSubscription(ctx, conn, "SUBSCRIPTION", channelsToSubscribe)
+}
+
+// Unsubscribe unsubscribes to a channel
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
+	return e.handleSubscription(ctx, conn, "UNSUBSCRIPTION", channelsToSubscribe)
+}
+
+func assetTypeToString(assetType asset.Item) (string, error) {
+	switch assetType {
+	case asset.Spot, asset.Futures:
+		return strings.ToLower(assetType.String()), nil
+	default:
+		return "", fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+	}
+}
+
 // var defaultSubscriptionsList = subscription.List{
 // 	{Channel: channelBookTiker},
 // }
@@ -158,26 +156,41 @@ var defaultSubscriptions = subscription.List{
 	// {Enabled: true, Channel: accountBalanceChannel, Authenticated: true},
 }
 
-// Subscribe subscribes to a channel
-func (e *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
-	return e.handleSubscription("SUBSCRIPTION", channelsToSubscribe)
-}
-
-// Unsubscribe unsubscribes to a channel
-func (e *Exchange) Unsubscribe(channelsToSubscribe subscription.List) error {
-	return e.handleSubscription("UNSUBSCRIPTION", channelsToSubscribe)
-}
-
-func assetTypeToString(assetType asset.Item) (string, error) {
-	switch assetType {
-	case asset.Spot, asset.Futures:
-		return strings.ToLower(assetType.String()), nil
-	default:
-		return "", fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+func channelName(s *subscription.Subscription) string {
+	switch s.Asset {
+	case asset.Futures:
+		switch s.Channel {
+		case subscription.TickerChannel:
+			return channelFTickers
+		case subscription.OrderbookChannel:
+			return channelFDepthFull
+		case subscription.MyTradesChannel:
+			return channelFDeal
+		case subscription.MyOrdersChannel:
+			return channelFPersonalOrder
+		case subscription.MyAccountChannel:
+			return channelFPersonalAssets
+		}
+	case asset.Spot:
+		switch s.Channel {
+		case subscription.TickerChannel:
+			return channelBookTiker
+		case subscription.OrderbookChannel:
+			return channelAggregateDepthV3
+		case subscription.MyTradesChannel:
+			return channelPrivateDealsV3
+		case subscription.MyOrdersChannel:
+			return channelPrivateOrdersAPI
+		case subscription.MyAccountChannel:
+			return channelAccountV3
+		case subscription.AllTradesChannel:
+			return channelAggreDealsV3
+		}
 	}
+	return s.Channel
 }
 
-func (e *Exchange) handleSubscription(method string, subs subscription.List) error {
+func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, method string, subs subscription.List) error {
 	payloads := make([]WsSubscriptionPayload, len(subs))
 	successfulSubscriptions := subscription.List{}
 	failedSubscriptions := subscription.List{}
@@ -195,7 +208,7 @@ func (e *Exchange) handleSubscription(method string, subs subscription.List) err
 			if err != nil {
 				return err
 			}
-			payloads[s].ID = e.Websocket.Conn.GenerateMessageID(false)
+			payloads[s].ID = conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = make([]string, len(subs[s].Pairs))
 			for p := range subs[s].Pairs {
@@ -205,7 +218,7 @@ func (e *Exchange) handleSubscription(method string, subs subscription.List) err
 					payloads[s].Params[p] = assetTypeString + "@" + subs[s].Channel + "@" + intervalString + "@" + subs[s].Pairs[p].String()
 				}
 			}
-			data, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
+			data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payloads[s].ID, payloads[s])
 			if err != nil {
 				return err
 			}
@@ -218,13 +231,13 @@ func (e *Exchange) handleSubscription(method string, subs subscription.List) err
 			}
 			successfulSubscriptions = append(successfulSubscriptions, subs[s])
 		case channelLimitDepthV3:
-			payloads[s].ID = e.Websocket.Conn.GenerateMessageID(false)
+			payloads[s].ID = conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = make([]string, len(subs[s].Pairs))
 			for p := range subs[s].Pairs {
 				payloads[s].Params[p] = assetTypeString + "@" + channelLimitDepthV3 + "@" + subs[s].Pairs[p].String() + "@" + strconv.Itoa(subs[s].Levels)
 			}
-			data, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
+			data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payloads[s].ID, payloads[s])
 			if err != nil {
 				return err
 			}
@@ -234,10 +247,10 @@ func (e *Exchange) handleSubscription(method string, subs subscription.List) err
 				return err
 			}
 		case channelAccountV3, channelPrivateDealsV3, channelPrivateOrdersAPI:
-			payloads[s].ID = e.Websocket.Conn.GenerateMessageID(false)
+			payloads[s].ID = conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = []string{assetTypeString + "@" + subs[s].Channel}
-			data, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
+			data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payloads[s].ID, payloads[s])
 			if err != nil {
 				return err
 			}
@@ -247,13 +260,13 @@ func (e *Exchange) handleSubscription(method string, subs subscription.List) err
 				return err
 			}
 		case channelIncreaseDepthBatchV3, channelBookTickerBatch:
-			payloads[s].ID = e.Websocket.Conn.GenerateMessageID(false)
+			payloads[s].ID = conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = make([]string, len(subs[s].Pairs))
 			for p := range subs[s].Pairs {
 				payloads[s].Params[p] = assetTypeString + "@" + subs[s].Channel + "@" + subs[s].Pairs[p].String()
 			}
-			data, err := e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[s].ID, payloads[s])
+			data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payloads[s].ID, payloads[s])
 			if err != nil {
 				return err
 			}
@@ -264,11 +277,11 @@ func (e *Exchange) handleSubscription(method string, subs subscription.List) err
 			}
 		}
 	}
-	err := e.Websocket.RemoveSubscriptions(e.Websocket.Conn, failedSubscriptions...)
+	err := e.Websocket.RemoveSubscriptions(conn, failedSubscriptions...)
 	if err != nil {
 		return err
 	}
-	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, successfulSubscriptions...)
+	return e.Websocket.AddSuccessfulSubscriptions(conn, successfulSubscriptions...)
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler

@@ -40,22 +40,20 @@ func (e *Exchange) SetDefaults() {
 	e.API.CredentialsValidator.RequiresKey = true
 	e.API.CredentialsValidator.RequiresSecret = true
 
-	err := e.SetAssetPairStore(asset.Spot, currency.PairStore{
+	if err := e.SetAssetPairStore(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: ""},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-	})
-	if err != nil {
+	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	err = e.SetAssetPairStore(asset.Futures, currency.PairStore{
+	if err := e.SetAssetPairStore(asset.Futures, currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-	})
-	if err != nil {
+	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	if err = e.DisableAssetWebsocketSupport(asset.Futures); err != nil {
+	if err := e.DisableAssetWebsocketSupport(asset.Futures); err != nil {
 		log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", e.Name, asset.Futures, err)
 	}
 	e.Features = exchange.Features{
@@ -96,19 +94,21 @@ func (e *Exchange) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
+	var err error
 	e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
 	e.API.Endpoints = e.NewEndpoints()
-	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      spotAPIURL,
-		exchange.RestFutures:   contractAPIURL,
-		exchange.WebsocketSpot: wsURL,
-	})
-	if err != nil {
+	if err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:              spotAPIURL,
+		exchange.RestFutures:           contractAPIURL,
+		exchange.WebsocketSpot:         spotWebsocketURL,
+		exchange.WebsocketUSDTMargined: futuresWebsocketURL,
+	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	e.Websocket = websocket.NewManager()
@@ -119,46 +119,64 @@ func (e *Exchange) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (e *Exchange) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil
 	}
-	err = e.SetupDefaults(exch)
+	if err := e.SetupDefaults(exch); err != nil {
+		return err
+	}
+	spotWSURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
-
-	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	futuresWSURL, err := e.API.Endpoints.GetURL(exchange.WebsocketUSDTMargined)
 	if err != nil {
 		return err
 	}
-	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            wsURL,
-		RunningURL:            wsRunningEndpoint,
+	if err := e.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:               exch,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		UseMultiConnectionManagement: true,
+	}); err != nil {
+		return err
+	}
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   spotWSURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      time.Second * 3,
+		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
 		Connector:             e.WsConnect,
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
 		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
-	})
-	if err != nil {
+		Handler: func(_ context.Context, _ websocket.Connection, incoming []byte) error {
+			return e.WsHandleData(incoming)
+		},
+		MessageFilter: asset.Spot,
+		Authenticated: true,
+	}); err != nil {
 		return err
 	}
-	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  wsURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     time.Second * 3,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   futuresWSURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      time.Second * 3,
+		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
+		Connector:             e.WsFuturesConnect,
+		Subscriber:            e.SubscribeFutures,
+		Unsubscriber:          e.UnsubscribeFutures,
+		GenerateSubscriptions: e.GenerateDefaultFuturesSubscriptions,
+		Handler: func(_ context.Context, _ websocket.Connection, incoming []byte) error {
+			return e.WsHandleFuturesData(incoming)
+		},
+		Authenticate:  e.wsAuth,
+		MessageFilter: asset.Futures,
+		Authenticated: true,
 	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -217,8 +235,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		err = e.UpdatePairs(pairs, assetTypes[x], false)
-		if err != nil {
+		if err := e.UpdatePairs(pairs, assetTypes[x], false); err != nil {
 			return err
 		}
 	}
@@ -247,7 +264,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 				continue
 			}
 			found = true
-			err = ticker.ProcessTicker(&ticker.Price{
+			if err := ticker.ProcessTicker(&ticker.Price{
 				Pair:         p,
 				ExchangeName: e.Name,
 				AssetType:    assetType,
@@ -262,8 +279,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 				QuoteVolume:  tickers[t].QuoteVolume.Float64(),
 				Open:         tickers[t].OpenPrice.Float64(),
 				LastUpdated:  tickers[t].CloseTime.Time(),
-			})
-			if err != nil {
+			}); err != nil {
 				return nil, err
 			}
 		}
@@ -282,7 +298,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 				continue
 			}
 			found = true
-			err = ticker.ProcessTicker(&ticker.Price{
+			if err := ticker.ProcessTicker(&ticker.Price{
 				Last:         tickers.Data[t].LastPrice,
 				High:         tickers.Data[t].High24Price,
 				Low:          tickers.Data[t].Lower24Price,
@@ -295,8 +311,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 				ExchangeName: e.Name,
 				AssetType:    asset.Futures,
 				LastUpdated:  tickers.Data[t].Timestamp.Time(),
-			})
-			if err != nil {
+			}); err != nil {
 				return nil, err
 			}
 		}
@@ -322,7 +337,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if err != nil {
 				return err
 			}
-			err = ticker.ProcessTicker(&ticker.Price{
+			if err := ticker.ProcessTicker(&ticker.Price{
 				Pair:         pair,
 				ExchangeName: e.Name,
 				AssetType:    assetType,
@@ -337,8 +352,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				QuoteVolume:  tickers[t].QuoteVolume.Float64(),
 				Open:         tickers[t].OpenPrice.Float64(),
 				LastUpdated:  tickers[t].CloseTime.Time(),
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 		}
@@ -352,7 +366,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if err != nil {
 				return err
 			}
-			err = ticker.ProcessTicker(&ticker.Price{
+			if err := ticker.ProcessTicker(&ticker.Price{
 				Last:         tickers.Data[t].LastPrice,
 				High:         tickers.Data[t].High24Price,
 				Low:          tickers.Data[t].Lower24Price,
@@ -365,8 +379,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				ExchangeName: e.Name,
 				AssetType:    asset.Futures,
 				LastUpdated:  tickers.Data[t].Timestamp.Time(),
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 		}
@@ -399,62 +412,35 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	reqFormat, err := e.GetPairFormat(assetType, true)
+	fPair, err := e.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
 		Exchange:          e.Name,
-		Pair:              pair,
+		Pair:              fPair,
 		Asset:             assetType,
 		ValidateOrderbook: e.ValidateOrderbook,
 	}
 	switch assetType {
 	case asset.Spot:
-		result, err := e.GetOrderbook(ctx, reqFormat.Format(pair), 1000)
+		result, err := e.GetOrderbook(ctx, fPair.String(), 1000)
 		if err != nil {
 			return book, err
 		}
-
-		book.Bids = make([]orderbook.Level, len(result.Bids))
-		for x := range result.Bids {
-			book.Bids[x] = orderbook.Level{
-				Price:  result.Bids[x][0].Float64(),
-				Amount: result.Bids[x][1].Float64(),
-			}
-		}
-		book.Asks = make([]orderbook.Level, len(result.Asks))
-		for x := range result.Asks {
-			book.Asks[x] = orderbook.Level{
-				Price:  result.Asks[x][0].Float64(),
-				Amount: result.Asks[x][1].Float64(),
-			}
-		}
-		err = book.Process()
-		if err != nil {
+		book.Bids = result.Bids.Levels()
+		book.Asks = result.Asks.Levels()
+		if err := book.Process(); err != nil {
 			return book, err
 		}
 	case asset.Futures:
-		result, err := e.GetContractOrderbook(ctx, reqFormat.Format(pair), 1000)
+		result, err := e.GetContractOrderbook(ctx, fPair.String(), 1000)
 		if err != nil {
 			return nil, err
 		}
-		book.Bids = make([]orderbook.Level, len(result.Bids))
-		for x := range result.Bids {
-			book.Bids[x] = orderbook.Level{
-				Price:  result.Bids[x].Price,
-				Amount: result.Bids[x].Amount,
-			}
-		}
-		book.Asks = make([]orderbook.Level, len(result.Asks))
-		for x := range result.Asks {
-			book.Asks[x] = orderbook.Level{
-				Price:  result.Asks[x].Price,
-				Amount: result.Asks[x].Amount,
-			}
-		}
-		err = book.Process()
-		if err != nil {
+		book.Bids = result.Bids.Levels()
+		book.Asks = result.Asks.Levels()
+		if err := book.Process(); err != nil {
 			return book, err
 		}
 	default:
@@ -886,13 +872,13 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
-	err := orderCancellation.Validate(orderCancellation.StandardCancel())
-	if err != nil {
+	if err := orderCancellation.Validate(orderCancellation.StandardCancel()); err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	resp := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
+	var err error
 	switch orderCancellation.AssetType {
 	case asset.Spot:
 		orderCancellation.Pair, err = e.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
@@ -1667,8 +1653,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, assetType ass
 				MinimumBaseAmount:      result.Symbols[a].BaseSizePrecision.Float64(),
 			}
 		}
-		err = limits.Load(l)
-		if err != nil {
+		if err := limits.Load(l); err != nil {
 			return err
 		}
 	case asset.Futures:
@@ -1699,8 +1684,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, assetType ass
 				MarketMaxQty: result.Data[a].MaxVol,
 			}
 		}
-		err = limits.Load(l)
-		if err != nil {
+		if err := limits.Load(l); err != nil {
 			return err
 		}
 	default:

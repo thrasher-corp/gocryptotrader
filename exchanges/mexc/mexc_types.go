@@ -58,10 +58,10 @@ type SymbolDetail struct {
 
 // Orderbook represents a symbol orderbook detail
 type Orderbook struct {
-	LastUpdateID int64             `json:"lastUpdateId"`
-	Bids         [][2]types.Number `json:"bids"`
-	Asks         [][2]types.Number `json:"asks"`
-	Timestamp    types.Time        `json:"timestamp"`
+	LastUpdateID int64                            `json:"lastUpdateId"`
+	Bids         orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Timestamp    types.Time                       `json:"timestamp"`
 }
 
 // TradeDetail represents a trade detail
