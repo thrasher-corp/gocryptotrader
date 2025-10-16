@@ -17,7 +17,7 @@ var (
 	errUpdatedAtIsZero         = errors.New("updatedAt may not be zero")
 )
 
-// Balance contains an exchange currency balance
+// Balance contains an exchange currency balance.
 type Balance struct {
 	Currency               currency.Code
 	Total                  float64
@@ -28,26 +28,26 @@ type Balance struct {
 	UpdatedAt              time.Time
 }
 
-// Change defines incoming balance change on currency holdings
+// Change defines incoming balance change on currency holdings.
 type Change struct {
 	Account   string
 	AssetType asset.Item
 	Balance   Balance
 }
 
-// balance contains a balance with live updates
+// balance contains a balance with live updates.
 type balance struct {
 	internal Balance
 	m        sync.RWMutex
 }
 
-// CurrencyBalances provides a map of currencies to balances
+// CurrencyBalances provides a map of currencies to balances.
 type CurrencyBalances map[currency.Code]Balance
 
-// currencyBalances provides a map of currencies to balances
+// currencyBalances provides a map of currencies to balances.
 type currencyBalances map[*currency.Item]*balance
 
-// Set will set a currency balance, overwriting any previous Balance
+// Set will set a currency balance, overwriting any previous Balance.
 //
 //nolint:gocritic // Ignoring hugeparam because we want the convenience of all callers passing by value
 //nolint:gocritic // and we want to store a copy anyway so the hugeparam warning that this copies a value is not relevant
@@ -56,7 +56,7 @@ func (c *CurrencyBalances) Set(curr currency.Code, b Balance) {
 	(*c)[curr] = b
 }
 
-// Add will add to a currency balance
+// Add will add to a currency balance.
 func (c *CurrencyBalances) Add(curr currency.Code, b Balance) error { //nolint:gocritic // hugeparam not relevant; we want to store a value so we'd deref anyway
 	if curr == currency.EMPTYCODE {
 		return currency.ErrCurrencyCodeEmpty
@@ -73,15 +73,15 @@ func (c *CurrencyBalances) Add(curr currency.Code, b Balance) error { //nolint:g
 	return nil
 }
 
-// Balance returns a snapshot copy of the Balance
+// Balance returns a snapshot copy of the Balance.
 func (b *balance) Balance() Balance {
 	b.m.RLock()
 	defer b.m.RUnlock()
 	return b.internal
 }
 
-// Add returns a new Balance adding together a and b
-// UpdatedAt is the later of the two Balances
+// Add returns a new Balance adding together a and b.
+// UpdatedAt is the later of the two Balances.
 func (b *Balance) Add(a Balance) Balance { //nolint:gocritic // hugeparam not relevant; We'd need to copy it in map iterations anyway
 	var u time.Time
 	if a.UpdatedAt.After(b.UpdatedAt) {
@@ -99,7 +99,7 @@ func (b *Balance) Add(a Balance) Balance { //nolint:gocritic // hugeparam not re
 	}
 }
 
-// Public returns a copy of the currencyBalances converted to CurrencyBalances for use outside this package
+// Public returns a copy of the currencyBalances converted to CurrencyBalances for use outside this package.
 func (c currencyBalances) Public() CurrencyBalances {
 	n := make(CurrencyBalances, len(c))
 	for curr, bal := range c {
@@ -108,8 +108,8 @@ func (c currencyBalances) Public() CurrencyBalances {
 	return n
 }
 
-// update checks that an incoming change has a valid change, and returns if the balances were changed
-// If change does not have a Currency set, the existing Currency is preserved
+// update checks that an incoming change has a valid change, and returns if the balances were changed.
+// If change does not have a Currency set, the existing Currency is preserved.
 func (b *balance) update(change Balance) (bool, error) { //nolint:gocritic // hugeparam not relevant; We'd need to copy it later anyway
 	if err := common.NilGuard(b); err != nil {
 		return false, err
@@ -137,7 +137,7 @@ func (b *balance) update(change Balance) (bool, error) { //nolint:gocritic // hu
 	return true, nil
 }
 
-// balance returns a balance for a currency
+// balance returns a balance for a currency.
 func (c currencyBalances) balance(curr *currency.Item) *balance {
 	b, ok := c[curr]
 	if !ok {

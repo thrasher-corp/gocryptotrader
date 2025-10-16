@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// Public errors
+// Public errors.
 var (
 	ErrNotRunning               = errors.New("dispatcher not running")
 	ErrDispatcherAlreadyRunning = errors.New("dispatcher already running")
@@ -31,7 +31,7 @@ var (
 	limitMessage = "%w [%d] current worker count [%d]. Spawn more workers via --dispatchworkers=x, or increase the jobs limit via --dispatchjobslimit=x"
 )
 
-// Name is an exported subsystem name
+// Name is an exported subsystem name.
 const Name = "dispatch"
 
 func init() {
@@ -48,14 +48,14 @@ func NewDispatcher() *Dispatcher {
 	}
 }
 
-// Start starts the dispatch system and spawns workers
+// Start starts the dispatch system and spawns workers.
 func Start(workers, jobsLimit int) error {
 	dispatcher.m.Lock()
 	defer dispatcher.m.Unlock()
 	return dispatcher.start(workers, jobsLimit)
 }
 
-// EnsureRunning starts the global dispatcher if it's not already running
+// EnsureRunning starts the global dispatcher if it's not already running.
 func EnsureRunning(workers, jobsLimit int) error {
 	dispatcher.m.Lock()
 	defer dispatcher.m.Unlock()
@@ -65,19 +65,19 @@ func EnsureRunning(workers, jobsLimit int) error {
 	return dispatcher.start(workers, jobsLimit)
 }
 
-// Stop will halt the dispatch service
+// Stop will halt the dispatch service.
 func Stop() error {
 	log.Debugln(log.DispatchMgr, "Dispatch manager shutting down...")
 	return dispatcher.stop()
 }
 
-// IsRunning checks to see if the dispatch service is running
+// IsRunning checks to see if the dispatch service is running.
 func IsRunning() bool {
 	return dispatcher.isRunning()
 }
 
-// start sets defaults and config and spawns workers
-// Does not provide locking protection
+// start sets defaults and config and spawns workers.
+// Does not provide locking protection.
 func (d *Dispatcher) start(workers, channelCapacity int) error {
 	if err := common.NilGuard(d); err != nil {
 		return err
@@ -108,7 +108,7 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 	return nil
 }
 
-// stop stops the service and shuts down all worker routines
+// stop stops the service and shuts down all worker routines.
 func (d *Dispatcher) stop() error {
 	if err := common.NilGuard(d); err != nil {
 		return err
@@ -156,7 +156,7 @@ func (d *Dispatcher) stop() error {
 	return nil
 }
 
-// isRunning returns if the dispatch system is running
+// isRunning returns if the dispatch system is running.
 func (d *Dispatcher) isRunning() bool {
 	if d == nil {
 		return false
@@ -167,7 +167,7 @@ func (d *Dispatcher) isRunning() bool {
 	return d.running
 }
 
-// relayer routine relays communications across the defined routes
+// relayer routine relays communications across the defined routes.
 func (d *Dispatcher) relayer() {
 	for {
 		select {
@@ -202,7 +202,7 @@ func (d *Dispatcher) relayer() {
 	}
 }
 
-// publish relays data to the subscribed subsystems
+// publish relays data to the subscribed subsystems.
 func (d *Dispatcher) publish(id uuid.UUID, data any) error {
 	if err := common.NilGuard(d, data); err != nil {
 		return err
@@ -227,8 +227,7 @@ func (d *Dispatcher) publish(id uuid.UUID, data any) error {
 	}
 }
 
-// Subscribe subscribes a system and returns a communication chan, this does not
-// ensure initial push.
+// Subscribe subscribes a system and returns a communication chan, this does not ensure initial push.
 func (d *Dispatcher) subscribe(id uuid.UUID) (chan any, error) {
 	if err := common.NilGuard(d); err != nil {
 		return nil, err
@@ -262,7 +261,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan any, error) {
 	return ch, nil
 }
 
-// Unsubscribe unsubs a routine from the dispatcher
+// Unsubscribe unsubs a routine from the dispatcher.
 func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan any) error {
 	if err := common.NilGuard(d); err != nil {
 		return err
@@ -315,7 +314,7 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan any) error {
 	return errChannelNotFoundInUUIDRef
 }
 
-// GetNewID returns a new ID
+// GetNewID returns a new ID.
 func (d *Dispatcher) getNewID(genFn func() (uuid.UUID, error)) (uuid.UUID, error) {
 	if err := common.NilGuard(d); err != nil {
 		return uuid.Nil, err
