@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// Public errors
+// Public errors.
 var (
 	ErrNoBalances    = errors.New("no balances found")
 	ErrNoSubAccounts = errors.New("no subAccounts found")
@@ -29,7 +29,7 @@ var (
 	errPublish          = errors.New("error publishing account changes")
 )
 
-// Accounts holds a stream ID and a map to the exchange holdings
+// Accounts holds a stream ID and a map to the exchange holdings.
 type Accounts struct {
 	Exchange    exchange
 	routingID   uuid.UUID // GCT internal routing mux id
@@ -43,20 +43,20 @@ type (
 	subAccounts     map[key.SubAccountAsset]currencyBalances
 )
 
-// SubAccount contains an account for an asset type and its balances
-// The SubAccount may be the main account depending on exchange structure
+// SubAccount contains an account for an asset type and its balances.
+// The SubAccount may be the main account depending on exchange structure.
 type SubAccount struct {
 	ID        string
 	AssetType asset.Item
 	Balances  CurrencyBalances
 }
 
-// SubAccounts contains a list of public SubAccounts
+// SubAccounts contains a list of public SubAccounts.
 type SubAccounts []*SubAccount
 
-// MustNewAccounts returns an initialised Accounts store for use in isolation from a global exchange accounts store
-// mux is set to the global dispatch.Dispatcher
-// Any errors in mux ID generation will panic, so users should balance risk vs utility accordingly depending on use-case
+// MustNewAccounts returns an initialised Accounts store for use in isolation from a global exchange accounts store.
+// mux is set to the global dispatch.Dispatcher.
+// Any errors in mux ID generation will panic, so users should balance risk vs utility accordingly depending on use-case.
 func MustNewAccounts(e exchange) *Accounts {
 	a, err := NewAccounts(e, dispatch.GetNewMux(nil))
 	if err != nil {
@@ -65,7 +65,7 @@ func MustNewAccounts(e exchange) *Accounts {
 	return a
 }
 
-// NewAccounts returns an initialised Accounts store for use in isolation from a global exchange accounts store
+// NewAccounts returns an initialised Accounts store for use in isolation from a global exchange accounts store.
 func NewAccounts(e exchange, mux *dispatch.Mux) (*Accounts, error) {
 	if err := common.NilGuard(e); err != nil {
 		return nil, err
@@ -82,8 +82,8 @@ func NewAccounts(e exchange, mux *dispatch.Mux) (*Accounts, error) {
 	}, nil
 }
 
-// NewSubAccount returns a new SubAccount
-// id may be empty
+// NewSubAccount returns a new SubAccount.
+// id may be empty.
 func NewSubAccount(a asset.Item, id string) *SubAccount {
 	return &SubAccount{
 		AssetType: a,
@@ -92,7 +92,7 @@ func NewSubAccount(a asset.Item, id string) *SubAccount {
 	}
 }
 
-// Subscribe subscribes to your exchange accounts
+// Subscribe subscribes to your exchange accounts.
 func (a *Accounts) Subscribe() (dispatch.Pipe, error) {
 	if err := common.NilGuard(a); err != nil {
 		return dispatch.Pipe{}, err
@@ -100,9 +100,9 @@ func (a *Accounts) Subscribe() (dispatch.Pipe, error) {
 	return a.mux.Subscribe(a.routingID)
 }
 
-// CurrencyBalances returns the balances for the Accounts grouped by currency
-// If creds is nil, all credential SubAccounts will be collated
-// If assetType is asset.All, all assets will be collated
+// CurrencyBalances returns the balances for the Accounts grouped by currency.
+// If creds is nil, all credential SubAccounts will be collated.
+// If assetType is asset.All, all assets will be collated.
 func (a *Accounts) CurrencyBalances(creds *Credentials, assetType asset.Item) (CurrencyBalances, error) {
 	if err := common.NilGuard(a); err != nil {
 		return nil, err
@@ -137,9 +137,9 @@ func (a *Accounts) CurrencyBalances(creds *Credentials, assetType asset.Item) (C
 	return currs, nil
 }
 
-// SubAccounts returns the public SubAccounts and their balances
-// If creds is nil, all credential SubAccounts will be returned
-// If assetType is asset.All, all assets will be returned
+// SubAccounts returns the public SubAccounts and their balances.
+// If creds is nil, all credential SubAccounts will be returned.
+// If assetType is asset.All, all assets will be returned.
 func (a *Accounts) SubAccounts(creds *Credentials, assetType asset.Item) (SubAccounts, error) {
 	if err := common.NilGuard(a); err != nil {
 		return nil, err
@@ -176,7 +176,7 @@ func (a *Accounts) SubAccounts(creds *Credentials, assetType asset.Item) (SubAcc
 	return subAccts, nil
 }
 
-// GetBalance returns a copy of the balance for that asset item
+// GetBalance returns a copy of the balance for that asset item.
 func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset.Item, c currency.Code) (Balance, error) {
 	if err := common.NilGuard(a); err != nil {
 		return Balance{}, err
@@ -215,10 +215,10 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 	return b.Balance(), nil
 }
 
-// Save updates the account balances
-// If isSnapshot is true any missing currencies will be removed
+// Save updates the account balances.
+// If isSnapshot is true any missing currencies will be removed.
 // Credentials will be retrieved from ctx, Use DeployCredentialsToContext.
-// Changes to balances are published individually
+// Changes to balances are published individually.
 func (a *Accounts) Save(ctx context.Context, subAccts SubAccounts, isSnapshot bool) error {
 	if err := common.NilGuard(a); err != nil {
 		return fmt.Errorf("cannot save holdings: %w", err)
@@ -281,9 +281,9 @@ func (a *Accounts) Save(ctx context.Context, subAccts SubAccounts, isSnapshot bo
 	return errs
 }
 
-// Merge adds CurrencyBalances in s to the SubAccount in l with a matching AssetType and ID
-// If no SubAccount matches, s is appended
-// Duplicate Currency Balances are added together
+// Merge adds CurrencyBalances in s to the SubAccount in l with a matching AssetType and ID.
+// If no SubAccount matches, s is appended.
+// Duplicate Currency Balances are added together.
 func (l SubAccounts) Merge(s *SubAccount) SubAccounts {
 	if err := common.NilGuard(s); err != nil {
 		return nil
@@ -298,8 +298,8 @@ func (l SubAccounts) Merge(s *SubAccount) SubAccounts {
 	return l
 }
 
-// currencyBalances returns a currencyBalances entry for Credentials, SubAccount and asset
-// No nilguard protection provided, since this is a private function
+// currencyBalances returns a currencyBalances entry for Credentials, SubAccount and asset.
+// No nilguard protection provided, since this is a private function.
 func (a *Accounts) currencyBalances(c *Credentials, subAcct string, aType asset.Item) currencyBalances {
 	k := key.SubAccountAsset{SubAccount: subAcct, Asset: aType}
 	if _, ok := a.subAccounts[*c]; !ok {

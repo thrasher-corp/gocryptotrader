@@ -555,7 +555,7 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 	return &gctrpc.GetOrderbooksResponse{Orderbooks: obResponse}, nil
 }
 
-// GetAccountBalances returns an account balance for a specific exchange
+// GetAccountBalances returns an account balance for a specific exchange.
 func (s *RPCServer) GetAccountBalances(ctx context.Context, r *gctrpc.GetAccountBalancesRequest) (*gctrpc.GetAccountBalancesResponse, error) {
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
@@ -579,7 +579,7 @@ func (s *RPCServer) GetAccountBalances(ctx context.Context, r *gctrpc.GetAccount
 	return accountBalanceResp(r.Exchange, resp), nil
 }
 
-// UpdateAccountBalances forces an update of the account info
+// UpdateAccountBalances forces an update of the account balances.
 func (s *RPCServer) UpdateAccountBalances(ctx context.Context, r *gctrpc.GetAccountBalancesRequest) (*gctrpc.GetAccountBalancesResponse, error) {
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
