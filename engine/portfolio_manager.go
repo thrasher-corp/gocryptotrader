@@ -142,6 +142,9 @@ func (m *portfolioManager) processPortfolio() {
 
 // updateExchangeBalances calls UpdateAccountBalance on each exchange, and transfers the account balances into portfolio
 func (m *portfolioManager) updateExchangeBalances() error {
+	if err := common.NilGuard(m); err != nil {
+		return err
+	}
 	exchanges, errs := m.exchangeManager.GetExchanges()
 	if errs != nil {
 		return fmt.Errorf("portfolio manager cannot get exchanges: %w", errs)
@@ -175,6 +178,9 @@ func (m *portfolioManager) updateExchangeBalances() error {
 
 // updateExchangeAddressBalances fetches and collates all account balances with their deposit addresses
 func (m *portfolioManager) updateExchangeAddressBalances(e exchange.IBotExchange) error {
+	if err := common.NilGuard(m, e); err != nil {
+		return err
+	}
 	currs, err := e.GetBase().Accounts.CurrencyBalances(nil, asset.All)
 	if err != nil {
 		return err

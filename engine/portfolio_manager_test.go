@@ -8,9 +8,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
 func TestSetupPortfolioManager(t *testing.T) {
@@ -100,63 +102,71 @@ func TestProcessPortfolio(t *testing.T) {
 	m.processPortfolio()
 }
 
-// TestUpdateExchangeBalances tests the updateExchangeBalances function code paths
 func TestUpdateExchangeBalances(t *testing.T) {
 	t.Parallel()
 
-	em := NewExchangeManager()
-	m, err := setupPortfolioManager(em, 0, nil)
+	assert.ErrorContains(t, (*portfolioManager)(nil).updateExchangeBalances(), "nil pointer: *engine.portfolioManager")
+	assert.ErrorIs(t, new(portfolioManager).updateExchangeBalances(), ErrNilSubsystem)
+
+	m, err := setupPortfolioManager(NewExchangeManager(), 0, &portfolio.Base{Verbose: true})
 	require.NoError(t, err, "setupPortfolioManager must not error")
+	assert.NoError(t, m.updateExchangeBalances(), "updateExchangeBalances should not error with an empty exchange list")
 
-	err = m.updateExchangeBalances()
-	assert.NoError(t, err, "updateExchangeBalances should not error with no exchanges")
+	e := &mockExchange{err: errors.New("Mock UpdateBalanceError")}
+	m.exchangeManager.exchanges = map[string]exchange.IBotExchange{"mock": e}
+	assert.NoError(t, m.updateExchangeBalances(), "updateExchangeBalances should not error on disabled exchanges")
 
-	exch, err := em.NewExchangeByName("Bitstamp")
-	require.NoError(t, err, "NewExchangeByName must not error")
-	exch.SetDefaults()
-	exch.SetEnabled(false)
-	err = em.Add(exch)
-	require.NoError(t, err, "Add must not error")
+	e.enabled = true
+	assert.NoError(t, m.updateExchangeBalances(), "updateExchangeBalances should skip exchange without auth support")
 
-	m, err = setupPortfolioManager(em, 0, nil)
-	require.NoError(t, err, "setupPortfolioManager must not error")
-
-	err = m.updateExchangeBalances()
-	assert.NoError(t, err, "updateExchangeBalances should skip disabled exchange and not error")
-
-	em = NewExchangeManager()
-	exch, err = em.NewExchangeByName("Bitstamp")
-	require.NoError(t, err, "NewExchangeByName must not error")
-	exch.SetDefaults()
-	exch.SetEnabled(true)
-	err = em.Add(exch)
-	require.NoError(t, err, "Add must not error")
-
-	m, err = setupPortfolioManager(em, 0, nil)
-	require.NoError(t, err, "setupPortfolioManager must not error")
-
-	err = m.updateExchangeBalances()
-	assert.NoError(t, err, "updateExchangeBalances should skip exchange without auth and not error")
-
-	m.exchangeManager = nil
-	err = m.updateExchangeBalances()
-	assert.Error(t, err, "updateExchangeBalances should error with nil exchangeManager")
-	assert.Contains(t, err.Error(), "cannot get exchanges", "Error should mention cannot get exchanges")
+	e.authSupported = true
+	assert.ErrorIs(t, m.updateExchangeBalances(), e.err, "error should contain the UpdateAccountBalances error message")
 }
 
-// mockExchange is a minimal mock for testing updateExchangeBalances code paths
+func TestUpdateExchangeAddressBalances(t *testing.T) {
+	t.Parallel()
+
+	assert.ErrorContains(t, (*portfolioManager)(nil).updateExchangeAddressBalances(nil), "nil pointer: *engine.portfolioManager")
+	assert.ErrorContains(t, new(portfolioManager).updateExchangeAddressBalances(nil), "nil pointer: <nil>")
+
+	e := &mockExchange{enabled: false, err: errors.New("Mock UpdateBalanceError")}
+	m, err := setupPortfolioManager(NewExchangeManager(), 0, nil)
+	require.NoError(t, err, "setupPortfolioManager must not error")
+	assert.ErrorContains(t, m.updateExchangeAddressBalances(e), "nil pointer: *accounts.Accounts", "updateExchangeAddressBalances should propagate CurrencyBalances errors")
+
+	a := accounts.MustNewAccounts(e)
+	e.accounts = a
+	subAcct := accounts.NewSubAccount(asset.Spot, "")
+	subAcct.Balances.Set(currency.BTC, accounts.Balance{Total: 1.5})
+	subAcct.Balances.Set(currency.ETH, accounts.Balance{Total: 0})
+	require.NoError(t, a.Save(t.Context(), accounts.SubAccounts{subAcct}, false), "accounts.Save must not error")
+	require.NoError(t, m.updateExchangeAddressBalances(e))
+	require.Len(t, m.base.Addresses, 1, "must have one address for the positive balance")
+	assert.Equal(t, 1.5, m.base.Addresses[0].Balance, "balance should match on a new address")
+
+	subAcct.Balances.Set(currency.BTC, accounts.Balance{Total: 2})
+	require.NoError(t, a.Save(t.Context(), accounts.SubAccounts{subAcct}, true), "accounts.Save must not error")
+	require.NoError(t, m.updateExchangeAddressBalances(e))
+	require.Len(t, m.base.Addresses, 1, "must have one address for the positive balance")
+	assert.Equal(t, 2.0, m.base.Addresses[0].Balance, "balance should match after update existing address")
+
+	subAcct.Balances.Set(currency.BTC, accounts.Balance{Total: 0})
+	require.NoError(t, a.Save(t.Context(), accounts.SubAccounts{subAcct}, true), "accounts.Save must not error")
+	require.NoError(t, m.updateExchangeAddressBalances(e))
+	assert.Empty(t, m.base.Addresses, "should have removed address with no balance")
+}
+
+// mockExchange is a minimal mock for testing
 type mockExchange struct {
 	exchange.IBotExchange
-	name                string
-	enabled             bool
-	authSupported       bool
-	hasAssetSegregation bool
-	assetTypes          asset.Items
-	updateBalancesErr   error
+	enabled       bool
+	authSupported bool
+	err           error
+	accounts      *accounts.Accounts
 }
 
 func (m *mockExchange) GetName() string {
-	return m.name
+	return "mocky"
 }
 
 func (m *mockExchange) IsEnabled() bool {
@@ -168,106 +178,21 @@ func (m *mockExchange) IsRESTAuthenticationSupported() bool {
 }
 
 func (m *mockExchange) HasAssetTypeAccountSegregation() bool {
-	return m.hasAssetSegregation
+	return true
 }
 
-func (m *mockExchange) GetAssetTypes(enabled bool) asset.Items {
-	return m.assetTypes
+func (m *mockExchange) GetAssetTypes(bool) asset.Items {
+	return asset.Items{asset.Spot, asset.Futures}
 }
 
-func (m *mockExchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
-	return nil, m.updateBalancesErr
+func (m *mockExchange) UpdateAccountBalances(context.Context, asset.Item) (accounts.SubAccounts, error) {
+	return nil, m.err
 }
 
 func (m *mockExchange) GetBase() *exchange.Base {
-	return &exchange.Base{Name: m.name}
+	return &exchange.Base{Name: "mocky", Accounts: m.accounts}
 }
 
-// TestUpdateExchangeBalancesCodePaths tests the specific code paths in updateExchangeBalances
-func TestUpdateExchangeBalancesCodePaths(t *testing.T) {
-	t.Parallel()
-
-	t.Run("disabled exchange continues loop", func(t *testing.T) {
-		t.Parallel()
-		em := NewExchangeManager()
-		em.exchanges = map[string]exchange.IBotExchange{
-			"test": &mockExchange{name: "test", enabled: false},
-		}
-		m, err := setupPortfolioManager(em, 0, nil)
-		require.NoError(t, err)
-
-		err = m.updateExchangeBalances()
-		assert.NoError(t, err, "Should skip disabled exchange")
-	})
-
-	t.Run("exchange without auth continues loop", func(t *testing.T) {
-		t.Parallel()
-		em := NewExchangeManager()
-		em.exchanges = map[string]exchange.IBotExchange{
-			"test": &mockExchange{name: "test", enabled: true, authSupported: false},
-		}
-		m, err := setupPortfolioManager(em, 0, nil)
-		require.NoError(t, err)
-
-		err = m.updateExchangeBalances()
-		assert.NoError(t, err, "Should skip exchange without auth")
-	})
-
-	t.Run("exchange with asset segregation uses GetAssetTypes", func(t *testing.T) {
-		t.Parallel()
-		em := NewExchangeManager()
-		em.exchanges = map[string]exchange.IBotExchange{
-			"test": &mockExchange{
-				name:                "test",
-				enabled:             true,
-				authSupported:       true,
-				hasAssetSegregation: true,
-				assetTypes:          asset.Items{asset.Spot, asset.Futures},
-			},
-		}
-		m, err := setupPortfolioManager(em, 0, nil)
-		require.NoError(t, err)
-
-		err = m.updateExchangeBalances()
-		assert.Error(t, err, "Should attempt updates and encounter errors")
-	})
-
-	t.Run("UpdateAccountBalances error is appended", func(t *testing.T) {
-		t.Parallel()
-		em := NewExchangeManager()
-		em.exchanges = map[string]exchange.IBotExchange{
-			"test": &mockExchange{
-				name:              "test",
-				enabled:           true,
-				authSupported:     true,
-				updateBalancesErr: errors.New("balance update failed"),
-			},
-		}
-		m, err := setupPortfolioManager(em, 0, nil)
-		require.NoError(t, err)
-
-		err = m.updateExchangeBalances()
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "balance update failed")
-	})
-}
-
-// TestUpdateExchangeAddressBalances tests the updateExchangeAddressBalances function
-func TestUpdateExchangeAddressBalances(t *testing.T) {
-	t.Parallel()
-
-	em := NewExchangeManager()
-	m, err := setupPortfolioManager(em, 0, nil)
-	require.NoError(t, err)
-
-	exch, err := em.NewExchangeByName("Bitstamp")
-	require.NoError(t, err)
-	exch.SetDefaults()
-	err = em.Add(exch)
-	require.NoError(t, err)
-
-	err = m.updateExchangeAddressBalances(exch)
-	if err != nil {
-		assert.Error(t, err, "updateExchangeAddressBalances may error with uninitialized accounts")
-	}
+func (m *mockExchange) GetCredentials(context.Context) (*accounts.Credentials, error) {
+	return &accounts.Credentials{Key: m.GetName()}, nil
 }
