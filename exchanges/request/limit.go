@@ -19,7 +19,6 @@ var (
 	ErrRateLimiterAlreadyEnabled  = errors.New("rate limiter already enabled")
 	ErrDelayNotAllowed            = errors.New("delay not allowed")
 
-	// errLimiterSystemIsNil = errors.New("limiter system is nil")
 	errInvalidWeight = errors.New("weight must be equal-or-greater than 1")
 )
 
