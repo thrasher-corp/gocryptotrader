@@ -126,8 +126,8 @@ func (r *Requester) GetRateLimiterDefinitions() RateLimitDefinitions {
 	return r.limiter
 }
 
-// RateLimit is a function that will rate limit a request based on the rate limiter provided. It will return an error if
-// the context is cancelled, deadline exceeded or if no delay is permitted via the context and a delay is required.
+// RateLimit throttles a request based on weight, delaying the request 
+// Errors if no delay is permitted via the context and a delay is required
 func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	if err := common.NilGuard(r); err != nil {
 		return err
