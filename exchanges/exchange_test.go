@@ -836,7 +836,7 @@ func TestSetupDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = b.Websocket.Enable()
+	err = b.Websocket.EnableAndConnect()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1505,7 +1505,7 @@ func TestCheckTransientError(t *testing.T) {
 func TestDisableEnableRateLimiter(t *testing.T) {
 	b := Base{}
 	err := b.EnableRateLimiter()
-	require.ErrorIs(t, err, request.ErrRequestSystemIsNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	b.Requester, err = request.New("testingRateLimiter", common.NewHTTPClientWithTimeout(0))
 	if err != nil {

@@ -1936,6 +1936,8 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 }
 
 // GetLatestFundingRates returns the latest funding rates data
+// if no pair is supplied it returns all funding rates, but no predicted rate
+// if an individual pair is supplied it returns the predicted rate as well
 func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
@@ -1951,9 +1953,6 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		contracts, err := e.GetFuturesOpenContracts(ctx)
 		if err != nil {
 			return nil, err
-		}
-		if r.IncludePredictedRate {
-			log.Warnf(log.ExchangeSys, "%s predicted rate for all currencies requires an additional %v requests", e.Name, len(contracts))
 		}
 		timeChecked := time.Now()
 		resp := make([]fundingrate.LatestRateResponse, 0, len(contracts))
@@ -1983,17 +1982,6 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				},
 				TimeOfNextRate: timeOfNextFundingRate,
 				TimeChecked:    timeChecked,
-			}
-			if r.IncludePredictedRate {
-				var fr *FuturesFundingRate
-				fr, err = e.GetFuturesCurrentFundingRate(ctx, contracts[i].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				rate.PredictedUpcomingRate = fundingrate.Rate{
-					Time: timeOfNextFundingRate,
-					Rate: decimal.NewFromFloat(fr.PredictedValue),
-				}
 			}
 			resp = append(resp, rate)
 		}
@@ -2027,11 +2015,9 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		TimeOfNextRate: fr.TimePoint.Time().Add(fri).Truncate(time.Hour).UTC(),
 		TimeChecked:    time.Now(),
 	}
-	if r.IncludePredictedRate {
-		rate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: rate.TimeOfNextRate,
-			Rate: decimal.NewFromFloat(fr.PredictedValue),
-		}
+	rate.PredictedUpcomingRate = fundingrate.Rate{
+		Time: rate.TimeOfNextRate,
+		Rate: decimal.NewFromFloat(fr.PredictedValue),
 	}
 	resp[0] = rate
 	return resp, nil
