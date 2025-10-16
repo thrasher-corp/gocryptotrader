@@ -2793,14 +2793,13 @@ func TestUpdateAccountBalances(t *testing.T) {
 
 	if mockTests {
 		require.Len(t, subAccts, 1, "Accounts must have 1 item")
-		subAcct := subAccts[0]
 		require.Len(t, subAccts[0].Balances, 3, "Accounts currencies must have 3 currency items")
 
 		for _, curr := range []currency.Code{currency.USDC, currency.AVAX, currency.USDT} {
 			t.Run(curr.String(), func(t *testing.T) {
 				t.Parallel()
-				require.Contains(t, subAcct.Balances, curr, "Balances must contain currency")
-				bal := subAcct.Balances[curr]
+				require.Contains(t, subAccts[0].Balances, curr, "Balances must contain currency")
+				bal := subAccts[0].Balances[curr]
 				assert.Equal(t, curr, bal.Currency, "Balance Currency should be set")
 				switch curr {
 				case currency.USDC:
