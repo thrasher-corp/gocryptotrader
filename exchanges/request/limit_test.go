@@ -20,7 +20,7 @@ func TestRateLimit(t *testing.T) {
 
 	r := &RateLimiterWithWeight{limiter: rate.NewLimiter(rate.Limit(1), 1)}
 	err = r.RateLimit(t.Context())
-	assert.ErrorIs(t, err, errInvalidWeightCount, "should return errInvalidWeightCount for zero weight")
+	assert.ErrorIs(t, err, errInvalidWeight, "should return errInvalidWeightCount for zero weight")
 
 	r = NewRateLimitWithWeight(time.Second, 10, 1)
 	start := time.Now()
@@ -38,7 +38,7 @@ func TestRateLimit(t *testing.T) {
 
 	r = NewRateLimitWithWeight(100*time.Millisecond, 1, 1)
 	start = time.Now()
-	err = r.RateLimit(WithNoDelayPermitted(t.Context()))
+	err = r.RateLimit(WithDelayNotAllowed(t.Context()))
 	require.NoError(t, err, "first rate limit call must not error and must be immediate")
 	firstElapsed := time.Since(start)
 	assert.Less(t, firstElapsed, 50*time.Millisecond, "first call should be immediate")
@@ -50,8 +50,8 @@ func TestRateLimit(t *testing.T) {
 	assert.GreaterOrEqual(t, secondElapsed, 90*time.Millisecond, "second call should be delayed by approximately 100ms")
 	assert.Less(t, secondElapsed, 150*time.Millisecond, "delay should not be excessive")
 
-	err = r.RateLimit(WithNoDelayPermitted(t.Context()))
-	assert.ErrorIs(t, err, ErrNoDelayPermitted, "should return correct error")
+	err = r.RateLimit(WithDelayNotAllowed(t.Context()))
+	assert.ErrorIs(t, err, ErrDelayNotAllowed, "should return correct error")
 
 	var routineErr error
 	wg := sync.WaitGroup{}
@@ -85,7 +85,7 @@ func TestRateLimit_Concurrent_WithFailure(t *testing.T) {
 	for i := range 10 {
 		ctx := t.Context()
 		if i%2 == 0 {
-			ctx = WithNoDelayPermitted(ctx)
+			ctx = WithDelayNotAllowed(ctx)
 		}
 		wg.Go(func() { errs <- r.RateLimit(ctx) })
 	}
@@ -93,7 +93,7 @@ func TestRateLimit_Concurrent_WithFailure(t *testing.T) {
 	close(errs)
 	for err := range errs {
 		if err != nil {
-			require.ErrorIs(t, err, ErrNoDelayPermitted, "must return correct error")
+			require.ErrorIs(t, err, ErrDelayNotAllowed, "must return correct error")
 		}
 	}
 	assert.Less(t, time.Since(tn), time.Millisecond*600, "should complete within reasonable time")
@@ -126,10 +126,10 @@ func TestRateLimit_Linear_WithFailure(t *testing.T) {
 	for i := range 10 {
 		ctx := t.Context()
 		if i%2 == 0 {
-			ctx = WithNoDelayPermitted(ctx)
+			ctx = WithDelayNotAllowed(ctx)
 		}
 		if err := r.RateLimit(ctx); err != nil {
-			require.ErrorIs(t, err, ErrNoDelayPermitted, "must return correct error")
+			require.ErrorIs(t, err, ErrDelayNotAllowed, "must return correct error")
 		}
 	}
 	wg.Wait()
@@ -219,12 +219,12 @@ func TestNewBasicRateLimit(t *testing.T) {
 	assert.Same(t, defs[Auth], defs[UnAuth], "Auth and UnAuth should be same instance")
 }
 
-func TestWithNoDelayPermitted(t *testing.T) {
+func TestWithDelayNotAllowed(t *testing.T) {
 	t.Parallel()
 
-	assert.True(t, hasNoDelayPermitted(WithNoDelayPermitted(t.Context())))
-	assert.False(t, hasNoDelayPermitted(t.Context()))
-	assert.False(t, hasNoDelayPermitted(WithVerbose(t.Context())))
+	assert.True(t, hasDelayNotAllowed(WithDelayNotAllowed(t.Context())))
+	assert.False(t, hasDelayNotAllowed(t.Context()))
+	assert.False(t, hasDelayNotAllowed(WithVerbose(t.Context())))
 }
 
 func TestCancelAll(t *testing.T) {

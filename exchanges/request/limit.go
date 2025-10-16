@@ -17,9 +17,9 @@ import (
 var (
 	ErrRateLimiterAlreadyDisabled = errors.New("rate limiter already disabled")
 	ErrRateLimiterAlreadyEnabled  = errors.New("rate limiter already enabled")
-	ErrDelayNotAllowed           = errors.New("delay not allowed")
+	ErrDelayNotAllowed            = errors.New("delay not allowed")
 
-	errLimiterSystemIsNil = errors.New("limiter system is nil")
+	// errLimiterSystemIsNil = errors.New("limiter system is nil")
 	errInvalidWeight = errors.New("weight must be equal-or-greater than 1")
 )
 
@@ -45,9 +45,8 @@ type Weight uint8
 // RateLimitDefinitions is a map of endpoint limits to rate limiters
 type RateLimitDefinitions map[any]*RateLimiterWithWeight
 
-// RateLimiterWithWeight is a rate limiter coupled with a weight count which
-// refers to the number or weighting of the request. This is used to define
-// the rate limit for a specific endpoint.
+// RateLimiterWithWeight is a rate limiter coupled with a weight which refers to the number or weighting of the request.
+// This is used to define the rate limit for a specific endpoint.
 type RateLimiterWithWeight struct {
 	limiter *rate.Limiter
 	weight  Weight
@@ -103,8 +102,8 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 	if atomic.LoadInt32(&r.disableRateLimiter) == 1 {
 		return nil
 	}
-	if r.limiter == nil {
-		return fmt.Errorf("cannot rate limit request %w", errLimiterSystemIsNil)
+	if err := common.NilGuard(r.limiter); err != nil {
+		return err
 	}
 
 	rateLimiter := r.limiter[e]
@@ -126,7 +125,7 @@ func (r *Requester) GetRateLimiterDefinitions() RateLimitDefinitions {
 	return r.limiter
 }
 
-// RateLimit throttles a request based on weight, delaying the request 
+// RateLimit throttles a request based on weight, delaying the request
 // Errors if no delay is permitted via the context and a delay is required
 func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	if err := common.NilGuard(r); err != nil {
@@ -134,7 +133,7 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	}
 
 	if r.weight == 0 {
-		return errInvalidWeightCount
+		return errInvalidWeight
 	}
 
 	r.m.Lock()
@@ -151,10 +150,10 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 		return nil
 	}
 
-	if hasNoDelayPermitted(ctx) {
+	if hasDelayNotAllowed(ctx) {
 		cancelAll(reserved, tn)
 		r.m.Unlock()
-		return ErrNoDelayPermitted
+		return ErrDelayNotAllowed
 	}
 
 	if dl, ok := ctx.Deadline(); ok && dl.Before(tn.Add(finalDelay)) {
@@ -203,14 +202,14 @@ func (r *Requester) EnableRateLimiter() error {
 	return nil
 }
 
-type noDelayPermittedKey struct{}
+type delayNotAllowedKey struct{}
 
-// WithNoDelayPermitted adds a value to the context that indicates that no delay is permitted for rate limiting
-func WithNoDelayPermitted(ctx context.Context) context.Context {
-	return context.WithValue(ctx, noDelayPermittedKey{}, struct{}{})
+// WithDelayNotAllowed adds a value to the context that indicates that no delay is allowed for rate limiting
+func WithDelayNotAllowed(ctx context.Context) context.Context {
+	return context.WithValue(ctx, delayNotAllowedKey{}, struct{}{})
 }
 
-func hasNoDelayPermitted(ctx context.Context) bool {
-	_, ok := ctx.Value(noDelayPermittedKey{}).(struct{})
+func hasDelayNotAllowed(ctx context.Context) bool {
+	_, ok := ctx.Value(delayNotAllowedKey{}).(struct{})
 	return ok
 }
