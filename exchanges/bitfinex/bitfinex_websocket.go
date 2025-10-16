@@ -101,8 +101,6 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Levels: 100, Params: map[string]any{"prec": "R0"}},
 }
 
-var comms = make(chan websocket.Response)
-
 type checksum struct {
 	Token    uint32
 	Sequence int64
@@ -136,7 +134,7 @@ func (e *Exchange) WsConnect() error {
 	}
 
 	e.Websocket.Wg.Add(1)
-	go e.wsReadData(e.Websocket.Conn)
+	go e.wsReadData(ctx, e.Websocket.Conn)
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		err = e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
 		if err != nil {
@@ -147,7 +145,7 @@ func (e *Exchange) WsConnect() error {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 		e.Websocket.Wg.Add(1)
-		go e.wsReadData(e.Websocket.AuthConn)
+		go e.wsReadData(ctx, e.Websocket.AuthConn)
 		err = e.WsSendAuth(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -159,61 +157,33 @@ func (e *Exchange) WsConnect() error {
 	}
 
 	e.Websocket.Wg.Add(1)
-	go e.WsDataHandler(ctx)
 	return e.ConfigureWS(ctx)
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ws websocket.Connection) {
+func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
 	defer e.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		comms <- resp
-	}
-}
-
-// WsDataHandler handles data from wsReadData
-func (e *Exchange) WsDataHandler(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-	for {
-		select {
-		case <-e.Websocket.ShutdownC:
-			select {
-			case resp := <-comms:
-				err := e.wsHandleData(ctx, resp.Raw)
-				if err != nil {
-					select {
-					case e.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", e.Name, err)
-					}
-				}
-			default:
-			}
-			return
-		case resp := <-comms:
-			if resp.Type != gws.TextMessage {
-				continue
-			}
-			err := e.wsHandleData(ctx, resp.Raw)
-			if err != nil {
-				e.Websocket.DataHandler <- err
+		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
 			}
 		}
 	}
 }
 
-func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	var result any
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	switch d := result.(type) {
 	case map[string]any:
-		return e.handleWSEvent(respRaw)
+		return e.handleWSEvent(ctx, respRaw)
 	case []any:
 		chanIDFloat, ok := d[0].(float64)
 		if !ok {
@@ -225,7 +195,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 
 		if chanID != 0 {
 			if s := e.Websocket.GetSubscription(chanID); s != nil {
-				return e.handleWSChannelUpdate(s, respRaw, eventType, d)
+				return e.handleWSChannelUpdate(ctx, s, respRaw, eventType, d)
 			}
 			if e.Verbose {
 				log.Warnf(log.ExchangeSys, "%s %s; dropped WS message: %s", e.Name, subscription.ErrNotFound, respRaw)
@@ -244,27 +214,29 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 		case wsHeartbeat, pong:
 			return nil
 		case wsNotification:
-			return e.handleWSNotification(d, respRaw)
+			return e.handleWSNotification(ctx, d, respRaw)
 		case wsOrderSnapshot:
 			if snapBundle, ok := d[2].([]any); ok && len(snapBundle) > 0 {
 				if _, ok := snapBundle[0].([]any); ok {
 					for i := range snapBundle {
 						if positionData, ok := snapBundle[i].([]any); ok {
-							e.wsHandleOrder(positionData)
+							if err := e.wsHandleOrder(ctx, positionData); err != nil {
+								return err
+							}
 						}
 					}
 				}
 			}
 		case wsOrderCancel, wsOrderNew, wsOrderUpdate:
 			if oData, ok := d[2].([]any); ok && len(oData) > 0 {
-				e.wsHandleOrder(oData)
+				return e.wsHandleOrder(ctx, oData)
 			}
 		case wsPositionSnapshot:
-			return e.handleWSPositionSnapshot(d)
+			return e.handleWSPositionSnapshot(ctx, d)
 		case wsPositionNew, wsPositionUpdate, wsPositionClose:
-			return e.handleWSPositionUpdate(d)
+			return e.handleWSPositionUpdate(ctx, d)
 		case wsTradeExecuted, wsTradeUpdated:
-			return e.handleWSMyTradeUpdate(d, eventType)
+			return e.handleWSMyTradeUpdate(ctx, d, eventType)
 		case wsFundingOfferSnapshot:
 			if snapBundle, ok := d[2].([]any); ok && len(snapBundle) > 0 {
 				if _, ok := snapBundle[0].([]any); ok {
@@ -280,7 +252,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 						}
 						snapshot[i] = offer
 					}
-					e.Websocket.DataHandler <- snapshot
+					return e.Websocket.DataHandler.Send(ctx, snapshot)
 				}
 			}
 		case wsFundingOfferNew, wsFundingOfferUpdate, wsFundingOfferCancel:
@@ -289,7 +261,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				e.Websocket.DataHandler <- offer
+				return e.Websocket.DataHandler.Send(ctx, offer)
 			}
 		case wsFundingCreditSnapshot:
 			if snapBundle, ok := d[2].([]any); ok && len(snapBundle) > 0 {
@@ -306,7 +278,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 						}
 						snapshot[i] = fundingCredit
 					}
-					e.Websocket.DataHandler <- snapshot
+					return e.Websocket.DataHandler.Send(ctx, snapshot)
 				}
 			}
 		case wsFundingCreditNew, wsFundingCreditUpdate, wsFundingCreditCancel:
@@ -315,7 +287,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				e.Websocket.DataHandler <- fundingCredit
+				return e.Websocket.DataHandler.Send(ctx, fundingCredit)
 			}
 		case wsFundingLoanSnapshot:
 			if snapBundle, ok := d[2].([]any); ok && len(snapBundle) > 0 {
@@ -332,7 +304,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 						}
 						snapshot[i] = fundingLoanSnapshot
 					}
-					e.Websocket.DataHandler <- snapshot
+					return e.Websocket.DataHandler.Send(ctx, snapshot)
 				}
 			}
 		case wsFundingLoanNew, wsFundingLoanUpdate, wsFundingLoanCancel:
@@ -341,7 +313,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				e.Websocket.DataHandler <- fundingData
+				return e.Websocket.DataHandler.Send(ctx, fundingData)
 			}
 		case wsWalletSnapshot:
 			if snapBundle, ok := d[2].([]any); ok && len(snapBundle) > 0 {
@@ -372,7 +344,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 						}
 						snapshot[i] = wallet
 					}
-					e.Websocket.DataHandler <- snapshot
+					return e.Websocket.DataHandler.Send(ctx, snapshot)
 				}
 			}
 		case wsWalletUpdate:
@@ -395,7 +367,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 						return errors.New("unable to type assert wallet snapshot balance available")
 					}
 				}
-				e.Websocket.DataHandler <- wallet
+				return e.Websocket.DataHandler.Send(ctx, wallet)
 			}
 		case wsBalanceUpdate:
 			if data, ok := d[2].([]any); ok && len(data) > 0 {
@@ -406,7 +378,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				if balance.NetAssetsUnderManagement, ok = data[1].(float64); !ok {
 					return errors.New("unable to type assert balance net assets under management")
 				}
-				e.Websocket.DataHandler <- balance
+				return e.Websocket.DataHandler.Send(ctx, balance)
 			}
 		case wsMarginInfoUpdate:
 			if data, ok := d[2].([]any); ok && len(data) > 0 {
@@ -431,7 +403,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 					if marginInfoBase.MarginRequired, ok = baseData[4].(float64); !ok {
 						return errors.New("unable to type assert margin info required")
 					}
-					e.Websocket.DataHandler <- marginInfoBase
+					return e.Websocket.DataHandler.Send(ctx, marginInfoBase)
 				}
 			}
 		case wsFundingInfoUpdate:
@@ -457,7 +429,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 					if fundingInfo.DurationLend, ok = symbolData[3].(float64); !ok {
 						return errors.New("unable to type assert funding info update duration lend")
 					}
-					e.Websocket.DataHandler <- fundingInfo
+					return e.Websocket.DataHandler.Send(ctx, fundingInfo)
 				}
 			}
 		case wsFundingTradeExecuted, wsFundingTradeUpdated:
@@ -493,19 +465,18 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				}
 				wsFundingTrade.Period = int64(period)
 				wsFundingTrade.Maker = data[7] != nil
-				e.Websocket.DataHandler <- wsFundingTrade
+				return e.Websocket.DataHandler.Send(ctx, wsFundingTrade)
 			}
 		default:
-			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 				Message: e.Name + websocket.UnhandledMessage + string(respRaw),
-			}
-			return nil
+			})
 		}
 	}
 	return nil
 }
 
-func (e *Exchange) handleWSEvent(respRaw []byte) error {
+func (e *Exchange) handleWSEvent(ctx context.Context, respRaw []byte) error {
 	event, err := jsonparser.GetUnsafeString(respRaw, "event")
 	if err != nil {
 		return fmt.Errorf("%w 'event': %w from message: %s", common.ErrParsingWSField, err, respRaw)
@@ -547,14 +518,13 @@ func (e *Exchange) handleWSEvent(respRaw []byte) error {
 				return fmt.Errorf("unable to Unmarshal auth resp; Error: %w Msg: %v", err, respRaw)
 			}
 			// TODO - Send a better value down the channel
-			e.Websocket.DataHandler <- glob
-		} else {
-			errCode, err := jsonparser.GetInt(respRaw, "code")
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %s 'code': %s from message: %s", e.Name, common.ErrParsingWSField, err, respRaw)
-			}
-			return fmt.Errorf("WS auth subscription error; Status: %s Error Code: %d", status, errCode)
+			return e.Websocket.DataHandler.Send(ctx, glob)
 		}
+		errCode, err := jsonparser.GetInt(respRaw, "code")
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s %s 'code': %s from message: %s", e.Name, common.ErrParsingWSField, err, respRaw)
+		}
+		return fmt.Errorf("WS auth subscription error; Status: %s Error Code: %d", status, errCode)
 	case wsEventInfo:
 		// Nothing to do with info for now.
 		// version or platform.status might be useful in the future.
@@ -608,7 +578,7 @@ func (e *Exchange) handleWSSubscribed(respRaw []byte) error {
 	return e.Websocket.Match.RequireMatchWithData("subscribe:"+subID, respRaw)
 }
 
-func (e *Exchange) handleWSChannelUpdate(s *subscription.Subscription, respRaw []byte, eventType string, d []any) error {
+func (e *Exchange) handleWSChannelUpdate(ctx context.Context, s *subscription.Subscription, respRaw []byte, eventType string, d []any) error {
 	if s == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -626,13 +596,13 @@ func (e *Exchange) handleWSChannelUpdate(s *subscription.Subscription, respRaw [
 
 	switch s.Channel {
 	case subscription.OrderbookChannel:
-		return e.handleWSBookUpdate(s, d)
+		return e.handleWSBookUpdate(ctx, s, d)
 	case subscription.CandlesChannel:
-		return e.handleWSAllCandleUpdates(s, respRaw)
+		return e.handleWSAllCandleUpdates(ctx, s, respRaw)
 	case subscription.TickerChannel:
-		return e.handleWSTickerUpdate(s, d)
+		return e.handleWSTickerUpdate(ctx, s, d)
 	case subscription.AllTradesChannel:
-		return e.handleWSAllTrades(s, respRaw)
+		return e.handleWSAllTrades(ctx, s, respRaw)
 	}
 
 	return fmt.Errorf("%s unhandled channel update: %s", e.Name, s.Channel)
@@ -672,7 +642,7 @@ func (e *Exchange) handleWSChecksum(c *subscription.Subscription, d []any) error
 	return nil
 }
 
-func (e *Exchange) handleWSBookUpdate(c *subscription.Subscription, d []any) error {
+func (e *Exchange) handleWSBookUpdate(ctx context.Context, c *subscription.Subscription, d []any) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -768,7 +738,7 @@ func (e *Exchange) handleWSBookUpdate(c *subscription.Subscription, d []any) err
 			})
 		}
 
-		if err := e.WsUpdateOrderbook(c, c.Pairs[0], c.Asset, newOrderbook, int64(sequenceNo), fundingRate); err != nil {
+		if err := e.WsUpdateOrderbook(ctx, c, c.Pairs[0], c.Asset, newOrderbook, int64(sequenceNo), fundingRate); err != nil {
 			return fmt.Errorf("updating orderbook error: %s",
 				err)
 		}
@@ -777,7 +747,7 @@ func (e *Exchange) handleWSBookUpdate(c *subscription.Subscription, d []any) err
 	return nil
 }
 
-func (e *Exchange) handleWSAllCandleUpdates(c *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) handleWSAllCandleUpdates(ctx context.Context, c *subscription.Subscription, respRaw []byte) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -818,11 +788,10 @@ func (e *Exchange) handleWSAllCandleUpdates(c *subscription.Subscription, respRa
 			Volume:     wsCandles[i].Volume.Float64(),
 		}
 	}
-	e.Websocket.DataHandler <- klines
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, klines)
 }
 
-func (e *Exchange) handleWSTickerUpdate(c *subscription.Subscription, d []any) error {
+func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Subscription, d []any) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -897,11 +866,10 @@ func (e *Exchange) handleWSTickerUpdate(c *subscription.Subscription, d []any) e
 			return errors.New("unable to type assert ticker flash return rate")
 		}
 	}
-	e.Websocket.DataHandler <- t
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, t)
 }
 
-func (e *Exchange) handleWSAllTrades(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) handleWSAllTrades(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
 	feedEnabled := e.IsTradeFeedEnabled()
 	if !feedEnabled && !e.IsSaveTradeDataEnabled() {
 		return nil
@@ -948,7 +916,9 @@ func (e *Exchange) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 			t.Price = w.Rate
 		}
 		if feedEnabled {
-			e.Websocket.DataHandler <- t
+			if err := e.Websocket.DataHandler.Send(ctx, t); err != nil {
+				return err
+			}
 		}
 	}
 	if e.IsSaveTradeDataEnabled() {
@@ -971,7 +941,7 @@ func (e *Exchange) handleWSPublicTradeUpdate(respRaw []byte) (*Trade, error) {
 	return t, json.Unmarshal(v, t)
 }
 
-func (e *Exchange) handleWSNotification(d []any, respRaw []byte) error {
+func (e *Exchange) handleWSNotification(ctx context.Context, d []any, respRaw []byte) error {
 	notification, ok := d[2].([]any)
 	if !ok {
 		return errors.New("unable to type assert notification data")
@@ -994,7 +964,7 @@ func (e *Exchange) handleWSNotification(d []any, respRaw []byte) error {
 					if err != nil {
 						return err
 					}
-					e.Websocket.DataHandler <- offer
+					return e.Websocket.DataHandler.Send(ctx, offer)
 				}
 			}
 		case strings.Contains(channelName, wsOrderNewRequest):
@@ -1005,7 +975,7 @@ func (e *Exchange) handleWSNotification(d []any, respRaw []byte) error {
 					if e.Websocket.Match.IncomingWithData(int64(cid), respRaw) {
 						return nil
 					}
-					e.wsHandleOrder(data)
+					return e.wsHandleOrder(ctx, data)
 				}
 			}
 		case strings.Contains(channelName, wsOrderUpdateRequest),
@@ -1017,7 +987,7 @@ func (e *Exchange) handleWSNotification(d []any, respRaw []byte) error {
 					if e.Websocket.Match.IncomingWithData(int64(id), respRaw) {
 						return nil
 					}
-					e.wsHandleOrder(data)
+					return e.wsHandleOrder(ctx, data)
 				}
 			}
 		default:
@@ -1042,7 +1012,7 @@ func (e *Exchange) handleWSNotification(d []any, respRaw []byte) error {
 	return nil
 }
 
-func (e *Exchange) handleWSPositionSnapshot(d []any) error {
+func (e *Exchange) handleWSPositionSnapshot(ctx context.Context, d []any) error {
 	snapBundle, ok := d[2].([]any)
 	if !ok {
 		return common.GetTypeAssertError("[]any", d[2], "positionSnapshotBundle")
@@ -1091,11 +1061,10 @@ func (e *Exchange) handleWSPositionSnapshot(d []any) error {
 		}
 		snapshot[i] = position
 	}
-	e.Websocket.DataHandler <- snapshot
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, snapshot)
 }
 
-func (e *Exchange) handleWSPositionUpdate(d []any) error {
+func (e *Exchange) handleWSPositionUpdate(ctx context.Context, d []any) error {
 	positionData, ok := d[2].([]any)
 	if !ok {
 		return common.GetTypeAssertError("[]any", d[2], "positionUpdate")
@@ -1136,11 +1105,10 @@ func (e *Exchange) handleWSPositionUpdate(d []any) error {
 	if position.Leverage, ok = positionData[9].(float64); !ok {
 		return errors.New("unable to type assert position leverage")
 	}
-	e.Websocket.DataHandler <- position
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, position)
 }
 
-func (e *Exchange) handleWSMyTradeUpdate(d []any, eventType string) error {
+func (e *Exchange) handleWSMyTradeUpdate(ctx context.Context, d []any, eventType string) error {
 	tradeData, ok := d[2].([]any)
 	if !ok {
 		return common.GetTypeAssertError("[]any", d[2], "tradeUpdate")
@@ -1192,8 +1160,7 @@ func (e *Exchange) handleWSMyTradeUpdate(d []any, eventType string) error {
 			return errors.New("unable to type assert trade fee currency")
 		}
 	}
-	e.Websocket.DataHandler <- tData
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, tData)
 }
 
 func wsHandleFundingOffer(data []any, includeRateReal bool) (*WsFundingOffer, error) {
@@ -1409,7 +1376,7 @@ func wsHandleFundingCreditLoanData(data []any, includePositionPair bool) (*WsCre
 	return &credit, nil
 }
 
-func (e *Exchange) wsHandleOrder(data []any) {
+func (e *Exchange) wsHandleOrder(ctx context.Context, data []any) error {
 	var od order.Detail
 	var err error
 	od.Exchange = e.Name
@@ -1452,8 +1419,7 @@ func (e *Exchange) wsHandleOrder(data []any) {
 		if p, ok := data[3].(string); ok {
 			od.Pair, od.AssetType, err = e.GetRequestFormattedPairAndAssetType(p[1:])
 			if err != nil {
-				e.Websocket.DataHandler <- err
-				return
+				return err
 			}
 		}
 	}
@@ -1461,11 +1427,7 @@ func (e *Exchange) wsHandleOrder(data []any) {
 		if ordType, ok := data[8].(string); ok {
 			oType, err := order.StringToOrderType(ordType)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  od.OrderID,
-					Err:      err,
-				}
+				return err
 			}
 			od.Type = oType
 		}
@@ -1475,16 +1437,12 @@ func (e *Exchange) wsHandleOrder(data []any) {
 			statusParts := strings.Split(combinedStatus, " @ ")
 			oStatus, err := order.StringToOrderStatus(statusParts[0])
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  od.OrderID,
-					Err:      err,
-				}
+				return err
 			}
 			od.Status = oStatus
 		}
 	}
-	e.Websocket.DataHandler <- &od
+	return e.Websocket.DataHandler.Send(ctx, &od)
 }
 
 // WsInsertSnapshot add the initial orderbook snapshot when subscribed to a channel
@@ -1531,7 +1489,7 @@ func (e *Exchange) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
-func (e *Exchange) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pair, assetType asset.Item, book []WebsocketBook, sequenceNo int64, fundingRate bool) error {
+func (e *Exchange) WsUpdateOrderbook(ctx context.Context, c *subscription.Subscription, p currency.Pair, assetType asset.Item, book []WebsocketBook, sequenceNo int64, fundingRate bool) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -1620,7 +1578,7 @@ func (e *Exchange) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 
 		if err = validateCRC32(ob, checkme.Token); err != nil {
 			log.Errorf(log.WebsocketMgr, "%s websocket orderbook update error, will resubscribe orderbook: %v", e.Name, err)
-			if e2 := e.resubOrderbook(c); e2 != nil {
+			if e2 := e.resubOrderbook(ctx, c); e2 != nil {
 				log.Errorf(log.WebsocketMgr, "%s error resubscribing orderbook: %v", e.Name, e2)
 			}
 			return err
@@ -1633,7 +1591,7 @@ func (e *Exchange) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 // resubOrderbook resubscribes the orderbook after a consistency error, probably a failed checksum,
 // which forces a fresh snapshot. If we don't do this the orderbook will keep erroring and drifting.
 // Flushing the orderbook happens immediately, but the ReSub itself is a go routine to avoid blocking the WS data channel
-func (e *Exchange) resubOrderbook(c *subscription.Subscription) error {
+func (e *Exchange) resubOrderbook(ctx context.Context, c *subscription.Subscription) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -1647,7 +1605,7 @@ func (e *Exchange) resubOrderbook(c *subscription.Subscription) error {
 
 	// Resub will block so we have to do this in a goro
 	go func() {
-		if err := e.Websocket.ResubscribeToChannel(e.Websocket.Conn, c); err != nil {
+		if err := e.Websocket.ResubscribeToChannel(ctx, e.Websocket.Conn, c); err != nil {
 			log.Errorf(log.ExchangeSys, "%s error resubscribing orderbook: %v", e.Name, err)
 		}
 	}()
@@ -1737,9 +1695,7 @@ func (e *Exchange) subscribeToChan(ctx context.Context, subs subscription.List) 
 	}
 
 	if err = e.getErrResp(respRaw); err != nil {
-		wErr := fmt.Errorf("%w: Channel: %s Pair: %s", err, s.Channel, s.Pairs)
-		e.Websocket.DataHandler <- wErr
-		return wErr
+		return fmt.Errorf("%w: Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}
 
 	return nil
@@ -1767,9 +1723,7 @@ func (e *Exchange) unsubscribeFromChan(ctx context.Context, subs subscription.Li
 	}
 
 	if err := e.getErrResp(respRaw); err != nil {
-		wErr := fmt.Errorf("%w: ChanId: %v", err, chanID)
-		e.Websocket.DataHandler <- wErr
-		return wErr
+		return fmt.Errorf("%w: ChanId: %v", err, chanID)
 	}
 
 	return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s)

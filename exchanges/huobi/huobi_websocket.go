@@ -110,7 +110,9 @@ func (e *Exchange) wsReadMsgs(ctx context.Context, s websocket.Connection) {
 		}
 
 		if err := e.wsHandleData(ctx, msg.Raw); err != nil {
-			e.Websocket.DataHandler <- err
+			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+			}
 		}
 	}
 }
@@ -144,14 +146,12 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if s == nil {
 			return fmt.Errorf("%w: %q", subscription.ErrNotFound, ch)
 		}
-		return e.wsHandleChannelMsgs(s, respRaw)
+		return e.wsHandleChannelMsgs(ctx, s, respRaw)
 	}
 
-	e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+	return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 		Message: e.Name + websocket.UnhandledMessage + string(respRaw),
-	}
-
-	return nil
+	})
 }
 
 // wsHandleV1ping handles v1 style pings, currently only used with public connections
@@ -181,27 +181,27 @@ func (e *Exchange) wsHandleV2subResp(action string, respRaw []byte) error {
 	return nil
 }
 
-func (e *Exchange) wsHandleChannelMsgs(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
 	switch s.Channel {
 	case subscription.TickerChannel:
-		return e.wsHandleTickerMsg(s, respRaw)
+		return e.wsHandleTickerMsg(ctx, s, respRaw)
 	case subscription.OrderbookChannel:
 		return e.wsHandleOrderbookMsg(s, respRaw)
 	case subscription.CandlesChannel:
-		return e.wsHandleCandleMsg(s, respRaw)
+		return e.wsHandleCandleMsg(ctx, s, respRaw)
 	case subscription.AllTradesChannel:
-		return e.wsHandleAllTradesMsg(s, respRaw)
+		return e.wsHandleAllTradesMsg(ctx, s, respRaw)
 	case subscription.MyAccountChannel:
-		return e.wsHandleMyAccountMsg(respRaw)
+		return e.wsHandleMyAccountMsg(ctx, respRaw)
 	case subscription.MyOrdersChannel:
-		return e.wsHandleMyOrdersMsg(s, respRaw)
+		return e.wsHandleMyOrdersMsg(ctx, s, respRaw)
 	case subscription.MyTradesChannel:
-		return e.wsHandleMyTradesMsg(s, respRaw)
+		return e.wsHandleMyTradesMsg(ctx, s, respRaw)
 	}
 	return fmt.Errorf("%w: %s", common.ErrNotYetImplemented, s.Channel)
 }
 
-func (e *Exchange) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleCandleMsg(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -209,7 +209,7 @@ func (e *Exchange) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byt
 	if err := json.Unmarshal(respRaw, &c); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- websocket.KlineData{
+	return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
 		Timestamp:  c.Timestamp.Time(),
 		Exchange:   e.Name,
 		AssetType:  s.Asset,
@@ -220,11 +220,10 @@ func (e *Exchange) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byt
 		LowPrice:   c.Tick.Low,
 		Volume:     c.Tick.Volume,
 		Interval:   s.Interval.String(),
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleAllTradesMsg(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
 	saveTradeData := e.IsSaveTradeDataEnabled()
 	tradeFeed := e.IsTradeFeedEnabled()
 	if !saveTradeData && !tradeFeed {
@@ -256,7 +255,9 @@ func (e *Exchange) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []
 	}
 	if tradeFeed {
 		for i := range trades {
-			e.Websocket.DataHandler <- trades[i]
+			if err := e.Websocket.DataHandler.Send(ctx, trades[i]); err != nil {
+				return err
+			}
 		}
 	}
 	if saveTradeData {
@@ -265,7 +266,7 @@ func (e *Exchange) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []
 	return nil
 }
 
-func (e *Exchange) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -273,7 +274,7 @@ func (e *Exchange) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byt
 	if err := json.Unmarshal(respRaw, &wsTicker); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
 		Open:         wsTicker.Tick.Open,
 		Close:        wsTicker.Tick.Close,
@@ -284,8 +285,7 @@ func (e *Exchange) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byt
 		LastUpdated:  wsTicker.Timestamp.Time(),
 		AssetType:    s.Asset,
 		Pair:         s.Pairs[0],
-	}
-	return nil
+	})
 }
 
 func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
@@ -340,7 +340,7 @@ func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []
 	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
-func (e *Exchange) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
 	var msg wsOrderUpdateMsg
 	if err := json.Unmarshal(respRaw, &msg); err != nil {
 		return err
@@ -399,14 +399,16 @@ func (e *Exchange) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []b
 			}
 		}
 	}
-	e.Websocket.DataHandler <- d
+	if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
+		return err
+	}
 	if o.ErrCode != 0 {
 		return fmt.Errorf("error with order %q: %s (%v)", o.ClientOrderID, o.ErrMessage, o.ErrCode)
 	}
 	return nil
 }
 
-func (e *Exchange) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleMyTradesMsg(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
 	var msg wsTradeUpdateMsg
 	if err := json.Unmarshal(respRaw, &msg); err != nil {
 		return err
@@ -468,17 +470,15 @@ func (e *Exchange) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []b
 			Timestamp: t.TradeTime.Time(),
 		},
 	}
-	e.Websocket.DataHandler <- d
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, d)
 }
 
-func (e *Exchange) wsHandleMyAccountMsg(respRaw []byte) error {
+func (e *Exchange) wsHandleMyAccountMsg(ctx context.Context, respRaw []byte) error {
 	u := &wsAccountUpdateMsg{}
 	if err := json.Unmarshal(respRaw, u); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- u.Data
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, u.Data)
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature

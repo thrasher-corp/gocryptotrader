@@ -1209,7 +1209,7 @@ func TestWebsocketSubscriptionHandling(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	rawData := []byte(subscriptionRequestString)
-	err := e.wsHandleData(rawData)
+	err := e.wsHandleData(t.Context(), rawData)
 	if err != nil {
 		t.Error("Binanceus wsHandleData() error", err)
 	}
@@ -1223,7 +1223,7 @@ func TestWebsocketUnsubscriptionHandling(t *testing.T) {
 	],
 	"id": 312
 	}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1267,7 +1267,7 @@ var ticker24hourChangeStream = `{
 
 func TestWebsocketTickerUpdate(t *testing.T) {
 	t.Parallel()
-	if err := e.wsHandleData([]byte(ticker24hourChangeStream)); err != nil {
+	if err := e.wsHandleData(t.Context(), []byte(ticker24hourChangeStream)); err != nil {
 		t.Error("Binanceus wsHandleData() for Ticker 24h Change Stream", err)
 	}
 }
@@ -1302,7 +1302,7 @@ func TestWebsocketKlineUpdate(t *testing.T) {
 	  			}
 			}
 		}`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error("Binanceus wsHandleData() btcusdt@kline_1m stream data conversion ", err)
 	}
 }
@@ -1322,7 +1322,7 @@ func TestWebsocketStreamTradeUpdate(t *testing.T) {
 	  "m": true,        
 	  "M": true         
 	}}`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error("Binanceus wsHandleData() error", err)
 	}
 }
@@ -1378,7 +1378,7 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	if err := e.SeedLocalCacheWithBook(p, &book); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.wsHandleData(update1); err != nil {
+	if err := e.wsHandleData(t.Context(), update1); err != nil {
 		t.Fatal(err)
 	}
 	e.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
@@ -1411,7 +1411,7 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 			]
 		}
 	}`)
-	if err = e.wsHandleData(update2); err != nil {
+	if err = e.wsHandleData(t.Context(), update2); err != nil {
 		t.Error("Binanceus wshandlerData error", err)
 	}
 	ob, err = e.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
@@ -1453,7 +1453,7 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 		]
 	  }}`)
 	var err error
-	if err = e.wsHandleData(update1); err != nil {
+	if err = e.wsHandleData(t.Context(), update1); err != nil {
 		t.Error("Binanceus Partial Order Book Depth Sream error", err)
 	}
 	update2 := []byte(`{
@@ -1474,7 +1474,7 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 			]
 		}
 	  }`)
-	if err = e.wsHandleData(update2); err != nil {
+	if err = e.wsHandleData(t.Context(), update2); err != nil {
 		t.Error("Binanceus Partial Order Book Depth Sream error", err)
 	}
 }
@@ -1493,7 +1493,7 @@ func TestWebsocketBookTicker(t *testing.T) {
 			"A":"40.66000000" 
 		}
 	  }`)
-	if err := e.wsHandleData(bookTickerJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), bookTickerJSON); err != nil {
 		t.Error("Binanceus Book Ticker error", err)
 	}
 	bookTickerForAllSymbols := []byte(`
@@ -1508,7 +1508,7 @@ func TestWebsocketBookTicker(t *testing.T) {
 			"A":"40.66000000" 
 		}
 	}`)
-	if err := e.wsHandleData(bookTickerForAllSymbols); err != nil {
+	if err := e.wsHandleData(t.Context(), bookTickerForAllSymbols); err != nil {
 		t.Error("Binanceus Web socket Book ticker for all symbols error", err)
 	}
 }
@@ -1532,7 +1532,7 @@ func TestWebsocketAggTrade(t *testing.T) {
 				"M": true         
 			}
 	   }`)
-	if err := e.wsHandleData(aggTradejson); err != nil {
+	if err := e.wsHandleData(t.Context(), aggTradejson); err != nil {
 		t.Error("Binanceus Aggregated Trade Order Json() error", err)
 	}
 }
@@ -1550,7 +1550,7 @@ var balanceUpdateInputJSON = `
 func TestWebsocketBalanceUpdate(t *testing.T) {
 	t.Parallel()
 	thejson := []byte(balanceUpdateInputJSON)
-	if err := e.wsHandleData(thejson); err != nil {
+	if err := e.wsHandleData(t.Context(), thejson); err != nil {
 		t.Error(err)
 	}
 }
@@ -1586,7 +1586,7 @@ var listStatusUserDataStreamPayload = `
 
 func TestWebsocketListStatus(t *testing.T) {
 	t.Parallel()
-	if err := e.wsHandleData([]byte(listStatusUserDataStreamPayload)); err != nil {
+	if err := e.wsHandleData(t.Context(), []byte(listStatusUserDataStreamPayload)); err != nil {
 		t.Error(err)
 	}
 }
@@ -1681,15 +1681,15 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 		LastUpdated:     time.UnixMilli(1616627567900),
 		Pair:            currency.NewBTCUSDT(),
 	}
-	for len(e.Websocket.DataHandler) > 0 {
-		<-e.Websocket.DataHandler
+	for ch := e.Websocket.DataHandler.C; len(ch) > 0; {
+		<-ch
 	}
-	err := e.wsHandleData(payload)
+	err := e.wsHandleData(t.Context(), payload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	res := <-e.Websocket.DataHandler
-	switch r := res.(type) {
+	res := <-e.Websocket.DataHandler.C
+	switch r := res.Data.(type) {
 	case *order.Detail:
 		if !reflects.DeepEqual(expectedResult, *r) {
 			t.Errorf("Binanceus Results do not match:\nexpected: %v\nreceived: %v", expectedResult, *r)
@@ -1698,7 +1698,7 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 		t.Fatalf("Binanceus expected type order.Detail, found %T", res)
 	}
 	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041556,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Mob","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028600","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783271,"l":"0.00028600","z":"0.00028600","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041555,"t":726946523,"I":11390206312,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"14.99693910","Y":"14.99693910","Q":"0.00000000"}}`)
-	err = e.wsHandleData(payload)
+	err = e.wsHandleData(t.Context(), payload)
 	if err != nil {
 		t.Fatal("Binanceus OrderExecutionReport json conversion error", err)
 	}
@@ -1707,7 +1707,7 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 func TestWebsocketOutboundAccountPosition(t *testing.T) {
 	t.Parallel()
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
-	if err := e.wsHandleData(payload); err != nil {
+	if err := e.wsHandleData(t.Context(), payload); err != nil {
 		t.Fatal("Binanceus testing \"outboundAccountPosition\" data conversion error", err)
 	}
 }

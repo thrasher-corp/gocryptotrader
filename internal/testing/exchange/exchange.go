@@ -121,7 +121,7 @@ func MockWsInstance[T any, PT interface {
 	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
 	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
-	err = b.Websocket.Connect()
+	err = b.Websocket.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
 
 	return e
@@ -200,7 +200,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
 	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
-	err = w.Connect()
+	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
 
 	setupWsOnce[e] = true
