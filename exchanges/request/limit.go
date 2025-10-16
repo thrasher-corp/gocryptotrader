@@ -172,8 +172,8 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	}
 }
 
-// cancelAll cancels all reservations at a specific time, this must be called in a lock with reservations so that
-// correct reimbursement takes place due to concurrency.
+// cancelAll cancels all reservations at a specific time
+// Does not provide locking protection, so callers can maintain a single lock throughout
 func cancelAll(reservations []*rate.Reservation, at time.Time) {
 	slices.Reverse(reservations) // cancel in reverse order for correct token reimbursement
 	for _, r := range reservations {
