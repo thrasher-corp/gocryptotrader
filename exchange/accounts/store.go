@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 )
 
-// Store contains acocunts for exchanges
+// Store contains accounts for exchanges.
 type Store struct {
 	exchangeAccounts exchangeMap
 	mu               sync.Mutex
@@ -28,7 +28,7 @@ type exchangeWrapper interface {
 
 var global atomic.Pointer[Store]
 
-// NewStore returns a new store with the default global dispatcher mux
+// NewStore returns a new store with the default global dispatcher mux.
 func NewStore() *Store {
 	return &Store{
 		exchangeAccounts: make(exchangeMap),
@@ -36,7 +36,7 @@ func NewStore() *Store {
 	}
 }
 
-// GetStore returns the singleton accounts store for global use; Initialising if necessary
+// GetStore returns the singleton accounts store for global use; Initialising if necessary.
 func GetStore() *Store {
 	if s := global.Load(); s != nil {
 		return s
@@ -45,7 +45,7 @@ func GetStore() *Store {
 	return global.Load()
 }
 
-// GetExchangeAccounts returns accounts for a specific exchange
+// GetExchangeAccounts returns accounts for a specific exchange.
 func (s *Store) GetExchangeAccounts(e exchange) (a *Accounts, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
