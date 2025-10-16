@@ -20,7 +20,7 @@ var (
 	ErrDelayNotAllowed           = errors.New("delay not allowed")
 
 	errLimiterSystemIsNil = errors.New("limiter system is nil")
-	errInvalidWeightCount = errors.New("invalid weight count must equal or greater than 1")
+	errInvalidWeight = errors.New("weight must be equal-or-greater than 1")
 )
 
 // RateLimitNotRequired is a no-op rate limiter
