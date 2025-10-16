@@ -397,15 +397,14 @@ func orderbookLevelFromSlice(data []types.Number) orderbook.Levels {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *Exchange) UpdateOrderbook(ctx context.Context, fPair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
-	if fPair.IsEmpty() {
+func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	var err error
-	fPair, err = e.FormatExchangeCurrency(fPair, assetType)
+	fPair, err := e.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -547,8 +546,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var err error
-	pair, err = e.FormatExchangeCurrency(pair, assetType)
+	fPair, err := e.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -557,7 +555,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 	switch assetType {
 	case asset.Spot:
 		var tradeData []*Trade
-		tradeData, err = e.GetTrades(ctx, pair, 0)
+		tradeData, err = e.GetTrades(ctx, fPair, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -569,7 +567,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 			}
 			resp = append(resp, trade.Data{
 				Exchange:     e.Name,
-				CurrencyPair: pair,
+				CurrencyPair: fPair,
 				AssetType:    assetType,
 				Side:         side,
 				Price:        tradeData[i].Price.Float64(),
@@ -579,7 +577,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 		}
 	case asset.Futures:
 		var tradeData []*FuturesExecutionInfo
-		tradeData, err = e.GetFuturesExecutionInfo(ctx, pair.String(), 0)
+		tradeData, err = e.GetFuturesExecutionInfo(ctx, fPair.String(), 0)
 		if err != nil {
 			return nil, err
 		}
@@ -591,7 +589,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 			}
 			resp = append(resp, trade.Data{
 				Exchange:     e.Name,
-				CurrencyPair: pair,
+				CurrencyPair: fPair,
 				AssetType:    assetType,
 				Side:         side,
 				Price:        tradeData[i].Price.Float64(),
@@ -614,8 +612,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
-	var err error
-	pair, err = e.FormatExchangeCurrency(pair, assetType)
+	fPair, err := e.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -624,7 +621,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 	switch assetType {
 	case asset.Spot:
 		var tradeData []*Trade
-		tradeData, err = e.GetTrades(ctx, pair, 1000)
+		tradeData, err = e.GetTrades(ctx, fPair, 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -640,7 +637,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 			}
 			resp = append(resp, trade.Data{
 				Exchange:     e.Name,
-				CurrencyPair: pair,
+				CurrencyPair: fPair,
 				AssetType:    assetType,
 				Side:         side,
 				Price:        tradeData[i].Price.Float64(),
@@ -650,7 +647,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 		}
 	case asset.Futures:
 		var tradeData []*FuturesExecutionInfo
-		tradeData, err = e.GetFuturesExecutionInfo(ctx, pair.String(), 0)
+		tradeData, err = e.GetFuturesExecutionInfo(ctx, fPair.String(), 0)
 		if err != nil {
 			return nil, err
 		}
@@ -662,7 +659,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 			}
 			resp = append(resp, trade.Data{
 				Exchange:     e.Name,
-				CurrencyPair: pair,
+				CurrencyPair: fPair,
 				AssetType:    assetType,
 				Side:         side,
 				Price:        tradeData[i].Price.Float64(),
@@ -730,8 +727,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		var response *PlaceOrderResponse
-		response, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
+		response, err := e.PlaceOrder(ctx, &PlaceOrderRequest{
 			Symbol:        s.Pair,
 			Price:         s.Price,
 			Amount:        s.Amount,

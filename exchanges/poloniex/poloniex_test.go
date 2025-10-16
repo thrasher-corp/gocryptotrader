@@ -1666,7 +1666,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 	creds, err := e.GetCredentials(t.Context())
 	if assert.True(t, err == nil || errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled)) {
 		if !creds.IsEmpty() {
-			println("\n\nerr\n\n")
 			exp = append(exp, "orders", "balances")
 		}
 	}

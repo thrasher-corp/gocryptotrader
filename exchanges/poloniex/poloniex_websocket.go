@@ -553,9 +553,9 @@ func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, sub
 	if err != nil {
 		return err
 	}
-	return common.AppendError(err, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
 		return e.manageSubs(ctx, conn, "subscribe", l)
-	}, 1))
+	}, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -564,9 +564,9 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, s
 	if err != nil {
 		return err
 	}
-	return common.AppendError(err, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
 		return e.manageSubs(ctx, conn, "unsubscribe", l)
-	}, 1))
+	}, 1)
 }
 
 func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, operation string, subs subscription.List) error {
