@@ -29,7 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -230,17 +229,15 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 	// Futures Public Connection
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  wsFutures,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler:              e.wsFuturesHandleData,
-		Subscriber:           e.SubscribeFutures,
-		Unsubscriber:         e.UnsubscribeFutures,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return e.GenerateFuturesDefaultSubscriptions(false)
-		},
-		Connector:     e.WsFuturesConnect,
-		MessageFilter: connFuturesPublic,
+		URL:                   wsFutures,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Handler:               e.wsFuturesHandleData,
+		Subscriber:            e.SubscribeFutures,
+		Unsubscriber:          e.UnsubscribeFutures,
+		GenerateSubscriptions: e.generateFuturesSubscriptions,
+		Connector:             e.WsFuturesConnect,
+		MessageFilter:         connFuturesPublic,
 	}); err != nil {
 		return err
 	}
@@ -251,18 +248,17 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 	// Futures Private Connection
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  wsFuturesPrivate,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler:              e.wsFuturesHandleData,
-		Subscriber:           e.SubscribeFutures,
-		Unsubscriber:         e.UnsubscribeFutures,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return e.GenerateFuturesDefaultSubscriptions(true)
-		},
-		Connector:     e.futuresAuthConnect,
-		MessageFilter: connFuturesPrivate,
-		Authenticate:  e.authenticateFuturesAuthConn,
+		URL:                   wsFuturesPrivate,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Handler:               e.wsFuturesHandleData,
+		Subscriber:            e.SubscribeFutures,
+		Unsubscriber:          e.UnsubscribeFutures,
+		GenerateSubscriptions: e.generateFuturesPrivateSubscriptions,
+		Connector:             e.futuresAuthConnect,
+		MessageFilter:         connFuturesPrivate,
+		Authenticate:          e.authenticateFuturesAuthConn,
+		Authenticated:         true,
 	})
 }
 

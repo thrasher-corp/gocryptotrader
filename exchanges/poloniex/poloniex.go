@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +39,8 @@ var (
 	errAccountTypeRequired     = errors.New("account type required")
 	errMarginAdjustTypeMissing = errors.New("margin adjust type invalid")
 	errPositionModeInvalid     = errors.New("invalid position mode")
+	errTrailingOffsetInvalid   = errors.New("invalid trailing offset required for trailing stop orders")
+	errOffsetLimitInvalid      = errors.New("invalid offset required for trailing stop limit orders")
 )
 
 // Exchange is the overarching type across the poloniex package
@@ -291,8 +292,8 @@ func (e *Exchange) AccountsTransfer(ctx context.Context, arg *AccountTransferReq
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/accounts/transfer", nil, arg, &resp)
 }
 
-// GetAccountsTransferRecordsByTransferID gets a list of transfer records of a user
-func (e *Exchange) GetAccountsTransferRecordsByTransferID(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit uint64) ([]*AccountTransferRecord, error) {
+// GetAccountsTransferRecords gets a list of transfer records of a user
+func (e *Exchange) GetAccountsTransferRecords(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit uint64) ([]*AccountTransferRecord, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -775,6 +776,18 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestR
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
+	if arg.Quantity <= 0 {
+		return nil, fmt.Errorf("%w; base quantity is required", limits.ErrAmountBelowMin)
+	}
+	if strings.EqualFold(arg.Type, "STOP_LIMIT") && arg.Price <= 0 {
+		return nil, fmt.Errorf("%w %w", order.ErrPriceMustBeSetIfLimitOrder, limits.ErrPriceBelowMin)
+	}
+	if (strings.EqualFold(arg.Type, "TRAILING_STOP") || strings.EqualFold(arg.Type, "TRAILING_STOP_LIMIT")) && arg.TrailingOffset == "" {
+		return nil, errTrailingOffsetInvalid
+	}
+	if strings.EqualFold(arg.Type, "TRAILING_STOP_LIMIT") && arg.LimitOffset == "" {
+		return nil, errOffsetLimitInvalid
+	}
 	var resp *PlaceOrderResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp); err != nil {
 		return nil, err
@@ -817,10 +830,13 @@ func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 }
 
 // GetSmartOpenOrders get a list of (pending) smart orders for an account
-func (e *Exchange) GetSmartOpenOrders(ctx context.Context, limit uint64) ([]*SmartOrder, error) {
+func (e *Exchange) GetSmartOpenOrders(ctx context.Context, limit uint64, types []string) ([]*SmartOrder, error) {
 	params := url.Values{}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if len(types) > 0 {
+		params.Set("types", strings.Join(types, ","))
 	}
 	var resp []*SmartOrder
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/smartorders", params, nil, &resp)
@@ -907,6 +923,9 @@ func orderFillParams(arg *OrdersHistoryRequest) (url.Values, error) {
 	}
 	if arg.OrderType != "" {
 		params.Set("type", arg.OrderType)
+	}
+	if len(arg.OrderTypes) > 0 {
+		params.Set("types", strings.Join(arg.OrderTypes, ","))
 	}
 	if arg.Side != "" {
 		params.Set("side", arg.Side)
@@ -1048,8 +1067,8 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return err
 	}
 	resp := result
-	needsWrapper := strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/")
-	if needsWrapper {
+	requiresWrapper := strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/")
+	if requiresWrapper {
 		resp = &V3ResponseWrapper{
 			Data: result,
 		}
@@ -1113,10 +1132,10 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 	if err := e.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest); err != nil {
 		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
-	} else if reflect.ValueOf(result).IsNil() {
+	} else if result == nil {
 		return common.ErrNoResponse
 	}
-	if needsWrapper {
+	if requiresWrapper {
 		if val, ok := resp.(*V3ResponseWrapper); ok {
 			if val.Code != 0 && val.Code != 200 {
 				return fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, val.Code, val.Msg)

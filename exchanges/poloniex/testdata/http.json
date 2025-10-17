@@ -8431,7 +8431,7 @@
    "GET": [
     {
      "data": null,
-     "queryString": "limit=10",
+     "queryString": "limit=10&types=TRAILING_STOP%2CTRAILING_STOP_LIMIT%2CSTOP%2CSTOP_LIMIT",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -8485,6 +8485,34 @@
       ],
       "Signtimestamp": [
        "1743968911176"
+      ]
+     }
+    },
+    {
+     "data": {
+      "clientOrderId": "55667798abcd",
+      "id": "502143097648869376"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"SELL\",\"timeInForce\":\"GTC\",\"type\":\"TRAILING_STOP_LIMIT\",\"price\":\"40000.5\",\"quantity\":\"100\",\"clientOrderId\":\"55667798abcd\",\"trailingOffset\":\"2%\",\"limitOffset\":\"1%\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "t9ziufRKQlrLUISTEUV5gAzRrwEFAxIJoy7zRCaHnb0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1760686643056"
       ]
      }
     }

@@ -41,7 +41,7 @@ var (
 	spotTradablePair, futuresTradablePair currency.Pair
 )
 
-func (e *Exchange) setAPICredential(apiKey, apiSecret string) {
+func (e *Exchange) setAPICredential(apiKey, apiSecret string) { //nolint:unparam // Intentional suppress 'apiKey always receives apiKey ("")' error
 	if apiKey != "" && apiSecret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
@@ -1079,7 +1079,7 @@ func TestGetAccountTransferRecords(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetAccountsTransferRecordsByTransferID(generateContext(), time.Time{}, time.Time{}, "", currency.BTC, 0, 0)
+	_, err := e.GetAccountsTransferRecords(generateContext(), time.Time{}, time.Time{}, "", currency.BTC, 0, 0)
 	require.NoError(t, err)
 }
 
@@ -1524,6 +1524,18 @@ func TestCreateSmartOrder(t *testing.T) {
 	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: "BUY"})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: "BUY", Quantity: 10, Type: "STOP_LIMIT"})
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
+
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: "BUY", Quantity: 10, Type: "TRAILING_STOP_LIMIT", Price: 1234})
+	require.ErrorIs(t, err, errTrailingOffsetInvalid)
+
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: "BUY", Quantity: 10, Type: "TRAILING_STOP_LIMIT", Price: 1234, TrailingOffset: "1%"})
+	require.ErrorIs(t, err, errOffsetLimitInvalid)
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -1539,6 +1551,21 @@ func TestCreateSmartOrder(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equalf(t, int64(200), result.Code, "CreateSmartOrder error with code: %d message: %s", result.Code, result.Message)
+
+	result, err = e.CreateSmartOrder(generateContext(), &SmartOrderRequestRequest{
+		Symbol:         spotTradablePair,
+		Type:           "TRAILING_STOP_LIMIT",
+		Price:          40000.50000,
+		ClientOrderID:  "55667798abcd",
+		Side:           "SELL",
+		TimeInForce:    "GTC",
+		Quantity:       100,
+		TrailingOffset: "2%",
+		LimitOffset:    "1%",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equalf(t, int64(0), result.Code, "CreateSmartOrder error with code: %d message: %s", result.Code, result.Message)
 }
 
 func TestCancelReplaceSmartOrder(t *testing.T) {
@@ -1563,7 +1590,7 @@ func TestGetSmartOpenOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetSmartOpenOrders(generateContext(), 10)
+	_, err := e.GetSmartOpenOrders(generateContext(), 10, []string{"TRAILING_STOP", "TRAILING_STOP_LIMIT", "STOP", "STOP_LIMIT"})
 	require.NoError(t, err)
 }
 
@@ -1736,16 +1763,14 @@ func TestWsCreateOrder(t *testing.T) {
 	})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if mockTests {
+		t.SkipNow()
+	}
 	e.setAPICredential(apiKey, apiSecret)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	if !mockTests && !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		testexch.SetupWs(t, e)
-	} else {
-		t.SkipNow()
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	testexch.SetupWs(t, e)
 	result, err := e.WsCreateOrder(generateContext(), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
 		Side:          order.Buy.String(),
@@ -1765,12 +1790,14 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	if !mockTests && !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		testexch.SetupWs(t, e)
-	} else {
+	if mockTests {
 		t.SkipNow()
 	}
+	e.setAPICredential(apiKey, apiSecret)
+	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	testexch.SetupWs(t, e)
 	result, err := e.WsCancelMultipleOrdersByIDs(t.Context(), []string{"1234"}, []string{"5678"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1778,15 +1805,17 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 
 func TestWsCancelAllTradeOrders(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
 	if mockTests {
 		t.SkipNow()
 	}
-	if !mockTests && !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		testexch.SetupWs(t, e)
-	} else {
-		t.SkipNow()
-	}
+	e.setAPICredential(apiKey, apiSecret)
+	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	testexch.SetupWs(t, e)
 	result, err := e.WsCancelAllTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2205,7 +2234,7 @@ func TestGetFuturesExecutionInfo(t *testing.T) {
 
 func TestGetLiquidationOrder(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetLiquidiationOrder(t.Context(), "BTC_USDT_PERP", "NEXT", time.Time{}, time.Time{}, 0, 0)
+	result, err := e.GetLiquidationOrder(t.Context(), "BTC_USDT_PERP", "NEXT", time.Time{}, time.Time{}, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2458,13 +2487,6 @@ func TestUnmarshalToFuturesCandle(t *testing.T) {
 	assert.Equal(t, time.UnixMilli(1719975479999), resp[0].EndTime.Time())
 }
 
-func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
-	t.Parallel()
-	result, err := e.GenerateFuturesDefaultSubscriptions(true)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestHandleFuturesSubscriptions(t *testing.T) {
 	t.Parallel()
 	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
@@ -2518,5 +2540,33 @@ func TestOrderbookLevelFromSlice(t *testing.T) {
 	for x := range obLevels {
 		require.Equal(t, target[x].Price, obLevels[x].Price)
 		require.Equal(t, target[x].Amount, obLevels[x].Amount)
+	}
+}
+
+var channelIntervals = []struct {
+	input    string
+	channel  string
+	interval kline.Interval
+	err      error
+}{
+	{input: "mark_candles_hour_1", channel: "mark_candles", interval: kline.OneHour},
+	{input: "mark_price_candles_minute_1", channel: "mark_price_candles", interval: kline.OneMin},
+	{input: "mark_candles_minute_30", channel: "mark_candles", interval: kline.ThirtyMin},
+	{input: "index_candles_hour_4", channel: "index_candles", interval: kline.FourHour},
+	{input: "candles_minute_30", channel: "candles", interval: kline.ThirtyMin},
+	{input: "mark_candles_day_3", channel: "mark_candles", interval: kline.ThreeDay},
+	{input: "mark_candles_hour_abc", channel: "mark_candles", interval: kline.Interval(0), err: kline.ErrUnsupportedInterval},
+}
+
+func TestChannelToIntervalSplit(t *testing.T) {
+	t.Parallel()
+	for _, chd := range channelIntervals {
+		t.Run(chd.input, func(t *testing.T) {
+			t.Parallel()
+			c, i, err := channelToIntervalSplit(chd.input)
+			require.ErrorIs(t, err, chd.err)
+			require.Equal(t, chd.channel, c)
+			assert.Equal(t, chd.interval, i)
+		})
 	}
 }

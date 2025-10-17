@@ -154,13 +154,14 @@ type FuturesPosition struct {
 	CreationTime           types.Time   `json:"cTime"`
 	InitialMargin          types.Number `json:"im"`
 	Leverage               types.Number `json:"lever"`
-	LiqudiationPrice       types.Number `json:"liqPx"`
+	LiquidationPrice       types.Number `json:"liqPx"`
 	MarkPrice              types.Number `json:"markPx"`
 	IsolatedPositionMargin string       `json:"mgn"`
 	MarginMode             string       `json:"mgnMode"`
 	PositionSide           string       `json:"posSide"`
 	MarginRatio            types.Number `json:"mgnRatio"`
 	MaintenanceMargin      string       `json:"mm"`
+	MaxWithdrawnAmount     types.Number `json:"maxWAmt"`
 	OpenAveragePrice       types.Number `json:"openAvgPx"`
 	ProfitAndLoss          types.Number `json:"pnl"`
 	Quantity               types.Number `json:"qty"`
@@ -175,6 +176,11 @@ type FuturesPosition struct {
 	FFee                   string       `json:"fFee"`
 	Fee                    string       `json:"fee"`
 	ID                     string       `json:"id"`
+	LastPrice              types.Number `json:"lastPx"`
+	IndexPrice             types.Number `json:"indexPx"`
+	AccountType            string       `json:"actType"`
+	TakeProfitTriggerPrice types.Number `json:"tpTrgPx"`
+	StopLossTriggerPrice   types.Number `json:"slTrgPx"`
 }
 
 // AdjustFuturesMarginResponse represents a response data after adjusting futures margin positions
@@ -234,8 +240,8 @@ type FuturesExecutionInfo struct {
 	CreationTime types.Time   `json:"cT"`
 }
 
-// LiquidiationPrice represents a liquidiation price detail for an instrument
-type LiquidiationPrice struct {
+// LiquidationPrice represents a liquidiation price detail for an instrument
+type LiquidationPrice struct {
 	Symbol                         string       `json:"symbol"`
 	PositionSide                   string       `json:"posSide"`
 	Side                           string       `json:"side"`

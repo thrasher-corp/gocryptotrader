@@ -58,8 +58,8 @@ var defaultSubscriptions = subscription.List{
 }
 
 var defaultSpotPrivateSubscriptions = subscription.List{
-	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
-	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true},
 }
 
 var subscriptionNames = map[string]string{
@@ -541,10 +541,24 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 }
 
 func channelName(s *subscription.Subscription) string {
-	if name, ok := subscriptionNames[s.Channel]; ok {
-		return name
+	switch s.Asset {
+	case asset.Futures:
+		if name, ok := futuresSubscriptionNames[s.Channel]; ok {
+			return name
+		}
+	case asset.Spot:
+		if name, ok := subscriptionNames[s.Channel]; ok {
+			return name
+		}
 	}
 	return s.Channel
+}
+
+func channelToIntervalSplit(intervalString string) (string, kline.Interval, error) {
+	splits := strings.Split(intervalString, "_")
+	length := len(splits)
+	intervalValue, err := stringToInterval(strings.Join(splits[length-2:], "_"))
+	return strings.Join(splits[:length-2], "_"), intervalValue, err
 }
 
 // Subscribe sends a websocket message to receive data from the channel

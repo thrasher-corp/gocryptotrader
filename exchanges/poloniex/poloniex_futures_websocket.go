@@ -33,49 +33,49 @@ const (
 )
 
 const (
-	channelFuturesSymbol        = "symbol"
-	channelFuturesOrderbookLvl2 = "book_lv2"
-	channelFuturesOrderbook     = "book"
-	channelFuturesTickers       = "tickers"
-	channelFuturesTrades        = "trades"
-	channelFuturesIndexPrice    = "index_price"
-	channelFuturesMarkPrice     = "mark_price"
-	channelFuturesFundingRate   = "funding_rate"
+	// Public channels
+	channelFuturesSymbol           = "symbol"
+	channelFuturesOrderbookLvl2    = "book_lv2"
+	channelFuturesOrderbook        = "book"
+	channelFuturesTickers          = "tickers"
+	channelFuturesTrades           = "trades"
+	channelFuturesIndexPrice       = "index_price"
+	channelFuturesMarkPrice        = "mark_price"
+	channelFuturesFundingRate      = "funding_rate"
+	channelFuturesMarkPriceCandles = "mark_price_candles"
+	channelFuturesMarkCandles      = "mark_candles"
+	channelFuturesCandles          = "candles"
+	channelFuturesIndexCandles     = "index_candles"
 
+	// Authenticated channels
 	channelFuturesPrivatePositions = "positions"
 	channelFuturesPrivateOrders    = "orders"
 	channelFuturesPrivateTrades    = "trade"
 	channelFuturesAccount          = "account"
 )
 
-const (
-	candles1Min, candles5Min, candles10Min, candles15Min, candles30Min, candles1Hr, candles2Hr,
-	candles4Hr, candles6Hr, candles12Hr, candles1Day, candles3Day, candles1Week, candles1Month = "candles_minute_1", "candles_minute_5", "candles_minute_10", "candles_minute_15", "candles_minute_30", "candles_hour_1",
-		"candles_hour_2", "candles_hour_4", "candles_hour_6",
-		"candles_hour_12", "candles_day_1", "candles_day_3", "candles_week_1", "candles_month_1"
-
-	markCandles1Min, markCandles5Min, markCandles10Min, markCandles15Min,
-	markCandles30Min, markCandles1Hr, markCandles2Hr, markCandles4Hr, markCandles12Hr, markCandles1Day, markCandles3Day, markCandles1Week = "mark_price_candles_minute_1", "mark_price_candles_minute_5", "mark_price_candles_minute_10", "mark_price_candles_minute_15",
-		"mark_candles_minute_30", "mark_candles_hour_1", "mark_candles_hour_2", "mark_candles_hour_4", "mark_candles_hour_12",
-		"mark_candles_day_1", "mark_candles_day_3", "mark_candles_week_1"
-
-	indexCandles1Min, indexCandles5Min, indexCandles10Min, indexCandles15Min, indexCandles30Min, indexCandles1Hr, indexCandles2Hr, indexCandles4Hr, indexCandles12Hr, indexCandles1Day, indexCandles3Day, indexCandles1Week = "index_candles_minute_1",
-		"index_candles_minute_5", "index_candles_minute_10", "index_candles_minute_15", "index_candles_minute_30", "index_candles_hour_1", "index_candles_hour_2", "index_candles_hour_4",
-		"index_candles_hour_12", "index_candles_day_1", "index_candles_day_3", "index_candles_week_1"
-)
-
 var (
-	defaultFuturesChannels = []string{
-		channelFuturesTickers,
-		channelFuturesOrderbookLvl2,
-		candles15Min,
+	futuresDefaultSubscriptions = subscription.List{
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.FiveMin},
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.AllTradesChannel},
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.OrderbookChannel},
 	}
 
-	defaultPrivateFuturesChannels = []string{
-		channelFuturesPrivatePositions,
-		channelFuturesPrivateOrders,
-		channelFuturesPrivateTrades,
-		channelFuturesAccount,
+	futuresPrivateDefaultSubscriptions = subscription.List{
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true},
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.MyTradesChannel, Authenticated: true},
+	}
+
+	futuresSubscriptionNames = map[string]string{
+		subscription.CandlesChannel:   channelFuturesCandles,
+		subscription.AllTradesChannel: channelFuturesTrades,
+		subscription.TickerChannel:    channelFuturesTickers,
+		subscription.OrderbookChannel: channelFuturesOrderbookLvl2,
+		subscription.MyOrdersChannel:  channelFuturesPrivateOrders,
+		subscription.MyAccountChannel: channelFuturesAccount,
+		subscription.MyTradesChannel:  channelFuturesPrivateTrades,
 	}
 
 	onceFuturesOrderbook map[string]bool
@@ -142,6 +142,14 @@ func (e *Exchange) authenticateFuturesAuthConn(ctx context.Context, conn websock
 	return nil
 }
 
+func (e *Exchange) generateFuturesSubscriptions() (subscription.List, error) {
+	return futuresDefaultSubscriptions.ExpandTemplates(e)
+}
+
+func (e *Exchange) generateFuturesPrivateSubscriptions() (subscription.List, error) {
+	return futuresPrivateDefaultSubscriptions.ExpandTemplates(e)
+}
+
 func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connection, respRaw []byte) error {
 	var result *FuturesSubscriptionResp
 	if err := json.Unmarshal(respRaw, &result); err != nil {
@@ -174,8 +182,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	case channelFuturesOrderbookLvl2,
 		channelFuturesOrderbook:
 		return e.processFuturesOrderbook(result.Data, result.Action)
-	case candles1Min, candles5Min, candles10Min, candles15Min, candles30Min, candles1Hr, candles2Hr, candles4Hr,
-		candles6Hr, candles12Hr, candles1Day, candles3Day, candles1Week, candles1Month:
+	case channelFuturesCandles:
 		interval, err := stringToInterval(strings.Join(strings.Split(result.Channel, "_")[1:], "_"))
 		if err != nil {
 			return err
@@ -199,22 +206,6 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 		}
 		e.Websocket.DataHandler <- resp
 		return nil
-	case markCandles1Min, markCandles5Min, markCandles10Min, markCandles15Min,
-		markCandles30Min, markCandles1Hr, markCandles2Hr, markCandles4Hr, markCandles12Hr, markCandles1Day, markCandles3Day, markCandles1Week,
-		// Index Candlestick channels
-		indexCandles1Min, indexCandles5Min, indexCandles10Min, indexCandles15Min, indexCandles30Min,
-		indexCandles1Hr, indexCandles2Hr, indexCandles4Hr, indexCandles12Hr, indexCandles1Day, indexCandles3Day, indexCandles1Week:
-		var interval kline.Interval
-		var err error
-		if strings.HasPrefix(result.Channel, "mark_price") {
-			interval, err = stringToInterval(strings.Join(strings.Split(result.Channel, "_")[3:], "_"))
-		} else {
-			interval, err = stringToInterval(strings.Join(strings.Split(result.Channel, "_")[2:], "_"))
-		}
-		if err != nil {
-			return err
-		}
-		return e.processFuturesMarkAndIndexPriceCandlesticks(result.Data, interval)
 	case channelFuturesFundingRate:
 		return e.processFuturesFundingRate(result.Data)
 	case channelFuturesPrivatePositions:
@@ -231,6 +222,16 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	case channelFuturesAccount:
 		return e.processFuturesAccountData(result.Data)
 	default:
+		channel, interval, err := channelToIntervalSplit(result.Channel)
+		if err != nil {
+			return err
+		}
+		switch channel {
+		case channelFuturesMarkPriceCandles, channelFuturesMarkCandles, channelFuturesIndexCandles:
+			return e.processFuturesMarkAndIndexPriceCandlesticks(result.Data, interval)
+		case channelFuturesCandles:
+			return e.processFuturesCandlesticks(result.Data, interval)
+		}
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		return fmt.Errorf("%s unhandled message: %s", e.Name, string(respRaw))
 	}
@@ -241,17 +242,17 @@ func (e *Exchange) processFuturesAccountData(data []byte) error {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	accChanges := []account.Change{}
-	for a := range resp {
-		for b := range resp[a].Details {
+	var accChanges []account.Change
+	for i := range resp {
+		for j := range resp[i].Details {
 			accChanges = append(accChanges, account.Change{
 				AssetType: asset.Futures,
 				Balance: &account.Balance{
-					Currency:  resp[a].Details[b].Currency,
-					Total:     resp[a].Details[b].Available.Float64(),
-					Hold:      resp[a].Details[b].TrdHold.Float64(),
-					Free:      resp[a].Details[b].Available.Float64() - resp[a].Details[b].TrdHold.Float64(),
-					UpdatedAt: resp[a].Details[b].UpdateTime.Time(),
+					Currency:  resp[i].Details[j].Currency,
+					Total:     resp[i].Details[j].Available.Float64(),
+					Hold:      resp[i].Details[j].TrdHold.Float64(),
+					Free:      resp[i].Details[j].Available.Float64() - resp[i].Details[j].TrdHold.Float64(),
+					UpdatedAt: resp[i].Details[j].UpdateTime.Time(),
 				},
 			})
 		}
@@ -265,7 +266,7 @@ func (e *Exchange) processFuturesTradeFills(data []byte) error {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	tfills := make([]fill.Data, len(resp))
+	tFills := make([]fill.Data, len(resp))
 	for a := range resp {
 		oSide, err := order.StringToOrderSide(resp[a].Side)
 		if err != nil {
@@ -275,7 +276,7 @@ func (e *Exchange) processFuturesTradeFills(data []byte) error {
 		if err != nil {
 			return err
 		}
-		tfills[a] = fill.Data{
+		tFills[a] = fill.Data{
 			CurrencyPair:  cp,
 			Side:          oSide,
 			Exchange:      e.Name,
@@ -289,7 +290,7 @@ func (e *Exchange) processFuturesTradeFills(data []byte) error {
 			Amount:        resp[a].FillQuantity.Float64(),
 		}
 	}
-	e.Websocket.DataHandler <- tfills
+	e.Websocket.DataHandler <- tFills
 	return nil
 }
 
@@ -348,17 +349,17 @@ func (e *Exchange) processFuturesFundingRate(data []byte) error {
 		return err
 	}
 
-	for a := range resp {
-		cp, err := currency.NewPairFromString(resp[a].Symbol)
+	for i := range resp {
+		cp, err := currency.NewPairFromString(resp[i].Symbol)
 		if err != nil {
 			return err
 		}
 		e.Websocket.DataHandler <- websocket.FundingData{
 			CurrencyPair: cp,
-			Timestamp:    resp[a].Timestamp.Time(),
+			Timestamp:    resp[i].Timestamp.Time(),
 			AssetType:    asset.Futures,
 			Exchange:     e.Name,
-			Rate:         resp[a].FundingRate.Float64(),
+			Rate:         resp[i].FundingRate.Float64(),
 		}
 	}
 	return nil
@@ -534,53 +535,10 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, interval kline.Interv
 	return nil
 }
 
-// ------------------------------------------------------------------------------------------------
-
-// GenerateFuturesDefaultSubscriptions adds default subscriptions to futures websockets.
-func (e *Exchange) GenerateFuturesDefaultSubscriptions(authenticated bool) (subscription.List, error) {
-	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return nil, err
-	}
-	channels := defaultFuturesChannels
-	if authenticated {
-		channels = defaultPrivateFuturesChannels
-	}
-	subscriptions := subscription.List{}
-	for i := range channels {
-		switch channels[i] {
-		case channelFuturesAccount:
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel:       channels[i],
-				Asset:         asset.Futures,
-				Authenticated: true,
-			})
-		case channelFuturesPrivatePositions,
-			channelFuturesPrivateOrders,
-			channelFuturesPrivateTrades,
-			channelFuturesSymbol,
-			channelFuturesOrderbookLvl2,
-			channelFuturesOrderbook,
-			channelFuturesTickers,
-			channelFuturesTrades,
-			channelFuturesIndexPrice,
-			channelFuturesMarkPrice,
-			indexCandles1Min, indexCandles5Min, indexCandles10Min, indexCandles15Min, indexCandles30Min, indexCandles1Hr, indexCandles2Hr, indexCandles4Hr, indexCandles12Hr, indexCandles1Day, indexCandles3Day, indexCandles1Week,
-			channelFuturesFundingRate:
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channels[i],
-				Asset:   asset.Futures,
-				Pairs:   enabledPairs,
-			})
-		}
-	}
-	return subscriptions, nil
-}
-
 func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscription.List) []SubscriptionPayload {
-	payloads := []SubscriptionPayload{}
+	var payloads []SubscriptionPayload
 	for x := range subscs {
-		if len(subscs[x].Pairs) == 0 {
+		if len(subscs[x].Pairs) == 0 || subscs[x].QualifiedChannel == channelFuturesAccount {
 			input := SubscriptionPayload{
 				Event:   operation,
 				Channel: []string{subscs[x].Channel},

@@ -555,6 +555,7 @@ type OrdersHistoryRequest struct {
 	Symbol      currency.Pair
 	AccountType string
 	OrderType   string
+	OrderTypes  []string
 	Side        string
 	Direction   string
 	States      string
@@ -636,16 +637,19 @@ type KillSwitchStatus struct {
 
 // SmartOrderRequestRequest represents a smart trade order parameters
 type SmartOrderRequestRequest struct {
-	Symbol        currency.Pair `json:"symbol"`
-	Side          string        `json:"side"`
-	TimeInForce   string        `json:"timeInForce,omitempty"`
-	Type          string        `json:"type,omitempty"`
-	AccountType   string        `json:"accountType,omitempty"`
-	Price         float64       `json:"price,omitempty,string"`
-	StopPrice     float64       `json:"stopPrice,omitempty,string"`
-	Quantity      float64       `json:"quantity,omitempty,string"`
-	Amount        float64       `json:"amount,omitempty,string"`
-	ClientOrderID string        `json:"clientOrderId,omitempty"`
+	Symbol         currency.Pair `json:"symbol"`
+	Side           string        `json:"side"`
+	TimeInForce    string        `json:"timeInForce,omitempty"`
+	Type           string        `json:"type,omitempty"`
+	AccountType    string        `json:"accountType,omitempty"`
+	Price          float64       `json:"price,omitempty,string"`
+	StopPrice      float64       `json:"stopPrice,omitempty,string"`
+	Quantity       float64       `json:"quantity,omitempty,string"`
+	Amount         float64       `json:"amount,omitempty,string"`
+	ClientOrderID  string        `json:"clientOrderId,omitempty"`
+	TrailingOffset string        `json:"trailingOffset,omitempty"` // trailing stop price offset (Suffix with%, to trailing the proportion, without%, to trailing the price distance)
+	LimitOffset    string        `json:"limitOffset,omitempty"`    // When the order is triggered, the order is issued with a limit order based on the offset of the market price. ( Suffix with%, to limit the proportion, without%, to limit the price distance)
+	Operator       string        `json:"operator,omitempty"`       // Activation the price operator when orderType is TRAILING_STOP or TRAILING_STOP_LIMIT. Possible values are: GTE - Greater than or equal and LTE - Less than or equal
 }
 
 // CancelReplaceSmartOrderRequest represents a cancellation and order replacement request parameter for smart orders.

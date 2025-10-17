@@ -529,8 +529,8 @@ func (e *Exchange) GetFuturesExecutionInfo(ctx context.Context, symbol string, l
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues(marketsPathV3+"trades", params), &resp)
 }
 
-// GetLiquidiationOrder get Liquidation Order Interface
-func (e *Exchange) GetLiquidiationOrder(ctx context.Context, symbol, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*LiquidiationPrice, error) {
+// GetLiquidationOrder get Liquidation Order Interface
+func (e *Exchange) GetLiquidationOrder(ctx context.Context, symbol, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*LiquidationPrice, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -551,7 +551,7 @@ func (e *Exchange) GetLiquidiationOrder(ctx context.Context, symbol, direction s
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []*LiquidiationPrice
+	var resp []*LiquidationPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues(marketsPathV3+"liquidationOrder", params), &resp)
 }
 
