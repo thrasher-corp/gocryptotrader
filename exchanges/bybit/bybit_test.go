@@ -3016,14 +3016,21 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
 	e.SetCredentials("test", "test", "", "", "", "")
-	testexch.FixtureToDataHandler(t, "testdata/wsAuth.json", func(ctx context.Context, r []byte) error {
+	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAuth.json", func(ctx context.Context, r []byte) error {
 		if bytes.Contains(r, []byte("%s")) {
 			r = fmt.Appendf(nil, string(r), optionsTradablePair.String())
+		}
+		if bytes.Contains(r, []byte("FANGLE-ACCOUNTS")) {
+			hold := e.Accounts
+			e.Accounts = nil
+			defer func() { e.Accounts = hold }()
 		}
 		return e.wsHandleAuthenticatedData(ctx, &FixtureConnection{match: websocket.NewMatch()}, r)
 	})
 	close(e.Websocket.DataHandler)
 	require.Len(t, e.Websocket.DataHandler, 6, "Should see correct number of messages")
+	require.Len(t, fErrs, 1, "Must get exactly one error message")
+	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 
 	i := 0
 	for data := range e.Websocket.DataHandler {
