@@ -255,13 +255,13 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 		mockVals := url.Values{}
 		var err error
 		if json.Valid([]byte(data)) {
-			something := make(map[string]any)
-			err = json.Unmarshal([]byte(data), &something)
+			dataMap := make(map[string]any)
+			err = json.Unmarshal([]byte(data), &dataMap)
 			if err != nil {
 				return nil, err
 			}
 
-			for k, v := range something {
+			for k, v := range dataMap {
 				switch val := v.(type) {
 				case string:
 					mockVals.Add(k, val)
