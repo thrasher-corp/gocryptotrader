@@ -7,12 +7,9 @@ import (
 	"syscall"
 )
 
-// WaitForInterrupt blocks until a termination signal is received and returns it.
-// It registers a temporary channel, unregisters it via signal.Stop() and returns the received signal.
-func WaitForInterrupt() os.Signal {
+// WaitForInterrupt returns a channel to receive termination signalls
+func WaitForInterrupt() chan os.Signal {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	s := <-c
-	signal.Stop(c) // unregister to avoid keeping channel referenced/registered
-	return s
+	return c
 }
