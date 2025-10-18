@@ -157,7 +157,7 @@ func main() {
 }
 
 func waitForInterrupt(waiter chan<- struct{}) {
-	interrupt := signaler.WaitForInterrupt()
+	interrupt := <-signaler.WaitForInterrupt()
 	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
 	waiter <- struct{}{}
 }

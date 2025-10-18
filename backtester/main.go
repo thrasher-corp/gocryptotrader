@@ -195,7 +195,7 @@ func main() {
 				fmt.Printf("Could not stop task %v %v. Error: %v\n", bt.MetaData.ID, bt.MetaData.Strategy, err)
 				os.Exit(1)
 			}
-			interrupt := signaler.WaitForInterrupt()
+			interrupt := <-signaler.WaitForInterrupt()
 			log.Infof(log.Global, "Captured %v, shutdown requested\n", interrupt)
 			log.Infoln(log.Global, "Exiting.")
 			err = bt.Stop()
@@ -230,7 +230,7 @@ func main() {
 		}
 		log.Infoln(log.GRPCSys, "Ready to receive commands")
 	}(btCfg)
-	interrupt := signaler.WaitForInterrupt()
+	interrupt := <-signaler.WaitForInterrupt()
 	log.Infof(log.Global, "Captured %v, shutdown requested\n", interrupt)
 	if btCfg.StopAllTasksOnClose {
 		log.Infoln(log.Global, "Stopping all running tasks on close")
