@@ -20,8 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -546,17 +546,17 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, cfg *Config) []E
 			})
 		}
 
-		var GetCachedAccountInfoResponse account.Holdings
-		GetCachedAccountInfoResponse, err = e.GetCachedAccountInfo(context.TODO(), assetTypes[i])
+		var GetCachedSubAccountsResponse accounts.SubAccounts
+		GetCachedSubAccountsResponse, err = e.GetCachedSubAccounts(context.TODO(), assetTypes[i])
 		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetCachedAccountInfo",
+			Function: "GetCachedSubAccounts",
 			Error:    msg,
-			Response: jsonifyInterface([]any{GetCachedAccountInfoResponse}),
+			Response: jsonifyInterface([]any{GetCachedSubAccountsResponse}),
 		})
 
 		var getFundingHistoryResponse []exchange.FundingHistory

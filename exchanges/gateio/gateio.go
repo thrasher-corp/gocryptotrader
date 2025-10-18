@@ -629,7 +629,7 @@ func (e *Exchange) GetSpotOrders(ctx context.Context, currencyPair currency.Pair
 }
 
 // CancelAllOpenOrdersSpecifiedCurrencyPair cancel all open orders in specified currency pair
-func (e *Exchange) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context, currencyPair currency.Pair, side order.Side, account asset.Item) ([]SpotOrder, error) {
+func (e *Exchange) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context, currencyPair currency.Pair, side order.Side, a asset.Item) ([]SpotOrder, error) {
 	if currencyPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -638,8 +638,8 @@ func (e *Exchange) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context,
 	if side == order.Buy || side == order.Sell {
 		params.Set("side", strings.ToLower(side.Title()))
 	}
-	if account == asset.Spot || account == asset.Margin || account == asset.CrossMargin {
-		params.Set("account", account.String())
+	if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
+		params.Set("account", a.String())
 	}
 	var response []SpotOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelAllOpenOrdersEPL, http.MethodDelete, gateioSpotOrders, params, nil, &response)
@@ -663,7 +663,7 @@ func (e *Exchange) CancelBatchOrdersWithIDList(ctx context.Context, args []Cance
 }
 
 // GetSpotOrder retrieves a single spot order using the order id and currency pair information.
-func (e *Exchange) GetSpotOrder(ctx context.Context, orderID string, currencyPair currency.Pair, account asset.Item) (*SpotOrder, error) {
+func (e *Exchange) GetSpotOrder(ctx context.Context, orderID string, currencyPair currency.Pair, a asset.Item) (*SpotOrder, error) {
 	if orderID == "" {
 		return nil, errInvalidOrderID
 	}
@@ -672,7 +672,7 @@ func (e *Exchange) GetSpotOrder(ctx context.Context, orderID string, currencyPai
 	}
 	params := url.Values{}
 	params.Set("currency_pair", currencyPair.String())
-	if accountType := account.String(); accountType != "" {
+	if accountType := a.String(); accountType != "" {
 		params.Set("account", accountType)
 	}
 	var response *SpotOrder
@@ -817,7 +817,7 @@ func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrig
 }
 
 // GetPriceTriggeredOrderList retrieves price orders created with an order detail and trigger price information.
-func (e *Exchange) GetPriceTriggeredOrderList(ctx context.Context, status string, market currency.Pair, account asset.Item, offset, limit uint64) ([]SpotPriceTriggeredOrder, error) {
+func (e *Exchange) GetPriceTriggeredOrderList(ctx context.Context, status string, market currency.Pair, a asset.Item, offset, limit uint64) ([]SpotPriceTriggeredOrder, error) {
 	if status != statusOpen && status != statusFinished {
 		return nil, fmt.Errorf("%w status %s", errInvalidOrderStatus, status)
 	}
@@ -826,8 +826,8 @@ func (e *Exchange) GetPriceTriggeredOrderList(ctx context.Context, status string
 	if market.IsPopulated() {
 		params.Set("market", market.String())
 	}
-	if account == asset.CrossMargin {
-		params.Set("account", account.String())
+	if a == asset.CrossMargin {
+		params.Set("account", a.String())
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -840,18 +840,18 @@ func (e *Exchange) GetPriceTriggeredOrderList(ctx context.Context, status string
 }
 
 // CancelMultipleSpotOpenOrders deletes price triggered orders.
-func (e *Exchange) CancelMultipleSpotOpenOrders(ctx context.Context, currencyPair currency.Pair, account asset.Item) ([]SpotPriceTriggeredOrder, error) {
+func (e *Exchange) CancelMultipleSpotOpenOrders(ctx context.Context, currencyPair currency.Pair, a asset.Item) ([]SpotPriceTriggeredOrder, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
 		params.Set("market", currencyPair.String())
 	}
-	switch account {
+	switch a {
 	case asset.Empty:
 		return nil, asset.ErrNotSupported
 	case asset.Spot:
 		params.Set("account", "normal")
 	default:
-		params.Set("account", account.String())
+		params.Set("account", a.String())
 	}
 	var response []SpotPriceTriggeredOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelTriggerOrdersEPL, http.MethodDelete, gateioSpotPriceOrders, params, nil, &response)

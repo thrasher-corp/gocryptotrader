@@ -121,13 +121,11 @@ func TestUpdateTradablePairs(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
-	if err != nil {
-		t.Error("Binanceus UpdateAccountInfo() error", err)
-	}
+	_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err)
 }
 
 func TestGetRecentTrades(t *testing.T) {
