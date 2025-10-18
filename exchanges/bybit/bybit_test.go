@@ -2936,7 +2936,6 @@ type FixtureConnection struct {
 	websocket.Connection
 }
 
-func (d *FixtureConnection) GenerateMessageID(bool) int64                                  { return 1337 }
 func (d *FixtureConnection) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {}
 func (d *FixtureConnection) Dial(context.Context, *gws.Dialer, http.Header) error          { return d.dialError }
 

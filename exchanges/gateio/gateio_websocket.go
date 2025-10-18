@@ -124,7 +124,7 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 	signature := hex.EncodeToString(mac.Sum(nil))
 
 	payload := WebsocketPayload{
-		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		RequestID: e.MessageID(),
 		APIKey:    creds.Key,
 		Signature: signature,
 		Timestamp: strconv.FormatInt(tn, 10),
@@ -640,7 +640,7 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 
 	for _, s := range subs {
 		if err := func() error {
-			msg, err := e.manageSubReq(ctx, event, conn, s)
+			msg, err := e.manageSubReq(ctx, event, s)
 			if err != nil {
 				return err
 			}
@@ -667,9 +667,9 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 }
 
 // manageSubReq constructs the subscription management message for a subscription
-func (e *Exchange) manageSubReq(ctx context.Context, event string, conn websocket.Connection, s *subscription.Subscription) (*WsInput, error) {
+func (e *Exchange) manageSubReq(ctx context.Context, event string, s *subscription.Subscription) (*WsInput, error) {
 	req := &WsInput{
-		ID:      conn.GenerateMessageID(false),
+		ID:      e.MessageSequence(),
 		Event:   event,
 		Channel: channelName(s),
 		Time:    time.Now().Unix(),
@@ -886,11 +886,11 @@ const subTplText = `
 `
 
 // GeneratePayload returns the payload for a websocket message
-type GeneratePayload func(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+type GeneratePayload func(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
 
 // handleSubscription sends a websocket message to receive data from the channel
 func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
-	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
+	payloads, err := generatePayload(ctx, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -941,7 +941,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 		Channel: channel,
 		Event:   "api",
 		Payload: WebsocketPayload{
-			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
+			RequestID:    e.MessageID(),
 			RequestParam: paramPayload,
 			Timestamp:    strconv.FormatInt(tn, 10),
 		},

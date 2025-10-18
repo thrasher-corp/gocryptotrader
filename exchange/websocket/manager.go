@@ -305,7 +305,7 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		return err
 	}
 
-	if c.ResponseCheckTimeout == 0 && c.ResponseMaxLimit == 0 && c.RateLimit == nil && c.URL == "" && c.ConnectionLevelReporter == nil && c.RequestIDGenerator == nil {
+	if c.ResponseCheckTimeout == 0 && c.ResponseMaxLimit == 0 && c.RateLimit == nil && c.URL == "" && c.ConnectionLevelReporter == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigEmpty)
 	}
 
@@ -401,7 +401,6 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 		Match:                match,
 		RateLimit:            c.RateLimit,
 		Reporter:             c.ConnectionLevelReporter,
-		requestIDGenerator:   c.RequestIDGenerator,
 		RateLimitDefinitions: m.rateLimitDefinitions,
 	}
 }

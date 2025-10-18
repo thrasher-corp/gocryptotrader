@@ -564,7 +564,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		Subscription: testRequestData{
 			Name: "ticker",
 		},
-		RequestID: wc.GenerateMessageID(false),
+		RequestID: 12345,
 	}
 
 	_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, req.RequestID, req)
@@ -756,37 +756,6 @@ func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
 
 	ws.SetCanUseAuthenticatedEndpoints(true)
 	assert.True(t, ws.CanUseAuthenticatedWebsocketForWrapper(), "CanUseAuthenticatedWebsocketForWrapper should return true")
-}
-
-func TestGenerateMessageID(t *testing.T) {
-	t.Parallel()
-	wc := connection{}
-	const spins = 1000
-	ids := make([]int64, spins)
-	for i := range spins {
-		id := wc.GenerateMessageID(true)
-		assert.NotContains(t, ids, id, "GenerateMessageID should not generate the same ID twice")
-		ids[i] = id
-	}
-
-	wc.requestIDGenerator = func() int64 { return 42 }
-	assert.EqualValues(t, 42, wc.GenerateMessageID(true), "GenerateMessageID should use bespokeGenerateMessageID")
-}
-
-// 7002502	       166.7 ns/op	      48 B/op	       3 allocs/op
-func BenchmarkGenerateMessageID_High(b *testing.B) {
-	wc := connection{}
-	for b.Loop() {
-		_ = wc.GenerateMessageID(true)
-	}
-}
-
-// 6536250	       186.1 ns/op	      48 B/op	       3 allocs/op
-func BenchmarkGenerateMessageID_Low(b *testing.B) {
-	wc := connection{}
-	for b.Loop() {
-		_ = wc.GenerateMessageID(false)
-	}
 }
 
 func TestCheckWebsocketURL(t *testing.T) {
@@ -1135,7 +1104,7 @@ func TestLatency(t *testing.T) {
 		Event:        "subscribe",
 		Pairs:        []string{currency.NewPairWithDelimiter("XBT", "USD", "/").String()},
 		Subscription: testRequestData{Name: "ticker"},
-		RequestID:    wc.GenerateMessageID(false),
+		RequestID:    12346,
 	}
 
 	_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, req.RequestID, req)
