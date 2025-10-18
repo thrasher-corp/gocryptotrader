@@ -722,12 +722,12 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 			return nil, err
 		}
 		for i := range balances {
-			subAccts[0].Balances.Set(balances[i].Base.Currency, accounts.Balance{
+			subAccts[0].Balances.Add(balances[i].Base.Currency, accounts.Balance{
 				Total: balances[i].Base.Available.Float64() + balances[i].Base.LockedAmount.Float64(),
 				Hold:  balances[i].Base.LockedAmount.Float64(),
 				Free:  balances[i].Base.Available.Float64(),
 			})
-			subAccts[0].Balances.Set(balances[i].Quote.Currency, accounts.Balance{
+			subAccts[0].Balances.Add(balances[i].Quote.Currency, accounts.Balance{
 				Total: balances[i].Quote.Available.Float64() + balances[i].Quote.LockedAmount.Float64(),
 				Hold:  balances[i].Quote.LockedAmount.Float64(),
 				Free:  balances[i].Quote.Available.Float64(),
