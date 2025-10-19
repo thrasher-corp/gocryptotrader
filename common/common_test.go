@@ -590,18 +590,18 @@ func TestGenerateRandomString(t *testing.T) {
 	}
 }
 
-// TestErrorCollector exercises the error collector
 func TestErrorCollector(t *testing.T) {
-	e := CollectErrors(4)
+	var e ErrorCollector
+
+	require.Panics(t, func() { e.Go(nil) }, "Go with nil function must panic")
+
 	for i := range 4 {
-		go func() {
+		e.Go(func() error {
 			if i%2 == 0 {
-				e.C <- errors.New("Collected error")
-			} else {
-				e.C <- nil
+				return errors.New("Collected error")
 			}
-			e.Wg.Done()
-		}()
+			return nil
+		})
 	}
 	v := e.Collect()
 	errs, ok := v.(*multiError)

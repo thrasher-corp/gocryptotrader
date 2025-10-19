@@ -1066,14 +1066,10 @@ func (e *Exchange) wsAddOrder(ctx context.Context, req *WsAddOrderRequest) (stri
 // wsCancelOrders cancels open orders concurrently
 // It does not use the multiple txId facility of the cancelOrder API because the errors are not specific
 func (e *Exchange) wsCancelOrders(ctx context.Context, orderIDs []string) error {
-	errs := common.CollectErrors(len(orderIDs))
+	var errs common.ErrorCollector
 	for _, id := range orderIDs {
-		go func() {
-			defer errs.Wg.Done()
-			errs.C <- e.wsCancelOrder(ctx, id)
-		}()
+		errs.Go(func() error { return e.wsCancelOrder(ctx, id) })
 	}
-
 	return errs.Collect()
 }
 

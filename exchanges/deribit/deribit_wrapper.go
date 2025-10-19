@@ -224,18 +224,15 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
-	assets := e.GetAssetTypes(false)
-	errs := common.CollectErrors(len(assets))
-	for x := range assets {
-		go func(x int) {
-			defer errs.Wg.Done()
-			pairs, err := e.FetchTradablePairs(ctx, assets[x])
+	var errs common.ErrorCollector
+	for _, a := range e.GetAssetTypes(false) {
+		errs.Go(func() error {
+			pairs, err := e.FetchTradablePairs(ctx, a)
 			if err != nil {
-				errs.C <- err
-				return
+				return err
 			}
-			errs.C <- e.UpdatePairs(pairs, assets[x], false)
-		}(x)
+			return e.UpdatePairs(pairs, a, false)
+		})
 	}
 	return errs.Collect()
 }
