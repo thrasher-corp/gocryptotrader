@@ -510,7 +510,7 @@ func (e *Exchange) handleSubscription(operation string, s *subscription.Subscrip
 	}
 
 	switch s.Channel {
-	case channelBooks:
+	case subscription.OrderbookChannel, channelBooks:
 		sp.Depth = int64(s.Levels)
 	case channelCurrencies:
 		for _, p := range s.Pairs {

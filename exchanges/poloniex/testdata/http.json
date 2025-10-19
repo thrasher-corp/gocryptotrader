@@ -8431,7 +8431,7 @@
    "GET": [
     {
      "data": null,
-     "queryString": "limit=10&types=TRAILING_STOP%2CTRAILING_STOP_LIMIT%2CSTOP%2CSTOP_LIMIT",
+     "queryString": "limit=10\u0026types=TRAILING_STOP%2CTRAILING_STOP_LIMIT%2CSTOP%2CSTOP_LIMIT",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -10220,6 +10220,26 @@
       "msg": "Success"
      },
      "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v3/market/limitPrice": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": [
+       {
+        "buyLmt": 112735.37,
+        "sellLmt": 101998.67,
+        "symbol": "BTC_USDT_PERP"
+       }
+      ],
+      "msg": "Success"
+     },
+     "queryString": "symbol=DOT_USDT_PERP%2CBTC_USDT_PERP",
      "bodyParams": "",
      "headers": {}
     }

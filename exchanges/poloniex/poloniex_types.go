@@ -89,8 +89,8 @@ type SymbolTradeLimit struct {
 	LowestAsk     types.Number `json:"lowestAsk"`
 }
 
-// SymbolDetail represents a currency symbol
-type SymbolDetail struct {
+// SymbolDetails represents a currency symbol
+type SymbolDetails struct {
 	Symbol            string                 `json:"symbol"`
 	BaseCurrencyName  string                 `json:"baseCurrencyName"`
 	QuoteCurrencyName string                 `json:"quoteCurrencyName"`
@@ -231,8 +231,8 @@ type TickerData struct {
 	MarkPrice   types.Number `json:"markPrice"`
 }
 
-// CollateralInfo represents collateral information.
-type CollateralInfo struct {
+// CollateralDetails represents collateral information.
+type CollateralDetails struct {
 	Currency              string       `json:"currency"`
 	CollateralRate        types.Number `json:"collateralRate"`
 	InitialMarginRate     types.Number `json:"initialMarginRate"`
@@ -250,8 +250,8 @@ type BorrowRateInfo struct {
 	} `json:"rates"`
 }
 
-// AccountInformation represents a user account information.
-type AccountInformation struct {
+// AccountDetails represents a user account information.
+type AccountDetails struct {
 	AccountID    string `json:"accountId"`
 	AccountType  string `json:"accountType"`
 	AccountState string `json:"accountState"`
@@ -676,8 +676,8 @@ type CancelReplaceSmartOrderResponse struct {
 	Message   string       `json:"message"`
 }
 
-// SmartOrderDetail represents a smart order information and trigger detailed information.
-type SmartOrderDetail struct {
+// SmartOrderDetails represents a smart order information and trigger detailed information.
+type SmartOrderDetails struct {
 	ID             string            `json:"id"`
 	ClientOrderID  string            `json:"clientOrderId"`
 	Symbol         string            `json:"symbol"`

@@ -295,7 +295,7 @@ func (e *Exchange) processFuturesTradeFills(data []byte) error {
 }
 
 func (e *Exchange) processFuturesOrders(data []byte) error {
-	var resp []FuturesOrderDetail
+	var resp []FuturesOrderDetails
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -441,7 +441,7 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 }
 
 func (e *Exchange) processFuturesTickers(data []byte) error {
-	var resp []FuturesTickerDetail
+	var resp []FuturesTickerDetails
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -541,13 +541,13 @@ func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscript
 		if len(subscs[x].Pairs) == 0 || subscs[x].QualifiedChannel == channelFuturesAccount {
 			input := SubscriptionPayload{
 				Event:   operation,
-				Channel: []string{subscs[x].Channel},
+				Channel: []string{subscs[x].QualifiedChannel},
 			}
 			payloads = append(payloads, input)
 		} else {
 			input := SubscriptionPayload{
 				Event:   operation,
-				Channel: []string{subscs[x].Channel},
+				Channel: []string{subscs[x].QualifiedChannel},
 			}
 			input.Symbols = subscs[x].Pairs.Strings()
 			payloads = append(payloads, input)

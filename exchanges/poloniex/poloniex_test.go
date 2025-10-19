@@ -321,12 +321,17 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	if !mockTests && !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		testexch.SetupWs(t, e)
-	} else {
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	if mockTests {
 		t.SkipNow()
 	}
+	e.setAPICredential(apiKey, apiSecret)
+	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	testexch.SetupWs(t, e)
 	result, err := e.WebsocketSubmitOrder(generateContext(), &order.Submit{
 		Exchange:  e.Name,
 		Pair:      spotTradablePair,
@@ -815,10 +820,10 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSymbolInformation(t.Context(), currency.EMPTYPAIR)
+	_, err := e.GetSymbol(t.Context(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	result, err := e.GetSymbolInformation(t.Context(), spotTradablePair)
+	result, err := e.GetSymbol(t.Context(), spotTradablePair)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Len(t, result, 1)
@@ -826,7 +831,7 @@ func TestGetSymbols(t *testing.T) {
 
 func TestGetExecutionLimits(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetAllSymbolInformation(t.Context())
+	result, err := e.GetAllSymbols(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -967,41 +972,41 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetCollateralInfos(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCollateralInfo(t.Context(), currency.EMPTYCODE)
+	_, err := e.GetCollateral(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := e.GetCollateralInfo(t.Context(), currency.BTC)
+	result, err := e.GetCollateral(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetCollateralsInfo(t *testing.T) {
+func TestGetCollaterals(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetCollateralsInfo(t.Context())
+	result, err := e.GetCollaterals(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetCollateralInfo(t *testing.T) {
+func TestGetCollateral(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetCollateralInfo(t.Context(), currency.BTC)
+	result, err := e.GetCollateral(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetBorrowRateInfo(t *testing.T) {
+func TestGetBorrowRate(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetBorrowRateInfo(t.Context())
+	result, err := e.GetBorrowRate(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetAccountInformation(t *testing.T) {
+func TestGetAccount(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetAccountInformation(generateContext())
+	result, err := e.GetAccount(generateContext())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1114,12 +1119,12 @@ func TestGetInterestHistory(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGetSubAccountInformation(t *testing.T) {
+func TestGetSubAccount(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetSubAccountInformation(generateContext())
+	result, err := e.GetSubAccount(generateContext())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1212,7 +1217,7 @@ func TestGetDepositAddresses(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGetOrderInfo(t *testing.T) {
+func TestGetOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOrderInfo(generateContext(), "", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
@@ -1283,12 +1288,12 @@ func TestWithdrawCurrency(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetAccountMarginInformation(t *testing.T) {
+func TestGetAccountMargin(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetAccountMarginInfo(generateContext(), "SPOT")
+	result, err := e.GetAccountMargin(generateContext(), "SPOT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1596,13 +1601,13 @@ func TestGetSmartOpenOrders(t *testing.T) {
 
 func TestGetSmartOrderDetail(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSmartOrderDetail(generateContext(), "", "")
+	_, err := e.GetSmartOrderDetails(generateContext(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetSmartOrderDetail(generateContext(), "123313413", "")
+	result, err := e.GetSmartOrderDetails(generateContext(), "123313413", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1829,7 +1834,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Futures)
 	require.NoError(t, err)
 
-	instrument, err := e.GetFuturesProductInfo(t.Context(), futuresTradablePair.String())
+	instrument, err := e.GetFuturesProduct(t.Context(), futuresTradablePair.String())
 	require.NoError(t, err)
 	require.NotNil(t, instrument)
 
@@ -1845,7 +1850,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	require.NoError(t, err)
 
-	spotInstruments, err := e.GetSymbolInformation(t.Context(), spotTradablePair)
+	spotInstruments, err := e.GetSymbol(t.Context(), spotTradablePair)
 	require.NoError(t, err)
 	require.NotNil(t, spotInstruments)
 
@@ -2224,10 +2229,10 @@ func TestGetFuturesKlineData(t *testing.T) {
 
 func TestGetFuturesExecutionInfo(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesExecutionInfo(t.Context(), "", 0)
+	_, err := e.GetFuturesExecution(t.Context(), "", 0)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	result, err := e.GetFuturesExecutionInfo(t.Context(), "BTC_USDT_PERP", 0)
+	result, err := e.GetFuturesExecution(t.Context(), "BTC_USDT_PERP", 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2241,7 +2246,7 @@ func TestGetLiquidationOrder(t *testing.T) {
 
 func TestGetFuturesMarketInfo(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetFuturesMarketInfo(t.Context(), "BTC_USDT_PERP")
+	result, err := e.GetFuturesMarket(t.Context(), "BTC_USDT_PERP")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2296,12 +2301,12 @@ func TestGetMarkPriceKlineData(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetFuturesProductInfo(t *testing.T) {
+func TestGetFuturesProduct(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesProductInfo(t.Context(), "")
+	_, err := e.GetFuturesProduct(t.Context(), "")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	result, err := e.GetFuturesProductInfo(t.Context(), "BTC_USDT_PERP")
+	result, err := e.GetFuturesProduct(t.Context(), "BTC_USDT_PERP")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2333,9 +2338,9 @@ func TestGetFuturesCurrentOpenPositions(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetInsuranceFundInformation(t *testing.T) {
+func TestGetInsuranceFund(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetInsuranceFundInformation(t.Context())
+	result, err := e.GetInsuranceFund(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2343,6 +2348,16 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 func TestGetFuturesRiskLimit(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetFuturesRiskLimit(t.Context(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetContractLimitPrice(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetContractLimitPrice(t.Context(), []string{"DOT_USDT_PERP", ""})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := e.GetContractLimitPrice(t.Context(), []string{"DOT_USDT_PERP", "BTC_USDT_PERP"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2492,22 +2507,25 @@ func TestHandleFuturesSubscriptions(t *testing.T) {
 	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
 	require.NoError(t, err)
 
-	subscs := subscription.List{
+	subscs, err := subscription.List{
 		{
 			Asset:   asset.Futures,
-			Channel: channelFuturesTickers,
+			Channel: subscription.TickerChannel,
 			Pairs:   enabledPairs,
 		},
 		{
 			Asset:   asset.Futures,
-			Channel: channelFuturesOrderbookLvl2,
+			Channel: subscription.OrderbookChannel,
 			Pairs:   enabledPairs,
 		},
-	}
+	}.ExpandTemplates(e)
+	require.NoError(t, err)
+
 	payloads := []SubscriptionPayload{
 		{Event: "subscribe", Channel: []string{"tickers"}, Symbols: enabledPairs.Strings()},
 		{Event: "subscribe", Channel: []string{"book_lv2"}, Symbols: enabledPairs.Strings()},
 	}
+
 	result := e.handleFuturesSubscriptions("subscribe", subscs)
 	require.Len(t, payloads, 2)
 	for i := range subscs {

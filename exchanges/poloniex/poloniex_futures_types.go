@@ -46,8 +46,8 @@ type FuturesAccountBalance struct {
 	} `json:"details"`
 }
 
-// BillDetail represents a bill type detail information
-type BillDetail struct {
+// BillDetails represents a bill type detail information
+type BillDetails struct {
 	ID           string        `json:"id"`
 	AccountType  string        `json:"actType"`
 	BillType     string        `json:"type"`
@@ -106,8 +106,8 @@ type FuturesTradeFill struct {
 	UpdateTime     types.Time   `json:"uTime"`
 }
 
-// FuturesOrderDetail represents a futures v3 order detail
-type FuturesOrderDetail struct {
+// FuturesOrderDetails represents a futures v3 order detail
+type FuturesOrderDetails struct {
 	Symbol                     string            `json:"symbol"`
 	Side                       string            `json:"side"`
 	MarginMode                 string            `json:"mgnMode"`
@@ -250,8 +250,8 @@ type LiquidationPrice struct {
 	UpdateTime                     types.Time   `json:"uTime"`
 }
 
-// FuturesTickerDetail represents a v3 futures instrument ticker detail
-type FuturesTickerDetail struct {
+// FuturesTickerDetails represents a v3 futures instrument ticker detail
+type FuturesTickerDetails struct {
 	Symbol       string       `json:"s"`
 	OpeningPrice types.Number `json:"o"`
 	LowPrice     types.Number `json:"l"`
@@ -445,4 +445,11 @@ func (v *WsFuturesMarkAndIndexPriceCandle) UnmarshalJSON(data []byte) error {
 type MarginModeSwitchResponse struct {
 	MarginMode string `json:"mgnMode"`
 	Symbol     string `json:"symbol"`
+}
+
+// ContractLimitPrice holds a contracts highest buy price and lowest sell price limits
+type ContractLimitPrice struct {
+	Symbol    string  `json:"symbol"`
+	BuyLimit  float64 `json:"buyLmt"`
+	SellLimit float64 `json:"sellLmt"`
 }

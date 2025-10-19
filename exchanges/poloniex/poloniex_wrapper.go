@@ -143,15 +143,17 @@ func (e *Exchange) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	e.API.Endpoints = e.NewEndpoints()
-	if err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:                apiURL,
-		exchange.WebsocketSpot:           websocketURL,
-		exchange.WebsocketPrivate:        privateWebsocketURL,
-		exchange.WebsocketFutures:        futuresWebsocketPublicURL,
-		exchange.WebsocketFuturesPrivate: futuresWebsocketPrivateURL,
-	}); err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if e.API.Endpoints == nil {
+		e.API.Endpoints = e.NewEndpoints()
+		if err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+			exchange.RestSpot:                apiURL,
+			exchange.WebsocketSpot:           websocketURL,
+			exchange.WebsocketPrivate:        privateWebsocketURL,
+			exchange.WebsocketFutures:        futuresWebsocketPublicURL,
+			exchange.WebsocketFuturesPrivate: futuresWebsocketPrivateURL,
+		}); err != nil {
+			log.Errorln(log.ExchangeSys, err)
+		}
 	}
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -262,11 +264,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	})
 }
 
-// FetchTradablePairs returns a list of the exchanges tradable pairs
+// FetchTradablePairs returns a list of the exchange's tradable pairs
 func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
 	switch assetType {
 	case asset.Spot, asset.Margin:
-		resp, err := e.GetAllSymbolInformation(ctx)
+		resp, err := e.GetAllSymbols(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -284,7 +286,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 		}
 		return pairs, nil
 	case asset.Futures:
-		instruments, err := e.GetFuturesAllProductInfo(ctx, "")
+		instruments, err := e.GetFuturesAllProducts(ctx, "")
 		if err != nil {
 			return nil, err
 		}
@@ -307,8 +309,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
-	enabledAssets := e.GetAssetTypes(true)
-	for _, assetType := range enabledAssets {
+	for _, assetType := range e.GetAssetTypes(true) {
 		pairs, err := e.FetchTradablePairs(ctx, assetType)
 		if err != nil {
 			return err
@@ -328,8 +329,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 		if err != nil {
 			return err
 		}
-		for i := range ticks {
-			cp, err := currency.NewPairFromString(ticks[i].Symbol)
+		for _, tick := range ticks {
+			cp, err := currency.NewPairFromString(tick.Symbol)
 			if err != nil {
 				return err
 			}
@@ -337,24 +338,24 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				AssetType:    assetType,
 				Pair:         cp,
 				ExchangeName: e.Name,
-				Last:         ticks[i].MarkPrice.Float64(),
-				Low:          ticks[i].Low.Float64(),
-				Ask:          ticks[i].Ask.Float64(),
-				Bid:          ticks[i].Bid.Float64(),
-				High:         ticks[i].High.Float64(),
-				QuoteVolume:  ticks[i].Amount.Float64(),
-				Volume:       ticks[i].Quantity.Float64(),
+				Last:         tick.MarkPrice.Float64(),
+				Low:          tick.Low.Float64(),
+				Ask:          tick.Ask.Float64(),
+				Bid:          tick.Bid.Float64(),
+				High:         tick.High.Float64(),
+				QuoteVolume:  tick.Amount.Float64(),
+				Volume:       tick.Quantity.Float64(),
 			}); err != nil {
 				return err
 			}
 		}
 	case asset.Futures:
-		ticks, err := e.GetFuturesMarketInfo(ctx, "")
+		ticks, err := e.GetFuturesMarket(ctx, "")
 		if err != nil {
 			return err
 		}
-		for i := range ticks {
-			cp, err := currency.NewPairFromString(ticks[i].Symbol)
+		for _, tick := range ticks {
+			cp, err := currency.NewPairFromString(tick.Symbol)
 			if err != nil {
 				return err
 			}
@@ -362,12 +363,12 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				AssetType:    assetType,
 				Pair:         cp,
 				ExchangeName: e.Name,
-				LastUpdated:  ticks[i].EndTime.Time(),
-				Volume:       ticks[i].Quantity.Float64(),
-				BidSize:      ticks[i].BestBidSize.Float64(),
-				Bid:          ticks[i].BestBidPrice.Float64(),
-				AskSize:      ticks[i].BestAskSize.Float64(),
-				Ask:          ticks[i].BestAskPrice.Float64(),
+				LastUpdated:  tick.EndTime.Time(),
+				Volume:       tick.Quantity.Float64(),
+				BidSize:      tick.BestBidSize.Float64(),
+				Bid:          tick.BestBidPrice.Float64(),
+				AskSize:      tick.BestAskSize.Float64(),
+				Ask:          tick.BestAskPrice.Float64(),
 			}); err != nil {
 				return err
 			}
@@ -385,9 +386,9 @@ func (e *Exchange) UpdateTicker(_ context.Context, _ currency.Pair, _ asset.Item
 
 func orderbookLevelFromSlice(data []types.Number) orderbook.Levels {
 	obs := make(orderbook.Levels, len(data)/2)
-	for y := range obs {
-		obs[y].Price = data[y*2].Float64()
-		obs[y].Amount = data[y*2+1].Float64()
+	for i := range obs {
+		obs[i].Price = data[i*2].Float64()
+		obs[i].Amount = data[i*2+1].Float64()
 	}
 	return obs
 }
@@ -412,8 +413,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	}
 	switch assetType {
 	case asset.Spot:
-		var orderbookNew *OrderbookData
-		orderbookNew, err = e.GetOrderbook(ctx, fPair, 0, 150)
+		orderbookNew, err := e.GetOrderbook(ctx, fPair, 0, 150)
 		if err != nil {
 			return nil, err
 		}
@@ -474,7 +474,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		}
 		return response, account.Process(&response, creds)
 	default:
-		return response, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+		return response, fmt.Errorf("%w: asset type: %q", asset.ErrNotSupported, assetType)
 	}
 }
 
@@ -550,8 +550,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 	var resp []trade.Data
 	switch assetType {
 	case asset.Spot:
-		var tradeData []*Trade
-		tradeData, err = e.GetTrades(ctx, fPair, 0)
+		tradeData, err := e.GetTrades(ctx, fPair, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -573,7 +572,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 		}
 	case asset.Futures:
 		var tradeData []*FuturesExecutionInfo
-		tradeData, err = e.GetFuturesExecutionInfo(ctx, fPair.String(), 0)
+		tradeData, err = e.GetFuturesExecution(ctx, fPair.String(), 0)
 		if err != nil {
 			return nil, err
 		}
@@ -643,7 +642,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 		}
 	case asset.Futures:
 		var tradeData []*FuturesExecutionInfo
-		tradeData, err = e.GetFuturesExecutionInfo(ctx, fPair.String(), 0)
+		tradeData, err = e.GetFuturesExecution(ctx, fPair.String(), 0)
 		if err != nil {
 			return nil, err
 		}
@@ -738,15 +737,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		return s.DeriveSubmitResponse(response.ID)
 	case asset.Futures:
-		var side string
-		var positionSide string
-		switch {
-		case s.Side.IsShort():
+		side := "BUY"
+		positionSide := "LONG"
+		if s.Side.IsShort() {
 			side = "SELL"
 			positionSide = "SHORT"
-		case s.Side.IsLong():
-			side = "BUY"
-			positionSide = "LONG"
 		}
 		var marginMode string
 		switch s.MarginType {
@@ -761,8 +756,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			stpMode = "EXPIRE_MAKER"
 		case order.GoodTillCancel:
 			stpMode = "EXPIRE_TAKER"
-		default:
-			stpMode = ""
 		}
 		response, err := e.PlaceFuturesOrder(ctx, &FuturesOrderRequest{
 			ClientOrderID:           s.ClientOrderID,
@@ -1072,10 +1065,10 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				Type:      StringToOrderType(trades[i].Type),
 			}
 		}
-		var smartOrders []*SmartOrderDetail
+		var smartOrders []*SmartOrderDetails
 		resp, err := e.GetOrder(ctx, orderID, "")
 		if err != nil {
-			smartOrders, err = e.GetSmartOrderDetail(ctx, orderID, "")
+			smartOrders, err = e.GetSmartOrderDetails(ctx, orderID, "")
 			if err != nil {
 				return nil, err
 			} else if len(smartOrders) == 0 {
@@ -1802,7 +1795,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, assetType asse
 	if assetType != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	contracts, err := e.GetFuturesAllProductInfo(ctx, "")
+	contracts, err := e.GetFuturesAllProducts(ctx, "")
 	if err != nil {
 		return nil, err
 	}
@@ -1900,7 +1893,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return fmt.Errorf("%w asset: %v", asset.ErrNotSupported, a)
 	}
 	if a == asset.Spot {
-		instruments, err := e.GetAllSymbolInformation(ctx)
+		instruments, err := e.GetAllSymbols(ctx)
 		if err != nil {
 			return err
 		}
@@ -1922,7 +1915,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return limits.Load(l)
 	}
 
-	instruments, err := e.GetFuturesAllProductInfo(ctx, "")
+	instruments, err := e.GetFuturesAllProducts(ctx, "")
 	if err != nil {
 		return err
 	}
