@@ -110,7 +110,7 @@ func (e *Exchange) GetRecentTradesList(ctx context.Context, symbol string, limit
 }
 
 // GetAggregatedTrades get compressed, aggregate trades. Trades that fill at the time, from the same order, with the same price will have the quantity aggregated.
-func (e *Exchange) GetAggregatedTrades(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]AggregatedTradeDetail, error) {
+func (e *Exchange) GetAggregatedTrades(ctx context.Context, symbol string, startTime, endTime time.Time, limit uint64) ([]AggregatedTradeDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -124,26 +124,50 @@ func (e *Exchange) GetAggregatedTrades(ctx context.Context, symbol string, start
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []AggregatedTradeDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, aggregatedTradesEPL, http.MethodGet, "aggTrades", params, nil, &resp)
 }
 
-var intervalToStringMap = map[string]map[kline.Interval]string{"wsIntervalToStringMap": {kline.HundredMilliseconds: "100ms", kline.TenMilliseconds: "10ms", kline.OneMin: "Min1", kline.FiveMin: "Min5", kline.FifteenMin: "Min15", kline.ThirtyMin: "Min30", kline.OneHour: "Min60", kline.FourHour: "Hour4", kline.EightHour: "Hour8", kline.OneDay: "Day1", kline.OneWeek: "Week1", kline.OneMonth: "Month1"}, "intervalToStringMap": {kline.HundredMilliseconds: "100ms", kline.TenMilliseconds: "10ms", kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "60m", kline.FourHour: "4h", kline.OneDay: "1d", kline.OneWeek: "1W", kline.OneMonth: "1M"}}
+var intervalsList = []struct {
+	i           kline.Interval
+	str         string
+	isWebsocket bool
+}{
+	{i: kline.HundredMilliseconds, str: "100ms", isWebsocket: true},
+	{i: kline.TenMilliseconds, str: "10ms", isWebsocket: true},
+	{i: kline.OneMin, str: "Min1", isWebsocket: true},
+	{i: kline.FiveMin, str: "Min5", isWebsocket: true},
+	{i: kline.FifteenMin, str: "Min15", isWebsocket: true},
+	{i: kline.ThirtyMin, str: "Min30", isWebsocket: true},
+	{i: kline.OneHour, str: "Min60", isWebsocket: true},
+	{i: kline.FourHour, str: "Hour4", isWebsocket: true},
+	{i: kline.EightHour, str: "Hour8", isWebsocket: true},
+	{i: kline.OneDay, str: "Day1", isWebsocket: true},
+	{i: kline.OneWeek, str: "Week1", isWebsocket: true},
+	{i: kline.OneMonth, str: "Month1", isWebsocket: true},
+	{i: kline.HundredMilliseconds, str: "100ms"},
+	{i: kline.TenMilliseconds, str: "10ms"},
+	{i: kline.OneMin, str: "1m"},
+	{i: kline.FiveMin, str: "5m"},
+	{i: kline.FifteenMin, str: "15m"},
+	{i: kline.ThirtyMin, str: "30m"},
+	{i: kline.OneHour, str: "60m"},
+	{i: kline.FourHour, str: "4h"},
+	{i: kline.OneDay, str: "1d"},
+	{i: kline.OneWeek, str: "1W"},
+	{i: kline.OneMonth, str: "1M"},
+}
 
 func intervalToString(interval kline.Interval, isWebsocket ...bool) (string, error) {
-	var intervalString string
-	var ok bool
-	if len(isWebsocket) > 0 && isWebsocket[0] {
-		intervalString, ok = intervalToStringMap["wsIntervalToStringMap"][interval]
-	} else {
-		intervalString, ok = intervalToStringMap["intervalToStringMap"][interval]
+	isWs := len(isWebsocket) > 0 && isWebsocket[0]
+	for _, val := range intervalsList {
+		if val.i == interval && val.isWebsocket == isWs {
+			return val.str, nil
+		}
 	}
-	if !ok {
-		return "", kline.ErrUnsupportedInterval
-	}
-	return intervalString, nil
+	return "", kline.ErrUnsupportedInterval
 }
 
 // GetCandlestick retrieves kline/candlestick bars for a symbol.

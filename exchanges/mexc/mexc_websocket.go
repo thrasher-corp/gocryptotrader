@@ -2,11 +2,12 @@ package mexc
 
 import (
 	"context"
-	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -41,14 +42,6 @@ const (
 	channelPrivateOrdersAPI     = "private.orders.v3.api.pb"
 	channelIncreaseDepthBatchV3 = "public.increase.depth.batch.v3.api.pb"
 )
-
-var defacultChannels = []string{
-	channelBookTiker,
-	channelKlineV3,
-	channelAggreDealsV3,
-	channelAggregateDepthV3,
-	channelIncreaseDepthBatchV3,
-}
 
 // orderbookSnapshotLoadedPairs and syncOrderbookPairsLock holds list of symbols and if these instruments snapshot orderbook detail is loaded, and corresponding lock
 var (
@@ -85,41 +78,6 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 	return nil
 }
 
-// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	formatter, err := e.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return nil, err
-	}
-	subscriptions := make(subscription.List, len(defacultChannels))
-	for c := range defacultChannels {
-		subscriptions[c] = &subscription.Subscription{
-			Channel: defacultChannels[c],
-			Pairs:   enabledPairs.Format(formatter),
-			Asset:   asset.Spot,
-		}
-		switch defacultChannels[c] {
-		case channelBookTiker,
-			channelAggregateDepthV3,
-			channelAggreDealsV3:
-			subscriptions[c].Interval = kline.HundredMilliseconds
-		case channelKlineV3:
-			subscriptions[c].Interval = kline.FifteenMin
-		case channelLimitDepthV3:
-			subscriptions[c].Levels = 5
-		case channelAccountV3,
-			channelPrivateDealsV3,
-			channelPrivateOrdersAPI:
-			subscriptions[c].Pairs = []currency.Pair{}
-		}
-	}
-	return subscriptions, nil
-}
-
 // Subscribe subscribes to a channel
 func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
 	return e.handleSubscription(ctx, conn, "SUBSCRIPTION", channelsToSubscribe)
@@ -130,30 +88,13 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, c
 	return e.handleSubscription(ctx, conn, "UNSUBSCRIPTION", channelsToSubscribe)
 }
 
-func assetTypeToString(assetType asset.Item) (string, error) {
+func assetTypeToString(assetType asset.Item) string {
 	switch assetType {
 	case asset.Spot, asset.Futures:
-		return strings.ToLower(assetType.String()), nil
+		return strings.ToLower(assetType.String())
 	default:
-		return "", fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+		return ""
 	}
-}
-
-// var defaultSubscriptionsList = subscription.List{
-// 	{Channel: channelBookTiker},
-// }
-
-var defaultSubscriptions = subscription.List{
-	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
-	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
-	// {Enabled: true, Asset: asset.Margin, Channel: subscription.AllTradesChannel},
-	// {Enabled: true, Asset: asset.Futures, Channel: futuresTradeOrderChannel, Authenticated: true},
-	// {Enabled: true, Asset: asset.Futures, Channel: futuresStopOrdersLifecycleEventChannel, Authenticated: true},
-	// {Enabled: true, Asset: asset.Futures, Channel: futuresAccountBalanceEventChannel, Authenticated: true},
-	// {Enabled: true, Asset: asset.Margin, Channel: marginPositionChannel, Authenticated: true},
-	// {Enabled: true, Asset: asset.Margin, Channel: marginLoanChannel, Authenticated: true},
-	// {Enabled: true, Channel: accountBalanceChannel, Authenticated: true},
 }
 
 func channelName(s *subscription.Subscription) string {
@@ -176,106 +117,88 @@ func channelName(s *subscription.Subscription) string {
 		case subscription.TickerChannel:
 			return channelBookTiker
 		case subscription.OrderbookChannel:
-			return channelAggregateDepthV3
+			return channelLimitDepthV3
+		case subscription.AllTradesChannel:
+			return channelAggreDealsV3
+		case subscription.CandlesChannel:
+			return channelKlineV3
 		case subscription.MyTradesChannel:
 			return channelPrivateDealsV3
 		case subscription.MyOrdersChannel:
 			return channelPrivateOrdersAPI
 		case subscription.MyAccountChannel:
 			return channelAccountV3
-		case subscription.AllTradesChannel:
-			return channelAggreDealsV3
 		}
 	}
 	return s.Channel
 }
 
+func isFutures(s *subscription.Subscription) bool {
+	return s.Asset == asset.Futures
+}
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 5},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.FifteenMin},
+
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true},
+}
+
+// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
+func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+	return defaultSubscriptions.ExpandTemplates(e)
+}
+
+// GetSubscriptionTemplate returns a subscription channel template
+func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").
+		Funcs(template.FuncMap{
+			"channelName":       channelName,
+			"assetTypeToString": assetTypeToString,
+			"wsIntervalString":  wsIntervalString,
+			"isSymbolChannel":   isSymbolChannel,
+			"isFutures":         isFutures,
+			"formatPair":        e.FormatExchangeCurrency,
+		}).
+		Parse(subTplText)
+}
+
+func wsIntervalString(s *subscription.Subscription) string {
+	intervalString, err := intervalToString(s.Interval, true)
+	if err != nil {
+		return ""
+	}
+	return intervalString
+}
+
+func isSymbolChannel(channel string) bool {
+	return !slices.Contains([]string{channelAccountV3, channelPrivateDealsV3, channelPrivateOrdersAPI}, channel)
+}
+
 func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, method string, subs subscription.List) error {
-	payloads := make([]WsSubscriptionPayload, len(subs))
-	successfulSubscriptions := subscription.List{}
-	failedSubscriptions := subscription.List{}
+	var successfulSubscriptions, failedSubscriptions subscription.List
 	for s := range subs {
-		assetTypeString, err := assetTypeToString(subs[s].Asset)
+		id := conn.GenerateMessageID(false)
+		data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, id, &WsSubscriptionPayload{
+			ID:     id,
+			Method: method,
+			Params: []string{subs[s].QualifiedChannel},
+		})
 		if err != nil {
 			return err
 		}
-		switch subs[s].Channel {
-		case channelBookTiker,
-			channelAggregateDepthV3,
-			channelAggreDealsV3,
-			channelKlineV3:
-			intervalString, err := intervalToString(subs[s].Interval, true)
-			if err != nil {
-				return err
-			}
-			payloads[s].ID = conn.GenerateMessageID(false)
-			payloads[s].Method = method
-			payloads[s].Params = make([]string, len(subs[s].Pairs))
-			for p := range subs[s].Pairs {
-				if subs[s].Channel == channelKlineV3 {
-					payloads[s].Params[p] = assetTypeString + "@" + subs[s].Channel + "@" + subs[s].Pairs[p].String() + "@" + intervalString
-				} else {
-					payloads[s].Params[p] = assetTypeString + "@" + subs[s].Channel + "@" + intervalString + "@" + subs[s].Pairs[p].String()
-				}
-			}
-			data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payloads[s].ID, payloads[s])
-			if err != nil {
-				return err
-			}
-			var resp *WsSubscriptionResponse
-			err = json.Unmarshal(data, &resp)
-			if err != nil {
-				return err
-			} else if resp.Code != 0 {
-				failedSubscriptions = append(failedSubscriptions, subs[s])
-			}
-			successfulSubscriptions = append(successfulSubscriptions, subs[s])
-		case channelLimitDepthV3:
-			payloads[s].ID = conn.GenerateMessageID(false)
-			payloads[s].Method = method
-			payloads[s].Params = make([]string, len(subs[s].Pairs))
-			for p := range subs[s].Pairs {
-				payloads[s].Params[p] = assetTypeString + "@" + channelLimitDepthV3 + "@" + subs[s].Pairs[p].String() + "@" + strconv.Itoa(subs[s].Levels)
-			}
-			data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payloads[s].ID, payloads[s])
-			if err != nil {
-				return err
-			}
-			var resp *WsSubscriptionResponse
-			err = json.Unmarshal(data, &resp)
-			if err != nil {
-				return err
-			}
-		case channelAccountV3, channelPrivateDealsV3, channelPrivateOrdersAPI:
-			payloads[s].ID = conn.GenerateMessageID(false)
-			payloads[s].Method = method
-			payloads[s].Params = []string{assetTypeString + "@" + subs[s].Channel}
-			data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payloads[s].ID, payloads[s])
-			if err != nil {
-				return err
-			}
-			var resp *WsSubscriptionResponse
-			err = json.Unmarshal(data, &resp)
-			if err != nil {
-				return err
-			}
-		case channelIncreaseDepthBatchV3, channelBookTickerBatch:
-			payloads[s].ID = conn.GenerateMessageID(false)
-			payloads[s].Method = method
-			payloads[s].Params = make([]string, len(subs[s].Pairs))
-			for p := range subs[s].Pairs {
-				payloads[s].Params[p] = assetTypeString + "@" + subs[s].Channel + "@" + subs[s].Pairs[p].String()
-			}
-			data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payloads[s].ID, payloads[s])
-			if err != nil {
-				return err
-			}
-			var resp *WsSubscriptionResponse
-			err = json.Unmarshal(data, &resp)
-			if err != nil {
-				return err
-			}
+		var resp *WsSubscriptionResponse
+		err = json.Unmarshal(data, &resp)
+		if err != nil {
+			return err
+		} else if resp.Code != 0 {
+			failedSubscriptions = append(failedSubscriptions, subs[s])
 		}
+		successfulSubscriptions = append(successfulSubscriptions, subs[s])
 	}
 	err := e.Websocket.RemoveSubscriptions(conn, failedSubscriptions...)
 	if err != nil {
@@ -794,3 +717,39 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 	}
 	return nil
 }
+
+const subTplText = `
+{{- if isFutures $.S -}}
+	{{- channelName $.S }}
+{{- else -}}
+	{{- with $name := channelName $.S }}
+		{{- if isSymbolChannel $name -}}
+			{{- range $asset, $pairs := $.AssetPairs }}
+				{{- if (gt $.S.Interval 0) }}
+					{{- range $p := $pairs -}}
+						{{- if  (eq $name "public.kline.v3.api.pb") -}}
+							{{- assetTypeToString $asset }}@{{- $name -}}@{{- formatPair $p $asset }}@{{- wsIntervalString $.S}}
+						{{- else }}
+							{{- assetTypeToString $asset }}@{{- $name -}}@{{- wsIntervalString $.S}}@{{- formatPair $p $asset }}
+						{{- end }}
+						{{- $.PairSeparator }}
+					{{- end }}
+				{{- else if (gt $.S.Levels 0) }}
+					{{- range $p := $pairs -}}
+						{{- assetTypeToString $asset }}@{{- $name -}}@{{- formatPair $p $asset }}@{{ $.S.Levels }}
+						{{- $.PairSeparator }}
+					{{- end }}
+				{{- else }}
+					{{- range $p := $pairs -}}
+						{{- assetTypeToString $asset }}@{{- $name -}}@{{- formatPair $p $asset }}
+						{{- $.PairSeparator }}
+					{{- end }}
+				{{- end }}
+				{{- $.AssetSeparator }}
+			{{- end }}
+		{{- else }}
+			{{- assetTypeToString $.S.Asset}}@{{- $name -}}
+		{{- end }}
+	{{- end }}
+{{- end }}
+`
