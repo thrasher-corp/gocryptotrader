@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 	"unicode"
@@ -1800,27 +1799,16 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 		}
 	}
 
-	a := b.GetAssetTypes(true)
-	var wg sync.WaitGroup
-	errC := make(chan error, len(a))
-	for i := range a {
-		wg.Add(1)
-		go func(a asset.Item) {
-			defer wg.Done()
+	var errs common.ErrorCollector
+	for _, a := range b.GetAssetTypes(true) {
+		errs.Go(func() error {
 			if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-				errC <- fmt.Errorf("failed to set exchange order execution limits: %w", err)
+				return fmt.Errorf("failed to set exchange order execution limits: %w", err)
 			}
-		}(a[i])
+			return nil
+		})
 	}
-	wg.Wait()
-	close(errC)
-
-	var err error
-	for e := range errC {
-		err = common.AppendError(err, e)
-	}
-
-	return err
+	return errs.Collect()
 }
 
 // Bootstrap is a fallback method for exchange startup actions
