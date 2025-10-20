@@ -592,9 +592,7 @@ func TestGenerateRandomString(t *testing.T) {
 
 func TestErrorCollector(t *testing.T) {
 	var e ErrorCollector
-
 	require.Panics(t, func() { e.Go(nil) }, "Go with nil function must panic")
-
 	for i := range 4 {
 		e.Go(func() error {
 			if i%2 == 0 {
@@ -607,6 +605,7 @@ func TestErrorCollector(t *testing.T) {
 	errs, ok := v.(*multiError)
 	require.True(t, ok, "Must return a multiError")
 	assert.Len(t, errs.Unwrap(), 2, "Should have 2 errors")
+	assert.Nil(t, e.Collect(), "should return nil when a previous collection emptied the errors")
 }
 
 // TestBatch ensures the Batch function does not regress into common behavioural faults if implementation changes

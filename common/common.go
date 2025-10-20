@@ -564,7 +564,9 @@ func (e *ErrorCollector) Collect() (errs error) {
 	e.wg.Wait()
 	e.m.Lock()
 	defer e.m.Unlock()
-	return e.errs
+	out := e.errs
+	e.errs = nil
+	return out
 }
 
 // Go runs a function in a goroutine and collects any error it returns
@@ -573,10 +575,11 @@ func (e *ErrorCollector) Go(f func() error) {
 		panic("ErrorCollector.Go received a nil function")
 	}
 	e.wg.Go(func() {
-		err := f()
-		e.m.Lock()
-		e.errs = AppendError(e.errs, err)
-		e.m.Unlock()
+		if err := f(); err != nil {
+			e.m.Lock()
+			e.errs = AppendError(e.errs, err)
+			e.m.Unlock()
+		}
 	})
 }
 
