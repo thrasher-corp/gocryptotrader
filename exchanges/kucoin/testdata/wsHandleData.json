@@ -37,3 +37,4 @@
 {"topic":"/contract/instrument:ETHUSDCM","subject":"funding.rate","data":{"granularity":60000,"fundingRate":-0.002966,"timestamp":1551770400000}}
 {"topic":"/contract/instrument:ETHUSDCM","subject":"mark.index.price","data":{"granularity":1000,"indexPrice":4000.23,"markPrice":4010.52,"timestamp":1551770400000}}
 {"type":"message","topic":"/market/level2:BTC-USDT","subject":"trade.l2update","data":{"changes":{"asks":[["18906","0.00331","14103845"],["18907.3","0.58751503","14103844"]],"bids":[["18891.9","0.15688","14103847"]]},"sequenceEnd":14103847,"sequenceStart":14103844,"symbol":"BTC-USDT","time":1663747970273}}
+{"userId":"xbc453tg732eba53a88ggyt8c","topic":"/contractAccount/wallet","subject":"availableBalance.change","data":{"availableBalance":5923,"holdBalance":2312,"currency":"FANGLE-ACCOUNTS","timestamp":1553842862614}}
