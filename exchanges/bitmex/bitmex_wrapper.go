@@ -1049,17 +1049,17 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				contractSettlementType = futures.Inverse
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            s,
-				IsActive:             marketInfo[x].State == "Open",
-				Status:               marketInfo[x].State,
-				Type:                 futures.Perpetual,
-				SettlementType:       contractSettlementType,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
-				Multiplier:           marketInfo[x].Multiplier,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          s,
+				IsActive:           marketInfo[x].State == "Open",
+				Status:             marketInfo[x].State,
+				Type:               futures.Perpetual,
+				SettlementType:     contractSettlementType,
+				SettlementCurrency: marketInfo[x].SettlementCurrency,
+				Multiplier:         marketInfo[x].Multiplier,
 				LatestRate: fundingrate.Rate{
 					Time: marketInfo[x].FundingTimestamp,
 					Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
@@ -1119,18 +1119,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				contractSettlementType = futures.Quanto
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            startTime,
-				EndDate:              endTime,
-				IsActive:             marketInfo[x].State == "Open",
-				Status:               marketInfo[x].State,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
-				Multiplier:           marketInfo[x].Multiplier,
-				SettlementType:       contractSettlementType,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          startTime,
+				EndDate:            endTime,
+				IsActive:           marketInfo[x].State == "Open",
+				Status:             marketInfo[x].State,
+				Type:               ct,
+				SettlementCurrency: marketInfo[x].SettlementCurrency,
+				Multiplier:         marketInfo[x].Multiplier,
+				SettlementType:     contractSettlementType,
 			})
 		}
 	}

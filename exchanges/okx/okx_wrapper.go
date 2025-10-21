@@ -2833,7 +2833,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			if !settleCurr.IsEmpty() {
-				resp[i].SettlementCurrencies = currency.Currencies{settleCurr}
+				resp[i].SettlementCurrency = settleCurr
 			}
 		}
 		return resp, nil

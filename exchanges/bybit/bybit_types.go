@@ -96,9 +96,9 @@ type InstrumentInfo struct {
 		MaxOrderAmt         types.Number `json:"maxOrderAmt"`
 		MinNotionalValue    types.Number `json:"minNotionalValue"`
 	} `json:"lotSizeFilter"`
-	UnifiedMarginTrade bool   `json:"unifiedMarginTrade"`
-	FundingInterval    int64  `json:"fundingInterval"`
-	SettleCoin         string `json:"settleCoin"`
+	UnifiedMarginTrade bool          `json:"unifiedMarginTrade"`
+	FundingInterval    int64         `json:"fundingInterval"`
+	SettleCoin         currency.Code `json:"settleCoin"`
 }
 
 // RestResponse represents a REST response instance.

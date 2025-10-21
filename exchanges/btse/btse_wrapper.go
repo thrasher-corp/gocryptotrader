@@ -1129,16 +1129,17 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 
 		c := futures.Contract{
-			Exchange:             e.Name,
-			Name:                 cp,
-			Underlying:           currency.NewPair(currency.NewCode(marketSummary[i].Base), currency.NewCode(marketSummary[i].Quote)),
-			Asset:                item,
-			SettlementCurrencies: settlementCurrencies,
-			StartDate:            startTime,
-			EndDate:              endTime,
-			SettlementType:       contractSettlementType,
-			IsActive:             marketSummary[i].Active,
-			Type:                 ct,
+			Exchange:                       e.Name,
+			Name:                           cp,
+			Underlying:                     currency.NewPair(currency.NewCode(marketSummary[i].Base), currency.NewCode(marketSummary[i].Quote)),
+			Asset:                          item,
+			SettlementCurrency:             currency.USDT,
+			AdditionalSettlementCurrencies: settlementCurrencies,
+			StartDate:                      startTime,
+			EndDate:                        endTime,
+			SettlementType:                 contractSettlementType,
+			IsActive:                       marketSummary[i].Active,
+			Type:                           ct,
 		}
 		if marketSummary[i].FundingRate > 0 {
 			c.LatestRate = fundingrate.Rate{

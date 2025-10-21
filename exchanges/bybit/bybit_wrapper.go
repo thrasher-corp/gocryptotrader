@@ -1780,18 +1780,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp.Format(format),
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            start,
-				EndDate:              end,
-				SettlementType:       futures.Inverse,
-				IsActive:             strings.EqualFold(inverseContracts.List[i].Status, "trading"),
-				Status:               inverseContracts.List[i].Status,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(inverseContracts.List[i].SettleCoin)},
-				MaxLeverage:          inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
+				Exchange:           e.Name,
+				Name:               cp.Format(format),
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          start,
+				EndDate:            end,
+				SettlementType:     futures.Inverse,
+				IsActive:           strings.EqualFold(inverseContracts.List[i].Status, "trading"),
+				Status:             inverseContracts.List[i].Status,
+				Type:               ct,
+				SettlementCurrency: inverseContracts.List[i].SettleCoin,
+				MaxLeverage:        inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
 			})
 		}
 		return resp, nil
@@ -1858,19 +1858,19 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp.Format(format),
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            instruments[i].LaunchTime.Time(),
-				EndDate:              instruments[i].DeliveryTime.Time(),
-				SettlementType:       futures.Linear,
-				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
-				Status:               instruments[i].Status,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.USDC},
-				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
-				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
+				Exchange:           e.Name,
+				Name:               cp.Format(format),
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          instruments[i].LaunchTime.Time(),
+				EndDate:            instruments[i].DeliveryTime.Time(),
+				SettlementType:     futures.Linear,
+				IsActive:           strings.EqualFold(instruments[i].Status, "trading"),
+				Status:             instruments[i].Status,
+				Type:               ct,
+				SettlementCurrency: currency.USDC,
+				MaxLeverage:        instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:         instruments[i].LeverageFilter.LeverageStep.Float64(),
 			})
 		}
 		return resp, nil
@@ -1931,19 +1931,19 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp.Format(format),
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            start,
-				EndDate:              end,
-				SettlementType:       futures.Linear,
-				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
-				Status:               instruments[i].Status,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.USDT},
-				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
-				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
+				Exchange:           e.Name,
+				Name:               cp.Format(format),
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          start,
+				EndDate:            end,
+				SettlementType:     futures.Linear,
+				IsActive:           strings.EqualFold(instruments[i].Status, "trading"),
+				Status:             instruments[i].Status,
+				Type:               ct,
+				SettlementCurrency: currency.USDT,
+				MaxLeverage:        instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:         instruments[i].LeverageFilter.LeverageStep.Float64(),
 			})
 		}
 		return resp, nil

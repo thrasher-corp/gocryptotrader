@@ -1912,19 +1912,19 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		timeOfCurrentFundingRate := time.Now().Add((time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond) - fri).Truncate(time.Hour).UTC()
 		resp[i] = futures.Contract{
-			Exchange:             e.Name,
-			Name:                 cp,
-			Underlying:           underlying,
-			SettlementCurrencies: currency.Currencies{settleCurr},
-			MarginCurrency:       settleCurr,
-			Asset:                item,
-			StartDate:            contracts[i].FirstOpenDate.Time(),
-			EndDate:              contracts[i].ExpireDate.Time(),
-			IsActive:             !strings.EqualFold(contracts[i].Status, "closed"),
-			Status:               contracts[i].Status,
-			Multiplier:           contracts[i].Multiplier,
-			MaxLeverage:          contracts[i].MaxLeverage,
-			SettlementType:       contractSettlementType,
+			Exchange:           e.Name,
+			Name:               cp,
+			Underlying:         underlying,
+			SettlementCurrency: settleCurr,
+			MarginCurrency:     settleCurr,
+			Asset:              item,
+			StartDate:          contracts[i].FirstOpenDate.Time(),
+			EndDate:            contracts[i].ExpireDate.Time(),
+			IsActive:           !strings.EqualFold(contracts[i].Status, "closed"),
+			Status:             contracts[i].Status,
+			Multiplier:         contracts[i].Multiplier,
+			MaxLeverage:        contracts[i].MaxLeverage,
+			SettlementType:     contractSettlementType,
 			LatestRate: fundingrate.Rate{
 				Rate: decimal.NewFromFloat(contracts[i].FundingFeeRate),
 				Time: timeOfCurrentFundingRate, // kucoin pays every 8 hours
