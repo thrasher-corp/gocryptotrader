@@ -75,25 +75,15 @@ func TestFetchFundingHistory(t *testing.T) {
 
 func TestGetMarketsSummary(t *testing.T) {
 	t.Parallel()
-	resp, err := e.GetMarketSummary(t.Context(), "", true)
+	_, err := e.GetMarketSummary(t.Context(), "", true)
 	assert.NoError(t, err, "GetMarketSummary should not error")
-	for i := range resp {
-		if len(resp[i].AvailableSettlement) > 1 {
-			t.Log(resp[i].Symbol, resp[i].AvailableSettlement)
-		}
-	}
 
 	ret, err := e.GetMarketSummary(t.Context(), spotPair.String(), true)
 	assert.NoError(t, err, "GetMarketSummary should not error")
 	assert.Len(t, ret, 1, "expected only one result when requesting BTC-USD data received")
 
-	resp, err = e.GetMarketSummary(t.Context(), "", false)
+	_, err = e.GetMarketSummary(t.Context(), "", false)
 	assert.NoError(t, err, "GetMarketSummary should not error")
-	for i := range resp {
-		if len(resp[i].AvailableSettlement) > 1 {
-			t.Log(resp[i].Symbol, resp[i].AvailableSettlement)
-		}
-	}
 }
 
 func TestFetchOrderBook(t *testing.T) {
