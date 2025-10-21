@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -2653,6 +2654,39 @@ func TestGetCurrencyBalances(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, a, currency.BTC)
 	assert.Equal(t, 1.4, a[currency.BTC].Total, "BTC Total should be correct")
+}
+
+func TestSubscribeAccountBalances(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+
+	_, err := b.SubscribeAccountBalances()
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	err = dispatch.EnsureRunning(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
+	require.NoError(t, err, "dispatch.EnsureRunning must not error")
+
+	b.Accounts = accounts.MustNewAccounts(&b)
+	p, err := b.SubscribeAccountBalances()
+	require.NoError(t, err)
+
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
+		Key:    "test",
+		Secret: "test",
+	})
+	exp := &accounts.SubAccount{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1.4}}}
+	err = b.Accounts.Save(ctx, accounts.SubAccounts{exp}, true)
+	require.NoError(t, err, "b.Accounts.Save must not error")
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		select {
+		case a := <-p.Channel():
+			require.IsType(c, &accounts.SubAccount{}, a, "Save must publish *SubAccount")
+			subAcct, _ := a.(*accounts.SubAccount)
+			assert.Equal(c, exp, subAcct, "Save should publish the same update")
+		default:
+			require.Fail(c, "Data must eventually arrive")
+		}
+	}, time.Second, time.Millisecond, "Publish must eventually send to Channel")
 }
 
 // FakeBase is used to override functions
