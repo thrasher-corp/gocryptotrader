@@ -1059,11 +1059,13 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	_, err = e.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = e.GetFuturesContractDetails(t.Context(), asset.Futures)
+	resp, err := e.GetFuturesContractDetails(t.Context(), asset.Futures)
 	assert.NoError(t, err)
+	t.Log(len(resp))
+	resp, err = e.GetFuturesContractDetails(t.Context(), asset.PerpetualContract)
+	assert.NoError(t, err)
+	t.Log(len(resp))
 
-	_, err = e.GetFuturesContractDetails(t.Context(), asset.PerpetualContract)
-	assert.NoError(t, err)
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
