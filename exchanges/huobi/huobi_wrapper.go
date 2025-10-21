@@ -673,9 +673,12 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			}
 			for j := range balances {
 				if balances[j].Type == "frozen" {
-					a.Balances.Set(balances[j].Currency, accounts.Balance{Hold: balances[j].Balance})
+					err = a.Balances.Add(balances[j].Currency, accounts.Balance{Hold: balances[j].Balance})
 				} else {
-					a.Balances.Set(balances[j].Currency, accounts.Balance{Total: balances[j].Balance})
+					err = a.Balances.Add(balances[j].Currency, accounts.Balance{Total: balances[j].Balance})
+				}
+				if err != nil {
+					return nil, err
 				}
 			}
 			subAccts = subAccts.Merge(a)
