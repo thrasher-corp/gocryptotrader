@@ -1930,10 +1930,3 @@ func TestCancelAllOrders(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
-
-func TestAbc(t *testing.T) {
-	t.Parallel()
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	_, err := e.generateSubscriptions()
-	require.NoError(t, err)
-}

@@ -169,7 +169,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Connector:             e.WsFuturesConnect,
 		Subscriber:            e.SubscribeFutures,
 		Unsubscriber:          e.UnsubscribeFutures,
-		GenerateSubscriptions: e.GenerateDefaultFuturesSubscriptions,
+		GenerateSubscriptions: e.generateFuturesSubscriptions,
 		Handler: func(_ context.Context, _ websocket.Connection, incoming []byte) error {
 			return e.WsHandleFuturesData(incoming)
 		},

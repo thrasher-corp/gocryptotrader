@@ -66,8 +66,7 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 		}
 		conn.SetURL(conn.GetURL() + "?listenKey=" + listenKey)
 	}
-	err := conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
@@ -192,16 +191,14 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 			return err
 		}
 		var resp *WsSubscriptionResponse
-		err = json.Unmarshal(data, &resp)
-		if err != nil {
+		if err := json.Unmarshal(data, &resp); err != nil {
 			return err
 		} else if resp.Code != 0 {
 			failedSubscriptions = append(failedSubscriptions, subs[s])
 		}
 		successfulSubscriptions = append(successfulSubscriptions, subs[s])
 	}
-	err := e.Websocket.RemoveSubscriptions(conn, failedSubscriptions...)
-	if err != nil {
+	if err := e.Websocket.RemoveSubscriptions(conn, failedSubscriptions...); err != nil {
 		return err
 	}
 	return e.Websocket.AddSuccessfulSubscriptions(conn, successfulSubscriptions...)
@@ -226,12 +223,12 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreBookTicker{},
 		}
-		err := proto.Unmarshal(respRaw, result)
-		if err != nil {
+		if err := proto.Unmarshal(respRaw, result); err != nil {
 			return err
 		}
 		body := result.GetPublicAggreBookTicker()
 		ask := orderbook.Level{}
+		var err error
 		ask.Price, err = strconv.ParseFloat(body.AskPrice, 64)
 		if err != nil {
 			return err
@@ -384,8 +381,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicSpotKline{},
 		}
-		err := proto.Unmarshal(respRaw, result)
-		if err != nil {
+		if err := proto.Unmarshal(respRaw, result); err != nil {
 			return err
 		}
 		body := result.GetPublicSpotKline()
@@ -430,8 +426,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicIncreaseDepthsBatch{},
 		}
-		err := proto.Unmarshal(respRaw, result)
-		if err != nil {
+		if err := proto.Unmarshal(respRaw, result); err != nil {
 			return err
 		}
 		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, true)
@@ -493,8 +488,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicLimitDepths{},
 		}
-		err := proto.Unmarshal(respRaw, result)
-		if err != nil {
+		if err := proto.Unmarshal(respRaw, result); err != nil {
 			return err
 		}
 		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
@@ -535,8 +529,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicBookTickerBatch{},
 		}
-		err := proto.Unmarshal(respRaw, result)
-		if err != nil {
+		if err := proto.Unmarshal(respRaw, result); err != nil {
 			return err
 		}
 		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, true)
@@ -574,8 +567,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PrivateAccount{},
 		}
-		err := proto.Unmarshal(respRaw, result)
-		if err != nil {
+		if err := proto.Unmarshal(respRaw, result); err != nil {
 			return err
 		}
 		body := result.GetPrivateAccount()
@@ -601,8 +593,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PrivateDeals{},
 		}
-		err := proto.Unmarshal(respRaw, result)
-		if err != nil {
+		if err := proto.Unmarshal(respRaw, result); err != nil {
 			return err
 		}
 		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
@@ -644,8 +635,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		result := mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PrivateOrders{},
 		}
-		err := proto.Unmarshal(respRaw, &result)
-		if err != nil {
+		if err := proto.Unmarshal(respRaw, &result); err != nil {
 			return err
 		}
 		var oType order.Type

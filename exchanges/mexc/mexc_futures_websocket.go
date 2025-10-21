@@ -51,11 +51,15 @@ const (
 	channelFPositionMode      = "personal.position.mode"
 )
 
-var defaultFuturesSubscriptions = []string{
-	channelFTickers,
-	channelFDeal,
-	channelFDepthFull,
-	channelFKline,
+var defaultFuturesSubscriptions = subscription.List{
+	{Asset: asset.Futures, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.FifteenMin},
+
+	{Asset: asset.Futures, Channel: subscription.MyTradesChannel, Authenticated: true},
+	{Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true},
 }
 
 // WsFuturesConnect established a futures websocket connection
@@ -113,38 +117,9 @@ func (e *Exchange) wsAuth(ctx context.Context, conn websocket.Connection) error 
 	return nil
 }
 
-// GenerateDefaultFuturesSubscriptions generates a futures default subscription instances
-func (e *Exchange) GenerateDefaultFuturesSubscriptions() (subscription.List, error) {
-	channels := defaultFuturesSubscriptions
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		channels = append(channels, channelFPersonalPositions, channelFPersonalAssets, channelFPersonalOrder, channelFPersonalADLLevel, channelFPersonalRiskLimit, channelFPositionMode)
-	}
-	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return nil, err
-	}
-	subscriptionsList := make(subscription.List, len(channels))
-	for c := range channels {
-		switch channels[c] {
-		case channelFTicker, channelFDeal, channelFDepthFull, channelFFundingRate, channelFIndexPrice, channelFFairPrice:
-			subscriptionsList[c] = &subscription.Subscription{
-				Channel: channels[c],
-				Pairs:   enabledPairs,
-			}
-		case channelFKline:
-			subscriptionsList[c] = &subscription.Subscription{
-				Channel:  channels[c],
-				Pairs:    enabledPairs,
-				Interval: kline.FifteenMin,
-			}
-		case channelFTickers, channelFPersonalPositions, channelFPersonalAssets, channelFPersonalOrder,
-			channelFPersonalADLLevel, channelFPersonalRiskLimit, channelFPositionMode:
-			subscriptionsList[c] = &subscription.Subscription{
-				Channel: channels[c],
-			}
-		}
-	}
-	return subscriptionsList, nil
+// generateFuturesSubscriptions generates a futures default subscription instances
+func (e *Exchange) generateFuturesSubscriptions() (subscription.List, error) {
+	return defaultFuturesSubscriptions.ExpandTemplates(e)
 }
 
 // SubscribeFutures subscribes to a futures websocket channel
@@ -163,7 +138,7 @@ func (e *Exchange) handleSubscriptionFuturesPayload(ctx context.Context, conn we
 		case channelFDeal, channelFTicker, channelFDepthFull, channelFKline, channelFFundingRate, channelFIndexPrice, channelFFairPrice:
 			var param *FWebsocketReqParam
 			for p := range subscriptionItems[x].Pairs {
-				switch subscriptionItems[x].Channel {
+				switch subscriptionItems[x].QualifiedChannel {
 				case channelFDeal:
 					param = &FWebsocketReqParam{
 						Symbol:   subscriptionItems[x].Pairs[p].String(),
@@ -181,7 +156,7 @@ func (e *Exchange) handleSubscriptionFuturesPayload(ctx context.Context, conn we
 					}
 				}
 				if err := conn.SendJSONMessage(ctx, request.UnAuth, &WsSubscriptionPayload{
-					Method: method + "." + subscriptionItems[x].Channel,
+					Method: method + "." + subscriptionItems[x].QualifiedChannel,
 					Param:  param,
 				}); err != nil {
 					return err
@@ -189,7 +164,7 @@ func (e *Exchange) handleSubscriptionFuturesPayload(ctx context.Context, conn we
 			}
 		default:
 			if err := conn.SendJSONMessage(ctx, request.UnAuth, &WsSubscriptionPayload{
-				Method: method + "." + subscriptionItems[x].Channel,
+				Method: method + "." + subscriptionItems[x].QualifiedChannel,
 			}); err != nil {
 				return err
 			}
