@@ -558,10 +558,9 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 	if err != nil {
 		return nil, err
 	}
-	limit := int64(1000)
 	req := &GenericRequestParams{
 		Symbol:  p.String(),
-		Count:   limit,
+		Count:   int32(1000),
 		EndTime: timestampEnd.UTC().Format("2006-01-02T15:04:05.000Z"),
 	}
 	ts := timestampStart
@@ -606,7 +605,7 @@ allTrades:
 				ts = tradeData[i].Timestamp
 			}
 		}
-		if int64(len(tradeData)) != limit {
+		if len(tradeData) != 1000 {
 			break allTrades
 		}
 	}
