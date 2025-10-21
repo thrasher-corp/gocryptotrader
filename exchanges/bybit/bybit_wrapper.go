@@ -1810,7 +1810,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			instruments = append(instruments, linearContracts.List[i])
 		}
 		for i := range inverseContracts.List {
-			if !linearContracts.List[i].SettleCoin.Equal(currency.USDC) {
+			if !inverseContracts.List[i].SettleCoin.Equal(currency.USDC) {
 				continue
 			}
 			instruments = append(instruments, inverseContracts.List[i])
