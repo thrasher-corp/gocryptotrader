@@ -956,16 +956,10 @@ func (e *Exchange) processAccountBalanceUpdate(ctx context.Context, notification
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, id)}
 	subAccts[0].Balances.Set(curr, bal)
 
-	// TODO: This will affect free amount, a rest call might be needed to get locked and total amounts periodically
-	change := accounts.Change{
-		Account:   id,
-		AssetType: asset.Spot,
-		Balance:   bal,
-	}
 	if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- change
+	e.Websocket.DataHandler <- subAccts
 	return nil
 }
 
