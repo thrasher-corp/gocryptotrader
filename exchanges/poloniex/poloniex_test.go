@@ -831,7 +831,7 @@ func TestGetSymbols(t *testing.T) {
 
 func TestGetExecutionLimits(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetAllSymbols(t.Context())
+	result, err := e.GetSymbols(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1011,33 +1011,33 @@ func TestGetAccount(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetAllBalances(t *testing.T) {
+func TestGetBalances(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetAllBalances(generateContext(), "")
+	result, err := e.GetBalances(generateContext(), "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	result, err = e.GetAllBalances(generateContext(), "SPOT")
+	result, err = e.GetBalances(generateContext(), "SPOT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetAllBalance(t *testing.T) {
+func TestGetBalance(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAllBalancesByID(t.Context(), "", "")
+	_, err := e.GetBalancesByID(t.Context(), "", "")
 	require.ErrorIs(t, err, errAccountIDRequired)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetAllBalancesByID(generateContext(), "329455537441832960", "")
+	result, err := e.GetBalancesByID(generateContext(), "329455537441832960", "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	result, err = e.GetAllBalancesByID(generateContext(), "329455537441832960", "SPOT")
+	result, err = e.GetBalancesByID(generateContext(), "329455537441832960", "SPOT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1047,7 +1047,7 @@ func TestGetAllAccountActivities(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetAllAccountActivities(generateContext(), time.Time{}, time.Time{}, 0, 0, 0, "", currency.EMPTYCODE)
+	_, err := e.GetAccountActivities(generateContext(), time.Time{}, time.Time{}, 0, 0, 0, "", currency.EMPTYCODE)
 	require.NoError(t, err)
 }
 
@@ -1484,7 +1484,7 @@ func TestCancelAllTradeOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	_, err := e.CancelAllTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
+	_, err := e.CancelTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
 	require.NoError(t, err)
 }
 
@@ -1645,7 +1645,7 @@ func TestCancelAllSmartOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelAllSmartOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"}, []string{})
+	result, err := e.CancelSmartOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"}, []string{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

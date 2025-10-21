@@ -356,11 +356,11 @@ type SubAccount struct {
 
 // SubAccountBalances represents a users account details and balances
 type SubAccountBalances struct {
-	AccountID   string              `json:"accountId"`
-	AccountName string              `json:"accountName"`
-	AccountType string              `json:"accountType"`
-	IsPrimary   string              `json:"isPrimary"`
-	Balances    []SubAccountBalance `json:"balances"`
+	AccountID   string               `json:"accountId"`
+	AccountName string               `json:"accountName"`
+	AccountType string               `json:"accountType"`
+	IsPrimary   string               `json:"isPrimary"`
+	Balances    []*SubAccountBalance `json:"balances"`
 }
 
 // SubAccountBalance holds a subaccount balance detail
@@ -406,8 +406,8 @@ type SubAccountTransfer struct {
 
 // WalletActivity holds wallet activity info
 type WalletActivity struct {
-	Deposits    []WalletDeposits    `json:"deposits"`
-	Withdrawals []WalletWithdrawals `json:"withdrawals"`
+	Deposits    []*WalletDeposits    `json:"deposits"`
+	Withdrawals []*WalletWithdrawals `json:"withdrawals"`
 }
 
 // WalletDeposits holds wallet deposit info

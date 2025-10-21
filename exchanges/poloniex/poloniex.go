@@ -57,8 +57,8 @@ func (e *Exchange) GetSymbol(ctx context.Context, symbol currency.Pair) ([]*Symb
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/"+symbol.String(), &resp)
 }
 
-// GetAllSymbols returns all symbols and their trade limits
-func (e *Exchange) GetAllSymbols(ctx context.Context) ([]*SymbolDetails, error) {
+// GetSymbols returns all symbols and their trade limits
+func (e *Exchange) GetSymbols(ctx context.Context) ([]*SymbolDetails, error) {
 	var resp []*SymbolDetails
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets", &resp)
 }
@@ -221,8 +221,8 @@ func (e *Exchange) GetAccount(ctx context.Context) ([]*AccountDetails, error) {
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts", nil, nil, &resp)
 }
 
-// GetAllBalances get a list of all accounts of a user with each account’s id, type and balances (assets).
-func (e *Exchange) GetAllBalances(ctx context.Context, accountType string) ([]*AccountBalance, error) {
+// GetBalances get a list of all accounts of a user with each account’s id, type and balances (assets).
+func (e *Exchange) GetBalances(ctx context.Context, accountType string) ([]*AccountBalance, error) {
 	params := url.Values{}
 	if accountType != "" {
 		params.Set("accountType", accountType)
@@ -231,8 +231,8 @@ func (e *Exchange) GetAllBalances(ctx context.Context, accountType string) ([]*A
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/balances", params, nil, &resp)
 }
 
-// GetAllBalancesByID get an accounts of a user with each account’s id, type and balances (assets).
-func (e *Exchange) GetAllBalancesByID(ctx context.Context, accountID, accountType string) ([]*AccountBalance, error) {
+// GetBalancesByID get an accounts of a user with each account’s id, type and balances (assets).
+func (e *Exchange) GetBalancesByID(ctx context.Context, accountID, accountType string) ([]*AccountBalance, error) {
 	if accountID == "" {
 		return nil, errAccountIDRequired
 	}
@@ -244,8 +244,8 @@ func (e *Exchange) GetAllBalancesByID(ctx context.Context, accountID, accountTyp
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/"+accountID+"/balances", params, nil, &resp)
 }
 
-// GetAllAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
-func (e *Exchange) GetAllAccountActivities(ctx context.Context, startTime, endTime time.Time, activityType, limit, from uint64, direction string, ccy currency.Code) ([]*AccountActivity, error) {
+// GetAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
+func (e *Exchange) GetAccountActivities(ctx context.Context, startTime, endTime time.Time, activityType, limit, from uint64, direction string, ccy currency.Code) ([]*AccountActivity, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -363,7 +363,7 @@ func (e *Exchange) GetSubAccount(ctx context.Context) ([]*SubAccount, error) {
 
 // GetSubAccountBalances retrieves balances by currency and account type (SPOT or FUTURES)
 // for all accounts in the group. Available only to the primary user.
-// Subaccounts should use GetAllBalances() for SPOT and the Futures API for FUTURES.
+// Subaccounts should use GetBalances() for SPOT and the Futures API for FUTURES.
 func (e *Exchange) GetSubAccountBalances(ctx context.Context) ([]*SubAccountBalances, error) {
 	var resp []*SubAccountBalances
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
@@ -720,8 +720,8 @@ func (e *Exchange) CancelOrdersByIDs(ctx context.Context, orderIDs, clientOrderI
 	return resp, err
 }
 
-// CancelAllTradeOrders batch cancel all orders in an account
-func (e *Exchange) CancelAllTradeOrders(ctx context.Context, symbols, accountTypes []string) ([]*CancelOrderResponse, error) {
+// CancelTradeOrders batch cancel all orders in an account
+func (e *Exchange) CancelTradeOrders(ctx context.Context, symbols, accountTypes []string) ([]*CancelOrderResponse, error) {
 	args := make(map[string][]string)
 	if len(symbols) != 0 {
 		args["symbols"] = symbols
@@ -890,8 +890,8 @@ func (e *Exchange) CancelMultipleSmartOrders(ctx context.Context, args *CancelOr
 	return resp, err
 }
 
-// CancelAllSmartOrders cancels all smart orders in an account.
-func (e *Exchange) CancelAllSmartOrders(ctx context.Context, symbols, accountTypes, orderTypes []string) ([]*CancelOrderResponse, error) {
+// CancelSmartOrders cancels all smart orders in an account.
+func (e *Exchange) CancelSmartOrders(ctx context.Context, symbols, accountTypes, orderTypes []string) ([]*CancelOrderResponse, error) {
 	args := make(map[string][]string)
 	if len(symbols) != 0 {
 		args["symbols"] = symbols
