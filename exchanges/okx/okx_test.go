@@ -4031,7 +4031,7 @@ func TestWsHandleData(t *testing.T) {
 		if name == "Balance Save Error" {
 			assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "wsProcessBalanceAndPosition Accounts.Save should error without credentials")
 		} else {
-			require.NoErrorf(t, err, "%s must not erorr", name)
+			require.NoErrorf(t, err, "%s must not error", name)
 		}
 	}
 }
