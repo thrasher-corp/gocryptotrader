@@ -2626,6 +2626,35 @@ func TestGetCachedSubAccounts(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetCurrencyBalances(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+
+	_, err := b.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+	assert.ErrorIs(t, err, ErrCredentialsAreEmpty)
+
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
+		Key:    "test",
+		Secret: "test",
+	})
+	_, err = b.GetCachedCurrencyBalances(ctx, asset.Spot)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	b.Accounts = accounts.MustNewAccounts(&b)
+	_, err = b.GetCachedCurrencyBalances(ctx, asset.Spot)
+	assert.ErrorIs(t, err, accounts.ErrNoBalances)
+
+	err = b.Accounts.Save(ctx, accounts.SubAccounts{
+		{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1.4}}},
+	}, true)
+	require.NoError(t, err, "b.Accounts.Save must not error")
+
+	a, err := b.GetCachedCurrencyBalances(ctx, asset.Spot)
+	require.NoError(t, err)
+	require.Contains(t, a, currency.BTC)
+	assert.Equal(t, 1.4, a[currency.BTC].Total, "BTC Total should be correct")
+}
+
 // FakeBase is used to override functions
 type FakeBase struct{ Base }
 
