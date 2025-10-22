@@ -177,21 +177,22 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (e *Exchange) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
+func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	if a != asset.Spot {
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
+	}
+
 	symbols, err := e.GetSymbolsDetailed(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	pairs := make([]currency.Pair, len(symbols))
-	for x := range symbols {
-		index := strings.Index(symbols[x].ID, symbols[x].QuoteCurrency)
-		var pair currency.Pair
-		pair, err = currency.NewPairFromStrings(symbols[x].ID[:index], symbols[x].ID[index:])
-		if err != nil {
+	for i, s := range symbols {
+		// s.QuoteCurrency is actually settlement currency, so trim the base currency to get the real quote currency
+		if pairs[i], err = currency.NewPairFromStrings(s.BaseCurrency, strings.TrimPrefix(s.ID, s.BaseCurrency)); err != nil {
 			return nil, err
 		}
-		pairs[x] = pair
 	}
 	return pairs, nil
 }
