@@ -104,21 +104,13 @@ Verify all tests pass by:
     go test ./... -race -count 1
 ```
 
-### Assertion Usage
+### Test guidelines
 
-Use `require` and `assert` appropriately:
-
-#### require
-
-- Use when test flow depends on the result.
-- Messages must contain **"must"** (e.g., "response must not be nil").
+- Use the `require` and `assert` libraries from github.com/stretchr/testify as appropriate.
+- Use require.* when test flow depends on the result; the message must contain **"must"** (e.g., "response must not be nil").
+- Use assert.* when the test can proceed regardless of the check; the message must contain **"should"** (e.g., "status code should be 200").
 - Use the *f* variants when using format specifiers (e.g., `require.Equalf`).
-
-#### assert
-
-- Use when the test can proceed regardless of the check.
-- Messages must contain **"should"** (e.g., "status code should be 200").
-- Use `assert.Equalf`, etc., when applicable.
+- Always include a message unless the function being called is the target unit test function
 
 ### Test Coverage
 
