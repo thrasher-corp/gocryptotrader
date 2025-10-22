@@ -86,16 +86,16 @@ type InstrumentInfo struct {
 		TickSize types.Number `json:"tickSize"`
 	} `json:"priceFilter"`
 	LotSizeFilter struct {
-		MaxOrderQty            types.Number `json:"maxOrderQty"`
-		MinOrderQty            types.Number `json:"minOrderQty"`
-		QtyStep                types.Number `json:"qtyStep"`
-		PostOnlyMaxOrderQty    types.Number `json:"postOnlyMaxOrderQty"`
-		BasePrecision          types.Number `json:"basePrecision"`
-		QuotePrecision         types.Number `json:"quotePrecision"`
-		MinOrderAmt            types.Number `json:"minOrderAmt"`
-		MaxOrderAmt            types.Number `json:"maxOrderAmt"`
-		MinNotionalValue       types.Number `json:"minNotionalValue"`
-		MaxMarketOrderQuantity types.Number `json:"maxMktOrderQty"`
+		MaxOrderQuantity         types.Number `json:"maxOrderQty"`
+		MinOrderQuantity         types.Number `json:"minOrderQty"`
+		QuantityStep             types.Number `json:"qtyStep"`
+		PostOnlyMaxOrderQuantity types.Number `json:"postOnlyMaxOrderQty"`
+		BasePrecision            types.Number `json:"basePrecision"`
+		QuotePrecision           types.Number `json:"quotePrecision"`
+		MinOrderAmount           types.Number `json:"minOrderAmt"`
+		MaxOrderAmount           types.Number `json:"maxOrderAmt"`
+		MinNotionalValue         types.Number `json:"minNotionalValue"`
+		MaxMarketOrderQuantity   types.Number `json:"maxMktOrderQty"`
 	} `json:"lotSizeFilter"`
 	UnifiedMarginTrade bool   `json:"unifiedMarginTrade"`
 	FundingInterval    int64  `json:"fundingInterval"`

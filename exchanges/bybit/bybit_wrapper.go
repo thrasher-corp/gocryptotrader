@@ -1693,24 +1693,24 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 		}
 
-		baseStepAmount := allInstrumentsInfo.List[x].LotSizeFilter.QtyStep.Float64()
+		baseStepAmount := allInstrumentsInfo.List[x].LotSizeFilter.QuantityStep.Float64()
 		if a == asset.Spot {
 			baseStepAmount = allInstrumentsInfo.List[x].LotSizeFilter.BasePrecision.Float64()
 		}
 
-		maxBaseAmount := allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64()
+		maxBaseAmount := allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQuantity.Float64()
 		if a != asset.Spot && a != asset.Options {
 			maxBaseAmount = allInstrumentsInfo.List[x].LotSizeFilter.MaxMarketOrderQuantity.Float64()
 		}
 
-		minQuoteAmount := allInstrumentsInfo.List[x].LotSizeFilter.MinOrderAmt.Float64()
+		minQuoteAmount := allInstrumentsInfo.List[x].LotSizeFilter.MinOrderAmount.Float64()
 		if a != asset.Spot {
 			minQuoteAmount = allInstrumentsInfo.List[x].LotSizeFilter.MinNotionalValue.Float64()
 		}
 
 		l = append(l, limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
-			MinimumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),
+			MinimumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQuantity.Float64(),
 			MaximumBaseAmount:       maxBaseAmount,
 			MinPrice:                allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
 			MaxPrice:                allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
@@ -1718,12 +1718,12 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			AmountStepIncrementSize: baseStepAmount,
 			QuoteStepIncrementSize:  allInstrumentsInfo.List[x].LotSizeFilter.QuotePrecision.Float64(),
 			MinimumQuoteAmount:      minQuoteAmount,
-			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderAmt.Float64(),
+			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderAmount.Float64(),
 			Delisting:               delistingAt,
 			Delisted:                delistedAt,
 			Expiry:                  delivery,
 			PriceDivisor:            priceDivisor,
-			Listed:                         allInstrumentsInfo.List[x].LaunchTime.Time(),
+			Listed:                  allInstrumentsInfo.List[x].LaunchTime.Time(),
 			MultiplierDecimal:       1, // All assets on Bybit are 1x
 		})
 	}
