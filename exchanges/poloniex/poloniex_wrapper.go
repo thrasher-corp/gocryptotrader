@@ -309,7 +309,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
-	for _, assetType := range e.GetAssetTypes(true) {
+	for _, assetType := range e.GetAssetTypes(false) {
 		pairs, err := e.FetchTradablePairs(ctx, assetType)
 		if err != nil {
 			return err
@@ -988,7 +988,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			}
 		default:
 			if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				wsResponse, err := e.WsCancelAllTradeOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
+				wsResponse, err := e.WsCancelTradeOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
@@ -1010,7 +1010,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			}
 		}
 	case asset.Futures:
-		result, err := e.CancelAllFuturesOrders(ctx, cancelOrd.Pair.String(), cancelOrd.Side.String())
+		result, err := e.CancelFuturesOrders(ctx, cancelOrd.Pair.String(), cancelOrd.Side.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}

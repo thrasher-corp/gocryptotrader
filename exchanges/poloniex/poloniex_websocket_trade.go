@@ -58,8 +58,8 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 	return resp, err
 }
 
-// WsCancelAllTradeOrders batch cancel all orders in an account.
-func (e *Exchange) WsCancelAllTradeOrders(ctx context.Context, symbols, accountTypes []string) ([]*WsCancelOrderResponse, error) {
+// WsCancelTradeOrders batch cancel all orders in an account.
+func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols, accountTypes []string) ([]*WsCancelOrderResponse, error) {
 	args := make(map[string][]string)
 	if len(symbols) > 0 {
 		args["symbols"] = symbols

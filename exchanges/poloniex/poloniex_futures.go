@@ -164,8 +164,8 @@ func (e *Exchange) CancelMultipleFuturesOrders(ctx context.Context, args *Cancel
 	return resp, err
 }
 
-// CancelAllFuturesOrders cancel all current pending orders.
-func (e *Exchange) CancelAllFuturesOrders(ctx context.Context, symbol, side string) ([]*FuturesOrderIDResponse, error) {
+// CancelFuturesOrders cancel all current pending orders.
+func (e *Exchange) CancelFuturesOrders(ctx context.Context, symbol, side string) ([]*FuturesOrderIDResponse, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -223,8 +223,8 @@ func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol, marginMode, p
 	return resp, nil
 }
 
-// CloseAllAtMarketPrice close all orders at market price.
-func (e *Exchange) CloseAllAtMarketPrice(ctx context.Context) ([]*FuturesOrderIDResponse, error) {
+// CloseAllPositionsAtMarketPrice close all orders at market price.
+func (e *Exchange) CloseAllPositionsAtMarketPrice(ctx context.Context) ([]*FuturesOrderIDResponse, error) {
 	var resp []*FuturesOrderIDResponse
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, tradePathV3+"positionAll", nil, nil, &resp)
 	if err != nil {
