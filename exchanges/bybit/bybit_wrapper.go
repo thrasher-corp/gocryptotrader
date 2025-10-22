@@ -1723,6 +1723,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			Delisted:                delistedAt,
 			Expiry:                  delivery,
 			PriceDivisor:            priceDivisor,
+			Listed:                         allInstrumentsInfo.List[x].LaunchTime.Time(),
 			MultiplierDecimal:       1, // All assets on Bybit are 1x
 		})
 	}
