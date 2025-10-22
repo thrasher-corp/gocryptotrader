@@ -30,7 +30,7 @@ type Exchange struct {
 }
 
 const (
-	spotAPIURL = "https://api.mexc.com/api/v3/"
+	spotAPIURL     = "https://api.mexc.com/api/v3/"
 	contractAPIURL = "https://contract.mexc.com/api/v1/"
 )
 
