@@ -763,12 +763,12 @@ type StopOrder struct {
 
 // AccountInfo represents account information
 type AccountInfo struct {
-	ID          string       `json:"id"`
-	Currency    string       `json:"currency"`
-	AccountType string       `json:"type"` // Account type:，main、trade、trade_hf、margin
-	Balance     types.Number `json:"balance"`
-	Available   types.Number `json:"available"`
-	Holds       types.Number `json:"holds"`
+	ID          string        `json:"id"`
+	Currency    currency.Code `json:"currency"`
+	AccountType string        `json:"type"` // Account type: main, trade, trade_hf, margin
+	Balance     types.Number  `json:"balance"`
+	Available   types.Number  `json:"available"`
+	Holds       types.Number  `json:"holds"`
 }
 
 // CrossMarginAccountDetail represents a cross-margin account details
@@ -1410,14 +1410,14 @@ type WsTradeOrder struct {
 
 // WsAccountBalance represents a Account Balance push data
 type WsAccountBalance struct {
-	Total           float64 `json:"total,string"`
-	Available       float64 `json:"available,string"`
-	AvailableChange float64 `json:"availableChange,string"`
-	Currency        string  `json:"currency"`
-	Hold            float64 `json:"hold,string"`
-	HoldChange      float64 `json:"holdChange,string"`
-	RelationEvent   string  `json:"relationEvent"`
-	RelationEventID string  `json:"relationEventId"`
+	Total           float64       `json:"total,string"`
+	Available       float64       `json:"available,string"`
+	AvailableChange float64       `json:"availableChange,string"`
+	Currency        currency.Code `json:"currency"`
+	Hold            float64       `json:"hold,string"`
+	HoldChange      float64       `json:"holdChange,string"`
+	RelationEvent   string        `json:"relationEvent"`
+	RelationEventID string        `json:"relationEventId"`
 	RelationContext struct {
 		Symbol  string `json:"symbol"`
 		TradeID string `json:"tradeId"`
@@ -1630,10 +1630,10 @@ type WsFuturesOrderMarginEvent struct {
 
 // WsFuturesAvailableBalance represents an available balance push data for futures account
 type WsFuturesAvailableBalance struct {
-	AvailableBalance float64    `json:"availableBalance"`
-	HoldBalance      float64    `json:"holdBalance"`
-	Currency         string     `json:"currency"`
-	Timestamp        types.Time `json:"timestamp"`
+	AvailableBalance float64       `json:"availableBalance"`
+	HoldBalance      float64       `json:"holdBalance"`
+	Currency         currency.Code `json:"currency"`
+	Timestamp        types.Time    `json:"timestamp"`
 }
 
 // WsFuturesWithdrawalAmountAndTransferOutAmountEvent represents Withdrawal Amount & Transfer-Out Amount Event push data

@@ -444,7 +444,7 @@ type QueryOrderData struct {
 
 // Balance holds query order data
 type Balance struct {
-	Asset  string          `json:"asset"`
+	Asset  currency.Code   `json:"asset"`
 	Free   decimal.Decimal `json:"free"`
 	Locked decimal.Decimal `json:"locked"`
 }
@@ -476,12 +476,12 @@ type MarginAccount struct {
 
 // MarginAccountAsset holds each individual margin account asset
 type MarginAccountAsset struct {
-	Asset    string  `json:"asset"`
-	Borrowed float64 `json:"borrowed,string"`
-	Free     float64 `json:"free,string"`
-	Interest float64 `json:"interest,string"`
-	Locked   float64 `json:"locked,string"`
-	NetAsset float64 `json:"netAsset,string"`
+	Asset    currency.Code `json:"asset"`
+	Borrowed float64       `json:"borrowed,string"`
+	Free     float64       `json:"free,string"`
+	Interest float64       `json:"interest,string"`
+	Locked   float64       `json:"locked,string"`
+	NetAsset float64       `json:"netAsset,string"`
 }
 
 // RequestParamsOrderType trade order type

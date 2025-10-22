@@ -34,8 +34,8 @@ import (
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -316,28 +316,33 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 	}, nil
 }
 
-// GetCachedAccountInfo overrides testExchange's fetch account info function
-// to do the bare minimum required with no API calls or credentials required
-func (f fExchange) GetCachedAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
-	return account.Holdings{
-		Exchange: f.GetName(),
-		Accounts: []account.SubAccount{
-			{
-				ID:        "1337",
-				AssetType: a,
-				Currencies: []account.Balance{
-					{
-						Currency: currency.USD,
-						Total:    1337,
-					},
-					{
-						Currency: currency.BTC,
-						Total:    13337,
-					},
-				},
-			},
+// GetCachedSubAccounts overrides testExchange's fetch account info function to do the bare minimum required with no API calls or credentials required
+// Only returns balances for creds with a SubAccount populated
+func (f fExchange) GetCachedSubAccounts(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
+	creds, err := f.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if creds.SubAccount == "" {
+		return nil, fmt.Errorf("%w for %s credentials %s asset %s", accounts.ErrNoBalances, f.GetName(), creds, a)
+	}
+	return accounts.SubAccounts{{
+		ID: creds.SubAccount,
+		Balances: accounts.CurrencyBalances{
+			currency.USD: {Currency: currency.USD, Total: 1337},
+			currency.BTC: {Currency: currency.BTC, Total: 13337},
 		},
-	}, nil
+	}}, nil
+}
+
+// GetCachedCurrencyBalances overrides testExchange's fetch account info function to do the bare minimum required with no API calls or credentials required
+// Only returns balances for creds with a SubAccount populated
+func (f fExchange) GetCachedCurrencyBalances(ctx context.Context, a asset.Item) (accounts.CurrencyBalances, error) {
+	subAccts, err := f.GetCachedSubAccounts(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	return subAccts[0].Balances, nil
 }
 
 // CalculateTotalCollateral overrides testExchange's CalculateTotalCollateral function
@@ -386,22 +391,13 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *futures.TotalColla
 	}, nil
 }
 
-// UpdateAccountInfo overrides testExchange's update account info function
+// UpdateAccountBalances overrides testExchange's update account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) UpdateAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
+func (f fExchange) UpdateAccountBalances(_ context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	if a == asset.Futures {
-		return account.Holdings{}, asset.ErrNotSupported
+		return accounts.SubAccounts{}, asset.ErrNotSupported
 	}
-	return account.Holdings{
-		Exchange: f.GetName(),
-		Accounts: []account.SubAccount{
-			{
-				ID:         "1337",
-				AssetType:  a,
-				Currencies: nil,
-			},
-		},
-	}, nil
+	return accounts.SubAccounts{accounts.NewSubAccount(a, "1337")}, nil
 }
 
 // GetCurrencyStateSnapshot overrides interface function
@@ -1216,63 +1212,48 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 }
 
-func TestGetAccountInfo(t *testing.T) {
+func TestGetAccountBalances(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	b := exch.GetBase()
 	b.Name = fakeExchangeName
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled: true,
-	}
-	fakeExchange := fExchange{
-		IBotExchange: exch,
-	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{AssetEnabled: true}
+	fakeExchange := fExchange{IBotExchange: exch}
 	err = em.Add(fakeExchange)
 	require.NoError(t, err)
-
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "42"})
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
-	_, err = s.GetAccountInfo(t.Context(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
+	_, err = s.GetAccountBalances(ctx, &gctrpc.GetAccountBalancesRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	assert.NoError(t, err)
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	b := exch.GetBase()
 	b.Name = fakeExchangeName
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled: true,
-	}
-	fakeExchange := fExchange{
-		IBotExchange: exch,
-	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{AssetEnabled: true}
+	fakeExchange := fExchange{IBotExchange: exch}
 	err = em.Add(fakeExchange)
 	require.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
-
-	_, err = s.GetAccountInfo(t.Context(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "42"})
+	_, err = s.GetAccountBalances(ctx, &gctrpc.GetAccountBalancesRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	assert.NoError(t, err)
 
-	_, err = s.UpdateAccountInfo(t.Context(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Futures.String()})
+	_, err = s.UpdateAccountBalances(ctx, &gctrpc.GetAccountBalancesRequest{Exchange: fakeExchangeName, AssetType: asset.Futures.String()})
 	assert.ErrorIs(t, err, currency.ErrAssetNotFound)
 
-	_, err = s.UpdateAccountInfo(t.Context(), &gctrpc.GetAccountInfoRequest{
-		Exchange:  fakeExchangeName,
-		AssetType: asset.Spot.String(),
-	})
+	_, err = s.UpdateAccountBalances(ctx, &gctrpc.GetAccountBalancesRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	assert.NoError(t, err)
 }
 
@@ -2196,6 +2177,8 @@ func TestGetCollateral(t *testing.T) {
 	b := exch.GetBase()
 	b.Name = fakeExchangeName
 	b.Enabled = true
+	b.Accounts, err = accounts.GetStore().GetExchangeAccounts(b)
+	require.NoError(t, err, "GetExchangeAccounts must not error")
 
 	cp, err := currency.NewPairFromString("btc-usd")
 	require.NoError(t, err)
@@ -2235,17 +2218,15 @@ func TestGetCollateral(t *testing.T) {
 	})
 	require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
 
-	ctx := account.DeployCredentialsToContext(t.Context(),
-		&account.Credentials{Key: "fakerino", Secret: "supafake"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "fakerino", Secret: "supafake"})
 
 	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Futures.String(),
 	})
-	require.ErrorIs(t, err, errNoAccountInformation)
+	require.ErrorIs(t, err, accounts.ErrNoBalances)
 
-	ctx = account.DeployCredentialsToContext(t.Context(),
-		&account.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
+	ctx = accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
 
 	r, err := s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange:         fakeExchangeName,

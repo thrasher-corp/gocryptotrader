@@ -1,6 +1,7 @@
 package kucoin
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -2338,11 +2339,24 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 
 func TestPushData(t *testing.T) {
 	t.Parallel()
-	ku := testInstance(t)
-	ku.SetCredentials("mock", "test", "test", "", "", "")
-	ku.API.AuthenticatedSupport = true
-	ku.API.AuthenticatedWebsocketSupport = true
-	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.wsHandleData)
+
+	e := testInstance(t)
+	e.SetCredentials("mock", "test", "test", "", "", "")
+	e.API.AuthenticatedSupport = true
+	e.API.AuthenticatedWebsocketSupport = true
+
+	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsHandleData.json", func(ctx context.Context, r []byte) error {
+		if bytes.Contains(r, []byte("FANGLE-ACCOUNTS")) {
+			hold := e.Accounts
+			e.Accounts = nil
+			defer func() { e.Accounts = hold }()
+		}
+		return e.wsHandleData(ctx, r)
+	})
+	close(e.Websocket.DataHandler)
+	assert.Len(t, e.Websocket.DataHandler, 29, "Should see correct number of messages")
+	require.Len(t, fErrs, 1, "Must get exactly one error message")
+	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 }
 
 func TestGenerateSubscriptions(t *testing.T) {
@@ -2954,12 +2968,12 @@ func getFirstTradablePairOfAssets(ctx context.Context) {
 	futuresTradablePair.Delimiter = ""
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	assetTypes := e.GetAssetTypes(true)
 	for _, assetType := range assetTypes {
-		result, err := e.UpdateAccountInfo(t.Context(), assetType)
+		result, err := e.UpdateAccountBalances(t.Context(), assetType)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 	}

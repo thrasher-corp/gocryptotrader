@@ -949,18 +949,18 @@ type OptionsUnderlyingTicker struct {
 	IndexPrice types.Number `json:"index_price"`
 }
 
-// OptionAccount represents option account.
+// OptionAccount represents an option account.
 type OptionAccount struct {
-	User          int64        `json:"user"`
-	Currency      string       `json:"currency"`
-	ShortEnabled  bool         `json:"short_enabled"`
-	Total         types.Number `json:"total"`
-	UnrealisedPnl string       `json:"unrealised_pnl"`
-	InitMargin    string       `json:"init_margin"`
-	MaintMargin   string       `json:"maint_margin"`
-	OrderMargin   string       `json:"order_margin"`
-	Available     types.Number `json:"available"`
-	Point         string       `json:"point"`
+	User          int64         `json:"user"`
+	Currency      currency.Code `json:"currency"`
+	ShortEnabled  bool          `json:"short_enabled"`
+	Total         types.Number  `json:"total"`
+	UnrealisedPnl string        `json:"unrealised_pnl"`
+	InitMargin    string        `json:"init_margin"`
+	MaintMargin   string        `json:"maint_margin"`
+	OrderMargin   string        `json:"order_margin"`
+	Available     types.Number  `json:"available"`
+	Point         string        `json:"point"`
 }
 
 // AccountBook represents account changing history item
@@ -1218,11 +1218,11 @@ type MarginAccountItem struct {
 
 // AccountBalanceInformation represents currency account balance information.
 type AccountBalanceInformation struct {
-	Available    types.Number `json:"available"`
-	Borrowed     types.Number `json:"borrowed"`
-	Interest     types.Number `json:"interest"`
-	Currency     string       `json:"currency"`
-	LockedAmount types.Number `json:"locked"`
+	Available    types.Number  `json:"available"`
+	Borrowed     types.Number  `json:"borrowed"`
+	Interest     types.Number  `json:"interest"`
+	Currency     currency.Code `json:"currency"`
+	LockedAmount types.Number  `json:"locked"`
 }
 
 // MarginAccountBalanceChangeInfo represents margin account balance
@@ -1371,9 +1371,9 @@ type SpotTradingFeeRate struct {
 
 // SpotAccount represents spot account
 type SpotAccount struct {
-	Currency  string       `json:"currency"`
-	Available types.Number `json:"available"`
-	Locked    types.Number `json:"locked"`
+	Currency  currency.Code `json:"currency"`
+	Available types.Number  `json:"available"`
+	Locked    types.Number  `json:"locked"`
 }
 
 // CreateOrderRequest represents a single order creation param.
@@ -1710,26 +1710,26 @@ type InitFlashSwapOrderPreviewResponse struct {
 
 // FuturesAccount represents futures account detail
 type FuturesAccount struct {
-	User                   int64        `json:"user"`
-	Currency               string       `json:"currency"`
-	Total                  types.Number `json:"total"` // total = position_margin + order_margin + available
-	UnrealisedPnl          types.Number `json:"unrealised_pnl"`
-	PositionMargin         types.Number `json:"position_margin"`
-	OrderMargin            types.Number `json:"order_margin"` // Order margin of unfinished orders
-	Available              types.Number `json:"available"`    // The available balance for transferring or trading
-	Point                  types.Number `json:"point"`
-	Bonus                  string       `json:"bonus"`
-	EnabledCredit          bool         `json:"enable_credit"`
-	InDualMode             bool         `json:"in_dual_mode"` // Whether dual mode is enabled
-	UpdateTime             types.Time   `json:"update_time"`
-	UpdateID               int64        `json:"update_id"`
-	PositionInitialMargine types.Number `json:"position_initial_margin"` // applicable to the portfolio margin account model
-	MaintenanceMargin      types.Number `json:"maintenance_margin"`
-	MarginMode             int64        `json:"margin_mode"` // Margin mode: 1-cross margin, 2-isolated margin, 3-portfolio margin
-	EnabledEvolvedClassic  bool         `json:"enable_evolved_classic"`
-	CrossInitialMargin     types.Number `json:"cross_initial_margin"`
-	CrossUnrealisedPnl     types.Number `json:"cross_unrealised_pnl"`
-	IsolatedPositionMargin types.Number `json:"isolated_position_margin"`
+	User                   int64         `json:"user"`
+	Currency               currency.Code `json:"currency"`
+	Total                  types.Number  `json:"total"` // total = position_margin + order_margin + available
+	UnrealisedPnl          types.Number  `json:"unrealised_pnl"`
+	PositionMargin         types.Number  `json:"position_margin"`
+	OrderMargin            types.Number  `json:"order_margin"` // Order margin of unfinished orders
+	Available              types.Number  `json:"available"`    // The available balance for transferring or trading
+	Point                  types.Number  `json:"point"`
+	Bonus                  string        `json:"bonus"`
+	EnabledCredit          bool          `json:"enable_credit"`
+	InDualMode             bool          `json:"in_dual_mode"` // Whether dual mode is enabled
+	UpdateTime             types.Time    `json:"update_time"`
+	UpdateID               int64         `json:"update_id"`
+	PositionInitialMargine types.Number  `json:"position_initial_margin"` // applicable to the portfolio margin account model
+	MaintenanceMargin      types.Number  `json:"maintenance_margin"`
+	MarginMode             int64         `json:"margin_mode"` // Margin mode: 1-cross margin, 2-isolated margin, 3-portfolio margin
+	EnabledEvolvedClassic  bool          `json:"enable_evolved_classic"`
+	CrossInitialMargin     types.Number  `json:"cross_initial_margin"`
+	CrossUnrealisedPnl     types.Number  `json:"cross_unrealised_pnl"`
+	IsolatedPositionMargin types.Number  `json:"isolated_position_margin"`
 	History                struct {
 		DepositAndWithdrawal string       `json:"dnw"`  // total amount of deposit and withdraw
 		ProfitAndLoss        types.Number `json:"pnl"`  // total amount of trading profit and loss
@@ -2159,15 +2159,15 @@ type WsSpotBalance struct {
 
 // WsMarginBalance represents margin account balance push data
 type WsMarginBalance struct {
-	Timestamp    types.Time   `json:"timestamp_ms"`
-	User         string       `json:"user"`
-	CurrencyPair string       `json:"currency_pair"`
-	Currency     string       `json:"currency"`
-	Change       types.Number `json:"change"`
-	Available    types.Number `json:"available"`
-	Freeze       types.Number `json:"freeze"`
-	Borrowed     string       `json:"borrowed"`
-	Interest     string       `json:"interest"`
+	Timestamp    types.Time    `json:"timestamp_ms"`
+	User         string        `json:"user"`
+	CurrencyPair string        `json:"currency_pair"`
+	Currency     currency.Code `json:"currency"`
+	Change       types.Number  `json:"change"`
+	Available    types.Number  `json:"available"`
+	Freeze       types.Number  `json:"freeze"`
+	Borrowed     string        `json:"borrowed"`
+	Interest     string        `json:"interest"`
 }
 
 // WsFundingBalance represents funding balance push data.
@@ -2182,12 +2182,12 @@ type WsFundingBalance struct {
 
 // WsCrossMarginBalance represents a cross margin balance detail
 type WsCrossMarginBalance struct {
-	Timestamp types.Time   `json:"timestamp_ms"`
-	User      string       `json:"user"`
-	Currency  string       `json:"currency"`
-	Change    string       `json:"change"`
-	Total     types.Number `json:"total"`
-	Available types.Number `json:"available"`
+	Timestamp types.Time    `json:"timestamp_ms"`
+	User      string        `json:"user"`
+	Currency  currency.Code `json:"currency"`
+	Change    string        `json:"change"`
+	Total     types.Number  `json:"total"`
+	Available types.Number  `json:"available"`
 }
 
 // WsCrossMarginLoan represents a cross margin loan push data

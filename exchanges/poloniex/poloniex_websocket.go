@@ -15,8 +15,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -72,7 +72,7 @@ func (e *Exchange) WsConnect() error {
 	}
 
 	e.Websocket.Wg.Add(1)
-	go e.wsReadData()
+	go e.wsReadData(ctx)
 
 	return nil
 }
@@ -103,21 +103,21 @@ func (e *Exchange) loadCurrencyDetails(ctx context.Context) error {
 }
 
 // wsReadData handles data from the websocket connection
-func (e *Exchange) wsReadData() {
+func (e *Exchange) wsReadData(ctx context.Context) {
 	defer e.Websocket.Wg.Done()
 	for {
 		resp := e.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := e.wsHandleData(resp.Raw)
+		err := e.wsHandleData(ctx, resp.Raw)
 		if err != nil {
 			e.Websocket.DataHandler <- fmt.Errorf("%s: %w", e.Name, err)
 		}
 	}
 }
 
-func (e *Exchange) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	var result any
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
@@ -185,7 +185,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 					return fmt.Errorf("account notification limit order creation: %w", err)
 				}
 			case accountNotificationBalanceUpdate:
-				err = e.processAccountBalanceUpdate(notification)
+				err = e.processAccountBalanceUpdate(ctx, notification)
 				if err != nil {
 					return fmt.Errorf("account notification balance update: %w", err)
 				}
@@ -585,7 +585,7 @@ func (e *Exchange) Unsubscribe(subs subscription.List) error {
 }
 
 func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, op wsOp) error {
-	var creds *account.Credentials
+	var creds *accounts.Credentials
 	if e.IsWebsocketAuthenticationSupported() {
 		var err error
 		creds, err = e.GetCredentials(ctx)
@@ -918,7 +918,7 @@ func (e *Exchange) processAccountOrderLimit(notification []any) error {
 	return nil
 }
 
-func (e *Exchange) processAccountBalanceUpdate(notification []any) error {
+func (e *Exchange) processAccountBalanceUpdate(ctx context.Context, notification []any) error {
 	if len(notification) < 4 {
 		return errNotEnoughData
 	}
@@ -927,7 +927,7 @@ func (e *Exchange) processAccountBalanceUpdate(notification []any) error {
 	if !ok {
 		return fmt.Errorf("%w currency ID not float64", errTypeAssertionFailure)
 	}
-	code, err := e.details.GetCode(currencyID)
+	curr, err := e.details.GetCode(currencyID)
 	if err != nil {
 		return err
 	}
@@ -946,18 +946,20 @@ func (e *Exchange) processAccountBalanceUpdate(notification []any) error {
 		return err
 	}
 
-	// TODO: Integrate with exchange account system
-	// NOTES: This will affect free amount, a rest call might be needed to get
-	// locked and total amounts periodically.
-	e.Websocket.DataHandler <- account.Change{
-		Account:   deriveWalletType(walletType),
-		AssetType: asset.Spot,
-		Balance: &account.Balance{
-			Currency: code,
-			Total:    amount,
-			Free:     amount,
-		},
+	bal := accounts.Balance{
+		Currency: curr,
+		Total:    amount,
+		Free:     amount,
 	}
+
+	id := deriveWalletType(walletType)
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, id)}
+	subAccts[0].Balances.Set(curr, bal)
+
+	if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- subAccts
 	return nil
 }
 
