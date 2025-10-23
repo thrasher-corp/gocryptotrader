@@ -992,9 +992,14 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if _, err := e.FetchTradablePairs(t.Context(), asset.Spot); err != nil {
-		t.Fatal(err)
-	}
+
+	_, err := e.FetchTradablePairs(t.Context(), asset.Futures)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	r, err := e.FetchTradablePairs(t.Context(), asset.Spot)
+	require.NoError(t, err)
+	require.NotEmpty(t, r)
+	assert.Contains(t, r, spotPair, "BTC-USD should be in the fetched pairs")
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {
