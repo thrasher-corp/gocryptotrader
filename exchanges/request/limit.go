@@ -104,14 +104,9 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 	if err := common.NilGuard(r.limiter); err != nil {
 		return err
 	}
-
-	rateLimiter := r.limiter[e]
-
-	err := rateLimiter.RateLimit(ctx)
-	if err != nil {
+	if err := r.limiter[e].RateLimit(ctx); err != nil {
 		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
 	}
-
 	return nil
 }
 
