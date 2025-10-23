@@ -1246,14 +1246,8 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	if withdrawRequest == nil {
-		return nil, withdraw.ErrRequestCannotBeNil
-	}
-	if withdrawRequest.Amount <= 0 {
-		return nil, limits.ErrAmountBelowMin
-	}
-	if withdrawRequest.Currency.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
 	}
 	v, err := e.WithdrawCurrency(ctx, &WithdrawCurrencyRequest{
 		Coin:       withdrawRequest.Currency,

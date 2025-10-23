@@ -502,32 +502,35 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	_, err := e.WithdrawCryptocurrencyFunds(t.Context(), nil)
-	assert.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil)
+	require.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil)
 
-	arg := &withdraw.Request{
-		Crypto: withdraw.CryptoRequest{
-			FeeAmount: 0,
-		},
-	}
-	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{})
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
-	arg.Amount = 1000
-	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
+		Exchange: e.Name,
+	})
+	require.ErrorContains(t, err, withdraw.ErrStrAmountMustBeGreaterThanZero)
 
-	arg.Currency = currency.LTC
-	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), arg)
-	require.ErrorIs(t, err, errInvalidWithdrawalChain)
+	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
+		Exchange: e.Name,
+		Amount:   1,
+	})
+	require.ErrorContains(t, err, withdraw.ErrStrNoCurrencySet)
 
-	arg.Crypto.Chain = "ERP"
-	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), arg)
-	require.ErrorIs(t, err, errAddressRequired)
+	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
+		Exchange: e.Name,
+		Amount:   1,
+		Type:     withdraw.Crypto,
+		Currency: currency.USD,
+	})
+	require.ErrorContains(t, err, withdraw.ErrStrCurrencyNotCrypto)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange: e.Name,
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 			Chain:   "ERP",
