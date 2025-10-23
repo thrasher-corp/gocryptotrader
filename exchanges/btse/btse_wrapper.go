@@ -1077,9 +1077,6 @@ func (e *Exchange) GetMarketSummary(ctx context.Context, symbol string, spot boo
 
 // GetFuturesContractDetails returns details about futures contracts
 func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
-	if !item.IsFutures() {
-		return nil, futures.ErrNotFuturesAsset
-	}
 	if item != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
@@ -1087,68 +1084,47 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]futures.Contract, 0, len(marketSummary))
+	resp := make([]futures.Contract, len(marketSummary))
 	for i := range marketSummary {
-		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(marketSummary[i].Base, marketSummary[i].Symbol[len(marketSummary[i].Base):])
+		cp, err := currency.NewPairFromStrings(marketSummary[i].Base, marketSummary[i].Symbol[len(marketSummary[i].Base):])
 		if err != nil {
 			return nil, err
 		}
-		settlementCurrencies := make(currency.Currencies, len(marketSummary[i].AvailableSettlement))
-		var startTime, endTime time.Time
-		var ct futures.ContractType
-		if !marketSummary[i].OpenTime.Time().IsZero() {
-			startTime = marketSummary[i].OpenTime.Time()
-		}
-		if !marketSummary[i].CloseTime.Time().IsZero() {
-			endTime = marketSummary[i].CloseTime.Time()
-		}
+		startTime := marketSummary[i].OpenTime.Time()
+		endTime := marketSummary[i].CloseTime.Time()
+		ct := futures.Perpetual
 		if marketSummary[i].TimeBasedContract {
 			if endTime.Sub(startTime) > kline.OneMonth.Duration() {
 				ct = futures.Quarterly
 			} else {
 				ct = futures.Monthly
 			}
-		} else {
-			ct = futures.Perpetual
 		}
-		var contractSettlementType futures.ContractSettlementType
-		for j := range marketSummary[i].AvailableSettlement {
-			settlementCurrencies[j] = currency.NewCode(marketSummary[i].AvailableSettlement[j])
-			if contractSettlementType == futures.LinearOrInverse {
-				continue
-			}
-			containsUSD := strings.Contains(marketSummary[i].AvailableSettlement[j], "USD")
-			if !containsUSD {
-				contractSettlementType = futures.LinearOrInverse
-				continue
-			}
-			if containsUSD {
-				contractSettlementType = futures.Linear
+		contractSettlementType := futures.LinearOrInverse
+		if marketSummary[i].AvailableSettlement.Contains(currency.USD) {
+			contractSettlementType = futures.Linear
+		}
+		var rate fundingrate.Rate
+		if marketSummary[i].FundingRate > 0 {
+			rate = fundingrate.Rate{
+				Rate: decimal.NewFromFloat(marketSummary[i].FundingRate),
+				Time: time.Now().Truncate(time.Hour),
 			}
 		}
-
-		c := futures.Contract{
+		resp[i] = futures.Contract{
 			Exchange:                       e.Name,
 			Name:                           cp,
 			Underlying:                     currency.NewPair(currency.NewCode(marketSummary[i].Base), currency.NewCode(marketSummary[i].Quote)),
 			Asset:                          item,
 			SettlementCurrency:             currency.USDT,
-			AdditionalSettlementCurrencies: settlementCurrencies,
+			AdditionalSettlementCurrencies: marketSummary[i].AvailableSettlement,
 			StartDate:                      startTime,
 			EndDate:                        endTime,
 			SettlementType:                 contractSettlementType,
 			IsActive:                       marketSummary[i].Active,
 			Type:                           ct,
+			LatestRate:                     rate,
 		}
-		if marketSummary[i].FundingRate > 0 {
-			c.LatestRate = fundingrate.Rate{
-				Rate: decimal.NewFromFloat(marketSummary[i].FundingRate),
-				Time: time.Now().Truncate(time.Hour),
-			}
-		}
-
-		resp = append(resp, c)
 	}
 	return resp, nil
 }

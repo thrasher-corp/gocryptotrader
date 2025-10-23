@@ -1024,7 +1024,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			if err != nil {
 				return nil, err
 			}
-			underlying := currency.NewPair(cp.Base, marketInfo[x].SettlementCurrency)
 			var s time.Time
 			if marketInfo[x].Front != "" {
 				s, err = time.Parse(time.RFC3339, marketInfo[x].Front)
@@ -1044,7 +1043,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			resp = append(resp, futures.Contract{
 				Exchange:           e.Name,
 				Name:               cp,
-				Underlying:         underlying,
+				Underlying:         currency.NewPair(cp.Base, marketInfo[x].SettlementCurrency),
 				Asset:              item,
 				StartDate:          s,
 				IsActive:           marketInfo[x].State == "Open",
@@ -1073,7 +1072,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			if err != nil {
 				return nil, err
 			}
-			underlying := currency.NewPair(cp.Base, marketInfo[x].SettlementCurrency)
 			var startTime, endTime time.Time
 			if marketInfo[x].Front != "" {
 				startTime, err = time.Parse(time.RFC3339, marketInfo[x].Front)
@@ -1115,7 +1113,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			resp = append(resp, futures.Contract{
 				Exchange:           e.Name,
 				Name:               cp,
-				Underlying:         underlying,
+				Underlying:         currency.NewPair(cp.Base, marketInfo[x].SettlementCurrency),
 				Asset:              item,
 				StartDate:          startTime,
 				EndDate:            endTime,
