@@ -36,18 +36,22 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-var assetPairStores = map[asset.Item]currency.PairStore{
-	asset.Futures: {
-		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-	},
-	asset.Spot: {
-		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-	},
-}
+var (
+	assetPairStores = map[asset.Item]currency.PairStore{
+		asset.Futures: {
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		},
+		asset.Spot: {
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		},
+	}
+
+	possibleOrderTypes = []order.Type{order.Market, order.Limit, order.AnyType, order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit, order.UnknownType}
+)
 
 const (
 	connSpotPublic     = "spot:public"
@@ -195,7 +199,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		URL:                   wsSpot,
-		RateLimit:             request.NewWeightedRateLimitByDuration(500 * time.Millisecond),
+		RateLimit:             request.NewWeightedRateLimitByDuration(2 * time.Millisecond),
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
 		GenerateSubscriptions: e.generateSubscriptions,
@@ -213,14 +217,13 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		URL:                   wsSpotPrivate,
-		RateLimit:             request.NewWeightedRateLimitByDuration(500 * time.Millisecond),
+		RateLimit:             request.NewWeightedRateLimitByDuration(2 * time.Millisecond),
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
 		GenerateSubscriptions: e.generatePrivateSubscriptions,
 		Handler:               e.wsHandleData,
 		Connector:             e.wsAuthConn,
 		MessageFilter:         connSpotPrivate,
-		Authenticated:         true,
 		Authenticate:          e.authenticateSpotAuthConn,
 	}); err != nil {
 		return err
@@ -233,6 +236,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   wsFutures,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		RateLimit:             request.NewWeightedRateLimitByDuration(2 * time.Millisecond),
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		Handler:               e.wsFuturesHandleData,
 		Subscriber:            e.SubscribeFutures,
@@ -253,6 +257,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsFuturesPrivate,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(2 * time.Millisecond),
 		Handler:               e.wsFuturesHandleData,
 		Subscriber:            e.SubscribeFutures,
 		Unsubscriber:          e.UnsubscribeFutures,
@@ -380,7 +385,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (e *Exchange) UpdateTicker(_ context.Context, _ currency.Pair, _ asset.Item) (*ticker.Price, error) {
+func (e *Exchange) UpdateTicker(context.Context, currency.Pair, asset.Item) (*ticker.Price, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -559,6 +564,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 				return nil, err
 			}
 			resp = append(resp, trade.Data{
+				TID:          td.ID,
 				Exchange:     e.Name,
 				CurrencyPair: fPair,
 				AssetType:    assetType,
@@ -579,6 +585,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 				return nil, err
 			}
 			resp = append(resp, trade.Data{
+				TID:          strconv.FormatInt(fExec.ID, 10),
 				Exchange:     e.Name,
 				CurrencyPair: fPair,
 				AssetType:    assetType,
@@ -625,6 +632,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 				return nil, err
 			}
 			resp = append(resp, trade.Data{
+				TID:          td.ID,
 				Exchange:     e.Name,
 				CurrencyPair: fPair,
 				AssetType:    assetType,
@@ -645,6 +653,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 				return nil, err
 			}
 			resp = append(resp, trade.Data{
+				TID:          strconv.FormatInt(fExecInfo.ID, 10),
 				Exchange:     e.Name,
 				CurrencyPair: fPair,
 				AssetType:    assetType,
@@ -665,9 +674,6 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if s == nil || *s == (order.Submit{}) {
-		return nil, common.ErrEmptyParams
-	}
 	var err error
 	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
@@ -771,9 +777,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 
 // ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	if action == nil {
-		return nil, common.ErrNilPointer
-	}
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
@@ -875,7 +878,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		if assetType != o[i].AssetType {
 			return nil, fmt.Errorf("%w: order asset type mismatch detected", asset.ErrInvalidAsset)
 		}
-		if !slices.Contains([]order.Type{order.Market, order.Limit, order.AnyType, order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit, order.UnknownType}, o[i].Type) {
+		if !slices.Contains(possibleOrderTypes, o[i].Type) {
 			return nil, fmt.Errorf("%w: order type: %s", order.ErrUnsupportedOrderType, commonOrderType.String())
 		}
 		if commonOrderType != o[i].Type {
@@ -1089,11 +1092,11 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return &order.Detail{
 			Price:                resp.Price.Float64(),
 			Amount:               resp.Quantity.Float64(),
-			AverageExecutedPrice: resp.AvgPrice.Float64(),
+			AverageExecutedPrice: resp.AveragePrice.Float64(),
 			QuoteAmount:          resp.Amount.Float64(),
 			ExecutedAmount:       resp.FilledQuantity.Float64(),
 			RemainingAmount:      resp.Quantity.Float64() - resp.FilledAmount.Float64(),
-			Cost:                 resp.FilledQuantity.Float64() * resp.AvgPrice.Float64(),
+			Cost:                 resp.FilledQuantity.Float64() * resp.AveragePrice.Float64(),
 			Side:                 stringToOrderSide(resp.Side),
 			Exchange:             e.Name,
 			OrderID:              resp.ID,
@@ -1202,7 +1205,7 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 
 	for _, networkDetail := range currencyDetail.NetworkList {
 		if networkDetail.CurrencyType == "address-payment-id" && networkDetail.DepositAddress != "" && (networkDetail.Blockchain == "" || networkDetail.Blockchain != chain) {
-			paymentID, ok := (*depositAddrs)[cryptocurrency.Upper().String()]
+			paymentID, ok := depositAddrs[cryptocurrency.Upper().String()]
 			if !ok {
 				newAddr, err := e.NewCurrencyDepositAddress(ctx, cryptocurrency)
 				if err != nil {
@@ -1219,7 +1222,7 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 	}
 
 	var chainName string
-	address, ok := (*depositAddrs)[cryptocurrency.Upper().String()]
+	address, ok := depositAddrs[cryptocurrency.Upper().String()]
 	if !ok {
 		for _, networkDetail := range currencyDetail.NetworkList {
 			if !networkDetail.DepositEnable {
@@ -1264,19 +1267,19 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	}
 	return &withdraw.ExchangeResponse{
 		Name: e.Name,
-		ID:   strconv.FormatInt(v.WithdrawRequestID, 10),
+		ID:   v.WithdrawRequestID,
 	}, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (e *Exchange) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFunds(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (e *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFundsToInternationalBank(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1294,9 +1297,6 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 
 // GetActiveOrders retrieves any orders that are active/open
 func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	if req == nil {
-		return nil, common.ErrNilPointer
-	}
 	var samplePair currency.Pair
 	if len(req.Pairs) == 1 {
 		samplePair = req.Pairs[0]
@@ -1492,11 +1492,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					Amount:               tOrder.Amount.Float64(),
 					ExecutedAmount:       tOrder.FilledAmount.Float64(),
 					Price:                tOrder.Price.Float64(),
-					AverageExecutedPrice: tOrder.AvgPrice.Float64(),
+					AverageExecutedPrice: tOrder.AveragePrice.Float64(),
 					Pair:                 cp,
 					Type:                 oType,
 					Exchange:             e.Name,
-					QuoteAmount:          tOrder.Amount.Float64() * tOrder.AvgPrice.Float64(),
+					QuoteAmount:          tOrder.Amount.Float64() * tOrder.AveragePrice.Float64(),
 					RemainingAmount:      tOrder.Quantity.Float64() - tOrder.FilledQuantity.Float64(),
 					OrderID:              tOrder.ID,
 					ClientOrderID:        tOrder.ClientOrderID,
@@ -1687,7 +1687,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := e.GetKlineExtendedRequest(pair, a, interval, start.UTC(), end.UTC())
+	req, err := e.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -1766,11 +1766,7 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 
 // GetServerTime returns the current exchange server time.
 func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
-	sysServerTime, err := e.GetSystemTimestamp(ctx)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return sysServerTime.ServerTime.Time(), nil
+	return e.GetSystemTimestamp(ctx)
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
@@ -1978,16 +1974,6 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		return nil, err
 	}
 	return s.DeriveSubmitResponse(response.ID)
-}
-
-// WebsocketSubmitOrders submits multiple orders (batch) via the websocket connection
-func (e *Exchange) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses []*order.SubmitResponse, err error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// WebsocketModifyOrder modifies an order via the websocket connection
-func (e *Exchange) WebsocketModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
-	return nil, common.ErrFunctionNotSupported
 }
 
 // WebsocketCancelOrder cancels an order via the websocket connection

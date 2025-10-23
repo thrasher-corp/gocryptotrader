@@ -20,7 +20,6 @@ const (
 	accountOverviewRate     = 3
 	fTransactionHistoryRate = 9
 	fOrderRate              = 30
-	fCancelOrderRate        = 40
 )
 
 const (
@@ -59,7 +58,7 @@ var rateLimits = request.RateLimitDefinitions{
 	accountOverviewEPL:                 request.NewRateLimitWithWeight(rateInterval, accountOverviewRate, 1),
 	fTransactionHistoryEPL:             request.NewRateLimitWithWeight(threeSecondsInterval, fTransactionHistoryRate, 1),
 	fOrderEPL:                          request.NewRateLimitWithWeight(threeSecondsInterval, fOrderRate, 1),
-	fCancelOrderEPL:                    request.NewRateLimitWithWeight(threeSecondsInterval, fCancelOrderRate, 1),
+	fCancelOrderEPL:                    request.NewRateLimitWithWeight(threeSecondsInterval, 50, 1),
 	fCancelAllLimitOrdersEPL:           request.NewRateLimitWithWeight(threeSecondsInterval, 1, 1),
 	fCancelMultipleLimitOrdersEPL:      request.NewRateLimitWithWeight(threeSecondsInterval, 3, 1),
 	fCancelAllStopOrdersEPL:            request.NewRateLimitWithWeight(tenSecondsInterval, 2, 1),

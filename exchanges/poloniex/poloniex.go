@@ -79,9 +79,10 @@ func (e *Exchange) GetCurrency(ctx context.Context, ccy currency.Code) (*Currenc
 }
 
 // GetSystemTimestamp retrieves current server time.
-func (e *Exchange) GetSystemTimestamp(ctx context.Context) (*ServerSystemTime, error) {
+func (e *Exchange) GetSystemTimestamp(ctx context.Context) (time.Time, error) {
 	var resp *ServerSystemTime
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/timestamp", &resp)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/timestamp", &resp)
+	return resp.ServerTime.Time(), err
 }
 
 // GetMarketPrices retrieves latest trade price for all symbols.
@@ -452,12 +453,12 @@ func (e *Exchange) GetSubAccountTransferRecord(ctx context.Context, id string) (
 }
 
 // GetDepositAddresses get all deposit addresses for a user.
-func (e *Exchange) GetDepositAddresses(ctx context.Context, ccy currency.Code) (*DepositAddresses, error) {
+func (e *Exchange) GetDepositAddresses(ctx context.Context, ccy currency.Code) (DepositAddresses, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	var addresses *DepositAddresses
+	var addresses DepositAddresses
 	return addresses, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/wallets/addresses", params, nil, &addresses)
 }
 

@@ -171,8 +171,8 @@ type FuturesPosition struct {
 	UpdateTime             types.Time   `json:"uTime"`
 	UnrealizedPNL          types.Number `json:"upl"`
 	UnrealizedPNLRatio     types.Number `json:"uplRatio"`
-	CloseAvgPx             string       `json:"closeAvgPx"`
-	ClosedQty              string       `json:"closedQty"`
+	CloseAveragePrice      string       `json:"closeAvgPx"`
+	ClosedQuantity         string       `json:"closedQty"`
 	FFee                   string       `json:"fFee"`
 	Fee                    string       `json:"fee"`
 	ID                     string       `json:"id"`

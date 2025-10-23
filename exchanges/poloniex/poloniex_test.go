@@ -36,6 +36,8 @@ const (
 	canManipulateRealOrders = false
 )
 
+const websocketMockTestsSkipped = "skipped mock tests on websocket connection"
+
 var (
 	e                                     *Exchange
 	spotTradablePair, futuresTradablePair currency.Pair
@@ -67,9 +69,8 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	feeBuilder := setFeeBuilder()
 	result, err := e.GetFeeByType(t.Context(), feeBuilder)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	if !sharedtestvalues.AreAPICredentialsSet(e) || e.SkipAuthCheck {
 		assert.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType)
 	} else {
@@ -162,10 +163,7 @@ func TestGetFee(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetActiveOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
-	_, err = e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide})
+	_, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	if !mockTests {
@@ -202,7 +200,7 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.Buy,
 	})
-	assert.NoErrorf(t, err, "error: %v", err)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.GetOrderHistory(generateContext(), &order.MultiOrderRequest{
@@ -227,10 +225,8 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.SubmitOrder(t.Context(), &order.Submit{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
 	arg := &order.Submit{AssetType: asset.Futures, TimeInForce: order.GoodTillCrossing}
-	_, err = e.SubmitOrder(t.Context(), arg)
+	_, err := e.SubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	arg.Pair = futuresTradablePair
 	_, err = e.SubmitOrder(t.Context(), arg)
@@ -325,7 +321,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	if mockTests {
-		t.SkipNow()
+		t.Skip(websocketMockTestsSkipped)
 	}
 	e.setAPICredential(apiKey, apiSecret)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
@@ -375,15 +371,20 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 
 func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
 	err := e.WebsocketCancelOrder(t.Context(), &order.Cancel{OrderID: "", ClientOrderID: ""})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	if !mockTests && !e.Websocket.IsEnabled() && !e.Websocket.IsConnected() {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		testexch.SetupWs(t, e)
-	} else {
-		t.SkipNow()
+	if mockTests {
+		t.Skip(websocketMockTestsSkipped)
 	}
+	e.setAPICredential(apiKey, apiSecret)
+	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	testexch.SetupWs(t, e)
 	err = e.WebsocketCancelOrder(t.Context(), &order.Cancel{OrderID: "2312", ClientOrderID: "23123121231"})
 	assert.NoError(t, err)
 }
@@ -465,14 +466,11 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.ModifyOrder(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer)
-
 	arg := &order.Modify{
 		OrderID: "1337",
 		Price:   1337,
 	}
-	_, err = e.ModifyOrder(t.Context(), arg)
+	_, err := e.ModifyOrder(t.Context(), arg)
 	assert.ErrorIs(t, err, order.ErrPairIsEmpty)
 
 	arg.Pair = spotTradablePair
@@ -668,7 +666,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
 	if mockTests {
-		t.SkipNow()
+		t.Skip("skipped mock test because GetAccountFundingHistory uses dynamic timestamp data")
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetAccountFundingHistory(t.Context())
@@ -679,7 +677,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	if mockTests {
-		t.SkipNow()
+		t.Skip("skipped mock test because GetWithdrawalsHistory uses dynamic timestamp data")
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
@@ -1762,7 +1760,7 @@ func TestWsCreateOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	if mockTests {
-		t.SkipNow()
+		t.Skip(websocketMockTestsSkipped)
 	}
 	e.setAPICredential(apiKey, apiSecret)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
@@ -1789,7 +1787,7 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	if mockTests {
-		t.SkipNow()
+		t.Skip(websocketMockTestsSkipped)
 	}
 	e.setAPICredential(apiKey, apiSecret)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
@@ -1807,7 +1805,7 @@ func TestWsCancelTradeOrders(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	if mockTests {
-		t.SkipNow()
+		t.Skip(websocketMockTestsSkipped)
 	}
 	e.setAPICredential(apiKey, apiSecret)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")

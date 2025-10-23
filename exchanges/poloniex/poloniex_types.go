@@ -438,7 +438,7 @@ type WalletWithdrawals struct {
 
 // Withdraw holds withdraw information
 type Withdraw struct {
-	WithdrawRequestID int64 `json:"withdrawalRequestsId"`
+	WithdrawRequestID string `json:"withdrawalRequestsId,string"`
 }
 
 // WithdrawCurrencyRequest represents a V2 currency withdrawal parameter.
@@ -578,7 +578,7 @@ type TradeOrder struct {
 	TimeInForce    order.TimeInForce `json:"timeInForce"`
 	Quantity       types.Number      `json:"quantity"`
 	Price          types.Number      `json:"price"`
-	AvgPrice       types.Number      `json:"avgPrice"`
+	AveragePrice   types.Number      `json:"avgPrice"`
 	Amount         types.Number      `json:"amount"`
 	FilledQuantity types.Number      `json:"filledQuantity"`
 	FilledAmount   types.Number      `json:"filledAmount"`
@@ -703,7 +703,7 @@ type SmartOrderDetails struct {
 		TimeInForce    string       `json:"timeInForce"`
 		Quantity       types.Number `json:"quantity"`
 		Price          types.Number `json:"price"`
-		AvgPrice       types.Number `json:"avgPrice"`
+		AveragePrice   types.Number `json:"avgPrice"`
 		Amount         types.Number `json:"amount"`
 		FilledQuantity types.Number `json:"filledQuantity"`
 		FilledAmount   types.Number `json:"filledAmount"`
