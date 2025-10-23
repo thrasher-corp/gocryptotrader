@@ -36,8 +36,8 @@ type MarketPair struct {
 	Volume              float64             `json:"volume"`
 	High24Hr            float64             `json:"high24Hr"`
 	Low24Hr             float64             `json:"low24Hr"`
-	Base                string              `json:"base"`
-	Quote               string              `json:"quote"`
+	Base                currency.Code       `json:"base"`
+	Quote               currency.Code       `json:"quote"`
 	Active              bool                `json:"active"`
 	Size                float64             `json:"size"`
 	MinValidPrice       float64             `json:"minValidPrice"`

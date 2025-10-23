@@ -55,6 +55,15 @@ func (c Currencies) Join() string {
 
 // UnmarshalJSON conforms type to the umarshaler interface
 func (c *Currencies) UnmarshalJSON(d []byte) error {
+	if d[0] == '[' {
+		var currs []Code
+		err := json.Unmarshal(d, &currs)
+		if err != nil {
+			return err
+		}
+		*c = currs
+		return nil
+	}
 	var configCurrencies string
 	err := json.Unmarshal(d, &configCurrencies)
 	if err != nil {

@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
- 
+
 const testExchange = "binanceus"
 
 func TestLoadCandles(t *testing.T) {

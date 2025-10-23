@@ -1018,27 +1018,27 @@ func (m *MarketPair) StripExponent() (string, error) {
 // Pair returns the currency Pair for a MarketPair
 func (m *MarketPair) Pair() (currency.Pair, error) {
 	baseCurr := m.Base
-	var quoteCurr string
+	var quoteStr string
 	if m.Futures {
-		if baseCurr == "TRUMPSOL" { // Only base currency which is different to the rest
-			baseCurr = "TRUMP"
-			quoteCurr = strings.TrimPrefix(m.Symbol, baseCurr)
+		if baseCurr.String() == "TRUMPSOL" { // Only base currency which is different to the rest
+			baseCurr = currency.TRUMP
+			quoteStr = strings.TrimPrefix(m.Symbol, baseCurr.String())
 		} else {
-			s := strings.Split(m.Symbol, m.Base) // e.g. RUNEPFC for RUNE-USD futures pair
+			s := strings.Split(m.Symbol, m.Base.String()) // e.g. RUNEPFC for RUNE-USD futures pair
 			if len(s) <= 1 {
 				return currency.EMPTYPAIR, errInvalidPairSymbol
 			}
-			quoteCurr = s[1]
+			quoteStr = s[1]
 		}
 	} else {
 		s := strings.Split(m.Symbol, currency.DashDelimiter)
 		if len(s) != 2 {
 			return currency.EMPTYPAIR, errInvalidPairSymbol
 		}
-		baseCurr = s[0]
-		quoteCurr = s[1]
+		baseCurr = currency.NewCode(s[0])
+		quoteStr = s[1]
 	}
-	return currency.NewPairFromStrings(baseCurr, quoteCurr)
+	return currency.NewPair(baseCurr, currency.NewCode(quoteStr)), nil
 }
 
 // GetMarketSummary returns filtered market pair details; Specifically:
@@ -1086,10 +1086,9 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	}
 	resp := make([]futures.Contract, len(marketSummary))
 	for i := range marketSummary {
-		cp, err := currency.NewPairFromStrings(marketSummary[i].Base, marketSummary[i].Symbol[len(marketSummary[i].Base):])
-		if err != nil {
-			return nil, err
-		}
+		// quote field is the settlement currency, create the quote from the symbol
+		quote := currency.NewCode(marketSummary[i].Symbol[len(marketSummary[i].Base.String()):])
+		cp := currency.NewPair(marketSummary[i].Base, quote)
 		startTime := marketSummary[i].OpenTime.Time()
 		endTime := marketSummary[i].CloseTime.Time()
 		ct := futures.Perpetual
@@ -1114,7 +1113,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		resp[i] = futures.Contract{
 			Exchange:                       e.Name,
 			Name:                           cp,
-			Underlying:                     currency.NewPair(currency.NewCode(marketSummary[i].Base), currency.NewCode(marketSummary[i].Quote)),
+			Underlying:                     currency.NewPair(marketSummary[i].Base, marketSummary[i].Quote),
 			Asset:                          item,
 			SettlementCurrency:             currency.USDT,
 			AdditionalSettlementCurrencies: marketSummary[i].AvailableSettlement,
