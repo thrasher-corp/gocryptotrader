@@ -448,23 +448,23 @@ func TestValidateSubscriptions(t *testing.T) {
 	t.Parallel()
 	qs := mustQuickData(t, TickerFocusType)
 
-	assert.ErrorIs(t, qs.validateSubscriptions(nil), errNoSubSwitchingToREST)
+	assert.ErrorIs(t, qs.validateSubscriptions(nil), errNoWebsocketSwitchToREST)
 
-	assert.ErrorIs(t, qs.validateSubscriptions([]*subscription.Subscription{{}, {}}), errNoSubSwitchingToREST)
+	assert.ErrorIs(t, qs.validateSubscriptions([]*subscription.Subscription{{}, {}}), errNoWebsocketSwitchToREST)
 
 	assert.ErrorIs(t, qs.validateSubscriptions([]*subscription.Subscription{{
 		Enabled: true,
 		Channel: subscription.TickerChannel,
 		Pairs:   []currency.Pair{currency.NewBTCUSD()},
 		Asset:   asset.Binary,
-	}}), errNoSubSwitchingToREST)
+	}}), errNoWebsocketSwitchToREST)
 
 	assert.ErrorIs(t, qs.validateSubscriptions([]*subscription.Subscription{{
 		Enabled: true,
 		Channel: subscription.TickerChannel,
 		Pairs:   []currency.Pair{currency.NewBTCUSD()},
 		Asset:   futuresAssetType,
-	}}), errNoSubSwitchingToREST)
+	}}), errNoWebsocketSwitchToREST)
 
 	ftd := NewFocusData(TickerFocusType, false, true, time.Second)
 	ftd.Init()
