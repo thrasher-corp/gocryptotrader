@@ -783,8 +783,10 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Binance exchange
 func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var acc account.SubAccount
+	var (
+		info account.Holdings
+		acc  account.SubAccount
+	)
 	acc.AssetType = assetType
 	info.Exchange = e.Name
 	switch assetType {
@@ -814,7 +816,6 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		}
 
 		acc.Currencies = currencyBalance
-
 	case asset.CoinMarginedFutures:
 		accData, err := e.GetFuturesAccountInfo(ctx)
 		if err != nil {
@@ -1033,8 +1034,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 	}
 
 	if e.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(resp...)
-		if err != nil {
+		if err := trade.AddTradesToBuffer(resp...); err != nil {
 			return nil, err
 		}
 	}
@@ -1162,8 +1162,7 @@ func timeInForceString(tif order.TimeInForce, oType order.Type) string {
 
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(e.GetTradingRequirements())
-	if err != nil {
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	var orderID string
@@ -1174,10 +1173,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 	switch s.AssetType {
 	case asset.Spot, asset.Margin:
-		var sideType string
-		if s.Side.IsLong() {
-			sideType = order.Buy.String()
-		} else {
+		sideType := order.Buy.String()
+		if s.Side.IsShort() {
 			sideType = order.Sell.String()
 		}
 
@@ -1188,8 +1185,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		switch {
 		case s.Type == order.SOR:
 			if e.IsAPIStreamConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				var resp []OSROrder
-				resp, err = e.WsPlaceNewSOROrder(&WsOSRPlaceOrderParams{
+				resp, err := e.WsPlaceNewSOROrder(&WsOSRPlaceOrderParams{
 					Symbol:           s.Pair.String(),
 					Side:             sideType,
 					OrderType:        s.Type.String(),
@@ -1206,8 +1202,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				}
 				orderID = strconv.FormatInt(resp[0].OrderID, 10)
 			} else {
-				var resp *SOROrderResponse
-				resp, err = e.NewOrderUsingSOR(ctx, &SOROrderRequestParams{
+				resp, err := e.NewOrderUsingSOR(ctx, &SOROrderRequestParams{
 					Symbol:           s.Pair,
 					Side:             sideType,
 					OrderType:        oTypeString,
@@ -1239,7 +1234,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				}
 				orderID = strconv.FormatInt(ocoOrder.OrderListID, 10)
 			} else {
-				ocoOrder, err = e.NewOCOOrder(
+				ocoOrder, err := e.NewOCOOrder(
 					ctx,
 					&OCOOrderParam{
 						Symbol:               s.Pair,
@@ -1258,8 +1253,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				orderID = strconv.FormatInt(ocoOrder.OrderListID, 10)
 			}
 		case e.IsAPIStreamConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper():
-			var results *TradeOrderResponse
-			results, err = e.WsPlaceNewOrder(&TradeOrderRequestParam{
+			results, err := e.WsPlaceNewOrder(&TradeOrderRequestParam{
 				Symbol:      s.Pair.String(),
 				Side:        sideType,
 				OrderType:   oTypeString,
@@ -1272,8 +1266,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			}
 			orderID = strconv.FormatInt(results.OrderID, 10)
 		default:
-			var response NewOrderResponse
-			response, err = e.NewOrder(ctx, &NewOrderRequest{
+			response, err := e.NewOrder(ctx, &NewOrderRequest{
 				Symbol:           s.Pair,
 				Side:             sideType,
 				Price:            s.Price,
@@ -1332,8 +1325,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, errors.New("invalid type, check api docs for updates")
 		}
 		if s.AssetType == asset.CoinMarginedFutures {
-			var o *FuturesOrderPlaceData
-			o, err = e.FuturesNewOrder(ctx, &FuturesNewOrderRequest{
+			o, err := e.FuturesNewOrder(ctx, &FuturesNewOrderRequest{
 				Symbol:           s.Pair,
 				Side:             reqSide,
 				OrderType:        oType,
@@ -1348,8 +1340,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			}
 			orderID = strconv.FormatInt(o.OrderID, 10)
 		} else {
-			var o *UOrderData
-			o, err = e.UFuturesNewOrder(ctx, &UFuturesNewOrderRequest{
+			o, err := e.UFuturesNewOrder(ctx, &UFuturesNewOrderRequest{
 				Symbol:           s.Pair,
 				Side:             reqSide,
 				OrderType:        oType,
@@ -1404,13 +1395,15 @@ func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyRes
 
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
-	err := o.Validate(o.StandardCancel())
-	if err != nil {
+	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
 	switch o.AssetType {
 	case asset.Spot, asset.Margin:
-		var orderIDInt int64
+		var (
+			orderIDInt int64
+			err        error
+		)
 		switch {
 		case o.Type == order.OCO:
 			if e.IsAPIStreamConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -1438,28 +1431,20 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 				orderIDInt,
 				o.AccountID)
 		}
-		if err != nil {
-			return err
-		}
+		return err
 	case asset.CoinMarginedFutures:
-		_, err = e.FuturesCancelOrder(ctx, o.Pair, o.OrderID, "")
-		if err != nil {
-			return err
-		}
+		_, err := e.FuturesCancelOrder(ctx, o.Pair, o.OrderID, "")
+		return err
 	case asset.USDTMarginedFutures:
-		_, err = e.UCancelOrder(ctx, o.Pair.String(), o.OrderID, "")
-		if err != nil {
-			return err
-		}
+		_, err := e.UCancelOrder(ctx, o.Pair.String(), o.OrderID, "")
+		return err
 	case asset.Options:
 		reg := regexp.MustCompile(`^\d+$`)
 		if !reg.MatchString(o.OrderID) {
 			return fmt.Errorf("%w, invalid orderID", order.ErrOrderIDNotSet)
 		}
-		_, err = e.CancelOptionsOrder(ctx, o.Pair.String(), o.ClientOrderID, o.OrderID)
-		if err != nil {
-			return err
-		}
+		_, err := e.CancelOptionsOrder(ctx, o.Pair.String(), o.ClientOrderID, o.OrderID)
+		return err
 	}
 	return nil
 }
@@ -1795,8 +1780,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 
 // GetActiveOrders retrieves any orders that are active/open
 func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	err := req.Validate()
-	if err != nil {
+	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 	if len(req.Pairs) == 0 || len(req.Pairs) >= 40 {
@@ -1808,7 +1792,10 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		switch req.AssetType {
 		case asset.Spot, asset.Margin:
 			if req.Type == order.OCO {
-				var resp []OCOOrder
+				var (
+					resp []OCOOrder
+					err  error
+				)
 				if e.IsAPIStreamConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 					resp, err = e.WsCurrentOpenOCOOrders(defaultRecvWindow.Milliseconds())
 				} else {
@@ -1819,23 +1806,19 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				}
 				for x := range resp {
 					for a := range resp[x].OrderReports {
-						var side order.Side
-						side, err = order.StringToOrderSide(resp[x].OrderReports[a].Side)
+						side, err := order.StringToOrderSide(resp[x].OrderReports[a].Side)
 						if err != nil {
 							log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 						}
-						var orderType order.Type
-						orderType, err = order.StringToOrderType(resp[x].OrderReports[a].Type)
+						orderType, err := order.StringToOrderType(resp[x].OrderReports[a].Type)
 						if err != nil {
 							log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 						}
-						var orderStatus order.Status
-						orderStatus, err = order.StringToOrderStatus(resp[x].OrderReports[a].Status)
+						orderStatus, err := order.StringToOrderStatus(resp[x].OrderReports[a].Status)
 						if err != nil {
 							log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 						}
-						var cp currency.Pair
-						cp, err = currency.NewPairFromString(resp[x].OrderReports[a].Symbol)
+						cp, err := currency.NewPairFromString(resp[x].OrderReports[a].Symbol)
 						if err != nil {
 							return nil, err
 						}
@@ -1860,7 +1843,10 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					}
 				}
 			} else {
-				var resp []TradeOrder
+				var (
+					resp []TradeOrder
+					err  error
+				)
 				if e.IsAPIStreamConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 					resp, err = e.WsCurrentOpenOrders(req.Pairs[i], 0)
 				} else {
@@ -1870,13 +1856,11 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					return nil, err
 				}
 				for x := range resp {
-					var side order.Side
-					side, err = order.StringToOrderSide(resp[x].Side)
+					side, err := order.StringToOrderSide(resp[x].Side)
 					if err != nil {
 						log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 					}
-					var orderType order.Type
-					orderType, err = order.StringToOrderType(resp[x].Type)
+					orderType, err := order.StringToOrderType(resp[x].Type)
 					if err != nil {
 						log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 					}
@@ -2021,8 +2005,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	err := req.Validate()
-	if err != nil {
+	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 	if len(req.Pairs) == 0 {
@@ -2032,25 +2015,21 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	switch req.AssetType {
 	case asset.Spot, asset.Margin:
 		if req.Type == order.OCO {
-			var resp []OCOOrder
-			resp, err = e.GetAllOCOOrders(ctx, req.FromOrderID, req.StartTime, req.EndTime, 0)
+			resp, err := e.GetAllOCOOrders(ctx, req.FromOrderID, req.StartTime, req.EndTime, 0)
 			if err != nil {
 				return nil, err
 			}
 			for x := range resp {
 				for a := range resp[x].OrderReports {
-					var side order.Side
-					side, err = order.StringToOrderSide(resp[x].OrderReports[a].Side)
+					side, err := order.StringToOrderSide(resp[x].OrderReports[a].Side)
 					if err != nil {
 						log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 					}
-					var orderType order.Type
-					orderType, err = order.StringToOrderType(resp[x].OrderReports[a].Type)
+					orderType, err := order.StringToOrderType(resp[x].OrderReports[a].Type)
 					if err != nil {
 						log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 					}
-					var orderStatus order.Status
-					orderStatus, err = order.StringToOrderStatus(resp[x].OrderReports[a].Status)
+					orderStatus, err := order.StringToOrderStatus(resp[x].OrderReports[a].Status)
 					if err != nil {
 						log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 					}
@@ -2085,13 +2064,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				}
 
 				for i := range resp {
-					var side order.Side
-					side, err = order.StringToOrderSide(resp[i].Side)
+					side, err := order.StringToOrderSide(resp[i].Side)
 					if err != nil {
 						log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 					}
-					var orderType order.Type
-					orderType, err = order.StringToOrderType(resp[i].Type)
+					orderType, err := order.StringToOrderType(resp[i].Type)
 					if err != nil {
 						log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 					}
@@ -2384,8 +2361,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			})
 		}
 	case asset.CoinMarginedFutures:
-		var candles []CFuturesCandleStick
-		candles, err = e.GetFuturesKlineData(ctx,
+		candles, err := e.GetFuturesKlineData(ctx,
 			req.RequestFormatted,
 			e.FormatExchangeKlineInterval(interval),
 			req.RequestLimit,
@@ -3502,8 +3478,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 						if orders[i].Time.Time().After(req.EndDate) {
 							continue
 						}
-						var orderPair currency.Pair
-						orderPair, err = currency.NewPairFromString(orders[i].Pair)
+						orderPair, err := currency.NewPairFromString(orders[i].Pair)
 						if err != nil {
 							return nil, err
 						}
@@ -3511,12 +3486,9 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 						if err != nil {
 							return nil, err
 						}
-						var mt margin.Type
-						mt, err = margin.StringToMarginType(result[y].MarginType)
-						if err != nil {
-							if !errors.Is(err, margin.ErrInvalidMarginType) {
-								return nil, err
-							}
+						mt, err := margin.StringToMarginType(result[y].MarginType)
+						if err != nil && !errors.Is(err, margin.ErrInvalidMarginType) {
+							return nil, err
 						}
 						currencyPosition.Orders = append(currencyPosition.Orders, order.Detail{
 							ReduceOnly:           orders[i].ClosePosition,

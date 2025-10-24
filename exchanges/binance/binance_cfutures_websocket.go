@@ -32,8 +32,7 @@ var defaultCFuturesSubscriptions = []string{
 
 // WsCFutureConnect initiates a websocket connection to coin margined futures websocket
 func (e *Exchange) WsCFutureConnect(ctx context.Context, conn websocket.Connection) error {
-	err := e.CurrencyPairs.IsAssetEnabled(asset.CoinMarginedFutures)
-	if err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.CoinMarginedFutures); err != nil {
 		return err
 	}
 
@@ -42,15 +41,14 @@ func (e *Exchange) WsCFutureConnect(ctx context.Context, conn websocket.Connecti
 		Proxy:            http.ProxyFromEnvironment,
 	}
 	wsURL := binanceCFuturesWebsocketURL + "/stream"
-	if err = e.Websocket.SetWebsocketURL(wsURL, false, false); err != nil {
+	if err := e.Websocket.SetWebsocketURL(wsURL, false, false); err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Errorf(log.ExchangeSys,
 			"%v unable to connect to authenticated Websocket. Error: %s",
 			e.Name,
 			err)
 	}
-	err = conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
@@ -121,8 +119,7 @@ func (e *Exchange) wsHandleCFuturesData(_ context.Context, respRaw []byte) error
 		Stream string          `json:"stream"`
 		Data   json.RawMessage `json:"data"`
 	}{}
-	err := json.Unmarshal(respRaw, &result)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	if result.Stream == "" || (result.ID != 0 && result.Result != nil) {
@@ -175,8 +172,7 @@ func (e *Exchange) wsHandleCFuturesData(_ context.Context, respRaw []byte) error
 func (e *Exchange) processCFuturesMarketTicker(respRaw []byte, array bool) error {
 	if array {
 		var resp []CFuturesMarketTicker
-		err := json.Unmarshal(respRaw, &resp)
-		if err != nil {
+		if err := json.Unmarshal(respRaw, &resp); err != nil {
 			return err
 		}
 		tickerPrices, err := e.getCFuturesTickerInfos(resp)
@@ -187,8 +183,7 @@ func (e *Exchange) processCFuturesMarketTicker(respRaw []byte, array bool) error
 		return nil
 	}
 	var resp CFuturesMarketTicker
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	cp, err := currency.NewPairFromString(resp.Symbol)
@@ -235,8 +230,7 @@ func (e *Exchange) getCFuturesTickerInfos(marketTickers []CFuturesMarketTicker) 
 
 func (e *Exchange) processKlineData(respRaw []byte) error {
 	var resp CFutureKlineData
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	cp, err := currency.NewPairFromString(resp.Symbol)
@@ -261,8 +255,7 @@ func (e *Exchange) processKlineData(respRaw []byte) error {
 
 func (e *Exchange) processIndexPrice(respRaw []byte) error {
 	var resp CFutureIndexPriceStream
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	cp, err := currency.NewPairFromString(resp.Pair)
@@ -279,8 +272,7 @@ func (e *Exchange) processIndexPrice(respRaw []byte) error {
 
 func (e *Exchange) processCFuturesForceOrder(respRaw []byte) error {
 	var resp MarketLiquidationOrder
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	oType, err := order.StringToOrderType(resp.Order.OrderType)
@@ -319,8 +311,7 @@ func (e *Exchange) processCFuturesForceOrder(respRaw []byte) error {
 
 func (e *Exchange) processMarkPriceKline(respRaw []byte) error {
 	var resp CFutureMarkOrIndexPriceKline
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	cp, err := currency.NewPairFromString(resp.Pair)

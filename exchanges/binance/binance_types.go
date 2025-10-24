@@ -382,33 +382,14 @@ type OrderBookDataRequestParams struct {
 	Limit  uint64        `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
 }
 
-// OrderbookTranches stores an orderbook.Tranches unmarshaled from a slice of bytes.
-type OrderbookTranches orderbook.Levels
-
-// UnmarshalJSON deserializes a byte slice into a OrderOrder OrderbookTranches
-func (o *OrderbookTranches) UnmarshalJSON(data []byte) error {
-	target := [][2]types.Number{}
-	err := json.Unmarshal(data, &target)
-	if err != nil {
-		return err
-	}
-	tranches := make(orderbook.Levels, len(target))
-	for a := range target {
-		tranches[a].Price = target[a][0].Float64()
-		tranches[a].Amount = target[a][1].Float64()
-	}
-	*o = OrderbookTranches(tranches)
-	return nil
-}
-
 // OrderBook actual structured data that can be used for orderbook
 type OrderBook struct {
-	Symbol       string            `json:"symbol"`
-	LastUpdateID int64             `json:"lastUpdateId"`
-	Code         int64             `json:"code"`
-	Msg          string            `json:"msg"`
-	Bids         OrderbookTranches `json:"bids"`
-	Asks         OrderbookTranches `json:"asks"`
+	Symbol       string                           `json:"symbol"`
+	LastUpdateID int64                            `json:"lastUpdateId"`
+	Code         int64                            `json:"code"`
+	Msg          string                           `json:"msg"`
+	Bids         orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
 
 // DepthUpdateParams is used as an embedded type for WebsocketDepthStream
@@ -420,13 +401,13 @@ type DepthUpdateParams []struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string            `json:"e"`
-	Timestamp     types.Time        `json:"E"`
-	Pair          string            `json:"s"`
-	FirstUpdateID int64             `json:"U"`
-	LastUpdateID  int64             `json:"u"`
-	UpdateBids    OrderbookTranches `json:"b"`
-	UpdateAsks    OrderbookTranches `json:"a"`
+	Event         string                           `json:"e"`
+	Timestamp     types.Time                       `json:"E"`
+	Pair          string                           `json:"s"`
+	FirstUpdateID int64                            `json:"U"`
+	LastUpdateID  int64                            `json:"u"`
+	UpdateBids    orderbook.LevelsArrayPriceAmount `json:"b"`
+	UpdateAsks    orderbook.LevelsArrayPriceAmount `json:"a"`
 }
 
 // RecentTradeRequestParams represents Klines request data.
@@ -635,12 +616,11 @@ type PriceChangeStats struct {
 	FirstID            int64        `json:"firstId"`
 	LastID             int64        `json:"lastId"`
 	Count              int64        `json:"count"`
-
-	LastQty  types.Number `json:"lastQty"`
-	BidPrice types.Number `json:"bidPrice"`
-	BidQty   types.Number `json:"bidQty"`
-	AskPrice types.Number `json:"askPrice"`
-	AskQty   types.Number `json:"askQty"`
+	LastQty            types.Number `json:"lastQty"`
+	BidPrice           types.Number `json:"bidPrice"`
+	BidQty             types.Number `json:"bidQty"`
+	AskPrice           types.Number `json:"askPrice"`
+	AskQty             types.Number `json:"askQty"`
 }
 
 // SymbolPrice holds basic symbol price
@@ -1801,15 +1781,15 @@ type FlexibleCollateralAssetsData struct {
 type UFuturesOrderbook struct {
 	Stream string `json:"stream"`
 	Data   struct {
-		EventType               string            `json:"e"`
-		EventTime               types.Time        `json:"E"`
-		TransactionTime         types.Time        `json:"T"`
-		Symbol                  string            `json:"s"`
-		FirstUpdateID           int64             `json:"U"`
-		FinalUpdateID           int64             `json:"u"`
-		FinalUpdateIDLastStream int64             `json:"pu"`
-		Bids                    OrderbookTranches `json:"b"`
-		Asks                    OrderbookTranches `json:"a"`
+		EventType               string                           `json:"e"`
+		EventTime               types.Time                       `json:"E"`
+		TransactionTime         types.Time                       `json:"T"`
+		Symbol                  string                           `json:"s"`
+		FirstUpdateID           int64                            `json:"U"`
+		FinalUpdateID           int64                            `json:"u"`
+		FinalUpdateIDLastStream int64                            `json:"pu"`
+		Bids                    orderbook.LevelsArrayPriceAmount `json:"b"`
+		Asks                    orderbook.LevelsArrayPriceAmount `json:"a"`
 	} `json:"data"`
 }
 

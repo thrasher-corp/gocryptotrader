@@ -32,7 +32,7 @@ import (
 type Exchange struct {
 	exchange.Base
 	// Valid string list that is required by the exchange
-	validLimits []int64
+	validLimits []uint64
 	obm         *orderbookManager
 
 	// isAPIStreamConnected is true if the spot API stream websocket connection is established
@@ -74,7 +74,7 @@ func (e *Exchange) GetExchangeInfo(ctx context.Context) (*ExchangeInfo, error) {
 // symbol: string of currency pair
 // limit: returned limit amount
 func (e *Exchange) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*OrderBook, error) {
-	if err := e.CheckLimit(int64(obd.Limit)); err != nil {
+	if err := e.CheckLimit(obd.Limit); err != nil {
 		return nil, err
 	}
 	symbol, err := e.FormatSymbol(obd.Symbol, asset.Spot)
@@ -1892,7 +1892,7 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, 
 }
 
 // CheckLimit checks value against a variable list
-func (e *Exchange) CheckLimit(limit int64) error {
+func (e *Exchange) CheckLimit(limit uint64) error {
 	for x := range e.validLimits {
 		if e.validLimits[x] == limit {
 			return nil
@@ -1903,7 +1903,7 @@ func (e *Exchange) CheckLimit(limit int64) error {
 
 // SetValues sets the default valid values
 func (e *Exchange) SetValues() {
-	e.validLimits = []int64{5, 10, 20, 50, 100, 500, 1000, 5000}
+	e.validLimits = []uint64{5, 10, 20, 50, 100, 500, 1000, 5000}
 }
 
 // GetFee returns an estimate of fee based on type of transaction

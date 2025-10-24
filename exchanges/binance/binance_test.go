@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -3334,7 +3335,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	e.setupOrderbookManager(t.Context())
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
-		Asks: OrderbookTranches{
+		Asks: orderbook.LevelsArrayPriceAmount(orderbook.Levels{
 			{Price: 6621.80000000, Amount: 0.00198100},
 			{Price: 6622.14000000, Amount: 4.00000000},
 			{Price: 6622.46000000, Amount: 2.30000000},
@@ -3345,8 +3346,8 @@ func TestWsDepthUpdate(t *testing.T) {
 			{Price: 6622.81000000, Amount: 2.08994200},
 			{Price: 6622.82000000, Amount: 0.01500000},
 			{Price: 6623.17000000, Amount: 0.16831300},
-		},
-		Bids: OrderbookTranches{
+		}),
+		Bids: orderbook.LevelsArrayPriceAmount(orderbook.Levels{
 			{Price: 6621.55000000, Amount: 0.16356700},
 			{Price: 6621.45000000, Amount: 0.16352600},
 			{Price: 6621.41000000, Amount: 0.86091200},
@@ -3357,7 +3358,7 @@ func TestWsDepthUpdate(t *testing.T) {
 			{Price: 6621.03000000, Amount: 0.00172000},
 			{Price: 6620.94000000, Amount: 0.30506700},
 			{Price: 6620.93000000, Amount: 0.00200000},
-		},
+		}),
 		LastUpdateID: seedLastUpdateID,
 	}
 
@@ -9148,8 +9149,7 @@ func TestUnmarshalJSON(t *testing.T) {
 }
 
 func (e *Exchange) populateTradablePairs() error {
-	err := e.UpdateTradablePairs(context.Background())
-	if err != nil {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		return err
 	}
 	tradablePairs, err := e.GetEnabledPairs(asset.Spot)
@@ -9219,19 +9219,6 @@ func TestFetchOptionsExchangeLimits(t *testing.T) {
 	l, err := e.FetchOptionsExchangeLimits(t.Context())
 	require.NoError(t, err)
 	assert.NotEmpty(t, l, "Should get some limits back")
-}
-
-func TestUnmarshalJSONOrderbookTranches(t *testing.T) {
-	t.Parallel()
-	data := `[[123.4, 321.0], ["123.6", "9"]]`
-	var resp OrderbookTranches
-	err := json.Unmarshal([]byte(data), &resp)
-	require.NoError(t, err)
-	require.Len(t, resp, 2)
-	assert.Equal(t, 123.4, resp[0].Price)
-	assert.Equal(t, 321.0, resp[0].Amount)
-	assert.Equal(t, 123.6, resp[1].Price)
-	assert.Equal(t, 9.0, resp[1].Amount)
 }
 
 // ----------------- Copy Trading endpoints unit-tests ----------------

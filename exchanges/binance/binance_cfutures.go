@@ -714,8 +714,10 @@ func (e *Exchange) FuturesOpenOrderData(ctx context.Context, symbol currency.Pai
 
 // GetFuturesAllOpenOrders gets all open orders data for CoinMarginedFutures,
 func (e *Exchange) GetFuturesAllOpenOrders(ctx context.Context, symbol currency.Pair, pair string) ([]FuturesOrderData, error) {
-	var p string
-	var err error
+	var (
+		p   string
+		err error
+	)
 	rateLimit := cFuturesGetAllOpenOrdersRate
 	params := url.Values{}
 	if !symbol.IsEmpty() {

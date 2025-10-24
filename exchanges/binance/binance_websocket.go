@@ -51,13 +51,12 @@ var (
 
 // WsConnect initiates a websocket connection
 func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
-	err := e.CurrencyPairs.IsAssetEnabled(asset.Spot)
-	if err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
 		return err
 	}
 
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err = e.GetWsAuthStreamKey(ctx)
+		listenKey, err := e.GetWsAuthStreamKey(ctx)
 		if err != nil {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,
@@ -77,8 +76,7 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 		Proxy:            http.ProxyFromEnvironment,
 	}
 
-	err = conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 
@@ -158,9 +156,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 	if err != nil {
 		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 	}
-	var event string
-	event, err = jsonparser.GetUnsafeString(jsonData, "e")
-	if err == nil {
+	if event, err := jsonparser.GetUnsafeString(jsonData, "e"); err == nil {
 		switch event {
 		case "outboundAccountPosition":
 			var data WsAccountPositionData
@@ -324,8 +320,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 		}
 
 		var t TradeStream
-		err := json.Unmarshal(jsonData, &t)
-		if err != nil {
+		if err := json.Unmarshal(jsonData, &t); err != nil {
 			return fmt.Errorf("%v - Could not unmarshal trade data: %s",
 				e.Name,
 				err)
@@ -348,8 +343,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			})
 	case "ticker":
 		var t TickerStream
-		err = json.Unmarshal(jsonData, &t)
-		if err != nil {
+		if err := json.Unmarshal(jsonData, &t); err != nil {
 			return fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
 				e.Name,
 				err.Error())
@@ -373,8 +367,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 	case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 		"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
 		var kline KlineStream
-		err = json.Unmarshal(jsonData, &kline)
-		if err != nil {
+		if err := json.Unmarshal(jsonData, &kline); err != nil {
 			return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
 				e.Name,
 				err)
@@ -396,8 +389,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 		return nil
 	case "depth":
 		var depth WebsocketDepthStream
-		err = json.Unmarshal(jsonData, &depth)
-		if err != nil {
+		if err := json.Unmarshal(jsonData, &depth); err != nil {
 			return fmt.Errorf("%v - Could not convert to depthStream structure %s",
 				e.Name,
 				err)
@@ -471,8 +463,7 @@ func (e *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	err = e.obm.stageWsUpdate(wsdp, pair, asset.Spot)
-	if err != nil {
+	if err := e.obm.stageWsUpdate(wsdp, pair, asset.Spot); err != nil {
 		init, err2 := e.obm.checkIsInitialSync(pair)
 		if err2 != nil {
 			return false, err2
@@ -480,8 +471,7 @@ func (e *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 		return init, err
 	}
 
-	err = e.applyBufferUpdate(pair)
-	if err != nil {
+	if err := e.applyBufferUpdate(pair); err != nil {
 		e.invalidateAndCleanupOrderbook(pair)
 	}
 
@@ -635,15 +625,13 @@ func (e *Exchange) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	if recent != nil {
-		err = e.obm.checkAndProcessOrderbookUpdate(e.ProcessUpdate, pair, recent)
-		if err != nil {
+		if err := e.obm.checkAndProcessOrderbookUpdate(e.ProcessUpdate, pair, recent); err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
 				"%s error processing update - initiating new orderbook sync via REST: %s\n",
 				e.Name,
 				err)
-			err = e.obm.setNeedsFetchingBook(pair)
-			if err != nil {
+			if err := e.obm.setNeedsFetchingBook(pair); err != nil {
 				return err
 			}
 		}
@@ -691,21 +679,18 @@ func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 
 // processJob fetches and processes orderbook updates
 func (e *Exchange) processJob(ctx context.Context, p currency.Pair) error {
-	err := e.SeedLocalCache(ctx, p)
-	if err != nil {
+	if err := e.SeedLocalCache(ctx, p); err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)
 	}
 
-	err = e.obm.stopFetchingBook(p)
-	if err != nil {
+	if err := e.obm.stopFetchingBook(p); err != nil {
 		return err
 	}
 
 	// Immediately apply the buffer updates so we don't wait for a
 	// new update to initiate this.
-	err = e.applyBufferUpdate(p)
-	if err != nil {
+	if err := e.applyBufferUpdate(p); err != nil {
 		e.invalidateAndCleanupOrderbook(p)
 		return err
 	}
@@ -896,8 +881,7 @@ buffer:
 				return err
 			}
 			if process {
-				err := processor(pair, asset.Spot, d)
-				if err != nil {
+				if err := processor(pair, asset.Spot, d); err != nil {
 					return fmt.Errorf("%s %s processing update error: %w",
 						pair, asset.Spot, err)
 				}

@@ -164,7 +164,7 @@ func (e *Exchange) GetWsOrderbook(obd *OrderBookDataRequestParams) (*OrderBook, 
 	if obd == nil || *obd == (OrderBookDataRequestParams{}) {
 		return nil, common.ErrEmptyParams
 	}
-	if err := e.CheckLimit(int64(obd.Limit)); err != nil {
+	if err := e.CheckLimit(obd.Limit); err != nil {
 		return nil, err
 	}
 	var resp *OrderBook

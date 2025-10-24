@@ -648,16 +648,16 @@ func (e *Exchange) ListSubscriptions(ctx context.Context, conn websocket.Connect
 }
 
 // SetProperty to set a property for the websocket connection you are using.
-func (e *Exchange) SetProperty(ctx context.Context, conn websocket.Connection, property string, value interface{}) error {
+func (e *Exchange) SetProperty(ctx context.Context, conn websocket.Connection, property string, value any) error {
 	// Currently, the only property can be set is to set whether "combined" stream payloads are enabled are not.
 	req := &struct {
-		ID     int64         `json:"method"`
-		Method string        `json:"params"`
-		Params []interface{} `json:"id"`
+		ID     int64  `json:"method"`
+		Method string `json:"params"`
+		Params []any  `json:"id"`
 	}{
 		ID:     e.MessageSequence(),
 		Method: "SET_PROPERTY",
-		Params: []interface{}{
+		Params: []any{
 			property,
 			value,
 		},

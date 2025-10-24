@@ -4,6 +4,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -57,10 +58,10 @@ type EOptionExchangeInfo struct {
 
 // EOptionsOrderbook represents an european orderbook option information.
 type EOptionsOrderbook struct {
-	TransactionTime types.Time        `json:"T"`
-	UpdateID        int64             `json:"u"`
-	Asks            OrderbookTranches `json:"asks"`
-	Bids            OrderbookTranches `json:"bids"` // [][Price, Quantity]
+	TransactionTime types.Time                       `json:"T"`
+	UpdateID        int64                            `json:"u"`
+	Asks            orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids            orderbook.LevelsArrayPriceAmount `json:"bids"`
 }
 
 // EOptionsTradeItem represents a recent trade information
@@ -519,12 +520,12 @@ type WsOptionsNewPair struct {
 
 // WsOptionsOrderbook represents a partial orderbook websocket stream data
 type WsOptionsOrderbook struct {
-	EventType       string            `json:"e"`
-	EventTime       types.Time        `json:"E"`
-	TransactionTime types.Time        `json:"T"`
-	OptionSymbol    string            `json:"symbol"`
-	UpdateID        int64             `json:"u"`  // update id in event
-	PUpdateID       int64             `json:"pu"` // same as update id in event
-	Bids            OrderbookTranches `json:"b"`  // 0: Price 1: Quantity
-	Asks            OrderbookTranches `json:"a"`
+	EventType       string                           `json:"e"`
+	EventTime       types.Time                       `json:"E"`
+	TransactionTime types.Time                       `json:"T"`
+	OptionSymbol    string                           `json:"symbol"`
+	UpdateID        int64                            `json:"u"`  // update id in event
+	PUpdateID       int64                            `json:"pu"` // same as update id in event
+	Bids            orderbook.LevelsArrayPriceAmount `json:"b"`  // 0: Price 1: Quantity
+	Asks            orderbook.LevelsArrayPriceAmount `json:"a"`
 }
