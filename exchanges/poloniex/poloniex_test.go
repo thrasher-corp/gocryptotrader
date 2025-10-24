@@ -3,6 +3,7 @@ package poloniex
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -225,16 +226,45 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	arg := &order.Submit{AssetType: asset.Futures, TimeInForce: order.GoodTillCrossing}
-	_, err := e.SubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	arg.Pair = futuresTradablePair
+
+	_, err := e.SubmitOrder(t.Context(), nil)
+	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
+
+	_, err = e.SubmitOrder(t.Context(), &order.Submit{})
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
+
+	arg := &order.Submit{Exchange: e.Name}
+	_, err = e.SubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrPairIsEmpty)
+
+	arg.Pair = spotTradablePair
+	_, err = e.SubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrAssetNotSet)
+
+	arg.AssetType = asset.Spot
+	arg.Side = order.Bid
+	arg.Type = order.Type(65537)
+	_, err = e.SubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	arg.Type = order.Limit
+	arg.TimeInForce = order.GoodTillCancel
+	_, err = e.SubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
+	arg.Amount = 1
+	_, err = e.SubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
+
+	arg = &order.Submit{Exchange: e.Name, AssetType: asset.Futures, Side: order.Sell, Type: order.Market, Amount: 1, TimeInForce: order.GoodTillCrossing, Pair: futuresTradablePair}
 	_, err = e.SubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrInvalidTimeInForce)
+
 	arg.TimeInForce = order.GoodTillCancel
 	arg.AssetType = asset.Options
 	_, err = e.SubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	arg.AssetType = asset.Spot
 	arg.Type = order.Liquidation
 	arg.Pair = spotTradablePair
@@ -1854,7 +1884,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	lms, err = e.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
 	require.NoError(t, err)
 	require.Len(t, spotInstruments, 1)
-	require.Equal(t, lms.PriceStepIncrementSize, spotInstruments[0].SymbolTradeLimit.PriceScale)
+	require.Equal(t, lms.PriceStepIncrementSize, math.Pow(10, -spotInstruments[0].SymbolTradeLimit.PriceScale))
 	require.Equal(t, lms.MinimumBaseAmount, spotInstruments[0].SymbolTradeLimit.MinQuantity.Float64())
 	assert.Equal(t, lms.MinimumQuoteAmount, spotInstruments[0].SymbolTradeLimit.MinAmount.Float64())
 }
