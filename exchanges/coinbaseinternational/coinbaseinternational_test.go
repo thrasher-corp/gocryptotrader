@@ -74,7 +74,7 @@ func setupWs() {
 }
 
 func (e *Exchange) populateTradablePairs() error {
-	err := e.UpdateTradablePairs(context.Background(), false)
+	err := e.UpdateTradablePairs(context.Background())
 	if err != nil {
 		return err
 	}
@@ -925,7 +925,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), true)
+	err := e.UpdateTradablePairs(t.Context())
 	assert.NoError(t, err)
 }
 

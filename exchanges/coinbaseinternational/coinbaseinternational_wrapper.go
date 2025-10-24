@@ -193,7 +193,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	assetTypes := e.GetAssetTypes(false)
 	for x := range assetTypes {
 		pairs, err := e.FetchTradablePairs(ctx, assetTypes[x])
@@ -201,7 +201,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 			return err
 		}
 
-		err = e.UpdatePairs(pairs, assetTypes[x], false, forceUpdate)
+		err = e.UpdatePairs(pairs, assetTypes[x], false)
 		if err != nil {
 			return err
 		}
@@ -549,7 +549,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, action *order.Cancel) (o
 	}
 	response := order.CancelAllResponse{
 		Status: make(map[string]string, len(canceled)),
-		Count:  int64(len(canceled)),
 	}
 	for a := range canceled {
 		response.Status[strconv.FormatInt(canceled[a].OrderID.Int64(), 10)] = canceled[a].OrderStatus
