@@ -892,15 +892,15 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			Rate: decimal.NewFromFloat(products.Products[i].FutureProductDetails.PerpetualDetails.FundingRate.Float64()),
 		}
 		contracts[i] = futures.Contract{
-			Exchange:             e.Name,
-			Name:                 products.Products[i].ID,
-			Asset:                item,
-			EndDate:              products.Products[i].FutureProductDetails.ContractExpiry,
-			IsActive:             !products.Products[i].IsDisabled,
-			Status:               products.Products[i].Status,
-			SettlementCurrencies: currency.Currencies{products.Products[i].QuoteCurrencyID},
-			Multiplier:           products.Products[i].BaseIncrement.Float64(),
-			LatestRate:           funRate,
+			Exchange:           e.Name,
+			Name:               products.Products[i].ID,
+			Asset:              item,
+			EndDate:            products.Products[i].FutureProductDetails.ContractExpiry,
+			IsActive:           !products.Products[i].IsDisabled,
+			Status:             products.Products[i].Status,
+			SettlementCurrency: products.Products[i].QuoteCurrencyID,
+			Multiplier:         products.Products[i].BaseIncrement.Float64(),
+			LatestRate:         funRate,
 		}
 		if i < perpStart {
 			contracts[i].Type = futures.LongDated

@@ -558,10 +558,9 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 	if err != nil {
 		return nil, err
 	}
-	limit := 1000
 	req := &GenericRequestParams{
 		Symbol:  p.String(),
-		Count:   int32(limit),
+		Count:   countLimit,
 		EndTime: timestampEnd.UTC().Format("2006-01-02T15:04:05.000Z"),
 	}
 	ts := timestampStart
@@ -606,7 +605,7 @@ allTrades:
 				ts = tradeData[i].Timestamp
 			}
 		}
-		if len(tradeData) != limit {
+		if int32(len(tradeData)) != countLimit {
 			break allTrades
 		}
 	}
@@ -1010,25 +1009,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	if !e.SupportsAsset(item) || item == asset.Index {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-
-	marketInfo, err := e.GetInstruments(ctx, &GenericRequestParams{Reverse: true, Count: 500})
-	if err != nil {
-		return nil, err
-	}
-
-	resp := make([]futures.Contract, 0, len(marketInfo))
+	var resp []futures.Contract
 	switch item {
 	case asset.PerpetualContract:
+		marketInfo, err := e.GetInstruments(ctx, &GenericRequestParams{
+			Count:  countLimit,
+			Filter: `{"typ": "` + perpetualContractID + `"}`,
+		})
+		if err != nil {
+			return nil, err
+		}
 		for x := range marketInfo {
-			if marketInfo[x].Typ != perpetualContractID {
-				continue
-			}
-			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].QuoteCurrency)
-			if err != nil {
-				return nil, err
-			}
-			underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
+			cp, err := currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].QuoteCurrency)
 			if err != nil {
 				return nil, err
 			}
@@ -1049,17 +1041,17 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				contractSettlementType = futures.Inverse
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            s,
-				IsActive:             marketInfo[x].State == "Open",
-				Status:               marketInfo[x].State,
-				Type:                 futures.Perpetual,
-				SettlementType:       contractSettlementType,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
-				Multiplier:           marketInfo[x].Multiplier,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         currency.NewPair(cp.Base, marketInfo[x].SettlementCurrency),
+				Asset:              item,
+				StartDate:          s,
+				IsActive:           marketInfo[x].State == "Open",
+				Status:             marketInfo[x].State,
+				Type:               futures.Perpetual,
+				SettlementType:     contractSettlementType,
+				SettlementCurrency: marketInfo[x].SettlementCurrency,
+				Multiplier:         marketInfo[x].Multiplier,
 				LatestRate: fundingrate.Rate{
 					Time: marketInfo[x].FundingTimestamp,
 					Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
@@ -1067,16 +1059,16 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			})
 		}
 	case asset.Futures:
+		marketInfo, err := e.GetInstruments(ctx, &GenericRequestParams{
+			Count:  countLimit,
+			Filter: `{"typ": "` + futuresID + `"}`,
+		})
+		if err != nil {
+			return nil, err
+		}
+
 		for x := range marketInfo {
-			if marketInfo[x].Typ != futuresID {
-				continue
-			}
-			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].Symbol[len(marketInfo[x].RootSymbol):])
-			if err != nil {
-				return nil, err
-			}
-			underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
+			cp, err := currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].Symbol[len(marketInfo[x].RootSymbol):])
 			if err != nil {
 				return nil, err
 			}
@@ -1119,18 +1111,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				contractSettlementType = futures.Quanto
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            startTime,
-				EndDate:              endTime,
-				IsActive:             marketInfo[x].State == "Open",
-				Status:               marketInfo[x].State,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
-				Multiplier:           marketInfo[x].Multiplier,
-				SettlementType:       contractSettlementType,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         currency.NewPair(cp.Base, marketInfo[x].SettlementCurrency),
+				Asset:              item,
+				StartDate:          startTime,
+				EndDate:            endTime,
+				IsActive:           marketInfo[x].State == "Open",
+				Status:             marketInfo[x].State,
+				Type:               ct,
+				SettlementCurrency: marketInfo[x].SettlementCurrency,
+				Multiplier:         marketInfo[x].Multiplier,
+				SettlementType:     contractSettlementType,
 			})
 		}
 	}
