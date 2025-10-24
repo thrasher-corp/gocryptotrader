@@ -1024,7 +1024,8 @@ func (m *MarketPair) Pair() (currency.Pair, error) {
 			baseCurr = currency.TRUMP
 			quoteStr = strings.TrimPrefix(m.Symbol, baseCurr.String())
 		} else {
-			s := strings.Split(m.Symbol, m.Base.String()) // e.g. RUNEPFC for RUNE-USD futures pair
+			// Quote field is the settlement currency, create the quote currency from the symbol
+			s := strings.Split(m.Symbol, m.Base.String())
 			if len(s) <= 1 {
 				return currency.EMPTYPAIR, errInvalidPairSymbol
 			}
