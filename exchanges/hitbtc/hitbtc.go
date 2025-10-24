@@ -103,8 +103,8 @@ func (e *Exchange) GetSymbols(ctx context.Context, symbol string) ([]string, err
 
 // GetSymbolsDetailed is the same as above but returns an array of symbols with
 // all their details.
-func (e *Exchange) GetSymbolsDetailed(ctx context.Context) ([]Symbol, error) {
-	var resp []Symbol
+func (e *Exchange) GetSymbolsDetailed(ctx context.Context) ([]*Symbol, error) {
+	var resp []*Symbol
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, apiV2Symbol, &resp)
 }
 

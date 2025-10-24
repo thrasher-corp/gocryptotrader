@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -224,7 +225,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     websocketResponseMaxLimit,
 		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
-		RequestIDGenerator:   e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -235,7 +235,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     websocketResponseMaxLimit,
 		Authenticated:        true,
 		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
-		RequestIDGenerator:   e.messageIDSeq.IncrementAndGet,
 	})
 }
 
@@ -3033,4 +3032,9 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 	default:
 		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
+}
+
+// MessageID returns a universally unique ID using UUID V7, with hyphens removed to fit the maximum 32-character field for okx
+func (e *Exchange) MessageID() string {
+	return strings.Replace(uuid.Must(uuid.NewV7()).String(), "-", "", 4)
 }

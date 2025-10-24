@@ -19,14 +19,17 @@ func TestMatchReturnResponses(t *testing.T) {
 	require.NoError(t, err)
 
 	require.ErrorIs(t, (<-ch).Err, ErrSignatureTimeout)
-	conn.ResponseMaxLimit = time.Millisecond
+	conn.ResponseMaxLimit = time.Second
 
 	ch, err = conn.MatchReturnResponses(t.Context(), nil, 1)
 	require.NoError(t, err)
 
 	exp := []byte("test")
 	require.True(t, conn.Match.IncomingWithData(nil, exp))
-	assert.Equal(t, exp, (<-ch).Responses[0])
+	resp := <-ch
+	require.NoError(t, resp.Err)
+	require.NotEmpty(t, resp.Responses, "must have response data")
+	assert.Equal(t, exp, resp.Responses[0])
 }
 
 func TestWebsocketConnectionRequireMatchWithData(t *testing.T) {
