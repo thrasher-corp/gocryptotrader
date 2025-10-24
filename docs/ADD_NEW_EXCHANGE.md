@@ -153,6 +153,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | Huobi.Pro | Yes | Yes | NA |
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | No |
+| MEXC | Yes | Yes | No |
 | Lbank | Yes | No | NA |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
@@ -184,6 +185,7 @@ var Exchanges = []string{
     "kraken",
     "kucoin",
     "lbank",
+    "mexc",
     "okx",
     "poloniex",
     "yobit",
@@ -363,8 +365,9 @@ Ensure each endpoint is implemented and has an associated test to improve test c
 
 #### Message IDs
 
-Use e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs. Otherwise override MessageID with a suitable alternative.
-For example: Consider common.Counter for simple integer IDs if uniqueness isn't critical.
+* e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs
+* e.MessageSequence() to get a simple integer ID if uniqueness is not critical
+* Otherwise override MessageID with a suitable alternative
 
 #### Authenticated functions
 

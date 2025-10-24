@@ -1042,7 +1042,7 @@ func (e *Exchange) WithdrawToCounterpartyID(ctx context.Context, arg *AssetCount
 		return nil, order.ErrAmountIsInvalid
 	}
 	if arg.Nonce == 0 {
-		arg.Nonce = e.Websocket.Conn.GenerateMessageID(false)
+		arg.Nonce = e.MessageSequence()
 	}
 	var resp *CounterpartyWithdrawalResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/withdraw/counterparty", nil, arg, &resp, true)

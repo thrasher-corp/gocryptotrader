@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -65,7 +64,6 @@ const (
 	getMarkPriceHistory              = "public/get_mark_price_history"
 	getOrderbook                     = "public/get_order_book"
 	getOrderbookByInstrumentID       = "public/get_order_book_by_instrument_id"
-	getRFQ                           = "public/get_rfqs"
 	getTradeVolumes                  = "public/get_trade_volumes"
 	getTradingViewChartData          = "public/get_tradingview_chart_data"
 	getVolatilityIndex               = "public/get_volatility_index_data"
@@ -116,7 +114,6 @@ const (
 	getUserTradesByInstrumentAndTime = "private/get_user_trades_by_instrument_and_time"
 	getUserTradesByOrder             = "private/get_user_trades_by_order"
 	resetMMP                         = "private/reset_mmp"
-	sendRFQ                          = "private/send_rfq"
 	setMMPConfig                     = "private/set_mmp_config"
 	getSettlementHistoryByInstrument = "private/get_settlement_history_by_instrument"
 	getSettlementHistoryByCurrency   = "private/get_settlement_history_by_currency"
@@ -566,20 +563,6 @@ func (e *Exchange) GetSupportedIndexNames(ctx context.Context, priceIndexType st
 	}
 	var resp []string
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, common.EncodeURLValues("public/get_supported_index_names", params), &resp)
-}
-
-// GetRequestForQuote retrieves RFQ information.
-func (e *Exchange) GetRequestForQuote(ctx context.Context, ccy currency.Code, kind string) ([]RequestForQuote, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	params := url.Values{}
-	params.Set("currency", ccy.String())
-	if kind != "" {
-		params.Set("kind", kind)
-	}
-	var resp []RequestForQuote
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getRFQ, params), &resp)
 }
 
 // GetTradeVolumes gets trade volumes' data of all instruments
@@ -2098,29 +2081,6 @@ func (e *Exchange) ResetMMP(ctx context.Context, ccy currency.Code) error {
 	}
 	if resp != "ok" {
 		return fmt.Errorf("mmp could not be reset for %v", ccy.String())
-	}
-	return nil
-}
-
-// SendRequestForQuote sends RFQ on a given instrument.
-func (e *Exchange) SendRequestForQuote(ctx context.Context, instrumentName string, amount float64, side order.Side) error {
-	params, err := checkInstrument(instrumentName)
-	if err != nil {
-		return err
-	}
-	if amount > 0 {
-		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	}
-	if side != order.UnknownSide {
-		params.Set("side", side.String())
-	}
-	var resp string
-	err = e.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, sendRFQ, params, &resp)
-	if err != nil {
-		return err
-	}
-	if resp != "ok" {
-		return fmt.Errorf("rfq couldn't send for %v", instrumentName)
 	}
 	return nil
 }

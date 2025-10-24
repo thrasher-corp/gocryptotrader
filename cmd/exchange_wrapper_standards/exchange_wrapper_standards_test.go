@@ -647,6 +647,7 @@ var acceptableErrors = []error{
 	ticker.ErrTickerNotFound,
 	orderbook.ErrOrderbookNotFound,
 	websocket.ErrNotConnected,
+	margin.ErrInvalidMarginType,
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest

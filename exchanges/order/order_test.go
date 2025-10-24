@@ -1679,7 +1679,6 @@ func TestSideMarshalJSON(t *testing.T) {
 	b, err := Buy.MarshalJSON()
 	assert.NoError(t, err)
 	assert.Equal(t, `"BUY"`, string(b))
-
 	b, err = UnknownSide.MarshalJSON()
 	assert.NoError(t, err)
 	assert.Equal(t, `"UNKNOWN"`, string(b))
