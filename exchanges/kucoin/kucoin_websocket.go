@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -227,7 +226,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respData []byte) error {
 		return nil
 	}
 	if resp.ID != "" {
-		return e.Websocket.Match.RequireMatchWithData("msgID:"+resp.ID, respData)
+		return e.Websocket.Match.RequireMatchWithData(resp.ID, respData)
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
 	switch topicInfo[0] {
@@ -1023,15 +1022,14 @@ func (e *Exchange) Unsubscribe(subscriptions subscription.List) error {
 func (e *Exchange) manageSubscriptions(ctx context.Context, subs subscription.List, operation string) error {
 	var errs error
 	for _, s := range subs {
-		msgID := strconv.FormatInt(e.Websocket.Conn.GenerateMessageID(false), 10)
 		req := WsSubscriptionInput{
-			ID:             msgID,
+			ID:             e.MessageID(),
 			Type:           operation,
 			Topic:          s.QualifiedChannel,
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
-		if respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, "msgID:"+msgID, req); err != nil {
+		if respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req); err != nil {
 			errs = common.AppendError(errs, err)
 		} else {
 			rType, err := jsonparser.GetUnsafeString(respRaw, "type")

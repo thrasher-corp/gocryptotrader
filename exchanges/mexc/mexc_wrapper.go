@@ -493,11 +493,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account
 		return account.Holdings{}, err
 	}
 
-	err = account.Process(&resp, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	return resp, nil
+	return resp, account.Process(&resp, creds)
 }
 
 func accountStatusToString(status int64) string {
@@ -971,8 +967,10 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		var oType order.Type
-		var tif order.TimeInForce
+		var (
+			oType order.Type
+			tif   order.TimeInForce
+		)
 		switch result.OrderType {
 		case 1:
 			oType = order.Limit
@@ -1186,7 +1184,6 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				case 2, 3:
 					oSide = order.Short
 				}
-				// TODO: fix again
 				var oStatus order.Status
 				switch result.Data[od].State {
 				case 1:

@@ -102,7 +102,7 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 // WebsocketAuthenticatePrivateConnection sends an authentication message to the private websocket for inbound account
 // data
 func (e *Exchange) WebsocketAuthenticatePrivateConnection(ctx context.Context, conn websocket.Connection) error {
-	req, err := e.GetAuthenticationPayload(ctx, strconv.FormatInt(conn.GenerateMessageID(false), 10))
+	req, err := e.GetAuthenticationPayload(ctx, e.MessageID())
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func (e *Exchange) GetAuthenticationPayload(ctx context.Context, requestID strin
 	}, nil
 }
 
-func (e *Exchange) handleSubscriptions(conn websocket.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
+func (e *Exchange) handleSubscriptions(_ websocket.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
 	subs, err = subs.ExpandTemplates(e)
 	if err != nil {
 		return
@@ -181,7 +181,7 @@ func (e *Exchange) handleSubscriptions(conn websocket.Connection, operation stri
 			args = append(args, SubscriptionArgument{
 				auth:           b[0].Authenticated,
 				Operation:      operation,
-				RequestID:      strconv.FormatInt(conn.GenerateMessageID(false), 10),
+				RequestID:      e.MessageID(),
 				Arguments:      b.QualifiedChannels(),
 				associatedSubs: b,
 			})
@@ -719,7 +719,7 @@ func hasPotentialDelimiter(a asset.Item) bool {
 
 // TODO: Remove this function when template expansion is across all assets
 func (e *Exchange) submitDirectSubscription(ctx context.Context, conn websocket.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
-	payloads, err := e.directSubscriptionPayload(conn, a, operation, channelsToSubscribe)
+	payloads, err := e.directSubscriptionPayload(a, operation, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -757,17 +757,17 @@ func (e *Exchange) submitDirectSubscription(ctx context.Context, conn websocket.
 }
 
 // TODO: Remove this function when template expansion is across all assets
-func (e *Exchange) directSubscriptionPayload(conn websocket.Connection, assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
+func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
 	var args []SubscriptionArgument
 	arg := SubscriptionArgument{
 		Operation: operation,
-		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		RequestID: e.MessageID(),
 		Arguments: []string{},
 	}
 	authArg := SubscriptionArgument{
 		auth:      true,
 		Operation: operation,
-		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		RequestID: e.MessageID(),
 		Arguments: []string{},
 	}
 
@@ -812,7 +812,7 @@ func (e *Exchange) directSubscriptionPayload(conn websocket.Connection, assetTyp
 			args = append(args, arg)
 			arg = SubscriptionArgument{
 				Operation: operation,
-				RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+				RequestID: e.MessageID(),
 				Arguments: []string{},
 			}
 		}

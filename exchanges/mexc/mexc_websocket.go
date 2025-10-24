@@ -181,7 +181,7 @@ func isSymbolChannel(channel string) bool {
 func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, method string, subs subscription.List) error {
 	var successfulSubscriptions, failedSubscriptions subscription.List
 	for s := range subs {
-		id := conn.GenerateMessageID(false)
+		id := e.MessageSequence()
 		data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, id, &WsSubscriptionPayload{
 			ID:     id,
 			Method: method,
