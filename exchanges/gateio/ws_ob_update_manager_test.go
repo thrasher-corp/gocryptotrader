@@ -102,7 +102,7 @@ func TestSyncOrderbook(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
-	require.NoError(t, e.UpdateTradablePairs(t.Context(), false))
+	require.NoError(t, e.UpdateTradablePairs(t.Context()))
 
 	// Add dummy subscription so that it can be matched and a limit/level can be extracted for initial orderbook sync spot.
 	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
@@ -140,7 +140,7 @@ func TestApplyPendingUpdates(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
-	require.NoError(t, e.UpdateTradablePairs(t.Context(), false))
+	require.NoError(t, e.UpdateTradablePairs(t.Context()))
 
 	m := newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
 	pair := currency.NewPair(currency.LTC, currency.USDT)
@@ -180,7 +180,7 @@ func TestApplyOrderbookUpdate(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
-	require.NoError(t, e.UpdateTradablePairs(t.Context(), false))
+	require.NoError(t, e.UpdateTradablePairs(t.Context()))
 
 	pair := currency.NewBTCUSDT()
 

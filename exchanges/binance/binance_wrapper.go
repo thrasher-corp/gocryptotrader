@@ -416,16 +416,14 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := e.GetAssetTypes(true)
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
+	assetTypes := e.GetAssetTypes(false)
 	for i := range assetTypes {
 		pairs, err := e.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
 			return err
 		}
-
-		err = e.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
-		if err != nil {
+		if err := e.UpdatePairs(pairs, assetTypes[i], false); err != nil {
 			return err
 		}
 	}
@@ -724,27 +722,27 @@ func (e *Exchange) FetchOrderbook(ctx context.Context, p currency.Pair, assetTyp
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return nil, err
 	}
 	p = p.Upper()
-	isEnabled, err := e.CurrencyPairs.IsPairEnabled(p, assetType)
+	isEnabled, err := e.CurrencyPairs.IsPairEnabled(p, a)
 	if !isEnabled || err != nil {
 		return nil, fmt.Errorf("%w pair: %v", currency.ErrPairNotEnabled, p)
 	}
 	book := &orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
-		Asset:             assetType,
+		Asset:             a,
 		ValidateOrderbook: e.ValidateOrderbook,
 	}
 	var orderbookNew *OrderBook
 	var orderbookPopulated bool
-	switch assetType {
+	switch a {
 	case asset.Spot, asset.Margin:
 		if e.IsAPIStreamConnected() {
 			orderbookNew, err = e.GetWsOrderbook(&OrderBookDataRequestParams{Symbol: p, Limit: 1000})
@@ -765,21 +763,21 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		book.Asks = orderbook.Levels(resp.Asks)
 		orderbookPopulated = true
 	default:
-		return nil, fmt.Errorf("[%s] %w", assetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("[%s] %w", a, asset.ErrNotSupported)
 	}
 	if err != nil {
-		return book, err
+		return nil, err
 	}
 	if !orderbookPopulated {
 		book.Bids = orderbook.Levels(orderbookNew.Bids)
 		book.Asks = orderbook.Levels(orderbookNew.Asks)
 	}
 
-	err = book.Process()
-	if err != nil {
-		return book, err
+	if err := book.Process(); err != nil {
+		return nil, err
 	}
-	return orderbook.Get(e.Name, p, assetType)
+
+	return orderbook.Get(e.Name, p, a)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
@@ -1399,9 +1397,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
-func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+// ModifyOrder modifies an existing order
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

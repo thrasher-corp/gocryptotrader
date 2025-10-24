@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -129,8 +130,8 @@ type AggregatedTradeRequestParams struct {
 	// The first trade to retrieve
 	FromID int64
 	// The API seems to accept (start and end time) or FromID and no other combinations
-	StartTime int64
-	EndTime   int64
+	StartTime time.Time
+	EndTime   time.Time
 	// Default 500; max 1000.
 	Limit int
 }
@@ -161,23 +162,11 @@ func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType as
 	}
 }
 
-// OrderBookDataRequestParams represents Klines request data.
-type OrderBookDataRequestParams struct {
-	Symbol currency.Pair `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
-	Limit  int64         `json:"limit"`  // Default 100; max 5000. If limit > 5000, then the response will truncate to 5000
-}
-
-// OrderbookItem stores an individual orderbook item
-type OrderbookItem struct {
-	Price    float64
-	Quantity float64
-}
-
 // OrderBookData is resp data from orderbook endpoint
 type OrderBookData struct {
-	LastUpdateID int64             `json:"lastUpdateId"`
-	Bids         [][2]types.Number `json:"bids"`
-	Asks         [][2]types.Number `json:"asks"`
+	LastUpdateID int64                            `json:"lastUpdateId"`
+	Bids         orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
 
 // OrderBook actual structured data that can be used for orderbook
@@ -186,8 +175,8 @@ type OrderBook struct {
 	LastUpdateID int64
 	Code         int
 	Msg          string
-	Bids         []OrderbookItem
-	Asks         []OrderbookItem
+	Bids         []orderbook.Level
+	Asks         []orderbook.Level
 }
 
 // KlinesRequestParams represents Klines request data.
@@ -833,20 +822,20 @@ type update struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string            `json:"e"`
-	Timestamp     types.Time        `json:"E"`
-	Pair          string            `json:"s"`
-	FirstUpdateID int64             `json:"U"`
-	LastUpdateID  int64             `json:"u"`
-	UpdateBids    [][2]types.Number `json:"b"`
-	UpdateAsks    [][2]types.Number `json:"a"`
+	Event         string                           `json:"e"`
+	Timestamp     types.Time                       `json:"E"`
+	Pair          string                           `json:"s"`
+	FirstUpdateID int64                            `json:"U"`
+	LastUpdateID  int64                            `json:"u"`
+	UpdateBids    orderbook.LevelsArrayPriceAmount `json:"b"`
+	UpdateAsks    orderbook.LevelsArrayPriceAmount `json:"a"`
 }
 
 // WebsocketDepthDiffStream websocket response of depth diff stream
 type WebsocketDepthDiffStream struct {
-	LastUpdateID int64             `json:"lastUpdateId"`
-	Bids         [][2]types.Number `json:"bids"`
-	Asks         [][2]types.Number `json:"asks"`
+	LastUpdateID int64                            `json:"lastUpdateId"`
+	Bids         orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
 
 // WsAccountInfoData defines websocket account info data

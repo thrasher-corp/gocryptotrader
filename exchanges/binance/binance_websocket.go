@@ -441,11 +441,10 @@ func stringToOrderStatus(status string) (order.Status, error) {
 
 // SeedLocalCache seeds depth data
 func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
-	ob, err := e.GetOrderBook(ctx,
-		OrderBookDataRequestParams{
-			Symbol: p,
-			Limit:  1000,
-		})
+	ob, err := e.GetOrderBook(ctx, OrderBookDataRequestParams{
+		Symbol: p,
+		Limit:  1000,
+	})
 	if err != nil {
 		return err
 	}
@@ -563,7 +562,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 	}
 
 	req := WsPayload{
-		ID:     conn.GenerateMessageID(false),
+		ID:     e.MessageID(),
 		Method: op,
 		Params: subs.QualifiedChannels(),
 	}

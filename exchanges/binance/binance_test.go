@@ -2794,15 +2794,16 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 	require.Equal(t, expected, len(result), "GetHistoricTrades should return correct number of entries")
 	for _, r := range result {
-		if !assert.WithinRange(t, r.Timestamp, start, end, "All trades should be within time range") {
-			break
-		}
+		require.WithinRange(t, r.Timestamp, start, end, "All trades must be within time range")
 	}
 	result, err = e.GetHistoricTrades(t.Context(), optionsTradablePair, asset.Options, start, end)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
+// TestGetAggregatedTradesBatched exercises TestGetAggregatedTradesBatched to ensure our date and limit scanning works correctly
+// This test is susceptible to failure if volumes change a lot, during wash trading or zero-fee periods
+// In live tests, 45 minutes is expected to return more than 1000 records
 func TestGetAggregatedTradesBatched(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTCUSDT")
@@ -2871,10 +2872,9 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				Symbol: "BTCUSDT",
 				Limit:  3,
 			},
-			numExpected:  3,
-			lastExpected: time.Date(2020, 1, 2, 16, 19, 5, int(200*time.Millisecond), time.UTC),
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -3230,7 +3230,7 @@ func TestSubscribe(t *testing.T) {
 			var req WsPayload
 			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
 			require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
-			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%d}`, req.ID))
+			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":"%s"}`, req.ID))
 		}
 		e = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
@@ -3256,7 +3256,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
 		require.NoError(tb, err, "Unmarshal must not error")
-		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":%d}`, req.ID))
+		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":"%s"}`, req.ID))
 	}
 	e := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
@@ -9148,7 +9148,7 @@ func TestUnmarshalJSON(t *testing.T) {
 }
 
 func (e *Exchange) populateTradablePairs() error {
-	err := e.UpdateTradablePairs(context.Background(), true)
+	err := e.UpdateTradablePairs(context.Background())
 	if err != nil {
 		return err
 	}

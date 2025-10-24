@@ -66,29 +66,6 @@ func TestUpdateTradablePairs(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 }
 
-func TestCancelAllExchangeOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CancelAllOrders(t.Context(), nil)
-	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
-
-	r := &order.Cancel{
-		OrderID:   "1",
-		AccountID: "1",
-	}
-
-	for _, a := range e.GetAssetTypes(false) {
-		r.AssetType = a
-		r.Pair = currency.EMPTYPAIR
-		_, err = e.CancelAllOrders(t.Context(), r)
-		assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-
-		r.Pair = getPair(t, a)
-		_, err = e.CancelAllOrders(t.Context(), r)
-		require.NoError(t, err)
-	}
-}
-
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2489,11 +2466,33 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			default:
 				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-				pairs, err := e.CurrencyPairs.GetPairs(a, true)
-				require.NoError(t, err, "GetPairs must not error")
-				l, err := e.GetOrderExecutionLimits(a, pairs[0])
-				require.NoError(t, err, "GetOrderExecutionLimits must not error")
-				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				avail, err := e.GetAvailablePairs(a)
+				require.NoError(t, err, "GetAvailablePairs must not error")
+				for _, pair := range avail {
+					l, err := e.GetOrderExecutionLimits(a, pair)
+					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", pair)
+					require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", pair)
+					assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", pair)
+					assert.Truef(t, pair.Equal(l.Key.Pair()), "pair should equal for %s", pair)
+					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
+					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", pair)
+
+					switch a {
+					case asset.USDTMarginedFutures:
+						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", pair)
+						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", pair)
+						fallthrough
+					case asset.CoinMarginedFutures:
+						if !l.Delisted.IsZero() {
+							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", pair)
+						}
+					case asset.Spot:
+						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", pair)
+						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", pair)
+					case asset.DeliveryFutures:
+						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", pair)
+					}
+				}
 			}
 		})
 	}
@@ -2769,7 +2768,6 @@ func TestGetSettlementCurrency(t *testing.T) {
 
 type FixtureConnection struct{ websocket.Connection }
 
-func (d *FixtureConnection) GenerateMessageID(bool) int64 { return 1337 }
 func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
 	return []byte(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`), nil
 }
@@ -2779,12 +2777,12 @@ func TestHandleSubscriptions(t *testing.T) {
 
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
 
-	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
+	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
 
-	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
+	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
@@ -3675,4 +3673,14 @@ func TestMarshalJSONNumber(t *testing.T) {
 		require.NoError(t, err, "MarshalJSON must not error")
 		assert.Equal(t, tc.expected, string(payload), "MarshalJSON should return expected value")
 	}
+}
+
+func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
+	t.Parallel()
+	var ob OrderbookLevels
+	require.NoError(t, ob.UnmarshalJSON([]byte(`[{"p":"123.45","s":"0.001"}]`)))
+	assert.Equal(t, 123.45, ob[0].Price, "Price should be correct")
+	assert.Equal(t, 0.001, ob[0].Amount, "Amount should be correct")
+
+	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
 }

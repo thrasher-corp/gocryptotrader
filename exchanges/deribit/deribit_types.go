@@ -901,15 +901,6 @@ type wsSubscriptionResponse struct {
 	Result         []string `json:"result"`
 }
 
-// RequestForQuote RFQs for instruments in given currency.
-type RequestForQuote struct {
-	TradedVolume     float64    `json:"traded_volume"`
-	Amount           float64    `json:"amount"`
-	Side             string     `json:"side"`
-	LastRFQTimestamp types.Time `json:"last_rfq_tstamp"`
-	InstrumentName   string     `json:"instrument_name"`
-}
-
 // ComboDetail retrieves information about a combo
 type ComboDetail struct {
 	ID                string     `json:"id"`
@@ -1250,15 +1241,6 @@ type wsQuoteTickerInformation struct {
 	BestBidAmount  float64    `json:"best_bid_amount"`
 	BestAskPrice   float64    `json:"best_ask_price"`
 	BestAskAmount  float64    `json:"best_ask_amount"`
-}
-
-// wsRequestForQuote represents a notifications about RFQs for instruments in given currency.
-type wsRequestForQuote struct {
-	State            bool       `json:"state"`
-	Side             any        `json:"side"`
-	LastRFQTimestamp types.Time `json:"last_rfq_tstamp"`
-	InstrumentName   string     `json:"instrument_name"`
-	Amount           any        `json:"amount"`
 }
 
 // wsTrade represents trades for an instrument.

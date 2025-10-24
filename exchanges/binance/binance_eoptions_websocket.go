@@ -96,7 +96,7 @@ func (e *Exchange) handleEOptionsSubscriptions(ctx context.Context, conn websock
 	params := &EOptionSubscriptionParam{
 		Method: operation,
 		Params: make([]string, 0, len(subscs)),
-		ID:     conn.GenerateMessageID(false),
+		ID:     e.MessageSequence(),
 	}
 	for s := range subscs {
 		switch subscs[s].Channel {

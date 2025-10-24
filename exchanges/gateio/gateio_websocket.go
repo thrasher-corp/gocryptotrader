@@ -124,7 +124,7 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 	signature := hex.EncodeToString(mac.Sum(nil))
 
 	payload := WebsocketPayload{
-		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		RequestID: e.MessageID(),
 		APIKey:    creds.Key,
 		Signature: signature,
 		Timestamp: strconv.FormatInt(tn, 10),
@@ -373,24 +373,14 @@ func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, 
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	asks := make([]orderbook.Level, len(data.Asks))
-	for x := range data.Asks {
-		asks[x].Price = data.Asks[x][0].Float64()
-		asks[x].Amount = data.Asks[x][1].Float64()
-	}
-	bids := make([]orderbook.Level, len(data.Bids))
-	for x := range data.Bids {
-		bids[x].Price = data.Bids[x][0].Float64()
-		bids[x].Amount = data.Bids[x][1].Float64()
-	}
 	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, e, data.FirstUpdateID, &orderbook.Update{
 		UpdateID:   data.LastUpdateID,
 		UpdateTime: data.UpdateTime.Time(),
 		LastPushed: lastPushed,
 		Pair:       data.Pair,
 		Asset:      asset.Spot,
-		Asks:       asks,
-		Bids:       bids,
+		Asks:       data.Asks.Levels(),
+		Bids:       data.Bids.Levels(),
 		AllowEmpty: true,
 	})
 }
@@ -401,17 +391,6 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 		return err
 	}
 
-	asks := make([]orderbook.Level, len(data.Asks))
-	for x := range data.Asks {
-		asks[x].Price = data.Asks[x][0].Float64()
-		asks[x].Amount = data.Asks[x][1].Float64()
-	}
-	bids := make([]orderbook.Level, len(data.Bids))
-	for x := range data.Bids {
-		bids[x].Price = data.Bids[x][0].Float64()
-		bids[x].Amount = data.Bids[x][1].Float64()
-	}
-
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
@@ -420,8 +399,8 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 				Asset:       a,
 				LastUpdated: data.UpdateTime.Time(),
 				LastPushed:  lastPushed,
-				Bids:        bids,
-				Asks:        asks,
+				Bids:        data.Bids.Levels(),
+				Asks:        data.Asks.Levels(),
 			}); err != nil {
 				return err
 			}
@@ -661,7 +640,7 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 
 	for _, s := range subs {
 		if err := func() error {
-			msg, err := e.manageSubReq(ctx, event, conn, s)
+			msg, err := e.manageSubReq(ctx, event, s)
 			if err != nil {
 				return err
 			}
@@ -688,9 +667,9 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 }
 
 // manageSubReq constructs the subscription management message for a subscription
-func (e *Exchange) manageSubReq(ctx context.Context, event string, conn websocket.Connection, s *subscription.Subscription) (*WsInput, error) {
+func (e *Exchange) manageSubReq(ctx context.Context, event string, s *subscription.Subscription) (*WsInput, error) {
 	req := &WsInput{
-		ID:      conn.GenerateMessageID(false),
+		ID:      e.MessageSequence(),
 		Event:   event,
 		Channel: channelName(s),
 		Time:    time.Now().Unix(),
@@ -907,11 +886,11 @@ const subTplText = `
 `
 
 // GeneratePayload returns the payload for a websocket message
-type GeneratePayload func(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+type GeneratePayload func(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
 
 // handleSubscription sends a websocket message to receive data from the channel
 func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
-	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
+	payloads, err := generatePayload(ctx, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -962,7 +941,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 		Channel: channel,
 		Event:   "api",
 		Payload: WebsocketPayload{
-			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
+			RequestID:    e.MessageID(),
 			RequestParam: paramPayload,
 			Timestamp:    strconv.FormatInt(tn, 10),
 		},

@@ -74,7 +74,7 @@ func (e *Exchange) GetExchangeInfo(ctx context.Context) (*ExchangeInfo, error) {
 // symbol: string of currency pair
 // limit: returned limit amount
 func (e *Exchange) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*OrderBook, error) {
-	if err := e.CheckLimit(obd.Limit); err != nil {
+	if err := e.CheckLimit(int64(obd.Limit)); err != nil {
 		return nil, err
 	}
 	symbol, err := e.FormatSymbol(obd.Symbol, asset.Spot)
@@ -83,7 +83,7 @@ func (e *Exchange) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPar
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.FormatInt(obd.Limit, 10))
+	params.Set("limit", strconv.FormatUint(obd.Limit, 10))
 	var resp *OrderBook
 	return resp, e.SendHTTPRequest(ctx,
 		exchange.RestSpot,
@@ -191,12 +191,12 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTrad
 	if arg.FromID > 0 {
 		fromID = arg.FromID
 	} else {
-		// Only 10 seconds is used to prevent limit of 1000 being reached in the first request,
-		// cutting off trades for high activity pairs
+		// Only 10 seconds is used to prevent limit of 1000 being reached in the first request, cutting off trades for high activity pairs
+		// If we don't find anything we keep increasing the window by doubling the interval and scanning again
 		increment := time.Second * 10
-		for start := arg.StartTime; len(resp) == 0; start = start.Add(increment) {
-			if !arg.EndTime.IsZero() && start.After(arg.EndTime) {
-				// All requests returned empty
+		for start := arg.StartTime; len(resp) == 0; start, increment = start.Add(increment), increment*2 {
+			if !arg.EndTime.IsZero() && start.After(arg.EndTime) || increment <= 0 {
+				// All requests returned empty or we searched until increment overflowed
 				return nil, nil
 			}
 			params.Set("startTime", timeString(start))
@@ -215,7 +215,7 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTrad
 	// other requests follow from the last aggregate trade id and have no time window
 	params.Del("startTime")
 	params.Del("endTime")
-	// while we haven't reached the limit
+outer:
 	for ; arg.Limit == 0 || len(resp) < arg.Limit; fromID = resp[len(resp)-1].ATradeID {
 		// Keep requesting new data after last retrieved trade
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
@@ -228,22 +228,23 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTrad
 		if err != nil {
 			return resp, fmt.Errorf("%w %v", err, arg.Symbol)
 		}
-		lastIndex := len(additionalTrades)
+		switch len(additionalTrades) {
+		case 0, 1:
+			break outer // We only got the one we already have
+		default:
+			additionalTrades = additionalTrades[1:] // Remove the record we already have
+		}
 		if !arg.EndTime.IsZero() {
-			// get index for truncating to end time
-			lastIndex = sort.Search(len(additionalTrades), func(i int) bool {
+			// Check if only some of the results are before EndTime
+			if afterEnd := sort.Search(len(additionalTrades), func(i int) bool {
 				return arg.EndTime.Before(additionalTrades[i].TimeStamp.Time())
-			})
+			}); afterEnd < len(additionalTrades) {
+				resp = append(resp, additionalTrades[:afterEnd]...)
+				break
+			}
 		}
-		// don't include the first as the request was inclusive from last ATradeID
-		resp = append(resp, additionalTrades[1:lastIndex]...)
-		// If only the starting trade is returned or if we received trades after end time
-		if len(additionalTrades) == 1 || lastIndex < len(additionalTrades) {
-			// We found the end
-			break
-		}
+		resp = append(resp, additionalTrades...)
 	}
-	// Truncate if necessary
 	if arg.Limit > 0 && len(resp) > arg.Limit {
 		resp = resp[:arg.Limit]
 	}

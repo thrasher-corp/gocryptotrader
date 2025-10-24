@@ -379,7 +379,7 @@ type CoinInfo struct {
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
 	Symbol currency.Pair `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
-	Limit  int64         `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
+	Limit  uint64        `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
 }
 
 // OrderbookTranches stores an orderbook.Tranches unmarshaled from a slice of bytes.
@@ -1439,7 +1439,7 @@ type WsListStatusData struct {
 type WsPayload struct {
 	Method string   `json:"method"`
 	Params []string `json:"params"`
-	ID     int64    `json:"id"`
+	ID     string   `json:"id"`
 }
 
 // CrossMarginInterestData stores cross margin data for borrowing

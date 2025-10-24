@@ -90,7 +90,7 @@ func TestMain(m *testing.M) {
 }
 
 func instantiateTradablePairs() {
-	if err := e.UpdateTradablePairs(context.Background(), true); err != nil {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		log.Fatalf("Failed to update tradable pairs. Error: %v", err)
 	}
 
@@ -853,24 +853,6 @@ func TestGetSupportedIndexNames(t *testing.T) {
 func TestWsRetrieveSupportedIndexNames(t *testing.T) {
 	t.Parallel()
 	result, err := e.WsRetrieveSupportedIndexNames(t.Context(), "derivative")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetRequestForQuote(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetRequestForQuote(t.Context(), currency.EMPTYCODE, e.GetAssetKind(asset.Futures))
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	result, err := e.GetRequestForQuote(t.Context(), currency.BTC, e.GetAssetKind(asset.Futures))
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestWSRetrieveRequestForQuote(t *testing.T) {
-	t.Parallel()
-	_, err := e.WSRetrieveRequestForQuote(t.Context(), currency.EMPTYCODE, e.GetAssetKind(asset.Futures))
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	result, err := e.WSRetrieveRequestForQuote(t.Context(), currency.BTC, e.GetAssetKind(asset.Futures))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2621,26 +2603,6 @@ func TestWSResetMMP(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	err = e.WSResetMMP(t.Context(), currency.BTC)
-	assert.NoError(t, err)
-}
-
-func TestSendRequestForQuote(t *testing.T) {
-	t.Parallel()
-	err := e.SendRequestForQuote(t.Context(), "", 1000, order.Buy)
-	require.ErrorIs(t, err, errInvalidInstrumentName)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	err = e.SendRequestForQuote(t.Context(), formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy)
-	assert.NoError(t, err)
-}
-
-func TestWSSendRequestForQuote(t *testing.T) {
-	t.Parallel()
-	err := e.WSSendRequestForQuote(t.Context(), "", 1000, order.Buy)
-	require.ErrorIs(t, err, errInvalidInstrumentName)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	err = e.WSSendRequestForQuote(t.Context(), formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy)
 	assert.NoError(t, err)
 }
 

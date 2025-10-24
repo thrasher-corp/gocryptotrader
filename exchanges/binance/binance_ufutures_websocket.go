@@ -548,7 +548,7 @@ func (e *Exchange) UnsubscribeFutures(ctx context.Context, conn websocket.Connec
 
 func (e *Exchange) handleSubscriptions(ctx context.Context, conn websocket.Connection, operation string, subscriptionChannels subscription.List) error {
 	payload := WsPayload{
-		ID:     conn.GenerateMessageID(false),
+		ID:     e.MessageID(),
 		Method: operation,
 	}
 	for i := range subscriptionChannels {
@@ -559,7 +559,7 @@ func (e *Exchange) handleSubscriptions(ctx context.Context, conn websocket.Conne
 				return err
 			}
 			payload.Params = []string{}
-			payload.ID = conn.GenerateMessageID(false)
+			payload.ID = e.MessageID()
 		}
 	}
 	if len(payload.Params) > 0 {
@@ -636,7 +636,7 @@ func (e *Exchange) GenerateUFuturesDefaultSubscriptions() (subscription.List, er
 // ListSubscriptions retrieves list of subscriptions
 func (e *Exchange) ListSubscriptions(ctx context.Context, conn websocket.Connection) ([]string, error) {
 	req := &WsPayload{
-		ID:     conn.GenerateMessageID(false),
+		ID:     e.MessageID(),
 		Method: "LIST_SUBSCRIPTIONS",
 	}
 	var resp WebsocketActionResponse
@@ -655,7 +655,7 @@ func (e *Exchange) SetProperty(ctx context.Context, conn websocket.Connection, p
 		Method string        `json:"params"`
 		Params []interface{} `json:"id"`
 	}{
-		ID:     conn.GenerateMessageID(false),
+		ID:     e.MessageSequence(),
 		Method: "SET_PROPERTY",
 		Params: []interface{}{
 			property,

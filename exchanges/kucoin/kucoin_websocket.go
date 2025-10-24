@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -227,7 +226,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respData []byte) error {
 		return nil
 	}
 	if resp.ID != "" {
-		return e.Websocket.Match.RequireMatchWithData("msgID:"+resp.ID, respData)
+		return e.Websocket.Match.RequireMatchWithData(resp.ID, respData)
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
 	switch topicInfo[0] {
@@ -533,16 +532,11 @@ func (e *Exchange) ensureFuturesOrderbookSnapshotLoaded(ctx context.Context, sym
 
 // processFuturesOrderbookSnapshot processes a futures account orderbook websocket update.
 func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument string) error {
-	response := WsOrderbookLevel5Response{}
-	if err := json.Unmarshal(respData, &response); err != nil {
+	var resp WsOrderbookLevel5Response
+	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	resp := response.ExtractOrderbookItems()
-	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	cp, err := enabledPairs.DeriveFrom(instrument)
+	pair, err := e.MatchSymbolWithAvailablePairs(instrument, asset.Futures, false)
 	if err != nil {
 		return err
 	}
@@ -550,9 +544,9 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 		UpdateID:                   resp.Sequence,
 		UpdateTime:                 resp.Timestamp.Time(),
 		Asset:                      asset.Futures,
-		Bids:                       resp.Bids,
-		Asks:                       resp.Asks,
-		Pair:                       cp,
+		Bids:                       resp.Bids.Levels(),
+		Asks:                       resp.Asks.Levels(),
+		Pair:                       pair,
 		SkipOutOfOrderLastUpdateID: true,
 	})
 }
@@ -942,9 +936,8 @@ func (e *Exchange) updateLocalBuffer(wsdp *WsOrderbook, assetType asset.Item) (b
 
 // processOrderbook processes orderbook data for a specific symbol.
 func (e *Exchange) processOrderbook(respData []byte, symbol, topic string) error {
-	var response Level2Depth5Or20
-	err := json.Unmarshal(respData, &response)
-	if err != nil {
+	var resp Level2Depth5Or20
+	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
 
@@ -953,32 +946,20 @@ func (e *Exchange) processOrderbook(respData []byte, symbol, topic string) error
 		return err
 	}
 
-	asks := make([]orderbook.Level, len(response.Asks))
-	for x := range response.Asks {
-		asks[x].Price = response.Asks[x][0].Float64()
-		asks[x].Amount = response.Asks[x][1].Float64()
-	}
-
-	bids := make([]orderbook.Level, len(response.Bids))
-	for x := range response.Bids {
-		bids[x].Price = response.Bids[x][0].Float64()
-		bids[x].Amount = response.Bids[x][1].Float64()
-	}
-
 	assets, err := e.CalculateAssets(topic, pair)
 	if err != nil {
 		return err
 	}
 
-	lastUpdatedTime := response.Timestamp.Time()
-	if response.Timestamp.Time().IsZero() {
+	lastUpdatedTime := resp.Timestamp.Time()
+	if lastUpdatedTime.IsZero() {
 		lastUpdatedTime = time.Now()
 	}
 	for x := range assets {
 		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Exchange:    e.Name,
-			Asks:        asks,
-			Bids:        bids,
+			Asks:        resp.Asks.Levels(),
+			Bids:        resp.Bids.Levels(),
 			Pair:        pair,
 			Asset:       assets[x],
 			LastUpdated: lastUpdatedTime,
@@ -1041,15 +1022,14 @@ func (e *Exchange) Unsubscribe(subscriptions subscription.List) error {
 func (e *Exchange) manageSubscriptions(ctx context.Context, subs subscription.List, operation string) error {
 	var errs error
 	for _, s := range subs {
-		msgID := strconv.FormatInt(e.Websocket.Conn.GenerateMessageID(false), 10)
 		req := WsSubscriptionInput{
-			ID:             msgID,
+			ID:             e.MessageID(),
 			Type:           operation,
 			Topic:          s.QualifiedChannel,
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
-		if respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, "msgID:"+msgID, req); err != nil {
+		if respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req); err != nil {
 			errs = common.AppendError(errs, err)
 		} else {
 			rType, err := jsonparser.GetUnsafeString(respRaw, "type")
@@ -1270,9 +1250,7 @@ func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 
 // SeedLocalCache seeds depth data
 func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair, assetType asset.Item) error {
-	var ob *Orderbook
-	var err error
-	ob, err = e.GetPartOrderbook100(ctx, p.String())
+	ob, err := e.GetPartOrderbook100(ctx, p.String())
 	if err != nil {
 		return err
 	}
@@ -1284,29 +1262,16 @@ func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair, assetTyp
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderbook, assetType asset.Item) error {
-	newOrderBook := orderbook.Book{
+	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Pair:              p,
 		Asset:             assetType,
 		Exchange:          e.Name,
-		LastUpdated:       time.Now(),
+		LastUpdated:       orderbookNew.Time,
 		LastUpdateID:      orderbookNew.Sequence,
 		ValidateOrderbook: e.ValidateOrderbook,
-		Bids:              make(orderbook.Levels, len(orderbookNew.Bids)),
-		Asks:              make(orderbook.Levels, len(orderbookNew.Asks)),
-	}
-	for i := range orderbookNew.Bids {
-		newOrderBook.Bids[i] = orderbook.Level{
-			Amount: orderbookNew.Bids[i].Amount,
-			Price:  orderbookNew.Bids[i].Price,
-		}
-	}
-	for i := range orderbookNew.Asks {
-		newOrderBook.Asks[i] = orderbook.Level{
-			Amount: orderbookNew.Asks[i].Amount,
-			Price:  orderbookNew.Asks[i].Price,
-		}
-	}
-	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+		Bids:              orderbookNew.Bids,
+		Asks:              orderbookNew.Asks,
+	})
 }
 
 // processJob fetches and processes orderbook updates

@@ -177,34 +177,34 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (e *Exchange) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
+func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	if a != asset.Spot {
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
+	}
+
 	symbols, err := e.GetSymbolsDetailed(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	pairs := make([]currency.Pair, len(symbols))
-	for x := range symbols {
-		index := strings.Index(symbols[x].ID, symbols[x].QuoteCurrency)
-		var pair currency.Pair
-		pair, err = currency.NewPairFromStrings(symbols[x].ID[:index], symbols[x].ID[index:])
-		if err != nil {
+	for i, s := range symbols {
+		// s.QuoteCurrency is actually settlement currency, so trim the base currency to get the real quote currency
+		if pairs[i], err = currency.NewPairFromStrings(s.BaseCurrency, strings.TrimPrefix(s.ID, s.BaseCurrency)); err != nil {
 			return nil, err
 		}
-		pairs[x] = pair
 	}
 	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	pairs, err := e.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = e.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
+	if err := e.UpdatePairs(pairs, asset.Spot, false); err != nil {
 		return err
 	}
 	return e.EnsureOnePairEnabled()
@@ -443,7 +443,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		orderID = strconv.FormatInt(response.ID, 10)
+		orderID = response.ID
 		if response.Result.CumQuantity == o.Amount {
 			status = order.Filled
 		}
@@ -477,9 +477,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
-func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+// ModifyOrder modifies an existing order
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

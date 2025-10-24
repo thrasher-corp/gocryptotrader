@@ -3160,6 +3160,12 @@ type WebsocketLoginData struct {
 	Sign       string `json:"sign"`
 }
 
+// WebsocketAuthLogin holds the operation and arguments
+type WebsocketAuthLogin struct {
+	Operation string               `json:"op"`
+	Arguments []WebsocketLoginData `json:"args"`
+}
+
 // SubscriptionInfo holds the channel and instrument IDs
 type SubscriptionInfo struct {
 	Channel          string        `json:"channel,omitempty"`
