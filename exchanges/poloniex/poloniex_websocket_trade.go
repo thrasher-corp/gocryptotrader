@@ -3,7 +3,6 @@ package poloniex
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -94,7 +93,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, connMessageFilter, 
 		Event  string `json:"event"`
 		Params any    `json:"params"`
 	}{
-		ID:     strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		ID:     e.MessageID(),
 		Event:  event,
 		Params: arg,
 	}
