@@ -560,7 +560,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 	}
 	req := &GenericRequestParams{
 		Symbol:  p.String(),
-		Count:   int32(1000),
+		Count:   countLimit,
 		EndTime: timestampEnd.UTC().Format("2006-01-02T15:04:05.000Z"),
 	}
 	ts := timestampStart
@@ -605,7 +605,7 @@ allTrades:
 				ts = tradeData[i].Timestamp
 			}
 		}
-		if len(tradeData) != 1000 {
+		if int32(len(tradeData)) != countLimit {
 			break allTrades
 		}
 	}
@@ -1013,7 +1013,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	switch item {
 	case asset.PerpetualContract:
 		marketInfo, err := e.GetInstruments(ctx, &GenericRequestParams{
-			Count:  1000,
+			Count:  countLimit,
 			Filter: `{"typ": "` + perpetualContractID + `"}`,
 		})
 		if err != nil {
@@ -1060,7 +1060,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 	case asset.Futures:
 		marketInfo, err := e.GetInstruments(ctx, &GenericRequestParams{
-			Count:  1000,
+			Count:  countLimit,
 			Filter: `{"typ": "` + futuresID + `"}`,
 		})
 		if err != nil {

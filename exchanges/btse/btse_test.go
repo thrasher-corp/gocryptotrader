@@ -641,7 +641,7 @@ func TestWsUnexpectedData(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
+	_, err := e.GetFuturesContractDetails(t.Context(), asset.Margin)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetFuturesContractDetails should error correctly on Margin")
 
 	_, err = e.GetFuturesContractDetails(t.Context(), asset.Futures)
