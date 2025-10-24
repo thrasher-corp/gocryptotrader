@@ -1924,9 +1924,6 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
-	}
 	fPair := r.Pair
 	var err error
 	if !fPair.IsEmpty() {
@@ -2061,9 +2058,6 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
-	}
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("%w GetFundingRates IncludePredictedRate", common.ErrFunctionNotSupported)
 	}
 	if !r.PaymentCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w GetFundingRates PaymentCurrency", common.ErrFunctionNotSupported)

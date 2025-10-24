@@ -111,7 +111,7 @@ func TestWsConnect(t *testing.T) {
 	assert.ErrorIs(t, err, websocket.ErrWebsocketNotEnabled)
 	err = exchangeBaseHelper(exch)
 	require.NoError(t, err)
-	err = exch.Websocket.Enable()
+	err = exch.Websocket.EnableAndConnect()
 	assert.NoError(t, err)
 }
 
