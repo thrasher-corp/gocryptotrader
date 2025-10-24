@@ -41,6 +41,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btse"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbase"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbaseinternational"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deribit"
@@ -52,6 +53,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kucoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/mexc"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
@@ -973,6 +975,8 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(exmo.Exchange), nil
 	case "coinbase":
 		return new(coinbase.Exchange), nil
+	case "coinbaseinternational":
+		return new(coinbaseinternational.Exchange), nil
 	case "gateio":
 		return new(gateio.Exchange), nil
 	case "gemini":
@@ -987,6 +991,8 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(kucoin.Exchange), nil
 	case "lbank":
 		return new(lbank.Exchange), nil
+	case "mexc":
+		return new(mexc.Exchange), nil
 	case "okx":
 		return new(okx.Exchange), nil
 	case "poloniex":

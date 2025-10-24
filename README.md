@@ -29,6 +29,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | BTSE | Yes | Yes | NA |
 | Bybit | Yes | Yes | NA |
 | Coinbase | Yes | Yes | No|
+| CoinbaseInternational | Yes | Yes | No |
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | No |
 | Exmo | Yes | NA | NA |
@@ -38,6 +39,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Huobi.Pro | Yes | Yes | NA |
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | NA |
+| MEXC | Yes | Yes | No |
 | Lbank | Yes | No | NA |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
