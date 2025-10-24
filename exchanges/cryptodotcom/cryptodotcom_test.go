@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 }
 
 func initmainTP() error {
-	err := e.UpdateTradablePairs(context.Background(), false)
+	err := e.UpdateTradablePairs(context.Background())
 	if err != nil {
 		return err
 	}

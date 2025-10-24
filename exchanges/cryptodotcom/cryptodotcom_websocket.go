@@ -181,7 +181,7 @@ func (e *Exchange) AuthenticateWebsocketConnection() error {
 	}
 	timestamp := time.Now()
 	req := &WsRequestPayload{
-		ID:     e.Websocket.AuthConn.GenerateMessageID(true),
+		ID:     e.MessageSequence(),
 		Method: publicAuth,
 		Nonce:  timestamp.UnixMilli(),
 	}
@@ -310,7 +310,7 @@ func (e *Exchange) generatePayload(operation string, subscriptions subscription.
 	timestamp := time.Now()
 	for x := range subscriptions {
 		subscriptionPayloads[x] = SubscriptionPayload{
-			ID:     e.Websocket.Conn.GenerateMessageID(false),
+			ID:     e.MessageSequence(),
 			Method: operation,
 			Nonce:  timestamp.UnixMilli(),
 		}

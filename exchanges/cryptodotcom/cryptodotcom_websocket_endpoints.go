@@ -256,10 +256,10 @@ func (e *Exchange) SendWebsocketRequest(method string, arg map[string]any, resul
 	var payload []byte
 	var err error
 	if authenticated {
-		req.ID = e.Websocket.AuthConn.GenerateMessageID(false)
+		req.ID = e.MessageSequence()
 		payload, err = e.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, req)
 	} else {
-		req.ID = e.Websocket.Conn.GenerateMessageID(false)
+		req.ID = e.MessageSequence()
 		payload, err = e.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, req)
 	}
 	if err != nil {
