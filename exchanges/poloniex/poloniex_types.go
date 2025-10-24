@@ -128,6 +128,7 @@ type CryptoNetworkDetail struct {
 	MinConfirm       float64      `json:"minConfirm"`
 	WithdrawMin      types.Number `json:"withdrawMin"`
 	WithdrawFee      types.Number `json:"withdrawFee"`
+	ContractAddress  string       `json:"contractAddress"`
 }
 
 // ServerSystemTime represents a server time.
@@ -438,7 +439,7 @@ type WalletWithdrawals struct {
 
 // Withdraw holds withdraw information
 type Withdraw struct {
-	WithdrawRequestID string `json:"withdrawalRequestsId,string"`
+	WithdrawRequestID uint64 `json:"withdrawalRequestsId"`
 }
 
 // WithdrawCurrencyRequest represents a V2 currency withdrawal parameter.

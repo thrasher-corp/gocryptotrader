@@ -80,7 +80,7 @@ func (e *Exchange) GetCurrency(ctx context.Context, ccy currency.Code) (*Currenc
 
 // GetSystemTimestamp retrieves current server time.
 func (e *Exchange) GetSystemTimestamp(ctx context.Context) (time.Time, error) {
-	var resp *ServerSystemTime
+	var resp ServerSystemTime
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/timestamp", &resp)
 	return resp.ServerTime.Time(), err
 }

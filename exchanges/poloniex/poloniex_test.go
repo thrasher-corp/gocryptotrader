@@ -394,7 +394,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 	arg := &order.Cancel{
 		AccountID: "1",
 	}
-	err := e.CancelOrder(t.Context(), arg)
+	err := e.CancelOrder(t.Context(), nil)
+	assert.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+
+	err = e.CancelOrder(t.Context(), arg)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	arg.OrderID = "123"

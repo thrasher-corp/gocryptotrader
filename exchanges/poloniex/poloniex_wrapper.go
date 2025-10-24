@@ -3,6 +3,7 @@ package poloniex
 import (
 	"context"
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 	"strconv"
@@ -837,11 +838,11 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
+	if err := o.Validate(); err != nil {
+		return err
+	}
 	if o.OrderID == "" && o.ClientOrderID == "" {
 		return order.ErrOrderIDNotSet
-	}
-	if err := o.Validate(o.StandardCancel()); err != nil {
-		return err
 	}
 	var err error
 	switch o.AssetType {
@@ -1261,7 +1262,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	}
 	return &withdraw.ExchangeResponse{
 		Name: e.Name,
-		ID:   v.WithdrawRequestID,
+		ID:   strconv.FormatUint(v.WithdrawRequestID, 10),
 	}, err
 }
 
@@ -1429,9 +1430,6 @@ func stringToAccountType(assetType string) asset.Item {
 // GetOrderHistory retrieves account order information
 // can Limit response to specific order status
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	if req == nil {
-		return nil, common.ErrNilPointer
-	}
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -1881,11 +1879,11 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 			l[i] = limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
-				PriceStepIncrementSize:  symbolDetail.SymbolTradeLimit.PriceScale,
+				PriceStepIncrementSize:  math.Pow(10, -symbolDetail.SymbolTradeLimit.PriceScale),
 				MinimumBaseAmount:       symbolDetail.SymbolTradeLimit.MinQuantity.Float64(),
 				MinimumQuoteAmount:      symbolDetail.SymbolTradeLimit.MinAmount.Float64(),
-				AmountStepIncrementSize: symbolDetail.SymbolTradeLimit.AmountScale,
-				QuoteStepIncrementSize:  symbolDetail.SymbolTradeLimit.QuantityScale,
+				AmountStepIncrementSize: math.Pow(10, -symbolDetail.SymbolTradeLimit.QuantityScale),
+				QuoteStepIncrementSize:  math.Pow(10, -symbolDetail.SymbolTradeLimit.AmountScale),
 			}
 		}
 		return limits.Load(l)
