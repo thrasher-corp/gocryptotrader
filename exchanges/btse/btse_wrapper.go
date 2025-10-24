@@ -1086,7 +1086,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	}
 	resp := make([]futures.Contract, len(marketSummary))
 	for i := range marketSummary {
-		// quote field is the settlement currency, create the quote from the symbol
+		// Quote field is the settlement currency, create the quote currency from the symbol
 		quote := currency.NewCode(marketSummary[i].Symbol[len(marketSummary[i].Base.String()):])
 		cp := currency.NewPair(marketSummary[i].Base, quote)
 		startTime := marketSummary[i].OpenTime.Time()
