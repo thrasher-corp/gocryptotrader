@@ -1998,7 +1998,7 @@ func TestSubscribe(t *testing.T) {
 			var req WsPayload
 			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
 			require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
-			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%d}`, req.ID))
+			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":"%s"}`, req.ID))
 		}
 		e = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
@@ -2020,7 +2020,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
 		require.NoError(tb, err, "Unmarshal must not error")
-		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":%d}`, req.ID))
+		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":"%s"}`, req.ID))
 	}
 	b := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	err := b.Subscribe(channels)

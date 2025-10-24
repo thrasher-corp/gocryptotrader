@@ -443,7 +443,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		orderID = strconv.FormatInt(response.ID, 10)
+		orderID = response.ID
 		if response.Result.CumQuantity == o.Amount {
 			status = order.Filled
 		}
