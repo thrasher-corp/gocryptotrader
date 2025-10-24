@@ -57,8 +57,7 @@ func (c Currencies) Join() string {
 func (c *Currencies) UnmarshalJSON(d []byte) error {
 	if d[0] == '[' {
 		var currs []Code
-		err := json.Unmarshal(d, &currs)
-		if err != nil {
+		if err := json.Unmarshal(d, &currs); err != nil {
 			return err
 		}
 		*c = currs
