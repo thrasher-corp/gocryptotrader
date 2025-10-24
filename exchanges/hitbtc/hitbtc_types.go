@@ -283,7 +283,7 @@ type capture struct {
 	Method string        `json:"method,omitempty"`
 	Result any           `json:"result"`
 	Error  ResponseError `json:"error"`
-	ID     int64         `json:"id,omitempty"`
+	ID     string        `json:"id,omitempty"`
 }
 
 // ResponseError contains error codes from JSON responses
@@ -297,7 +297,7 @@ type WsRequest struct {
 	JSONRPCVersion string    `json:"jsonrpc,omitempty"`
 	Method         string    `json:"method"`
 	Params         *WsParams `json:"params,omitempty"`
-	ID             int64     `json:"id,omitempty"`
+	ID             string    `json:"id,omitempty"`
 }
 
 // WsParams are websocket params for a request
@@ -359,7 +359,7 @@ type WsTrade struct {
 type WsLoginRequest struct {
 	Method string      `json:"method"`
 	Params WsLoginData `json:"params"`
-	ID     int64       `json:"id,omitempty"`
+	ID     string      `json:"id,omitempty"`
 }
 
 // WsLoginData sets credentials for WsLoginRequest
@@ -378,17 +378,17 @@ type wsActiveOrdersResponse struct {
 
 type wsReportResponse struct {
 	OrderData wsOrderData `json:"params"`
-	ID        int64       `json:"id"`
+	ID        string      `json:"id"`
 }
 
 type wsOrderResponse struct {
 	OrderData wsOrderData `json:"result"`
-	ID        int64       `json:"id"`
+	ID        string      `json:"id"`
 }
 
 type wsActiveOrderRequestResponse struct {
 	OrderData []wsOrderData `json:"result"`
-	ID        int64         `json:"id"`
+	ID        string        `json:"id"`
 }
 
 // wsOrderData Active order data for WsActiveOrdersResponse
@@ -446,12 +446,12 @@ type WsReportResponseData struct {
 type WsSubmitOrderRequest struct {
 	Method string                   `json:"method"`
 	Params WsSubmitOrderRequestData `json:"params"`
-	ID     int64                    `json:"id"`
+	ID     string                   `json:"id"`
 }
 
 // WsSubmitOrderRequestData WS request data
 type WsSubmitOrderRequestData struct {
-	ClientOrderID int64   `json:"clientOrderId,string,omitempty"`
+	ClientOrderID string  `json:"clientOrderId,omitempty"`
 	Symbol        string  `json:"symbol"`
 	Side          string  `json:"side"`
 	Price         float64 `json:"price,string"`
@@ -461,7 +461,7 @@ type WsSubmitOrderRequestData struct {
 // WsSubmitOrderSuccessResponse WS response
 type WsSubmitOrderSuccessResponse struct {
 	Result WsSubmitOrderSuccessResponseData `json:"result"`
-	ID     int64                            `json:"id"`
+	ID     string                           `json:"id"`
 	Error  ResponseError                    `json:"error"`
 }
 
@@ -499,7 +499,7 @@ type WsSubmitOrderErrorResponseData struct {
 // WsCancelOrderResponse WS response
 type WsCancelOrderResponse struct {
 	Result WsCancelOrderResponseData `json:"result"`
-	ID     int64                     `json:"id"`
+	ID     string                    `json:"id"`
 	Error  ResponseError             `json:"error"`
 }
 
@@ -524,7 +524,7 @@ type WsCancelOrderResponseData struct {
 // WsReplaceOrderResponse WS response
 type WsReplaceOrderResponse struct {
 	Result WsReplaceOrderResponseData `json:"result"`
-	ID     int64                      `json:"id"`
+	ID     string                     `json:"id"`
 	Error  ResponseError              `json:"error"`
 }
 
@@ -550,7 +550,7 @@ type WsReplaceOrderResponseData struct {
 // WsGetActiveOrdersResponse WS response
 type WsGetActiveOrdersResponse struct {
 	Result []WsGetActiveOrdersResponseData `json:"result"`
-	ID     int64                           `json:"id"`
+	ID     string                          `json:"id"`
 	Error  ResponseError                   `json:"error"`
 }
 
@@ -576,7 +576,7 @@ type WsGetActiveOrdersResponseData struct {
 // WsGetTradingBalanceResponse WS response
 type WsGetTradingBalanceResponse struct {
 	Result []WsGetTradingBalanceResponseData `json:"result"`
-	ID     int64                             `json:"id"`
+	ID     string                            `json:"id"`
 	Error  ResponseError                     `json:"error"`
 }
 
@@ -591,7 +591,7 @@ type WsGetTradingBalanceResponseData struct {
 type WsCancelOrderRequest struct {
 	Method string                   `json:"method"`
 	Params WsCancelOrderRequestData `json:"params"`
-	ID     int64                    `json:"id"`
+	ID     string                   `json:"id"`
 }
 
 // WsCancelOrderRequestData WS request data
@@ -603,7 +603,7 @@ type WsCancelOrderRequestData struct {
 type WsReplaceOrderRequest struct {
 	Method string                    `json:"method"`
 	Params WsReplaceOrderRequestData `json:"params"`
-	ID     int64                     `json:"id,omitempty"`
+	ID     string                    `json:"id,omitempty"`
 }
 
 // WsReplaceOrderRequestData WS request data
@@ -618,7 +618,7 @@ type WsReplaceOrderRequestData struct {
 type WsGetCurrenciesRequest struct {
 	Method string                           `json:"method"`
 	Params WsGetCurrenciesRequestParameters `json:"params"`
-	ID     int64                            `json:"id"`
+	ID     string                           `json:"id"`
 }
 
 // WsGetCurrenciesRequestParameters parameters
@@ -629,7 +629,7 @@ type WsGetCurrenciesRequestParameters struct {
 // WsGetCurrenciesResponse currency response
 type WsGetCurrenciesResponse struct {
 	Result WsGetCurrenciesResponseData `json:"result"`
-	ID     int64                       `json:"id"`
+	ID     string                      `json:"id"`
 	Error  ResponseError               `json:"error"`
 }
 
@@ -652,7 +652,7 @@ type WsGetCurrenciesResponseData struct {
 type WsGetSymbolsRequest struct {
 	Method string                        `json:"method"`
 	Params WsGetSymbolsRequestParameters `json:"params"`
-	ID     int64                         `json:"id"`
+	ID     string                        `json:"id"`
 }
 
 // WsGetSymbolsRequestParameters request parameters
@@ -663,7 +663,7 @@ type WsGetSymbolsRequestParameters struct {
 // WsGetSymbolsResponse symbol response
 type WsGetSymbolsResponse struct {
 	Result WsGetSymbolsResponseData `json:"result"`
-	ID     int64                    `json:"id"`
+	ID     string                   `json:"id"`
 	Error  ResponseError            `json:"error"`
 }
 
@@ -683,7 +683,7 @@ type WsGetSymbolsResponseData struct {
 type WsGetTradesRequest struct {
 	Method string                       `json:"method"`
 	Params WsGetTradesRequestParameters `json:"params"`
-	ID     int64                        `json:"id"`
+	ID     string                       `json:"id"`
 }
 
 // WsGetTradesRequestParameters trade request params
@@ -698,7 +698,7 @@ type WsGetTradesRequestParameters struct {
 type WsGetTradesResponse struct {
 	Jsonrpc string                  `json:"jsonrpc"`
 	Result  WsGetTradesResponseData `json:"result"`
-	ID      int64                   `json:"id"`
+	ID      string                  `json:"id"`
 	Error   ResponseError           `json:"error"`
 }
 

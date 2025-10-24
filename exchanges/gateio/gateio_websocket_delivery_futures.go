@@ -111,7 +111,7 @@ func (e *Exchange) DeliveryFuturesUnsubscribe(ctx context.Context, conn websocke
 	return e.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, e.generateDeliveryFuturesPayload)
 }
 
-func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -194,7 +194,7 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, conn webs
 			}
 		}
 		outbound = append(outbound, WsInput{
-			ID:      conn.GenerateMessageID(false),
+			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
