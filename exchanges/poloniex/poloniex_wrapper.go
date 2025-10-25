@@ -433,7 +433,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		book.Bids = orderbookNew.Bids.Levels()
 		book.Asks = orderbookNew.Asks.Levels()
 	default:
-		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
 	if err := book.Process(); err != nil {
 		return book, err
@@ -597,7 +597,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 			})
 		}
 	default:
-		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
 	if err := e.AddTradesToBuffer(resp...); err != nil {
 		return nil, err
@@ -877,7 +877,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		switch o[i].AssetType {
 		case asset.Spot, asset.Futures:
 		default:
-			return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+			return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 		}
 		if assetType != o[i].AssetType {
 			return nil, fmt.Errorf("%w: order asset type mismatch detected", asset.ErrInvalidAsset)
@@ -1154,7 +1154,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			TimeInForce:          orderDetail.TimeInForce,
 		}, nil
 	default:
-		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
 }
 
@@ -1770,7 +1770,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, assetType asse
 		return nil, futures.ErrNotFuturesAsset
 	}
 	if assetType != asset.Futures {
-		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
 	contracts, err := e.GetFuturesAllProducts(ctx, "")
 	if err != nil {
