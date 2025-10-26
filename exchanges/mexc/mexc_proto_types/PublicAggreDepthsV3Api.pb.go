@@ -102,8 +102,8 @@ func (x *PublicAggreDepthsV3Api) GetToVersion() string {
 
 type PublicAggreDepthV3ApiItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Price        string                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
-	Quantity     string                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	Price         string                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
+	Quantity      string                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

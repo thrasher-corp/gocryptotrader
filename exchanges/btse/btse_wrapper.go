@@ -14,10 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -349,42 +349,21 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(e.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// BTSE exchange
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var a account.Holdings
-	balance, err := e.GetWalletInformation(ctx)
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	balances, err := e.GetWalletInformation(ctx)
 	if err != nil {
-		return a, err
+		return nil, err
 	}
-
-	currencies := make([]account.Balance, len(balance))
-	for b := range balance {
-		currencies[b] = account.Balance{
-			Currency: currency.NewCode(balance[b].Currency),
-			Total:    balance[b].Total,
-			Hold:     balance[b].Total - balance[b].Available,
-			Free:     balance[b].Available,
-		}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for i := range balances {
+		subAccts[0].Balances.Set(balances[i].Currency, accounts.Balance{
+			Total: balances[i].Total,
+			Hold:  balances[i].Total - balances[i].Available,
+			Free:  balances[i].Available,
+		})
 	}
-	a.Exchange = e.Name
-	a.Accounts = []account.SubAccount{
-		{
-			AssetType:  assetType,
-			Currencies: currencies,
-		},
-	}
-
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	err = account.Process(&a, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return a, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -876,10 +855,9 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	return e.GetFee(ctx, feeBuilder)
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 
@@ -1018,27 +996,28 @@ func (m *MarketPair) StripExponent() (string, error) {
 // Pair returns the currency Pair for a MarketPair
 func (m *MarketPair) Pair() (currency.Pair, error) {
 	baseCurr := m.Base
-	var quoteCurr string
+	var quoteStr string
 	if m.Futures {
-		if baseCurr == "TRUMPSOL" { // Only base currency which is different to the rest
-			baseCurr = "TRUMP"
-			quoteCurr = strings.TrimPrefix(m.Symbol, baseCurr)
+		if baseCurr.String() == "TRUMPSOL" { // Only base currency which is different to the rest
+			baseCurr = currency.TRUMP
+			quoteStr = strings.TrimPrefix(m.Symbol, baseCurr.String())
 		} else {
-			s := strings.Split(m.Symbol, m.Base) // e.g. RUNEPFC for RUNE-USD futures pair
+			// Quote field is the settlement currency, create the quote currency from the symbol
+			s := strings.Split(m.Symbol, m.Base.String())
 			if len(s) <= 1 {
 				return currency.EMPTYPAIR, errInvalidPairSymbol
 			}
-			quoteCurr = s[1]
+			quoteStr = s[1]
 		}
 	} else {
 		s := strings.Split(m.Symbol, currency.DashDelimiter)
 		if len(s) != 2 {
 			return currency.EMPTYPAIR, errInvalidPairSymbol
 		}
-		baseCurr = s[0]
-		quoteCurr = s[1]
+		baseCurr = currency.NewCode(s[0])
+		quoteStr = s[1]
 	}
-	return currency.NewPairFromStrings(baseCurr, quoteCurr)
+	return currency.NewPair(baseCurr, currency.NewCode(quoteStr)), nil
 }
 
 // GetMarketSummary returns filtered market pair details; Specifically:
@@ -1077,9 +1056,6 @@ func (e *Exchange) GetMarketSummary(ctx context.Context, symbol string, spot boo
 
 // GetFuturesContractDetails returns details about futures contracts
 func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
-	if !item.IsFutures() {
-		return nil, futures.ErrNotFuturesAsset
-	}
 	if item != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
@@ -1087,67 +1063,46 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]futures.Contract, 0, len(marketSummary))
+	resp := make([]futures.Contract, len(marketSummary))
 	for i := range marketSummary {
-		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(marketSummary[i].Base, marketSummary[i].Symbol[len(marketSummary[i].Base):])
-		if err != nil {
-			return nil, err
-		}
-		settlementCurrencies := make(currency.Currencies, len(marketSummary[i].AvailableSettlement))
-		var startTime, endTime time.Time
-		var ct futures.ContractType
-		if !marketSummary[i].OpenTime.Time().IsZero() {
-			startTime = marketSummary[i].OpenTime.Time()
-		}
-		if !marketSummary[i].CloseTime.Time().IsZero() {
-			endTime = marketSummary[i].CloseTime.Time()
-		}
+		// Quote field is the settlement currency, create the quote currency from the symbol
+		quote := currency.NewCode(marketSummary[i].Symbol[len(marketSummary[i].Base.String()):])
+		cp := currency.NewPair(marketSummary[i].Base, quote)
+		startTime := marketSummary[i].OpenTime.Time()
+		endTime := marketSummary[i].CloseTime.Time()
+		ct := futures.Perpetual
 		if marketSummary[i].TimeBasedContract {
 			if endTime.Sub(startTime) > kline.OneMonth.Duration() {
 				ct = futures.Quarterly
 			} else {
 				ct = futures.Monthly
 			}
-		} else {
-			ct = futures.Perpetual
 		}
-		var contractSettlementType futures.ContractSettlementType
-		for j := range marketSummary[i].AvailableSettlement {
-			settlementCurrencies[j] = currency.NewCode(marketSummary[i].AvailableSettlement[j])
-			if contractSettlementType == futures.LinearOrInverse {
-				continue
-			}
-			containsUSD := strings.Contains(marketSummary[i].AvailableSettlement[j], "USD")
-			if !containsUSD {
-				contractSettlementType = futures.LinearOrInverse
-				continue
-			}
-			if containsUSD {
-				contractSettlementType = futures.Linear
-			}
+		contractSettlementType := futures.LinearOrInverse
+		if marketSummary[i].AvailableSettlement.Contains(currency.USD) {
+			contractSettlementType = futures.Linear
 		}
-
-		c := futures.Contract{
-			Exchange:             e.Name,
-			Name:                 cp,
-			Underlying:           currency.NewPair(currency.NewCode(marketSummary[i].Base), currency.NewCode(marketSummary[i].Quote)),
-			Asset:                item,
-			SettlementCurrencies: settlementCurrencies,
-			StartDate:            startTime,
-			EndDate:              endTime,
-			SettlementType:       contractSettlementType,
-			IsActive:             marketSummary[i].Active,
-			Type:                 ct,
-		}
+		var rate fundingrate.Rate
 		if marketSummary[i].FundingRate > 0 {
-			c.LatestRate = fundingrate.Rate{
+			rate = fundingrate.Rate{
 				Rate: decimal.NewFromFloat(marketSummary[i].FundingRate),
 				Time: time.Now().Truncate(time.Hour),
 			}
 		}
-
-		resp = append(resp, c)
+		resp[i] = futures.Contract{
+			Exchange:                       e.Name,
+			Name:                           cp,
+			Underlying:                     currency.NewPair(marketSummary[i].Base, marketSummary[i].Quote),
+			Asset:                          item,
+			SettlementCurrency:             currency.USDT,
+			AdditionalSettlementCurrencies: marketSummary[i].AvailableSettlement,
+			StartDate:                      startTime,
+			EndDate:                        endTime,
+			SettlementType:                 contractSettlementType,
+			IsActive:                       marketSummary[i].Active,
+			Type:                           ct,
+			LatestRate:                     rate,
+		}
 	}
 	return resp, nil
 }

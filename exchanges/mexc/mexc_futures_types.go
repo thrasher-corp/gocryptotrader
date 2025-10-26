@@ -15,7 +15,7 @@ type WsFuturesData struct {
 
 	Message string `json:"msg"`
 	Code    int64  `json:"code"`
-	ID      int64  `json:"id"`
+	ID      uint64 `json:"id"`
 }
 
 // WsFuturesLoginResponse holds push data information for futures data streams
@@ -23,7 +23,7 @@ type WsFuturesLoginResponse struct {
 	Data    string `json:"data"`
 	Message string `json:"msg"`
 	Code    int64  `json:"code"`
-	ID      int64  `json:"id"`
+	ID      uint64 `json:"id"`
 }
 
 // FWebsocketReqParam holds the param detail or futures websocket subscription request

@@ -56,7 +56,7 @@ func (e *Exchange) GetDepthSnapshotOfContract(ctx context.Context, symbol string
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if limit <= 0 {
-		return nil, errLimitIsRequired
+		return nil, errPaginationLimitIsRequired
 	}
 	var resp *ContractOrderbookWithDepth
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getDepthSnapshotOfContractEPL, http.MethodGet, "contract/depth_commits/"+symbol+"/"+strconv.FormatInt(limit, 10), nil, nil, &resp)
@@ -81,11 +81,11 @@ func (e *Exchange) GetContractFairPrice(ctx context.Context, symbol string) (*Co
 }
 
 // GetContractFundingPrice holds contract's funding price
-func (e *Exchange) GetContractFundingPrice(ctx context.Context, symbol string) (*ContractFundingRate, error) {
+func (e *Exchange) GetContractFundingPrice(ctx context.Context, symbol string) (*ContractFundingRateResponse, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	var resp *ContractFundingRate
+	var resp *ContractFundingRateResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getContractFundingPriceEPL, http.MethodGet, "contract/funding_rate/"+symbol, nil, nil, &resp)
 }
 
@@ -123,6 +123,12 @@ func (e *Exchange) getCandlestickData(ctx context.Context, symbol, path string, 
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if interval != 0 {
 		intervalString, err := ContractIntervalString(interval)
@@ -131,12 +137,10 @@ func (e *Exchange) getCandlestickData(ctx context.Context, symbol, path string, 
 		}
 		params.Set("interval", intervalString)
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("start", strconv.FormatInt(startTime.Unix(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("end", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	var resp *ContractCandlestickData
@@ -317,6 +321,11 @@ func (e *Exchange) GetUserCurrentPendingOrder(ctx context.Context, symbol string
 
 // GetAllUserHistoricalOrders retrieves user all order history
 func (e *Exchange) GetAllUserHistoricalOrders(ctx context.Context, symbol, states, category, side string, startTime, endTime time.Time, pageNumber, pageSize int64) (*FuturesOrders, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -330,11 +339,10 @@ func (e *Exchange) GetAllUserHistoricalOrders(ctx context.Context, symbol, state
 	if side != "" {
 		params.Set("side", side)
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("end_time", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if pageNumber > 0 {
@@ -399,13 +407,17 @@ func (e *Exchange) GetUserOrderAllTransactionDetails(ctx context.Context, symbol
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !startTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("end_time", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if pageNumber > 0 {
@@ -420,6 +432,11 @@ func (e *Exchange) GetUserOrderAllTransactionDetails(ctx context.Context, symbol
 
 // GetTriggerOrderList retrieves a list of futures trigger orders
 func (e *Exchange) GetTriggerOrderList(ctx context.Context, symbol, states string, startTime, endTime time.Time, pageNumber, pageSize int64) (*FuturesTriggerOrders, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -427,11 +444,10 @@ func (e *Exchange) GetTriggerOrderList(ctx context.Context, symbol, states strin
 	if states != "" {
 		params.Set("states", states)
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("end_time", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if pageNumber > 0 {
@@ -446,6 +462,11 @@ func (e *Exchange) GetTriggerOrderList(ctx context.Context, symbol, states strin
 
 // GetFuturesStopLimitOrderList retrieves futures stop limit orders list
 func (e *Exchange) GetFuturesStopLimitOrderList(ctx context.Context, symbol string, isFinished bool, startTime, endTime time.Time, pageNumber, pageSize int64) (interface{}, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -453,11 +474,10 @@ func (e *Exchange) GetFuturesStopLimitOrderList(ctx context.Context, symbol stri
 	if isFinished {
 		params.Set("is_finished", "1")
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("end_time", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if pageNumber > 0 {

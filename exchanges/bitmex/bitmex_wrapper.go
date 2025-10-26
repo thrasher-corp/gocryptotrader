@@ -15,9 +15,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -442,49 +442,24 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(e.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// Bitmex exchange
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	userMargins, err := e.GetAllUserMargin(ctx)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-
-	accountBalances := make(map[string][]account.Balance)
+	var subAccts accounts.SubAccounts
 	// Need to update to add Margin/Liquidity availability
 	for i := range userMargins {
-		accountID := strconv.FormatInt(userMargins[i].Account, 10)
-
-		var wallet WalletInfo
-		wallet, err = e.GetWalletInfo(ctx, userMargins[i].Currency)
+		wallet, err := e.GetWalletInfo(ctx, userMargins[i].Currency)
 		if err != nil {
 			continue
 		}
-
-		accountBalances[accountID] = append(
-			accountBalances[accountID], account.Balance{
-				Currency: currency.NewCode(wallet.Currency),
-				Total:    wallet.Amount,
-			},
-		)
+		a := accounts.NewSubAccount(assetType, strconv.FormatInt(userMargins[i].Account, 10))
+		a.Balances.Set(wallet.Currency, accounts.Balance{Total: wallet.Amount})
+		subAccts = subAccts.Merge(a)
 	}
-
-	if info.Accounts, err = account.CollectBalances(accountBalances, assetType); err != nil {
-		return account.Holdings{}, err
-	}
-	info.Exchange = e.Name
-
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	if err := account.Process(&info, creds); err != nil {
-		return account.Holdings{}, err
-	}
-
-	return info, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -558,10 +533,9 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 	if err != nil {
 		return nil, err
 	}
-	limit := 1000
 	req := &GenericRequestParams{
 		Symbol:  p.String(),
-		Count:   int32(limit),
+		Count:   countLimit,
 		EndTime: timestampEnd.UTC().Format("2006-01-02T15:04:05.000Z"),
 	}
 	ts := timestampStart
@@ -606,7 +580,7 @@ allTrades:
 				ts = tradeData[i].Timestamp
 			}
 		}
-		if len(tradeData) != limit {
+		if len(tradeData) != int(countLimit) {
 			break allTrades
 		}
 	}
@@ -976,10 +950,9 @@ func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
 	return e.websocketSendAuth(ctx)
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 
@@ -1010,25 +983,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	if !e.SupportsAsset(item) || item == asset.Index {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-
-	marketInfo, err := e.GetInstruments(ctx, &GenericRequestParams{Reverse: true, Count: 500})
-	if err != nil {
-		return nil, err
-	}
-
-	resp := make([]futures.Contract, 0, len(marketInfo))
+	var resp []futures.Contract
 	switch item {
 	case asset.PerpetualContract:
+		marketInfo, err := e.GetInstruments(ctx, &GenericRequestParams{
+			Count:  countLimit,
+			Filter: `{"typ": "` + perpetualContractID + `"}`,
+		})
+		if err != nil {
+			return nil, err
+		}
 		for x := range marketInfo {
-			if marketInfo[x].Typ != perpetualContractID {
-				continue
-			}
-			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].QuoteCurrency)
-			if err != nil {
-				return nil, err
-			}
-			underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
+			cp, err := currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].QuoteCurrency)
 			if err != nil {
 				return nil, err
 			}
@@ -1049,17 +1015,17 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				contractSettlementType = futures.Inverse
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            s,
-				IsActive:             marketInfo[x].State == "Open",
-				Status:               marketInfo[x].State,
-				Type:                 futures.Perpetual,
-				SettlementType:       contractSettlementType,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
-				Multiplier:           marketInfo[x].Multiplier,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         currency.NewPair(cp.Base, marketInfo[x].SettlementCurrency),
+				Asset:              item,
+				StartDate:          s,
+				IsActive:           marketInfo[x].State == "Open",
+				Status:             marketInfo[x].State,
+				Type:               futures.Perpetual,
+				SettlementType:     contractSettlementType,
+				SettlementCurrency: marketInfo[x].SettlementCurrency,
+				Multiplier:         marketInfo[x].Multiplier,
 				LatestRate: fundingrate.Rate{
 					Time: marketInfo[x].FundingTimestamp,
 					Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
@@ -1067,16 +1033,16 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			})
 		}
 	case asset.Futures:
+		marketInfo, err := e.GetInstruments(ctx, &GenericRequestParams{
+			Count:  countLimit,
+			Filter: `{"typ": "` + futuresID + `"}`,
+		})
+		if err != nil {
+			return nil, err
+		}
+
 		for x := range marketInfo {
-			if marketInfo[x].Typ != futuresID {
-				continue
-			}
-			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].Symbol[len(marketInfo[x].RootSymbol):])
-			if err != nil {
-				return nil, err
-			}
-			underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
+			cp, err := currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].Symbol[len(marketInfo[x].RootSymbol):])
 			if err != nil {
 				return nil, err
 			}
@@ -1119,18 +1085,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				contractSettlementType = futures.Quanto
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            startTime,
-				EndDate:              endTime,
-				IsActive:             marketInfo[x].State == "Open",
-				Status:               marketInfo[x].State,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
-				Multiplier:           marketInfo[x].Multiplier,
-				SettlementType:       contractSettlementType,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         currency.NewPair(cp.Base, marketInfo[x].SettlementCurrency),
+				Asset:              item,
+				StartDate:          startTime,
+				EndDate:            endTime,
+				IsActive:           marketInfo[x].State == "Open",
+				Status:             marketInfo[x].State,
+				Type:               ct,
+				SettlementCurrency: marketInfo[x].SettlementCurrency,
+				Multiplier:         marketInfo[x].Multiplier,
+				SettlementType:     contractSettlementType,
 			})
 		}
 	}

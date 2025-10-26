@@ -14,11 +14,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -224,18 +224,15 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
-	assets := e.GetAssetTypes(false)
-	errs := common.CollectErrors(len(assets))
-	for x := range assets {
-		go func(x int) {
-			defer errs.Wg.Done()
-			pairs, err := e.FetchTradablePairs(ctx, assets[x])
+	var errs common.ErrorCollector
+	for _, a := range e.GetAssetTypes(false) {
+		errs.Go(func() error {
+			pairs, err := e.FetchTradablePairs(ctx, a)
 			if err != nil {
-				errs.C <- err
-				return
+				return err
 			}
-			errs.C <- e.UpdatePairs(pairs, assets[x], false)
-		}(x)
+			return e.UpdatePairs(pairs, a, false)
+		})
 	}
 	return errs.Collect()
 }
@@ -337,34 +334,29 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(e.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.Holdings, error) {
-	var resp account.Holdings
-	resp.Exchange = e.Name
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, _ asset.Item) (accounts.SubAccounts, error) {
 	currencies, err := e.GetCurrencies(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.Accounts = make([]account.SubAccount, len(currencies))
-	for x := range currencies {
-		var data *AccountSummaryData
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.All, "")}
+	for i := range currencies {
+		var resp *AccountSummaryData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			data, err = e.WSRetrieveAccountSummary(ctx, currency.NewCode(currencies[x].Currency), false)
+			resp, err = e.WSRetrieveAccountSummary(ctx, currencies[i].Currency, false)
 		} else {
-			data, err = e.GetAccountSummary(ctx, currency.NewCode(currencies[x].Currency), false)
+			resp, err = e.GetAccountSummary(ctx, currencies[i].Currency, false)
 		}
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		var subAcc account.SubAccount
-		subAcc.Currencies = append(subAcc.Currencies, account.Balance{
-			Currency: currency.NewCode(currencies[x].Currency),
-			Total:    data.Balance,
-			Hold:     data.Balance - data.AvailableFunds,
+		subAccts[0].Balances.Set(currencies[i].Currency, accounts.Balance{
+			Total: resp.Balance,
+			Hold:  resp.Balance - resp.AvailableFunds,
 		})
-		resp.Accounts[x] = subAcc
 	}
-	return resp, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
@@ -383,9 +375,9 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 	for x := range currencies {
 		var deposits *DepositsData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			deposits, err = e.WSRetrieveDeposits(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			deposits, err = e.WSRetrieveDeposits(ctx, currencies[x].Currency, 100, 0)
 		} else {
-			deposits, err = e.GetDeposits(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			deposits, err = e.GetDeposits(ctx, currencies[x].Currency, 100, 0)
 		}
 		if err != nil {
 			return nil, err
@@ -396,7 +388,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 				Status:          deposits.Data[y].State,
 				TransferID:      deposits.Data[y].TransactionID,
 				Timestamp:       deposits.Data[y].UpdatedTimestamp.Time(),
-				Currency:        currencies[x].Currency,
+				Currency:        currencies[x].Currency.String(),
 				Amount:          deposits.Data[y].Amount,
 				CryptoToAddress: deposits.Data[y].Address,
 				TransferType:    "deposit",
@@ -404,9 +396,9 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		}
 		var withdrawalData *WithdrawalsData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			withdrawalData, err = e.WSRetrieveWithdrawals(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			withdrawalData, err = e.WSRetrieveWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		} else {
-			withdrawalData, err = e.GetWithdrawals(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			withdrawalData, err = e.GetWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		}
 		if err != nil {
 			return nil, err
@@ -417,7 +409,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 				Status:          withdrawalData.Data[z].State,
 				TransferID:      withdrawalData.Data[z].TransactionID,
 				Timestamp:       withdrawalData.Data[z].UpdatedTimestamp.Time(),
-				Currency:        currencies[x].Currency,
+				Currency:        currencies[x].Currency.String(),
 				Amount:          withdrawalData.Data[z].Amount,
 				CryptoToAddress: withdrawalData.Data[z].Address,
 				TransferType:    "withdrawal",
@@ -441,14 +433,14 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 	}
 	resp := []exchange.WithdrawalHistory{}
 	for x := range currencies {
-		if !strings.EqualFold(currencies[x].Currency, c.String()) {
+		if !currencies[x].Currency.Equal(c) {
 			continue
 		}
 		var withdrawalData *WithdrawalsData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			withdrawalData, err = e.WSRetrieveWithdrawals(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			withdrawalData, err = e.WSRetrieveWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		} else {
-			withdrawalData, err = e.GetWithdrawals(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			withdrawalData, err = e.GetWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		}
 		if err != nil {
 			return nil, err
@@ -458,7 +450,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 				Status:          withdrawalData.Data[y].State,
 				TransferID:      withdrawalData.Data[y].TransactionID,
 				Timestamp:       withdrawalData.Data[y].UpdatedTimestamp.Time(),
-				Currency:        currencies[x].Currency,
+				Currency:        currencies[x].Currency.String(),
 				Amount:          withdrawalData.Data[y].Amount,
 				CryptoToAddress: withdrawalData.Data[y].Address,
 				TransferType:    "deposit",
@@ -1027,10 +1019,9 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	return fee, nil
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 
@@ -1183,18 +1174,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				contractSettlementType = futures.Linear
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           currency.NewPair(currency.NewCode(inst.BaseCurrency), currency.NewCode(inst.QuoteCurrency)),
-				Asset:                item,
-				SettlementCurrencies: []currency.Code{currency.NewCode(inst.SettlementCurrency)},
-				StartDate:            inst.CreationTimestamp.Time(),
-				EndDate:              inst.ExpirationTimestamp.Time(),
-				Type:                 ct,
-				SettlementType:       contractSettlementType,
-				IsActive:             inst.IsActive,
-				MaxLeverage:          inst.MaxLeverage,
-				Multiplier:           inst.ContractSize,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         currency.NewPair(inst.BaseCurrency, inst.QuoteCurrency),
+				Asset:              item,
+				SettlementCurrency: inst.SettlementCurrency,
+				StartDate:          inst.CreationTimestamp.Time(),
+				EndDate:            inst.ExpirationTimestamp.Time(),
+				Type:               ct,
+				SettlementType:     contractSettlementType,
+				IsActive:           inst.IsActive,
+				MaxLeverage:        inst.MaxLeverage,
+				Multiplier:         inst.ContractSize,
 			})
 		}
 	}

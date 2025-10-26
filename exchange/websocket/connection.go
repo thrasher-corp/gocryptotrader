@@ -2,7 +2,9 @@ package websocket
 
 import (
 	"bytes"
+	"compress/flate"
 	"compress/gzip"
+	"compress/zlib"
 	"context"
 	"errors"
 	"fmt"
@@ -308,9 +310,13 @@ func (c *connection) ReadMessage() Response {
 
 // parseBinaryResponse parses a websocket binary response into a usable byte array
 func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
+	if len(resp) == 0 {
+		return nil, fmt.Errorf("%w: empty binary response", common.ErrNoResponse)
+	}
 	var reader io.ReadCloser
 	var err error
-	if len(resp) >= 2 && resp[0] == 31 && resp[1] == 139 { // Detect GZIP
+	switch {
+	case len(resp) >= 2 && resp[0] == 31 && resp[1] == 139: // Detect GZIP
 		reader, err = gzip.NewReader(bytes.NewReader(resp))
 		if err != nil {
 			return nil, err
@@ -320,11 +326,24 @@ func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
 			return nil, err
 		}
 		return standardMessage, reader.Close()
+	case len(resp) > 2 && (resp[0]&0x0F == 8):
+		// Possible DEFLATE (zlib) compressed — used by permessage-deflate
+		zr, zerr := zlib.NewReader(bytes.NewReader(resp))
+		if zerr != nil {
+			// fallback: raw deflate stream without zlib header
+			fr := flate.NewReader(bytes.NewReader(resp))
+			reader = io.NopCloser(fr)
+		} else {
+			reader = zr
+		}
+		standardMessage, err := io.ReadAll(reader)
+		if err != nil {
+			return nil, err
+		}
+		return standardMessage, reader.Close()
+	default:
+		return resp, nil
 	}
-	if len(resp) == 0 {
-		return nil, fmt.Errorf("%w: empty binary response", common.ErrNoResponse)
-	}
-	return resp, nil
 }
 
 // Shutdown shuts down and closes specific connection

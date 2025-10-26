@@ -14,8 +14,8 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types"
@@ -137,10 +137,10 @@ func isFutures(s *subscription.Subscription) bool {
 }
 
 var defaultSubscriptions = subscription.List{
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 5},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.FifteenMin},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
 
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel, Authenticated: true},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
@@ -195,8 +195,9 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 			return err
 		} else if resp.Code != 0 {
 			failedSubscriptions = append(failedSubscriptions, subs[s])
+		} else {
+			successfulSubscriptions = append(successfulSubscriptions, subs[s])
 		}
-		successfulSubscriptions = append(successfulSubscriptions, subs[s])
 	}
 	if err := e.Websocket.RemoveSubscriptions(conn, failedSubscriptions...); err != nil {
 		return err
@@ -251,15 +252,14 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		if ok := orderbookSnapshotLoadedPairs[dataSplit[2]]; !ok {
-			err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:    e.Name,
 				Asset:       asset.Spot,
 				Asks:        []orderbook.Level{ask},
 				Bids:        []orderbook.Level{bid},
 				Pair:        cp,
 				LastUpdated: time.Now(),
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 			syncOrderbookPairsLock.Lock()
@@ -278,8 +278,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		result := mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreDepths{},
 		}
-		err := proto.Unmarshal(respRaw, &result)
-		if err != nil {
+		if err := proto.Unmarshal(respRaw, &result); err != nil {
 			return err
 		}
 		depths := result.GetPublicAggreDepths()
@@ -315,15 +314,14 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		}
 
 		if !orderbookSnapshotLoadedPairs[*result.Symbol] {
-			err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:    e.Name,
 				Asset:       asset.Spot,
 				Asks:        asks,
 				Bids:        bids,
 				Pair:        cp.Format(format),
 				LastUpdated: time.Now(),
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 			syncOrderbookPairsLock.Lock()
@@ -341,8 +339,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		result := mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreDeals{},
 		}
-		err := proto.Unmarshal(respRaw, &result)
-		if err != nil {
+		if err := proto.Unmarshal(respRaw, &result); err != nil {
 			return err
 		}
 		cp, err := e.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
@@ -458,29 +455,27 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 				}
 			}
 			if ok := orderbookSnapshotLoadedPairs[dataSplit[2]]; !ok {
-				err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+				if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 					Exchange:    e.Name,
 					Pair:        cp,
 					Asks:        asks,
 					Bids:        bids,
 					Asset:       asset.Spot,
 					LastUpdated: time.Now(),
-				})
-				if err != nil {
+				}); err != nil {
 					return err
 				}
 				syncOrderbookPairsLock.Lock()
 				orderbookSnapshotLoadedPairs[dataSplit[2]] = true
 				syncOrderbookPairsLock.Unlock()
 			}
-			err = e.Websocket.Orderbook.Update(&orderbook.Update{
+			if err := e.Websocket.Orderbook.Update(&orderbook.Update{
 				Pair:       cp,
 				Asks:       asks,
 				Bids:       bids,
 				UpdateTime: time.Now(),
 				Asset:      asset.Spot,
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 		}
@@ -579,9 +574,9 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- account.Change{
+		e.Websocket.DataHandler <- accounts.Change{
 			AssetType: asset.Spot,
-			Balance: &account.Balance{
+			Balance: accounts.Balance{
 				Currency: currency.NewCode(body.VcoinName),
 				Total:    balanceAmount,
 				Hold:     frozenAmount,

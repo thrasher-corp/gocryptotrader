@@ -22,38 +22,38 @@ const (
 
 // ExchangeConfig represents rules and symbols of an exchange
 type ExchangeConfig struct {
-	Timezone        string         `json:"timezone"`
-	ServerTime      types.Time     `json:"serverTime"`
-	RateLimits      []any          `json:"rateLimits"`
-	ExchangeFilters []any          `json:"exchangeFilters"`
-	Symbols         []SymbolDetail `json:"symbols"`
+	Timezone        string          `json:"timezone"`
+	ServerTime      types.Time      `json:"serverTime"`
+	RateLimits      json.RawMessage `json:"rateLimits"`
+	ExchangeFilters json.RawMessage `json:"exchangeFilters"`
+	Symbols         []SymbolDetail  `json:"symbols"`
 }
 
 // SymbolDetail represents a symbol detail.
 type SymbolDetail struct {
-	Symbol                     string       `json:"symbol"`
-	Status                     types.Number `json:"status"`
-	BaseAsset                  string       `json:"baseAsset"`
-	BaseAssetPrecision         float64      `json:"baseAssetPrecision"`
-	QuoteAsset                 string       `json:"quoteAsset"`
-	QuotePrecision             float64      `json:"quotePrecision"`
-	QuoteAssetPrecision        float64      `json:"quoteAssetPrecision"`
-	BaseCommissionPrecision    float64      `json:"baseCommissionPrecision"`
-	QuoteCommissionPrecision   float64      `json:"quoteCommissionPrecision"`
-	OrderTypes                 []string     `json:"orderTypes"`
-	IsSpotTradingAllowed       bool         `json:"isSpotTradingAllowed"`
-	IsMarginTradingAllowed     bool         `json:"isMarginTradingAllowed"`
-	QuoteAmountPrecision       types.Number `json:"quoteAmountPrecision"`
-	BaseSizePrecision          types.Number `json:"baseSizePrecision"`
-	Permissions                []string     `json:"permissions"`
-	Filters                    []any        `json:"filters"`
-	MaxQuoteAmount             types.Number `json:"maxQuoteAmount"`
-	MakerCommission            types.Number `json:"makerCommission"`
-	TakerCommission            types.Number `json:"takerCommission"`
-	QuoteAmountPrecisionMarket types.Number `json:"quoteAmountPrecisionMarket"`
-	MaxQuoteAmountMarket       types.Number `json:"maxQuoteAmountMarket"`
-	FullName                   string       `json:"fullName"`
-	TradeSideType              int64        `json:"tradeSideType"`
+	Symbol                     string          `json:"symbol"`
+	Status                     types.Number    `json:"status"`
+	BaseAsset                  string          `json:"baseAsset"`
+	BaseAssetPrecision         float64         `json:"baseAssetPrecision"`
+	QuoteAsset                 string          `json:"quoteAsset"`
+	QuotePrecision             float64         `json:"quotePrecision"`
+	QuoteAssetPrecision        float64         `json:"quoteAssetPrecision"`
+	BaseCommissionPrecision    float64         `json:"baseCommissionPrecision"`
+	QuoteCommissionPrecision   float64         `json:"quoteCommissionPrecision"`
+	OrderTypes                 []string        `json:"orderTypes"`
+	IsSpotTradingAllowed       bool            `json:"isSpotTradingAllowed"`
+	IsMarginTradingAllowed     bool            `json:"isMarginTradingAllowed"`
+	QuoteAmountPrecision       types.Number    `json:"quoteAmountPrecision"`
+	BaseSizePrecision          types.Number    `json:"baseSizePrecision"`
+	Permissions                []string        `json:"permissions"`
+	Filters                    json.RawMessage `json:"filters"`
+	MaxQuoteAmount             types.Number    `json:"maxQuoteAmount"`
+	MakerCommission            types.Number    `json:"makerCommission"`
+	TakerCommission            types.Number    `json:"takerCommission"`
+	QuoteAmountPrecisionMarket types.Number    `json:"quoteAmountPrecisionMarket"`
+	MaxQuoteAmountMarket       types.Number    `json:"maxQuoteAmountMarket"`
+	FullName                   string          `json:"fullName"`
+	TradeSideType              int64           `json:"tradeSideType"`
 }
 
 // Orderbook represents a symbol orderbook detail
@@ -114,23 +114,23 @@ type SymbolAveragePrice struct {
 
 // TickerData represents a ticker data for a symbol
 type TickerData struct {
-	Symbol             string       `json:"symbol"`
-	PriceChange        types.Number `json:"priceChange"`
-	PriceChangePercent types.Number `json:"priceChangePercent"`
-	PrevClosePrice     types.Number `json:"prevClosePrice"`
-	LastPrice          types.Number `json:"lastPrice"`
-	BidPrice           types.Number `json:"bidPrice"`
-	BidQty             types.Number `json:"bidQty"`
-	AskPrice           types.Number `json:"askPrice"`
-	AskQty             types.Number `json:"askQty"`
-	OpenPrice          types.Number `json:"openPrice"`
-	HighPrice          types.Number `json:"highPrice"`
-	LowPrice           types.Number `json:"lowPrice"`
-	Volume             types.Number `json:"volume"`
-	QuoteVolume        types.Number `json:"quoteVolume"`
-	OpenTime           types.Time   `json:"openTime"`
-	CloseTime          types.Time   `json:"closeTime"`
-	Count              any          `json:"count"`
+	Symbol             string          `json:"symbol"`
+	PriceChange        types.Number    `json:"priceChange"`
+	PriceChangePercent types.Number    `json:"priceChangePercent"`
+	PrevClosePrice     types.Number    `json:"prevClosePrice"`
+	LastPrice          types.Number    `json:"lastPrice"`
+	BidPrice           types.Number    `json:"bidPrice"`
+	BidQty             types.Number    `json:"bidQty"`
+	AskPrice           types.Number    `json:"askPrice"`
+	AskQty             types.Number    `json:"askQty"`
+	OpenPrice          types.Number    `json:"openPrice"`
+	HighPrice          types.Number    `json:"highPrice"`
+	LowPrice           types.Number    `json:"lowPrice"`
+	Volume             types.Number    `json:"volume"`
+	QuoteVolume        types.Number    `json:"quoteVolume"`
+	OpenTime           types.Time      `json:"openTime"`
+	CloseTime          types.Time      `json:"closeTime"`
+	Count              json.RawMessage `json:"count"`
 }
 
 // TickerList represents list of ticker data
@@ -158,25 +158,6 @@ type SymbolPriceTicker struct {
 	Price  types.Number `json:"price"`
 }
 
-// SymbolPriceTickers represent list of symbol price tickers
-type SymbolPriceTickers []SymbolPriceTicker
-
-// UnmarshalJSON deserializes a byte data into SymbolPriceTickers instance
-func (t *SymbolPriceTickers) UnmarshalJSON(data []byte) error {
-	tickers := []SymbolPriceTicker{}
-	err := json.Unmarshal(data, &tickers)
-	if err != nil {
-		var val *SymbolPriceTicker
-		err = json.Unmarshal(data, &val)
-		if err != nil {
-			return err
-		}
-		tickers = []SymbolPriceTicker{*val}
-	}
-	*t = tickers
-	return nil
-}
-
 // SymbolOrderbookTicker represents a symbol orderbook ticker detail
 type SymbolOrderbookTicker struct {
 	Symbol   string `json:"symbol"`
@@ -184,25 +165,6 @@ type SymbolOrderbookTicker struct {
 	BidQty   string `json:"bidQty"`
 	AskPrice string `json:"askPrice"`
 	AskQty   string `json:"askQty"`
-}
-
-// SymbolOrderbookTickerList represents a list of symbols orderbook ticker detail
-type SymbolOrderbookTickerList []SymbolOrderbookTicker
-
-// UnmarshalJSON deserializes byte data into a SymbolOrderbookTickerList instance.
-func (t *SymbolOrderbookTickerList) UnmarshalJSON(data []byte) error {
-	tickers := []SymbolOrderbookTicker{}
-	err := json.Unmarshal(data, &tickers)
-	if err != nil {
-		var val *SymbolOrderbookTicker
-		err = json.Unmarshal(data, &val)
-		if err != nil {
-			return err
-		}
-		tickers = []SymbolOrderbookTicker{*val}
-	}
-	*t = tickers
-	return nil
 }
 
 // SubAccountCreationResponse represents a sub-account creation response.
@@ -646,23 +608,26 @@ type AffiliateCampaignData struct {
 	Code    int64 `json:"code"`
 	Message any   `json:"message"`
 	Data    struct {
-		PageSize    int64 `json:"pageSize"`
-		TotalCount  int64 `json:"totalCount"`
-		TotalPage   int64 `json:"totalPage"`
-		CurrentPage int64 `json:"currentPage"`
-		ResultList  []struct {
-			Campaign      string       `json:"campaign"`
-			InviteCode    string       `json:"inviteCode"`
-			ClickTime     types.Time   `json:"clickTime"`
-			CreateTime    types.Time   `json:"createTime"`
-			Signup        int64        `json:"signup"`
-			Traded        int64        `json:"traded"`
-			Deposited     int64        `json:"deposited"`
-			DepositAmount types.Number `json:"depositAmount"`
-			TradingAmount types.Number `json:"tradingAmount"`
-			Commission    types.Number `json:"commission"`
-		} `json:"resultList"`
+		PageSize    int64           `json:"pageSize"`
+		TotalCount  int64           `json:"totalCount"`
+		TotalPage   int64           `json:"totalPage"`
+		CurrentPage int64           `json:"currentPage"`
+		ResultList  []*CampaignData `json:"resultList"`
 	} `json:"data"`
+}
+
+// CampaignData represents a campaign data
+type CampaignData struct {
+	Campaign      string       `json:"campaign"`
+	InviteCode    string       `json:"inviteCode"`
+	ClickTime     types.Time   `json:"clickTime"`
+	CreateTime    types.Time   `json:"createTime"`
+	Signup        int64        `json:"signup"`
+	Traded        int64        `json:"traded"`
+	Deposited     int64        `json:"deposited"`
+	DepositAmount types.Number `json:"depositAmount"`
+	TradingAmount types.Number `json:"tradingAmount"`
+	Commission    types.Number `json:"commission"`
 }
 
 // AffiliateReferralData holds an affiliate referral data
@@ -671,28 +636,31 @@ type AffiliateReferralData struct {
 	Code    int64 `json:"code"`
 	Message any   `json:"message"`
 	Data    struct {
-		PageSize    int64 `json:"pageSize"`
-		TotalCount  int64 `json:"totalCount"`
-		TotalPage   int64 `json:"totalPage"`
-		CurrentPage int64 `json:"currentPage"`
-		ResultList  []struct {
-			UID              string       `json:"uid"`
-			NickName         string       `json:"nickName"`
-			Email            string       `json:"email"`
-			RegisterTime     types.Time   `json:"registerTime"`
-			InviteCode       string       `json:"inviteCode"`
-			DepositAmount    types.Number `json:"depositAmount"`
-			TradingAmount    types.Number `json:"tradingAmount"`
-			Commission       string       `json:"commission"`
-			FirstDepositTime types.Time   `json:"firstDepositTime"`
-			FirstTradeTime   types.Time   `json:"firstTradeTime"`
-			LastDepositTime  types.Time   `json:"lastDepositTime"`
-			LastTradeTime    types.Time   `json:"lastTradeTime"`
-			WithdrawAmount   types.Number `json:"withdrawAmount"`
-			Asset            string       `json:"asset"`
-			Identification   int64        `json:"identification"`
-		} `json:"resultList"`
+		PageSize    int64           `json:"pageSize"`
+		TotalCount  int64           `json:"totalCount"`
+		TotalPage   int64           `json:"totalPage"`
+		CurrentPage int64           `json:"currentPage"`
+		ResultList  []*ReferralData `json:"resultList"`
 	} `json:"data"`
+}
+
+// ReferralData holds a referral detail
+type ReferralData struct {
+	UID              string       `json:"uid"`
+	NickName         string       `json:"nickName"`
+	Email            string       `json:"email"`
+	RegisterTime     types.Time   `json:"registerTime"`
+	InviteCode       string       `json:"inviteCode"`
+	DepositAmount    types.Number `json:"depositAmount"`
+	TradingAmount    types.Number `json:"tradingAmount"`
+	Commission       string       `json:"commission"`
+	FirstDepositTime types.Time   `json:"firstDepositTime"`
+	FirstTradeTime   types.Time   `json:"firstTradeTime"`
+	LastDepositTime  types.Time   `json:"lastDepositTime"`
+	LastTradeTime    types.Time   `json:"lastTradeTime"`
+	WithdrawAmount   types.Number `json:"withdrawAmount"`
+	Asset            string       `json:"asset"`
+	Identification   int64        `json:"identification"`
 }
 
 // SubAffiliateData represents a sub-affiliate details
@@ -732,11 +700,9 @@ type FuturesContractsList []FuturesContractDetail
 // UnmarshalJSON deserializes a futures contract list byte data into FuturesContractsList instance
 func (fcl *FuturesContractsList) UnmarshalJSON(data []byte) error {
 	var target []FuturesContractDetail
-	err := json.Unmarshal(data, &target)
-	if err != nil {
+	if err := json.Unmarshal(data, &target); err != nil {
 		var newTarget *FuturesContractDetail
-		err = json.Unmarshal(data, &newTarget)
-		if err != nil {
+		if err := json.Unmarshal(data, &newTarget); err != nil {
 			return err
 		}
 		target = append(target, *newTarget)
@@ -811,8 +777,8 @@ type ContractOrderbook struct {
 
 // ContractOrderbookWithDepth holds orderbook depth details
 type ContractOrderbookWithDepth struct {
-	Success bool  `json:"success"`
 	Code    int64 `json:"code"`
+	Success bool  `json:"success"`
 	Data    []struct {
 		Asks    []OrderbookDataWithDepth `json:"asks"`
 		Bids    []OrderbookDataWithDepth `json:"bids"`
@@ -825,8 +791,7 @@ type OrderbookDataWithDepth orderbook.Level
 
 // UnmarshalJSON deserializes slice of byte data into OrderbookDataWithDepth
 func (od *OrderbookDataWithDepth) UnmarshalJSON(data []byte) error {
-	target := [3]any{&od.Price, &od.Amount, &od.OrderCount}
-	return json.Unmarshal(data, &target)
+	return json.Unmarshal(data, &[3]any{&od.Price, &od.Amount, &od.OrderCount})
 }
 
 // ContractIndexPriceDetail holds index price details
@@ -851,19 +816,22 @@ type ContractFairPrice struct {
 	} `json:"data"`
 }
 
-// ContractFundingRate holds contract's funding rate details
-type ContractFundingRate struct {
-	Success bool  `json:"success"`
-	Code    int64 `json:"code"`
-	Data    struct {
-		Symbol         string     `json:"symbol"`
-		FundingRate    float64    `json:"fundingRate"`
-		MaxFundingRate float64    `json:"maxFundingRate"`
-		MinFundingRate float64    `json:"minFundingRate"`
-		CollectCycle   int64      `json:"collectCycle"`
-		NextSettleTime types.Time `json:"nextSettleTime"`
-		Timestamp      types.Time `json:"timestamp"`
-	} `json:"data"`
+// ContractFundingRateResponse holds contract's funding rate details response
+type ContractFundingRateResponse struct {
+	Success bool                       `json:"success"`
+	Code    int64                      `json:"code"`
+	Data    *ContractFundingRateDetail `json:"data"`
+}
+
+// ContractFundingRateDetail holds a contract's funding rate details
+type ContractFundingRateDetail struct {
+	Symbol         string     `json:"symbol"`
+	FundingRate    float64    `json:"fundingRate"`
+	MaxFundingRate float64    `json:"maxFundingRate"`
+	MinFundingRate float64    `json:"minFundingRate"`
+	CollectCycle   int64      `json:"collectCycle"`
+	NextSettleTime types.Time `json:"nextSettleTime"`
+	Timestamp      types.Time `json:"timestamp"`
 }
 
 // ContractCandlestickData holds futures contracts candlestick data
@@ -1021,21 +989,24 @@ type AssetTransfers struct {
 	Success bool  `json:"success"`
 	Code    int64 `json:"code"`
 	Data    struct {
-		PageSize    int64 `json:"pageSize"`
-		TotalCount  int64 `json:"totalCount"`
-		TotalPage   int64 `json:"totalPage"`
-		CurrentPage int64 `json:"currentPage"`
-		ResultList  []struct {
-			ID            int64      `json:"id"`
-			TransactionID string     `json:"txid"`
-			Currency      string     `json:"currency"`
-			Amount        float64    `json:"amount"`
-			TransferType  string     `json:"type"`
-			State         string     `json:"state"`
-			CreateTime    types.Time `json:"createTime"`
-			UpdateTime    types.Time `json:"updateTime"`
-		} `json:"resultList"`
+		PageSize    int64                 `json:"pageSize"`
+		TotalCount  int64                 `json:"totalCount"`
+		TotalPage   int64                 `json:"totalPage"`
+		CurrentPage int64                 `json:"currentPage"`
+		ResultList  []AssetTransferDetail `json:"resultList"`
 	} `json:"data"`
+}
+
+// AssetTransferDetail holds an asset transfer records detail
+type AssetTransferDetail struct {
+	ID            int64      `json:"id"`
+	TransactionID string     `json:"txid"`
+	Currency      string     `json:"currency"`
+	Amount        float64    `json:"amount"`
+	TransferType  string     `json:"type"`
+	State         string     `json:"state"`
+	CreateTime    types.Time `json:"createTime"`
+	UpdateTime    types.Time `json:"updateTime"`
 }
 
 // Positions holds list position and their details

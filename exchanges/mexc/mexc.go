@@ -36,21 +36,19 @@ const (
 
 var (
 	errInvalidSubAccountName      = errors.New("invalid sub-account name")
-	errAPIKeyMissing              = errors.New("API key is required")
+	errAPIKeyMissing              = errors.New("api key is required")
 	errInvalidSubAccountNote      = errors.New("invalid sub-account note")
 	errUnsupportedPermissionValue = errors.New("permission is unsupported")
 	errAddressRequired            = errors.New("address is required")
 	errNetworkNameRequired        = errors.New("network name required")
 	errAccountTypeRequired        = errors.New("account type information required")
 	errTransactionIDRequired      = errors.New("missing transaction ID")
-	errLimitIsRequired            = errors.New("limit is required")
+	errPaginationLimitIsRequired  = errors.New("limit is required")
 	errPageSizeRequired           = errors.New("page size is required")
 	errPageNumberRequired         = errors.New("page number is required")
 	errMissingLeverage            = errors.New("leverage is required")
 	errPositionModeRequired       = errors.New("position mode is required")
 )
-
-// Start implementing public and private exchange API funcs below
 
 // GetSymbols retrieves current exchange trading rules and symbol information
 func (e *Exchange) GetSymbols(ctx context.Context, symbols []string) (*ExchangeConfig, error) {
@@ -113,13 +111,17 @@ func (e *Exchange) GetAggregatedTrades(ctx context.Context, symbol string, start
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -178,16 +180,21 @@ func (e *Exchange) GetCandlestick(ctx context.Context, symbol, interval string, 
 	if interval == "" {
 		return nil, kline.ErrUnsupportedInterval
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol)
-	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("interval", interval)
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
@@ -223,29 +230,41 @@ func (e *Exchange) Get24HourTickerPriceChangeStatistics(ctx context.Context, sym
 }
 
 // GetSymbolPriceTicker represents a symbol price ticker detail
-func (e *Exchange) GetSymbolPriceTicker(ctx context.Context, symbols []string) ([]SymbolPriceTicker, error) {
+func (e *Exchange) GetSymbolPriceTicker(ctx context.Context, symbol string) (*SymbolPriceTicker, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
 	params := url.Values{}
-	if len(symbols) > 1 {
+	params.Set("symbol", symbol)
+	var resp *SymbolPriceTicker
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, symbolPriceTickerEPL, http.MethodGet, "ticker/price", params, nil, &resp)
+}
+
+// GetSymbolsPriceTicker represents a symbol price ticker detail
+func (e *Exchange) GetSymbolsPriceTicker(ctx context.Context, symbols []string) ([]SymbolPriceTicker, error) {
+	params := url.Values{}
+	if len(symbols) > 0 {
 		params.Set("symbols", strings.Join(symbols, ","))
-	} else if len(symbols) == 1 {
-		params.Set("symbol", symbols[0])
 	}
-	epl := symbolsPriceTickerEPL
-	if len(symbols) == 1 {
-		epl = symbolPriceTickerEPL
-	}
-	var resp SymbolPriceTickers
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodGet, "ticker/price", params, nil, &resp)
+	var resp []SymbolPriceTicker
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, symbolsPriceTickerEPL, http.MethodGet, "ticker/price", params, nil, &resp)
 }
 
 // GetSymbolOrderbookTicker represents an orderbook detail for a symbol
-func (e *Exchange) GetSymbolOrderbookTicker(ctx context.Context, symbol string) ([]SymbolOrderbookTicker, error) {
-	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+func (e *Exchange) GetSymbolOrderbookTicker(ctx context.Context, symbol string) (*SymbolOrderbookTicker, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
 	}
-	var resp SymbolOrderbookTickerList
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *SymbolOrderbookTicker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, symbolOrderbookTickerEPL, http.MethodGet, "ticker/bookTicker", params, nil, &resp)
+}
+
+// GetOrderbookTickers represents an orderbook detail for all symbols
+func (e *Exchange) GetOrderbookTickers(ctx context.Context) ([]SymbolOrderbookTicker, error) {
+	var resp []SymbolOrderbookTicker
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, symbolOrderbookTickerEPL, http.MethodGet, "ticker/bookTicker", nil, nil, &resp)
 }
 
 // CreateSubAccount create a sub-account from the master account.
@@ -367,14 +386,19 @@ func (e *Exchange) GetSubAccountUnversalTransferHistory(ctx context.Context, fro
 	if !e.SupportsAsset(toAccountType) {
 		return nil, fmt.Errorf("%w toAccountType %v", asset.ErrNotSupported, fromAccountType)
 	}
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	params.Set("fromAccountType", fromAccountType.String())
 	params.Set("toAccountType", toAccountType.String())
 	if fromAccount != "" {
@@ -475,6 +499,11 @@ func (e *Exchange) CancelWithdrawal(ctx context.Context, id string) (*IDResponse
 
 // GetFundDepositHistory retrieves a list of fund deposit transaction details
 func (e *Exchange) GetFundDepositHistory(ctx context.Context, coin currency.Code, status string, startTime, endTime time.Time, limit int64) ([]FundDepositInfo, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -482,13 +511,13 @@ func (e *Exchange) GetFundDepositHistory(ctx context.Context, coin currency.Code
 	if status != "" {
 		params.Set("status", status)
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -499,6 +528,11 @@ func (e *Exchange) GetFundDepositHistory(ctx context.Context, coin currency.Code
 // GetWithdrawalHistory represents currency withdrawal history possible values of withdraw status
 // 1:APPLY,2:AUDITING,3:WAIT,4:PROCESSING,5:WAIT_PACKAGING,6:WAIT_CONFIRM,7:SUCCESS,8:FAILED,9:CANCEL,10:MANUAL
 func (e *Exchange) GetWithdrawalHistory(ctx context.Context, coin currency.Code, startTime, endTime time.Time, status, limit int64) ([]WithdrawalInfo, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -506,13 +540,13 @@ func (e *Exchange) GetWithdrawalHistory(ctx context.Context, coin currency.Code,
 	if status != 0 {
 		params.Set("status", strconv.FormatInt(status, 10))
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -596,16 +630,21 @@ func (e *Exchange) GetUniversalTransferHistory(ctx context.Context, fromAccountT
 	if toAccountType == "" {
 		return nil, fmt.Errorf("%w, toAccountType is required", errAccountTypeRequired)
 	}
-	params := url.Values{}
-	params.Set("fromAccountType", fromAccountType)
-	params.Set("toAccountType", toAccountType)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("fromAccountType", fromAccountType)
+	params.Set("toAccountType", toAccountType)
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
@@ -655,19 +694,24 @@ func (e *Exchange) DustTransfer(ctx context.Context, assets []currency.Code) (*D
 
 // DustLog retrieves a dust conversion history
 func (e *Exchange) DustLog(ctx context.Context, startTime, endTime time.Time, page, limit int64) (*DustLogDetail, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	if limit <= 0 {
-		return nil, errLimitIsRequired
+		return nil, errPaginationLimitIsRequired
 	}
 	params.Set("limit", strconv.FormatInt(limit, 10))
 	var resp *DustLogDetail
@@ -702,6 +746,11 @@ func (e *Exchange) InternalTransfer(ctx context.Context, toAccountType, toAccoun
 
 // GetInternalTransferHistory retrieves an internal asset transfer history
 func (e *Exchange) GetInternalTransferHistory(ctx context.Context, transferID string, startTime, endTime time.Time, page, limit int64) (*InternalTransferDetail, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if transferID != "" {
 		params.Set("tranId", transferID)
@@ -712,13 +761,13 @@ func (e *Exchange) GetInternalTransferHistory(ctx context.Context, transferID st
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	var resp *InternalTransferDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getInternalTransferHistoryEPL, http.MethodGet, "capital/transfer/internal", params, nil, &resp, true)
 }
@@ -1006,15 +1055,20 @@ func (e *Exchange) GetAllOrders(ctx context.Context, symbol string, startTime, e
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -1033,18 +1087,23 @@ func (e *Exchange) GetAccountTradeList(ctx context.Context, symbol, orderID stri
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if orderID != "" {
 		params.Set("orderId", orderID)
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -1083,14 +1142,19 @@ func (e *Exchange) GetSymbolTradingFee(ctx context.Context, symbol string) (*Sym
 
 // GetRebateHistoryRecords retrieves a rebate history record
 func (e *Exchange) GetRebateHistoryRecords(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateHistory, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
@@ -1100,14 +1164,19 @@ func (e *Exchange) GetRebateHistoryRecords(ctx context.Context, startTime, endTi
 
 // GetRebateRecordsDetail retrieves a rebate record detail
 func (e *Exchange) GetRebateRecordsDetail(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateRecordDetail, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
@@ -1117,14 +1186,19 @@ func (e *Exchange) GetRebateRecordsDetail(ctx context.Context, startTime, endTim
 
 // GetSelfRebateRecordsDetail retrieves self rebate records details
 func (e *Exchange) GetSelfRebateRecordsDetail(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateRecordDetail, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
@@ -1140,14 +1214,19 @@ func (e *Exchange) GetReferCode(ctx context.Context) (*ReferCode, error) {
 
 // GetAffiliateCommissionRecord retrieves affiliate commission record
 func (e *Exchange) GetAffiliateCommissionRecord(ctx context.Context, startTime, endTime time.Time, inviteCode string, page, pageSize int64) (*AffiliateCommissionRecord, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if inviteCode != "" {
 		params.Set("inviteCode", inviteCode)
 	}
@@ -1163,14 +1242,19 @@ func (e *Exchange) GetAffiliateCommissionRecord(ctx context.Context, startTime, 
 
 // GetAffiliateWithdrawRecord retrieves affiliate withdrawal records
 func (e *Exchange) GetAffiliateWithdrawRecord(ctx context.Context, startTime, endTime time.Time, page, pageSize int64) (*AffiliateWithdrawRecords, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
@@ -1184,14 +1268,19 @@ func (e *Exchange) GetAffiliateWithdrawRecord(ctx context.Context, startTime, en
 // GetAffiliateCommissionDetailRecord retrieves an affiliate commission detail record
 // Commission type possible values: '1':spot,'2':futures, and '3':ETF
 func (e *Exchange) GetAffiliateCommissionDetailRecord(ctx context.Context, startTime, endTime time.Time, inviteCode, commissionType string, page, pageSize int64) (*RebateAffiliateCommissionDetail, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if inviteCode != "" {
 		params.Set("inviteCode", inviteCode)
 	}
@@ -1210,14 +1299,19 @@ func (e *Exchange) GetAffiliateCommissionDetailRecord(ctx context.Context, start
 
 // GetAffiliateCampaignData retrieves an affiliate campaign data
 func (e *Exchange) GetAffiliateCampaignData(ctx context.Context, startTime, endTime time.Time, page, pageSize int64) (*AffiliateCampaignData, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
@@ -1230,14 +1324,19 @@ func (e *Exchange) GetAffiliateCampaignData(ctx context.Context, startTime, endT
 
 // GetAffiliateReferralData retrieves an affiliate referral data
 func (e *Exchange) GetAffiliateReferralData(ctx context.Context, startTime, endTime time.Time, uid, inviteCode string, page, pageSize int64) (*AffiliateReferralData, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if inviteCode != "" {
 		params.Set("inviteCode", inviteCode)
 	}
@@ -1256,14 +1355,19 @@ func (e *Exchange) GetAffiliateReferralData(ctx context.Context, startTime, endT
 
 // GetSubAffiliateData retrieve a sub-affiliate data
 func (e *Exchange) GetSubAffiliateData(ctx context.Context, startTime, endTime time.Time, inviteCode string, page, pageSize int64) (*SubAffiliateData, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+
 	if inviteCode != "" {
 		params.Set("inviteCode", inviteCode)
 	}

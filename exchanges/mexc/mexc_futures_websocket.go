@@ -14,8 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -297,13 +297,12 @@ func (e *Exchange) processPersonalPosition(data []byte) error {
 
 func (e *Exchange) processPersonalAsset(data []byte) error {
 	var resp *FuturesPersonalAsset
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- account.Change{
+	e.Websocket.DataHandler <- accounts.Change{
 		AssetType: asset.Futures,
-		Balance: &account.Balance{
+		Balance: accounts.Balance{
 			Currency: currency.NewCode(resp.Currency),
 			Total:    resp.AvailableBalance,
 			Hold:     resp.FrozenBalance,

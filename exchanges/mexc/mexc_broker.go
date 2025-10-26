@@ -22,6 +22,12 @@ func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAc
 	if toAccountType == "" {
 		return nil, fmt.Errorf("%w: ToAccountType is required", errAddressRequired)
 	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	params.Set("fromAccountType", fromAccountType)
 	params.Set("toAccountType", toAccountType)
@@ -31,12 +37,10 @@ func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAc
 	if toAccount != "" {
 		params.Set("toAccount", toAccount)
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if page > 0 {
@@ -156,6 +160,11 @@ func (e *Exchange) GetAllRecentSubAccountDepositHistory(ctx context.Context, coi
 }
 
 func (e *Exchange) getSubAccountDepositList(ctx context.Context, coin currency.Code, depositStatus, path string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -163,11 +172,10 @@ func (e *Exchange) getSubAccountDepositList(ctx context.Context, coin currency.C
 	if depositStatus != "" {
 		params.Set("status", depositStatus)
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {

@@ -185,22 +185,38 @@ func TestGet24HourTickerPriceChangeStatistics(t *testing.T) {
 
 func TestGetSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetSymbolPriceTicker(t.Context(), []string{})
+	result, err := e.GetSymbolPriceTicker(t.Context(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetSymbolPriceTicker(t.Context(), []string{"BTCUSDT"})
+	result, err = e.GetSymbolPriceTicker(t.Context(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSymbolsPriceTicker(t *testing.T) {
+	result, err := e.GetSymbolsPriceTicker(t.Context(), []string{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetSymbolsPriceTicker(t.Context(), []string{"BTCUSDT"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetSymbolOrderbookTicker(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetSymbolOrderbookTicker(t.Context(), "")
+	_, err := e.GetSymbolOrderbookTicker(t.Context(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := e.GetSymbolOrderbookTicker(t.Context(), "BTCUSDT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
 
-	result, err = e.GetSymbolOrderbookTicker(t.Context(), "BTCUSDT")
+func TestGetOrderbookTickers(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetOrderbookTickers(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -737,7 +753,7 @@ func TestDustTransfer(t *testing.T) {
 func TestDustLog(t *testing.T) {
 	t.Parallel()
 	_, err := e.DustLog(t.Context(), time.Time{}, time.Time{}, 0, 0)
-	require.ErrorIs(t, err, errLimitIsRequired)
+	require.ErrorIs(t, err, errPaginationLimitIsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.DustLog(t.Context(), time.Time{}, time.Time{}, 0, 10)
@@ -876,21 +892,6 @@ func TestGetContractsDetail(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	detail := `{"symbol":"BTC_USDT","displayName":"BTC_USDT永续","displayNameEn":"BTC_USDT PERPETUAL","positionOpenType":3,"baseCoin":"BTC","quoteCoin":"USDT","baseCoinName":"BTC","quoteCoinName":"USDT","futureType":1,"settleCoin":"USDT","contractSize":0.0001,"minLeverage":1,"maxLeverage":400,"countryConfigContractMaxLeverage":0,"priceScale":1,"volScale":0,"amountScale":4,"priceUnit":0.1,"volUnit":1,"minVol":1,"maxVol":1500000,"bidLimitPriceRate":0.1,"askLimitPriceRate":0.1,"takerFeeRate":0.0002,"makerFeeRate":0,"maintenanceMarginRate":0.0015,"initialMarginRate":0.0025,"riskBaseVol":15000,"riskIncrVol":200000,"riskLongShortSwitch":0,"riskIncrMmr":0.005,"riskIncrImr":0.008,"riskLevelLimit":13,"priceCoefficientVariation":0.004,"indexOrigin":["BITGET","BYBIT","BINANCE","HTX","OKX","MEXC","KUCOIN"],"state":0,"isNew":false,"isHot":false,"isHidden":false,"conceptPlate":["mc-trade-zone-pow"],"conceptPlateId":[12],"riskLimitType":"BY_VOLUME","maxNumOrders":[200,50],"marketOrderMaxLevel":20,"marketOrderPriceLimitRate1":0.2,"marketOrderPriceLimitRate2":0.005,"triggerProtect":0.1,"appraisal":0,"showAppraisalCountdown":0,"automaticDelivery":0,"apiAllowed":false,"depthStepList":["0.1","1","10","100"],"limitMaxVol":10000000,"threshold":0,"baseCoinIconUrl":"https://public.mocortech.com/coin/F20210514192151938ROhGjOFp2Fpgb7.png","id":10,"vid":"128f589271cb4951b03e71e6323eb7be","baseCoinId":"febc9973be4d4d53bb374476239eb219","createTime":1591242684000,"openingTime":0,"openingCountdownOption":1,"showBeforeOpen":true,"isMaxLeverage":true,"isZeroFeeRate":false}`
-	details := `[` + detail + ",{}]"
-	var target FuturesContractsList
-	err := json.Unmarshal([]byte(detail), &target)
-	require.NoError(t, err)
-	assert.Len(t, target, 1)
-
-	var targets FuturesContractsList
-	err = json.Unmarshal([]byte(details), &targets)
-	require.NoError(t, err)
-	assert.Len(t, targets, 2)
-}
-
 func TestGetTransferableCurrencies(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetTransferableCurrencies(t.Context())
@@ -913,7 +914,7 @@ func TestGetDepthSnapshotOfContract(t *testing.T) {
 	_, err := e.GetDepthSnapshotOfContract(t.Context(), "", 10)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	_, err = e.GetDepthSnapshotOfContract(t.Context(), "BTC_USDT", 0)
-	require.ErrorIs(t, err, errLimitIsRequired)
+	require.ErrorIs(t, err, errPaginationLimitIsRequired)
 
 	result, err := e.GetDepthSnapshotOfContract(t.Context(), "BTC_USDT", 10)
 	require.NoError(t, err)
@@ -1669,11 +1670,11 @@ func TestGetFuturesContractDetails(t *testing.T) {
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
+	result, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.UpdateAccountInfo(t.Context(), asset.Futures)
+	result, err = e.UpdateAccountBalances(t.Context(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
