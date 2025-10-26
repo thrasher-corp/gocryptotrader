@@ -560,6 +560,7 @@ type ErrorCollector struct {
 }
 
 // Collect waits for the internal wait group to be done and returns an error collection
+// State is reset after each Collect, so successive calls are okay
 func (e *ErrorCollector) Collect() (errs error) {
 	e.wg.Wait()
 	e.m.Lock()
