@@ -563,10 +563,11 @@ type ErrorCollector struct {
 func (e *ErrorCollector) Collect() (errs error) {
 	e.wg.Wait()
 	e.m.Lock()
-	defer e.m.Unlock()
-	out := e.errs
-	e.errs = nil
-	return out
+	defer func(){
+		e.errs = nil
+		e.m.Unlock()
+	}()
+	return e.errs
 }
 
 // Go runs a function in a goroutine and collects any error it returns
