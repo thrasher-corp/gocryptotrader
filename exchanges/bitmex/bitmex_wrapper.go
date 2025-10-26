@@ -605,7 +605,7 @@ allTrades:
 				ts = tradeData[i].Timestamp
 			}
 		}
-		if int32(len(tradeData)) != countLimit {
+		if len(tradeData) != int(countLimit) {
 			break allTrades
 		}
 	}

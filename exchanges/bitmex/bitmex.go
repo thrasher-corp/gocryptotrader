@@ -93,7 +93,7 @@ const (
 	bitmexEndpointUserRequestWithdraw   = "/user/requestWithdrawal"
 
 	constSatoshiBTC = 1e-08
-	countLimit      = int32(1000)
+	countLimit      = uint32(1000)
 
 	perpetualContractID         = "FFWCSX"
 	spotID                      = "IFXXXP"
