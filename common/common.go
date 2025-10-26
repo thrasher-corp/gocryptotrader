@@ -564,10 +564,7 @@ type ErrorCollector struct {
 func (e *ErrorCollector) Collect() (errs error) {
 	e.wg.Wait()
 	e.m.Lock()
-	defer func(){
-		e.errs = nil
-		e.m.Unlock()
-	}()
+	defer func() { e.errs = nil; e.m.Unlock() }()
 	return e.errs
 }
 
