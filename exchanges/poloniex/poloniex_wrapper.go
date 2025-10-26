@@ -309,7 +309,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 		}
 		return pairs, nil
 	}
-	return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+	return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -380,7 +380,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 		}
 	default:
-		return fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+		return fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
 	return nil
 }
@@ -479,7 +479,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		}
 		return response, account.Process(&response, creds)
 	default:
-		return response, fmt.Errorf("%w: asset type: %q", asset.ErrNotSupported, assetType)
+		return response, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
 }
 
@@ -683,11 +683,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	oTypeString, err := OrderTypeString(s.Type)
+	oTypeString, err := orderTypeString(s.Type)
 	if err != nil {
 		return nil, err
 	}
-	tif, err := TimeInForceString(s.TimeInForce)
+	tif, err := timeInForceString(s.TimeInForce)
 	if err != nil {
 		return nil, err
 	}
@@ -717,10 +717,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				return nil, err
 			}
 			return s.DeriveSubmitResponse(sOrder.ID)
-		}
-		tif, err = TimeInForceString(s.TimeInForce)
-		if err != nil {
-			return nil, err
 		}
 		response, err := e.PlaceOrder(ctx, &PlaceOrderRequest{
 			Symbol:        s.Pair,
@@ -775,7 +771,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		return s.DeriveSubmitResponse(response.OrderID)
 	default:
-		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, s.AssetType)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, s.AssetType)
 	}
 }
 
@@ -785,9 +781,9 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 	if action.AssetType != asset.Spot {
-		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, action.AssetType)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, action.AssetType)
 	}
-	tif, err := TimeInForceString(action.TimeInForce)
+	tif, err := timeInForceString(action.TimeInForce)
 	if err != nil {
 		return nil, err
 	}
@@ -811,7 +807,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		modResp.OrderID = resp.ID
 		return modResp, nil
 	case order.Stop, order.StopLimit:
-		oTypeString, err := OrderTypeString(action.Type)
+		oTypeString, err := orderTypeString(action.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -859,7 +855,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	case asset.Futures:
 		_, err = e.CancelFuturesOrder(ctx, &CancelOrderRequest{Symbol: o.Pair.String(), OrderID: o.OrderID, ClientOrderID: o.ClientOrderID})
 	default:
-		return fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, o.AssetType)
+		return fmt.Errorf("%w: %q", asset.ErrNotSupported, o.AssetType)
 	}
 	return err
 }
@@ -979,7 +975,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 				pairsString = append(pairsString, cancelOrd.Pair.String())
 			}
 			orderTypes := []string{}
-			oTypeString, err := OrderTypeString(order.StopLimit)
+			oTypeString, err := orderTypeString(order.StopLimit)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1027,7 +1023,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			}
 		}
 	default:
-		return cancelAllOrdersResponse, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, cancelOrd.AssetType)
+		return cancelAllOrdersResponse, fmt.Errorf("%w: %q", asset.ErrNotSupported, cancelOrd.AssetType)
 	}
 	return cancelAllOrdersResponse, nil
 }
@@ -1403,7 +1399,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			})
 		}
 	default:
-		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, req.AssetType)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, req.AssetType)
 	}
 	return req.Filter(e.Name, orders), nil
 }
@@ -1448,11 +1444,18 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 		switch req.Type {
 		case order.Market, order.Limit, order.UnknownType, order.AnyType:
-			oTypeString, err := OrderTypeString(req.Type)
+			oTypeString, err := orderTypeString(req.Type)
 			if err != nil {
 				return nil, err
 			}
-			resp, err := e.GetOrdersHistory(ctx, &OrdersHistoryRequest{Symbol: currency.EMPTYPAIR, AccountType: accountTypeString(req.AssetType), OrderType: oTypeString, Side: orderSide, Direction: "", States: "", From: 0, Limit: 100, StartTime: req.StartTime, EndTime: req.EndTime, HideCancel: false})
+			resp, err := e.GetOrdersHistory(ctx, &OrdersHistoryRequest{
+				AccountType: accountTypeString(req.AssetType),
+				OrderType:   oTypeString,
+				Side:        orderSide,
+				Limit:       100,
+				StartTime:   req.StartTime,
+				EndTime:     req.EndTime,
+			})
 			if err != nil {
 				return nil, err
 			}
@@ -1506,7 +1509,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 			return req.Filter(e.Name, orders), nil
 		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
-			oTypeString, err := OrderTypeString(req.Type)
+			oTypeString, err := orderTypeString(req.Type)
 			if err != nil {
 				return nil, err
 			}
@@ -1573,7 +1576,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, req.Type)
 		}
 	case asset.Futures:
-		oTypeString, err := OrderTypeString(req.Type)
+		oTypeString, err := orderTypeString(req.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -1624,7 +1627,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 		return req.Filter(e.Name, orders), nil
 	default:
-		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, req.AssetType)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, req.AssetType)
 	}
 }
 
@@ -1677,7 +1680,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		return req.ProcessResponse(timeSeries)
 	}
 
-	return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, a)
+	return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -1734,7 +1737,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			}
 		}
 	default:
-		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
 	}
 	return req.ProcessResponse(timeSeries)
 }
@@ -1867,7 +1870,7 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bo
 // UpdateOrderExecutionLimits updates order execution limits
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if !e.SupportsAsset(a) {
-		return fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
 	}
 	if a == asset.Spot {
 		instruments, err := e.GetSymbols(ctx)
@@ -1932,7 +1935,7 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		cp.Delimiter = ""
 		return apiURL + tradeFuturesPath + cp.Upper().String(), nil
 	default:
-		return "", fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
 	}
 }
 
@@ -1943,17 +1946,16 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
-	oTypeString, err := OrderTypeString(s.Type)
+	oTypeString, err := orderTypeString(s.Type)
 	if err != nil {
 		return nil, err
 	}
-	var tif string
-	tif, err = TimeInForceString(s.TimeInForce)
+	tif, err := timeInForceString(s.TimeInForce)
 	if err != nil {
 		return nil, err
 	}
 	if s.AssetType != asset.Spot {
-		return nil, fmt.Errorf("%w: websocket order submit is not supported for asset type: %v", asset.ErrNotSupported, s.AssetType)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, s.AssetType)
 	}
 	response, err := e.WsCreateOrder(ctx, &PlaceOrderRequest{
 		Symbol:        s.Pair,
@@ -1991,8 +1993,8 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, req *order.Cancel) 
 	return nil
 }
 
-// OrderTypeString return a string representation of order type
-func OrderTypeString(oType order.Type) (string, error) {
+// orderTypeString return a string representation of order type
+func orderTypeString(oType order.Type) (string, error) {
 	switch oType {
 	case order.Market, order.Limit, order.LimitMaker:
 		return oType.String(), nil
@@ -2024,8 +2026,8 @@ func StringToOrderType(oTypeString string) order.Type {
 	}
 }
 
-// TimeInForceString return a string representation of time-in-force value
-func TimeInForceString(tif order.TimeInForce) (string, error) {
+// timeInForceString return a string representation of time-in-force value
+func timeInForceString(tif order.TimeInForce) (string, error) {
 	if tif.Is(order.GoodTillCancel) {
 		return order.GoodTillCancel.String(), nil
 	}

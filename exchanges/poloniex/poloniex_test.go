@@ -2427,7 +2427,7 @@ func TestTimeInForceString(t *testing.T) {
 		order.GoodTillCrossing:  {Error: order.ErrInvalidTimeInForce},
 	}
 	for k, v := range timeInForceStringMap {
-		result, err := TimeInForceString(k)
+		result, err := timeInForceString(k)
 		assert.ErrorIs(t, err, v.Error)
 		assert.Equal(t, v.String, result)
 	}
@@ -2448,7 +2448,7 @@ func TestOrderTypeString(t *testing.T) {
 		order.TrailingStop: {Error: order.ErrUnsupportedOrderType},
 	}
 	for k, v := range orderStringMap {
-		result, err := OrderTypeString(k)
+		result, err := orderTypeString(k)
 		require.ErrorIs(t, err, v.Error)
 		assert.Equal(t, v.String, result)
 	}
