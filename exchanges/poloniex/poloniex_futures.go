@@ -12,7 +12,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -96,7 +95,7 @@ func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []Future
 		return nil, common.ErrEmptyParams
 	}
 	for x := range args {
-		if err := validationOrderCreationParam(&args[x]); err != nil {
+		if err := args[x].validationOrderCreationParam(); err != nil {
 			return nil, err
 		}
 	}
@@ -104,20 +103,20 @@ func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []Future
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"orders", nil, args, &resp)
 }
 
-func validationOrderCreationParam(arg *FuturesOrderRequest) error {
-	if arg.Symbol == "" {
+func (o *FuturesOrderRequest) validationOrderCreationParam() error {
+	if o.Symbol == "" {
 		return currency.ErrSymbolStringEmpty
 	}
-	if arg.Side == "" {
+	if o.Side == "" {
 		return order.ErrSideIsInvalid
 	}
-	if arg.PositionSide == "" {
+	if o.PositionSide == "" {
 		return order.ErrSideIsInvalid
 	}
-	if arg.OrderType == "" {
+	if o.OrderType == "" {
 		return order.ErrTypeIsInvalid
 	}
-	if arg.Size <= 0 {
+	if o.Size <= 0 {
 		return limits.ErrAmountBelowMin
 	}
 	return nil
@@ -500,21 +499,8 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol string, inter
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp FuturesCandles
+	var resp []*FuturesCandle
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues(marketsPathV3+"candles", params), &resp)
-}
-
-// FuturesCandles holds and handles futures candles
-type FuturesCandles []*FuturesCandle
-
-// UnmarshalJSON deserializes byte data into list of FuturesCandle
-func (t *FuturesCandles) UnmarshalJSON(data []byte) error {
-	var result []*FuturesCandle
-	if err := json.Unmarshal(data, &result); err != nil {
-		return err
-	}
-	*t = result
-	return nil
 }
 
 // GetFuturesExecution get the latest execution information. The default limit is 500, with a maximum of 1,000.
@@ -569,12 +555,19 @@ func (e *Exchange) GetFuturesMarket(ctx context.Context, symbol string) ([]*Futu
 
 // GetFuturesIndexPrice get the current index price.
 func (e *Exchange) GetFuturesIndexPrice(ctx context.Context, symbol string) (*InstrumentIndexPrice, error) {
-	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
 	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
 	var resp *InstrumentIndexPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues(marketsPathV3+"indexPrice", params), &resp)
+}
+
+// GetFuturesIndexPrices get the current index price for all instruments
+func (e *Exchange) GetFuturesIndexPrices(ctx context.Context) ([]*InstrumentIndexPrice, error) {
+	var resp []*InstrumentIndexPrice
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, marketsPathV3+"indexPrice", &resp)
 }
 
 // GetIndexPriceComponents get the index price components for a trading pair.
@@ -586,6 +579,12 @@ func (e *Exchange) GetIndexPriceComponents(ctx context.Context, symbol string) (
 	params.Set("symbol", symbol)
 	var resp *IndexPriceComponent
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues(marketsPathV3+"indexPriceComponents", params), &resp)
+}
+
+// GetInstrumentsIndexPriceComponents returns index price components for all trading pairs.
+func (e *Exchange) GetInstrumentsIndexPriceComponents(ctx context.Context) (*IndexPriceComponent, error) {
+	var resp *IndexPriceComponent
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, marketsPathV3+"indexPriceComponents", &resp)
 }
 
 // GetIndexPriceKlineData obtain the K-line data for the index price.
@@ -616,12 +615,19 @@ func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol string, in
 
 // GetFuturesMarkPrice get the current mark price.
 func (e *Exchange) GetFuturesMarkPrice(ctx context.Context, symbol string) (*FuturesMarkPrice, error) {
-	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
 	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
 	var resp *FuturesMarkPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues(marketsPathV3+"markPrice", params), &resp)
+}
+
+// GetFuturesMarkPrices get the current mark price for instruments.
+func (e *Exchange) GetFuturesMarkPrices(ctx context.Context) ([]*FuturesMarkPrice, error) {
+	var resp []*FuturesMarkPrice
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, marketsPathV3+"markPrice", &resp)
 }
 
 // GetMarkPriceKlineData obtain the K-line data for the mark price.
@@ -684,16 +690,17 @@ func (e *Exchange) GetFuturesCurrentFundingRate(ctx context.Context, symbol stri
 
 // GetFuturesHistoricalFundingRates retrieve the previous funding rates of a contract.
 func (e *Exchange) GetFuturesHistoricalFundingRates(ctx context.Context, symbol string, startTime, endTime time.Time, limit uint64) ([]*FuturesFundingRate, error) {
-	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
 	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
-		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("sT", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eT", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -721,10 +728,11 @@ func (e *Exchange) GetInsuranceFund(ctx context.Context) ([]*InsuranceFundInfo, 
 
 // GetFuturesRiskLimit retrieve information from the Futures Risk Limit Table.
 func (e *Exchange) GetFuturesRiskLimit(ctx context.Context, symbol string) ([]*RiskLimit, error) {
-	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
 	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
 	var resp []*RiskLimit
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues(marketsPathV3+"riskLimit", params), &resp)
 }

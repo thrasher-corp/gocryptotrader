@@ -2002,7 +2002,10 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	arg := FuturesOrderRequest{
 		ReduceOnly: true,
 	}
-	_, err := e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{arg})
+	_, err := e.PlaceFuturesMultipleOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	_, err = e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{arg})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	arg.Symbol = "BTC_USDT_PERP"
@@ -2150,6 +2153,10 @@ func TestGetFuturesCurrentPosition(t *testing.T) {
 	result, err := e.GetFuturesCurrentPosition(generateContext(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+
+	result, err = e.GetFuturesCurrentPosition(generateContext(), futuresTradablePair.String())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetFuturesPositionHistory(t *testing.T) {
@@ -2280,7 +2287,17 @@ func TestGetFuturesMarket(t *testing.T) {
 
 func TestGetFuturesIndexPrice(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetFuturesIndexPrice(t.Context(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
 	result, err := e.GetFuturesIndexPrice(t.Context(), "BTC_USDT_PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesIndexPrices(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetFuturesIndexPrices(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2291,6 +2308,13 @@ func TestGetIndexPriceComponents(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	result, err := e.GetIndexPriceComponents(t.Context(), "BTC_USDT_PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetInstrumentsIndexPriceComponents(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetInstrumentsIndexPriceComponents(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2310,7 +2334,17 @@ func TestGetIndexPriceKlineData(t *testing.T) {
 
 func TestGetFuturesMarkPrice(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetFuturesMarkPrice(t.Context(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
 	result, err := e.GetFuturesMarkPrice(t.Context(), "BTC_USDT_PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesMarkPrices(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetFuturesMarkPrices(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2350,7 +2384,10 @@ func TestGetFuturesCurrentFundingRate(t *testing.T) {
 
 func TestGetFuturesHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetFuturesHistoricalFundingRates(t.Context(), "", time.Time{}, time.Time{}, 100)
+	_, err := e.GetFuturesHistoricalFundingRates(t.Context(), "", time.Time{}, time.Time{}, 100)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := e.GetFuturesHistoricalFundingRates(t.Context(), futuresTradablePair.String(), time.Time{}, time.Time{}, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2374,7 +2411,10 @@ func TestGetInsuranceFund(t *testing.T) {
 
 func TestGetFuturesRiskLimit(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetFuturesRiskLimit(t.Context(), "")
+	_, err := e.GetFuturesRiskLimit(t.Context(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := e.GetFuturesRiskLimit(t.Context(), futuresTradablePair.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

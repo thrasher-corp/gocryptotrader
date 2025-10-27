@@ -396,7 +396,7 @@ func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(data []byte, inte
 }
 
 func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
-	var resp []FuturesOrderbook
+	var resp []WSFuturesOrderbook
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -418,14 +418,14 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 				Pair:         cp,
 				Asset:        asset.Futures,
 				LastUpdated:  resp[x].CreationTime.Time(),
-				LastUpdateID: resp[x].ID.Int64(),
+				LastUpdateID: resp[x].ID,
 			}); err != nil {
 				return err
 			}
 			continue
 		}
 		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
-			UpdateID:   resp[x].ID.Int64(),
+			UpdateID:   resp[x].ID,
 			UpdateTime: resp[x].CreationTime.Time(),
 			LastPushed: resp[x].Timestamp.Time(),
 			Action:     orderbook.UpdateAction,

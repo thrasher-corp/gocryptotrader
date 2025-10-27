@@ -9993,16 +9993,6 @@
    "GET": [
     {
      "data": {
-      "code": 400,
-      "data": [],
-      "msg": "Param error symbol"
-     },
-     "queryString": "symbol=BTCUSDT_PERP",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
-     "data": {
       "code": 200,
       "data": [
        {
@@ -10019,11 +10009,33 @@
     },
     {
      "data": {
-      "code": 400,
-      "data": [],
-      "msg": "Param error symbol"
+      "code": 200,
+      "data": [
+       {
+        "fR": "0.0001",
+        "fT": "1761537600000",
+        "s": "BTC_USDT_PERP"
+       }
+      ],
+      "msg": "Success"
      },
-     "queryString": "limit=100",
+     "queryString": "limit=100\u0026symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [
+       {
+        "fR": "0.0001",
+        "fT": "1761537600000",
+        "s": "BTC_USDT_PERP"
+       }
+      ],
+      "msg": "Success"
+     },
+     "queryString": "limit=100\u0026symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {}
     }
@@ -10041,6 +10053,37 @@
       "msg": "Success"
      },
      "queryString": "symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [
+       {
+        "iPx": "2.6514",
+        "s": "XRP_USDT_PERP"
+       },
+       {
+        "iPx": "0.30138",
+        "s": "TRX_USDT_PERP"
+       },
+       {
+        "iPx": "4228.08",
+        "s": "ETH_USDT_PERP"
+       },
+       {
+        "iPx": "115707.34",
+        "s": "BTC_USDT_PERP"
+       },
+       {
+        "iPx": "562.05",
+        "s": "BCH_USDT_PERP"
+       }
+      ],
+      "msg": "Success"
+     },
+     "queryString": "",
      "bodyParams": "",
      "headers": {}
     }
@@ -10157,6 +10200,197 @@
       "msg": "Success"
      },
      "queryString": "symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [
+       {
+        "cs": [
+         {
+          "cPx": "0.0065087343054",
+          "e": "Binance",
+          "sPx": "0.01062",
+          "w": "0.61287517"
+         },
+         {
+          "cPx": "0.0000000",
+          "e": "Kucoin",
+          "sPx": "0.010613",
+          "w": "0.0"
+         },
+         {
+          "cPx": "0.000000",
+          "e": "huobi",
+          "sPx": "0.01061",
+          "w": "0.0"
+         },
+         {
+          "cPx": "0.00179304493225",
+          "e": "Okx",
+          "sPx": "0.010615",
+          "w": "0.16891615"
+         },
+         {
+          "cPx": "0.00231388484272",
+          "e": "Poloniex",
+          "sPx": "0.010604",
+          "w": "0.21820868"
+         }
+        ],
+        "px": "0.0106160000",
+        "s": "1000SHIB_USDT_PERP"
+       },
+       {
+        "cs": [
+         {
+          "cPx": "0.123524897984",
+          "e": "Binance",
+          "sPx": "0.2078",
+          "w": "0.59444128"
+         },
+         {
+          "cPx": "0.00000",
+          "e": "Kucoin",
+          "sPx": "0.2078",
+          "w": "0.0"
+         },
+         {
+          "cPx": "0.0000000",
+          "e": "huobi",
+          "sPx": "0.207779",
+          "w": "0.0"
+         },
+         {
+          "cPx": "0.070009755600",
+          "e": "Okx",
+          "sPx": "0.20775",
+          "w": "0.3369904"
+         },
+         {
+          "cPx": "0.01424451993344",
+          "e": "Poloniex",
+          "sPx": "0.207742",
+          "w": "0.06856832"
+         }
+        ],
+        "px": "0.2077800000",
+        "s": "DOGE_USDT_PERP"
+       },
+       {
+        "cs": [
+         {
+          "cPx": "78435.103820640",
+          "e": "Binance",
+          "sPx": "115898.56",
+          "w": "0.6767565"
+         },
+         {
+          "cPx": "0.00",
+          "e": "Kucoin",
+          "sPx": "115880.8",
+          "w": "0.0"
+         },
+         {
+          "cPx": "0.000",
+          "e": "huobi",
+          "sPx": "115870.89",
+          "w": "0.0"
+         },
+         {
+          "cPx": "27132.685451879",
+          "e": "Okx",
+          "sPx": "115868.9",
+          "w": "0.23416711"
+         },
+         {
+          "cPx": "10310.8121611833",
+          "e": "Poloniex",
+          "sPx": "115752.47",
+          "w": "0.08907639"
+         }
+        ],
+        "px": "115878.6000000000",
+        "s": "BTC_USDT_PERP"
+       },
+       {
+        "cs": [
+         {
+          "cPx": "62.020998290",
+          "e": "Binance",
+          "sPx": "101.0",
+          "w": "0.61406929"
+         },
+         {
+          "cPx": "0.000",
+          "e": "Kucoin",
+          "sPx": "101.01",
+          "w": "0.0"
+         },
+         {
+          "cPx": "0.00",
+          "e": "huobi",
+          "sPx": "101.0",
+          "w": "0.0"
+         },
+         {
+          "cPx": "27.7202058134",
+          "e": "Okx",
+          "sPx": "100.99",
+          "w": "0.27448466"
+         },
+         {
+          "cPx": "11.25259622245",
+          "e": "Poloniex",
+          "sPx": "100.969",
+          "w": "0.11144605"
+         }
+        ],
+        "px": "100.9900000000",
+        "s": "LTC_USDT_PERP"
+       },
+       {
+        "cs": [
+         {
+          "cPx": "730.8696585564",
+          "e": "Binance",
+          "sPx": "1149.99",
+          "w": "0.63554436"
+         },
+         {
+          "cPx": "0.0000",
+          "e": "Kucoin",
+          "sPx": "1150.443",
+          "w": "0.0"
+         },
+         {
+          "cPx": "42.651838033",
+          "e": "huobi",
+          "sPx": "1150.1",
+          "w": "0.03708533"
+         },
+         {
+          "cPx": "298.71861311",
+          "e": "Okx",
+          "sPx": "1150.7",
+          "w": "0.2595973"
+         },
+         {
+          "cPx": "77.9681038943",
+          "e": "Poloniex",
+          "sPx": "1150.43",
+          "w": "0.06777301"
+         }
+        ],
+        "px": "1150.2080000000",
+        "s": "BNB_USDT_PERP"
+       }
+      ],
+      "msg": "Success"
+     },
+     "queryString": "",
      "bodyParams": "",
      "headers": {}
     }
@@ -10312,6 +10546,37 @@
       "msg": "Success"
      },
      "queryString": "symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [
+       {
+        "mPx": "2.65",
+        "s": "XRP_USDT_PERP"
+       },
+       {
+        "mPx": "0.30191",
+        "s": "TRX_USDT_PERP"
+       },
+       {
+        "mPx": "4232.26",
+        "s": "ETH_USDT_PERP"
+       },
+       {
+        "mPx": "115908.33",
+        "s": "BTC_USDT_PERP"
+       },
+       {
+        "mPx": "561.06",
+        "s": "BCH_USDT_PERP"
+       }
+      ],
+      "msg": "Success"
+     },
+     "queryString": "",
      "bodyParams": "",
      "headers": {}
     }
@@ -10650,29 +10915,54 @@
       "code": 200,
       "data": [
        {
-        "notionalCap": "5000",
-        "symbol": "1000SHIBUSDTPERP"
+        "mMRatio": "0.027",
+        "maxLever": "20",
+        "maxSize": "1000",
+        "mgnMode": "ISOLATED",
+        "minSize": "1",
+        "symbol": "APT_USDT_PERP",
+        "tier": "1"
        },
        {
-        "notionalCap": "6000",
-        "symbol": "DOGEUSDTPERP"
+        "mMRatio": "0.05",
+        "maxLever": "10",
+        "maxSize": "1500",
+        "mgnMode": "ISOLATED",
+        "minSize": "1001",
+        "symbol": "APT_USDT_PERP",
+        "tier": "2"
        },
        {
-        "notionalCap": "5000",
-        "symbol": "BTCUSDTPERP"
+        "mMRatio": "0.1",
+        "maxLever": "5",
+        "maxSize": "2000",
+        "mgnMode": "ISOLATED",
+        "minSize": "1501",
+        "symbol": "APT_USDT_PERP",
+        "tier": "3"
        },
        {
-        "notionalCap": "30000",
-        "symbol": "LTCUSDTPERP"
+        "mMRatio": "0.167",
+        "maxLever": "3",
+        "maxSize": "4000",
+        "mgnMode": "ISOLATED",
+        "minSize": "2001",
+        "symbol": "APT_USDT_PERP",
+        "tier": "4"
        },
        {
-        "notionalCap": "2000",
-        "symbol": "BNBUSDTPERP"
+        "mMRatio": "0.5",
+        "maxLever": "2",
+        "maxSize": "6000",
+        "mgnMode": "ISOLATED",
+        "minSize": "4001",
+        "symbol": "APT_USDT_PERP",
+        "tier": "5"
        }
       ],
       "msg": "Success"
      },
-     "queryString": "",
+     "queryString": "symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {}
     }
@@ -11903,6 +12193,65 @@
   },
   "/v3/trade/position/opens": {
    "GET": [
+    {
+     "data": {
+        "code": 200,
+        "data": [
+            {
+            "adl": "0.1666",
+            "availQty": "1",
+            "cTime": "1719894977164",
+            "im": "1.955006333333333333",
+            "lever": "30",
+            "liqPx": "0",
+            "markPx": "58650.19",
+            "lastPx": "58650.19",
+            "indexPx": "58650.19",
+            "mgn": "1.955006333333333333",
+            "maxWAmt": "100000",  
+            "mgnMode": "CROSS",
+            "posSide": "BOTH",
+            "mgnRatio": "0",
+            "mm": "0.322576045",
+            "openAvgPx": "58651",
+            "pnl": "0",
+            "qty": "1",
+            "side": "BUY",
+            "state": "NORMAL",
+            "actType": "TRADING", 
+            "tpTrgPx": "58670",
+            "slTrgPx": "61003",  
+            "symbol": "BTC_USDT_PERP",
+            "uTime": "1719974554434",
+            "upl": "-0.00081",
+            "uplRatio": "-0.0004"
+            }
+        ],
+        "msg": "Success"
+    },
+     "queryString": "symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "00//ytmPEfmTaKZ6UgQd6jfHsAIUuLlQCYgfp8N5D2A="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743701838034"
+      ]
+     }
+    },
     {
      "data": {
       "code": 200,

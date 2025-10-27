@@ -202,13 +202,20 @@ type FuturesLeverage struct {
 
 // FuturesOrderbook represents an orderbook data for v3 futures instruments
 type FuturesOrderbook struct {
-	Asks          orderbook.LevelsArrayPriceAmount `json:"asks"`
-	Bids          orderbook.LevelsArrayPriceAmount `json:"bids"`
-	Timestamp     types.Time                       `json:"ts"`
-	LastVersionID int64                            `json:"lid"`
-	ID            types.Number                     `json:"id"`
-	Symbol        string                           `json:"s"`
-	CreationTime  types.Time                       `json:"cT"`
+	Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Scale     types.Number                     `json:"s"`
+	Timestamp types.Time                       `json:"ts"`
+}
+
+// WSFuturesOrderbook represents an orderbook data for v3 websocket futures instruments
+type WSFuturesOrderbook struct {
+	ID           int64                            `json:"id"`
+	Symbol       string                           `json:"s"`
+	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids         orderbook.LevelsArrayPriceAmount `json:"bids"`
+	CreationTime types.Time                       `json:"cT"`
+	Timestamp    types.Time                       `json:"ts"`
 }
 
 // FuturesCandle represents a kline data for v3 futures instrument
