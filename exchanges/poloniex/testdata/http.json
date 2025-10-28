@@ -7806,7 +7806,7 @@
       "clientOrderId": "1234Abc"
      },
      "queryString": "",
-     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"type\":\"MARKET\",\"amount\":\"100\",\"price\":\"40000.5\",\"timeInForce\":\"GTC\",\"clientOrderId\":\"1234Abc\"}",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"type\":\"MARKET\",\"amount\":\"100\",\"price\":\"100000.5\",\"timeInForce\":\"GTC\",\"clientOrderId\":\"1234Abc\"}",
      "headers": {
       "Content-Type": [
        "application/json"
@@ -8466,7 +8466,7 @@
       }
      },
      "queryString": "",
-     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"timeInForce\":\"GTC\",\"type\":\"STOP_LIMIT\",\"price\":\"40000.5\",\"quantity\":\"100\",\"clientOrderId\":\"1234Abc\"}",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"timeInForce\":\"GTC\",\"type\":\"STOP_LIMIT\",\"price\":\"100000.5\",\"quantity\":\"100\",\"clientOrderId\":\"1234Abc\"}",
      "headers": {
       "Content-Type": [
        "application/json"
@@ -8494,7 +8494,7 @@
       "id": "502143097648869376"
      },
      "queryString": "",
-     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"SELL\",\"timeInForce\":\"GTC\",\"type\":\"TRAILING_STOP_LIMIT\",\"price\":\"40000.5\",\"quantity\":\"100\",\"clientOrderId\":\"55667798abcd\",\"trailingOffset\":\"2%\",\"limitOffset\":\"1%\"}",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"timeInForce\":\"GTC\",\"type\":\"TRAILING_STOP_LIMIT\",\"price\":\"100000.5\",\"quantity\":\"100\",\"clientOrderId\":\"55667798abcd\",\"trailingOffset\":\"2%\",\"limitOffset\":\"1%\"}",
      "headers": {
       "Content-Type": [
        "application/json"

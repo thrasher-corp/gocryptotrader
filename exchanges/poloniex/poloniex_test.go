@@ -1570,7 +1570,7 @@ func TestCreateSmartOrder(t *testing.T) {
 	result, err := e.CreateSmartOrder(generateContext(), &SmartOrderRequestRequest{
 		Symbol:        spotTradablePair,
 		Type:          "STOP_LIMIT",
-		Price:         40000.50000,
+		Price:         100000.5,
 		ClientOrderID: "1234Abc",
 		Side:          order.Buy.String(),
 		TimeInForce:   timeInForce(order.GoodTillCancel),
@@ -1583,9 +1583,9 @@ func TestCreateSmartOrder(t *testing.T) {
 	result, err = e.CreateSmartOrder(generateContext(), &SmartOrderRequestRequest{
 		Symbol:         spotTradablePair,
 		Type:           order.TrailingStopLimit.String(),
-		Price:          40000.50000,
+		Price:          100000.5,
 		ClientOrderID:  "55667798abcd",
-		Side:           order.Sell.String(),
+		Side:           order.Buy.String(),
 		TimeInForce:    timeInForce(order.GoodTillCancel),
 		Quantity:       100,
 		TrailingOffset: "2%",
