@@ -645,6 +645,16 @@ var acceptableErrors = []error{
 	limits.ErrExchangeLimitNotLoaded,     // Is thrown when the limits aren't loaded for a particular exchange, asset, pair
 	limits.ErrOrderLimitNotFound,         // Is thrown when the order limit isn't found for a particular exchange, asset, pair
 	limits.ErrEmptyLevels,                // Is thrown if limits are not provided for the asset
+	limits.ErrPriceBelowMin,              // Is thrown when the price is below the minimum limit for an exchange
+	limits.ErrPriceExceedsMax,            // Is thrown when the price exceeds the maximum limit for an exchange
+	limits.ErrPriceExceedsStep,           // Is thrown when the price doesn't conform to the step increment for an exchange
+	limits.ErrAmountBelowMin,             // Is thrown when the amount is below the minimum limit for an exchange
+	limits.ErrAmountExceedsMax,           // Is thrown when the amount exceeds the maximum limit for an exchange
+	limits.ErrAmountExceedsStep,          // Is thrown when the amount doesn't conform to the step increment for an exchange
+	limits.ErrNotionalValue,              // Is thrown when the notional value is below the minimum for an exchange
+	limits.ErrMarketAmountBelowMin,       // Is thrown when the market order amount is below the minimum for an exchange
+	limits.ErrMarketAmountExceedsMax,     // Is thrown when the market order amount exceeds the maximum for an exchange
+	limits.ErrMarketAmountExceedsStep,    // Is thrown when the market order amount doesn't conform to the step increment for an exchange
 	accounts.ErrNoBalances,
 	accounts.ErrNoSubAccounts,
 	ticker.ErrTickerNotFound,
