@@ -13,8 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -242,12 +242,12 @@ func (e *Exchange) processFuturesAccountData(data []byte) error {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	var accChanges []account.Change
+	var accChanges []accounts.Change
 	for i := range resp {
 		for j := range resp[i].Details {
-			accChanges = append(accChanges, account.Change{
+			accChanges = append(accChanges, accounts.Change{
 				AssetType: asset.Futures,
-				Balance: &account.Balance{
+				Balance: accounts.Balance{
 					Currency:  resp[i].Details[j].Currency,
 					Total:     resp[i].Details[j].Available.Float64(),
 					Hold:      resp[i].Details[j].TrdHold.Float64(),

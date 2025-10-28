@@ -15,11 +15,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -441,25 +442,24 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	return orderbook.Get(e.Name, fPair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountBalances retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	switch assetType {
 	case asset.Spot, asset.Futures:
 		accountBalance, err := e.GetSubAccountBalances(ctx)
 		if err != nil {
-			return response, err
+			return nil, err
 		}
-		subAccounts := make([]account.SubAccount, len(accountBalance))
+		subAccounts := make(accounts.SubAccounts, len(accountBalance))
 		for i, subAccountBalances := range accountBalance {
-			subAccount := account.SubAccount{
+			subAccount := accounts.SubAccount{
 				ID:        subAccountBalances.AccountID,
 				AssetType: stringToAccountType(subAccountBalances.AccountType),
 			}
-			currencyBalances := make([]account.Balance, len(subAccountBalances.Balances))
+			currencyBalances := make([]accounts.Balance, len(subAccountBalances.Balances))
 			for j, subAccountBalance := range subAccountBalances.Balances {
-				currencyBalances[j] = account.Balance{
+				currencyBalances[j] = accounts.Balance{
 					Currency:               currency.NewCode(subAccountBalance.Currency),
 					Total:                  subAccountBalance.AvailableBalance.Float64(),
 					Hold:                   subAccountBalance.Hold.Float64(),
@@ -467,19 +467,11 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 					AvailableWithoutBorrow: subAccountBalance.AvailableBalance.Float64(),
 				}
 			}
-			subAccounts[i] = subAccount
+			subAccounts[i] = &subAccount
 		}
-		response = account.Holdings{
-			Exchange: e.Name,
-			Accounts: subAccounts,
-		}
-		creds, err := e.GetCredentials(ctx)
-		if err != nil {
-			return response, err
-		}
-		return response, account.Process(&response, creds)
+		return subAccounts, e.Accounts.Save(ctx, subAccounts, true)
 	default:
-		return response, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
 }
 
@@ -1634,7 +1626,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

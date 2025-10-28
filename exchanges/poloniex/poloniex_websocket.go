@@ -16,8 +16,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -206,12 +206,12 @@ func (e *Exchange) processBalance(result *SubscriptionResponse) error {
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
-	accountChanges := make([]account.Change, len(resp))
+	accountChanges := make([]accounts.Change, len(resp))
 	for x := range resp {
-		accountChanges[x] = account.Change{
+		accountChanges[x] = accounts.Change{
 			Account:   resp[x].AccountType,
 			AssetType: stringToAccountType(resp[x].AccountType),
-			Balance: &account.Balance{
+			Balance: accounts.Balance{
 				Hold:      resp[x].Hold.Float64(),
 				Total:     resp[x].Available.Float64(),
 				UpdatedAt: resp[x].Timestamp.Time(),

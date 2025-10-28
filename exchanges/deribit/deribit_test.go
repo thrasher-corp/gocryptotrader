@@ -3385,10 +3385,10 @@ func TestChannelName(t *testing.T) {
 	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: "wibble"}) }, "Unknown channels should panic")
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.UpdateAccountInfo(t.Context(), asset.Futures)
+	result, err := e.UpdateAccountBalances(t.Context(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3551,7 +3551,12 @@ func TestGetAssetFromInstrument(t *testing.T) {
 		{"PAXG_USDC-12SEP25-3320-P", asset.Options, nil},
 		{"ETH-3OCT25-4800-P", asset.Options, nil},
 		{"ETH-FS-26JUN26_26DEC25", asset.FutureCombo, nil},
+		{"BTC-FS-28NOV25_PERP", asset.FutureCombo, nil},
+		{"BTC-USDC-FS-28NOV25_PERP", asset.FutureCombo, nil},
 		{"BTC_USDC-PBUT-31OCT25-90000_100000_102000", asset.OptionCombo, nil},
+		{"BTC_USDC-CS-31OCT25-107000_111000", asset.OptionCombo, nil},
+		{"BTC-ICOND-14NOV25-100000_105000_125000_130000", asset.OptionCombo, nil},
+		{"BTC-PCAL-14NOV25_7NOV25-112000", asset.OptionCombo, nil},
 		{"XRP_USDC-CBUT-26SEP25-2d9_3d2_3d4", asset.OptionCombo, nil},
 		{"ETH-CS-26SEP25-5000_5500", asset.OptionCombo, nil},
 		{"HELLOMOTO", asset.Empty, errUnsupportedInstrumentFormat},

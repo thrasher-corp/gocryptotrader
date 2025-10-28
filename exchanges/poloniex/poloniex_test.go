@@ -13,9 +13,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -576,19 +576,19 @@ func TestWithdraw(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
-	_, err := e.UpdateAccountInfo(t.Context(), asset.Options)
+	_, err := e.UpdateAccountBalances(t.Context(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UpdateAccountInfo(generateContext(), asset.Spot)
+	result, err := e.UpdateAccountBalances(generateContext(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.UpdateAccountInfo(generateContext(), asset.Futures)
+	result, err = e.UpdateAccountBalances(generateContext(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2543,7 +2543,7 @@ func TestStringToOrderSide(t *testing.T) {
 
 func generateContext() context.Context {
 	if mockTests {
-		return account.DeployCredentialsToContext(context.Background(), &account.Credentials{
+		return accounts.DeployCredentialsToContext(context.Background(), &accounts.Credentials{
 			Key:    "abcde",
 			Secret: "fghij",
 		})

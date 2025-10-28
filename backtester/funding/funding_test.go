@@ -15,8 +15,8 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -717,7 +717,7 @@ func TestSetFunding(t *testing.T) {
 	err = f.SetFunding(exchName, asset.Spot, nil, false)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	bal := &account.Balance{}
+	bal := &accounts.Balance{}
 	err = f.SetFunding(exchName, asset.Spot, bal, false)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 

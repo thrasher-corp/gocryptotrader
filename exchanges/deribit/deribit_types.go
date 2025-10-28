@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -120,13 +121,13 @@ type ContractSizeData struct {
 
 // CurrencyData stores data for currencies
 type CurrencyData struct {
-	CoinType             string  `json:"coin_type"`
-	Currency             string  `json:"currency"` // TODO: change to currency.Code
-	CurrencyLong         string  `json:"currency_long"`
-	FeePrecision         int64   `json:"fee_precision"`
-	MinConfirmations     int64   `json:"min_confirmations"`
-	MinWithdrawalFee     float64 `json:"min_withdrawal_fee"`
-	WithdrawalFee        float64 `json:"withdrawal_fee"`
+	CoinType             string        `json:"coin_type"`
+	Currency             currency.Code `json:"currency"`
+	CurrencyLong         string        `json:"currency_long"`
+	FeePrecision         int64         `json:"fee_precision"`
+	MinConfirmations     int64         `json:"min_confirmations"`
+	MinWithdrawalFee     float64       `json:"min_withdrawal_fee"`
+	WithdrawalFee        float64       `json:"withdrawal_fee"`
 	WithdrawalPriorities []struct {
 		Value float64 `json:"value"`
 		Name  string  `json:"name"`
