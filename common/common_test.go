@@ -680,3 +680,15 @@ func TestNilGuard(t *testing.T) {
 	err = NilGuard()
 	require.NoError(t, err, "NilGuard with no arguments must not error")
 }
+
+func TestSetIfZero(t *testing.T) {
+	t.Parallel()
+	s := "hello"
+	changed := SetIfZero(&s, "world")
+	assert.False(t, changed, "SetIfZero should not change a non-zero value")
+	assert.Equal(t, "hello", s, "SetIfZero should not change a non-zero value")
+	s = ""
+	changed = SetIfZero(&s, "world")
+	assert.True(t, changed, "SetIfZero should change a zero value")
+	assert.Equal(t, "world", s, "SetIfZero should change a zero value")
+}

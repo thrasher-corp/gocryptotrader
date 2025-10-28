@@ -5,12 +5,11 @@ import (
 	"sync/atomic"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 var (
-	errMuxIsNil = errors.New("mux is nil")
 	errIDNotSet = errors.New("id not set")
-	errNoData   = errors.New("data payload is nil")
 	errNoIDs    = errors.New("no IDs to publish data to")
 )
 
@@ -26,8 +25,8 @@ func GetNewMux(d *Dispatcher) *Mux {
 // Subscribe takes in a package defined signature element pointing to an ID set
 // and returns the associated pipe
 func (m *Mux) Subscribe(id uuid.UUID) (Pipe, error) {
-	if m == nil {
-		return Pipe{}, errMuxIsNil
+	if err := common.NilGuard(m); err != nil {
+		return Pipe{}, err
 	}
 
 	if id.IsNil() {
@@ -44,8 +43,8 @@ func (m *Mux) Subscribe(id uuid.UUID) (Pipe, error) {
 
 // Unsubscribe returns channel to the pool for the full signature set
 func (m *Mux) Unsubscribe(id uuid.UUID, ch chan any) error {
-	if m == nil {
-		return errMuxIsNil
+	if err := common.NilGuard(m); err != nil {
+		return err
 	}
 	return m.d.unsubscribe(id, ch)
 }
@@ -53,12 +52,8 @@ func (m *Mux) Unsubscribe(id uuid.UUID, ch chan any) error {
 // Publish takes in a persistent memory address and dispatches changes to
 // required pipes.
 func (m *Mux) Publish(data any, ids ...uuid.UUID) error {
-	if m == nil {
-		return errMuxIsNil
-	}
-
-	if data == nil {
-		return errNoData
+	if err := common.NilGuard(m, data); err != nil {
+		return err
 	}
 
 	if len(ids) == 0 {
@@ -69,8 +64,7 @@ func (m *Mux) Publish(data any, ids ...uuid.UUID) error {
 	}
 
 	for i := range ids {
-		err := m.d.publish(ids[i], data)
-		if err != nil {
+		if err := m.d.publish(ids[i], data); err != nil {
 			return err
 		}
 	}
@@ -79,8 +73,8 @@ func (m *Mux) Publish(data any, ids ...uuid.UUID) error {
 
 // GetID a new unique ID to track routing information in the dispatch system
 func (m *Mux) GetID() (uuid.UUID, error) {
-	if m == nil {
-		return uuid.UUID{}, errMuxIsNil
+	if err := common.NilGuard(m); err != nil {
+		return uuid.UUID{}, err
 	}
 	return m.d.getNewID(uuid.NewV4)
 }

@@ -119,11 +119,11 @@ func TestExchange_Pairs(t *testing.T) {
 	}
 }
 
-func TestExchange_AccountInformation(t *testing.T) {
+func TestExchange_AccountBalances(t *testing.T) {
 	if !configureExchangeKeys() {
 		t.Skip("no exchange configured test skipped")
 	}
-	_, err := exchangeTest.AccountInformation(t.Context(),
+	_, err := exchangeTest.AccountBalances(t.Context(),
 		exchName, asset.Spot)
 	if err != nil {
 		t.Fatal(err)

@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -368,18 +369,20 @@ func TestUTakerBuySellVol(t *testing.T) {
 
 func TestUCompositeIndexInfo(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("DEFI-USDT")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = e.UCompositeIndexInfo(t.Context(), cp)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = e.UCompositeIndexInfo(t.Context(), currency.EMPTYPAIR)
-	if err != nil {
-		t.Error(err)
-	}
+	r, err := e.UCompositeIndexInfo(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "UCompositeIndexInfo with no pair must not error")
+	require.NotEmpty(t, r, "UCompositeIndexInfo must return composite index info")
+	cp, err := currency.NewPairFromString(r[0].Symbol)
+	require.NoErrorf(t, err, "NewPairFromString must not error for symbol %s", r[0].Symbol)
+	r, err = e.UCompositeIndexInfo(t.Context(), cp)
+	require.NoErrorf(t, err, "UCompositeIndexInfo for pair %s must not error", cp)
+	require.NotEmptyf(t, r, "UCompositeIndexInfo for pair %s must return composite index info", cp)
+	require.NotEmptyf(t, r[0].BaseAssetList, "UCompositeIndexInfo for pair %s must return a non empty base asset list", cp)
+	b := r[0].BaseAssetList[0]
+	assert.NotEmpty(t, b.BaseAsset, "BaseAsset should be set")
+	assert.NotEmpty(t, b.QuoteAsset, "QuoteAsset asset should be set")
+	assert.NotZero(t, b.WeightInQuantity, "WeightInQuantity should be set")
+	assert.NotZero(t, b.WeightInPercentage, "WeightInPercentage should be set")
 }
 
 func TestUFuturesNewOrder(t *testing.T) {
@@ -1118,14 +1121,8 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOrderBook(t.Context(),
-		OrderBookDataRequestParams{
-			Symbol: currency.NewBTCUSDT(),
-			Limit:  1000,
-		})
-	if err != nil {
-		t.Error("Binance GetOrderBook() error", err)
-	}
+	_, err := e.GetOrderBook(t.Context(), currency.NewBTCUSDT(), 1000)
+	assert.NoError(t, err)
 }
 
 func TestGetMostRecentTrades(t *testing.T) {
@@ -1477,109 +1474,108 @@ func TestNewOrderTest(t *testing.T) {
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	p := currency.NewBTCUSDT()
-	start := time.Unix(1577977445, 0)  // 2020-01-02 15:04:05
-	end := start.Add(15 * time.Minute) // 2020-01-02 15:19:05
-	result, err := e.GetHistoricTrades(t.Context(), p, asset.Spot, start, end)
-	assert.NoError(t, err, "GetHistoricTrades should not error")
-	expected := 2134
+	start := time.Now().Add(-time.Hour * 24 * 90).Truncate(time.Minute) // 3 months ago
 	if mockTests {
-		expected = 1002
+		start = time.Unix(1577977445, 0) // 2020-01-02 15:04:05
 	}
-	assert.Equal(t, expected, len(result), "GetHistoricTrades should return correct number of entries")
+	end := start.Add(15 * time.Minute)
+	result, err := e.GetHistoricTrades(t.Context(), p, asset.Spot, start, end)
+	require.NoError(t, err, "GetHistoricTrades must not error")
+	assert.Greater(t, len(result), 1001, "GetHistoricTrades should have enough trades")
 	for _, r := range result {
-		if !assert.WithinRange(t, r.Timestamp, start, end, "All trades should be within time range") {
-			break
-		}
+		require.WithinRange(t, r.Timestamp, start, end, "All trades must be within time range")
 	}
 }
 
+// TestGetAggregatedTradesBatched exercises TestGetAggregatedTradesBatched to ensure our date and limit scanning works correctly
+// This test is susceptible to failure if volumes change a lot, during wash trading or zero-fee periods
+// In live tests, 45 minutes is expected to return more than 1000 records
 func TestGetAggregatedTradesBatched(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
+	type testCase struct {
+		name    string
+		args    *AggregatedTradeRequestParams
+		expFunc func(*testing.T, []AggregatedTrade)
 	}
 
-	start := time.Date(2020, 1, 2, 15, 4, 5, 0, time.UTC)
-	expectTime := time.Date(2020, 1, 2, 16, 19, 4, 831_000_000, time.UTC)
-	tests := []struct {
-		name string
-		// mock test or live test
-		mock         bool
-		args         *AggregatedTradeRequestParams
-		numExpected  int
-		lastExpected time.Time
-	}{
-		{
-			name: "mock batch with timerange",
-			mock: true,
-			args: &AggregatedTradeRequestParams{
-				Symbol:    currencyPair,
-				StartTime: start,
-				EndTime:   start.Add(75 * time.Minute),
+	var tests []testCase
+	if mockTests {
+		start := time.Date(2020, 1, 2, 15, 4, 5, 0, time.UTC)
+		tests = []testCase{
+			{
+				name: "mock batch with timerange",
+				args: &AggregatedTradeRequestParams{StartTime: start, EndTime: start.Add(75 * time.Minute)},
+				expFunc: func(t *testing.T, results []AggregatedTrade) {
+					t.Helper()
+					require.Equal(t, 1012, len(results), "must return correct number of records")
+					assert.Equal(t,
+						time.Date(2020, 1, 2, 16, 18, 31, int(919*time.Millisecond), time.UTC),
+						results[len(results)-1].TimeStamp.Time().UTC(),
+						"should return the correct time for the last record",
+					)
+				},
 			},
-			numExpected:  1012,
-			lastExpected: time.Date(2020, 1, 2, 16, 18, 31, int(919*time.Millisecond), time.UTC),
-		},
-		{
-			name: "batch with timerange",
-			args: &AggregatedTradeRequestParams{
-				Symbol:    currencyPair,
-				StartTime: start,
-				EndTime:   start.Add(75 * time.Minute),
+			{
+				name: "mock custom limit with start time set, no end time",
+				args: &AggregatedTradeRequestParams{StartTime: start, Limit: 1001},
+				expFunc: func(t *testing.T, results []AggregatedTrade) {
+					t.Helper()
+					require.Equal(t, 1001, len(results), "must return correct number of records")
+					assert.Equal(t,
+						time.Date(2020, 1, 2, 15, 18, 39, int(226*time.Millisecond), time.UTC),
+						results[len(results)-1].TimeStamp.Time().UTC(),
+						"should return the correct time for the last record",
+					)
+				},
 			},
-			numExpected:  12130,
-			lastExpected: expectTime,
-		},
-		{
-			name: "mock custom limit with start time set, no end time",
-			mock: true,
-			args: &AggregatedTradeRequestParams{
-				Symbol:    currency.NewBTCUSDT(),
-				StartTime: start,
-				Limit:     1001,
+			{
+				name: "mock limit less than returned",
+				args: &AggregatedTradeRequestParams{Limit: 3},
+				expFunc: func(t *testing.T, results []AggregatedTrade) {
+					t.Helper()
+					require.Equal(t, 3, len(results), "must return correct number of records")
+					assert.Equal(t,
+						time.Date(2020, 1, 2, 16, 19, 5, int(200*time.Millisecond), time.UTC),
+						results[len(results)-1].TimeStamp.Time().UTC(),
+						"should return the correct time for the last record",
+					)
+				},
 			},
-			numExpected:  1001,
-			lastExpected: time.Date(2020, 1, 2, 15, 18, 39, int(226*time.Millisecond), time.UTC),
-		},
-		{
-			name: "custom limit with start time set, no end time",
-			args: &AggregatedTradeRequestParams{
-				Symbol:    currency.NewBTCUSDT(),
-				StartTime: time.Date(2020, 11, 18, 23, 0, 28, 921, time.UTC),
-				Limit:     1001,
+		}
+	} else {
+		start := time.Now().Add(-time.Hour * 24 * 90).Truncate(time.Minute) // 3 months ago
+		tests = []testCase{
+			{
+				name: "batch with timerange",
+				args: &AggregatedTradeRequestParams{StartTime: start, EndTime: start.Add(20 * time.Minute)},
+				expFunc: func(t *testing.T, results []AggregatedTrade) {
+					t.Helper()
+					// 2000-50000 records range was valid in 2025; Adjust if Binance enters a phase of zero-fees or low-volume
+					require.Greater(t, len(results), 2000, "must return a quantity above a sane threshold of records")
+					assert.Less(t, len(results), 50000, "should return a quantity below a sane threshold of records")
+					assert.WithinDuration(t, results[len(results)-1].TimeStamp.Time(), start, 20*time.Minute, "last record should be within range of start time")
+				},
 			},
-			numExpected:  1001,
-			lastExpected: time.Date(2020, 11, 18, 23, 1, 33, int(62*time.Millisecond*10), time.UTC),
-		},
-		{
-			name: "mock recent trades",
-			mock: true,
-			args: &AggregatedTradeRequestParams{
-				Symbol: currency.NewBTCUSDT(),
-				Limit:  3,
+			{
+				name: "custom limit with start time set, no end time",
+				args: &AggregatedTradeRequestParams{StartTime: start, Limit: 2042},
+				expFunc: func(t *testing.T, results []AggregatedTrade) {
+					t.Helper()
+					// 2000 records in was about 6 minutes in 2025; Adjust if Binance enters a phase of zero-fees or low-volume
+					require.Equal(t, 2042, len(results), "must return exactly the limit number of records")
+					assert.WithinDuration(t, results[len(results)-1].TimeStamp.Time(), start, 20*time.Minute, "last record should be within 20 minutes of start time")
+				},
 			},
-			numExpected:  3,
-			lastExpected: time.Date(2020, 1, 2, 16, 19, 5, int(200*time.Millisecond), time.UTC),
-		},
+		}
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if tt.mock != mockTests {
-				t.Skip("mock mismatch, skipping")
-			}
-			result, err := e.GetAggregatedTrades(t.Context(), tt.args)
-			if err != nil {
-				t.Error(err)
-			}
-			if len(result) != tt.numExpected {
-				t.Errorf("GetAggregatedTradesBatched() expected %v entries, got %v", tt.numExpected, len(result))
-			}
-			lastTradeTime := result[len(result)-1].TimeStamp
-			if !lastTradeTime.Time().Equal(tt.lastExpected) {
-				t.Errorf("last trade expected %v, got %v", tt.lastExpected.UTC(), lastTradeTime.Time().UTC())
-			}
+			tt.args.Symbol = currency.NewBTCUSDT()
+			results, err := e.GetAggregatedTrades(t.Context(), tt.args)
+			require.NoError(t, err)
+			tt.expFunc(t, results)
 		})
 	}
 }
@@ -1711,9 +1707,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 }
 
-func TestGetAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	e := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	items := asset.Items{
 		asset.CoinMarginedFutures,
 		asset.USDTMarginedFutures,
@@ -1724,10 +1722,8 @@ func TestGetAccountInfo(t *testing.T) {
 		assetType := items[i]
 		t.Run(fmt.Sprintf("Update info of account [%s]", assetType.String()), func(t *testing.T) {
 			t.Parallel()
-			_, err := e.UpdateAccountInfo(t.Context(), assetType)
-			if err != nil {
-				t.Error(err)
-			}
+			_, err := e.UpdateAccountBalances(t.Context(), assetType)
+			require.NoError(t, err)
 		})
 	}
 }
@@ -2002,7 +1998,7 @@ func TestSubscribe(t *testing.T) {
 			var req WsPayload
 			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
 			require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
-			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%d}`, req.ID))
+			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":"%s"}`, req.ID))
 		}
 		e = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
@@ -2024,7 +2020,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
 		require.NoError(tb, err, "Unmarshal must not error")
-		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":%d}`, req.ID))
+		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":"%s"}`, req.ID))
 	}
 	b := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	err := b.Subscribe(channels)
@@ -2101,30 +2097,30 @@ func TestWsDepthUpdate(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	e.setupOrderbookManager(t.Context())
 	seedLastUpdateID := int64(161)
-	book := OrderBook{
-		Asks: []OrderbookItem{
-			{Price: 6621.80000000, Quantity: 0.00198100},
-			{Price: 6622.14000000, Quantity: 4.00000000},
-			{Price: 6622.46000000, Quantity: 2.30000000},
-			{Price: 6622.47000000, Quantity: 1.18633300},
-			{Price: 6622.64000000, Quantity: 4.00000000},
-			{Price: 6622.73000000, Quantity: 0.02900000},
-			{Price: 6622.76000000, Quantity: 0.12557700},
-			{Price: 6622.81000000, Quantity: 2.08994200},
-			{Price: 6622.82000000, Quantity: 0.01500000},
-			{Price: 6623.17000000, Quantity: 0.16831300},
+	book := OrderBookResponse{
+		Asks: []orderbook.Level{
+			{Price: 6621.80000000, Amount: 0.00198100},
+			{Price: 6622.14000000, Amount: 4.00000000},
+			{Price: 6622.46000000, Amount: 2.30000000},
+			{Price: 6622.47000000, Amount: 1.18633300},
+			{Price: 6622.64000000, Amount: 4.00000000},
+			{Price: 6622.73000000, Amount: 0.02900000},
+			{Price: 6622.76000000, Amount: 0.12557700},
+			{Price: 6622.81000000, Amount: 2.08994200},
+			{Price: 6622.82000000, Amount: 0.01500000},
+			{Price: 6623.17000000, Amount: 0.16831300},
 		},
-		Bids: []OrderbookItem{
-			{Price: 6621.55000000, Quantity: 0.16356700},
-			{Price: 6621.45000000, Quantity: 0.16352600},
-			{Price: 6621.41000000, Quantity: 0.86091200},
-			{Price: 6621.25000000, Quantity: 0.16914100},
-			{Price: 6621.23000000, Quantity: 0.09193600},
-			{Price: 6621.22000000, Quantity: 0.00755100},
-			{Price: 6621.13000000, Quantity: 0.08432000},
-			{Price: 6621.03000000, Quantity: 0.00172000},
-			{Price: 6620.94000000, Quantity: 0.30506700},
-			{Price: 6620.93000000, Quantity: 0.00200000},
+		Bids: []orderbook.Level{
+			{Price: 6621.55000000, Amount: 0.16356700},
+			{Price: 6621.45000000, Amount: 0.16352600},
+			{Price: 6621.41000000, Amount: 0.86091200},
+			{Price: 6621.25000000, Amount: 0.16914100},
+			{Price: 6621.23000000, Amount: 0.09193600},
+			{Price: 6621.22000000, Amount: 0.00755100},
+			{Price: 6621.13000000, Amount: 0.08432000},
+			{Price: 6621.03000000, Amount: 0.00172000},
+			{Price: 6620.94000000, Amount: 0.30506700},
+			{Price: 6620.93000000, Amount: 0.00200000},
 		},
 		LastUpdateID: seedLastUpdateID,
 	}

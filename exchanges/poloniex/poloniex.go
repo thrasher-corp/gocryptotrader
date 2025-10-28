@@ -101,56 +101,28 @@ func (e *Exchange) GetOrderbook(ctx context.Context, currencyPair string, depth 
 		vals.Set("currencyPair", currencyPair)
 		resp := OrderbookResponse{}
 		path := "/public?command=returnOrderBook&" + vals.Encode()
-		err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
-		if err != nil {
+		if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp); err != nil {
 			return oba, err
 		}
 		if resp.Error != "" {
 			return oba, fmt.Errorf("%s GetOrderbook() error: %s", e.Name, resp.Error)
 		}
-		ob := Orderbook{
-			Bids: make([]OrderbookItem, len(resp.Bids)),
-			Asks: make([]OrderbookItem, len(resp.Asks)),
+		oba.Data[currencyPair] = Orderbook{
+			Bids: resp.Bids.Levels(),
+			Asks: resp.Asks.Levels(),
 		}
-		for x := range resp.Asks {
-			ob.Asks[x] = OrderbookItem{
-				Price:  resp.Asks[x][0].Float64(),
-				Amount: resp.Asks[x][1].Float64(),
-			}
-		}
-		for x := range resp.Bids {
-			ob.Bids[x] = OrderbookItem{
-				Price:  resp.Bids[x][0].Float64(),
-				Amount: resp.Bids[x][1].Float64(),
-			}
-		}
-		oba.Data[currencyPair] = ob
 	} else {
 		vals.Set("currencyPair", "all")
 		resp := OrderbookResponseAll{}
 		path := "/public?command=returnOrderBook&" + vals.Encode()
-		err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp.Data)
-		if err != nil {
+		if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp.Data); err != nil {
 			return oba, err
 		}
 		for currency, orderbook := range resp.Data {
-			ob := Orderbook{
-				Bids: make([]OrderbookItem, len(orderbook.Bids)),
-				Asks: make([]OrderbookItem, len(orderbook.Asks)),
+			oba.Data[currency] = Orderbook{
+				Bids: orderbook.Bids.Levels(),
+				Asks: orderbook.Asks.Levels(),
 			}
-			for x := range orderbook.Asks {
-				ob.Asks[x] = OrderbookItem{
-					Price:  orderbook.Asks[x][0].Float64(),
-					Amount: orderbook.Asks[x][1].Float64(),
-				}
-			}
-			for x := range orderbook.Bids {
-				ob.Bids[x] = OrderbookItem{
-					Price:  orderbook.Bids[x][0].Float64(),
-					Amount: orderbook.Bids[x][1].Float64(),
-				}
-			}
-			oba.Data[currency] = ob
 		}
 	}
 	return oba, nil
@@ -251,35 +223,32 @@ func (e *Exchange) GetLoanOrders(ctx context.Context, ccy string) (LoanOrders, e
 }
 
 // GetBalances returns balances for your account.
-func (e *Exchange) GetBalances(ctx context.Context) (Balance, error) {
+func (e *Exchange) GetBalances(ctx context.Context) (map[currency.Code]float64, error) {
 	var result any
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexBalances, url.Values{}, &result); err != nil {
-		return Balance{}, err
+		return nil, err
 	}
 
 	data, ok := result.(map[string]any)
 	if !ok {
-		return Balance{}, common.GetTypeAssertError("map[string]any", result, "balance result")
+		return nil, common.GetTypeAssertError("map[string]any", result, "balance result")
 	}
 
-	balance := Balance{
-		Currency: make(map[string]float64),
-	}
+	bals := make(map[currency.Code]float64, len(data))
 
 	for x, y := range data {
 		bal, ok := y.(string)
 		if !ok {
-			return Balance{}, common.GetTypeAssertError("string", y, "balance amount")
+			return nil, common.GetTypeAssertError("string", y, "balance amount")
 		}
 
 		var err error
-		balance.Currency[x], err = strconv.ParseFloat(bal, 64)
-		if err != nil {
-			return Balance{}, err
+		if bals[currency.NewCode(x)], err = strconv.ParseFloat(bal, 64); err != nil {
+			return nil, err
 		}
 	}
 
-	return balance, nil
+	return bals, nil
 }
 
 // GetCompleteBalances returns complete balances from your account.

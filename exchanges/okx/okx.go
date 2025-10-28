@@ -33,7 +33,6 @@ import (
 type Exchange struct {
 	exchange.Base
 
-	messageIDSeq           common.Counter
 	instrumentsInfoMapLock sync.Mutex
 	instrumentsInfoMap     map[string][]Instrument
 }

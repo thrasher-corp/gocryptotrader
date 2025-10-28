@@ -639,19 +639,17 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	if sharedtestvalues.AreAPICredentialsSet(e) {
-		_, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
+		_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
 		require.NoError(t, err)
-
-		_, err = e.UpdateAccountInfo(t.Context(), asset.Futures)
+		_, err = e.UpdateAccountBalances(t.Context(), asset.Futures)
 		require.NoError(t, err)
 	} else {
-		_, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
+		_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
 		require.Error(t, err)
-
-		_, err = e.UpdateAccountInfo(t.Context(), asset.Futures)
+		_, err = e.UpdateAccountBalances(t.Context(), asset.Futures)
 		require.Error(t, err)
 	}
 }
@@ -747,7 +745,7 @@ func TestWsAuth(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), true)
+	err := e.UpdateTradablePairs(t.Context())
 	require.NoError(t, err)
 }
 
@@ -942,7 +940,7 @@ func TestWsTrades(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), false)
+	err := e.UpdateTradablePairs(t.Context())
 	require.NoError(t, err)
 	currencyPair := e.CurrencyPairs.Pairs[asset.Futures].Available[0]
 	_, err = e.GetRecentTrades(t.Context(), currencyPair, asset.Futures)
@@ -951,7 +949,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), false)
+	err := e.UpdateTradablePairs(t.Context())
 	require.NoError(t, err)
 	currencyPair := e.CurrencyPairs.Pairs[asset.Futures].Available[0]
 	_, err = e.GetHistoricTrades(t.Context(), currencyPair, asset.Futures, time.Now().Add(-time.Minute), time.Now())
@@ -973,13 +971,13 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestNormalizeWalletInfo(t *testing.T) {
 	w := &WalletInfo{
-		Currency: "XBt",
+		Currency: xbtCurr,
 		Amount:   1e+08,
 	}
 
 	normalizeWalletInfo(w)
 
-	assert.Equal(t, "BTC", w.Currency, "Currency should be correct")
+	assert.Equal(t, currency.BTC, w.Currency, "Currency should be correct")
 	assert.Equal(t, 1.0, w.Amount, "Amount should be correct")
 }
 
