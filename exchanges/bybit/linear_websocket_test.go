@@ -15,7 +15,7 @@ func TestGenerateLinearDefaultSubscriptions(t *testing.T) {
 	_, err := e.GenerateLinearDefaultSubscriptions(asset.OptionCombo)
 	assert.ErrorIs(t, err, asset.ErrInvalidAsset)
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	subs, err := e.GenerateLinearDefaultSubscriptions(asset.USDTMarginedFutures)
@@ -43,7 +43,7 @@ func TestGenerateLinearDefaultSubscriptions(t *testing.T) {
 func TestLinearSubscribe(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	subs, err := e.GenerateLinearDefaultSubscriptions(asset.USDTMarginedFutures)
@@ -60,7 +60,7 @@ func TestLinearSubscribe(t *testing.T) {
 func TestLinearUnsubscribe(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	subs, err := e.GenerateLinearDefaultSubscriptions(asset.USDTMarginedFutures)

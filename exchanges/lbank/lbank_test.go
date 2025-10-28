@@ -223,7 +223,7 @@ func TestGetWithdrawRecords(t *testing.T) {
 func TestLoadPrivKey(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	e.SetDefaults()
 	require.ErrorIs(t, e.loadPrivKey(t.Context()), exchange.ErrCredentialsAreEmpty)
 
@@ -257,7 +257,7 @@ func TestLoadPrivKey(t *testing.T) {
 func TestSign(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	e.SetDefaults()
 	_, err := e.sign("hello123")
 	require.ErrorIs(t, err, errPrivateKeyNotLoaded)
