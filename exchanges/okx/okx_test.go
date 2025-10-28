@@ -3910,7 +3910,7 @@ func TestGenerateOrderbookChecksum(t *testing.T) {
 
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", e.WsHandleData)
 	close(e.Websocket.DataHandler)
@@ -4014,7 +4014,7 @@ var pushDataMap = map[string]string{
 
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
 	for name, msg := range pushDataMap {
@@ -4063,7 +4063,7 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestWSProcessTrades(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	assets, err := e.getAssetsFromInstrumentID(mainPair.String())
 	require.NoError(t, err, "getAssetsFromInstrumentID must not error")
@@ -4286,7 +4286,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
 	_, err := e.getAssetsFromInstrumentID("")
@@ -6042,7 +6042,7 @@ func (e *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (st
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := e.generateSubscriptions()
@@ -6098,7 +6098,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestBusinessWSCandleSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
 	err := e.WsConnectBusiness(t.Context())
