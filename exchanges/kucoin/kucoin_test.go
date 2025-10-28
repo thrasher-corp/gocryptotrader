@@ -2340,7 +2340,7 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 func TestPushData(t *testing.T) {
 	t.Parallel()
 
-	e := testInstance(t) //nolint:govet // Intentional shadow
+	e := testInstance(t)
 	e.SetCredentials("mock", "test", "test", "", "", "")
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
