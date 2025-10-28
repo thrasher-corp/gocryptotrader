@@ -122,8 +122,7 @@ func (e *Exchange) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(context.TODO(), &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(context.TODO(), &dialer, http.Header{}); err != nil {
 		return err
 	}
 	if e.Verbose {
@@ -138,8 +137,7 @@ func (e *Exchange) WsConnect() error {
 	})
 	if e.IsWebsocketAuthenticationSupported() {
 		var authDialer gws.Dialer
-		err = e.WsAuth(context.TODO(), &authDialer)
-		if err != nil {
+		if err := e.WsAuth(context.TODO(), &authDialer); err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
@@ -449,7 +447,7 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 		return err
 	}
 	if len(ob) == 0 {
-		return errReturnEmpty
+		return common.ErrNoResults
 	}
 	bids, err := levelConstructor(ob[0].Bids)
 	if err != nil {
@@ -471,19 +469,18 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 			ChecksumStringRequired: true,
 		}
 		return e.Websocket.Orderbook.LoadSnapshot(&ob)
-	} else {
-		update := orderbook.Update{
-			Bids:             bids,
-			Asks:             asks,
-			Pair:             pair,
-			UpdateTime:       wsResponse.Timestamp.Time(),
-			Asset:            itemDecoder(wsResponse.Arg.InstrumentType),
-			GenerateChecksum: e.CalculateUpdateOrderbookChecksum,
-			ExpectedChecksum: uint32(ob[0].Checksum), //nolint:gosec // The exchange sends it as ints expecting overflows to be handled as Go does by default
-			AllowEmpty:       true,
-		}
-		return e.Websocket.Orderbook.Update(&update)
 	}
+	update := orderbook.Update{
+		Bids:             bids,
+		Asks:             asks,
+		Pair:             pair,
+		UpdateTime:       wsResponse.Timestamp.Time(),
+		Asset:            itemDecoder(wsResponse.Arg.InstrumentType),
+		GenerateChecksum: e.CalculateUpdateOrderbookChecksum,
+		ExpectedChecksum: uint32(ob[0].Checksum), //nolint:gosec // The exchange sends it as ints expecting overflows to be handled as Go does by default
+		AllowEmpty:       true,
+	}
+	return e.Websocket.Orderbook.Update(&update)
 }
 
 // AccountSnapshotDataHandler handles account snapshot data

@@ -717,7 +717,7 @@ type CancelAndPlaceSpotOrderParams struct {
 	Price                  float64       `json:"price,string"`
 	Amount                 float64       `json:"size,string"`
 	OldClientOrderID       string        `json:"clientOid,omitempty"`
-	OrderID                int64         `json:"orderId,omitempty,string"`
+	OrderID                uint64        `json:"orderId,omitempty,string"`
 	NewClientOrderID       string        `json:"newClientOid,omitempty"`
 	PresetTakeProfitPrice  float64       `json:"presetTakeProfitPrice,omitempty,string"`
 	ExecuteTakeProfitPrice float64       `json:"executeTakeProfitPrice,omitempty,string"`
@@ -745,7 +745,7 @@ type PlaceSpotOrderParams struct {
 // CancelSpotOrderParams contains information on an order to be cancelled
 type CancelSpotOrderParams struct {
 	Pair          currency.Pair `json:"symbol"`
-	OrderID       int64         `json:"orderId,string,omitempty"`
+	OrderID       uint64        `json:"orderId,string,omitempty"`
 	ClientOrderID string        `json:"clientOid,omitempty"`
 }
 

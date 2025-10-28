@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -166,7 +167,7 @@ func TestOrderbookDataHandler(t *testing.T) {
 	assert.ErrorContains(t, err, errUnmarshalArray)
 	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"books","instId":"BTCUSD"},"data":[]}`)
 	err = e.wsHandleData(mockJSON)
-	assert.ErrorIs(t, err, errReturnEmpty)
+	assert.ErrorIs(t, err, common.ErrNoResults)
 	mockJSON = []byte(`{"action":"snapshot","arg":{"channel":"books","instId":"BTCUSD"},"data":[{"bids":[["a","1"]]}]}`)
 	err = e.wsHandleData(mockJSON)
 	assert.ErrorIs(t, err, strconv.ErrSyntax)

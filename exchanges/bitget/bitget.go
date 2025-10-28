@@ -282,7 +282,6 @@ var (
 	errReviseTypeEmpty                = errors.New("reviseType cannot be empty")
 	errUnknownPairQuote               = errors.New("unknown pair quote; pair can't be split due to lack of delimiter and unclear base length")
 	errStrategyMutex                  = errors.New("only one of immediate or cancel, fill or kill, and post only can be set to true")
-	errReturnEmpty                    = errors.New("returned data unexpectedly empty")
 	errAuthenticatedWebsocketDisabled = errors.New("authenticatedWebsocketAPISupport not enabled")
 	errAssetModeEmpty                 = errors.New("assetMode cannot be empty")
 	errTakeProfitTriggerPriceEmpty    = fmt.Errorf("%w: TakeProfitTriggerPrice below minimum", limits.ErrPriceBelowMin)
@@ -298,8 +297,7 @@ var (
 func (e *Exchange) QueryAnnouncements(ctx context.Context, annType string, startTime, endTime time.Time, pagination uint64, limit uint8) ([]AnnouncementResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("annType", annType)
@@ -348,8 +346,7 @@ func (e *Exchange) GetAllTradeRates(ctx context.Context, businessType string) ([
 func (e *Exchange) GetSpotTransactionRecords(ctx context.Context, cur currency.Code, startTime, endTime time.Time, limit, pagination uint64) ([]SpotTrResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, false)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if !cur.IsEmpty() {
@@ -369,8 +366,7 @@ func (e *Exchange) GetSpotTransactionRecords(ctx context.Context, cur currency.C
 func (e *Exchange) GetFuturesTransactionRecords(ctx context.Context, productType string, cur currency.Code, startTime, endTime time.Time, limit, pagination uint64) ([]FutureTrResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, false)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if productType != "" {
@@ -391,8 +387,7 @@ func (e *Exchange) GetFuturesTransactionRecords(ctx context.Context, productType
 func (e *Exchange) GetMarginTransactionRecords(ctx context.Context, marginType string, cur currency.Code, startTime, endTime time.Time, limit, pagination uint64) ([]MarginTrResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, false)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if marginType != "" {
@@ -415,8 +410,7 @@ func (e *Exchange) GetMarginTransactionRecords(ctx context.Context, marginType s
 func (e *Exchange) GetP2PTransactionRecords(ctx context.Context, cur currency.Code, startTime, endTime time.Time, limit, pagination uint64) ([]P2PTrResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, false)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if !cur.IsEmpty() {
@@ -457,8 +451,7 @@ func (e *Exchange) GetMerchantP2POrders(ctx context.Context, startTime, endTime 
 	var params Params
 	params.Values = make(url.Values)
 	// Documentation incorrectly marks startTime, language, and advNo as required
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -485,8 +478,7 @@ func (e *Exchange) GetMerchantAdvertisementList(ctx context.Context, startTime, 
 	var params Params
 	params.Values = make(url.Values)
 	// Documentation incorrectly marks startTime, status, coin, and fiat as required
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -894,8 +886,7 @@ func (e *Exchange) CommitConversion(ctx context.Context, fromCurrency, toCurrenc
 func (e *Exchange) GetConvertHistory(ctx context.Context, startTime, endTime time.Time, limit, pagination uint64) (*ConvHistResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, false)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -936,8 +927,7 @@ func (e *Exchange) ConvertBGB(ctx context.Context, currencies []currency.Code) (
 func (e *Exchange) GetBGBConvertHistory(ctx context.Context, orderID, limit, pagination uint64, startTime, endTime time.Time) ([]BGBConvHistResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
@@ -1033,8 +1023,7 @@ func (e *Exchange) GetSpotCandlestickData(ctx context.Context, pair currency.Pai
 		params.Values.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	} else {
 		path = bitgetSpot + bitgetMarket + bitgetCandles
-		err := params.prepareDateString(startTime, endTime, true, true)
-		if err != nil {
+		if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 			return nil, err
 		}
 	}
@@ -1067,8 +1056,7 @@ func (e *Exchange) GetSpotMarketTrades(ctx context.Context, pair currency.Pair, 
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -1266,8 +1254,7 @@ func (e *Exchange) GetSpotOrderDetails(ctx context.Context, orderID uint64, clie
 func (e *Exchange) GetUnfilledOrders(ctx context.Context, pair currency.Pair, tpslType string, startTime, endTime time.Time, limit, pagination, orderID uint64, acceptableDelay time.Duration) ([]UnfilledOrdersResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -1290,8 +1277,7 @@ func (e *Exchange) GetUnfilledOrders(ctx context.Context, pair currency.Pair, tp
 func (e *Exchange) GetHistoricalSpotOrders(ctx context.Context, pair currency.Pair, startTime, endTime time.Time, limit, pagination, orderID uint64, tpslType string, acceptableDelay time.Duration) ([]SpotOrderDetailData, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -1316,8 +1302,7 @@ func (e *Exchange) GetSpotFills(ctx context.Context, pair currency.Pair, startTi
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -1422,8 +1407,7 @@ func (e *Exchange) GetCurrentSpotPlanOrders(ctx context.Context, pair currency.P
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -1457,8 +1441,7 @@ func (e *Exchange) GetSpotPlanOrderHistory(ctx context.Context, pair currency.Pa
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, false)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -1538,8 +1521,7 @@ func (e *Exchange) ModifyDepositAccount(ctx context.Context, accountType string,
 func (e *Exchange) GetSpotAccountBills(ctx context.Context, cur currency.Code, groupType, businessType string, startTime, endTime time.Time, limit, pagination uint64) ([]SpotAccBillResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if !cur.IsEmpty() {
@@ -1656,8 +1638,7 @@ func (e *Exchange) WithdrawFunds(ctx context.Context, p *WithdrawFundsParams) (*
 func (e *Exchange) GetSubaccountTransferRecord(ctx context.Context, cur currency.Code, subaccountID, clientOrderID, role string, startTime, endTime time.Time, limit, pagination uint64) ([]SubaccTfrRecResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if !cur.IsEmpty() {
@@ -1691,8 +1672,7 @@ func (e *Exchange) GetTransferRecord(ctx context.Context, cur currency.Code, fro
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("coin", cur.String())
@@ -1789,8 +1769,7 @@ func (e *Exchange) GetSubaccountDepositRecords(ctx context.Context, subaccountID
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("subUid", subaccountID)
@@ -1812,8 +1791,7 @@ func (e *Exchange) GetSubaccountDepositRecords(ctx context.Context, subaccountID
 func (e *Exchange) GetWithdrawalRecords(ctx context.Context, cur currency.Code, clientOrderID string, startTime, endTime time.Time, pagination, orderID, limit uint64) ([]WithdrawRecordsResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, false)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if !cur.IsEmpty() {
@@ -1836,8 +1814,7 @@ func (e *Exchange) GetWithdrawalRecords(ctx context.Context, cur currency.Code, 
 func (e *Exchange) GetDepositRecords(ctx context.Context, cryptocurrency currency.Code, orderID, pagination, limit uint64, startTime, endTime time.Time) ([]CryptoDepRecResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, false)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if !cryptocurrency.IsEmpty() {
@@ -1963,8 +1940,7 @@ func (e *Exchange) GetFuturesMarketTrades(ctx context.Context, pair currency.Pai
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -1993,8 +1969,7 @@ func (e *Exchange) GetFuturesCandlestickData(ctx context.Context, pair currency.
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("productType", productType)
@@ -2169,8 +2144,7 @@ func (e *Exchange) GetUSDTInterestHistory(ctx context.Context, cur currency.Code
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("coin", cur.String())
@@ -2391,8 +2365,7 @@ func (e *Exchange) GetFuturesAccountBills(ctx context.Context, productType, busi
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("productType", productType)
@@ -2471,8 +2444,7 @@ func (e *Exchange) GetHistoricalPositions(ctx context.Context, pair currency.Pai
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -2705,8 +2677,7 @@ func (e *Exchange) GetFuturesFills(ctx context.Context, orderID, pagination, lim
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("productType", productType)
@@ -2730,8 +2701,7 @@ func (e *Exchange) GetFuturesOrderFillHistory(ctx context.Context, pair currency
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -2757,8 +2727,7 @@ func (e *Exchange) GetPendingFuturesOrders(ctx context.Context, orderID, paginat
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("productType", productType)
@@ -2786,8 +2755,7 @@ func (e *Exchange) GetHistoricalFuturesOrders(ctx context.Context, orderID, pagi
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -2994,8 +2962,7 @@ func (e *Exchange) GetPendingTriggerFuturesOrders(ctx context.Context, orderID, 
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -3049,8 +3016,7 @@ func (e *Exchange) GetHistoricalTriggerFuturesOrders(ctx context.Context, orderI
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -3083,8 +3049,7 @@ func (e *Exchange) GetSupportedCurrencies(ctx context.Context) ([]SupCurrencyRes
 func (e *Exchange) GetCrossBorrowHistory(ctx context.Context, loanID, limit, pagination uint64, cur currency.Code, startTime, endTime time.Time) (*BorrowHistCross, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if loanID > 0 {
@@ -3108,8 +3073,7 @@ func (e *Exchange) GetCrossBorrowHistory(ctx context.Context, loanID, limit, pag
 func (e *Exchange) GetCrossRepayHistory(ctx context.Context, repayID, limit, pagination uint64, cur currency.Code, startTime, endTime time.Time) (*CrossRepayHistResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if repayID > 0 {
@@ -3133,8 +3097,7 @@ func (e *Exchange) GetCrossRepayHistory(ctx context.Context, repayID, limit, pag
 func (e *Exchange) GetCrossInterestHistory(ctx context.Context, cur currency.Code, startTime, endTime time.Time, limit, pagination uint64) (*InterHistCross, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -3155,8 +3118,7 @@ func (e *Exchange) GetCrossInterestHistory(ctx context.Context, cur currency.Cod
 func (e *Exchange) GetCrossLiquidationHistory(ctx context.Context, startTime, endTime time.Time, limit, pagination uint64) (*LiquidHistCross, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -3174,8 +3136,7 @@ func (e *Exchange) GetCrossLiquidationHistory(ctx context.Context, startTime, en
 func (e *Exchange) GetCrossFinancialHistory(ctx context.Context, marginType string, cur currency.Code, startTime, endTime time.Time, limit, pagination uint64) (*FinHistCrossResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -3424,8 +3385,7 @@ func (e *Exchange) GetCrossOpenOrders(ctx context.Context, pair currency.Pair, c
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -3451,8 +3411,7 @@ func (e *Exchange) GetCrossHistoricalOrders(ctx context.Context, pair currency.P
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -3479,8 +3438,7 @@ func (e *Exchange) GetCrossOrderFills(ctx context.Context, pair currency.Pair, o
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -3502,8 +3460,7 @@ func (e *Exchange) GetCrossOrderFills(ctx context.Context, pair currency.Pair, o
 func (e *Exchange) GetCrossLiquidationOrders(ctx context.Context, orderType, fromCoin, toCoin string, pair currency.Pair, startTime, endTime time.Time, limit, pagination uint64) (*LiquidationResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if orderType != "" {
@@ -3530,8 +3487,7 @@ func (e *Exchange) GetIsolatedRepayHistory(ctx context.Context, pair currency.Pa
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if repayID > 0 {
@@ -3559,8 +3515,7 @@ func (e *Exchange) GetIsolatedBorrowHistory(ctx context.Context, pair currency.P
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("loanId", strconv.FormatUint(loanID, 10))
@@ -3584,8 +3539,7 @@ func (e *Exchange) GetIsolatedInterestHistory(ctx context.Context, pair currency
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -3610,8 +3564,7 @@ func (e *Exchange) GetIsolatedLiquidationHistory(ctx context.Context, pair curre
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -3633,8 +3586,7 @@ func (e *Exchange) GetIsolatedFinancialHistory(ctx context.Context, pair currenc
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -3900,8 +3852,7 @@ func (e *Exchange) GetIsolatedOpenOrders(ctx context.Context, pair currency.Pair
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -3927,8 +3878,7 @@ func (e *Exchange) GetIsolatedHistoricalOrders(ctx context.Context, pair currenc
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -3955,8 +3905,7 @@ func (e *Exchange) GetIsolatedOrderFills(ctx context.Context, pair currency.Pair
 	}
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
@@ -3978,8 +3927,7 @@ func (e *Exchange) GetIsolatedOrderFills(ctx context.Context, pair currency.Pair
 func (e *Exchange) GetIsolatedLiquidationOrders(ctx context.Context, orderType, fromCoin, toCoin string, pair currency.Pair, startTime, endTime time.Time, limit, pagination uint64) (*LiquidationResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if orderType != "" {
@@ -4023,8 +3971,7 @@ func (e *Exchange) GetSavingsBalance(ctx context.Context) (*SavingsBalance, erro
 func (e *Exchange) GetSavingsAssets(ctx context.Context, periodType string, startTime, endTime time.Time, limit, pagination uint64) (*SavingsAssetsResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -4043,8 +3990,7 @@ func (e *Exchange) GetSavingsAssets(ctx context.Context, periodType string, star
 func (e *Exchange) GetSavingsRecords(ctx context.Context, cur currency.Code, periodType, orderType string, startTime, endTime time.Time, limit, pagination uint64) (*SavingsRecords, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -4203,8 +4149,7 @@ func (e *Exchange) GetSharkFinBalance(ctx context.Context) (*SharkFinBalance, er
 func (e *Exchange) GetSharkFinAssets(ctx context.Context, status string, startTime, endTime time.Time, limit, pagination uint64) (*SharkFinAssetsResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -4223,8 +4168,7 @@ func (e *Exchange) GetSharkFinAssets(ctx context.Context, status string, startTi
 func (e *Exchange) GetSharkFinRecords(ctx context.Context, cur currency.Code, transactionType string, startTime, endTime time.Time, limit, pagination uint64) ([]SharkFinRecords, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -4399,8 +4343,7 @@ func (e *Exchange) RepayLoan(ctx context.Context, orderID uint64, amount float64
 func (e *Exchange) GetLoanRepayHistory(ctx context.Context, orderID, pagination, limit uint64, loanCoin, pledgeCoin currency.Code, startTime, endTime time.Time) ([]RepayRecords, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, false)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
@@ -4451,8 +4394,7 @@ func (e *Exchange) ModifyPledgeRate(ctx context.Context, orderID uint64, amount 
 func (e *Exchange) GetPledgeRateHistory(ctx context.Context, orderID, pagination, limit uint64, reviseSide string, pledgeCoin currency.Code, startTime, endTime time.Time) ([]PledgeRateHist, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, false)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
@@ -4473,8 +4415,7 @@ func (e *Exchange) GetPledgeRateHistory(ctx context.Context, orderID, pagination
 func (e *Exchange) GetLoanHistory(ctx context.Context, orderID, pagination, limit uint64, loanCoin, pledgeCoin currency.Code, status string, startTime, endTime time.Time) ([]LoanHistory, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, false)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
@@ -4503,8 +4444,7 @@ func (e *Exchange) GetDebts(ctx context.Context) (*DebtsResp, error) {
 func (e *Exchange) GetLiquidationRecords(ctx context.Context, orderID, pagination, limit uint64, loanCoin, pledgeCoin currency.Code, status string, startTime, endTime time.Time) ([]LiquidRecs, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, false, false)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
@@ -4619,8 +4559,7 @@ func (e *Exchange) GetLoanOrders(ctx context.Context, orderID string, startTime,
 	var params Params
 	params.Values = make(url.Values)
 	params.Values.Set("orderId", orderID)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	path := bitgetSpot + bitgetInsLoan + bitgetLoanOrder
@@ -4632,8 +4571,7 @@ func (e *Exchange) GetLoanOrders(ctx context.Context, orderID string, startTime,
 func (e *Exchange) GetRepaymentOrders(ctx context.Context, limit uint64, startTime, endTime time.Time) ([]RepaymentOrders, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime, true, true)
-	if err != nil {
+	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
@@ -4658,8 +4596,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	newRequest := func() (*request.Item, error) {
 		payload := []byte("")
 		if bodyParams != nil {
-			payload, err = json.Marshal(bodyParams)
-			if err != nil {
+			if payload, err = json.Marshal(bodyParams); err != nil {
 				return nil, err
 			}
 		}
@@ -4669,8 +4606,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		message := t + method + "/api/v2/" + unescapedPath + string(payload)
 		// The exchange also supports user-generated RSA keys, but we haven't implemented that yet
 		var hmac []byte
-		hmac, err = crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(creds.Secret))
-		if err != nil {
+		if hmac, err = crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(creds.Secret)); err != nil {
 			return nil, err
 		}
 		headers := make(map[string]string)
@@ -4747,8 +4683,7 @@ func (p *Params) prepareDateString(startDate, endDate time.Time, ignoreUnsetStar
 // UnmarshalJSON unmarshals the JSON input into a YesNoBool type
 func (y *YesNoBool) UnmarshalJSON(b []byte) error {
 	var yn string
-	err := json.Unmarshal(b, &yn)
-	if err != nil {
+	if err := json.Unmarshal(b, &yn); err != nil {
 		return err
 	}
 	switch yn {
@@ -4814,8 +4749,7 @@ func (s *SuccessBool) UnmarshalJSON(b []byte) error {
 // UnmarshalJSON unmarshals the JSON input into an EmptyInt type
 func (e *EmptyInt) UnmarshalJSON(b []byte) error {
 	var num string
-	err := json.Unmarshal(b, &num)
-	if err != nil {
+	if err := json.Unmarshal(b, &num); err != nil {
 		return err
 	}
 	if num == "" {
@@ -4841,8 +4775,7 @@ func (e *EmptyInt) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON unmarshals the JSON input into an OnOffBool type
 func (o *OnOffBool) UnmarshalJSON(b []byte) error {
 	var oS string
-	err := json.Unmarshal(b, &oS)
-	if err != nil {
+	if err := json.Unmarshal(b, &oS); err != nil {
 		return err
 	}
 	switch oS {
@@ -4865,14 +4798,12 @@ func (o OnOffBool) MarshalJSON() ([]byte, error) {
 // spotOrderHelper is a helper function for unmarshalling spot order endpoints
 func (e *Exchange) spotOrderHelper(ctx context.Context, path string, vals url.Values) ([]SpotOrderDetailData, error) {
 	var temp []OrderDetailTemp
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, vals, nil, &temp)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, vals, nil, &temp); err != nil {
 		return nil, err
 	}
 	resp := make([]SpotOrderDetailData, len(temp))
 	for i := range temp {
-		err = json.Unmarshal(temp[i].FeeDetailTemp, &resp[i].FeeDetail)
-		if err != nil {
+		if err := json.Unmarshal(temp[i].FeeDetailTemp, &resp[i].FeeDetail); err != nil {
 			return nil, err
 		}
 		resp[i].UserID = temp[i].UserID
