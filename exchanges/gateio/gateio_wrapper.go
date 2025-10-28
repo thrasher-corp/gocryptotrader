@@ -16,10 +16,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -675,56 +675,43 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 	return orderbook.Get(e.Name, p, a)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
-	info := account.Holdings{
-		Exchange: e.Name,
-		Accounts: []account.SubAccount{{
-			AssetType: a,
-		}},
-	}
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(a, "")}
 	switch a {
 	case asset.Spot:
 		balances, err := e.GetSpotAccounts(ctx, currency.EMPTYCODE)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		currencies := make([]account.Balance, len(balances))
 		for i := range balances {
-			currencies[i] = account.Balance{
-				Currency: currency.NewCode(balances[i].Currency),
-				Total:    balances[i].Available.Float64() + balances[i].Locked.Float64(),
-				Hold:     balances[i].Locked.Float64(),
-				Free:     balances[i].Available.Float64(),
-			}
+			subAccts[0].Balances.Set(balances[i].Currency, accounts.Balance{
+				Total: balances[i].Available.Float64() + balances[i].Locked.Float64(),
+				Hold:  balances[i].Locked.Float64(),
+				Free:  balances[i].Available.Float64(),
+			})
 		}
-		info.Accounts[0].Currencies = currencies
 	case asset.Margin, asset.CrossMargin:
 		balances, err := e.GetMarginAccountList(ctx, currency.EMPTYPAIR)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		currencies := make([]account.Balance, 0, 2*len(balances))
 		for i := range balances {
-			currencies = append(currencies,
-				account.Balance{
-					Currency: currency.NewCode(balances[i].Base.Currency),
-					Total:    balances[i].Base.Available.Float64() + balances[i].Base.LockedAmount.Float64(),
-					Hold:     balances[i].Base.LockedAmount.Float64(),
-					Free:     balances[i].Base.Available.Float64(),
-				},
-				account.Balance{
-					Currency: currency.NewCode(balances[i].Quote.Currency),
-					Total:    balances[i].Quote.Available.Float64() + balances[i].Quote.LockedAmount.Float64(),
-					Hold:     balances[i].Quote.LockedAmount.Float64(),
-					Free:     balances[i].Quote.Available.Float64(),
-				})
+			subAccts[0].Balances.Set(balances[i].Base.Currency, accounts.Balance{
+				Total: balances[i].Base.Available.Float64() + balances[i].Base.LockedAmount.Float64(),
+				Hold:  balances[i].Base.LockedAmount.Float64(),
+				Free:  balances[i].Base.Available.Float64(),
+			})
+			subAccts[0].Balances.Set(balances[i].Quote.Currency, accounts.Balance{
+				Total: balances[i].Quote.Available.Float64() + balances[i].Quote.LockedAmount.Float64(),
+				Hold:  balances[i].Quote.LockedAmount.Float64(),
+				Free:  balances[i].Quote.Available.Float64(),
+			})
 		}
-		info.Accounts[0].Currencies = currencies
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
 		settle, err := getSettlementCurrency(currency.EMPTYPAIR, a)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 		var acc *FuturesAccount
 		if a == asset.DeliveryFutures {
@@ -733,33 +720,27 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, a asset.Item) (account
 			acc, err = e.QueryFuturesAccount(ctx, settle)
 		}
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		info.Accounts[0].Currencies = []account.Balance{{
-			Currency: currency.NewCode(acc.Currency),
-			Total:    acc.Total.Float64(),
-			Hold:     acc.Total.Float64() - acc.Available.Float64(),
-			Free:     acc.Available.Float64(),
-		}}
+		subAccts[0].Balances.Set(acc.Currency, accounts.Balance{
+			Total: acc.Total.Float64(),
+			Hold:  acc.Total.Float64() - acc.Available.Float64(),
+			Free:  acc.Available.Float64(),
+		})
 	case asset.Options:
 		balance, err := e.GetOptionAccounts(ctx)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		info.Accounts[0].Currencies = []account.Balance{{
-			Currency: currency.NewCode(balance.Currency),
-			Total:    balance.Total.Float64(),
-			Hold:     balance.Total.Float64() - balance.Available.Float64(),
-			Free:     balance.Available.Float64(),
-		}}
+		subAccts[0].Balances.Set(balance.Currency, accounts.Balance{
+			Total: balance.Total.Float64(),
+			Hold:  balance.Total.Float64() - balance.Available.Float64(),
+			Free:  balance.Available.Float64(),
+		})
 	default:
-		return info, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w asset type: %q", asset.ErrNotSupported, a)
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err == nil {
-		err = account.Process(&info, creds)
-	}
-	return info, err
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -1756,10 +1737,9 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 	return availableChains, nil
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

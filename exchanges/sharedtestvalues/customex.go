@@ -7,10 +7,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -92,9 +92,9 @@ func (c *CustomEx) GetAvailablePairs(asset.Item) (currency.Pairs, error) {
 	return nil, nil
 }
 
-// UpdateAccountInfo is a mock method for CustomEx
-func (c *CustomEx) UpdateAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, nil
+// UpdateAccountBalances is a mock method returning empty currency balances
+func (c *CustomEx) UpdateAccountBalances(context.Context, asset.Item) (accounts.SubAccounts, error) {
+	return accounts.SubAccounts{}, nil
 }
 
 // SetPairs is a mock method for CustomEx
