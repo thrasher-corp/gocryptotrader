@@ -332,20 +332,16 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	_, err := e.WebsocketSubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	arg.Pair = futuresTradablePair
+	arg.Pair = spotTradablePair
 	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrInvalidTimeInForce)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	arg.TimeInForce = order.GoodTillCancel
-	arg.AssetType = asset.Options
 	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	arg.AssetType = asset.Spot
-	arg.Type = order.Liquidation
-	arg.Pair = spotTradablePair
 	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	e := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
@@ -1362,10 +1358,10 @@ func TestPlaceOrder(t *testing.T) {
 	result, err := e.PlaceOrder(t.Context(), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
 		Side:          order.Buy.String(),
-		Type:          order.Market.String(),
+		Type:          orderType(order.Market),
 		Amount:        100,
 		Price:         40000.50000,
-		TimeInForce:   "GTC",
+		TimeInForce:   timeInForce(order.GoodTillCancel),
 		ClientOrderID: "1234Abc",
 	})
 	require.NoError(t, err)
@@ -1399,10 +1395,10 @@ func TestPlaceBatchOrders(t *testing.T) {
 		{
 			Symbol:        pair,
 			Side:          order.Buy.String(),
-			Type:          order.Market.String(),
+			Type:          orderType(order.Market),
 			Quantity:      1,
 			Price:         40000.50000,
-			TimeInForce:   "GTC",
+			TimeInForce:   timeInForce(order.GoodTillCancel),
 			ClientOrderID: "1234Abc",
 		},
 		{
@@ -1412,11 +1408,11 @@ func TestPlaceBatchOrders(t *testing.T) {
 		},
 		{
 			Symbol:        getPairFromString("BTC_USDT"),
-			Type:          "LIMIT",
+			Type:          orderType(order.Limit),
 			Quantity:      100,
 			Side:          "BUY",
 			Price:         40000.50000,
-			TimeInForce:   "IOC",
+			TimeInForce:   timeInForce(order.ImmediateOrCancel),
 			ClientOrderID: "1234Abc",
 		},
 		{
@@ -1426,11 +1422,11 @@ func TestPlaceBatchOrders(t *testing.T) {
 		},
 		{
 			Symbol:        getPairFromString("TRX_USDT"),
-			Type:          "LIMIT",
+			Type:          orderType(order.Limit),
 			Quantity:      15000,
 			Side:          "SELL",
 			Price:         0.0623423423,
-			TimeInForce:   "IOC",
+			TimeInForce:   timeInForce(order.ImmediateOrCancel),
 			ClientOrderID: "456Xyz",
 		},
 	})
@@ -1511,7 +1507,7 @@ func TestCancelTradeOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	_, err := e.CancelTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
+	_, err := e.CancelTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []accountType{accountType(asset.Spot)})
 	require.NoError(t, err)
 }
 
@@ -1576,8 +1572,8 @@ func TestCreateSmartOrder(t *testing.T) {
 		Type:          "STOP_LIMIT",
 		Price:         40000.50000,
 		ClientOrderID: "1234Abc",
-		Side:          "BUY",
-		TimeInForce:   "GTC",
+		Side:          order.Buy.String(),
+		TimeInForce:   timeInForce(order.GoodTillCancel),
 		Quantity:      100,
 	})
 	require.NoError(t, err)
@@ -1586,11 +1582,11 @@ func TestCreateSmartOrder(t *testing.T) {
 
 	result, err = e.CreateSmartOrder(generateContext(), &SmartOrderRequestRequest{
 		Symbol:         spotTradablePair,
-		Type:           "TRAILING_STOP_LIMIT",
+		Type:           order.TrailingStopLimit.String(),
 		Price:          40000.50000,
 		ClientOrderID:  "55667798abcd",
-		Side:           "SELL",
-		TimeInForce:    "GTC",
+		Side:           order.Sell.String(),
+		TimeInForce:    timeInForce(order.GoodTillCancel),
 		Quantity:       100,
 		TrailingOffset: "2%",
 		LimitOffset:    "1%",
@@ -1795,6 +1791,12 @@ func TestWsCreateOrder(t *testing.T) {
 	})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
+	_, err = e.WsCreateOrder(t.Context(), &PlaceOrderRequest{
+		Symbol: spotTradablePair,
+		Side:   order.Sell.String(),
+	})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
@@ -1806,11 +1808,11 @@ func TestWsCreateOrder(t *testing.T) {
 	result, err := e.WsCreateOrder(generateContext(), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
 		Side:          order.Buy.String(),
-		Type:          order.Market.String(),
+		Type:          orderType(order.Market),
 		Amount:        1232432,
 		Quantity:      100,
 		Price:         40000.50000,
-		TimeInForce:   "GTC",
+		TimeInForce:   timeInForce(order.GoodTillCancel),
 		ClientOrderID: "1234Abc",
 	})
 	require.NoError(t, err)
@@ -1848,7 +1850,7 @@ func TestWsCancelTradeOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
-	result, err := e.WsCancelTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
+	result, err := e.WsCancelTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []accountType{accountType(asset.Spot)})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1990,7 +1992,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		OrderType:               "limit_maker",
 		Price:                   46050,
 		Size:                    10,
-		TimeInForce:             "GTC",
+		TimeInForce:             timeInForce(order.GoodTillCancel),
 		SelfTradePreventionMode: "EXPIRE_TAKER",
 		ReduceOnly:              false,
 	})
@@ -2035,7 +2037,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 			OrderType:               "limit_maker",
 			Price:                   46050,
 			Size:                    10,
-			TimeInForce:             "GTC",
+			TimeInForce:             timeInForce(order.GoodTillCancel),
 			SelfTradePreventionMode: "EXPIRE_TAKER",
 			ReduceOnly:              false,
 		},
@@ -2392,12 +2394,12 @@ func TestGetFuturesHistoricalFundingRates(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetFuturesCurrentOpenPositions(t *testing.T) {
+func TestGetContractOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesCurrentOpenPositions(t.Context(), "")
+	_, err := e.GetContractOpenInterest(t.Context(), "")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	result, err := e.GetFuturesCurrentOpenPositions(t.Context(), "BTC_USDT_PERP")
+	result, err := e.GetContractOpenInterest(t.Context(), "BTC_USDT_PERP")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2411,10 +2413,14 @@ func TestGetInsuranceFund(t *testing.T) {
 
 func TestGetFuturesRiskLimit(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesRiskLimit(t.Context(), "")
+	_, err := e.GetFuturesRiskLimit(t.Context(), "", "", 1)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	result, err := e.GetFuturesRiskLimit(t.Context(), futuresTradablePair.String())
+	result, err := e.GetFuturesRiskLimit(t.Context(), futuresTradablePair.String(), "", 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetFuturesRiskLimit(t.Context(), futuresTradablePair.String(), "CROSS", 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2452,45 +2458,6 @@ func TestIntervalString(t *testing.T) {
 		s, err := intervalToString(key)
 		require.Equal(t, val.IntervalString, s)
 		require.ErrorIs(t, err, val.Error, err)
-	}
-}
-
-func TestTimeInForceString(t *testing.T) {
-	t.Parallel()
-	timeInForceStringMap := map[order.TimeInForce]struct {
-		String string
-		Error  error
-	}{
-		order.GoodTillCancel:    {String: "GTC"},
-		order.FillOrKill:        {String: "FOK"},
-		order.ImmediateOrCancel: {String: "IOC"},
-		order.GoodTillCrossing:  {Error: order.ErrInvalidTimeInForce},
-	}
-	for k, v := range timeInForceStringMap {
-		result, err := timeInForceString(k)
-		assert.ErrorIs(t, err, v.Error)
-		assert.Equal(t, v.String, result)
-	}
-}
-
-func TestOrderTypeString(t *testing.T) {
-	t.Parallel()
-	orderStringMap := map[order.Type]struct {
-		String string
-		Error  error
-	}{
-		order.Market:       {String: order.Market.String()},
-		order.Limit:        {String: order.Limit.String()},
-		order.LimitMaker:   {String: order.LimitMaker.String()},
-		order.StopLimit:    {String: "STOP_LIMIT"},
-		order.AnyType:      {},
-		order.UnknownType:  {},
-		order.TrailingStop: {Error: order.ErrUnsupportedOrderType},
-	}
-	for k, v := range orderStringMap {
-		result, err := orderTypeString(k)
-		require.ErrorIs(t, err, v.Error)
-		assert.Equal(t, v.String, result)
 	}
 }
 

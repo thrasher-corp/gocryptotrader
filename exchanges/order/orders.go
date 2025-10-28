@@ -688,6 +688,8 @@ func (t Type) String() string {
 		return orderTakeProfitMarket
 	case TrailingStop:
 		return orderTrailingStop
+	case TrailingStopLimit:
+		return orderTrailingStopLimit
 	case IOS:
 		return orderIOS
 	case Liquidation:
@@ -1115,6 +1117,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return StopMarket, nil
 	case orderTrailingStop, "TRAILING STOP", "EXCHANGE TRAILING STOP", "MOVE_ORDER_STOP":
 		return TrailingStop, nil
+	case orderTrailingStopLimit:
+		return TrailingStopLimit, nil
 	case orderIOS:
 		return IOS, nil
 	case orderAnyType:

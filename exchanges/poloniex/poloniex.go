@@ -611,6 +611,9 @@ func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderReques
 		if args[x].Side == "" {
 			return nil, order.ErrSideIsInvalid
 		}
+		if args[x].Amount <= 0 {
+			return nil, limits.ErrAmountBelowMin
+		}
 	}
 	var resp []*PlaceBatchOrderItem
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders/batch", nil, args, &resp)
@@ -722,8 +725,8 @@ func (e *Exchange) CancelOrdersByIDs(ctx context.Context, orderIDs, clientOrderI
 }
 
 // CancelTradeOrders batch cancel all orders in an account
-func (e *Exchange) CancelTradeOrders(ctx context.Context, symbols, accountTypes []string) ([]*CancelOrderResponse, error) {
-	args := make(map[string][]string)
+func (e *Exchange) CancelTradeOrders(ctx context.Context, symbols []string, accountTypes []accountType) ([]*CancelOrderResponse, error) {
+	args := make(map[string]any)
 	if len(symbols) != 0 {
 		args["symbols"] = symbols
 	}
@@ -1046,7 +1049,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if result == nil {
 		return common.ErrNoResponse
 	}
-	if strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/") {
+	if strings.HasPrefix(path, v3Path) || strings.HasPrefix(path, "/smartorders/") {
 		if val, ok := resp.(*V3ResponseWrapper); ok {
 			if val.Code != 0 && val.Code != 200 {
 				return fmt.Errorf("code: %d message: %s", val.Code, val.Msg)
@@ -1057,17 +1060,17 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, endpoint string, values url.Values, body, result any) error {
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, values url.Values, body, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	ePoint, err := e.API.Endpoints.GetURL(ep)
+	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
 	resp := result
-	requiresWrapper := strings.HasPrefix(endpoint, v3Path) || strings.HasPrefix(endpoint, "/smartorders/")
+	requiresWrapper := strings.HasPrefix(path, v3Path) || strings.HasPrefix(path, "/smartorders/")
 	if requiresWrapper {
 		resp = &V3ResponseWrapper{
 			Data: result,
@@ -1083,12 +1086,12 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}
 		timestamp := time.Now()
 		bodyPayload := []byte("{}")
-		var signatureStrings string
 		signTimestamp := strconv.FormatInt(timestamp.UnixMilli(), 10)
 		values.Set("signTimestamp", signTimestamp)
+		var signatureStrings string
 		switch method {
 		case http.MethodGet, "get":
-			signatureStrings = fmt.Sprintf("%s\n%s\n%s", http.MethodGet, endpoint, values.Encode())
+			signatureStrings = fmt.Sprintf("%s\n%s\n%s", http.MethodGet, path, values.Encode())
 		default:
 			if body != nil {
 				bodyPayload, err = json.Marshal(body)
@@ -1097,9 +1100,9 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 				}
 			}
 			if string(bodyPayload) != "{}" {
-				signatureStrings = fmt.Sprintf("%s\n%s\n%s&%s", method, endpoint, "requestBody="+string(bodyPayload), values.Encode())
+				signatureStrings = fmt.Sprintf("%s\n%s\n%s&%s", method, path, "requestBody="+string(bodyPayload), values.Encode())
 			} else {
-				signatureStrings = fmt.Sprintf("%s\n%s\n%s", method, endpoint, values.Encode())
+				signatureStrings = fmt.Sprintf("%s\n%s\n%s", method, path, values.Encode())
 			}
 		}
 		var hmac []byte
@@ -1115,10 +1118,9 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["signTimestamp"] = signTimestamp
 		values.Del("signTimestamp")
 
-		path := common.EncodeURLValues(ePoint+endpoint, values)
 		req := &request.Item{
 			Method:        method,
-			Path:          path,
+			Path:          common.EncodeURLValues(endpoint+path, values),
 			Result:        resp,
 			Headers:       headers,
 			Verbose:       e.Verbose,

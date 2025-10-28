@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -19,6 +20,9 @@ func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 	}
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
+	}
+	if arg.Amount <= 0 {
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp []PlaceOrderResponse
 	if err := e.SendWebsocketRequest(ctx, connSpotPrivate, "createOrder", arg, &resp); err != nil {
@@ -50,7 +54,7 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 		return nil, err
 	}
 	for r := range resp {
-		if resp[r].Code != 0 {
+		if resp[r].Code != 0 && resp[r].Code != 200 {
 			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp[r].Code, resp[r].Message))
 		}
 	}
@@ -58,8 +62,8 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 }
 
 // WsCancelTradeOrders batch cancel all orders in an account.
-func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols, accountTypes []string) ([]*WsCancelOrderResponse, error) {
-	args := make(map[string][]string)
+func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, accountTypes []accountType) ([]*WsCancelOrderResponse, error) {
+	args := make(map[string]any)
 	if len(symbols) > 0 {
 		args["symbols"] = symbols
 	}
@@ -72,7 +76,7 @@ func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols, accountType
 		return nil, err
 	}
 	for r := range resp {
-		if resp[r].Code != 0 {
+		if resp[r].Code != 0 && resp[r].Code != 200 {
 			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp[r].Code, resp[r].Message))
 		}
 	}

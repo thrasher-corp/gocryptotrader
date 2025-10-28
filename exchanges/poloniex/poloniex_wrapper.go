@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -675,11 +674,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
+	// TODO: These are just here to allow a minimal POC on just the smart request type
 	oTypeString, err := orderTypeString(s.Type)
-	if err != nil {
-		return nil, err
-	}
-	tif, err := timeInForceString(s.TimeInForce)
 	if err != nil {
 		return nil, err
 	}
@@ -689,21 +685,18 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop:
 			smartOrder = true
-		case order.Limit, order.Market, order.LimitMaker, order.UnknownType:
-		default:
-			return nil, fmt.Errorf("%v order type %v is not supported", order.ErrTypeIsInvalid, s.Type)
 		}
 		if smartOrder {
 			sOrder, err := e.CreateSmartOrder(ctx, &SmartOrderRequestRequest{
 				Symbol:        s.Pair,
 				Type:          oTypeString,
 				Side:          s.Side.String(),
-				AccountType:   accountTypeString(s.AssetType),
+				AccountType:   accountType(s.AssetType),
 				Price:         s.Price,
 				StopPrice:     s.TriggerPrice,
 				Quantity:      s.Amount,
 				ClientOrderID: s.ClientOrderID,
-				TimeInForce:   tif,
+				TimeInForce:   timeInForce(s.TimeInForce),
 			})
 			if err != nil {
 				return nil, err
@@ -715,9 +708,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Price:         s.Price,
 			Amount:        s.Amount,
 			AllowBorrow:   false,
-			Type:          oTypeString,
+			Type:          orderType(s.Type),
 			Side:          s.Side.String(),
-			TimeInForce:   tif,
+			TimeInForce:   timeInForce(s.TimeInForce),
 			ClientOrderID: s.ClientOrderID,
 		})
 		if err != nil {
@@ -752,7 +745,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Symbol:                  s.Pair.String(),
 			OrderType:               oTypeString,
 			ReduceOnly:              s.ReduceOnly,
-			TimeInForce:             tif,
+			TimeInForce:             timeInForce(s.TimeInForce),
 			Price:                   s.Price,
 			Size:                    s.Amount,
 			MarginMode:              marginMode,
@@ -887,7 +880,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		if assetType == asset.Futures {
 			if o[i].Pair.IsEmpty() {
 				return nil, currency.ErrSymbolStringEmpty
-			} else if o[0].Pair != o[i].Pair { //nolint:gosec // length checked above
+			} else if o[0].Pair != o[i].Pair { //nolint:gosec // index 0 safe because loop requires len(o) > 0
 				return nil, currency.ErrPairNotFound
 			}
 		}
@@ -983,7 +976,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			}
 		default:
 			if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				wsResponse, err := e.WsCancelTradeOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
+				wsResponse, err := e.WsCancelTradeOrders(ctx, pairs.Strings(), []accountType{accountType(cancelOrd.AssetType)})
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
@@ -993,7 +986,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 					}
 				}
 			} else {
-				resp, err := e.CancelTradeOrders(ctx, pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
+				resp, err := e.CancelTradeOrders(ctx, pairs.Strings(), []accountType{accountType(cancelOrd.AssetType)})
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
@@ -1938,14 +1931,6 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
-	oTypeString, err := orderTypeString(s.Type)
-	if err != nil {
-		return nil, err
-	}
-	tif, err := timeInForceString(s.TimeInForce)
-	if err != nil {
-		return nil, err
-	}
 	if s.AssetType != asset.Spot {
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, s.AssetType)
 	}
@@ -1954,9 +1939,9 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		Price:         s.Price,
 		Amount:        s.Amount,
 		AllowBorrow:   false,
-		Type:          oTypeString,
+		Type:          orderType(s.Type),
 		Side:          s.Side.String(),
-		TimeInForce:   tif,
+		TimeInForce:   timeInForce(s.TimeInForce),
 		ClientOrderID: s.ClientOrderID,
 	})
 	if err != nil {
@@ -1992,6 +1977,8 @@ func orderTypeString(oType order.Type) (string, error) {
 		return oType.String(), nil
 	case order.StopLimit:
 		return "STOP_LIMIT", nil
+	case order.TrailingStopLimit:
+		return "TRAILING_STOP_LIMIT", nil
 	case order.AnyType, order.UnknownType:
 		return "", nil
 	}
@@ -2020,16 +2007,14 @@ func StringToOrderType(oTypeString string) order.Type {
 
 // timeInForceString return a string representation of time-in-force value
 func timeInForceString(tif order.TimeInForce) (string, error) {
-	if tif.Is(order.GoodTillCancel) {
+	switch {
+	case tif.Is(order.GoodTillCancel):
 		return order.GoodTillCancel.String(), nil
-	}
-	if tif.Is(order.FillOrKill) {
+	case tif.Is(order.FillOrKill):
 		return order.FillOrKill.String(), nil
-	}
-	if tif.Is(order.ImmediateOrCancel) {
+	case tif.Is(order.ImmediateOrCancel):
 		return order.ImmediateOrCancel.String(), nil
-	}
-	if tif == order.UnknownTIF {
+	case tif == order.UnknownTIF:
 		return "", nil
 	}
 	return "", fmt.Errorf("%w: TimeInForce value %v is not supported", order.ErrInvalidTimeInForce, tif)

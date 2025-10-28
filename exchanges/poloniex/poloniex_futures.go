@@ -95,7 +95,7 @@ func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []Future
 		return nil, common.ErrEmptyParams
 	}
 	for x := range args {
-		if err := args[x].validationOrderCreationParam(); err != nil {
+		if err := args[x].validate(); err != nil {
 			return nil, err
 		}
 	}
@@ -103,7 +103,7 @@ func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []Future
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"orders", nil, args, &resp)
 }
 
-func (o *FuturesOrderRequest) validationOrderCreationParam() error {
+func (o *FuturesOrderRequest) validate() error {
 	if o.Symbol == "" {
 		return currency.ErrSymbolStringEmpty
 	}
@@ -525,7 +525,7 @@ func (e *Exchange) GetLiquidationOrder(ctx context.Context, symbol, direction st
 			return nil, err
 		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if direction != "" {
 		params.Set("direct", direction)
@@ -604,7 +604,7 @@ func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol string, in
 			return nil, err
 		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -647,7 +647,7 @@ func (e *Exchange) GetMarkPriceKlineData(ctx context.Context, symbol string, int
 			return nil, err
 		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -709,8 +709,8 @@ func (e *Exchange) GetFuturesHistoricalFundingRates(ctx context.Context, symbol 
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues(marketsPathV3+"fundingRate/history", params), &resp)
 }
 
-// GetFuturesCurrentOpenPositions retrieve all current open interest in the market.
-func (e *Exchange) GetFuturesCurrentOpenPositions(ctx context.Context, symbol string) (*OpenInterestData, error) {
+// GetContractOpenInterest retrieve all current open interest in the market.
+func (e *Exchange) GetContractOpenInterest(ctx context.Context, symbol string) (*OpenInterestData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -727,12 +727,18 @@ func (e *Exchange) GetInsuranceFund(ctx context.Context) ([]*InsuranceFundInfo, 
 }
 
 // GetFuturesRiskLimit retrieve information from the Futures Risk Limit Table.
-func (e *Exchange) GetFuturesRiskLimit(ctx context.Context, symbol string) ([]*RiskLimit, error) {
+func (e *Exchange) GetFuturesRiskLimit(ctx context.Context, symbol, marginMode string, tier uint8) ([]*RiskLimit, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
+	if marginMode != "" {
+		params.Set("mgnMode", marginMode)
+	}
+	if tier > 0 {
+		params.Set("tier", strconv.Itoa(int(tier)))
+	}
 	var resp []*RiskLimit
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues(marketsPathV3+"riskLimit", params), &resp)
 }

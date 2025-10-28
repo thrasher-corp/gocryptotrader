@@ -61,17 +61,17 @@ type BillDetails struct {
 
 // FuturesOrderRequest represents a futures order parameters
 type FuturesOrderRequest struct {
-	Symbol                  string  `json:"symbol"`
-	Side                    string  `json:"side"`
-	MarginMode              string  `json:"mgnMode"`
-	PositionSide            string  `json:"posSide"`
-	OrderType               string  `json:"type,omitempty"`
-	ClientOrderID           string  `json:"clOrdId,omitempty"`
-	Price                   float64 `json:"px,omitempty,string"`
-	Size                    float64 `json:"sz,omitempty,string"`
-	ReduceOnly              bool    `json:"reduceOnly,omitempty"`
-	TimeInForce             string  `json:"timeInForce,omitempty"`
-	SelfTradePreventionMode string  `json:"stpMode,omitempty"`
+	Symbol                  string      `json:"symbol"`
+	Side                    string      `json:"side"`
+	MarginMode              string      `json:"mgnMode"`
+	PositionSide            string      `json:"posSide"`
+	OrderType               string      `json:"type,omitempty"`
+	ClientOrderID           string      `json:"clOrdId,omitempty"`
+	Price                   float64     `json:"px,omitempty,string"`
+	Size                    float64     `json:"sz,omitempty,string"`
+	ReduceOnly              bool        `json:"reduceOnly,omitempty"`
+	TimeInForce             timeInForce `json:"timeInForce,omitempty"`
+	SelfTradePreventionMode string      `json:"stpMode,omitempty"`
 }
 
 // FuturesOrderIDResponse represents a futures order creation response
@@ -270,6 +270,7 @@ type FuturesTickerDetails struct {
 	StartTime    types.Time   `json:"sT"`
 	EndTime      types.Time   `json:"cT"`
 	DailyPrice   types.Number `json:"dC"`
+	DN           string       `json:"dN"` // TODO: give the proper naming when the documentation is updated
 	BestBidPrice types.Number `json:"bPx"`
 	BestBidSize  types.Number `json:"bSz"`
 	BestAskPrice types.Number `json:"aPx"`
@@ -459,4 +460,74 @@ type ContractLimitPrice struct {
 	Symbol    string  `json:"symbol"`
 	BuyLimit  float64 `json:"buyLmt"`
 	SellLimit float64 `json:"sellLmt"`
+}
+
+// FuturesSubscriptionResp represents a subscription response item.
+type FuturesSubscriptionResp struct {
+	Channel string          `json:"channel"`
+	Data    json.RawMessage `json:"data"`
+	Action  string          `json:"action"`
+	Event   string          `json:"event"`
+	Message string          `json:"message"`
+}
+
+// FuturesOrders represents a paginated list of Futures orders.
+type FuturesOrders struct {
+	CurrentPage int64          `json:"currentPage"`
+	PageSize    int64          `json:"pageSize"`
+	TotalNum    int64          `json:"totalNum"`
+	TotalPage   int64          `json:"totalPage"`
+	Items       []FuturesOrder `json:"items"`
+}
+
+// FuturesOrder represents a futures order detail.
+type FuturesOrder struct {
+	OrderID             string            `json:"id"`
+	Symbol              string            `json:"symbol"`
+	OrderType           string            `json:"type"`
+	Side                string            `json:"side"`
+	Price               types.Number      `json:"price"`
+	Size                float64           `json:"size"`
+	Value               types.Number      `json:"value"`
+	FilledValue         types.Number      `json:"filledValue"`
+	FilledSize          float64           `json:"filledSize"`
+	SelfTradePrevention string            `json:"stp"`
+	Stop                string            `json:"stop"`
+	StopPriceType       string            `json:"stopPriceType"`
+	StopTriggered       bool              `json:"stopTriggered"`
+	StopPrice           float64           `json:"stopPrice"`
+	TimeInForce         order.TimeInForce `json:"timeInForce"`
+	PostOnly            bool              `json:"postOnly"`
+	Hidden              bool              `json:"hidden"`
+	Iceberg             bool              `json:"iceberg"`
+	VisibleSize         float64           `json:"visibleSize"`
+	Leverage            types.Number      `json:"leverage"`
+	ForceHold           bool              `json:"forceHold"`
+	CloseOrder          bool              `json:"closeOrder"`
+	ReduceOnly          bool              `json:"reduceOnly"`
+	ClientOrderID       string            `json:"clientOid"`
+	Remark              string            `json:"remark"`
+	IsActive            bool              `json:"isActive"`
+	CancelExist         bool              `json:"cancelExist"`
+	CreatedAt           types.Time        `json:"createdAt"`
+	SettleCurrency      string            `json:"settleCurrency"`
+	Status              string            `json:"status"`
+	UpdatedAt           types.Time        `json:"updatedAt"`
+	OrderTime           types.Time        `json:"orderTime"`
+
+	MarginType int64 `json:"marginType"` // Margin Mode, 0 (Isolated) or 1 (Cross)
+	Trades     []struct {
+		FeePay  float64 `json:"feePay"`
+		TradeID string  `json:"tradeId"`
+	} `json:"trades"`
+}
+
+// AuthenticationResponse represents an authentication response for futures websocket connection
+type AuthenticationResponse struct {
+	Data struct {
+		Success   bool       `json:"success"`
+		Message   string     `json:"message"`
+		Timestamp types.Time `json:"ts"`
+	} `json:"data"`
+	Channel string `json:"channel"`
 }

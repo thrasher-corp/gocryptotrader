@@ -401,6 +401,7 @@ const (
 	orderTakeProfit            = "TAKE PROFIT"
 	orderTakeProfitMarket      = "TAKE PROFIT MARKET"
 	orderTrailingStop          = "TRAILING_STOP"
+	orderTrailingStopLimit     = "TRAILING_STOP_LIMIT"
 	orderIOS                   = "IOS"
 	orderLiquidation           = "LIQUIDATION"
 	orderTrigger               = "TRIGGER"

@@ -10965,6 +10965,26 @@
      "queryString": "symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [
+       {
+        "mMRatio": "0.006",
+        "maxLever": "75",
+        "maxSize": "250",
+        "mgnMode": "CROSS",
+        "minSize": "1",
+        "symbol": "BTC_USDT_PERP",
+        "tier": "1"
+       }
+      ],
+      "msg": "Success"
+     },
+     "queryString": "mgnMode=CROSS\u0026symbol=BTC_USDT_PERP\u0026tier=1",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -12195,40 +12215,40 @@
    "GET": [
     {
      "data": {
-        "code": 200,
-        "data": [
-            {
-            "adl": "0.1666",
-            "availQty": "1",
-            "cTime": "1719894977164",
-            "im": "1.955006333333333333",
-            "lever": "30",
-            "liqPx": "0",
-            "markPx": "58650.19",
-            "lastPx": "58650.19",
-            "indexPx": "58650.19",
-            "mgn": "1.955006333333333333",
-            "maxWAmt": "100000",  
-            "mgnMode": "CROSS",
-            "posSide": "BOTH",
-            "mgnRatio": "0",
-            "mm": "0.322576045",
-            "openAvgPx": "58651",
-            "pnl": "0",
-            "qty": "1",
-            "side": "BUY",
-            "state": "NORMAL",
-            "actType": "TRADING", 
-            "tpTrgPx": "58670",
-            "slTrgPx": "61003",  
-            "symbol": "BTC_USDT_PERP",
-            "uTime": "1719974554434",
-            "upl": "-0.00081",
-            "uplRatio": "-0.0004"
-            }
-        ],
-        "msg": "Success"
-    },
+      "code": 200,
+      "data": [
+       {
+        "adl": "0.1666",
+        "availQty": "1",
+        "cTime": "1719894977164",
+        "im": "1.955006333333333333",
+        "lever": "30",
+        "liqPx": "0",
+        "markPx": "58650.19",
+        "lastPx": "58650.19",
+        "indexPx": "58650.19",
+        "mgn": "1.955006333333333333",
+        "maxWAmt": "100000",
+        "mgnMode": "CROSS",
+        "posSide": "BOTH",
+        "mgnRatio": "0",
+        "mm": "0.322576045",
+        "openAvgPx": "58651",
+        "pnl": "0",
+        "qty": "1",
+        "side": "BUY",
+        "state": "NORMAL",
+        "actType": "TRADING",
+        "tpTrgPx": "58670",
+        "slTrgPx": "61003",
+        "symbol": "BTC_USDT_PERP",
+        "uTime": "1719974554434",
+        "upl": "-0.00081",
+        "uplRatio": "-0.0004"
+       }
+      ],
+      "msg": "Success"
+     },
      "queryString": "symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {

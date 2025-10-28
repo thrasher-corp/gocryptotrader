@@ -1,13 +1,63 @@
 package poloniex
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
+
+type (
+	timeInForce order.TimeInForce
+	orderType   order.Type
+	accountType asset.Item
+)
+
+func (t timeInForce) MarshalText() ([]byte, error) {
+	tif := order.TimeInForce(t)
+	switch {
+	case tif.Is(order.GoodTillCancel):
+		return []byte("GTC"), nil
+	case tif.Is(order.FillOrKill):
+		return []byte("FOK"), nil
+	case tif.Is(order.ImmediateOrCancel):
+		return []byte("IOC"), nil
+	case tif == order.UnknownTIF:
+		return nil, nil
+	}
+	return nil, fmt.Errorf("%w: %q", order.ErrInvalidTimeInForce, t)
+}
+
+func (o orderType) MarshalText() ([]byte, error) {
+	t := order.Type(o)
+	switch t {
+	case order.TrailingStopLimit:
+		return []byte("TRAILING_STOP_LIMIT"), nil
+	case order.StopLimit:
+		return []byte("STOP_LIMIT"), nil
+	case order.Market, order.Limit, order.LimitMaker,
+		order.Stop, order.TrailingStop:
+		return []byte(t.String()), nil
+	case order.AnyType, order.UnknownType:
+		return nil, nil
+	}
+	return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, o)
+}
+
+func (a accountType) MarshalText() ([]byte, error) {
+	switch asset.Item(a) {
+	case asset.Spot:
+		return []byte("SPOT"), nil
+	case asset.Futures:
+		return []byte("FUTURE"), nil
+	default:
+		return nil, asset.ErrNotSupported
+	}
+}
 
 // DepositAddresses holds the full address per crypto-currency
 type DepositAddresses map[string]string
@@ -488,7 +538,7 @@ type MaxBuySellAmount struct {
 type PlaceOrderRequest struct {
 	Symbol      currency.Pair `json:"symbol"`
 	Side        string        `json:"side"`
-	Type        string        `json:"type,omitempty"`
+	Type        orderType     `json:"type,omitempty"`
 	AccountType string        `json:"accountType,omitempty"`
 
 	// Quantity Base units for the order. Quantity is required for MARKET SELL or any LIMIT orders
@@ -500,8 +550,8 @@ type PlaceOrderRequest struct {
 	// Price is required for non-market orders
 	Price float64 `json:"price,omitempty,string"`
 
-	TimeInForce   string `json:"timeInForce,omitempty"` // GTC, IOC, FOK (Default: GTC)
-	ClientOrderID string `json:"clientOrderId,omitempty"`
+	TimeInForce   timeInForce `json:"timeInForce,omitempty"` // GTC, IOC, FOK (Default: GTC)
+	ClientOrderID string      `json:"clientOrderId,omitempty"`
 
 	AllowBorrow bool   `json:"allowBorrow,omitempty"`
 	STPMode     string `json:"stpMode,omitempty"` // self-trade prevention. Defaults to EXPIRE_TAKER. None: enable self-trade; EXPIRE_TAKER: Taker order will be canceled when self-trade happens
@@ -640,9 +690,9 @@ type KillSwitchStatus struct {
 type SmartOrderRequestRequest struct {
 	Symbol         currency.Pair `json:"symbol"`
 	Side           string        `json:"side"`
-	TimeInForce    string        `json:"timeInForce,omitempty"`
+	TimeInForce    timeInForce   `json:"timeInForce,omitempty"`
+	AccountType    accountType   `json:"accountType,omitempty"`
 	Type           string        `json:"type,omitempty"`
-	AccountType    string        `json:"accountType,omitempty"`
 	Price          float64       `json:"price,omitempty,string"`
 	StopPrice      float64       `json:"stopPrice,omitempty,string"`
 	Quantity       float64       `json:"quantity,omitempty,string"`
@@ -950,15 +1000,6 @@ type WebsocketResponse struct {
 	Data any    `json:"data"`
 }
 
-// FuturesSubscriptionResp represents a subscription response item.
-type FuturesSubscriptionResp struct {
-	Channel string          `json:"channel"`
-	Data    json.RawMessage `json:"data"`
-	Action  string          `json:"action"`
-	Event   string          `json:"event"`
-	Message string          `json:"message"`
-}
-
 // OrderIDResponse represents an order ID instance.
 type OrderIDResponse struct {
 	OrderID string `json:"orderId,omitempty"`
@@ -967,67 +1008,6 @@ type OrderIDResponse struct {
 	ClientOid string       `json:"clientOid"`
 	Code      types.Number `json:"code"`
 	Msg       string       `json:"msg,omitempty"`
-}
-
-// FuturesOrders represents a paginated list of Futures orders.
-type FuturesOrders struct {
-	CurrentPage int64          `json:"currentPage"`
-	PageSize    int64          `json:"pageSize"`
-	TotalNum    int64          `json:"totalNum"`
-	TotalPage   int64          `json:"totalPage"`
-	Items       []FuturesOrder `json:"items"`
-}
-
-// FuturesOrder represents a futures order detail.
-type FuturesOrder struct {
-	OrderID             string            `json:"id"`
-	Symbol              string            `json:"symbol"`
-	OrderType           string            `json:"type"`
-	Side                string            `json:"side"`
-	Price               types.Number      `json:"price"`
-	Size                float64           `json:"size"`
-	Value               types.Number      `json:"value"`
-	FilledValue         types.Number      `json:"filledValue"`
-	FilledSize          float64           `json:"filledSize"`
-	SelfTradePrevention string            `json:"stp"`
-	Stop                string            `json:"stop"`
-	StopPriceType       string            `json:"stopPriceType"`
-	StopTriggered       bool              `json:"stopTriggered"`
-	StopPrice           float64           `json:"stopPrice"`
-	TimeInForce         order.TimeInForce `json:"timeInForce"`
-	PostOnly            bool              `json:"postOnly"`
-	Hidden              bool              `json:"hidden"`
-	Iceberg             bool              `json:"iceberg"`
-	VisibleSize         float64           `json:"visibleSize"`
-	Leverage            types.Number      `json:"leverage"`
-	ForceHold           bool              `json:"forceHold"`
-	CloseOrder          bool              `json:"closeOrder"`
-	ReduceOnly          bool              `json:"reduceOnly"`
-	ClientOrderID       string            `json:"clientOid"`
-	Remark              string            `json:"remark"`
-	IsActive            bool              `json:"isActive"`
-	CancelExist         bool              `json:"cancelExist"`
-	CreatedAt           types.Time        `json:"createdAt"`
-	SettleCurrency      string            `json:"settleCurrency"`
-	Status              string            `json:"status"`
-	UpdatedAt           types.Time        `json:"updatedAt"`
-	OrderTime           types.Time        `json:"orderTime"`
-
-	MarginType int64 `json:"marginType"` // Margin Mode, 0 (Isolated) or 1 (Cross)
-	Trades     []struct {
-		FeePay  float64 `json:"feePay"`
-		TradeID string  `json:"tradeId"`
-	} `json:"trades"`
-}
-
-// AuthenticationResponse represents an authentication response for futures websocket connection
-type AuthenticationResponse struct {
-	Data struct {
-		Success   bool       `json:"success"`
-		Message   string     `json:"message"`
-		Timestamp types.Time `json:"ts"`
-	} `json:"data"`
-	Channel string `json:"channel"`
 }
 
 // SubAccountTransferRecordRequest represents a sub-account transfer record retrieval parameters
