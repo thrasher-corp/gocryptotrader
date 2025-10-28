@@ -570,7 +570,7 @@ func (e *ErrorCollector) Collect() (errs error) {
 
 // Go runs a function in a goroutine and collects any error it returns
 func (e *ErrorCollector) Go(f func() error) {
-	if err := common.NilGuard(f); err != nil {
+	if err := NilGuard(f); err != nil {
 		panic(err)
 	}
 	e.wg.Go(func() {
