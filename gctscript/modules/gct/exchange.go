@@ -16,33 +16,33 @@ import (
 )
 
 const (
-	orderbookFunc      = "orderbook"
-	tickerFunc         = "ticker"
-	exchangesFunc      = "exchanges"
-	pairsFunc          = "pairs"
-	accountInfoFunc    = "accountinfo"
-	depositAddressFunc = "depositaddress"
-	orderQueryFunc     = "orderquery"
-	orderCancelFunc    = "ordercancel"
-	orderSubmitFunc    = "ordersubmit"
-	withdrawCryptoFunc = "withdrawcrypto"
-	withdrawFiatFunc   = "withdrawfiat"
-	ohlcvFunc          = "ohlcv"
+	orderbookFunc       = "orderbook"
+	tickerFunc          = "ticker"
+	exchangesFunc       = "exchanges"
+	pairsFunc           = "pairs"
+	accountBalancesFunc = "accountbalances"
+	depositAddressFunc  = "depositaddress"
+	orderQueryFunc      = "orderquery"
+	orderCancelFunc     = "ordercancel"
+	orderSubmitFunc     = "ordersubmit"
+	withdrawCryptoFunc  = "withdrawcrypto"
+	withdrawFiatFunc    = "withdrawfiat"
+	ohlcvFunc           = "ohlcv"
 )
 
 var exchangeModule = map[string]objects.Object{
-	orderbookFunc:      &objects.UserFunction{Name: orderbookFunc, Value: ExchangeOrderbook},
-	tickerFunc:         &objects.UserFunction{Name: tickerFunc, Value: ExchangeTicker},
-	exchangesFunc:      &objects.UserFunction{Name: exchangesFunc, Value: ExchangeExchanges},
-	pairsFunc:          &objects.UserFunction{Name: pairsFunc, Value: ExchangePairs},
-	accountInfoFunc:    &objects.UserFunction{Name: accountInfoFunc, Value: ExchangeAccountInfo},
-	depositAddressFunc: &objects.UserFunction{Name: depositAddressFunc, Value: ExchangeDepositAddress},
-	orderQueryFunc:     &objects.UserFunction{Name: orderQueryFunc, Value: ExchangeOrderQuery},
-	orderCancelFunc:    &objects.UserFunction{Name: orderCancelFunc, Value: ExchangeOrderCancel},
-	orderSubmitFunc:    &objects.UserFunction{Name: orderSubmitFunc, Value: ExchangeOrderSubmit},
-	withdrawCryptoFunc: &objects.UserFunction{Name: withdrawCryptoFunc, Value: ExchangeWithdrawCrypto},
-	withdrawFiatFunc:   &objects.UserFunction{Name: withdrawFiatFunc, Value: ExchangeWithdrawFiat},
-	ohlcvFunc:          &objects.UserFunction{Name: ohlcvFunc, Value: exchangeOHLCV},
+	orderbookFunc:       &objects.UserFunction{Name: orderbookFunc, Value: ExchangeOrderbook},
+	tickerFunc:          &objects.UserFunction{Name: tickerFunc, Value: ExchangeTicker},
+	exchangesFunc:       &objects.UserFunction{Name: exchangesFunc, Value: ExchangeExchanges},
+	pairsFunc:           &objects.UserFunction{Name: pairsFunc, Value: ExchangePairs},
+	accountBalancesFunc: &objects.UserFunction{Name: accountBalancesFunc, Value: ExchangeAccountBalances},
+	depositAddressFunc:  &objects.UserFunction{Name: depositAddressFunc, Value: ExchangeDepositAddress},
+	orderQueryFunc:      &objects.UserFunction{Name: orderQueryFunc, Value: ExchangeOrderQuery},
+	orderCancelFunc:     &objects.UserFunction{Name: orderCancelFunc, Value: ExchangeOrderCancel},
+	orderSubmitFunc:     &objects.UserFunction{Name: orderSubmitFunc, Value: ExchangeOrderSubmit},
+	withdrawCryptoFunc:  &objects.UserFunction{Name: withdrawCryptoFunc, Value: ExchangeWithdrawCrypto},
+	withdrawFiatFunc:    &objects.UserFunction{Name: withdrawFiatFunc, Value: ExchangeWithdrawFiat},
+	ohlcvFunc:           &objects.UserFunction{Name: ohlcvFunc, Value: exchangeOHLCV},
 }
 
 // ExchangeOrderbook returns orderbook for requested exchange & currencypair
@@ -239,23 +239,23 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 	return &r, nil
 }
 
-// ExchangeAccountInfo returns account information for requested exchange
-func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
+// ExchangeAccountBalances returns account balances for requested exchange
+func ExchangeAccountBalances(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 3 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
 	scriptCtx, ok := objects.ToInterface(args[0]).(*Context)
 	if !ok {
-		return nil, constructRuntimeError(1, accountInfoFunc, "*gct.Context", args[0])
+		return nil, constructRuntimeError(1, accountBalancesFunc, "*gct.Context", args[0])
 	}
 	exchangeName, ok := objects.ToString(args[1])
 	if !ok {
-		return nil, constructRuntimeError(2, accountInfoFunc, "string", args[1])
+		return nil, constructRuntimeError(2, accountBalancesFunc, "string", args[1])
 	}
 	assetString, ok := objects.ToString(args[2])
 	if !ok {
-		return nil, constructRuntimeError(3, accountInfoFunc, "string", args[2])
+		return nil, constructRuntimeError(3, accountBalancesFunc, "string", args[2])
 	}
 	assetType, err := asset.New(assetString)
 	if err != nil {
@@ -263,25 +263,24 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ctx := processScriptContext(scriptCtx)
-	rtnValue, err := wrappers.GetWrapper().
-		AccountInformation(ctx, exchangeName, assetType)
+	rtnValue, err := wrappers.GetWrapper().AccountBalances(ctx, exchangeName, assetType)
 	if err != nil {
 		return errorResponsef(standardFormatting, err)
 	}
 
 	var funds objects.Array
-	for x := range rtnValue.Accounts {
-		for y := range rtnValue.Accounts[x].Currencies {
-			temp := make(map[string]objects.Object, 3)
-			temp["name"] = &objects.String{Value: rtnValue.Accounts[x].Currencies[y].Currency.String()}
-			temp["total"] = &objects.Float{Value: rtnValue.Accounts[x].Currencies[y].Total}
-			temp["hold"] = &objects.Float{Value: rtnValue.Accounts[x].Currencies[y].Hold}
-			funds.Value = append(funds.Value, &objects.Map{Value: temp})
+	for i := range rtnValue {
+		for curr, bal := range rtnValue[i].Balances {
+			funds.Value = append(funds.Value, &objects.Map{Value: map[string]objects.Object{
+				"name":  &objects.String{Value: curr.String()},
+				"total": &objects.Float{Value: bal.Total},
+				"hold":  &objects.Float{Value: bal.Hold},
+			}})
 		}
 	}
 
 	data := make(map[string]objects.Object, 2)
-	data["exchange"] = &objects.String{Value: rtnValue.Exchange}
+	data["exchange"] = &objects.String{Value: exchangeName}
 	data["currencies"] = &funds
 	return &objects.Map{Value: data}, nil
 }
