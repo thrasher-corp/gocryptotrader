@@ -20,8 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1459,30 +1459,21 @@ func (e *Exchange) wsProcessBalanceAndPosition(ctx context.Context, data []byte)
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	var changes []account.Change
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, resp.Argument.UID)}
 	for i := range resp.Data {
 		for j := range resp.Data[i].BalanceData {
-			changes = append(changes, account.Change{
-				AssetType: asset.Spot,
-				Account:   resp.Argument.UID,
-				Balance: &account.Balance{
-					Currency:  currency.NewCode(resp.Data[i].BalanceData[j].Currency),
-					Total:     resp.Data[i].BalanceData[j].CashBalance.Float64(),
-					Free:      resp.Data[i].BalanceData[j].CashBalance.Float64(),
-					UpdatedAt: resp.Data[i].BalanceData[j].UpdateTime.Time(),
-				},
+			subAccts[0].Balances.Set(resp.Data[i].BalanceData[j].Currency, accounts.Balance{
+				Total:     resp.Data[i].BalanceData[j].CashBalance.Float64(),
+				Free:      resp.Data[i].BalanceData[j].CashBalance.Float64(),
+				UpdatedAt: resp.Data[i].BalanceData[j].UpdateTime.Time(),
 			})
 		}
 		// TODO: Handle position data
 	}
-	if err := e.Websocket.DataHandler.Send(ctx, changes); err != nil {
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
 	}
-	return account.ProcessChange(e.Name, changes, creds)
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
 // wsProcessPushData processes push data coming through the websocket channel

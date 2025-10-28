@@ -1707,9 +1707,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 }
 
-func TestGetAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	e := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	items := asset.Items{
 		asset.CoinMarginedFutures,
 		asset.USDTMarginedFutures,
@@ -1720,10 +1722,8 @@ func TestGetAccountInfo(t *testing.T) {
 		assetType := items[i]
 		t.Run(fmt.Sprintf("Update info of account [%s]", assetType.String()), func(t *testing.T) {
 			t.Parallel()
-			_, err := e.UpdateAccountInfo(t.Context(), assetType)
-			if err != nil {
-				t.Error(err)
-			}
+			_, err := e.UpdateAccountBalances(t.Context(), assetType)
+			require.NoError(t, err)
 		})
 	}
 }
@@ -1998,7 +1998,7 @@ func TestSubscribe(t *testing.T) {
 			var req WsPayload
 			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
 			require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
-			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%d}`, req.ID))
+			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":"%s"}`, req.ID))
 		}
 		e = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
@@ -2020,7 +2020,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
 		require.NoError(tb, err, "Unmarshal must not error")
-		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":%d}`, req.ID))
+		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":"%s"}`, req.ID))
 	}
 	b := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	err := b.Subscribe(channels)

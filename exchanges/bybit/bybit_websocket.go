@@ -17,8 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -102,7 +102,7 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 // WebsocketAuthenticatePrivateConnection sends an authentication message to the private websocket for inbound account
 // data
 func (e *Exchange) WebsocketAuthenticatePrivateConnection(ctx context.Context, conn websocket.Connection) error {
-	req, err := e.GetAuthenticationPayload(ctx, strconv.FormatInt(conn.GenerateMessageID(false), 10))
+	req, err := e.GetAuthenticationPayload(ctx, e.MessageID())
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func (e *Exchange) GetAuthenticationPayload(ctx context.Context, requestID strin
 	}, nil
 }
 
-func (e *Exchange) handleSubscriptions(conn websocket.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
+func (e *Exchange) handleSubscriptions(_ websocket.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
 	subs, err = subs.ExpandTemplates(e)
 	if err != nil {
 		return
@@ -181,7 +181,7 @@ func (e *Exchange) handleSubscriptions(conn websocket.Connection, operation stri
 			args = append(args, SubscriptionArgument{
 				auth:           b[0].Authenticated,
 				Operation:      operation,
-				RequestID:      strconv.FormatInt(conn.GenerateMessageID(false), 10),
+				RequestID:      e.MessageID(),
 				Arguments:      b.QualifiedChannels(),
 				associatedSubs: b,
 			})
@@ -314,28 +314,20 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) err
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	var changes []account.Change
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, "")}
 	for x := range result.Data {
 		for y := range result.Data[x].Coin {
-			changes = append(changes, account.Change{
-				AssetType: asset.Spot,
-				Balance: &account.Balance{
-					Currency:  result.Data[x].Coin[y].Coin,
-					Total:     result.Data[x].Coin[y].WalletBalance.Float64(),
-					Free:      result.Data[x].Coin[y].WalletBalance.Float64(),
-					UpdatedAt: result.CreationTime.Time(),
-				},
+			subAccts[0].Balances.Set(result.Data[x].Coin[y].Coin, accounts.Balance{
+				Total:     result.Data[x].Coin[y].WalletBalance.Float64(),
+				Free:      result.Data[x].Coin[y].WalletBalance.Float64(),
+				UpdatedAt: result.CreationTime.Time(),
 			})
 		}
 	}
-	if err := e.Websocket.DataHandler.Send(ctx, changes); err != nil {
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
 	}
-	return account.ProcessChange(e.Name, changes, creds)
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.
@@ -711,7 +703,7 @@ func hasPotentialDelimiter(a asset.Item) bool {
 
 // TODO: Remove this function when template expansion is across all assets
 func (e *Exchange) submitDirectSubscription(ctx context.Context, conn websocket.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
-	payloads, err := e.directSubscriptionPayload(conn, a, operation, channelsToSubscribe)
+	payloads, err := e.directSubscriptionPayload(a, operation, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -749,17 +741,17 @@ func (e *Exchange) submitDirectSubscription(ctx context.Context, conn websocket.
 }
 
 // TODO: Remove this function when template expansion is across all assets
-func (e *Exchange) directSubscriptionPayload(conn websocket.Connection, assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
+func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
 	var args []SubscriptionArgument
 	arg := SubscriptionArgument{
 		Operation: operation,
-		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		RequestID: e.MessageID(),
 		Arguments: []string{},
 	}
 	authArg := SubscriptionArgument{
 		auth:      true,
 		Operation: operation,
-		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		RequestID: e.MessageID(),
 		Arguments: []string{},
 	}
 
@@ -804,7 +796,7 @@ func (e *Exchange) directSubscriptionPayload(conn websocket.Connection, assetTyp
 			args = append(args, arg)
 			arg = SubscriptionArgument{
 				Operation: operation,
-				RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+				RequestID: e.MessageID(),
 				Arguments: []string{},
 			}
 		}

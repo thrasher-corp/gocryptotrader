@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -614,7 +614,7 @@ func TestWsHeartbeats(t *testing.T) {
 }
 
 func TestWsOrders(t *testing.T) {
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
 		Key:    "testkey",
 		Secret: base64.StdEncoding.EncodeToString([]byte("testsecret")),
 	})

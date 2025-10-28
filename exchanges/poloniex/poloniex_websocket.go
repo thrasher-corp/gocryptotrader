@@ -15,8 +15,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -587,7 +587,7 @@ func (e *Exchange) Unsubscribe(subs subscription.List) error {
 }
 
 func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, op wsOp) error {
-	var creds *account.Credentials
+	var creds *accounts.Credentials
 	if e.IsWebsocketAuthenticationSupported() {
 		var err error
 		creds, err = e.GetCredentials(ctx)
@@ -924,7 +924,7 @@ func (e *Exchange) processAccountBalanceUpdate(ctx context.Context, notification
 	if !ok {
 		return fmt.Errorf("%w currency ID not float64", errTypeAssertionFailure)
 	}
-	code, err := e.details.GetCode(currencyID)
+	curr, err := e.details.GetCode(currencyID)
 	if err != nil {
 		return err
 	}
@@ -943,18 +943,20 @@ func (e *Exchange) processAccountBalanceUpdate(ctx context.Context, notification
 		return err
 	}
 
-	// TODO: Integrate with exchange account system
-	// NOTES: This will affect free amount, a rest call might be needed to get
-	// locked and total amounts periodically.
-	return e.Websocket.DataHandler.Send(ctx, account.Change{
-		Account:   deriveWalletType(walletType),
-		AssetType: asset.Spot,
-		Balance: &account.Balance{
-			Currency: code,
-			Total:    amount,
-			Free:     amount,
-		},
-	})
+	bal := accounts.Balance{
+		Currency: curr,
+		Total:    amount,
+		Free:     amount,
+	}
+
+	id := deriveWalletType(walletType)
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, id)}
+	subAccts[0].Balances.Set(curr, bal)
+
+	if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
 func deriveWalletType(s string) string {

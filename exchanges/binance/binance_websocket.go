@@ -166,7 +166,7 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 }
 
 func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
-	if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
+	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
 		if e.Websocket.Match.IncomingWithData(id, respRaw) {
 			return nil
 		}
@@ -552,7 +552,7 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 	}
 
 	req := WsPayload{
-		ID:     e.Websocket.Conn.GenerateMessageID(false),
+		ID:     e.MessageID(),
 		Method: op,
 		Params: subs.QualifiedChannels(),
 	}

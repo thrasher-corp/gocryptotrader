@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -854,11 +855,10 @@ func TestProcessAccountBalanceUpdate(t *testing.T) {
 	err = e.wsHandleData(t.Context(), balance)
 	require.ErrorIs(t, err, errTypeAssertionFailure)
 
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
 	balance = []byte(`[1000,"",[["b",243,"e","-1.00000000"]]]`)
-	err = e.wsHandleData(t.Context(), balance)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = e.wsHandleData(ctx, balance)
+	require.NoError(t, err, "wsHandleData must not error")
 }
 
 func TestProcessAccountTrades(t *testing.T) {

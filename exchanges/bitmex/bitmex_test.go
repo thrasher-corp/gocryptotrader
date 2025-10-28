@@ -639,19 +639,17 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	if sharedtestvalues.AreAPICredentialsSet(e) {
-		_, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
+		_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
 		require.NoError(t, err)
-
-		_, err = e.UpdateAccountInfo(t.Context(), asset.Futures)
+		_, err = e.UpdateAccountBalances(t.Context(), asset.Futures)
 		require.NoError(t, err)
 	} else {
-		_, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
+		_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
 		require.Error(t, err)
-
-		_, err = e.UpdateAccountInfo(t.Context(), asset.Futures)
+		_, err = e.UpdateAccountBalances(t.Context(), asset.Futures)
 		require.Error(t, err)
 	}
 }
@@ -973,13 +971,13 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestNormalizeWalletInfo(t *testing.T) {
 	w := &WalletInfo{
-		Currency: "XBt",
+		Currency: xbtCurr,
 		Amount:   1e+08,
 	}
 
 	normalizeWalletInfo(w)
 
-	assert.Equal(t, "BTC", w.Currency, "Currency should be correct")
+	assert.Equal(t, currency.BTC, w.Currency, "Currency should be correct")
 	assert.Equal(t, 1.0, w.Amount, "Amount should be correct")
 }
 
