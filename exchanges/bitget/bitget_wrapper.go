@@ -185,7 +185,7 @@ func (e *Exchange) SetDefaults() {
 			ClientOrderID:          false,
 		},
 	}
-	e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(GetRateLimits()))
+	e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(rateLimits))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -233,7 +233,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:                  e.generateDefaultSubscriptions,
 		Features:                               &e.Features.Supports.WebsocketCapabilities,
 		MaxWebsocketSubscriptionsPerConnection: 240,
-		RateLimitDefinitions:                   GetRateLimits(),
+		RateLimitDefinitions:                   rateLimits,
 	})
 	if err != nil {
 		return err
@@ -252,7 +252,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  wsPub,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            GetRateLimits()[rateSubscription],
+		RateLimit:            rateLimits[rateSubscription],
 	})
 	if err != nil {
 		return err
@@ -262,7 +262,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Authenticated:        true,
-		RateLimit:            GetRateLimits()[rateSubscription],
+		RateLimit:            rateLimits[rateSubscription],
 	})
 }
 
@@ -562,24 +562,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 	return nil
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (e *Exchange) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(e.Name, p, assetType)
-	if err != nil {
-		return e.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (e *Exchange) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
-	ob, err := orderbook.Get(e.Name, pair, assetType)
-	if err != nil {
-		return e.UpdateOrderbook(ctx, pair, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	book := &orderbook.Book{
@@ -743,7 +725,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		funHist[x] = exchange.FundingHistory{
 			ExchangeName:      e.Name,
 			Status:            resp[x].Status,
-			TransferID:        strconv.FormatInt(resp[x].OrderID, 10),
+			TransferID:        strconv.FormatUint(resp[x].OrderID, 10),
 			Timestamp:         resp[x].CreationTime.Time(),
 			Currency:          resp[x].Coin.String(),
 			Amount:            resp[x].Size.Float64(),
@@ -753,10 +735,10 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			CryptoChain:       resp[x].Chain,
 		}
 		if resp[x].Destination == "on_chain" {
-			funHist[x].CryptoTxID = strconv.FormatInt(resp[x].TradeID, 10)
+			funHist[x].CryptoTxID = strconv.FormatUint(resp[x].TradeID, 10)
 		}
 	}
-	var pagination int64
+	var pagination uint64
 	pagination = 0
 	for {
 		resp, err := e.GetDepositRecords(ctx, currency.Code{}, 0, pagination, 100, time.Now().Add(-time.Hour*24*90), time.Now())
@@ -773,7 +755,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			tempHist[x] = exchange.FundingHistory{
 				ExchangeName:      e.Name,
 				Status:            resp[x].Status,
-				TransferID:        strconv.FormatInt(resp[x].OrderID, 10),
+				TransferID:        strconv.FormatUint(resp[x].OrderID, 10),
 				Timestamp:         resp[x].CreationTime.Time(),
 				Currency:          resp[x].Coin.String(),
 				Amount:            resp[x].Size.Float64(),
@@ -783,7 +765,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 				CryptoChain:       resp[x].Chain,
 			}
 			if resp[x].Destination == "on_chain" {
-				tempHist[x].CryptoTxID = strconv.FormatInt(resp[x].TradeID, 10)
+				tempHist[x].CryptoTxID = strconv.FormatUint(resp[x].TradeID, 10)
 			}
 		}
 		funHist = slices.Concat(funHist, tempHist)
@@ -802,7 +784,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 	for x := range resp {
 		funHist[x] = exchange.WithdrawalHistory{
 			Status:          resp[x].Status,
-			TransferID:      strconv.FormatInt(resp[x].OrderID, 10),
+			TransferID:      strconv.FormatUint(resp[x].OrderID, 10),
 			Timestamp:       resp[x].CreationTime.Time(),
 			Currency:        resp[x].Coin.String(),
 			Amount:          resp[x].Size.Float64(),
@@ -811,7 +793,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 			CryptoChain:     resp[x].Chain,
 		}
 		if resp[x].Destination == "on_chain" {
-			funHist[x].CryptoTxID = strconv.FormatInt(resp[x].TradeID, 10)
+			funHist[x].CryptoTxID = strconv.FormatUint(resp[x].TradeID, 10)
 		}
 	}
 	return funHist, nil
@@ -993,7 +975,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 	var IDs *OrderIDStruct
-	originalID, err := strconv.ParseInt(action.OrderID, 10, 64)
+	originalID, err := strconv.ParseUint(action.OrderID, 10, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -1036,7 +1018,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	originalID, err := strconv.ParseInt(ord.OrderID, 10, 64)
+	originalID, err := strconv.ParseUint(ord.OrderID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -1140,7 +1122,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 
 // GetOrderInfo returns order information based on order ID
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	ordID, err := strconv.ParseInt(orderID, 10, 64)
+	ordID, err := strconv.ParseUint(orderID, 10, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -1184,7 +1166,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		resp.Trades = make([]order.TradeHistory, len(fillInfo))
 		for x := range fillInfo {
 			resp.Trades[x] = order.TradeHistory{
-				TID:       strconv.FormatInt(fillInfo[x].TradeID, 10),
+				TID:       strconv.FormatUint(fillInfo[x].TradeID, 10),
 				Type:      typeDecoder(fillInfo[x].OrderType),
 				Side:      sideDecoder(fillInfo[x].Side),
 				Price:     fillInfo[x].PriceAverage.Float64(),
@@ -1224,7 +1206,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		resp.Trades = make([]order.TradeHistory, len(fillInfo.FillList))
 		for x := range fillInfo.FillList {
 			resp.Trades[x] = order.TradeHistory{
-				TID:       strconv.FormatInt(fillInfo.FillList[x].TradeID, 10),
+				TID:       strconv.FormatUint(fillInfo.FillList[x].TradeID, 10),
 				Price:     fillInfo.FillList[x].Price.Float64(),
 				Amount:    fillInfo.FillList[x].BaseVolume.Float64(),
 				Side:      sideDecoder(fillInfo.FillList[x].Side),
@@ -1273,7 +1255,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		resp.Trades = make([]order.TradeHistory, len(fillInfo.Fills))
 		for x := range fillInfo.Fills {
 			resp.Trades[x] = order.TradeHistory{
-				TID:       strconv.FormatInt(fillInfo.Fills[x].TradeID, 10),
+				TID:       strconv.FormatUint(fillInfo.Fills[x].TradeID, 10),
 				Type:      typeDecoder(fillInfo.Fills[x].OrderType),
 				Side:      sideDecoder(fillInfo.Fills[x].Side),
 				Price:     fillInfo.Fills[x].PriceAverage.Float64(),
@@ -1348,17 +1330,17 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 	for x := range getOrdersRequest.Pairs {
 		switch getOrdersRequest.AssetType {
 		case asset.Spot:
-			var pagination int64
+			var pagination uint64
 			for {
 				genOrds, err := e.GetUnfilledOrders(ctx, getOrdersRequest.Pairs[x], "", time.Time{}, time.Time{}, 100, pagination, 0, time.Minute)
 				if err != nil {
 					return nil, err
 				}
 				if len(genOrds) == 0 ||
-					pagination == int64(genOrds[len(genOrds)-1].OrderID) {
+					pagination == uint64(genOrds[len(genOrds)-1].OrderID) {
 					break
 				}
-				pagination = int64(genOrds[len(genOrds)-1].OrderID)
+				pagination = uint64(genOrds[len(genOrds)-1].OrderID)
 				tempOrds := make([]order.Detail, len(genOrds))
 				for i := range genOrds {
 					tempOrds[i] = order.Detail{
@@ -1404,7 +1386,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				}
 			}
 		case asset.Margin, asset.CrossMargin:
-			var pagination int64
+			var pagination uint64
 			var genOrds *MarginOrders
 			for {
 				if getOrdersRequest.AssetType == asset.Margin {
@@ -1415,16 +1397,16 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				if err != nil {
 					return nil, err
 				}
-				if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == int64(genOrds.MaximumID) {
+				if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == uint64(genOrds.MaximumID) {
 					break
 				}
-				pagination = int64(genOrds.MaximumID)
+				pagination = uint64(genOrds.MaximumID)
 				tempOrds := make([]order.Detail, len(genOrds.OrderList))
 				for i := range genOrds.OrderList {
 					tempOrds[i] = order.Detail{
 						Exchange:      e.Name,
 						AssetType:     getOrdersRequest.AssetType,
-						OrderID:       strconv.FormatInt(genOrds.OrderList[i].OrderID, 10),
+						OrderID:       strconv.FormatUint(genOrds.OrderList[i].OrderID, 10),
 						Type:          typeDecoder(genOrds.OrderList[i].OrderType),
 						ClientOrderID: genOrds.OrderList[i].ClientOrderID,
 						Price:         genOrds.OrderList[i].Price.Float64(),
@@ -1473,8 +1455,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	for x := range getOrdersRequest.Pairs {
 		switch getOrdersRequest.AssetType {
 		case asset.Spot:
-			fillMap := make(map[int64][]order.TradeHistory)
-			var pagination int64
+			fillMap := make(map[uint64][]order.TradeHistory)
+			var pagination uint64
 			if !getOrdersRequest.Pairs[x].IsEmpty() {
 				err = e.spotFillsHelper(ctx, getOrdersRequest.Pairs[x], fillMap)
 				if err != nil {
@@ -1509,10 +1491,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				if err != nil {
 					return nil, err
 				}
-				if len(genOrds) == 0 || pagination == int64(genOrds[len(genOrds)-1].OrderID) {
+				if len(genOrds) == 0 || pagination == uint64(genOrds[len(genOrds)-1].OrderID) {
 					break
 				}
-				pagination = int64(genOrds[len(genOrds)-1].OrderID)
+				pagination = uint64(genOrds[len(genOrds)-1].OrderID)
 				tempOrds := make([]order.Detail, len(genOrds))
 				for i := range genOrds {
 					tempOrds[i] = order.Detail{
@@ -1543,8 +1525,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 						tempOrds[i].Fee += genOrds[i].FeeDetail[y].TotalFee
 						tempOrds[i].FeeAsset = genOrds[i].FeeDetail[y].FeeCoinCode
 					}
-					if len(fillMap[int64(genOrds[i].OrderID)]) > 0 {
-						tempOrds[i].Trades = fillMap[int64(genOrds[i].OrderID)]
+					if len(fillMap[uint64(genOrds[i].OrderID)]) > 0 {
+						tempOrds[i].Trades = fillMap[uint64(genOrds[i].OrderID)]
 					}
 				}
 				resp = append(resp, tempOrds...)
@@ -1564,9 +1546,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				}
 			}
 		case asset.Margin, asset.CrossMargin:
-			var pagination int64
+			var pagination uint64
 			var genFills *MarginOrderFills
-			fillMap := make(map[int64][]order.TradeHistory)
+			fillMap := make(map[uint64][]order.TradeHistory)
 			for {
 				if getOrdersRequest.AssetType == asset.Margin {
 					genFills, err = e.GetIsolatedOrderFills(ctx, getOrdersRequest.Pairs[x], 0, pagination, 500, time.Now().Add(-time.Hour*24*90), time.Now())
@@ -1576,13 +1558,13 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				if err != nil {
 					return nil, err
 				}
-				if genFills == nil || len(genFills.Fills) == 0 || pagination == int64(genFills.MaximumID) {
+				if genFills == nil || len(genFills.Fills) == 0 || pagination == uint64(genFills.MaximumID) {
 					break
 				}
-				pagination = int64(genFills.MaximumID)
+				pagination = uint64(genFills.MaximumID)
 				for i := range genFills.Fills {
 					fillMap[genFills.Fills[i].TradeID] = append(fillMap[genFills.Fills[i].TradeID], order.TradeHistory{
-						TID:       strconv.FormatInt(genFills.Fills[i].TradeID, 10),
+						TID:       strconv.FormatUint(genFills.Fills[i].TradeID, 10),
 						Type:      typeDecoder(genFills.Fills[i].OrderType),
 						Side:      sideDecoder(genFills.Fills[i].Side),
 						Price:     genFills.Fills[i].PriceAverage.Float64(),
@@ -1604,16 +1586,16 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				if err != nil {
 					return nil, err
 				}
-				if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == int64(genOrds.MaximumID) {
+				if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == uint64(genOrds.MaximumID) {
 					break
 				}
-				pagination = int64(genOrds.MaximumID)
+				pagination = uint64(genOrds.MaximumID)
 				tempOrds := make([]order.Detail, len(genOrds.OrderList))
 				for i := range genOrds.OrderList {
 					tempOrds[i] = order.Detail{
 						Exchange:             e.Name,
 						AssetType:            getOrdersRequest.AssetType,
-						OrderID:              strconv.FormatInt(genOrds.OrderList[i].OrderID, 10),
+						OrderID:              strconv.FormatUint(genOrds.OrderList[i].OrderID, 10),
 						Type:                 typeDecoder(genOrds.OrderList[i].OrderType),
 						ClientOrderID:        genOrds.OrderList[i].ClientOrderID,
 						Price:                genOrds.OrderList[i].Price.Float64(),
@@ -1943,7 +1925,7 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 	if req == nil {
 		return nil, fmt.Errorf("%T %w", req, common.ErrNilPointer)
 	}
-	var pagination int64
+	var pagination uint64
 	rates := new(margin.RateHistoryResponse)
 loop:
 	for {
@@ -1953,10 +1935,10 @@ loop:
 			if err != nil {
 				return nil, err
 			}
-			if resp == nil || len(resp.ResultList) == 0 || pagination == int64(resp.MaximumID) {
+			if resp == nil || len(resp.ResultList) == 0 || pagination == uint64(resp.MaximumID) {
 				break loop
 			}
-			pagination = int64(resp.MaximumID)
+			pagination = uint64(resp.MaximumID)
 			for i := range resp.ResultList {
 				rates.Rates = append(rates.Rates, margin.Rate{
 					DailyBorrowRate: decimal.NewFromFloat(resp.ResultList[i].DailyInterestRate.Float64()),
@@ -1968,10 +1950,10 @@ loop:
 			if err != nil {
 				return nil, err
 			}
-			if resp == nil || len(resp.ResultList) == 0 || pagination == int64(resp.MaximumID) {
+			if resp == nil || len(resp.ResultList) == 0 || pagination == uint64(resp.MaximumID) {
 				break loop
 			}
-			pagination = int64(resp.MaximumID)
+			pagination = uint64(resp.MaximumID)
 			for i := range resp.ResultList {
 				rates.Rates = append(rates.Rates, margin.Rate{
 					DailyBorrowRate: decimal.NewFromFloat(resp.ResultList[i].DailyInterestRate.Float64()),
@@ -2387,7 +2369,7 @@ func typeDecoder(s string) order.Type {
 // WithdrawalHistGrabber is a helper function that repeatedly calls GetWithdrawalRecords and returns all data
 func (e *Exchange) withdrawalHistGrabber(ctx context.Context, cur currency.Code) ([]WithdrawRecordsResp, error) {
 	var allData []WithdrawRecordsResp
-	var pagination int64
+	var pagination uint64
 	for {
 		resp, err := e.GetWithdrawalRecords(ctx, cur, "", time.Now().Add(-time.Hour*24*90), time.Now(), pagination, 0, 100)
 		if err != nil {
@@ -2433,23 +2415,23 @@ func marginDecoder(s string) margin.Type {
 
 // ActiveFuturesOrderHelper is a helper function that repeatedly calls GetPendingFuturesOrders and GetPendingFuturesTriggerOrders, returning the data formatted appropriately
 func (e *Exchange) activeFuturesOrderHelper(ctx context.Context, productType string, pairCan currency.Pair, resp []order.Detail) ([]order.Detail, error) {
-	var pagination int64
+	var pagination uint64
 	for {
 		genOrds, err := e.GetPendingFuturesOrders(ctx, 0, pagination, 100, "", productType, "", pairCan, time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
-		if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination == int64(genOrds.EndID) {
+		if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination == uint64(genOrds.EndID) {
 			break
 		}
-		pagination = int64(genOrds.EndID)
+		pagination = uint64(genOrds.EndID)
 		tempOrds := make([]order.Detail, len(genOrds.EntrustedList))
 		for i := range genOrds.EntrustedList {
 			tempOrds[i] = order.Detail{
 				Exchange:             e.Name,
 				AssetType:            asset.Futures,
 				Amount:               genOrds.EntrustedList[i].Size.Float64(),
-				OrderID:              strconv.FormatInt(genOrds.EntrustedList[i].OrderID, 10),
+				OrderID:              strconv.FormatUint(genOrds.EntrustedList[i].OrderID, 10),
 				ClientOrderID:        genOrds.EntrustedList[i].ClientOrderID,
 				Fee:                  float64(genOrds.EntrustedList[i].Fee),
 				Price:                float64(genOrds.EntrustedList[i].Price),
@@ -2485,17 +2467,17 @@ func (e *Exchange) activeFuturesOrderHelper(ctx context.Context, productType str
 			if err != nil {
 				return nil, err
 			}
-			if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination == int64(genOrds.EndID) {
+			if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination == uint64(genOrds.EndID) {
 				break
 			}
-			pagination = int64(genOrds.EndID)
+			pagination = uint64(genOrds.EndID)
 			tempOrds := make([]order.Detail, len(genOrds.EntrustedList))
 			for i := range genOrds.EntrustedList {
 				tempOrds[i] = order.Detail{
 					Exchange:           e.Name,
 					AssetType:          asset.Futures,
 					Amount:             genOrds.EntrustedList[i].Size.Float64(),
-					OrderID:            strconv.FormatInt(genOrds.EntrustedList[i].OrderID, 10),
+					OrderID:            strconv.FormatUint(genOrds.EntrustedList[i].OrderID, 10),
 					ClientOrderID:      genOrds.EntrustedList[i].ClientOrderID,
 					Price:              float64(genOrds.EntrustedList[i].Price),
 					TriggerPrice:       float64(genOrds.EntrustedList[i].TriggerPrice),
@@ -2525,23 +2507,23 @@ func (e *Exchange) activeFuturesOrderHelper(ctx context.Context, productType str
 }
 
 // SpotHistoricPlanOrdersHelper is a helper function that repeatedly calls GetHistoricalSpotOrders and returns all data formatted appropriately
-func (e *Exchange) spotHistoricPlanOrdersHelper(ctx context.Context, pairCan currency.Pair, resp []order.Detail, fillMap map[int64][]order.TradeHistory) ([]order.Detail, error) {
-	var pagination int64
+func (e *Exchange) spotHistoricPlanOrdersHelper(ctx context.Context, pairCan currency.Pair, resp []order.Detail, fillMap map[uint64][]order.TradeHistory) ([]order.Detail, error) {
+	var pagination uint64
 	for {
 		genOrds, err := e.GetSpotPlanOrderHistory(ctx, pairCan, time.Now().Add(-time.Hour*24*90), time.Now().Add(-time.Second), 100, pagination) // Even with time synced, the exchange's clock can lag behind and reject requests; bumping time back by a second to account for this
 		if err != nil {
 			return nil, err
 		}
-		if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == int64(genOrds.IDLessThan) {
+		if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == uint64(genOrds.IDLessThan) {
 			break
 		}
-		pagination = int64(genOrds.IDLessThan)
+		pagination = uint64(genOrds.IDLessThan)
 		tempOrds := make([]order.Detail, len(genOrds.OrderList))
 		for i := range genOrds.OrderList {
 			tempOrds[i] = order.Detail{
 				Exchange:      e.Name,
 				AssetType:     asset.Spot,
-				OrderID:       strconv.FormatInt(genOrds.OrderList[i].OrderID, 10),
+				OrderID:       strconv.FormatUint(genOrds.OrderList[i].OrderID, 10),
 				ClientOrderID: genOrds.OrderList[i].ClientOrderID,
 				TriggerPrice:  genOrds.OrderList[i].TriggerPrice.Float64(),
 				Type:          typeDecoder(genOrds.OrderList[i].OrderType),
@@ -2567,20 +2549,20 @@ func (e *Exchange) spotHistoricPlanOrdersHelper(ctx context.Context, pairCan cur
 
 // HistoricalFuturesOrderHelper is a helper function that repeatedly calls GetFuturesFills, GetHistoricalFuturesOrders, and GetHistoricalTriggerFuturesOrders, returning the data formatted appropriately
 func (e *Exchange) historicalFuturesOrderHelper(ctx context.Context, productType string, pairCan currency.Pair, resp []order.Detail) ([]order.Detail, error) {
-	var pagination int64
-	fillMap := make(map[int64][]order.TradeHistory)
+	var pagination uint64
+	fillMap := make(map[uint64][]order.TradeHistory)
 	for {
 		fillOrds, err := e.GetFuturesFills(ctx, 0, pagination, 100, pairCan, productType, time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
-		if fillOrds == nil || len(fillOrds.FillList) == 0 || pagination == int64(fillOrds.EndID) {
+		if fillOrds == nil || len(fillOrds.FillList) == 0 || pagination == uint64(fillOrds.EndID) {
 			break
 		}
-		pagination = int64(fillOrds.EndID)
+		pagination = uint64(fillOrds.EndID)
 		for i := range fillOrds.FillList {
 			tempFill := order.TradeHistory{
-				TID:       strconv.FormatInt(fillOrds.FillList[i].TradeID, 10),
+				TID:       strconv.FormatUint(fillOrds.FillList[i].TradeID, 10),
 				Price:     fillOrds.FillList[i].Price.Float64(),
 				Amount:    fillOrds.FillList[i].BaseVolume.Float64(),
 				Side:      sideDecoder(fillOrds.FillList[i].Side),
@@ -2599,17 +2581,17 @@ func (e *Exchange) historicalFuturesOrderHelper(ctx context.Context, productType
 		if err != nil {
 			return nil, err
 		}
-		if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination == int64(genOrds.EndID) {
+		if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination == uint64(genOrds.EndID) {
 			break
 		}
-		pagination = int64(genOrds.EndID)
+		pagination = uint64(genOrds.EndID)
 		tempOrds := make([]order.Detail, len(genOrds.EntrustedList))
 		for i := range genOrds.EntrustedList {
 			tempOrds[i] = order.Detail{
 				Exchange:             e.Name,
 				AssetType:            asset.Futures,
 				Amount:               genOrds.EntrustedList[i].Size.Float64(),
-				OrderID:              strconv.FormatInt(genOrds.EntrustedList[i].OrderID, 10),
+				OrderID:              strconv.FormatUint(genOrds.EntrustedList[i].OrderID, 10),
 				ClientOrderID:        genOrds.EntrustedList[i].ClientOrderID,
 				Fee:                  float64(genOrds.EntrustedList[i].Fee),
 				Price:                float64(genOrds.EntrustedList[i].Price),
@@ -2648,17 +2630,17 @@ func (e *Exchange) historicalFuturesOrderHelper(ctx context.Context, productType
 			if err != nil {
 				return nil, err
 			}
-			if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination == int64(genOrds.EndID) {
+			if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination == uint64(genOrds.EndID) {
 				break
 			}
-			pagination = int64(genOrds.EndID)
+			pagination = uint64(genOrds.EndID)
 			tempOrds := make([]order.Detail, len(genOrds.EntrustedList))
 			for i := range genOrds.EntrustedList {
 				tempOrds[i] = order.Detail{
 					Exchange:             e.Name,
 					AssetType:            asset.Futures,
 					Amount:               genOrds.EntrustedList[i].Size.Float64(),
-					OrderID:              strconv.FormatInt(genOrds.EntrustedList[i].OrderID, 10),
+					OrderID:              strconv.FormatUint(genOrds.EntrustedList[i].OrderID, 10),
 					ClientOrderID:        genOrds.EntrustedList[i].ClientOrderID,
 					Status:               statusDecoder(genOrds.EntrustedList[i].PlanStatus),
 					Price:                float64(genOrds.EntrustedList[i].Price),
@@ -2692,8 +2674,8 @@ func (e *Exchange) historicalFuturesOrderHelper(ctx context.Context, productType
 }
 
 // SpotFillsHelper is a helper function that repeatedly calls GetSpotFills, directly altering the supplied map with that data
-func (e *Exchange) spotFillsHelper(ctx context.Context, pair currency.Pair, fillMap map[int64][]order.TradeHistory) error {
-	var pagination int64
+func (e *Exchange) spotFillsHelper(ctx context.Context, pair currency.Pair, fillMap map[uint64][]order.TradeHistory) error {
+	var pagination uint64
 	for {
 		genFills, err := e.GetSpotFills(ctx, pair, time.Time{}, time.Time{}, 100, pagination, 0)
 		if err != nil {
@@ -2706,7 +2688,7 @@ func (e *Exchange) spotFillsHelper(ctx context.Context, pair currency.Pair, fill
 		for i := range genFills {
 			fillMap[genFills[i].TradeID] = append(fillMap[genFills[i].TradeID],
 				order.TradeHistory{
-					TID:       strconv.FormatInt(genFills[i].TradeID, 10),
+					TID:       strconv.FormatUint(genFills[i].TradeID, 10),
 					Type:      typeDecoder(genFills[i].OrderType),
 					Side:      sideDecoder(genFills[i].Side),
 					Price:     genFills[i].PriceAverage.Float64(),
@@ -2748,7 +2730,7 @@ func formatExchangeKlineIntervalSpot(interval kline.Interval) string {
 	case kline.OneMonth:
 		return "1Mutc"
 	}
-	return errIntervalNotSupported
+	return fmt.Sprintf("%v: %v", errIntervalNotSupported, interval)
 }
 
 // FormatExchangeKlineIntervalFutures is a helper function used to convert kline.Interval to the string format required by the futures API
@@ -2781,7 +2763,7 @@ func formatExchangeKlineIntervalFutures(interval kline.Interval) string {
 	case kline.OneMonth:
 		return "1Mutc"
 	}
-	return errIntervalNotSupported
+	return fmt.Sprintf("%v: %v", errIntervalNotSupported, interval)
 }
 
 // ItemDecoder is a helper function that returns the appropriate asset.Item for a given string
@@ -2814,8 +2796,8 @@ func contractTypeDecoder(s string) futures.ContractType {
 
 // AllFuturesOrderHelper is a helper function that repeatedly calls GetPendingFuturesOrders and GetPendingFuturesTriggerOrders, returning the data formatted appropriately
 func (e *Exchange) allFuturesOrderHelper(ctx context.Context, productType string, pairCan currency.Pair, resp []futures.PositionResponse) ([]futures.PositionResponse, error) {
-	var pagination1 int64
-	var pagination2 int64
+	var pagination1 uint64
+	var pagination2 uint64
 	var breakbool1 bool
 	var breakbool2 bool
 	tempOrds := make(map[currency.Pair][]order.Detail)
@@ -2827,11 +2809,11 @@ func (e *Exchange) allFuturesOrderHelper(ctx context.Context, productType string
 			if err != nil {
 				return nil, err
 			}
-			if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination1 == int64(genOrds.EndID) {
+			if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination1 == uint64(genOrds.EndID) {
 				breakbool1 = true
 				genOrds = nil
 			} else {
-				pagination1 = int64(genOrds.EndID)
+				pagination1 = uint64(genOrds.EndID)
 			}
 		}
 		if !breakbool2 {
@@ -2839,14 +2821,14 @@ func (e *Exchange) allFuturesOrderHelper(ctx context.Context, productType string
 			if err != nil {
 				return nil, err
 			}
-			if genOrds2 == nil || len(genOrds2.EntrustedList) == 0 || pagination2 == int64(genOrds2.EndID) {
+			if genOrds2 == nil || len(genOrds2.EntrustedList) == 0 || pagination2 == uint64(genOrds2.EndID) {
 				breakbool2 = true
 			} else {
 				if genOrds == nil {
 					genOrds = new(FuturesOrdResp)
 				}
 				genOrds.EntrustedList = append(genOrds.EntrustedList, genOrds2.EntrustedList...)
-				pagination2 = int64(genOrds2.EndID)
+				pagination2 = uint64(genOrds2.EndID)
 			}
 		}
 		if breakbool1 && breakbool2 {
@@ -2867,7 +2849,7 @@ func (e *Exchange) allFuturesOrderHelper(ctx context.Context, productType string
 				Pair:                 thisPair,
 				AssetType:            asset.Futures,
 				Amount:               genOrds.EntrustedList[i].Size.Float64(),
-				OrderID:              strconv.FormatInt(genOrds.EntrustedList[i].OrderID, 10),
+				OrderID:              strconv.FormatUint(genOrds.EntrustedList[i].OrderID, 10),
 				ClientOrderID:        genOrds.EntrustedList[i].ClientOrderID,
 				Fee:                  float64(genOrds.EntrustedList[i].Fee),
 				Price:                float64(genOrds.EntrustedList[i].Price),
@@ -2894,10 +2876,10 @@ func (e *Exchange) allFuturesOrderHelper(ctx context.Context, productType string
 			if err != nil {
 				return nil, err
 			}
-			if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination1 == int64(genOrds.EndID) {
+			if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination1 == uint64(genOrds.EndID) {
 				break
 			}
-			pagination1 = int64(genOrds.EndID)
+			pagination1 = uint64(genOrds.EndID)
 			for i := range genOrds.EntrustedList {
 				var thisPair currency.Pair
 				if !pairCan.IsEmpty() {
@@ -2913,7 +2895,7 @@ func (e *Exchange) allFuturesOrderHelper(ctx context.Context, productType string
 					Pair:               thisPair,
 					AssetType:          asset.Futures,
 					Amount:             genOrds.EntrustedList[i].Size.Float64(),
-					OrderID:            strconv.FormatInt(genOrds.EntrustedList[i].OrderID, 10),
+					OrderID:            strconv.FormatUint(genOrds.EntrustedList[i].OrderID, 10),
 					ClientOrderID:      genOrds.EntrustedList[i].ClientOrderID,
 					Price:              float64(genOrds.EntrustedList[i].Price),
 					TriggerPrice:       float64(genOrds.EntrustedList[i].TriggerPrice),
@@ -2935,10 +2917,10 @@ func (e *Exchange) allFuturesOrderHelper(ctx context.Context, productType string
 			if err != nil {
 				return nil, err
 			}
-			if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination1 == int64(genOrds.EndID) {
+			if genOrds == nil || len(genOrds.EntrustedList) == 0 || pagination1 == uint64(genOrds.EndID) {
 				break
 			}
-			pagination1 = int64(genOrds.EndID)
+			pagination1 = uint64(genOrds.EndID)
 			for i := range genOrds.EntrustedList {
 				var thisPair currency.Pair
 				if !pairCan.IsEmpty() {
@@ -2954,7 +2936,7 @@ func (e *Exchange) allFuturesOrderHelper(ctx context.Context, productType string
 					Pair:                 thisPair,
 					AssetType:            asset.Futures,
 					Amount:               genOrds.EntrustedList[i].Size.Float64(),
-					OrderID:              strconv.FormatInt(genOrds.EntrustedList[i].OrderID, 10),
+					OrderID:              strconv.FormatUint(genOrds.EntrustedList[i].OrderID, 10),
 					ClientOrderID:        genOrds.EntrustedList[i].ClientOrderID,
 					Status:               statusDecoder(genOrds.EntrustedList[i].PlanStatus),
 					Price:                float64(genOrds.EntrustedList[i].Price),

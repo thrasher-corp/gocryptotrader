@@ -749,8 +749,8 @@ type CancelSpotOrderParams struct {
 	ClientOrderID string        `json:"clientOid,omitempty"`
 }
 
-// EmptyInt is a type used to unmarshal empty string into 0, and numbers encoded as strings into int64
-type EmptyInt int64
+// EmptyInt is a type used to unmarshal empty string into 0, and numbers encoded as strings into uint64
+type EmptyInt uint64
 
 // OrderIDAndError is a sub-struct containing information on an order ID and any errors associated with it
 type OrderIDAndError struct {
@@ -875,7 +875,7 @@ type SpotFillsResp struct {
 	UserID       uint64            `json:"userId,string"`
 	Symbol       string            `json:"symbol"`
 	OrderID      EmptyInt          `json:"orderId"`
-	TradeID      int64             `json:"tradeId,string"`
+	TradeID      uint64            `json:"tradeId,string"`
 	OrderType    string            `json:"orderType"`
 	Side         string            `json:"side"`
 	PriceAverage types.Number      `json:"priceAvg"`
@@ -926,7 +926,7 @@ type ReplaceSpotOrderParams struct {
 
 // PlanSpotOrder is a sub-struct that contains information on a planned order
 type PlanSpotOrder struct {
-	OrderID          int64        `json:"orderId,string"`
+	OrderID          uint64       `json:"orderId,string"`
 	ClientOrderID    string       `json:"clientOid"`
 	Symbol           string       `json:"symbol"`
 	TriggerPrice     types.Number `json:"triggerPrice"`
@@ -1095,8 +1095,8 @@ type SubaccDepRecResp struct {
 
 // WithdrawRecordsResp contains detailed information on withdrawals
 type WithdrawRecordsResp struct {
-	OrderID       int64         `json:"orderId,string"`
-	TradeID       int64         `json:"tradeId,string"`
+	OrderID       uint64        `json:"orderId,string"`
+	TradeID       uint64        `json:"tradeId,string"`
 	Coin          currency.Code `json:"coin"`
 	ClientOrderID string        `json:"clientOid"`
 	OrderType     string        `json:"type"`
@@ -1115,8 +1115,8 @@ type WithdrawRecordsResp struct {
 
 // CryptoDepRecResp contains detailed information on cryptocurrency deposits
 type CryptoDepRecResp struct {
-	OrderID      int64         `json:"orderId,string"`
-	TradeID      int64         `json:"tradeId,string"`
+	OrderID      uint64        `json:"orderId,string"`
+	TradeID      uint64        `json:"tradeId,string"`
 	Coin         currency.Code `json:"coin"`
 	OrderType    string        `json:"type"`
 	Size         types.Number  `json:"size"`
@@ -1534,7 +1534,7 @@ type ModifyFuturesOrderParams struct {
 	NewClientOrderID string        `json:"newClientOid"`
 	NewTakeProfit    float64       `json:"newPresetStopSurplusPrice,string"`
 	NewStopLoss      float64       `json:"newPresetStopLossPrice,string"`
-	OrderID          int64         `json:"orderId,omitempty"`
+	OrderID          uint64        `json:"orderId,omitempty"`
 	ClientOrderID    string        `json:"clientOid,omitempty"`
 	NewAmount        float64       `json:"newSize,omitempty,string"`
 	NewPrice         float64       `json:"newPrice,omitempty,string"`
@@ -1580,9 +1580,9 @@ type FuturesOrderDetailResp struct {
 
 // FuturesFill is a sub-struct containing information on fulfilled futures orders
 type FuturesFill struct {
-	TradeID          int64               `json:"tradeId,string"`
+	TradeID          uint64              `json:"tradeId,string"`
 	Symbol           string              `json:"symbol"`
-	OrderID          int64               `json:"orderId,string"`
+	OrderID          uint64              `json:"orderId,string"`
 	Price            types.Number        `json:"price"`
 	BaseVolume       types.Number        `json:"baseVolume"`
 	FeeDetail        []AbridgedFeeDetail `json:"feeDetail"`
@@ -1606,7 +1606,7 @@ type FuturesFillsResp struct {
 type FuturesOrder struct {
 	Symbol                        string        `json:"symbol"`
 	Size                          types.Number  `json:"size"`
-	OrderID                       int64         `json:"orderId,string"`
+	OrderID                       uint64        `json:"orderId,string"`
 	ClientOrderID                 string        `json:"clientOid"`
 	BaseVolume                    types.Number  `json:"baseVolume"`
 	Fee                           types.Number  `json:"fee"`
@@ -1776,7 +1776,7 @@ type PlanFuturesOrder struct {
 	PlanType               string        `json:"planType"`
 	Symbol                 string        `json:"symbol"`
 	Size                   types.Number  `json:"size"`
-	OrderID                int64         `json:"orderId,string"`
+	OrderID                uint64        `json:"orderId,string"`
 	ClientOrderID          string        `json:"clientOid"`
 	Price                  types.Number  `json:"price"`
 	ExecutePrice           types.Number  `json:"executePrice"`
@@ -1814,8 +1814,8 @@ type HistTriggerFuturesOrd struct {
 	PlanType               string        `json:"planType"`
 	Symbol                 string        `json:"symbol"`
 	Size                   types.Number  `json:"size"`
-	OrderID                int64         `json:"orderId,string"`
-	ExecuteOrderID         int64         `json:"executeOrderId,string"`
+	OrderID                uint64        `json:"orderId,string"`
+	ExecuteOrderID         uint64        `json:"executeOrderId,string"`
 	ClientOrderID          string        `json:"clientOid"`
 	PlanStatus             string        `json:"planStatus"`
 	Price                  types.Number  `json:"price"`
@@ -2080,7 +2080,7 @@ type MarginOrderData struct {
 
 // MarginOrder is a sub-struct containing information on a margin order
 type MarginOrder struct {
-	OrderID          int64        `json:"orderId,string"`
+	OrderID          uint64       `json:"orderId,string"`
 	Symbol           string       `json:"symbol"`
 	OrderType        string       `json:"orderType"`
 	EnterPointSource string       `json:"enterPointSource"`
@@ -2108,8 +2108,8 @@ type MarginOrders struct {
 
 // MarginFill is a sub-struct containing information on fulfilled margin orders
 type MarginFill struct {
-	OrderID      int64             `json:"orderId,string"`
-	TradeID      int64             `json:"tradeId,string"`
+	OrderID      uint64            `json:"orderId,string"`
+	TradeID      uint64            `json:"tradeId,string"`
 	OrderType    string            `json:"orderType"`
 	Side         string            `json:"side"`
 	PriceAverage types.Number      `json:"priceAvg"`
@@ -2155,7 +2155,7 @@ type LiquidationResp struct {
 
 // IsoRepayment is a sub-struct containing information on a repayment for isolated margin
 type IsoRepayment struct {
-	RepayID        int64         `json:"repayId,string"`
+	RepayID        uint64        `json:"repayId,string"`
 	Coin           currency.Code `json:"coin"`
 	RepayAmount    types.Number  `json:"repayAmount"`
 	RepayType      string        `json:"repayType"`
@@ -2367,7 +2367,7 @@ type APY struct {
 
 // SavingsProductList contains information on savings products
 type SavingsProductList struct {
-	ProductID     int64         `json:"productId,string"`
+	ProductID     uint64        `json:"productId,string"`
 	Coin          currency.Code `json:"coin"`
 	PeriodType    string        `json:"periodType"`
 	Period        EmptyInt      `json:"period"`
@@ -2391,8 +2391,8 @@ type SavingsBalance struct {
 
 // SavingsAsset is a sub-struct containing information on savings assets
 type SavingsAsset struct {
-	ProductID       int64         `json:"productId,string"`
-	OrderID         int64         `json:"orderId,string"`
+	ProductID       uint64        `json:"productId,string"`
+	OrderID         uint64        `json:"orderId,string"`
 	ProductCoin     currency.Code `json:"productCoin"`
 	InterestCoin    currency.Code `json:"interestCoin"`
 	PeriodType      string        `json:"periodType"`
@@ -2415,7 +2415,7 @@ type SavingsAssetsResp struct {
 
 // SavingsTransaction is a sub-struct containing information on a savings transaction
 type SavingsTransaction struct {
-	OrderID        int64         `json:"orderId,string"`
+	OrderID        uint64        `json:"orderId,string"`
 	CoinName       currency.Code `json:"coinName"`
 	SettleCoinName currency.Code `json:"settleCoinName"`
 	ProductType    string        `json:"productType"`
@@ -2469,7 +2469,7 @@ type EarnAssets struct {
 
 // SharkFinProduct is a sub-struct containing information on a shark fin product
 type SharkFinProduct struct {
-	ProductID         int64         `json:"productId,string"`
+	ProductID         uint64        `json:"productId,string"`
 	ProductName       string        `json:"productName"`
 	ProductCoin       currency.Code `json:"productCoin"`
 	SubscribeCoin     currency.Code `json:"subscribeCoin"`
@@ -2525,7 +2525,7 @@ type SharkFinAssetsResp struct {
 
 // SharkFinRecords contains information on one's shark fin records
 type SharkFinRecords struct {
-	OrderID   int64        `json:"orderId,string"`
+	OrderID   uint64       `json:"orderId,string"`
 	Product   string       `json:"product"`
 	Period    EmptyInt     `json:"period"`
 	Amount    types.Number `json:"amount"`
@@ -2591,7 +2591,7 @@ type EstimateInterest struct {
 
 // OngoingLoans contains information on ongoing loans
 type OngoingLoans struct {
-	OrderID           int64         `json:"orderId,string"`
+	OrderID           uint64        `json:"orderId,string"`
 	LoanCoin          currency.Code `json:"loanCoin"`
 	LoanAmount        types.Number  `json:"loanAmount"`
 	InterestAmount    types.Number  `json:"interestAmount"`

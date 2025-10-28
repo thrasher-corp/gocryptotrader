@@ -855,7 +855,7 @@ func TestCancelSpotOrderByID(t *testing.T) {
 	if len(resp) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
-	_, err = e.CancelSpotOrderByID(t.Context(), testPair, "", resp[0].ClientOrderID, int64(resp[0].OrderID))
+	_, err = e.CancelSpotOrderByID(t.Context(), testPair, "", resp[0].ClientOrderID, uint64(resp[0].OrderID))
 	assert.NoError(t, err)
 }
 
@@ -1199,7 +1199,7 @@ func TestCancelWithdrawal(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.OrderID)
-	_, err = e.CancelWithdrawal(t.Context(), int64(resp.OrderID))
+	_, err = e.CancelWithdrawal(t.Context(), uint64(resp.OrderID))
 	assert.NoError(t, err)
 }
 
@@ -2466,9 +2466,9 @@ func TestRedeemSavings(t *testing.T) {
 	_, err = e.RedeemSavings(t.Context(), 1, 0, "meow", 0)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	var pagination int64
-	var tarProd int64
-	var tarOrd int64
+	var pagination uint64
+	var tarProd uint64
+	var tarOrd uint64
 	var tarPeriod string
 	for {
 		resp, err := e.GetSavingsAssets(t.Context(), "", time.Time{}, time.Time{}, 100, pagination)
@@ -2482,10 +2482,10 @@ func TestRedeemSavings(t *testing.T) {
 				break
 			}
 		}
-		if tarProd != 0 || int64(resp.EndID) == pagination || resp.EndID == 0 {
+		if tarProd != 0 || uint64(resp.EndID) == pagination || resp.EndID == 0 {
 			break
 		}
-		pagination = int64(resp.EndID)
+		pagination = uint64(resp.EndID)
 	}
 	if tarProd == 0 {
 		t.Skip(skipInsufficientOrders)
@@ -2826,26 +2826,6 @@ func TestUpdateTickers(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	err = e.UpdateTickers(t.Context(), asset.Margin)
 	assert.NoError(t, err)
-}
-
-func TestFetchTicker(t *testing.T) {
-	t.Parallel()
-	_, err := e.FetchTicker(t.Context(), testPair, asset.Spot)
-	assert.NoError(t, err)
-	_, err = e.FetchTicker(t.Context(), testPair, asset.Spot)
-	assert.NoError(t, err)
-	_, err = e.FetchTicker(t.Context(), fakePair, asset.Spot)
-	assert.Error(t, err)
-}
-
-func TestFetchOrderbook(t *testing.T) {
-	t.Parallel()
-	_, err := e.FetchOrderbook(t.Context(), testPair, asset.Spot)
-	assert.NoError(t, err)
-	_, err = e.FetchOrderbook(t.Context(), testPair, asset.Spot)
-	assert.NoError(t, err)
-	_, err = e.FetchOrderbook(t.Context(), fakePair, asset.Spot)
-	assert.Error(t, err)
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -3432,7 +3412,7 @@ func TestModifyOrder(t *testing.T) {
 	if len(ordID.OrderList) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
-	ord.OrderID = strconv.FormatInt(ordID.OrderList[0].OrderID, 10)
+	ord.OrderID = strconv.FormatUint(ordID.OrderList[0].OrderID, 10)
 	ord.ClientOrderID = ordID.OrderList[0].ClientOrderID
 	ord.Type = order.Limit
 	ord.Price = testPrice
@@ -3725,7 +3705,7 @@ type getOneArgResp interface {
 }
 
 type getOneArgParam interface {
-	string | int64 | []string | bool | asset.Item | *fundingrate.LatestRateRequest | currency.Code | *margin.RateHistoryRequest | *fundingrate.HistoricalRatesRequest | *futures.PositionsRequest | *withdraw.Request | *margin.PositionChangeRequest | currency.Pair | []currency.Code | currency.Pairs | OnOffBool
+	string | uint64 | []string | bool | asset.Item | *fundingrate.LatestRateRequest | currency.Code | *margin.RateHistoryRequest | *fundingrate.HistoricalRatesRequest | *futures.PositionsRequest | *withdraw.Request | *margin.PositionChangeRequest | currency.Pair | []currency.Code | currency.Pairs | OnOffBool
 }
 
 type getOneArgGen[R getOneArgResp, P getOneArgParam] func(context.Context, P) (R, error)

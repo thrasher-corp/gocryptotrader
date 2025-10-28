@@ -1210,15 +1210,15 @@ func (e *Exchange) manageSubs(op string, subs subscription.List) error {
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (e *Exchange) GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName}).Parse(subTplText)
 }
 
-func channelName(s *subscription.Subscription) string {
+func channelName(s *subscription.Subscription) (string, error) {
 	if n, ok := subscriptionNames[s.Asset][s.Channel]; ok {
-		return n
+		return n, nil
 	}
-	panic(fmt.Errorf("%w: %s", subscription.ErrNotSupported, s.Channel))
+	return "", fmt.Errorf("%w: %s", subscription.ErrNotSupported, s.Channel)
 }
 
 const subTplText = `

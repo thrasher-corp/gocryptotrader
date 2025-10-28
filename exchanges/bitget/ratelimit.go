@@ -31,15 +31,12 @@ const (
 	rateSubscription
 )
 
-// GetRateLimits returns the rate limits for Bitget
-func GetRateLimits() request.RateLimitDefinitions {
-	return request.RateLimitDefinitions{
-		rate20:           request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate20, 1),
-		rate10:           request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate10, 1),
-		rate5:            request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate5, 1),
-		rate3:            request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate3, 1),
-		rate2:            request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate2, 1),
-		rate1:            request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate1, 1),
-		rateSubscription: request.NewRateLimitWithWeight(bitgetSubscriptionInterval, bitgetSubscriptionRate, 1),
-	}
+var rateLimits = request.RateLimitDefinitions{
+	rate20:           request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate20, 1),
+	rate10:           request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate10, 1),
+	rate5:            request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate5, 1),
+	rate3:            request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate3, 1),
+	rate2:            request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate2, 1),
+	rate1:            request.NewRateLimitWithWeight(bitgetRateInterval, bitgetRate1, 1),
+	rateSubscription: request.NewRateLimitWithWeight(bitgetSubscriptionInterval, bitgetSubscriptionRate, 1),
 }
