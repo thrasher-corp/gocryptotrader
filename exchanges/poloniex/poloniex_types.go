@@ -35,12 +35,10 @@ func (t timeInForce) MarshalText() ([]byte, error) {
 func (o orderType) MarshalText() ([]byte, error) {
 	t := order.Type(o)
 	switch t {
-	case order.TrailingStopLimit:
-		return []byte("TRAILING_STOP_LIMIT"), nil
 	case order.StopLimit:
 		return []byte("STOP_LIMIT"), nil
 	case order.Market, order.Limit, order.LimitMaker,
-		order.Stop, order.TrailingStop:
+		order.Stop, order.TrailingStop, order.TrailingStopLimit:
 		return []byte(t.String()), nil
 	case order.AnyType, order.UnknownType:
 		return nil, nil

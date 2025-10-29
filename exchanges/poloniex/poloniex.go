@@ -820,16 +820,22 @@ func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 	if err != nil {
 		return nil, err
 	}
-	var resp *CancelReplaceSmartOrderResponse
+	var smartOrderResponse *CancelReplaceSmartOrderResponse
+	resp := &V3ResponseWrapper{
+		Data: &smartOrderResponse,
+	}
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPut, path, nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	if resp.Code != 0 && resp.Code != 200 {
+		return nil, fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, resp.Code, resp.Msg)
 	}
-	return resp, nil
+	if smartOrderResponse == nil {
+		return nil, common.ErrNoResponse
+	} else if smartOrderResponse.Code != 0 && smartOrderResponse.Code != 200 {
+		return nil, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, smartOrderResponse.Code, smartOrderResponse.Message)
+	}
+	return smartOrderResponse, nil
 }
 
 // GetSmartOpenOrders get a list of (pending) smart orders for an account
@@ -851,8 +857,17 @@ func (e *Exchange) GetSmartOrderDetails(ctx context.Context, orderID, clientSupp
 	if err != nil {
 		return nil, err
 	}
-	var resp []*SmartOrderDetails
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp)
+	var smartOrders []*SmartOrderDetails
+	resp := &V3ResponseWrapper{
+		Data: &smartOrders,
+	}
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Code != 0 && resp.Code != 200 {
+		return nil, fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, resp.Code, resp.Msg)
+	}
+	return smartOrders, nil
 }
 
 // CancelSmartOrderByID cancel a smart order by its id.
@@ -861,16 +876,22 @@ func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedI
 	if err != nil {
 		return nil, err
 	}
-	var resp *CancelSmartOrderResponse
+	var cancelSmartOrderResponse *CancelSmartOrderResponse
+	resp := &V3ResponseWrapper{
+		Data: &cancelSmartOrderResponse,
+	}
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodDelete, path, nil, nil, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	if resp.Code != 0 && resp.Code != 200 {
+		return nil, fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, resp.Code, resp.Msg)
 	}
-	return resp, nil
+	if cancelSmartOrderResponse == nil {
+		return nil, common.ErrNoResponse
+	} else if cancelSmartOrderResponse.Code != 0 && cancelSmartOrderResponse.Code != 200 {
+		return cancelSmartOrderResponse, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, cancelSmartOrderResponse.Code, cancelSmartOrderResponse.Message)
+	}
+	return cancelSmartOrderResponse, nil
 }
 
 // CancelMultipleSmartOrders performs a batch cancel one or many smart orders in an account by IDs.
@@ -881,17 +902,23 @@ func (e *Exchange) CancelMultipleSmartOrders(ctx context.Context, args *CancelOr
 	if len(args.ClientOrderIDs) == 0 && len(args.OrderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
 	}
-	var resp []*CancelOrderResponse
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp)
-	if err != nil {
+	var cancelResponses []*CancelOrderResponse
+	resp := &V3ResponseWrapper{
+		Data: &cancelResponses,
+	}
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp); err != nil {
 		return nil, err
 	}
-	for _, r := range resp {
+	if resp.Code != 0 && resp.Code != 200 {
+		return nil, fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, resp.Code, resp.Msg)
+	}
+	var err error
+	for _, r := range cancelResponses {
 		if r.Code != 0 && r.Code != 200 {
 			err = common.AppendError(err, fmt.Errorf("%w: code: %d message:%s", common.ErrNoResponse, r.Code, r.Message))
 		}
 	}
-	return resp, err
+	return cancelResponses, err
 }
 
 // CancelSmartOrders cancels all smart orders in an account.
@@ -1049,7 +1076,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if result == nil {
 		return common.ErrNoResponse
 	}
-	if strings.HasPrefix(path, v3Path) || strings.HasPrefix(path, "/smartorders/") {
+	if strings.HasPrefix(path, v3Path) {
 		if val, ok := resp.(*V3ResponseWrapper); ok {
 			if val.Code != 0 && val.Code != 200 {
 				return fmt.Errorf("code: %d message: %s", val.Code, val.Msg)
@@ -1070,7 +1097,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return err
 	}
 	resp := result
-	requiresWrapper := strings.HasPrefix(path, v3Path) || strings.HasPrefix(path, "/smartorders/")
+	requiresWrapper := strings.HasPrefix(path, v3Path)
 	if requiresWrapper {
 		resp = &V3ResponseWrapper{
 			Data: result,

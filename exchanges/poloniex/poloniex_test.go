@@ -2,7 +2,6 @@ package poloniex
 
 import (
 	"context"
-	"errors"
 	"math"
 	"testing"
 	"time"
@@ -343,7 +342,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	if mockTests {
@@ -397,7 +396,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 
 func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	err := e.WebsocketCancelOrder(t.Context(), &order.Cancel{OrderID: "", ClientOrderID: ""})
@@ -1360,7 +1359,7 @@ func TestPlaceOrder(t *testing.T) {
 		Side:          order.Buy.String(),
 		Type:          orderType(order.Market),
 		Amount:        100,
-		Price:         40000.50000,
+		Price:         100000.50000,
 		TimeInForce:   timeInForce(order.GoodTillCancel),
 		ClientOrderID: "1234Abc",
 	})
@@ -1714,22 +1713,34 @@ func TestGetTradeOrderID(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	subs, err := e.generateSubscriptions()
-	require.NoError(t, err)
-	exp := []string{"candles_minute_5", "trades", "ticker", "book_lv2"}
+	var privateQualifiedChannels []string
+	if e.ValidateAPICredentials(t.Context(), asset.Spot) == nil {
+		privateQualifiedChannels = append(privateQualifiedChannels, "orders", "balances")
+	}
+	inputs := []struct {
+		gen func() (subscription.List, error)
+		exp []string
+	}{
+		{
+			gen: e.generateSubscriptions,
+			exp: []string{"candles_minute_5", "trades", "ticker", "book_lv2"},
+		},
+		{
+			gen: e.generatePrivateSubscriptions,
+			exp: privateQualifiedChannels,
+		},
+	}
 
-	creds, err := e.GetCredentials(t.Context())
-	if assert.True(t, err == nil || errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled)) {
-		if !creds.IsEmpty() {
-			exp = append(exp, "orders", "balances")
+	for _, input := range inputs {
+		got, err := input.gen()
+		require.NoError(t, err)
+
+		var gotQualifiedChannels []string
+		for _, inp := range got {
+			gotQualifiedChannels = append(gotQualifiedChannels, inp.QualifiedChannel)
 		}
+		assert.Equal(t, input.exp, gotQualifiedChannels)
 	}
-
-	got := make([]string, len(subs))
-	for i := range subs {
-		got[i] = subs[i].QualifiedChannel
-	}
-	assert.Equal(t, exp, got)
 }
 
 func TestHandleSubscription(t *testing.T) {
@@ -1781,7 +1792,7 @@ func TestWsPushData(t *testing.T) {
 
 func TestWsCreateOrder(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	_, err := e.WsCreateOrder(t.Context(), &PlaceOrderRequest{Amount: 1})
@@ -1821,7 +1832,7 @@ func TestWsCreateOrder(t *testing.T) {
 
 func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	if mockTests {
@@ -1839,7 +1850,7 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 
 func TestWsCancelTradeOrders(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	if mockTests {
