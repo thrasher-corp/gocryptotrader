@@ -32,8 +32,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "WSKMLKNW-JCKF6SGH-VWKQAUS8-RYYWFJYP"
+	apiSecret               = "b1b11137b33e52bd7ae2df3a59e905141b40740edd0568f9141b63ed0cea6bdcab8b2ac8e307ca11a048493fd7d1528a26d7a1a9e3caae53fb82965b3ebf2b57"
 	canManipulateRealOrders = false
 )
 
@@ -1546,22 +1546,22 @@ func TestGetKillSwitchStatus(t *testing.T) {
 
 func TestCreateSmartOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Side: "BUY"})
+	_, err := e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Side: order.Buy})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: "BUY"})
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: order.Buy})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: "BUY", Quantity: 10, Type: "STOP_LIMIT"})
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: "STOP_LIMIT"})
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: "BUY", Quantity: 10, Type: "TRAILING_STOP_LIMIT", Price: 1234})
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: "TRAILING_STOP_LIMIT", Price: 1234})
 	require.ErrorIs(t, err, errTrailingOffsetInvalid)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: "BUY", Quantity: 10, Type: "TRAILING_STOP_LIMIT", Price: 1234, TrailingOffset: "1%"})
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: "TRAILING_STOP_LIMIT", Price: 1234, TrailingOffset: "1%"})
 	require.ErrorIs(t, err, errOffsetLimitInvalid)
 
 	if !mockTests {
@@ -1572,7 +1572,7 @@ func TestCreateSmartOrder(t *testing.T) {
 		Type:          "STOP_LIMIT",
 		Price:         100000.5,
 		ClientOrderID: "1234Abc",
-		Side:          order.Buy.String(),
+		Side:          order.Buy,
 		TimeInForce:   timeInForce(order.GoodTillCancel),
 		Quantity:      100,
 	})
@@ -1585,7 +1585,7 @@ func TestCreateSmartOrder(t *testing.T) {
 		Type:           order.TrailingStopLimit.String(),
 		Price:          100000.5,
 		ClientOrderID:  "55667798abcd",
-		Side:           order.Buy.String(),
+		Side:           order.Buy,
 		TimeInForce:    timeInForce(order.GoodTillCancel),
 		Quantity:       100,
 		TrailingOffset: "2%",
@@ -1687,7 +1687,7 @@ func TestGetSmartOrderHistory(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetSmartOrderHistory(generateContext(), &OrdersHistoryRequest{Symbol: spotTradablePair, AccountType: "SPOT", OrderType: "", Side: "", Direction: "", States: "", From: 0, Limit: 10, StartTime: time.Time{}, EndTime: time.Time{}, HideCancel: false})
+	_, err := e.GetSmartOrderHistory(generateContext(), &OrdersHistoryRequest{Limit: 10})
 	require.NoError(t, err)
 }
 

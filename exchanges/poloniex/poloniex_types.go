@@ -27,7 +27,7 @@ func (t timeInForce) MarshalText() ([]byte, error) {
 	case tif.Is(order.ImmediateOrCancel):
 		return []byte("IOC"), nil
 	case tif == order.UnknownTIF:
-		return nil, nil
+		return []byte(""), nil
 	}
 	return nil, fmt.Errorf("%w: %q", order.ErrInvalidTimeInForce, t)
 }
@@ -689,7 +689,7 @@ type KillSwitchStatus struct {
 // SmartOrderRequestRequest represents a smart trade order parameters
 type SmartOrderRequestRequest struct {
 	Symbol         currency.Pair `json:"symbol"`
-	Side           string        `json:"side"`
+	Side           order.Side    `json:"side"`
 	TimeInForce    timeInForce   `json:"timeInForce,omitempty"`
 	AccountType    accountType   `json:"accountType,omitempty"`
 	Type           string        `json:"type,omitempty"`

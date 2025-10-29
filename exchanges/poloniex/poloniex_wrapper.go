@@ -674,7 +674,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	// TODO: These are just here to allow a minimal POC on just the smart request type
 	oTypeString, err := orderTypeString(s.Type)
 	if err != nil {
 		return nil, err
@@ -690,7 +689,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			sOrder, err := e.CreateSmartOrder(ctx, &SmartOrderRequestRequest{
 				Symbol:        s.Pair,
 				Type:          oTypeString,
-				Side:          s.Side.String(),
+				Side:          s.Side,
 				AccountType:   accountType(s.AssetType),
 				Price:         s.Price,
 				StopPrice:     s.TriggerPrice,
@@ -816,7 +815,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		modResp.OrderID = oResp.ID
 		return modResp, nil
 	default:
-		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, action.Type)
+		return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, action.Type)
 	}
 }
 
@@ -864,7 +863,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, fmt.Errorf("%w: order asset type mismatch detected", asset.ErrInvalidAsset)
 		}
 		if !slices.Contains(possibleOrderTypes, o[i].Type) {
-			return nil, fmt.Errorf("%w: order type: %s", order.ErrUnsupportedOrderType, commonOrderType.String())
+			return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, commonOrderType)
 		}
 		if commonOrderType != o[i].Type {
 			commonOrderType = order.AnyType
@@ -1558,7 +1557,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 			return orders, nil
 		default:
-			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, req.Type)
+			return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, req.Type)
 		}
 	case asset.Futures:
 		oTypeString, err := orderTypeString(req.Type)
@@ -1982,7 +1981,7 @@ func orderTypeString(oType order.Type) (string, error) {
 	case order.AnyType, order.UnknownType:
 		return "", nil
 	}
-	return "", fmt.Errorf("%w: order type %v", order.ErrUnsupportedOrderType, oType)
+	return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, oType)
 }
 
 // StringToOrderType returns an order.Type instance from string

@@ -8799,7 +8799,7 @@
    "GET": [
     {
      "data": null,
-     "queryString": "accountType=SPOT\u0026limit=10\u0026symbol=BTC_USDT",
+     "queryString": "limit=10",
      "bodyParams": "",
      "headers": {
       "Content-Type": [

@@ -776,7 +776,7 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestR
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if arg.Side == "" {
+	if arg.Side != order.Buy && arg.Side != order.Sell {
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Quantity <= 0 {
@@ -1091,7 +1091,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		var signatureStrings string
 		switch method {
 		case http.MethodGet, "get":
-			signatureStrings = fmt.Sprintf("%s\n%s\n%s", http.MethodGet, path, values.Encode())
+			signatureStrings = http.MethodGet + "\n" + path + "\n" + values.Encode()
 		default:
 			if body != nil {
 				bodyPayload, err = json.Marshal(body)
@@ -1100,9 +1100,9 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 				}
 			}
 			if string(bodyPayload) != "{}" {
-				signatureStrings = fmt.Sprintf("%s\n%s\n%s&%s", method, path, "requestBody="+string(bodyPayload), values.Encode())
+				signatureStrings = method + "\n" + path + "\n" + "requestBody=" + string(bodyPayload) + "&" + values.Encode()
 			} else {
-				signatureStrings = fmt.Sprintf("%s\n%s\n%s", method, path, values.Encode())
+				signatureStrings = method + "\n" + path + "\n" + values.Encode()
 			}
 		}
 		var hmac []byte
