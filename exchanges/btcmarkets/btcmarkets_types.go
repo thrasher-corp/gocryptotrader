@@ -124,10 +124,10 @@ type TradeResponse struct {
 
 // AccountData stores account data
 type AccountData struct {
-	AssetName string  `json:"assetName"`
-	Balance   float64 `json:"balance,string"`
-	Available float64 `json:"available,string"`
-	Locked    float64 `json:"locked,string"`
+	AssetName currency.Code `json:"assetName"`
+	Balance   float64       `json:"balance,string"`
+	Available float64       `json:"available,string"`
+	Locked    float64       `json:"locked,string"`
 }
 
 // TradeHistoryData stores data of past trades

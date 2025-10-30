@@ -144,11 +144,6 @@ type LoanOrders struct {
 	Demands []LoanOrder `json:"demands"`
 }
 
-// Balance holds data for a range of currencies
-type Balance struct {
-	Currency map[string]float64
-}
-
 // CompleteBalance contains the complete balance with a btcvalue
 type CompleteBalance struct {
 	Available float64 `json:"available,string"`

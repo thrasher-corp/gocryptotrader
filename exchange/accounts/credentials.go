@@ -1,4 +1,4 @@
-package account
+package accounts
 
 import (
 	"context"
@@ -209,14 +209,4 @@ func DeployCredentialsToContext(ctx context.Context, creds *Credentials) context
 // as a separate flag.
 func DeploySubAccountOverrideToContext(ctx context.Context, subAccount string) context.Context {
 	return context.WithValue(ctx, ContextSubAccountFlag, subAccount)
-}
-
-// String strings the credentials in a protected way.
-func (p *Protected) String() string {
-	return p.creds.String()
-}
-
-// Equal determines if the keys are the same
-func (p *Protected) Equal(other *Credentials) bool {
-	return p.creds.Equal(other)
 }

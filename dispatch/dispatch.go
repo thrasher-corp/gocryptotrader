@@ -8,15 +8,17 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// Public errors.
 var (
-	// ErrNotRunning defines an error when the dispatcher is not running
-	ErrNotRunning = errors.New("dispatcher not running")
+	ErrNotRunning               = errors.New("dispatcher not running")
+	ErrDispatcherAlreadyRunning = errors.New("dispatcher already running")
+)
 
-	errDispatcherNotInitialized          = errors.New("dispatcher not initialised")
-	errDispatcherAlreadyRunning          = errors.New("dispatcher already running")
+var (
 	errDispatchShutdown                  = errors.New("dispatcher did not shutdown properly, routines failed to close")
 	errDispatcherUUIDNotFoundInRouteList = errors.New("dispatcher uuid not found in route list")
 	errTypeAssertionFailure              = errors.New("type assertion failure")
@@ -29,7 +31,7 @@ var (
 	limitMessage = "%w [%d] current worker count [%d]. Spawn more workers via --dispatchworkers=x, or increase the jobs limit via --dispatchjobslimit=x"
 )
 
-// Name is an exported subsystem name
+// Name is an exported subsystem name.
 const Name = "dispatch"
 
 func init() {
@@ -41,59 +43,58 @@ func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
 		routes: make(map[uuid.UUID][]chan any),
 		outbound: sync.Pool{
-			New: getChan,
+			New: func() any { return make(chan any) },
 		},
 	}
 }
 
-func getChan() any {
-	// Create unbuffered channel for data pass
-	return make(chan any)
-}
-
-// Start starts the dispatch system by spawning workers and allocating memory
+// Start starts the dispatch system and spawns workers.
 func Start(workers, jobsLimit int) error {
+	dispatcher.m.Lock()
+	defer dispatcher.m.Unlock()
 	return dispatcher.start(workers, jobsLimit)
 }
 
-// Stop attempts to stop the dispatch service, this will close all pipe channels
-// flush job list and drop all workers
+// EnsureRunning starts the global dispatcher if it's not already running.
+func EnsureRunning(workers, jobsLimit int) error {
+	dispatcher.m.Lock()
+	defer dispatcher.m.Unlock()
+	if dispatcher.running {
+		return nil
+	}
+	return dispatcher.start(workers, jobsLimit)
+}
+
+// Stop will halt the dispatch service.
 func Stop() error {
 	log.Debugln(log.DispatchMgr, "Dispatch manager shutting down...")
 	return dispatcher.stop()
 }
 
-// IsRunning checks to see if the dispatch service is running
+// IsRunning checks to see if the dispatch service is running.
 func IsRunning() bool {
 	return dispatcher.isRunning()
 }
 
-// start compares atomic running value, sets defaults, overrides with
-// configuration, then spawns workers
+// start sets defaults and config and spawns workers.
+// Does not provide locking protection.
 func (d *Dispatcher) start(workers, channelCapacity int) error {
-	if d == nil {
-		return errDispatcherNotInitialized
+	if err := common.NilGuard(d); err != nil {
+		return err
 	}
 
-	d.m.Lock()
-	defer d.m.Unlock()
-
 	if d.running {
-		return errDispatcherAlreadyRunning
+		return ErrDispatcherAlreadyRunning
 	}
 
 	d.running = true
 
 	if workers < 1 {
-		log.Warnf(log.DispatchMgr,
-			"workers cannot be zero, using default value %d\n",
-			DefaultMaxWorkers)
+		log.Warnf(log.DispatchMgr, "Dispatcher workers cannot be zero, using default value %d\n", DefaultMaxWorkers)
 		workers = DefaultMaxWorkers
 	}
 	if channelCapacity < 1 {
-		log.Warnf(log.DispatchMgr,
-			"jobs limit cannot be zero, using default values %d\n",
-			DefaultJobsLimit)
+		log.Warnf(log.DispatchMgr, "Dispatcher jobs limit cannot be zero, using default values %d\n", DefaultJobsLimit)
 		channelCapacity = DefaultJobsLimit
 	}
 	d.jobs = make(chan job, channelCapacity)
@@ -107,10 +108,10 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 	return nil
 }
 
-// stop stops the service and shuts down all worker routines
+// stop stops the service and shuts down all worker routines.
 func (d *Dispatcher) stop() error {
-	if d == nil {
-		return errDispatcherNotInitialized
+	if err := common.NilGuard(d); err != nil {
+		return err
 	}
 
 	d.m.Lock()
@@ -155,7 +156,7 @@ func (d *Dispatcher) stop() error {
 	return nil
 }
 
-// isRunning returns if the dispatch system is running
+// isRunning returns if the dispatch system is running.
 func (d *Dispatcher) isRunning() bool {
 	if d == nil {
 		return false
@@ -166,7 +167,7 @@ func (d *Dispatcher) isRunning() bool {
 	return d.running
 }
 
-// relayer routine relays communications across the defined routes
+// relayer routine relays communications across the defined routes.
 func (d *Dispatcher) relayer() {
 	for {
 		select {
@@ -201,18 +202,14 @@ func (d *Dispatcher) relayer() {
 	}
 }
 
-// publish relays data to the subscribed subsystems
+// publish relays data to the subscribed subsystems.
 func (d *Dispatcher) publish(id uuid.UUID, data any) error {
-	if d == nil {
-		return errDispatcherNotInitialized
+	if err := common.NilGuard(d, data); err != nil {
+		return err
 	}
 
 	if id.IsNil() {
 		return errIDNotSet
-	}
-
-	if data == nil {
-		return errNoData
 	}
 
 	d.m.RLock()
@@ -226,18 +223,14 @@ func (d *Dispatcher) publish(id uuid.UUID, data any) error {
 	case d.jobs <- job{data, id}: // Push job into job channel.
 		return nil
 	default:
-		return fmt.Errorf(limitMessage,
-			errDispatcherJobsAtLimit,
-			len(d.jobs),
-			d.maxWorkers)
+		return fmt.Errorf(limitMessage, errDispatcherJobsAtLimit, len(d.jobs), d.maxWorkers)
 	}
 }
 
-// Subscribe subscribes a system and returns a communication chan, this does not
-// ensure initial push.
+// Subscribe subscribes a system and returns a communication chan, this does not ensure initial push.
 func (d *Dispatcher) subscribe(id uuid.UUID) (chan any, error) {
-	if d == nil {
-		return nil, errDispatcherNotInitialized
+	if err := common.NilGuard(d); err != nil {
+		return nil, err
 	}
 
 	if id.IsNil() {
@@ -268,10 +261,10 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan any, error) {
 	return ch, nil
 }
 
-// Unsubscribe unsubs a routine from the dispatcher
+// Unsubscribe unsubs a routine from the dispatcher.
 func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan any) error {
-	if d == nil {
-		return errDispatcherNotInitialized
+	if err := common.NilGuard(d); err != nil {
+		return err
 	}
 
 	if id.IsNil() {
@@ -321,10 +314,10 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan any) error {
 	return errChannelNotFoundInUUIDRef
 }
 
-// GetNewID returns a new ID
+// GetNewID returns a new ID.
 func (d *Dispatcher) getNewID(genFn func() (uuid.UUID, error)) (uuid.UUID, error) {
-	if d == nil {
-		return uuid.Nil, errDispatcherNotInitialized
+	if err := common.NilGuard(d); err != nil {
+		return uuid.Nil, err
 	}
 
 	if genFn == nil {

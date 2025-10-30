@@ -11,7 +11,7 @@ import (
 
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	subs, err := e.GenerateOptionsDefaultSubscriptions()
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
@@ -31,7 +31,7 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 func TestOptionSubscribe(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	subs, err := e.GenerateOptionsDefaultSubscriptions()
@@ -44,7 +44,7 @@ func TestOptionSubscribe(t *testing.T) {
 func TestOptionsUnsubscribe(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	subs, err := e.GenerateOptionsDefaultSubscriptions()
