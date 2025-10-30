@@ -179,6 +179,21 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	// Migrate legacy URLs to the new format
+	em := e.API.Endpoints.GetURLMap()
+	if em[exchange.RestSpot.String()] == "https://poloniex.com" {
+		if err := e.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), apiURL); err != nil {
+			return err
+		}
+		exch.API.Endpoints[exchange.RestSpot.String()] = apiURL
+	}
+	if em[exchange.WebsocketSpot.String()] == "wss://api2.poloniex.com" {
+		if err := e.API.Endpoints.SetRunningURL(exchange.WebsocketSpot.String(), websocketURL); err != nil {
+			return err
+		}
+		exch.API.Endpoints[exchange.WebsocketSpot.String()] = websocketURL
+	}
+
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig: exch,
 		FillsFeed:      e.Features.Enabled.FillsFeed,
@@ -680,13 +695,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 	switch s.AssetType {
 	case asset.Spot:
-		var smartOrder bool
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop:
-			smartOrder = true
-		}
-		if smartOrder {
-			sOrder, err := e.CreateSmartOrder(ctx, &SmartOrderRequestRequest{
+			sOrder, err := e.CreateSmartOrder(ctx, &SmartOrderRequest{
 				Symbol:        s.Pair,
 				Type:          oTypeString,
 				Side:          s.Side,
@@ -1517,11 +1528,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			)
 			orders := make([]order.Detail, 0, len(smartOrders))
 			for _, smartOrder := range smartOrders {
-				cp, err := currency.NewPairFromString(smartOrder.Symbol)
-				if err != nil {
-					return nil, err
-				}
-				if len(req.Pairs) != 0 && !req.Pairs.Contains(cp, true) {
+				if len(req.Pairs) != 0 && !req.Pairs.Contains(smartOrder.Symbol, true) {
 					continue
 				}
 				oSide, err = order.StringToOrderSide(smartOrder.Side)
@@ -1541,7 +1548,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					Amount:        smartOrder.Amount.Float64(),
 					Price:         smartOrder.Price.Float64(),
 					TriggerPrice:  smartOrder.StopPrice.Float64(),
-					Pair:          cp,
+					Pair:          smartOrder.Symbol,
 					Type:          oType,
 					Exchange:      e.Name,
 					OrderID:       smartOrder.ID,

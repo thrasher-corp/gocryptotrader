@@ -615,7 +615,7 @@ type OrdersHistoryRequest struct {
 	HideCancel  bool
 }
 
-// TradeOrder represents a trade order instance.
+// TradeOrder represents a trade order
 type TradeOrder struct {
 	ID             string            `json:"id"`
 	ClientOrderID  string            `json:"clientOrderId"`
@@ -640,20 +640,24 @@ type TradeOrder struct {
 
 // SmartOrder represents a smart order detail.
 type SmartOrder struct {
-	ID            string            `json:"id"`
-	ClientOrderID string            `json:"clientOrderId"`
-	Symbol        string            `json:"symbol"`
-	State         string            `json:"state"`
-	AccountType   string            `json:"accountType"`
-	Side          string            `json:"side"`
-	Type          string            `json:"type"`
-	TimeInForce   order.TimeInForce `json:"timeInForce"`
-	Quantity      types.Number      `json:"quantity"`
-	Price         types.Number      `json:"price"`
-	Amount        types.Number      `json:"amount"`
-	StopPrice     types.Number      `json:"stopPrice"`
-	CreateTime    types.Time        `json:"createTime"`
-	UpdateTime    types.Time        `json:"updateTime"`
+	ID              string            `json:"id"`
+	ClientOrderID   string            `json:"clientOrderId"`
+	Symbol          currency.Pair     `json:"symbol"`
+	State           string            `json:"state"`
+	AccountType     string            `json:"accountType"`
+	Side            string            `json:"side"`
+	Type            string            `json:"type"`
+	TimeInForce     order.TimeInForce `json:"timeInForce"`
+	Quantity        types.Number      `json:"quantity"`
+	Price           types.Number      `json:"price"`
+	ActivationPrice types.Number      `json:"activationPrice"`
+	Amount          types.Number      `json:"amount"`
+	StopPrice       types.Number      `json:"stopPrice"`
+	CreateTime      types.Time        `json:"createTime"`
+	UpdateTime      types.Time        `json:"updateTime"`
+	TrailingOffset  string            `json:"trailingOffset"`
+	LimitOffset     string            `json:"limitOffset"`
+	Operator        string            `json:"operator"`
 }
 
 // CancelOrderResponse represents a cancel order response instance.
@@ -684,8 +688,8 @@ type KillSwitchStatus struct {
 	CancellationTime types.Time `json:"cancellationTime"`
 }
 
-// SmartOrderRequestRequest represents a smart trade order parameters
-type SmartOrderRequestRequest struct {
+// SmartOrderRequest represents a smart trade order's parameters
+type SmartOrderRequest struct {
 	Symbol         currency.Pair `json:"symbol"`
 	Side           order.Side    `json:"side"`
 	TimeInForce    timeInForce   `json:"timeInForce,omitempty"`
@@ -696,23 +700,23 @@ type SmartOrderRequestRequest struct {
 	Quantity       float64       `json:"quantity,omitempty,string"`
 	Amount         float64       `json:"amount,omitempty,string"`
 	ClientOrderID  string        `json:"clientOrderId,omitempty"`
-	TrailingOffset string        `json:"trailingOffset,omitempty"` // trailing stop price offset (Suffix with%, to trailing the proportion, without%, to trailing the price distance)
-	LimitOffset    string        `json:"limitOffset,omitempty"`    // When the order is triggered, the order is issued with a limit order based on the offset of the market price. ( Suffix with%, to limit the proportion, without%, to limit the price distance)
-	Operator       string        `json:"operator,omitempty"`       // Activation the price operator when orderType is TRAILING_STOP or TRAILING_STOP_LIMIT. Possible values are: GTE - Greater than or equal and LTE - Less than or equal
+	TrailingOffset string        `json:"trailingOffset,omitempty"` // trailing stop offset; Append % to trail by percentage
+	LimitOffset    string        `json:"limitOffset,omitempty"`    // When trigger price is reached a limit order is placed. Append % for percentage
+	Operator       string        `json:"operator,omitempty"`       // Direction for TRAILING_STOP orders; Allowed values: `GTE` for >= or `LTE` for <=
 }
 
 // CancelReplaceSmartOrderRequest represents a cancellation and order replacement request parameter for smart orders.
 type CancelReplaceSmartOrderRequest struct {
-	orderID          string  `json:"-"` // orderID: will be used in request path.
-	OldClientOrderID string  `json:"-"` // client order ID of the order to be replaced.
-	ClientOrderID    string  `json:"clientOrderId,omitempty"`
-	Price            float64 `json:"price,omitempty,string"`
-	StopPrice        float64 `json:"stopPrice,omitempty,string"`
-	Quantity         float64 `json:"quantity,omitempty,string"`
-	Amount           float64 `json:"amount,omitempty,string"`
-	AmendedType      string  `json:"type,omitempty,string"`
-	TimeInForce      string  `json:"timeInForce,omitempty"`
-	ProceedOnFailure bool    `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
+	orderID              string  `json:"-"` // orderID: will be used in request path.
+	ReplaceClientOrderID string  `json:"-"`
+	ClientOrderID        string  `json:"clientOrderId,omitempty"`
+	Price                float64 `json:"price,omitempty,string"`
+	StopPrice            float64 `json:"stopPrice,omitempty,string"`
+	Quantity             float64 `json:"quantity,omitempty,string"`
+	Amount               float64 `json:"amount,omitempty,string"`
+	AmendedType          string  `json:"type,omitempty,string"`
+	TimeInForce          string  `json:"timeInForce,omitempty"`
+	ProceedOnFailure     bool    `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
 }
 
 // CancelReplaceSmartOrderResponse represents a response parameter for order cancellation and replacement operation.
@@ -741,24 +745,7 @@ type SmartOrderDetails struct {
 	StopPrice      types.Number      `json:"stopPrice"`
 	CreateTime     types.Time        `json:"createTime"`
 	UpdateTime     types.Time        `json:"updateTime"`
-	TriggeredOrder struct {
-		ID             string       `json:"id"`
-		ClientOrderID  string       `json:"clientOrderId"`
-		Symbol         string       `json:"symbol"`
-		State          string       `json:"state"`
-		AccountType    string       `json:"accountType"`
-		Side           string       `json:"side"`
-		Type           string       `json:"type"`
-		TimeInForce    string       `json:"timeInForce"`
-		Quantity       types.Number `json:"quantity"`
-		Price          types.Number `json:"price"`
-		AveragePrice   types.Number `json:"avgPrice"`
-		Amount         types.Number `json:"amount"`
-		FilledQuantity types.Number `json:"filledQuantity"`
-		FilledAmount   types.Number `json:"filledAmount"`
-		CreateTime     types.Time   `json:"createTime"`
-		UpdateTime     types.Time   `json:"updateTime"`
-	} `json:"triggeredOrder"`
+	TriggeredOrder TradeOrder        `json:"triggeredOrder"`
 }
 
 // CancelSmartOrderResponse represents a close cancel smart order response instance.

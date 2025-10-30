@@ -772,7 +772,7 @@ func (e *Exchange) GetKillSwitchStatus(ctx context.Context) (*KillSwitchStatus, 
 }
 
 // CreateSmartOrder create a smart order for an account. Funds will only be frozen when the smart order triggers, not upon smart order creation
-func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestRequest) (*PlaceOrderResponse, error) {
+func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequest) (*PlaceOrderResponse, error) {
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}

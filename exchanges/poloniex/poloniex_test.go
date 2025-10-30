@@ -1545,28 +1545,28 @@ func TestGetKillSwitchStatus(t *testing.T) {
 
 func TestCreateSmartOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Side: order.Buy})
+	_, err := e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Side: order.Buy})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair})
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: order.Buy})
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: "STOP_LIMIT"})
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: "STOP_LIMIT"})
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: "TRAILING_STOP_LIMIT", Price: 1234})
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: "TRAILING_STOP_LIMIT", Price: 1234})
 	require.ErrorIs(t, err, errTrailingOffsetInvalid)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequestRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: "TRAILING_STOP_LIMIT", Price: 1234, TrailingOffset: "1%"})
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: "TRAILING_STOP_LIMIT", Price: 1234, TrailingOffset: "1%"})
 	require.ErrorIs(t, err, errOffsetLimitInvalid)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CreateSmartOrder(generateContext(), &SmartOrderRequestRequest{
+	result, err := e.CreateSmartOrder(generateContext(), &SmartOrderRequest{
 		Symbol:        spotTradablePair,
 		Type:          "STOP_LIMIT",
 		Price:         100000.5,
@@ -1579,7 +1579,7 @@ func TestCreateSmartOrder(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Equalf(t, int64(200), result.Code, "CreateSmartOrder error with code: %d message: %s", result.Code, result.Message)
 
-	result, err = e.CreateSmartOrder(generateContext(), &SmartOrderRequestRequest{
+	result, err = e.CreateSmartOrder(generateContext(), &SmartOrderRequest{
 		Symbol:         spotTradablePair,
 		Type:           order.TrailingStopLimit.String(),
 		Price:          100000.5,
