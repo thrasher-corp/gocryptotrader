@@ -14,8 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -365,7 +365,7 @@ func (e *Exchange) GenerateSubscriptionPayload(subscriptions subscription.List, 
 func (e *Exchange) handleSubscription(payload []SubscriptionInput) error {
 	var (
 		authenticate bool
-		creds        *account.Credentials
+		creds        *accounts.Credentials
 	)
 	if e.AreCredentialsValid(context.Background()) && e.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
@@ -391,7 +391,7 @@ func (e *Exchange) handleSubscription(payload []SubscriptionInput) error {
 	return nil
 }
 
-func (e *Exchange) signSubscriptionPayload(creds *account.Credentials, body *SubscriptionInput) error {
+func (e *Exchange) signSubscriptionPayload(creds *accounts.Credentials, body *SubscriptionInput) error {
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(body.Time+creds.Key+"CBINTLMD"+creds.ClientID),
 		[]byte(creds.Secret))

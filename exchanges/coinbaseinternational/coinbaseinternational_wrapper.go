@@ -13,11 +13,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -338,32 +338,29 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	return orderbook.Get(e.Name, pair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if !e.SupportsAsset(assetType) {
-		return account.Holdings{}, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
+		return accounts.SubAccounts{}, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
 	}
 	portfolios, err := e.GetAllUserPortfolios(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
-	holdings := account.Holdings{
-		Exchange: e.Name,
-		Accounts: make([]account.SubAccount, len(portfolios)),
-	}
+	holdings := make(accounts.SubAccounts, len(portfolios))
 	var balances []PortfolioBalance
 	for p := range portfolios {
 		balances, err = e.ListPortfolioBalances(ctx, portfolios[p].PortfolioUUID, portfolios[p].PortfolioID)
 		if err != nil {
-			return account.Holdings{}, err
+			return accounts.SubAccounts{}, err
 		}
-		holdings.Accounts[p] = account.SubAccount{
-			AssetType:  asset.Spot,
-			ID:         portfolios[p].PortfolioID,
-			Currencies: make([]account.Balance, len(balances)),
+		subAccount := &accounts.SubAccount{
+			ID:        portfolios[p].PortfolioID,
+			AssetType: asset.Spot,
+			Balances:  make(accounts.CurrencyBalances, len(balances)),
 		}
 		for b := range balances {
-			holdings.Accounts[p].Currencies[b] = account.Balance{
+			subAccount.Balances[currency.NewCode(balances[b].AssetName)] = accounts.Balance{
 				Currency:               currency.NewCode(balances[b].AssetName),
 				Total:                  balances[b].Quantity.Float64(),
 				Hold:                   balances[b].Hold.Float64(),
@@ -371,24 +368,9 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 				AvailableWithoutBorrow: balances[b].MaxWithdrawAmount.Float64(),
 			}
 		}
+		holdings[p] = subAccount
 	}
-	return holdings, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (e *Exchange) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	if !e.SupportsAsset(assetType) {
-		return account.Holdings{}, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
-	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(e.Name, creds, assetType)
-	if err != nil {
-		return e.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
+	return holdings, e.Accounts.Save(ctx, holdings, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -738,7 +720,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 
 // ValidateAPICredentials validates current credentials used for wrapper
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

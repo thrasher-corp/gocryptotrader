@@ -995,30 +995,15 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
-	_, err := e.UpdateAccountInfo(t.Context(), asset.Options)
+	_, err := e.UpdateAccountBalances(t.Context(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
+	result, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.UpdateAccountInfo(t.Context(), asset.PerpetualContract)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestFetchAccountInfo(t *testing.T) {
-	t.Parallel()
-	_, err := e.FetchAccountInfo(t.Context(), asset.Options)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.FetchAccountInfo(t.Context(), asset.Spot)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-
-	result, err = e.FetchAccountInfo(t.Context(), asset.PerpetualContract)
+	result, err = e.UpdateAccountBalances(t.Context(), asset.PerpetualContract)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
