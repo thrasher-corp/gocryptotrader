@@ -279,7 +279,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	}
 	err = ws.Connect()
 	require.ErrorContains(t, err, "setup.Subscriber error")
-	require.NoError(t, ws.shutdown()) // Subscription errors do not disconnect
+	require.NoError(t, ws.shutdown(), "Must be connected and able to shutdown after subscription errors")
 
 	ws.connectionManager[0].setup.Subscriber = func(context.Context, Connection, subscription.List) error {
 		return nil
