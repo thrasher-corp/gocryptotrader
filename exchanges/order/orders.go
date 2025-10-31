@@ -786,6 +786,18 @@ func (s Side) IsLong() bool {
 	return s != UnknownSide && longSide&s == s
 }
 
+// Position converts a spot side to a futures position; eg BUY => LONG
+// Returns UnknownSide unless s.IsLong or s.IsShort
+func (s Side) Position() Side {
+	switch {
+	case s.IsLong():
+		return Long
+	case s.IsShort():
+		return Short
+	}
+	return UnknownSide
+}
+
 // String implements the stringer interface
 func (s Status) String() string {
 	switch s {

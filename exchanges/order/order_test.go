@@ -1755,3 +1755,20 @@ func TestAdd(t *testing.T) {
 	c.Add("order1", "cancelled")
 	assert.Equal(t, "cancelled", c.Status["order1"])
 }
+
+func TestPosition(t *testing.T) {
+	t.Parallel()
+	input := []struct {
+		sides []Side
+		side  Side
+	}{
+		{[]Side{Short, Sell, Ask}, Short},
+		{[]Side{Long, Buy, Bid}, Long},
+		{[]Side{Side(123)}, UnknownSide},
+	}
+	for _, a := range input {
+		for _, sd := range a.sides {
+			assert.Equal(t, a.side, sd.Position())
+		}
+	}
+}

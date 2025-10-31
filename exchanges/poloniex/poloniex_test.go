@@ -2,7 +2,6 @@ package poloniex
 
 import (
 	"context"
-	"math"
 	"testing"
 	"time"
 
@@ -1897,7 +1896,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	lms, err = e.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
 	require.NoError(t, err)
 	require.Len(t, spotInstruments, 1)
-	require.Equal(t, lms.PriceStepIncrementSize, math.Pow(10, -spotInstruments[0].SymbolTradeLimit.PriceScale))
+	require.Equal(t, lms.PriceStepIncrementSize, priceScaleMultipliers[spotInstruments[0].SymbolTradeLimit.PriceScale])
 	require.Equal(t, lms.MinimumBaseAmount, spotInstruments[0].SymbolTradeLimit.MinQuantity.Float64())
 	assert.Equal(t, lms.MinimumQuoteAmount, spotInstruments[0].SymbolTradeLimit.MinAmount.Float64())
 }
@@ -1983,7 +1982,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	_, err = e.PlaceFuturesOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	arg.PositionSide = "LONG"
+	arg.PositionSide = order.Long
 	_, err = e.PlaceFuturesOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
@@ -1998,8 +1997,8 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		ClientOrderID:           "939a9d51-8f32-443a-9fb8-ff0852010487",
 		Symbol:                  "BTC_USDT_PERP",
 		Side:                    "buy",
-		MarginMode:              "CROSS",
-		PositionSide:            "LONG",
+		MarginMode:              marginMode(margin.Multi),
+		PositionSide:            order.Long,
 		OrderType:               "limit_maker",
 		Price:                   46050,
 		Size:                    10,
@@ -2029,7 +2028,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	_, err = e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	arg.PositionSide = "LONG"
+	arg.PositionSide = order.Long
 	_, err = e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{arg})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
@@ -2043,8 +2042,8 @@ func TestPlaceMultipleOrders(t *testing.T) {
 			ClientOrderID:           "939a9d51",
 			Symbol:                  "BTC_USDT_PERP",
 			Side:                    "buy",
-			MarginMode:              "CROSS",
-			PositionSide:            "LONG",
+			MarginMode:              marginMode(margin.Multi),
+			PositionSide:            order.Long,
 			OrderType:               "limit_maker",
 			Price:                   46050,
 			Size:                    10,

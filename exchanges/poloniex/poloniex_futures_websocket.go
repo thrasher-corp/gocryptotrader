@@ -272,15 +272,11 @@ func (e *Exchange) processFuturesTradeFills(data []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(resp[a].Symbol)
-		if err != nil {
-			return err
-		}
 		tFills[a] = fill.Data{
-			CurrencyPair:  cp,
 			Side:          oSide,
 			Exchange:      e.Name,
 			AssetType:     asset.Futures,
+			CurrencyPair:  resp[a].Symbol,
 			OrderID:       resp[a].OrderID,
 			ID:            resp[a].TradeID,
 			TradeID:       resp[a].TradeID,
@@ -313,10 +309,6 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(resp[o].Symbol)
-		if err != nil {
-			return err
-		}
 		orders[o] = order.Detail{
 			ReduceOnly:           resp[o].ReduceOnly,
 			Leverage:             resp[o].Leverage.Float64(),
@@ -336,7 +328,7 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 			Status:               oStatus,
 			AssetType:            asset.Futures,
 			Date:                 resp[o].CreationTime.Time(),
-			Pair:                 cp,
+			Pair:                 resp[o].Symbol,
 		}
 	}
 	e.Websocket.DataHandler <- orders
@@ -350,12 +342,8 @@ func (e *Exchange) processFuturesFundingRate(data []byte) error {
 	}
 
 	for i := range resp {
-		cp, err := currency.NewPairFromString(resp[i].Symbol)
-		if err != nil {
-			return err
-		}
 		e.Websocket.DataHandler <- websocket.FundingData{
-			CurrencyPair: cp,
+			CurrencyPair: resp[i].Symbol,
 			Timestamp:    resp[i].Timestamp.Time(),
 			AssetType:    asset.Futures,
 			Exchange:     e.Name,
@@ -373,13 +361,9 @@ func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(data []byte, inte
 
 	candles := make([]websocket.KlineData, len(resp))
 	for a := range resp {
-		cp, err := currency.NewPairFromString(resp[a].Symbol)
-		if err != nil {
-			return err
-		}
 		candles[a] = websocket.KlineData{
 			Timestamp:  resp[a].PushTimestamp.Time(),
-			Pair:       cp,
+			Pair:       resp[a].Symbol,
 			AssetType:  asset.Futures,
 			Exchange:   e.Name,
 			StartTime:  resp[a].StartTime.Time(),
@@ -401,24 +385,20 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 		return err
 	}
 	for x := range resp {
-		cp, err := currency.NewPairFromString(resp[x].Symbol)
-		if err != nil {
-			return err
-		}
-		_, okay := onceFuturesOrderbook[resp[x].Symbol]
+		_, okay := onceFuturesOrderbook[resp[x].Symbol.String()]
 		if !okay || action == "snapshot" {
 			if onceFuturesOrderbook == nil {
 				onceFuturesOrderbook = make(map[string]bool)
 			}
-			onceFuturesOrderbook[resp[x].Symbol] = true
+			onceFuturesOrderbook[resp[x].Symbol.String()] = true
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Bids:         resp[x].Bids.Levels(),
 				Asks:         resp[x].Asks.Levels(),
 				Exchange:     e.Name,
-				Pair:         cp,
-				Asset:        asset.Futures,
-				LastUpdated:  resp[x].CreationTime.Time(),
 				LastUpdateID: resp[x].ID,
+				Asset:        asset.Futures,
+				Pair:         resp[x].Symbol,
+				LastUpdated:  resp[x].CreationTime.Time(),
 			}); err != nil {
 				return err
 			}
@@ -430,7 +410,7 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 			LastPushed: resp[x].Timestamp.Time(),
 			Action:     orderbook.UpdateAction,
 			Asset:      asset.Futures,
-			Pair:       cp,
+			Pair:       resp[x].Symbol,
 			Asks:       resp[x].Asks.Levels(),
 			Bids:       resp[x].Bids.Levels(),
 		}); err != nil {
@@ -447,10 +427,6 @@ func (e *Exchange) processFuturesTickers(data []byte) error {
 	}
 	tickerPrices := make([]ticker.Price, len(resp))
 	for a := range resp {
-		cp, err := currency.NewPairFromString(resp[a].Symbol)
-		if err != nil {
-			return err
-		}
 		tickerPrices[a] = ticker.Price{
 			High:         resp[a].HighPrice.Float64(),
 			Low:          resp[a].LowPrice.Float64(),
@@ -463,7 +439,7 @@ func (e *Exchange) processFuturesTickers(data []byte) error {
 			Open:         resp[a].OpeningPrice.Float64(),
 			Close:        resp[a].ClosingPrice.Float64(),
 			MarkPrice:    resp[a].MarkPrice.Float64(),
-			Pair:         cp,
+			Pair:         resp[a].Symbol,
 			ExchangeName: e.Name,
 			AssetType:    asset.Futures,
 			LastUpdated:  resp[a].Timestamp.Time(),
@@ -485,16 +461,12 @@ func (e *Exchange) processFuturesTrades(data []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(resp[t].Symbol)
-		if err != nil {
-			return err
-		}
 		trades[t] = trade.Data{
 			TID:          trades[t].TID,
 			Exchange:     e.Name,
-			CurrencyPair: cp,
-			AssetType:    asset.Futures,
 			Side:         oSide,
+			AssetType:    asset.Futures,
+			CurrencyPair: resp[t].Symbol,
 			Price:        resp[t].Price.Float64(),
 			Amount:       resp[t].Amount.Float64(),
 			Timestamp:    resp[t].Timestamp.Time(),
@@ -512,13 +484,9 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, interval kline.Interv
 
 	candles := make([]websocket.KlineData, len(resp))
 	for a := range resp {
-		cp, err := currency.NewPairFromString(resp[a].Symbol)
-		if err != nil {
-			return err
-		}
 		candles[a] = websocket.KlineData{
 			Timestamp:  resp[a].PushTime.Time(),
-			Pair:       cp,
+			Pair:       resp[a].Symbol,
 			AssetType:  asset.Futures,
 			Exchange:   e.Name,
 			StartTime:  resp[a].StartTime.Time(),

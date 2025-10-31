@@ -35,11 +35,20 @@ func (t timeInForce) MarshalText() ([]byte, error) {
 func (o orderType) MarshalText() ([]byte, error) {
 	t := order.Type(o)
 	switch t {
+	case order.Market:
+		return []byte("MARKET"), nil
+	case order.Limit:
+		return []byte("LIMIT"), nil
+	case order.LimitMaker:
+		return []byte("LIMIT_MAKER"), nil
+	case order.Stop:
+		return []byte("STOP"), nil
 	case order.StopLimit:
 		return []byte("STOP_LIMIT"), nil
-	case order.Market, order.Limit, order.LimitMaker,
-		order.Stop, order.TrailingStop, order.TrailingStopLimit:
-		return []byte(t.String()), nil
+	case order.TrailingStop:
+		return []byte("TRAILING_STOP"), nil
+	case order.TrailingStopLimit:
+		return []byte("TRAILING_STOP_LIMIT"), nil
 	case order.AnyType, order.UnknownType:
 		return nil, nil
 	}
@@ -127,19 +136,19 @@ var WithdrawalFees = map[currency.Code]float64{
 
 // SymbolTradeLimit holds symbol's trade details
 type SymbolTradeLimit struct {
-	Symbol        string       `json:"symbol"`
-	PriceScale    float64      `json:"priceScale"`
-	QuantityScale float64      `json:"quantityScale"`
-	AmountScale   float64      `json:"amountScale"`
-	MinQuantity   types.Number `json:"minQuantity"`
-	MinAmount     types.Number `json:"minAmount"`
-	HighestBid    types.Number `json:"highestBid"`
-	LowestAsk     types.Number `json:"lowestAsk"`
+	Symbol        currency.Pair `json:"symbol"`
+	PriceScale    int64         `json:"priceScale"`
+	QuantityScale int64         `json:"quantityScale"`
+	AmountScale   int64         `json:"amountScale"`
+	MinQuantity   types.Number  `json:"minQuantity"`
+	MinAmount     types.Number  `json:"minAmount"`
+	HighestBid    types.Number  `json:"highestBid"`
+	LowestAsk     types.Number  `json:"lowestAsk"`
 }
 
 // SymbolDetails represents a currency symbol
 type SymbolDetails struct {
-	Symbol            string                 `json:"symbol"`
+	Symbol            currency.Pair          `json:"symbol"`
 	BaseCurrencyName  string                 `json:"baseCurrencyName"`
 	QuoteCurrencyName string                 `json:"quoteCurrencyName"`
 	DisplayName       string                 `json:"displayName"`
@@ -186,25 +195,25 @@ type ServerSystemTime struct {
 
 // MarketPrice represents ticker information.
 type MarketPrice struct {
-	Symbol        string       `json:"symbol"`
-	DailyChange   types.Number `json:"dailyChange"`
-	Price         types.Number `json:"price"`
-	Timestamp     types.Time   `json:"time"`
-	PushTimestamp types.Time   `json:"ts"`
+	Symbol        currency.Pair `json:"symbol"`
+	DailyChange   types.Number  `json:"dailyChange"`
+	Price         types.Number  `json:"price"`
+	Timestamp     types.Time    `json:"time"`
+	PushTimestamp types.Time    `json:"ts"`
 }
 
 // MarkPrice represents latest mark price for all cross margin symbols.
 type MarkPrice struct {
-	Symbol          string       `json:"symbol"`
-	MarkPrice       types.Number `json:"markPrice"`
-	RecordTimestamp types.Time   `json:"time"`
+	Symbol          currency.Pair `json:"symbol"`
+	MarkPrice       types.Number  `json:"markPrice"`
+	RecordTimestamp types.Time    `json:"time"`
 }
 
 // MarkPriceComponent represents a mark price component instance.
 type MarkPriceComponent struct {
-	Symbol     string       `json:"symbol"`
-	Timestamp  types.Time   `json:"ts"`
-	MarkPrice  types.Number `json:"markPrice"`
+	Symbol     currency.Pair `json:"symbol"`
+	Timestamp  types.Time    `json:"ts"`
+	MarkPrice  types.Number  `json:"markPrice"`
 	Components []struct {
 		Symbol       string       `json:"symbol"`
 		Exchange     string       `json:"exchange"`
@@ -243,8 +252,7 @@ type CandlestickData struct {
 
 // UnmarshalJSON deserializes byte data into CandlestickData structure
 func (c *CandlestickData) UnmarshalJSON(data []byte) error {
-	target := [14]any{&c.Low, &c.High, &c.Open, &c.Close, &c.Amount, &c.Quantity, &c.BuyTakeAmount, &c.BuyTakerQuantity, &c.TradeCount, &c.PushTimestamp, &c.WeightedAverage, &c.Interval, &c.StartTime, &c.EndTime}
-	return json.Unmarshal(data, &target)
+	return json.Unmarshal(data, &[14]any{&c.Low, &c.High, &c.Open, &c.Close, &c.Amount, &c.Quantity, &c.BuyTakeAmount, &c.BuyTakerQuantity, &c.TradeCount, &c.PushTimestamp, &c.WeightedAverage, &c.Interval, &c.StartTime, &c.EndTime})
 }
 
 // Trade represents a trade instance.
@@ -260,24 +268,24 @@ type Trade struct {
 
 // TickerData represents a price ticker information.
 type TickerData struct {
-	Symbol      string       `json:"symbol"`
-	Open        types.Number `json:"open"`
-	Low         types.Number `json:"low"`
-	High        types.Number `json:"high"`
-	Close       types.Number `json:"close"`
-	Quantity    types.Number `json:"quantity"`
-	Amount      types.Number `json:"amount"`
-	TradeCount  int64        `json:"tradeCount"`
-	StartTime   types.Time   `json:"startTime"`
-	CloseTime   types.Time   `json:"closeTime"`
-	DisplayName string       `json:"displayName"`
-	DailyChange string       `json:"dailyChange"`
-	Bid         types.Number `json:"bid"`
-	BidQuantity types.Number `json:"bidQuantity"`
-	Ask         types.Number `json:"ask"`
-	AskQuantity types.Number `json:"askQuantity"`
-	Timestamp   types.Time   `json:"ts"`
-	MarkPrice   types.Number `json:"markPrice"`
+	Symbol      currency.Pair `json:"symbol"`
+	Open        types.Number  `json:"open"`
+	Low         types.Number  `json:"low"`
+	High        types.Number  `json:"high"`
+	Close       types.Number  `json:"close"`
+	Quantity    types.Number  `json:"quantity"`
+	Amount      types.Number  `json:"amount"`
+	TradeCount  int64         `json:"tradeCount"`
+	StartTime   types.Time    `json:"startTime"`
+	CloseTime   types.Time    `json:"closeTime"`
+	DisplayName string        `json:"displayName"`
+	DailyChange string        `json:"dailyChange"`
+	Bid         types.Number  `json:"bid"`
+	BidQuantity types.Number  `json:"bidQuantity"`
+	Ask         types.Number  `json:"ask"`
+	AskQuantity types.Number  `json:"askQuantity"`
+	Timestamp   types.Time    `json:"ts"`
+	MarkPrice   types.Number  `json:"markPrice"`
 }
 
 // CollateralDetails represents collateral information.
@@ -551,8 +559,8 @@ type PlaceOrderRequest struct {
 	TimeInForce   timeInForce `json:"timeInForce,omitempty"` // GTC, IOC, FOK (Default: GTC)
 	ClientOrderID string      `json:"clientOrderId,omitempty"`
 
-	AllowBorrow bool   `json:"allowBorrow,omitempty"`
-	STPMode     string `json:"stpMode,omitempty"` // self-trade prevention. Defaults to EXPIRE_TAKER. None: enable self-trade; EXPIRE_TAKER: Taker order will be canceled when self-trade happens
+	AllowBorrow             bool   `json:"allowBorrow,omitempty"`
+	SelfTradePreventionMode string `json:"stpMode,omitempty"` // self-trade prevention. Defaults to EXPIRE_TAKER. None: enable self-trade; EXPIRE_TAKER: Taker order will be canceled when self-trade happens
 
 	SlippageTolerance string `json:"slippageTolerance,omitempty"` // Used to control the maximum slippage ratio, the value range is greater than 0 and less than 1
 }

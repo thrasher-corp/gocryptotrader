@@ -68,7 +68,7 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderReque
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
-	if arg.PositionSide == "" {
+	if arg.PositionSide == order.UnknownSide {
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.OrderType == "" {
@@ -110,7 +110,7 @@ func (o *FuturesOrderRequest) validate() error {
 	if o.Side == "" {
 		return order.ErrSideIsInvalid
 	}
-	if o.PositionSide == "" {
+	if o.PositionSide == order.UnknownSide {
 		return order.ErrSideIsInvalid
 	}
 	if o.OrderType == "" {
