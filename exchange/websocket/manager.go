@@ -534,8 +534,7 @@ func (m *Manager) connect() error {
 		m.connections[conn] = cW
 		cW.connection = conn
 
-		m.Wg.Add(1)
-		go m.Reader(context.TODO(), conn, cW.setup.Handler)
+		m.Wg.Go(func() { m.Reader(context.TODO(), conn, cW.setup.Handler) })
 
 		if cW.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
 			if err = cW.setup.Authenticate(context.TODO(), conn); err != nil {
