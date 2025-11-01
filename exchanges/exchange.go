@@ -104,7 +104,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 }
 
 // SetFeatureDefaults sets the exchanges default feature support set
-func (b *Base) SetFeatureDefaults() {
+func (b *Base) SetFeatureDefaults() error {
 	if b.Config.Features == nil {
 		s := &config.FeaturesConfig{
 			Supports: config.FeaturesSupportedConfig{
@@ -162,21 +162,24 @@ func (b *Base) SetFeatureDefaults() {
 			b.SetFillsFeedStatus(b.Config.Features.Enabled.FillsFeed)
 		}
 
-		b.SetSubscriptionsFromConfig()
+		if err := b.SetSubscriptionsFromConfig(); err != nil {
+			return err
+		}
 
 		b.Features.Enabled.AutoPairUpdates = b.Config.Features.Enabled.AutoPairUpdates
 	}
+	return nil
 }
 
 // SetSubscriptionsFromConfig sets the subscriptions from config
 // If the subscriptions config is empty then Config will be updated from the exchange subscriptions,
 // allowing e.SetDefaults to set default subscriptions for an exchange to update user's config
 // Subscriptions not Enabled are skipped, meaning that e.Features.Subscriptions only contains Enabled subscriptions
-func (b *Base) SetSubscriptionsFromConfig() {
+func (b *Base) SetSubscriptionsFromConfig() error {
 	b.settingsMutex.Lock()
 	defer b.settingsMutex.Unlock()
-	if b.Websocket == nil {
-		return
+	if err := common.NilGuard(b.Websocket); err != nil {
+		return err
 	}
 	if len(b.Config.Features.Subscriptions) == 0 {
 		// Set config from the defaults, including any disabled subscriptions
@@ -190,6 +193,7 @@ func (b *Base) SetSubscriptionsFromConfig() {
 		}
 		log.Debugf(log.ExchangeSys, "Set %v 'Subscriptions' to %v", b.Name, strings.Join(names, ", "))
 	}
+	return nil
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
@@ -581,7 +585,9 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		return err
 	}
 
-	b.SetFeatureDefaults()
+	if err := b.SetFeatureDefaults(); err != nil {
+		return err
+	}
 
 	if b.API.Endpoints == nil {
 		b.API.Endpoints = b.NewEndpoints()
