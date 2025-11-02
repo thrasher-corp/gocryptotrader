@@ -715,6 +715,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			TimeInForce:             timeInForce(s.TimeInForce),
 			ClientOrderID:           s.ClientOrderID,
 			SelfTradePreventionMode: stpMode,
+			SlippageTolerance:       "0",
 		})
 		if err != nil {
 			return nil, err
@@ -769,12 +770,13 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	switch action.Type {
 	case order.Market, order.Limit, order.LimitMaker:
 		resp, err := e.CancelReplaceOrder(ctx, &CancelReplaceOrderRequest{
-			orderID:       action.OrderID,
-			ClientOrderID: action.ClientOrderID,
-			Price:         action.Price,
-			Quantity:      action.Amount,
-			AmendedType:   action.Type.String(),
-			TimeInForce:   tif,
+			orderID:           action.OrderID,
+			ClientOrderID:     action.ClientOrderID,
+			Price:             action.Price,
+			Quantity:          action.Amount,
+			AmendedType:       action.Type.String(),
+			TimeInForce:       tif,
+			SlippageTolerance: 0,
 		})
 		if err != nil {
 			return nil, err
@@ -953,11 +955,11 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			if !cancelOrd.Pair.IsEmpty() {
 				pairsString = append(pairsString, cancelOrd.Pair.String())
 			}
-			orderTypes := []string{}
 			oTypeString, err := orderTypeString(order.StopLimit)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
+			var orderTypes []string
 			if cancelOrd.Type != order.UnknownType {
 				orderTypes = append(orderTypes, oTypeString)
 			}
@@ -1900,15 +1902,24 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if s.AssetType != asset.Spot {
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, s.AssetType)
 	}
+	var stpMode string
+	switch s.TimeInForce {
+	case order.PostOnly:
+		stpMode = "EXPIRE_MAKER"
+	case order.GoodTillCancel:
+		stpMode = "EXPIRE_TAKER"
+	}
 	response, err := e.WsCreateOrder(ctx, &PlaceOrderRequest{
-		Symbol:        s.Pair,
-		Price:         s.Price,
-		Amount:        s.Amount,
-		AllowBorrow:   false,
-		Type:          orderType(s.Type),
-		Side:          s.Side.String(),
-		TimeInForce:   timeInForce(s.TimeInForce),
-		ClientOrderID: s.ClientOrderID,
+		Symbol:                  s.Pair,
+		Price:                   s.Price,
+		Amount:                  s.Amount,
+		AllowBorrow:             false,
+		Type:                    orderType(s.Type),
+		Side:                    s.Side.String(),
+		TimeInForce:             timeInForce(s.TimeInForce),
+		ClientOrderID:           s.ClientOrderID,
+		SlippageTolerance:       "0",
+		SelfTradePreventionMode: stpMode,
 	})
 	if err != nil {
 		return nil, err
