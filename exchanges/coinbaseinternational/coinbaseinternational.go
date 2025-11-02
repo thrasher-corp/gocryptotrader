@@ -1061,7 +1061,7 @@ func (e *Exchange) GetCounterpartyWithdrawalLimit(ctx context.Context, portfolio
 }
 
 // SendHTTPRequest sends a public HTTP request.
-func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params url.Values, data, result interface{}, authenticated bool) error {
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params url.Values, data, result any, authenticated bool) error {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -1091,7 +1091,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method,
 		}
 	}
 	intrim := json.RawMessage{}
-	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	if err := e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		timestamp := time.Now()
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
@@ -1120,8 +1120,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method,
 			HTTPDebugging: e.HTTPDebugging,
 			HTTPRecording: e.HTTPRecording,
 		}, nil
-	}, requestType)
-	if err != nil {
+	}, requestType); err != nil {
 		return err
 	}
 	errorMessage := &struct {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -813,13 +814,13 @@ type WsOrderbookLevel1 struct {
 
 // WsOrderbookLevel2 holds Level-2 orderbook information.
 type WsOrderbookLevel2 struct {
-	Sequence  int64             `json:"sequence"`
-	ProductID string            `json:"product_id"`
-	Time      time.Time         `json:"time"`
-	Asks      [][2]types.Number `json:"asks"`
-	Bids      [][2]types.Number `json:"bids"`
-	Channel   string            `json:"channel"`
-	Type      string            `json:"type"` // Possible values: UPDATE and SNAPSHOT
+	Sequence  int64                            `json:"sequence"`
+	ProductID string                           `json:"product_id"`
+	Time      time.Time                        `json:"time"`
+	Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Channel   string                           `json:"channel"`
+	Type      string                           `json:"type"` // Possible values: UPDATE and SNAPSHOT
 
 	// Changes when the data is UPDATE
 	Changes [][3]string `json:"changes"`

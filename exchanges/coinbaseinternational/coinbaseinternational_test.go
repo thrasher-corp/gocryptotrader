@@ -950,10 +950,10 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestGenerateSubscriptionPayload(t *testing.T) {
 	t.Parallel()
-	_, err := e.GenerateSubscriptionPayload(subscription.List{}, "SUBSCRIBE")
+	_, err := e.handleSubscriptions(subscription.List{}, "SUBSCRIBE")
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
-	payload, err := e.GenerateSubscriptionPayload(subscription.List{
+	payload, err := e.handleSubscriptions(subscription.List{
 		{Channel: cnlFunding, Pairs: currency.Pairs{{Base: currency.BTC, Delimiter: "-", Quote: currency.USDT}}},
 		{Channel: cnlFunding, Pairs: currency.Pairs{{Base: currency.BTC, Delimiter: "-", Quote: currency.USDC}}},
 		{Channel: cnlFunding, Pairs: currency.Pairs{{Base: currency.BTC, Delimiter: "-", Quote: currency.USDC}}},

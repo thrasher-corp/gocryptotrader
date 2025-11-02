@@ -42,11 +42,10 @@ func (e *Exchange) SetDefaults() {
 	e.API.CredentialsValidator.RequiresClientID = true
 	e.API.CredentialsValidator.RequiresSecret = true
 	e.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	err := e.SetGlobalPairsManager(
+	if err := e.SetGlobalPairsManager(
 		&currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 		&currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-		asset.Spot, asset.PerpetualContract)
-	if err != nil {
+		asset.Spot, asset.PerpetualContract); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
@@ -101,17 +100,17 @@ func (e *Exchange) SetDefaults() {
 			},
 		},
 	}
+	var err error
 	e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
 	e.API.Endpoints = e.NewEndpoints()
-	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	if err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      coinbaseInternationalAPIURL,
 		exchange.WebsocketSpot: coinbaseinternationalWSAPIURL,
-	})
-	if err != nil {
+	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	e.Websocket = websocket.NewManager()
@@ -122,23 +121,21 @@ func (e *Exchange) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (e *Exchange) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil
 	}
-	err = e.SetupDefaults(exch)
-	if err != nil {
+	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
 	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
-	err = e.Websocket.Setup(&websocket.ManagerSetup{
+	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            coinbaseinternationalWSAPIURL,
 		RunningURL:            wsRunningEndpoint,
@@ -151,8 +148,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
@@ -201,8 +197,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 			return err
 		}
 
-		err = e.UpdatePairs(pairs, assetTypes[x], false)
-		if err != nil {
+		if err := e.UpdatePairs(pairs, assetTypes[x], false); err != nil {
 			return err
 		}
 	}
@@ -212,7 +207,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if assetType != asset.Spot {
-		return nil, fmt.Errorf("%w asset type %v", asset.ErrNotSupported, asset.Spot)
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, asset.Spot)
 	}
 	format, err := e.GetPairFormat(asset.Spot, true)
 	if err != nil {
@@ -226,7 +221,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 	if err != nil {
 		return nil, err
 	}
-	err = ticker.ProcessTicker(&ticker.Price{
+	if err := ticker.ProcessTicker(&ticker.Price{
 		High:         tick.LimitUp.Float64(),
 		Low:          tick.LimitDown.Float64(),
 		Bid:          tick.BestBidPrice.Float64(),
@@ -238,8 +233,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		ExchangeName: e.Name,
 		AssetType:    asset.Spot,
 		Pair:         p.Format(format),
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(e.Name, p, asset.Spot)
@@ -248,7 +242,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 // UpdateTickers updates all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	if !e.SupportsAsset(assetType) {
-		return fmt.Errorf("%w asset type %v", asset.ErrNotSupported, assetType)
+		return fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
 	var tick *QuoteInformation
 	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
@@ -260,7 +254,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 		if err != nil {
 			return err
 		}
-		err = ticker.ProcessTicker(&ticker.Price{
+		if err := ticker.ProcessTicker(&ticker.Price{
 			High:         tick.LimitUp.Float64(),
 			Low:          tick.LimitDown.Float64(),
 			Bid:          tick.BestBidPrice.Float64(),
@@ -275,8 +269,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			Pair:         enabledPairs[x],
 			AssetType:    asset.Spot,
 			ExchangeName: e.Name,
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -304,7 +297,7 @@ func (e *Exchange) FetchOrderbook(ctx context.Context, pair currency.Pair, asset
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if !e.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
 	book := &orderbook.Book{
 		Exchange:          e.Name,
@@ -331,8 +324,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		Amount: orderbookNew.BestAskSize.Float64(),
 		Price:  orderbookNew.BestAskPrice.Float64(),
 	}}
-	err = book.Process()
-	if err != nil {
+	if err := book.Process(); err != nil {
 		return book, err
 	}
 	return orderbook.Get(e.Name, pair, assetType)
@@ -341,7 +333,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 // UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if !e.SupportsAsset(assetType) {
-		return accounts.SubAccounts{}, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
+		return accounts.SubAccounts{}, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
 	portfolios, err := e.GetAllUserPortfolios(ctx)
 	if err != nil {
@@ -500,11 +492,10 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
-	err := ord.Validate(ord.StandardCancel())
-	if err != nil {
+	if err := ord.Validate(ord.StandardCancel()); err != nil {
 		return err
 	}
-	_, err = e.CancelTradeOrder(ctx, ord.OrderID, ord.ClientOrderID, ord.AccountID, "")
+	_, err := e.CancelTradeOrder(ctx, ord.OrderID, ord.ClientOrderID, ord.AccountID, "")
 	return err
 }
 
@@ -516,7 +507,7 @@ func (e *Exchange) CancelBatchOrders(context.Context, []order.Cancel) (*order.Ca
 // CancelAllOrders cancels all orders associated with a currency pair
 func (e *Exchange) CancelAllOrders(ctx context.Context, action *order.Cancel) (order.CancelAllResponse, error) {
 	if action.AssetType != asset.Spot {
-		return order.CancelAllResponse{}, fmt.Errorf("%w asset type %v", asset.ErrNotSupported, action.AssetType)
+		return order.CancelAllResponse{}, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
 	}
 	if action.AccountID == "" {
 		return order.CancelAllResponse{}, fmt.Errorf("%w %w (account ID)", request.ErrAuthRequestFailed, errMissingPortfolioID)
@@ -664,8 +655,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 		if err != nil {
 			return nil, err
 		}
-		var pair currency.Pair
-		pair, err = currency.NewPairFromString(response.Results[x].Symbol)
+		pair, err := currency.NewPairFromString(response.Results[x].Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -788,7 +778,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		return nil, futures.ErrNotFuturesAsset
 	}
 	if !e.SupportsAsset(item) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, item)
 	}
 	contracts, err := e.GetInstruments(ctx)
 	if err != nil {
@@ -839,8 +829,10 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, fr *fundingrate.La
 	}
 	resp := make([]fundingrate.LatestRateResponse, len(result.Results))
 	for a := range result.Results {
-		var cp currency.Pair
-		var isEnabled bool
+		var (
+			cp        currency.Pair
+			isEnabled bool
+		)
 		cp, isEnabled, err = e.MatchSymbolCheckEnabled(result.Results[a].InstrumentID, fr.Asset, false)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
@@ -900,7 +892,7 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		return "", currency.ErrCurrencyPairEmpty
 	}
 	if a != asset.Spot {
-		return "", fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 	}
 	cp.Delimiter = currency.DashDelimiter
 	return "https://international.coinbase.com/instrument/" + cp.Lower().String() + "?active=price", nil

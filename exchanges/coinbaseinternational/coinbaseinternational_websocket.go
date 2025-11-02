@@ -50,8 +50,7 @@ func (e *Exchange) WsConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	err := e.Websocket.Conn.Dial(context.Background(), &gws.Dialer{Proxy: http.ProxyFromEnvironment}, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(context.Background(), &gws.Dialer{Proxy: http.ProxyFromEnvironment}, http.Header{}); err != nil {
 		return err
 	}
 	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
@@ -77,8 +76,7 @@ func (e *Exchange) wsReadData(conn websocket.Connection) {
 				log.Warnf(log.WebsocketMgr, "%s Received empty message\n", e.Name)
 				return
 			}
-			err := e.wsHandleData(resp.Raw)
-			if err != nil {
+			if err := e.wsHandleData(resp.Raw); err != nil {
 				e.Websocket.DataHandler <- err
 			}
 		}
@@ -87,11 +85,13 @@ func (e *Exchange) wsReadData(conn websocket.Connection) {
 
 func (e *Exchange) wsHandleData(respRaw []byte) error {
 	var resp SubscriptionResponse
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	var pairs currency.Pairs
+	var (
+		pairs currency.Pairs
+		err   error
+	)
 	switch resp.Type {
 	case "SUBSCRIBE":
 		var subsccefulySubscribedChannels subscription.List
@@ -106,8 +106,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 					Pairs:   pairs,
 				})
 		}
-		err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...)
-		if err != nil {
+		if err := e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...); err != nil {
 			return err
 		}
 	case "UNSUBSCRIBE":
@@ -123,8 +122,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 					Pairs:   pairs,
 				})
 		}
-		err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...)
-		if err != nil {
+		if err := e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...); err != nil {
 			return err
 		}
 	case "REJECT":
@@ -154,8 +152,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 
 func (e *Exchange) processOrderbookLevel2(respRaw []byte) error {
 	var resp []WsOrderbookLevel2
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	for x := range resp {
@@ -163,40 +160,28 @@ func (e *Exchange) processOrderbookLevel2(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		asks := make([]orderbook.Level, len(resp[x].Asks))
-		for a := range resp[x].Asks {
-			asks[a].Price = resp[x].Asks[a][0].Float64()
-			asks[a].Amount = resp[x].Asks[a][1].Float64()
-		}
-		bids := make([]orderbook.Level, len(resp[x].Bids))
-		for b := range resp[x].Bids {
-			bids[b].Price = resp[x].Bids[b][0].Float64()
-			bids[b].Amount = resp[x].Bids[b][1].Float64()
-		}
 		if resp[x].Type == "UPDATE" {
-			err = e.Websocket.Orderbook.Update(&orderbook.Update{
+			if err := e.Websocket.Orderbook.Update(&orderbook.Update{
 				UpdateID:   resp[x].Sequence,
 				UpdateTime: resp[x].Time,
 				Asset:      asset.Spot,
 				Action:     orderbook.UpdateAction,
-				Bids:       bids,
-				Asks:       asks,
+				Bids:       resp[x].Bids.Levels(),
+				Asks:       resp[x].Asks.Levels(),
 				Pair:       pair,
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 		}
-		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Bids:         bids,
-			Asks:         asks,
+		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Bids:         resp[x].Bids.Levels(),
+			Asks:         resp[x].Asks.Levels(),
 			Pair:         pair,
 			Exchange:     e.Name,
 			Asset:        asset.Spot,
 			LastUpdated:  resp[x].Time,
 			LastUpdateID: resp[x].Sequence,
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -205,8 +190,7 @@ func (e *Exchange) processOrderbookLevel2(respRaw []byte) error {
 
 func (e *Exchange) processOrderbookLevel1(respRaw []byte) error {
 	var resp []WsOrderbookLevel1
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	for x := range resp {
@@ -215,7 +199,7 @@ func (e *Exchange) processOrderbookLevel1(respRaw []byte) error {
 			return err
 		}
 		if resp[x].Type == "UPDATE" {
-			err = e.Websocket.Orderbook.Update(&orderbook.Update{
+			if err := e.Websocket.Orderbook.Update(&orderbook.Update{
 				Pair:       pair,
 				Asset:      asset.Spot,
 				UpdateTime: resp[x].Time,
@@ -223,12 +207,11 @@ func (e *Exchange) processOrderbookLevel1(respRaw []byte) error {
 				UpdateID:   resp[x].Sequence,
 				Asks:       []orderbook.Level{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
 				Bids:       []orderbook.Level{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 		}
-		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Pair:         pair,
 			Exchange:     e.Name,
 			Asset:        asset.Spot,
@@ -236,8 +219,7 @@ func (e *Exchange) processOrderbookLevel1(respRaw []byte) error {
 			LastUpdateID: resp[x].Sequence,
 			Asks:         []orderbook.Level{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
 			Bids:         []orderbook.Level{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -246,8 +228,7 @@ func (e *Exchange) processOrderbookLevel1(respRaw []byte) error {
 
 func (e *Exchange) processRisk(respRaw []byte) error {
 	var resp []WsRisk
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- resp
@@ -256,8 +237,7 @@ func (e *Exchange) processRisk(respRaw []byte) error {
 
 func (e *Exchange) processFunding(respRaw []byte) error {
 	var resp []WsFunding
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	fundingInfos := make([]fundingrate.Rate, len(resp))
@@ -273,8 +253,7 @@ func (e *Exchange) processFunding(respRaw []byte) error {
 
 func (e *Exchange) processMatch(respRaw []byte) error {
 	var resp []WsMatch
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- resp
@@ -283,16 +262,15 @@ func (e *Exchange) processMatch(respRaw []byte) error {
 
 func (e *Exchange) processInstruments(respRaw []byte) error {
 	var resp []WsInstrument
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- resp
 	return nil
 }
 
-// GenerateSubscriptionPayload generates a subscription payloads list.
-func (e *Exchange) GenerateSubscriptionPayload(subscriptions subscription.List, operation string) ([]SubscriptionInput, error) {
+// handleSubscriptions generates a subscription payloads list.
+func (e *Exchange) handleSubscriptions(subscriptions subscription.List, operation string) ([]SubscriptionInput, error) {
 	if len(subscriptions) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -378,13 +356,11 @@ func (e *Exchange) handleSubscription(payload []SubscriptionInput) error {
 	for x := range payload {
 		payload[x].Time = strconv.FormatInt(time.Now().Unix(), 10)
 		if authenticate {
-			err := e.signSubscriptionPayload(creds, &payload[x])
-			if err != nil {
+			if err := e.signSubscriptionPayload(creds, &payload[x]); err != nil {
 				return err
 			}
 		}
-		err := e.Websocket.Conn.SendJSONMessage(context.Background(), request.Unset, payload[x])
-		if err != nil {
+		if err := e.Websocket.Conn.SendJSONMessage(context.Background(), request.Unset, payload[x]); err != nil {
 			return err
 		}
 	}
@@ -423,7 +399,7 @@ func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 
 // Subscribe subscribe to channels
 func (e *Exchange) Subscribe(subscriptions subscription.List) error {
-	subscriptionPayloads, err := e.GenerateSubscriptionPayload(subscriptions, "SUBSCRIBE")
+	subscriptionPayloads, err := e.handleSubscriptions(subscriptions, "SUBSCRIBE")
 	if err != nil {
 		return err
 	}
@@ -432,7 +408,7 @@ func (e *Exchange) Subscribe(subscriptions subscription.List) error {
 
 // Unsubscribe unsubscribe to channels
 func (e *Exchange) Unsubscribe(subscriptions subscription.List) error {
-	subscriptionPayloads, err := e.GenerateSubscriptionPayload(subscriptions, "UNSUBSCRIBE")
+	subscriptionPayloads, err := e.handleSubscriptions(subscriptions, "UNSUBSCRIBE")
 	if err != nil {
 		return err
 	}
