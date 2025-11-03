@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -22,9 +22,9 @@ func TestHandleWSAccountChange(t *testing.T) {
 	q := mustQuickData(t, AccountHoldingsFocusType)
 	require.ErrorIs(t, q.handleWSAccountChange(nil), common.ErrNilPointer)
 
-	d := &account.Change{
+	d := &accounts.Change{
 		AssetType: q.key.Asset,
-		Balance: &account.Balance{
+		Balance: accounts.Balance{
 			Currency:               currency.BTC,
 			Total:                  1337,
 			Hold:                   1337,
@@ -38,9 +38,9 @@ func TestHandleWSAccountChange(t *testing.T) {
 	require.Len(t, q.data.AccountBalance, 1)
 	assert.Equal(t, d.Balance, &q.data.AccountBalance[0])
 
-	d2 := &account.Change{
+	d2 := &accounts.Change{
 		AssetType: asset.Binary,
-		Balance: &account.Balance{
+		Balance: accounts.Balance{
 			Currency:               currency.BTC,
 			Total:                  1,
 			Hold:                   1,
@@ -60,9 +60,9 @@ func TestHandleWSAccountChanges(t *testing.T) {
 	q := mustQuickData(t, AccountHoldingsFocusType)
 	require.NoError(t, q.handleWSAccountChanges(nil))
 
-	d := account.Change{
+	d := accounts.Change{
 		AssetType: q.key.Asset,
-		Balance: &account.Balance{
+		Balance: accounts.Balance{
 			Currency:               currency.BTC,
 			Total:                  1337,
 			Hold:                   1337,
@@ -72,13 +72,13 @@ func TestHandleWSAccountChanges(t *testing.T) {
 			UpdatedAt:              time.Now(),
 		},
 	}
-	require.NoError(t, q.handleWSAccountChanges([]account.Change{d}))
+	require.NoError(t, q.handleWSAccountChanges([]accounts.Change{d}))
 	require.Len(t, q.data.AccountBalance, 1)
 	assert.Equal(t, d.Balance, &q.data.AccountBalance[0])
 
-	d2 := account.Change{
+	d2 := accounts.Change{
 		AssetType: asset.Binary,
-		Balance: &account.Balance{
+		Balance: accounts.Balance{
 			Currency:               currency.BTC,
 			Total:                  1,
 			Hold:                   1,
@@ -88,7 +88,7 @@ func TestHandleWSAccountChanges(t *testing.T) {
 			UpdatedAt:              time.Now(),
 		},
 	}
-	require.NoError(t, q.handleWSAccountChanges([]account.Change{d2}))
+	require.NoError(t, q.handleWSAccountChanges([]accounts.Change{d2}))
 	require.Len(t, q.data.AccountBalance, 1)
 	assert.NotEqual(t, d2.Balance, &q.data.AccountBalance[0])
 }
@@ -153,7 +153,7 @@ func TestAccountHoldingsFocusType(t *testing.T) {
 	f, err := qs.GetFocusByKey(AccountHoldingsFocusType)
 	require.NoError(t, err)
 	require.NotNil(t, f)
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
 		Key:    apiKey,
 		Secret: apiSecret,
 	})
