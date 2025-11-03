@@ -1719,7 +1719,7 @@ func (x *GetOrderbooksResponse) GetOrderbooks() []*Orderbooks {
 	return nil
 }
 
-type GetAccountInfoRequest struct {
+type GetAccountBalancesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Exchange      string                 `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
 	AssetType     string                 `protobuf:"bytes,2,opt,name=asset_type,json=assetType,proto3" json:"asset_type,omitempty"`
@@ -1727,20 +1727,20 @@ type GetAccountInfoRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetAccountInfoRequest) Reset() {
-	*x = GetAccountInfoRequest{}
+func (x *GetAccountBalancesRequest) Reset() {
+	*x = GetAccountBalancesRequest{}
 	mi := &file_rpc_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetAccountInfoRequest) String() string {
+func (x *GetAccountBalancesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetAccountInfoRequest) ProtoMessage() {}
+func (*GetAccountBalancesRequest) ProtoMessage() {}
 
-func (x *GetAccountInfoRequest) ProtoReflect() protoreflect.Message {
+func (x *GetAccountBalancesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_rpc_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1752,19 +1752,19 @@ func (x *GetAccountInfoRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetAccountInfoRequest.ProtoReflect.Descriptor instead.
-func (*GetAccountInfoRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetAccountBalancesRequest.ProtoReflect.Descriptor instead.
+func (*GetAccountBalancesRequest) Descriptor() ([]byte, []int) {
 	return file_rpc_proto_rawDescGZIP(), []int{32}
 }
 
-func (x *GetAccountInfoRequest) GetExchange() string {
+func (x *GetAccountBalancesRequest) GetExchange() string {
 	if x != nil {
 		return x.Exchange
 	}
 	return ""
 }
 
-func (x *GetAccountInfoRequest) GetAssetType() string {
+func (x *GetAccountBalancesRequest) GetAssetType() string {
 	if x != nil {
 		return x.AssetType
 	}
@@ -1915,7 +1915,7 @@ func (x *AccountCurrencyInfo) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-type GetAccountInfoResponse struct {
+type GetAccountBalancesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Exchange      string                 `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
 	Accounts      []*Account             `protobuf:"bytes,2,rep,name=accounts,proto3" json:"accounts,omitempty"`
@@ -1923,20 +1923,20 @@ type GetAccountInfoResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetAccountInfoResponse) Reset() {
-	*x = GetAccountInfoResponse{}
+func (x *GetAccountBalancesResponse) Reset() {
+	*x = GetAccountBalancesResponse{}
 	mi := &file_rpc_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetAccountInfoResponse) String() string {
+func (x *GetAccountBalancesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetAccountInfoResponse) ProtoMessage() {}
+func (*GetAccountBalancesResponse) ProtoMessage() {}
 
-func (x *GetAccountInfoResponse) ProtoReflect() protoreflect.Message {
+func (x *GetAccountBalancesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_rpc_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1948,19 +1948,19 @@ func (x *GetAccountInfoResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetAccountInfoResponse.ProtoReflect.Descriptor instead.
-func (*GetAccountInfoResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetAccountBalancesResponse.ProtoReflect.Descriptor instead.
+func (*GetAccountBalancesResponse) Descriptor() ([]byte, []int) {
 	return file_rpc_proto_rawDescGZIP(), []int{35}
 }
 
-func (x *GetAccountInfoResponse) GetExchange() string {
+func (x *GetAccountBalancesResponse) GetExchange() string {
 	if x != nil {
 		return x.Exchange
 	}
 	return ""
 }
 
-func (x *GetAccountInfoResponse) GetAccounts() []*Account {
+func (x *GetAccountBalancesResponse) GetAccounts() []*Account {
 	if x != nil {
 		return x.Accounts
 	}
@@ -15215,8 +15215,8 @@ const file_rpc_proto_rawDesc = "" +
 	"\x15GetOrderbooksResponse\x122\n" +
 	"\n" +
 	"orderbooks\x18\x01 \x03(\v2\x12.gctrpc.OrderbooksR\n" +
-	"orderbooks\"R\n" +
-	"\x15GetAccountInfoRequest\x12\x1a\n" +
+	"orderbooks\"V\n" +
+	"\x19GetAccountBalancesRequest\x12\x1a\n" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12\x1d\n" +
 	"\n" +
 	"asset_type\x18\x02 \x01(\tR\tassetType\"V\n" +
@@ -15234,8 +15234,8 @@ const file_rpc_proto_rawDesc = "" +
 	"\x13free_without_borrow\x18\x05 \x01(\x01R\x11freeWithoutBorrow\x12\x1a\n" +
 	"\bborrowed\x18\x06 \x01(\x01R\bborrowed\x129\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"a\n" +
-	"\x16GetAccountInfoResponse\x12\x1a\n" +
+	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"e\n" +
+	"\x1aGetAccountBalancesResponse\x12\x1a\n" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12+\n" +
 	"\baccounts\x18\x02 \x03(\v2\x0f.gctrpc.AccountR\baccounts\"\x12\n" +
 	"\x10GetConfigRequest\"'\n" +
@@ -16349,7 +16349,7 @@ const file_rpc_proto_rawDesc = "" +
 	"\x05asset\x18\x02 \x01(\tR\x05asset\x12(\n" +
 	"\x04pair\x18\x03 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\"/\n" +
 	"\x1bGetCurrencyTradeURLResponse\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url2\x9al\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url2\xccl\n" +
 	"\x15GoCryptoTraderService\x12O\n" +
 	"\aGetInfo\x12\x16.gctrpc.GetInfoRequest\x1a\x17.gctrpc.GetInfoResponse\"\x13\x82\xd3\xe4\x93\x02\r\x12\v/v1/getinfo\x12g\n" +
 	"\rGetSubsystems\x12\x1c.gctrpc.GetSubsystemsRequest\x1a\x1d.gctrpc.GetSusbsytemsResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/getsubsystems\x12h\n" +
@@ -16367,10 +16367,10 @@ const file_rpc_proto_rawDesc = "" +
 	"\n" +
 	"GetTickers\x12\x19.gctrpc.GetTickersRequest\x1a\x1a.gctrpc.GetTickersResponse\"\x16\x82\xd3\xe4\x93\x02\x10\x12\x0e/v1/gettickers\x12c\n" +
 	"\fGetOrderbook\x12\x1b.gctrpc.GetOrderbookRequest\x1a\x19.gctrpc.OrderbookResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/v1/getorderbook\x12g\n" +
-	"\rGetOrderbooks\x12\x1c.gctrpc.GetOrderbooksRequest\x1a\x1d.gctrpc.GetOrderbooksResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/getorderbooks\x12k\n" +
-	"\x0eGetAccountInfo\x12\x1d.gctrpc.GetAccountInfoRequest\x1a\x1e.gctrpc.GetAccountInfoResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/getaccountinfo\x12q\n" +
-	"\x11UpdateAccountInfo\x12\x1d.gctrpc.GetAccountInfoRequest\x1a\x1e.gctrpc.GetAccountInfoResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/updateaccountinfo\x12y\n" +
-	"\x14GetAccountInfoStream\x12\x1d.gctrpc.GetAccountInfoRequest\x1a\x1e.gctrpc.GetAccountInfoResponse\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/v1/getaccountinfostream0\x01\x12W\n" +
+	"\rGetOrderbooks\x12\x1c.gctrpc.GetOrderbooksRequest\x1a\x1d.gctrpc.GetOrderbooksResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/getorderbooks\x12{\n" +
+	"\x12GetAccountBalances\x12!.gctrpc.GetAccountBalancesRequest\x1a\".gctrpc.GetAccountBalancesResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/getaccountbalances\x12\x81\x01\n" +
+	"\x15UpdateAccountBalances\x12!.gctrpc.GetAccountBalancesRequest\x1a\".gctrpc.GetAccountBalancesResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/updateaccountbalances\x12\x89\x01\n" +
+	"\x18GetAccountBalancesStream\x12!.gctrpc.GetAccountBalancesRequest\x1a\".gctrpc.GetAccountBalancesResponse\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/getaccountbalancesstream0\x01\x12W\n" +
 	"\tGetConfig\x12\x18.gctrpc.GetConfigRequest\x1a\x19.gctrpc.GetConfigResponse\"\x15\x82\xd3\xe4\x93\x02\x0f\x12\r/v1/getconfig\x12c\n" +
 	"\fGetPortfolio\x12\x1b.gctrpc.GetPortfolioRequest\x1a\x1c.gctrpc.GetPortfolioResponse\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/v1/getportfolio\x12\x7f\n" +
 	"\x13GetPortfolioSummary\x12\".gctrpc.GetPortfolioSummaryRequest\x1a#.gctrpc.GetPortfolioSummaryResponse\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/getportfoliosummary\x12v\n" +
@@ -16514,10 +16514,10 @@ var file_rpc_proto_goTypes = []any{
 	(*GetOrderbooksRequest)(nil),                      // 29: gctrpc.GetOrderbooksRequest
 	(*Orderbooks)(nil),                                // 30: gctrpc.Orderbooks
 	(*GetOrderbooksResponse)(nil),                     // 31: gctrpc.GetOrderbooksResponse
-	(*GetAccountInfoRequest)(nil),                     // 32: gctrpc.GetAccountInfoRequest
+	(*GetAccountBalancesRequest)(nil),                 // 32: gctrpc.GetAccountBalancesRequest
 	(*Account)(nil),                                   // 33: gctrpc.Account
 	(*AccountCurrencyInfo)(nil),                       // 34: gctrpc.AccountCurrencyInfo
-	(*GetAccountInfoResponse)(nil),                    // 35: gctrpc.GetAccountInfoResponse
+	(*GetAccountBalancesResponse)(nil),                // 35: gctrpc.GetAccountBalancesResponse
 	(*GetConfigRequest)(nil),                          // 36: gctrpc.GetConfigRequest
 	(*GetConfigResponse)(nil),                         // 37: gctrpc.GetConfigResponse
 	(*PortfolioAddress)(nil),                          // 38: gctrpc.PortfolioAddress
@@ -16744,7 +16744,7 @@ var file_rpc_proto_depIdxs = []int32{
 	30,  // 16: gctrpc.GetOrderbooksResponse.orderbooks:type_name -> gctrpc.Orderbooks
 	34,  // 17: gctrpc.Account.currencies:type_name -> gctrpc.AccountCurrencyInfo
 	240, // 18: gctrpc.AccountCurrencyInfo.updated_at:type_name -> google.protobuf.Timestamp
-	33,  // 19: gctrpc.GetAccountInfoResponse.accounts:type_name -> gctrpc.Account
+	33,  // 19: gctrpc.GetAccountBalancesResponse.accounts:type_name -> gctrpc.Account
 	38,  // 20: gctrpc.GetPortfolioResponse.portfolio:type_name -> gctrpc.PortfolioAddress
 	43,  // 21: gctrpc.OfflineCoins.addresses:type_name -> gctrpc.OfflineCoinSummary
 	233, // 22: gctrpc.OnlineCoins.coins:type_name -> gctrpc.OnlineCoins.CoinsEntry
@@ -16897,9 +16897,9 @@ var file_rpc_proto_depIdxs = []int32{
 	23,  // 169: gctrpc.GoCryptoTraderService.GetTickers:input_type -> gctrpc.GetTickersRequest
 	26,  // 170: gctrpc.GoCryptoTraderService.GetOrderbook:input_type -> gctrpc.GetOrderbookRequest
 	29,  // 171: gctrpc.GoCryptoTraderService.GetOrderbooks:input_type -> gctrpc.GetOrderbooksRequest
-	32,  // 172: gctrpc.GoCryptoTraderService.GetAccountInfo:input_type -> gctrpc.GetAccountInfoRequest
-	32,  // 173: gctrpc.GoCryptoTraderService.UpdateAccountInfo:input_type -> gctrpc.GetAccountInfoRequest
-	32,  // 174: gctrpc.GoCryptoTraderService.GetAccountInfoStream:input_type -> gctrpc.GetAccountInfoRequest
+	32,  // 172: gctrpc.GoCryptoTraderService.GetAccountBalances:input_type -> gctrpc.GetAccountBalancesRequest
+	32,  // 173: gctrpc.GoCryptoTraderService.UpdateAccountBalances:input_type -> gctrpc.GetAccountBalancesRequest
+	32,  // 174: gctrpc.GoCryptoTraderService.GetAccountBalancesStream:input_type -> gctrpc.GetAccountBalancesRequest
 	36,  // 175: gctrpc.GoCryptoTraderService.GetConfig:input_type -> gctrpc.GetConfigRequest
 	39,  // 176: gctrpc.GoCryptoTraderService.GetPortfolio:input_type -> gctrpc.GetPortfolioRequest
 	41,  // 177: gctrpc.GoCryptoTraderService.GetPortfolioSummary:input_type -> gctrpc.GetPortfolioSummaryRequest
@@ -17012,9 +17012,9 @@ var file_rpc_proto_depIdxs = []int32{
 	25,  // 284: gctrpc.GoCryptoTraderService.GetTickers:output_type -> gctrpc.GetTickersResponse
 	28,  // 285: gctrpc.GoCryptoTraderService.GetOrderbook:output_type -> gctrpc.OrderbookResponse
 	31,  // 286: gctrpc.GoCryptoTraderService.GetOrderbooks:output_type -> gctrpc.GetOrderbooksResponse
-	35,  // 287: gctrpc.GoCryptoTraderService.GetAccountInfo:output_type -> gctrpc.GetAccountInfoResponse
-	35,  // 288: gctrpc.GoCryptoTraderService.UpdateAccountInfo:output_type -> gctrpc.GetAccountInfoResponse
-	35,  // 289: gctrpc.GoCryptoTraderService.GetAccountInfoStream:output_type -> gctrpc.GetAccountInfoResponse
+	35,  // 287: gctrpc.GoCryptoTraderService.GetAccountBalances:output_type -> gctrpc.GetAccountBalancesResponse
+	35,  // 288: gctrpc.GoCryptoTraderService.UpdateAccountBalances:output_type -> gctrpc.GetAccountBalancesResponse
+	35,  // 289: gctrpc.GoCryptoTraderService.GetAccountBalancesStream:output_type -> gctrpc.GetAccountBalancesResponse
 	37,  // 290: gctrpc.GoCryptoTraderService.GetConfig:output_type -> gctrpc.GetConfigResponse
 	40,  // 291: gctrpc.GoCryptoTraderService.GetPortfolio:output_type -> gctrpc.GetPortfolioResponse
 	47,  // 292: gctrpc.GoCryptoTraderService.GetPortfolioSummary:output_type -> gctrpc.GetPortfolioSummaryResponse

@@ -139,7 +139,7 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	r := e.Requester
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test exchange Setup must not error")
 	e.Requester = r
 	start := time.Now().AddDate(0, 0, -3)
@@ -153,7 +153,7 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	r := e.Requester
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test exchange Setup must not error")
 	e.Requester = r
 	err := e.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresPair}, true)
@@ -469,7 +469,7 @@ func TestWsOrderbook(t *testing.T) {
 func TestWSTrades(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
 	close(e.Websocket.DataHandler)
@@ -690,7 +690,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	r := e.Requester
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test exchange Setup must not error")
 	testexch.UpdatePairsOnce(t, e)
 	e.Requester = r

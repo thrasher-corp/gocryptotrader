@@ -121,13 +121,11 @@ func TestGetAccountByID(t *testing.T) {
 	assert.ErrorIs(t, err, errAccountIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	longResp, err := e.ListAccounts(t.Context(), 49, 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	require.True(t, longResp != nil && len(longResp.Accounts) > 0, errExpectedNonEmpty)
 	shortResp, err := e.GetAccountByID(t.Context(), longResp.Accounts[0].UUID)
-	assert.NoError(t, err)
-	if *shortResp != longResp.Accounts[0] {
-		t.Errorf(errExpectMismatch, shortResp, longResp.Accounts[0])
-	}
+	require.NoError(t, err)
+	assert.Equal(t, shortResp, longResp.Accounts[0])
 }
 
 func TestListAccounts(t *testing.T) {
@@ -1136,10 +1134,10 @@ func TestUpdateTradablePairs(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	resp, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
+	resp, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1629,7 +1627,7 @@ func TestProcessSnapshotUpdate(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	e := new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatal(err)
 	}
@@ -1676,7 +1674,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := &Exchange{ //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	e := &Exchange{
 		Base: exchange.Base{
 			Config: &config.Exchange{
 				Features: &config.FeaturesConfig{
@@ -1916,10 +1914,10 @@ func convertTestHelper(t *testing.T) (fromAccID, toAccID string) {
 		t.Fatal(errExpectedNonEmpty)
 	}
 	for x := range accIDs.Accounts {
-		if accIDs.Accounts[x].Currency == testStable.String() {
+		if accIDs.Accounts[x].Currency == testStable {
 			fromAccID = accIDs.Accounts[x].UUID
 		}
-		if accIDs.Accounts[x].Currency == testFiat.String() {
+		if accIDs.Accounts[x].Currency == testFiat {
 			toAccID = accIDs.Accounts[x].UUID
 		}
 		if fromAccID != "" && toAccID != "" {

@@ -14,9 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -769,11 +770,8 @@ func TestIsEnabled(t *testing.T) {
 func TestSetupDefaults(t *testing.T) {
 	t.Parallel()
 
-	newRequester, err := request.New("testSetupDefaults",
-		common.NewHTTPClientWithTimeout(0))
-	if err != nil {
-		t.Fatal(err)
-	}
+	newRequester, err := request.New("testSetupDefaults", common.NewHTTPClientWithTimeout(0))
+	require.NoError(t, err, "request.New must not error")
 
 	b := Base{
 		Name:      "awesomeTest",
@@ -787,62 +785,35 @@ func TestSetupDefaults(t *testing.T) {
 		ConnectionMonitorDelay: time.Second * 5,
 	}
 
-	err = b.SetupDefaults(&cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.HTTPTimeout.String() != "15s" {
-		t.Error("HTTP timeout should be set to 15s")
-	}
+	accountsStore := accounts.GetStore()
+	require.NoError(t, b.SetupDefaults(&cfg))
+	// If this fails, something raced and changed accounts.global under us. Probably accounts.TestGetStore.
+	// Highly unlikely, but this check will clarify what happened
+	require.Same(t, accountsStore, accounts.GetStore(), "Global accounts Store must not change during SetupDefaults")
 
-	// Test custom HTTP timeout is set
+	assert.Equal(t, 15*time.Second, cfg.HTTPTimeout, "config.HTTPTimeout should default correctly")
+
 	cfg.HTTPTimeout = time.Second * 30
-	err = b.SetupDefaults(&cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.HTTPTimeout.String() != "30s" {
-		t.Error("HTTP timeout should be set to 30s")
-	}
+	require.NoError(t, b.SetupDefaults(&cfg))
+	require.NoError(t, err)
+	assert.Equal(t, 30*time.Second, cfg.HTTPTimeout, "config.HTTPTimeout should respect override")
 
 	// Test asset types
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{Enabled: currency.Pairs{btcusdPair}})
 	require.NoError(t, err, "Store must not error")
-	require.NoError(t, b.SetupDefaults(&cfg), "SetupDefaults must not error")
-	ps, err := cfg.CurrencyPairs.Get(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ps.Enabled.Contains(btcusdPair, true) {
-		t.Error("default pair should be stored in the configs pair store")
-	}
+	require.NoError(t, b.SetupDefaults(&cfg))
 
-	// Test websocket support
-	b.Websocket = websocket.NewManager()
-	b.Features.Supports.Websocket = true
-	err = b.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig: &config.Exchange{
-			WebsocketTrafficTimeout: time.Second * 30,
-			Name:                    "test",
-			Features:                &config.FeaturesConfig{},
-		},
-		Features:              &protocol.Features{},
-		DefaultURL:            "ws://something.com",
-		RunningURL:            "ws://something.com",
-		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{}, nil },
-		Subscriber:            func(subscription.List) error { return nil },
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = b.Websocket.EnableAndConnect()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !b.IsWebsocketEnabled() {
-		t.Error("websocket should be enabled")
-	}
+	ps, err := cfg.CurrencyPairs.Get(asset.Spot)
+	require.NoError(t, err, "CurrencyPairs.Get must not error")
+	assert.True(t, ps.Enabled.Contains(btcusdPair, true), "default pair should be stored in the configs pair store")
+
+	exp, err := accountsStore.GetExchangeAccounts(&b)
+	require.NoError(t, err, "GetExchangeAccounts must not error")
+	assert.Same(t, exp, b.Accounts, "SetupDefaults should default accounts from the global accounts store")
+	b.Accounts = accounts.MustNewAccounts(&b)
+	a := b.Accounts
+	require.NoError(t, b.SetupDefaults(&cfg))
+	assert.Same(t, a, b.Accounts, "SetDefaults should not overwrite Accounts override")
 }
 
 func TestSetPairs(t *testing.T) {
@@ -1145,9 +1116,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 	t.Parallel()
 
 	var b Base
-	if b.IsWebsocketEnabled() {
-		t.Error("exchange doesn't support websocket")
-	}
+	require.False(t, b.IsWebsocketEnabled(), "IsWebsocketEnabled must return false on an empty Base")
 
 	b.Websocket = websocket.NewManager()
 	err := b.Websocket.Setup(&websocket.ManagerSetup{
@@ -1168,12 +1137,10 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
 		Subscriber:            func(subscription.List) error { return nil },
 	})
-	if err != nil {
-		t.Error(err)
-	}
-	if !b.IsWebsocketEnabled() {
-		t.Error("websocket should be enabled")
-	}
+	require.NoError(t, err, "Websocket.Setup must not error")
+	assert.True(t, b.IsWebsocketEnabled(), "websocket should be enabled")
+	require.NoError(t, b.Websocket.Disable(), "Websocket.Disable must not error")
+	assert.False(t, b.IsWebsocketEnabled(), "websocket should not be enabled")
 }
 
 func TestSupportsWithdrawPermissions(t *testing.T) {
@@ -2636,28 +2603,90 @@ func TestGetCachedOrderbook(t *testing.T) {
 	assert.Equal(t, pair, ob.Pair)
 }
 
-func TestGetCachedAccountInfo(t *testing.T) {
+func TestGetCachedSubAccounts(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 
-	creds := &account.Credentials{
-		Key:    "test",
-		Secret: "test",
-	}
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
 		Key:    "test",
 		Secret: "test",
 	})
-	_, err := b.GetCachedAccountInfo(ctx, asset.Spot)
-	assert.ErrorIs(t, err, account.ErrExchangeHoldingsNotFound)
+	_, err := b.GetCachedSubAccounts(ctx, asset.Spot)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
 
-	err = account.Process(&account.Holdings{Exchange: "test", Accounts: []account.SubAccount{
-		{AssetType: asset.Spot, Currencies: []account.Balance{{Currency: currency.BTC, Total: 1}}},
-	}}, creds)
-	require.NoError(t, err, "account.Process must not error")
+	b.Accounts = accounts.MustNewAccounts(&b)
+	_, err = b.GetCachedSubAccounts(ctx, asset.Spot)
+	assert.ErrorIs(t, err, accounts.ErrNoSubAccounts)
 
-	_, err = b.GetCachedAccountInfo(ctx, asset.Spot)
+	err = b.Accounts.Save(ctx, accounts.SubAccounts{
+		{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1}}},
+	}, true)
+	require.NoError(t, err, "b.Accounts.Save must not error")
+
+	_, err = b.GetCachedSubAccounts(ctx, asset.Spot)
 	assert.NoError(t, err)
+}
+
+func TestGetCurrencyBalances(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+
+	_, err := b.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+	assert.ErrorIs(t, err, ErrCredentialsAreEmpty)
+
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
+		Key:    "test",
+		Secret: "test",
+	})
+	_, err = b.GetCachedCurrencyBalances(ctx, asset.Spot)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	b.Accounts = accounts.MustNewAccounts(&b)
+	_, err = b.GetCachedCurrencyBalances(ctx, asset.Spot)
+	assert.ErrorIs(t, err, accounts.ErrNoBalances)
+
+	err = b.Accounts.Save(ctx, accounts.SubAccounts{
+		{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1.4}}},
+	}, true)
+	require.NoError(t, err, "b.Accounts.Save must not error")
+
+	a, err := b.GetCachedCurrencyBalances(ctx, asset.Spot)
+	require.NoError(t, err)
+	require.Contains(t, a, currency.BTC)
+	assert.Equal(t, 1.4, a[currency.BTC].Total, "BTC Total should be correct")
+}
+
+func TestSubscribeAccountBalances(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+
+	_, err := b.SubscribeAccountBalances()
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	err = dispatch.EnsureRunning(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
+	require.NoError(t, err, "dispatch.EnsureRunning must not error")
+
+	b.Accounts = accounts.MustNewAccounts(&b)
+	p, err := b.SubscribeAccountBalances()
+	require.NoError(t, err)
+
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
+		Key:    "test",
+		Secret: "test",
+	})
+	exp := &accounts.SubAccount{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1.4}}}
+	err = b.Accounts.Save(ctx, accounts.SubAccounts{exp}, true)
+	require.NoError(t, err, "b.Accounts.Save must not error")
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		select {
+		case a := <-p.Channel():
+			require.IsType(c, &accounts.SubAccount{}, a, "Save must publish *SubAccount")
+			subAcct, _ := a.(*accounts.SubAccount)
+			assert.Equal(c, exp, subAcct, "Save should publish the same update")
+		default:
+			require.Fail(c, "Data must eventually arrive")
+		}
+	}, time.Second, time.Millisecond, "Publish must eventually send to Channel")
 }
 
 // FakeBase is used to override functions
@@ -2695,8 +2724,8 @@ func (f *FakeBase) CancelOrder(context.Context, *order.Cancel) error {
 	return nil
 }
 
-func (f *FakeBase) GetCachedAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, nil
+func (f *FakeBase) GetCachedSubAccounts(context.Context, asset.Item) (accounts.SubAccounts, error) {
+	return accounts.SubAccounts{}, nil
 }
 
 func (f *FakeBase) GetCachedOrderbook(currency.Pair, asset.Item) (*orderbook.Book, error) {
@@ -2731,8 +2760,8 @@ func (f *FakeBase) UpdateOrderbook(context.Context, currency.Pair, asset.Item) (
 	return nil, nil
 }
 
-func (f *FakeBase) UpdateAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, nil
+func (f *FakeBase) UpdateAccountBalances(context.Context, asset.Item) (accounts.SubAccounts, error) {
+	return accounts.SubAccounts{}, nil
 }
 
 func (f *FakeBase) GetRecentTrades(context.Context, currency.Pair, asset.Item) ([]trade.Data, error) {

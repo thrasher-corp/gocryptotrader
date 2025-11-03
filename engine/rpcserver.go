@@ -32,8 +32,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -73,7 +73,6 @@ var (
 	errCurrencyPairInvalid     = errors.New("currency provided is not found in the available pairs list")
 	errNoTrades                = errors.New("no trades returned from supplied params")
 	errNilRequestData          = errors.New("nil request data received, cannot continue")
-	errNoAccountInformation    = errors.New("account information does not exist")
 	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json field grpcAllowBotShutdown")
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 	errInvalidStrategy         = errors.New("invalid strategy")
@@ -114,7 +113,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		password != s.Config.RemoteControl.Password {
 		return ctx, errors.New("username/password mismatch")
 	}
-	ctx, err = account.ParseCredentialsMetadata(ctx, md)
+	ctx, err = accounts.ParseCredentialsMetadata(ctx, md)
 	if err != nil {
 		return ctx, err
 	}
@@ -556,87 +555,80 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 	return &gctrpc.GetOrderbooksResponse{Orderbooks: obResponse}, nil
 }
 
-// GetAccountInfo returns an account balance for a specific exchange
-func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
+// GetAccountBalances returns an account balance for a specific exchange.
+func (s *RPCServer) GetAccountBalances(ctx context.Context, r *gctrpc.GetAccountBalancesRequest) (*gctrpc.GetAccountBalancesResponse, error) {
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	exch, err := s.GetExchangeByName(r.Exchange)
+	e, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, assetType, currency.EMPTYPAIR)
+	if err := checkParams(r.Exchange, e, assetType, currency.EMPTYPAIR); err != nil {
+		return nil, err
+	}
+
+	resp, err := e.GetCachedSubAccounts(ctx, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := exch.GetCachedAccountInfo(ctx, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	return createAccountInfoRequest(resp)
+	return accountBalanceResp(r.Exchange, resp), nil
 }
 
-// UpdateAccountInfo forces an update of the account info
-func (s *RPCServer) UpdateAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
+// UpdateAccountBalances forces an update of the account balances.
+func (s *RPCServer) UpdateAccountBalances(ctx context.Context, r *gctrpc.GetAccountBalancesRequest) (*gctrpc.GetAccountBalancesResponse, error) {
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	exch, err := s.GetExchangeByName(r.Exchange)
+	e, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, assetType, currency.EMPTYPAIR)
+	if err := checkParams(r.Exchange, e, assetType, currency.EMPTYPAIR); err != nil {
+		return nil, err
+	}
+
+	resp, err := e.UpdateAccountBalances(ctx, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := exch.UpdateAccountInfo(ctx, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	return createAccountInfoRequest(resp)
+	return accountBalanceResp(r.Exchange, resp), nil
 }
 
-func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoResponse, error) {
-	accounts := make([]*gctrpc.Account, len(h.Accounts))
-	for x := range h.Accounts {
-		var a gctrpc.Account
-		a.Id = h.Accounts[x].Credentials.String()
-		for _, y := range h.Accounts[x].Currencies {
-			if y.Total == 0 &&
-				y.Hold == 0 &&
-				y.Free == 0 &&
-				y.AvailableWithoutBorrow == 0 &&
-				y.Borrowed == 0 {
-				continue
-			}
-			a.Currencies = append(a.Currencies, &gctrpc.AccountCurrencyInfo{
-				Currency:          y.Currency.String(),
-				TotalValue:        y.Total,
-				Hold:              y.Hold,
-				Free:              y.Free,
-				FreeWithoutBorrow: y.AvailableWithoutBorrow,
-				Borrowed:          y.Borrowed,
-				UpdatedAt:         timestamppb.New(y.UpdatedAt),
+func accountBalanceResp(eName string, s accounts.SubAccounts) *gctrpc.GetAccountBalancesResponse {
+	subAccts := make([]*gctrpc.Account, len(s))
+	for i, sa := range s {
+		subAccts[i] = &gctrpc.Account{
+			Id: sa.ID,
+		}
+		for curr, bal := range sa.Balances {
+			subAccts[i].Currencies = append(subAccts[i].Currencies, &gctrpc.AccountCurrencyInfo{
+				Currency:          curr.String(),
+				TotalValue:        bal.Total,
+				Hold:              bal.Hold,
+				Free:              bal.Free,
+				FreeWithoutBorrow: bal.AvailableWithoutBorrow,
+				Borrowed:          bal.Borrowed,
+				UpdatedAt:         timestamppb.New(bal.UpdatedAt),
 			})
 		}
-		accounts[x] = &a
 	}
-
-	return &gctrpc.GetAccountInfoResponse{Exchange: h.Exchange, Accounts: accounts}, nil
+	return &gctrpc.GetAccountBalancesResponse{
+		Exchange: eName,
+		Accounts: subAccts,
+	}
 }
 
-// GetAccountInfoStream streams an account balance for a specific exchange
-func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream gctrpc.GoCryptoTraderService_GetAccountInfoStreamServer) error {
+// GetAccountBalancesStream streams an account balance for a specific exchange
+func (s *RPCServer) GetAccountBalancesStream(r *gctrpc.GetAccountBalancesRequest, stream gctrpc.GoCryptoTraderService_GetAccountBalancesStreamServer) error {
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return err
@@ -652,7 +644,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		return err
 	}
 
-	pipe, err := account.SubscribeToExchangeAccount(r.Exchange)
+	pipe, err := exch.SubscribeAccountBalances()
 	if err != nil {
 		return err
 	}
@@ -677,32 +669,12 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		case <-init:
 		}
 
-		holdings, err := exch.GetCachedAccountInfo(stream.Context(), assetType)
+		subAccts, err := exch.GetCachedSubAccounts(stream.Context(), assetType)
 		if err != nil {
 			return err
 		}
 
-		accounts := make([]*gctrpc.Account, len(holdings.Accounts))
-		for x := range holdings.Accounts {
-			subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(holdings.Accounts[x].Currencies))
-			for y := range holdings.Accounts[x].Currencies {
-				subAccounts[y] = &gctrpc.AccountCurrencyInfo{
-					Currency:   holdings.Accounts[x].Currencies[y].Currency.String(),
-					TotalValue: holdings.Accounts[x].Currencies[y].Total,
-					Hold:       holdings.Accounts[x].Currencies[y].Hold,
-					UpdatedAt:  timestamppb.New(holdings.Accounts[x].Currencies[y].UpdatedAt),
-				}
-			}
-			accounts[x] = &gctrpc.Account{
-				Id:         holdings.Accounts[x].ID,
-				Currencies: subAccounts,
-			}
-		}
-
-		if err := stream.Send(&gctrpc.GetAccountInfoResponse{
-			Exchange: holdings.Exchange,
-			Accounts: accounts,
-		}); err != nil {
+		if err := stream.Send(accountBalanceResp(r.Exchange, subAccts)); err != nil {
 			return err
 		}
 	}
@@ -4752,8 +4724,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if err != nil {
 		return nil, err
 	}
-	feat := exch.GetSupportedFeatures()
-	if !feat.FuturesCapabilities.Collateral {
+	if f := exch.GetSupportedFeatures(); !f.FuturesCapabilities.Collateral {
 		return nil, fmt.Errorf("%w Get Collateral for exchange %v", common.ErrFunctionNotSupported, exch.GetName())
 	}
 
@@ -4762,41 +4733,15 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, a, currency.EMPTYPAIR)
-	if err != nil {
+	if err := checkParams(r.Exchange, exch, a, currency.EMPTYPAIR); err != nil {
 		return nil, err
 	}
 	if !a.IsFutures() {
 		return nil, fmt.Errorf("%s %w", a, futures.ErrNotFuturesAsset)
 	}
-	ai, err := exch.GetCachedAccountInfo(ctx, a)
+	currBalances, err := exch.GetCachedCurrencyBalances(ctx, a)
 	if err != nil {
 		return nil, err
-	}
-	creds, err := exch.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	subAccounts := make([]string, len(ai.Accounts))
-	var acc *account.SubAccount
-	for i := range ai.Accounts {
-		subAccounts[i] = ai.Accounts[i].ID
-		if ai.Accounts[i].ID == "main" && creds.SubAccount == "" {
-			acc = &ai.Accounts[i]
-			break
-		}
-		if strings.EqualFold(creds.SubAccount, ai.Accounts[i].ID) {
-			acc = &ai.Accounts[i]
-			break
-		}
-	}
-	if acc == nil {
-		return nil, fmt.Errorf("%w for %s %s and stored credentials - available subaccounts: %s",
-			errNoAccountInformation,
-			exch.GetName(),
-			creds.SubAccount,
-			strings.Join(subAccounts, ","))
 	}
 	var spotPairs currency.Pairs
 	if r.CalculateOffline {
@@ -4806,24 +4751,22 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		}
 	}
 
-	calculators := make([]futures.CollateralCalculator, 0, len(acc.Currencies))
-	for i := range acc.Currencies {
-		total := decimal.NewFromFloat(acc.Currencies[i].Total)
-		free := decimal.NewFromFloat(acc.Currencies[i].AvailableWithoutBorrow)
+	calculators := make([]futures.CollateralCalculator, 0, len(currBalances))
+	for curr, balance := range currBalances {
+		total := decimal.NewFromFloat(balance.Total)
+		free := decimal.NewFromFloat(balance.AvailableWithoutBorrow)
 		cal := futures.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
-			CollateralCurrency: acc.Currencies[i].Currency,
+			CollateralCurrency: curr,
 			Asset:              a,
 			FreeCollateral:     free,
 			LockedCollateral:   total.Sub(free),
 		}
-		if r.CalculateOffline &&
-			!acc.Currencies[i].Currency.Equal(currency.USD) {
+		if r.CalculateOffline && !curr.Equal(currency.USD) {
 			var tick *ticker.Price
-			tickerCurr := currency.NewPair(acc.Currencies[i].Currency, currency.USD)
+			tickerCurr := currency.NewPair(curr, currency.USD)
 			if !spotPairs.Contains(tickerCurr, true) {
-				// cannot price currency to calculate collateral
-				continue
+				continue // cannot price currency to calculate collateral
 			}
 			tick, err = exch.GetCachedTicker(tickerCurr, asset.Spot)
 			if err != nil {
@@ -4851,7 +4794,6 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 
 	collateralDisplayCurrency := " " + c.CollateralCurrency.String()
 	result := &gctrpc.GetCollateralResponse{
-		SubAccount:          creds.SubAccount,
 		CollateralCurrency:  c.CollateralCurrency.String(),
 		AvailableCollateral: c.AvailableCollateral.String() + collateralDisplayCurrency,
 		UsedCollateral:      c.UsedCollateral.String() + collateralDisplayCurrency,

@@ -1064,14 +1064,14 @@
         ]
       }
     },
-    "/v1/getaccountinfo": {
+    "/v1/getaccountbalances": {
       "get": {
-        "operationId": "GoCryptoTraderService_GetAccountInfo",
+        "operationId": "GoCryptoTraderService_GetAccountBalances",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
+              "$ref": "#/definitions/gctrpcGetAccountBalancesResponse"
             }
           },
           "default": {
@@ -1100,9 +1100,9 @@
         ]
       }
     },
-    "/v1/getaccountinfostream": {
+    "/v1/getaccountbalancesstream": {
       "get": {
-        "operationId": "GoCryptoTraderService_GetAccountInfoStream",
+        "operationId": "GoCryptoTraderService_GetAccountBalancesStream",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -1110,13 +1110,13 @@
               "type": "object",
               "properties": {
                 "result": {
-                  "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
+                  "$ref": "#/definitions/gctrpcGetAccountBalancesResponse"
                 },
                 "error": {
                   "$ref": "#/definitions/rpcStatus"
                 }
               },
-              "title": "Stream result of gctrpcGetAccountInfoResponse"
+              "title": "Stream result of gctrpcGetAccountBalancesResponse"
             }
           },
           "default": {
@@ -4271,14 +4271,14 @@
         ]
       }
     },
-    "/v1/updateaccountinfo": {
+    "/v1/updateaccountbalances": {
       "get": {
-        "operationId": "GoCryptoTraderService_UpdateAccountInfo",
+        "operationId": "GoCryptoTraderService_UpdateAccountBalances",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
+              "$ref": "#/definitions/gctrpcGetAccountBalancesResponse"
             }
           },
           "default": {
@@ -5840,7 +5840,7 @@
         }
       }
     },
-    "gctrpcGetAccountInfoResponse": {
+    "gctrpcGetAccountBalancesResponse": {
       "type": "object",
       "properties": {
         "exchange": {

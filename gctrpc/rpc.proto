@@ -164,7 +164,7 @@ message GetOrderbooksResponse {
   repeated Orderbooks orderbooks = 1;
 }
 
-message GetAccountInfoRequest {
+message GetAccountBalancesRequest {
   string exchange = 1;
   string asset_type = 2;
 }
@@ -184,7 +184,7 @@ message AccountCurrencyInfo {
   google.protobuf.Timestamp updated_at = 7;
 }
 
-message GetAccountInfoResponse {
+message GetAccountBalancesResponse {
   string exchange = 1;
   repeated Account accounts = 2;
 }
@@ -1606,16 +1606,16 @@ service GoCryptoTraderService {
     option (google.api.http) = {get: "/v1/getorderbooks"};
   }
 
-  rpc GetAccountInfo(GetAccountInfoRequest) returns (GetAccountInfoResponse) {
-    option (google.api.http) = {get: "/v1/getaccountinfo"};
+  rpc GetAccountBalances(GetAccountBalancesRequest) returns (GetAccountBalancesResponse) {
+    option (google.api.http) = {get: "/v1/getaccountbalances"};
   }
 
-  rpc UpdateAccountInfo(GetAccountInfoRequest) returns (GetAccountInfoResponse) {
-    option (google.api.http) = {get: "/v1/updateaccountinfo"};
+  rpc UpdateAccountBalances(GetAccountBalancesRequest) returns (GetAccountBalancesResponse) {
+    option (google.api.http) = {get: "/v1/updateaccountbalances"};
   }
 
-  rpc GetAccountInfoStream(GetAccountInfoRequest) returns (stream GetAccountInfoResponse) {
-    option (google.api.http) = {get: "/v1/getaccountinfostream"};
+  rpc GetAccountBalancesStream(GetAccountBalancesRequest) returns (stream GetAccountBalancesResponse) {
+    option (google.api.http) = {get: "/v1/getaccountbalancesstream"};
   }
 
   rpc GetConfig(GetConfigRequest) returns (GetConfigResponse) {
