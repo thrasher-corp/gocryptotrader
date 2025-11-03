@@ -26,7 +26,7 @@ import (
 const (
 	apiURL           = "https://api.poloniex.com"
 	tradeSpotPath    = "/trade/"
-	tradeFuturesPath = "/futures" + tradeSpotPath
+	tradeFuturesPath = "/futures/trade/"
 	marketsPath      = "/markets/"
 )
 
@@ -69,7 +69,7 @@ func (e *Exchange) GetCurrencies(ctx context.Context) ([]*Currency, error) {
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies", &resp)
 }
 
-// GetCurrency retrieves currency details for V2 API.
+// GetCurrency retrieves a currency's details
 func (e *Exchange) GetCurrency(ctx context.Context, ccy currency.Code) (*Currency, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -91,7 +91,7 @@ func (e *Exchange) GetMarketPrices(ctx context.Context) ([]*MarketPrice, error) 
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/price", &resp)
 }
 
-// GetMarketPrice retrieves latest trade price for symbols
+// GetMarketPrice retrieves latest trade price for a symbol
 func (e *Exchange) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*MarketPrice, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -106,7 +106,7 @@ func (e *Exchange) GetMarkPrices(ctx context.Context) ([]*MarkPrice, error) {
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/markPrice", &resp)
 }
 
-// GetMarkPrice retrieves latest mark price for all cross margin symbol.
+// GetMarkPrice retrieves latest mark price for a symbol.
 func (e *Exchange) GetMarkPrice(ctx context.Context, symbol currency.Pair) (*MarkPrice, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -115,7 +115,7 @@ func (e *Exchange) GetMarkPrice(ctx context.Context, symbol currency.Pair) (*Mar
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String()+"/markPrice", &resp)
 }
 
-// GetMarkPriceComponents retrieves components of the mark price
+// GetMarkPriceComponents retrieves components of a mark price
 func (e *Exchange) GetMarkPriceComponents(ctx context.Context, symbol currency.Pair) (*MarkPriceComponent, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -124,7 +124,7 @@ func (e *Exchange) GetMarkPriceComponents(ctx context.Context, symbol currency.P
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String()+"/markPriceComponents", &resp)
 }
 
-// GetOrderbook retrieves the order book for a given symbol
+// GetOrderbook retrieves the order book for a symbol
 func (e *Exchange) GetOrderbook(ctx context.Context, symbol currency.Pair, scale, limit uint64) (*OrderbookData, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -140,7 +140,7 @@ func (e *Exchange) GetOrderbook(ctx context.Context, symbol currency.Pair, scale
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/orderBook", params), &resp)
 }
 
-// GetCandlesticks retrieves OHLC for a symbol at given timeframe (interval).
+// GetCandlesticks retrieves candlestick data
 func (e *Exchange) GetCandlesticks(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*CandlestickData, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -180,13 +180,13 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair, limit ui
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/trades", params), &resp)
 }
 
-// GetTickers retrieve ticker in last 24 hours for all symbols.
+// GetTickers retrieves tickers for last 24 hours for all symbols.
 func (e *Exchange) GetTickers(ctx context.Context) ([]*TickerData, error) {
 	var resp []*TickerData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/markets/ticker24h", &resp)
 }
 
-// GetTicker retrieve ticker in last 24 hours for provided symbols.
+// GetTicker retrieves ticker for last 24 hours for a symbol
 func (e *Exchange) GetTicker(ctx context.Context, symbol currency.Pair) (*TickerData, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -195,7 +195,7 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, marketsPath+symbol.String()+"/ticker24h", &resp)
 }
 
-// GetCollateral retrieves collateral information of a single currency
+// GetCollateral retrieves collateral information for a currency
 func (e *Exchange) GetCollateral(ctx context.Context, ccy currency.Code) (*CollateralDetails, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -222,7 +222,7 @@ func (e *Exchange) GetAccount(ctx context.Context) ([]*AccountDetails, error) {
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts", nil, nil, &resp)
 }
 
-// GetBalances get a list of all accounts of a user with each account’s id, type and balances (assets).
+// GetBalances retrieves all account balances for the authorised user
 func (e *Exchange) GetBalances(ctx context.Context, accountType string) ([]*AccountBalance, error) {
 	params := url.Values{}
 	if accountType != "" {
@@ -232,8 +232,8 @@ func (e *Exchange) GetBalances(ctx context.Context, accountType string) ([]*Acco
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/balances", params, nil, &resp)
 }
 
-// GetBalancesByID get an accounts of a user with each account’s id, type and balances (assets).
-func (e *Exchange) GetBalancesByID(ctx context.Context, accountID, accountType string) ([]*AccountBalance, error) {
+// GetAccountBalances get balances for an account
+func (e *Exchange) GetAccountBalances(ctx context.Context, accountID, accountType string) ([]*AccountBalance, error) {
 	if accountID == "" {
 		return nil, errAccountIDRequired
 	}
@@ -1050,7 +1050,8 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 		return err
 	}
 	resp := result
-	if strings.HasPrefix(path, v3Path) {
+	requiresWrapper := strings.HasPrefix(path, v3Path)
+	if requiresWrapper {
 		resp = &struct {
 			Code int64  `json:"code"`
 			Msg  string `json:"msg"`
@@ -1059,24 +1060,23 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 			Data: result,
 		}
 	}
-	item := &request.Item{
-		Method:                 http.MethodGet,
-		Path:                   endpoint + path,
-		Result:                 &resp,
-		Verbose:                e.Verbose,
-		HTTPDebugging:          e.HTTPDebugging,
-		HTTPRecording:          e.HTTPRecording,
-		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
-	}
 	if err := e.SendPayload(ctx, epl, func() (*request.Item, error) {
-		return item, nil
+		return &request.Item{
+			Method:                 http.MethodGet,
+			Path:                   endpoint + path,
+			Result:                 &resp,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+		}, nil
 	}, request.UnauthenticatedRequest); err != nil {
 		return err
 	}
 	if result == nil {
 		return common.ErrNoResponse
 	}
-	if strings.HasPrefix(path, v3Path) {
+	if requiresWrapper {
 		if val, ok := resp.(*V3ResponseWrapper); ok {
 			if val.Code != 0 && val.Code != 200 {
 				return fmt.Errorf("code: %d message: %s", val.Code, val.Msg)

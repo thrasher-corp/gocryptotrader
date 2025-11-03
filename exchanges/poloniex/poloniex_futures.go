@@ -22,10 +22,10 @@ import (
 
 const (
 	v3Path         = "/v3/"
-	tradePathV3    = v3Path + "trade/"
-	marketsPathV3  = v3Path + "market/"
-	accountPathV3  = v3Path + "account/"
-	positionPathV3 = v3Path + "position/"
+	tradePathV3    = "/v3/trade/"
+	marketsPathV3  = "/v3/market/"
+	accountPathV3  = "/v3/account/"
+	positionPathV3 = "/v3/position/"
 )
 
 // GetAccountBalance get information about your Futures account.

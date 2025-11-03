@@ -940,6 +940,10 @@ func TestGetOrderbook(t *testing.T) {
 	result, err := e.GetOrderbook(t.Context(), spotTradablePair, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+
+	result, err = e.GetOrderbook(t.Context(), spotTradablePair, 1, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -1048,17 +1052,17 @@ func TestGetBalances(t *testing.T) {
 
 func TestGetBalancesByID(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetBalancesByID(t.Context(), "", "")
+	_, err := e.GetAccountBalances(t.Context(), "", "")
 	require.ErrorIs(t, err, errAccountIDRequired)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetBalancesByID(generateContext(), "329455537441832960", "")
+	result, err := e.GetAccountBalances(generateContext(), "329455537441832960", "")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	result, err = e.GetBalancesByID(generateContext(), "329455537441832960", "SPOT")
+	result, err = e.GetAccountBalances(generateContext(), "329455537441832960", "SPOT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
