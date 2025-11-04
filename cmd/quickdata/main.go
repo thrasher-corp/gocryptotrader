@@ -83,7 +83,23 @@ func parseFlags() *appConfig {
 	exch := flag.String("exchange", "", "Exchange name, e.g. binance, okx")
 	assetStr := flag.String("asset", "spot", "Asset type, e.g. spot, futures, perpetualswap")
 	pairStr := flag.String("pair", "BTC-USDT", "Currency pair, e.g. BTC-USDT or ETHUSD")
-	focusStr := flag.String("data", "ticker", "Data type: ticker, orderbook, kline, trades, openinterest, fundingrate, accountholdings, activeorders, orderexecution, url, contract")
+	focusHelp := `Data type:
+  Focus            Aliases
+------------------------------------
+  ticker           ticker,tick
+  orderbook        orderbook,order_book,ob,book
+  kline            kline,candles,candle,ohlc
+  trades           trades,trade
+  openinterest     openinterest,oi
+  fundingrate      fundingrate,funding
+  accountholdings  accountholdings,account,holdings,balances
+  activeorders     activeorders,orders
+  orderexecution   orderexecution,executionlimits,limits
+  url              url,tradeurl,trade_url
+  contract         contract
+`
+	focusStr := flag.String("data", "ticker", focusHelp)
+
 	pollStr := flag.String("poll", "5s", "Poll interval for REST focus and timeout for websocket initial data wait")
 	bookLevels := flag.Int("book-levels", 15, "Number of levels to render per side for orderbook focus")
 	jsonOnly := flag.Bool("json", false, "Emit NDJSON only (no ANSI rendering/headers)")
