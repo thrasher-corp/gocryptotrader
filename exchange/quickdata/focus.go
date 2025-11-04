@@ -13,11 +13,10 @@ import (
 
 // Focus based errors
 var (
-	ErrUnsetFocusType                  = errors.New("focus type is unset")
-	ErrUnsupportedFocusType            = errors.New("unsupported focus type")
-	ErrInvalidRESTPollTime             = errors.New("invalid REST poll time")
-	ErrInvalidAssetForFocusType        = errors.New("invalid asset for focus type")
-	ErrCredentialsRequiredForFocusType = errors.New("credentials required for this focus type")
+	ErrUnsetFocusType           = errors.New("focus type is unset")
+	ErrUnsupportedFocusType     = errors.New("unsupported focus type")
+	ErrInvalidRESTPollTime      = errors.New("invalid REST poll time")
+	ErrInvalidAssetForFocusType = errors.New("invalid asset for focus type")
 )
 
 // FocusType is an identifier for data types that quickData can gather

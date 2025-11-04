@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/quickdata"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -105,8 +105,8 @@ func TestRenderFunctions_NoPanicAndOutput(t *testing.T) {
 	_ = captureOutput(func() { renderKlines(kl) })
 	_ = captureOutput(func() { renderKlines(nil) })
 
-	// account holdings
-	holdings := &account.Holdings{Exchange: "binance", Accounts: []account.SubAccount{{ID: "spot", AssetType: asset.Spot, Currencies: []account.Balance{{Currency: currency.BTC, Total: 1, Free: 0.5, Hold: 0.5}}}}}
+	// accounts. holdings
+	holdings := []accounts.Balance{{Currency: currency.BTC, Total: 1, Free: 0.5, Hold: 0.5}}
 	_ = captureOutput(func() { renderAccountHoldings(holdings) })
 	_ = captureOutput(func() { renderAccountHoldings(nil) })
 
@@ -186,14 +186,14 @@ func TestParseFlags_Success(t *testing.T) {
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	os.Args = []string{"quickData", "--exchange", "BiNaNcE", "--asset", "spot", "--pair", "ETH-BTC", "--data", "ticker", "--poll", "10s", "--book-levels", "20", "--json"}
 	cfg := parseFlags()
-	require.Equal(t, "binance", cfg.Exchange)
-	require.Equal(t, asset.Spot, cfg.Asset)
-	require.Equal(t, "ETH-BTC", cfg.Pair.String())
-	require.Equal(t, quickdata.TickerFocusType, cfg.FocusType)
-	require.Equal(t, 10*time.Second, cfg.PollInterval)
-	require.Equal(t, 20, cfg.BookLevels)
-	require.True(t, cfg.JSONOnly)
-	require.Nil(t, cfg.Credentials)
+	assert.Equal(t, "binance", cfg.Exchange)
+	assert.Equal(t, asset.Spot, cfg.Asset)
+	assert.Equal(t, "ETH-BTC", cfg.Pair.String())
+	assert.Equal(t, quickdata.TickerFocusType, cfg.FocusType)
+	assert.Equal(t, 10*time.Second, cfg.PollInterval)
+	assert.Equal(t, 20, cfg.BookLevels)
+	assert.True(t, cfg.JSONOnly)
+	assert.Nil(t, cfg.Credentials)
 }
 
 func TestParseFlags_AuthRequired(t *testing.T) {
@@ -203,9 +203,9 @@ func TestParseFlags_AuthRequired(t *testing.T) {
 	os.Args = []string{"quickData", "--exchange", "okx", "--asset", "spot", "--pair", "BTC-USDT", "--data", "account", "--apiKey", "k123", "--apiSecret", "s456"}
 	cfg := parseFlags()
 	require.Equal(t, quickdata.AccountHoldingsFocusType, cfg.FocusType)
-	require.NotNil(t, cfg.Credentials)
-	require.Equal(t, "k123", cfg.Credentials.Key)
-	require.Equal(t, "s456", cfg.Credentials.Secret)
+	assert.NotNil(t, cfg.Credentials)
+	assert.Equal(t, "k123", cfg.Credentials.Key)
+	assert.Equal(t, "s456", cfg.Credentials.Secret)
 }
 
 func TestStreamData_DefaultRendering(t *testing.T) {

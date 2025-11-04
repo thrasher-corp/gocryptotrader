@@ -280,26 +280,26 @@ func renderTicker(t *ticker.Price) {
 		ansiDim, ansiReset, t.Volume, ansiDim, ansiReset, spread, spreadPct, ansiDim, ansiReset, t.MarkPrice, ansiDim, ansiReset, t.IndexPrice)
 }
 
-func renderTrades(trs []trade.Data) {
-	if len(trs) == 0 {
+func renderTrades(trades []trade.Data) {
+	if len(trades) == 0 {
 		outPrintln("No trades.")
 		return
 	}
 	// Summaries
-	n := len(trs)
-	start := trs[0].Timestamp
-	end := trs[n-1].Timestamp
+	n := len(trades)
+	start := trades[0].Timestamp
+	end := trades[n-1].Timestamp
 	if end.Before(start) {
 		start, end = end, start
 	}
 	var baseVol, quoteVol float64
 	var buys, sells int
-	for i := range trs {
-		baseVol += trs[i].Amount
-		quoteVol += trs[i].Amount * trs[i].Price
-		if trs[i].Side&order.Buy == order.Buy || trs[i].Side&order.Bid == order.Bid || trs[i].Side&order.Long == order.Long {
+	for i := range trades {
+		baseVol += trades[i].Amount
+		quoteVol += trades[i].Amount * trades[i].Price
+		if trades[i].Side.IsLong() {
 			buys++
-		} else if trs[i].Side&order.Sell == order.Sell || trs[i].Side&order.Ask == order.Ask || trs[i].Side&order.Short == order.Short {
+		} else if trades[i].Side.IsShort() {
 			sells++
 		}
 	}
@@ -307,7 +307,7 @@ func renderTrades(trs []trade.Data) {
 	if baseVol != 0 {
 		vwap = quoteVol / baseVol
 	}
-	last := trs[n-1]
+	last := trades[n-1]
 	span := end.Sub(start)
 	outPrintf("%sTrades:%s N=%d Span=%s\n", ansiBold, ansiReset, n, span.Truncate(time.Second))
 	outPrintf("Range: %s -> %s\n", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339))
@@ -347,7 +347,7 @@ func renderKlines(kl []websocket.KlineData) {
 	}
 	avgVol := totalVol / float64(n)
 	span := end.Sub(start)
-		interval := kl[0].Interval
+	interval := kl[0].Interval
 	outPrintf("%sKlines:%s N=%d Interval=%s Span=%s\n", ansiBold, ansiReset, n, interval, span.Truncate(time.Second))
 	outPrintf("Range: %s -> %s\n", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339))
 	outPrintf("O/C: %.8f -> %.8f  Change: %+.8f (%.4f%%)\n", firstOpen, lastClose, change, changePct)
@@ -359,9 +359,12 @@ func renderAccountHoldings(h []accounts.Balance) {
 		outPrintln("No holdings.")
 		return
 	}
-	outPrintf("%s%-12s %-8s %-10s %-10s %-10s %-10s%s\n", ansiDim, "Currency", "Total", "Free", "Hold", ansiReset)
+	outPrintf("%s%-12s %-14s %-14s %-14s%s\n",
+		ansiDim, "Currency", "Total", "Free", "Hold", ansiReset)
+
 	for _, a := range h {
-			outPrintf("" a.Currency,
+		outPrintf("%-12s %-14.8f %-14.8f %-14.8f\n",
+			a.Currency, a.Total, a.Free, a.Hold)
 	}
 }
 
