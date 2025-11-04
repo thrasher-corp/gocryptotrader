@@ -15,10 +15,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/quickdata"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -53,7 +53,7 @@ type appConfig struct {
 	UseWebsocket bool
 	PollInterval time.Duration
 	BookLevels   int
-	Credentials  *account.Credentials
+	Credentials  *accounts.Credentials
 	JSONOnly     bool
 }
 
@@ -64,7 +64,7 @@ func main() {
 	// Context & OS signals for graceful shutdown
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
-	ctx = account.DeployCredentialsToContext(ctx, cfg.Credentials)
+	ctx = accounts.DeployCredentialsToContext(ctx, cfg.Credentials)
 	k := key.NewExchangeAssetPair(cfg.Exchange, cfg.Asset, cfg.Pair)
 	qsChan, err := quickdata.NewQuickestData(ctx, &k, cfg.FocusType)
 	if err != nil {
@@ -129,9 +129,9 @@ func parseFlags() *appConfig {
 	}
 
 	// Credentials (only applied when supplied or required by focus)
-	var creds *account.Credentials
+	var creds *accounts.Credentials
 	if quickdata.RequiresAuth(fType) {
-		creds = &account.Credentials{
+		creds = &accounts.Credentials{
 			Key:             *apiKey,
 			Secret:          *apiSecret,
 			SubAccount:      *subAccount,
@@ -347,29 +347,21 @@ func renderKlines(kl []websocket.KlineData) {
 	}
 	avgVol := totalVol / float64(n)
 	span := end.Sub(start)
-	interval := kl[n-1].Interval
-	if interval == "" && n > 1 {
-		interval = kl[0].Interval
-	}
+		interval := kl[0].Interval
 	outPrintf("%sKlines:%s N=%d Interval=%s Span=%s\n", ansiBold, ansiReset, n, interval, span.Truncate(time.Second))
 	outPrintf("Range: %s -> %s\n", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339))
 	outPrintf("O/C: %.8f -> %.8f  Change: %+.8f (%.4f%%)\n", firstOpen, lastClose, change, changePct)
 	outPrintf("High/Low: %.8f / %.8f  Volume: total=%.4f avg=%.4f\n", high, low, totalVol, avgVol)
 }
 
-func renderAccountHoldings(h *account.Holdings) {
-	if h == nil || len(h.Accounts) == 0 {
+func renderAccountHoldings(h []accounts.Balance) {
+	if h == nil || len(h) == 0 {
 		outPrintln("No holdings.")
 		return
 	}
-	outPrintf("%s%-12s %-8s %-10s %-10s %-10s %-10s%s\n", ansiDim, "Account", "Asset", "Currency", "Total", "Free", "Hold", ansiReset)
-	for i := range h.Accounts {
-		sa := h.Accounts[i]
-		for j := range sa.Currencies {
-			c := sa.Currencies[j]
-			outPrintf("%-12s %-8s %-10s % -10.8f % -10.8f % -10.8f\n",
-				sa.ID, sa.AssetType, c.Currency.String(), c.Total, c.Free, c.Hold)
-		}
+	outPrintf("%s%-12s %-8s %-10s %-10s %-10s %-10s%s\n", ansiDim, "Currency", "Total", "Free", "Hold", ansiReset)
+	for _, a := range h {
+			outPrintf("" a.Currency,
 	}
 }
 
@@ -425,7 +417,9 @@ func renderPrettyPayload(payload any, bookLevels int) {
 		renderTrades(v)
 	case trade.Data:
 		renderTrades([]trade.Data{v})
-	case *account.Holdings:
+	case accounts.Balance:
+		renderAccountHoldings([]accounts.Balance{v})
+	case []accounts.Balance:
 		renderAccountHoldings(v)
 	case []order.Detail:
 		renderActiveOrders(v)
