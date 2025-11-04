@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -35,6 +36,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
+
+var errChainsNotFound = errors.New("chains not found")
 
 var (
 	assetPairStores = map[asset.Item]currency.PairStore{
@@ -287,7 +290,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 // FetchTradablePairs returns a list of the exchange's tradable pairs
 func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
 	switch assetType {
-	case asset.Spot, asset.Margin:
+	case asset.Spot:
 		resp, err := e.GetSymbols(ctx)
 		if err != nil {
 			return nil, err
@@ -456,8 +459,8 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 				Balances:  make(accounts.CurrencyBalances, len(subAccountBalances.Balances)),
 			}
 			for _, subAccountBalance := range subAccountBalances.Balances {
-				subAccount.Balances[currency.NewCode(subAccountBalance.Currency)] = accounts.Balance{
-					Currency:               currency.NewCode(subAccountBalance.Currency),
+				subAccount.Balances[subAccountBalance.Currency] = accounts.Balance{
+					Currency:               subAccountBalance.Currency,
 					Total:                  subAccountBalance.AvailableBalance.Float64(),
 					Hold:                   subAccountBalance.Hold.Float64(),
 					Free:                   subAccountBalance.Available.Float64(),
@@ -488,7 +491,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			Status:          walletDeposit.Status,
 			Timestamp:       walletDeposit.Timestamp.Time(),
 			Amount:          walletDeposit.Amount.Float64(),
-			Currency:        walletDeposit.Currency,
+			Currency:        walletDeposit.Currency.String(),
 			CryptoToAddress: walletDeposit.Address,
 			CryptoTxID:      walletDeposit.TransactionID,
 			TransferType:    "deposit",
@@ -500,7 +503,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			ExchangeName:    e.Name,
 			Status:          walletWithdrawal.Status,
 			Timestamp:       walletWithdrawal.Timestamp.Time(),
-			Currency:        walletWithdrawal.Currency,
+			Currency:        walletWithdrawal.Currency.String(),
 			Amount:          walletWithdrawal.Amount.Float64(),
 			Fee:             walletWithdrawal.Fee.Float64(),
 			CryptoToAddress: walletWithdrawal.Address,
@@ -520,13 +523,13 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 	}
 	resp := make([]exchange.WithdrawalHistory, 0, len(withdrawals.Withdrawals))
 	for _, walletWithdrawal := range withdrawals.Withdrawals {
-		if !c.Equal(currency.NewCode(walletWithdrawal.Currency)) {
+		if !c.Equal(walletWithdrawal.Currency) {
 			continue
 		}
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:          walletWithdrawal.Status,
 			Timestamp:       walletWithdrawal.Timestamp.Time(),
-			Currency:        walletWithdrawal.Currency,
+			Currency:        walletWithdrawal.Currency.String(),
 			Amount:          walletWithdrawal.Amount.Float64(),
 			Fee:             walletWithdrawal.Fee.Float64(),
 			CryptoToAddress: walletWithdrawal.Address,
@@ -674,10 +677,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	oTypeString, err := orderTypeString(s.Type)
-	if err != nil {
-		return nil, err
-	}
 	switch s.AssetType {
 	case asset.Spot:
 		var stpMode string
@@ -691,7 +690,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		case order.Stop, order.StopLimit, order.TrailingStop:
 			sOrder, err := e.CreateSmartOrder(ctx, &SmartOrderRequest{
 				Symbol:        s.Pair,
-				Type:          oTypeString,
+				Type:          orderType(s.Type),
 				Side:          s.Side,
 				AccountType:   accountType(s.AssetType),
 				Price:         s.Price,
@@ -738,7 +737,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Side:                    side,
 			PositionSide:            s.Side.Position(),
 			Symbol:                  s.Pair.String(),
-			OrderType:               oTypeString,
+			OrderType:               orderType(s.Type),
 			ReduceOnly:              s.ReduceOnly,
 			TimeInForce:             timeInForce(s.TimeInForce),
 			Price:                   s.Price,
@@ -770,7 +769,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	switch action.Type {
 	case order.Market, order.Limit, order.LimitMaker:
 		resp, err := e.CancelReplaceOrder(ctx, &CancelReplaceOrderRequest{
-			orderID:           action.OrderID,
+			OrderID:           action.OrderID,
 			ClientOrderID:     action.ClientOrderID,
 			Price:             action.Price,
 			Quantity:          action.Amount,
@@ -793,7 +792,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			return nil, err
 		}
 		oResp, err := e.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderRequest{
-			orderID:          action.OrderID,
+			OrderID:          action.OrderID,
 			ClientOrderID:    action.ClientOrderID,
 			Price:            action.Price,
 			StopPrice:        action.TriggerPrice,
@@ -1017,22 +1016,26 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	switch assetType {
 	case asset.Spot:
 		trades, err := e.GetTradesByOrderID(ctx, orderID)
-		if err != nil && !strings.Contains(err.Error(), "Order not found") {
+		if err != nil {
 			return nil, err
 		}
 		orderTrades := make([]order.TradeHistory, len(trades))
 		for i, td := range trades {
+			oType, err := order.StringToOrderType(td.Type)
+			if err != nil {
+				return nil, err
+			}
 			orderTrades[i] = order.TradeHistory{
 				Exchange:  e.Name,
 				TID:       td.ID,
-				FeeAsset:  td.FeeCurrency,
+				FeeAsset:  td.FeeCurrency.String(),
 				Price:     td.Price.Float64(),
 				Total:     td.Amount.Float64(),
 				Timestamp: td.CreateTime.Time(),
 				Amount:    td.Quantity.Float64(),
 				Fee:       td.FeeAmount.Float64(),
 				Side:      stringToOrderSide(td.Side),
-				Type:      StringToOrderType(td.Type),
+				Type:      oType,
 			}
 		}
 		resp, err := e.GetOrder(ctx, orderID, "")
@@ -1051,6 +1054,10 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				if !pair.IsEmpty() && !cp.Equal(pair) {
 					return nil, fmt.Errorf("order with ID %s expected a symbol %v, but got %v", orderID, pair, smartOrders[0].Symbol)
 				}
+				oType, err := order.StringToOrderType(smartOrders[0].Type)
+				if err != nil {
+					return nil, err
+				}
 				return &order.Detail{
 					Side:          stringToOrderSide(smartOrders[0].Side),
 					Pair:          cp,
@@ -1064,11 +1071,15 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 					Date:          smartOrders[0].CreateTime.Time(),
 					LastUpdated:   smartOrders[0].UpdateTime.Time(),
 					Amount:        smartOrders[0].Quantity.Float64(),
-					Type:          StringToOrderType(smartOrders[0].Type),
+					Type:          oType,
 					Status:        orderStateFromString(smartOrders[0].State),
 					AssetType:     stringToAccountType(smartOrders[0].AccountType),
 				}, nil
 			}
+		}
+		oType, err := order.StringToOrderType(resp.Type)
+		if err != nil {
+			return nil, err
 		}
 		return &order.Detail{
 			Price:                resp.Price.Float64(),
@@ -1082,7 +1093,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Exchange:             e.Name,
 			OrderID:              resp.ID,
 			ClientOrderID:        resp.ClientOrderID,
-			Type:                 StringToOrderType(resp.Type),
+			Type:                 oType,
 			Status:               orderStateFromString(resp.State),
 			AssetType:            stringToAccountType(resp.AccountType),
 			Date:                 resp.CreateTime.Time(),
@@ -1153,7 +1164,7 @@ func orderStateFromString(orderState string) order.Status {
 	case "NEW":
 		return order.New
 	case "FAILED":
-		return order.Closed
+		return order.Rejected
 	case "FILLED":
 		return order.Filled
 	case "CANCELED":
@@ -1239,7 +1250,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	return &withdraw.ExchangeResponse{
 		Name: e.Name,
 		ID:   strconv.FormatUint(v.WithdrawRequestID, 10),
-	}, err
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -1366,7 +1377,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				AssetType:       req.AssetType,
 				LastUpdated:     fOrder.UpdateTime.Time(),
 				MarginType:      mType,
-				FeeAsset:        currency.NewCode(fOrder.FeeCurrency),
+				FeeAsset:        fOrder.FeeCurrency,
 				Fee:             fOrder.FeeAmount.Float64(),
 				TimeInForce:     fOrder.TimeInForce,
 			})
@@ -1471,7 +1482,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					RemainingAmount:      tOrder.Quantity.Float64() - tOrder.FilledQuantity.Float64(),
 					OrderID:              tOrder.ID,
 					ClientOrderID:        tOrder.ClientOrderID,
-					Status:               order.Filled,
+					Status:               orderStateFromString(tOrder.State),
 					AssetType:            assetType,
 					Date:                 tOrder.CreateTime.Time(),
 					LastUpdated:          tOrder.UpdateTime.Time(),
@@ -1748,7 +1759,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, assetType asse
 	}
 	resp := make([]futures.Contract, len(contracts))
 	for i, productInfo := range contracts {
-		settleCurr := currency.NewCode(productInfo.SettlementCurrency)
 		var ct futures.ContractType
 		if strings.HasSuffix(productInfo.Symbol.Quote.String(), "PERP") {
 			ct = futures.Perpetual
@@ -1758,12 +1768,12 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, assetType asse
 		resp[i] = futures.Contract{
 			Type:                 ct,
 			Exchange:             e.Name,
-			SettlementCurrencies: currency.Currencies{settleCurr},
-			MarginCurrency:       settleCurr,
+			SettlementCurrencies: currency.Currencies{productInfo.SettlementCurrency},
+			MarginCurrency:       productInfo.SettlementCurrency,
 			Asset:                assetType,
 			Name:                 productInfo.Symbol,
 			StartDate:            productInfo.ListingDate.Time(),
-			IsActive:             productInfo.Status == "OPEN",
+			IsActive:             strings.EqualFold(productInfo.Status, "OPEN"),
 			Status:               productInfo.Status,
 			MaxLeverage:          productInfo.Leverage.Float64(),
 			SettlementType:       futures.Linear,
@@ -1844,6 +1854,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				Key:                     key.NewExchangeAssetPair(e.Name, a, symbolDetail.Symbol),
 				MinimumBaseAmount:       symbolDetail.SymbolTradeLimit.MinQuantity.Float64(),
 				MinimumQuoteAmount:      symbolDetail.SymbolTradeLimit.MinAmount.Float64(),
+				MaximumBaseAmount:       symbolDetail.SymbolTradeLimit.MaxQuantity.Float64(),
+				MaximumQuoteAmount:      symbolDetail.SymbolTradeLimit.MaxAmount.Float64(),
 				PriceStepIncrementSize:  priceScaleMultipliers[symbolDetail.SymbolTradeLimit.PriceScale],
 				AmountStepIncrementSize: priceScaleMultipliers[symbolDetail.SymbolTradeLimit.QuantityScale],
 				QuoteStepIncrementSize:  priceScaleMultipliers[symbolDetail.SymbolTradeLimit.AmountScale],
@@ -1880,13 +1892,15 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	if err != nil {
 		return "", err
 	}
+	pairFormat, err := e.GetPairFormat(a, true)
+	if err != nil {
+		return "", err
+	}
 	switch a {
 	case asset.Spot:
-		cp.Delimiter = currency.UnderscoreDelimiter
-		return apiURL + tradeSpotPath + cp.Upper().String(), nil
+		return mainURL + tradeSpotPath + pairFormat.Format(cp), nil
 	case asset.Futures:
-		cp.Delimiter = ""
-		return apiURL + tradeFuturesPath + cp.Upper().String(), nil
+		return mainURL + tradeFuturesPath + pairFormat.Format(cp), nil
 	default:
 		return "", fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
 	}
@@ -1960,26 +1974,6 @@ func orderTypeString(oType order.Type) (string, error) {
 		return "", nil
 	}
 	return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, oType)
-}
-
-// StringToOrderType returns an order.Type instance from string
-func StringToOrderType(oTypeString string) order.Type {
-	switch strings.ToUpper(oTypeString) {
-	case "STOP":
-		return order.Stop
-	case "STOP_LIMIT":
-		return order.StopLimit
-	case "TRAILING_STOP":
-		return order.TrailingStop
-	case "TRAILING_STOP_LIMIT":
-		return order.TrailingStopLimit
-	case "MARKET":
-		return order.Market
-	case "LIMIT_MAKER":
-		return order.LimitMaker
-	default:
-		return order.Limit
-	}
 }
 
 // timeInForceString return a string representation of time-in-force value

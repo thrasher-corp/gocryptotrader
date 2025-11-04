@@ -11,7 +11,6 @@ import (
 
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -319,7 +318,7 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 			ExecutedAmount:       resp[o].ExecQuantity.Float64(),
 			RemainingAmount:      resp[o].Size.Float64() - resp[o].ExecQuantity.Float64(),
 			Fee:                  resp[o].FeeAmount.Float64(),
-			FeeAsset:             currency.NewCode(resp[o].FeeCurrency),
+			FeeAsset:             resp[o].FeeCurrency,
 			Exchange:             e.Name,
 			OrderID:              resp[o].OrderID,
 			ClientOrderID:        resp[o].ClientOrderID,

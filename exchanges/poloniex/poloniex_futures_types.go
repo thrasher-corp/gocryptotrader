@@ -80,7 +80,7 @@ type FuturesOrderRequest struct {
 	Side                    string      `json:"side"`
 	MarginMode              marginMode  `json:"mgnMode"`
 	PositionSide            order.Side  `json:"posSide"`
-	OrderType               string      `json:"type,omitempty"`
+	OrderType               orderType   `json:"type,omitempty"`
 	ClientOrderID           string      `json:"clOrdId,omitempty"`
 	Price                   float64     `json:"px,omitempty,string"`
 	Size                    float64     `json:"sz,omitempty,string"`
@@ -112,9 +112,9 @@ type FuturesTradeFill struct {
 	ClientOrderID  string        `json:"clOrdId"`
 	Role           string        `json:"role"`
 	TradeID        string        `json:"trdId"`
-	FeeCurrency    string        `json:"feeCcy"`
+	FeeCurrency    currency.Code `json:"feeCcy"`
 	FeeAmount      types.Number  `json:"feeAmt"`
-	DeductCurrency string        `json:"deductCcy"`
+	DeductCurrency currency.Code `json:"deductCcy"`
 	DeductAmount   types.Number  `json:"deductAmt"`
 	FillPrice      types.Number  `json:"fpx"`
 	FillQuantity   types.Number  `json:"fqty"`
@@ -137,10 +137,10 @@ type FuturesOrderDetails struct {
 	ClientOrderID              string            `json:"clOrdId"`
 	DeductAmount               types.Number      `json:"deductAmt"`
 	ExecutedAmount             types.Number      `json:"execAmt"`
-	DeductCurrency             string            `json:"deductCcy"`
+	DeductCurrency             currency.Code     `json:"deductCcy"`
 	ExecQuantity               types.Number      `json:"execQty"`
 	FeeAmount                  types.Number      `json:"feeAmt"`
-	FeeCurrency                string            `json:"feeCcy"`
+	FeeCurrency                currency.Code     `json:"feeCcy"`
 	Leverage                   types.Number      `json:"lever"`
 	ReduceOnly                 bool              `json:"reduceOnly"`
 	StopLossPrice              types.Number      `json:"slPx"`
@@ -263,12 +263,12 @@ type FuturesExecutionInfo struct {
 
 // LiquidationPrice represents a liquidiation price detail for an instrument
 type LiquidationPrice struct {
-	Symbol                         currency.Pair `json:"symbol"`
-	PositionSide                   string        `json:"posSide"`
-	Side                           string        `json:"side"`
-	Size                           types.Number  `json:"sz"`
-	PriceOfCommissionedTransaction types.Number  `json:"bkPx"`
-	UpdateTime                     types.Time    `json:"uTime"`
+	Symbol                         string       `json:"symbol"`
+	PositionSide                   string       `json:"posSide"`
+	Side                           string       `json:"side"`
+	Size                           types.Number `json:"sz"`
+	PriceOfCommissionedTransaction types.Number `json:"bkPx"`
+	UpdateTime                     types.Time   `json:"uTime"`
 }
 
 // FuturesTickerDetails represents a v3 futures instrument ticker detail
@@ -369,8 +369,8 @@ type ProductInfo struct {
 	MinSize               types.Number  `json:"minSz"`
 	ListingDate           types.Time    `json:"oDate"`
 	PriceScale            string        `json:"pxScale"`
-	QuoteCurrency         string        `json:"qCcy"`
-	SettlementCurrency    string        `json:"sCcy"`
+	QuoteCurrency         currency.Code `json:"qCcy"`
+	SettlementCurrency    currency.Code `json:"sCcy"`
 	Status                string        `json:"status"`
 	Symbol                currency.Pair `json:"symbol"`
 	TickSize              types.Number  `json:"tSz"`
@@ -520,7 +520,7 @@ type FuturesOrder struct {
 	IsActive            bool              `json:"isActive"`
 	CancelExist         bool              `json:"cancelExist"`
 	CreatedAt           types.Time        `json:"createdAt"`
-	SettleCurrency      string            `json:"settleCurrency"`
+	SettleCurrency      currency.Code     `json:"settleCurrency"`
 	Status              string            `json:"status"`
 	UpdatedAt           types.Time        `json:"updatedAt"`
 	OrderTime           types.Time        `json:"orderTime"`

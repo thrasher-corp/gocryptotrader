@@ -256,9 +256,8 @@ func TestSubmitOrder(t *testing.T) {
 
 	arg = &order.Submit{Exchange: e.Name, AssetType: asset.Futures, Side: order.Sell, Type: order.Market, Amount: 1, TimeInForce: order.GoodTillCrossing, Pair: futuresTradablePair}
 	_, err = e.SubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrInvalidTimeInForce)
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
 
-	arg.TimeInForce = order.GoodTillCancel
 	arg.AssetType = asset.Options
 	_, err = e.SubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
@@ -1334,13 +1333,13 @@ func TestGetBorrowStatus(t *testing.T) {
 
 func TestMaximumBuySellAmount(t *testing.T) {
 	t.Parallel()
-	_, err := e.MaximumBuySellAmount(t.Context(), currency.EMPTYPAIR)
+	_, err := e.GetMarginBuySellAmounts(t.Context(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.MaximumBuySellAmount(generateContext(), spotTradablePair)
+	result, err := e.GetMarginBuySellAmounts(generateContext(), spotTradablePair)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1445,7 +1444,7 @@ func TestCancelReplaceOrder(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	result, err := e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderRequest{
-		orderID:       "29772698821328896",
+		OrderID:       "29772698821328896",
 		ClientOrderID: "1234Abc",
 		Price:         18000,
 	})
@@ -1473,7 +1472,10 @@ func TestGetOrderDetail(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetOrder(generateContext(), "12345536545645", "")
+	_, err = e.GetOrder(generateContext(), "12345536545645", "")
+	require.Error(t, err)
+
+	result, err := e.GetOrder(generateContext(), "12345", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1557,13 +1559,13 @@ func TestCreateSmartOrder(t *testing.T) {
 	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: "STOP_LIMIT"})
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: orderType(order.StopLimit)})
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: "TRAILING_STOP_LIMIT", Price: 1234})
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: orderType(order.TrailingStopLimit), Price: 1234})
 	require.ErrorIs(t, err, errTrailingOffsetInvalid)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: "TRAILING_STOP_LIMIT", Price: 1234, TrailingOffset: "1%"})
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: orderType(order.TrailingStopLimit), Price: 1234, TrailingOffset: "1%"})
 	require.ErrorIs(t, err, errOffsetLimitInvalid)
 
 	if !mockTests {
@@ -1571,7 +1573,7 @@ func TestCreateSmartOrder(t *testing.T) {
 	}
 	result, err := e.CreateSmartOrder(generateContext(), &SmartOrderRequest{
 		Symbol:        spotTradablePair,
-		Type:          "STOP_LIMIT",
+		Type:          orderType(order.StopLimit),
 		Price:         100000.5,
 		ClientOrderID: "1234Abc",
 		Side:          order.Buy,
@@ -1584,7 +1586,7 @@ func TestCreateSmartOrder(t *testing.T) {
 
 	result, err = e.CreateSmartOrder(generateContext(), &SmartOrderRequest{
 		Symbol:         spotTradablePair,
-		Type:           order.TrailingStopLimit.String(),
+		Type:           orderType(order.TrailingStopLimit),
 		Price:          100000.5,
 		ClientOrderID:  "55667798abcd",
 		Side:           order.Buy,
@@ -1607,7 +1609,7 @@ func TestCancelReplaceSmartOrder(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	result, err := e.CancelReplaceSmartOrder(t.Context(), &CancelReplaceSmartOrderRequest{
-		orderID:       "29772698821328896",
+		OrderID:       "29772698821328896",
 		ClientOrderID: "1234Abc",
 		Price:         18000,
 	})
@@ -1990,7 +1992,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	_, err = e.PlaceFuturesOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
-	arg.OrderType = "limit_maker"
+	arg.OrderType = orderType(order.LimitMaker)
 	_, err = e.PlaceFuturesOrder(t.Context(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
@@ -2003,7 +2005,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		Side:                    "buy",
 		MarginMode:              marginMode(margin.Multi),
 		PositionSide:            order.Long,
-		OrderType:               "limit_maker",
+		OrderType:               orderType(order.LimitMaker),
 		Price:                   46050,
 		Size:                    10,
 		TimeInForce:             timeInForce(order.GoodTillCancel),
@@ -2036,7 +2038,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	_, err = e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{arg})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
-	arg.OrderType = "limit_maker"
+	arg.OrderType = orderType(order.LimitMaker)
 	_, err = e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{arg})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
@@ -2048,7 +2050,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 			Side:                    "buy",
 			MarginMode:              marginMode(margin.Multi),
 			PositionSide:            order.Long,
-			OrderType:               "limit_maker",
+			OrderType:               orderType(order.LimitMaker),
 			Price:                   46050,
 			Size:                    10,
 			TimeInForce:             timeInForce(order.GoodTillCancel),
@@ -2475,26 +2477,11 @@ func TestIntervalString(t *testing.T) {
 	}
 }
 
-func TestStringToOrderType(t *testing.T) {
-	t.Parallel()
-	orderTypeStringToTypeMap := map[string]order.Type{
-		"":                    order.Limit,
-		"STOP":                order.Stop,
-		"STOP_LIMIT":          order.StopLimit,
-		"TRAILING_STOP":       order.TrailingStop,
-		"TRAILING_STOP_LIMIT": order.TrailingStopLimit,
-	}
-	for k, v := range orderTypeStringToTypeMap {
-		result := StringToOrderType(k)
-		assert.Equal(t, result, v)
-	}
-}
-
 func TestOrderStateString(t *testing.T) {
 	t.Parallel()
 	orderStatusToStringMap := map[string]order.Status{
 		"NEW":                order.New,
-		"FAILED":             order.Closed,
+		"FAILED":             order.Rejected,
 		"FILLED":             order.Filled,
 		"CANCELED":           order.Cancelled,
 		"abcd":               order.UnknownStatus,

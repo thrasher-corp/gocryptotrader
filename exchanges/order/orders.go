@@ -1135,7 +1135,7 @@ func StringToOrderType(oType string) (Type, error) {
 		return IOS, nil
 	case orderAnyType:
 		return AnyType, nil
-	case orderLimitMaker:
+	case orderLimitMaker, "LIMIT MAKER":
 		return LimitMaker, nil
 	case orderTrigger:
 		return Trigger, nil

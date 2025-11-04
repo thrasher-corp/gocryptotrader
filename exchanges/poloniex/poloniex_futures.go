@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -18,6 +19,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+)
+
+var (
+	errPositionModeInvalid     = errors.New("invalid position mode")
+	errMarginAdjustTypeMissing = errors.New("margin adjust type invalid")
 )
 
 const (
@@ -71,14 +77,14 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderReque
 	if arg.PositionSide == order.UnknownSide {
 		return nil, order.ErrSideIsInvalid
 	}
-	if arg.OrderType == "" {
+	if arg.OrderType == orderType(order.UnknownType) {
 		return nil, order.ErrTypeIsInvalid
 	}
 	if arg.Size <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *FuturesOrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, tradePathV3+"order", nil, arg, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, tradePathV3+"order", nil, arg, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -113,7 +119,7 @@ func (o *FuturesOrderRequest) validate() error {
 	if o.PositionSide == order.UnknownSide {
 		return order.ErrSideIsInvalid
 	}
-	if o.OrderType == "" {
+	if o.OrderType == orderType(order.UnknownType) {
 		return order.ErrTypeIsInvalid
 	}
 	if o.Size <= 0 {
@@ -700,7 +706,7 @@ func (e *Exchange) GetFuturesHistoricalFundingRates(ctx context.Context, symbol 
 			return nil, err
 		}
 		params.Set("sT", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("eT", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eT", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))

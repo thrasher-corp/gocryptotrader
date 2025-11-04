@@ -8341,7 +8341,25 @@
   "/orders/1234/trades": {
    "GET": [
     {
-     "data": null,
+     "data": [
+        {
+            "id": "68561226",
+            "symbol": "LINK_USDT",
+            "accountType": "SPOT",
+            "orderId": "30249408733945856",
+            "side": "BUY",
+            "type": "LIMIT",
+            "matchRole": "MAKER",
+            "createTime": 1648200366864,
+            "price": "3.1",
+            "quantity": "1",
+            "amount": "3.1",
+            "feeCurrency": "LINK",
+            "feeAmount": "0.00145",
+            "pageId": "30341456333942784",
+            "clientOrderId": ""
+        }
+    ],
      "queryString": "",
      "bodyParams": "",
      "headers": {
@@ -8362,6 +8380,55 @@
       ],
       "Signtimestamp": [
        "1760129148958"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/12345": {
+   "GET": [
+    {
+     "data": {
+        "id": "21934611974062080",
+        "clientOrderId": "123",
+        "symbol": "BTC_USDC",
+        "state": "NEW",
+        "accountType": "SPOT",
+        "side": "SELL",
+        "type": "LIMIT",
+        "timeInForce": "GTC",
+        "quantity": "1.00",
+        "price": "10.00",
+        "avgPrice": "0.00",
+        "amount": "0.00",
+        "filledQuantity": "0.00",
+        "filledAmount": "0.00",
+        "createTime": 1646196019020,
+        "updateTime": 1646196019020,
+        "orderSource": "API",
+        "loan": false,
+        "cancelReason": 0
+        },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "/npcIvDx41e86fhkszrX5JEZhYeCh11c1qNPW1ShFM4="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1754250970774"
       ]
      }
     }
@@ -9085,7 +9152,7 @@
        {
         "id": "1234",
         "clientOrderId": "",
-        "symbol": "ETH_USDT",
+        "symbol": "BTC_USDT",
         "state": "PENDING_NEW",
         "accountType": "SPOT",
         "side": "BUY",
@@ -11896,7 +11963,7 @@
       "msg": "Success"
      },
      "queryString": "",
-     "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"side\":\"buy\",\"mgnMode\":\"CROSS\",\"posSide\":\"LONG\",\"type\":\"limit_maker\",\"clOrdId\":\"939a9d51-8f32-443a-9fb8-ff0852010487\",\"px\":\"46050\",\"sz\":\"10\",\"timeInForce\":\"GTC\",\"stpMode\":\"EXPIRE_TAKER\"}",
+     "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"side\":\"buy\",\"mgnMode\":\"CROSS\",\"posSide\":\"LONG\",\"type\":\"LIMIT_MAKER\",\"clOrdId\":\"939a9d51-8f32-443a-9fb8-ff0852010487\",\"px\":\"46050\",\"sz\":\"10\",\"timeInForce\":\"GTC\",\"stpMode\":\"EXPIRE_TAKER\"}",
      "headers": {
       "Content-Type": [
        "application/json"
