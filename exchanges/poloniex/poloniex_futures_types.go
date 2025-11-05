@@ -32,33 +32,36 @@ type ServerTimeResponse struct {
 
 // FuturesAccountBalance represents a futures account balance detail
 type FuturesAccountBalance struct {
-	State                   string       `json:"state"`
-	Equity                  types.Number `json:"eq"`
-	IsoEquity               types.Number `json:"isoEq"`
-	InitialMargin           types.Number `json:"im"`
-	MaintenanceMargin       types.Number `json:"mm"`
-	MaintenanceMarginRate   types.Number `json:"mmr"`
-	UnrealizedProfitAndLoss types.Number `json:"upl"`
-	AvailMargin             types.Number `json:"availMgn"`
-	CreationTime            types.Time   `json:"cTime"`
-	UpdateTime              types.Time   `json:"uTime"`
-	Details                 []struct {
-		Currency              currency.Code `json:"ccy"`
-		Equity                types.Number  `json:"eq"`
-		IsoEquity             types.Number  `json:"isoEq"`
-		Available             types.Number  `json:"avail"`
-		TrdHold               types.Number  `json:"trdHold"`
-		UnrealisedPNL         types.Number  `json:"upl"`
-		IsoAvailable          types.Number  `json:"isoAvail"`
-		IsoHold               string        `json:"isoHold"`
-		IsoUpl                string        `json:"isoUpl"`
-		InitialMargin         types.Number  `json:"im"`
-		MaintenanceMargin     types.Number  `json:"mm"`
-		MaintenanceMarginRate types.Number  `json:"mmr"`
-		InitialMarginRate     types.Number  `json:"imr"`
-		CreationTime          types.Time    `json:"cTime"`
-		UpdateTime            types.Time    `json:"uTime"`
-	} `json:"details"`
+	State                   string                           `json:"state"`
+	Equity                  types.Number                     `json:"eq"`
+	IsoEquity               types.Number                     `json:"isoEq"`
+	InitialMargin           types.Number                     `json:"im"`
+	MaintenanceMargin       types.Number                     `json:"mm"`
+	MaintenanceMarginRate   types.Number                     `json:"mmr"`
+	UnrealizedProfitAndLoss types.Number                     `json:"upl"`
+	AvailMargin             types.Number                     `json:"availMgn"`
+	CreationTime            types.Time                       `json:"cTime"`
+	UpdateTime              types.Time                       `json:"uTime"`
+	Details                 []*FuturesCurrencyAccountBalance `json:"details"`
+}
+
+// FuturesCurrencyAccountBalance holds a futures account currency balance detail
+type FuturesCurrencyAccountBalance struct {
+	Currency              currency.Code `json:"ccy"`
+	Equity                types.Number  `json:"eq"`
+	IsoEquity             types.Number  `json:"isoEq"`
+	Available             types.Number  `json:"avail"`
+	TrdHold               types.Number  `json:"trdHold"`
+	UnrealisedPNL         types.Number  `json:"upl"`
+	IsoAvailable          types.Number  `json:"isoAvail"`
+	IsoHold               string        `json:"isoHold"`
+	IsoUpl                string        `json:"isoUpl"`
+	InitialMargin         types.Number  `json:"im"`
+	MaintenanceMargin     types.Number  `json:"mm"`
+	MaintenanceMarginRate types.Number  `json:"mmr"`
+	InitialMarginRate     types.Number  `json:"imr"`
+	CreationTime          types.Time    `json:"cTime"`
+	UpdateTime            types.Time    `json:"uTime"`
 }
 
 // BillDetails represents a bill type detail information
@@ -406,8 +409,13 @@ type InsuranceFundInfo struct {
 
 // RiskLimit represents a risk limit of futures instrument
 type RiskLimit struct {
-	NotionalCap types.Number  `json:"notionalCap"`
-	Symbol      currency.Pair `json:"symbol"`
+	Symbol                 currency.Pair `json:"symbol"`
+	MarginMode             string        `json:"mgnMode"`
+	Tier                   uint8         `json:"tier"`
+	MaxLeverage            types.Number  `json:"maxLever"`
+	MaintenanceMarginRatio types.Number  `json:"mMRatio"`
+	MaxSize                types.Number  `json:"maxSize"`
+	MinSize                types.Number  `json:"minSize"`
 }
 
 // WsFuturesCandlesctick represents a kline data for futures instrument

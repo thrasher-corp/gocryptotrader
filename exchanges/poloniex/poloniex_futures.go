@@ -42,12 +42,16 @@ func (e *Exchange) GetAccountBalance(ctx context.Context) (*FuturesAccountBalanc
 
 // GetAccountBills retrieve the account’s bills.
 func (e *Exchange) GetAccountBills(ctx context.Context, startTime, endTime time.Time, offset, limit uint64, direction, billType string) ([]*BillDetails, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if offset > 0 {
@@ -273,12 +277,16 @@ func (e *Exchange) GetCurrentFuturesOrders(ctx context.Context, symbol, side, or
 
 // GetOrderExecutionDetails retrieves detailed information about your executed futures order
 func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, symbol, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesTradeFill, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if symbol != "" {
@@ -305,12 +313,16 @@ func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, symbol, orderID
 
 // GetFuturesOrderHistory retrieves previous futures orders. Orders that are completely canceled (no transaction has occurred) initiated through the API can only be queried for 4 hours.
 func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol, orderType, side, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesOrderDetails, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if orderType != "" {
@@ -356,6 +368,11 @@ func (e *Exchange) GetFuturesCurrentPosition(ctx context.Context, symbol string)
 
 // GetFuturesPositionHistory get information about previous positions.
 func (e *Exchange) GetFuturesPositionHistory(ctx context.Context, symbol, marginMode, positionSide, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesPosition, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -366,11 +383,10 @@ func (e *Exchange) GetFuturesPositionHistory(ctx context.Context, symbol, margin
 	if positionSide != "" {
 		params.Set("posSide", positionSide)
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if direction != "" {
@@ -488,18 +504,22 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol string, inter
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	params := url.Values{}
-	intervalString, err := intervalToString(interval)
-	if err != nil {
-		return nil, err
-	}
-	params.Set("symbol", symbol)
-	params.Set("interval", intervalString)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	intervalString, err := intervalToString(interval)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("interval", intervalString)
+	if !startTime.IsZero() {
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -525,12 +545,16 @@ func (e *Exchange) GetFuturesExecution(ctx context.Context, symbol string, limit
 
 // GetLiquidationOrder get Liquidation Order Interface
 func (e *Exchange) GetLiquidationOrder(ctx context.Context, symbol, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*LiquidationPrice, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if direction != "" {
@@ -602,14 +626,18 @@ func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol string, in
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol)
-	params.Set("interval", intervalString)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("interval", intervalString)
+	if !startTime.IsZero() {
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -645,14 +673,18 @@ func (e *Exchange) GetMarkPriceKlineData(ctx context.Context, symbol string, int
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol)
-	params.Set("interval", intervalString)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("interval", intervalString)
+	if !startTime.IsZero() {
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -699,13 +731,17 @@ func (e *Exchange) GetFuturesHistoricalFundingRates(ctx context.Context, symbol 
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !startTime.IsZero() {
 		params.Set("sT", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("eT", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {

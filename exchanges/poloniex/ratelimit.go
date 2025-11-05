@@ -12,9 +12,10 @@ const (
 	tenSecondsInterval   = time.Second * 10
 
 	unauthRate                   = 200
+	unauthMarketRate             = 30
 	authNonResourceIntensiveRate = 50
 	authResourceIntensiveRate    = 10
-	referenceDataRate            = 10
+	referenceDataRate            = 30
 
 	// used with futures account endpoint calls.
 	accountOverviewRate     = 3
