@@ -105,7 +105,7 @@ func TestRenderFunctions_NoPanicAndOutput(t *testing.T) {
 	_ = captureOutput(func() { renderKlines(kl) })
 	_ = captureOutput(func() { renderKlines(nil) })
 
-	// accounts. holdings
+	// account holdings
 	holdings := []accounts.Balance{{Currency: currency.BTC, Total: 1, Free: 0.5, Hold: 0.5}}
 	_ = captureOutput(func() { renderAccountHoldings(holdings) })
 	_ = captureOutput(func() { renderAccountHoldings(nil) })
