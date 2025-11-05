@@ -7,7 +7,7 @@ import (
 
 func TestGetModuleMap(t *testing.T) {
 	x := AllModuleNames()
-	xType := reflect.TypeOf(x).Kind()
+	xType := reflect.TypeFor[[]string]().Kind()
 	if xType != reflect.Slice {
 		t.Fatalf("AllModuleNames() should return slice instead received: %v", x)
 	}

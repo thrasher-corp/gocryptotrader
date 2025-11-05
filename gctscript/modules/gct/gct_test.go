@@ -187,7 +187,7 @@ func TestExchangeOrderSubmit(t *testing.T) {
 func TestAllModuleNames(t *testing.T) {
 	t.Parallel()
 	x := AllModuleNames()
-	xType := reflect.TypeOf(x).Kind()
+	xType := reflect.TypeFor[[]string]().Kind()
 	if xType != reflect.Slice {
 		t.Errorf("AllModuleNames() should return slice instead received: %v", x)
 	}

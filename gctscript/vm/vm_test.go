@@ -39,7 +39,7 @@ func TestNewVM(t *testing.T) {
 	}
 	manager.started = 1
 	x = manager.New()
-	xType := reflect.TypeOf(x).String()
+	xType := reflect.TypeFor[*VM]().String()
 	if xType != "*vm.VM" {
 		t.Fatalf("vm.New should return pointer to VM instead received: %v", x)
 	}
