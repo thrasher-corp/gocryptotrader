@@ -411,7 +411,7 @@ type InsuranceFundInfo struct {
 type RiskLimit struct {
 	Symbol                 currency.Pair `json:"symbol"`
 	MarginMode             string        `json:"mgnMode"`
-	Tier                   uint8         `json:"tier"`
+	Tier                   string        `json:"tier"`
 	MaxLeverage            types.Number  `json:"maxLever"`
 	MaintenanceMarginRatio types.Number  `json:"mMRatio"`
 	MaxSize                types.Number  `json:"maxSize"`
