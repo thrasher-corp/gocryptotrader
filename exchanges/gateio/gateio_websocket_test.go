@@ -55,7 +55,7 @@ type websocketBalancesTest struct {
 
 func TestProcessSpotBalances(t *testing.T) { //nolint:tparallel // Sequential tests, do not use t.Parallel(); Some timestamps are deliberately identical from trading activity
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	e.SetDefaults()
 	e.Name = "ProcessSpotBalancesTest"
 	e.Accounts = accounts.MustNewAccounts(e)
@@ -125,7 +125,7 @@ func TestProcessSpotBalances(t *testing.T) { //nolint:tparallel // Sequential te
 
 func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential tests, do not use t.Parallel(); Some timestamps are deliberately identical from trading activity
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	e.SetDefaults()
 	e.Name = "ProcessFuturesBalancesTest"
 	e.Accounts = accounts.MustNewAccounts(e)

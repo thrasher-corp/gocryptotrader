@@ -31,7 +31,7 @@ func TestWebsocketFuturesSubmitOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures)
 	out.AutoSize = ""
 
 	got, err := e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
@@ -73,7 +73,7 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures)
 
 	// test single order
 	got, err := e.WebsocketFuturesSubmitOrders(t.Context(), asset.CoinMarginedFutures, out)
@@ -99,7 +99,7 @@ func TestWebsocketFuturesCancelOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures)
 
 	got, err := e.WebsocketFuturesCancelOrder(t.Context(), "513160761072", BTCUSDT, asset.USDTMarginedFutures)
 	require.NoError(t, err)
@@ -119,7 +119,7 @@ func TestWebsocketFuturesCancelAllOpenFuturesOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures)
 
 	got, err := e.WebsocketFuturesCancelAllOpenFuturesOrders(t.Context(), BTCUSDT, asset.USDTMarginedFutures, order.Bid.Lower())
 	require.NoError(t, err)
@@ -151,7 +151,7 @@ func TestWebsocketFuturesAmendOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures)
 
 	amend.OrderID = "513170215869"
 	got, err := e.WebsocketFuturesAmendOrder(t.Context(), amend)
@@ -178,7 +178,7 @@ func TestWebsocketFuturesOrderList(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures)
 
 	list.Status = statusOpen
 	got, err := e.WebsocketFuturesOrderList(t.Context(), list)
@@ -199,7 +199,7 @@ func TestWebsocketFuturesGetOrderStatus(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures)
 
 	got, err := e.WebsocketFuturesGetOrderStatus(t.Context(), BTCUSDT, asset.USDTMarginedFutures, "513170215869")
 	require.NoError(t, err)
