@@ -1653,7 +1653,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	}
 	l := make([]limits.MinMaxLevel, 0, len(allInstrumentsInfo.List))
 	for _, inst := range allInstrumentsInfo.List {
-		symbol := info.transformSymbol(a)
+		symbol := inst.transformSymbol(a)
 		pair, err := e.MatchSymbolWithAvailablePairs(symbol, a, true)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "%s unable to load limits for %s %v, pair data missing", e.Name, a, symbol)
@@ -1673,16 +1673,16 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		var delistingAt time.Time
 		var delistedAt time.Time
 		var delivery time.Time
-		if !info.DeliveryTime.Time().IsZero() {
+		if !inst.DeliveryTime.Time().IsZero() {
 			switch a {
 			case asset.Options:
-				delivery = info.DeliveryTime.Time()
+				delivery = inst.DeliveryTime.Time()
 			case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.USDCMarginedFutures:
-				switch info.ContractType {
+				switch inst.ContractType {
 				case "LinearFutures", "InverseFutures":
-					delivery = info.DeliveryTime.Time()
+					delivery = inst.DeliveryTime.Time()
 				default:
-					delistedAt = info.DeliveryTime.Time()
+					delistedAt = inst.DeliveryTime.Time()
 					// Not entirely accurate but from docs the system will use the average index price in the last
 					// 30 minutes before the delisting time. See: https://www.bybit.com/en/help-center/article/Bybit-Derivatives-Delisting-Mechanism-DDM
 					delistingAt = delistedAt.Add(-30 * time.Minute)
@@ -1693,37 +1693,37 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 		}
 
-		baseStepAmount := info.LotSizeFilter.QuantityStep.Float64()
+		baseStepAmount := inst.LotSizeFilter.QuantityStep.Float64()
 		if a == asset.Spot {
-			baseStepAmount = info.LotSizeFilter.BasePrecision.Float64()
+			baseStepAmount = inst.LotSizeFilter.BasePrecision.Float64()
 		}
 
-		maxBaseAmount := info.LotSizeFilter.MaxOrderQuantity.Float64()
+		maxBaseAmount := inst.LotSizeFilter.MaxOrderQuantity.Float64()
 		if a != asset.Spot && a != asset.Options {
-			maxBaseAmount = info.LotSizeFilter.MaxMarketOrderQuantity.Float64()
+			maxBaseAmount = inst.LotSizeFilter.MaxMarketOrderQuantity.Float64()
 		}
 
-		minQuoteAmount := info.LotSizeFilter.MinOrderAmount.Float64()
+		minQuoteAmount := inst.LotSizeFilter.MinOrderAmount.Float64()
 		if a != asset.Spot {
-			minQuoteAmount = info.LotSizeFilter.MinNotionalValue.Float64()
+			minQuoteAmount = inst.LotSizeFilter.MinNotionalValue.Float64()
 		}
 
 		l = append(l, limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
-			MinimumBaseAmount:       info.LotSizeFilter.MinOrderQuantity.Float64(),
+			MinimumBaseAmount:       inst.LotSizeFilter.MinOrderQuantity.Float64(),
 			MaximumBaseAmount:       maxBaseAmount,
-			MinPrice:                info.PriceFilter.MinPrice.Float64(),
-			MaxPrice:                info.PriceFilter.MaxPrice.Float64(),
-			PriceStepIncrementSize:  info.PriceFilter.TickSize.Float64(),
+			MinPrice:                inst.PriceFilter.MinPrice.Float64(),
+			MaxPrice:                inst.PriceFilter.MaxPrice.Float64(),
+			PriceStepIncrementSize:  inst.PriceFilter.TickSize.Float64(),
 			AmountStepIncrementSize: baseStepAmount,
-			QuoteStepIncrementSize:  info.LotSizeFilter.QuotePrecision.Float64(),
+			QuoteStepIncrementSize:  inst.LotSizeFilter.QuotePrecision.Float64(),
 			MinimumQuoteAmount:      minQuoteAmount,
-			MaximumQuoteAmount:      info.LotSizeFilter.MaxOrderAmount.Float64(),
+			MaximumQuoteAmount:      inst.LotSizeFilter.MaxOrderAmount.Float64(),
 			Delisting:               delistingAt,
 			Delisted:                delistedAt,
 			Expiry:                  delivery,
 			PriceDivisor:            priceDivisor,
-			Listed:                  info.LaunchTime.Time(),
+			Listed:                  inst.LaunchTime.Time(),
 			MultiplierDecimal:       1, // All assets on Bybit are 1x
 		})
 	}
