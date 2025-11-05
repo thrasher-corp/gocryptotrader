@@ -1652,7 +1652,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	l := make([]limits.MinMaxLevel, 0, len(allInstrumentsInfo.List))
-	for _, info := range allInstrumentsInfo.List {
+	for _, inst := range allInstrumentsInfo.List {
 		symbol := info.transformSymbol(a)
 		pair, err := e.MatchSymbolWithAvailablePairs(symbol, a, true)
 		if err != nil {
