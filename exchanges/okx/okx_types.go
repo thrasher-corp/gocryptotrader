@@ -3171,6 +3171,12 @@ type WebsocketLoginData struct {
 	Sign       string `json:"sign"`
 }
 
+// WebsocketAuthLogin holds the operation and arguments
+type WebsocketAuthLogin struct {
+	Operation string               `json:"op"`
+	Arguments []WebsocketLoginData `json:"args"`
+}
+
 // SubscriptionInfo holds the channel and instrument IDs
 type SubscriptionInfo struct {
 	Channel          string        `json:"channel,omitempty"`
@@ -3282,9 +3288,9 @@ type PositionDataDetail struct {
 
 // BalanceData represents currency and it's Cash balance with the update time
 type BalanceData struct {
-	Currency    string       `json:"ccy"`
-	CashBalance types.Number `json:"cashBal"`
-	UpdateTime  types.Time   `json:"uTime"`
+	Currency    currency.Code `json:"ccy"`
+	CashBalance types.Number  `json:"cashBal"`
+	UpdateTime  types.Time    `json:"uTime"`
 }
 
 // BalanceAndPositionData represents balance and position data with the push time

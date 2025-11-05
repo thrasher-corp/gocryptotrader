@@ -7,7 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -201,6 +201,6 @@ type LiveData struct {
 
 // Credentials holds each exchanges credentials
 type Credentials struct {
-	Exchange string              `json:"exchange"`
-	Keys     account.Credentials `json:"credentials"`
+	Exchange string               `json:"exchange"`
+	Keys     accounts.Credentials `json:"credentials"`
 }
