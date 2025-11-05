@@ -419,7 +419,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	}
 	var (
 		pairs    currency.Pairs
-		allPairs []InstrumentInfo
+		allPairs []*InstrumentInfo
 		response *InstrumentsInfo
 	)
 	var nextPageCursor string
@@ -1652,8 +1652,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	l := make([]limits.MinMaxLevel, 0, len(allInstrumentsInfo.List))
-	for x := range allInstrumentsInfo.List {
-		symbol := allInstrumentsInfo.List[x].transformSymbol(a)
+	for _, info := range allInstrumentsInfo.List {
+		symbol := info.transformSymbol(a)
 		pair, err := e.MatchSymbolWithAvailablePairs(symbol, a, true)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "%s unable to load limits for %s %v, pair data missing", e.Name, a, symbol)
@@ -1673,16 +1673,16 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		var delistingAt time.Time
 		var delistedAt time.Time
 		var delivery time.Time
-		if !allInstrumentsInfo.List[x].DeliveryTime.Time().IsZero() {
+		if !info.DeliveryTime.Time().IsZero() {
 			switch a {
 			case asset.Options:
-				delivery = allInstrumentsInfo.List[x].DeliveryTime.Time()
+				delivery = info.DeliveryTime.Time()
 			case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.USDCMarginedFutures:
-				switch allInstrumentsInfo.List[x].ContractType {
+				switch info.ContractType {
 				case "LinearFutures", "InverseFutures":
-					delivery = allInstrumentsInfo.List[x].DeliveryTime.Time()
+					delivery = info.DeliveryTime.Time()
 				default:
-					delistedAt = allInstrumentsInfo.List[x].DeliveryTime.Time()
+					delistedAt = info.DeliveryTime.Time()
 					// Not entirely accurate but from docs the system will use the average index price in the last
 					// 30 minutes before the delisting time. See: https://www.bybit.com/en/help-center/article/Bybit-Derivatives-Delisting-Mechanism-DDM
 					delistingAt = delistedAt.Add(-30 * time.Minute)
@@ -1693,37 +1693,37 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 		}
 
-		baseStepAmount := allInstrumentsInfo.List[x].LotSizeFilter.QuantityStep.Float64()
+		baseStepAmount := info.LotSizeFilter.QuantityStep.Float64()
 		if a == asset.Spot {
-			baseStepAmount = allInstrumentsInfo.List[x].LotSizeFilter.BasePrecision.Float64()
+			baseStepAmount = info.LotSizeFilter.BasePrecision.Float64()
 		}
 
-		maxBaseAmount := allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQuantity.Float64()
+		maxBaseAmount := info.LotSizeFilter.MaxOrderQuantity.Float64()
 		if a != asset.Spot && a != asset.Options {
-			maxBaseAmount = allInstrumentsInfo.List[x].LotSizeFilter.MaxMarketOrderQuantity.Float64()
+			maxBaseAmount = info.LotSizeFilter.MaxMarketOrderQuantity.Float64()
 		}
 
-		minQuoteAmount := allInstrumentsInfo.List[x].LotSizeFilter.MinOrderAmount.Float64()
+		minQuoteAmount := info.LotSizeFilter.MinOrderAmount.Float64()
 		if a != asset.Spot {
-			minQuoteAmount = allInstrumentsInfo.List[x].LotSizeFilter.MinNotionalValue.Float64()
+			minQuoteAmount = info.LotSizeFilter.MinNotionalValue.Float64()
 		}
 
 		l = append(l, limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
-			MinimumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQuantity.Float64(),
+			MinimumBaseAmount:       info.LotSizeFilter.MinOrderQuantity.Float64(),
 			MaximumBaseAmount:       maxBaseAmount,
-			MinPrice:                allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
-			MaxPrice:                allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
-			PriceStepIncrementSize:  allInstrumentsInfo.List[x].PriceFilter.TickSize.Float64(),
+			MinPrice:                info.PriceFilter.MinPrice.Float64(),
+			MaxPrice:                info.PriceFilter.MaxPrice.Float64(),
+			PriceStepIncrementSize:  info.PriceFilter.TickSize.Float64(),
 			AmountStepIncrementSize: baseStepAmount,
-			QuoteStepIncrementSize:  allInstrumentsInfo.List[x].LotSizeFilter.QuotePrecision.Float64(),
+			QuoteStepIncrementSize:  info.LotSizeFilter.QuotePrecision.Float64(),
 			MinimumQuoteAmount:      minQuoteAmount,
-			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderAmount.Float64(),
+			MaximumQuoteAmount:      info.LotSizeFilter.MaxOrderAmount.Float64(),
 			Delisting:               delistingAt,
 			Delisted:                delistedAt,
 			Expiry:                  delivery,
 			PriceDivisor:            priceDivisor,
-			Listed:                  allInstrumentsInfo.List[x].LaunchTime.Time(),
+			Listed:                  info.LaunchTime.Time(),
 			MultiplierDecimal:       1, // All assets on Bybit are 1x
 		})
 	}
@@ -1854,7 +1854,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
 
-		var instruments []InstrumentInfo
+		var instruments []*InstrumentInfo
 		for i := range linearContracts.List {
 			if linearContracts.List[i].SettleCoin != "USDC" {
 				continue
@@ -1933,7 +1933,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
 
-		var instruments []InstrumentInfo
+		var instruments []*InstrumentInfo
 		for i := range linearContracts.List {
 			if linearContracts.List[i].SettleCoin != "USDT" {
 				continue

@@ -55,9 +55,9 @@ type AccountFee struct {
 
 // InstrumentsInfo represents a category, page indicator, and list of instrument information.
 type InstrumentsInfo struct {
-	Category       string           `json:"category"`
-	List           []InstrumentInfo `json:"list"`
-	NextPageCursor string           `json:"nextPageCursor"`
+	Category       string            `json:"category"`
+	List           []*InstrumentInfo `json:"list"`
+	NextPageCursor string            `json:"nextPageCursor"`
 }
 
 // InstrumentInfo holds all instrument info across
