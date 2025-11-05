@@ -788,7 +788,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
 
 					if !l.Delisted.IsZero() {
-						assert.NotZero(t, l.Delisting, "Delisting should be set")
+						assert.NotZero(t, l.Delisting, "Delisting should be set for Delisted coins")
 					}
 
 					pair := l.Key.Pair()
