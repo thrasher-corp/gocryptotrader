@@ -1678,10 +1678,10 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			case asset.Options:
 				delivery = allInstrumentsInfo.List[x].DeliveryTime.Time()
 			case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.USDCMarginedFutures:
-				if allInstrumentsInfo.List[x].ContractType == "LinearFutures" ||
-					allInstrumentsInfo.List[x].ContractType == "InverseFutures" {
+				switch allInstrumentsInfo.List[x].ContractType {
+				case "LinearFutures", "InverseFutures":
 					delivery = allInstrumentsInfo.List[x].DeliveryTime.Time()
-				} else {
+				default:
 					delistedAt = allInstrumentsInfo.List[x].DeliveryTime.Time()
 					// Not entirely accurate but from docs the system will use the average index price in the last
 					// 30 minutes before the delisting time. See: https://www.bybit.com/en/help-center/article/Bybit-Derivatives-Delisting-Mechanism-DDM
