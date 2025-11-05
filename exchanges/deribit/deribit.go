@@ -2619,7 +2619,9 @@ func getAssetFromInstrument(instrument string) (asset.Item, error) {
 		return asset.Futures, nil
 	case currencySuffix == "C", currencySuffix == "P": // options end in P or C to denote puts or calls eg BTC-26SEP25-30000-C
 		return asset.Options, nil
-	case partsLen == 3: // futures combos have 3 parts eg BTC-FS-12SEP25_PERP
+	case partsLen >= 3 && currencyParts[partsLen-2] == "FS" && strings.Contains(currencySuffix, currency.UnderscoreDelimiter):
+		// futures combos have underlying-FS-shortLeg_longLeg
+		// eg BTC-FS-28NOV25_PERP or BTC-USDC-FS-28NOV25_PERP
 		return asset.FutureCombo, nil
 	case partsLen == 4: // option combos with more than 3 parts eg BTC_USDC-PS-19SEP25-113000_111000
 		return asset.OptionCombo, nil

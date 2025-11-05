@@ -1627,7 +1627,7 @@ func TestProcessSnapshotUpdate(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	e := new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatal(err)
 	}
@@ -1674,7 +1674,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := &Exchange{ //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	e := &Exchange{
 		Base: exchange.Base{
 			Config: &config.Exchange{
 				Features: &config.FeaturesConfig{

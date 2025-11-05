@@ -2088,7 +2088,7 @@ func TestCrossMarginBalanceLoan(t *testing.T) {
 // TestFuturesDataHandler ensures that messages from various futures channels do not error
 func TestFuturesDataHandler(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, m []byte) error {
 		if strings.Contains(string(m), "futures.balances") {
@@ -2283,7 +2283,7 @@ func TestOptionsPongPushData(t *testing.T) {
 func TestGenerateSubscriptionsSpot(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -2343,7 +2343,7 @@ func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 
 func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	subs, err := e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
 	require.NoError(t, err)
@@ -3608,7 +3608,7 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.Spot)
 
 	sub.AssetType = asset.Spot
 	cpy.AssetType = asset.Spot

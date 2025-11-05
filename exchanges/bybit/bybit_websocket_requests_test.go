@@ -53,7 +53,7 @@ func TestWSCreateOrder(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidTriggerPriceType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e := getWebsocketInstance(t) //nolint:govet // Intentional shadow
+	e := getWebsocketInstance(t)
 	got, err := e.WSCreateOrder(t.Context(), &PlaceOrderRequest{
 		Category:      cSpot,
 		Symbol:        currency.NewBTCUSDT(),
@@ -84,7 +84,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e := getWebsocketInstance(t) //nolint:govet // Intentional shadow
+	e := getWebsocketInstance(t)
 
 	s.Type = order.Limit
 	s.Price = 55000
@@ -109,7 +109,7 @@ func TestWSAmendOrder(t *testing.T) {
 	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e := getWebsocketInstance(t)        //nolint:govet // Intentional shadow
+	e := getWebsocketInstance(t)
 	arg.OrderID = "1793353687809485568" // Replace with a valid order ID
 	arg.OrderQuantity = 0.0002
 	got, err := e.WSAmendOrder(t.Context(), arg)
@@ -127,7 +127,7 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e := getWebsocketInstance(t) //nolint:govet // Intentional shadow
+	e := getWebsocketInstance(t)
 
 	got, err := e.WebsocketModifyOrder(t.Context(), mod)
 	require.NoError(t, err)
@@ -162,7 +162,7 @@ func TestWSCancelOrder(t *testing.T) {
 	arg.OrderFilter = "Order"
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e := getWebsocketInstance(t) //nolint:govet // Intentional shadow
+	e := getWebsocketInstance(t)
 	got, err := e.WSCancelOrder(t.Context(), arg)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
@@ -177,7 +177,7 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e := getWebsocketInstance(t) //nolint:govet // Intentional shadow
+	e := getWebsocketInstance(t)
 
 	err := e.WebsocketCancelOrder(t.Context(), cancel)
 	require.NoError(t, err)
@@ -194,7 +194,7 @@ func getWebsocketInstance(t *testing.T) *Exchange {
 	require.NoError(t, err)
 
 	pairs := &e.CurrencyPairs
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	e.SetDefaults()
 	bConf, err := cfg.GetExchangeConfig("Bybit")
 	require.NoError(t, err)

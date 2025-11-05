@@ -20,7 +20,7 @@ func TestWebsocketLogin(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.Spot)
 
 	c, err := e.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err)
@@ -50,7 +50,7 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.Spot)
 
 	got, err := e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.NoError(t, err)
@@ -78,7 +78,7 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.Spot)
 
 	// test single order
 	got, err := e.WebsocketSpotSubmitOrders(t.Context(), out)
@@ -100,7 +100,7 @@ func TestWebsocketSpotCancelOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.Spot)
 
 	got, err := e.WebsocketSpotCancelOrder(t.Context(), "644913098758", BTCUSDT, "")
 	require.NoError(t, err)
@@ -122,7 +122,7 @@ func TestWebsocketSpotCancelAllOrdersByIDs(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.Spot)
 
 	out.OrderID = "644913101755"
 	got, err := e.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{out})
@@ -137,7 +137,7 @@ func TestWebsocketSpotCancelAllOrdersByPair(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.Spot)
 
 	got, err := e.WebsocketSpotCancelAllOrdersByPair(t.Context(), currency.EMPTYPAIR, order.Buy, "")
 	require.NoError(t, err)
@@ -166,7 +166,7 @@ func TestWebsocketSpotAmendOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.Spot)
 
 	amend.OrderID = "645029162673"
 	got, err := e.WebsocketSpotAmendOrder(t.Context(), amend)
@@ -185,7 +185,7 @@ func TestWebsocketSpotGetOrderStatus(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.UpdatePairsOnce(t, e)
-	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.Spot)
 
 	got, err := e.WebsocketSpotGetOrderStatus(t.Context(), "644999650452", BTCUSDT, "")
 	require.NoError(t, err)
@@ -199,7 +199,7 @@ func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, e)
 	e.API.AuthenticatedSupport = true
