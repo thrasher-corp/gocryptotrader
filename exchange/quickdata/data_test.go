@@ -23,7 +23,7 @@ func TestHandleWSAccountChange(t *testing.T) {
 	require.ErrorIs(t, q.handleWSAccountChange(nil), common.ErrNilPointer)
 
 	d := &accounts.Change{
-		AssetType: q.key.Asset,
+		AssetType: q.Key.Asset,
 		Balance: accounts.Balance{
 			Currency:               currency.BTC,
 			Total:                  1337,
@@ -61,7 +61,7 @@ func TestHandleWSAccountChanges(t *testing.T) {
 	require.NoError(t, q.handleWSAccountChanges(nil))
 
 	d := accounts.Change{
-		AssetType: q.key.Asset,
+		AssetType: q.Key.Asset,
 		Balance: accounts.Balance{
 			Currency:               currency.BTC,
 			Total:                  1337,
@@ -99,9 +99,9 @@ func TestHandleWSOrderDetail(t *testing.T) {
 	require.ErrorIs(t, q.handleWSOrderDetail(nil), common.ErrNilPointer)
 
 	d := &order.Detail{
-		AssetType: q.key.Asset,
+		AssetType: q.Key.Asset,
 		Amount:    1337,
-		Pair:      q.key.Pair(),
+		Pair:      q.Key.Pair(),
 	}
 	require.NoError(t, q.handleWSOrderDetail(d))
 	require.Len(t, q.data.Orders, 1)
@@ -123,9 +123,9 @@ func TestHandleWSOrderDetails(t *testing.T) {
 
 	d := []order.Detail{
 		{
-			AssetType: q.key.Asset,
+			AssetType: q.Key.Asset,
 			Amount:    1337,
-			Pair:      q.key.Pair(),
+			Pair:      q.Key.Pair(),
 		},
 	}
 	require.NoError(t, q.handleWSOrderDetails(d))
@@ -171,10 +171,10 @@ func TestHandleWSTickers(t *testing.T) {
 	assert.Nil(t, q.data.Ticker)
 
 	solo := ticker.Price{
-		AssetType:    q.key.Asset,
-		Pair:         q.key.Pair(),
+		AssetType:    q.Key.Asset,
+		Pair:         q.Key.Pair(),
 		Last:         100,
-		ExchangeName: q.key.Exchange,
+		ExchangeName: q.Key.Exchange,
 	}
 	require.NoError(t, q.handleWSTickers([]ticker.Price{solo}))
 	require.NotNil(t, q.data.Ticker)
@@ -186,10 +186,10 @@ func TestHandleWSTickers(t *testing.T) {
 		Last:      1,
 	}
 	match := ticker.Price{
-		AssetType:    q.key.Asset,
-		Pair:         q.key.Pair(),
+		AssetType:    q.Key.Asset,
+		Pair:         q.Key.Pair(),
 		Last:         200,
-		ExchangeName: q.key.Exchange,
+		ExchangeName: q.Key.Exchange,
 	}
 	require.NoError(t, q.handleWSTickers([]ticker.Price{mismatch, match}))
 	require.NotNil(t, q.data.Ticker)
@@ -209,7 +209,7 @@ func TestHandleWSTicker(t *testing.T) {
 	t.Parallel()
 	q := mustQuickData(t, TickerFocusType)
 	require.ErrorIs(t, q.handleWSTicker(nil), common.ErrNilPointer)
-	p := &ticker.Price{AssetType: q.key.Asset, Pair: q.key.Pair(), Last: 999}
+	p := &ticker.Price{AssetType: q.Key.Asset, Pair: q.Key.Pair(), Last: 999}
 	require.NoError(t, q.handleWSTicker(p))
 	require.NotNil(t, q.data.Ticker)
 	assert.Equal(t, 999.0, q.data.Ticker.Last)
@@ -223,9 +223,9 @@ func TestHandleWSOrderbook(t *testing.T) {
 	bk := &orderbook.Book{
 		Bids:        orderbook.Levels{{Price: 10, Amount: 1}},
 		Asks:        orderbook.Levels{{Price: 11, Amount: 2}},
-		Exchange:    q.key.Exchange,
-		Asset:       q.key.Asset,
-		Pair:        q.key.Pair(),
+		Exchange:    q.Key.Exchange,
+		Asset:       q.Key.Asset,
+		Pair:        q.Key.Pair(),
 		LastUpdated: time.Now(),
 	}
 	depth.AssignOptions(bk)
@@ -239,9 +239,9 @@ func TestHandleWSTrade(t *testing.T) {
 	q := mustQuickData(t, TradesFocusType)
 	require.ErrorIs(t, q.handleWSTrade(nil), common.ErrNilPointer)
 	trd := &trade.Data{
-		Exchange:     q.key.Exchange,
-		CurrencyPair: q.key.Pair(),
-		AssetType:    q.key.Asset,
+		Exchange:     q.Key.Exchange,
+		CurrencyPair: q.Key.Pair(),
+		AssetType:    q.Key.Asset,
 		Price:        123.45,
 		Amount:       0.5,
 		Timestamp:    time.Now(),
@@ -257,17 +257,17 @@ func TestHandleWSTrades(t *testing.T) {
 	require.Empty(t, q.data.Trades)
 	trs := []trade.Data{
 		{
-			Exchange:     q.key.Exchange,
-			CurrencyPair: q.key.Pair(),
-			AssetType:    q.key.Asset,
+			Exchange:     q.Key.Exchange,
+			CurrencyPair: q.Key.Pair(),
+			AssetType:    q.Key.Asset,
 			Price:        1,
 			Amount:       1,
 			Timestamp:    time.Now(),
 		},
 		{
-			Exchange:     q.key.Exchange,
-			CurrencyPair: q.key.Pair(),
-			AssetType:    q.key.Asset,
+			Exchange:     q.Key.Exchange,
+			CurrencyPair: q.Key.Pair(),
+			AssetType:    q.Key.Asset,
 			Price:        2,
 			Amount:       2,
 			Timestamp:    time.Now(),

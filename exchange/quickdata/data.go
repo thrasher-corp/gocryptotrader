@@ -28,8 +28,8 @@ func (q *QuickData) handleWSAccountChange(data *accounts.Change) error {
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, AccountHoldingsFocusType)
 	}
-	if data.AssetType != q.key.Asset ||
-		(!data.Balance.Currency.Equal(q.key.Pair().Base) && !data.Balance.Currency.Equal(q.key.Pair().Quote)) {
+	if data.AssetType != q.Key.Asset ||
+		(!data.Balance.Currency.Equal(q.Key.Pair().Base) && !data.Balance.Currency.Equal(q.Key.Pair().Quote)) {
 		// these WS checks are here due to the inability to fully know how a subscription is transformed
 		// it is not an error to get other data, just ignore it
 		return nil
@@ -54,8 +54,8 @@ func (q *QuickData) handleWSAccountChanges(data []accounts.Change) error {
 	}
 	var payload []accounts.Balance
 	for i := range data {
-		if data[i].AssetType == q.key.Asset &&
-			(data[i].Balance.Currency.Equal(q.key.Pair().Base) || data[i].Balance.Currency.Equal(q.key.Pair().Quote)) {
+		if data[i].AssetType == q.Key.Asset &&
+			(data[i].Balance.Currency.Equal(q.Key.Pair().Base) || data[i].Balance.Currency.Equal(q.Key.Pair().Quote)) {
 			payload = append(payload, data[i].Balance)
 		}
 	}
@@ -74,7 +74,7 @@ func (q *QuickData) handleWSOrderDetail(data *order.Detail) error {
 	if err := common.NilGuard(data); err != nil {
 		return err
 	}
-	if data.AssetType != q.key.Asset || !data.Pair.Equal(q.key.Pair()) {
+	if data.AssetType != q.Key.Asset || !data.Pair.Equal(q.Key.Pair()) {
 		// these WS checks are here due to the inability to fully know how a subscription is transformed
 		// it is not an error to get other data, just ignore it
 		return nil
@@ -103,8 +103,8 @@ func (q *QuickData) handleWSOrderDetails(data []order.Detail) error {
 	}
 	payload := make([]order.Detail, 0, len(data))
 	for i := range data {
-		if data[i].Pair.Equal(q.key.Pair()) &&
-			data[i].AssetType == q.key.Asset {
+		if data[i].Pair.Equal(q.Key.Pair()) &&
+			data[i].AssetType == q.Key.Asset {
 			payload = append(payload, data[i])
 		}
 	}
@@ -134,8 +134,8 @@ func (q *QuickData) handleWSTickers(data []ticker.Price) error {
 		payload = &data[0]
 	case len(data) > 1:
 		for i := range data {
-			if data[i].Pair.Equal(q.key.Pair()) &&
-				data[i].AssetType == q.key.Asset {
+			if data[i].Pair.Equal(q.Key.Pair()) &&
+				data[i].AssetType == q.Key.Asset {
 				payload = &data[i]
 				break
 			}
@@ -160,7 +160,7 @@ func (q *QuickData) handleWSTicker(data *ticker.Price) error {
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, TickerFocusType)
 	}
-	if data.AssetType != q.key.Asset || !data.Pair.Equal(q.key.Pair()) {
+	if data.AssetType != q.Key.Asset || !data.Pair.Equal(q.Key.Pair()) {
 		// these WS checks are here due to the inability to fully know how a subscription is transformed
 		// it is not an error to get other data, just ignore it
 		return nil
@@ -186,7 +186,7 @@ func (q *QuickData) handleWSOrderbook(data *orderbook.Depth) error {
 		focus.stream(err)
 		return err
 	}
-	if payload.Asset != q.key.Asset || !payload.Pair.Equal(q.key.Pair()) {
+	if payload.Asset != q.Key.Asset || !payload.Pair.Equal(q.Key.Pair()) {
 		// these WS checks are here due to the inability to fully know how a subscription is transformed
 		// it is not an error to get other data, just ignore it
 		return nil
@@ -207,7 +207,7 @@ func (q *QuickData) handleWSTrade(data *trade.Data) error {
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, TradesFocusType)
 	}
-	if data.AssetType != q.key.Asset || !data.CurrencyPair.Equal(q.key.Pair()) {
+	if data.AssetType != q.Key.Asset || !data.CurrencyPair.Equal(q.Key.Pair()) {
 		// these WS checks are here due to the inability to fully know how a subscription is transformed
 		// it is not an error to get other data, just ignore it
 		return nil
@@ -235,7 +235,7 @@ func (q *QuickData) handleWSTrades(data []trade.Data) error {
 	}
 	relevantTrades := make([]trade.Data, 0, len(data))
 	for i := range data {
-		if data[i].AssetType == q.key.Asset && data[i].CurrencyPair.Equal(q.key.Pair()) {
+		if data[i].AssetType == q.Key.Asset && data[i].CurrencyPair.Equal(q.Key.Pair()) {
 			relevantTrades = append(relevantTrades, data[i])
 		}
 	}
@@ -254,9 +254,9 @@ func (q *QuickData) handleURLFocus(ctx context.Context, focus *FocusData) error 
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	resp, err := q.exch.GetCurrencyTradeURL(ctx, q.key.Asset, q.key.Pair())
+	resp, err := q.exch.GetCurrencyTradeURL(ctx, q.Key.Asset, q.Key.Pair())
 	if err != nil {
-		return fmt.Errorf("%s %q %w", q.key, focus.focusType.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 	}
 	if resp == "" {
 		return nil
@@ -272,20 +272,20 @@ func (q *QuickData) handleContractFocus(ctx context.Context, focus *FocusData) e
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	contracts, err := q.exch.GetFuturesContractDetails(ctx, q.key.Asset)
+	contracts, err := q.exch.GetFuturesContractDetails(ctx, q.Key.Asset)
 	if err != nil {
-		return fmt.Errorf("%s %q %w", q.key, focus.focusType.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 	}
 	var contractOfFocus *futures.Contract
 	for i := range contracts {
-		if !contracts[i].Name.Equal(q.key.Pair()) {
+		if !contracts[i].Name.Equal(q.Key.Pair()) {
 			continue
 		}
 		contractOfFocus = &contracts[i]
 		break
 	}
 	if contractOfFocus == nil {
-		return fmt.Errorf("no contract found for %s %s", q.key, focus.focusType)
+		return fmt.Errorf("no contract found for %s %s", q.Key, focus.focusType)
 	}
 	q.m.Lock()
 	q.data.Contract = contractOfFocus
@@ -300,13 +300,13 @@ func (q *QuickData) handleKlineFocus(ctx context.Context, focus *FocusData) erro
 	}
 	ett := time.Now()
 	stt := ett.Add(-kline.OneMonth.Duration())
-	k, err := q.exch.GetHistoricCandlesExtended(ctx, q.key.Pair(), q.key.Asset, kline.OneHour, stt, ett)
+	k, err := q.exch.GetHistoricCandlesExtended(ctx, q.Key.Pair(), q.Key.Asset, kline.OneHour, stt, ett)
 	if err != nil {
 		if errors.Is(err, common.ErrFunctionNotSupported) || errors.Is(err, common.ErrNotYetImplemented) {
-			k, err = q.exch.GetHistoricCandles(ctx, q.key.Pair(), q.key.Asset, kline.OneHour, stt, ett)
+			k, err = q.exch.GetHistoricCandles(ctx, q.Key.Pair(), q.Key.Asset, kline.OneHour, stt, ett)
 		}
 		if err != nil {
-			return fmt.Errorf("%s %q %w", q.key, focus.focusType.String(), err)
+			return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 		}
 	}
 	if len(k.Candles) == 0 {
@@ -343,12 +343,12 @@ func (q *QuickData) handleOpenInterestFocus(ctx context.Context, focus *FocusDat
 		return err
 	}
 	oi, err := q.exch.GetOpenInterest(ctx, key.PairAsset{
-		Base:  q.key.Pair().Base.Item,
-		Quote: q.key.Pair().Quote.Item,
-		Asset: q.key.Asset,
+		Base:  q.Key.Pair().Base.Item,
+		Quote: q.Key.Pair().Quote.Item,
+		Asset: q.Key.Asset,
 	})
 	if err != nil {
-		return fmt.Errorf("%s %q %w", q.key, focus.focusType.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 	}
 	if len(oi) != 1 {
 		return nil
@@ -365,9 +365,9 @@ func (q *QuickData) handleTickerFocus(ctx context.Context, focus *FocusData) err
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	resp, err := q.exch.UpdateTicker(ctx, q.key.Pair(), q.key.Asset)
+	resp, err := q.exch.UpdateTicker(ctx, q.Key.Pair(), q.Key.Asset)
 	if err != nil {
-		return fmt.Errorf("%s %q %w", q.key, focus.focusType.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 	}
 	q.m.Lock()
 	q.data.Ticker = resp
@@ -381,13 +381,13 @@ func (q *QuickData) handleOrdersFocus(ctx context.Context, focus *FocusData) err
 		return err
 	}
 	resp, err := q.exch.GetActiveOrders(ctx, &order.MultiOrderRequest{
-		Pairs:     []currency.Pair{q.key.Pair()},
-		AssetType: q.key.Asset,
+		Pairs:     []currency.Pair{q.Key.Pair()},
+		AssetType: q.Key.Asset,
 		Side:      order.AnySide,
 		Type:      order.AnyType,
 	})
 	if err != nil {
-		return fmt.Errorf("%s %q %w", q.key, focus.focusType.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 	}
 	q.m.Lock()
 	q.data.Orders = resp
@@ -400,23 +400,23 @@ func (q *QuickData) handleAccountHoldingsFocus(ctx context.Context, focus *Focus
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	ais, err := q.exch.UpdateAccountBalances(ctx, q.key.Asset)
+	ais, err := q.exch.UpdateAccountBalances(ctx, q.Key.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w",
-			q.key, focus.focusType.String(), err)
+			q.Key, focus.focusType.String(), err)
 	}
 	// filter results only to passed in key currencies
 	sa := make([]accounts.Balance, 0, 2)
 	// iterate on account index as it is not a pointer
 	for i := range ais {
-		if ais[i].AssetType != q.key.Asset {
+		if ais[i].AssetType != q.Key.Asset {
 			continue
 		}
 		for _, c := range ais[i].Balances {
-			if c.Currency.Equal(q.key.Base.Currency()) {
+			if c.Currency.Equal(q.Key.Base.Currency()) {
 				sa = append(sa, c)
 			}
-			if c.Currency.Equal(q.key.Quote.Currency()) {
+			if c.Currency.Equal(q.Key.Quote.Currency()) {
 				sa = append(sa, c)
 			}
 		}
@@ -432,9 +432,9 @@ func (q *QuickData) handleOrderBookFocus(ctx context.Context, focus *FocusData) 
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	ob, err := q.exch.UpdateOrderbook(ctx, q.key.Pair(), q.key.Asset)
+	ob, err := q.exch.UpdateOrderbook(ctx, q.Key.Pair(), q.Key.Asset)
 	if err != nil {
-		return fmt.Errorf("%s %q %w", q.key, focus.focusType.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 	}
 	q.m.Lock()
 	q.data.Orderbook = ob
@@ -447,9 +447,9 @@ func (q *QuickData) handleTradesFocus(ctx context.Context, focus *FocusData) err
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	tr, err := q.exch.GetRecentTrades(ctx, q.key.Pair(), q.key.Asset)
+	tr, err := q.exch.GetRecentTrades(ctx, q.Key.Pair(), q.Key.Asset)
 	if err != nil {
-		return fmt.Errorf("%s %q %w", q.key, focus.focusType.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 	}
 	q.m.Lock()
 	q.data.Trades = tr
@@ -462,15 +462,15 @@ func (q *QuickData) handleOrderExecutionFocus(ctx context.Context, focus *FocusD
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	el, err := q.exch.GetOrderExecutionLimits(q.key.Asset, q.key.Pair())
+	el, err := q.exch.GetOrderExecutionLimits(q.Key.Asset, q.Key.Pair())
 	if err != nil {
-		err = q.exch.UpdateOrderExecutionLimits(ctx, q.key.Asset)
+		err = q.exch.UpdateOrderExecutionLimits(ctx, q.Key.Asset)
 		if err != nil {
-			return fmt.Errorf("%s %q %w", q.key, focus.focusType.String(), err)
+			return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 		}
-		el, err = q.exch.GetOrderExecutionLimits(q.key.Asset, q.key.Pair())
+		el, err = q.exch.GetOrderExecutionLimits(q.Key.Asset, q.Key.Pair())
 		if err != nil {
-			return fmt.Errorf("%s %q %w", q.key, focus.focusType.String(), err)
+			return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 		}
 	}
 	q.m.Lock()
@@ -484,22 +484,22 @@ func (q *QuickData) handleFundingRateFocus(ctx context.Context, focus *FocusData
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	isPerp, err := q.exch.IsPerpetualFutureCurrency(q.key.Asset, q.key.Pair())
+	isPerp, err := q.exch.IsPerpetualFutureCurrency(q.Key.Asset, q.Key.Pair())
 	if err != nil {
-		return fmt.Errorf("%s %q %w", q.key, focus.focusType, err)
+		return fmt.Errorf("%s %q %w", q.Key, focus.focusType, err)
 	}
 	if !isPerp {
-		return fmt.Errorf("%s %q %w", q.key, focus.focusType, futures.ErrNotPerpetualFuture)
+		return fmt.Errorf("%s %q %w", q.Key, focus.focusType, futures.ErrNotPerpetualFuture)
 	}
 	fr, err := q.exch.GetLatestFundingRates(ctx, &fundingrate.LatestRateRequest{
-		Asset: q.key.Asset,
-		Pair:  q.key.Pair(),
+		Asset: q.Key.Asset,
+		Pair:  q.Key.Pair(),
 	})
 	if err != nil {
-		return fmt.Errorf("%s %q %w", q.key, focus.focusType.String(), err)
+		return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 	}
 	if len(fr) != 1 {
-		return fmt.Errorf("expected 1 funding rate for %s %q, got %d", q.key, focus.focusType.String(), len(fr))
+		return fmt.Errorf("expected 1 funding rate for %s %q, got %d", q.Key, focus.focusType.String(), len(fr))
 	}
 	q.m.Lock()
 	q.data.FundingRate = &fr[0]

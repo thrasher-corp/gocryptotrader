@@ -51,7 +51,7 @@ var (
 // It can gather data via websocket (if supported by the exchange) or REST
 type QuickData struct {
 	exch exchange.IBotExchange
-	key  *key.ExchangeAssetPair
+	Key  *key.ExchangeAssetPair
 	// focuses is a map of focus types to focus options
 	// Don't access directly, use functions to handle locking
 	focuses *FocusStore
@@ -85,7 +85,7 @@ func NewQuickData(k *key.ExchangeAssetPair, focuses []*FocusData) (*QuickData, e
 	}
 
 	q := &QuickData{
-		key:                k,
+		Key:                k,
 		dataHandlerChannel: make(chan any, 10),
 		focuses:            sm,
 		data:               &Data{Key: k},
@@ -155,12 +155,12 @@ func (q *QuickData) Run(ctx context.Context) error {
 		return ErrContextMustBeAbleToFinish
 	}
 	if creds := accounts.GetCredentialsFromContext(ctx); q.AnyRequiresAuth() && creds == nil {
-		return fmt.Errorf("%w for %s", errNoCredentials, q.key)
+		return fmt.Errorf("%w for %s", errNoCredentials, q.Key)
 	}
 	if q.AnyRequiresWebsocket() {
 		q.wg.Go(func() {
 			if err := q.handleWS(ctx); err != nil {
-				log.Errorf(log.QuickData, "%s websocket handler error: %v", q.key, err)
+				log.Errorf(log.QuickData, "%s websocket handler error: %v", q.Key, err)
 			}
 		})
 	}
@@ -180,7 +180,7 @@ func (q *QuickData) Run(ctx context.Context) error {
 	q.wg.Go(func() {
 		<-ctx.Done()
 		if err := q.exch.Shutdown(); err != nil {
-			log.Errorf(log.QuickData, "%s exchange shutdown error: %v", q.key, err)
+			log.Errorf(log.QuickData, "%s exchange shutdown error: %v", q.Key, err)
 		}
 	})
 
@@ -237,7 +237,7 @@ func (q *QuickData) setupExchange() error {
 	q.m.Lock()
 	defer q.m.Unlock()
 
-	e, err := engine.NewSupportedExchangeByName(q.key.Exchange)
+	e, err := engine.NewSupportedExchangeByName(q.Key.Exchange)
 	if err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func (q *QuickData) setupExchange() error {
 		if !errors.Is(err, errNoWebsocketSwitchToREST) {
 			return err
 		}
-		log.Warnf(log.QuickData, "%s websocket setup failed: %v. Disabling websocket focuses", q.key, err)
+		log.Warnf(log.QuickData, "%s websocket setup failed: %v. Disabling websocket focuses", q.Key, err)
 		q.focuses.DisableWebsocketFocuses()
 	}
 	return nil
@@ -269,14 +269,14 @@ func (q *QuickData) setupExchangeDefaults(e exchange.IBotExchange, b *exchange.B
 	e.SetDefaults()
 	exchCfg, err := b.GetStandardConfig()
 	if err != nil {
-		return fmt.Errorf("%s: %w", q.key, err)
+		return fmt.Errorf("%s: %w", q.Key, err)
 	}
 	if err := b.SetupDefaults(exchCfg); err != nil {
-		return fmt.Errorf("%s: %w", q.key, err)
+		return fmt.Errorf("%s: %w", q.Key, err)
 	}
 	exchCfg.Features.Enabled.TradeFeed = true
 	if err := e.Setup(exchCfg); err != nil {
-		return fmt.Errorf("%s: %w", q.key, err)
+		return fmt.Errorf("%s: %w", q.Key, err)
 	}
 	return nil
 }
@@ -287,23 +287,23 @@ func (q *QuickData) setupCurrencyPairs(b *exchange.Base) error {
 		rFmt = b.CurrencyPairs.RequestFormat
 		cFmt = b.CurrencyPairs.ConfigFormat
 	} else {
-		rFmt = b.CurrencyPairs.Pairs[q.key.Asset].RequestFormat
-		cFmt = b.CurrencyPairs.Pairs[q.key.Asset].ConfigFormat
+		rFmt = b.CurrencyPairs.Pairs[q.Key.Asset].RequestFormat
+		cFmt = b.CurrencyPairs.Pairs[q.Key.Asset].ConfigFormat
 	}
 	b.CurrencyPairs.DisableAllPairs()
 	// no formatting occurs for websocket subscription generation
 	// so do it here to cover for it
-	cFmtPair := q.key.Pair().Format(*cFmt)
-	b.CurrencyPairs.Pairs[q.key.Asset] = &currency.PairStore{
+	cFmtPair := q.Key.Pair().Format(*cFmt)
+	b.CurrencyPairs.Pairs[q.Key.Asset] = &currency.PairStore{
 		AssetEnabled:  true,
 		RequestFormat: rFmt,
 		ConfigFormat:  cFmt,
 	}
 
-	if err := b.CurrencyPairs.StorePairs(q.key.Asset, currency.Pairs{cFmtPair}, false); err != nil {
+	if err := b.CurrencyPairs.StorePairs(q.Key.Asset, currency.Pairs{cFmtPair}, false); err != nil {
 		return err
 	}
-	if err := b.CurrencyPairs.StorePairs(q.key.Asset, currency.Pairs{cFmtPair}, true); err != nil {
+	if err := b.CurrencyPairs.StorePairs(q.Key.Asset, currency.Pairs{cFmtPair}, true); err != nil {
 		return err
 	}
 	return nil
@@ -311,7 +311,7 @@ func (q *QuickData) setupCurrencyPairs(b *exchange.Base) error {
 
 func (q *QuickData) checkRateLimits(b *exchange.Base) error {
 	if len(b.GetRateLimiterDefinitions()) == 0 {
-		return fmt.Errorf("%s %w", q.key, errNoRateLimits)
+		return fmt.Errorf("%s %w", q.Key, errNoRateLimits)
 	}
 	return nil
 }
@@ -319,17 +319,17 @@ func (q *QuickData) checkRateLimits(b *exchange.Base) error {
 func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) error {
 	if q.AnyRequiresWebsocket() {
 		if !e.SupportsWebsocket() {
-			return fmt.Errorf("%w exchange %s has no websocket. Websocket requirement was enabled", errNoWebsocketSwitchToREST, q.key.Exchange)
+			return fmt.Errorf("%w exchange %s has no websocket. Websocket requirement was enabled", errNoWebsocketSwitchToREST, q.Key.Exchange)
 		}
 	} else {
 		return nil
 	}
 
 	if !b.Features.Supports.Websocket {
-		return fmt.Errorf("%w exchange %s has no websocket. Websocket requirement was enabled", errNoWebsocketSwitchToREST, q.key.Exchange)
+		return fmt.Errorf("%w exchange %s has no websocket. Websocket requirement was enabled", errNoWebsocketSwitchToREST, q.Key.Exchange)
 	}
 	if err := common.NilGuard(b.Websocket); err != nil {
-		return fmt.Errorf("%s %w", q.key, err)
+		return fmt.Errorf("%s %w", q.Key, err)
 	}
 	// allows routing of all websocket data to our custom one
 	q.dataHandlerChannel = b.Websocket.ToRoutine
@@ -341,24 +341,24 @@ func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) er
 		}
 		ch, ok := focusToSub[f.focusType]
 		if !ok || ch == "" {
-			return fmt.Errorf("%s %s %w", q.key, f.focusType, errNoWebsocketSwitchToREST)
+			return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
 		}
 		var sub *subscription.Subscription
 		for _, s := range b.Config.Features.Subscriptions {
 			if s.Channel != ch {
 				continue
 			}
-			if s.Asset != q.key.Asset &&
+			if s.Asset != q.Key.Asset &&
 				s.Asset != asset.All && s.Asset != asset.Empty {
 				continue
 			}
 			sub = s
 		}
 		if sub == nil {
-			return fmt.Errorf("%s %s %w", q.key, f.focusType, errNoWebsocketSwitchToREST)
+			return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
 		}
 		s := sub.Clone()
-		rFmtPair := q.key.Pair().Format(*b.CurrencyPairs.Pairs[q.key.Asset].RequestFormat)
+		rFmtPair := q.Key.Pair().Format(*b.CurrencyPairs.Pairs[q.Key.Asset].RequestFormat)
 		s.Pairs.Add(rFmtPair)
 		newSubs = append(newSubs, s)
 	}
@@ -366,13 +366,13 @@ func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) er
 	b.Features.Subscriptions = newSubs
 	if err := b.Websocket.EnableAndConnect(); err != nil {
 		if !errors.Is(err, websocket.ErrWebsocketAlreadyEnabled) {
-			return fmt.Errorf("%s: %w", q.key, err)
+			return fmt.Errorf("%s: %w", q.Key, err)
 		}
 		// EnableAndConnect returns an error if the websocket is already enabled,
 		// but a connection still needs to be established. In this case, we manually
 		// call Connect to ensure the websocket is connected.
 		if err := b.Websocket.Connect(); err != nil {
-			return fmt.Errorf("%s: %w", q.key, err)
+			return fmt.Errorf("%s: %w", q.Key, err)
 		}
 	}
 	return q.validateSubscriptions(newSubs)
@@ -383,7 +383,7 @@ func (q *QuickData) validateSubscriptions(newSubs []*subscription.Subscription) 
 		if err := q.stopWebsocket(); err != nil {
 			return err
 		}
-		return fmt.Errorf("%s %w", q.key, errNoWebsocketSwitchToREST)
+		return fmt.Errorf("%s %w", q.Key, errNoWebsocketSwitchToREST)
 	}
 	b := q.exch.GetBase()
 	generatedSubs := b.Websocket.GetSubscriptions()
@@ -391,7 +391,7 @@ func (q *QuickData) validateSubscriptions(newSubs []*subscription.Subscription) 
 		if err := q.stopWebsocket(); err != nil {
 			return err
 		}
-		return fmt.Errorf("%s %w", q.key, errNoWebsocketSwitchToREST)
+		return fmt.Errorf("%s %w", q.Key, errNoWebsocketSwitchToREST)
 	}
 	for i := range generatedSubs {
 		for _, f := range q.focuses.List() {
@@ -405,18 +405,18 @@ func (q *QuickData) validateSubscriptions(newSubs []*subscription.Subscription) 
 			if generatedSubs[i].Channel != ch {
 				continue
 			}
-			if generatedSubs[i].Asset != q.key.Asset &&
+			if generatedSubs[i].Asset != q.Key.Asset &&
 				generatedSubs[i].Asset != asset.All && generatedSubs[i].Asset != asset.Empty {
 				if err := q.stopWebsocket(); err != nil {
 					return err
 				}
-				return fmt.Errorf("%s %s %w", q.key, f.focusType, errNoWebsocketSwitchToREST)
+				return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
 			}
-			if !generatedSubs[i].Pairs.Contains(q.key.Pair(), false) {
+			if !generatedSubs[i].Pairs.Contains(q.Key.Pair(), false) {
 				if err := q.stopWebsocket(); err != nil {
 					return err
 				}
-				return fmt.Errorf("%s %s %w", q.key, f.focusType, errNoWebsocketSwitchToREST)
+				return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
 			}
 		}
 	}
@@ -445,7 +445,7 @@ func (q *QuickData) handleWS(ctx context.Context) error {
 			return ctx.Err()
 		case d := <-q.dataHandlerChannel:
 			if err := q.handleWSData(d); err != nil {
-				log.Errorf(log.QuickData, "%s %s", q.key, err)
+				log.Errorf(log.QuickData, "%s %s", q.Key, err)
 			}
 		}
 	}
@@ -510,7 +510,7 @@ func (q *QuickData) processRESTFocus(ctx context.Context, f *FocusData) error {
 			f.failures++
 			if f.failures >= f.FailureTolerance {
 				return fmt.Errorf("%w: %v/%v %s failed, focus type: %s err: %w",
-					errOverMaxFailures, f.failures, f.FailureTolerance, q.key, f.focusType, err)
+					errOverMaxFailures, f.failures, f.FailureTolerance, q.Key, f.focusType, err)
 			}
 		}
 		f.stream(err)

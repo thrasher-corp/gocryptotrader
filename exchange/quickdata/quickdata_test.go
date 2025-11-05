@@ -119,7 +119,7 @@ func TestSetupExchange(t *testing.T) {
 	t.Parallel()
 	k := key.NewExchangeAssetPair(exchangeName, assetType, pair)
 	q := &QuickData{
-		key:                &k,
+		Key:                &k,
 		dataHandlerChannel: make(chan any),
 		wg:                 sync.WaitGroup{},
 		focuses:            NewFocusStore(),
@@ -128,7 +128,7 @@ func TestSetupExchange(t *testing.T) {
 	require.NoError(t, err)
 
 	q = &QuickData{
-		key:     &k,
+		Key:     &k,
 		focuses: NewFocusStore(),
 	}
 	k.Exchange = "butts"
@@ -139,7 +139,7 @@ func TestSetupExchange(t *testing.T) {
 func TestSetupExchangeDefaults(t *testing.T) {
 	t.Parallel()
 	q := mustQuickData(t, TickerFocusType)
-	e, err := engine.NewSupportedExchangeByName(q.key.Exchange)
+	e, err := engine.NewSupportedExchangeByName(q.Key.Exchange)
 	require.NoError(t, err)
 	b := e.GetBase()
 
@@ -150,7 +150,7 @@ func TestSetupExchangeDefaults(t *testing.T) {
 func TestSetupCurrencyPairs(t *testing.T) {
 	t.Parallel()
 	q := mustQuickData(t, TickerFocusType)
-	e, err := engine.NewSupportedExchangeByName(q.key.Exchange)
+	e, err := engine.NewSupportedExchangeByName(q.Key.Exchange)
 	require.NoError(t, err)
 	b := e.GetBase()
 	err = q.setupExchangeDefaults(e, b)
@@ -172,7 +172,7 @@ func TestSetupCurrencyPairs(t *testing.T) {
 func TestCheckRateLimits(t *testing.T) {
 	t.Parallel()
 	q := mustQuickData(t, TickerFocusType)
-	e, err := engine.NewSupportedExchangeByName(q.key.Exchange)
+	e, err := engine.NewSupportedExchangeByName(q.Key.Exchange)
 	require.NoError(t, err)
 	b := e.GetBase()
 	err = q.setupExchangeDefaults(e, b)
@@ -268,7 +268,7 @@ func TestWaitForInitialDataWithTimeout(t *testing.T) {
 	t.Parallel()
 	k := key.NewExchangeAssetPair(exchangeName, assetType, pair)
 	qs := &QuickData{
-		key:     &k,
+		Key:     &k,
 		focuses: NewFocusStore(),
 	}
 	f := &FocusData{focusType: TickerFocusType, restPollTime: time.Millisecond * 10}
@@ -290,7 +290,7 @@ func TestWaitForInitialData(t *testing.T) {
 	t.Parallel()
 	k := key.NewExchangeAssetPair(exchangeName, assetType, pair)
 	qs := &QuickData{
-		key:     &k,
+		Key:     &k,
 		focuses: NewFocusStore(),
 	}
 	f := &FocusData{focusType: TickerFocusType, restPollTime: time.Millisecond * 10}
