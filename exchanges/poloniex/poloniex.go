@@ -221,7 +221,7 @@ func (e *Exchange) GetBorrowRate(ctx context.Context) ([]*BorrowRateDetails, err
 // GetAccount retrieves all accounts of a user.
 func (e *Exchange) GetAccount(ctx context.Context) ([]*AccountDetails, error) {
 	var resp []*AccountDetails
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountInfoEPL, http.MethodGet, "/accounts", nil, nil, &resp)
 }
 
 // GetBalances retrieves all account balances for the authorised user
@@ -231,7 +231,7 @@ func (e *Exchange) GetBalances(ctx context.Context, accountType string) ([]*Acco
 		params.Set("accountType", accountType)
 	}
 	var resp []*AccountBalances
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/balances", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountBalancesEPL, http.MethodGet, "/accounts/balances", params, nil, &resp)
 }
 
 // GetAccountBalances gets balances for an account
@@ -244,7 +244,7 @@ func (e *Exchange) GetAccountBalances(ctx context.Context, accountID, accountTyp
 		params.Set("accountType", accountType)
 	}
 	var resp []*AccountBalances
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/"+accountID+"/balances", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unauthEPL, http.MethodGet, "/accounts/"+accountID+"/balances", params, nil, &resp)
 }
 
 // GetAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
@@ -277,7 +277,7 @@ func (e *Exchange) GetAccountActivities(ctx context.Context, startTime, endTime 
 		params.Set("currency", ccy.String())
 	}
 	var resp []*AccountActivity
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/accounts/activity", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountActivitiEPL, http.MethodGet, "/accounts/activity", params, nil, &resp)
 }
 
 // AccountsTransfer transfers currencies between accounts
@@ -295,7 +295,7 @@ func (e *Exchange) AccountsTransfer(ctx context.Context, arg *AccountTransferReq
 		return nil, fmt.Errorf("%w: ToAccount", errAddressRequired)
 	}
 	var resp *AccountTransferResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/accounts/transfer", nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountsTransferEPL, http.MethodPost, "/accounts/transfer", nil, arg, &resp)
 }
 
 // GetAccountsTransferRecords gets a list of transfer records of a user
@@ -325,7 +325,7 @@ func (e *Exchange) GetAccountsTransferRecords(ctx context.Context, startTime, en
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*AccountTransferRecord
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/accounts/transfer", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountsTransferRecordsEPL, http.MethodGet, "/accounts/transfer", params, nil, &resp)
 }
 
 // GetAccountsTransferRecordByTransferID gets a transfer record of a user.
@@ -334,13 +334,13 @@ func (e *Exchange) GetAccountsTransferRecordByTransferID(ctx context.Context, tr
 		return nil, errAccountIDRequired
 	}
 	var resp *AccountTransferRecord
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/accounts/transfer/"+transferID, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unauthEPL, http.MethodGet, "/accounts/transfer/"+transferID, nil, nil, &resp)
 }
 
 // GetFeeInfo retrieves fee rate for an account
 func (e *Exchange) GetFeeInfo(ctx context.Context) (*FeeInfo, error) {
 	var resp *FeeInfo
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/feeinfo", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sFeeInfoEPL, http.MethodGet, "/feeinfo", nil, nil, &resp)
 }
 
 // GetInterestHistory gets a list of interest collection records of a user
@@ -367,13 +367,13 @@ func (e *Exchange) GetInterestHistory(ctx context.Context, startTime, endTime ti
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*InterestHistory
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/interest/history", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sInterestHistoryEPL, http.MethodGet, "/accounts/interest/history", params, nil, &resp)
 }
 
 // GetSubAccount gets a list of all the accounts within an Account Group for a user.
 func (e *Exchange) GetSubAccount(ctx context.Context) ([]*SubAccount, error) {
 	var resp []*SubAccount
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSubAccountEPL, http.MethodGet, "/subaccounts", nil, nil, &resp)
 }
 
 // GetSubAccountBalances retrieves balances by currency and account type (SPOT or FUTURES)
@@ -381,7 +381,7 @@ func (e *Exchange) GetSubAccount(ctx context.Context) ([]*SubAccount, error) {
 // Subaccounts should use GetBalances() for SPOT and the Futures API for FUTURES.
 func (e *Exchange) GetSubAccountBalances(ctx context.Context) ([]*SubAccountBalances, error) {
 	var resp []*SubAccountBalances
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSubAccountBalancesEPL, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
 }
 
 // GetSubAccountBalance gets balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
@@ -390,7 +390,7 @@ func (e *Exchange) GetSubAccountBalance(ctx context.Context, subAccountID string
 		return nil, fmt.Errorf("%w: empty subAccountID", errAccountIDRequired)
 	}
 	var resp []*SubAccountBalances
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts/"+subAccountID+"/balances", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unauthEPL, http.MethodGet, "/subaccounts/"+subAccountID+"/balances", nil, nil, &resp)
 }
 
 // SubAccountTransfer transfers currencies between accounts in the account group
@@ -416,7 +416,7 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg *SubAccountTransf
 		return nil, fmt.Errorf("%w: ToAccountType", errAccountTypeRequired)
 	}
 	var resp *AccountTransferResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/subaccounts/transfer", nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSubAccountTransfersEPL, http.MethodPost, "/subaccounts/transfer", nil, arg, &resp)
 }
 
 // GetSubAccountTransferRecords gets a list of transfer records of a user. Max interval for start and end time is 6 months.
@@ -458,7 +458,7 @@ func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, arg *SubAcc
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp []*SubAccountTransfer
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/transfer", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unauthEPL, http.MethodGet, "/subaccounts/transfer", params, nil, &resp)
 }
 
 // GetSubAccountTransferRecord retrieves a subaccount transfer record.
@@ -467,7 +467,7 @@ func (e *Exchange) GetSubAccountTransferRecord(ctx context.Context, id string) (
 		return nil, fmt.Errorf("%w: subAccountID is missing", errAccountIDRequired)
 	}
 	var resp []*SubAccountTransfer
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/transfer/"+id, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unauthEPL, http.MethodGet, "/subaccounts/transfer/"+id, nil, nil, &resp)
 }
 
 // GetDepositAddresses gets all deposit addresses for a user.
@@ -477,7 +477,7 @@ func (e *Exchange) GetDepositAddresses(ctx context.Context, ccy currency.Code) (
 		params.Set("currency", ccy.String())
 	}
 	var addresses DepositAddresses
-	return addresses, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/wallets/addresses", params, nil, &addresses)
+	return addresses, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetDepositAddressesEPL, http.MethodGet, "/wallets/addresses", params, nil, &addresses)
 }
 
 // WalletActivity returns the wallet activity between set start and end time
@@ -492,7 +492,7 @@ func (e *Exchange) WalletActivity(ctx context.Context, start, end time.Time, act
 		values.Set("activityType", activityType)
 	}
 	var resp *WalletActivity
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/wallets/activity", values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetWalletActivityRecordsEPL, http.MethodGet, "/wallets/activity", values, nil, &resp)
 }
 
 // NewCurrencyDepositAddress creates a new deposit address for a currency.
@@ -503,7 +503,7 @@ func (e *Exchange) NewCurrencyDepositAddress(ctx context.Context, ccy currency.C
 	var resp struct {
 		Address string `json:"address"`
 	}
-	return resp.Address, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/wallets/address", nil, map[string]string{"currency": ccy.String()}, &resp)
+	return resp.Address, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetWalletAddressesEPL, http.MethodPost, "/wallets/address", nil, map[string]string{"currency": ccy.String()}, &resp)
 }
 
 var supportedIntervals = []struct {
@@ -560,7 +560,7 @@ func (e *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawCurrencyRe
 		return nil, errAddressRequired
 	}
 	var resp *Withdraw
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/v2/wallets/withdraw", nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sWithdrawCurrencyEPL, http.MethodPost, "/v2/wallets/withdraw", nil, arg, &resp)
 }
 
 // GetAccountMargin retrieves account margin information
@@ -570,7 +570,7 @@ func (e *Exchange) GetAccountMargin(ctx context.Context, accountType string) (*A
 		params.Set("accountType", accountType)
 	}
 	var resp *AccountMargin
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/accountMargin", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountMarginEPL, http.MethodGet, "/margin/accountMargin", params, nil, &resp)
 }
 
 // GetBorrowStatus retrieves borrow status of currencies
@@ -580,7 +580,7 @@ func (e *Exchange) GetBorrowStatus(ctx context.Context, ccy currency.Code) ([]*B
 		params.Set("currency", ccy.String())
 	}
 	var resp []*BorrowStatus
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/borrowStatus", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sBorrowStatusEPL, http.MethodGet, "/margin/borrowStatus", params, nil, &resp)
 }
 
 // GetMarginBuySellAmounts gets the maximum and available margin buy/sell amount for a given symbol
@@ -591,7 +591,7 @@ func (e *Exchange) GetMarginBuySellAmounts(ctx context.Context, symbol currency.
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
 	var resp *MarginBuySellAmount
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/maxSize", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sMaxMarginSizeEPL, http.MethodGet, "/margin/maxSize", params, nil, &resp)
 }
 
 // PlaceOrder places an order
@@ -606,7 +606,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*Pla
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *PlaceOrderResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders", nil, arg, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCreateOrderEPL, http.MethodPost, "/orders", nil, arg, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -634,7 +634,7 @@ func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderReques
 		}
 	}
 	var resp []*PlaceBatchOrderItem
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders/batch", nil, args, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sBatchOrderEPL, http.MethodPost, "/orders/batch", nil, args, &resp)
 }
 
 // CancelReplaceOrder cancels an existing active order, new or partially filled, and places a new order
@@ -643,7 +643,7 @@ func (e *Exchange) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrd
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *CancelReplaceOrderResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPut, "/orders/"+arg.OrderID, nil, arg, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelReplaceOrderEPL, http.MethodPut, "/orders/"+arg.OrderID, nil, arg, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -673,7 +673,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, side
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*TradeOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOpenOrdersEPL, http.MethodGet, "/orders", params, nil, &resp)
 }
 
 // GetOrder gets order details by orderId or clientOrderId
@@ -688,7 +688,7 @@ func (e *Exchange) GetOrder(ctx context.Context, id, clientOrderID string) (*Tra
 		return nil, fmt.Errorf("%w, orderid or client order id is required", order.ErrOrderIDNotSet)
 	}
 	var resp *TradeOrder
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOpenOrderDetailEPL, http.MethodGet, path, nil, nil, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -709,7 +709,7 @@ func (e *Exchange) CancelOrderByID(ctx context.Context, id string) (*CancelOrder
 		return nil, fmt.Errorf("%w; order 'id' is required", order.ErrOrderIDNotSet)
 	}
 	var resp *CancelOrderResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/"+id, nil, nil, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelOrderByIDEPL, http.MethodDelete, "/orders/"+id, nil, nil, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -733,7 +733,7 @@ func (e *Exchange) CancelOrdersByIDs(ctx context.Context, orderIDs, clientOrderI
 		params["clientOrderIds"] = clientOrderIDs
 	}
 	var resp []*CancelOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/cancelByIds", nil, params, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelBatchOrdersEPL, http.MethodDelete, "/orders/cancelByIds", nil, params, &resp)
 }
 
 // CancelTradeOrders batch cancel all orders in an account
@@ -746,7 +746,7 @@ func (e *Exchange) CancelTradeOrders(ctx context.Context, symbols []string, acco
 		args["accountTypes"] = accountTypes
 	}
 	var resp []*CancelOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders", nil, args, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelAllOrdersEPL, http.MethodDelete, "/orders", nil, args, &resp)
 }
 
 // KillSwitch set a timer that cancels all regular and smartorders after the timeout has expired.
@@ -759,19 +759,19 @@ func (e *Exchange) KillSwitch(ctx context.Context, timeout time.Duration) (*Kill
 	}
 	timeoutString = strconv.FormatInt(int64(timeout.Seconds()), 10)
 	var resp *KillSwitchStatus
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/orders/killSwitch", nil, map[string]any{"timeout": timeoutString}, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sKillSwitchEPL, http.MethodPost, "/orders/killSwitch", nil, map[string]any{"timeout": timeoutString}, &resp)
 }
 
 // DisableKillSwitch disables the timer to cancels all regular and smartorders
 func (e *Exchange) DisableKillSwitch(ctx context.Context) (*KillSwitchStatus, error) {
 	var resp *KillSwitchStatus
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/orders/killSwitch", nil, map[string]any{"timeout": "-1"}, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sKillSwitchEPL, http.MethodPost, "/orders/killSwitch", nil, map[string]any{"timeout": "-1"}, &resp)
 }
 
 // GetKillSwitchStatus gets status of kill switch
 func (e *Exchange) GetKillSwitchStatus(ctx context.Context) (*KillSwitchStatus, error) {
 	var resp *KillSwitchStatus
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/orders/killSwitchStatus", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetKillSwitchStatusEPL, http.MethodGet, "/orders/killSwitchStatus", nil, nil, &resp)
 }
 
 // CreateSmartOrder create a smart order for an account. Funds will only be frozen when the smart order triggers, not upon smart order creation
@@ -795,7 +795,7 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequest)
 		return nil, errOffsetLimitInvalid
 	}
 	var resp *PlaceOrderResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCreateSmartOrdersEPL, http.MethodPost, "/smartorders", nil, arg, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -827,7 +827,7 @@ func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 	resp := &V3ResponseWrapper{
 		Data: &smartOrderResponse,
 	}
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPut, path, nil, arg, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCreateReplaceSmartOrdersEPL, http.MethodPut, path, nil, arg, &resp); err != nil {
 		return nil, err
 	}
 	if resp.Code != 0 && resp.Code != 200 {
@@ -855,7 +855,7 @@ func (e *Exchange) GetSmartOpenOrders(ctx context.Context, limit uint64, types [
 		params.Set("types", strings.Join(types, ","))
 	}
 	var resp []*SmartOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/smartorders", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSmartOrdersEPL, http.MethodGet, "/smartorders", params, nil, &resp)
 }
 
 // GetSmartOrderDetails retrieves a smart order's detail
@@ -868,7 +868,7 @@ func (e *Exchange) GetSmartOrderDetails(ctx context.Context, orderID, clientSupp
 	resp := &V3ResponseWrapper{
 		Data: &smartOrders,
 	}
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sSmartOrderDetailEPL, http.MethodGet, path, nil, nil, &resp); err != nil {
 		return nil, err
 	}
 	if resp.Code != 0 && resp.Code != 200 {
@@ -887,7 +887,7 @@ func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedI
 	resp := &V3ResponseWrapper{
 		Data: &cancelSmartOrderResponse,
 	}
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodDelete, path, nil, nil, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelSmartOrderByIDEPL, http.MethodDelete, path, nil, nil, &resp); err != nil {
 		return nil, err
 	}
 	if resp.Code != 0 && resp.Code != 200 {
@@ -917,7 +917,7 @@ func (e *Exchange) CancelMultipleSmartOrders(ctx context.Context, args *CancelOr
 	resp := &V3ResponseWrapper{
 		Data: &cancelResponses,
 	}
-	return cancelResponses, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp)
+	return cancelResponses, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelSmartOrdersByIDEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp)
 }
 
 // CancelSmartOrders cancels all smart orders in an account.
@@ -933,7 +933,7 @@ func (e *Exchange) CancelSmartOrders(ctx context.Context, symbols, accountTypes,
 		args["orderTypes"] = orderTypes
 	}
 	var resp []*CancelOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders", nil, args, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelAllSmartOrdersEPL, http.MethodDelete, "/smartorders", nil, args, &resp)
 }
 
 func orderFillParams(arg *OrdersHistoryRequest) (url.Values, error) {
@@ -989,7 +989,7 @@ func (e *Exchange) GetOrdersHistory(ctx context.Context, arg *OrdersHistoryReque
 		return nil, err
 	}
 	var resp []*TradeOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders/history", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOrderHistoryEPL, http.MethodGet, "/orders/history", params, nil, &resp)
 }
 
 // GetSmartOrderHistory gets a list of historical smart orders in an account
@@ -999,7 +999,7 @@ func (e *Exchange) GetSmartOrderHistory(ctx context.Context, arg *OrdersHistoryR
 		return nil, err
 	}
 	var resp []*SmartOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/smartorders/history", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSmartOrderHistoryEPL, http.MethodGet, "/smartorders/history", params, nil, &resp)
 }
 
 // GetTradeHistory gets a list of all trades for an account
@@ -1029,7 +1029,7 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, symbols currency.Pairs, 
 		params.Set("direction", direction)
 	}
 	var resp []*TradeHistory
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/trades", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetTradesEPL, http.MethodGet, "/trades", params, nil, &resp)
 }
 
 // GetTradesByOrderID gets trades for an order
@@ -1038,7 +1038,7 @@ func (e *Exchange) GetTradesByOrderID(ctx context.Context, orderID string) ([]*T
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []*TradeHistory
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/orders/"+orderID+"/trades", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetTradeDetailEPL, http.MethodGet, "/orders/"+orderID+"/trades", nil, nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
