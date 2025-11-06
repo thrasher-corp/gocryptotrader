@@ -18,17 +18,7 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	e = new(Exchange)
-	if err := testexch.Setup(e); err != nil {
-		log.Fatalf("Bybit Setup error: %s", err)
-	}
-
-	if apiKey != "" && apiSecret != "" {
-		e.API.AuthenticatedSupport = true
-		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
-		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	}
+	e = testInstance()
 
 	if e.API.AuthenticatedSupport {
 		if _, err := e.FetchAccountType(context.Background()); err != nil {
@@ -39,6 +29,21 @@ func TestMain(m *testing.M) {
 	instantiateTradablePairs()
 
 	os.Exit(m.Run())
+}
+
+func testInstance() *Bybit {
+	e := new(Exchange)
+	if err := testexch.Setup(e); err != nil {
+		log.Fatalf("Bybit Setup error: %s", err)
+	}
+
+	if apiKey != "" && apiSecret != "" {
+		e.API.AuthenticatedSupport = true
+		e.API.AuthenticatedWebsocketSupport = true
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	}
+	return e
 }
 
 func instantiateTradablePairs() {
