@@ -253,8 +253,10 @@ func (e *Exchange) SendWebsocketRequest(method string, arg map[string]any, resul
 		Nonce:  timestamp.UnixMilli(),
 		Params: arg,
 	}
-	var payload []byte
-	var err error
+	var (
+		payload []byte
+		err     error
+	)
 	if authenticated {
 		req.ID = e.MessageSequence()
 		payload, err = e.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, req)
@@ -268,8 +270,7 @@ func (e *Exchange) SendWebsocketRequest(method string, arg map[string]any, resul
 	response := &WSRespData{
 		Result: &result,
 	}
-	err = json.Unmarshal(payload, response)
-	if err != nil {
+	if err := json.Unmarshal(payload, response); err != nil {
 		return err
 	}
 	if response.Code != 0 {

@@ -93,6 +93,11 @@ func checkInstrumentName(symbol string) (url.Values, error) {
 
 // GetCandlestickDetail retrieves candlesticks (k-line data history) over a given period for an instrument
 func (e *Exchange) GetCandlestickDetail(ctx context.Context, symbol string, interval kline.Interval, count int64, startTime, endTime time.Time) (*CandlestickDetail, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params, err := checkInstrumentName(symbol)
 	if err != nil {
 		return nil, err
@@ -103,12 +108,10 @@ func (e *Exchange) GetCandlestickDetail(ctx context.Context, symbol string, inte
 	if count >= 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("start_ts", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("end_ts", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *CandlestickDetail
@@ -127,6 +130,11 @@ func (e *Exchange) GetTickers(ctx context.Context, symbol string) (*TickersRespo
 
 // GetTrades fetches the public trades for a particular instrument.
 func (e *Exchange) GetTrades(ctx context.Context, symbol string, count int64, startTime, endTime time.Time) (*TradesResponse, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params, err := checkInstrumentName(symbol)
 	if err != nil {
 		return nil, err
@@ -134,12 +142,10 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol string, count int64, st
 	if count > 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("start_ts", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("end_ts", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *TradesResponse
@@ -155,18 +161,22 @@ func (e *Exchange) GetValuations(ctx context.Context, symbol, valuationType stri
 	if valuationType == "" {
 		return nil, errValuationTypeUnset
 	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	params.Set("instrument_name", symbol)
 	params.Set("valuation_type", valuationType)
 	if count > 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("start_ts", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("end_ts", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *InstrumentValuation
@@ -262,8 +272,7 @@ func (e *Exchange) CreateExportRequest(ctx context.Context, symbol, clientReques
 	if symbol != "" {
 		params["instrument_names"] = symbol
 	}
-	err := common.StartEndTimeCheck(startTime, endTime)
-	if err != nil {
+	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 		return nil, err
 	}
 	if len(requestedData) == 0 {
@@ -281,16 +290,19 @@ func (e *Exchange) CreateExportRequest(ctx context.Context, symbol, clientReques
 
 // GetExportRequests retrieves an export requests
 func (e *Exchange) GetExportRequests(ctx context.Context, symbol string, startTime, endTime time.Time, requestedData []string, pageSize, page int64) (*ExportRequests, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_names"] = symbol
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params["start_ts"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
 		params["end_ts"] = endTime.UnixMilli()
 	}
 	if len(requestedData) != 0 {
@@ -810,16 +822,19 @@ func (e *Exchange) GetStakingInstruments(ctx context.Context) (*StakingInstrumen
 
 // GetOpenStakeUnStakeRequests get stake/unstake requests that status is not in final state.
 func (e *Exchange) GetOpenStakeUnStakeRequests(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*StakingRequestsResponse, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params["start_time"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
 		params["end_time"] = endTime.UnixMilli()
 	}
 	if limit > 0 {
@@ -831,16 +846,19 @@ func (e *Exchange) GetOpenStakeUnStakeRequests(ctx context.Context, symbol strin
 
 // GetStakingHistory get stake/unstake request history
 func (e *Exchange) GetStakingHistory(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*StakingRequestsResponse, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params["start_time"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
 		params["end_time"] = endTime.UnixMilli()
 	}
 	if limit > 0 {
@@ -852,16 +870,19 @@ func (e *Exchange) GetStakingHistory(ctx context.Context, symbol string, startTi
 
 // GetStakingRewardHistory get stake/unstake request history
 func (e *Exchange) GetStakingRewardHistory(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*StakingRewardHistory, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := make(map[string]any)
 	if symbol != "" {
 		params["instrument_name"] = symbol
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params["start_time"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
 		params["end_time"] = endTime.UnixMilli()
 	}
 	if limit > 0 {
@@ -900,13 +921,16 @@ func (e *Exchange) ConvertStakedToken(ctx context.Context, fromSymbol, toSymbol 
 
 // GetOpenStakingConverts get convert request that status is not in final state.
 func (e *Exchange) GetOpenStakingConverts(ctx context.Context, startTime, endTime time.Time, limit int64) (*StakingConvertsHistory, error) {
-	params := make(map[string]any)
 	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := make(map[string]any)
+	if !startTime.IsZero() {
 		params["start_time"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
 		params["end_time"] = endTime.UnixMilli()
 	}
 	if limit > 0 {
@@ -918,13 +942,16 @@ func (e *Exchange) GetOpenStakingConverts(ctx context.Context, startTime, endTim
 
 // GetStakingConvertHistory get convert request history
 func (e *Exchange) GetStakingConvertHistory(ctx context.Context, startTime, endTime time.Time, limit int64) (*StakingConvertsHistory, error) {
-	params := make(map[string]any)
 	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := make(map[string]any)
+	if !startTime.IsZero() {
 		params["start_time"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
 		params["end_time"] = endTime.UnixMilli()
 	}
 	if limit > 0 {
@@ -1235,15 +1262,18 @@ func (e *Exchange) GetPrivateFiatDepositInformation(ctx context.Context, payment
 
 // GetFiatDepositHistory retrieves paginated fiat deposit transaction history for the authenticated user.
 func (e *Exchange) GetFiatDepositHistory(ctx context.Context, page, pageSize uint64, startTime, endTime time.Time, paymentNetworks string) (*FiatDepositHistory, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	param := make(map[string]any)
 	param["page"] = page
 	param["page_size"] = pageSize
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		param["start_time"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
 		param["end_time"] = endTime.UnixMilli()
 	}
 	if paymentNetworks != "" {
@@ -1255,15 +1285,18 @@ func (e *Exchange) GetFiatDepositHistory(ctx context.Context, page, pageSize uin
 
 // GetFiatWithdrawHistory retrieves paginated fiat withdrawal transaction history for the authenticated user.
 func (e *Exchange) GetFiatWithdrawHistory(ctx context.Context, page, pageSize uint64, startTime, endTime time.Time, paymentNetworks string) (*FiatWithdrawalHistory, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	param := make(map[string]any)
 	param["page"] = page
 	param["page_size"] = pageSize
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		param["start_time"] = startTime.UnixMilli()
+	}
+	if !endTime.IsZero() {
 		param["end_time"] = endTime.UnixMilli()
 	}
 	if paymentNetworks != "" {

@@ -759,11 +759,11 @@ func TestUpdateOrderbook(t *testing.T) {
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
+	result, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.UpdateAccountInfo(t.Context(), asset.PerpetualSwap)
+	result, err = e.UpdateAccountBalances(t.Context(), asset.PerpetualSwap)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -782,11 +782,11 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetRecentTrades(t.Context(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
+	result, err := e.GetRecentTrades(t.Context(), mainTP, asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetRecentTrades(t.Context(), currency.NewPair(currency.BTC, currency.USDT), asset.PerpetualSwap)
+	result, err = e.GetRecentTrades(t.Context(), perpetualTP, asset.PerpetualSwap)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -988,7 +988,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	result, err := e.GenerateDefaultSubscriptions()
+	result, err := e.generateDefaultSubscriptions()
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

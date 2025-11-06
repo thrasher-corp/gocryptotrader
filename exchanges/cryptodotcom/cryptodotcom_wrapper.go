@@ -11,10 +11,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -130,14 +130,13 @@ func (e *Exchange) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	e.API.Endpoints = e.NewEndpoints()
-	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	if err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:                   apiURLV1,
 		exchange.RestSpotSupplementary:      apiURLV1Supplementary,
 		exchange.RestFutures:                restURL,
 		exchange.WebsocketSpot:              cryptodotcomWebsocketMarketAPI,
 		exchange.WebsocketSpotSupplementary: cryptodotcomWebsocketUserAPI,
-	})
-	if err != nil {
+	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	e.Websocket = websocket.NewManager()
@@ -148,23 +147,21 @@ func (e *Exchange) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (e *Exchange) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil
 	}
-	err = e.SetupDefaults(exch)
-	if err != nil {
+	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
 	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
-	err = e.Websocket.Setup(
+	if err := e.Websocket.Setup(
 		&websocket.ManagerSetup{
 			ExchangeConfig:        exch,
 			DefaultURL:            cryptodotcomWebsocketUserAPI,
@@ -172,20 +169,18 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			Connector:             e.WsConnect,
 			Subscriber:            e.Subscribe,
 			Unsubscriber:          e.Unsubscribe,
-			GenerateSubscriptions: e.GenerateDefaultSubscriptions,
+			GenerateSubscriptions: e.generateDefaultSubscriptions,
 			Features:              &e.Features.Supports.WebsocketCapabilities,
 			FillsFeed:             exch.Features.Enabled.FillsFeed,
 			TradeFeed:             exch.Features.Enabled.TradeFeed,
-		})
-	if err != nil {
+		}); err != nil {
 		return err
 	}
-	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  cryptodotcomWebsocketMarketAPI,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
@@ -286,8 +281,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		ExchangeName: e.Name,
 		Pair:         p,
 	}
-	err = ticker.ProcessTicker(tickerPrice)
-	if err != nil {
+	if err := ticker.ProcessTicker(tickerPrice); err != nil {
 		return tickerPrice, err
 	}
 	return ticker.GetTicker(e.Name, p, assetType)
@@ -307,7 +301,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 		if err != nil {
 			return err
 		}
-		err = ticker.ProcessTicker(&ticker.Price{
+		if err := ticker.ProcessTicker(&ticker.Price{
 			Last:         tick.Data[y].LatestTradePrice.Float64(),
 			High:         tick.Data[y].HighestTradePrice.Float64(),
 			Low:          tick.Data[y].LowestTradePrice.Float64(),
@@ -318,8 +312,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			AssetType:    assetType,
 			ExchangeName: e.Name,
 			Pair:         cp,
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -386,72 +379,52 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 			Price:  orderbookNew.Data[0].Asks[x][0].Float64(),
 		}
 	}
-	err = book.Process()
-	if err != nil {
+	if err := book.Process(); err != nil {
 		return book, err
 	}
 	return orderbook.Get(e.Name, pair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
+// UpdateAccountBalances retrieves balances for all enabled currencies
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if !e.SupportsAsset(assetType) {
-		return info, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
-	var accs *Accounts
-	var err error
+	var (
+		accs *Accounts
+		err  error
+	)
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		accs, err = e.WsRetriveAccountSummary(currency.EMPTYCODE)
 	} else {
 		accs, err = e.GetAccountSummary(ctx, currency.EMPTYCODE)
 	}
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	balances := make([]account.Balance, len(accs.Accounts))
+	subAcc := &accounts.SubAccount{
+		Balances:  make(accounts.CurrencyBalances, len(accs.Accounts)),
+		AssetType: assetType,
+	}
 	for i := range accs.Accounts {
-		balances[i] = account.Balance{
+		subAcc.Balances[currency.NewCode(accs.Accounts[i].Currency)] = accounts.Balance{
 			Currency: currency.NewCode(accs.Accounts[i].Currency),
 			Total:    accs.Accounts[i].Balance,
 			Hold:     accs.Accounts[i].Stake + accs.Accounts[i].Order,
 			Free:     accs.Accounts[i].Available,
 		}
 	}
-	acc := account.SubAccount{
-		Currencies: balances,
-		AssetType:  assetType,
-	}
-	info.Accounts = []account.SubAccount{acc}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return info, err
-	}
-	if err := account.Process(&info, creds); err != nil {
-		return account.Holdings{}, err
-	}
-	info.Exchange = e.Name
-	return info, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (e *Exchange) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(e.Name, creds, assetType)
-	if err != nil {
-		return e.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
+	subAccounts := accounts.SubAccounts{subAcc}
+	return subAccounts, e.Accounts.Save(ctx, subAccounts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
-	var err error
-	var withdrawals *WithdrawalResponse
+	var (
+		err         error
+		withdrawals *WithdrawalResponse
+	)
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		withdrawals, err = e.WsRetriveWithdrawalHistory()
 	} else {
@@ -464,9 +437,10 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]exchange.FundingHistory, 0, len(withdrawals.WithdrawalList)+len(deposits.DepositList))
+	withdrawalLen := len(withdrawals.WithdrawalList)
+	resp := make([]exchange.FundingHistory, withdrawalLen+len(deposits.DepositList))
 	for x := range withdrawals.WithdrawalList {
-		resp = append(resp, exchange.FundingHistory{
+		resp[x] = exchange.FundingHistory{
 			Status:          translateWithdrawalStatus(withdrawals.WithdrawalList[x].Status),
 			Timestamp:       withdrawals.WithdrawalList[x].UpdateTime.Time(),
 			Currency:        withdrawals.WithdrawalList[x].Currency,
@@ -475,10 +449,10 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			CryptoToAddress: withdrawals.WithdrawalList[x].Address,
 			TransferID:      withdrawals.WithdrawalList[x].TransactionID,
 			Fee:             withdrawals.WithdrawalList[x].Fee,
-		})
+		}
 	}
 	for x := range deposits.DepositList {
-		resp = append(resp, exchange.FundingHistory{
+		resp[withdrawalLen+x] = exchange.FundingHistory{
 			ExchangeName:    e.Name,
 			Status:          translateDepositStatus(deposits.DepositList[x].Status),
 			Timestamp:       deposits.DepositList[x].UpdateTime.Time(),
@@ -487,7 +461,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			TransferType:    "deposit",
 			CryptoToAddress: deposits.DepositList[x].Address,
 			CryptoTxID:      deposits.DepositList[x].ID,
-		})
+		}
 	}
 	return resp, nil
 }
@@ -549,8 +523,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		}
 	}
 	if e.IsSaveTradeDataEnabled() {
-		err = trade.AddTradesToBuffer(resp...)
-		if err != nil {
+		if err := trade.AddTradesToBuffer(resp...); err != nil {
 			return nil, err
 		}
 	}
@@ -585,8 +558,7 @@ allTrades:
 			if tradeData.Data[i].TradeTimestamp.Time().Before(startTime) || tradeData.Data[i].TradeTimestamp.Time().After(endTime) {
 				break allTrades
 			}
-			var side order.Side
-			side, err = order.StringToOrderSide(tradeData.Data[i].Side)
+			side, err := order.StringToOrderSide(tradeData.Data[i].Side)
 			if err != nil {
 				return nil, err
 			}
@@ -685,8 +657,7 @@ func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modif
 
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
-	err := ord.Validate(ord.StandardCancel())
-	if err != nil {
+	if err := ord.Validate(ord.StandardCancel()); err != nil {
 		return err
 	}
 	if !e.SupportsAsset(ord.AssetType) {
@@ -745,8 +716,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	cancelAllResponse := order.CancelAllResponse{
 		Status: map[string]string{},
 	}
-	err := orderCancellation.Validate()
-	if err != nil {
+	if err := orderCancellation.Validate(); err != nil {
 		return cancelAllResponse, err
 	}
 	format, err := e.GetPairFormat(orderCancellation.AssetType, true)
@@ -828,11 +798,13 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, accou
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	err := withdrawRequest.Validate()
-	if err != nil {
+	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	var withdrawalResp *WithdrawalItem
+	var (
+		withdrawalResp *WithdrawalItem
+		err            error
+	)
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		withdrawalResp, err = e.WsCreateWithdrawal(withdrawRequest.Currency, withdrawRequest.Amount, withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Crypto.Chain, withdrawRequest.ClientOrderID)
 	} else {
@@ -872,8 +844,10 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 	}
 	switch getOrdersRequest.AssetType {
 	case asset.Margin, asset.Spot:
-		var orders *PersonalOrdersResponse
-		var err error
+		var (
+			orders *PersonalOrdersResponse
+			err    error
+		)
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			orders, err = e.WsRetrivePersonalOpenOrders("")
 		} else {
@@ -1155,7 +1129,7 @@ func (e *Exchange) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair
 
 // ValidateAPICredentials validates current credentials used for wrapper
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

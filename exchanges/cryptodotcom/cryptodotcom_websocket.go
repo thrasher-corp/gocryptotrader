@@ -14,8 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -226,8 +226,8 @@ func (e *Exchange) Unsubscribe(subscriptions subscription.List) error {
 	return e.handleSubscriptions("unsubscribe", subscriptions)
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
+// generateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (e *Exchange) generateDefaultSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
 	channels := defaultSubscriptions
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
@@ -440,11 +440,11 @@ func (e *Exchange) processAccountRisk(resp *WsResult) error {
 		return err
 	}
 	for x := range data {
-		changes := make([]account.Change, len(data[x].Balances))
+		changes := make([]accounts.Change, len(data[x].Balances))
 		for b := range data[x].Balances {
-			changes[b] = account.Change{
+			changes[b] = accounts.Change{
 				AssetType: asset.PerpetualSwap,
-				Balance: &account.Balance{
+				Balance: accounts.Balance{
 					Currency: currency.NewCode(data[x].Balances[b].Currency),
 					Total:    data[x].Balances[b].Quantity.Float64(),
 					Hold:     data[x].Balances[b].ReservedQty.Float64(),
@@ -503,11 +503,11 @@ func (e *Exchange) processPositionBalance(resp *WsResult) error {
 		}
 	}
 	e.Websocket.DataHandler <- positions
-	changes := make([]account.Change, len(data.Balances))
+	changes := make([]accounts.Change, len(data.Balances))
 	for b := range data.Balances {
-		changes[b] = account.Change{
+		changes[b] = accounts.Change{
 			AssetType: asset.PerpetualSwap,
-			Balance: &account.Balance{
+			Balance: accounts.Balance{
 				Currency: currency.NewCode(data.Balances[b].CurrencyName),
 				Total:    data.Balances[b].Quantity.Float64(),
 			},
@@ -728,10 +728,10 @@ func (e *Exchange) processUserBalance(wsResult *WsResult) error {
 	if err != nil {
 		return err
 	}
-	accountChanges := make([]account.Change, len(resp))
+	accountChanges := make([]accounts.Change, len(resp))
 	for x := range resp {
-		accountChanges[x] = account.Change{
-			Balance: &account.Balance{
+		accountChanges[x] = accounts.Change{
+			Balance: accounts.Balance{
 				Currency: currency.NewCode(resp[x].InstrumentName),
 				Total:    resp[x].TotalCashBalance.Float64(),
 				Hold:     resp[x].TotalCashBalance.Float64() - resp[x].TotalAvailableBalance.Float64(),

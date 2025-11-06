@@ -14,8 +14,7 @@ type SafeNumber float64
 // UnmarshalJSON decerializes a []byte instance into safe tensor.
 func (a *SafeNumber) UnmarshalJSON(data []byte) error { //nolint:all
 	var resp types.Number
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		*a = SafeNumber(0)
 		return nil //nolint:all
 	}
