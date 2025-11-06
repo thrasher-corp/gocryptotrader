@@ -1,6 +1,9 @@
 package huobi
 
-import "github.com/thrasher-corp/gocryptotrader/types"
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/types"
+)
 
 // WsSwapReqKline stores req kline data for swap websocket
 type WsSwapReqKline struct {
@@ -631,20 +634,20 @@ type BasisData struct {
 // SwapAccountInformation stores swap account information
 type SwapAccountInformation struct {
 	Data []struct {
-		Symbol            string  `json:"symbol"`
-		ContractCode      string  `json:"contract_code"`
-		MarginBalance     float64 `json:"margin_balance"`
-		MarginPosition    float64 `json:"margin_position"`
-		MarginFrozen      float64 `json:"margin_frozen"`
-		MarginAvailable   float64 `json:"margin_available"`
-		ProfitReal        float64 `json:"profit_real"`
-		ProfitUnreal      float64 `json:"profit_unreal"`
-		WithdrawAvailable float64 `json:"withdraw_available"`
-		RiskRate          float64 `json:"risk_rate"`
-		LiquidationPrice  float64 `json:"liquidation_price"`
-		AdjustFactor      float64 `json:"adjust_factor"`
-		LeverageRate      float64 `json:"lever_rate"`
-		MarginStatic      float64 `json:"margin_static"`
+		Symbol            currency.Code `json:"symbol"`
+		ContractCode      string        `json:"contract_code"`
+		MarginBalance     float64       `json:"margin_balance"`
+		MarginPosition    float64       `json:"margin_position"`
+		MarginFrozen      float64       `json:"margin_frozen"`
+		MarginAvailable   float64       `json:"margin_available"`
+		ProfitReal        float64       `json:"profit_real"`
+		ProfitUnreal      float64       `json:"profit_unreal"`
+		WithdrawAvailable float64       `json:"withdraw_available"`
+		RiskRate          float64       `json:"risk_rate"`
+		LiquidationPrice  float64       `json:"liquidation_price"`
+		AdjustFactor      float64       `json:"adjust_factor"`
+		LeverageRate      float64       `json:"lever_rate"`
+		MarginStatic      float64       `json:"margin_static"`
 	} `json:"data"`
 }
 
@@ -724,20 +727,20 @@ type SubAccountsAssetData struct {
 type SingleSubAccountAssetsInfo struct {
 	Timestamp types.Time `json:"ts"`
 	Data      []struct {
-		Symbol            string  `json:"symbol"`
-		ContractCode      string  `json:"contract_code"`
-		MarginBalance     float64 `json:"margin_balance"`
-		MarginPosition    float64 `json:"margin_position"`
-		MarginFrozen      float64 `json:"margin_frozen"`
-		MarginAvailable   float64 `json:"margin_available"`
-		ProfitReal        float64 `json:"profit_real"`
-		ProfitUnreal      float64 `json:"profit_unreal"`
-		WithdrawAvailable float64 `json:"withdraw_available"`
-		RiskRate          float64 `json:"risk_rate"`
-		LiquidationPrice  float64 `json:"liquidation_price"`
-		AdjustFactor      float64 `json:"adjust_factor"`
-		LeverageRate      float64 `json:"lever_rate"`
-		MarginStatic      float64 `json:"margin_static"`
+		Symbol            currency.Code `json:"symbol"`
+		ContractCode      string        `json:"contract_code"`
+		MarginBalance     float64       `json:"margin_balance"`
+		MarginPosition    float64       `json:"margin_position"`
+		MarginFrozen      float64       `json:"margin_frozen"`
+		MarginAvailable   float64       `json:"margin_available"`
+		ProfitReal        float64       `json:"profit_real"`
+		ProfitUnreal      float64       `json:"profit_unreal"`
+		WithdrawAvailable float64       `json:"withdraw_available"`
+		RiskRate          float64       `json:"risk_rate"`
+		LiquidationPrice  float64       `json:"liquidation_price"`
+		AdjustFactor      float64       `json:"adjust_factor"`
+		LeverageRate      float64       `json:"lever_rate"`
+		MarginStatic      float64       `json:"margin_static"`
 	} `json:"data"`
 }
 

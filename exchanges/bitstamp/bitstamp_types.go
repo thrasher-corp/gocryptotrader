@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -37,17 +38,11 @@ type Ticker struct {
 	PercentChange24 float64    `json:"percent_change_24,string"`
 }
 
-// OrderbookBase holds singular price information
-type OrderbookBase struct {
-	Price  float64
-	Amount float64
-}
-
 // Orderbook holds orderbook information
 type Orderbook struct {
 	Timestamp time.Time
-	Bids      []OrderbookBase
-	Asks      []OrderbookBase
+	Bids      []orderbook.Level
+	Asks      []orderbook.Level
 }
 
 // TradingPair holds trading pair information
@@ -276,10 +271,10 @@ type websocketOrderBookResponse struct {
 }
 
 type websocketOrderBook struct {
-	Asks           [][2]types.Number `json:"asks"`
-	Bids           [][2]types.Number `json:"bids"`
-	Timestamp      types.Time        `json:"timestamp"`
-	Microtimestamp types.Time        `json:"microtimestamp"`
+	Asks           orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids           orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Timestamp      types.Time                       `json:"timestamp"`
+	Microtimestamp types.Time                       `json:"microtimestamp"`
 }
 
 // OHLCResponse holds returned candle data

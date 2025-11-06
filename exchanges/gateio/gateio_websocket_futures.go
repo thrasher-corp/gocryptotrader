@@ -13,8 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -214,11 +214,11 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	}
 }
 
-func (e *Exchange) generateFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
-	var creds *account.Credentials
+	var creds *accounts.Credentials
 	var err error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = e.GetCredentials(ctx)
@@ -313,7 +313,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, conn websocket.Co
 			params[0] = "ob." + params[0] + "." + strconv.FormatUint(uintLvl, 10)
 		}
 		outbound = append(outbound, WsInput{
-			ID:      conn.GenerateMessageID(false),
+			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
@@ -400,7 +400,7 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, assetType asset.Item)
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].Name, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
-			return errors.New("malformed futures candlestick websocket push data")
+			return fmt.Errorf("%w: futures candlestick websocket", common.ErrMalformedData)
 		}
 		currencyPair, err := currency.NewPairFromString(strings.Join(icp[1:], currency.UnderscoreDelimiter))
 		if err != nil {
@@ -665,36 +665,31 @@ func (e *Exchange) processPositionCloseData(data []byte) error {
 }
 
 func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
-	var resp []WsBalance
+	var resp []*WsBalance
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-
-	changes := make([]account.Change, len(resp))
-	for x, bal := range resp {
+	subAccts := accounts.SubAccounts{}
+	for _, bal := range resp {
 		c := bal.Currency
 		if assetType == asset.Options && c.IsEmpty() {
 			c = currency.USDT // Settlement currency is USDT
 		}
-		changes[x] = account.Change{
-			AssetType: assetType,
-			Account:   bal.User,
-			Balance: &account.Balance{
-				Currency:               c,
-				Total:                  bal.Balance,
-				Free:                   bal.Balance,
-				AvailableWithoutBorrow: bal.Balance,
-				UpdatedAt:              bal.Time.Time(),
-			},
-		}
+		a := accounts.NewSubAccount(assetType, bal.User)
+		a.Balances.Set(c, accounts.Balance{
+			Total:                  bal.Balance,
+			Free:                   bal.Balance,
+			AvailableWithoutBorrow: bal.Balance,
+			UpdatedAt:              bal.Time.Time(),
+		})
+		subAccts = subAccts.Merge(a)
 	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	err := e.Accounts.Save(ctx, subAccts, false)
+	if err == nil {
+		e.Websocket.DataHandler <- subAccts
+	}
+	return err
 }
 
 func (e *Exchange) processFuturesReduceRiskLimitNotification(data []byte) error {

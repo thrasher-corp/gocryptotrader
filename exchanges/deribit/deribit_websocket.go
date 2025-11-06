@@ -273,9 +273,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		return e.processData(respRaw, platformState)
 	case "quote": // Quote ticker information.
 		return e.processQuoteTicker(respRaw, channels)
-	case "rfq":
-		rfq := &wsRequestForQuote{}
-		return e.processData(respRaw, rfq)
 	case "ticker":
 		return e.processInstrumentTicker(respRaw, channels)
 	case "trades":
@@ -338,7 +335,7 @@ func (e *Exchange) wsSendHeartbeat(ctx context.Context) {
 
 func (e *Exchange) processUserOrders(respRaw []byte, channels []string) error {
 	if len(channels) != 4 && len(channels) != 5 {
-		return fmt.Errorf("%w, expected format 'user.orders.{instrument_name}.raw, user.orders.{instrument_name}.{interval}, user.orders.{kind}.{currency}.raw, or user.orders.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+		return fmt.Errorf("%w, expected format 'user.orders.{instrument_name}.raw, user.orders.{instrument_name}.{interval}, user.orders.{kind}.{currency}.raw, or user.orders.{kind}.{currency}.{interval}', but found %s", common.ErrMalformedData, strings.Join(channels, "."))
 	}
 	var response wsResponse
 	orderData := []WsOrder{}
@@ -387,7 +384,7 @@ func (e *Exchange) processUserOrders(respRaw []byte, channels []string) error {
 
 func (e *Exchange) processUserOrderChanges(respRaw []byte, channels []string) error {
 	if len(channels) < 4 || len(channels) > 5 {
-		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", common.ErrMalformedData, strings.Join(channels, "."))
 	}
 	var response wsResponse
 	changeData := &wsChanges{}
@@ -497,7 +494,7 @@ func (e *Exchange) processTrades(respRaw []byte, channels []string) error {
 	}
 
 	if len(channels) < 3 || len(channels) > 5 {
-		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", common.ErrMalformedData, strings.Join(channels, "."))
 	}
 	var response wsResponse
 	var tradeList []wsTrade
@@ -541,7 +538,7 @@ func (e *Exchange) processTrades(respRaw []byte, channels []string) error {
 
 func (e *Exchange) processIncrementalTicker(respRaw []byte, channels []string) error {
 	if len(channels) != 2 {
-		return fmt.Errorf("%w, expected format 'incremental_ticker.{instrument_name}', but found %s", errMalformedData, strings.Join(channels, "."))
+		return fmt.Errorf("%w, expected format 'incremental_ticker.{instrument_name}', but found %s", common.ErrMalformedData, strings.Join(channels, "."))
 	}
 	a, cp, err := getAssetPairByInstrument(channels[1])
 	if err != nil {
@@ -573,7 +570,7 @@ func (e *Exchange) processIncrementalTicker(respRaw []byte, channels []string) e
 
 func (e *Exchange) processInstrumentTicker(respRaw []byte, channels []string) error {
 	if len(channels) != 3 {
-		return fmt.Errorf("%w, expected format 'ticker.{instrument_name}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+		return fmt.Errorf("%w, expected format 'ticker.{instrument_name}.{interval}', but found %s", common.ErrMalformedData, strings.Join(channels, "."))
 	}
 	return e.processTicker(respRaw, channels)
 }
@@ -628,7 +625,7 @@ func (e *Exchange) processData(respRaw []byte, result any) error {
 
 func (e *Exchange) processCandleChart(respRaw []byte, channels []string) error {
 	if len(channels) != 4 {
-		return fmt.Errorf("%w, expected format 'chart.trades.{instrument_name}.{resolution}', but found %s", errMalformedData, strings.Join(channels, "."))
+		return fmt.Errorf("%w, expected format 'chart.trades.{instrument_name}.{resolution}', but found %s", common.ErrInvalidResponse, strings.Join(channels, "."))
 	}
 	a, cp, err := getAssetPairByInstrument(channels[2])
 	if err != nil {
@@ -671,15 +668,15 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 		asks := make(orderbook.Levels, 0, len(orderbookData.Asks))
 		for x := range orderbookData.Asks {
 			if len(orderbookData.Asks[x]) != 3 {
-				return errMalformedData
+				return common.ErrMalformedData
 			}
 			price, okay := orderbookData.Asks[x][1].(float64)
 			if !okay {
-				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
+				return fmt.Errorf("%w, invalid orderbook price", common.ErrMalformedData)
 			}
 			amount, okay := orderbookData.Asks[x][2].(float64)
 			if !okay {
-				return fmt.Errorf("%w, invalid amount", errMalformedData)
+				return fmt.Errorf("%w, invalid amount", common.ErrMalformedData)
 			}
 			asks = append(asks, orderbook.Level{
 				Price:  price,
@@ -689,17 +686,17 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 		bids := make(orderbook.Levels, 0, len(orderbookData.Bids))
 		for x := range orderbookData.Bids {
 			if len(orderbookData.Bids[x]) != 3 {
-				return errMalformedData
+				return common.ErrMalformedData
 			}
 			price, okay := orderbookData.Bids[x][1].(float64)
 			if !okay {
-				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
+				return fmt.Errorf("%w, invalid orderbook price", common.ErrMalformedData)
 			} else if price == 0.0 {
 				continue
 			}
 			amount, okay := orderbookData.Bids[x][2].(float64)
 			if !okay {
-				return fmt.Errorf("%w, invalid amount", errMalformedData)
+				return fmt.Errorf("%w, invalid amount", common.ErrMalformedData)
 			}
 			bids = append(bids, orderbook.Level{
 				Price:  price,
@@ -740,17 +737,17 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 		asks := make(orderbook.Levels, 0, len(orderbookData.Asks))
 		for x := range orderbookData.Asks {
 			if len(orderbookData.Asks[x]) != 2 {
-				return errMalformedData
+				return common.ErrMalformedData
 			}
 			price, okay := orderbookData.Asks[x][0].(float64)
 			if !okay {
-				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
+				return fmt.Errorf("%w, invalid orderbook price", common.ErrMalformedData)
 			} else if price == 0 {
 				continue
 			}
 			amount, okay := orderbookData.Asks[x][1].(float64)
 			if !okay {
-				return fmt.Errorf("%w, invalid amount", errMalformedData)
+				return fmt.Errorf("%w, invalid amount", common.ErrMalformedData)
 			}
 			asks = append(asks, orderbook.Level{
 				Price:  price,
@@ -760,17 +757,17 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 		bids := make([]orderbook.Level, 0, len(orderbookData.Bids))
 		for x := range orderbookData.Bids {
 			if len(orderbookData.Bids[x]) != 2 {
-				return errMalformedData
+				return common.ErrMalformedData
 			}
 			price, okay := orderbookData.Bids[x][0].(float64)
 			if !okay {
-				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
+				return fmt.Errorf("%w, invalid orderbook price", common.ErrMalformedData)
 			} else if price == 0 {
 				continue
 			}
 			amount, okay := orderbookData.Bids[x][1].(float64)
 			if !okay {
-				return fmt.Errorf("%w, invalid amount", errMalformedData)
+				return fmt.Errorf("%w, invalid amount", common.ErrMalformedData)
 			}
 			bids = append(bids, orderbook.Level{
 				Price:  price,

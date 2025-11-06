@@ -141,8 +141,7 @@ func (b *Base) ExchangeExists(exchangeName string) bool {
 	})
 }
 
-// AddressExists checks to see if there is an address associated with the
-// portfolio base
+// AddressExists checks to see if there is an address associated with the portfolio base
 func (b *Base) AddressExists(address string) bool {
 	b.mtx.RLock()
 	defer b.mtx.RUnlock()
@@ -181,7 +180,7 @@ func (b *Base) AddExchangeAddress(exchangeName string, coinType currency.Code, b
 	})
 }
 
-// UpdateAddressBalance updates the portfolio base balance
+// UpdateAddressBalance updates the portfolio base balance.
 func (b *Base) UpdateAddressBalance(address string, amount float64) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
@@ -203,8 +202,7 @@ func (b *Base) RemoveExchangeAddress(exchangeName string, coinType currency.Code
 	}))
 }
 
-// UpdateExchangeAddressBalance updates the portfolio balance when checked
-// against correct exchangeName and coinType.
+// UpdateExchangeAddressBalance updates the portfolio balance when checked against correct exchangeName and coinType.
 func (b *Base) UpdateExchangeAddressBalance(exchangeName string, coinType currency.Code, balance float64) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
@@ -216,7 +214,7 @@ func (b *Base) UpdateExchangeAddressBalance(exchangeName string, coinType curren
 	}
 }
 
-// AddAddress adds an address to the portfolio base or updates its balance if it already exists
+// AddAddress adds an address to the portfolio base or updates its balance if it already exists.
 func (b *Base) AddAddress(address, description string, coinType currency.Code, balance float64) error {
 	if address == "" {
 		return common.ErrAddressIsEmptyOrInvalid

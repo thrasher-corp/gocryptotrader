@@ -11,10 +11,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -221,13 +221,12 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	pairs, err := e.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = e.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
+	if err := e.UpdatePairs(pairs, asset.Spot, false); err != nil {
 		return err
 	}
 	return e.EnsureOnePairEnabled()
@@ -318,76 +317,44 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Book{
+	orderbookNew, err := e.GetOrderBookDepth(ctx, pair, 1000)
+	if err != nil {
+		return nil, err
+	}
+	ob := &orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              pair,
 		Asset:             assetType,
 		ValidateOrderbook: e.ValidateOrderbook,
+		Bids:              orderbookNew.Bids,
+		Asks:              orderbookNew.Asks,
 	}
-
-	orderbookNew, err := e.GetOrderBookDepth(ctx, &OrderBookDataRequestParams{
-		Symbol: pair,
-		Limit:  1000,
-	})
-	if err != nil {
-		return book, err
-	}
-	book.Bids = make([]orderbook.Level, len(orderbookNew.Bids))
-	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Level{
-			Amount: orderbookNew.Bids[x].Quantity,
-			Price:  orderbookNew.Bids[x].Price,
-		}
-	}
-	book.Asks = make([]orderbook.Level, len(orderbookNew.Asks))
-	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Level{
-			Amount: orderbookNew.Asks[x].Quantity,
-			Price:  orderbookNew.Asks[x].Price,
-		}
-	}
-	err = book.Process()
-	if err != nil {
-		return book, err
+	if err := ob.Process(); err != nil {
+		return nil, err
 	}
 	return orderbook.Get(e.Name, pair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var acc account.SubAccount
-	info.Exchange = e.Name
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if assetType != asset.Spot {
-		return info, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	theAccount, err := e.GetAccount(ctx)
+	resp, err := e.GetAccount(ctx)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	currencyBalance := make([]account.Balance, len(theAccount.Balances))
-	for i := range theAccount.Balances {
-		freeBalance := theAccount.Balances[i].Free.InexactFloat64()
-		locked := theAccount.Balances[i].Locked.InexactFloat64()
-
-		currencyBalance[i] = account.Balance{
-			Currency: currency.NewCode(theAccount.Balances[i].Asset),
-			Total:    freeBalance + locked,
-			Hold:     locked,
-			Free:     freeBalance,
-		}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for i := range resp.Balances {
+		freeBalance := resp.Balances[i].Free.InexactFloat64()
+		locked := resp.Balances[i].Locked.InexactFloat64()
+		subAccts[0].Balances.Set(resp.Balances[i].Asset, accounts.Balance{
+			Total: freeBalance + locked,
+			Hold:  locked,
+			Free:  freeBalance,
+		})
 	}
-	acc.Currencies = currencyBalance
-	acc.AssetType = assetType
-	info.Accounts = append(info.Accounts, acc)
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return info, err
-	}
-	if err := account.Process(&info, creds); err != nil {
-		return account.Holdings{}, err
-	}
-	return info, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
@@ -467,8 +434,8 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 	}
 	req := AggregatedTradeRequestParams{
 		Symbol:    p,
-		StartTime: timestampStart.UnixMilli(),
-		EndTime:   timestampEnd.UnixMilli(),
+		StartTime: timestampStart,
+		EndTime:   timestampEnd,
 	}
 	trades, err := e.GetAggregateTrades(ctx, &req)
 	if err != nil {
@@ -542,9 +509,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return &submitOrderResponse, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
-func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+// ModifyOrder modifies an existing order
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -796,7 +762,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 
 // ValidateAPICredentials validates current credentials used for wrapper
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

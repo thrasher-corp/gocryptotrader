@@ -14,10 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -253,16 +253,14 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	assets := e.CurrencyPairs.GetAssetTypes(false)
 	for i := range assets {
 		pairs, err := e.FetchTradablePairs(ctx, assets[i])
 		if err != nil {
 			return err
 		}
-
-		err = e.UpdatePairs(pairs, assets[i], false, forceUpdate)
-		if err != nil {
+		if err := e.UpdatePairs(pairs, assets[i], false); err != nil {
 			return err
 		}
 	}
@@ -406,50 +404,23 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(e.Name, fPair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies on the
-// Bitfinex exchange
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
-	response.Exchange = e.Name
-
-	accountBalance, err := e.GetAccountBalance(ctx)
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	resp, err := e.GetAccountBalance(ctx)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
-
-	Accounts := []account.SubAccount{
-		{ID: "deposit", AssetType: assetType},
-		{ID: "exchange", AssetType: assetType},
-		{ID: "trading", AssetType: assetType},
-		{ID: "margin", AssetType: assetType},
-		{ID: "funding", AssetType: assetType},
+	subAccts := accounts.SubAccounts{}
+	for i := range resp {
+		a := accounts.NewSubAccount(assetType, resp[i].Type)
+		a.Balances.Set(resp[i].Currency, accounts.Balance{
+			Total: resp[i].Amount,
+			Hold:  resp[i].Amount - resp[i].Available,
+			Free:  resp[i].Available,
+		})
+		subAccts = subAccts.Merge(a)
 	}
-
-	for x := range accountBalance {
-		for i := range Accounts {
-			if Accounts[i].ID == accountBalance[x].Type {
-				Accounts[i].Currencies = append(Accounts[i].Currencies,
-					account.Balance{
-						Currency: currency.NewCode(accountBalance[x].Currency),
-						Total:    accountBalance[x].Amount,
-						Hold:     accountBalance[x].Amount - accountBalance[x].Available,
-						Free:     accountBalance[x].Available,
-					})
-			}
-		}
-	}
-
-	response.Accounts = Accounts
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	err = account.Process(&response, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return response, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -616,8 +587,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
+// ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
@@ -995,10 +965,9 @@ func (e *Exchange) appendOptionalDelimiter(p *currency.Pair) {
 	}
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

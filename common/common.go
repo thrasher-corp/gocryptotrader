@@ -75,6 +75,7 @@ var (
 	ErrGettingField              = errors.New("error getting field")
 	ErrSettingField              = errors.New("error setting field")
 	ErrParsingWSField            = errors.New("error parsing websocket field")
+	ErrMalformedData             = errors.New("malformed data")
 )
 
 var (
@@ -682,4 +683,14 @@ func (c *Counter) IncrementAndGet() int64 {
 		return 1
 	}
 	return newID
+}
+
+// SetIfZero sets the value of p to def if p is the zero value for its type and returns true if it was set
+func SetIfZero[T comparable](p *T, def T) bool {
+	var zero T
+	if *p != zero {
+		return false
+	}
+	*p = def
+	return true
 }

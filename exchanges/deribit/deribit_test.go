@@ -90,7 +90,7 @@ func TestMain(m *testing.M) {
 }
 
 func instantiateTradablePairs() {
-	if err := e.UpdateTradablePairs(context.Background(), true); err != nil {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		log.Fatalf("Failed to update tradable pairs. Error: %v", err)
 	}
 
@@ -733,7 +733,7 @@ func TestWSRetrieveLastTradesByInstrumentAndTime(t *testing.T) {
 func TestWSProcessTrades(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup instance must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
 	close(e.Websocket.DataHandler)
@@ -853,24 +853,6 @@ func TestGetSupportedIndexNames(t *testing.T) {
 func TestWsRetrieveSupportedIndexNames(t *testing.T) {
 	t.Parallel()
 	result, err := e.WsRetrieveSupportedIndexNames(t.Context(), "derivative")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetRequestForQuote(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetRequestForQuote(t.Context(), currency.EMPTYCODE, e.GetAssetKind(asset.Futures))
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	result, err := e.GetRequestForQuote(t.Context(), currency.BTC, e.GetAssetKind(asset.Futures))
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestWSRetrieveRequestForQuote(t *testing.T) {
-	t.Parallel()
-	_, err := e.WSRetrieveRequestForQuote(t.Context(), currency.EMPTYCODE, e.GetAssetKind(asset.Futures))
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	result, err := e.WSRetrieveRequestForQuote(t.Context(), currency.BTC, e.GetAssetKind(asset.Futures))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2624,26 +2606,6 @@ func TestWSResetMMP(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSendRequestForQuote(t *testing.T) {
-	t.Parallel()
-	err := e.SendRequestForQuote(t.Context(), "", 1000, order.Buy)
-	require.ErrorIs(t, err, errInvalidInstrumentName)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	err = e.SendRequestForQuote(t.Context(), formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy)
-	assert.NoError(t, err)
-}
-
-func TestWSSendRequestForQuote(t *testing.T) {
-	t.Parallel()
-	err := e.WSSendRequestForQuote(t.Context(), "", 1000, order.Buy)
-	require.ErrorIs(t, err, errInvalidInstrumentName)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	err = e.WSSendRequestForQuote(t.Context(), formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy)
-	assert.NoError(t, err)
-}
-
 func TestSetMMPConfig(t *testing.T) {
 	t.Parallel()
 	err := e.SetMMPConfig(t.Context(), currency.EMPTYCODE, kline.FiveMin, 5, 0, 0)
@@ -3348,7 +3310,7 @@ func setupWs() {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -3423,10 +3385,10 @@ func TestChannelName(t *testing.T) {
 	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: "wibble"}) }, "Unknown channels should panic")
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.UpdateAccountInfo(t.Context(), asset.Futures)
+	result, err := e.UpdateAccountBalances(t.Context(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3589,7 +3551,12 @@ func TestGetAssetFromInstrument(t *testing.T) {
 		{"PAXG_USDC-12SEP25-3320-P", asset.Options, nil},
 		{"ETH-3OCT25-4800-P", asset.Options, nil},
 		{"ETH-FS-26JUN26_26DEC25", asset.FutureCombo, nil},
+		{"BTC-FS-28NOV25_PERP", asset.FutureCombo, nil},
+		{"BTC-USDC-FS-28NOV25_PERP", asset.FutureCombo, nil},
 		{"BTC_USDC-PBUT-31OCT25-90000_100000_102000", asset.OptionCombo, nil},
+		{"BTC_USDC-CS-31OCT25-107000_111000", asset.OptionCombo, nil},
+		{"BTC-ICOND-14NOV25-100000_105000_125000_130000", asset.OptionCombo, nil},
+		{"BTC-PCAL-14NOV25_7NOV25-112000", asset.OptionCombo, nil},
 		{"XRP_USDC-CBUT-26SEP25-2d9_3d2_3d4", asset.OptionCombo, nil},
 		{"ETH-CS-26SEP25-5000_5500", asset.OptionCombo, nil},
 		{"HELLOMOTO", asset.Empty, errUnsupportedInstrumentFormat},

@@ -1,6 +1,6 @@
 # GoCryptoTrader ADD NEW EXCHANGE
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
+<img src="/docs/assets/page-logo.png" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -361,8 +361,9 @@ Ensure each endpoint is implemented and has an associated test to improve test c
 
 #### Message IDs
 
-Use e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs. Otherwise override MessageID with a suitable alternative.
-For example: Consider common.Counter for simple integer IDs if uniqueness isn't critical.
+* e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs
+* e.MessageSequence() to get a simple integer ID if uniqueness is not critical
+* Otherwise override MessageID with a suitable alternative
 
 #### Authenticated functions
 

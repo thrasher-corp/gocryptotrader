@@ -16,11 +16,11 @@ import (
 var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
 
 type orderbookResponse struct {
-	Symbol    string            `json:"s"`
-	Asks      [][2]types.Number `json:"a"`
-	Bids      [][2]types.Number `json:"b"`
-	Timestamp types.Time        `json:"ts"`
-	UpdateID  int64             `json:"u"`
+	Symbol    string                           `json:"s"`
+	Asks      orderbook.LevelsArrayPriceAmount `json:"a"`
+	Bids      orderbook.LevelsArrayPriceAmount `json:"b"`
+	Timestamp types.Time                       `json:"ts"`
+	UpdateID  int64                            `json:"u"`
 }
 
 // Authenticate stores authentication variables required
@@ -55,9 +55,9 @@ type AccountFee struct {
 
 // InstrumentsInfo represents a category, page indicator, and list of instrument information.
 type InstrumentsInfo struct {
-	Category       string           `json:"category"`
-	List           []InstrumentInfo `json:"list"`
-	NextPageCursor string           `json:"nextPageCursor"`
+	Category       string            `json:"category"`
+	List           []*InstrumentInfo `json:"list"`
+	NextPageCursor string            `json:"nextPageCursor"`
 }
 
 // InstrumentInfo holds all instrument info across
@@ -86,15 +86,16 @@ type InstrumentInfo struct {
 		TickSize types.Number `json:"tickSize"`
 	} `json:"priceFilter"`
 	LotSizeFilter struct {
-		MaxOrderQty         types.Number `json:"maxOrderQty"`
-		MinOrderQty         types.Number `json:"minOrderQty"`
-		QtyStep             types.Number `json:"qtyStep"`
-		PostOnlyMaxOrderQty types.Number `json:"postOnlyMaxOrderQty"`
-		BasePrecision       types.Number `json:"basePrecision"`
-		QuotePrecision      types.Number `json:"quotePrecision"`
-		MinOrderAmt         types.Number `json:"minOrderAmt"`
-		MaxOrderAmt         types.Number `json:"maxOrderAmt"`
-		MinNotionalValue    types.Number `json:"minNotionalValue"`
+		MaxOrderQuantity         types.Number `json:"maxOrderQty"`
+		MinOrderQuantity         types.Number `json:"minOrderQty"`
+		QuantityStep             types.Number `json:"qtyStep"`
+		PostOnlyMaxOrderQuantity types.Number `json:"postOnlyMaxOrderQty"`
+		BasePrecision            types.Number `json:"basePrecision"`
+		QuotePrecision           types.Number `json:"quotePrecision"`
+		MinOrderAmount           types.Number `json:"minOrderAmt"`
+		MaxOrderAmount           types.Number `json:"maxOrderAmt"`
+		MinNotionalValue         types.Number `json:"minNotionalValue"`
+		MaxMarketOrderQuantity   types.Number `json:"maxMktOrderQty"`
 	} `json:"lotSizeFilter"`
 	UnifiedMarginTrade bool   `json:"unifiedMarginTrade"`
 	FundingInterval    int64  `json:"fundingInterval"`
@@ -1749,11 +1750,11 @@ type Orderbook struct {
 
 // WsOrderbookDetail represents an orderbook detail information.
 type WsOrderbookDetail struct {
-	Symbol   string            `json:"s"`
-	Bids     [][2]types.Number `json:"b"`
-	Asks     [][2]types.Number `json:"a"`
-	UpdateID int64             `json:"u"`
-	Sequence int64             `json:"seq"`
+	Symbol   string                           `json:"s"`
+	Bids     orderbook.LevelsArrayPriceAmount `json:"b"`
+	Asks     orderbook.LevelsArrayPriceAmount `json:"a"`
+	UpdateID int64                            `json:"u"`
+	Sequence int64                            `json:"seq"`
 }
 
 // SubscriptionResponse represents a subscription response.

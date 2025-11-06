@@ -54,7 +54,7 @@ func TestPairsFromString(t *testing.T) {
 	_, err := NewPairsFromString("", "")
 	assert.ErrorIs(t, err, errNoDelimiter)
 	_, err = NewPairsFromString("", ",")
-	assert.ErrorIs(t, err, ErrCannotCreatePair)
+	assert.ErrorIs(t, err, ErrCreatingPair)
 
 	pairs, err := NewPairsFromString("ALGO-AUD,BAT-AUD,BCH-AUD,BSV-AUD,BTC-AUD,COMP-AUD,ENJ-AUD,ETC-AUD,ETH-AUD,ETH-BTC,GNT-AUD,LINK-AUD,LTC-AUD,LTC-BTC,MCAU-AUD,OMG-AUD,POWR-AUD,UNI-AUD,USDT-AUD,XLM-AUD,XRP-AUD,XRP-BTC", ",")
 	require.NoError(t, err)

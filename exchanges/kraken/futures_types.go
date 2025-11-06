@@ -421,8 +421,8 @@ type FuturesNotificationData struct {
 
 // FuturesAccountsData stores account data
 type FuturesAccountsData struct {
-	ServerTime string                  `json:"serverTime"`
-	Accounts   map[string]AccountsData `json:"accounts"`
+	ServerTime string                   `json:"serverTime"`
+	Accounts   map[string]*AccountsData `json:"accounts"`
 }
 
 // AccountsData stores data of an account
