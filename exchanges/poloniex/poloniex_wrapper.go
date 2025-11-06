@@ -1160,7 +1160,7 @@ func stringToOrderSide(orderSide string) order.Side {
 
 // orderStateFromString returns an order.Status instance from a string representation
 func orderStateFromString(orderState string) order.Status {
-	switch orderState {
+	switch strings.ToUpper(orderState) {
 	case "NEW":
 		return order.New
 	case "FAILED":

@@ -2484,6 +2484,7 @@ func TestOrderStateString(t *testing.T) {
 		"FAILED":             order.Rejected,
 		"FILLED":             order.Filled,
 		"CANCELED":           order.Cancelled,
+		"PENDING_Cancel":     order.PendingCancel,
 		"abcd":               order.UnknownStatus,
 		"PARTIALLY_FILLED":   order.PartiallyFilled,
 		"PARTIALLY_CANCELED": order.PartiallyCancelled,
