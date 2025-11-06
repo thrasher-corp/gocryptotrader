@@ -218,7 +218,7 @@ func checkAccountChange(ctx context.Context, t *testing.T, exch *Exchange, tc *w
 func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e))
 	e.Name = "ProcessOrderbookUpdateWithSnapshot"
 	e.Features.Subscriptions = subscription.List{
