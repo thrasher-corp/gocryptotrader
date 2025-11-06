@@ -771,15 +771,42 @@ func TestGetDeliveryPrice(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+
+	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 			pairs, err := e.CurrencyPairs.GetPairs(a, true)
 			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+
+			for _, p := range pairs {
+				t.Run(p.String(), func(t *testing.T) {
+					t.Parallel()
+					l, err := e.GetOrderExecutionLimits(a, p)
+					require.NoError(t, err, "GetOrderExecutionLimits must not error")
+					assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+
+					if !l.Delisted.IsZero() {
+						assert.NotZero(t, l.Delisting, "Delisting should be set for Delisted coins")
+					}
+
+					pair := l.Key.Pair()
+					require.True(t, pair.Equal(p), "Pair must be equal to input")
+					require.Greater(t, len(pair.String()), 3, "pair string length must be > 3 to check for 1xxx rule")
+					require.Equal(t, e.Name, l.Key.Exchange, "Exchange must be equal to input")
+					require.Equal(t, a, l.Key.Asset, "Asset must be equal to input")
+
+					assert.Positive(t, l.PriceDivisor, "PriceDivisor should be positive")
+					if pair.String()[:2] == "10" {
+						assert.Greater(t, l.PriceDivisor, 1.0, "PriceDivisor for 1xxx pairs should be > 1.0")
+					}
+
+					if a == asset.USDTMarginedFutures && !pair.Quote.Equal(currency.USDT) {
+						assert.NotZero(t, l.Expiry, "Expiry should be set for USDT margined non-USDT pairs")
+					}
+				})
+			}
 		})
 	}
 }
