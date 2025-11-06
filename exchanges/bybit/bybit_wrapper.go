@@ -13,11 +13,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -255,7 +255,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.Spot, resp)
 		},
-		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -277,7 +276,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.Options, resp)
 		},
-		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -305,8 +303,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.USDTMarginedFutures, resp)
 		},
-		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
-		MessageFilter:      asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter: asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -334,8 +331,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.USDCMarginedFutures, resp)
 		},
-		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
-		MessageFilter:      asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter: asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -357,7 +353,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.CoinMarginedFutures, resp)
 		},
-		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -376,7 +371,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleTradeData(conn, resp)
 		},
-		RequestIDGenerator:       e.messageIDSeq.IncrementAndGet,
 		Authenticate:             e.WebsocketAuthenticateTradeConnection,
 		MessageFilter:            OutboundTradeConnection,
 		SubscriptionsNotRequired: true,
@@ -400,7 +394,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:            e.authSubscribe,
 		Unsubscriber:          e.authUnsubscribe,
 		Handler:               e.wsHandleAuthenticatedData,
-		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
 		Authenticate:          e.WebsocketAuthenticatePrivateConnection,
 		MessageFilter:         InboundPrivateConnection,
 	})
@@ -419,7 +412,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	}
 	var (
 		pairs    currency.Pairs
-		allPairs []InstrumentInfo
+		allPairs []*InstrumentInfo
 		response *InstrumentsInfo
 	)
 	var nextPageCursor string
@@ -660,16 +653,13 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(e.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var acc account.SubAccount
-	var accountType string
-	info.Exchange = e.Name
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	at, err := e.FetchAccountType(ctx)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
+	var accountType string
 	switch assetType {
 	case asset.Spot, asset.Options, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
 		switch at {
@@ -685,15 +675,15 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	case asset.CoinMarginedFutures:
 		accountType = "CONTRACT"
 	default:
-		return info, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
-	balances, err := e.GetWalletBalance(ctx, accountType, "")
+	resp, err := e.GetWalletBalance(ctx, accountType, "")
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	currencyBalance := []account.Balance{}
-	for i := range balances.List {
-		for _, c := range balances.List[i].Coin {
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for i := range resp.List {
+		for _, c := range resp.List[i].Coin {
 			// borrow amounts get truncated to 8 dec places when total and equity are calculated on the exchange
 			truncBorrow := c.BorrowAmount.Decimal().Truncate(8).InexactFloat64()
 
@@ -706,8 +696,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 				freeBalance = c.AvailableBalanceForSpot.Float64()
 			}
 
-			currencyBalance = append(currencyBalance, account.Balance{
-				Currency:               c.Coin,
+			subAccts[0].Balances.Set(c.Coin, accounts.Balance{
 				Total:                  c.WalletBalance.Float64(),
 				Free:                   freeBalance,
 				Borrowed:               c.BorrowAmount.Float64(),
@@ -716,18 +705,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 			})
 		}
 	}
-	acc.Currencies = currencyBalance
-	acc.AssetType = assetType
-	info.Accounts = append(info.Accounts, acc)
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	err = account.Process(&info, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	return info, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -1481,7 +1459,7 @@ func (e *Exchange) getCategoryFromPair(pair currency.Pair) []asset.Item {
 
 // ValidateAPICredentials validates current credentials used for wrapper
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 
@@ -1652,27 +1630,79 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	l := make([]limits.MinMaxLevel, 0, len(allInstrumentsInfo.List))
-	for x := range allInstrumentsInfo.List {
-		if allInstrumentsInfo.List[x].Status != "Trading" {
-			continue
-		}
-		symbol := allInstrumentsInfo.List[x].transformSymbol(a)
+	for _, inst := range allInstrumentsInfo.List {
+		symbol := inst.transformSymbol(a)
 		pair, err := e.MatchSymbolWithAvailablePairs(symbol, a, true)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "%s unable to load limits for %s %v, pair data missing", e.Name, a, symbol)
 			continue
 		}
+
+		priceDivisor := 1.0
+		if symbol[:2] == "10" { // handle 1000SHIBUSDT, 1000PEPEUSDT etc; screen 1INCHUSDT
+			for _, r := range symbol[1:] {
+				if r != '0' {
+					break
+				}
+				priceDivisor *= 10
+			}
+		}
+
+		var delistingAt time.Time
+		var delistedAt time.Time
+		var delivery time.Time
+		if !inst.DeliveryTime.Time().IsZero() {
+			switch a {
+			case asset.Options:
+				delivery = inst.DeliveryTime.Time()
+			case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.USDCMarginedFutures:
+				switch inst.ContractType {
+				case "LinearFutures", "InverseFutures":
+					delivery = inst.DeliveryTime.Time()
+				default:
+					delistedAt = inst.DeliveryTime.Time()
+					// Not entirely accurate but from docs the system will use the average index price in the last
+					// 30 minutes before the delisting time. See: https://www.bybit.com/en/help-center/article/Bybit-Derivatives-Delisting-Mechanism-DDM
+					delistingAt = delistedAt.Add(-30 * time.Minute)
+				}
+			case asset.Spot:
+				// asset.Spot does not return a delivery time and there is no API field for delisting time
+				log.Warnf(log.ExchangeSys, "%s %s: delivery time returned for spot asset", e.Name, pair)
+			}
+		}
+
+		baseStepAmount := inst.LotSizeFilter.QuantityStep.Float64()
+		if a == asset.Spot {
+			baseStepAmount = inst.LotSizeFilter.BasePrecision.Float64()
+		}
+
+		maxBaseAmount := inst.LotSizeFilter.MaxOrderQuantity.Float64()
+		if a != asset.Spot && a != asset.Options {
+			maxBaseAmount = inst.LotSizeFilter.MaxMarketOrderQuantity.Float64()
+		}
+
+		minQuoteAmount := inst.LotSizeFilter.MinOrderAmount.Float64()
+		if a != asset.Spot {
+			minQuoteAmount = inst.LotSizeFilter.MinNotionalValue.Float64()
+		}
+
 		l = append(l, limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
-			MinimumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),
-			MaximumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64(),
-			MinPrice:                allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
-			MaxPrice:                allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
-			PriceStepIncrementSize:  allInstrumentsInfo.List[x].PriceFilter.TickSize.Float64(),
-			AmountStepIncrementSize: allInstrumentsInfo.List[x].LotSizeFilter.BasePrecision.Float64(),
-			QuoteStepIncrementSize:  allInstrumentsInfo.List[x].LotSizeFilter.QuotePrecision.Float64(),
-			MinimumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
-			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
+			MinimumBaseAmount:       inst.LotSizeFilter.MinOrderQuantity.Float64(),
+			MaximumBaseAmount:       maxBaseAmount,
+			MinPrice:                inst.PriceFilter.MinPrice.Float64(),
+			MaxPrice:                inst.PriceFilter.MaxPrice.Float64(),
+			PriceStepIncrementSize:  inst.PriceFilter.TickSize.Float64(),
+			AmountStepIncrementSize: baseStepAmount,
+			QuoteStepIncrementSize:  inst.LotSizeFilter.QuotePrecision.Float64(),
+			MinimumQuoteAmount:      minQuoteAmount,
+			MaximumQuoteAmount:      inst.LotSizeFilter.MaxOrderAmount.Float64(),
+			Delisting:               delistingAt,
+			Delisted:                delistedAt,
+			Expiry:                  delivery,
+			PriceDivisor:            priceDivisor,
+			Listed:                  inst.LaunchTime.Time(),
+			MultiplierDecimal:       1, // All assets on Bybit are 1x
 		})
 	}
 	return limits.Load(l)
@@ -1802,7 +1832,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
 
-		var instruments []InstrumentInfo
+		var instruments []*InstrumentInfo
 		for i := range linearContracts.List {
 			if linearContracts.List[i].SettleCoin != "USDC" {
 				continue
@@ -1881,7 +1911,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
 
-		var instruments []InstrumentInfo
+		var instruments []*InstrumentInfo
 		for i := range linearContracts.List {
 			if linearContracts.List[i].SettleCoin != "USDT" {
 				continue

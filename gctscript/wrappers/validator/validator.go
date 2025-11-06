@@ -7,7 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -184,32 +184,29 @@ func (w Wrapper) CancelOrder(_ context.Context, exch, orderid string, cp currenc
 	return true, nil
 }
 
-// AccountInformation validator for test execution/scripts
-func (w Wrapper) AccountInformation(_ context.Context, exch string, assetType asset.Item) (account.Holdings, error) {
+// AccountBalances validator for test execution/scripts
+func (w Wrapper) AccountBalances(_ context.Context, exch string, assetType asset.Item) (accounts.SubAccounts, error) {
 	if exch == exchError.String() {
-		return account.Holdings{}, errTestFailed
+		return nil, errTestFailed
 	}
-
-	return account.Holdings{
-		Exchange: exch,
-		Accounts: []account.SubAccount{
-			{
-				ID:        exch,
-				AssetType: assetType,
-				Currencies: []account.Balance{
-					{
-						Currency: currency.Code{
-							Item: &currency.Item{
-								ID:         0,
-								FullName:   "Bitcoin",
-								Symbol:     "BTC",
-								Role:       1,
-								AssocChain: "",
-							},
-						},
-						Total: 100,
-						Hold:  0,
-					},
+	c := currency.Code{
+		Item: &currency.Item{
+			ID:         0,
+			FullName:   "Bitcoin",
+			Symbol:     "BTC",
+			Role:       1,
+			AssocChain: "",
+		},
+	}
+	return accounts.SubAccounts{
+		{
+			ID:        "subacct1",
+			AssetType: assetType,
+			Balances: accounts.CurrencyBalances{
+				c: accounts.Balance{
+					Currency: c,
+					Total:    100,
+					Hold:     0,
 				},
 			},
 		},

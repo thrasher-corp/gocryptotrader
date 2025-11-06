@@ -1707,9 +1707,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 }
 
-func TestGetAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	items := asset.Items{
 		asset.CoinMarginedFutures,
 		asset.USDTMarginedFutures,
@@ -1720,10 +1722,8 @@ func TestGetAccountInfo(t *testing.T) {
 		assetType := items[i]
 		t.Run(fmt.Sprintf("Update info of account [%s]", assetType.String()), func(t *testing.T) {
 			t.Parallel()
-			_, err := e.UpdateAccountInfo(t.Context(), assetType)
-			if err != nil {
-				t.Error(err)
-			}
+			_, err := e.UpdateAccountBalances(t.Context(), assetType)
+			require.NoError(t, err)
 		})
 	}
 }
@@ -1987,7 +1987,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	channels, err := e.generateSubscriptions() // Note: We grab this before it's overwritten by MockWsInstance below
 	require.NoError(t, err, "generateSubscriptions must not error")
@@ -1998,7 +1998,7 @@ func TestSubscribe(t *testing.T) {
 			var req WsPayload
 			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
 			require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
-			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%d}`, req.ID))
+			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":"%s"}`, req.ID))
 		}
 		e = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
@@ -2020,7 +2020,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
 		require.NoError(tb, err, "Unmarshal must not error")
-		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":%d}`, req.ID))
+		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":"%s"}`, req.ID))
 	}
 	b := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	err := b.Subscribe(channels)
@@ -2093,7 +2093,7 @@ func TestWsTradeUpdate(t *testing.T) {
 
 func TestWsDepthUpdate(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	e.setupOrderbookManager(t.Context())
 	seedLastUpdateID := int64(161)
@@ -2459,7 +2459,7 @@ var websocketDepthUpdate = []byte(`{"E":1608001030784,"U":7145637266,"a":[["1945
 
 func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	e.setupOrderbookManager(t.Context())
 	p := currency.NewBTCUSDT()
@@ -2507,7 +2507,7 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 
 func TestWsOrderExecutionReport(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616627567900,"s":"BTCUSDT","c":"c4wyKsIhoAaittTYlIVLqk","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028400","p":"52789.10000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":5340845958,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":"BTC","T":1616627567900,"t":-1,"I":11388173160,"w":true,"m":false,"M":false,"O":1616627567900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000","W":1616627567900}}`)
 	// this is a buy BTC order, normally commission is charged in BTC, vice versa.

@@ -568,7 +568,7 @@ func TestWsGetCurrenciesJSON(t *testing.T) {
     "delisted": false,
     "payoutFee": "0.001"
   },
-  "id": 123
+  "id": "c4ce77f5-1c50-435a-b623-4961191ca129"
 }`)
 	err := e.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -589,7 +589,7 @@ func TestWsGetSymbolsJSON(t *testing.T) {
     "provideLiquidityRate": "-0.0001",
     "feeCurrency": "BTC"
   },
-  "id": 123
+  "id": "1c847290-b366-412b-b8f5-dc630ed5b147"
 }`)
 	err := e.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -744,7 +744,7 @@ func TestWsSubmitOrderJSON(t *testing.T) {
     "updatedAt": "2017-10-20T12:29:43.166Z",
     "reportType": "new"
   },
-  "id": 123
+  "id": "99f55c70-1166-49a7-87e9-3b54a00ad893"
 }`)
 	err := e.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -771,7 +771,7 @@ func TestWsCancelOrderJSON(t *testing.T) {
     "updatedAt": "2017-10-20T12:31:26.174Z",
     "reportType": "canceled"
   },
-  "id": 123
+  "id": "2ce46937-2770-4453-ac99-ee87939bf5bb"
 }`)
 	err := e.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -799,7 +799,7 @@ func TestWsCancelReplaceJSON(t *testing.T) {
     "reportType": "replaced",
     "originalRequestClientOrderId": "9cbe79cb6f864b71a811402a48d4b5b1"
   },
-  "id": 123
+  "id": "91e925d3-3b95-4e29-8ae7-938fd5006709"
 }`)
 	err := e.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -827,7 +827,7 @@ func TestWsGetTradesRequestResponse(t *testing.T) {
       "reserved": "0.00200000"
     }
   ],
-  "id": 123
+  "id": "4b1f1391-215e-4d12-972c-5cea9d50edf4"
 }`)
 	err := e.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -857,7 +857,7 @@ func TestWsGetActiveOrdersRequestJSON(t *testing.T) {
       "originalRequestClientOrderId": "9cbe79cb6f864b71a811402a48d4b5b1"
     }
   ],
-  "id": 123
+  "id": "9e67b440-2eec-445a-be3a-e81f962c8391"
 }`)
 	err := e.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -992,9 +992,14 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	if _, err := e.FetchTradablePairs(t.Context(), asset.Spot); err != nil {
-		t.Fatal(err)
-	}
+
+	_, err := e.FetchTradablePairs(t.Context(), asset.Futures)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	r, err := e.FetchTradablePairs(t.Context(), asset.Spot)
+	require.NoError(t, err)
+	require.NotEmpty(t, r)
+	assert.Contains(t, r, spotPair, "BTC-USD should be in the fetched pairs")
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {
