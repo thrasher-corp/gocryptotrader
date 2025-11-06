@@ -38,7 +38,7 @@ func TestResubscribe(t *testing.T) {
 
 	conn := &FixtureConnection{}
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e))
 	e.Name = "Resubscribe"
 
