@@ -1169,6 +1169,8 @@ func orderStateFromString(orderState string) order.Status {
 		return order.Filled
 	case "CANCELED":
 		return order.Cancelled
+	case "PENDING_CANCEL":
+		return order.PendingCancel
 	case "PARTIALLY_CANCELED":
 		return order.PartiallyCancelled
 	case "PARTIALLY_FILLED":
