@@ -186,7 +186,7 @@ type GenericRequestParams struct {
 	Columns string `json:"columns,omitempty"`
 
 	// Count - Number of results to fetch.
-	Count int32 `json:"count,omitempty"`
+	Count uint32 `json:"count,omitempty"`
 
 	// EndTime - Ending date filter for results.
 	EndTime string `json:"endTime,omitempty"`

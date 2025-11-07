@@ -21,12 +21,11 @@ import (
 )
 
 var (
-	errPositionModeInvalid     = errors.New("invalid position mode")
-	errMarginAdjustTypeMissing = errors.New("margin adjust type invalid")
+	errInvalidPositionMode     = errors.New("invalid position mode")
+	errInvalidMarginAdjustType = errors.New("invalid margin adjust type")
 )
 
 const (
-	v3Path         = "/v3/"
 	tradePathV3    = "/v3/trade/"
 	marketsPathV3  = "/v3/market/"
 	accountPathV3  = "/v3/account/"
@@ -383,7 +382,7 @@ func (e *Exchange) AdjustMarginForIsolatedMarginTradingPositions(ctx context.Con
 		return nil, limits.ErrAmountBelowMin
 	}
 	if adjustType == "" {
-		return nil, errMarginAdjustTypeMissing
+		return nil, errInvalidMarginAdjustType
 	}
 	arg := &struct {
 		Symbol       string  `json:"symbol"`
@@ -440,8 +439,8 @@ func (e *Exchange) SetFuturesLeverage(ctx context.Context, symbol, marginMode, p
 // SwitchPositionMode switch the current position mode. Please ensure you do not have open positions and open orders under this mode before the switch.
 // Position mode, HEDGE: LONG/SHORT, ONE_WAY: BOTH
 func (e *Exchange) SwitchPositionMode(ctx context.Context, positionMode string) error {
-	if positionMode == "" {
-		return errPositionModeInvalid
+	if positionMode != "HEDGE" && positionMode != "ONE_WAY" {
+		return errInvalidPositionMode
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fSwitchPositionModeEPL, http.MethodPost, positionPathV3+"mode", nil, map[string]string{"posMode": positionMode}, &struct{}{})
 }

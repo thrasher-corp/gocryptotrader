@@ -253,11 +253,9 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 		}
 
 		mockVals := url.Values{}
-		var err error
 		if json.Valid([]byte(data)) {
 			dataMap := make(map[string]any)
-			err = json.Unmarshal([]byte(data), &dataMap)
-			if err != nil {
+			if err := json.Unmarshal([]byte(data), &dataMap); err != nil {
 				return nil, err
 			}
 
@@ -277,6 +275,7 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 				}
 			}
 		} else {
+			var err error
 			mockVals, err = url.ParseQuery(data)
 			if err != nil {
 				return nil, err

@@ -25,7 +25,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"sGetKillSwitchStatus":             sGetKillSwitchStatusEPL,
 		"sAccountInfo":                     sAccountInfoEPL,
 		"sAccountBalances":                 sAccountBalancesEPL,
-		"sAccountActiviti":                 sAccountActivitiEPL,
+		"sAccountActiviti":                 sAccountActivityEPL,
 		"sAccountsTransfer":                sAccountsTransferEPL,
 		"sAccountsTransferRecords":         sAccountsTransferRecordsEPL,
 		"sFeeInfo":                         sFeeInfoEPL,

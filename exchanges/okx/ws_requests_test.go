@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -281,21 +280,4 @@ func TestSingleItem(t *testing.T) {
 	got, err := singleItem([]*mockHasError{{}})
 	require.NoError(t, err)
 	require.NotNil(t, got)
-}
-
-func TestMessageID(t *testing.T) {
-	t.Parallel()
-	id := new(Exchange).MessageID()
-	require.Len(t, id, 32, "Must return the correct length of message id")
-	u, err := uuid.FromString(id)
-	require.NoError(t, err, "MessageID must return a valid UUID")
-	assert.Equal(t, byte(0x7), u.Version(), "MessageID should return a V7 uuid")
-}
-
-// BenchmarkMessageID-8             4736883               259.9 ns/op            96 B/op          4 allocs/op
-func BenchmarkMessageID(b *testing.B) {
-	e := new(Exchange)
-	for b.Loop() {
-		_ = e.MessageID()
-	}
 }

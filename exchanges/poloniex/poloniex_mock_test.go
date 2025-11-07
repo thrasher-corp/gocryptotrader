@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err = e.setEnabledPairs(spotTradablePair, futuresTradablePair); err != nil {
+	if err := e.setEnabledPairs(spotTradablePair, futuresTradablePair); err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())

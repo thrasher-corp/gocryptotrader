@@ -24,6 +24,7 @@ import (
 )
 
 const (
+	v3Path           = "/v3/"
 	mainURL          = "https://www.poloniex.com"
 	apiURL           = "https://api.poloniex.com"
 	tradeSpotPath    = "/trade/"
@@ -52,7 +53,7 @@ func (e *Exchange) GetSymbol(ctx context.Context, symbol currency.Pair) ([]*Symb
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp []*SymbolDetails
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/"+symbol.String(), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String(), &resp)
 }
 
 // GetSymbols returns all symbols and their trade limits
@@ -64,7 +65,7 @@ func (e *Exchange) GetSymbols(ctx context.Context) ([]*SymbolDetails, error) {
 // GetCurrencies retrieves currencies and their details
 func (e *Exchange) GetCurrencies(ctx context.Context) ([]*Currency, error) {
 	var resp []*Currency
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/v2/currencies", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies", &resp)
 }
 
 // GetCurrency retrieves a currency's details
@@ -277,7 +278,7 @@ func (e *Exchange) GetAccountActivities(ctx context.Context, startTime, endTime 
 		params.Set("currency", ccy.String())
 	}
 	var resp []*AccountActivity
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountActivitiEPL, http.MethodGet, "/accounts/activity", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountActivityEPL, http.MethodGet, "/accounts/activity", params, nil, &resp)
 }
 
 // AccountsTransfer transfers currencies between accounts
@@ -565,10 +566,11 @@ func (e *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawCurrencyRe
 
 // GetAccountMargin retrieves account margin information
 func (e *Exchange) GetAccountMargin(ctx context.Context, accountType string) (*AccountMargin, error) {
-	params := url.Values{}
-	if accountType != "" {
-		params.Set("accountType", accountType)
+	if accountType == "" {
+		return nil, errAccountTypeRequired
 	}
+	params := url.Values{}
+	params.Set("accountType", accountType)
 	var resp *AccountMargin
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountMarginEPL, http.MethodGet, "/margin/accountMargin", params, nil, &resp)
 }
@@ -594,16 +596,31 @@ func (e *Exchange) GetMarginBuySellAmounts(ctx context.Context, symbol currency.
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sMaxMarginSizeEPL, http.MethodGet, "/margin/maxSize", params, nil, &resp)
 }
 
-// PlaceOrder places an order
-func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*PlaceOrderResponse, error) {
+func validateOrderRequest(arg *PlaceOrderRequest) error {
 	if arg.Symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
+		return currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
-		return nil, order.ErrSideIsInvalid
+		return order.ErrSideIsInvalid
 	}
-	if arg.Amount <= 0 {
-		return nil, limits.ErrAmountBelowMin
+	isMarket := arg.Type == orderType(order.Market) || arg.Type == orderType(order.UnknownType)
+	if !isMarket && arg.Price <= 0 {
+		return fmt.Errorf("%w: price is required for non-market orders", limits.ErrPriceBelowMin)
+	}
+	if (arg.Type == orderType(order.Limit) && arg.Quantity <= 0) ||
+		(isMarket && strings.EqualFold(arg.Side, "SELL") && arg.Quantity <= 0) {
+		return fmt.Errorf("%w: base quantity is required for market sell or limit orders", limits.ErrAmountBelowMin)
+	}
+	if isMarket && strings.EqualFold(arg.Side, "BUY") && arg.Amount <= 0 {
+		return fmt.Errorf("%w: quote amount is required for market buy orders", limits.ErrAmountBelowMin)
+	}
+	return nil
+}
+
+// PlaceOrder places an order
+func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*PlaceOrderResponse, error) {
+	if err := validateOrderRequest(arg); err != nil {
+		return nil, err
 	}
 	var resp *PlaceOrderResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCreateOrderEPL, http.MethodPost, "/orders", nil, arg, &resp); err != nil {
@@ -612,7 +629,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*Pla
 	if resp == nil {
 		return nil, common.ErrNoResponse
 	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceOrderFailed, resp.Code, resp.Message)
+		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceFailed, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -623,14 +640,8 @@ func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderReques
 		return nil, common.ErrNilPointer
 	}
 	for x := range args {
-		if args[x].Symbol.IsEmpty() {
-			return nil, currency.ErrCurrencyPairEmpty
-		}
-		if args[x].Side == "" {
-			return nil, order.ErrSideIsInvalid
-		}
-		if args[x].Amount <= 0 {
-			return nil, limits.ErrAmountBelowMin
+		if err := validateOrderRequest(&args[x]); err != nil {
+			return nil, err
 		}
 	}
 	var resp []*PlaceBatchOrderItem
@@ -639,17 +650,18 @@ func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderReques
 
 // CancelReplaceOrder cancels an existing active order, new or partially filled, and places a new order
 func (e *Exchange) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrderRequest) (*CancelReplaceOrderResponse, error) {
-	if arg.OrderID == "" {
-		return nil, order.ErrOrderIDNotSet
+	path, err := orderPath(arg.OrderID, "/orders/", arg.ClientOrderID, "/orders/cid:")
+	if err != nil {
+		return nil, err
 	}
 	var resp *CancelReplaceOrderResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelReplaceOrderEPL, http.MethodPut, "/orders/"+arg.OrderID, nil, arg, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelReplaceOrderEPL, http.MethodPut, path, nil, arg, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
 		return nil, common.ErrNoResponse
 	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelOrderFailed, arg.OrderID, resp.Code, resp.Message)
+		return resp, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelFailed, arg.OrderID, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -678,14 +690,9 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, side
 
 // GetOrder gets order details by orderId or clientOrderId
 func (e *Exchange) GetOrder(ctx context.Context, id, clientOrderID string) (*TradeOrder, error) {
-	var path string
-	switch {
-	case id != "":
-		path = "/orders/" + id
-	case clientOrderID != "":
-		path = "/orders/cid:" + clientOrderID
-	default:
-		return nil, fmt.Errorf("%w, orderid or client order id is required", order.ErrOrderIDNotSet)
+	path, err := orderPath(id, "/orders/", clientOrderID, "/orders/cid:")
+	if err != nil {
+		return nil, err
 	}
 	var resp *TradeOrder
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOpenOrderDetailEPL, http.MethodGet, path, nil, nil, &resp); err != nil {
@@ -698,7 +705,7 @@ func (e *Exchange) GetOrder(ctx context.Context, id, clientOrderID string) (*Tra
 		if ordID == "" {
 			ordID = clientOrderID
 		}
-		return resp, fmt.Errorf("%w: order ID: %s  code: %d message: %s", order.ErrGetOrderRequestFailed, ordID, resp.Code, resp.Message)
+		return resp, fmt.Errorf("%w: order ID: %s  code: %d message: %s", order.ErrGetFailed, ordID, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -715,7 +722,7 @@ func (e *Exchange) CancelOrderByID(ctx context.Context, id string) (*CancelOrder
 	if resp == nil {
 		return nil, common.ErrNoResponse
 	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceOrderFailed, resp.Code, resp.Message)
+		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceFailed, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -801,7 +808,7 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequest)
 	if resp == nil {
 		return nil, common.ErrNoResponse
 	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceOrderFailed, resp.Code, resp.Message)
+		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceFailed, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -840,7 +847,7 @@ func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 		if ordID == "" {
 			ordID = arg.ClientOrderID
 		}
-		return nil, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelOrderFailed, ordID, smartOrderResponse.Code, smartOrderResponse.Message)
+		return nil, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelFailed, ordID, smartOrderResponse.Code, smartOrderResponse.Message)
 	}
 	return smartOrderResponse, nil
 }
@@ -900,7 +907,7 @@ func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedI
 		if ordID == "" {
 			ordID = clientSuppliedID
 		}
-		return cancelSmartOrderResponse, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelOrderFailed, ordID, cancelSmartOrderResponse.Code, cancelSmartOrderResponse.Message)
+		return cancelSmartOrderResponse, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelFailed, ordID, cancelSmartOrderResponse.Code, cancelSmartOrderResponse.Message)
 	}
 	return cancelSmartOrderResponse, nil
 }
@@ -1101,7 +1108,6 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		headers["key"] = creds.Key
-		headers["recvWindow"] = strconv.FormatInt(1500, 10)
 		if values == nil {
 			values = url.Values{}
 		}

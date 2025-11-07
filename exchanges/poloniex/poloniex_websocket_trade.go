@@ -8,7 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -25,7 +24,7 @@ func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp []PlaceOrderResponse
-	if err := e.SendWebsocketRequest(ctx, connSpotPrivate, "createOrder", arg, &resp); err != nil {
+	if err := e.SendWebsocketRequest(ctx, "createOrder", arg, &resp); err != nil {
 		return nil, err
 	}
 	if len(resp) != 1 {
@@ -49,7 +48,7 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 		params["orderIds"] = orderIDs
 	}
 	var resp []*WsCancelOrderResponse
-	err := e.SendWebsocketRequest(ctx, connSpotPrivate, "cancelOrders", params, &resp)
+	err := e.SendWebsocketRequest(ctx, "cancelOrders", params, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +70,7 @@ func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, ac
 		args["accountTypes"] = accountTypes
 	}
 	var resp []*WsCancelOrderResponse
-	err := e.SendWebsocketRequest(ctx, connSpotPrivate, "cancelAllOrders", args, &resp)
+	err := e.SendWebsocketRequest(ctx, "cancelAllOrders", args, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -83,12 +82,9 @@ func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, ac
 	return resp, err
 }
 
-// SendWebsocketRequest represents a websocket request through the authenticated connections.
-func (e *Exchange) SendWebsocketRequest(ctx context.Context, connMessageFilter, event string, arg, response any) error {
-	if !e.Websocket.IsConnected() || !e.Websocket.CanUseAuthenticatedEndpoints() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	conn, err := e.Websocket.GetConnection(connMessageFilter)
+// SendWebsocketRequest sends a websocket request through the private connection
+func (e *Exchange) SendWebsocketRequest(ctx context.Context, event string, arg, response any) error {
+	conn, err := e.Websocket.GetConnection(connSpotPrivate)
 	if err != nil {
 		return err
 	}

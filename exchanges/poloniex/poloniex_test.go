@@ -1317,6 +1317,9 @@ func TestGetAccountMargin(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	_, err := e.GetAccountMargin(generateContext(), "")
+	require.ErrorIs(t, err, errAccountTypeRequired)
+
 	result, err := e.GetAccountMargin(generateContext(), "SPOT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1352,6 +1355,27 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Symbol: spotTradablePair, Side: order.Sell.Lower()})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{
+		Symbol:        spotTradablePair,
+		Side:          order.Buy.String(),
+		Type:          orderType(order.Market),
+		Quantity:      1,
+		Price:         40000.50000,
+		TimeInForce:   timeInForce(order.GoodTillCancel),
+		ClientOrderID: "1234Abc",
+	})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{
+		Symbol:        spotTradablePair,
+		Side:          order.Sell.String(),
+		Type:          orderType(order.Market),
+		Amount:        1,
+		Price:         40000.50000,
+		TimeInForce:   timeInForce(order.GoodTillCancel),
+		ClientOrderID: "1234Abc",
+	})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1382,6 +1406,28 @@ func TestPlaceBatchOrders(t *testing.T) {
 	})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
+	_, err = e.PlaceBatchOrders(t.Context(), []PlaceOrderRequest{{
+		Symbol:        spotTradablePair,
+		Side:          order.Buy.String(),
+		Type:          orderType(order.Market),
+		Quantity:      1,
+		Price:         40000.50000,
+		TimeInForce:   timeInForce(order.GoodTillCancel),
+		ClientOrderID: "1234Abc",
+	}})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	_, err = e.PlaceBatchOrders(t.Context(), []PlaceOrderRequest{{
+		Symbol:        spotTradablePair,
+		Side:          order.Sell.String(),
+		Type:          orderType(order.Market),
+		Amount:        1,
+		Price:         40000.50000,
+		TimeInForce:   timeInForce(order.GoodTillCancel),
+		ClientOrderID: "1234Abc",
+	}})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
 	var pair currency.Pair
 	getPairFromString := func(pairString string) currency.Pair {
 		pair, err = currency.NewPairFromString(pairString)
@@ -1397,7 +1443,7 @@ func TestPlaceBatchOrders(t *testing.T) {
 			Symbol:        pair,
 			Side:          order.Buy.String(),
 			Type:          orderType(order.Market),
-			Quantity:      1,
+			Amount:        1,
 			Price:         40000.50000,
 			TimeInForce:   timeInForce(order.GoodTillCancel),
 			ClientOrderID: "1234Abc",
@@ -1437,7 +1483,7 @@ func TestPlaceBatchOrders(t *testing.T) {
 
 func TestCancelReplaceOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderRequest{TimeInForce: "GTC"})
+	_, err := e.CancelReplaceOrder(t.Context(), &CancelReplaceOrderRequest{TimeInForce: timeInForce(order.GoodTillCancel)})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	if !mockTests {
@@ -1722,7 +1768,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 	if e.ValidateAPICredentials(t.Context(), asset.Spot) == nil {
 		privateQualifiedChannels = append(privateQualifiedChannels, "orders", "balances")
 	}
-	inputs := []struct {
+
+	for _, input := range []struct {
 		gen func() (subscription.List, error)
 		exp []string
 	}{
@@ -1734,9 +1781,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			gen: e.generatePrivateSubscriptions,
 			exp: privateQualifiedChannels,
 		},
-	}
-
-	for _, input := range inputs {
+	} {
 		got, err := input.gen()
 		require.NoError(t, err)
 
@@ -1825,11 +1870,11 @@ func TestWsCreateOrder(t *testing.T) {
 		Symbol:        spotTradablePair,
 		Side:          order.Buy.String(),
 		Type:          orderType(order.Market),
-		Amount:        1232432,
+		Amount:        4000050.0,
 		Quantity:      100,
 		Price:         40000.50000,
 		TimeInForce:   timeInForce(order.GoodTillCancel),
-		ClientOrderID: "1234Abc",
+		ClientOrderID: "1234Abcdefee",
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2194,7 +2239,7 @@ func TestAdjustMarginForIsolatedMarginTradingPositions(t *testing.T) {
 	_, err = e.AdjustMarginForIsolatedMarginTradingPositions(t.Context(), "DOT_USDT_PERP", "", "ADD", 0)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.AdjustMarginForIsolatedMarginTradingPositions(t.Context(), "DOT_USDT_PERP", "", "", 123)
-	require.ErrorIs(t, err, errMarginAdjustTypeMissing)
+	require.ErrorIs(t, err, errInvalidMarginAdjustType)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -2237,7 +2282,7 @@ func TestSetFuturesLeverage(t *testing.T) {
 func TestSwitchPositionMode(t *testing.T) {
 	t.Parallel()
 	err := e.SwitchPositionMode(t.Context(), "")
-	require.ErrorIs(t, err, errPositionModeInvalid)
+	require.ErrorIs(t, err, errInvalidPositionMode)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

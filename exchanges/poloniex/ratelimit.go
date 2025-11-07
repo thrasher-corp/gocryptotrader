@@ -25,7 +25,7 @@ const (
 	sGetKillSwitchStatusEPL
 	sAccountInfoEPL
 	sAccountBalancesEPL
-	sAccountActivitiEPL
+	sAccountActivityEPL
 	sAccountsTransferEPL
 	sAccountsTransferRecordsEPL
 	sFeeInfoEPL
@@ -114,7 +114,7 @@ var rateLimits = request.RateLimitDefinitions{
 	sGetKillSwitchStatusEPL:      request.NewRateLimitWithWeight(oneSecond, 50, 1),
 	sAccountInfoEPL:              request.NewRateLimitWithWeight(oneSecond, 50, 1),
 	sAccountBalancesEPL:          request.NewRateLimitWithWeight(oneSecond, 50, 1),
-	sAccountActivitiEPL:          request.NewRateLimitWithWeight(oneSecond, 10, 1),
+	sAccountActivityEPL:          request.NewRateLimitWithWeight(oneSecond, 10, 1),
 	sAccountsTransferEPL:         request.NewRateLimitWithWeight(oneSecond, 50, 1),
 	sAccountsTransferRecordsEPL:  request.NewRateLimitWithWeight(oneSecond, 10, 1),
 	sFeeInfoEPL:                  request.NewRateLimitWithWeight(oneSecond, 50, 1),

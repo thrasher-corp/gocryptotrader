@@ -60,7 +60,7 @@ func (a accountType) MarshalText() ([]byte, error) {
 	case asset.Spot:
 		return []byte("SPOT"), nil
 	case asset.Futures:
-		return []byte("FUTURE"), nil
+		return []byte("FUTURES"), nil
 	default:
 		return nil, asset.ErrNotSupported
 	}
@@ -169,8 +169,8 @@ type Currency struct {
 	TradeEnable       bool                   `json:"tradeEnable"`
 	Name              string                 `json:"name"`
 	NetworkList       []*CryptoNetworkDetail `json:"networkList"`
-	SupportCollateral bool                   `json:"supportCollateral,omitempty"`
-	SupportBorrow     bool                   `json:"supportBorrow,omitempty"`
+	SupportCollateral bool                   `json:"supportCollateral"`
+	SupportBorrow     bool                   `json:"supportBorrow"`
 }
 
 // CryptoNetworkDetail holds a crypto network detail
@@ -412,7 +412,7 @@ type SubAccountBalances struct {
 	AccountID   string               `json:"accountId"`
 	AccountName string               `json:"accountName"`
 	AccountType string               `json:"accountType"`
-	IsPrimary   string               `json:"isPrimary"`
+	IsPrimary   bool                 `json:"isPrimary,string"`
 	Balances    []*SubAccountBalance `json:"balances"`
 }
 
@@ -422,14 +422,14 @@ type SubAccountBalance struct {
 	Available             types.Number  `json:"available"`
 	Hold                  types.Number  `json:"hold"`
 	MaxAvailable          types.Number  `json:"maxAvailable"`
-	AccountEquity         string        `json:"accountEquity,omitempty"`
-	UnrealisedPNL         types.Number  `json:"unrealisedPNL,omitempty"`
-	MarginBalance         types.Number  `json:"marginBalance,omitempty"`
-	PositionMargin        types.Number  `json:"positionMargin,omitempty"`
-	OrderMargin           types.Number  `json:"orderMargin,omitempty"`
-	FrozenFunds           types.Number  `json:"frozenFunds,omitempty"`
-	AvailableBalance      types.Number  `json:"availableBalance,omitempty"`
-	RealizedProfitAndLoss types.Number  `json:"pnl,omitempty"`
+	AccountEquity         types.Number  `json:"accountEquity"`
+	UnrealisedPNL         types.Number  `json:"unrealisedPNL"`
+	MarginBalance         types.Number  `json:"marginBalance"`
+	PositionMargin        types.Number  `json:"positionMargin"`
+	OrderMargin           types.Number  `json:"orderMargin"`
+	FrozenFunds           types.Number  `json:"frozenFunds"`
+	AvailableBalance      types.Number  `json:"availableBalance"`
+	RealizedProfitAndLoss types.Number  `json:"pnl"`
 }
 
 // SubAccountTransferRequest represents a sub-account transfer request parameters.
@@ -465,11 +465,11 @@ type WalletActivity struct {
 
 // WalletDeposits holds wallet deposit info
 type WalletDeposits struct {
-	DepositNumber int64         `json:"depositNumber"`
+	DepositNumber uint64        `json:"depositNumber"`
 	Currency      currency.Code `json:"currency"`
 	Address       string        `json:"address"`
 	Amount        types.Number  `json:"amount"`
-	Confirmations int64         `json:"confirmations"`
+	Confirmations uint64        `json:"confirmations"`
 	TransactionID string        `json:"txid"`
 	Timestamp     types.Time    `json:"timestamp"`
 	Status        string        `json:"status"`
@@ -477,7 +477,7 @@ type WalletDeposits struct {
 
 // WalletWithdrawals holds wallet withdrawal info
 type WalletWithdrawals struct {
-	WithdrawalRequestsID int64         `json:"withdrawalRequestsId"`
+	WithdrawalRequestsID uint64        `json:"withdrawalRequestsId"`
 	Currency             currency.Code `json:"currency"`
 	Address              string        `json:"address"`
 	Status               string        `json:"status"`
@@ -529,7 +529,7 @@ type BorrowStatus struct {
 // MarginBuySellAmount represents a maximum buy and sell amount.
 type MarginBuySellAmount struct {
 	Symbol           string       `json:"symbol"`
-	MaxLeverage      types.Number `json:"maxLeverage"`
+	MaxLeverage      uint16       `json:"maxLeverage"`
 	AvailableBuy     types.Number `json:"availableBuy"`
 	MaxAvailableBuy  types.Number `json:"maxAvailableBuy"`
 	AvailableSell    types.Number `json:"availableSell"`
@@ -567,30 +567,30 @@ type PlaceOrderResponse struct {
 	ClientOrderID string `json:"clientOrderId"`
 
 	// Websocket response status code and message.
-	Message string `json:"message,omitempty"`
-	Code    int64  `json:"code,omitempty"`
+	Message string `json:"message"`
+	Code    int64  `json:"code"`
 }
 
 // PlaceBatchOrderItem represents a single batch order response item.
 type PlaceBatchOrderItem struct {
-	ID            string `json:"id,omitempty"`
+	ID            string `json:"id"`
 	ClientOrderID string `json:"clientOrderId"`
-	Code          int64  `json:"code,omitempty"`
-	Message       string `json:"message,omitempty"`
+	Code          uint64 `json:"code"`
+	Message       string `json:"message"`
 }
 
 // CancelReplaceOrderRequest represents a cancellation and order replacement request parameter.
 type CancelReplaceOrderRequest struct {
-	OrderID           string  `json:"-"` // used in order path parameter.
-	ClientOrderID     string  `json:"clientOrderId"`
-	Price             float64 `json:"price,omitempty,string"`
-	Quantity          float64 `json:"quantity,omitempty,string"`
-	Amount            float64 `json:"amount,omitempty,string"`
-	AmendedType       string  `json:"type,omitempty,string"`
-	TimeInForce       string  `json:"timeInForce,omitempty"`
-	AllowBorrow       bool    `json:"allowBorrow,omitempty"`
-	ProceedOnFailure  bool    `json:"proceedOnFailure,omitempty,string"`
-	SlippageTolerance float64 `json:"slippageTolerance,omitempty,string"`
+	OrderID           string      `json:"-"` // used in order path parameter.
+	ClientOrderID     string      `json:"clientOrderId"`
+	Price             float64     `json:"price,omitempty,string"`
+	Quantity          float64     `json:"quantity,omitempty,string"`
+	Amount            float64     `json:"amount,omitempty,string"`
+	AmendedType       string      `json:"type,omitempty,string"`
+	TimeInForce       timeInForce `json:"timeInForce,omitempty"`
+	AllowBorrow       bool        `json:"allowBorrow,omitempty"`
+	ProceedOnFailure  bool        `json:"proceedOnFailure,omitempty,string"`
+	SlippageTolerance float64     `json:"slippageTolerance,omitempty,string"`
 }
 
 // CancelReplaceOrderResponse represents a response parameter for order cancellation and replacement operation.
@@ -599,7 +599,7 @@ type CancelReplaceOrderResponse struct {
 	ClientOrderID string       `json:"clientOrderId"`
 	Price         types.Number `json:"price"`
 	Quantity      types.Number `json:"quantity"`
-	Code          int64        `json:"code"`
+	Code          uint64       `json:"code"`
 	Message       string       `json:"message"`
 }
 
@@ -641,7 +641,7 @@ type TradeOrder struct {
 	Loan           bool              `json:"loan"`
 	CancelReason   int64             `json:"cancelReason"`
 
-	Code    int64  `json:"code"`
+	Code    uint64 `json:"code"`
 	Message string `json:"message"`
 }
 
@@ -672,13 +672,13 @@ type CancelOrderResponse struct {
 	OrderID       string `json:"orderId"`
 	ClientOrderID string `json:"clientOrderId"`
 	State         string `json:"state"`
-	Code          int64  `json:"code"`
+	Code          uint64 `json:"code"`
 	Message       string `json:"message"`
 }
 
 // WsCancelOrderResponse represents a websocket cancel orders instance.
 type WsCancelOrderResponse struct {
-	OrderID int64 `json:"orderId"`
+	OrderID uint64 `json:"orderId"`
 	CancelOrderResponse
 }
 
@@ -714,16 +714,16 @@ type SmartOrderRequest struct {
 
 // CancelReplaceSmartOrderRequest represents a cancellation and order replacement request parameter for smart orders.
 type CancelReplaceSmartOrderRequest struct {
-	OrderID              string  `json:"-"` // will be used in request path
-	ReplaceClientOrderID string  `json:"-"`
-	ClientOrderID        string  `json:"clientOrderId,omitempty"`
-	Price                float64 `json:"price,omitempty,string"`
-	StopPrice            float64 `json:"stopPrice,omitempty,string"`
-	Quantity             float64 `json:"quantity,omitempty,string"`
-	Amount               float64 `json:"amount,omitempty,string"`
-	AmendedType          string  `json:"type,omitempty,string"`
-	TimeInForce          string  `json:"timeInForce,omitempty"`
-	ProceedOnFailure     bool    `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
+	OrderID              string      `json:"-"` // will be used in request path
+	ReplaceClientOrderID string      `json:"-"`
+	ClientOrderID        string      `json:"clientOrderId,omitempty"`
+	Price                float64     `json:"price,omitempty,string"`
+	StopPrice            float64     `json:"stopPrice,omitempty,string"`
+	Quantity             float64     `json:"quantity,omitempty,string"`
+	Amount               float64     `json:"amount,omitempty,string"`
+	AmendedType          string      `json:"type,omitempty,string"`
+	TimeInForce          timeInForce `json:"timeInForce,omitempty"`
+	ProceedOnFailure     bool        `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
 }
 
 // CancelReplaceSmartOrder represents a response parameter for order cancellation and replacement operation.
@@ -732,7 +732,7 @@ type CancelReplaceSmartOrder struct {
 	StopPrice types.Number `json:"stopPrice"`
 	Price     types.Number `json:"price"`
 	Quantity  types.Number `json:"quantity"`
-	Code      int64        `json:"code"`
+	Code      uint64       `json:"code"`
 	Message   string       `json:"message"`
 }
 
@@ -760,7 +760,7 @@ type CancelSmartOrderResponse struct {
 	OrderID       string `json:"orderId"`
 	ClientOrderID string `json:"clientOrderId"`
 	State         string `json:"state"`
-	Code          int64  `json:"code"`
+	Code          uint64 `json:"code"`
 	Message       string `json:"message"`
 }
 
@@ -785,12 +785,11 @@ type TradeHistory struct {
 
 // SubscriptionPayload represents a subscriptions request instance structure.
 type SubscriptionPayload struct {
-	ID         string         `json:"id"`
 	Event      string         `json:"event"`
 	Channel    []string       `json:"channel"`
 	Symbols    []string       `json:"symbols,omitempty"`
 	Currencies []string       `json:"currencies,omitempty"`
-	Depth      int64          `json:"depth,omitempty"`
+	Depth      uint64         `json:"depth,omitempty"`
 	Params     map[string]any `json:"params,omitempty"`
 }
 
@@ -852,7 +851,7 @@ type WsCurrency struct {
 	Description       string        `json:"description"`
 	Type              string        `json:"type"`
 	WithdrawalFee     types.Number  `json:"withdrawalFee"`
-	MinConf           int64         `json:"minConf"`
+	MinConf           uint64        `json:"minConf"`
 	DepositAddress    any           `json:"depositAddress"`
 	Blockchain        string        `json:"blockchain"`
 	Delisted          bool          `json:"delisted"`
@@ -882,7 +881,7 @@ type WsCandles struct {
 	Close      types.Number `json:"close"`
 	Quantity   types.Number `json:"quantity"`
 	Amount     types.Number `json:"amount"`
-	TradeCount int64        `json:"tradeCount"`
+	TradeCount uint64       `json:"tradeCount"`
 	StartTime  types.Time   `json:"startTime"`
 	CloseTime  types.Time   `json:"closeTime"`
 	Timestamp  types.Time   `json:"ts"`
@@ -902,7 +901,7 @@ type WsTrade struct {
 
 // WsTicker represents a websocket ticker information.
 type WsTicker struct {
-	TradeCount  int64        `json:"tradeCount"`
+	TradeCount  uint64       `json:"tradeCount"`
 	Symbol      string       `json:"symbol"`
 	StartTime   types.Time   `json:"startTime"`
 	Open        types.Number `json:"open"`
@@ -990,16 +989,6 @@ type WsTradeBalance struct {
 type WebsocketResponse struct {
 	ID   string `json:"id"`
 	Data any    `json:"data"`
-}
-
-// OrderIDResponse represents an order ID instance.
-type OrderIDResponse struct {
-	OrderID string `json:"orderId,omitempty"`
-
-	// Added as in placing a batch orders response
-	ClientOid string       `json:"clientOid"`
-	Code      types.Number `json:"code"`
-	Msg       string       `json:"msg,omitempty"`
 }
 
 // SubAccountTransferRecordRequest represents a sub-account transfer record retrieval parameters

@@ -687,7 +687,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			stpMode = "EXPIRE_TAKER"
 		}
 		switch s.Type {
-		case order.Stop, order.StopLimit, order.TrailingStop:
+		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
 			sOrder, err := e.CreateSmartOrder(ctx, &SmartOrderRequest{
 				Symbol:        s.Pair,
 				Type:          orderType(s.Type),
@@ -703,23 +703,26 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				return nil, err
 			}
 			return s.DeriveSubmitResponse(sOrder.ID)
+		case order.Market, order.Limit, order.LimitMaker:
+			response, err := e.PlaceOrder(ctx, &PlaceOrderRequest{
+				Symbol:                  s.Pair,
+				Price:                   s.Price,
+				Amount:                  s.Amount,
+				AllowBorrow:             false,
+				Type:                    orderType(s.Type),
+				Side:                    s.Side.String(),
+				TimeInForce:             timeInForce(s.TimeInForce),
+				ClientOrderID:           s.ClientOrderID,
+				SelfTradePreventionMode: stpMode,
+				SlippageTolerance:       "0",
+			})
+			if err != nil {
+				return nil, err
+			}
+			return s.DeriveSubmitResponse(response.ID)
+		default:
+			return nil, fmt.Errorf("%w: %v", order.ErrUnsupportedOrderType, s.Type)
 		}
-		response, err := e.PlaceOrder(ctx, &PlaceOrderRequest{
-			Symbol:                  s.Pair,
-			Price:                   s.Price,
-			Amount:                  s.Amount,
-			AllowBorrow:             false,
-			Type:                    orderType(s.Type),
-			Side:                    s.Side.String(),
-			TimeInForce:             timeInForce(s.TimeInForce),
-			ClientOrderID:           s.ClientOrderID,
-			SelfTradePreventionMode: stpMode,
-			SlippageTolerance:       "0",
-		})
-		if err != nil {
-			return nil, err
-		}
-		return s.DeriveSubmitResponse(response.ID)
 	case asset.Futures:
 		side := "BUY"
 		if s.Side.IsShort() {
@@ -762,10 +765,6 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if action.AssetType != asset.Spot {
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, action.AssetType)
 	}
-	tif, err := timeInForceString(action.TimeInForce)
-	if err != nil {
-		return nil, err
-	}
 	switch action.Type {
 	case order.Market, order.Limit, order.LimitMaker:
 		resp, err := e.CancelReplaceOrder(ctx, &CancelReplaceOrderRequest{
@@ -774,7 +773,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			Price:             action.Price,
 			Quantity:          action.Amount,
 			AmendedType:       action.Type.String(),
-			TimeInForce:       tif,
+			TimeInForce:       timeInForce(action.TimeInForce),
 			SlippageTolerance: 0,
 		})
 		if err != nil {
@@ -799,7 +798,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			Amount:           action.Amount,
 			AmendedType:      oTypeString,
 			ProceedOnFailure: !action.TimeInForce.Is(order.ImmediateOrCancel),
-			TimeInForce:      tif,
+			TimeInForce:      timeInForce(action.TimeInForce),
 		})
 		if err != nil {
 			return nil, err
@@ -977,7 +976,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 				}
 				for _, wco := range wsResponse {
 					if wco.Code == 0 {
-						cancelAllOrdersResponse.Status[strconv.FormatInt(wco.OrderID, 10)] = wco.State
+						cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = wco.State
 					}
 				}
 			} else {
@@ -1768,17 +1767,17 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, assetType asse
 			ct = futures.Quarterly
 		}
 		resp[i] = futures.Contract{
-			Type:                 ct,
-			Exchange:             e.Name,
-			SettlementCurrencies: currency.Currencies{productInfo.SettlementCurrency},
-			MarginCurrency:       productInfo.SettlementCurrency,
-			Asset:                assetType,
-			Name:                 productInfo.Symbol,
-			StartDate:            productInfo.ListingDate.Time(),
-			IsActive:             strings.EqualFold(productInfo.Status, "OPEN"),
-			Status:               productInfo.Status,
-			MaxLeverage:          productInfo.Leverage.Float64(),
-			SettlementType:       futures.Linear,
+			Type:               ct,
+			Exchange:           e.Name,
+			SettlementCurrency: productInfo.SettlementCurrency,
+			MarginCurrency:     productInfo.SettlementCurrency,
+			Asset:              assetType,
+			Name:               productInfo.Symbol,
+			StartDate:          productInfo.ListingDate.Time(),
+			IsActive:           strings.EqualFold(productInfo.Status, "OPEN"),
+			Status:             productInfo.Status,
+			MaxLeverage:        productInfo.Leverage.Float64(),
+			SettlementType:     futures.Linear,
 		}
 	}
 	return resp, nil
@@ -1976,19 +1975,4 @@ func orderTypeString(oType order.Type) (string, error) {
 		return "", nil
 	}
 	return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, oType)
-}
-
-// timeInForceString return a string representation of time-in-force value
-func timeInForceString(tif order.TimeInForce) (string, error) {
-	switch {
-	case tif.Is(order.GoodTillCancel):
-		return order.GoodTillCancel.String(), nil
-	case tif.Is(order.FillOrKill):
-		return order.FillOrKill.String(), nil
-	case tif.Is(order.ImmediateOrCancel):
-		return order.ImmediateOrCancel.String(), nil
-	case tif == order.UnknownTIF:
-		return "", nil
-	}
-	return "", fmt.Errorf("%w: TimeInForce value %v is not supported", order.ErrInvalidTimeInForce, tif)
 }

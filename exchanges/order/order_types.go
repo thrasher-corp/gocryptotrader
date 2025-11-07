@@ -33,10 +33,10 @@ var (
 	ErrNoRates         = errors.New("no rates")
 	ErrCannotLiquidate = errors.New("cannot liquidate position")
 
-	ErrUnknownTrackingMode   = errors.New("unknown tracking mode")
-	ErrGetOrderRequestFailed = errors.New("failed to get order request")
-	ErrPlaceOrderFailed      = errors.New("place order failed")
-	ErrCancelOrderFailed     = errors.New("cancel order failed")
+	ErrUnknownTrackingMode = errors.New("unknown tracking mode")
+	ErrGetFailed           = errors.New("get order failed")
+	ErrPlaceFailed         = errors.New("place order failed")
+	ErrCancelFailed        = errors.New("cancel order failed")
 )
 
 // Submit contains all properties of an order that may be required
@@ -420,21 +420,27 @@ const (
 var AllOrderTypes = Limit |
 	Market |
 	Stop |
-	StopLimit |
-	StopMarket |
 	TakeProfit |
-	TakeProfitMarket |
 	TrailingStop |
 	IOS |
 	AnyType |
 	Liquidation |
 	Trigger |
+	LimitMaker |
 	OCO |
 	ConditionalStop |
 	TWAP |
 	Chase |
 	OptimalLimit |
 	MarketMakerProtection |
+
+	// Hybrid order types
+	// Although composed of existing types, these are treated as distinct and supported
+	// order types within the system, not as unsupported combinations.
+	StopLimit |
+	StopMarket |
+	TakeProfitMarket |
+	TrailingStopLimit |
 	Bracket
 
 // Side enforces a standard for order sides across the code base

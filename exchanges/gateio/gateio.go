@@ -166,6 +166,7 @@ var (
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidTextPrefix                = errors.New("invalid text value, requires prefix `t-`")
 	errSingleAssetRequired              = errors.New("single asset type required")
+	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -1322,6 +1323,31 @@ func (e *Exchange) ConvertSmallBalances(ctx context.Context, currs ...currency.C
 }
 
 // ********************************* Margin *******************************************
+
+// GetEstimatedInterestRate retrieves estimated interest rate for provided currencies
+func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, currencies []currency.Code) (map[string]types.Number, error) {
+	if len(currencies) == 0 {
+		return nil, currency.ErrCurrencyCodesEmpty
+	}
+	if len(currencies) > 10 {
+		return nil, fmt.Errorf("%w: maximum 10", errTooManyCurrencyCodes)
+	}
+	var currStr strings.Builder
+	for i := range currencies {
+		if currencies[i].IsEmpty() {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
+		if i != 0 {
+			currStr.WriteString(",")
+		}
+		currStr.WriteString(currencies[i].String())
+	}
+	params := url.Values{}
+	params.Set("currencies", currStr.String())
+
+	var response map[string]types.Number
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginEstimateRateEPL, http.MethodGet, "margin/uni/estimate_rate", params, nil, &response)
+}
 
 // GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
 func (e *Exchange) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]MarginCurrencyPairInfo, error) {

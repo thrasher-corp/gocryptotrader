@@ -511,7 +511,7 @@ func (e *Exchange) handleSubscription(operation string, s *subscription.Subscrip
 
 	switch s.Channel {
 	case subscription.OrderbookChannel, channelBooks:
-		sp.Depth = int64(s.Levels)
+		sp.Depth = uint64(s.Levels)
 	case channelCurrencies:
 		for _, p := range s.Pairs {
 			if !slices.Contains(sp.Currencies, p.Base.String()) {
