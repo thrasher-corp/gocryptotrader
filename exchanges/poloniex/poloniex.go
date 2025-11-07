@@ -612,7 +612,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*Pla
 	if resp == nil {
 		return nil, common.ErrNoResponse
 	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceOrderFailed, resp.Code, resp.Message)
+		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceFailed, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -649,7 +649,7 @@ func (e *Exchange) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrd
 	if resp == nil {
 		return nil, common.ErrNoResponse
 	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelOrderFailed, arg.OrderID, resp.Code, resp.Message)
+		return resp, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelFailed, arg.OrderID, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -698,7 +698,7 @@ func (e *Exchange) GetOrder(ctx context.Context, id, clientOrderID string) (*Tra
 		if ordID == "" {
 			ordID = clientOrderID
 		}
-		return resp, fmt.Errorf("%w: order ID: %s  code: %d message: %s", order.ErrGetOrderRequestFailed, ordID, resp.Code, resp.Message)
+		return resp, fmt.Errorf("%w: order ID: %s  code: %d message: %s", order.ErrGetFailed, ordID, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -715,7 +715,7 @@ func (e *Exchange) CancelOrderByID(ctx context.Context, id string) (*CancelOrder
 	if resp == nil {
 		return nil, common.ErrNoResponse
 	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceOrderFailed, resp.Code, resp.Message)
+		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceFailed, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -801,7 +801,7 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequest)
 	if resp == nil {
 		return nil, common.ErrNoResponse
 	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceOrderFailed, resp.Code, resp.Message)
+		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceFailed, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -840,7 +840,7 @@ func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 		if ordID == "" {
 			ordID = arg.ClientOrderID
 		}
-		return nil, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelOrderFailed, ordID, smartOrderResponse.Code, smartOrderResponse.Message)
+		return nil, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelFailed, ordID, smartOrderResponse.Code, smartOrderResponse.Message)
 	}
 	return smartOrderResponse, nil
 }
@@ -900,7 +900,7 @@ func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedI
 		if ordID == "" {
 			ordID = clientSuppliedID
 		}
-		return cancelSmartOrderResponse, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelOrderFailed, ordID, cancelSmartOrderResponse.Code, cancelSmartOrderResponse.Message)
+		return cancelSmartOrderResponse, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelFailed, ordID, cancelSmartOrderResponse.Code, cancelSmartOrderResponse.Message)
 	}
 	return cancelSmartOrderResponse, nil
 }
@@ -1101,7 +1101,6 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		headers["key"] = creds.Key
-		headers["recvWindow"] = strconv.FormatInt(1500, 10)
 		if values == nil {
 			values = url.Values{}
 		}

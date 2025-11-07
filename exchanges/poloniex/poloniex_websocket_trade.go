@@ -8,7 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -85,9 +84,6 @@ func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, ac
 
 // SendWebsocketRequest represents a websocket request through the authenticated connections.
 func (e *Exchange) SendWebsocketRequest(ctx context.Context, connMessageFilter, event string, arg, response any) error {
-	if !e.Websocket.IsConnected() || !e.Websocket.CanUseAuthenticatedEndpoints() {
-		return websocket.ErrWebsocketNotEnabled
-	}
 	conn, err := e.Websocket.GetConnection(connMessageFilter)
 	if err != nil {
 		return err

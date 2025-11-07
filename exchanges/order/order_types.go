@@ -33,10 +33,10 @@ var (
 	ErrNoRates         = errors.New("no rates")
 	ErrCannotLiquidate = errors.New("cannot liquidate position")
 
-	ErrUnknownTrackingMode   = errors.New("unknown tracking mode")
-	ErrGetOrderRequestFailed = errors.New("failed to get order request")
-	ErrPlaceOrderFailed      = errors.New("place order failed")
-	ErrCancelOrderFailed     = errors.New("cancel order failed")
+	ErrUnknownTrackingMode = errors.New("unknown tracking mode")
+	ErrGetFailed           = errors.New("failed to get order")
+	ErrPlaceFailed         = errors.New("place order failed")
+	ErrCancelFailed        = errors.New("cancel order failed")
 )
 
 // Submit contains all properties of an order that may be required

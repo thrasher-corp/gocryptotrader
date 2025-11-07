@@ -60,7 +60,7 @@ func (a accountType) MarshalText() ([]byte, error) {
 	case asset.Spot:
 		return []byte("SPOT"), nil
 	case asset.Futures:
-		return []byte("FUTURE"), nil
+		return []byte("FUTURES"), nil
 	default:
 		return nil, asset.ErrNotSupported
 	}
