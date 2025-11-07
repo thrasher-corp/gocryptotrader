@@ -311,8 +311,7 @@ func (m *Manager) FlushChannels() error {
 			if err := cW.setup.Connector(context.TODO(), conn); err != nil {
 				return err
 			}
-			m.Wg.Add(1)
-			go m.Reader(context.TODO(), conn, cW.setup.Handler)
+			m.Wg.Go(func() { m.Reader(context.TODO(), conn, cW.setup.Handler) })
 			m.connections[conn] = cW
 			cW.connection = conn
 		}
