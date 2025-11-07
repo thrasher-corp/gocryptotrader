@@ -596,7 +596,7 @@ func TestErrorCollector(t *testing.T) {
 	for i := range 4 {
 		e.Go(func() error {
 			if i%2 == 0 {
-				return errors.New("Collected error")
+				return errors.New("collected error")
 			}
 			return nil
 		})
