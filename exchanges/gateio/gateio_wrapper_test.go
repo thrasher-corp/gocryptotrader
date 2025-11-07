@@ -76,7 +76,7 @@ func TestCancelAllOrders(t *testing.T) {
 func TestMessageID(t *testing.T) {
 	t.Parallel()
 	id := e.MessageID()
-	require.Len(t, e.MessageID(), 32, "message ID must be 32 characters long for usage as a request ID")
+	require.Len(t, id, 32, "message ID must be 32 characters long for usage as a request ID")
 	got, err := uuid.FromString(id)
 	require.NoError(t, err, "ID string must convert back to a UUID")
 	require.Equal(t, uuid.V7, got.Version(), "message ID must be a UUID v7")
