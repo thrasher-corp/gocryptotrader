@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -54,11 +53,9 @@ var (
 	errAlreadyReconnecting            = errors.New("websocket in the process of reconnection")
 	errConnSetup                      = errors.New("error in connection setup")
 	errNoPendingConnections           = errors.New("no pending connections, call SetupNewConnection first")
-	errDuplicateConnectionSetup       = errors.New("duplicate connection setup")
 	errCannotChangeConnectionURL      = errors.New("cannot change connection URL when using multi connection management")
 	errExchangeConfigEmpty            = errors.New("exchange config is empty")
 	errCannotObtainOutboundConnection = errors.New("cannot obtain outbound connection")
-	errMessageFilterNotComparable     = errors.New("message filter is not comparable")
 	errNoMessageFilter                = errors.New("message filter is not set")
 )
 
@@ -353,18 +350,6 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketDataHandlerUnset)
 		}
 
-		if c.MessageFilter != nil && !reflect.TypeOf(c.MessageFilter).Comparable() {
-			return errMessageFilterNotComparable
-		}
-
-		for x := range m.connectionManager {
-			// Below allows for multiple connections to the same URL with different outbound request signatures. This
-			// allows for easier determination of inbound and outbound messages. e.g. Gateio cross_margin, margin on
-			// a spot connection.
-			if m.connectionManager[x].setup.URL == c.URL && c.MessageFilter == m.connectionManager[x].setup.MessageFilter {
-				return fmt.Errorf("%w: %w", errConnSetup, errDuplicateConnectionSetup)
-			}
-		}
 		m.connectionManager = append(m.connectionManager, &connectionWrapper{
 			setup:         c,
 			subscriptions: subscription.NewStore(),
