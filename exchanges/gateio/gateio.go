@@ -166,6 +166,8 @@ var (
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidTextPrefix                = errors.New("invalid text value, requires prefix `t-`")
 	errSingleAssetRequired              = errors.New("single asset type required")
+	errNoCurrencyCodes                  = errors.New("no currency codes provided")
+	errTooManyCurrencyCodes             = errors.New("a maximum of 10 currencies can be queried at a time")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -1326,13 +1328,16 @@ func (e *Exchange) ConvertSmallBalances(ctx context.Context, currs ...currency.C
 // GetEstimatedInterestRate retrieves estimated interest rate for provided currencies
 func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, codes currency.Currencies) (map[string]types.Number, error) {
 	if len(codes) == 0 {
-		return nil, errors.New("at least one currency code is required")
+		return nil, errNoCurrencyCodes
 	}
 	if len(codes) > 10 {
-		return nil, errors.New("a maximum of 10 currencies can be queried at a time")
+		return nil, errTooManyCurrencyCodes
 	}
 	var currencies strings.Builder
 	for i := range codes {
+		if codes[i].IsEmpty() {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
 		if i != 0 {
 			currencies.WriteString(",")
 		}
