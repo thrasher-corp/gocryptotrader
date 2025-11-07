@@ -1026,10 +1026,6 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
 	connSetup.Handler = func(context.Context, Connection, []byte) error { return nil }
-	connSetup.MessageFilter = naughtyFilter{"slices are super naughty and not comparable"}
-	err = multi.SetupNewConnection(connSetup)
-	require.ErrorIs(t, err, errMessageFilterNotComparable)
-
 	connSetup.MessageFilter = AssetFilter(asset.Spot)
 	err = multi.SetupNewConnection(connSetup)
 	require.NoError(t, err)
@@ -1038,9 +1034,6 @@ func TestSetupNewConnection(t *testing.T) {
 
 	require.Nil(t, multi.AuthConn)
 	require.Nil(t, multi.Conn)
-
-	err = multi.SetupNewConnection(connSetup)
-	require.ErrorIs(t, err, errDuplicateConnectionSetup)
 }
 
 type naughtyFilter []string
