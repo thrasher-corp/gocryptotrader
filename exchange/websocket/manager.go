@@ -878,7 +878,6 @@ func checkWebsocketURL(s string) error {
 
 // Reader reads and handles data from a specific connection
 func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error) {
-	defer m.Wg.Done()
 	for {
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {
