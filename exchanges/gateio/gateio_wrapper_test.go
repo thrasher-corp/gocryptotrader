@@ -3,6 +3,7 @@ package gateio
 import (
 	"testing"
 
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -69,5 +70,22 @@ func TestCancelAllOrders(t *testing.T) {
 			_, err = e.CancelAllOrders(t.Context(), r)
 			assert.NoError(t, err)
 		})
+	}
+}
+
+func TestMessageID(t *testing.T) {
+	t.Parallel()
+	id := e.MessageID()
+	require.Len(t, e.MessageID(), 32, "message ID must be 32 characters long for usage as a request ID")
+	got, err := uuid.FromString(id)
+	require.NoError(t, err, "ID string must convert back to a UUID")
+	require.Equal(t, uuid.V7, got.Version(), "message ID must be a UUID v7")
+	require.Len(t, got.String(), 36, "UUID v7 string representation must be 36 characters long")
+}
+
+// 5141180	       226.1 ns/op	      96 B/op	       3 allocs/op
+func BenchmarkMessageID(b *testing.B) {
+	for b.Loop() {
+		_ = e.MessageID()
 	}
 }
