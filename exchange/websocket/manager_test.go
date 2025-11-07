@@ -1155,110 +1155,142 @@ func TestDrain(t *testing.T) {
 	require.Empty(t, ch, "Drain must empty the channel")
 }
 
-func TestMonitorFrame(t *testing.T) {
+func TestMonitorConsumers(t *testing.T) {
 	t.Parallel()
-	ws := Manager{}
-	require.Panics(t, func() { ws.monitorFrame(nil, nil) }, "monitorFrame must panic on nil frame")
-	require.Panics(t, func() { ws.monitorFrame(nil, func() func() bool { return nil }) }, "monitorFrame must panic on nil function")
-	ws.Wg.Add(1)
-	ws.monitorFrame(&ws.Wg, func() func() bool { return func() bool { return true } })
-	ws.Wg.Wait()
-}
 
-func TestMonitorData(t *testing.T) {
-	t.Parallel()
-	ws := Manager{ShutdownC: make(chan struct{}), DataHandler: make(chan any, 10)}
-	// Handle shutdown signal
+	ws := Manager{
+		ShutdownC:   make(chan struct{}),
+		DataHandler: make(chan any, 10),
+		ToRoutine:   make(chan any),
+	}
+
 	close(ws.ShutdownC)
-	require.True(t, ws.observeData(nil))
-	ws.ShutdownC = make(chan struct{})
-	// Handle blockage of ToRoutine
-	go func() { ws.DataHandler <- nil }()
-	var dropped int
-	require.False(t, ws.observeData(&dropped))
-	require.Equal(t, 1, dropped)
-	// Handle reinstate of ToRoutine functionality which will reset dropped counter
-	ws.ToRoutine = make(chan any, 10)
-	go func() { ws.DataHandler <- nil }()
-	require.False(t, ws.observeData(&dropped))
-	require.Empty(t, dropped)
-	// Handle outer closure shell
-	innerShell := ws.monitorData()
-	go func() { ws.DataHandler <- nil }()
-	require.False(t, innerShell())
-	// Handle shutdown signal
-	close(ws.ShutdownC)
-	require.True(t, innerShell())
+	assert.Eventually(t, func() bool {
+		ws.monitorConsumers()
+		return true
+	}, 10*time.Millisecond, 10*time.Millisecond, "monitorConsumers should exit immediately when ShutdownC is closed")
+
+	ws = Manager{
+		exchangeName: "TestExchange",
+		ShutdownC:    make(chan struct{}),
+		DataHandler:  make(chan any, 10),
+		ToRoutine:    make(chan any, 1),
+	}
+	defer close(ws.ShutdownC)
+
+	go ws.monitorConsumers()
+
+	ws.DataHandler <- "test-1"
+	ws.DataHandler <- "test-2"        // Expect to be dropped
+	time.Sleep(10 * time.Millisecond) // Allow dropping to actually happen
+	assert.Equal(t, "test-1", <-ws.ToRoutine, "Should be able to drain expected value from ToRoutine")
+	ws.DataHandler <- "test-3"
+	time.Sleep(10 * time.Millisecond) // Allow dropping to actually happen
+	assert.Equal(t, "test-3", <-ws.ToRoutine, "Should restore delivery after dropping 1 message")
 }
 
 func TestMonitorConnection(t *testing.T) {
 	t.Parallel()
-	ws := Manager{verbose: true, ReadMessageErrors: make(chan error, 1), ShutdownC: make(chan struct{})}
-	// Handle timer expired and websocket disabled, shutdown everything.
-	timer := time.NewTimer(0)
+
+	ws := Manager{
+		verbose:                true,
+		ReadMessageErrors:      make(chan error, 1),
+		ShutdownC:              make(chan struct{}),
+		connectionMonitorDelay: time.Millisecond,
+	}
 	ws.setState(connectedState)
 	ws.connectionMonitorRunning.Store(true)
-	require.True(t, ws.observeConnection(timer))
-	require.False(t, ws.connectionMonitorRunning.Load())
-	require.Equal(t, disconnectedState, ws.state.Load())
-	// Handle timer expired and everything is great, reset the timer.
+
+	require.Eventually(t, func() bool {
+		ws.monitorConnection()
+		return !ws.connectionMonitorRunning.Load() && ws.state.Load() == disconnectedState
+	}, time.Second, 10*time.Millisecond, "disabled websocket should shut down and exit monitor when timer expires")
+
+	ws = Manager{
+		ReadMessageErrors:      make(chan error, 1),
+		ShutdownC:              make(chan struct{}),
+		connectionMonitorDelay: 10 * time.Millisecond,
+	}
 	ws.setEnabled(true)
 	ws.setState(connectedState)
 	ws.connectionMonitorRunning.Store(true)
-	timer = time.NewTimer(0)
-	require.False(t, ws.observeConnection(timer)) // Not shutting down
-	// Handle timer expired and for reason its not connected, so lets happily connect again.
-	ws.setState(disconnectedState)
-	require.False(t, ws.observeConnection(timer)) // Connect is intentionally erroring
-	// Handle error from a connection which will then trigger a reconnect
+
+	go ws.monitorConnection()
+
+	time.Sleep(50 * time.Millisecond)
+	assert.True(t, ws.connectionMonitorRunning.Load(), "enabled websocket should keep monitor running")
+	assert.Equal(t, connectedState, ws.state.Load(), "enabled websocket should remain in connected state")
+
+	ws.setEnabled(false)
+	require.Eventually(t, func() bool {
+		return !ws.connectionMonitorRunning.Load()
+	}, time.Second, 10*time.Millisecond, "disabling websocket should cause monitor to exit on next timer cycle")
+
+	ws = Manager{
+		ReadMessageErrors:      make(chan error, 1),
+		DataHandler:            make(chan any, 10),
+		ShutdownC:              make(chan struct{}),
+		connectionMonitorDelay: 50 * time.Millisecond,
+	}
+	ws.setEnabled(true)
 	ws.setState(connectedState)
-	ws.DataHandler = make(chan any, 1)
+	ws.connectionMonitorRunning.Store(true)
+
+	go ws.monitorConnection()
+
 	ws.ReadMessageErrors <- errConnectionFault
-	timer = time.NewTimer(time.Second)
-	require.False(t, ws.observeConnection(timer))
-	payload := <-ws.DataHandler
-	err, ok := payload.(error)
-	require.True(t, ok)
-	require.ErrorIs(t, err, errConnectionFault)
-	// Handle outta closure shell
-	innerShell := ws.monitorConnection()
-	ws.setState(connectedState)
-	ws.ReadMessageErrors <- errConnectionFault
-	require.False(t, innerShell())
+	require.EventuallyWithT(t, func(ct *assert.CollectT) {
+		require.Len(ct, ws.DataHandler, 1, "DataHandler must have a message")
+		payload := <-ws.DataHandler
+		err := payload.(error)
+		require.ErrorIs(ct, err, errConnectionFault, "payload must be the correct error")
+	}, time.Second, 100*time.Millisecond, "connection fault error should be forwarded to DataHandler")
+
+	ws.setEnabled(false)
+	require.Eventually(t, func() bool {
+		return !ws.connectionMonitorRunning.Load()
+	}, time.Second, 10*time.Millisecond, "disabling websocket after error should cause monitor to exit on next timer cycle")
 }
 
 func TestMonitorTraffic(t *testing.T) {
 	t.Parallel()
-	ws := Manager{verbose: true, ShutdownC: make(chan struct{}), TrafficAlert: make(chan struct{}, 1)}
-	ws.Wg.Add(1)
-	// Handle external shutdown signal
-	timer := time.NewTimer(time.Second)
+
+	ws := Manager{
+		verbose:        true,
+		ShutdownC:      make(chan struct{}),
+		TrafficAlert:   make(chan struct{}, 1),
+		trafficTimeout: 30 * time.Millisecond,
+	}
+
 	close(ws.ShutdownC)
-	require.True(t, ws.observeTraffic(timer))
-	// Handle timer expired but system is connecting, so reset the timer
+	require.Eventually(t, func() bool {
+		ws.monitorTraffic()
+		return true
+	}, 40*time.Millisecond, 40*time.Millisecond, "monitorTraffic should exit when ShutdownC is closed")
+
 	ws.ShutdownC = make(chan struct{})
+	ws.setState(connectedState)
+
+	go ws.monitorTraffic()
+	time.Sleep(40 * time.Millisecond)
+	assert.Equal(t, disconnectedState, ws.state.Load(), "monitorTraffic should shutdown when no traffic received")
+
+	ws.m.Lock() // Prevents race with shutdown
 	ws.setState(connectingState)
-	timer = time.NewTimer(0)
-	require.False(t, ws.observeTraffic(timer))
-	// Handle timer expired and system is connected and has traffic within time window
-	ws.setState(connectedState)
-	timer = time.NewTimer(0)
-	ws.TrafficAlert <- struct{}{}
-	require.False(t, ws.observeTraffic(timer))
-	// Handle timer expired and system is connected but no traffic within time window, causes shutdown to occur.
-	timer = time.NewTimer(0)
-	require.True(t, ws.observeTraffic(timer))
-	ws.Wg.Done()
-	// Shutdown is done in a routine, so we need to wait for it to finish
-	require.Eventually(t, func() bool { return disconnectedState == ws.state.Load() }, time.Second, time.Millisecond)
-	// Handle outer closure shell
-	innerShell := ws.monitorTraffic()
-	ws.m.Lock()
-	ws.ShutdownC = make(chan struct{})
+	go ws.monitorTraffic()
 	ws.m.Unlock()
-	ws.setState(connectedState)
+
+	time.Sleep(40 * time.Millisecond)
+	assert.Equal(t, connectingState, ws.state.Load(), "monitorTraffic should not shutdown when connecting")
+
 	ws.TrafficAlert <- struct{}{}
-	require.False(t, innerShell())
+	ws.setState(connectedState)
+
+	time.Sleep(40 * time.Millisecond)
+	assert.Equal(t, connectedState, ws.state.Load(), "monitorTraffic should not shutdown when receiving traffic")
+
+	time.Sleep(40 * time.Millisecond)
+	assert.Equal(t, disconnectedState, ws.state.Load(), "monitorTraffic should shutdown when no traffic received")
 }
 
 func TestGetConnection(t *testing.T) {
