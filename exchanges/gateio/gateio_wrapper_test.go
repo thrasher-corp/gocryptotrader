@@ -83,7 +83,7 @@ func TestMessageID(t *testing.T) {
 	require.Len(t, got.String(), 36, "UUID v7 string representation must be 36 characters long")
 }
 
-// 5141180	       226.1 ns/op	      96 B/op	       3 allocs/op
+// 7610378	       143.3 ns/op	      48 B/op	       2 allocs/op
 func BenchmarkMessageID(b *testing.B) {
 	for b.Loop() {
 		_ = e.MessageID()

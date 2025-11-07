@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -2651,5 +2652,8 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 // MessageID returns a unique ID for websocket request ID's. This overrides the default implementation so as to conform
 // to the exchange length requirements.
 func (e *Exchange) MessageID() string {
-	return strings.ReplaceAll(uuid.Must(uuid.NewV7()).String(), "-", "")
+	u := uuid.Must(uuid.NewV7())
+	var buf [32]byte
+	hex.Encode(buf[:], u[:])
+	return string(buf[:])
 }
