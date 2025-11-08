@@ -175,12 +175,12 @@ type OpenInterest struct {
 // EOptionsAccountInformation represents current account information.
 type EOptionsAccountInformation struct {
 	Asset []struct {
-		AssetType      string       `json:"asset"`
-		MarginBalance  types.Number `json:"marginBalance"`
-		AccountEquity  types.Number `json:"equity"`
-		AvailableFunds types.Number `json:"available"`
-		Locked         types.Number `json:"locked"`        // locked balance for order and position
-		UnrealizedPNL  types.Number `json:"unrealizedPNL"` // Unrealized profit/loss
+		AssetType      currency.Code `json:"asset"`
+		MarginBalance  types.Number  `json:"marginBalance"`
+		AccountEquity  types.Number  `json:"equity"`
+		AvailableFunds types.Number  `json:"available"`
+		Locked         types.Number  `json:"locked"`        // locked balance for order and position
+		UnrealizedPNL  types.Number  `json:"unrealizedPNL"` // Unrealized profit/loss
 	} `json:"asset"`
 	Greek []struct {
 		Underlying string       `json:"underlying"`

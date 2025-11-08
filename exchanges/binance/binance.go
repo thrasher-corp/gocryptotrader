@@ -1934,17 +1934,14 @@ func getOfflineTradeFee(price, amount float64) float64 {
 
 // getMultiplier retrieves account based taker/maker fees
 func (e *Exchange) getMultiplier(ctx context.Context, isMaker bool) (float64, error) {
-	var multiplier float64
 	account, err := e.GetAccount(ctx, false)
 	if err != nil {
 		return 0, err
 	}
 	if isMaker {
-		multiplier = float64(account.MakerCommission)
-	} else {
-		multiplier = float64(account.TakerCommission)
+		return float64(account.MakerCommission), nil
 	}
-	return multiplier, nil
+	return float64(account.TakerCommission), nil
 }
 
 // calculateTradingFee returns the fee for trading any currency on Binance

@@ -35,9 +35,9 @@ const (
 	GoCryptoTraderService_GetTickers_FullMethodName                        = "/gctrpc.GoCryptoTraderService/GetTickers"
 	GoCryptoTraderService_GetOrderbook_FullMethodName                      = "/gctrpc.GoCryptoTraderService/GetOrderbook"
 	GoCryptoTraderService_GetOrderbooks_FullMethodName                     = "/gctrpc.GoCryptoTraderService/GetOrderbooks"
-	GoCryptoTraderService_GetAccountInfo_FullMethodName                    = "/gctrpc.GoCryptoTraderService/GetAccountInfo"
-	GoCryptoTraderService_UpdateAccountInfo_FullMethodName                 = "/gctrpc.GoCryptoTraderService/UpdateAccountInfo"
-	GoCryptoTraderService_GetAccountInfoStream_FullMethodName              = "/gctrpc.GoCryptoTraderService/GetAccountInfoStream"
+	GoCryptoTraderService_GetAccountBalances_FullMethodName                = "/gctrpc.GoCryptoTraderService/GetAccountBalances"
+	GoCryptoTraderService_UpdateAccountBalances_FullMethodName             = "/gctrpc.GoCryptoTraderService/UpdateAccountBalances"
+	GoCryptoTraderService_GetAccountBalancesStream_FullMethodName          = "/gctrpc.GoCryptoTraderService/GetAccountBalancesStream"
 	GoCryptoTraderService_GetConfig_FullMethodName                         = "/gctrpc.GoCryptoTraderService/GetConfig"
 	GoCryptoTraderService_GetPortfolio_FullMethodName                      = "/gctrpc.GoCryptoTraderService/GetPortfolio"
 	GoCryptoTraderService_GetPortfolioSummary_FullMethodName               = "/gctrpc.GoCryptoTraderService/GetPortfolioSummary"
@@ -156,9 +156,9 @@ type GoCryptoTraderServiceClient interface {
 	GetTickers(ctx context.Context, in *GetTickersRequest, opts ...grpc.CallOption) (*GetTickersResponse, error)
 	GetOrderbook(ctx context.Context, in *GetOrderbookRequest, opts ...grpc.CallOption) (*OrderbookResponse, error)
 	GetOrderbooks(ctx context.Context, in *GetOrderbooksRequest, opts ...grpc.CallOption) (*GetOrderbooksResponse, error)
-	GetAccountInfo(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (*GetAccountInfoResponse, error)
-	UpdateAccountInfo(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (*GetAccountInfoResponse, error)
-	GetAccountInfoStream(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (GoCryptoTraderService_GetAccountInfoStreamClient, error)
+	GetAccountBalances(ctx context.Context, in *GetAccountBalancesRequest, opts ...grpc.CallOption) (*GetAccountBalancesResponse, error)
+	UpdateAccountBalances(ctx context.Context, in *GetAccountBalancesRequest, opts ...grpc.CallOption) (*GetAccountBalancesResponse, error)
+	GetAccountBalancesStream(ctx context.Context, in *GetAccountBalancesRequest, opts ...grpc.CallOption) (GoCryptoTraderService_GetAccountBalancesStreamClient, error)
 	GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (*GetConfigResponse, error)
 	GetPortfolio(ctx context.Context, in *GetPortfolioRequest, opts ...grpc.CallOption) (*GetPortfolioResponse, error)
 	GetPortfolioSummary(ctx context.Context, in *GetPortfolioSummaryRequest, opts ...grpc.CallOption) (*GetPortfolioSummaryResponse, error)
@@ -409,30 +409,30 @@ func (c *goCryptoTraderServiceClient) GetOrderbooks(ctx context.Context, in *Get
 	return out, nil
 }
 
-func (c *goCryptoTraderServiceClient) GetAccountInfo(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (*GetAccountInfoResponse, error) {
-	out := new(GetAccountInfoResponse)
-	err := c.cc.Invoke(ctx, GoCryptoTraderService_GetAccountInfo_FullMethodName, in, out, opts...)
+func (c *goCryptoTraderServiceClient) GetAccountBalances(ctx context.Context, in *GetAccountBalancesRequest, opts ...grpc.CallOption) (*GetAccountBalancesResponse, error) {
+	out := new(GetAccountBalancesResponse)
+	err := c.cc.Invoke(ctx, GoCryptoTraderService_GetAccountBalances_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *goCryptoTraderServiceClient) UpdateAccountInfo(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (*GetAccountInfoResponse, error) {
-	out := new(GetAccountInfoResponse)
-	err := c.cc.Invoke(ctx, GoCryptoTraderService_UpdateAccountInfo_FullMethodName, in, out, opts...)
+func (c *goCryptoTraderServiceClient) UpdateAccountBalances(ctx context.Context, in *GetAccountBalancesRequest, opts ...grpc.CallOption) (*GetAccountBalancesResponse, error) {
+	out := new(GetAccountBalancesResponse)
+	err := c.cc.Invoke(ctx, GoCryptoTraderService_UpdateAccountBalances_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *goCryptoTraderServiceClient) GetAccountInfoStream(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (GoCryptoTraderService_GetAccountInfoStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &GoCryptoTraderService_ServiceDesc.Streams[0], GoCryptoTraderService_GetAccountInfoStream_FullMethodName, opts...)
+func (c *goCryptoTraderServiceClient) GetAccountBalancesStream(ctx context.Context, in *GetAccountBalancesRequest, opts ...grpc.CallOption) (GoCryptoTraderService_GetAccountBalancesStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTraderService_ServiceDesc.Streams[0], GoCryptoTraderService_GetAccountBalancesStream_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &goCryptoTraderServiceGetAccountInfoStreamClient{stream}
+	x := &goCryptoTraderServiceGetAccountBalancesStreamClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -442,17 +442,17 @@ func (c *goCryptoTraderServiceClient) GetAccountInfoStream(ctx context.Context, 
 	return x, nil
 }
 
-type GoCryptoTraderService_GetAccountInfoStreamClient interface {
-	Recv() (*GetAccountInfoResponse, error)
+type GoCryptoTraderService_GetAccountBalancesStreamClient interface {
+	Recv() (*GetAccountBalancesResponse, error)
 	grpc.ClientStream
 }
 
-type goCryptoTraderServiceGetAccountInfoStreamClient struct {
+type goCryptoTraderServiceGetAccountBalancesStreamClient struct {
 	grpc.ClientStream
 }
 
-func (x *goCryptoTraderServiceGetAccountInfoStreamClient) Recv() (*GetAccountInfoResponse, error) {
-	m := new(GetAccountInfoResponse)
+func (x *goCryptoTraderServiceGetAccountBalancesStreamClient) Recv() (*GetAccountBalancesResponse, error) {
+	m := new(GetAccountBalancesResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -1458,9 +1458,9 @@ type GoCryptoTraderServiceServer interface {
 	GetTickers(context.Context, *GetTickersRequest) (*GetTickersResponse, error)
 	GetOrderbook(context.Context, *GetOrderbookRequest) (*OrderbookResponse, error)
 	GetOrderbooks(context.Context, *GetOrderbooksRequest) (*GetOrderbooksResponse, error)
-	GetAccountInfo(context.Context, *GetAccountInfoRequest) (*GetAccountInfoResponse, error)
-	UpdateAccountInfo(context.Context, *GetAccountInfoRequest) (*GetAccountInfoResponse, error)
-	GetAccountInfoStream(*GetAccountInfoRequest, GoCryptoTraderService_GetAccountInfoStreamServer) error
+	GetAccountBalances(context.Context, *GetAccountBalancesRequest) (*GetAccountBalancesResponse, error)
+	UpdateAccountBalances(context.Context, *GetAccountBalancesRequest) (*GetAccountBalancesResponse, error)
+	GetAccountBalancesStream(*GetAccountBalancesRequest, GoCryptoTraderService_GetAccountBalancesStreamServer) error
 	GetConfig(context.Context, *GetConfigRequest) (*GetConfigResponse, error)
 	GetPortfolio(context.Context, *GetPortfolioRequest) (*GetPortfolioResponse, error)
 	GetPortfolioSummary(context.Context, *GetPortfolioSummaryRequest) (*GetPortfolioSummaryResponse, error)
@@ -1612,14 +1612,14 @@ func (UnimplementedGoCryptoTraderServiceServer) GetOrderbook(context.Context, *G
 func (UnimplementedGoCryptoTraderServiceServer) GetOrderbooks(context.Context, *GetOrderbooksRequest) (*GetOrderbooksResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrderbooks not implemented")
 }
-func (UnimplementedGoCryptoTraderServiceServer) GetAccountInfo(context.Context, *GetAccountInfoRequest) (*GetAccountInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAccountInfo not implemented")
+func (UnimplementedGoCryptoTraderServiceServer) GetAccountBalances(context.Context, *GetAccountBalancesRequest) (*GetAccountBalancesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAccountBalances not implemented")
 }
-func (UnimplementedGoCryptoTraderServiceServer) UpdateAccountInfo(context.Context, *GetAccountInfoRequest) (*GetAccountInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateAccountInfo not implemented")
+func (UnimplementedGoCryptoTraderServiceServer) UpdateAccountBalances(context.Context, *GetAccountBalancesRequest) (*GetAccountBalancesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateAccountBalances not implemented")
 }
-func (UnimplementedGoCryptoTraderServiceServer) GetAccountInfoStream(*GetAccountInfoRequest, GoCryptoTraderService_GetAccountInfoStreamServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetAccountInfoStream not implemented")
+func (UnimplementedGoCryptoTraderServiceServer) GetAccountBalancesStream(*GetAccountBalancesRequest, GoCryptoTraderService_GetAccountBalancesStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetAccountBalancesStream not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetConfig(context.Context, *GetConfigRequest) (*GetConfigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetConfig not implemented")
@@ -2210,60 +2210,60 @@ func _GoCryptoTraderService_GetOrderbooks_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTraderService_GetAccountInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAccountInfoRequest)
+func _GoCryptoTraderService_GetAccountBalances_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAccountBalancesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GoCryptoTraderServiceServer).GetAccountInfo(ctx, in)
+		return srv.(GoCryptoTraderServiceServer).GetAccountBalances(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: GoCryptoTraderService_GetAccountInfo_FullMethodName,
+		FullMethod: GoCryptoTraderService_GetAccountBalances_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServiceServer).GetAccountInfo(ctx, req.(*GetAccountInfoRequest))
+		return srv.(GoCryptoTraderServiceServer).GetAccountBalances(ctx, req.(*GetAccountBalancesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTraderService_UpdateAccountInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAccountInfoRequest)
+func _GoCryptoTraderService_UpdateAccountBalances_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAccountBalancesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GoCryptoTraderServiceServer).UpdateAccountInfo(ctx, in)
+		return srv.(GoCryptoTraderServiceServer).UpdateAccountBalances(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: GoCryptoTraderService_UpdateAccountInfo_FullMethodName,
+		FullMethod: GoCryptoTraderService_UpdateAccountBalances_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServiceServer).UpdateAccountInfo(ctx, req.(*GetAccountInfoRequest))
+		return srv.(GoCryptoTraderServiceServer).UpdateAccountBalances(ctx, req.(*GetAccountBalancesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTraderService_GetAccountInfoStream_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(GetAccountInfoRequest)
+func _GoCryptoTraderService_GetAccountBalancesStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetAccountBalancesRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(GoCryptoTraderServiceServer).GetAccountInfoStream(m, &goCryptoTraderServiceGetAccountInfoStreamServer{stream})
+	return srv.(GoCryptoTraderServiceServer).GetAccountBalancesStream(m, &goCryptoTraderServiceGetAccountBalancesStreamServer{stream})
 }
 
-type GoCryptoTraderService_GetAccountInfoStreamServer interface {
-	Send(*GetAccountInfoResponse) error
+type GoCryptoTraderService_GetAccountBalancesStreamServer interface {
+	Send(*GetAccountBalancesResponse) error
 	grpc.ServerStream
 }
 
-type goCryptoTraderServiceGetAccountInfoStreamServer struct {
+type goCryptoTraderServiceGetAccountBalancesStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *goCryptoTraderServiceGetAccountInfoStreamServer) Send(m *GetAccountInfoResponse) error {
+func (x *goCryptoTraderServiceGetAccountBalancesStreamServer) Send(m *GetAccountBalancesResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -4082,12 +4082,12 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTraderService_GetOrderbooks_Handler,
 		},
 		{
-			MethodName: "GetAccountInfo",
-			Handler:    _GoCryptoTraderService_GetAccountInfo_Handler,
+			MethodName: "GetAccountBalances",
+			Handler:    _GoCryptoTraderService_GetAccountBalances_Handler,
 		},
 		{
-			MethodName: "UpdateAccountInfo",
-			Handler:    _GoCryptoTraderService_UpdateAccountInfo_Handler,
+			MethodName: "UpdateAccountBalances",
+			Handler:    _GoCryptoTraderService_UpdateAccountBalances_Handler,
 		},
 		{
 			MethodName: "GetConfig",
@@ -4456,8 +4456,8 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "GetAccountInfoStream",
-			Handler:       _GoCryptoTraderService_GetAccountInfoStream_Handler,
+			StreamName:    "GetAccountBalancesStream",
+			Handler:       _GoCryptoTraderService_GetAccountBalancesStream_Handler,
 			ServerStreams: true,
 		},
 		{

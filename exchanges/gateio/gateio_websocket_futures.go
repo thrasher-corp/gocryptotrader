@@ -11,8 +11,8 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -198,7 +198,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
-	var creds *account.Credentials
+	var creds *accounts.Credentials
 	var err error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = e.GetCredentials(ctx)
@@ -632,36 +632,31 @@ func (e *Exchange) processPositionCloseData(data []byte) error {
 }
 
 func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
-	var resp []WsBalance
+	var resp []*WsBalance
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-
-	changes := make([]account.Change, len(resp))
-	for x, bal := range resp {
+	subAccts := accounts.SubAccounts{}
+	for _, bal := range resp {
 		c := bal.Currency
 		if assetType == asset.Options && c.IsEmpty() {
 			c = currency.USDT // Settlement currency is USDT
 		}
-		changes[x] = account.Change{
-			AssetType: assetType,
-			Account:   bal.User,
-			Balance: &account.Balance{
-				Currency:               c,
-				Total:                  bal.Balance,
-				Free:                   bal.Balance,
-				AvailableWithoutBorrow: bal.Balance,
-				UpdatedAt:              bal.Time.Time(),
-			},
-		}
+		a := accounts.NewSubAccount(assetType, bal.User)
+		a.Balances.Set(c, accounts.Balance{
+			Total:                  bal.Balance,
+			Free:                   bal.Balance,
+			AvailableWithoutBorrow: bal.Balance,
+			UpdatedAt:              bal.Time.Time(),
+		})
+		subAccts = subAccts.Merge(a)
 	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	err := e.Accounts.Save(ctx, subAccts, false)
+	if err == nil {
+		e.Websocket.DataHandler <- subAccts
+	}
+	return err
 }
 
 func (e *Exchange) processFuturesReduceRiskLimitNotification(data []byte) error {
