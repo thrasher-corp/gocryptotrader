@@ -655,9 +655,9 @@ type AccountBalance struct {
 
 // AccountBalanceDetail stores the user account balance
 type AccountBalanceDetail struct {
-	Currency string  `json:"currency"`
-	Type     string  `json:"type"`
-	Balance  float64 `json:"balance,string"`
+	Currency currency.Code `json:"currency"`
+	Type     string        `json:"type"`
+	Balance  float64       `json:"balance,string"`
 }
 
 // AggregatedBalance stores balances of all the sub-account
@@ -743,8 +743,7 @@ type MarginAccountBalance struct {
 	List     []AccountBalance `json:"list"`
 }
 
-// SpotNewOrderRequestParams holds the params required to place
-// an order
+// SpotNewOrderRequestParams holds the params required to place an order
 type SpotNewOrderRequestParams struct {
 	AccountID int                           `json:"account-id,string"` // Account ID, obtained using the accounts method. Currency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
 	Amount    float64                       `json:"amount"`            // The limit price indicates the quantity of the order, the market price indicates how much to buy when the order is paid, and the market price indicates how much the coin is sold when the order is sold.

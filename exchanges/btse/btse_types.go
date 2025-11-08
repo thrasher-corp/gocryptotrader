@@ -3,6 +3,7 @@ package btse
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -177,9 +178,9 @@ type ServerTime struct {
 
 // CurrencyBalance stores the account info data
 type CurrencyBalance struct {
-	Currency  string  `json:"currency"`
-	Total     float64 `json:"total"`
-	Available float64 `json:"available"`
+	Currency  currency.Code `json:"currency"`
+	Total     float64       `json:"total"`
+	Available float64       `json:"available"`
 }
 
 // AccountFees stores fee for each currency pair

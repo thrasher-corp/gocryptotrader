@@ -12,8 +12,8 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -218,7 +218,7 @@ func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, cha
 				continue
 			}
 			params = append([]string{strconv.FormatInt(userID, 10)}, params...)
-			var creds *account.Credentials
+			var creds *accounts.Credentials
 			creds, err = e.GetCredentials(ctx)
 			if err != nil {
 				return nil, err
