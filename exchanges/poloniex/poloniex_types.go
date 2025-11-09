@@ -785,7 +785,6 @@ type TradeHistory struct {
 
 // SubscriptionPayload represents a subscriptions request instance structure.
 type SubscriptionPayload struct {
-	ID         string         `json:"id"`
 	Event      string         `json:"event"`
 	Channel    []string       `json:"channel"`
 	Symbols    []string       `json:"symbols,omitempty"`
