@@ -2649,8 +2649,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	}
 }
 
-// MessageID returns a unique ID for websocket request ID's. This overrides the default implementation so as to conform
-// to the exchange length requirements.
+// MessageID returns a unique ID conforming to Gate's max length of 32 bytes for request IDs
 func (e *Exchange) MessageID() string {
 	u := uuid.Must(uuid.NewV7())
 	var buf [32]byte
