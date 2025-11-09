@@ -3831,7 +3831,7 @@ func TestGetUserID(t *testing.T) {
 	t.Parallel()
 
 	mock := func(path ...string) *Exchange {
-		e := new(Exchange) //nolint:govet // Intentional shadow
+		e := new(Exchange)
 		require.NoError(t, testexch.Setup(e), "testexch.Setup must not error")
 		path = append(path, gateioAPIVersion)
 		err := testexch.MockHTTPInstance(e, path...)
@@ -3842,7 +3842,7 @@ func TestGetUserID(t *testing.T) {
 		return e
 	}
 
-	e := mock() //nolint:govet // Intentional shadow
+	e := mock()
 	uid, err := e.getUserID()
 	require.NoError(t, err)
 	assert.Equal(t, "11", uid, "getUserID should return the correct userID")
