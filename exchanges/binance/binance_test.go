@@ -2418,7 +2418,7 @@ func TestSeedLocalCache(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	e.Websocket.Subscriptions = defaultSubscriptions.Clone().Enabled()
 	exp := subscription.List{}
