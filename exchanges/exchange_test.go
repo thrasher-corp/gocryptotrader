@@ -224,27 +224,24 @@ func TestSetFeatureDefaults(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, b.SetFeatureDefaults())
+	b.SetFeatureDefaults()
 	assert.True(t, b.Config.Features.Supports.REST, "Supports.REST should be correct")
 	assert.NotEmpty(t, b.Config.CurrencyPairs.LastUpdated, "CurrencyPairs.LastUpdated should correct")
 
 	bptr := func(a bool) *bool { return &a }
 	b.Config.Features = nil
 	b.Config.SupportsAutoPairUpdates = bptr(true)
-	require.NoError(t, b.SetFeatureDefaults())
-	assert.True(t, b.Config.Features.Supports.RESTCapabilities.AutoPairUpdates, "RESTCapabilities.AutoPairUpdates should be correct")
-	assert.True(t, b.Config.Features.Enabled.AutoPairUpdates, "Enabled.AutoPairUpdates should be correct")
+	b.SetFeatureDefaults()
+	assert.True(t, b.Config.Features.Supports.RESTCapabilities.AutoPairUpdates, "RESTCapabilities.AutoPairUpdates should be correct when SupportsAutoPairUpdates ist true")
+	assert.True(t, b.Config.Features.Enabled.AutoPairUpdates, "Enabled.AutoPairUpdates should be correct when SupportsAutoPairUpdates is true")
 
 	b.Config.Features.Supports.REST = false
 	b.Config.Features.Supports.RESTCapabilities.TickerBatching = false
 	b.Config.Features.Supports.Websocket = false
-	require.ErrorContains(t, b.SetFeatureDefaults(), "nil pointer: *websocket.Manager")
-
-	b.Websocket = websocket.NewManager()
-	require.NoError(t, b.SetFeatureDefaults())
-	assert.True(t, b.Features.Supports.REST, "Supports.REST should be correct")
-	assert.True(t, b.Features.Supports.RESTCapabilities.TickerBatching, "RESTCapabilities.TickerBatching should be correct")
-	assert.True(t, b.Features.Supports.Websocket, "Websocket should be correct")
+	b.SetFeatureDefaults()
+	assert.True(t, b.Config.Features.Supports.REST, "Config Supports.REST should be set from Features")
+	assert.True(t, b.Config.Features.Supports.RESTCapabilities.TickerBatching, "Config TickerBatching should set from Features")
+	assert.True(t, b.Config.Features.Supports.Websocket, "Config Websocket should be set from Features")
 }
 
 func TestSetAutoPairDefaults(t *testing.T) {
@@ -773,6 +770,7 @@ func TestSetupDefaults(t *testing.T) {
 	b := Base{
 		Name:      "awesomeTest",
 		Requester: newRequester,
+		Websocket: websocket.NewManager(),
 	}
 	cfg := config.Exchange{
 		HTTPTimeout: time.Duration(-1),
@@ -791,9 +789,7 @@ func TestSetupDefaults(t *testing.T) {
 	assert.Equal(t, 15*time.Second, cfg.HTTPTimeout, "config.HTTPTimeout should default correctly")
 
 	cfg.HTTPTimeout = time.Second * 30
-	require.ErrorContains(t, b.SetupDefaults(&cfg), "nil pointer: *websocket.Manager")
 
-	b.Websocket = websocket.NewManager()
 	require.NoError(t, b.SetupDefaults(&cfg))
 	require.NoError(t, err)
 	assert.Equal(t, 30*time.Second, cfg.HTTPTimeout, "config.HTTPTimeout should respect override")
@@ -2461,17 +2457,22 @@ func TestGetCachedOpenInterest(t *testing.T) {
 // TestSetSubscriptionsFromConfig tests the setting and loading of subscriptions from config and exchange defaults
 func TestSetSubscriptionsFromConfig(t *testing.T) {
 	t.Parallel()
-	b := Base{Config: &config.Exchange{Features: &config.FeaturesConfig{}}}
+	b := Base{
+		Verbose: true,
+		Config: &config.Exchange{
+			Features: &config.FeaturesConfig{},
+		},
+	}
+	assert.NotPanics(t, func() { b.setSubscriptionsFromConfig() }, "should not panic with a nil Websocket")
+
 	subs := subscription.List{
 		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: true},
 		{Channel: subscription.OrderbookChannel, Enabled: false},
 	}
 
-	require.ErrorContains(t, b.SetSubscriptionsFromConfig(), "nil pointer: *websocket.Manager")
-
 	b.Websocket = websocket.NewManager()
 	b.Websocket.Subscriptions = subs
-	require.NoError(t, b.SetSubscriptionsFromConfig())
+	b.setSubscriptionsFromConfig()
 	testsubs.EqualLists(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be updated")
 	testsubs.EqualLists(t, subscription.List{subs[0]}, b.Websocket.Subscriptions, "Actual Subscriptions should only contain Enabled")
 
@@ -2480,7 +2481,7 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: false},
 	}
 	b.Config.Features.Subscriptions = subs
-	require.NoError(t, b.SetSubscriptionsFromConfig())
+	b.setSubscriptionsFromConfig()
 	testsubs.EqualLists(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
 	testsubs.EqualLists(t, subscription.List{subs[0]}, b.Websocket.Subscriptions, "Subscriptions should only contain Enabled from Config")
 }
