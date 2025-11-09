@@ -1036,12 +1036,6 @@ func TestSetupNewConnection(t *testing.T) {
 	require.Nil(t, multi.Conn)
 }
 
-type naughtyFilter []string
-
-func (n naughtyFilter) MatchesSub(_ *subscription.Subscription) bool {
-	return false
-}
-
 func TestConnectionShutdown(t *testing.T) {
 	t.Parallel()
 	wc := connection{shutdown: make(chan struct{})}
