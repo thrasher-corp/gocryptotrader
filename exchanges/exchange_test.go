@@ -232,7 +232,7 @@ func TestSetFeatureDefaults(t *testing.T) {
 	b.Config.Features = nil
 	b.Config.SupportsAutoPairUpdates = bptr(true)
 	b.SetFeatureDefaults()
-	assert.True(t, b.Config.Features.Supports.RESTCapabilities.AutoPairUpdates, "RESTCapabilities.AutoPairUpdates should be correct when SupportsAutoPairUpdates ist true")
+	assert.True(t, b.Config.Features.Supports.RESTCapabilities.AutoPairUpdates, "RESTCapabilities.AutoPairUpdates should be correct when SupportsAutoPairUpdates is true")
 	assert.True(t, b.Config.Features.Enabled.AutoPairUpdates, "Enabled.AutoPairUpdates should be correct when SupportsAutoPairUpdates is true")
 
 	b.Config.Features.Supports.REST = false
