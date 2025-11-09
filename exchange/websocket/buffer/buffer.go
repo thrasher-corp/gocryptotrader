@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,26 +19,16 @@ import (
 const packageError = "websocket orderbook buffer error: %w"
 
 var (
-	errExchangeConfigNil            = errors.New("exchange config is nil")
-	errBufferConfigNil              = errors.New("buffer config is nil")
-	errUnsetDataHandler             = errors.New("datahandler unset")
 	errIssueBufferEnabledButNoLimit = errors.New("buffer enabled but no limit set")
 	errOrderbookFlushed             = errors.New("orderbook flushed")
 )
 
 // Setup sets private variables
 func (o *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler *message.Relay) error {
-	if exchangeConfig == nil { // exchange config fields are checked in websocket package prior to calling this, so further checks are not needed
-		return fmt.Errorf(packageError, errExchangeConfigNil)
+	if err := common.NilGuard(exchangeConfig, c, dataHandler); err != nil {
+		return err
 	}
-	if c == nil {
-		return fmt.Errorf(packageError, errBufferConfigNil)
-	}
-	if dataHandler == nil {
-		return fmt.Errorf(packageError, errUnsetDataHandler)
-	}
-	if exchangeConfig.Orderbook.WebsocketBufferEnabled &&
-		exchangeConfig.Orderbook.WebsocketBufferLimit < 1 {
+	if exchangeConfig.Orderbook.WebsocketBufferEnabled && exchangeConfig.Orderbook.WebsocketBufferLimit < 1 {
 		return fmt.Errorf(packageError, errIssueBufferEnabledButNoLimit)
 	}
 
@@ -90,7 +81,6 @@ func (o *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 // Update updates a stored pointer to an orderbook.Depth struct containing bid and ask Tranches, this switches between
 // the usage of a buffered update
 func (o *Orderbook) Update(u *orderbook.Update) error {
-	ctx := context.TODO()
 	o.m.RLock()
 	holder, ok := o.ob[key.PairAsset{Base: u.Pair.Base.Item, Quote: u.Pair.Quote.Item, Asset: u.Asset}]
 	o.m.RUnlock()
@@ -110,7 +100,7 @@ func (o *Orderbook) Update(u *orderbook.Update) error {
 
 	// Publish all state changes, disregarding verbosity or sync requirements.
 	holder.ob.Publish()
-	return o.dataHandler.Send(ctx, holder.ob)
+	return o.dataHandler.Send(context.TODO(), holder.ob)
 }
 
 // processBufferUpdate stores update into buffer, when buffer at capacity as

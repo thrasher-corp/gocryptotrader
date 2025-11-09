@@ -699,15 +699,15 @@ func TestSetup(t *testing.T) {
 	t.Parallel()
 	w := Orderbook{}
 	err := w.Setup(nil, nil, nil)
-	require.ErrorIs(t, err, errExchangeConfigNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	exchangeConfig := &config.Exchange{}
 	err = w.Setup(exchangeConfig, nil, nil)
-	require.ErrorIs(t, err, errBufferConfigNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	bufferConf := &Config{}
 	err = w.Setup(exchangeConfig, bufferConf, nil)
-	require.ErrorIs(t, err, errUnsetDataHandler)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	exchangeConfig.Orderbook.WebsocketBufferEnabled = true
 	err = w.Setup(exchangeConfig, bufferConf, message.NewRelay(1))
