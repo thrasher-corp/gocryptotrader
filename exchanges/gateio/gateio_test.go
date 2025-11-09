@@ -3,7 +3,6 @@ package gateio
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -2480,9 +2479,9 @@ func TestSubToJson(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			e := new(Exchange) //nolint:govet // Intentional shadow
+			e := new(Exchange)
 
-			if !errors.Is(tc.err, exchange.ErrCredentialsAreEmpty) {
+			if tc.err != exchange.ErrCredentialsAreEmpty {
 				e.userID = "flow"
 			}
 
