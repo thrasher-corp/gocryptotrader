@@ -1228,9 +1228,10 @@ func TestMonitorConnection(t *testing.T) {
 	ws.ReadMessageErrors <- errConnectionFault
 	require.EventuallyWithT(t, func(ct *assert.CollectT) {
 		require.Len(ct, ws.DataHandler, 1, "DataHandler must have a message")
-		payload := <-ws.DataHandler
-		err := payload.(error)
-		require.ErrorIs(ct, err, errConnectionFault, "payload must be the correct error")
+		msg := <-ws.DataHandler
+		err, ok := msg.(error)
+		require.True(t, ok, "message must be an error")
+		require.ErrorIs(ct, err, errConnectionFault, "message must be the correct error")
 	}, time.Second, 100*time.Millisecond, "connection fault error should be forwarded to DataHandler")
 
 	ws.setEnabled(false)
