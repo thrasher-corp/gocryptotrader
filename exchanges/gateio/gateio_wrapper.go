@@ -1781,16 +1781,16 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				contractSettlementType = futures.Quanto
 			}
 			c := futures.Contract{
-				Exchange:             e.Name,
-				Name:                 contracts[i].Name,
-				Underlying:           contracts[i].Name,
-				Asset:                a,
-				IsActive:             contracts[i].DelistedTime.Time().IsZero() || contracts[i].DelistedTime.Time().After(time.Now()),
-				Type:                 futures.Perpetual,
-				SettlementType:       contractSettlementType,
-				SettlementCurrencies: currency.Currencies{settle},
-				Multiplier:           contracts[i].QuantoMultiplier.Float64(),
-				MaxLeverage:          contracts[i].LeverageMax.Float64(),
+				Exchange:           e.Name,
+				Name:               contracts[i].Name,
+				Underlying:         contracts[i].Name,
+				Asset:              a,
+				IsActive:           contracts[i].DelistedTime.Time().IsZero() || contracts[i].DelistedTime.Time().After(time.Now()),
+				Type:               futures.Perpetual,
+				SettlementType:     contractSettlementType,
+				SettlementCurrency: settle,
+				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
+				MaxLeverage:        contracts[i].LeverageMax.Float64(),
 			}
 			c.LatestRate = fundingrate.Rate{
 				Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
@@ -1834,19 +1834,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				startTime = endTime.Add(-kline.SixMonth.Duration())
 			}
 			resp[i] = futures.Contract{
-				Exchange:             e.Name,
-				Name:                 name,
-				Underlying:           underlying,
-				Asset:                a,
-				StartDate:            startTime,
-				EndDate:              endTime,
-				SettlementType:       futures.Linear,
-				IsActive:             !contracts[i].InDelisting,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{settle},
-				MarginCurrency:       currency.Code{},
-				Multiplier:           contracts[i].QuantoMultiplier.Float64(),
-				MaxLeverage:          contracts[i].LeverageMax.Float64(),
+				Exchange:           e.Name,
+				Name:               name,
+				Underlying:         underlying,
+				Asset:              a,
+				StartDate:          startTime,
+				EndDate:            endTime,
+				SettlementType:     futures.Linear,
+				IsActive:           !contracts[i].InDelisting,
+				Type:               ct,
+				SettlementCurrency: settle,
+				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
+				MaxLeverage:        contracts[i].LeverageMax.Float64(),
 			}
 		}
 		return resp, nil
