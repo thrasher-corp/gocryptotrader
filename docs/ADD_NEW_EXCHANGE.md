@@ -105,8 +105,8 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 	if err := e.SetAssetPairStore(asset.Spot, fmt1); err != nil {
 		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Spot, err)
 	}
-	if err := e.SetAssetPairStore(asset.Margin, fmt2); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Margin, err)
+	if err := e.SetAssetPairStore(asset.Futures, fmt2); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Futures, err)
 	}
 ```
 
