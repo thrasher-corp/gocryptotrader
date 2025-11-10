@@ -54,7 +54,7 @@ go run . --help
 
 
 ## Further Reading
-For more  details about QuickData, see the [quickData package documentation](/exchange/quickdata/README.md).
+For more  details about QuickData, see the [quickData package documentation](/cmd/quickdata/app/README.md).
 
 ## Donations
 

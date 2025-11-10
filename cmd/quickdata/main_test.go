@@ -13,11 +13,11 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/cmd/quickdata/app"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchange/quickdata"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -51,22 +51,22 @@ func TestParseFocusType(t *testing.T) {
 	t.Parallel()
 	type caseDef struct {
 		inputs   []string
-		expected quickdata.FocusType
+		expected app.FocusType
 		error    error
 	}
 	cases := []caseDef{
-		{inputs: []string{"ticker", "tick", "TICK"}, expected: quickdata.TickerFocusType},
-		{inputs: []string{"orderbook", "order_book", "ob", "book"}, expected: quickdata.OrderBookFocusType},
-		{inputs: []string{"kline", "candles", "candle", "ohlc"}, expected: quickdata.KlineFocusType},
-		{inputs: []string{"trades", "trade"}, expected: quickdata.TradesFocusType},
-		{inputs: []string{"openinterest", "oi"}, expected: quickdata.OpenInterestFocusType},
-		{inputs: []string{"fundingrate", "funding"}, expected: quickdata.FundingRateFocusType},
-		{inputs: []string{"accountholdings", "account", "holdings", "balances"}, expected: quickdata.AccountHoldingsFocusType},
-		{inputs: []string{"activeorders", "orders"}, expected: quickdata.ActiveOrdersFocusType},
-		{inputs: []string{"orderexecution", "executionlimits", "limits"}, expected: quickdata.OrderLimitsFocusType},
-		{inputs: []string{"url", "tradeurl", "trade_url"}, expected: quickdata.URLFocusType},
-		{inputs: []string{"contract"}, expected: quickdata.ContractFocusType},
-		{inputs: []string{"butts"}, error: quickdata.ErrUnsupportedFocusType},
+		{inputs: []string{"ticker", "tick", "TICK"}, expected: app.TickerFocusType},
+		{inputs: []string{"orderbook", "order_book", "ob", "book"}, expected: app.OrderBookFocusType},
+		{inputs: []string{"kline", "candles", "candle", "ohlc"}, expected: app.KlineFocusType},
+		{inputs: []string{"trades", "trade"}, expected: app.TradesFocusType},
+		{inputs: []string{"openinterest", "oi"}, expected: app.OpenInterestFocusType},
+		{inputs: []string{"fundingrate", "funding"}, expected: app.FundingRateFocusType},
+		{inputs: []string{"accountholdings", "account", "holdings", "balances"}, expected: app.AccountHoldingsFocusType},
+		{inputs: []string{"activeorders", "orders"}, expected: app.ActiveOrdersFocusType},
+		{inputs: []string{"orderexecution", "executionlimits", "limits"}, expected: app.OrderLimitsFocusType},
+		{inputs: []string{"url", "tradeurl", "trade_url"}, expected: app.URLFocusType},
+		{inputs: []string{"contract"}, expected: app.ContractFocusType},
+		{inputs: []string{"butts"}, error: app.ErrUnsupportedFocusType},
 	}
 	for _, tc := range cases {
 		for _, in := range tc.inputs {
@@ -164,7 +164,7 @@ func TestRenderFunctions_NoPanicAndOutput(t *testing.T) {
 func TestStreamDataCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan any, 1)
-	cfg := &appConfig{FocusType: quickdata.TickerFocusType, JSONOnly: true}
+	cfg := &appConfig{FocusType: app.TickerFocusType, JSONOnly: true}
 	ch <- "test-data"
 	done := make(chan error, 1)
 	go func() { done <- streamData(ctx, ch, cfg) }()
@@ -189,7 +189,7 @@ func TestParseFlags_Success(t *testing.T) {
 	assert.Equal(t, "binance", cfg.Exchange)
 	assert.Equal(t, asset.Spot, cfg.Asset)
 	assert.Equal(t, "ETH-BTC", cfg.Pair.String())
-	assert.Equal(t, quickdata.TickerFocusType, cfg.FocusType)
+	assert.Equal(t, app.TickerFocusType, cfg.FocusType)
 	assert.Equal(t, 10*time.Second, cfg.PollInterval)
 	assert.Equal(t, 20, cfg.BookLevels)
 	assert.True(t, cfg.JSONOnly)
@@ -202,7 +202,7 @@ func TestParseFlags_AuthRequired(t *testing.T) {
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	os.Args = []string{"quickData", "--exchange", "okx", "--asset", "spot", "--pair", "BTC-USDT", "--data", "account", "--apiKey", "k123", "--apiSecret", "s456"}
 	cfg := parseFlags()
-	require.Equal(t, quickdata.AccountHoldingsFocusType, cfg.FocusType)
+	require.Equal(t, app.AccountHoldingsFocusType, cfg.FocusType)
 	assert.NotNil(t, cfg.Credentials)
 	assert.Equal(t, "k123", cfg.Credentials.Key)
 	assert.Equal(t, "s456", cfg.Credentials.Secret)
@@ -218,7 +218,7 @@ func TestStreamData_DefaultRendering(t *testing.T) {
 	enc = json.NewEncoder(os.Stdout)
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan any, 1)
-	cfg := &appConfig{Exchange: "testexch", Asset: asset.Spot, Pair: pair, FocusType: quickdata.TradesFocusType, JSONOnly: false, BookLevels: 10}
+	cfg := &appConfig{Exchange: "testexch", Asset: asset.Spot, Pair: pair, FocusType: app.TradesFocusType, JSONOnly: false, BookLevels: 10}
 	ch <- []trade.Data{{Price: 101, Amount: 0.5, Timestamp: time.Now(), Side: order.Buy}}
 	done := make(chan error, 1)
 	go func() { done <- streamData(ctx, ch, cfg) }()

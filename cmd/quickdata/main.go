@@ -12,12 +12,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/cmd/quickdata/app"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchange/quickdata"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -49,12 +49,13 @@ type appConfig struct {
 	Exchange     string
 	Asset        asset.Item
 	Pair         currency.Pair
-	FocusType    quickdata.FocusType
+	FocusType    app.FocusType
 	UseWebsocket bool
 	PollInterval time.Duration
 	BookLevels   int
 	Credentials  *accounts.Credentials
 	JSONOnly     bool
+	LogOutput    string
 }
 
 func main() {
@@ -66,7 +67,7 @@ func main() {
 	defer cancel()
 	ctx = accounts.DeployCredentialsToContext(ctx, cfg.Credentials)
 	k := key.NewExchangeAssetPair(cfg.Exchange, cfg.Asset, cfg.Pair)
-	qsChan, err := quickdata.NewQuickestData(ctx, &k, cfg.FocusType)
+	qsChan, err := app.NewQuickestData(ctx, &k, cfg.FocusType)
 	if err != nil {
 		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
 		return
@@ -146,7 +147,7 @@ func parseFlags() *appConfig {
 
 	// Credentials (only applied when supplied or required by focus)
 	var creds *accounts.Credentials
-	if quickdata.RequiresAuth(fType) {
+	if app.RequiresAuth(fType) {
 		creds = &accounts.Credentials{
 			Key:             *apiKey,
 			Secret:          *apiSecret,
@@ -191,7 +192,7 @@ func streamData(ctx context.Context, c <-chan any, cfg *appConfig) error {
 				clearScreen()
 				outPrintln(ansiBold + heading + ansiReset)
 				renderPrettyPayload(d, cfg.BookLevels)
-				if cfg.FocusType != quickdata.TickerFocusType && cfg.FocusType != quickdata.KlineFocusType && cfg.FocusType != quickdata.OrderBookFocusType {
+				if cfg.FocusType != app.TickerFocusType && cfg.FocusType != app.KlineFocusType && cfg.FocusType != app.OrderBookFocusType {
 					// executive decision to not render large payloads
 					emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Data: d})
 				}
@@ -207,33 +208,33 @@ func emit(ev eventEnvelope) {
 	}
 }
 
-func parseFocusType(s string) (quickdata.FocusType, error) {
+func parseFocusType(s string) (app.FocusType, error) {
 	s = strings.TrimSpace(strings.ToLower(s))
 	switch s {
 	case "ticker", "tick":
-		return quickdata.TickerFocusType, nil
+		return app.TickerFocusType, nil
 	case "orderbook", "order_book", "ob", "book":
-		return quickdata.OrderBookFocusType, nil
+		return app.OrderBookFocusType, nil
 	case "kline", "candles", "candle", "ohlc":
-		return quickdata.KlineFocusType, nil
+		return app.KlineFocusType, nil
 	case "trades", "trade":
-		return quickdata.TradesFocusType, nil
+		return app.TradesFocusType, nil
 	case "openinterest", "oi":
-		return quickdata.OpenInterestFocusType, nil
+		return app.OpenInterestFocusType, nil
 	case "fundingrate", "funding":
-		return quickdata.FundingRateFocusType, nil
+		return app.FundingRateFocusType, nil
 	case "accountholdings", "account", "holdings", "balances":
-		return quickdata.AccountHoldingsFocusType, nil
+		return app.AccountHoldingsFocusType, nil
 	case "activeorders", "orders":
-		return quickdata.ActiveOrdersFocusType, nil
+		return app.ActiveOrdersFocusType, nil
 	case "orderexecution", "executionlimits", "limits":
-		return quickdata.OrderLimitsFocusType, nil
+		return app.OrderLimitsFocusType, nil
 	case "url", "tradeurl", "trade_url":
-		return quickdata.URLFocusType, nil
+		return app.URLFocusType, nil
 	case "contract":
-		return quickdata.ContractFocusType, nil
+		return app.ContractFocusType, nil
 	default:
-		return quickdata.UnsetFocusType, quickdata.ErrUnsupportedFocusType
+		return app.UnsetFocusType, app.ErrUnsupportedFocusType
 	}
 }
 

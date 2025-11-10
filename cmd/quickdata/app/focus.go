@@ -1,4 +1,4 @@
-package quickdata
+package app
 
 import (
 	"errors"
