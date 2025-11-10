@@ -1177,18 +1177,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				contractSettlementType = futures.Linear
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           currency.NewPair(currency.NewCode(inst.BaseCurrency), currency.NewCode(inst.QuoteCurrency)),
-				Asset:                item,
-				SettlementCurrencies: []currency.Code{currency.NewCode(inst.SettlementCurrency)},
-				StartDate:            inst.CreationTimestamp.Time(),
-				EndDate:              inst.ExpirationTimestamp.Time(),
-				Type:                 ct,
-				SettlementType:       contractSettlementType,
-				IsActive:             inst.IsActive,
-				MaxLeverage:          inst.MaxLeverage,
-				Multiplier:           inst.ContractSize,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         currency.NewPair(inst.BaseCurrency, inst.QuoteCurrency),
+				Asset:              item,
+				SettlementCurrency: inst.SettlementCurrency,
+				StartDate:          inst.CreationTimestamp.Time(),
+				EndDate:            inst.ExpirationTimestamp.Time(),
+				Type:               ct,
+				SettlementType:     contractSettlementType,
+				IsActive:           inst.IsActive,
+				MaxLeverage:        inst.MaxLeverage,
+				Multiplier:         inst.ContractSize,
 			})
 		}
 	}
