@@ -7,14 +7,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -59,53 +62,26 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	}
 }
 
-func TestCreateMap(t *testing.T) {
+func TestSetRunningURL(t *testing.T) {
 	t.Parallel()
-	b := Base{
-		Name: "HELOOOOOOOO",
-	}
+	b := Base{Name: "HELOOOOOOOO"}
 	b.API.Endpoints = b.NewEndpoints()
-	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
-		EdgeCase1: "http://test1url.com/",
-		EdgeCase2: "http://test2url.com/",
-	})
-	if err != nil {
-		t.Error(err)
-	}
-	val, ok := b.API.Endpoints.defaults[EdgeCase1.String()]
-	if !ok || val != "http://test1url.com/" {
-		t.Errorf("CreateMap failed, incorrect value received for the given key")
-	}
-}
+	assert.ErrorIs(t, b.API.Endpoints.SetRunningURL("meep", "http://google.com/"), errInvalidEndpointKey)
 
-func TestSet(t *testing.T) {
-	t.Parallel()
-	b := Base{
-		Name: "HELOOOOOOOO",
-	}
-	b.API.Endpoints = b.NewEndpoints()
 	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1url.com/",
 		EdgeCase2: "http://test2url.com/",
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "SetDefaultEndpoints should not error")
 	err = b.API.Endpoints.SetRunningURL(EdgeCase2.String(), "http://google.com/")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "SetRunningURL should not error")
+
 	val, ok := b.API.Endpoints.defaults[EdgeCase2.String()]
-	if !ok {
-		t.Error("set method or createmap failed")
-	}
-	if val != "http://google.com/" {
-		t.Errorf("vals didn't match. expecting: %s, got: %s\n", "http://google.com/", val)
-	}
+	assert.True(t, ok, "SetRunningURL should have set the value in defaults")
+	assert.Equal(t, "http://google.com/", val)
+
 	err = b.API.Endpoints.SetRunningURL(EdgeCase3.String(), "Added Edgecase3")
-	if err != nil {
-		t.Errorf("not expecting an error since invalid url val err should be logged but received: %v", err)
-	}
+	assert.ErrorContains(t, err, "invalid URI for request", "SetRunningURL should error on invalid endpoint key")
 }
 
 func TestGetURL(t *testing.T) {
@@ -166,30 +142,22 @@ func TestGetAll(t *testing.T) {
 
 func TestSetDefaultEndpoints(t *testing.T) {
 	t.Parallel()
-	b := Base{
-		Name: "HELLLLLLO",
-	}
+	b := Base{Name: "HELLLLLLO"}
 	b.API.Endpoints = b.NewEndpoints()
 	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1.com.au/",
 		EdgeCase2: "http://test2.com.au/",
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "SetDefaultEndpoints should not error")
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		URL(1337): "http://test2.com.au/",
 	})
-	if err == nil {
-		t.Error("expecting an error due to invalid url key")
-	}
+	assert.ErrorIs(t, err, errInvalidEndpointKey, "SetDefaultEndpoints should error on invalid endpoint key")
 	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "",
 	})
-	if err != nil {
-		t.Errorf("expecting a warning due to invalid url value but got an error: %v", err)
-	}
+	assert.ErrorContains(t, err, "empty url")
 }
 
 func TestSetClientProxyAddress(t *testing.T) {
@@ -455,33 +423,18 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		ConfigFormat: &currency.PairFormat{Delimiter: "~"},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Store must not error")
 	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
 		ConfigFormat: &currency.PairFormat{Delimiter: ":)"},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = b.SetCurrencyPairFormat()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Store must not error")
+	require.NoError(t, b.SetCurrencyPairFormat(), "SetCurrencyPairFormat must not error")
 	spot, err = b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if spot.Delimiter != "~" {
-		t.Error("incorrect pair format delimiter")
-	}
-	futures, err := b.GetPairFormat(asset.Futures, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if futures.Delimiter != ":)" {
-		t.Error("incorrect pair format delimiter")
-	}
+	require.NoError(t, err, "GetPairFormat must not error")
+	assert.Equal(t, "~", spot.Delimiter, "GetPairFormat should return a format with correct delimiter")
+	f, err := b.GetPairFormat(asset.Futures, false)
+	require.NoError(t, err, "GetPairFormat must not error")
+	assert.Equal(t, ":)", f.Delimiter, "GetPairFormat should return a format with correct delimiter")
 }
 
 func TestLoadConfigPairs(t *testing.T) {
@@ -817,11 +770,8 @@ func TestIsEnabled(t *testing.T) {
 func TestSetupDefaults(t *testing.T) {
 	t.Parallel()
 
-	newRequester, err := request.New("testSetupDefaults",
-		common.NewHTTPClientWithTimeout(0))
-	if err != nil {
-		t.Fatal(err)
-	}
+	newRequester, err := request.New("testSetupDefaults", common.NewHTTPClientWithTimeout(0))
+	require.NoError(t, err, "request.New must not error")
 
 	b := Base{
 		Name:      "awesomeTest",
@@ -835,62 +785,35 @@ func TestSetupDefaults(t *testing.T) {
 		ConnectionMonitorDelay: time.Second * 5,
 	}
 
-	err = b.SetupDefaults(&cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.HTTPTimeout.String() != "15s" {
-		t.Error("HTTP timeout should be set to 15s")
-	}
+	accountsStore := accounts.GetStore()
+	require.NoError(t, b.SetupDefaults(&cfg))
+	// If this fails, something raced and changed accounts.global under us. Probably accounts.TestGetStore.
+	// Highly unlikely, but this check will clarify what happened
+	require.Same(t, accountsStore, accounts.GetStore(), "Global accounts Store must not change during SetupDefaults")
 
-	// Test custom HTTP timeout is set
+	assert.Equal(t, 15*time.Second, cfg.HTTPTimeout, "config.HTTPTimeout should default correctly")
+
 	cfg.HTTPTimeout = time.Second * 30
-	err = b.SetupDefaults(&cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.HTTPTimeout.String() != "30s" {
-		t.Error("HTTP timeout should be set to 30s")
-	}
+	require.NoError(t, b.SetupDefaults(&cfg))
+	require.NoError(t, err)
+	assert.Equal(t, 30*time.Second, cfg.HTTPTimeout, "config.HTTPTimeout should respect override")
 
 	// Test asset types
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{Enabled: currency.Pairs{btcusdPair}})
 	require.NoError(t, err, "Store must not error")
-	require.NoError(t, b.SetupDefaults(&cfg), "SetupDefaults must not error")
-	ps, err := cfg.CurrencyPairs.Get(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ps.Enabled.Contains(btcusdPair, true) {
-		t.Error("default pair should be stored in the configs pair store")
-	}
+	require.NoError(t, b.SetupDefaults(&cfg))
 
-	// Test websocket support
-	b.Websocket = websocket.NewManager()
-	b.Features.Supports.Websocket = true
-	err = b.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig: &config.Exchange{
-			WebsocketTrafficTimeout: time.Second * 30,
-			Name:                    "test",
-			Features:                &config.FeaturesConfig{},
-		},
-		Features:              &protocol.Features{},
-		DefaultURL:            "ws://something.com",
-		RunningURL:            "ws://something.com",
-		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{}, nil },
-		Subscriber:            func(subscription.List) error { return nil },
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = b.Websocket.Enable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !b.IsWebsocketEnabled() {
-		t.Error("websocket should be enabled")
-	}
+	ps, err := cfg.CurrencyPairs.Get(asset.Spot)
+	require.NoError(t, err, "CurrencyPairs.Get must not error")
+	assert.True(t, ps.Enabled.Contains(btcusdPair, true), "default pair should be stored in the configs pair store")
+
+	exp, err := accountsStore.GetExchangeAccounts(&b)
+	require.NoError(t, err, "GetExchangeAccounts must not error")
+	assert.Same(t, exp, b.Accounts, "SetupDefaults should default accounts from the global accounts store")
+	b.Accounts = accounts.MustNewAccounts(&b)
+	a := b.Accounts
+	require.NoError(t, b.SetupDefaults(&cfg))
+	assert.Same(t, a, b.Accounts, "SetDefaults should not overwrite Accounts override")
 }
 
 func TestSetPairs(t *testing.T) {
@@ -988,18 +911,18 @@ func TestUpdatePairs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true)
 	if err != nil {
 		t.Errorf("TestUpdatePairs error: %s", err)
 	}
 
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false)
 	if err != nil {
 		t.Errorf("TestUpdatePairs error: %s", err)
 	}
 
 	// Test updating the same new products, diff should be 0
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true)
 	if err != nil {
 		t.Errorf("TestUpdatePairs error: %s", err)
 	}
@@ -1010,7 +933,7 @@ func TestUpdatePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, true)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true)
 	if err != nil {
 		t.Errorf("TestUpdatePairs error: %s", err)
 	}
@@ -1026,13 +949,13 @@ func TestUpdatePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 	UAC.Name = defaultTestExchange
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false)
 	if err != nil {
 		t.Errorf("Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test updating the same new products, diff should be 0
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false)
 	if err != nil {
 		t.Errorf("Exchange UpdatePairs() error: %s", err)
 	}
@@ -1042,7 +965,7 @@ func TestUpdatePairs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, true)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false)
 	if err != nil {
 		t.Errorf("Forced Exchange UpdatePairs() error: %s", err)
 	}
@@ -1052,21 +975,21 @@ func TestUpdatePairs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false)
 	if err != nil {
 		t.Errorf("Exchange UpdatePairs() error: %s", err)
 	}
 
-	err = UAC.UpdatePairs(currency.Pairs{currency.EMPTYPAIR, btcusdPair}, asset.Spot, true, true)
+	err = UAC.UpdatePairs(currency.Pairs{currency.EMPTYPAIR, btcusdPair}, asset.Spot, true)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UpdatePairs should error on empty pairs")
 
-	err = UAC.UpdatePairs(currency.Pairs{btcusdPair, btcusdPair}, asset.Spot, false, true)
+	err = UAC.UpdatePairs(currency.Pairs{btcusdPair, btcusdPair}, asset.Spot, false)
 	assert.ErrorIs(t, err, currency.ErrPairDuplication, "UpdatePairs should error on Duplicates")
 
-	err = UAC.UpdatePairs(currency.Pairs{btcusdPair}, asset.Spot, false, true)
+	err = UAC.UpdatePairs(currency.Pairs{btcusdPair}, asset.Spot, false)
 	assert.NoError(t, err, "UpdatePairs should not error")
 
-	err = UAC.UpdatePairs(currency.Pairs{btcusdPair}, asset.Spot, true, true)
+	err = UAC.UpdatePairs(currency.Pairs{btcusdPair}, asset.Spot, true)
 	assert.NoError(t, err, "UpdatePairs should not error")
 
 	UAC.CurrencyPairs.UseGlobalFormat = true
@@ -1082,7 +1005,7 @@ func TestUpdatePairs(t *testing.T) {
 		currency.NewPair(currency.LTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.USDT),
 	}
-	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
+	err = UAC.UpdatePairs(pairs, asset.Spot, true)
 	require.NoError(t, err)
 
 	pairs = currency.Pairs{
@@ -1091,7 +1014,7 @@ func TestUpdatePairs(t *testing.T) {
 		currency.NewPair(currency.LARIX, currency.USD),
 		currency.NewPair(currency.LTC, currency.USDT),
 	}
-	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
+	err = UAC.UpdatePairs(pairs, asset.Spot, false)
 	require.NoError(t, err)
 
 	uacEnabledPairs, err := UAC.GetEnabledPairs(asset.Spot)
@@ -1123,7 +1046,7 @@ func TestUpdatePairs(t *testing.T) {
 		unintentionalInput,
 	}
 
-	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
+	err = UAC.UpdatePairs(pairs, asset.Spot, true)
 	require.NoError(t, err)
 
 	pairs = currency.Pairs{
@@ -1134,7 +1057,7 @@ func TestUpdatePairs(t *testing.T) {
 		currency.NewPair(currency.LINK, currency.USD),
 	}
 
-	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
+	err = UAC.UpdatePairs(pairs, asset.Spot, false)
 	require.NoError(t, err)
 
 	uacEnabledPairs, err = UAC.GetEnabledPairs(asset.Spot)
@@ -1145,6 +1068,20 @@ func TestUpdatePairs(t *testing.T) {
 	if !uacEnabledPairs.Contains(currency.NewPair(currency.LINK, currency.USD), true) {
 		t.Fatalf("received: '%v' but expected: '%v'", false, true)
 	}
+
+	err = UAC.UpdatePairs(currency.Pairs{}, asset.Spot, true)
+	require.NoError(t, err, "purging all pairs must not error")
+
+	pairs, err = UAC.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err)
+	require.Empty(t, pairs)
+
+	err = UAC.UpdatePairs(currency.Pairs{}, asset.Spot, false)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty, "Purging all available pairs must error")
+
+	avail, err := UAC.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err)
+	assert.NotEmpty(t, avail, "Failed attempt to purge available pairs should not affect store")
 }
 
 func TestSupportsWebsocket(t *testing.T) {
@@ -1179,9 +1116,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 	t.Parallel()
 
 	var b Base
-	if b.IsWebsocketEnabled() {
-		t.Error("exchange doesn't support websocket")
-	}
+	require.False(t, b.IsWebsocketEnabled(), "IsWebsocketEnabled must return false on an empty Base")
 
 	b.Websocket = websocket.NewManager()
 	err := b.Websocket.Setup(&websocket.ManagerSetup{
@@ -1202,12 +1137,10 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
 		Subscriber:            func(subscription.List) error { return nil },
 	})
-	if err != nil {
-		t.Error(err)
-	}
-	if !b.IsWebsocketEnabled() {
-		t.Error("websocket should be enabled")
-	}
+	require.NoError(t, err, "Websocket.Setup must not error")
+	assert.True(t, b.IsWebsocketEnabled(), "websocket should be enabled")
+	require.NoError(t, b.Websocket.Disable(), "Websocket.Disable must not error")
+	assert.False(t, b.IsWebsocketEnabled(), "websocket should not be enabled")
 }
 
 func TestSupportsWithdrawPermissions(t *testing.T) {
@@ -1713,6 +1646,7 @@ func TestString(t *testing.T) {
 		{WebsocketUSDTMargined, websocketUSDTMarginedURL},
 		{WebsocketUSDCMargined, websocketUSDCMarginedURL},
 		{WebsocketOptions, websocketOptionsURL},
+		{WebsocketTrade, websocketTradeURL},
 		{WebsocketPrivate, websocketPrivateURL},
 		{WebsocketSpotSupplementary, websocketSpotSupplementaryURL},
 		{ChainAnalysis, chainAnalysisURL},
@@ -1785,10 +1719,8 @@ func TestSetAPIURL(t *testing.T) {
 	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
 	b.API.Endpoints = b.NewEndpoints()
 	b.Config.API.OldEndPoints.URL = "heloo"
-	err = b.SetAPIURL()
-	if err != nil {
-		t.Errorf("expecting a warning since invalid oldendpoints url but got an error: %v", err)
-	}
+	assert.ErrorContains(t, b.SetAPIURL(), "invalid URI for request")
+
 	mappy.Mappymap = make(map[string]string)
 	b.Config.API.OldEndPoints = &config.APIEndpointsConfig{}
 	b.Config.API.Endpoints = mappy.Mappymap
@@ -1813,17 +1745,6 @@ func TestSetAPIURL(t *testing.T) {
 	}
 	if urlData != "https://www.bitstamp.net/" {
 		t.Error("oldendpoints url setting failed")
-	}
-}
-
-func TestSetRunningURL(t *testing.T) {
-	b := Base{
-		Name: "HELOOOOOOOO",
-	}
-	b.API.Endpoints = b.NewEndpoints()
-	err := b.API.Endpoints.SetRunningURL(EdgeCase1.String(), "http://google.com/")
-	if err != nil {
-		t.Error(err)
 	}
 }
 
@@ -1889,6 +1810,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		{Endpoint: websocketUSDTMarginedURL, Expected: WebsocketUSDTMargined},
 		{Endpoint: websocketUSDCMarginedURL, Expected: WebsocketUSDCMargined},
 		{Endpoint: websocketOptionsURL, Expected: WebsocketOptions},
+		{Endpoint: websocketTradeURL, Expected: WebsocketTrade},
 		{Endpoint: websocketPrivateURL, Expected: WebsocketPrivate},
 		{Endpoint: websocketSpotSupplementaryURL, Expected: WebsocketSpotSupplementary},
 		{Endpoint: chainAnalysisURL, Expected: ChainAnalysis},
@@ -2059,10 +1981,10 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCAUD")
-	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
+	require.ErrorIs(t, err, ErrSymbolNotMatched)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
-	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
+	require.ErrorIs(t, err, ErrSymbolNotMatched)
 
 	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
 	require.NoError(t, err)
@@ -2681,28 +2603,90 @@ func TestGetCachedOrderbook(t *testing.T) {
 	assert.Equal(t, pair, ob.Pair)
 }
 
-func TestGetCachedAccountInfo(t *testing.T) {
+func TestGetCachedSubAccounts(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 
-	creds := &account.Credentials{
-		Key:    "test",
-		Secret: "test",
-	}
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
 		Key:    "test",
 		Secret: "test",
 	})
-	_, err := b.GetCachedAccountInfo(ctx, asset.Spot)
-	assert.ErrorIs(t, err, account.ErrExchangeHoldingsNotFound)
+	_, err := b.GetCachedSubAccounts(ctx, asset.Spot)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
 
-	err = account.Process(&account.Holdings{Exchange: "test", Accounts: []account.SubAccount{
-		{AssetType: asset.Spot, Currencies: []account.Balance{{Currency: currency.BTC, Total: 1}}},
-	}}, creds)
-	require.NoError(t, err, "account.Process must not error")
+	b.Accounts = accounts.MustNewAccounts(&b)
+	_, err = b.GetCachedSubAccounts(ctx, asset.Spot)
+	assert.ErrorIs(t, err, accounts.ErrNoSubAccounts)
 
-	_, err = b.GetCachedAccountInfo(ctx, asset.Spot)
+	err = b.Accounts.Save(ctx, accounts.SubAccounts{
+		{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1}}},
+	}, true)
+	require.NoError(t, err, "b.Accounts.Save must not error")
+
+	_, err = b.GetCachedSubAccounts(ctx, asset.Spot)
 	assert.NoError(t, err)
+}
+
+func TestGetCurrencyBalances(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+
+	_, err := b.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+	assert.ErrorIs(t, err, ErrCredentialsAreEmpty)
+
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
+		Key:    "test",
+		Secret: "test",
+	})
+	_, err = b.GetCachedCurrencyBalances(ctx, asset.Spot)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	b.Accounts = accounts.MustNewAccounts(&b)
+	_, err = b.GetCachedCurrencyBalances(ctx, asset.Spot)
+	assert.ErrorIs(t, err, accounts.ErrNoBalances)
+
+	err = b.Accounts.Save(ctx, accounts.SubAccounts{
+		{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1.4}}},
+	}, true)
+	require.NoError(t, err, "b.Accounts.Save must not error")
+
+	a, err := b.GetCachedCurrencyBalances(ctx, asset.Spot)
+	require.NoError(t, err)
+	require.Contains(t, a, currency.BTC)
+	assert.Equal(t, 1.4, a[currency.BTC].Total, "BTC Total should be correct")
+}
+
+func TestSubscribeAccountBalances(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+
+	_, err := b.SubscribeAccountBalances()
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	err = dispatch.EnsureRunning(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
+	require.NoError(t, err, "dispatch.EnsureRunning must not error")
+
+	b.Accounts = accounts.MustNewAccounts(&b)
+	p, err := b.SubscribeAccountBalances()
+	require.NoError(t, err)
+
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
+		Key:    "test",
+		Secret: "test",
+	})
+	exp := &accounts.SubAccount{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.BTC: {Total: 1.4}}}
+	err = b.Accounts.Save(ctx, accounts.SubAccounts{exp}, true)
+	require.NoError(t, err, "b.Accounts.Save must not error")
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		select {
+		case a := <-p.Channel():
+			require.IsType(c, &accounts.SubAccount{}, a, "Save must publish *SubAccount")
+			subAcct, _ := a.(*accounts.SubAccount)
+			assert.Equal(c, exp, subAcct, "Save should publish the same update")
+		default:
+			require.Fail(c, "Data must eventually arrive")
+		}
+	}, time.Second, time.Millisecond, "Publish must eventually send to Channel")
 }
 
 // FakeBase is used to override functions
@@ -2711,12 +2695,7 @@ type FakeBase struct{ Base }
 func (f *FakeBase) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	return []futures.OpenInterest{
 		{
-			Key: key.ExchangePairAsset{
-				Exchange: f.Name,
-				Base:     currency.BTC.Item,
-				Quote:    currency.BONK.Item,
-				Asset:    asset.Futures,
-			},
+			Key:          key.NewExchangeAssetPair(f.Name, asset.Futures, currency.NewPair(currency.BTC, currency.BONK)),
 			OpenInterest: 1337,
 		},
 	}, nil
@@ -2727,7 +2706,7 @@ func (f *FakeBase) SetDefaults() {
 	f.Requester, _ = request.New("test", common.NewHTTPClientWithTimeout(time.Second))
 	f.Features.Supports.RESTCapabilities.AutoPairUpdates = true
 }
-func (f *FakeBase) UpdateTradablePairs(context.Context, bool) error { return nil }
+func (f *FakeBase) UpdateTradablePairs(context.Context) error { return nil }
 
 func (f *FakeBase) Setup(*config.Exchange) error {
 	return nil
@@ -2745,8 +2724,8 @@ func (f *FakeBase) CancelOrder(context.Context, *order.Cancel) error {
 	return nil
 }
 
-func (f *FakeBase) GetCachedAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, nil
+func (f *FakeBase) GetCachedSubAccounts(context.Context, asset.Item) (accounts.SubAccounts, error) {
+	return accounts.SubAccounts{}, nil
 }
 
 func (f *FakeBase) GetCachedOrderbook(currency.Pair, asset.Item) (*orderbook.Book, error) {
@@ -2781,8 +2760,8 @@ func (f *FakeBase) UpdateOrderbook(context.Context, currency.Pair, asset.Item) (
 	return nil, nil
 }
 
-func (f *FakeBase) UpdateAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, nil
+func (f *FakeBase) UpdateAccountBalances(context.Context, asset.Item) (accounts.SubAccounts, error) {
+	return accounts.SubAccounts{}, nil
 }
 
 func (f *FakeBase) GetRecentTrades(context.Context, currency.Pair, asset.Item) ([]trade.Data, error) {
@@ -2893,12 +2872,73 @@ func TestSetConfigPairFormatFromExchange(t *testing.T) {
 	assert.Equal(t, "🦥", b.Config.CurrencyPairs.Pairs[asset.Spot].RequestFormat.Delimiter, "RequestFormat should be correct and kinda lazy")
 }
 
+func TestGetOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	exch := Base{
+		Name: "TESTNAME",
+	}
+	cp := currency.NewBTCUSDT()
+	k := key.NewExchangeAssetPair("TESTNAME", asset.Spread, cp)
+	l := limits.MinMaxLevel{
+		Key:      k,
+		MaxPrice: 1337,
+	}
+	err := limits.Load([]limits.MinMaxLevel{l})
+	require.NoError(t, err, "Load must not error")
+
+	_, err = exch.GetOrderExecutionLimits(asset.Spread, cp)
+	require.NoError(t, err)
+}
+
+func TestCheckOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	exch := Base{
+		Name: "TESTNAME",
+	}
+	cp := currency.NewBTCUSDT()
+	k := key.NewExchangeAssetPair("TESTNAME", asset.Spread, cp)
+	l := limits.MinMaxLevel{
+		Key:      k,
+		MaxPrice: 1337,
+	}
+	err := limits.Load([]limits.MinMaxLevel{
+		l,
+	})
+	require.NoError(t, err, "Load must not error")
+
+	err = exch.CheckOrderExecutionLimits(asset.Spread, cp, 1338.0, 1.0, order.Market)
+	require.NoError(t, err, "CheckOrderExecutionLimits must not error")
+}
+
 func TestWebsocketSubmitOrder(t *testing.T) {
+	t.Parallel()
 	_, err := (&Base{}).WebsocketSubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestWebsocketSubmitOrders(t *testing.T) {
+	t.Parallel()
 	_, err := (&Base{}).WebsocketSubmitOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketModifyOrder(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).WebsocketModifyOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketCancelOrder(t *testing.T) {
+	t.Parallel()
+	err := (&Base{}).WebsocketCancelOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestMessageID(t *testing.T) {
+	t.Parallel()
+	id := (new(Base)).MessageID()
+	require.NotEmpty(t, id, "MessageID must return a non-empty message ID")
+	u, err := uuid.FromString(id)
+	require.NoError(t, err, "MessageID must return a valid UUID")
+	assert.Equal(t, byte(0x7), u.Version(), "MessageID should return a V7 uuid")
 }

@@ -575,24 +575,26 @@ func getTickers(c *cli.Context) error {
 	return nil
 }
 
-var getAccountInfoCommand = &cli.Command{
-	Name:      "getaccountinfo",
-	Usage:     "gets the exchange account balance info",
+var getAccountBalancesCommand = &cli.Command{
+	Name:      "getaccountbalances",
+	Usage:     "gets the exchange account balances",
 	ArgsUsage: "<exchange> <asset>",
-	Action:    getAccountInfo,
+	Action:    getAccountBalances,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to get the account info for",
+			Name:     "exchange",
+			Usage:    "the exchange to get the account balances for",
+			Required: true,
 		},
 		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type to get the account info for",
+			Name:     "asset",
+			Usage:    "the asset type to get the account balances for",
+			Required: true,
 		},
 	},
 }
 
-func getAccountInfo(c *cli.Context) error {
+func getAccountBalances(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
@@ -621,8 +623,8 @@ func getAccountInfo(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetAccountInfo(c.Context,
-		&gctrpc.GetAccountInfoRequest{
+	result, err := client.GetAccountBalances(c.Context,
+		&gctrpc.GetAccountBalancesRequest{
 			Exchange:  exchange,
 			AssetType: assetType,
 		},
@@ -635,24 +637,24 @@ func getAccountInfo(c *cli.Context) error {
 	return nil
 }
 
-var getAccountInfoStreamCommand = &cli.Command{
-	Name:      "getaccountinfostream",
-	Usage:     "gets the account info stream for a specific exchange",
+var getAccountBalancesStreamCommand = &cli.Command{
+	Name:      "getaccountbalancesstream",
+	Usage:     "gets the account balances stream for a specific exchange",
 	ArgsUsage: "<exchange> <asset>",
-	Action:    getAccountInfoStream,
+	Action:    getAccountBalancesStream,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "exchange",
-			Usage: "the exchange to get the account info stream from",
+			Usage: "the exchange to get the account balances stream from",
 		},
 		&cli.StringFlag{
 			Name:  "asset",
-			Usage: "the asset type to get the account info stream for",
+			Usage: "the asset type to get the account balances stream for",
 		},
 	},
 }
 
-func getAccountInfoStream(c *cli.Context) error {
+func getAccountBalancesStream(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
@@ -683,8 +685,8 @@ func getAccountInfoStream(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetAccountInfoStream(c.Context,
-		&gctrpc.GetAccountInfoRequest{Exchange: exchangeName, AssetType: assetType})
+	result, err := client.GetAccountBalancesStream(c.Context,
+		&gctrpc.GetAccountBalancesRequest{Exchange: exchangeName, AssetType: assetType})
 	if err != nil {
 		return err
 	}
@@ -706,24 +708,24 @@ func getAccountInfoStream(c *cli.Context) error {
 	}
 }
 
-var updateAccountInfoCommand = &cli.Command{
-	Name:      "updateaccountinfo",
-	Usage:     "updates the exchange account balance info",
+var updateAccountBalancesCommand = &cli.Command{
+	Name:      "updateaccountbalances",
+	Usage:     "updates the exchange account balances",
 	ArgsUsage: "<exchange> <asset>",
-	Action:    updateAccountInfo,
+	Action:    updateAccountBalances,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "exchange",
-			Usage: "the exchange to get the account info for",
+			Usage: "the exchange to get the account balances for",
 		},
 		&cli.StringFlag{
 			Name:  "asset",
-			Usage: "the asset type to get the account info for",
+			Usage: "the asset type to get the account balances for",
 		},
 	},
 }
 
-func updateAccountInfo(c *cli.Context) error {
+func updateAccountBalances(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
@@ -753,8 +755,8 @@ func updateAccountInfo(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.UpdateAccountInfo(c.Context,
-		&gctrpc.GetAccountInfoRequest{
+	result, err := client.UpdateAccountBalances(c.Context,
+		&gctrpc.GetAccountBalancesRequest{
 			Exchange:  exchange,
 			AssetType: assetType,
 		},
@@ -2861,7 +2863,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange, currency, assetType string
+	var exchange, ccy, assetType string
 	if c.IsSet("exchange") {
 		exchange = c.String("exchange")
 	} else {
@@ -2896,7 +2898,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		}
 
 		if c.IsSet("currency") {
-			currency = c.String("currency")
+			ccy = c.String("currency")
 		}
 
 		if c.IsSet("asset") {
@@ -2922,7 +2924,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 			Exchange:  exchange,
 			Id:        ID,
 			Limit:     int32(limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
-			Currency:  currency,
+			Currency:  ccy,
 			AssetType: assetType,
 		},
 	)

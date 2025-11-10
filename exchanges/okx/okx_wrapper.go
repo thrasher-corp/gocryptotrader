@@ -10,14 +10,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -223,7 +225,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     websocketResponseMaxLimit,
 		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
-		RequestIDGenerator:   e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -234,7 +235,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     websocketResponseMaxLimit,
 		Authenticated:        true,
 		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
-		RequestIDGenerator:   e.messageIDSeq.IncrementAndGet,
 	})
 }
 
@@ -284,15 +284,14 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	assetTypes := e.GetAssetTypes(true)
 	for i := range assetTypes {
 		pairs, err := e.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
 			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
 		}
-		err = e.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
-		if err != nil {
+		if err := e.UpdatePairs(pairs, assetTypes[i], false); err != nil {
 			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
 		}
 	}
@@ -311,16 +310,15 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if len(insts) == 0 {
 			return common.ErrNoResponse
 		}
-		limits := make([]order.MinMaxLevel, len(insts))
-		for x := range insts {
-			limits[x] = order.MinMaxLevel{
-				Pair:                   insts[x].InstrumentID,
-				Asset:                  a,
-				PriceStepIncrementSize: insts[x].TickSize.Float64(),
-				MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
+		l := make([]limits.MinMaxLevel, len(insts))
+		for i := range insts {
+			l[i] = limits.MinMaxLevel{
+				Key:                    key.NewExchangeAssetPair(e.Name, a, insts[i].InstrumentID),
+				PriceStepIncrementSize: insts[i].TickSize.Float64(),
+				MinimumBaseAmount:      insts[i].MinimumOrderSize.Float64(),
 			}
 		}
-		return e.LoadLimits(limits)
+		return limits.Load(l)
 	case asset.Spread:
 		insts, err := e.GetPublicSpreads(ctx, "", "", "", "live")
 		if err != nil {
@@ -329,19 +327,18 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if len(insts) == 0 {
 			return common.ErrNoResponse
 		}
-		limits := make([]order.MinMaxLevel, len(insts))
-		for x := range insts {
-			limits[x] = order.MinMaxLevel{
-				Pair:                   insts[x].SpreadID,
-				Asset:                  a,
-				PriceStepIncrementSize: insts[x].MinSize.Float64(),
-				MinimumBaseAmount:      insts[x].MinSize.Float64(),
-				QuoteStepIncrementSize: insts[x].TickSize.Float64(),
+		l := make([]limits.MinMaxLevel, len(insts))
+		for i := range insts {
+			l[i] = limits.MinMaxLevel{
+				Key:                    key.NewExchangeAssetPair(e.Name, a, insts[i].SpreadID),
+				PriceStepIncrementSize: insts[i].MinSize.Float64(),
+				MinimumBaseAmount:      insts[i].MinSize.Float64(),
+				QuoteStepIncrementSize: insts[i].TickSize.Float64(),
 			}
 		}
-		return e.LoadLimits(limits)
+		return limits.Load(l)
 	default:
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }
 
@@ -617,44 +614,26 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	return orderbook.Get(e.Name, pair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies.
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	var info account.Holdings
-	var acc account.SubAccount
-	info.Exchange = e.Name
-	if !e.SupportsAsset(assetType) {
-		return info, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
-	}
-	accountBalances, err := e.AccountBalance(ctx, currency.EMPTYCODE)
+	resp, err := e.AccountBalance(ctx, currency.EMPTYCODE)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	currencyBalances := []account.Balance{}
-	for i := range accountBalances {
-		for j := range accountBalances[i].Details {
-			currencyBalances = append(currencyBalances, account.Balance{
-				Currency: accountBalances[i].Details[j].Currency,
-				Total:    accountBalances[i].Details[j].EquityOfCurrency.Float64(),
-				Hold:     accountBalances[i].Details[j].FrozenBalance.Float64(),
-				Free:     accountBalances[i].Details[j].AvailableBalance.Float64(),
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for i := range resp {
+		for j := range resp[i].Details {
+			subAccts[0].Balances.Set(resp[i].Details[j].Currency, accounts.Balance{
+				Total: resp[i].Details[j].EquityOfCurrency.Float64(),
+				Hold:  resp[i].Details[j].FrozenBalance.Float64(),
+				Free:  resp[i].Details[j].AvailableBalance.Float64(),
 			})
 		}
 	}
-	acc.Currencies = currencyBalances
-	acc.AssetType = assetType
-	info.Accounts = append(info.Accounts, acc)
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return info, err
-	}
-	if err := account.Process(&info, creds); err != nil {
-		return account.Holdings{}, err
-	}
-	return info, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
@@ -858,7 +837,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	if s.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	pairFormat, err := e.GetPairFormat(s.AssetType, true)
 	if err != nil {
@@ -987,7 +966,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
 		if s.TrackingValue == 0 {
-			return nil, fmt.Errorf("%w, tracking value required", order.ErrAmountBelowMin)
+			return nil, fmt.Errorf("%w, tracking value required", limits.ErrAmountBelowMin)
 		}
 		result, err = e.PlaceChaseAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:  pairString,
@@ -1051,9 +1030,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	case orderOCO:
 		switch {
 		case s.RiskManagementModes.TakeProfit.Price <= 0:
-			return nil, fmt.Errorf("%w, take profit price is required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, take profit price is required", limits.ErrPriceBelowMin)
 		case s.RiskManagementModes.StopLoss.Price <= 0:
-			return nil, fmt.Errorf("%w, stop loss price is required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, stop loss price is required", limits.ErrPriceBelowMin)
 		}
 		result, err = e.PlaceAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID: pairString,
@@ -1105,7 +1084,7 @@ func (e *Exchange) marginTypeToString(m margin.Type) string {
 	return ""
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to market conversion
+// ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
@@ -1159,7 +1138,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		}
 	case order.Trigger:
 		if action.TriggerPrice == 0 {
-			return nil, fmt.Errorf("%w, trigger price required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, trigger price required", limits.ErrPriceBelowMin)
 		}
 		var postTriggerTPSLOrders []SubTPSLParams
 		if action.RiskManagementModes.StopLoss.Price > 0 && action.RiskManagementModes.TakeProfit.Price > 0 {
@@ -1194,10 +1173,10 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		switch {
 		case action.RiskManagementModes.TakeProfit.Price <= 0 &&
 			action.RiskManagementModes.TakeProfit.LimitPrice <= 0:
-			return nil, fmt.Errorf("%w, either take profit trigger price or order price is required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, either take profit trigger price or order price is required", limits.ErrPriceBelowMin)
 		case action.RiskManagementModes.StopLoss.Price <= 0 &&
 			action.RiskManagementModes.StopLoss.LimitPrice <= 0:
-			return nil, fmt.Errorf("%w, either stop loss trigger price or order price is required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, either stop loss trigger price or order price is required", limits.ErrPriceBelowMin)
 		}
 		_, err = e.AmendAlgoOrder(ctx, &AmendAlgoOrderParam{
 			InstrumentID:              pairFormat.Format(action.Pair),
@@ -1960,7 +1939,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 
 // ValidateAPICredentials validates current credentials used for wrapper
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 
@@ -2835,7 +2814,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			if !settleCurr.IsEmpty() {
-				resp[i].SettlementCurrencies = currency.Currencies{settleCurr}
+				resp[i].SettlementCurrency = settleCurr
 			}
 		}
 		return resp, nil
@@ -2933,12 +2912,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 					continue
 				}
 				resp = append(resp, futures.OpenInterest{
-					Key: key.ExchangePairAsset{
-						Exchange: e.Name,
-						Base:     p.Base.Item,
-						Quote:    p.Quote.Item,
-						Asset:    v,
-					},
+					Key:          key.NewExchangeAssetPair(e.Name, v, p),
 					OpenInterest: oid[j].OpenInterest.Float64(),
 				})
 			}
@@ -2985,12 +2959,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			continue
 		}
 		resp[0] = futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: e.Name,
-				Base:     p.Base.Item,
-				Quote:    p.Quote.Item,
-				Asset:    k[0].Asset,
-			},
+			Key:          key.NewExchangeAssetPair(e.Name, k[0].Asset, p),
 			OpenInterest: oid[i].OpenInterest.Float64(),
 		}
 	}
@@ -3047,6 +3016,11 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 		}
 		return baseURL + "trade-futures/" + strings.ToLower(insts[0].Underlying) + ct, nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
+}
+
+// MessageID returns a universally unique ID using UUID V7, with hyphens removed to fit the maximum 32-character field for okx
+func (e *Exchange) MessageID() string {
+	return strings.Replace(uuid.Must(uuid.NewV7()).String(), "-", "", 4)
 }

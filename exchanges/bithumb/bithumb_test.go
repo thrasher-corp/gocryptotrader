@@ -418,12 +418,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	assert.Emptyf(t, resp.Status, "%v orders failed to cancel", len(resp.Status))
 }
 
-func TestGetAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-
-	_, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
-	require.NoError(t, err, "UpdateAccountInfo must not error")
+	_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err)
 }
 
 func TestModifyOrder(t *testing.T) {
@@ -547,17 +546,17 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Empty)
-	require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
-
-	limit, err := e.GetOrderExecutionLimits(asset.Spot, testPair)
-	require.NoError(t, err, "GetOrderExecutionLimits must not error")
-
-	err = limit.Conforms(46241000, 0.00001, order.Limit)
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
-
-	err = limit.Conforms(46241000, 0.0001, order.Limit)
-	assert.NoError(t, err, "Conforms should not error")
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
+			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+		})
+	}
 }
 
 func TestGetAmountMinimum(t *testing.T) {

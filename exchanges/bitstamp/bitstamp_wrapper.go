@@ -10,11 +10,13 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -194,13 +196,12 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, _ asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	pairs, err := e.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = e.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
+	if err := e.UpdatePairs(pairs, asset.Spot, false); err != nil {
 		return err
 	}
 	return e.EnsureOnePairEnabled()
@@ -215,7 +216,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if err != nil {
 		return err
 	}
-	limits := make([]order.MinMaxLevel, 0, len(symbols))
+	l := make([]limits.MinMaxLevel, 0, len(symbols))
 	for x, info := range symbols {
 		if symbols[x].Trading != "Enabled" {
 			continue
@@ -224,15 +225,14 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-		limits = append(limits, order.MinMaxLevel{
-			Asset:                   a,
-			Pair:                    pair,
+		l = append(l, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 			PriceStepIncrementSize:  math.Pow10(-info.CounterDecimals),
 			AmountStepIncrementSize: math.Pow10(-info.BaseDecimals),
 			MinimumQuoteAmount:      info.MinimumOrder,
 		})
 	}
-	if err := e.LoadLimits(limits); err != nil {
+	if err := limits.Load(l); err != nil {
 		return fmt.Errorf("%s Error loading exchange limits: %v", e.Name, err)
 	}
 	return nil
@@ -336,40 +336,21 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(e.Name, fPair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// Bitstamp exchange
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
-	response.Exchange = e.Name
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	accountBalance, err := e.GetBalance(ctx)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
-
-	currencies := make([]account.Balance, 0, len(accountBalance))
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 	for k, v := range accountBalance {
-		currencies = append(currencies, account.Balance{
-			Currency: currency.NewCode(k),
-			Total:    v.Balance,
-			Hold:     v.Reserved,
-			Free:     v.Available,
+		subAccts[0].Balances.Set(currency.NewCode(k), accounts.Balance{
+			Total: v.Balance,
+			Hold:  v.Reserved,
+			Free:  v.Available,
 		})
 	}
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		AssetType:  assetType,
-		Currencies: currencies,
-	})
-
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	err = account.Process(&response, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return response, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -468,9 +449,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return s.DeriveSubmitResponse(strconv.FormatInt(response.ID, 10))
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
-func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+// ModifyOrder modifies an existing order
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -583,18 +563,20 @@ func (e *Exchange) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withd
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := e.OpenBankWithdrawal(ctx,
-		withdrawRequest.Amount,
-		withdrawRequest.Currency.String(),
-		withdrawRequest.Fiat.Bank.AccountName,
-		withdrawRequest.Fiat.Bank.IBAN,
-		withdrawRequest.Fiat.Bank.SWIFTCode,
-		withdrawRequest.Fiat.Bank.BankAddress,
-		withdrawRequest.Fiat.Bank.BankPostalCode,
-		withdrawRequest.Fiat.Bank.BankPostalCity,
-		withdrawRequest.Fiat.Bank.BankCountry,
-		withdrawRequest.Description,
-		sepaWithdrawal)
+
+	resp, err := e.OpenBankWithdrawal(ctx, &OpenBankWithdrawalRequest{
+		Amount:         withdrawRequest.Amount,
+		Currency:       withdrawRequest.Currency,
+		Name:           withdrawRequest.Fiat.Bank.AccountName,
+		IBAN:           withdrawRequest.Fiat.Bank.IBAN,
+		BIC:            withdrawRequest.Fiat.Bank.SWIFTCode,
+		Address:        withdrawRequest.Fiat.Bank.BankAddress,
+		PostalCode:     withdrawRequest.Fiat.Bank.BankPostalCode,
+		City:           withdrawRequest.Fiat.Bank.BankPostalCity,
+		Country:        withdrawRequest.Fiat.Bank.BankCountry,
+		Comment:        withdrawRequest.Description,
+		WithdrawalType: sepaWithdrawal,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -610,24 +592,25 @@ func (e *Exchange) WithdrawFiatFundsToInternationalBank(ctx context.Context, wit
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := e.OpenInternationalBankWithdrawal(ctx,
-		withdrawRequest.Amount,
-		withdrawRequest.Currency.String(),
-		withdrawRequest.Fiat.Bank.AccountName,
-		withdrawRequest.Fiat.Bank.IBAN,
-		withdrawRequest.Fiat.Bank.SWIFTCode,
-		withdrawRequest.Fiat.Bank.BankAddress,
-		withdrawRequest.Fiat.Bank.BankPostalCode,
-		withdrawRequest.Fiat.Bank.BankPostalCity,
-		withdrawRequest.Fiat.Bank.BankCountry,
-		withdrawRequest.Fiat.IntermediaryBankName,
-		withdrawRequest.Fiat.IntermediaryBankAddress,
-		withdrawRequest.Fiat.IntermediaryBankPostalCode,
-		withdrawRequest.Fiat.IntermediaryBankCity,
-		withdrawRequest.Fiat.IntermediaryBankCountry,
-		withdrawRequest.Fiat.WireCurrency,
-		withdrawRequest.Description,
-		internationalWithdrawal)
+	resp, err := e.OpenInternationalBankWithdrawal(ctx, &OpenBankWithdrawalRequest{
+		Amount:                withdrawRequest.Amount,
+		Currency:              withdrawRequest.Currency,
+		Name:                  withdrawRequest.Fiat.Bank.AccountName,
+		IBAN:                  withdrawRequest.Fiat.Bank.IBAN,
+		BIC:                   withdrawRequest.Fiat.Bank.SWIFTCode,
+		Address:               withdrawRequest.Fiat.Bank.BankAddress,
+		PostalCode:            withdrawRequest.Fiat.Bank.BankPostalCode,
+		City:                  withdrawRequest.Fiat.Bank.BankPostalCity,
+		Country:               withdrawRequest.Fiat.Bank.BankCountry,
+		BankName:              withdrawRequest.Fiat.IntermediaryBankName,
+		BankAddress:           withdrawRequest.Fiat.IntermediaryBankAddress,
+		BankPostalCode:        withdrawRequest.Fiat.IntermediaryBankPostalCode,
+		BankCity:              withdrawRequest.Fiat.IntermediaryBankCity,
+		BankCountry:           withdrawRequest.Fiat.IntermediaryBankCountry,
+		InternationalCurrency: withdrawRequest.Fiat.WireCurrency,
+		Comment:               withdrawRequest.Description,
+		WithdrawalType:        internationalWithdrawal,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -770,10 +753,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(e.Name, orders), nil
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

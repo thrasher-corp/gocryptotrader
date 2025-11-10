@@ -15,9 +15,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -238,7 +238,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !e.SupportsAsset(a) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 
 	var pairs []currency.Pair
@@ -316,15 +316,14 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	assets := e.GetAssetTypes(false)
 	for x := range assets {
 		pairs, err := e.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
 			return err
 		}
-		err = e.UpdatePairs(pairs, assets[x], false, forceUpdate)
-		if err != nil {
+		if err := e.UpdatePairs(pairs, assets[x], false); err != nil {
 			return err
 		}
 	}
@@ -458,7 +457,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	default:
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	return errs
 }
@@ -469,7 +468,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !e.SupportsAsset(a) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	switch a {
 	case asset.Spot:
@@ -654,161 +653,102 @@ func (e *Exchange) GetAccountID(ctx context.Context) ([]Account, error) {
 	return acc, nil
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// HUOBI exchange - to-do
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var acc account.SubAccount
-	info.Exchange = e.Name
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	switch assetType {
 	case asset.Spot:
-		accounts, err := e.GetAccountID(ctx)
+		resp, err := e.GetAccountID(ctx)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		for i := range accounts {
-			if accounts[i].Type != "spot" {
+		subAccts = make(accounts.SubAccounts, 0, len(resp))
+		for i := range resp {
+			if resp[i].Type != "spot" {
 				continue
 			}
-			acc.ID = strconv.FormatInt(accounts[i].ID, 10)
-			balances, err := e.GetAccountBalance(ctx, acc.ID)
+			a := accounts.NewSubAccount(assetType, strconv.FormatInt(resp[i].ID, 10))
+			balances, err := e.GetAccountBalance(ctx, a.ID)
 			if err != nil {
-				return info, err
+				return nil, err
 			}
-
-			var currencyDetails []account.Balance
-		balance:
 			for j := range balances {
-				frozen := balances[j].Type == "frozen"
-				for i := range currencyDetails {
-					if currencyDetails[i].Currency.String() == balances[j].Currency {
-						if frozen {
-							currencyDetails[i].Hold = balances[j].Balance
-						} else {
-							currencyDetails[i].Total = balances[j].Balance
-						}
-						continue balance
-					}
-				}
-
-				if frozen {
-					currencyDetails = append(currencyDetails,
-						account.Balance{
-							Currency: currency.NewCode(balances[j].Currency),
-							Hold:     balances[j].Balance,
-						})
+				if balances[j].Type == "frozen" {
+					err = a.Balances.Add(balances[j].Currency, accounts.Balance{Hold: balances[j].Balance})
 				} else {
-					currencyDetails = append(currencyDetails,
-						account.Balance{
-							Currency: currency.NewCode(balances[j].Currency),
-							Total:    balances[j].Balance,
-						})
+					err = a.Balances.Add(balances[j].Currency, accounts.Balance{Total: balances[j].Balance})
+				}
+				if err != nil {
+					return nil, err
 				}
 			}
-			acc.Currencies = currencyDetails
+			subAccts = subAccts.Merge(a)
 		}
-
 	case asset.CoinMarginedFutures:
-		// fetch swap account info
-		acctInfo, err := e.GetSwapAccountInfo(ctx, currency.EMPTYPAIR)
+		mainResp, err := e.GetSwapAccountInfo(ctx, currency.EMPTYPAIR)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-
-		var mainAcctBalances []account.Balance
-		for x := range acctInfo.Data {
-			mainAcctBalances = append(mainAcctBalances, account.Balance{
-				Currency: currency.NewCode(acctInfo.Data[x].Symbol),
-				Total:    acctInfo.Data[x].MarginBalance,
-				Hold:     acctInfo.Data[x].MarginFrozen,
-				Free:     acctInfo.Data[x].MarginAvailable,
+		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+		for i := range mainResp.Data {
+			subAccts[0].Balances.Set(mainResp.Data[i].Symbol, accounts.Balance{
+				Total: mainResp.Data[i].MarginBalance,
+				Hold:  mainResp.Data[i].MarginFrozen,
+				Free:  mainResp.Data[i].MarginAvailable,
 			})
 		}
-
-		info.Accounts = append(info.Accounts, account.SubAccount{
-			Currencies: mainAcctBalances,
-			AssetType:  assetType,
-		})
-
-		// fetch subaccounts data
-		subAccsData, err := e.GetSwapAllSubAccAssets(ctx, currency.EMPTYPAIR)
+		subResp, err := e.GetSwapAllSubAccAssets(ctx, currency.EMPTYPAIR)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		var currencyDetails []account.Balance
-		for x := range subAccsData.Data {
-			a, err := e.SwapSingleSubAccAssets(ctx,
-				currency.EMPTYPAIR,
-				subAccsData.Data[x].SubUID)
+		for i := range subResp.Data {
+			resp, err := e.SwapSingleSubAccAssets(ctx, currency.EMPTYPAIR, subResp.Data[i].SubUID)
 			if err != nil {
-				return info, err
+				return nil, err
 			}
-			for y := range a.Data {
-				currencyDetails = append(currencyDetails, account.Balance{
-					Currency: currency.NewCode(a.Data[y].Symbol),
-					Total:    a.Data[y].MarginBalance,
-					Hold:     a.Data[y].MarginFrozen,
-					Free:     a.Data[y].MarginAvailable,
+			a := accounts.NewSubAccount(assetType, strconv.FormatInt(subResp.Data[i].SubUID, 10))
+			for j := range resp.Data {
+				a.Balances.Set(resp.Data[j].Symbol, accounts.Balance{
+					Total: resp.Data[j].MarginBalance,
+					Hold:  resp.Data[j].MarginFrozen,
+					Free:  resp.Data[j].MarginAvailable,
 				})
 			}
+			subAccts = subAccts.Merge(a)
 		}
-		acc.Currencies = currencyDetails
 	case asset.Futures:
-		// fetch main account data
-		mainAcctData, err := e.FGetAccountInfo(ctx, currency.EMPTYCODE)
+		mainResp, err := e.FGetAccountInfo(ctx, currency.EMPTYCODE)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-
-		var mainAcctBalances []account.Balance
-		for x := range mainAcctData.AccData {
-			mainAcctBalances = append(mainAcctBalances, account.Balance{
-				Currency: currency.NewCode(mainAcctData.AccData[x].Symbol),
-				Total:    mainAcctData.AccData[x].MarginBalance,
-				Hold:     mainAcctData.AccData[x].MarginFrozen,
-				Free:     mainAcctData.AccData[x].MarginAvailable,
+		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+		for i := range mainResp.AccData {
+			subAccts[0].Balances.Set(mainResp.AccData[i].Symbol, accounts.Balance{
+				Total: mainResp.AccData[i].MarginBalance,
+				Hold:  mainResp.AccData[i].MarginFrozen,
+				Free:  mainResp.AccData[i].MarginAvailable,
 			})
 		}
-
-		info.Accounts = append(info.Accounts, account.SubAccount{
-			Currencies: mainAcctBalances,
-			AssetType:  assetType,
-		})
-
-		// fetch subaccounts data
-		subAccsData, err := e.FGetAllSubAccountAssets(ctx, currency.EMPTYCODE)
+		subResp, err := e.FGetAllSubAccountAssets(ctx, currency.EMPTYCODE)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		var currencyDetails []account.Balance
-		for x := range subAccsData.Data {
-			a, err := e.FGetSingleSubAccountInfo(ctx,
-				"",
-				strconv.FormatInt(subAccsData.Data[x].SubUID, 10))
+		for i := range subResp.Data {
+			a := accounts.NewSubAccount(assetType, strconv.FormatInt(subResp.Data[i].SubUID, 10))
+			resp, err := e.FGetSingleSubAccountInfo(ctx, "", a.ID)
 			if err != nil {
-				return info, err
+				return nil, err
 			}
-			for y := range a.AssetsData {
-				currencyDetails = append(currencyDetails, account.Balance{
-					Currency: currency.NewCode(a.AssetsData[y].Symbol),
-					Total:    a.AssetsData[y].MarginBalance,
-					Hold:     a.AssetsData[y].MarginFrozen,
-					Free:     a.AssetsData[y].MarginAvailable,
+			for j := range resp.AssetsData {
+				a.Balances.Set(resp.AssetsData[j].Symbol, accounts.Balance{
+					Total: resp.AssetsData[j].MarginBalance,
+					Hold:  resp.AssetsData[j].MarginFrozen,
+					Free:  resp.AssetsData[j].MarginAvailable,
 				})
 			}
+			subAccts = subAccts.Merge(a)
 		}
-		acc.Currencies = currencyDetails
 	}
-	acc.AssetType = assetType
-	info.Accounts = append(info.Accounts, acc)
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	if err := account.Process(&info, creds); err != nil {
-		return info, err
-	}
-	return info, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -820,7 +760,7 @@ func (e *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.Fundi
 // GetWithdrawalsHistory returns previous withdrawals data
 func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	if a != asset.Spot {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	withdrawals, err := e.SearchForExistedWithdrawsAndDeposits(ctx, c, "withdraw", "", 0, 500)
 	if err != nil {
@@ -1103,9 +1043,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
-func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+// ModifyOrder modifies an existing order
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1795,10 +1734,9 @@ func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
 	return e.wsLogin(ctx)
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 
@@ -2071,16 +2009,16 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            s,
-				SettlementType:       futures.Inverse,
-				IsActive:             result[x].ContractStatus == 1,
-				Type:                 futures.Perpetual,
-				SettlementCurrencies: currency.Currencies{currency.USD},
-				Multiplier:           result[x].ContractSize,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          s,
+				SettlementType:     futures.Inverse,
+				IsActive:           result[x].ContractStatus == 1,
+				Type:               futures.Perpetual,
+				SettlementCurrency: currency.USD,
+				Multiplier:         result[x].ContractSize,
 			})
 		}
 		return resp, nil
@@ -2127,17 +2065,17 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            startTime,
-				EndDate:              endTime,
-				SettlementType:       futures.Linear,
-				IsActive:             result.Data[x].ContractStatus == 1,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.USD},
-				Multiplier:           result.Data[x].ContractSize,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          startTime,
+				EndDate:            endTime,
+				SettlementType:     futures.Linear,
+				IsActive:           result.Data[x].ContractStatus == 1,
+				Type:               ct,
+				SettlementCurrency: currency.USD,
+				Multiplier:         result.Data[x].ContractSize,
 			})
 		}
 		return resp, nil
@@ -2271,12 +2209,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				}
 				return []futures.OpenInterest{
 					{
-						Key: key.ExchangePairAsset{
-							Exchange: e.Name,
-							Base:     p.Base.Item,
-							Quote:    p.Quote.Item,
-							Asset:    k[0].Asset,
-						},
+						Key:          key.NewExchangeAssetPair(e.Name, k[0].Asset, p),
 						OpenInterest: data.Data[i].Amount,
 					},
 				}, nil
@@ -2297,12 +2230,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				}
 				return []futures.OpenInterest{
 					{
-						Key: key.ExchangePairAsset{
-							Exchange: e.Name,
-							Base:     p.Base.Item,
-							Quote:    p.Quote.Item,
-							Asset:    k[0].Asset,
-						},
+						Key:          key.NewExchangeAssetPair(e.Name, k[0].Asset, p),
 						OpenInterest: data.Data[i].Amount,
 					},
 				}, nil
@@ -2344,12 +2272,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 					continue
 				}
 				resp = append(resp, futures.OpenInterest{
-					Key: key.ExchangePairAsset{
-						Exchange: e.Name,
-						Base:     p.Base.Item,
-						Quote:    p.Quote.Item,
-						Asset:    a,
-					},
+					Key:          key.NewExchangeAssetPair(e.Name, a, p),
 					OpenInterest: allData[i].Amount,
 				})
 			}
@@ -2377,12 +2300,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 					continue
 				}
 				resp = append(resp, futures.OpenInterest{
-					Key: key.ExchangePairAsset{
-						Exchange: e.Name,
-						Base:     p.Base.Item,
-						Quote:    p.Quote.Item,
-						Asset:    a,
-					},
+					Key:          key.NewExchangeAssetPair(e.Name, a, p),
 					OpenInterest: data.Data[i].Amount,
 				})
 			}
@@ -2415,6 +2333,6 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		}
 		return tradeBaseURL + tradeCoinMargined + cp.Base.Upper().String(), nil
 	default:
-		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 }

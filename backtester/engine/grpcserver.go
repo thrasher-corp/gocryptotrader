@@ -23,7 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	gctengine "github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
@@ -67,7 +67,7 @@ func StartRPCServer(server *GRPCServer) error {
 		return err
 	}
 	log.Debugf(log.GRPCSys, "Backtester GRPC server enabled. Starting GRPC server on https://%v.\n", server.config.GRPC.ListenAddress)
-	lis, err := net.Listen("tcp", server.config.GRPC.ListenAddress)
+	lis, err := net.Listen("tcp", server.config.GRPC.ListenAddress) //nolint:noctx // TODO: #2006 Replace net.Listen with (*net.ListenConfig).Listen
 	if err != nil {
 		return err
 	}
@@ -547,7 +547,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		for i := range request.Config.DataSettings.LiveData.Credentials {
 			creds[i] = config.Credentials{
 				Exchange: request.Config.DataSettings.LiveData.Credentials[i].Exchange,
-				Keys: account.Credentials{
+				Keys: accounts.Credentials{
 					Key:             request.Config.DataSettings.LiveData.Credentials[i].Keys.Key,
 					Secret:          request.Config.DataSettings.LiveData.Credentials[i].Keys.Secret,
 					ClientID:        request.Config.DataSettings.LiveData.Credentials[i].Keys.ClientId,

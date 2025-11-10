@@ -148,22 +148,7 @@ func (e *Exchange) GetOrderbook(ctx context.Context, marketID string, level int6
 		return nil, err
 	}
 
-	ob := &Orderbook{
-		MarketID:   resp.MarketID,
-		SnapshotID: resp.SnapshotID,
-		Bids:       make([]OBData, len(resp.Bids)),
-		Asks:       make([]OBData, len(resp.Asks)),
-	}
-
-	for x := range resp.Asks {
-		ob.Asks[x].Price = resp.Asks[x][0].Float64()
-		ob.Asks[x].Volume = resp.Asks[x][1].Float64()
-	}
-	for x := range resp.Bids {
-		ob.Bids[x].Price = resp.Bids[x][0].Float64()
-		ob.Bids[x].Volume = resp.Bids[x][1].Float64()
-	}
-	return ob, nil
+	return &Orderbook{MarketID: resp.MarketID, SnapshotID: resp.SnapshotID, Bids: resp.Bids.Levels(), Asks: resp.Asks.Levels()}, nil
 }
 
 // GetMarketCandles gets candles for specified currency pair
@@ -227,16 +212,8 @@ func (e *Exchange) GetMultipleOrderbooks(ctx context.Context, marketIDs []string
 		orderbooks[i] = Orderbook{
 			MarketID:   resp[i].MarketID,
 			SnapshotID: resp[i].SnapshotID,
-			Asks:       make([]OBData, len(resp[i].Asks)),
-			Bids:       make([]OBData, len(resp[i].Bids)),
-		}
-		for j := range resp[i].Asks {
-			orderbooks[i].Asks[j].Price = resp[i].Asks[j][0].Float64()
-			orderbooks[i].Asks[j].Volume = resp[i].Asks[j][1].Float64()
-		}
-		for j := range resp[i].Bids {
-			orderbooks[i].Bids[j].Price = resp[i].Bids[j][0].Float64()
-			orderbooks[i].Bids[j].Volume = resp[i].Bids[j][1].Float64()
+			Asks:       resp[i].Asks.Levels(),
+			Bids:       resp[i].Bids.Levels(),
 		}
 	}
 	return orderbooks, nil
@@ -771,12 +748,13 @@ func (e *Exchange) CancelBatch(ctx context.Context, ids []string) (BatchCancelRe
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any) error {
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 	return e.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
@@ -827,14 +805,15 @@ func (e *Exchange) SendAuthenticatedRequest(ctx context.Context, method, path st
 		headers["BM-AUTH-SIGNATURE"] = base64.StdEncoding.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:        method,
-			Path:          btcMarketsAPIURL + btcMarketsAPIVersion + path,
-			Headers:       headers,
-			Body:          body,
-			Result:        result,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
+			Method:                 method,
+			Path:                   btcMarketsAPIURL + btcMarketsAPIVersion + path,
+			Headers:                headers,
+			Body:                   body,
+			Result:                 result,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
 

@@ -9,7 +9,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -39,7 +41,7 @@ var (
 )
 
 var s = store{
-	orderbooks:      make(map[key.ExchangePairAsset]book),
+	orderbooks:      make(map[key.ExchangeAssetPair]book),
 	exchangeRouters: make(map[string]uuid.UUID),
 	signalMux:       dispatch.GetNewMux(nil),
 }
@@ -51,7 +53,7 @@ type book struct {
 
 // store provides a centralised store for orderbooks
 type store struct {
-	orderbooks      map[key.ExchangePairAsset]book
+	orderbooks      map[key.ExchangeAssetPair]book
 	exchangeRouters map[string]uuid.UUID
 	signalMux       *dispatch.Mux
 	m               sync.RWMutex
@@ -183,4 +185,27 @@ type SideAmounts struct {
 	Levels     int64
 	QuoteValue float64
 	BaseAmount float64
+}
+
+// LevelsArrayPriceAmount used to unmarshal orderbook levels from JSON slice of arrays
+// e.g. [[price, amount], [price, amount]] or [][2]types.Number type declaration
+type LevelsArrayPriceAmount Levels
+
+// UnmarshalJSON implements json.Unmarshaler
+func (l *LevelsArrayPriceAmount) UnmarshalJSON(data []byte) error {
+	var v [][2]types.Number
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	*l = make(LevelsArrayPriceAmount, len(v))
+	for x := range v {
+		(*l)[x].Price = v[x][0].Float64()
+		(*l)[x].Amount = v[x][1].Float64()
+	}
+	return nil
+}
+
+// Levels converts the LevelsArrayPriceAmount to a orderbook.Levels type
+func (l *LevelsArrayPriceAmount) Levels() Levels {
+	return Levels(*l)
 }

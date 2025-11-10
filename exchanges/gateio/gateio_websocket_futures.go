@@ -11,8 +11,8 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -69,20 +69,11 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	pingMessage, err := json.Marshal(WsInput{
-		ID:      conn.GenerateMessageID(false),
-		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
-		Channel: futuresPingChannel,
-	})
+	pingHandler, err := getWSPingHandler(futuresPingChannel)
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, websocket.PingHandler{
-		Websocket:   true,
-		MessageType: gws.PingMessage,
-		Delay:       time.Second * 15,
-		Message:     pingMessage,
-	})
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, pingHandler)
 	return nil
 }
 
@@ -186,13 +177,15 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresAutoPositionCloseChannel:
 		return e.processPositionCloseData(respRaw)
 	case futuresBalancesChannel:
-		return e.processBalancePushData(ctx, respRaw, a)
+		return e.processBalancePushData(ctx, push.Result, a)
 	case futuresReduceRiskLimitsChannel:
 		return e.processFuturesReduceRiskLimitNotification(respRaw)
 	case futuresPositionsChannel:
 		return e.processFuturesPositionsNotification(respRaw)
 	case futuresAutoOrdersChannel:
 		return e.processFuturesAutoOrderPushData(respRaw)
+	case "futures.pong":
+		return nil
 	default:
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
@@ -201,11 +194,11 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	}
 }
 
-func (e *Exchange) generateFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
-	var creds *account.Credentials
+	var creds *accounts.Credentials
 	var err error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = e.GetCredentials(ctx)
@@ -287,7 +280,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, conn websocket.Co
 			}
 		}
 		outbound = append(outbound, WsInput{
-			ID:      conn.GenerateMessageID(false),
+			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
@@ -639,39 +632,31 @@ func (e *Exchange) processPositionCloseData(data []byte) error {
 }
 
 func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
-	resp := struct {
-		Time    types.Time  `json:"time"`
-		Channel string      `json:"channel"`
-		Event   string      `json:"event"`
-		Result  []WsBalance `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	var resp []*WsBalance
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	changes := make([]account.Change, len(resp.Result))
-	for x, bal := range resp.Result {
-		info := strings.Split(bal.Text, currency.UnderscoreDelimiter)
-		if len(info) != 2 {
-			return errors.New("malformed text")
+
+	subAccts := accounts.SubAccounts{}
+	for _, bal := range resp {
+		c := bal.Currency
+		if assetType == asset.Options && c.IsEmpty() {
+			c = currency.USDT // Settlement currency is USDT
 		}
-		changes[x] = account.Change{
-			AssetType: assetType,
-			Account:   bal.User,
-			Balance: &account.Balance{
-				Currency:  currency.NewCode(info[0]),
-				Total:     bal.Balance,
-				Free:      bal.Balance,
-				UpdatedAt: bal.Time.Time(),
-			},
-		}
+		a := accounts.NewSubAccount(assetType, bal.User)
+		a.Balances.Set(c, accounts.Balance{
+			Total:                  bal.Balance,
+			Free:                   bal.Balance,
+			AvailableWithoutBorrow: bal.Balance,
+			UpdatedAt:              bal.Time.Time(),
+		})
+		subAccts = subAccts.Merge(a)
 	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	err := e.Accounts.Save(ctx, subAccts, false)
+	if err == nil {
+		e.Websocket.DataHandler <- subAccts
+	}
+	return err
 }
 
 func (e *Exchange) processFuturesReduceRiskLimitNotification(data []byte) error {

@@ -70,12 +70,12 @@ func (e *Exchange) GetCurrencies(ctx context.Context) (map[string]Currencies, er
 
 // GetCurrency returns the actual list of available currencies, tokens, ICO
 // etc.
-func (e *Exchange) GetCurrency(ctx context.Context, currency string) (Currencies, error) {
+func (e *Exchange) GetCurrency(ctx context.Context, symbol string) (Currencies, error) {
 	type Response struct {
 		Data Currencies
 	}
 	resp := Response{}
-	path := apiV2Currency + "/" + currency
+	path := apiV2Currency + "/" + symbol
 
 	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp.Data)
 }
@@ -103,8 +103,8 @@ func (e *Exchange) GetSymbols(ctx context.Context, symbol string) ([]string, err
 
 // GetSymbolsDetailed is the same as above but returns an array of symbols with
 // all their details.
-func (e *Exchange) GetSymbolsDetailed(ctx context.Context) ([]Symbol, error) {
-	var resp []Symbol
+func (e *Exchange) GetSymbolsDetailed(ctx context.Context) ([]*Symbol, error) {
+	var resp []*Symbol
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, apiV2Symbol, &resp)
 }
 
@@ -202,21 +202,13 @@ func (e *Exchange) GetCandles(ctx context.Context, currencyPair, limit, period s
 // https://api.hitbtc.com/?python#market-data
 
 // GetBalances returns full balance for your account
-func (e *Exchange) GetBalances(ctx context.Context) (map[string]Balance, error) {
+func (e *Exchange) GetBalances(ctx context.Context) (map[currency.Code]Balance, error) {
 	var result []Balance
-	err := e.SendAuthenticatedHTTPRequest(ctx,
-		exchange.RestSpot,
-		http.MethodGet,
-		apiV2Balance,
-		url.Values{},
-		otherRequests,
-		&result)
-	ret := make(map[string]Balance)
-
-	if err != nil {
-		return ret, err
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, apiV2Balance, url.Values{}, otherRequests, &result); err != nil {
+		return nil, err
 	}
 
+	ret := make(map[currency.Code]Balance)
 	for _, item := range result {
 		ret[item.Currency] = item
 	}
@@ -225,22 +217,22 @@ func (e *Exchange) GetBalances(ctx context.Context) (map[string]Balance, error) 
 }
 
 // GetDepositAddresses returns a deposit address for a specific currency
-func (e *Exchange) GetDepositAddresses(ctx context.Context, currency string) (DepositCryptoAddresses, error) {
+func (e *Exchange) GetDepositAddresses(ctx context.Context, ccy string) (DepositCryptoAddresses, error) {
 	var resp DepositCryptoAddresses
 
 	return resp,
 		e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-			apiV2CryptoAddress+"/"+currency,
+			apiV2CryptoAddress+"/"+ccy,
 			url.Values{},
 			otherRequests,
 			&resp)
 }
 
 // GenerateNewAddress generates a new deposit address for a currency
-func (e *Exchange) GenerateNewAddress(ctx context.Context, currency string) (DepositCryptoAddresses, error) {
+func (e *Exchange) GenerateNewAddress(ctx context.Context, ccy string) (DepositCryptoAddresses, error) {
 	resp := DepositCryptoAddresses{}
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
-		apiV2CryptoAddress+"/"+currency,
+		apiV2CryptoAddress+"/"+ccy,
 		url.Values{},
 		otherRequests,
 		&resp)
@@ -249,7 +241,7 @@ func (e *Exchange) GenerateNewAddress(ctx context.Context, currency string) (Dep
 }
 
 // GetTradeHistoryForCurrency returns your trade history
-func (e *Exchange) GetTradeHistoryForCurrency(ctx context.Context, currency, start, end string) (AuthenticatedTradeHistoryResponse, error) {
+func (e *Exchange) GetTradeHistoryForCurrency(ctx context.Context, ccyPair, start, end string) (AuthenticatedTradeHistoryResponse, error) {
 	values := url.Values{}
 
 	if start != "" {
@@ -260,7 +252,7 @@ func (e *Exchange) GetTradeHistoryForCurrency(ctx context.Context, currency, sta
 		values.Set("end", end)
 	}
 
-	values.Set("currencyPair", currency)
+	values.Set("currencyPair", ccyPair)
 	result := AuthenticatedTradeHistoryResponse{}
 
 	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -293,9 +285,9 @@ func (e *Exchange) GetTradeHistoryForAllCurrencies(ctx context.Context, start, e
 }
 
 // GetOrders List of your order history.
-func (e *Exchange) GetOrders(ctx context.Context, currency string) ([]OrderHistoryResponse, error) {
+func (e *Exchange) GetOrders(ctx context.Context, symbol string) ([]OrderHistoryResponse, error) {
 	values := url.Values{}
-	values.Set("symbol", currency)
+	values.Set("symbol", symbol)
 	var result []OrderHistoryResponse
 
 	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -306,9 +298,9 @@ func (e *Exchange) GetOrders(ctx context.Context, currency string) ([]OrderHisto
 }
 
 // GetOpenOrders List of your currently open orders.
-func (e *Exchange) GetOpenOrders(ctx context.Context, currency string) ([]OrderHistoryResponse, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context, symbol string) ([]OrderHistoryResponse, error) {
 	values := url.Values{}
-	values.Set("symbol", currency)
+	values.Set("symbol", symbol)
 	var result []OrderHistoryResponse
 
 	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -330,11 +322,11 @@ func (e *Exchange) GetActiveOrderByClientOrderID(ctx context.Context, clientOrde
 }
 
 // PlaceOrder places an order on the exchange
-func (e *Exchange) PlaceOrder(ctx context.Context, currency string, rate, amount float64, orderType, side string) (OrderResponse, error) {
+func (e *Exchange) PlaceOrder(ctx context.Context, symbol string, rate, amount float64, orderType, side string) (OrderResponse, error) {
 	var result OrderResponse
 	values := url.Values{}
 
-	values.Set("symbol", currency)
+	values.Set("symbol", symbol)
 	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
 	values.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
 	values.Set("side", side)
@@ -381,11 +373,11 @@ func (e *Exchange) CancelAllExistingOrders(ctx context.Context) ([]Order, error)
 }
 
 // Withdraw allows for the withdrawal to a specific address
-func (e *Exchange) Withdraw(ctx context.Context, currency, address string, amount float64) (bool, error) {
+func (e *Exchange) Withdraw(ctx context.Context, ccy, address string, amount float64) (bool, error) {
 	result := Withdraw{}
 	values := url.Values{}
 
-	values.Set("currency", currency)
+	values.Set("currency", ccy)
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	values.Set("address", address)
 
@@ -425,12 +417,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 
 	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpoint + path,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 http.MethodGet,
+		Path:                   endpoint + path,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, marketRequests, func() (*request.Item, error) {
@@ -452,13 +445,14 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	headers["Authorization"] = "Basic " + base64.StdEncoding.EncodeToString([]byte(creds.Key+":"+creds.Secret))
 
 	item := &request.Item{
-		Method:        method,
-		Path:          ePoint + "/" + endpoint,
-		Headers:       headers,
-		Result:        result,
-		Verbose:       e.Verbose,
-		HTTPDebugging: e.HTTPDebugging,
-		HTTPRecording: e.HTTPRecording,
+		Method:                 method,
+		Path:                   ePoint + "/" + endpoint,
+		Headers:                headers,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
 	return e.SendPayload(ctx, f, func() (*request.Item, error) {

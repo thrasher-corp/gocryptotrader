@@ -15,7 +15,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -139,7 +138,7 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	r := e.Requester
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test exchange Setup must not error")
 	e.Requester = r
 	start := time.Now().AddDate(0, 0, -3)
@@ -153,7 +152,7 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	r := e.Requester
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test exchange Setup must not error")
 	e.Requester = r
 	err := e.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresPair}, true)
@@ -469,7 +468,7 @@ func TestWsOrderbook(t *testing.T) {
 func TestWSTrades(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
 	close(e.Websocket.DataHandler)
@@ -571,27 +570,22 @@ func TestMatchType(t *testing.T) {
 	assert.True(t, ret, "matchType should match")
 }
 
-// TestUpdateOrderExecutionLimits exercises UpdateOrderExecutionLimits
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
-		err := e.UpdateOrderExecutionLimits(t.Context(), a)
-		require.NoErrorf(t, err, "UpdateOrderExecutionLimits must not error for %s", a)
-
-		pairs, err := e.GetAvailablePairs(a)
-		require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
-		require.NotEmpty(t, pairs, "GetAvailablePairs must return some pairs")
-
-		for _, p := range pairs {
-			limits, err := e.GetOrderExecutionLimits(a, p)
-			require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s %s", a, p)
-			assert.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s %s", a, p)
-			assert.Positivef(t, limits.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s %s", a, p)
-			assert.Positivef(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s %s", a, p)
-			assert.Positivef(t, limits.MinPrice, "MinPrice should be positive for %s %s", a, p)
-			assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s %s", a, p)
-		}
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, true)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
+			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			assert.Positive(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive")
+			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+			assert.Positive(t, l.MinPrice, "MinPrice should be positive")
+			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+		})
 	}
 }
 
@@ -647,10 +641,7 @@ func TestWsUnexpectedData(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesContractDetails(t.Context(), asset.Spot)
-	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset, "GetFuturesContractDetails should error correctly on Spot")
-
-	_, err = e.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
+	_, err := e.GetFuturesContractDetails(t.Context(), asset.Margin)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetFuturesContractDetails should error correctly on Margin")
 
 	_, err = e.GetFuturesContractDetails(t.Context(), asset.Futures)
@@ -696,7 +687,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	r := e.Requester
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test exchange Setup must not error")
 	testexch.UpdatePairsOnce(t, e)
 	e.Requester = r
@@ -776,18 +767,18 @@ func TestMarketPair(t *testing.T) {
 
 	for _, tt := range []struct {
 		symbol         string
-		base           string
+		base           currency.Code
 		futures        bool
 		expectedErr    error
 		expectedSymbol string
 	}{
-		{symbol: "RUNEPFC", base: currency.RUNE.String(), futures: true, expectedSymbol: "RUNEPFC"},
-		{symbol: "TRUMPPFC", base: "TRUMPSOL", futures: true, expectedSymbol: "TRUMPPFC"},
-		{symbol: "BTCUSD", base: "NAUGHTYBASE", futures: true, expectedErr: errInvalidPairSymbol},
-		{symbol: "NAUGHTYSYMBOL", base: currency.BTC.String(), expectedErr: errInvalidPairSymbol},
-		{symbol: "BTC-USD", base: currency.BTC.String(), expectedSymbol: "BTCUSD"},
+		{symbol: "RUNEPFC", base: currency.RUNE, futures: true, expectedSymbol: "RUNEPFC"},
+		{symbol: "TRUMPPFC", base: currency.NewCode("TRUMPSOL"), futures: true, expectedSymbol: "TRUMPPFC"},
+		{symbol: "BTCUSD", base: currency.NewCode("NAUGHTYBASE"), futures: true, expectedErr: errInvalidPairSymbol},
+		{symbol: "NAUGHTYSYMBOL", base: currency.BTC, expectedErr: errInvalidPairSymbol},
+		{symbol: "BTC-USD", base: currency.BTC, expectedSymbol: "BTCUSD"},
 	} {
-		mp := MarketPair{Symbol: tt.symbol, Base: tt.base, Quote: "USD", Futures: tt.futures}
+		mp := MarketPair{Symbol: tt.symbol, Base: tt.base, Quote: currency.USD, Futures: tt.futures}
 		p, err := mp.Pair()
 		assert.ErrorIs(t, err, tt.expectedErr, "Pair should not error")
 		assert.Equal(t, tt.expectedSymbol, p.String(), "Pair should return the expected symbol")

@@ -255,7 +255,7 @@ func (m *DataHistoryManager) runJobs() error {
 	}
 
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
-		return fmt.Errorf("cannot process jobs, %w", errAlreadyRunning)
+		return fmt.Errorf("cannot process jobs, %w", ErrSubSystemAlreadyStarted)
 	}
 	defer atomic.StoreInt32(&m.processing, 0)
 
@@ -1195,11 +1195,11 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	exchangeName := job.Exchange
 	if job.DataType == dataHistoryCandleValidationSecondarySourceType {
 		if job.SecondaryExchangeSource == "" {
-			return fmt.Errorf("job %s %w, secondary exchange name required to lookup existing results", job.Nickname, errExchangeNameUnset)
+			return fmt.Errorf("job %s %w, secondary exchange name required to lookup existing results", job.Nickname, common.ErrExchangeNameNotSet)
 		}
 		exchangeName = job.SecondaryExchangeSource
 		if job.Exchange == "" {
-			return fmt.Errorf("job %s %w, exchange name required to lookup existing results", job.Nickname, errExchangeNameUnset)
+			return fmt.Errorf("job %s %w, exchange name required to lookup existing results", job.Nickname, common.ErrExchangeNameNotSet)
 		}
 	}
 	exch, err := m.exchangeManager.GetExchangeByName(exchangeName)

@@ -73,12 +73,11 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	if err != nil {
 		return nil, err
 	}
-	var massagedData []float64
-	massagedData, err = s.massageMissingData(dataRange, es.GetTime())
+	backfilledData, err := s.backfillMissingData(dataRange, es.GetTime())
 	if err != nil {
 		return nil, err
 	}
-	rsi := indicators.RSI(massagedData, int(s.rsiPeriod.IntPart()))
+	rsi := indicators.RSI(backfilledData, int(s.rsiPeriod.IntPart()))
 	latestRSIValue := decimal.NewFromFloat(rsi[len(rsi)-1])
 	hasDataAtTime, err := d.HasDataAtTime(latest.GetTime())
 	if err != nil {
@@ -171,16 +170,16 @@ func (s *Strategy) SetDefaults() {
 	s.rsiPeriod = decimal.NewFromInt(14)
 }
 
-// massageMissingData will replace missing data with the previous candle's data
+// backfillMissingData will replace missing data with the previous candle's data
 // this will ensure that RSI can be calculated correctly
 // the decision to handle missing data occurs at the strategy level, not all strategies
 // may wish to modify data
-func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]float64, error) {
-	resp := make([]float64, len(data))
+func (s *Strategy) backfillMissingData(d []decimal.Decimal, t time.Time) ([]float64, error) {
+	resp := make([]float64, len(d))
 	var missingDataStreak int64
-	for i := range data {
-		if data[i].IsZero() && i > int(s.rsiPeriod.IntPart()) {
-			data[i] = data[i-1]
+	for i := range d {
+		if d[i].IsZero() && i > int(s.rsiPeriod.IntPart()) {
+			d[i] = d[i-1]
 			missingDataStreak++
 		} else {
 			missingDataStreak = 0
@@ -191,7 +190,7 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 				t.Format(time.DateTime),
 				base.ErrTooMuchBadData)
 		}
-		resp[i] = data[i].InexactFloat64()
+		resp[i] = d[i].InexactFloat64()
 	}
 	return resp, nil
 }

@@ -1,6 +1,6 @@
 # GoCryptoTrader ADD NEW EXCHANGE
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
+<img src="/docs/assets/page-logo.png" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -131,7 +131,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
-| CoinbasePro | Yes | Yes | No|
+| Coinbase | Yes | Yes | No|
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
@@ -157,7 +157,7 @@ var Exchanges = []string{
     "btc markets",
     "btse",
     "bybit",
-    "coinbasepro",
+    "coinbase",
     "coinut",
     "deribit",
     "exmo",
@@ -238,12 +238,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any)
     // This is used to generate the *http.Request, used in conjunction with the
     // generate functionality below. 
     item := &request.Item{  
-        Method:        http.MethodGet,
-        Path:          path,
-        Result:        result,
-        Verbose:       e.Verbose,
-        HTTPDebugging: e.HTTPDebugging,
-        HTTPRecording: e.HTTPRecording,
+        Method:                 http.MethodGet,
+        Path:                   path,
+        Result:                 result,
+        Verbose:                e.Verbose,
+        HTTPDebugging:          e.HTTPDebugging,
+        HTTPRecording:          e.HTTPRecording,
+        HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
     }
 
     // Request function that closes over the above request.Item values, which
@@ -341,6 +342,12 @@ Alternatively you can use `request.WithVerbose(t.Context())` as the `context` pa
 
 Ensure each endpoint is implemented and has an associated test to improve test coverage and increase confidence
 
+#### Message IDs
+
+* e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs
+* e.MessageSequence() to get a simple integer ID if uniqueness is not critical
+* Otherwise override MessageID with a suitable alternative
+
 #### Authenticated functions
 
 Authenticated request function is created based on the way the exchange documentation specifies. For example, see the [Binance Spot API - Endpoint Security Types](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/endpoint-security-type).
@@ -385,13 +392,14 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, 
         headers["X-MBX-APIKEY"] = creds.Key
         fullPath := common.EncodeURLValues(endpointPath+path, params) + "&signature=" + hex.EncodeToString(hmacSigned)
         return &request.Item{
-            Method:        method,
-            Path:          fullPath,
-            Headers:       headers,
-            Result:        &interim,
-            Verbose:       e.Verbose,
-            HTTPDebugging: e.HTTPDebugging,
-            HTTPRecording: e.HTTPRecording,
+            Method:                 method,
+            Path:                   fullPath,
+            Headers:                headers,
+            Result:                 &interim,
+            Verbose:                e.Verbose,
+            HTTPDebugging:          e.HTTPDebugging,
+            HTTPRecording:          e.HTTPRecording,
+            HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
         }, nil
     }, request.AuthenticatedRequest)
     if err != nil {

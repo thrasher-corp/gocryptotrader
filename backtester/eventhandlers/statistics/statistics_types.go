@@ -43,7 +43,7 @@ type Statistic struct {
 	EndDate                     time.Time                                        `json:"end-date"`
 	CandleInterval              gctkline.Interval                                `json:"candle-interval"`
 	RiskFreeRate                decimal.Decimal                                  `json:"risk-free-rate"`
-	ExchangeAssetPairStatistics map[key.ExchangePairAsset]*CurrencyPairStatistic `json:"-"`
+	ExchangeAssetPairStatistics map[key.ExchangeAssetPair]*CurrencyPairStatistic `json:"-"`
 	CurrencyStatistics          []*CurrencyPairStatistic                         `json:"currency-statistics"`
 	TotalBuyOrders              int64                                            `json:"total-buy-orders"`
 	TotalLongOrders             int64                                            `json:"total-long-orders"`

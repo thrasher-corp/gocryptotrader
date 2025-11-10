@@ -10,12 +10,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -87,7 +88,7 @@ func (e *Exchange) UExchangeInfo(ctx context.Context) (UFuturesExchangeInfo, err
 }
 
 // UFuturesOrderbook gets orderbook data for usdt margined futures
-func (e *Exchange) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (*OrderBook, error) {
+func (e *Exchange) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (*OrderBookResponse, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -113,27 +114,8 @@ func (e *Exchange) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, 
 		rateBudget = uFuturesOrderbook500Rate
 	}
 
-	var data *OrderbookData
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), rateBudget, &data); err != nil {
-		return nil, err
-	}
-
-	ob := &OrderBook{
-		Symbol:       symbolValue,
-		LastUpdateID: data.LastUpdateID,
-		Bids:         make([]OrderbookItem, len(data.Bids)),
-		Asks:         make([]OrderbookItem, len(data.Asks)),
-	}
-
-	for x := range data.Asks {
-		ob.Asks[x].Price = data.Asks[x][0].Float64()
-		ob.Asks[x].Quantity = data.Asks[x][1].Float64()
-	}
-	for x := range data.Bids {
-		ob.Bids[x].Price = data.Bids[x][0].Float64()
-		ob.Bids[x].Quantity = data.Bids[x][1].Float64()
-	}
-	return ob, nil
+	var resp *OrderBookResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), rateBudget, &resp)
 }
 
 // URecentTrades gets recent trades for usdt margined futures
@@ -1002,13 +984,12 @@ func (e *Exchange) GetPerpMarkets(ctx context.Context) (PerpsExchangeInfo, error
 }
 
 // FetchUSDTMarginExchangeLimits fetches USDT margined order execution limits
-func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
+func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.MinMaxLevel, error) {
 	usdtFutures, err := e.UExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	limits := make([]order.MinMaxLevel, 0, len(usdtFutures.Symbols))
+	l := make([]limits.MinMaxLevel, 0, len(usdtFutures.Symbols))
 	for x := range usdtFutures.Symbols {
 		var cp currency.Pair
 		cp, err = currency.NewPairFromStrings(usdtFutures.Symbols[x].BaseAsset,
@@ -1021,9 +1002,8 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.M
 			continue
 		}
 
-		limits = append(limits, order.MinMaxLevel{
-			Pair:                    cp,
-			Asset:                   asset.USDTMarginedFutures,
+		l = append(l, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, cp),
 			MinPrice:                usdtFutures.Symbols[x].Filters[0].MinPrice,
 			MaxPrice:                usdtFutures.Symbols[x].Filters[0].MaxPrice,
 			PriceStepIncrementSize:  usdtFutures.Symbols[x].Filters[0].TickSize,
@@ -1041,7 +1021,7 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.M
 			MultiplierDecimal:       usdtFutures.Symbols[x].Filters[6].MultiplierDecimal,
 		})
 	}
-	return limits, nil
+	return l, nil
 }
 
 // SetAssetsMode sets the current asset margin type, true for multi, false for single

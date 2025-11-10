@@ -201,12 +201,6 @@ func TestPrintOrderbookSummary(t *testing.T) {
 	m.PrintOrderbookSummary(nil, "REST", errors.New("test"))
 }
 
-func TestRelayWebsocketEvent(t *testing.T) {
-	t.Parallel()
-
-	relayWebsocketEvent(nil, "", "", "")
-}
-
 func TestWaitForInitialSync(t *testing.T) {
 	var m *SyncManager
 	err := m.WaitForInitialSync()
@@ -258,9 +252,7 @@ func TestSyncManagerWebsocketUpdate(t *testing.T) {
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, nil)
 	require.ErrorIs(t, err, errCouldNotSyncNewData)
 
-	m.add(key.ExchangePairAsset{
-		Asset: asset.Spot,
-	}, syncBase{})
+	m.add(key.NewExchangeAssetPair("", asset.Spot, currency.EMPTYPAIR), syncBase{})
 	m.initSyncWG.Add(3)
 	// orderbook match
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, errors.New("test"))

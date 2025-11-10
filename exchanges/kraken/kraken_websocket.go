@@ -314,23 +314,23 @@ func (e *Exchange) wsProcessOwnTrades(ownOrdersRaw json.RawMessage) error {
 				Err:      err,
 			}
 		}
-		trade := order.TradeHistory{
-			Price:     val.Price,
-			Amount:    val.Vol,
-			Fee:       val.Fee,
-			Exchange:  e.Name,
-			TID:       key,
-			Type:      oType,
-			Side:      oSide,
-			Timestamp: val.Time.Time(),
-		}
 		e.Websocket.DataHandler <- &order.Detail{
 			Exchange: e.Name,
 			OrderID:  val.OrderTransactionID,
-			Trades:   []order.TradeHistory{trade},
+			Trades: []order.TradeHistory{
+				{
+					Price:     val.Price,
+					Amount:    val.Vol,
+					Fee:       val.Fee,
+					Exchange:  e.Name,
+					TID:       key,
+					Type:      oType,
+					Side:      oSide,
+					Timestamp: val.Time.Time(),
+				},
+			},
 		}
 	}
-
 	return nil
 }
 
@@ -813,7 +813,7 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 	reqFmt := currency.PairFormat{Uppercase: true, Delimiter: "/"}
 	r := &WebsocketSubRequest{
 		Event:     op,
-		RequestID: e.Websocket.Conn.GenerateMessageID(false),
+		RequestID: e.MessageSequence(),
 		Subscription: WebsocketSubscriptionData{
 			Name:  s.QualifiedChannel,
 			Depth: s.Levels,
@@ -1040,7 +1040,7 @@ func (e *Exchange) wsAddOrder(ctx context.Context, req *WsAddOrderRequest) (stri
 	if req == nil {
 		return "", common.ErrNilPointer
 	}
-	req.RequestID = e.Websocket.AuthConn.GenerateMessageID(false)
+	req.RequestID = e.MessageSequence()
 	req.Event = krakenWsAddOrder
 	req.Token = e.websocketAuthToken()
 	jsonResp, err := e.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
@@ -1079,7 +1079,7 @@ func (e *Exchange) wsCancelOrders(ctx context.Context, orderIDs []string) error 
 
 // wsCancelOrder cancels an open order
 func (e *Exchange) wsCancelOrder(ctx context.Context, orderID string) error {
-	id := e.Websocket.AuthConn.GenerateMessageID(false)
+	id := e.MessageSequence()
 	req := WsCancelOrderRequest{
 		Event:          krakenWsCancelOrder,
 		Token:          e.websocketAuthToken(),
@@ -1110,14 +1110,13 @@ func (e *Exchange) wsCancelOrder(ctx context.Context, orderID string) error {
 // wsCancelAllOrders cancels all opened orders
 // Returns number (count param) of affected orders or 0 if no open orders found
 func (e *Exchange) wsCancelAllOrders(ctx context.Context) (*WsCancelOrderResponse, error) {
-	id := e.Websocket.AuthConn.GenerateMessageID(false)
 	req := WsCancelOrderRequest{
 		Event:     krakenWsCancelAll,
 		Token:     e.websocketAuthToken(),
-		RequestID: id,
+		RequestID: e.MessageSequence(),
 	}
 
-	jsonResp, err := e.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, id, req)
+	jsonResp, err := e.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
 	if err != nil {
 		return &WsCancelOrderResponse{}, err
 	}

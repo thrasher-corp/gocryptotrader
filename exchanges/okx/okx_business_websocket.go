@@ -2,14 +2,12 @@ package okx
 
 import (
 	"context"
-	"encoding/base64"
-	"fmt"
 	"net/http"
-	"strconv"
+	"strings"
 	"time"
 
 	gws "github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -53,15 +51,13 @@ func (e *Exchange) WsConnectBusiness(ctx context.Context) error {
 	dialer.WriteBufferSize = 8192
 
 	e.Websocket.Conn.SetURL(okxBusinessWebsocketURL)
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx, e.Websocket.Conn)
+	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.Conn) })
+
 	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
-			e.Websocket.GetWebsocketURL())
+		log.Debugf(log.ExchangeSys, "Successful connection to %v", e.Websocket.GetWebsocketURL())
 	}
 	e.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		MessageType: gws.TextMessage,
@@ -69,43 +65,12 @@ func (e *Exchange) WsConnectBusiness(ctx context.Context) error {
 		Delay:       time.Second * 20,
 	})
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err = e.WsSpreadAuth(ctx)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
+		if err := e.authenticateConnection(ctx, e.Websocket.Conn); err != nil { // business WS uses same conn for public and private
+			log.Errorf(log.ExchangeSys, "Error authenticating business websocket: %s", err)
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	return nil
-}
-
-// WsSpreadAuth will connect to Okx's Private websocket connection and Authenticate with a login payload.
-func (e *Exchange) WsSpreadAuth(ctx context.Context) error {
-	if !e.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
-	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	ts := time.Now().Unix()
-	signPath := "/users/self/verify"
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(strconv.FormatInt(ts, 10)+http.MethodGet+signPath),
-		[]byte(creds.Secret),
-	)
-	if err != nil {
-		return err
-	}
-	args := []WebsocketLoginData{
-		{
-			APIKey:     creds.Key,
-			Passphrase: creds.ClientID,
-			Timestamp:  ts,
-			Sign:       base64.StdEncoding.EncodeToString(hmac),
-		},
-	}
-	return e.SendAuthenticatedWebsocketRequest(ctx, request.Unset, "login-response", operationLogin, args, nil)
 }
 
 // GenerateDefaultBusinessSubscriptions returns a list of default subscriptions to business websocket.
@@ -178,28 +143,32 @@ func (e *Exchange) handleBusinessSubscription(ctx context.Context, operation str
 		arg := SubscriptionInfo{
 			Channel: subscriptions[i].Channel,
 		}
-		var instrumentFamily, spreadID string
-		var instrumentID currency.Pair
+
 		switch arg.Channel {
-		case okxSpreadOrders,
-			okxSpreadTrades,
-			okxSpreadOrderbookLevel1,
-			okxSpreadOrderbook,
-			okxSpreadPublicTrades,
-			okxSpreadPublicTicker:
-			spreadID = subscriptions[i].Pairs[0].String()
-		case channelPublicBlockTrades,
-			channelBlockTickers:
-			instrumentID = subscriptions[i].Pairs[0]
-		}
-		instrumentFamilyInterface, okay := subscriptions[i].Params["instFamily"]
-		if okay {
-			instrumentFamily, _ = instrumentFamilyInterface.(string)
+		case okxSpreadOrders, okxSpreadTrades, okxSpreadOrderbookLevel1, okxSpreadOrderbook, okxSpreadPublicTrades, okxSpreadPublicTicker:
+			if len(subscriptions[i].Pairs) != 1 {
+				return currency.ErrCurrencyPairEmpty
+			}
+			arg.SpreadID = subscriptions[i].Pairs[0].String()
+		case channelPublicBlockTrades, channelBlockTickers:
+			if len(subscriptions[i].Pairs) != 1 {
+				return currency.ErrCurrencyPairEmpty
+			}
+			arg.InstrumentID = subscriptions[i].Pairs[0]
 		}
 
-		arg.InstrumentFamily = instrumentFamily
-		arg.SpreadID = spreadID
-		arg.InstrumentID = instrumentID
+		if strings.HasPrefix(arg.Channel, candle) || strings.HasPrefix(arg.Channel, indexCandlestick) || strings.HasPrefix(arg.Channel, markPrice) {
+			if len(subscriptions[i].Pairs) != 1 {
+				return currency.ErrCurrencyPairEmpty
+			}
+			arg.InstrumentID = subscriptions[i].Pairs[0]
+		}
+
+		if ifAny, ok := subscriptions[i].Params["instFamily"]; ok {
+			if arg.InstrumentFamily, ok = ifAny.(string); !ok {
+				return common.GetTypeAssertError("string", ifAny, "instFamily")
+			}
+		}
 
 		var chunk []byte
 		channels = append(channels, subscriptions[i])

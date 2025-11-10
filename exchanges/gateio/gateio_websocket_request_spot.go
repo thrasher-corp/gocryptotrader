@@ -25,8 +25,8 @@ func (e *Exchange) authenticateSpot(ctx context.Context, conn websocket.Connecti
 }
 
 // WebsocketSpotSubmitOrder submits an order via the websocket connection
-func (e *Exchange) WebsocketSpotSubmitOrder(ctx context.Context, order *CreateOrderRequest) (*WebsocketOrderResponse, error) {
-	resps, err := e.WebsocketSpotSubmitOrders(ctx, order)
+func (e *Exchange) WebsocketSpotSubmitOrder(ctx context.Context, o *CreateOrderRequest) (*WebsocketOrderResponse, error) {
+	resps, err := e.WebsocketSpotSubmitOrders(ctx, o)
 	if err != nil {
 		return nil, err
 	}

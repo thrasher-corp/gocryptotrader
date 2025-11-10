@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -37,17 +38,11 @@ type Ticker struct {
 	PercentChange24 float64    `json:"percent_change_24,string"`
 }
 
-// OrderbookBase holds singular price information
-type OrderbookBase struct {
-	Price  float64
-	Amount float64
-}
-
 // Orderbook holds orderbook information
 type Orderbook struct {
 	Timestamp time.Time
-	Bids      []OrderbookBase
-	Asks      []OrderbookBase
+	Bids      []orderbook.Level
+	Asks      []orderbook.Level
 }
 
 // TradingPair holds trading pair information
@@ -180,6 +175,29 @@ type CryptoWithdrawalResponse struct {
 	ID int64 `json:"withdrawal_id"`
 }
 
+// OpenBankWithdrawalRequest holds the request information for sending a bank withdrawal request
+type OpenBankWithdrawalRequest struct {
+	Amount         float64
+	Currency       currency.Code
+	Name           string
+	IBAN           string
+	BIC            string
+	Address        string
+	PostalCode     string
+	City           string
+	Country        string
+	WithdrawalType string
+	Comment        string
+
+	// International bank account details
+	InternationalCurrency string
+	BankName              string
+	BankAddress           string
+	BankPostalCode        string
+	BankCity              string
+	BankCountry           string
+}
+
 // FIATWithdrawalResponse response from a fiat withdrawal request
 type FIATWithdrawalResponse struct {
 	ID int64 `json:"withdrawal_id"`
@@ -253,10 +271,10 @@ type websocketOrderBookResponse struct {
 }
 
 type websocketOrderBook struct {
-	Asks           [][2]types.Number `json:"asks"`
-	Bids           [][2]types.Number `json:"bids"`
-	Timestamp      types.Time        `json:"timestamp"`
-	Microtimestamp types.Time        `json:"microtimestamp"`
+	Asks           orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids           orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Timestamp      types.Time                       `json:"timestamp"`
+	Microtimestamp types.Time                       `json:"microtimestamp"`
 }
 
 // OHLCResponse holds returned candle data

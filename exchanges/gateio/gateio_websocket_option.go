@@ -12,8 +12,8 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -68,28 +68,17 @@ var defaultOptionsSubscriptions = []string{
 
 // WsOptionsConnect initiates a websocket connection to options websocket endpoints.
 func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connection) error {
-	err := e.CurrencyPairs.IsAssetEnabled(asset.Options)
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Options); err != nil {
+		return err
+	}
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+		return err
+	}
+	pingHandler, err := getWSPingHandler(optionsPingChannel)
 	if err != nil {
 		return err
 	}
-	err = conn.Dial(ctx, &gws.Dialer{}, http.Header{})
-	if err != nil {
-		return err
-	}
-	pingMessage, err := json.Marshal(WsInput{
-		ID:      conn.GenerateMessageID(false),
-		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
-		Channel: optionsPingChannel,
-	})
-	if err != nil {
-		return err
-	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, websocket.PingHandler{
-		Websocket:   true,
-		Delay:       time.Second * 5,
-		MessageType: gws.PingMessage,
-		Message:     pingMessage,
-	})
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, pingHandler)
 	return nil
 }
 
@@ -171,7 +160,7 @@ getEnabledPairs:
 	return subscriptions, nil
 }
 
-func (e *Exchange) generateOptionsPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -229,7 +218,7 @@ func (e *Exchange) generateOptionsPayload(ctx context.Context, conn websocket.Co
 				continue
 			}
 			params = append([]string{strconv.FormatInt(userID, 10)}, params...)
-			var creds *account.Credentials
+			var creds *accounts.Credentials
 			creds, err = e.GetCredentials(ctx)
 			if err != nil {
 				return nil, err
@@ -273,7 +262,7 @@ func (e *Exchange) generateOptionsPayload(ctx context.Context, conn websocket.Co
 				params...)
 		}
 		payloads[i] = WsInput{
-			ID:      conn.GenerateMessageID(false),
+			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
@@ -341,9 +330,11 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 	case optionsPositionCloseChannel:
 		return e.processPositionCloseData(respRaw)
 	case optionsBalancesChannel:
-		return e.processBalancePushData(ctx, respRaw, asset.Options)
+		return e.processBalancePushData(ctx, push.Result, asset.Options)
 	case optionsPositionsChannel:
 		return e.processOptionsPositionPushData(respRaw)
+	case "options.pong":
+		return nil
 	default:
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
