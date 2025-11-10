@@ -112,7 +112,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 
 ### Document the addition of the new exchange (Binance exchange is used as an example below)
 
-**Yes** means supported, **No** means not yet implemented and **NA** means protocol unsupported by exchange
+**Yes** means supported, **No** means not yet implemented and **NA** means protocol unsupported by the exchange
 
 #### Add exchange to the [root README template](/cmd/documentation/root_templates/root_readme.tmpl) file
 
