@@ -189,7 +189,7 @@ func streamData(ctx context.Context, c <-chan any, cfg *appConfig) error {
 				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Data: d})
 			default:
 				clearScreen()
-				outPrintf("%s%s%s\n", ansiBold, heading, ansiReset)
+				outPrintln(ansiBold + heading + ansiReset)
 				renderPrettyPayload(d, cfg.BookLevels)
 				if cfg.FocusType != quickdata.TickerFocusType && cfg.FocusType != quickdata.KlineFocusType && cfg.FocusType != quickdata.OrderBookFocusType {
 					// executive decision to not render large payloads
