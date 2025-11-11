@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -2644,4 +2646,12 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	default:
 		return nil, fmt.Errorf("%w for %s", common.ErrNotYetImplemented, a)
 	}
+}
+
+// MessageID returns a unique ID conforming to Gate's max length of 32 bytes for request IDs
+func (e *Exchange) MessageID() string {
+	u := uuid.Must(uuid.NewV7())
+	var buf [32]byte
+	hex.Encode(buf[:], u[:])
+	return string(buf[:])
 }
