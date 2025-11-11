@@ -1331,7 +1331,7 @@ func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, codes currency.
 		return nil, errNoCurrencyCodes
 	}
 	if len(codes) > 10 {
-		return nil, errTooManyCurrencyCodes
+		return nil, fmt.Errorf("%w: maximum 10", errTooManyCurrencyCodes)
 	}
 	var currencies strings.Builder
 	for i := range codes {
