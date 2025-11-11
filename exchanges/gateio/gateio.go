@@ -1346,7 +1346,7 @@ func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, currencies []cu
 	params.Set("currencies", currStr.String())
 
 	var response map[string]types.Number
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairsMarginEPL, http.MethodGet, "margin/uni/estimate_rate", params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginEstimateRateEPL, http.MethodGet, "margin/uni/estimate_rate", params, nil, &response)
 }
 
 // GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
