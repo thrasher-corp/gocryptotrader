@@ -432,12 +432,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			if tradables[x].Status == 0 {
 				continue
 			}
-			p := strings.ToUpper(tradables[x].Base + currency.UnderscoreDelimiter + tradables[x].Quote)
-			cp, err := currency.NewPairFromString(p)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, cp)
+			pairs = append(pairs, tradables[x].ID)
 		}
 		return pairs, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
