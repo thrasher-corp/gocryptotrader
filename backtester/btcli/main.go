@@ -125,7 +125,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		// Capture cancel for interrupt
-		signaler.WaitForInterrupt()
+		<-signaler.WaitForInterrupt()
 		cancel()
 		fmt.Println("rpc process interrupted")
 		os.Exit(1)
