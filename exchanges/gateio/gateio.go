@@ -167,7 +167,7 @@ var (
 	errInvalidTextPrefix                = errors.New("invalid text value, requires prefix `t-`")
 	errSingleAssetRequired              = errors.New("single asset type required")
 	errNoCurrencyCodes                  = errors.New("no currency codes provided")
-	errTooManyCurrencyCodes             = errors.New("a maximum of 10 currencies can be queried at a time")
+	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
