@@ -166,7 +166,6 @@ var (
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidTextPrefix                = errors.New("invalid text value, requires prefix `t-`")
 	errSingleAssetRequired              = errors.New("single asset type required")
-	errNoCurrencyCodes                  = errors.New("no currency codes provided")
 	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
 )
 
@@ -1326,25 +1325,25 @@ func (e *Exchange) ConvertSmallBalances(ctx context.Context, currs ...currency.C
 // ********************************* Margin *******************************************
 
 // GetEstimatedInterestRate retrieves estimated interest rate for provided currencies
-func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, codes currency.Currencies) (map[string]types.Number, error) {
-	if len(codes) == 0 {
-		return nil, errNoCurrencyCodes
+func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, currencies []currency.Code) (map[string]types.Number, error) {
+	if len(currencies) == 0 {
+		return nil, currency.ErrCurrencyCodesEmpty
 	}
-	if len(codes) > 10 {
+	if len(currencies) > 10 {
 		return nil, fmt.Errorf("%w: maximum 10", errTooManyCurrencyCodes)
 	}
-	var currencies strings.Builder
-	for i := range codes {
-		if codes[i].IsEmpty() {
+	var currStr strings.Builder
+	for i := range currencies {
+		if currencies[i].IsEmpty() {
 			return nil, currency.ErrCurrencyCodeEmpty
 		}
 		if i != 0 {
-			currencies.WriteString(",")
+			currStr.WriteString(",")
 		}
-		currencies.WriteString(codes[i].String())
+		currStr.WriteString(currencies[i].String())
 	}
 	params := url.Values{}
-	params.Set("currencies", currencies.String())
+	params.Set("currencies", currStr.String())
 
 	var response map[string]types.Number
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairsMarginEPL, http.MethodGet, "margin/uni/estimate_rate", params, nil, &response)

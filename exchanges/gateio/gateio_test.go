@@ -3712,7 +3712,7 @@ func TestGetEstimatedInterestRate(t *testing.T) {
 	t.Parallel()
 
 	_, err := e.GetEstimatedInterestRate(t.Context(), nil)
-	require.ErrorIs(t, err, errNoCurrencyCodes)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodesEmpty)
 
 	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.EMPTYCODE})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
@@ -3737,5 +3737,5 @@ func TestGetEstimatedInterestRate(t *testing.T) {
 	require.NoError(t, err)
 	val, ok := got["BTC"]
 	require.True(t, ok, "result map must contain BTC key")
-	require.NotZero(t, val.Float64(), "estimated interest rate must be greater than 0")
+	require.Positive(t, val.Float64(), "estimated interest rate must not be 0")
 }
