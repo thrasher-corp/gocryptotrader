@@ -307,9 +307,8 @@ func TestDoRequest(t *testing.T) {
 	require.False(t, respErr.Error, "Error must be false")
 
 	// Check client side rate limit
-	const numReqs = 5
 	var ec common.ErrorCollector
-	for range numReqs {
+	for range 5 {
 		ec.Go(func() error {
 			var resp struct {
 				Response bool `json:"response"`
@@ -339,9 +338,8 @@ func TestDoRequest_Retries(t *testing.T) {
 	r, err := New("test", new(http.Client), WithBackoff(func(int) time.Duration { return 0 }))
 	require.NoError(t, err, "New requester must not error")
 
-	const numReqs = 4
 	var ec common.ErrorCollector
-	for range numReqs {
+	for range 4 {
 		ec.Go(func() error {
 			var resp struct {
 				Response bool `json:"response"`
