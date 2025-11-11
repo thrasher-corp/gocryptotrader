@@ -13,7 +13,7 @@ func TestMessageID(t *testing.T) {
 	require.Len(t, id, 32, "Must return the correct length of message id")
 	u, err := uuid.FromString(id)
 	require.NoError(t, err, "MessageID must return a valid UUID")
-	require.Equal(t, byte(0x7), u.Version(), "MessageID must return a V7 uuid")
+	require.Equal(t, uuid.V7, u.Version(), "MessageID must return a V7 uuid")
 	require.Len(t, u.String(), 36, "UUID v7 string representation must be 36 characters long")
 }
 
