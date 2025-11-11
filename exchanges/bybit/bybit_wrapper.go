@@ -182,7 +182,6 @@ func (e *Exchange) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
-		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	e.API.Endpoints = e.NewEndpoints()
@@ -209,6 +208,7 @@ func (e *Exchange) SetDefaults() {
 	}
 
 	e.Websocket = websocket.NewManager()
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -229,6 +229,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
+		Exchange:                     e,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig:        buffer.Config{SortBuffer: true, SortBufferByUpdateIDs: true},
 		TradeFeed:                    e.Features.Enabled.TradeFeed,
@@ -245,13 +246,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// Spot - Inbound public data.
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   wsSpotURL,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Connector:             e.WsConnect,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Subscriber:            e.SpotSubscribe,
-		Unsubscriber:          e.SpotUnsubscribe,
+		URL:                  wsSpotURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Connector:            e.WsConnect,
+		Subscriber:           e.SpotSubscribe,
+		Unsubscriber:         e.SpotUnsubscribe,
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.Spot, resp)
 		},
@@ -303,7 +303,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.USDTMarginedFutures, resp)
 		},
-		MessageFilter: asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter: websocket.AssetFilter(asset.USDTMarginedFutures), // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -331,7 +331,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.USDCMarginedFutures, resp)
 		},
-		MessageFilter: asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter: websocket.AssetFilter(asset.USDCMarginedFutures), // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -372,7 +372,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return e.wsHandleTradeData(conn, resp)
 		},
 		Authenticate:             e.WebsocketAuthenticateTradeConnection,
-		MessageFilter:            OutboundTradeConnection,
+		MessageFilter:            outboundTradeConnection,
 		SubscriptionsNotRequired: true,
 	}); err != nil {
 		return err
@@ -395,7 +395,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.authUnsubscribe,
 		Handler:               e.wsHandleAuthenticatedData,
 		Authenticate:          e.WebsocketAuthenticatePrivateConnection,
-		MessageFilter:         InboundPrivateConnection,
+		MessageFilter:         inboundPrivateConnection,
 	})
 }
 

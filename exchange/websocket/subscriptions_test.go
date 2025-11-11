@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,8 +48,8 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	assert.NoError(t, ws.SubscribeToChannels(nil, nil), "Subscribe to an nil List should not error")
 	assert.NoError(t, ws.UnsubscribeChannels(nil, subs), "Unsubscribing should not error")
 
-	ws.Subscriber = func(subscription.List) error { return errDastardlyReason }
-	assert.ErrorIs(t, ws.SubscribeToChannels(nil, subs), errDastardlyReason, "Should error correctly when error returned from Subscriber")
+	ws.Subscriber = func(subscription.List) error { return errors.New("Subscriber error") }
+	assert.ErrorContains(t, ws.SubscribeToChannels(nil, subs), "Subscriber error", "Should error correctly when error returned from Subscriber")
 
 	err = ws.SubscribeToChannels(nil, subscription.List{nil})
 	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when list contains a nil subscription")
@@ -109,8 +110,10 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	assert.NoError(t, multi.SubscribeToChannels(amazingConn, nil), "Subscribe to an nil List should not error")
 	assert.NoError(t, multi.UnsubscribeChannels(amazingConn, subs), "Unsubscribing should not error")
 
-	amazingCandidate.Subscriber = func(context.Context, Connection, subscription.List) error { return errDastardlyReason }
-	assert.ErrorIs(t, multi.SubscribeToChannels(amazingConn, subs), errDastardlyReason, "Should error correctly when error returned from Subscriber")
+	amazingCandidate.Subscriber = func(context.Context, Connection, subscription.List) error {
+		return errors.New("multi-Subscriber error")
+	}
+	assert.ErrorContains(t, multi.SubscribeToChannels(amazingConn, subs), "multi-Subscriber error", "Should error correctly when error returned from Subscriber")
 
 	err = multi.SubscribeToChannels(amazingConn, subscription.List{nil})
 	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when list contains a nil subscription")

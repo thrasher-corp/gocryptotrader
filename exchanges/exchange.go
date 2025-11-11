@@ -162,27 +162,30 @@ func (b *Base) SetFeatureDefaults() {
 			b.SetFillsFeedStatus(b.Config.Features.Enabled.FillsFeed)
 		}
 
-		b.SetSubscriptionsFromConfig()
+		b.setSubscriptionsFromConfig()
 
 		b.Features.Enabled.AutoPairUpdates = b.Config.Features.Enabled.AutoPairUpdates
 	}
 }
 
-// SetSubscriptionsFromConfig sets the subscriptions from config
+// setSubscriptionsFromConfig sets the subscriptions from config
 // If the subscriptions config is empty then Config will be updated from the exchange subscriptions,
 // allowing e.SetDefaults to set default subscriptions for an exchange to update user's config
 // Subscriptions not Enabled are skipped, meaning that e.Features.Subscriptions only contains Enabled subscriptions
-func (b *Base) SetSubscriptionsFromConfig() {
+func (b *Base) setSubscriptionsFromConfig() {
+	if b.Websocket == nil {
+		return
+	}
 	b.settingsMutex.Lock()
 	defer b.settingsMutex.Unlock()
 	if len(b.Config.Features.Subscriptions) == 0 {
 		// Set config from the defaults, including any disabled subscriptions
-		b.Config.Features.Subscriptions = b.Features.Subscriptions
+		b.Config.Features.Subscriptions = b.Websocket.Subscriptions
 	}
-	b.Features.Subscriptions = b.Config.Features.Subscriptions.Enabled()
+	b.Websocket.Subscriptions = b.Config.Features.Subscriptions.Enabled()
 	if b.Verbose {
-		names := make([]string, 0, len(b.Features.Subscriptions))
-		for _, s := range b.Features.Subscriptions {
+		names := make([]string, 0, len(b.Websocket.Subscriptions))
+		for _, s := range b.Websocket.Subscriptions {
 			names = append(names, s.Channel)
 		}
 		log.Debugf(log.ExchangeSys, "Set %v 'Subscriptions' to %v", b.Name, strings.Join(names, ", "))
@@ -1075,24 +1078,6 @@ func (b *Base) FlushWebsocketChannels() error {
 	return b.Websocket.FlushChannels()
 }
 
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *Base) SubscribeToWebsocketChannels(channels subscription.List) error {
-	if b.Websocket == nil {
-		return common.ErrFunctionNotSupported
-	}
-	return b.Websocket.SubscribeToChannels(b.Websocket.Conn, channels)
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Base) UnsubscribeToWebsocketChannels(channels subscription.List) error {
-	if b.Websocket == nil {
-		return common.ErrFunctionNotSupported
-	}
-	return b.Websocket.UnsubscribeChannels(b.Websocket.Conn, channels)
-}
-
 // GetSubscriptions returns a copied list of subscriptions
 func (b *Base) GetSubscriptions() (subscription.List, error) {
 	if b.Websocket == nil {
@@ -1103,7 +1088,7 @@ func (b *Base) GetSubscriptions() (subscription.List, error) {
 
 // GetSubscriptionTemplate returns a template for a given subscription; See exchange/subscription/README.md for more information
 func (b *Base) GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, fmt.Errorf("%w: GetSubscriptionTemplate", common.ErrFunctionNotSupported)
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

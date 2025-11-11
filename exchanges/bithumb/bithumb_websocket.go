@@ -170,11 +170,6 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-// generateSubscriptions generates the default subscription set
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
-}
-
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{"subToReq": subToReq}).Parse(subTplText)

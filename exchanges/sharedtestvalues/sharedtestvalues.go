@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // This package is only to be referenced in test files
@@ -55,6 +56,7 @@ func NewTestWebsocket() *websocket.Manager {
 	w := websocket.NewManager()
 	w.DataHandler = make(chan any, WebsocketChannelOverrideCapacity)
 	w.ToRoutine = make(chan any, 1000)
+	w.Subscriptions = subscription.List{}
 	return w
 }
 

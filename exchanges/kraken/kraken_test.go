@@ -52,6 +52,7 @@ func TestMain(m *testing.M) {
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Kraken Setup error: %s", err)
 	}
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	if apiKey != "" && apiSecret != "" {
 		e.API.AuthenticatedSupport = true
 		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
@@ -1111,7 +1112,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		s.Asset = asset.Spot
 		s.Pairs = pairs
 	}
-	subs, err := e.generateSubscriptions()
+	subs, err := e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 
@@ -1120,7 +1121,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Channel: subscription.MyOrdersChannel, QualifiedChannel: krakenWsOpenOrders},
 		{Channel: subscription.MyTradesChannel, QualifiedChannel: krakenWsOwnTrades},
 	}...)
-	subs, err = e.generateSubscriptions()
+	subs, err = e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 }

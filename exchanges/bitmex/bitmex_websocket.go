@@ -507,11 +507,6 @@ func (e *Exchange) handleWsTrades(msg []byte) error {
 	return e.AddTradesToBuffer(trades...)
 }
 
-// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
-}
-
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{

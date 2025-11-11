@@ -8,13 +8,13 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// Websocket request operation types
 const (
-	OutboundTradeConnection  = "PRIVATE_TRADE"
-	InboundPrivateConnection = "PRIVATE"
+	outboundTradeConnection  = websocket.AuthenticatedFilter(false)
+	inboundPrivateConnection = websocket.AuthenticatedFilter(true)
 )
 
 // WSCreateOrder creates an order through the websocket connection
@@ -66,11 +66,11 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, r *CancelOrderRequest) (*W
 func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkID string, payload any, limit request.EndpointLimit) (*WebsocketOrderDetails, error) {
 	// Get the outbound and inbound connections to send and receive the request. This makes sure both are live before
 	// sending the request.
-	outbound, err := e.Websocket.GetConnection(OutboundTradeConnection)
+	outbound, err := e.Websocket.GetConnection(outboundTradeConnection)
 	if err != nil {
 		return nil, err
 	}
-	inbound, err := e.Websocket.GetConnection(InboundPrivateConnection)
+	inbound, err := e.Websocket.GetConnection(inboundPrivateConnection)
 	if err != nil {
 		return nil, err
 	}

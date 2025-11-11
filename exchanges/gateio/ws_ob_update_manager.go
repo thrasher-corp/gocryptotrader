@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -97,27 +98,31 @@ func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) *updateCach
 
 // SyncOrderbook fetches and synchronises an orderbook snapshot to the limit size so that pending updates can be
 // applied to the orderbook.
-func (c *updateCache) SyncOrderbook(ctx context.Context, g *Exchange, pair currency.Pair, a asset.Item) error {
-	// TODO: When subscription config is added for all assets update limits to use sub.Levels
-	var limit uint64
-	switch a {
-	case asset.Spot:
-		sub := g.Websocket.GetSubscription(spotOrderbookUpdateKey)
-		if sub == nil {
-			return fmt.Errorf("no subscription found for %q", spotOrderbookUpdateKey)
+func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair currency.Pair, a asset.Item) error {
+	wanted := &orderbookSubKey{Subscription: &subscription.Subscription{
+		Asset:   a,
+		Channel: subscription.OrderbookChannel,
+		Pairs:   currency.Pairs{pair},
+	}}
+	sub := e.Websocket.GetSubscription(wanted)
+	if sub == nil {
+		return fmt.Errorf("no subscription found for %q", wanted)
+	}
+	obParams := make(map[string]string)
+	if err := orderbookPayload(sub, a, channelName(sub, a), obParams); err != nil {
+		return err
+	}
+	var levels uint64
+	if levelsStr, ok := obParams["depth"]; !ok {
+		return fmt.Errorf("error syncing orderbook: %w from sub %q", subscription.ErrInvalidLevel, sub)
+	} else { //nolint:revive // using local scope levelsStr variable
+		var err error
+		if levels, err = strconv.ParseUint(levelsStr, 10, 64); err != nil {
+			return err
 		}
-		// There is no way to set levels when we subscribe for this specific subscription case.
-		// Extract limit from interval e.g. 20ms == 20 limit book and 100ms == 100 limit book.
-		limit = uint64(sub.Interval.Duration().Milliseconds()) //nolint:gosec // No overflow risk
-	case asset.USDTMarginedFutures, asset.USDCMarginedFutures:
-		limit = futuresOrderbookUpdateLimit
-	case asset.DeliveryFutures:
-		limit = deliveryFuturesUpdateLimit
-	case asset.Options:
-		limit = optionOrderbookUpdateLimit
 	}
 
-	book, err := g.UpdateOrderbookWithLimit(ctx, pair, a, limit)
+	book, err := e.UpdateOrderbookWithLimit(ctx, pair, a, levels)
 
 	c.mtx.Lock() // lock here to prevent ws handle data interference with REST request above
 	defer func() {
@@ -131,22 +136,22 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, g *Exchange, pair curre
 	}
 
 	if a != asset.Spot {
-		if err := g.Websocket.Orderbook.LoadSnapshot(book); err != nil {
+		if err := e.Websocket.Orderbook.LoadSnapshot(book); err != nil {
 			return err
 		}
 	} else {
 		// Spot, Margin, and Cross Margin books are all classified as spot
 		for i := range standardMarginAssetTypes {
-			if enabled, _ := g.IsPairEnabled(pair, standardMarginAssetTypes[i]); !enabled {
+			if enabled, _ := e.IsPairEnabled(pair, standardMarginAssetTypes[i]); !enabled {
 				continue
 			}
 			book.Asset = standardMarginAssetTypes[i]
-			if err := g.Websocket.Orderbook.LoadSnapshot(book); err != nil {
+			if err := e.Websocket.Orderbook.LoadSnapshot(book); err != nil {
 				return err
 			}
 		}
 	}
-	return c.applyPendingUpdates(g, a)
+	return c.applyPendingUpdates(e, a)
 }
 
 // ApplyPendingUpdates applies all pending updates to the orderbook
@@ -189,18 +194,36 @@ func applyOrderbookUpdate(g *Exchange, update *orderbook.Update) error {
 	return nil
 }
 
-var spotOrderbookUpdateKey = channelKey{&subscription.Subscription{Channel: subscription.OrderbookChannel}}
-
-var _ subscription.MatchableKey = channelKey{}
-
-type channelKey struct {
+type orderbookSubKey struct {
 	*subscription.Subscription
 }
 
-func (k channelKey) Match(eachKey subscription.MatchableKey) bool {
-	return k.Subscription.Channel == eachKey.GetSubscription().Channel
+var _ subscription.MatchableKey = orderbookSubKey{}
+
+// Match returns if the sub has the correct Channel, Asset and contains all of the Pairs
+func (k orderbookSubKey) Match(eachKey subscription.MatchableKey) bool {
+	eachSub := eachKey.GetSubscription()
+	switch {
+	case eachSub.Channel != k.Channel,
+		eachSub.Asset != k.Asset,
+		// len(eachSub.Pairs) == 0 && len(s.Pairs) == 0: Okay; continue to next non-pairs check
+		len(eachSub.Pairs) == 0 && len(k.Pairs) != 0,
+		len(eachSub.Pairs) != 0 && len(k.Pairs) == 0,
+		len(k.Pairs) != 0 && eachSub.Pairs.ContainsAll(k.Pairs, true) != nil:
+		return false
+	}
+	return true
 }
 
-func (k channelKey) GetSubscription() *subscription.Subscription {
+// String implements Stringer; returns the Channel name, Assets and Pairs
+func (k orderbookSubKey) String() string {
+	s := k.Subscription
+	if s == nil {
+		return "Uninitialised orderbookSubKey"
+	}
+	return fmt.Sprintf("%s %s %s", s.Channel, s.Asset, s.Pairs)
+}
+
+func (k orderbookSubKey) GetSubscription() *subscription.Subscription {
 	return k.Subscription
 }

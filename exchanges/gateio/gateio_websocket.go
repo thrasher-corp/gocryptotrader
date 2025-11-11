@@ -35,6 +35,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+var (
+	errChannelParts       = errors.New("channel should have 2 parts")
+	errSubUserID          = errors.New("error fetching user id for private subscription channel")
+	errChannelPayloadPart = errors.New("channel part not generated")
+)
+
 const (
 	gateioWebsocketEndpoint = "wss://api.gateio.ws/ws/v4/"
 
@@ -59,22 +65,51 @@ const (
 )
 
 var defaultSubscriptions = subscription.List{
-	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
-	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
-	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.TenMilliseconds, Levels: 1},
-	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
-	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
+	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+	{Enabled: true, Channel: subscription.AllTradesChannel, Asset: asset.All},
+	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.All, Interval: kline.FiveMin},
+	{Enabled: true, Channel: subscription.MyWalletChannel, Asset: asset.All, Authenticated: true},
+
+	// Defaults: Maximum Levels, Minimum Interval
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All},
+
+	{Enabled: true, Channel: subscription.MyTradesChannel, Asset: asset.All, Authenticated: true},
+	{Enabled: true, Channel: optionsUnderlyingTickersChannel, Asset: asset.Options},
+	{Enabled: true, Channel: optionsUnderlyingTradesChannel, Asset: asset.Options},
+	{Enabled: true, Channel: optionsUnderlyingCandlesticksChannel, Asset: asset.Options, Interval: kline.FiveMin},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
-	{Enabled: false, Channel: subscription.AllTradesChannel, Asset: asset.Spot},
+
+	// Example disabled alternative orderbook channels
+	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.TenMilliseconds, Levels: 1},
+	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
 }
 
-var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    spotTickerChannel,
-	subscription.OrderbookChannel: spotOrderbookUpdateChannel,
-	subscription.CandlesChannel:   spotCandlesticksChannel,
-	subscription.AllTradesChannel: spotTradesChannel,
+var subscriptionNames = map[asset.Item]map[string]string{
+	asset.Options: {
+		subscription.TickerChannel:    optionsContractTickersChannel,
+		subscription.OrderbookChannel: optionsOrderbookUpdateChannel,
+		subscription.CandlesChannel:   optionsContractCandlesticksChannel,
+		subscription.AllTradesChannel: optionsTradesChannel,
+		subscription.MyWalletChannel:  optionsBalancesChannel,
+		subscription.MyTradesChannel:  optionsUserTradesChannel,
+	},
+	asset.Spot: {
+		subscription.TickerChannel:    spotTickerChannel,
+		subscription.OrderbookChannel: spotOrderbookUpdateChannel,
+		subscription.CandlesChannel:   spotCandlesticksChannel,
+		subscription.AllTradesChannel: spotTradesChannel,
+		subscription.MyWalletChannel:  spotBalancesChannel,
+		subscription.MyTradesChannel:  spotUserTradesChannel,
+	},
+	asset.Futures: {
+		subscription.TickerChannel:    futuresTickersChannel,
+		subscription.OrderbookChannel: futuresOrderbookUpdateChannel,
+		subscription.CandlesChannel:   futuresCandlesticksChannel,
+		subscription.AllTradesChannel: futuresTradesChannel,
+		subscription.MyWalletChannel:  futuresBalancesChannel,
+		subscription.MyTradesChannel:  futuresUserTradesChannel,
+	},
 }
 
 var (
@@ -598,22 +633,14 @@ func (e *Exchange) processCrossMarginLoans(data []byte) error {
 	return nil
 }
 
-// generateSubscriptionsSpot returns configured subscriptions
-func (e *Exchange) generateSubscriptionsSpot() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
-}
-
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
-	return template.New("master.tmpl").
-		Funcs(sprig.FuncMap()).
-		Funcs(template.FuncMap{
-			"channelName":         channelName,
-			"singleSymbolChannel": singleSymbolChannel,
-			"orderbookInterval":   orderbookChannelInterval,
-			"candlesInterval":     candlesChannelInterval,
-			"levels":              channelLevels,
-		}).Parse(subTplText)
+	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{
+		"channelName":         channelName,
+		"underlyingPairs":     e.underlyingPairs,
+		"singleSymbolChannel": singleSymbolChannel,
+		"subToJson":           e.subToJSON,
+	}).Parse(subTplText)
 }
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
@@ -655,11 +682,12 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 // manageSubReq constructs the subscription management message for a subscription
 func (e *Exchange) manageSubReq(ctx context.Context, event string, s *subscription.Subscription) (*WsInput, error) {
 	req := &WsInput{
-		ID:      e.MessageSequence(),
-		Event:   event,
-		Channel: channelName(s),
-		Time:    time.Now().Unix(),
-		Payload: strings.Split(s.QualifiedChannel, ","),
+		ID:    e.MessageSequence(),
+		Event: event,
+		Time:  time.Now().Unix(),
+	}
+	if err := json.Unmarshal([]byte(s.QualifiedChannel), &req); err != nil {
+		return nil, err
 	}
 	if s.Authenticated {
 		creds, err := e.GetCredentials(ctx)
@@ -689,21 +717,83 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, s
 	return e.manageSubs(ctx, unsubscribeEvent, conn, subs)
 }
 
-// channelName converts global channel names to gateio specific channel names
-func channelName(s *subscription.Subscription) string {
-	if name, ok := subscriptionNames[s.Channel]; ok {
-		return name
+// channelName returns the correct channel name for the asset
+func channelName(s *subscription.Subscription, a asset.Item) string {
+	switch a {
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
+		a = asset.Futures
+	}
+	if byAsset, hasAsset := subscriptionNames[a]; hasAsset {
+		if name, ok := byAsset[s.Channel]; ok {
+			return name
+		}
+	}
+	if allAssets, hasAll := subscriptionNames[asset.All]; hasAll {
+		if name, ok := allAssets[s.Channel]; ok {
+			return name
+		}
 	}
 	return s.Channel
 }
 
+// underlyingPairs converts option pairs to unique underlying pairs for underlying option subscriptions
+func (e *Exchange) underlyingPairs(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) (string, error) {
+	if !strings.HasPrefix(s.Channel, "options.ul_") {
+		return "", nil
+	}
+	var underlyings currency.Pairs
+	for _, p := range ap[asset.Options] {
+		uly, err := e.GetUnderlyingFromCurrencyPair(p)
+		if err != nil {
+			return "", err
+		}
+		underlyings = underlyings.Add(uly) // Using Add avoids duplicates
+	}
+	ap[asset.Options] = underlyings
+	return "", nil
+}
+
 // singleSymbolChannel returns if the channel should be fanned out into single symbol requests
-func singleSymbolChannel(name string) bool {
-	switch name {
-	case spotCandlesticksChannel, spotOrderbookUpdateChannel, spotOrderbookChannel:
+func singleSymbolChannel(s *subscription.Subscription, a asset.Item, name string) bool {
+	switch {
+	case strings.HasSuffix(name, "candlesticks"),
+		strings.HasSuffix(name, "order_book"),
+		strings.HasSuffix(name, "order_book_update"):
 		return true
 	}
+
+	if s.Authenticated {
+		// Spot allows a list of pairs, all the others require one sub per pair
+		return a != asset.Spot
+	}
+
 	return false
+}
+
+func (e *Exchange) getUserID() (string, error) {
+	e.userIDMutex.RLock()
+	if e.userID != "" {
+		defer e.userIDMutex.RUnlock()
+		return e.userID, nil
+	}
+	e.userIDMutex.RUnlock()
+
+	e.userIDMutex.Lock()
+	defer e.userIDMutex.Unlock()
+
+	if e.userID == "" { // check again in case another write lock raced to beat us
+		// Risk: We naively just keep hitting this endpoint for the user id without any kind of backoff
+		r, err := e.GetSubAccountBalances(context.Background(), "")
+		if err != nil {
+			return "", err
+		}
+		if len(r) != 1 {
+			return "", errSubUserID
+		}
+		e.userID = strconv.FormatInt(r[0].UserID, 10)
+	}
+
+	return e.userID, nil
 }
 
 // ValidateSubscriptions implements the subscription.ListValidator interface.
@@ -712,7 +802,7 @@ func singleSymbolChannel(name string) bool {
 func (e *Exchange) ValidateSubscriptions(l subscription.List) error {
 	orderbookGuard := map[key.PairAsset]string{}
 	for _, s := range l {
-		n := channelName(s)
+		n := channelName(s, asset.Spot)
 		if !isSingleOrderbookChannel(n) {
 			continue
 		}
@@ -750,126 +840,234 @@ func isSingleOrderbookChannel(name string) bool {
 	return false
 }
 
-var channelIntervalsMap = map[asset.Item]map[string][]kline.Interval{
+// channelPayloadOrder contains the sequence of fields for single symbol channels
+// user_id will force fetching the user id, unless s.Params["user_id"] is populated
+var channelPayloadOrder = map[asset.Item]map[string][]string{
+	asset.Spot: {
+		spotCandlesticksChannel:    {"interval", "symbol"},
+		spotOrderbookUpdateChannel: {"symbol", "interval"},
+		spotOrderbookChannel:       {"symbol", "depth", "interval"},
+		spotBalancesChannel:        {},
+	},
+	asset.Options: {
+		optionsContractCandlesticksChannel:   {"interval", "symbol"},
+		optionsUnderlyingCandlesticksChannel: {"interval", "symbol"},
+		optionsOrderbookUpdateChannel:        {"symbol", "interval", "depth"},
+		optionsOrderbookChannel:              {"symbol", "depth", "accuracy"},
+		optionsBalancesChannel:               {"user_id"},
+	},
+	asset.Futures: { // CoinMarginedFutures, USDTMarginedFutures and DeliveryFutures
+		futuresCandlesticksChannel:    {"interval", "symbol"},
+		futuresOrderbookUpdateChannel: {"symbol", "interval", "depth"},
+		futuresOrderbookChannel:       {"symbol", "depth", "interval"},
+		futuresBalancesChannel:        {"user_id"},
+	},
+}
+
+func (e *Exchange) subToJSON(s *subscription.Subscription, cName string, a asset.Item, p any) (map[string]any, error) {
+	j := map[string]any{
+		"channel": cName,
+	}
+
+	payloadParts := map[string]string{
+		"accuracy": "0", // options.order_book
+	}
+
+	channelParts := strings.Split(cName, ".")
+	if len(channelParts) != 2 {
+		return nil, fmt.Errorf("%w; %w: %q", subscription.ErrNotSupported, errChannelParts, cName)
+	}
+	channelType := channelParts[len(channelParts)-1]
+
+	// TODO: These composite channel names can be abstracted across all assets to reduce duplication throughout
+	// Hardcoding the consts again here is temporary until we do that
+	switch channelType {
+	case "candlesticks", "ul_candlesticks", "contract_candlesticks":
+		var err error
+		if payloadParts["interval"], err = getIntervalString(s.Interval); err != nil {
+			return nil, err
+		}
+	case "book_ticker", "order_book", "order_book_update":
+		if err := orderbookPayload(s, a, cName, payloadParts); err != nil {
+			return nil, err
+		}
+	}
+
+	orderLookupAsset := a
+	switch a {
+	case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures:
+		orderLookupAsset = asset.Futures
+	}
+
+	payloadOrder, ok := channelPayloadOrder[orderLookupAsset][cName]
+	if !ok {
+		switch {
+		case s.Authenticated && a != asset.Spot:
+			payloadOrder = []string{"user_id", "symbol"}
+		default:
+			payloadOrder = []string{"symbol"}
+		}
+	}
+
+	if slices.Contains(payloadOrder, "user_id") {
+		if u, ok := s.Params["user_id"]; ok {
+			if s, ok := u.(string); ok && s != "" {
+				payloadParts["user_id"] = s
+			}
+		}
+		if _, ok := payloadParts["user_id"]; !ok {
+			u, err := e.getUserID()
+			if err != nil {
+				return nil, err
+			}
+			payloadParts["user_id"] = u
+		}
+	}
+
+	var payload []string
+	for _, partName := range payloadOrder {
+		if partName == "symbol" {
+			switch v := p.(type) {
+			case currency.Pair:
+				payload = append(payload, v.String())
+			case currency.Pairs:
+				for _, p := range v {
+					payload = append(payload, p.String())
+				}
+			}
+		} else if part, ok := payloadParts[partName]; !ok {
+			return nil, fmt.Errorf("%w: %q (%q %q)", errChannelPayloadPart, partName, a, cName)
+		} else if part != "" {
+			payload = append(payload, part)
+		}
+	}
+
+	if len(payload) > 0 {
+		j["payload"] = payload
+	}
+
+	return j, nil
+}
+
+type orderbookPayloadConstraint struct {
+	Intervals []kline.Interval
+	Levels    []int
+}
+
+var orderbookPayloadConstraints = map[asset.Item]map[string]orderbookPayloadConstraint{
 	asset.Spot: {
 		spotOrderbookTickerChannel: {},
-		spotOrderbookChannel:       {kline.HundredMilliseconds, kline.ThousandMilliseconds},
-		spotOrderbookUpdateChannel: {kline.TwentyMilliseconds, kline.HundredMilliseconds},
+		spotOrderbookChannel: {
+			Intervals: []kline.Interval{kline.HundredMilliseconds, kline.ThousandMilliseconds},
+			Levels:    []int{1, 5, 10, 20, 50, 100},
+		},
+		spotOrderbookUpdateChannel: {
+			Intervals: []kline.Interval{kline.TwentyMilliseconds, kline.HundredMilliseconds},
+			Levels:    []int{20, 100}, // These levels are implicitly the same as the Interval, and won't actually be sent, but Required for SyncOrderbook
+		},
 	},
 	asset.Futures: {
 		futuresOrderbookTickerChannel: {},
-		futuresOrderbookChannel:       {0},
-		futuresOrderbookUpdateChannel: {kline.TwentyMilliseconds, kline.HundredMilliseconds},
+		futuresOrderbookChannel: {
+			Intervals: []kline.Interval{0},
+			Levels:    []int{1, 5, 10, 20, 50, 100},
+		},
+		futuresOrderbookUpdateChannel: {
+			Intervals: []kline.Interval{kline.TwentyMilliseconds, kline.HundredMilliseconds},
+			Levels:    []int{20, 50, 100},
+		},
 	},
 	asset.DeliveryFutures: {
 		futuresOrderbookTickerChannel: {},
-		futuresOrderbookChannel:       {0},
-		futuresOrderbookUpdateChannel: {kline.HundredMilliseconds, kline.ThousandMilliseconds},
+		futuresOrderbookChannel: {
+			Intervals: []kline.Interval{0},
+			Levels:    []int{1, 5, 10, 20, 50, 100},
+		},
+		futuresOrderbookUpdateChannel: {
+			Intervals: []kline.Interval{kline.HundredMilliseconds, kline.ThousandMilliseconds},
+			Levels:    []int{5, 10, 20, 50, 100},
+		},
 	},
 	asset.Options: {
 		optionsOrderbookTickerChannel: {},
-		optionsOrderbookChannel:       {0},
-		optionsOrderbookUpdateChannel: {kline.HundredMilliseconds, kline.ThousandMilliseconds},
+		optionsOrderbookChannel: {
+			Intervals: []kline.Interval{0},
+			Levels:    []int{5, 10, 20, 50},
+		},
+		optionsOrderbookUpdateChannel: {
+			Intervals: []kline.Interval{kline.HundredMilliseconds, kline.ThousandMilliseconds},
+			Levels:    []int{5, 10, 20, 50}, // Note: Depth is optional for options, but we require it to make default depth work when unconfigured
+		},
 	},
 }
 
-func candlesChannelInterval(s *subscription.Subscription) (string, error) {
-	if s.Channel == subscription.CandlesChannel {
-		return getIntervalString(s.Interval)
+func orderbookPayload(s *subscription.Subscription, a asset.Item, cName string, payload map[string]string) error {
+	switch a {
+	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
+		a = asset.Futures
 	}
-	return "", nil
-}
-
-func orderbookChannelInterval(s *subscription.Subscription, a asset.Item) (string, error) {
-	cName := channelName(s)
-
-	assetChannels, ok := channelIntervalsMap[a]
+	assetChannels, ok := orderbookPayloadConstraints[a]
 	if !ok {
-		return "", nil
+		return fmt.Errorf("%w: %q", asset.ErrInvalidAsset, a)
+	}
+	constraints, ok := assetChannels[cName]
+	if !ok {
+		return fmt.Errorf("%w: %q", subscription.ErrNotSupported, cName)
 	}
 
-	switch intervals, ok := assetChannels[cName]; {
-	case !ok:
-		return "", nil
-	case len(intervals) == 0:
-		if s.Interval != 0 {
-			return "", fmt.Errorf("%w for %s: %q; interval not supported for channel", subscription.ErrInvalidInterval, cName, s.Interval)
-		}
-		return "", nil
-	case !slices.Contains(intervals, s.Interval):
-		return "", fmt.Errorf("%w for %s: %q; supported: %q", subscription.ErrInvalidInterval, cName, s.Interval, intervals)
-	case cName == futuresOrderbookUpdateChannel && s.Interval == kline.TwentyMilliseconds && s.Levels != 20:
-		return "", fmt.Errorf("%w for %q: 20ms only valid with Levels 20", subscription.ErrInvalidInterval, cName)
+	levels, intervals := constraints.Levels, constraints.Intervals
+
+	isSupported := slices.Contains(intervals, s.Interval)
+
+	selectedInterval := s.Interval
+
+	var err error
+	switch {
 	case s.Interval == 0:
-		return "0", nil // Do not move this into getIntervalString, it's only valid for ws subs
-	}
-
-	return getIntervalString(s.Interval)
-}
-
-var channelLevelsMap = map[asset.Item]map[string][]int{
-	asset.Spot: {
-		spotOrderbookTickerChannel: {},
-		spotOrderbookUpdateChannel: {},
-		spotOrderbookChannel:       {1, 5, 10, 20, 50, 100},
-	},
-	asset.Futures: {
-		futuresOrderbookChannel:       {1, 5, 10, 20, 50, 100},
-		futuresOrderbookTickerChannel: {},
-		futuresOrderbookUpdateChannel: {20, 50, 100},
-	},
-	asset.DeliveryFutures: {
-		futuresOrderbookChannel:       {1, 5, 10, 20, 50, 100},
-		futuresOrderbookTickerChannel: {},
-		futuresOrderbookUpdateChannel: {5, 10, 20, 50, 100},
-	},
-	asset.Options: {
-		optionsOrderbookTickerChannel: {},
-		optionsOrderbookUpdateChannel: {5, 10, 20, 50},
-		optionsOrderbookChannel:       {5, 10, 20, 50},
-	},
-}
-
-func channelLevels(s *subscription.Subscription, a asset.Item) (string, error) {
-	cName := channelName(s)
-	assetChannels, ok := channelLevelsMap[a]
-	if !ok {
-		return "", nil
-	}
-
-	switch levels, ok := assetChannels[cName]; {
-	case !ok:
-		return "", nil
-	case len(levels) == 0:
-		if s.Levels != 0 {
-			return "", fmt.Errorf("%w for %s: `%d`; levels not supported for channel", subscription.ErrInvalidLevel, cName, s.Levels)
+		switch {
+		case isSupported:
+			payload["interval"] = "0" // Do not move this into getIntervalString, it's only valid for ws subs
+		case len(intervals) != 0:
+			// Default to minimum supported interval
+			selectedInterval = slices.Min(intervals)
+			payload["interval"], err = getIntervalString(selectedInterval)
 		}
-		return "", nil
-	case !slices.Contains(levels, s.Levels):
-		return "", fmt.Errorf("%w for %s: %d; supported: %v", subscription.ErrInvalidLevel, cName, s.Levels, levels)
+	case len(intervals) == 0:
+		return fmt.Errorf("%w for %s: %q; interval not supported for channel", subscription.ErrInvalidInterval, cName, s.Interval)
+	case !slices.Contains(intervals, s.Interval):
+		return fmt.Errorf("%w for %s: %q; supported: %q", subscription.ErrInvalidInterval, cName, s.Interval, intervals)
+	case cName == futuresOrderbookUpdateChannel && s.Interval == kline.TwentyMilliseconds && s.Levels != 20:
+		return fmt.Errorf("%w for %q: 20ms only valid with Levels 20", subscription.ErrInvalidInterval, cName)
+	default:
+		selectedInterval = s.Interval
+		payload["interval"], err = getIntervalString(selectedInterval)
 	}
 
-	return strconv.Itoa(s.Levels), nil
-}
+	isSupported = slices.Contains(levels, s.Levels)
 
-const subTplText = `
-{{- with $name := channelName $.S }}
-	{{- range $asset, $pairs := $.AssetPairs }}
-		{{- if singleSymbolChannel $name }}
-			{{- range $i, $p := $pairs -}}
-				{{- with $i := candlesInterval $.S }}{{ $i -}} , {{- end }}
-				{{- $p }}
-				{{- with $l := levels $.S $asset -}} , {{- $l }}{{ end }}
-				{{- with $i := orderbookInterval $.S $asset -}} , {{- $i }}{{- end }}
-				{{- $.PairSeparator }}
-			{{- end }}
-			{{- $.AssetSeparator }}
-		{{- else }}
-		  {{- $pairs.Join }}
-		{{- end }}
-	{{- end }}
-{{- end }}
-`
+	switch {
+	case s.Levels == 0:
+		if len(levels) == 0 {
+			// Either Levels 0 in allowed levels list means it's an optional param, and user chose not to supply it; Or levels aren't supported anyway
+			break
+		}
+		if selectedInterval == kline.TwentyMilliseconds {
+			// 20ms intervals require to 20 levels
+			payload["depth"] = "20"
+		} else {
+			// Default to maximum supported levels
+			payload["depth"] = strconv.Itoa(slices.Max(levels))
+		}
+	case len(levels) == 0:
+		return fmt.Errorf("%w for %s: `%d`; levels not supported for channel", subscription.ErrInvalidLevel, cName, s.Levels)
+	case !isSupported:
+		return fmt.Errorf("%w for %s: %d; supported: %v", subscription.ErrInvalidLevel, cName, s.Levels, levels)
+	default:
+		payload["depth"] = strconv.Itoa(s.Levels)
+	}
+
+	return err
+}
 
 // GeneratePayload returns the payload for a websocket message
 type GeneratePayload func(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
@@ -910,13 +1108,13 @@ type resultHolder struct {
 }
 
 // SendWebsocketRequest sends a websocket request to the exchange
-func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, channel string, connSignature, params, result any, expectedResponses int) error {
+func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, channel string, assetFilter asset.Item, params, result any, expectedResponses int) error {
 	paramPayload, err := json.Marshal(params)
 	if err != nil {
 		return err
 	}
 
-	conn, err := e.Websocket.GetConnection(connSignature)
+	conn, err := e.Websocket.GetConnection(websocket.AssetFilter(assetFilter))
 	if err != nil {
 		return err
 	}
@@ -983,3 +1181,22 @@ func getWSPingHandler(channel string) (websocket.PingHandler, error) {
 		MessageType: gws.TextMessage,
 	}, nil
 }
+
+const subTplText = `
+{{- underlyingPairs $.S $.AssetPairs }}
+{{- range $asset, $pairs := $.AssetPairs }}
+    {{- with $name := channelName $.S $asset }}
+        {{- if eq $.S.Channel "myWallet" -}}
+            {{ subToJson $.S $name $asset nil | mustToJson }}
+        {{- else if singleSymbolChannel $.S $asset $name }}
+            {{- range $pair := $pairs -}}
+                {{ subToJson $.S $name $asset $pair | mustToJson }}
+                {{- $.PairSeparator }}
+            {{- end }}
+        {{- else -}}
+            {{ subToJson $.S $name $asset $pairs | mustToJson }}
+        {{- end }}
+    {{- end }}
+    {{- $.AssetSeparator }}
+{{- end }}
+`

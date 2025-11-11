@@ -31,7 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -147,7 +146,6 @@ func (e *Exchange) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
-		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -177,6 +175,7 @@ func (e *Exchange) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	e.Websocket = websocket.NewManager()
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -200,6 +199,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
+		Exchange:                     e,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
 		FillsFeed:                    e.Features.Enabled.FillsFeed,
 		TradeFeed:                    e.Features.Enabled.TradeFeed,
@@ -211,16 +211,15 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 	// Spot connection
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   gateioWebsocketEndpoint,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Handler:               e.WsHandleSpotData,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptionsSpot,
-		Connector:             e.WsConnectSpot,
-		Authenticate:          e.authenticateSpot,
-		MessageFilter:         asset.Spot,
+		URL:                  gateioWebsocketEndpoint,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Handler:              e.WsHandleSpotData,
+		Subscriber:           e.Subscribe,
+		Unsubscriber:         e.Unsubscribe,
+		Connector:            e.WsConnectSpot,
+		Authenticate:         e.authenticateSpot,
+		MessageFilter:        websocket.AssetFilter(asset.Spot),
 	})
 	if err != nil {
 		return err
@@ -233,14 +232,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
 			return e.WsHandleFuturesData(ctx, conn, incoming, asset.USDTMarginedFutures)
 		},
-		Subscriber:   e.FuturesSubscribe,
-		Unsubscriber: e.FuturesUnsubscribe,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
-		},
+		Subscriber:    e.Subscribe,
+		Unsubscriber:  e.Unsubscribe,
 		Connector:     e.WsFuturesConnect,
 		Authenticate:  e.authenticateFutures,
-		MessageFilter: asset.USDTMarginedFutures,
+		MessageFilter: websocket.AssetFilter(asset.USDTMarginedFutures),
 	})
 	if err != nil {
 		return err
@@ -254,13 +250,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
 			return e.WsHandleFuturesData(ctx, conn, incoming, asset.CoinMarginedFutures)
 		},
-		Subscriber:   e.FuturesSubscribe,
-		Unsubscriber: e.FuturesUnsubscribe,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
-		},
+		Subscriber:    e.Subscribe,
+		Unsubscriber:  e.Unsubscribe,
 		Connector:     e.WsFuturesConnect,
-		MessageFilter: asset.CoinMarginedFutures,
+		MessageFilter: websocket.AssetFilter(asset.CoinMarginedFutures),
 	})
 	if err != nil {
 		return err
@@ -275,27 +268,25 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
 			return e.WsHandleFuturesData(ctx, conn, incoming, asset.DeliveryFutures)
 		},
-		Subscriber:            e.DeliveryFuturesSubscribe,
-		Unsubscriber:          e.DeliveryFuturesUnsubscribe,
-		GenerateSubscriptions: e.GenerateDeliveryFuturesDefaultSubscriptions,
-		Connector:             e.WsDeliveryFuturesConnect,
-		MessageFilter:         asset.DeliveryFutures,
+		Subscriber:    e.Subscribe,
+		Unsubscriber:  e.Unsubscribe,
+		Connector:     e.WsDeliveryFuturesConnect,
+		MessageFilter: websocket.AssetFilter(asset.DeliveryFutures),
 	})
 	if err != nil {
 		return err
 	}
 
-	// Futures connection - Options
+	// Options connection
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   optionsWebsocketURL,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Handler:               e.WsHandleOptionsData,
-		Subscriber:            e.OptionsSubscribe,
-		Unsubscriber:          e.OptionsUnsubscribe,
-		GenerateSubscriptions: e.GenerateOptionsDefaultSubscriptions,
-		Connector:             e.WsOptionsConnect,
-		MessageFilter:         asset.Options,
+		URL:                  optionsWebsocketURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Handler:              e.WsHandleOptionsData,
+		Subscriber:           e.Subscribe,
+		Unsubscriber:         e.Unsubscribe,
+		Connector:            e.WsOptionsConnect,
+		MessageFilter:        websocket.AssetFilter(asset.Options),
 	})
 }
 

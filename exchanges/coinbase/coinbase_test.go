@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -1628,9 +1627,8 @@ func TestProcessSnapshotUpdate(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
-	if err := testexch.Setup(e); err != nil {
-		log.Fatal(err)
-	}
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	p1, err := e.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err)
@@ -1655,7 +1653,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 		exp = append(exp, s)
 	}
-	subs, err := e.generateSubscriptions()
+	subs, err := e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err)
 	testsubs.EqualLists(t, exp, subs)
 	_, err = subscription.List{{Channel: "wibble"}}.ExpandTemplates(e)
@@ -1674,20 +1672,11 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := &Exchange{
-		Base: exchange.Base{
-			Config: &config.Exchange{
-				Features: &config.FeaturesConfig{
-					Subscriptions: subscription.List{
-						{Enabled: true, Channel: "matches"},
-					},
-				},
-			},
-			Features: exchange.Features{},
-		},
-	}
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Config.Features.Subscriptions = subscription.List{{Enabled: true, Channel: "matches"}}
 	e.checkSubscriptions()
-	testsubs.EqualLists(t, defaultSubscriptions.Enabled(), e.Features.Subscriptions)
+	testsubs.EqualLists(t, defaultSubscriptions.Enabled(), e.Websocket.Subscriptions)
 	testsubs.EqualLists(t, defaultSubscriptions, e.Config.Features.Subscriptions)
 }
 

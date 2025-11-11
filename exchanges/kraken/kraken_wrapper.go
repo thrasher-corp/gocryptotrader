@@ -148,7 +148,6 @@ func (e *Exchange) SetDefaults() {
 				GlobalResultLimit: 720,
 			},
 		},
-		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	var err error
@@ -170,6 +169,7 @@ func (e *Exchange) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	e.Websocket = websocket.NewManager()
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -196,12 +196,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
+		Exchange:              e,
 		DefaultURL:            krakenWSURL,
 		RunningURL:            wsRunningURL,
 		Connector:             e.WsConnect,
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
 		Features:              &e.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
 	})

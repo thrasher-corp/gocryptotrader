@@ -30,7 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -169,12 +168,6 @@ func (e *Exchange) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
-		Subscriptions: subscription.List{
-			{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
-			{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
-			{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
-		},
 	}
 
 	var err error
@@ -198,6 +191,7 @@ func (e *Exchange) SetDefaults() {
 	}
 
 	e.Websocket = websocket.NewManager()
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
@@ -219,14 +213,14 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            binanceDefaultWebsocketURL,
-		RunningURL:            ePoint,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		Exchange:       e,
+		ExchangeConfig: exch,
+		DefaultURL:     binanceDefaultWebsocketURL,
+		RunningURL:     ePoint,
+		Connector:      e.WsConnect,
+		Subscriber:     e.Subscribe,
+		Unsubscriber:   e.Unsubscribe,
+		Features:       &e.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,

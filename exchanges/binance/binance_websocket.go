@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -48,6 +49,13 @@ var (
 	// jobs from the job channel
 	maxWSOrderbookWorkers = 10
 )
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+}
 
 // WsConnect initiates a websocket connection
 func (e *Exchange) WsConnect() error {
@@ -380,26 +388,23 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 		return nil
 	case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 		"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
-		var kline KlineStream
-		err = json.Unmarshal(jsonData, &kline)
-		if err != nil {
-			return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
-				e.Name,
-				err)
+		var k KlineStream
+		if err = json.Unmarshal(jsonData, &k); err != nil {
+			return fmt.Errorf("%v - Could not convert to a KlineStream structure %s", e.Name, err)
 		}
 		e.Websocket.DataHandler <- websocket.KlineData{
-			Timestamp:  kline.EventTime.Time(),
+			Timestamp:  k.EventTime.Time(),
 			Pair:       pair,
 			AssetType:  asset.Spot,
 			Exchange:   e.Name,
-			StartTime:  kline.Kline.StartTime.Time(),
-			CloseTime:  kline.Kline.CloseTime.Time(),
-			Interval:   kline.Kline.Interval,
-			OpenPrice:  kline.Kline.OpenPrice.Float64(),
-			ClosePrice: kline.Kline.ClosePrice.Float64(),
-			HighPrice:  kline.Kline.HighPrice.Float64(),
-			LowPrice:   kline.Kline.LowPrice.Float64(),
-			Volume:     kline.Kline.Volume.Float64(),
+			StartTime:  k.Kline.StartTime.Time(),
+			CloseTime:  k.Kline.CloseTime.Time(),
+			Interval:   k.Kline.Interval,
+			OpenPrice:  k.Kline.OpenPrice.Float64(),
+			ClosePrice: k.Kline.ClosePrice.Float64(),
+			HighPrice:  k.Kline.HighPrice.Float64(),
+			LowPrice:   k.Kline.LowPrice.Float64(),
+			Volume:     k.Kline.Volume.Float64(),
 		}
 		return nil
 	case "depth":
@@ -496,16 +501,6 @@ func (e *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 	}
 
 	return false, err
-}
-
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	for _, s := range e.Features.Subscriptions {
-		if s.Asset == asset.Empty {
-			// Handle backwards compatibility with config without assets, all binance subs are spot
-			s.Asset = asset.Spot
-		}
-	}
-	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 var subTemplate *template.Template

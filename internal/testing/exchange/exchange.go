@@ -47,6 +47,7 @@ func Setup(e exchange.IBotExchange) error {
 	e.SetDefaults()
 	b := e.GetBase()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
+	b.Websocket.Exchange = e
 
 	if err = e.Setup(exchConf); err != nil {
 		return fmt.Errorf("Setup() error: %w", err)
@@ -118,11 +119,6 @@ func MockWsInstance[T any, PT interface {
 		err = b.Websocket.SetWebsocketURL("ws"+strings.TrimPrefix(s.URL, "http"), auth, true)
 		require.NoErrorf(tb, err, "SetWebsocketURL must not error for auth: %v", auth)
 	}
-
-	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
-	b.Features.Subscriptions = subscription.List{}
-	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
-	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
 	err = b.Websocket.Connect()
 	require.NoError(tb, err, "Connect must not error")
@@ -199,7 +195,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	}
 
 	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
-	b.Features.Subscriptions = subscription.List{}
+	b.Websocket.Subscriptions = subscription.List{}
 	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
 	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 

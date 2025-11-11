@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -222,32 +223,25 @@ func TestSetFeatureDefaults(t *testing.T) {
 			},
 		},
 	}
-	b.SetFeatureDefaults()
-	if !b.Config.Features.Supports.REST && b.Config.CurrencyPairs.LastUpdated == 0 {
-		t.Error("incorrect values")
-	}
 
-	// Test upgrade when SupportsAutoPairUpdates is enabled
+	b.SetFeatureDefaults()
+	assert.True(t, b.Config.Features.Supports.REST, "Supports.REST should be correct")
+	assert.NotEmpty(t, b.Config.CurrencyPairs.LastUpdated, "CurrencyPairs.LastUpdated should correct")
+
 	bptr := func(a bool) *bool { return &a }
 	b.Config.Features = nil
 	b.Config.SupportsAutoPairUpdates = bptr(true)
 	b.SetFeatureDefaults()
-	if !b.Config.Features.Supports.RESTCapabilities.AutoPairUpdates &&
-		!b.Features.Enabled.AutoPairUpdates {
-		t.Error("incorrect values")
-	}
+	assert.True(t, b.Config.Features.Supports.RESTCapabilities.AutoPairUpdates, "RESTCapabilities.AutoPairUpdates should be correct when SupportsAutoPairUpdates is true")
+	assert.True(t, b.Config.Features.Enabled.AutoPairUpdates, "Enabled.AutoPairUpdates should be correct when SupportsAutoPairUpdates is true")
 
-	// Test non migrated features config
 	b.Config.Features.Supports.REST = false
 	b.Config.Features.Supports.RESTCapabilities.TickerBatching = false
 	b.Config.Features.Supports.Websocket = false
 	b.SetFeatureDefaults()
-
-	if !b.Features.Supports.REST ||
-		!b.Features.Supports.RESTCapabilities.TickerBatching ||
-		!b.Features.Supports.Websocket {
-		t.Error("incorrect values")
-	}
+	assert.True(t, b.Config.Features.Supports.REST, "Config Supports.REST should be set from Features")
+	assert.True(t, b.Config.Features.Supports.RESTCapabilities.TickerBatching, "Config TickerBatching should set from Features")
+	assert.True(t, b.Config.Features.Supports.Websocket, "Config Websocket should be set from Features")
 }
 
 func TestSetAutoPairDefaults(t *testing.T) {
@@ -776,6 +770,7 @@ func TestSetupDefaults(t *testing.T) {
 	b := Base{
 		Name:      "awesomeTest",
 		Requester: newRequester,
+		Websocket: websocket.NewManager(),
 	}
 	cfg := config.Exchange{
 		HTTPTimeout: time.Duration(-1),
@@ -794,6 +789,7 @@ func TestSetupDefaults(t *testing.T) {
 	assert.Equal(t, 15*time.Second, cfg.HTTPTimeout, "config.HTTPTimeout should default correctly")
 
 	cfg.HTTPTimeout = time.Second * 30
+
 	require.NoError(t, b.SetupDefaults(&cfg))
 	require.NoError(t, err)
 	assert.Equal(t, 30*time.Second, cfg.HTTPTimeout, "config.HTTPTimeout should respect override")
@@ -1120,6 +1116,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 
 	b.Websocket = websocket.NewManager()
 	err := b.Websocket.Setup(&websocket.ManagerSetup{
+		Exchange: &FakeBase{},
 		ExchangeConfig: &config.Exchange{
 			Enabled:                 true,
 			WebsocketTrafficTimeout: time.Second * 30,
@@ -1517,30 +1514,6 @@ func TestFlushWebsocketChannels(t *testing.T) {
 	if err == nil {
 		t.Fatal(err)
 	}
-}
-
-func TestSubscribeToWebsocketChannels(t *testing.T) {
-	b := Base{}
-	err := b.SubscribeToWebsocketChannels(nil)
-	if err == nil {
-		t.Fatal(err)
-	}
-
-	b.Websocket = websocket.NewManager()
-	err = b.SubscribeToWebsocketChannels(nil)
-	if err == nil {
-		t.Fatal(err)
-	}
-}
-
-func TestUnsubscribeToWebsocketChannels(t *testing.T) {
-	b := Base{}
-	err := b.UnsubscribeToWebsocketChannels(nil)
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "UnsubscribeToWebsocketChannels should error correctly with a nil Websocket")
-
-	b.Websocket = websocket.NewManager()
-	err = b.UnsubscribeToWebsocketChannels(nil)
-	assert.NoError(t, err, "UnsubscribeToWebsocketChannels from an empty/nil list should not error")
 }
 
 func TestGetSubscriptions(t *testing.T) {
@@ -2484,24 +2457,33 @@ func TestGetCachedOpenInterest(t *testing.T) {
 // TestSetSubscriptionsFromConfig tests the setting and loading of subscriptions from config and exchange defaults
 func TestSetSubscriptionsFromConfig(t *testing.T) {
 	t.Parallel()
-	b := Base{Config: &config.Exchange{Features: &config.FeaturesConfig{}}}
+	b := Base{
+		Verbose: true,
+		Config: &config.Exchange{
+			Features: &config.FeaturesConfig{},
+		},
+	}
+	assert.NotPanics(t, func() { b.setSubscriptionsFromConfig() }, "should not panic with a nil Websocket")
+
 	subs := subscription.List{
 		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: true},
 		{Channel: subscription.OrderbookChannel, Enabled: false},
 	}
-	b.Features.Subscriptions = subs
-	b.SetSubscriptionsFromConfig()
-	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be updated")
-	assert.ElementsMatch(t, subscription.List{subs[0]}, b.Features.Subscriptions, "Actual Subscriptions should only contain Enabled")
+
+	b.Websocket = websocket.NewManager()
+	b.Websocket.Subscriptions = subs
+	b.setSubscriptionsFromConfig()
+	testsubs.EqualLists(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be updated")
+	testsubs.EqualLists(t, subscription.List{subs[0]}, b.Websocket.Subscriptions, "Actual Subscriptions should only contain Enabled")
 
 	subs = subscription.List{
 		{Channel: subscription.OrderbookChannel, Enabled: true},
 		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: false},
 	}
 	b.Config.Features.Subscriptions = subs
-	b.SetSubscriptionsFromConfig()
-	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
-	assert.ElementsMatch(t, subscription.List{subs[0]}, b.Features.Subscriptions, "Subscriptions should only contain Enabled from Config")
+	b.setSubscriptionsFromConfig()
+	testsubs.EqualLists(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
+	testsubs.EqualLists(t, subscription.List{subs[0]}, b.Websocket.Subscriptions, "Subscriptions should only contain Enabled from Config")
 }
 
 // TestParallelChanOp unit tests the helper func ParallelChanOp

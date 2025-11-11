@@ -1989,8 +1989,9 @@ func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	channels, err := e.generateSubscriptions() // Note: We grab this before it's overwritten by MockWsInstance below
-	require.NoError(t, err, "generateSubscriptions must not error")
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
+	subs, err := defaultSubscriptions.ExpandTemplates(e)
+	require.NoError(t, err, "ExpandTemplates must not error")
 	if mockTests {
 		exp := []string{"btcusdt@depth@100ms", "btcusdt@kline_1m", "btcusdt@ticker", "btcusdt@trade", "dogeusdt@depth@100ms", "dogeusdt@kline_1m", "dogeusdt@ticker", "dogeusdt@trade"}
 		mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
@@ -2004,9 +2005,9 @@ func TestSubscribe(t *testing.T) {
 	} else {
 		testexch.SetupWs(t, e)
 	}
-	err = e.Subscribe(channels)
+	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
-	err = e.Unsubscribe(channels)
+	err = e.Unsubscribe(subs)
 	require.NoError(t, err, "Unsubscribe must not error")
 }
 
@@ -2417,6 +2418,9 @@ func TestSeedLocalCache(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone().Enabled()
 	exp := subscription.List{}
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	assert.NoError(t, err, "GetEnabledPairs should not error")
@@ -2435,8 +2439,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 			exp = append(exp, sub)
 		}
 	}
-	subs, err := e.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
+	subs, err := e.Websocket.GenerateSubscriptions()
+	require.NoError(t, err, "GenerateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 }
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -17,11 +18,24 @@ import (
 func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Setup must not error")
+
+	pair := currency.NewPair(currency.DOGE, currency.BABYDOGE)
+
+	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{
+		Channel:  subscription.OrderbookChannel,
+		Interval: kline.TwentyMilliseconds,
+		Levels:   20,
+		Asset:    asset.USDTMarginedFutures,
+		Pairs:    currency.Pairs{pair},
+	})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
 	m := newWsOBUpdateManager(0)
-	err := m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{})
+	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
 	err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Exchange:     e.Name,
 		Pair:         pair,
@@ -60,6 +74,18 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	assert.True(t, cache.updating)
 	cache.mtx.Unlock()
 
+	for done := false; !done; {
+		select {
+		case v := <-e.Websocket.DataHandler:
+			if e, ok := v.(error); ok {
+				err = common.AppendError(err, e)
+			}
+		default:
+			done = true
+		}
+	}
+	require.NoError(t, err, "ProcessOrderbookUpdate must not have sent errors to Datahandler")
+
 	// Test orderbook snapshot is behind update
 	err = m.ProcessOrderbookUpdate(t.Context(), e, 1342, &orderbook.Update{
 		UpdateID:   1343,
@@ -75,7 +101,19 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	assert.True(t, cache.updating)
 	cache.mtx.Unlock()
 
-	time.Sleep(time.Millisecond * 2) // Allow sync delay to pass
+	time.Sleep(time.Millisecond * 4) // Allow sync delay to pass
+
+	for done := false; !done; {
+		select {
+		case v := <-e.Websocket.DataHandler:
+			if e, ok := v.(error); ok {
+				err = common.AppendError(err, e)
+			}
+		default:
+			done = true
+		}
+	}
+	require.ErrorIs(t, err, errInvalidSettlementQuote, "ProcessOrderbookUpdate must not send errors to DataHandler")
 
 	cache.mtx.Lock()
 	assert.Empty(t, cache.updates)
@@ -104,16 +142,26 @@ func TestSyncOrderbook(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	require.NoError(t, e.UpdateTradablePairs(t.Context()))
 
-	// Add dummy subscription so that it can be matched and a limit/level can be extracted for initial orderbook sync spot.
-	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
-	require.NoError(t, err)
+	pair := currency.NewPair(currency.ETH, currency.USDT)
 
 	m := newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
 
 	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
-		pair := currency.NewPair(currency.ETH, currency.USDT)
-		err := e.CurrencyPairs.EnablePair(a, pair)
-		require.NoError(t, err)
+		s := &subscription.Subscription{
+			Channel:  subscription.OrderbookChannel,
+			Interval: kline.TwentyMilliseconds,
+			Levels:   20,
+			Asset:    a,
+			Pairs:    currency.Pairs{pair},
+		}
+		if a == asset.Spot {
+			s.Levels = 100
+			s.Interval = kline.HundredMilliseconds
+		}
+		err := e.Websocket.AddSubscriptions(nil, s)
+		require.NoError(t, err, "AddSubscriptions must not error")
+
+		require.NoError(t, e.CurrencyPairs.EnablePair(a, pair), "EnablePair must not error")
 		cache := m.LoadCache(pair, a)
 
 		cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: a}}}
@@ -123,15 +171,10 @@ func TestSyncOrderbook(t *testing.T) {
 		require.False(t, cache.updating)
 		require.Empty(t, cache.updates)
 
-		expectedLimit := 20
-		if a == asset.Spot {
-			expectedLimit = 100
-		}
-
 		b, err := e.Websocket.Orderbook.GetOrderbook(pair, a)
 		require.NoError(t, err)
-		require.Len(t, b.Bids, expectedLimit)
-		require.Len(t, b.Asks, expectedLimit)
+		require.Len(t, b.Bids, s.Levels)
+		require.Len(t, b.Asks, s.Levels)
 	}
 }
 
@@ -201,4 +244,63 @@ func TestApplyOrderbookUpdate(t *testing.T) {
 	update.Pair = currency.NewPair(currency.BABY, currency.BABYDOGE)
 	err = applyOrderbookUpdate(e, update)
 	require.NoError(t, err)
+}
+
+// TestOrderbookSubKeyMatch exercises the orderbookSubKey MatchableKey interface implementation
+// Ensures A.Pairs must be a subset of B.Pairs
+func TestOrderbookSubKeyMatch(t *testing.T) {
+	t.Parallel()
+
+	btcusdtPair := currency.NewBTCUSDT()
+	ethusdcPair := currency.NewPair(currency.ETH, currency.USDC)
+	ltcusdcPair := currency.NewPair(currency.LTC, currency.USDC)
+
+	key := &orderbookSubKey{&subscription.Subscription{Channel: subscription.OrderbookChannel}}
+	try := &orderbookSubKey{&subscription.Subscription{Channel: subscription.TickerChannel}}
+
+	assert.NotNil(t, key.EnsureKeyed(), "EnsureKeyed should work")
+
+	require.False(t, key.Match(try), "Gate 1: Match must reject a bad Channel")
+	try.Channel = subscription.OrderbookChannel
+	require.True(t, key.Match(try), "Gate 1: Match must accept a good Channel")
+	key.Asset = asset.Spot
+	require.False(t, key.Match(try), "Gate 2: Match must reject a bad Asset")
+	try.Asset = asset.Spot
+	require.True(t, key.Match(try), "Gate 2: Match must accept a good Asset")
+
+	key.Pairs = currency.Pairs{btcusdtPair}
+	require.False(t, key.Match(try), "Gate 3: Match must reject B empty Pairs when key has Pairs")
+	try.Pairs = currency.Pairs{btcusdtPair}
+	key.Pairs = nil
+	require.False(t, key.Match(try), "Gate 4: Match must reject B has Pairs when key has empty Pairs")
+	key.Pairs = currency.Pairs{btcusdtPair}
+	require.True(t, key.Match(try), "Gate 5: Match must accept matching pairs")
+	key.Pairs = currency.Pairs{ethusdcPair}
+	require.False(t, key.Match(try), "Gate 5: Match must reject when key.Pairs not in try.Pairs")
+	try.Pairs = currency.Pairs{btcusdtPair, ethusdcPair}
+	require.True(t, key.Match(try), "Gate 5: Match must accept one of the key.Pairs in try.Pairs")
+	key.Pairs = currency.Pairs{btcusdtPair, ethusdcPair}
+	try.Pairs = currency.Pairs{btcusdtPair, ltcusdcPair}
+	require.False(t, key.Match(try), "Gate 5: Match must reject when key.Pairs not in try.Pairs")
+	try.Pairs = currency.Pairs{btcusdtPair, ethusdcPair, ltcusdcPair}
+	require.True(t, key.Match(try), "Gate 5: Match must accept when all key.Pairs are subset of try.Pairs")
+}
+
+// TestOrderbookSubKeyString exercises orderbookSubKey.String
+func TestOrderbookSubKeyString(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "Uninitialised orderbookSubKey", orderbookSubKey{}.String())
+	key := &orderbookSubKey{&subscription.Subscription{
+		Asset:   asset.Spot,
+		Channel: subscription.OrderbookChannel,
+		Pairs:   currency.Pairs{currency.NewPair(currency.ETH, currency.USDC), currency.NewBTCUSDT()},
+	}}
+	assert.Equal(t, "orderbook spot [ETHUSDC BTCUSDT]", key.String())
+}
+
+// TestGetSubscription exercises GetSubscription
+func TestOrderbookSubKeyGetSubscription(t *testing.T) {
+	t.Parallel()
+	s := &subscription.Subscription{Asset: asset.Spot}
+	assert.Same(t, s, orderbookSubKey{s}.GetSubscription(), "orderbookSub.GetSubscription should return a pointer to the subscription")
 }

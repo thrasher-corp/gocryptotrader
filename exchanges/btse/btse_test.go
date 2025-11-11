@@ -790,6 +790,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 
 	exp := subscription.List{
 		{Channel: subscription.AllTradesChannel, QualifiedChannel: "tradeHistoryApi:BTC-USD", Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
@@ -797,7 +798,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := e.generateSubscriptions()
+	subs, err := e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 

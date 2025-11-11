@@ -100,7 +100,7 @@ func (k IgnoringAssetKey) GetSubscription() *Subscription {
 	return k.Subscription
 }
 
-// String implements Stringer; returns the asset and Channel name but no pairs
+// String implements Stringer; returns the Channel name and Pairs, but no Asset
 func (k IgnoringAssetKey) String() string {
 	s := k.Subscription
 	if s == nil {

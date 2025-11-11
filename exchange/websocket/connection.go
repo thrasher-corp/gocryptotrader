@@ -19,6 +19,7 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -92,7 +93,7 @@ type ConnectionSetup struct {
 	Authenticate func(ctx context.Context, conn Connection) error
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.
-	MessageFilter any
+	MessageFilter MessageFilter
 }
 
 // Inspector is used to verify messages via SendMessageReturnResponsesWithInspection
@@ -472,4 +473,30 @@ func (c *connection) RequireMatchWithData(signature any, incoming []byte) error 
 // IncomingWithData routes incoming data using the connection specific match system to the correct handler
 func (c *connection) IncomingWithData(signature any, data []byte) bool {
 	return c.Match.IncomingWithData(signature, data)
+}
+
+// MessageFilter defines the interface for types to use in ConnectionSetup to match messages and subscriptions
+// TODO: This isn't really a message filter, and this naming will be fixed in an upcoming PR
+type MessageFilter interface {
+	MatchesSub(*subscription.Subscription) bool
+}
+
+// AssetFilter is a MessageFilter for filtering connections by Asset
+type AssetFilter asset.Item
+
+var _ MessageFilter = AssetFilter(asset.Spot)
+
+// MatchesSub returns if the subscription Asset exactly matches the assetFilter asset
+func (a AssetFilter) MatchesSub(s *subscription.Subscription) bool {
+	return s.Asset == asset.Item(a)
+}
+
+// AuthenticatedFilter is a MessageFilter for filtering connections by Authenticated
+type AuthenticatedFilter bool
+
+var _ MessageFilter = AuthenticatedFilter(true)
+
+// MatchesSub returns if the subscription Authenticated matches the AuthenticatedFilter
+func (a AuthenticatedFilter) MatchesSub(s *subscription.Subscription) bool {
+	return s.Authenticated == bool(a)
 }

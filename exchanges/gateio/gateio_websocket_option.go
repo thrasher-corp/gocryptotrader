@@ -3,7 +3,6 @@ package gateio
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,17 +11,13 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -52,19 +47,7 @@ const (
 	optionsPositionCloseChannel          = "options.position_closes"
 	optionsBalancesChannel               = "options.balances"
 	optionsPositionsChannel              = "options.positions"
-
-	optionOrderbookUpdateLimit uint64 = 50
 )
-
-var defaultOptionsSubscriptions = []string{
-	optionsContractTickersChannel,
-	optionsUnderlyingTickersChannel,
-	optionsTradesChannel,
-	optionsUnderlyingTradesChannel,
-	optionsContractCandlesticksChannel,
-	optionsUnderlyingCandlesticksChannel,
-	optionsOrderbookUpdateChannel,
-}
 
 // WsOptionsConnect initiates a websocket connection to options websocket endpoints.
 func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connection) error {
@@ -80,207 +63,6 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 	}
 	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, pingHandler)
 	return nil
-}
-
-// GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
-// TODO: Update to use the new subscription template system
-func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
-	ctx := context.TODO()
-	channelsToSubscribe := defaultOptionsSubscriptions
-	var userID int64
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		var err error
-		_, err = e.GetCredentials(ctx)
-		if err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			goto getEnabledPairs
-		}
-		response, err := e.GetSubAccountBalances(ctx, "")
-		if err != nil {
-			return nil, err
-		}
-		if len(response) != 0 {
-			channelsToSubscribe = append(channelsToSubscribe,
-				optionsUserTradesChannel,
-				optionsBalancesChannel,
-			)
-			userID = response[0].UserID
-		} else if e.Verbose {
-			log.Errorf(log.ExchangeSys, "no subaccount found for authenticated options channel subscriptions")
-		}
-	}
-
-getEnabledPairs:
-
-	pairs, err := e.GetEnabledPairs(asset.Options)
-	if err != nil {
-		if errors.Is(err, asset.ErrNotEnabled) {
-			return nil, nil // no enabled pairs, subscriptions require an associated pair.
-		}
-		return nil, err
-	}
-
-	var subscriptions subscription.List
-	for i := range channelsToSubscribe {
-		for j := range pairs {
-			params := make(map[string]any)
-			switch channelsToSubscribe[i] {
-			case optionsOrderbookChannel:
-				params["accuracy"] = "0"
-				params["level"] = "20"
-			case optionsContractCandlesticksChannel, optionsUnderlyingCandlesticksChannel:
-				params["interval"] = kline.FiveMin
-			case optionsOrderbookUpdateChannel:
-				params["interval"] = kline.HundredMilliseconds
-				params["level"] = strconv.FormatUint(optionOrderbookUpdateLimit, 10)
-			case optionsOrdersChannel,
-				optionsUserTradesChannel,
-				optionsLiquidatesChannel,
-				optionsUserSettlementChannel,
-				optionsPositionCloseChannel,
-				optionsBalancesChannel,
-				optionsPositionsChannel:
-				if userID == 0 {
-					continue
-				}
-				params["user_id"] = userID
-			}
-			fPair, err := e.FormatExchangeCurrency(pairs[j], asset.Options)
-			if err != nil {
-				return nil, err
-			}
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channelsToSubscribe[i],
-				Pairs:   currency.Pairs{fPair.Upper()},
-				Params:  params,
-				Asset:   asset.Options,
-			})
-		}
-	}
-	return subscriptions, nil
-}
-
-func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
-	if len(channelsToSubscribe) == 0 {
-		return nil, errors.New("cannot generate payload, no channels supplied")
-	}
-	var err error
-	var intervalString string
-	payloads := make([]WsInput, len(channelsToSubscribe))
-	for i := range channelsToSubscribe {
-		if len(channelsToSubscribe[i].Pairs) != 1 {
-			return nil, subscription.ErrNotSinglePair
-		}
-		var auth *WsAuthInput
-		timestamp := time.Now()
-		var params []string
-		switch channelsToSubscribe[i].Channel {
-		case optionsUnderlyingTickersChannel,
-			optionsUnderlyingTradesChannel,
-			optionsUnderlyingPriceChannel,
-			optionsUnderlyingCandlesticksChannel:
-			var uly currency.Pair
-			uly, err = e.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Pairs[0])
-			if err != nil {
-				return nil, err
-			}
-			params = append(params, uly.String())
-		case optionsBalancesChannel:
-			// options.balance channel does not require underlying or contract
-		default:
-			channelsToSubscribe[i].Pairs[0].Delimiter = currency.UnderscoreDelimiter
-			params = append(params, channelsToSubscribe[i].Pairs[0].String())
-		}
-		switch channelsToSubscribe[i].Channel {
-		case optionsOrderbookChannel:
-			accuracy, ok := channelsToSubscribe[i].Params["accuracy"].(string)
-			if !ok {
-				return nil, fmt.Errorf("%w, invalid options orderbook accuracy", orderbook.ErrOrderbookInvalid)
-			}
-			level, ok := channelsToSubscribe[i].Params["level"].(string)
-			if !ok {
-				return nil, fmt.Errorf("%w, invalid options orderbook level", orderbook.ErrOrderbookInvalid)
-			}
-			params = append(
-				params,
-				level,
-				accuracy,
-			)
-		case optionsUserTradesChannel,
-			optionsBalancesChannel,
-			optionsOrdersChannel,
-			optionsLiquidatesChannel,
-			optionsUserSettlementChannel,
-			optionsPositionCloseChannel,
-			optionsPositionsChannel:
-			userID, ok := channelsToSubscribe[i].Params["user_id"].(int64)
-			if !ok {
-				continue
-			}
-			params = append([]string{strconv.FormatInt(userID, 10)}, params...)
-			var creds *accounts.Credentials
-			creds, err = e.GetCredentials(ctx)
-			if err != nil {
-				return nil, err
-			}
-			var sigTemp string
-			sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
-			if err != nil {
-				return nil, err
-			}
-			auth = &WsAuthInput{
-				Method: "api_key",
-				Key:    creds.Key,
-				Sign:   sigTemp,
-			}
-		case optionsOrderbookUpdateChannel:
-			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
-			if !ok {
-				return nil, fmt.Errorf("%w, missing options orderbook interval", orderbook.ErrOrderbookInvalid)
-			}
-			intervalString, err = getIntervalString(interval)
-			if err != nil {
-				return nil, err
-			}
-			params = append(params,
-				intervalString)
-			if value, ok := channelsToSubscribe[i].Params["level"].(int); ok {
-				params = append(params, strconv.Itoa(value))
-			}
-		case optionsContractCandlesticksChannel,
-			optionsUnderlyingCandlesticksChannel:
-			interval, ok := channelsToSubscribe[i].Params["interval"].(kline.Interval)
-			if !ok {
-				return nil, errors.New("missing options underlying candlesticks interval")
-			}
-			intervalString, err = getIntervalString(interval)
-			if err != nil {
-				return nil, err
-			}
-			params = append(
-				[]string{intervalString},
-				params...)
-		}
-		payloads[i] = WsInput{
-			ID:      e.MessageSequence(),
-			Event:   event,
-			Channel: channelsToSubscribe[i].Channel,
-			Payload: params,
-			Auth:    auth,
-			Time:    timestamp.Unix(),
-		}
-	}
-	return payloads, nil
-}
-
-// OptionsSubscribe sends a websocket message to stop receiving data for asset type options
-func (e *Exchange) OptionsSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
-	return e.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, e.generateOptionsPayload)
-}
-
-// OptionsUnsubscribe sends a websocket message to stop receiving data for asset type options
-func (e *Exchange) OptionsUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
-	return e.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, e.generateOptionsPayload)
 }
 
 // WsHandleOptionsData handles options websocket data

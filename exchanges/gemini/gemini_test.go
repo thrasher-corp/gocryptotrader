@@ -1290,10 +1290,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Websocket.Subscriptions = defaultSubscriptions.Clone()
 	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", ""), currency.NewPairWithDelimiter("ETH", "BTC", "")}
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, p, false))
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, p, true))
-	subs, err := e.generateSubscriptions()
+	subs, err := e.Websocket.GenerateSubscriptions()
 	require.NoError(t, err)
 	exp := subscription.List{
 		{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, QualifiedChannel: "candles_1d", Interval: kline.OneDay},
