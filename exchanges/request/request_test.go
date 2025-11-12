@@ -307,13 +307,9 @@ func TestDoRequest(t *testing.T) {
 	require.False(t, respErr.Error, "Error must be false")
 
 	// Check client side rate limit
-	const numReqs = 5
-	ec := common.CollectErrors(numReqs)
-
-	for range numReqs {
-		go func() {
-			defer ec.Wg.Done()
-
+	var ec common.ErrorCollector
+	for range 5 {
+		ec.Go(func() error {
 			var resp struct {
 				Response bool `json:"response"`
 			}
@@ -324,13 +320,13 @@ func TestDoRequest(t *testing.T) {
 					Result: &resp,
 				}, nil
 			}, AuthenticatedRequest); err != nil {
-				ec.C <- fmt.Errorf("SendPayload error: %w", err)
-				return
+				return fmt.Errorf("SendPayload error: %w", err)
 			}
 			if !resp.Response {
-				ec.C <- fmt.Errorf("unexpected response: %+v", resp)
+				return fmt.Errorf("unexpected response: %+v", resp)
 			}
-		}()
+			return nil
+		})
 	}
 
 	require.NoError(t, ec.Collect(), "Collect must return no errors")
@@ -342,14 +338,9 @@ func TestDoRequest_Retries(t *testing.T) {
 	r, err := New("test", new(http.Client), WithBackoff(func(int) time.Duration { return 0 }))
 	require.NoError(t, err, "New requester must not error")
 
-	const numReqs = 4
-
-	ec := common.CollectErrors(numReqs)
-
-	for range numReqs {
-		go func() {
-			defer ec.Wg.Done()
-
+	var ec common.ErrorCollector
+	for range 4 {
+		ec.Go(func() error {
 			var resp struct {
 				Response bool `json:"response"`
 			}
@@ -362,13 +353,13 @@ func TestDoRequest_Retries(t *testing.T) {
 			}
 
 			if err := r.SendPayload(t.Context(), Auth, itemFn, AuthenticatedRequest); err != nil {
-				ec.C <- fmt.Errorf("SendPayload error: %w", err)
-				return
+				return fmt.Errorf("SendPayload error: %w", err)
 			}
 			if !resp.Response {
-				ec.C <- fmt.Errorf("unexpected response: %+v", resp)
+				return fmt.Errorf("unexpected response: %+v", resp)
 			}
-		}()
+			return nil
+		})
 	}
 
 	require.NoError(t, ec.Collect(), "Collect must return no errors")

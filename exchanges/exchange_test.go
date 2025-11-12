@@ -2940,5 +2940,5 @@ func TestMessageID(t *testing.T) {
 	require.NotEmpty(t, id, "MessageID must return a non-empty message ID")
 	u, err := uuid.FromString(id)
 	require.NoError(t, err, "MessageID must return a valid UUID")
-	assert.Equal(t, byte(0x7), u.Version(), "MessageID should return a V7 uuid")
+	assert.Equal(t, uuid.V7, u.Version(), "MessageID should return a V7 uuid")
 }

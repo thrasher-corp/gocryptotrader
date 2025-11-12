@@ -412,7 +412,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	}
 	var (
 		pairs    currency.Pairs
-		allPairs []InstrumentInfo
+		allPairs []*InstrumentInfo
 		response *InstrumentsInfo
 	)
 	var nextPageCursor string
@@ -1630,27 +1630,79 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	l := make([]limits.MinMaxLevel, 0, len(allInstrumentsInfo.List))
-	for x := range allInstrumentsInfo.List {
-		if allInstrumentsInfo.List[x].Status != "Trading" {
-			continue
-		}
-		symbol := allInstrumentsInfo.List[x].transformSymbol(a)
+	for _, inst := range allInstrumentsInfo.List {
+		symbol := inst.transformSymbol(a)
 		pair, err := e.MatchSymbolWithAvailablePairs(symbol, a, true)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "%s unable to load limits for %s %v, pair data missing", e.Name, a, symbol)
 			continue
 		}
+
+		priceDivisor := 1.0
+		if symbol[:2] == "10" { // handle 1000SHIBUSDT, 1000PEPEUSDT etc; screen 1INCHUSDT
+			for _, r := range symbol[1:] {
+				if r != '0' {
+					break
+				}
+				priceDivisor *= 10
+			}
+		}
+
+		var delistingAt time.Time
+		var delistedAt time.Time
+		var delivery time.Time
+		if !inst.DeliveryTime.Time().IsZero() {
+			switch a {
+			case asset.Options:
+				delivery = inst.DeliveryTime.Time()
+			case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.USDCMarginedFutures:
+				switch inst.ContractType {
+				case "LinearFutures", "InverseFutures":
+					delivery = inst.DeliveryTime.Time()
+				default:
+					delistedAt = inst.DeliveryTime.Time()
+					// Not entirely accurate but from docs the system will use the average index price in the last
+					// 30 minutes before the delisting time. See: https://www.bybit.com/en/help-center/article/Bybit-Derivatives-Delisting-Mechanism-DDM
+					delistingAt = delistedAt.Add(-30 * time.Minute)
+				}
+			case asset.Spot:
+				// asset.Spot does not return a delivery time and there is no API field for delisting time
+				log.Warnf(log.ExchangeSys, "%s %s: delivery time returned for spot asset", e.Name, pair)
+			}
+		}
+
+		baseStepAmount := inst.LotSizeFilter.QuantityStep.Float64()
+		if a == asset.Spot {
+			baseStepAmount = inst.LotSizeFilter.BasePrecision.Float64()
+		}
+
+		maxBaseAmount := inst.LotSizeFilter.MaxOrderQuantity.Float64()
+		if a != asset.Spot && a != asset.Options {
+			maxBaseAmount = inst.LotSizeFilter.MaxMarketOrderQuantity.Float64()
+		}
+
+		minQuoteAmount := inst.LotSizeFilter.MinOrderAmount.Float64()
+		if a != asset.Spot {
+			minQuoteAmount = inst.LotSizeFilter.MinNotionalValue.Float64()
+		}
+
 		l = append(l, limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
-			MinimumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),
-			MaximumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64(),
-			MinPrice:                allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
-			MaxPrice:                allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
-			PriceStepIncrementSize:  allInstrumentsInfo.List[x].PriceFilter.TickSize.Float64(),
-			AmountStepIncrementSize: allInstrumentsInfo.List[x].LotSizeFilter.BasePrecision.Float64(),
-			QuoteStepIncrementSize:  allInstrumentsInfo.List[x].LotSizeFilter.QuotePrecision.Float64(),
-			MinimumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
-			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
+			MinimumBaseAmount:       inst.LotSizeFilter.MinOrderQuantity.Float64(),
+			MaximumBaseAmount:       maxBaseAmount,
+			MinPrice:                inst.PriceFilter.MinPrice.Float64(),
+			MaxPrice:                inst.PriceFilter.MaxPrice.Float64(),
+			PriceStepIncrementSize:  inst.PriceFilter.TickSize.Float64(),
+			AmountStepIncrementSize: baseStepAmount,
+			QuoteStepIncrementSize:  inst.LotSizeFilter.QuotePrecision.Float64(),
+			MinimumQuoteAmount:      minQuoteAmount,
+			MaximumQuoteAmount:      inst.LotSizeFilter.MaxOrderAmount.Float64(),
+			Delisting:               delistingAt,
+			Delisted:                delistedAt,
+			Expiry:                  delivery,
+			PriceDivisor:            priceDivisor,
+			Listed:                  inst.LaunchTime.Time(),
+			MultiplierDecimal:       1, // All assets on Bybit are 1x
 		})
 	}
 	return limits.Load(l)
@@ -1719,7 +1771,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	case asset.CoinMarginedFutures:
 		resp := make([]futures.Contract, 0, len(inverseContracts.List))
 		for i := range inverseContracts.List {
-			if inverseContracts.List[i].SettleCoin == "USDT" || inverseContracts.List[i].SettleCoin == "USDC" {
+			if inverseContracts.List[i].SettleCoin.Equal(currency.USDT) || inverseContracts.List[i].SettleCoin.Equal(currency.USDC) {
 				continue
 			}
 			var cp, underlying currency.Pair
@@ -1758,18 +1810,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp.Format(format),
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            start,
-				EndDate:              end,
-				SettlementType:       futures.Inverse,
-				IsActive:             strings.EqualFold(inverseContracts.List[i].Status, "trading"),
-				Status:               inverseContracts.List[i].Status,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(inverseContracts.List[i].SettleCoin)},
-				MaxLeverage:          inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
+				Exchange:           e.Name,
+				Name:               cp.Format(format),
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          start,
+				EndDate:            end,
+				SettlementType:     futures.Inverse,
+				IsActive:           strings.EqualFold(inverseContracts.List[i].Status, "trading"),
+				Status:             inverseContracts.List[i].Status,
+				Type:               ct,
+				SettlementCurrency: inverseContracts.List[i].SettleCoin,
+				MaxLeverage:        inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
 			})
 		}
 		return resp, nil
@@ -1780,15 +1832,15 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
 
-		var instruments []InstrumentInfo
+		var instruments []*InstrumentInfo
 		for i := range linearContracts.List {
-			if linearContracts.List[i].SettleCoin != "USDC" {
+			if !linearContracts.List[i].SettleCoin.Equal(currency.USDC) {
 				continue
 			}
 			instruments = append(instruments, linearContracts.List[i])
 		}
 		for i := range inverseContracts.List {
-			if inverseContracts.List[i].SettleCoin != "USDC" {
+			if !inverseContracts.List[i].SettleCoin.Equal(currency.USDC) {
 				continue
 			}
 			instruments = append(instruments, inverseContracts.List[i])
@@ -1836,19 +1888,19 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp.Format(format),
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            instruments[i].LaunchTime.Time(),
-				EndDate:              instruments[i].DeliveryTime.Time(),
-				SettlementType:       futures.Linear,
-				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
-				Status:               instruments[i].Status,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.USDC},
-				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
-				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
+				Exchange:           e.Name,
+				Name:               cp.Format(format),
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          instruments[i].LaunchTime.Time(),
+				EndDate:            instruments[i].DeliveryTime.Time(),
+				SettlementType:     futures.Linear,
+				IsActive:           strings.EqualFold(instruments[i].Status, "trading"),
+				Status:             instruments[i].Status,
+				Type:               ct,
+				SettlementCurrency: currency.USDC,
+				MaxLeverage:        instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:         instruments[i].LeverageFilter.LeverageStep.Float64(),
 			})
 		}
 		return resp, nil
@@ -1859,15 +1911,15 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
 
-		var instruments []InstrumentInfo
+		var instruments []*InstrumentInfo
 		for i := range linearContracts.List {
-			if linearContracts.List[i].SettleCoin != "USDT" {
+			if !linearContracts.List[i].SettleCoin.Equal(currency.USDT) {
 				continue
 			}
 			instruments = append(instruments, linearContracts.List[i])
 		}
 		for i := range inverseContracts.List {
-			if inverseContracts.List[i].SettleCoin != "USDT" {
+			if !inverseContracts.List[i].SettleCoin.Equal(currency.USDT) {
 				continue
 			}
 			instruments = append(instruments, inverseContracts.List[i])
@@ -1909,19 +1961,19 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp.Format(format),
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            start,
-				EndDate:              end,
-				SettlementType:       futures.Linear,
-				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
-				Status:               instruments[i].Status,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.USDT},
-				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
-				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
+				Exchange:           e.Name,
+				Name:               cp.Format(format),
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          start,
+				EndDate:            end,
+				SettlementType:     futures.Linear,
+				IsActive:           strings.EqualFold(instruments[i].Status, "trading"),
+				Status:             instruments[i].Status,
+				Type:               ct,
+				SettlementCurrency: currency.USDT,
+				MaxLeverage:        instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:         instruments[i].LeverageFilter.LeverageStep.Float64(),
 			})
 		}
 		return resp, nil

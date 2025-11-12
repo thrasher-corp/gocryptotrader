@@ -15,7 +15,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -642,10 +641,7 @@ func TestWsUnexpectedData(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesContractDetails(t.Context(), asset.Spot)
-	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset, "GetFuturesContractDetails should error correctly on Spot")
-
-	_, err = e.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
+	_, err := e.GetFuturesContractDetails(t.Context(), asset.Margin)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetFuturesContractDetails should error correctly on Margin")
 
 	_, err = e.GetFuturesContractDetails(t.Context(), asset.Futures)
@@ -770,18 +766,18 @@ func TestMarketPair(t *testing.T) {
 
 	for _, tt := range []struct {
 		symbol         string
-		base           string
+		base           currency.Code
 		futures        bool
 		expectedErr    error
 		expectedSymbol string
 	}{
-		{symbol: "RUNEPFC", base: currency.RUNE.String(), futures: true, expectedSymbol: "RUNEPFC"},
-		{symbol: "TRUMPPFC", base: "TRUMPSOL", futures: true, expectedSymbol: "TRUMPPFC"},
-		{symbol: "BTCUSD", base: "NAUGHTYBASE", futures: true, expectedErr: errInvalidPairSymbol},
-		{symbol: "NAUGHTYSYMBOL", base: currency.BTC.String(), expectedErr: errInvalidPairSymbol},
-		{symbol: "BTC-USD", base: currency.BTC.String(), expectedSymbol: "BTCUSD"},
+		{symbol: "RUNEPFC", base: currency.RUNE, futures: true, expectedSymbol: "RUNEPFC"},
+		{symbol: "TRUMPPFC", base: currency.NewCode("TRUMPSOL"), futures: true, expectedSymbol: "TRUMPPFC"},
+		{symbol: "BTCUSD", base: currency.NewCode("NAUGHTYBASE"), futures: true, expectedErr: errInvalidPairSymbol},
+		{symbol: "NAUGHTYSYMBOL", base: currency.BTC, expectedErr: errInvalidPairSymbol},
+		{symbol: "BTC-USD", base: currency.BTC, expectedSymbol: "BTCUSD"},
 	} {
-		mp := MarketPair{Symbol: tt.symbol, Base: tt.base, Quote: "USD", Futures: tt.futures}
+		mp := MarketPair{Symbol: tt.symbol, Base: tt.base, Quote: currency.USD, Futures: tt.futures}
 		p, err := mp.Pair()
 		assert.ErrorIs(t, err, tt.expectedErr, "Pair should not error")
 		assert.Equal(t, tt.expectedSymbol, p.String(), "Pair should return the expected symbol")
