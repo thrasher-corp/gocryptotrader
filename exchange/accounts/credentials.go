@@ -210,3 +210,18 @@ func DeployCredentialsToContext(ctx context.Context, creds *Credentials) context
 func DeploySubAccountOverrideToContext(ctx context.Context, subAccount string) context.Context {
 	return context.WithValue(ctx, ContextSubAccountFlag, subAccount)
 }
+
+// GetCredentialsFromContext retrieves credentials from context if they exist
+func GetCredentialsFromContext(ctx context.Context) *Credentials {
+	value := ctx.Value(ContextCredentialsFlag)
+	if value == nil {
+		return nil
+	}
+	ctxCredStore, ok := value.(*ContextCredentialsStore)
+	if !ok {
+		return nil
+	}
+
+	return ctxCredStore.Get()
+}
+

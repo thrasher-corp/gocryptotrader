@@ -2013,9 +2013,6 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
-	}
 	switch r.Asset {
 	case asset.USDCMarginedFutures,
 		asset.USDTMarginedFutures,

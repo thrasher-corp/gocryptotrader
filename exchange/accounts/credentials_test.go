@@ -172,3 +172,13 @@ func TestCredentialsEqual(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestGetCredentialsFromContext(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	require.Nil(t, GetCredentialsFromContext(ctx))
+
+	creds := &Credentials{Key: "1337"}
+	ctx = DeployCredentialsToContext(ctx, creds)
+	require.Equal(t, creds, GetCredentialsFromContext(ctx))
+}

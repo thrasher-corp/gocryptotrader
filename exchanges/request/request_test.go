@@ -213,10 +213,10 @@ func TestDoRequest(t *testing.T) {
 
 	ctx := t.Context()
 	err = (*Requester)(nil).SendPayload(ctx, Unset, nil, UnauthenticatedRequest)
-	require.ErrorIs(t, err, ErrRequestSystemIsNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	err = r.SendPayload(ctx, Unset, nil, UnauthenticatedRequest)
-	require.ErrorIs(t, err, errRequestFunctionIsNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) { return nil, nil }, UnauthenticatedRequest)
 	require.ErrorIs(t, err, errRequestItemNil)
@@ -444,7 +444,7 @@ func TestSetProxy(t *testing.T) {
 	t.Parallel()
 	var r *Requester
 	err := r.SetProxy(nil)
-	require.ErrorIs(t, err, ErrRequestSystemIsNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	r, err = New("test", &http.Client{Transport: new(http.Transport)}, WithLimiter(globalshell))
 	if err != nil {
@@ -538,7 +538,7 @@ func TestEnableDisableRateLimit(t *testing.T) {
 func TestSetHTTPClient(t *testing.T) {
 	var r *Requester
 	err := r.SetHTTPClient(nil)
-	require.ErrorIs(t, err, ErrRequestSystemIsNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	client := new(http.Client)
 	r = new(Requester)
@@ -552,7 +552,7 @@ func TestSetHTTPClient(t *testing.T) {
 func TestSetHTTPClientTimeout(t *testing.T) {
 	var r *Requester
 	err := r.SetHTTPClientTimeout(0)
-	require.ErrorIs(t, err, ErrRequestSystemIsNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	r = new(Requester)
 	err = r.SetHTTPClient(common.NewHTTPClientWithTimeout(2))
@@ -566,7 +566,7 @@ func TestSetHTTPClientTimeout(t *testing.T) {
 func TestSetHTTPClientUserAgent(t *testing.T) {
 	var r *Requester
 	err := r.SetHTTPClientUserAgent("")
-	require.ErrorIs(t, err, ErrRequestSystemIsNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	r = new(Requester)
 	err = r.SetHTTPClientUserAgent("")
@@ -576,7 +576,7 @@ func TestSetHTTPClientUserAgent(t *testing.T) {
 func TestGetHTTPClientUserAgent(t *testing.T) {
 	var r *Requester
 	_, err := r.GetHTTPClientUserAgent()
-	require.ErrorIs(t, err, ErrRequestSystemIsNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	r = new(Requester)
 	err = r.SetHTTPClientUserAgent("sillyness")
