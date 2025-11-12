@@ -54,11 +54,6 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	dialer := gws.Dialer{
-		EnableCompression: true,
-		ReadBufferSize:    8192,
-		WriteBufferSize:   8192,
-	}
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		listenKey, err := e.GenerateListenKey(ctx)
 		if err != nil {
@@ -66,7 +61,11 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 		}
 		conn.SetURL(conn.GetURL() + "?listenKey=" + listenKey)
 	}
-	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{
+		EnableCompression: true,
+		ReadBufferSize:    8192,
+		WriteBufferSize:   8192,
+	}, http.Header{}); err != nil {
 		return err
 	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
@@ -137,10 +136,10 @@ func isFutures(s *subscription.Subscription) bool {
 }
 
 var defaultSubscriptions = subscription.List{
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 5},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.FifteenMin},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds},
 
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel, Authenticated: true},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
@@ -514,6 +513,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 			}
 		}
 		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:    e.Name,
 			Asset:       asset.Spot,
 			Bids:        bids,
 			Asks:        asks,
@@ -672,6 +672,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		e.Websocket.DataHandler <- &order.Detail{
+			Exchange:             e.Name,
 			Price:                body.Price.Float64(),
 			Amount:               body.Amount.Float64(),
 			ContractAmount:       body.Quantity.Float64(),
@@ -679,7 +680,6 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 			QuoteAmount:          body.Amount.Float64(),
 			ExecutedAmount:       body.CumulativeAmount.Float64() - body.RemainAmount.Float64(),
 			RemainingAmount:      body.RemainAmount.Float64(),
-			Exchange:             e.Name,
 			OrderID:              body.Id,
 			ClientID:             body.ClientId,
 			Type:                 oType,
@@ -705,7 +705,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 
 const subTplText = `
 {{- if isFutures $.S -}}
-	{{- channelName $.S }}
+	{{- channelName $.S -}}
 {{- else -}}
 	{{- with $name := channelName $.S }}
 		{{- if isSymbolChannel $name -}}

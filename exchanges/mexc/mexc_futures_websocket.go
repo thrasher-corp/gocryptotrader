@@ -52,14 +52,14 @@ const (
 )
 
 var defaultFuturesSubscriptions = subscription.List{
-	{Asset: asset.Futures, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.Futures, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Futures, Channel: subscription.OrderbookChannel},
 	{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.FifteenMin},
 
-	{Asset: asset.Futures, Channel: subscription.MyTradesChannel, Authenticated: true},
-	{Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
-	{Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.MyTradesChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true},
 }
 
 // WsFuturesConnect established a futures websocket connection
@@ -368,6 +368,7 @@ func (e *Exchange) processPersonalOrder(data []byte) error {
 		marginType = margin.Multi
 	}
 	e.Websocket.DataHandler <- &order.Detail{
+		Exchange:             e.Name,
 		Pair:                 cp,
 		TimeInForce:          tif,
 		Leverage:             resp.Leverage,
@@ -378,7 +379,6 @@ func (e *Exchange) processPersonalOrder(data []byte) error {
 		ExecutedAmount:       resp.DealVol,
 		RemainingAmount:      resp.Volume - resp.DealVol,
 		FeeAsset:             currency.NewCode(resp.FeeCurrency),
-		Exchange:             e.Name,
 		OrderID:              resp.OrderID,
 		ClientOrderID:        resp.ExternalOid,
 		Type:                 oType,
@@ -401,8 +401,9 @@ func (e *Exchange) processFairPrice(data []byte) error {
 		return err
 	}
 	e.Websocket.DataHandler <- ticker.Price{
-		IndexPrice: resp.Price,
-		Pair:       cp,
+		ExchangeName: e.Name,
+		IndexPrice:   resp.Price,
+		Pair:         cp,
 	}
 	return nil
 }
@@ -417,8 +418,9 @@ func (e *Exchange) processIndexPrice(data []byte) error {
 		return err
 	}
 	e.Websocket.DataHandler <- ticker.Price{
-		IndexPrice: resp.Price,
-		Pair:       cp,
+		ExchangeName: e.Name,
+		IndexPrice:   resp.Price,
+		Pair:         cp,
 	}
 	return nil
 }
@@ -435,7 +437,7 @@ func (e *Exchange) processFuturesKlineData(data []byte, symbol string) error {
 	e.Websocket.DataHandler <- websocket.KlineData{
 		Pair:       cp,
 		Exchange:   e.Name,
-		AssetType:  asset.Spot,
+		AssetType:  asset.Futures,
 		Interval:   resp.Interval,
 		OpenPrice:  resp.OpeningPrice,
 		Timestamp:  resp.TradeTime.Time(),
@@ -527,19 +529,19 @@ func (e *Exchange) processFuturesTickers(data []byte) error {
 	if err := json.Unmarshal(data, &tickers); err != nil {
 		return err
 	}
-	priceTickers := make([]ticker.Price, len(tickers))
 	for t := range tickers {
 		cp, err := currency.NewPairFromString(tickers[t].Symbol)
 		if err != nil {
 			return err
 		}
-		priceTickers[t] = ticker.Price{
-			Pair:      cp,
-			Last:      tickers[t].LastPrice,
-			MarkPrice: tickers[t].FairPrice,
-			Volume:    tickers[t].Volume24,
+		e.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: e.Name,
+			Pair:         cp,
+			AssetType:    asset.Futures,
+			Last:         tickers[t].LastPrice,
+			MarkPrice:    tickers[t].FairPrice,
+			Volume:       tickers[t].Volume24,
 		}
 	}
-	e.Websocket.DataHandler <- priceTickers
 	return nil
 }

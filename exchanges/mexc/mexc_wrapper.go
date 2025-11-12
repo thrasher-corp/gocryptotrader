@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -52,9 +53,6 @@ func (e *Exchange) SetDefaults() {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
 	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
-	}
-	if err := e.DisableAssetWebsocketSupport(asset.Futures); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", e.Name, asset.Futures, err)
 	}
 	e.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -141,8 +139,15 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:               exch,
-		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig: exch,
+		Features:       &e.Features.Supports.WebsocketCapabilities,
+		DefaultURL:     spotWebsocketURL,
+		RunningURL:     spotWebsocketURL,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
+		TradeFeed:                    e.Features.Enabled.TradeFeed,
 		UseMultiConnectionManagement: true,
 	}); err != nil {
 		return err

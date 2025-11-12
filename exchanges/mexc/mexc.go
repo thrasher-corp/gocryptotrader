@@ -679,12 +679,14 @@ func (e *Exchange) DustTransfer(ctx context.Context, assets []currency.Code) (*D
 		return nil, fmt.Errorf("%w: at least one asset must be specified", currency.ErrCurrencyCodeEmpty)
 	}
 	assetsString := ""
+	var assetsStringSb682 strings.Builder
 	for a := range assets {
 		if assets[a].IsEmpty() {
 			return nil, currency.ErrCurrencyCodeEmpty
 		}
-		assetsString += assets[a].String() + ","
+		assetsStringSb682.WriteString(assets[a].String() + ",")
 	}
+	assetsString += assetsStringSb682.String()
 	assetsString = strings.Trim(assetsString, ",")
 	params := url.Values{}
 	params.Set("asset", assetsString)
