@@ -145,7 +145,6 @@ func parseFlags() *appConfig {
 		fatalErr(fmt.Errorf("invalid poll duration: %w", err))
 	}
 
-	// Credentials (only applied when supplied or required by focus)
 	var creds *accounts.Credentials
 	if app.RequiresAuth(fType) {
 		creds = &accounts.Credentials{
