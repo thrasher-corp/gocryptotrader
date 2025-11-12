@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -308,7 +308,7 @@ func TestWaitForInitialData(t *testing.T) {
 func TestHandleFocusType(t *testing.T) {
 	t.Parallel()
 	q := mustQuickDataAllFocuses(t)
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
 		Key:    apiKey,
 		Secret: apiSecret,
 	})
@@ -346,7 +346,7 @@ func TestDump(t *testing.T) {
 	t.Parallel()
 	q := mustQuickDataAllFocuses(t)
 	fl := q.focuses.List()
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
 		Key:    apiKey,
 		Secret: apiSecret,
 	})
@@ -517,8 +517,8 @@ func TestHandleWSData(t *testing.T) {
 	assert.NoError(t, qs.handleWSData(&ticker.Price{}))
 	assert.NoError(t, qs.handleWSData([]ticker.Price{}))
 	assert.NoError(t, qs.handleWSData(&orderbook.Depth{}))
-	assert.NoError(t, qs.handleWSData(account.Change{}))
-	assert.NoError(t, qs.handleWSData([]account.Change{}))
+	assert.NoError(t, qs.handleWSData(accounts.Change{}))
+	assert.NoError(t, qs.handleWSData([]accounts.Change{}))
 	assert.NoError(t, qs.handleWSData(&order.Detail{}))
 	assert.NoError(t, qs.handleWSData([]order.Detail{}))
 	assert.NoError(t, qs.handleWSData(trade.Data{}))

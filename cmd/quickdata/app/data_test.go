@@ -36,7 +36,7 @@ func TestHandleWSAccountChange(t *testing.T) {
 	}
 	require.NoError(t, q.handleWSAccountChange(d))
 	require.Len(t, q.data.AccountBalance, 1)
-	assert.Equal(t, d.Balance, &q.data.AccountBalance[0])
+	assert.Equal(t, d.Balance, q.data.AccountBalance[0])
 
 	d2 := &accounts.Change{
 		AssetType: asset.Binary,
@@ -74,7 +74,7 @@ func TestHandleWSAccountChanges(t *testing.T) {
 	}
 	require.NoError(t, q.handleWSAccountChanges([]accounts.Change{d}))
 	require.Len(t, q.data.AccountBalance, 1)
-	assert.Equal(t, d.Balance, &q.data.AccountBalance[0])
+	assert.Equal(t, d.Balance, q.data.AccountBalance[0])
 
 	d2 := accounts.Change{
 		AssetType: asset.Binary,
