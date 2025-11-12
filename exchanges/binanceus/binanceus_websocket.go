@@ -133,7 +133,7 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 		}
 		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
 			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s: %s %s", e.Name, errSend, err)
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
 			}
 		}
 	}

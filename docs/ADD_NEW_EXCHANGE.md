@@ -693,19 +693,17 @@ func (e *Exchange) WsConnect() error {
 // KeepAuthKeyAlive will continuously send messages to
 // keep the WS auth key active
 func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
-    e.Websocket.Wg.Add(1)
     defer e.Websocket.Wg.Done()
-    ticks := time.NewTicker(time.Minute * 30)
     for {
         select {
         case <-e.Websocket.ShutdownC:
-            ticks.Stop()
             return
-        case <-ticks.C:
-            err := e.MaintainWsAuthStreamKey(ctx)
-            if err != nil {
-                e.Websocket.DataHandler.Send(ctx, err)
-                log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", e.Name)
+        case <-time.After(time.Minute * 30):
+            if err := e.MaintainWsAuthStreamKey(ctx); err != nil {
+                if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+                    log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+                }
+                log.Warnf(log.ExchangeSys, "%s %s: Unable to renew auth websocket token, may experience shutdown", e.Name, e.Websocket.Conn.GetURL())
             }
         }
     }
@@ -817,9 +815,7 @@ Run gocryptotrader with the following settings enabled in config
 ```go
 // wsReadData gets and passes on websocket messages for processing
 func (e *Exchange) wsReadData() {
-    e.Websocket.Wg.Add(1)
     defer e.Websocket.Wg.Done()
-
     for {
         select {
         case <-e.Websocket.ShutdownC:
@@ -829,10 +825,10 @@ func (e *Exchange) wsReadData() {
             if resp.Raw == nil {
                 return
             }
-
-            err := e.wsHandleData(resp.Raw)
-            if err != nil {
-                e.Websocket.DataHandler.Send(ctx, err)
+            if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+                if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+                    log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+                }
             }
         }
     }

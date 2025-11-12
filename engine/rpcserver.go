@@ -5892,6 +5892,5 @@ func (s *RPCServer) rpcContextToLongLivedSession(ctx context.Context) context.Co
 	if !ok {
 		md = metadata.New(nil) // Fallback to empty metadata
 	}
-	// TODO: Capture RPC server context for cancellations and use it here
-	return metadata.NewOutgoingContext(context.TODO(), md)
+	return metadata.NewOutgoingContext(context.Background(), md)
 }

@@ -2337,6 +2337,8 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+// meow
+
 func TestPushData(t *testing.T) {
 	t.Parallel()
 
@@ -3119,6 +3121,10 @@ func TestSubscribeTickerAll(t *testing.T) {
 	t.Parallel()
 
 	ku := testInstance(t)
+	go func() { // drain websocket messages when subscribed to all tickers
+		for range ku.Websocket.DataHandler.C {
+		}
+	}()
 	ku.Features.Subscriptions = subscription.List{}
 	testexch.SetupWs(t, ku)
 
@@ -3137,6 +3143,8 @@ func TestSubscribeTickerAll(t *testing.T) {
 
 	err = ku.Subscribe(subs)
 	assert.NoError(t, err, "Subscribe to should not error")
+
+	time.Sleep(time.Second * 10)
 }
 
 func TestSeedLocalCache(t *testing.T) {
