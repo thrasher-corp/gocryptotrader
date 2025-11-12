@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const defaultWSSnapshotSyncDelay = 2 * time.Second
@@ -73,7 +74,10 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, g *Excha
 			return
 		case <-time.After(m.snapshotSyncDelay):
 			if err := cache.SyncOrderbook(ctx, g, update.Pair, update.Asset); err != nil {
-				g.Websocket.DataHandler <- fmt.Errorf("failed to sync orderbook for %v %v: %w", update.Pair, update.Asset, err)
+				err = fmt.Errorf("failed to sync orderbook for %v %v: %w", update.Pair, update.Asset, err)
+				if errSend := g.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+					log.Errorf(log.WebsocketMgr, "%s: %s %s", g.Name, errSend, err)
+				}
 			}
 		}
 	}()
