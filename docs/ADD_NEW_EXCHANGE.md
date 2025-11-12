@@ -871,7 +871,7 @@ If a suitable struct does not exist in wshandler, wrapper types are the next pre
         if err := json.Unmarshal(respRaw, &resultData);err != nil {
             return err
         }
-        e.Websocket.DataHandler <- &ticker.Price{
+        return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
             ExchangeName: e.Name,
             Bid:          resultData.Ticker.Bid,
             Ask:          resultData.Ticker.Ask,
@@ -879,7 +879,7 @@ If a suitable struct does not exist in wshandler, wrapper types are the next pre
             LastUpdated:  resultData.Ticker.Time,
             Pair:         p,
             AssetType:    a,
-        }
+        })
     }
 ```
 
@@ -892,7 +892,7 @@ If neither of those provide a suitable struct to store the data in, the data can
             if err != nil {
                 return err
             }
-      e.Websocket.DataHandler <- resultData.FillsData
+            return e.Websocket.DataHandler.Send(ctx, resultData.FillsData)
 ```
 
 - Data Handling can be tested offline similar to the following example:
