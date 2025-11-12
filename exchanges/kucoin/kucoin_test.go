@@ -3120,7 +3120,8 @@ func TestSubscribeTickerAll(t *testing.T) {
 
 	ku := testInstance(t)
 	go func() { // drain websocket messages when subscribed to all tickers
-		for range ku.Websocket.DataHandler.C {
+		for {
+			<-ku.Websocket.DataHandler.C
 		}
 	}()
 	ku.Features.Subscriptions = subscription.List{}

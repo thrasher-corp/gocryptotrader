@@ -3910,7 +3910,7 @@ func TestRPCContextToLongLivedSession(t *testing.T) {
 
 		outMD, ok := metadata.FromOutgoingContext(newCtx)
 		require.True(t, ok)
-		assert.Len(t, outMD, 0)
+		assert.Empty(t, outMD)
 
 		cancel()
 		assert.Eventually(t, func() bool { return inCtx.Err() != nil }, time.Second, 10*time.Millisecond)
