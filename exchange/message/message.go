@@ -16,6 +16,7 @@ type Relay struct {
 
 // Payload represents a relayed message with a context
 type Payload struct {
+	// TODO: remove context from payload see: https://github.com/thrasher-corp/gocryptotrader/pull/2066#discussion_r2501403057
 	Ctx  context.Context //nolint:containedctx // context needed for tracing/metrics
 	Data any
 }
