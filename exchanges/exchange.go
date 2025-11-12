@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 	"unicode"
@@ -1769,28 +1768,11 @@ func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.Ope
 
 // ParallelChanOp performs a single method call in parallel across streams and waits to return any errors
 func (b *Base) ParallelChanOp(ctx context.Context, channels subscription.List, m func(context.Context, subscription.List) error, batchSize int) error {
-	wg := sync.WaitGroup{}
-	errC := make(chan error, len(channels))
-
-	for _, b := range common.Batch(channels, batchSize) {
-		wg.Add(1)
-		go func(c subscription.List) {
-			defer wg.Done()
-			if err := m(ctx, c); err != nil {
-				errC <- err
-			}
-		}(b)
+	var errs common.ErrorCollector
+	for _, batchedSubs := range common.Batch(channels, batchSize) {
+		errs.Go(func() error { return m(ctx, batchedSubs) })
 	}
-
-	wg.Wait()
-	close(errC)
-
-	var errs error
-	for err := range errC {
-		errs = common.AppendError(errs, err)
-	}
-
-	return errs
+	return errs.Collect()
 }
 
 // Bootstrap function allows for exchange authors to supplement or override common startup actions
@@ -1825,27 +1807,16 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 		}
 	}
 
-	a := b.GetAssetTypes(true)
-	var wg sync.WaitGroup
-	errC := make(chan error, len(a))
-	for i := range a {
-		wg.Add(1)
-		go func(a asset.Item) {
-			defer wg.Done()
+	var errs common.ErrorCollector
+	for _, a := range b.GetAssetTypes(true) {
+		errs.Go(func() error {
 			if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-				errC <- fmt.Errorf("failed to set exchange order execution limits: %w", err)
+				return fmt.Errorf("failed to set exchange order execution limits: %w", err)
 			}
-		}(a[i])
+			return nil
+		})
 	}
-	wg.Wait()
-	close(errC)
-
-	var err error
-	for e := range errC {
-		err = common.AppendError(err, e)
-	}
-
-	return err
+	return errs.Collect()
 }
 
 // Bootstrap is a fallback method for exchange startup actions

@@ -123,6 +123,7 @@ const (
 	marginGetMaxBorrowCrossEPL
 	marginGetCrossBorrowHistoryEPL
 	marginGetBorrowEPL
+	marginEstimateRateEPL
 
 	flashSwapOrderEPL
 	flashGetOrdersEPL
@@ -312,6 +313,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	marginGetMaxBorrowCrossEPL:          otherPrivateEndpointRateLimit(),
 	marginGetCrossBorrowHistoryEPL:      otherPrivateEndpointRateLimit(),
 	marginGetBorrowEPL:                  otherPrivateEndpointRateLimit(),
+	marginEstimateRateEPL:               otherPrivateEndpointRateLimit(),
 
 	flashSwapOrderEPL:   otherPrivateEndpointRateLimit(),
 	flashGetOrdersEPL:   otherPrivateEndpointRateLimit(),

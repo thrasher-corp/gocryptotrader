@@ -2,6 +2,7 @@ package okx
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -2814,7 +2815,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			if !settleCurr.IsEmpty() {
-				resp[i].SettlementCurrencies = currency.Currencies{settleCurr}
+				resp[i].SettlementCurrency = settleCurr
 			}
 		}
 		return resp, nil
@@ -3022,5 +3023,8 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 
 // MessageID returns a universally unique ID using UUID V7, with hyphens removed to fit the maximum 32-character field for okx
 func (e *Exchange) MessageID() string {
-	return strings.Replace(uuid.Must(uuid.NewV7()).String(), "-", "", 4)
+	u := uuid.Must(uuid.NewV7())
+	var buf [32]byte
+	hex.Encode(buf[:], u[:])
+	return string(buf[:])
 }

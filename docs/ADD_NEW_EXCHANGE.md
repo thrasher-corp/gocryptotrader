@@ -22,7 +22,7 @@ This document is from a perspective of adding a new exchange called Binance to t
 
 #### Linux/macOS
 
-GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
+GoCryptoTrader is built using [Go Modules](https://go.dev/wiki/Modules) and requires Go 1.11 or above
 Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```console
@@ -90,48 +90,34 @@ go build && gocryptotrader.exe --config=config_example.json
 Similar to the configs, spot support is inbuilt but other asset types will need to be manually supported
 
 ```go
-    spot := currency.PairStore{
-        AssetEnabled:  true,
-        RequestFormat: &currency.PairFormat{
-            Uppercase: true,
-            Delimiter: "/",
-        },
-        ConfigFormat: &currency.PairFormat{
-            Uppercase: true,
-            Delimiter: "/",
-        },
-    }
-    futures := currency.PairStore{
-        AssetEnabled:  true,
-        RequestFormat: &currency.PairFormat{
-            Uppercase: true,
-            Delimiter: "-",
-        },
-        ConfigFormat: &currency.PairFormat{
-            Uppercase: true,
-            Delimiter: "-",
-        },
-    }
+    fmt1 := currency.PairStore{
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+	}
 
-    err := e.SetAssetPairStore(asset.Spot, spot)
-    if err != nil {
-        log.Errorf(log.ExchangeSys, "%s error storing `spot` default asset formats: %s", bi.Name, err)
-    }
+	fmt2 := currency.PairStore{
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "-"},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+	}
 
-    err = e.SetAssetPairStore(asset.Futures, futures)
-    if err != nil {
-        log.Errorf(log.ExchangeSys, "%s error storing `futures` default asset formats: %s", bi.Name, err)
-    }
+	if err := e.SetAssetPairStore(asset.Spot, fmt1); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Spot, err)
+	}
+	if err := e.SetAssetPairStore(asset.Futures, fmt2); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Futures, err)
+	}
 ```
 
 ### Document the addition of the new exchange (Binance exchange is used as an example below)
 
-**Yes** means supported, **No** means not yet implemented and **NA** means protocol unsupported
+**Yes** means supported, **No** means not yet implemented and **NA** means protocol unsupported by the exchange
 
 #### Add exchange to the [root README template](/cmd/documentation/root_templates/root_readme.tmpl) file
 
 ```go
-| Exchange | REST API | Streaming API | FIX API |
+| Exchange | REST API | Websocket API | FIX API |
 |----------|------|-----------|-----|
 | Binance| Yes  | Yes        | NA  | // <-------- new exchange
 | Bitfinex | Yes  | Yes        | NA  |
@@ -320,7 +306,7 @@ Modify existing constants or create new ones to define the API URL paths, as app
     apiURL = "https://api.binance.com"
 ```
 
-Create a get function in `rest.go` file and unmarshall the data in the created type:
+Create a get function in the `rest.go` file and unmarshal the data in the created type:
 
 ```go
 // GetExchangeInfo returns exchange information. Check types for more
@@ -336,11 +322,8 @@ Create a test function in `rest_test.go` to see if the data is received and unma
 ```go
 func TestGetExchangeInfo(t *testing.T) {
     t.Parallel() // adding t.Parallel() is preferred as it allows tests to run simultaneously, speeding up package test time
-    // Either set verbose to true for more detailed output as shown below:
     e.Verbose = true
-    // Or alternatively you can use:
-    // result, err := e.GetExchangeInfo(request.WithVerbose(context.Background()))
-    result, err := e.GetExchangeInfo(context.Background())
+    result, err := e.GetExchangeInfo(t.Context())
     require.NoError(t, err)
     t.Log(result)
     assert.NotNil(t, result)
@@ -349,10 +332,10 @@ func TestGetExchangeInfo(t *testing.T) {
 
 Set `Verbose` to `true` to view received data during unmarshalling errors.
 After testing, remove `Verbose`, the result variable, and `t.Log(result)`, or replace the log with `assert.NotNil(t, result)` to avoid unnecessary output when running GCT.
-Alternatively you can use `request.WithVerbose(context.Background())` as the `context` param to achieve the same result.
+Alternatively you can use `request.WithVerbose(t.Context())` as the `context` param to achieve the same result.
 
 ```go
-    result, err := e.GetExchangeInfo(context.Background())
+    result, err := e.GetExchangeInfo(t.Context())
     require.NoError(t, err)
     assert.NotNil(t, result)
 ```
