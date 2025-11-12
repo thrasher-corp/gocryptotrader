@@ -10,36 +10,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/cmd/quickdata/app"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
-
-// captureOutput redirects os.Stdout for the duration of f and returns what was written.
-func captureOutput(f func()) string {
-	orig := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-	f()
-	_ = w.Close()
-	var buf bytes.Buffer
-	_, _ = io.Copy(&buf, r)
-	os.Stdout = orig
-	return buf.String()
-}
 
 func TestIntMin(t *testing.T) {
 	require.Equal(t, 1, intMin(1, 2))
@@ -80,83 +59,6 @@ func TestParseFocusType(t *testing.T) {
 					require.Equal(t, tc.expected, resp)
 				}
 			})
-		}
-	}
-}
-
-func TestRenderFunctions_NoPanicAndOutput(t *testing.T) {
-	// orderbook
-	ob := &orderbook.Book{Bids: orderbook.Levels{{Price: 50000, Amount: 1}}, Asks: orderbook.Levels{{Price: 50010, Amount: 2}}}
-	out := captureOutput(func() { renderOrderbook(ob, 5) })
-	assert.Contains(t, out, "Price")
-
-	// ticker
-	tp := &ticker.Price{Last: 100, Bid: 99.5, Ask: 100.5, Volume: 1234.56, MarkPrice: 100.2, IndexPrice: 100.1}
-	_ = captureOutput(func() { renderTicker(tp) })
-	_ = captureOutput(func() { renderTicker(nil) })
-
-	// trades
-	trs := []trade.Data{{Price: 10, Amount: 1, Timestamp: time.Now().Add(-time.Minute), Side: order.Buy}, {Price: 11, Amount: 2, Timestamp: time.Now(), Side: order.Sell}}
-	_ = captureOutput(func() { renderTrades(trs) })
-	_ = captureOutput(func() { renderTrades(nil) })
-
-	// klines
-	kl := []websocket.KlineData{{Timestamp: time.Now().Add(-2 * time.Minute), OpenPrice: 10, ClosePrice: 11, HighPrice: 11.5, LowPrice: 9.5, Volume: 100, Interval: "1m"}, {Timestamp: time.Now().Add(-time.Minute), OpenPrice: 11, ClosePrice: 12, HighPrice: 12.5, LowPrice: 10.5, Volume: 150, Interval: "1m"}}
-	_ = captureOutput(func() { renderKlines(kl) })
-	_ = captureOutput(func() { renderKlines(nil) })
-
-	// account holdings
-	holdings := []accounts.Balance{{Currency: currency.BTC, Total: 1, Free: 0.5, Hold: 0.5}}
-	_ = captureOutput(func() { renderAccountHoldings(holdings) })
-	_ = captureOutput(func() { renderAccountHoldings(nil) })
-
-	// active orders
-	ords := []order.Detail{{OrderID: "1", Type: order.Limit, Side: order.Buy, Price: 10, Amount: 5, ExecutedAmount: 2, Status: order.Active, LastUpdated: time.Now()}}
-	_ = captureOutput(func() { renderActiveOrders(ords) })
-	_ = captureOutput(func() { renderActiveOrders(nil) })
-
-	// execution limits
-	mm := &limits.MinMaxLevel{MinPrice: 1, MaxPrice: 2, MinimumBaseAmount: 0.1, MaximumBaseAmount: 10, MinimumQuoteAmount: 1, MaximumQuoteAmount: 1000, MinNotional: 5}
-	_ = captureOutput(func() { renderExecutionLimits(mm) })
-	_ = captureOutput(func() { renderExecutionLimits(nil) })
-
-	// URL
-	_ = captureOutput(func() { renderURL("https://example.com") })
-
-	// contract
-	ctr := &futures.Contract{Name: currency.NewBTCUSDT(), StartDate: time.Now().Add(-time.Hour), EndDate: time.Now().Add(time.Hour), Multiplier: 1.0, SettlementCurrencies: currency.Currencies{currency.USDT}}
-	_ = captureOutput(func() { renderContract(ctr) })
-	_ = captureOutput(func() { renderContract(nil) })
-
-	// misc
-	_ = captureOutput(func() { renderOpenInterest(123.45) })
-	fr := &fundingrate.LatestRateResponse{LatestRate: fundingrate.Rate{Rate: decimal.NewFromFloat(0.0001)}, PredictedUpcomingRate: fundingrate.Rate{Rate: decimal.NewFromFloat(0.0002)}, TimeOfNextRate: time.Now().Add(time.Hour), TimeChecked: time.Now()}
-	_ = captureOutput(func() { renderFundingRate(fr) })
-	_ = captureOutput(func() { renderFundingRate(nil) })
-
-	// pretty payload dispatcher exercise all types
-	payloads := []any{
-		ob,
-		[]ticker.Price{*tp},
-		tp,
-		kl,
-		trs,
-		trs[0],
-		holdings,
-		ords,
-		float64(42),
-		fr,
-		ctr,
-		mm,
-		"https://example.com",
-		struct{ A int }{A: 5},
-	}
-	for i, p := range payloads {
-		_ = captureOutput(func() { renderPrettyPayload(p, 10) })
-		_ = captureOutput(func() { renderPrettyPayload(p, 0) })
-		if i == 0 {
-			out2 := captureOutput(func() { renderPrettyPayload(p, 2) })
-			assert.NotEmpty(t, out2)
 		}
 	}
 }

@@ -152,7 +152,7 @@ Binaries will be published once the codebase reaches a stable condition.
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 737 |
 | [dependabot[bot]](https://github.com/apps/dependabot) | 415 |
-| [shazbert](https://github.com/shazbert) | 389 |
+| [shazbert](https://github.com/shazbert) | 392 |
 | [gloriousCode](https://github.com/gloriousCode) | 240 |
 | [gbjk](https://github.com/gbjk) | 143 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
@@ -169,9 +169,9 @@ Binaries will be published once the codebase reaches a stable condition.
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [junnplus](https://github.com/junnplus) | 9 |
 | [geseq](https://github.com/geseq) | 8 |
+| [cranktakular](https://github.com/cranktakular) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [140am](https://github.com/140am) | 8 |
-| [cranktakular](https://github.com/cranktakular) | 7 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
@@ -193,7 +193,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [dsinuela-taurus](https://github.com/dsinuela-taurus) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
-| [MathieuCesbron](https://github.com/MathieuCesbron) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
 | [MathieuCesbron](https://github.com/MathieuCesbron) | 2 |
 | [aidan-bailey](https://github.com/aidan-bailey) | 1 |

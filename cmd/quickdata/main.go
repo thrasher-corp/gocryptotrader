@@ -30,11 +30,6 @@ import (
 
 var enc = json.NewEncoder(os.Stdout)
 
-// errorless stdout helpers to avoid handling write errors everywhere.
-func outPrintf(format string, args ...any) { _, _ = fmt.Fprintf(os.Stdout, format, args...) }
-func outPrintln(args ...any)               { _, _ = fmt.Fprintln(os.Stdout, args...) }
-func outPrint(args ...any)                 { _, _ = fmt.Fprint(os.Stdout, args...) }
-
 // eventEnvelope is a small wrapper to add metadata around exported data.
 // It is printed as NDJSON to stdout for easy streaming/consumption.
 type eventEnvelope struct {
@@ -59,8 +54,8 @@ type appConfig struct {
 }
 
 func main() {
-	outPrintln("Hello! 🌞")
-	defer outPrintln("\nGoodbye! 🌚")
+	fmt.Println("Hello! 🌞")
+	defer fmt.Println("\nGoodbye! 🌚")
 	cfg := parseFlags()
 	// Context & OS signals for graceful shutdown
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -72,7 +67,7 @@ func main() {
 		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
 		return
 	}
-	outPrintln("QuickData setup, waiting for initial data...")
+	fmt.Println("QuickData setup, waiting for initial data...")
 	if err := streamData(ctx, qsChan, cfg); err != nil {
 		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
 		return
@@ -189,7 +184,7 @@ func streamData(ctx context.Context, c <-chan any, cfg *appConfig) error {
 				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Data: d})
 			default:
 				clearScreen()
-				outPrintln(ansiBold + heading + ansiReset)
+				fmt.Println(ansiBold + heading + ansiReset)
 				renderPrettyPayload(d, cfg.BookLevels)
 				if cfg.FocusType != app.TickerFocusType && cfg.FocusType != app.KlineFocusType && cfg.FocusType != app.OrderBookFocusType {
 					// executive decision to not render large payloads
@@ -254,30 +249,30 @@ const (
 )
 
 func clearScreen() {
-	outPrint(ansiClear)
+	fmt.Print(ansiClear)
 }
 
 func renderOrderbook(b *orderbook.Book, levels int) {
 	if levels <= 0 {
 		levels = 15
 	}
-	outPrintf("%s%-14s %-14s %-14s%s\n", ansiDim, "Price", "Amount", "Total", ansiReset)
+	fmt.Printf("%s%-14s %-14s %-14s%s\n", ansiDim, "Price", "Amount", "Total", ansiReset)
 	// Asks (red), display from best (lowest) up to levels
 	askCount := intMin(levels, len(b.Asks))
 	cumulativeAsks := 0.0
 	for i := range askCount {
 		lvl := b.Asks[i]
 		cumulativeAsks += lvl.Amount
-		outPrintf("%s% -14.8f % -14.8f % -14.8f%s\n", ansiRed, lvl.Price, lvl.Amount, cumulativeAsks, ansiReset)
+		fmt.Printf("%s% -14.8f % -14.8f % -14.8f%s\n", ansiRed, lvl.Price, lvl.Amount, cumulativeAsks, ansiReset)
 	}
-	outPrintln()
+	fmt.Println()
 	// Bids (green), from best (highest) up to levels
 	bidCount := intMin(levels, len(b.Bids))
 	cumulativeBids := 0.0
 	for i := range bidCount {
 		lvl := b.Bids[i]
 		cumulativeBids += lvl.Amount
-		outPrintf("%s% -14.8f % -14.8f % -14.8f%s\n", ansiGreen, lvl.Price, lvl.Amount, cumulativeBids, ansiReset)
+		fmt.Printf("%s% -14.8f % -14.8f % -14.8f%s\n", ansiGreen, lvl.Price, lvl.Amount, cumulativeBids, ansiReset)
 	}
 }
 
@@ -290,15 +285,15 @@ func renderTicker(t *ticker.Price) {
 	if t.Last != 0 {
 		spreadPct = (spread / t.Last) * 100
 	}
-	outPrintf("%sLast:%s %.8f  %sBid:%s %.8f  %sAsk:%s %.8f\n",
+	fmt.Printf("%sLast:%s %.8f  %sBid:%s %.8f  %sAsk:%s %.8f\n",
 		ansiBold, ansiReset, t.Last, ansiGreen, ansiReset, t.Bid, ansiRed, ansiReset, t.Ask)
-	outPrintf("%sVol:%s  %.4f  %sSpread:%s %.8f (%.4f%%)  %sMark:%s %.8f  %sIndex:%s %.8f\n",
+	fmt.Printf("%sVol:%s  %.4f  %sSpread:%s %.8f (%.4f%%)  %sMark:%s %.8f  %sIndex:%s %.8f\n",
 		ansiDim, ansiReset, t.Volume, ansiDim, ansiReset, spread, spreadPct, ansiDim, ansiReset, t.MarkPrice, ansiDim, ansiReset, t.IndexPrice)
 }
 
 func renderTrades(trades []trade.Data) {
 	if len(trades) == 0 {
-		outPrintln("No trades.")
+		fmt.Println("No trades.")
 		return
 	}
 	// Summaries
@@ -325,15 +320,15 @@ func renderTrades(trades []trade.Data) {
 	}
 	last := trades[n-1]
 	span := end.Sub(start)
-	outPrintf("%sTrades:%s N=%d Span=%s\n", ansiBold, ansiReset, n, span.Truncate(time.Second))
-	outPrintf("Range: %s -> %s\n", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339))
-	outPrintf("VWAP: %.8f  Last: %.8f @ %s\n", vwap, last.Price, last.Timestamp.UTC().Format(time.RFC3339))
-	outPrintf("Volume: base=%.8f quote=%.8f  Buys/Sells: %d/%d\n", baseVol, quoteVol, buys, sells)
+	fmt.Printf("%sTrades:%s N=%d Span=%s\n", ansiBold, ansiReset, n, span.Truncate(time.Second))
+	fmt.Printf("Range: %s -> %s\n", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339))
+	fmt.Printf("VWAP: %.8f  Last: %.8f @ %s\n", vwap, last.Price, last.Timestamp.UTC().Format(time.RFC3339))
+	fmt.Printf("Volume: base=%.8f quote=%.8f  Buys/Sells: %d/%d\n", baseVol, quoteVol, buys, sells)
 }
 
 func renderKlines(kl []websocket.KlineData) {
 	if len(kl) == 0 {
-		outPrintln("No klines.")
+		fmt.Println("No klines.")
 		return
 	}
 	n := len(kl)
@@ -364,36 +359,36 @@ func renderKlines(kl []websocket.KlineData) {
 	avgVol := totalVol / float64(n)
 	span := end.Sub(start)
 	interval := kl[0].Interval
-	outPrintf("%sKlines:%s N=%d Interval=%s Span=%s\n", ansiBold, ansiReset, n, interval, span.Truncate(time.Second))
-	outPrintf("Range: %s -> %s\n", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339))
-	outPrintf("O/C: %.8f -> %.8f  Change: %+.8f (%.4f%%)\n", firstOpen, lastClose, change, changePct)
-	outPrintf("High/Low: %.8f / %.8f  Volume: total=%.4f avg=%.4f\n", high, low, totalVol, avgVol)
+	fmt.Printf("%sKlines:%s N=%d Interval=%s Span=%s\n", ansiBold, ansiReset, n, interval, span.Truncate(time.Second))
+	fmt.Printf("Range: %s -> %s\n", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339))
+	fmt.Printf("O/C: %.8f -> %.8f  Change: %+.8f (%.4f%%)\n", firstOpen, lastClose, change, changePct)
+	fmt.Printf("High/Low: %.8f / %.8f  Volume: total=%.4f avg=%.4f\n", high, low, totalVol, avgVol)
 }
 
 func renderAccountHoldings(h []accounts.Balance) {
 	if h == nil || len(h) == 0 {
-		outPrintln("No holdings.")
+		fmt.Println("No holdings.")
 		return
 	}
-	outPrintf("%s%-12s %-14s %-14s %-14s%s\n",
+	fmt.Printf("%s%-12s %-14s %-14s %-14s%s\n",
 		ansiDim, "Currency", "Total", "Free", "Hold", ansiReset)
 
 	for _, a := range h {
-		outPrintf("%-12s %-14.8f %-14.8f %-14.8f\n",
+		fmt.Printf("%-12s %-14.8f %-14.8f %-14.8f\n",
 			a.Currency, a.Total, a.Free, a.Hold)
 	}
 }
 
 func renderActiveOrders(orders []order.Detail) {
 	if len(orders) == 0 {
-		outPrintln("No active orders.")
+		fmt.Println("No active orders.")
 		return
 	}
-	outPrintf("%s%-19s %-10s %-6s %-10s %-10s %-10s %-10s %-20s%s\n", ansiDim, "OrderID", "Type", "Side", "Price", "Amount", "Filled", "Status", "Updated", ansiReset)
+	fmt.Printf("%s%-19s %-10s %-6s %-10s %-10s %-10s %-10s %-20s%s\n", ansiDim, "OrderID", "Type", "Side", "Price", "Amount", "Filled", "Status", "Updated", ansiReset)
 	for i := range orders {
 		o := orders[i]
 		filled := o.ExecutedAmount
-		outPrintf("%-19s %-10s %-6s % -10.8f % -10.8f % -10.8f %-10s %-20s\n",
+		fmt.Printf("%-19s %-10s %-6s % -10.8f % -10.8f % -10.8f %-10s %-20s\n",
 			o.OrderID, o.Type.String(), o.Side.String(), o.Price, o.Amount, filled, o.Status.String(), o.LastUpdated.UTC().Format(time.RFC3339))
 	}
 }
@@ -402,22 +397,22 @@ func renderExecutionLimits(l *limits.MinMaxLevel) {
 	if l == nil {
 		return
 	}
-	outPrintf("%sExecution Limits%s\n", ansiBold, ansiReset)
-	outPrintf("MinPrice: %.8f  MaxPrice: %.8f  MinBaseAmt: %.8f  MaxBaseAmt: %.8f  MinQuoteAmt: %.8f  MaxQuoteAmt: %.8f  MinNotional: %.8f\n",
+	fmt.Printf("%sExecution Limits%s\n", ansiBold, ansiReset)
+	fmt.Printf("MinPrice: %.8f  MaxPrice: %.8f  MinBaseAmt: %.8f  MaxBaseAmt: %.8f  MinQuoteAmt: %.8f  MaxQuoteAmt: %.8f  MinNotional: %.8f\n",
 		l.MinPrice, l.MaxPrice, l.MinimumBaseAmount, l.MaximumBaseAmount, l.MinimumQuoteAmount, l.MaximumQuoteAmount, l.MinNotional)
 }
 
 func renderURL(u string) {
-	outPrintf("%sTrade URL:%s %s\n", ansiBold, ansiReset, u)
+	fmt.Printf("%sTrade URL:%s %s\n", ansiBold, ansiReset, u)
 }
 
 func renderContract(c *futures.Contract) {
 	if c == nil {
 		return
 	}
-	outPrintf("%sContract%s %s  Type:%s  Multiplier:%.4f  Start:%s  End:%s  Settlement:%s\n",
+	fmt.Printf("%sContract%s %s  Type:%s  Multiplier:%.4f  Start:%s  End:%s  Settlement:%s\n",
 		ansiBold, ansiReset, c.Name.String(), c.Type.String(), c.Multiplier,
-		c.StartDate.UTC().Format(time.RFC3339), c.EndDate.UTC().Format(time.RFC3339), c.SettlementCurrencies.Join())
+		c.StartDate.UTC().Format(time.RFC3339), c.EndDate.UTC().Format(time.RFC3339), c.SettlementCurrency)
 }
 
 func renderPrettyPayload(payload any, bookLevels int) {
@@ -453,20 +448,20 @@ func renderPrettyPayload(payload any, bookLevels int) {
 	case string:
 		renderURL(v)
 	default:
-		outPrintf("%v\n", v)
+		fmt.Printf("%v\n", v)
 	}
 }
 
 func renderOpenInterest(v float64) {
-	outPrintf("%sOpen Interest:%s %.4f\n", ansiBold, ansiReset, v)
+	fmt.Printf("%sOpen Interest:%s %.4f\n", ansiBold, ansiReset, v)
 }
 
 func renderFundingRate(fr *fundingrate.LatestRateResponse) {
 	if fr == nil {
-		outPrintln("No funding rate.")
+		fmt.Println("No funding rate.")
 		return
 	}
-	outPrintf("%sFunding:%s latest=%.6f predicted=%.6f next=%s checked=%s\n",
+	fmt.Printf("%sFunding:%s latest=%.6f predicted=%.6f next=%s checked=%s\n",
 		ansiBold, ansiReset,
 		fr.LatestRate.Rate.InexactFloat64(), fr.PredictedUpcomingRate.Rate.InexactFloat64(),
 		fr.TimeOfNextRate.UTC().Format(time.RFC3339), fr.TimeChecked.UTC().Format(time.RFC3339))
