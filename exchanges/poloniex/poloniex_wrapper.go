@@ -786,17 +786,13 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		modResp.OrderID = resp.ID
 		return modResp, nil
 	case order.Stop, order.StopLimit:
-		oTypeString, err := orderTypeString(action.Type)
-		if err != nil {
-			return nil, err
-		}
 		oResp, err := e.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderRequest{
 			OrderID:          action.OrderID,
 			ClientOrderID:    action.ClientOrderID,
 			Price:            action.Price,
 			StopPrice:        action.TriggerPrice,
 			Amount:           action.Amount,
-			AmendedType:      oTypeString,
+			AmendedType:      orderType(action.Type),
 			ProceedOnFailure: !action.TimeInForce.Is(order.ImmediateOrCancel),
 			TimeInForce:      timeInForce(action.TimeInForce),
 		})
@@ -943,25 +939,21 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 	}
 	var pairs currency.Pairs
 	if !cancelOrd.Pair.IsEmpty() {
-		pairs = append(pairs, cancelOrd.Pair)
+		fPair, err := e.FormatExchangeCurrency(cancelOrd.Pair, cancelOrd.AssetType)
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+		pairs = append(pairs, fPair)
 	}
 	switch cancelOrd.AssetType {
 	case asset.Spot:
 		switch cancelOrd.Type {
 		case order.TrailingStop, order.TrailingStopLimit, order.StopLimit, order.Stop:
-			pairsString := []string{}
-			if !cancelOrd.Pair.IsEmpty() {
-				pairsString = append(pairsString, cancelOrd.Pair.String())
-			}
-			oTypeString, err := orderTypeString(order.StopLimit)
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-			var orderTypes []string
+			var orderTypes []orderType
 			if cancelOrd.Type != order.UnknownType {
-				orderTypes = append(orderTypes, oTypeString)
+				orderTypes = append(orderTypes, orderType(cancelOrd.Type))
 			}
-			resp, err := e.CancelSmartOrders(ctx, pairsString, nil, orderTypes)
+			resp, err := e.CancelSmartOrders(ctx, pairs, nil, orderTypes)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1419,14 +1411,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 	switch req.AssetType {
 	case asset.Spot:
-		var orderSide string
-		switch req.Side {
-		case order.Sell, order.Buy:
-			orderSide = req.Side.String()
-		case order.UnknownSide, order.AnySide:
-		default:
-			return nil, fmt.Errorf("%w: %v", order.ErrSideIsInvalid, req.Side)
-		}
 		switch req.Type {
 		case order.Market, order.Limit, order.UnknownType, order.AnyType:
 			oTypeString, err := orderTypeString(req.Type)
@@ -1436,7 +1420,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			resp, err := e.GetOrdersHistory(ctx, &OrdersHistoryRequest{
 				AccountType: accountTypeString(req.AssetType),
 				OrderType:   oTypeString,
-				Side:        orderSide,
+				Side:        req.Side,
 				Limit:       100,
 				StartTime:   req.StartTime,
 				EndTime:     req.EndTime,
@@ -1503,7 +1487,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					Symbol:      currency.EMPTYPAIR,
 					AccountType: accountTypeString(req.AssetType),
 					OrderType:   oTypeString,
-					Side:        req.Side.String(),
+					Side:        req.Side,
 					Limit:       100,
 					StartTime:   req.StartTime,
 					EndTime:     req.EndTime,

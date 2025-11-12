@@ -397,7 +397,7 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	err := e.WebsocketCancelOrder(t.Context(), &order.Cancel{OrderID: "", ClientOrderID: ""})
+	err := e.WebsocketCancelOrder(t.Context(), &order.Cancel{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	if mockTests {
@@ -1718,7 +1718,7 @@ func TestCancelSmartOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelSmartOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"}, []string{})
+	result, err := e.CancelSmartOrders(t.Context(), []currency.Pair{{Base: currency.BTC, Delimiter: "_", Quote: currency.USDT}, {Base: currency.ETH, Delimiter: "_", Quote: currency.USDT}}, []accountType{accountType(asset.Spot)}, []orderType{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1728,7 +1728,7 @@ func TestGetOrdersHistory(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetOrdersHistory(generateContext(), &OrdersHistoryRequest{Symbol: spotTradablePair, AccountType: "SPOT", OrderType: "", Side: "", Direction: "", States: "", From: 0, Limit: 10, StartTime: time.Time{}, EndTime: time.Time{}, HideCancel: false})
+	_, err := e.GetOrdersHistory(generateContext(), &OrdersHistoryRequest{Symbol: spotTradablePair, AccountType: "SPOT", Limit: 10})
 	require.NoError(t, err)
 }
 

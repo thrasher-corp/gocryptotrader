@@ -928,8 +928,8 @@ func (e *Exchange) CancelMultipleSmartOrders(ctx context.Context, args *CancelOr
 }
 
 // CancelSmartOrders cancels all smart orders in an account.
-func (e *Exchange) CancelSmartOrders(ctx context.Context, symbols, accountTypes, orderTypes []string) ([]*CancelOrderResponse, error) {
-	args := make(map[string][]string)
+func (e *Exchange) CancelSmartOrders(ctx context.Context, symbols []currency.Pair, accountTypes []accountType, orderTypes []orderType) ([]*CancelOrderResponse, error) {
+	args := make(map[string]any)
 	if len(symbols) != 0 {
 		args["symbols"] = symbols
 	}
@@ -954,8 +954,8 @@ func orderFillParams(arg *OrdersHistoryRequest) (url.Values, error) {
 	if len(arg.OrderTypes) > 0 {
 		params.Set("types", strings.Join(arg.OrderTypes, ","))
 	}
-	if arg.Side != "" {
-		params.Set("side", arg.Side)
+	if arg.Side != order.UnknownSide && arg.Side != order.AnySide {
+		params.Set("side", arg.Side.String())
 	}
 	if !arg.Symbol.IsEmpty() {
 		params.Set("symbol", arg.Symbol.String())

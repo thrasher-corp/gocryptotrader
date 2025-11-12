@@ -609,7 +609,7 @@ type OrdersHistoryRequest struct {
 	AccountType string
 	OrderType   string
 	OrderTypes  []string
-	Side        string
+	Side        order.Side
 	Direction   string
 	States      string
 	From        int64
@@ -721,7 +721,7 @@ type CancelReplaceSmartOrderRequest struct {
 	StopPrice            float64     `json:"stopPrice,omitempty,string"`
 	Quantity             float64     `json:"quantity,omitempty,string"`
 	Amount               float64     `json:"amount,omitempty,string"`
-	AmendedType          string      `json:"type,omitempty,string"`
+	AmendedType          orderType   `json:"type,omitempty,string"`
 	TimeInForce          timeInForce `json:"timeInForce,omitempty"`
 	ProceedOnFailure     bool        `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
 }
