@@ -31,7 +31,12 @@ func TestGetFuturesRiskTable(t *testing.T) {
 	_, err = e.GetFuturesRiskTable(t.Context(), currency.USDT, "")
 	require.ErrorIs(t, err, errTableIDEmpty)
 
-	got, err := e.GetFuturesRiskTable(t.Context(), currency.USDT, "CYBER_USDT_20241122")
+	// mock HTTP response due to dynamically generated table IDs, which can only be retrieved via authenticated endpoint
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e))
+	require.NoError(t, testexch.MockHTTPInstance(e, "/"))
+
+	got, err := e.GetFuturesRiskTable(t.Context(), currency.USDT, "BTC_USDT_202507040223")
 	require.NoError(t, err)
 	assert.NotEmpty(t, got)
 }
@@ -40,6 +45,12 @@ func TestGetFuturesRiskLimitTiers(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesRiskLimitTiers(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, 0, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetFuturesRiskLimitTiers(t.Context(), currency.USDT, currency.NewBTCUSDT(), 10, 10)
+	require.ErrorContains(t, err, "parameter not applicable: limit when contract set")
+
+	_, err = e.GetFuturesRiskLimitTiers(t.Context(), currency.USDT, currency.NewBTCUSDT(), 0, 10)
+	require.ErrorContains(t, err, "parameter not applicable: offset when contract set")
 
 	got, err := e.GetFuturesRiskLimitTiers(t.Context(), currency.USDT, currency.EMPTYPAIR, 10, 10)
 	require.NoError(t, err)
@@ -59,6 +70,12 @@ func TestGetDeliveryRiskLimitTiers(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDeliveryRiskLimitTiers(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, 0, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetDeliveryRiskLimitTiers(t.Context(), currency.USDT, currency.NewBTCUSDT(), 10, 10)
+	require.ErrorContains(t, err, "parameter not applicable: limit when contract set")
+
+	_, err = e.GetDeliveryRiskLimitTiers(t.Context(), currency.USDT, currency.NewBTCUSDT(), 0, 10)
+	require.ErrorContains(t, err, "parameter not applicable: offset when contract set")
 
 	got, err := e.GetDeliveryRiskLimitTiers(t.Context(), currency.USDT, currency.EMPTYPAIR, 10, 10)
 	require.NoError(t, err)

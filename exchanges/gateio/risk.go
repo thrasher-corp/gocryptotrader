@@ -3,6 +3,7 @@ package gateio
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,8 +15,9 @@ import (
 )
 
 var (
-	errTableIDEmpty     = errors.New("tableID cannot be empty")
-	errInvalidRiskLimit = errors.New("invalid risk limit")
+	errTableIDEmpty           = errors.New("tableID cannot be empty")
+	errInvalidRiskLimit       = errors.New("invalid risk limit")
+	errParameterNotApplicable = errors.New("parameter not applicable")
 )
 
 // GetUnifiedUserRiskUnitDetails retrieves the user's risk unit details
@@ -58,6 +60,12 @@ func (e *Exchange) getRiskLimitTiers(ctx context.Context, assetPath string, epl 
 
 	params := url.Values{}
 	if !contract.IsEmpty() {
+		if limit > 0 {
+			return nil, fmt.Errorf("%w: limit when contract set", errParameterNotApplicable)
+		}
+		if offset > 0 {
+			return nil, fmt.Errorf("%w: offset when contract set", errParameterNotApplicable)
+		}
 		params.Set("contract", contract.Upper().String())
 	} else {
 		if limit > 0 {
@@ -111,6 +119,7 @@ func (e *Exchange) updatePositionRiskLimit(ctx context.Context, assetPath, posit
 		if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodPost, path, param, nil, &result); err != nil {
 			return nil, err
 		}
+		// Endpoint returns an array but only one position is expected
 		if len(result) != 1 {
 			return nil, common.ErrNoResults
 		}

@@ -1,0 +1,55 @@
+{
+ "routes": {
+  "/futures/usdt/risk_limit_table": {
+   "GET": [
+    {
+     "data": [
+      {
+       "deduction": "0",
+       "initial_rate": "0.008",
+       "leverage_max": "125",
+       "maintenance_rate": "0.004",
+       "risk_limit": "1000000",
+       "tier": 1
+      },
+      {
+       "deduction": "500",
+       "initial_rate": "0.009009",
+       "leverage_max": "111",
+       "maintenance_rate": "0.0045",
+       "risk_limit": "1500000",
+       "tier": 2
+      },
+      {
+       "deduction": "1250",
+       "initial_rate": "0.01",
+       "leverage_max": "100",
+       "maintenance_rate": "0.005",
+       "risk_limit": "2000000",
+       "tier": 3
+      },
+      {
+       "deduction": "5250",
+       "initial_rate": "0.013333",
+       "leverage_max": "75",
+       "maintenance_rate": "0.007",
+       "risk_limit": "3000000",
+       "tier": 4
+      },
+      {
+       "deduction": "6750",
+       "initial_rate": "0.01515",
+       "leverage_max": "66",
+       "maintenance_rate": "0.0075",
+       "risk_limit": "5000000",
+       "tier": 5
+      }
+     ],
+     "queryString": "table_id=BTC_USDT_202507040223",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  }
+ }
+}
