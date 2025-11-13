@@ -2316,14 +2316,14 @@
      },
      "futures": {
       "assetEnabled": true,
-      "enabled": "XBT_USDT_PERP,ETH_USDTPERP,BCH_USDTPERP",
-      "available": "XBT_USDTPERP,ETH_USDTPERP,BCH_USDTPERP,TRX_USDTPERP,XRP_USDTPERP,LTC_USDTPERP,DOGE_USDTPERP,BNB_USDTPERP,1000SHIB_USDTPERP,SOL_USDTPERP,AVAX_USDTPERP,APT_USDTPERP,1000PEPE_USDTPERP"
+      "enabled": "XBT_USDT_PERP,ETH_USDT_PERP,BCH_USDT_PERP",
+      "available": "BNB_USDT_PERP,TRX_USDT_PERP,LTC_USDT_PERP,APT_USDT_PERP,1000PEPE_USDT_PERP,1000SHIB_USDT_PERP,BTC_USDT_PERP,DOGE_USDT_PERP,AVAX_USDT_PERP,XRP_USDT_PERP,SOL_USDT_PERP,ETH_USDT_PERP,BCH_USDT_PERP"
      }
     }
    },
    "api": {
-    "authenticatedSupport": false,
-    "authenticatedWebsocketApiSupport": false,
+    "authenticatedSupport": true,
+    "authenticatedWebsocketApiSupport": true,
     "credentials": {
      "key": "",
      "secret": ""
