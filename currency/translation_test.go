@@ -8,7 +8,7 @@ import (
 )
 
 func TestGetTranslation(t *testing.T) {
-	currencyPair := NewPair(BTC, USD)
+	currencyPair := NewBTCUSD()
 	expected := XBT
 	actual := GetTranslation(currencyPair.Base)
 	if !expected.Equal(actual) {
@@ -56,7 +56,7 @@ func TestFindMatchingPairsBetween(t *testing.T) {
 	ltcusd := NewPair(LTC, USD)
 
 	spotPairs := Pairs{
-		NewPair(BTC, USD).Format(PairFormat{Delimiter: "DELIMITER"}),
+		NewBTCUSD().Format(PairFormat{Delimiter: "DELIMITER"}),
 		NewPair(ETH, USD),
 		NewPair(ETH, BTC).Format(PairFormat{Delimiter: "DELIMITER"}),
 		ltcusd,
@@ -84,7 +84,7 @@ func TestFindMatchingPairsBetween(t *testing.T) {
 	})
 
 	expected := map[keyPair]Pair{
-		NewPair(BTC, USD).keyPair(): NewPair(XBT, USDM),
+		NewBTCUSD().keyPair():       NewPair(XBT, USDM),
 		NewPair(ETH, USD).keyPair(): NewPair(XETH, USDM),
 		NewPair(ETH, BTC).keyPair(): NewPair(XETH, BTCM),
 		ltcusd.keyPair():            ltcusd,
@@ -124,7 +124,7 @@ func BenchmarkFindMatchingPairsBetween(b *testing.B) {
 	ltcusd := NewPair(LTC, USD)
 
 	spotPairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(ETH, USD),
 		NewPair(ETH, BTC),
 		ltcusd,

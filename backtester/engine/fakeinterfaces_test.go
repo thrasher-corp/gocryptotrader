@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -167,7 +167,7 @@ func (f fakeDataHolder) SetDataForCurrency(string, asset.Item, currency.Pair, da
 }
 
 func (f fakeDataHolder) GetAllData() ([]data.Handler, error) {
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	return []data.Handler{
 		&kline.DataFromKline{
 			Base: &data.Base{},
@@ -219,7 +219,7 @@ func (f fakeFunding) UpdateFundingFromLiveData(bool) error {
 	return nil
 }
 
-func (f fakeFunding) SetFunding(string, asset.Item, *account.Balance, bool) error {
+func (f fakeFunding) SetFunding(string, asset.Item, *accounts.Balance, bool) error {
 	return nil
 }
 
@@ -321,8 +321,8 @@ func (f fakeStrat) CloseAllPositions([]holdings.Holding, []data.Event) ([]signal
 				Exchange:       testExchange,
 				Time:           time.Now(),
 				Interval:       gctkline.FifteenSecond,
-				CurrencyPair:   currency.NewPair(currency.BTC, currency.USD),
-				UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+				CurrencyPair:   currency.NewBTCUSD(),
+				UnderlyingPair: currency.NewBTCUSD(),
 				AssetType:      asset.Spot,
 			},
 			OpenPrice:  leet,

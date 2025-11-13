@@ -68,16 +68,11 @@ type iPortfolioManager interface {
 	IsExchangeSupported(string, string) bool
 }
 
-// iBot limits exposure of accessible functions to engine bot
-type iBot interface {
-	SetupExchanges() error
-}
-
 // iCurrencyPairSyncer defines a limited scoped currency pair syncer
 type iCurrencyPairSyncer interface {
 	IsRunning() bool
 	PrintTickerSummary(*ticker.Price, string, error)
-	PrintOrderbookSummary(*orderbook.Base, string, error)
+	PrintOrderbookSummary(*orderbook.Book, string, error)
 	WebsocketUpdate(string, currency.Pair, asset.Item, syncItemType, error) error
 }
 

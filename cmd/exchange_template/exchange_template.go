@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -28,22 +30,19 @@ const (
 type exchange struct {
 	Name        string
 	CapitalName string
-	Variable    string
 	REST        bool
 	WS          bool
-	FIX         bool
 }
 
 var errInvalidExchangeName = errors.New("invalid exchange name")
 
 func main() {
 	var newExchangeName string
-	var websocketSupport, restSupport, fixSupport bool
+	var websocketSupport, restSupport bool
 
 	flag.StringVar(&newExchangeName, "name", "", "the exchange name")
 	flag.BoolVar(&websocketSupport, "ws", false, "whether the exchange supports websocket")
 	flag.BoolVar(&restSupport, "rest", false, "whether the exchange supports REST")
-	flag.BoolVar(&fixSupport, "fix", false, "whether the exchange supports FIX")
 
 	flag.Parse()
 
@@ -62,8 +61,8 @@ func main() {
 	}
 	newExchangeName = strings.ToLower(newExchangeName)
 
-	if !websocketSupport && !restSupport && !fixSupport {
-		log.Println("At least one protocol must be specified (rest/ws or fix)")
+	if !websocketSupport && !restSupport {
+		log.Println("At least one protocol must be specified (rest/ws)")
 		flag.Usage()
 		return
 	}
@@ -71,7 +70,6 @@ func main() {
 	fmt.Println("Exchange Name: ", newExchangeName)
 	fmt.Println("Websocket Supported: ", websocketSupport)
 	fmt.Println("REST Supported: ", restSupport)
-	fmt.Println("FIX Supported: ", fixSupport)
 	fmt.Println()
 	fmt.Println("Please check if everything is correct and then type y to continue or n to cancel...")
 
@@ -89,7 +87,6 @@ func main() {
 		Name: newExchangeName,
 		REST: restSupport,
 		WS:   websocketSupport,
-		FIX:  fixSupport,
 	}
 	exchangeDirectory := filepath.Join(targetPath, exch.Name)
 	configTestFile := config.GetConfig()
@@ -104,15 +101,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Println("GoCryptoTrader: Exchange templating tool service complete")
-	fmt.Println("When the exchange code implementation has been completed (REST/Websocket/wrappers and tests), please add the exchange to engine/exchange.go")
-	fmt.Println("Add the exchange config settings to config_example.json (it will automatically be added to testdata/configtest.json)")
-	fmt.Println("Increment the available exchanges counter in config/config_test.go")
-	fmt.Println("Add the exchange name to exchanges/support.go")
-	fmt.Println("Ensure go test ./... -race passes")
-	fmt.Println("Open a pull request")
-	fmt.Println("If help is needed, please post a message in Slack.")
 }
 
 func checkExchangeName(exchName string) error {
@@ -147,7 +135,6 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 	fmt.Printf("Output directory: %s\n", exchangeDirectory)
 
 	exch.CapitalName = cases.Title(language.English).String(exch.Name)
-	exch.Variable = exch.Name[0:2]
 	newExchConfig := &config.Exchange{}
 	newExchConfig.Name = exch.CapitalName
 	newExchConfig.Enabled = true
@@ -173,31 +160,38 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 		{
 			Name:         "readme",
 			Filename:     "README.md",
-			TemplateFile: "readme_file.tmpl",
+			TemplateFile: "readme.tmpl",
 		},
 		{
-			Name:         "main",
-			Filename:     "main_file.tmpl",
-			FilePostfix:  ".go",
-			TemplateFile: "main_file.tmpl",
+			Name:         "rest",
+			Filename:     "rest.go",
+			TemplateFile: "rest.tmpl",
 		},
 		{
 			Name:         "test",
 			Filename:     "test_file.tmpl",
 			FilePostfix:  "_test.go",
-			TemplateFile: "test_file.tmpl",
+			TemplateFile: "test.tmpl",
 		},
 		{
-			Name:         "type",
-			Filename:     "type_file.tmpl",
-			FilePostfix:  "_types.go",
-			TemplateFile: "type_file.tmpl",
+			Name:         "types",
+			Filename:     "types.go",
+			TemplateFile: "types.tmpl",
 		},
 		{
 			Name:         "wrapper",
-			Filename:     "wrapper_file.tmpl",
-			FilePostfix:  "_wrapper.go",
-			TemplateFile: "wrapper_file.tmpl",
+			Filename:     "wrapper.go",
+			TemplateFile: "wrapper.tmpl",
+		},
+		{
+			Name:         "subscriptions",
+			Filename:     "subscriptions.go",
+			TemplateFile: "subscriptions.tmpl",
+		},
+		{
+			Name:         "websocket",
+			Filename:     "websocket.go",
+			TemplateFile: "websocket.tmpl",
 		},
 	}
 
@@ -209,6 +203,9 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 		}
 
 		filename := outputFiles[x].Filename
+		if !exch.WS && slices.Contains([]string{"websocket", "subscriptions"}, outputFiles[x].Name) {
+			continue
+		}
 		if outputFiles[x].FilePostfix != "" {
 			filename = exch.Name + outputFiles[x].FilePostfix
 		}
@@ -245,7 +242,7 @@ func saveConfig(exchangeDirectory string, configTestFile *config.Config, newExch
 }
 
 func runCommand(dir, param string) error {
-	cmd := exec.Command("go", param)
+	cmd := exec.CommandContext(context.TODO(), "go", param)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -257,11 +254,12 @@ func runCommand(dir, param string) error {
 
 func newFile(path string) {
 	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		file, err := os.Create(path)
-		if err != nil {
-			log.Fatal(err)
-		}
-		file.Close()
+	if !os.IsNotExist(err) {
+		return
 	}
+	f, err := os.Create(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	f.Close()
 }

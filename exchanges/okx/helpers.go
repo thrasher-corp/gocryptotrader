@@ -2,72 +2,96 @@ package okx
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// orderTypeFromString returns order.Type instance from string
-func orderTypeFromString(orderType string) (order.Type, error) {
+// orderTypeFromString returns the order Type and TimeInForce for okx order type strings
+func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error) {
 	orderType = strings.ToLower(orderType)
 	switch orderType {
 	case orderMarket:
-		return order.Market, nil
+		return order.Market, order.UnknownTIF, nil
 	case orderLimit:
-		return order.Limit, nil
+		return order.Limit, order.UnknownTIF, nil
 	case orderPostOnly:
-		return order.PostOnly, nil
+		return order.Limit, order.PostOnly, nil
 	case orderFOK:
-		return order.FillOrKill, nil
+		return order.Limit, order.FillOrKill, nil
 	case orderIOC:
-		return order.ImmediateOrCancel, nil
+		return order.Limit, order.ImmediateOrCancel, nil
 	case orderOptimalLimitIOC:
-		return order.OptimalLimitIOC, nil
-	case "mmp":
-		return order.MarketMakerProtection, nil
-	case "mmp_and_post_only":
-		return order.MarketMakerProtectionAndPostOnly, nil
-	case "twap":
-		return order.TWAP, nil
-	case "move_order_stop":
-		return order.TrailingStop, nil
-	case "chase":
-		return order.Chase, nil
+		return order.OptimalLimit, order.ImmediateOrCancel, nil
+	case orderMarketMakerProtection:
+		return order.MarketMakerProtection, order.UnknownTIF, nil
+	case orderMarketMakerProtectionAndPostOnly:
+		return order.MarketMakerProtection, order.PostOnly, nil
+	case orderTWAP:
+		return order.TWAP, order.UnknownTIF, nil
+	case orderMoveOrderStop:
+		return order.TrailingStop, order.UnknownTIF, nil
+	case orderChase:
+		return order.Chase, order.UnknownTIF, nil
 	default:
-		return order.UnknownType, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
+		return order.UnknownType, order.UnknownTIF, fmt.Errorf("%w %q", order.ErrTypeIsInvalid, orderType)
 	}
 }
 
 // orderTypeString returns a string representation of order.Type instance
-func orderTypeString(orderType order.Type) (string, error) {
+func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
 	switch orderType {
-	case order.ImmediateOrCancel:
-		return "ioc", nil
-	case order.Market, order.Limit, order.Trigger,
-		order.PostOnly, order.FillOrKill, order.OptimalLimitIOC,
-		order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly,
-		order.Chase, order.TWAP, order.OCO:
+	case order.MarketMakerProtection:
+		if tif == order.PostOnly {
+			return orderMarketMakerProtectionAndPostOnly, nil
+		}
+		return orderMarketMakerProtection, nil
+	case order.OptimalLimit:
+		return orderOptimalLimitIOC, nil
+	case order.Limit:
+		if tif == order.PostOnly {
+			return orderPostOnly, nil
+		}
+		return orderLimit, nil
+	case order.Market:
+		switch tif {
+		case order.FillOrKill:
+			return orderFOK, nil
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
+		}
+		return orderMarket, nil
+	case order.Trigger,
+		order.Chase,
+		order.TWAP,
+		order.OCO:
 		return orderType.Lower(), nil
 	case order.ConditionalStop:
-		return "conditional", nil
+		return orderConditional, nil
 	case order.TrailingStop:
-		return "move_order_stop", nil
+		return orderMoveOrderStop, nil
 	default:
-		return "", fmt.Errorf("%w: `%v`", order.ErrUnsupportedOrderType, orderType)
+		switch tif {
+		case order.PostOnly:
+			return orderPostOnly, nil
+		case order.FillOrKill:
+			return orderFOK, nil
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
+		}
+		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 	}
 }
 
 // getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types
 // that the instrument is associated with
-func (ok *Okx) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
+func (e *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	pf, err := ok.CurrencyPairs.GetFormat(asset.Spot, true)
+	pf, err := e.CurrencyPairs.GetFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
 	}
@@ -77,19 +101,19 @@ func (ok *Okx) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, err
 	}
 	pair, err := currency.NewPairDelimiter(instrumentID, pf.Delimiter)
 	if err != nil {
-		return nil, fmt.Errorf("%w: `%s`", err, instrumentID)
+		return nil, fmt.Errorf("%w: %q", err, instrumentID)
 	}
 	switch {
 	case len(splitSymbol) == 2:
 		resp := make([]asset.Item, 0, 2)
-		enabled, err := ok.IsPairEnabled(pair, asset.Spot)
+		enabled, err := e.IsPairEnabled(pair, asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		if enabled {
 			resp = append(resp, asset.Spot)
 		}
-		enabled, err = ok.IsPairEnabled(pair, asset.Margin)
+		enabled, err = e.IsPairEnabled(pair, asset.Margin)
 		if err != nil {
 			return nil, err
 		}
@@ -109,7 +133,7 @@ func (ok *Okx) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, err
 		default:
 			aType = asset.Futures
 		}
-		enabled, err := ok.IsPairEnabled(pair, aType)
+		enabled, err := e.IsPairEnabled(pair, aType)
 		if err != nil {
 			return nil, err
 		} else if enabled {
@@ -139,54 +163,19 @@ func assetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
 	}
 }
 
-func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
-	if arg == nil {
-		return common.ErrNilPointer
-	}
-	if arg.InstrumentID == "" {
-		return errMissingInstrumentID
-	}
-	if arg.AssetType == asset.Spot || arg.AssetType == asset.Margin || arg.AssetType == asset.Empty {
-		arg.Side = strings.ToLower(arg.Side)
-		if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
-			return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
-		}
-	}
-	if !slices.Contains([]string{"", TradeModeCross, TradeModeIsolated, TradeModeCash}, arg.TradeMode) {
-		return fmt.Errorf("%w %s", errInvalidTradeModeValue, arg.TradeMode)
-	}
-	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
-		arg.PositionSide = strings.ToLower(arg.PositionSide)
-		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
-			return fmt.Errorf("%w: `%s`, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
-		}
-	}
-	arg.OrderType = strings.ToLower(arg.OrderType)
-	if !slices.Contains([]string{orderMarket, orderLimit, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, "mmp", "mmp_and_post_only"}, arg.OrderType) {
-		return fmt.Errorf("%w: '%v'", order.ErrTypeIsInvalid, arg.OrderType)
-	}
-	if arg.Amount <= 0 {
-		return order.ErrAmountBelowMin
-	}
-	if !slices.Contains([]string{"", "base_ccy", "quote_ccy"}, arg.QuantityType) {
-		return errCurrencyQuantityTypeRequired
-	}
-	return nil
-}
-
 // assetTypeString returns a string representation of asset type
 func assetTypeString(assetType asset.Item) (string, error) {
 	switch assetType {
 	case asset.Spot:
-		return "SPOT", nil
+		return instTypeSpot, nil
 	case asset.Margin:
-		return "MARGIN", nil
+		return instTypeMargin, nil
 	case asset.Futures:
-		return "FUTURES", nil
+		return instTypeFutures, nil
 	case asset.Options:
-		return "OPTION", nil
+		return instTypeOption, nil
 	case asset.PerpetualSwap:
-		return "SWAP", nil
+		return instTypeSwap, nil
 	default:
 		return "", asset.ErrNotSupported
 	}

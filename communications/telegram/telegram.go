@@ -91,17 +91,17 @@ func (t *Telegram) PushEvent(event base.Event) error {
 	msg := fmt.Sprintf("Type: %s Message: %s",
 		event.Type, event.Message)
 
-	var errors error
+	var errs error
 	for user, ID := range t.AuthorisedClients {
 		if ID == 0 {
 			log.Warnf(log.CommunicationMgr, "Telegram: Unable to send message to %s as their ID isn't set. A user must issue any supported command to begin a session.\n", user)
 			continue
 		}
 		if err := t.SendMessage(msg, ID); err != nil {
-			errors = common.AppendError(errors, err)
+			errs = common.AppendError(errs, err)
 		}
 	}
-	return errors
+	return errs
 }
 
 // PollerStart starts the long polling sequence
@@ -252,13 +252,13 @@ func (t *Telegram) SendMessage(text string, chatID int64) error {
 		text,
 	}
 
-	json, err := json.Marshal(&messageToSend)
+	jsonData, err := json.Marshal(&messageToSend)
 	if err != nil {
 		return err
 	}
 
 	resp := Message{}
-	err = t.SendHTTPRequest(path, json, &resp)
+	err = t.SendHTTPRequest(path, jsonData, &resp)
 	if err != nil {
 		return err
 	}
@@ -268,7 +268,7 @@ func (t *Telegram) SendMessage(text string, chatID int64) error {
 	}
 
 	if t.Verbose {
-		log.Debugf(log.CommunicationMgr, "Telegram: Sent '%s'\n", text)
+		log.Debugf(log.CommunicationMgr, "Telegram: Sent %q\n", text)
 	}
 	return nil
 }

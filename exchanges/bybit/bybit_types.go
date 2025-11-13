@@ -12,17 +12,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-var validCategory = []string{"spot", "linear", "inverse", "option"}
-
 // supportedOptionsTypes Bybit does not offer a way to retrieve option denominations via its API
 var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
 
 type orderbookResponse struct {
-	Symbol    string      `json:"s"`
-	Asks      [][2]string `json:"a"`
-	Bids      [][2]string `json:"b"`
-	Timestamp types.Time  `json:"ts"`
-	UpdateID  int64       `json:"u"`
+	Symbol    string                           `json:"s"`
+	Asks      orderbook.LevelsArrayPriceAmount `json:"a"`
+	Bids      orderbook.LevelsArrayPriceAmount `json:"b"`
+	Timestamp types.Time                       `json:"ts"`
+	UpdateID  int64                            `json:"u"`
 }
 
 // Authenticate stores authentication variables required
@@ -57,9 +55,9 @@ type AccountFee struct {
 
 // InstrumentsInfo represents a category, page indicator, and list of instrument information.
 type InstrumentsInfo struct {
-	Category       string           `json:"category"`
-	List           []InstrumentInfo `json:"list"`
-	NextPageCursor string           `json:"nextPageCursor"`
+	Category       string            `json:"category"`
+	List           []*InstrumentInfo `json:"list"`
+	NextPageCursor string            `json:"nextPageCursor"`
 }
 
 // InstrumentInfo holds all instrument info across
@@ -88,19 +86,20 @@ type InstrumentInfo struct {
 		TickSize types.Number `json:"tickSize"`
 	} `json:"priceFilter"`
 	LotSizeFilter struct {
-		MaxOrderQty         types.Number `json:"maxOrderQty"`
-		MinOrderQty         types.Number `json:"minOrderQty"`
-		QtyStep             types.Number `json:"qtyStep"`
-		PostOnlyMaxOrderQty types.Number `json:"postOnlyMaxOrderQty"`
-		BasePrecision       types.Number `json:"basePrecision"`
-		QuotePrecision      types.Number `json:"quotePrecision"`
-		MinOrderAmt         types.Number `json:"minOrderAmt"`
-		MaxOrderAmt         types.Number `json:"maxOrderAmt"`
-		MinNotionalValue    types.Number `json:"minNotionalValue"`
+		MaxOrderQuantity         types.Number `json:"maxOrderQty"`
+		MinOrderQuantity         types.Number `json:"minOrderQty"`
+		QuantityStep             types.Number `json:"qtyStep"`
+		PostOnlyMaxOrderQuantity types.Number `json:"postOnlyMaxOrderQty"`
+		BasePrecision            types.Number `json:"basePrecision"`
+		QuotePrecision           types.Number `json:"quotePrecision"`
+		MinOrderAmount           types.Number `json:"minOrderAmt"`
+		MaxOrderAmount           types.Number `json:"maxOrderAmt"`
+		MinNotionalValue         types.Number `json:"minNotionalValue"`
+		MaxMarketOrderQuantity   types.Number `json:"maxMktOrderQty"`
 	} `json:"lotSizeFilter"`
-	UnifiedMarginTrade bool   `json:"unifiedMarginTrade"`
-	FundingInterval    int64  `json:"fundingInterval"`
-	SettleCoin         string `json:"settleCoin"`
+	UnifiedMarginTrade bool          `json:"unifiedMarginTrade"`
+	FundingInterval    int64         `json:"fundingInterval"`
+	SettleCoin         currency.Code `json:"settleCoin"`
 }
 
 // RestResponse represents a REST response instance.
@@ -116,59 +115,51 @@ type RestResponse struct {
 
 // KlineResponse represents a kline item list instance as an array of string.
 type KlineResponse struct {
-	Symbol   string     `json:"symbol"`
-	Category string     `json:"category"`
-	List     [][]string `json:"list"`
+	Symbol   string      `json:"symbol"`
+	Category string      `json:"category"`
+	List     []KlineItem `json:"list"`
 }
 
 // KlineItem stores an individual kline data item
 type KlineItem struct {
-	StartTime time.Time
-	Open      float64
-	High      float64
-	Low       float64
-	Close     float64
+	StartTime types.Time
+	Open      types.Number
+	High      types.Number
+	Low       types.Number
+	Close     types.Number
 
 	// not available for mark and index price kline data
-	TradeVolume float64
-	Turnover    float64
+	TradeVolume types.Number
+	Turnover    types.Number
 }
 
 // MarkPriceKlineResponse represents a kline data item.
 type MarkPriceKlineResponse struct {
-	Symbol   string     `json:"symbol"`
-	Category string     `json:"category"`
-	List     [][]string `json:"list"`
-}
-
-func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
-	var (
-		s = Orderbook{
-			Symbol:         o.Symbol,
-			UpdateID:       o.UpdateID,
-			GenerationTime: o.Timestamp.Time(),
-		}
-		err error
-	)
-	s.Bids, err = processOB(o.Bids)
-	if err != nil {
-		return nil, err
-	}
-	s.Asks, err = processOB(o.Asks)
-	if err != nil {
-		return nil, err
-	}
-	return &s, err
+	Symbol   string      `json:"symbol"`
+	Category string      `json:"category"`
+	List     []KlineItem `json:"list"`
 }
 
 // TickerData represents a list of ticker detailed information.
 type TickerData struct {
 	Category string       `json:"category"`
-	List     []TickerItem `json:"list"`
+	List     []TickerREST `json:"list"`
 }
 
-// TickerItem represents a ticker item detail
-type TickerItem struct {
+// TickerREST for REST API
+type TickerREST struct {
+	TickerCommon
+	DeliveryTime types.Time `json:"deliveryTime"`
+}
+
+// TickerWebsocket for websocket API
+type TickerWebsocket struct {
+	TickerCommon
+	DeliveryTime time.Time `json:"deliveryTime"` // "2025-03-28T08:00:00Z"
+}
+
+// TickerCommon common ticker fields
+type TickerCommon struct {
 	Symbol                 string       `json:"symbol"`
 	TickDirection          string       `json:"tickDirection"`
 	LastPrice              types.Number `json:"lastPrice"`
@@ -298,17 +289,17 @@ type DeliveryPrice struct {
 	} `json:"list"`
 }
 
-// PlaceOrderParams represents
-type PlaceOrderParams struct {
+// PlaceOrderRequest represents
+type PlaceOrderRequest struct {
 	Category               string        `json:"category"`   // Required
 	Symbol                 currency.Pair `json:"symbol"`     // Required
 	Side                   string        `json:"side"`       // Required
 	OrderType              string        `json:"orderType"`  // Required // Market, Limit
 	OrderQuantity          float64       `json:"qty,string"` // Required // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
 	Price                  float64       `json:"price,string,omitempty"`
-	TimeInForce            string        `json:"timeInForce,omitempty"`      // IOC and GTC
-	OrderLinkID            string        `json:"orderLinkId,omitempty"`      // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
-	WhetherToBorrow        bool          `json:"-"`                          // '0' for default spot, '1' for Margin trading.
+	TimeInForce            string        `json:"timeInForce,omitempty"` // IOC and GTC
+	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
+	EnableBorrow           bool          `json:"-"`
 	IsLeverage             int64         `json:"isLeverage,omitempty"`       // Required   // '0' for default spot, '1' for Margin trading.
 	OrderFilter            string        `json:"orderFilter,omitempty"`      // Valid for spot only. Order,tpslOrder. If not passed, Order by default
 	TriggerDirection       int64         `json:"triggerDirection,omitempty"` // Required // Conditional order param. Used to identify the expected direction of the conditional order. '1': triggered when market price rises to triggerPrice '2': triggered when market price falls to triggerPrice
@@ -341,16 +332,18 @@ type OrderResponse struct {
 	OrderLinkID string `json:"orderLinkId"`
 }
 
-// AmendOrderParams represents a parameter for amending order.
-type AmendOrderParams struct {
-	Category               string        `json:"category,omitempty"`
-	Symbol                 currency.Pair `json:"symbol,omitzero"`
-	OrderID                string        `json:"orderId,omitempty"`
-	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
-	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
-	TriggerPrice           float64       `json:"triggerPrice,omitempty,string"`
-	OrderQuantity          float64       `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
-	Price                  float64       `json:"price,string,omitempty"`
+// AmendOrderRequest represents a parameter for amending order.
+type AmendOrderRequest struct {
+	Category    string        `json:"category"`              // Required
+	Symbol      currency.Pair `json:"symbol"`                // Required
+	OrderID     string        `json:"orderId,omitempty"`     // This or OrderLinkID required
+	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
+
+	// At least one of the following fields is required
+	OrderImpliedVolatility string  `json:"orderIv,omitempty"`
+	TriggerPrice           float64 `json:"triggerPrice,omitempty,string"`
+	OrderQuantity          float64 `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
+	Price                  float64 `json:"price,string,omitempty"`
 
 	TakeProfitPrice float64 `json:"takeProfit,omitempty,string"`
 	StopLossPrice   float64 `json:"stopLoss,omitempty,string"`
@@ -370,14 +363,13 @@ type AmendOrderParams struct {
 	TPSLMode string `json:"tpslMode,omitempty"`
 }
 
-// CancelOrderParams represents a cancel order parameters.
-type CancelOrderParams struct {
-	Category    string        `json:"category,omitempty"`
-	Symbol      currency.Pair `json:"symbol,omitzero"`
+// CancelOrderRequest represents a cancel order parameters.
+type CancelOrderRequest struct {
+	Category    string        `json:"category"`
+	Symbol      currency.Pair `json:"symbol"`
 	OrderID     string        `json:"orderId,omitempty"`
 	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
-
-	OrderFilter string `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
+	OrderFilter string        `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
 }
 
 // TradeOrders represents category and list of trade orders of the category.
@@ -540,8 +532,8 @@ type BatchAmendOrderParamItem struct {
 
 // CancelBatchOrder represents a batch cancel request parameters.
 type CancelBatchOrder struct {
-	Category string              `json:"category"`
-	Request  []CancelOrderParams `json:"request"`
+	Category string               `json:"category"`
+	Request  []CancelOrderRequest `json:"request"`
 }
 
 // CancelBatchResponseItem represents a batch cancel response item.
@@ -887,7 +879,7 @@ type WalletBalance struct {
 		TotalWalletBalance     types.Number `json:"totalWalletBalance"`
 		AccountLTV             types.Number `json:"accountLTV"` // Account LTV: account total borrowed size / (account total equity + account total borrowed size).
 		TotalMaintenanceMargin types.Number `json:"totalMaintenanceMargin"`
-		Coin                   []struct {
+		Coin                   []*struct {
 			AvailableToBorrow       types.Number  `json:"availableToBorrow"`
 			Bonus                   types.Number  `json:"bonus"`
 			AccruedInterest         types.Number  `json:"accruedInterest"`
@@ -1750,28 +1742,28 @@ type ServerTime struct {
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	UpdateID       int64
-	Bids           []orderbook.Tranche
-	Asks           []orderbook.Tranche
+	Bids           []orderbook.Level
+	Asks           []orderbook.Level
 	Symbol         string
 	GenerationTime time.Time
 }
 
 // WsOrderbookDetail represents an orderbook detail information.
 type WsOrderbookDetail struct {
-	Symbol   string     `json:"s"`
-	Bids     [][]string `json:"b"`
-	Asks     [][]string `json:"a"`
-	UpdateID int64      `json:"u"`
-	Sequence int64      `json:"seq"`
+	Symbol   string                           `json:"s"`
+	Bids     orderbook.LevelsArrayPriceAmount `json:"b"`
+	Asks     orderbook.LevelsArrayPriceAmount `json:"a"`
+	UpdateID int64                            `json:"u"`
+	Sequence int64                            `json:"seq"`
 }
 
 // SubscriptionResponse represents a subscription response.
 type SubscriptionResponse struct {
-	Success   bool   `json:"success"`
-	RetMsg    string `json:"ret_msg"`
-	ConnID    string `json:"conn_id"`
-	RequestID string `json:"req_id"`
-	Operation string `json:"op"`
+	Success       bool   `json:"success"`
+	ReturnMessage string `json:"ret_msg"`
+	ConnectionID  string `json:"conn_id"`
+	RequestID     string `json:"req_id"`
+	Operation     string `json:"op"`
 }
 
 // WebsocketResponse represents push data response struct.
@@ -1980,21 +1972,21 @@ type WebsocketWallet struct {
 		TotalInitialMargin     types.Number `json:"totalInitialMargin"`
 		TotalMaintenanceMargin types.Number `json:"totalMaintenanceMargin"`
 		Coin                   []struct {
-			Coin                string       `json:"coin"`
-			Equity              types.Number `json:"equity"`
-			UsdValue            types.Number `json:"usdValue"`
-			WalletBalance       types.Number `json:"walletBalance"`
-			AvailableToWithdraw types.Number `json:"availableToWithdraw"`
-			AvailableToBorrow   types.Number `json:"availableToBorrow"`
-			BorrowAmount        types.Number `json:"borrowAmount"`
-			AccruedInterest     types.Number `json:"accruedInterest"`
-			TotalOrderIM        types.Number `json:"totalOrderIM"`
-			TotalPositionIM     types.Number `json:"totalPositionIM"`
-			TotalPositionMM     types.Number `json:"totalPositionMM"`
-			UnrealisedPnl       types.Number `json:"unrealisedPnl"`
-			CumRealisedPnl      types.Number `json:"cumRealisedPnl"`
-			Bonus               types.Number `json:"bonus"`
-			SpotHedgingQuantity types.Number `json:"spotHedgingQty"`
+			Coin                currency.Code `json:"coin"`
+			Equity              types.Number  `json:"equity"`
+			UsdValue            types.Number  `json:"usdValue"`
+			WalletBalance       types.Number  `json:"walletBalance"`
+			AvailableToWithdraw types.Number  `json:"availableToWithdraw"`
+			AvailableToBorrow   types.Number  `json:"availableToBorrow"`
+			BorrowAmount        types.Number  `json:"borrowAmount"`
+			AccruedInterest     types.Number  `json:"accruedInterest"`
+			TotalOrderIM        types.Number  `json:"totalOrderIM"`
+			TotalPositionIM     types.Number  `json:"totalPositionIM"`
+			TotalPositionMM     types.Number  `json:"totalPositionMM"`
+			UnrealisedPnl       types.Number  `json:"unrealisedPnl"`
+			CumRealisedPnl      types.Number  `json:"cumRealisedPnl"`
+			Bonus               types.Number  `json:"bonus"`
+			SpotHedgingQuantity types.Number  `json:"spotHedgingQty"`
 		} `json:"coin"`
 		AccountType string `json:"accountType"`
 		AccountLTV  string `json:"accountLTV"`
@@ -2007,11 +1999,11 @@ type GreeksResponse struct {
 	Topic        string     `json:"topic"`
 	CreationTime types.Time `json:"creationTime"`
 	Data         []struct {
-		BaseCoin   string       `json:"baseCoin"`
-		TotalDelta types.Number `json:"totalDelta"`
-		TotalGamma types.Number `json:"totalGamma"`
-		TotalVega  types.Number `json:"totalVega"`
-		TotalTheta types.Number `json:"totalTheta"`
+		BaseCoin   currency.Code `json:"baseCoin"`
+		TotalDelta types.Number  `json:"totalDelta"`
+		TotalGamma types.Number  `json:"totalGamma"`
+		TotalVega  types.Number  `json:"totalVega"`
+		TotalTheta types.Number  `json:"totalTheta"`
 	} `json:"data"`
 }
 
@@ -2047,17 +2039,3 @@ type accountTypeHolder struct {
 
 // AccountType constants
 type AccountType uint8
-
-// String returns the account type as a string
-func (a AccountType) String() string {
-	switch a {
-	case 0:
-		return "unset"
-	case accountTypeNormal:
-		return "normal"
-	case accountTypeUnified:
-		return "unified"
-	default:
-		return "unknown"
-	}
-}

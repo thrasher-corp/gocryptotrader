@@ -2,10 +2,12 @@ package exchange
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -32,23 +35,25 @@ func Setup(e exchange.IBotExchange) error {
 		return err
 	}
 
-	err = cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true)
-	if err != nil {
+	if err = cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true); err != nil {
 		return fmt.Errorf("LoadConfig() error: %w", err)
 	}
 	e.SetDefaults()
 	eName := e.GetName()
 	exchConf, err := cfg.GetExchangeConfig(eName)
 	if err != nil {
-		return fmt.Errorf("GetExchangeConfig(`%s`) error: %w", eName, err)
+		return fmt.Errorf("GetExchangeConfig(%q) error: %w", eName, err)
 	}
 	e.SetDefaults()
 	b := e.GetBase()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = e.Setup(exchConf)
-	if err != nil {
+
+	if err = e.Setup(exchConf); err != nil {
 		return fmt.Errorf("Setup() error: %w", err)
 	}
+
+	b.Accounts = accounts.MustNewAccounts(b)
+
 	return nil
 }
 
@@ -57,24 +62,32 @@ const httpMockFile = "testdata/http.json"
 
 // MockHTTPInstance takes an existing Exchange instance and attaches it to a new http server
 // It is expected to be run once,  since http requests do not often tangle with each other
-func MockHTTPInstance(e exchange.IBotExchange) error {
-	serverDetails, newClient, err := mock.NewVCRServer(httpMockFile)
+func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) error {
+	serverPath, newClient, err := mock.NewVCRServer(httpMockFile)
 	if err != nil {
-		return fmt.Errorf("mock server error %s", err)
+		return fmt.Errorf("error starting NewVCRServer: %w", err)
 	}
+
 	b := e.GetBase()
 	b.SkipAuthCheck = true
-	err = b.SetHTTPClient(newClient)
-	if err != nil {
-		return fmt.Errorf("mock server error %s", err)
+	if err := b.SetHTTPClient(newClient); err != nil {
+		return fmt.Errorf("error setting HTTP client: %w", err)
 	}
-	endpointMap := b.API.Endpoints.GetURLMap()
-	for k := range endpointMap {
-		err = b.API.Endpoints.SetRunning(k, serverDetails)
+
+	if len(optionalPathPostfix) > 0 {
+		newPath, err := url.JoinPath(serverPath, optionalPathPostfix...)
 		if err != nil {
-			return fmt.Errorf("mock server error %s", err)
+			return fmt.Errorf("error joining server URL path: %w", err)
+		}
+		serverPath = newPath
+	}
+
+	for k := range b.API.Endpoints.GetURLMap() {
+		if err := b.API.Endpoints.SetRunningURL(k, serverPath); err != nil {
+			return fmt.Errorf("error setting running endpoint: %w", err)
 		}
 	}
+
 	log.Printf(sharedtestvalues.MockTesting, e.GetName())
 
 	return nil
@@ -99,11 +112,11 @@ func MockWsInstance[T any, PT interface {
 	b := e.GetBase()
 	b.SkipAuthCheck = true
 	b.API.AuthenticatedWebsocketSupport = true
-	err := b.API.Endpoints.SetRunning("RestSpotURL", s.URL)
-	require.NoError(tb, err, "Endpoints.SetRunning should not error for RestSpotURL")
+	err := b.API.Endpoints.SetRunningURL("RestSpotURL", s.URL)
+	require.NoError(tb, err, "Endpoints.SetRunningURL must not error for RestSpotURL")
 	for _, auth := range []bool{true, false} {
 		err = b.Websocket.SetWebsocketURL("ws"+strings.TrimPrefix(s.URL, "http"), auth, true)
-		require.NoErrorf(tb, err, "SetWebsocketURL should not error for auth: %v", auth)
+		require.NoErrorf(tb, err, "SetWebsocketURL must not error for auth: %v", auth)
 	}
 
 	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
@@ -112,7 +125,7 @@ func MockWsInstance[T any, PT interface {
 	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
 	err = b.Websocket.Connect()
-	require.NoError(tb, err, "Connect should not error")
+	require.NoError(tb, err, "Connect must not error")
 
 	return e
 }
@@ -124,7 +137,7 @@ type FixtureError struct {
 }
 
 // FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData) and asserts no errors are returned
-func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func([]byte) error) {
+func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func(context.Context, []byte) error) {
 	tb.Helper()
 
 	for _, e := range FixtureToDataHandlerWithErrors(tb, fixturePath, reader) {
@@ -134,11 +147,11 @@ func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func([]byte)
 
 // FixtureToDataHandlerWithErrors squirts the contents of a file to a reader function (probably e.wsHandleData) and returns handler errors
 // Any errors setting up the fixture will fail tests
-func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader func([]byte) error) []FixtureError {
+func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader func(context.Context, []byte) error) []FixtureError {
 	tb.Helper()
 
 	fixture, err := os.Open(fixturePath)
-	require.NoError(tb, err, "Opening fixture '%s' must not error", fixturePath)
+	require.NoErrorf(tb, err, "Opening fixture %q must not error", fixturePath)
 	defer func() {
 		assert.NoError(tb, fixture.Close(), "Closing the fixture file should not error")
 	}()
@@ -147,7 +160,7 @@ func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader fu
 	s := bufio.NewScanner(fixture)
 	for s.Scan() {
 		msg := s.Bytes()
-		if err := reader(msg); err != nil {
+		if err := reader(tb.Context(), msg); err != nil {
 			errs = append(errs, FixtureError{
 				Err: err,
 				Msg: msg,
@@ -191,7 +204,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
 	err = w.Connect()
-	require.NoError(tb, err, "WsConnect should not error")
+	require.NoError(tb, err, "Connect must not error")
 
 	setupWsOnce[e] = true
 }
@@ -216,7 +229,7 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 		return
 	}
 
-	err := e.UpdateTradablePairs(tb.Context(), true)
+	err := e.UpdateTradablePairs(tb.Context())
 	require.NoError(tb, err, "UpdateTradablePairs must not error")
 
 	cache := new(currency.PairsManager)

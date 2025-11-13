@@ -10,17 +10,19 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 	"unicode"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -53,8 +55,9 @@ const (
 
 // Public Errors
 var (
-	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
-	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+	ErrSettingProxyAddress  = errors.New("error setting proxy address")
+	ErrEndpointPathNotFound = errors.New("no endpoint path found for the given key")
+	ErrSymbolNotMatched     = errors.New("symbol cannot be matched")
 )
 
 var (
@@ -62,6 +65,7 @@ var (
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
+	errInvalidEndpointKey                = errors.New("invalid endpoint key")
 )
 
 // SetRequester sets the instance of the requester
@@ -81,8 +85,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 	proxy, err := url.Parse(addr)
 	if err != nil {
-		return fmt.Errorf("setting proxy address error %s",
-			err)
+		return fmt.Errorf("%w %w", ErrSettingProxyAddress, err)
 	}
 
 	err = b.Requester.SetProxy(proxy)
@@ -204,7 +207,7 @@ func (b *Base) GetLastPairsUpdateTime() int64 {
 	return b.CurrencyPairs.LastUpdated
 }
 
-// GetAssetTypes returns the either the enabled or available asset types for an
+// GetAssetTypes returns either the enabled or available asset types for an
 // individual exchange
 func (b *Base) GetAssetTypes(enabled bool) asset.Items {
 	return b.CurrencyPairs.GetAssetTypes(enabled)
@@ -251,7 +254,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.EMPTYPAIR, asset.Empty, ErrSymbolCannotBeMatched
+	return currency.EMPTYPAIR, asset.Empty, ErrSymbolNotMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -261,8 +264,7 @@ func (b *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (*
 	return cfg.GetClientBankAccounts(exchangeName, withdrawalCurrency)
 }
 
-// GetExchangeBankAccounts returns banking details associated with an
-// exchange for funding purposes
+// GetExchangeBankAccounts returns banking details associated with an exchange for funding purposes
 func (b *Base) GetExchangeBankAccounts(id, depositCurrency string) (*banking.Account, error) {
 	cfg := config.GetConfig()
 	return cfg.GetExchangeBankAccounts(b.Name, id, depositCurrency)
@@ -597,7 +599,15 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		log.Warnf(log.ExchangeSys, "%s orderbook verification has been bypassed via config.", b.Name)
 	}
 
-	b.CanVerifyOrderbook = !exch.Orderbook.VerificationBypass
+	if b.Accounts == nil {
+		var err error
+		if b.Accounts, err = accounts.GetStore().GetExchangeAccounts(b); err != nil {
+			return err
+		}
+	}
+
+	b.ValidateOrderbook = !exch.Orderbook.VerificationBypass
+
 	b.States = currencystate.NewCurrencyStates()
 
 	return nil
@@ -641,9 +651,13 @@ func (b *Base) EnsureOnePairEnabled() error {
 	return nil
 }
 
-// UpdatePairs updates the exchange currency pairs for either enabledPairs or
-// availablePairs
-func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force bool) error {
+// UpdatePairs updates the exchange currency pairs for either enabledPairs or availablePairs
+func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) error {
+	if len(incoming) == 0 && !enabled {
+		// Exchange reports a successful response (HTTP 200) but provides no currency pairs, so we preserve the existing
+		// available pairs.
+		return fmt.Errorf("%w: updating available pairs", currency.ErrCurrencyPairsEmpty)
+	}
 	pFmt, err := b.GetPairFormat(a, false)
 	if err != nil {
 		return err
@@ -664,46 +678,27 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		return err
 	}
 
-	if force || len(diff.New) != 0 || len(diff.Remove) != 0 || diff.FormatDifference {
-		var updateType string
-		if enabled {
-			updateType = "enabled"
-		} else {
-			updateType = "available"
-		}
+	updateType := "enabled"
+	if !enabled {
+		updateType = "available"
+	}
 
-		if force {
-			log.Debugf(log.ExchangeSys,
-				"%s forced update of %s [%v] pairs.",
-				b.Name,
-				updateType,
-				strings.ToUpper(a.String()))
-		} else {
-			if len(diff.New) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Added: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.New)
-			}
-			if len(diff.Remove) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Removed: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.Remove)
-			}
-		}
-		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
-		if err != nil {
-			return err
-		}
-		err = b.CurrencyPairs.StorePairs(a, incoming, enabled)
-		if err != nil {
-			return err
-		}
+	if len(diff.New) > 0 {
+		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.New)
+	}
+	if len(diff.Remove) > 0 {
+		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Removed: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.Remove)
+	}
+
+	if err := common.NilGuard(b.Config, b.Config.CurrencyPairs); err != nil {
+		return err
+	}
+
+	if err := b.Config.CurrencyPairs.StorePairs(a, incoming, enabled); err != nil {
+		return err
+	}
+	if err := b.CurrencyPairs.StorePairs(a, incoming, enabled); err != nil {
+		return err
 	}
 
 	if enabled {
@@ -769,21 +764,14 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		if err != nil {
 			return err
 		}
-		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n",
-			b.Name,
-			strings.ToUpper(a.String()),
-			randomPair)
+		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n", b.Name, strings.ToUpper(a.String()), randomPair)
 		enabledPairs = currency.Pairs{randomPair}
 	}
 
 	if len(diff.Remove) > 0 {
-		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
-			b.Name,
-			strings.ToUpper(a.String()),
-			diff.Remove)
+		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n", b.Name, strings.ToUpper(a.String()), diff.Remove)
 	}
-	err = b.Config.CurrencyPairs.StorePairs(a, enabledPairs, true)
-	if err != nil {
+	if err := b.Config.CurrencyPairs.StorePairs(a, enabledPairs, true); err != nil {
 		return err
 	}
 	return b.CurrencyPairs.StorePairs(a, enabledPairs, true)
@@ -804,21 +792,21 @@ func (b *Base) SetAPIURL() error {
 	var err error
 	if b.Config.API.OldEndPoints != nil {
 		if b.Config.API.OldEndPoints.URL != "" && b.Config.API.OldEndPoints.URL != config.APIURLNonDefaultMessage {
-			err = b.API.Endpoints.SetRunning(RestSpot.String(), b.Config.API.OldEndPoints.URL)
+			err = b.API.Endpoints.SetRunningURL(RestSpot.String(), b.Config.API.OldEndPoints.URL)
 			if err != nil {
 				return err
 			}
 			checkInsecureEndpoint(b.Config.API.OldEndPoints.URL)
 		}
 		if b.Config.API.OldEndPoints.URLSecondary != "" && b.Config.API.OldEndPoints.URLSecondary != config.APIURLNonDefaultMessage {
-			err = b.API.Endpoints.SetRunning(RestSpotSupplementary.String(), b.Config.API.OldEndPoints.URLSecondary)
+			err = b.API.Endpoints.SetRunningURL(RestSpotSupplementary.String(), b.Config.API.OldEndPoints.URLSecondary)
 			if err != nil {
 				return err
 			}
 			checkInsecureEndpoint(b.Config.API.OldEndPoints.URLSecondary)
 		}
 		if b.Config.API.OldEndPoints.WebsocketURL != "" && b.Config.API.OldEndPoints.WebsocketURL != config.WebsocketURLNonDefaultMessage {
-			err = b.API.Endpoints.SetRunning(WebsocketSpot.String(), b.Config.API.OldEndPoints.WebsocketURL)
+			err = b.API.Endpoints.SetRunningURL(WebsocketSpot.String(), b.Config.API.OldEndPoints.WebsocketURL)
 			if err != nil {
 				return err
 			}
@@ -865,7 +853,7 @@ func (b *Base) SetAPIURL() error {
 
 			checkInsecureEndpoint(val)
 
-			err = b.API.Endpoints.SetRunning(key, val)
+			err = b.API.Endpoints.SetRunningURL(key, val)
 			if err != nil {
 				return err
 			}
@@ -1009,12 +997,12 @@ func (b *Base) SetAssetPairStore(a asset.Item, f currency.PairStore) error {
 }
 
 // SetGlobalPairsManager sets defined asset and pairs management system with global formatting
-func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, assets ...asset.Item) error {
-	if request == nil {
+func (b *Base) SetGlobalPairsManager(reqFmt, cfgFmt *currency.PairFormat, assets ...asset.Item) error {
+	if reqFmt == nil {
 		return fmt.Errorf("%s cannot set pairs manager, request pair format not provided", b.Name)
 	}
 
-	if config == nil {
+	if cfgFmt == nil {
 		return fmt.Errorf("%s cannot set pairs manager, config pair format not provided",
 			b.Name)
 	}
@@ -1024,14 +1012,14 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 			b.Name)
 	}
 
-	if config.Delimiter == "" {
+	if cfgFmt.Delimiter == "" {
 		return fmt.Errorf("exchange %s cannot set global pairs manager %w for assets %s",
 			b.Name, errConfigPairFormatRequiresDelimiter, assets)
 	}
 
 	b.CurrencyPairs.UseGlobalFormat = true
-	b.CurrencyPairs.RequestFormat = request
-	b.CurrencyPairs.ConfigFormat = config
+	b.CurrencyPairs.RequestFormat = reqFmt
+	b.CurrencyPairs.ConfigFormat = cfgFmt
 
 	if b.CurrencyPairs.Pairs != nil {
 		return fmt.Errorf("%s cannot set pairs manager, pairs already set",
@@ -1047,8 +1035,8 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 		}
 		b.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
 		b.CurrencyPairs.Pairs[assets[i]].AssetEnabled = true
-		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
-		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
+		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = cfgFmt
+		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = reqFmt
 	}
 
 	return nil
@@ -1140,21 +1128,23 @@ func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }
 
-// ValidateKline confirms that the requested pair, asset & interval are
-// supported and/or enabled by the requested exchange.
-func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
-	var err error
-	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
-		err = common.AppendError(err, fmt.Errorf("%w %v", asset.ErrNotEnabled, a))
-	} else if !b.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
-		err = common.AppendError(err, fmt.Errorf("%w in enabled pairs %v", currency.ErrPairNotFound, pair))
+// verifyKlineParameters verifies whether the pair, asset and interval are enabled on the exchange
+func (b *Base) verifyKlineParameters(pair currency.Pair, a asset.Item, interval kline.Interval) error {
+	if err := b.CurrencyPairs.IsAssetEnabled(a); err != nil {
+		return err
+	}
+
+	if ok, err := b.IsPairEnabled(pair, a); err != nil {
+		return err
+	} else if !ok {
+		return fmt.Errorf("%w: %v", currency.ErrPairNotEnabled, pair)
 	}
 
 	if !b.klineIntervalEnabled(interval) {
-		err = common.AppendError(err, fmt.Errorf("%w %v", kline.ErrInvalidInterval, interval))
+		return fmt.Errorf("%w: %v", kline.ErrInvalidInterval, interval)
 	}
 
-	return err
+	return nil
 }
 
 // AddTradesToBuffer is a helper function that will only
@@ -1240,32 +1230,24 @@ func (b *Base) NewEndpoints() *Endpoints {
 // SetDefaultEndpoints declares and sets the default URLs map
 func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
 	for k, v := range m {
-		err := e.SetRunning(k.String(), v)
-		if err != nil {
+		if err := e.SetRunningURL(k.String(), v); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// SetRunning populates running URLs map
-func (e *Endpoints) SetRunning(key, val string) error {
+// SetRunningURL populates running URLs map
+func (e *Endpoints) SetRunningURL(endpoint, val string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	err := validateKey(key)
-	if err != nil {
+	if err := validateKey(endpoint); err != nil {
 		return err
 	}
-	_, err = url.ParseRequestURI(val)
-	if err != nil {
-		log.Warnf(log.ExchangeSys,
-			"Could not set custom URL for %s to %s for exchange %s. invalid URI for request.",
-			key,
-			val,
-			e.Exchange)
-		return nil
+	if _, err := url.ParseRequestURI(val); err != nil {
+		return fmt.Errorf("parse request URI for %s=%q (exchange %s): %w", endpoint, val, e.Exchange, err)
 	}
-	e.defaults[key] = val
+	e.defaults[endpoint] = val
 	return nil
 }
 
@@ -1275,16 +1257,16 @@ func validateKey(keyVal string) error {
 			return nil
 		}
 	}
-	return errors.New("keyVal invalid")
+	return errInvalidEndpointKey
 }
 
 // GetURL gets default url from URLs map
-func (e *Endpoints) GetURL(key URL) (string, error) {
+func (e *Endpoints) GetURL(endpoint URL) (string, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	val, ok := e.defaults[key.String()]
+	val, ok := e.defaults[endpoint.String()]
 	if !ok {
-		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
+		return "", fmt.Errorf("%w %v", ErrEndpointPathNotFound, endpoint)
 	}
 	return val, nil
 }
@@ -1314,12 +1296,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: b.Name,
-					Base:     ticks[i].Pair.Base.Item,
-					Quote:    ticks[i].Pair.Quote.Item,
-					Asset:    ticks[i].AssetType,
-				},
+				Key:          key.NewExchangeAssetPair(b.Name, ticks[i].AssetType, ticks[i].Pair),
 				OpenInterest: ticks[i].OpenInterest,
 			})
 		}
@@ -1335,12 +1312,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 			return nil, err
 		}
 		resp[i] = futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: b.Name,
-				Base:     t.Pair.Base.Item,
-				Quote:    t.Pair.Quote.Item,
-				Asset:    t.AssetType,
-			},
+			Key:          key.NewExchangeAssetPair(b.Name, t.AssetType, t.Pair),
 			OpenInterest: t.OpenInterest,
 		}
 	}
@@ -1378,8 +1350,24 @@ func (u URL) String() string {
 		return restSwapURL
 	case WebsocketSpot:
 		return websocketSpotURL
+	case WebsocketCoinMargined:
+		return websocketCoinMarginedURL
+	case WebsocketUSDTMargined:
+		return websocketUSDTMarginedURL
+	case WebsocketUSDCMargined:
+		return websocketUSDCMarginedURL
+	case WebsocketOptions:
+		return websocketOptionsURL
+	case WebsocketTrade:
+		return websocketTradeURL
+	case WebsocketPrivate:
+		return websocketPrivateURL
 	case WebsocketSpotSupplementary:
 		return websocketSpotSupplementaryURL
+	case WebsocketFutures:
+		return websocketFuturesURL
+	case WebsocketFuturesPrivate:
+		return websocketFuturesPrivateURL
 	case ChainAnalysis:
 		return chainAnalysisURL
 	case EdgeCase1:
@@ -1416,8 +1404,24 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return RestSwap, nil
 	case websocketSpotURL:
 		return WebsocketSpot, nil
+	case websocketCoinMarginedURL:
+		return WebsocketCoinMargined, nil
+	case websocketUSDTMarginedURL:
+		return WebsocketUSDTMargined, nil
+	case websocketUSDCMarginedURL:
+		return WebsocketUSDCMargined, nil
+	case websocketOptionsURL:
+		return WebsocketOptions, nil
+	case websocketTradeURL:
+		return WebsocketTrade, nil
+	case websocketPrivateURL:
+		return WebsocketPrivate, nil
 	case websocketSpotSupplementaryURL:
 		return WebsocketSpotSupplementary, nil
+	case websocketFuturesURL:
+		return WebsocketFutures, nil
+	case websocketFuturesPrivateURL:
+		return WebsocketFuturesPrivate, nil
 	case chainAnalysisURL:
 		return ChainAnalysis, nil
 	case edgeCase1URL:
@@ -1427,7 +1431,7 @@ func getURLTypeFromString(ep string) (URL, error) {
 	case edgeCase3URL:
 		return EdgeCase3, nil
 	default:
-		return Invalid, fmt.Errorf("%w '%s'", errEndpointStringNotFound, ep)
+		return Invalid, fmt.Errorf("%w %q", errEndpointStringNotFound, ep)
 	}
 }
 
@@ -1495,7 +1499,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 		return nil, err
 	}
 
-	err = b.ValidateKline(pair, a, exchangeInterval)
+	err = b.verifyKlineParameters(pair, a, exchangeInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -1566,7 +1570,7 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 		return nil, err
 	}
 
-	err = b.ValidateKline(pair, a, exchangeInterval)
+	err = b.verifyKlineParameters(pair, a, exchangeInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -1771,29 +1775,12 @@ func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.Ope
 }
 
 // ParallelChanOp performs a single method call in parallel across streams and waits to return any errors
-func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.List) error, batchSize int) error {
-	wg := sync.WaitGroup{}
-	errC := make(chan error, len(channels))
-
-	for _, b := range common.Batch(channels, batchSize) {
-		wg.Add(1)
-		go func(c subscription.List) {
-			defer wg.Done()
-			if err := m(c); err != nil {
-				errC <- err
-			}
-		}(b)
+func (b *Base) ParallelChanOp(ctx context.Context, channels subscription.List, m func(context.Context, subscription.List) error, batchSize int) error {
+	var errs common.ErrorCollector
+	for _, batchedSubs := range common.Batch(channels, batchSize) {
+		errs.Go(func() error { return m(ctx, batchedSubs) })
 	}
-
-	wg.Wait()
-	close(errC)
-
-	var errs error
-	for err := range errC {
-		errs = common.AppendError(errs, err)
-	}
-
-	return errs
+	return errs.Collect()
 }
 
 // Bootstrap function allows for exchange authors to supplement or override common startup actions
@@ -1823,32 +1810,21 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 	}
 
 	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+		if err := b.UpdateTradablePairs(ctx); err != nil {
 			return fmt.Errorf("failed to update tradable pairs: %w", err)
 		}
 	}
 
-	a := b.GetAssetTypes(true)
-	var wg sync.WaitGroup
-	errC := make(chan error, len(a))
-	for i := range a {
-		wg.Add(1)
-		go func(a asset.Item) {
-			defer wg.Done()
+	var errs common.ErrorCollector
+	for _, a := range b.GetAssetTypes(true) {
+		errs.Go(func() error {
 			if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-				errC <- fmt.Errorf("failed to set exchange order execution limits: %w", err)
+				return fmt.Errorf("failed to set exchange order execution limits: %w", err)
 			}
-		}(a[i])
+			return nil
+		})
 	}
-	wg.Wait()
-	close(errC)
-
-	var err error
-	for e := range errC {
-		err = common.AppendError(err, e)
-	}
-
-	return err
+	return errs.Collect()
 }
 
 // Bootstrap is a fallback method for exchange startup actions
@@ -1882,13 +1858,12 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 		return nil, err
 	}
 
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
+	if err := b.SetupDefaults(exchCfg); err != nil {
 		return nil, err
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = exch.UpdateTradablePairs(ctx, true)
+		err = exch.UpdateTradablePairs(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -1916,23 +1891,80 @@ func (b *Base) GetCachedTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
-// GetCachedOrderbook returns orderbook base on the currency pair and asset type
+// GetCachedOrderbook returns an orderbook snapshot for the currency pair and asset type
 // NOTE: UpdateOrderbook method must be called first to update the orderbook map
-func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetCachedAccountInfo retrieves balances for all enabled currencies
-// NOTE: UpdateAccountInfo method must be called first to update the account info map
-func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+// GetCachedSubAccounts retrieves all cached SubAccounts, filtered by credentials and asset
+// NOTE: Accounts.Save method should be called first to populate the local cache
+func (b *Base) GetCachedSubAccounts(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-	return account.GetHoldings(b.Name, creds, assetType)
+	return b.Accounts.SubAccounts(creds, assetType)
+}
+
+// GetCachedCurrencyBalances retrieves cached balances for all SubAccounts grouped by currency
+// NOTE: Accounts.Save method should be called first to populate the local cache
+func (b *Base) GetCachedCurrencyBalances(ctx context.Context, assetType asset.Item) (accounts.CurrencyBalances, error) {
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return b.Accounts.CurrencyBalances(creds, assetType)
+}
+
+// GetOrderExecutionLimits returns a limit based on the exchange, asset and pair from storage
+func (b *Base) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error) {
+	return limits.GetOrderExecutionLimits(key.NewExchangeAssetPair(b.Name, a, cp))
+}
+
+// CheckOrderExecutionLimits checks if the order execution limits are within the defined limits from storage
+func (b *Base) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, amount, price float64, orderType order.Type) error {
+	return limits.CheckOrderExecutionLimits(
+		key.NewExchangeAssetPair(b.Name, a, cp),
+		amount,
+		price,
+		orderType,
+	)
 }
 
 // WebsocketSubmitOrder submits an order to the exchange via a websocket connection
 func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketSubmitOrders submits multiple orders (batch) via the websocket connection
+func (*Base) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses []*order.SubmitResponse, err error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketModifyOrder modifies an order via the websocket connection
+func (*Base) WebsocketModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketCancelOrder cancels an order via the websocket connection
+func (*Base) WebsocketCancelOrder(context.Context, *order.Cancel) error {
+	return common.ErrFunctionNotSupported
+}
+
+// MessageID returns a universally unique id using UUID V7
+// In the future additional params may be added to method signature to provide context for the message id for overriding exchange implementations
+func (b *Base) MessageID() string {
+	return uuid.Must(uuid.NewV7()).String()
+}
+
+// MessageSequence returns a sequential message sequence number from common.Counter
+// It is not universally unique but should be unique and sequential within each *Base instance
+func (b *Base) MessageSequence() int64 {
+	return b.messageSequence.IncrementAndGet()
+}
+
+// SubscribeAccountBalances returns a pipe to stream account holding updates
+func (b *Base) SubscribeAccountBalances() (dispatch.Pipe, error) {
+	return b.Accounts.Subscribe()
 }

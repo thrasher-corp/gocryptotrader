@@ -262,7 +262,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
-	ws.connectionManager[0].setup.Handler = func(context.Context, []byte) error {
+	ws.connectionManager[0].setup.Handler = func(context.Context, Connection, []byte) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
@@ -275,12 +275,12 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.ErrorIs(t, err, errDastardlyReason)
 
 	ws.connectionManager[0].setup.Connector = func(ctx context.Context, conn Connection) error {
-		return conn.DialContext(ctx, gws.DefaultDialer, nil)
+		return conn.Dial(ctx, gws.DefaultDialer, nil)
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.connectionManager[0].setup.Handler = func(context.Context, []byte) error {
+	ws.connectionManager[0].setup.Handler = func(context.Context, Connection, []byte) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
@@ -469,7 +469,7 @@ func TestDial(t *testing.T) {
 			t.Log("Proxy testing not enabled, skipping")
 			continue
 		}
-		err := testCases[i].WC.Dial(&gws.Dialer{}, http.Header{})
+		err := testCases[i].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 		if err != nil {
 			if testCases[i].Error != nil && strings.Contains(err.Error(), testCases[i].Error.Error()) {
 				return
@@ -521,7 +521,7 @@ func TestSendMessage(t *testing.T) {
 			t.Log("Proxy testing not enabled, skipping")
 			continue
 		}
-		err := testCases[x].WC.Dial(&gws.Dialer{}, http.Header{})
+		err := testCases[x].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 		if err != nil {
 			if testCases[x].Error != nil && strings.Contains(err.Error(), testCases[x].Error.Error()) {
 				return
@@ -551,7 +551,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 
-	err := wc.Dial(&gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -564,7 +564,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		Subscription: testRequestData{
 			Name: "ticker",
 		},
-		RequestID: wc.GenerateMessageID(false),
+		RequestID: 12345,
 	}
 
 	_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, req.RequestID, req)
@@ -676,7 +676,7 @@ func TestSetupPingHandler(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 	wc.shutdown = make(chan struct{})
-	err := wc.Dial(&gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -692,7 +692,7 @@ func TestSetupPingHandler(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = wc.Dial(&gws.Dialer{}, http.Header{})
+	err = wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -756,37 +756,6 @@ func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
 
 	ws.SetCanUseAuthenticatedEndpoints(true)
 	assert.True(t, ws.CanUseAuthenticatedWebsocketForWrapper(), "CanUseAuthenticatedWebsocketForWrapper should return true")
-}
-
-func TestGenerateMessageID(t *testing.T) {
-	t.Parallel()
-	wc := connection{}
-	const spins = 1000
-	ids := make([]int64, spins)
-	for i := range spins {
-		id := wc.GenerateMessageID(true)
-		assert.NotContains(t, ids, id, "GenerateMessageID should not generate the same ID twice")
-		ids[i] = id
-	}
-
-	wc.bespokeGenerateMessageID = func(bool) int64 { return 42 }
-	assert.EqualValues(t, 42, wc.GenerateMessageID(true), "GenerateMessageID should use bespokeGenerateMessageID")
-}
-
-// 7002502	       166.7 ns/op	      48 B/op	       3 allocs/op
-func BenchmarkGenerateMessageID_High(b *testing.B) {
-	wc := connection{}
-	for b.Loop() {
-		_ = wc.GenerateMessageID(true)
-	}
-}
-
-// 6536250	       186.1 ns/op	      48 B/op	       3 allocs/op
-func BenchmarkGenerateMessageID_Low(b *testing.B) {
-	wc := connection{}
-	for b.Loop() {
-		_ = wc.GenerateMessageID(false)
-	}
 }
 
 func TestCheckWebsocketURL(t *testing.T) {
@@ -861,7 +830,7 @@ func TestFlushChannels(t *testing.T) {
 
 	newgen := GenSubs{EnabledPairs: []currency.Pair{
 		currency.NewPair(currency.BTC, currency.AUD),
-		currency.NewPair(currency.BTC, currency.USDT),
+		currency.NewBTCUSDT(),
 	}}
 
 	w := NewManager()
@@ -953,12 +922,12 @@ func TestFlushChannels(t *testing.T) {
 	amazingCandidate := &ConnectionSetup{
 		URL: "ws" + mock.URL[len("http"):] + "/ws",
 		Connector: func(ctx context.Context, conn Connection) error {
-			return conn.DialContext(ctx, gws.DefaultDialer, nil)
+			return conn.Dial(ctx, gws.DefaultDialer, nil)
 		},
 		GenerateSubscriptions: newgen.generateSubs,
 		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
 		Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
-		Handler:               func(context.Context, []byte) error { return nil },
+		Handler:               func(context.Context, Connection, []byte) error { return nil },
 	}
 	require.NoError(t, w.SetupNewConnection(amazingCandidate))
 	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "Must error when no subscriptions are added to the subscription store")
@@ -1001,7 +970,7 @@ func TestEnable(t *testing.T) {
 	w.Unsubscriber = func(subscription.List) error { return nil }
 	w.GenerateSubs = func() (subscription.List, error) { return nil, nil }
 	require.NoError(t, w.Enable(), "Enable must not error")
-	assert.ErrorIs(t, w.Enable(), errWebsocketAlreadyEnabled, "Enable should error correctly")
+	assert.ErrorIs(t, w.Enable(), ErrWebsocketAlreadyEnabled, "Enable should error correctly")
 }
 
 func TestSetupNewConnection(t *testing.T) {
@@ -1066,7 +1035,7 @@ func TestSetupNewConnection(t *testing.T) {
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
-	connSetup.Handler = func(context.Context, []byte) error { return nil }
+	connSetup.Handler = func(context.Context, Connection, []byte) error { return nil }
 	connSetup.MessageFilter = []string{"slices are super naughty and not comparable"}
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errMessageFilterNotComparable)
@@ -1088,9 +1057,9 @@ func TestConnectionShutdown(t *testing.T) {
 	t.Parallel()
 	wc := connection{shutdown: make(chan struct{})}
 	err := wc.Shutdown()
-	assert.NoError(t, err, "Shutdown should not error")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Shutdown should error correctly")
 
-	err = wc.Dial(&gws.Dialer{}, nil)
+	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
 	assert.ErrorContains(t, err, "malformed ws or wss URL", "Dial should error correctly")
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
@@ -1098,7 +1067,7 @@ func TestConnectionShutdown(t *testing.T) {
 
 	wc.URL = "ws" + mock.URL[len("http"):] + "/ws"
 
-	err = wc.Dial(&gws.Dialer{}, nil)
+	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
 	require.NoError(t, err, "Dial must not error")
 
 	err = wc.Shutdown()
@@ -1126,7 +1095,7 @@ func TestLatency(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 
-	err := wc.Dial(&gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 	require.NoError(t, err)
 
 	go readMessages(t, wc)
@@ -1135,7 +1104,7 @@ func TestLatency(t *testing.T) {
 		Event:        "subscribe",
 		Pairs:        []string{currency.NewPairWithDelimiter("XBT", "USD", "/").String()},
 		Subscription: testRequestData{Name: "ticker"},
-		RequestID:    wc.GenerateMessageID(false),
+		RequestID:    12346,
 	}
 
 	_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, req.RequestID, req)
@@ -1335,4 +1304,55 @@ func TestGetConnection(t *testing.T) {
 	conn, err := ws.GetConnection("testURL")
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
+}
+
+func TestShutdown(t *testing.T) {
+	t.Parallel()
+	m := Manager{}
+	m.setState(connectingState)
+	require.ErrorIs(t, m.Shutdown(), errAlreadyReconnecting, "Shutdown must error correctly")
+	m.setState(disconnectedState)
+	require.ErrorIs(t, m.Shutdown(), ErrNotConnected, "Shutdown must error correctly")
+	m.setState(connectedState)
+	require.Panics(t, func() { _ = m.Shutdown() }, "Shutdown must panic on nil shutdown channel")
+	m.ShutdownC = make(chan struct{})
+	require.NoError(t, m.Shutdown(), "Shutdown must not error with no connections")
+	m.setState(connectedState)
+	m.Conn = &struct{ *connection }{&connection{}}
+	m.AuthConn = &struct{ *connection }{&connection{}}
+	require.ErrorIs(t, m.Shutdown(), common.ErrTypeAssertFailure, "Shutdown must error with unhandled connection type")
+
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	defer mock.Close()
+
+	wsURL := "ws" + mock.URL[len("http"):] + "/ws"
+	conn, resp, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	require.NoError(t, err, "DialContext must not error")
+	defer resp.Body.Close()
+
+	m.AuthConn = nil
+	m.Conn = nil
+	m.connectionManager = []*connectionWrapper{{connection: &connection{Connection: nil}}, {connection: &connection{Connection: conn}}}
+	m.setState(connectedState)
+	require.NoError(t, m.Shutdown(), "Shutdown must not error with faulty connection in connectionManager")
+
+	gwsConnAuth, respAuth, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	require.NoError(t, err, "DialContext must not error")
+	defer respAuth.Body.Close()
+
+	gwsConnUnAuth, respUnAuth, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	require.NoError(t, err, "DialContext must not error")
+	defer respUnAuth.Body.Close()
+
+	m.connectionManager = nil
+	authConn := &connection{Connection: gwsConnAuth, shutdown: m.ShutdownC}
+	m.AuthConn = authConn
+	unauthConn := &connection{Connection: gwsConnUnAuth, shutdown: m.ShutdownC}
+	m.Conn = unauthConn
+
+	m.setState(connectedState)
+	require.NoError(t, m.Shutdown(), "Shutdown must not error with good connections")
+
+	require.Equal(t, m.ShutdownC, authConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
+	require.Equal(t, m.ShutdownC, unauthConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 }

@@ -1,10 +1,10 @@
 package currencystate
 
 import (
-	"errors"
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -19,9 +19,7 @@ func TestNewCurrencyStates(t *testing.T) {
 func TestGetSnapshot(t *testing.T) {
 	t.Parallel()
 	_, err := (*States)(nil).GetCurrencyStateSnapshot()
-	if !errors.Is(err, errNilStates) {
-		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
-	}
+	require.ErrorIs(t, err, errNilStates)
 
 	o, err := (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -32,9 +30,7 @@ func TestGetSnapshot(t *testing.T) {
 			}},
 		},
 	}).GetCurrencyStateSnapshot()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	if o == nil {
 		t.Fatal("unexpected value")
@@ -44,25 +40,18 @@ func TestGetSnapshot(t *testing.T) {
 func TestCanTradePair(t *testing.T) {
 	t.Parallel()
 	err := (*States)(nil).CanTradePair(currency.EMPTYPAIR, asset.Empty)
-	if !errors.Is(err, errNilStates) {
-		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
-	}
+	require.ErrorIs(t, err, errNilStates)
 
 	err = (&States{}).CanTradePair(currency.EMPTYPAIR, asset.Empty)
-	if !errors.Is(err, errEmptyCurrency) {
-		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
-	}
+	require.ErrorIs(t, err, errEmptyCurrency)
 
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err = (&States{}).CanTradePair(cp, asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = (&States{}).CanTradePair(cp, asset.Spot)
-	if !errors.Is(err, nil) { // not found but default to operational
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+	// not found but default to operational
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -72,9 +61,7 @@ func TestCanTradePair(t *testing.T) {
 			},
 		},
 	}).CanTradePair(cp, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -84,9 +71,7 @@ func TestCanTradePair(t *testing.T) {
 			},
 		},
 	}).CanTradePair(cp, asset.Spot)
-	if !errors.Is(err, errTradingNotAllowed) {
-		t.Fatalf("received: %v, but expected: %v", err, errTradingNotAllowed)
-	}
+	require.ErrorIs(t, err, errTradingNotAllowed)
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -96,9 +81,7 @@ func TestCanTradePair(t *testing.T) {
 			},
 		},
 	}).CanTradePair(cp, asset.Spot)
-	if !errors.Is(err, errTradingNotAllowed) {
-		t.Fatalf("received: %v, but expected: %v", err, errTradingNotAllowed)
-	}
+	require.ErrorIs(t, err, errTradingNotAllowed)
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -108,33 +91,25 @@ func TestCanTradePair(t *testing.T) {
 			},
 		},
 	}).CanTradePair(cp, asset.Spot)
-	if !errors.Is(err, errTradingNotAllowed) {
-		t.Fatalf("received: %v, but expected: %v", err, errTradingNotAllowed)
-	}
+	require.ErrorIs(t, err, errTradingNotAllowed)
 }
 
 func TestStatesCanTrade(t *testing.T) {
 	t.Parallel()
 	err := (*States)(nil).CanTrade(currency.EMPTYCODE, asset.Empty)
-	if !errors.Is(err, errNilStates) {
-		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
-	}
+	require.ErrorIs(t, err, errNilStates)
+
 	err = (&States{}).CanTrade(currency.EMPTYCODE, asset.Empty)
-	if !errors.Is(err, errEmptyCurrency) {
-		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
-	}
+	require.ErrorIs(t, err, errEmptyCurrency)
 }
 
 func TestStatesCanWithdraw(t *testing.T) {
 	t.Parallel()
 	err := (*States)(nil).CanWithdraw(currency.EMPTYCODE, asset.Empty)
-	if !errors.Is(err, errNilStates) {
-		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
-	}
+	require.ErrorIs(t, err, errNilStates)
+
 	err = (&States{}).CanWithdraw(currency.EMPTYCODE, asset.Empty)
-	if !errors.Is(err, errEmptyCurrency) {
-		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
-	}
+	require.ErrorIs(t, err, errEmptyCurrency)
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -143,9 +118,7 @@ func TestStatesCanWithdraw(t *testing.T) {
 			},
 		},
 	}).CanWithdraw(currency.BTC, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -154,21 +127,16 @@ func TestStatesCanWithdraw(t *testing.T) {
 			},
 		},
 	}).CanWithdraw(currency.BTC, asset.Spot)
-	if !errors.Is(err, errWithdrawalsNotAllowed) {
-		t.Fatalf("received: %v, but expected: %v", err, errWithdrawalsNotAllowed)
-	}
+	require.ErrorIs(t, err, errWithdrawalsNotAllowed)
 }
 
 func TestStatesCanDeposit(t *testing.T) {
 	t.Parallel()
 	err := (*States)(nil).CanDeposit(currency.EMPTYCODE, asset.Empty)
-	if !errors.Is(err, errNilStates) {
-		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
-	}
+	require.ErrorIs(t, err, errNilStates)
+
 	err = (&States{}).CanDeposit(currency.EMPTYCODE, asset.Empty)
-	if !errors.Is(err, errEmptyCurrency) {
-		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
-	}
+	require.ErrorIs(t, err, errEmptyCurrency)
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -177,9 +145,7 @@ func TestStatesCanDeposit(t *testing.T) {
 			},
 		},
 	}).CanDeposit(currency.BTC, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -188,27 +154,19 @@ func TestStatesCanDeposit(t *testing.T) {
 			},
 		},
 	}).CanDeposit(currency.BTC, asset.Spot)
-	if !errors.Is(err, errDepositNotAllowed) {
-		t.Fatalf("received: %v, but expected: %v", err, errDepositNotAllowed)
-	}
+	require.ErrorIs(t, err, errDepositNotAllowed)
 }
 
 func TestStatesUpdateAll(t *testing.T) {
 	t.Parallel()
 	err := (*States)(nil).UpdateAll(asset.Empty, nil)
-	if !errors.Is(err, errNilStates) {
-		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
-	}
+	require.ErrorIs(t, err, errNilStates)
 
 	err = (&States{}).UpdateAll(asset.Empty, nil)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = (&States{}).UpdateAll(asset.Spot, nil)
-	if !errors.Is(err, errUpdatesAreNil) {
-		t.Fatalf("received: %v, but expected: %v", err, errUpdatesAreNil)
-	}
+	require.ErrorIs(t, err, errUpdatesAreNil)
 
 	s := &States{
 		m: map[asset.Item]map[*currency.Item]*Currency{},
@@ -221,24 +179,17 @@ func TestStatesUpdateAll(t *testing.T) {
 			Deposit:  convert.BoolPtr(true),
 		},
 	})
-
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = s.UpdateAll(asset.Spot, map[currency.Code]Options{currency.BTC: {
 		Withdraw: convert.BoolPtr(false),
 		Deposit:  convert.BoolPtr(false),
 		Trade:    convert.BoolPtr(false),
 	}})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	c, err := s.Get(currency.BTC, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	if c.CanDeposit() || c.CanTrade() || c.CanWithdraw() {
 		t.Fatal()
@@ -248,51 +199,35 @@ func TestStatesUpdateAll(t *testing.T) {
 func TestStatesUpdate(t *testing.T) {
 	t.Parallel()
 	err := (*States)(nil).Update(currency.EMPTYCODE, asset.Empty, Options{})
-	if !errors.Is(err, errNilStates) {
-		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
-	}
+	require.ErrorIs(t, err, errNilStates)
 
 	err = (&States{}).Update(currency.EMPTYCODE, asset.Empty, Options{})
-	if !errors.Is(err, errEmptyCurrency) {
-		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
-	}
+	require.ErrorIs(t, err, errEmptyCurrency)
 
 	err = (&States{}).Update(currency.BTC, asset.Empty, Options{})
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
 			asset.Spot: {currency.BTC.Item: &Currency{}},
 		},
 	}).Update(currency.BTC, asset.Spot, Options{})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestStatesGet(t *testing.T) {
 	t.Parallel()
 	_, err := (*States)(nil).Get(currency.EMPTYCODE, asset.Empty)
-	if !errors.Is(err, errNilStates) {
-		t.Fatalf("received: %v, but expected: %v", err, errNilStates)
-	}
+	require.ErrorIs(t, err, errNilStates)
 
 	_, err = (&States{}).Get(currency.EMPTYCODE, asset.Empty)
-	if !errors.Is(err, errEmptyCurrency) {
-		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
-	}
+	require.ErrorIs(t, err, errEmptyCurrency)
 
 	_, err = (&States{}).Get(currency.BTC, asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = (&States{}).Get(currency.BTC, asset.Spot)
-	if !errors.Is(err, ErrCurrencyStateNotFound) {
-		t.Fatalf("received: %v, but expected: %v", err, ErrCurrencyStateNotFound)
-	}
+	require.ErrorIs(t, err, ErrCurrencyStateNotFound)
 }
 
 func TestCurrencyGetState(t *testing.T) {

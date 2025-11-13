@@ -1,11 +1,11 @@
 package engine
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
@@ -25,15 +25,12 @@ func TestAddRun(t *testing.T) {
 	t.Parallel()
 	rm := NewTaskManager()
 	err := rm.AddTask(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	bt := &BackTest{}
 	err = rm.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if bt.MetaData.ID.IsNil() {
 		t.Errorf("received '%v' expected '%v'", bt.MetaData.ID, "a random ID")
 	}
@@ -42,63 +39,51 @@ func TestAddRun(t *testing.T) {
 	}
 
 	err = rm.AddTask(bt)
-	if !errors.Is(err, errTaskAlreadyMonitored) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskAlreadyMonitored)
-	}
+	assert.ErrorIs(t, err, errTaskAlreadyMonitored)
+
 	if len(rm.tasks) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(rm.tasks), 1)
 	}
 
 	rm = nil
 	err = rm.AddTask(bt)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestGetSummary(t *testing.T) {
 	t.Parallel()
 	rm := NewTaskManager()
 	id, err := uuid.NewV4()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = rm.GetSummary(id)
-	if !errors.Is(err, errTaskNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskNotFound)
-	}
+	assert.ErrorIs(t, err, errTaskNotFound)
 
 	bt := &BackTest{
 		Strategy:  &binancecashandcarry.Strategy{},
 		Statistic: &statistics.Statistic{},
 	}
 	err = rm.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	sum, err := rm.GetSummary(bt.MetaData.ID)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if sum.MetaData.ID != bt.MetaData.ID {
 		t.Errorf("received '%v' expected '%v'", sum.MetaData.ID, bt.MetaData.ID)
 	}
 
 	rm = nil
 	_, err = rm.GetSummary(id)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestList(t *testing.T) {
 	t.Parallel()
 	rm := NewTaskManager()
 	list, err := rm.List()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(list) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(list), 0)
 	}
@@ -108,44 +93,35 @@ func TestList(t *testing.T) {
 		Statistic: &statistics.Statistic{},
 	}
 	err = rm.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	list, err = rm.List()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(list) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(list), 1)
 	}
 
 	rm = nil
 	_, err = rm.List()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestStopRun(t *testing.T) {
 	t.Parallel()
 	rm := NewTaskManager()
 	list, err := rm.List()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(list) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(list), 0)
 	}
 
 	id, err := uuid.NewV4()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = rm.StopTask(id)
-	if !errors.Is(err, errTaskNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskNotFound)
-	}
+	assert.ErrorIs(t, err, errTaskNotFound)
 
 	bt := &BackTest{
 		Strategy:  &fakeStrat{},
@@ -154,42 +130,31 @@ func TestStopRun(t *testing.T) {
 		shutdown:  make(chan struct{}),
 	}
 	err = rm.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = rm.StopTask(bt.MetaData.ID)
-	if !errors.Is(err, errTaskHasNotRan) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskHasNotRan)
-	}
+	assert.ErrorIs(t, err, errTaskHasNotRan)
 
 	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Now()
 	bt.m.Unlock()
 	err = rm.StopTask(bt.MetaData.ID)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = rm.StopTask(bt.MetaData.ID)
-	if !errors.Is(err, errAlreadyRan) {
-		t.Errorf("received '%v' expected '%v'", err, errAlreadyRan)
-	}
+	assert.ErrorIs(t, err, errAlreadyRan)
 
 	rm = nil
 	err = rm.StopTask(id)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestStopAllRuns(t *testing.T) {
 	t.Parallel()
 	rm := NewTaskManager()
 	stoppedRuns, err := rm.StopAllTasks()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(stoppedRuns) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(stoppedRuns), 0)
 	}
@@ -201,46 +166,38 @@ func TestStopAllRuns(t *testing.T) {
 		shutdown:  make(chan struct{}),
 	}
 	err = rm.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Now()
 	bt.m.Unlock()
 	stoppedRuns, err = rm.StopAllTasks()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(stoppedRuns) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(stoppedRuns), 1)
 	}
 
 	rm = nil
 	_, err = rm.StopAllTasks()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestStartRun(t *testing.T) {
 	t.Parallel()
 	rm := NewTaskManager()
 	list, err := rm.List()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(list) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(list), 0)
 	}
 
 	id, err := uuid.NewV4()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = rm.StartTask(id)
-	if !errors.Is(err, errTaskNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskNotFound)
-	}
+	assert.ErrorIs(t, err, errTaskNotFound)
 
 	bt := &BackTest{
 		Strategy:   &binancecashandcarry.Strategy{},
@@ -250,18 +207,14 @@ func TestStartRun(t *testing.T) {
 		shutdown:   make(chan struct{}),
 	}
 	err = rm.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	err = rm.StartTask(bt.MetaData.ID)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = rm.StartTask(bt.MetaData.ID)
-	if !errors.Is(err, errTaskIsRunning) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskIsRunning)
-	}
+	assert.NoError(t, err)
+
+	err = rm.StartTask(bt.MetaData.ID)
+	assert.ErrorIs(t, err, errTaskIsRunning)
+
 	bt.m.Lock()
 	bt.MetaData.DateEnded = time.Now()
 	bt.MetaData.Closed = true
@@ -269,24 +222,19 @@ func TestStartRun(t *testing.T) {
 	bt.m.Unlock()
 
 	err = rm.StartTask(bt.MetaData.ID)
-	if !errors.Is(err, errAlreadyRan) {
-		t.Errorf("received '%v' expected '%v'", err, errAlreadyRan)
-	}
+	assert.ErrorIs(t, err, errAlreadyRan)
 
 	rm = nil
 	err = rm.StartTask(id)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestStartAllRuns(t *testing.T) {
 	t.Parallel()
 	rm := NewTaskManager()
 	startedRuns, err := rm.StartAllTasks()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(startedRuns) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(startedRuns), 0)
 	}
@@ -299,22 +247,18 @@ func TestStartAllRuns(t *testing.T) {
 		shutdown:   make(chan struct{}),
 	}
 	err = rm.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	startedRuns, err = rm.StartAllTasks()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(startedRuns) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(startedRuns), 1)
 	}
 
 	rm = nil
 	_, err = rm.StartAllTasks()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestClearRun(t *testing.T) {
@@ -322,13 +266,10 @@ func TestClearRun(t *testing.T) {
 	rm := NewTaskManager()
 
 	id, err := uuid.NewV4()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = rm.ClearTask(id)
-	if !errors.Is(err, errTaskNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, errTaskNotFound)
-	}
+	assert.ErrorIs(t, err, errTaskNotFound)
 
 	bt := &BackTest{
 		Strategy:   &binancecashandcarry.Strategy{},
@@ -338,38 +279,30 @@ func TestClearRun(t *testing.T) {
 		shutdown:   make(chan struct{}),
 	}
 	err = rm.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Now()
 	bt.m.Unlock()
 	err = rm.ClearTask(bt.MetaData.ID)
-	if !errors.Is(err, errCannotClear) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotClear)
-	}
+	assert.ErrorIs(t, err, errCannotClear)
 
 	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Time{}
 	bt.m.Unlock()
 	err = rm.ClearTask(bt.MetaData.ID)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	list, err := rm.List()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(list) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(list), 0)
 	}
 
 	rm = nil
 	err = rm.ClearTask(id)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestClearAllRuns(t *testing.T) {
@@ -383,9 +316,7 @@ func TestClearAllRuns(t *testing.T) {
 	if len(remainingRuns) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(remainingRuns), 0)
 	}
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	bt := &BackTest{
 		Strategy:   &binancecashandcarry.Strategy{},
@@ -395,9 +326,7 @@ func TestClearAllRuns(t *testing.T) {
 		shutdown:   make(chan struct{}),
 	}
 	err = rm.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Now()
@@ -409,9 +338,7 @@ func TestClearAllRuns(t *testing.T) {
 	if len(remainingRuns) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(remainingRuns), 1)
 	}
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	bt.m.Lock()
 	bt.MetaData.DateStarted = time.Time{}
@@ -423,20 +350,16 @@ func TestClearAllRuns(t *testing.T) {
 	if len(remainingRuns) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(remainingRuns), 0)
 	}
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	list, err := rm.List()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(list) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(list), 0)
 	}
 
 	rm = nil
 	_, _, err = rm.ClearAllTasks()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }

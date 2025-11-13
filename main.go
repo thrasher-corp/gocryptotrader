@@ -42,8 +42,6 @@ func main() {
 	flag.BoolVar(&settings.EnableGRPC, "grpc", true, "enables the grpc server")
 	flag.BoolVar(&settings.EnableGRPCProxy, "grpcproxy", false, "enables the grpc proxy server")
 	flag.BoolVar(&settings.EnableGRPCShutdown, "grpcshutdown", false, "enables gRPC bot instance shutdown functionality")
-	flag.BoolVar(&settings.EnableWebsocketRPC, "websocketrpc", true, "enables the websocket RPC server")
-	flag.BoolVar(&settings.EnableDeprecatedRPC, "deprecatedrpc", true, "enables the deprecated RPC server")
 	flag.BoolVar(&settings.EnableCommsRelayer, "enablecommsrelayer", true, "enables available communications relayer")
 	flag.BoolVar(&settings.Verbose, "verbose", false, "increases logging verbosity for GoCryptoTrader")
 	flag.BoolVar(&settings.EnableFuturesTracking, "enablefuturestracking", true, "tracks futures orders PNL is supported by the exchange")
@@ -141,7 +139,7 @@ func main() {
 
 	gctscript.Setup()
 
-	gctlog.Infof(gctlog.Global, "JSON encoding is set to package `%s`", json.Implementation)
+	gctlog.Infof(gctlog.Global, "JSON encoding is set to package %q", json.Implementation)
 
 	engine.Bot.Settings.PrintLoadedSettings()
 

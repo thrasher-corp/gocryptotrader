@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -27,44 +26,35 @@ const (
 	canManipulateRealOrders = false
 )
 
-var e = &EXMO{}
+var (
+	e        *Exchange
+	testPair = currency.NewBTCUSD().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})
+)
 
 func TestMain(m *testing.M) {
-	e.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Exmo load config error", err)
-	}
-	exmoConf, err := cfg.GetExchangeConfig("EXMO")
-	if err != nil {
-		log.Fatal("Exmo Setup() init error")
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
+		log.Fatalf("EXMO Setup error: %s", err)
 	}
 
-	err = e.Setup(exmoConf)
-	if err != nil {
-		log.Fatal("Exmo setup error", err)
+	if APIKey != "" && APISecret != "" {
+		e.API.AuthenticatedSupport = true
+		e.SetCredentials(APIKey, APISecret, "", "", "", "")
 	}
 
-	e.API.AuthenticatedSupport = true
-	e.SetCredentials(APIKey, APISecret, "", "", "", "")
 	os.Exit(m.Run())
 }
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTrades(t.Context(), "BTC_USD")
-	if err != nil {
-		t.Errorf("Err: %s", err)
-	}
+	_, err := e.GetTrades(t.Context(), testPair.String())
+	assert.NoError(t, err, "GetTrades should not error")
 }
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOrderbook(t.Context(), "BTC_USD")
-	if err != nil {
-		t.Errorf("Err: %s", err)
-	}
+	_, err := e.GetOrderbook(t.Context(), testPair.String())
+	assert.NoError(t, err, "GetOrderbook should not error")
 }
 
 func TestGetTicker(t *testing.T) {
@@ -105,24 +95,21 @@ func TestGetRequiredAmount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := e.GetRequiredAmount(t.Context(), "BTC_USD", 100)
-	if err != nil {
-		t.Errorf("Err: %s", err)
-	}
+	_, err := e.GetRequiredAmount(t.Context(), testPair.String(), 100)
+	assert.NoError(t, err, "GetRequiredAmount should not error")
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
 		Amount:              1,
 		FeeType:             exchange.CryptocurrencyTradeFee,
-		Pair:                currency.NewPair(currency.BTC, currency.LTC),
+		Pair:                testPair,
 		PurchasePrice:       1,
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
 	}
 }
 
-// TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	feeBuilder := setFeeBuilder()
 	_, err := e.GetFeeByType(t.Context(), feeBuilder)
@@ -274,7 +261,7 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
 	}
-	currPair := currency.NewPair(currency.BTC, currency.USD)
+	currPair := currency.NewBTCUSD()
 	currPair.Delimiter = "_"
 	getOrdersRequest.Pairs = []currency.Pair{currPair}
 
@@ -294,12 +281,8 @@ func TestSubmitOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	orderSubmission := &order.Submit{
-		Exchange: e.Name,
-		Pair: currency.Pair{
-			Delimiter: "_",
-			Base:      currency.BTC,
-			Quote:     currency.USD,
-		},
+		Exchange:  e.Name,
+		Pair:      testPair,
 		Side:      order.Buy,
 		Type:      order.Limit,
 		Price:     1,
@@ -319,11 +302,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := &order.Cancel{
 		OrderID:   "1",
 		AccountID: "1",
-		Pair:      currencyPair,
+		Pair:      testPair,
 		AssetType: asset.Spot,
 	}
 
@@ -340,11 +322,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := &order.Cancel{
 		OrderID:   "1",
 		AccountID: "1",
-		Pair:      currencyPair,
+		Pair:      testPair,
 		AssetType: asset.Spot,
 	}
 
@@ -444,39 +425,20 @@ func TestGetCryptoDepositAddress(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTC_USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = e.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := e.GetRecentTrades(t.Context(), testPair, asset.Spot)
+	assert.NoError(t, err, "GetRecentTrades should not error")
 }
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTC_USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = e.GetHistoricTrades(t.Context(),
-		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	if err != nil && err != common.ErrFunctionNotSupported {
-		t.Error(err)
-	}
+	_, err := e.GetHistoricTrades(t.Context(), testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = e.UpdateTicker(t.Context(), cp, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := e.UpdateTicker(t.Context(), testPair, asset.Spot)
+	assert.NoError(t, err, "UpdateTicker should not error")
 }
 
 func TestUpdateTickers(t *testing.T) {
@@ -540,8 +502,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		pairs, err := e.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

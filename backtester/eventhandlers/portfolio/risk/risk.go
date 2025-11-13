@@ -23,17 +23,12 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 	if !ok {
 		return nil, fmt.Errorf("%w expected order event", common.ErrInvalidDataType)
 	}
-	ex := o.GetExchange()
+	e := o.GetExchange()
 	a := o.GetAssetType()
 	p := o.Pair().Format(currency.EMPTYFORMAT)
-	lookup, ok := r.CurrencySettings[key.ExchangePairAsset{
-		Exchange: ex,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}]
+	lookup, ok := r.CurrencySettings[key.NewExchangeAssetPair(e, a, p)]
 	if !ok {
-		return nil, fmt.Errorf("%v %v %v %w", ex, a, p, errNoCurrencySettings)
+		return nil, fmt.Errorf("%v %v %v %w", e, a, p, errNoCurrencySettings)
 	}
 
 	if o.IsLeveraged() {
@@ -52,7 +47,7 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 	if len(latestHoldings) > 1 {
 		ratio := assessHoldingsRatio(o.Pair(), latestHoldings)
 		if lookup.MaximumHoldingRatio.GreaterThan(decimal.Zero) && !ratio.Equal(decimal.NewFromInt(1)) && ratio.GreaterThan(lookup.MaximumHoldingRatio) {
-			return nil, fmt.Errorf("order would exceed maximum holding ratio of %v to %v for %v %v %v. %w", lookup.MaximumHoldingRatio, ratio, ex, a, p, errCannotPlaceLeverageOrder)
+			return nil, fmt.Errorf("order would exceed maximum holding ratio of %v to %v for %v %v %v. %w", lookup.MaximumHoldingRatio, ratio, e, a, p, errCannotPlaceLeverageOrder)
 		}
 	}
 	return retOrder, nil

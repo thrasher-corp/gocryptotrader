@@ -1,9 +1,10 @@
 package kucoin
 
 import (
-	"time"
-
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -86,11 +87,11 @@ type FuturesTicker struct {
 }
 
 type futuresOrderbookResponse struct {
-	Asks     [][2]float64 `json:"asks"`
-	Bids     [][2]float64 `json:"bids"`
-	Time     types.Time   `json:"ts"`
-	Sequence int64        `json:"sequence"`
-	Symbol   string       `json:"symbol"`
+	Asks     orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids     orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Time     types.Time                       `json:"ts"`
+	Sequence int64                            `json:"sequence"`
+	Symbol   string                           `json:"symbol"`
 }
 
 // FuturesTrade stores trade data
@@ -147,12 +148,17 @@ type FundingHistoryItem struct {
 
 // FuturesKline stores kline data
 type FuturesKline struct {
-	StartTime time.Time
+	StartTime types.Time
 	Open      float64
 	Close     float64
 	High      float64
 	Low       float64
 	Volume    float64
+}
+
+// UnmarshalJSON parses kline data from a JSON array into FuturesKline fields.
+func (f *FuturesKline) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[6]any{&f.StartTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume})
 }
 
 // FutureOrdersResponse represents a future order response list detail
@@ -325,14 +331,14 @@ type FuturesFundingHistory struct {
 
 // FuturesAccount holds futures account detail information
 type FuturesAccount struct {
-	AccountEquity    float64 `json:"accountEquity"` // marginBalance + Unrealised PNL
-	UnrealisedPNL    float64 `json:"unrealisedPNL"` // unrealised profit and loss
-	MarginBalance    float64 `json:"marginBalance"` // positionMargin + orderMargin + frozenFunds + availableBalance - unrealisedPNL
-	PositionMargin   float64 `json:"positionMargin"`
-	OrderMargin      float64 `json:"orderMargin"`
-	FrozenFunds      float64 `json:"frozenFunds"` // frozen funds for withdrawal and out-transfer
-	AvailableBalance float64 `json:"availableBalance"`
-	Currency         string  `json:"currency"`
+	AccountEquity    float64       `json:"accountEquity"` // marginBalance + Unrealised PNL
+	UnrealisedPNL    float64       `json:"unrealisedPNL"` // unrealised profit and loss
+	MarginBalance    float64       `json:"marginBalance"` // positionMargin + orderMargin + frozenFunds + availableBalance - unrealisedPNL
+	PositionMargin   float64       `json:"positionMargin"`
+	OrderMargin      float64       `json:"orderMargin"`
+	FrozenFunds      float64       `json:"frozenFunds"` // frozen funds for withdrawal and out-transfer
+	AvailableBalance float64       `json:"availableBalance"`
+	Currency         currency.Code `json:"currency"`
 }
 
 // FuturesTransactionHistory represents a transaction history

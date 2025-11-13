@@ -1,26 +1,29 @@
 LDFLAGS = -ldflags "-w -s"
 GCTPKG = github.com/thrasher-corp/gocryptotrader
-LINTPKG = github.com/golangci/golangci-lint/cmd/golangci-lint@v2.0.2
+LINTPKG = github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0
+GOPATH ?= $(shell go env GOPATH)
 LINTBIN = $(GOPATH)/bin/golangci-lint
+GOFUMPTBIN = $(GOPATH)/bin/gofumpt
 GCTLISTENPORT=9050
 GCTPROFILERLISTENPORT=8085
+GO_FILES_TO_FORMAT := $(shell find . -type f -name '*.go' 	-not -path "./database/models/*" 	-not -path "./vendor/*" 	-not -name "*.pb.go" 	-not -name "*.pb.gw.go")
 DRIVER ?= psql
 RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
 CONFIG_FLAG = $(if $(CONFIG),-config $(CONFIG),)
 
-.PHONY: get linter check test build install update_deps
+.PHONY: all lint lint_docker check test build install fmt gofumpt update_deps modernise
 
 all: check build
 
-get:
-	go install $(GCTPKG)
-
-linter:
-	go install $(GCTPKG)
+lint:
 	go install $(LINTPKG)
-	test -z "$$($(LINTBIN) run --verbose | tee /dev/stderr)"
+	$(LINTBIN) run --verbose
 
-check: linter test
+lint_docker:
+	@command -v docker >/dev/null 2>&1 || (echo "Docker not found. Please install Docker to run this target." && exit 1)
+	docker run --rm -t -v $(CURDIR):/app -w /app golangci/golangci-lint:v2.4.0 golangci-lint run --verbose
+
+check: lint test
 
 test:
 	go test $(RACE_FLAG) -coverprofile=coverage.txt -covermode=atomic  ./...
@@ -32,7 +35,15 @@ install:
 	go install $(LDFLAGS)
 
 fmt:
-	gofmt -l -w -s $(shell find . -type f -name '*.go')
+	gofmt -l -w -s $(GO_FILES_TO_FORMAT)
+
+gofumpt:
+	@command -v gofumpt >/dev/null 2>&1 || go install mvdan.cc/gofumpt@latest
+	$(GOFUMPTBIN) -l -w $(GO_FILES_TO_FORMAT)
+
+modernise:
+	@command -v modernize >/dev/null 2>&1 || go install golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest
+	modernize -test ./...
 
 update_deps:
 	go mod verify

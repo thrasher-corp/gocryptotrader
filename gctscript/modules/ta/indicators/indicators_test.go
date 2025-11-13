@@ -1,7 +1,6 @@
 package indicators
 
 import (
-	"errors"
 	"math/rand"
 	"os"
 	"reflect"
@@ -55,9 +54,7 @@ func TestMain(m *testing.M) {
 func TestMfi(t *testing.T) {
 	_, err := mfi()
 	if err != nil {
-		if !errors.Is(err, objects.ErrWrongNumArguments) {
-			t.Error(err)
-		}
+		assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 	}
 
 	v := &objects.String{Value: testString}
@@ -115,7 +112,7 @@ func TestRsi(t *testing.T) {
 
 	validator.IsTestExecution.Store(true)
 	ret, err := rsi(ohlcvData, &objects.Int{Value: 14})
-	require.NoError(t, err, "rsi should not throw an error")
+	require.NoError(t, err, "rsi must not throw an error")
 	assert.NotNil(t, ret)
 
 	validator.IsTestExecution.Store(false)
@@ -124,9 +121,7 @@ func TestRsi(t *testing.T) {
 func TestEMA(t *testing.T) {
 	_, err := ema()
 	if err != nil {
-		if !errors.Is(err, objects.ErrWrongNumArguments) {
-			t.Error(err)
-		}
+		assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 	}
 
 	v := &objects.String{Value: testString}
@@ -166,9 +161,7 @@ func TestEMA(t *testing.T) {
 func TestSMA(t *testing.T) {
 	_, err := sma()
 	if err != nil {
-		if !errors.Is(err, objects.ErrWrongNumArguments) {
-			t.Error(err)
-		}
+		assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 	}
 
 	v := &objects.String{Value: testString}
@@ -208,9 +201,7 @@ func TestSMA(t *testing.T) {
 func TestMACD(t *testing.T) {
 	_, err := macd()
 	if err != nil {
-		if !errors.Is(err, objects.ErrWrongNumArguments) {
-			t.Error(err)
-		}
+		assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 	}
 
 	v := &objects.String{Value: testString}
@@ -256,9 +247,7 @@ func TestMACD(t *testing.T) {
 func TestAtr(t *testing.T) {
 	_, err := atr()
 	if err != nil {
-		if !errors.Is(err, objects.ErrWrongNumArguments) {
-			t.Error(err)
-		}
+		assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 	}
 
 	v := &objects.String{Value: testString}
@@ -298,9 +287,7 @@ func TestAtr(t *testing.T) {
 func TestBbands(t *testing.T) {
 	_, err := bbands()
 	if err != nil {
-		if !errors.Is(err, objects.ErrWrongNumArguments) {
-			t.Error(err)
-		}
+		assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 	}
 
 	_, err = bbands(&objects.String{Value: testString}, ohlcvData,
@@ -361,9 +348,7 @@ func TestBbands(t *testing.T) {
 		&objects.Float{Value: 2.0},
 		&objects.String{Value: testString})
 	if err != nil {
-		if !errors.Is(err, errInvalidSelector) {
-			t.Error(err)
-		}
+		assert.ErrorIs(t, err, errInvalidSelector)
 	}
 
 	_, err = bbands(objects.UndefinedValue, ohlcvData,
@@ -379,9 +364,7 @@ func TestBbands(t *testing.T) {
 func TestOBV(t *testing.T) {
 	_, err := obv()
 	if err != nil {
-		if !errors.Is(err, objects.ErrWrongNumArguments) {
-			t.Error(err)
-		}
+		assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 	}
 
 	_, err = obv(ohlcvData)

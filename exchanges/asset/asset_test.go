@@ -1,7 +1,6 @@
 package asset
 
 import (
-	"errors"
 	"slices"
 	"testing"
 
@@ -19,6 +18,14 @@ func TestString(t *testing.T) {
 			assert.NotEmptyf(t, a.String(), "%s.String should return empty", a)
 		}
 	}
+}
+
+func TestUpper(t *testing.T) {
+	t.Parallel()
+	a := Spot
+	require.Equal(t, "SPOT", a.Upper())
+	a = 0
+	require.Empty(t, a.Upper())
 }
 
 func TestStrings(t *testing.T) {
@@ -125,9 +132,8 @@ func TestNew(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			returned, err := New(tt.Input)
-			if !errors.Is(err, tt.Error) {
-				t.Fatalf("received: '%v' but expected: '%v'", err, tt.Error)
-			}
+			require.ErrorIs(t, err, tt.Error)
+
 			if returned != tt.Expected {
 				t.Fatalf("received: '%v' but expected: '%v'", returned, tt.Expected)
 			}
@@ -151,18 +157,14 @@ func TestSupported(t *testing.T) {
 func TestUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
 	data, err := json.Marshal(Item(0))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if string(data) != `""` {
 		t.Fatal("unexpected value")
 	}
 
 	data, err = json.Marshal(Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if string(data) != `"spot"` {
 		t.Fatal("unexpected value")
@@ -171,28 +173,20 @@ func TestUnmarshalMarshal(t *testing.T) {
 	var spot Item
 
 	err = json.Unmarshal(data, &spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if spot != Spot {
 		t.Fatal("unexpected value")
 	}
 
 	err = json.Unmarshal([]byte(`"confused"`), &spot)
-	if !errors.Is(err, ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrNotSupported)
-	}
+	require.ErrorIs(t, err, ErrNotSupported)
 
 	err = json.Unmarshal([]byte(`""`), &spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = json.Unmarshal([]byte(`123`), &spot)
-	if errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", nil, "an error")
-	}
+	assert.Error(t, err, "Unmarshal should error correctly")
 }
 
 func TestUseDefault(t *testing.T) {

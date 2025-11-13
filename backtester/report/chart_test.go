@@ -1,11 +1,12 @@
 package report
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	evkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -22,9 +23,8 @@ import (
 func TestCreateUSDTotalsChart(t *testing.T) {
 	t.Parallel()
 	_, err := createUSDTotalsChart(nil, nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
 	tt := time.Now()
 	items := []statistics.ValueAtTime{
 		{
@@ -34,9 +34,8 @@ func TestCreateUSDTotalsChart(t *testing.T) {
 		},
 	}
 	_, err = createUSDTotalsChart(items, nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
 	stats := []statistics.FundingItemStatistics{
 		{
 			ReportItem: &funding.ReportItem{
@@ -50,9 +49,8 @@ func TestCreateUSDTotalsChart(t *testing.T) {
 		},
 	}
 	resp, err := createUSDTotalsChart(items, stats)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(resp.Data) == 0 {
 		t.Fatal("expected not nil")
 	}
@@ -67,9 +65,8 @@ func TestCreateUSDTotalsChart(t *testing.T) {
 func TestCreateHoldingsOverTimeChart(t *testing.T) {
 	t.Parallel()
 	_, err := createHoldingsOverTimeChart(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
 	tt := time.Now()
 	items := []statistics.FundingItemStatistics{
 		{
@@ -90,9 +87,7 @@ func TestCreateHoldingsOverTimeChart(t *testing.T) {
 		},
 	}
 	resp, err := createHoldingsOverTimeChart(items)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if !resp.ShowZeroDisclaimer {
 		t.Error("expected ShowZeroDisclaimer")
@@ -102,20 +97,13 @@ func TestCreateHoldingsOverTimeChart(t *testing.T) {
 func TestCreatePNLCharts(t *testing.T) {
 	t.Parallel()
 	_, err := createPNLCharts(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	tt := time.Now()
 	var d Data
 	d.Statistics = &statistics.Statistic{}
-	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     currency.BTC.Item,
-		Quote:    currency.USDT.Item,
-		Asset:    asset.Spot,
-	}] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Spot, currency.NewBTCUSDT())] = &statistics.CurrencyPairStatistic{
 		Events: []statistics.DataAtOffset{
 			{
 				PNL: &portfolio.PNLSummary{
@@ -135,7 +123,7 @@ func TestCreatePNLCharts(t *testing.T) {
 
 	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
-		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Pair:     currency.NewBTCUSDT(),
 		Asset:    asset.Spot,
 		Interval: gctkline.OneDay,
 		Candles: []gctkline.Candle{
@@ -149,39 +137,27 @@ func TestCreatePNLCharts(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = createPNLCharts(d.Statistics.ExchangeAssetPairStatistics)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCreateFuturesSpotDiffChart(t *testing.T) {
 	t.Parallel()
 	_, err := createFuturesSpotDiffChart(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	tt := time.Now()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	cp2 := currency.NewPair(currency.BTC, currency.DOGE)
 	var d Data
 	d.Statistics = &statistics.Statistic{}
-	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     currency.BTC.Item,
-		Quote:    currency.USD.Item,
-		Asset:    asset.Spot,
-	}] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Spot, currency.NewBTCUSD())] = &statistics.CurrencyPairStatistic{
 		Currency: cp,
 		Events: []statistics.DataAtOffset{
 			{
@@ -201,12 +177,7 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 			},
 		},
 	}
-	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     currency.BTC.Item,
-		Quote:    currency.DOGE.Item,
-		Asset:    asset.Futures,
-	}] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Futures, currency.NewPair(currency.BTC, currency.DOGE))] = &statistics.CurrencyPairStatistic{
 		UnderlyingPair: cp,
 		Currency:       cp2,
 		Events: []statistics.DataAtOffset{
@@ -229,9 +200,8 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 	}
 
 	charty, err := createFuturesSpotDiffChart(d.Statistics.ExchangeAssetPairStatistics)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(charty.Data) == 0 {
 		t.Error("expected data")
 	}

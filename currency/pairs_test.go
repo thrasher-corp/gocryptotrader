@@ -1,7 +1,6 @@
 package currency
 
 import (
-	"errors"
 	"slices"
 	"testing"
 
@@ -52,18 +51,13 @@ func TestPairsString(t *testing.T) {
 
 func TestPairsFromString(t *testing.T) {
 	t.Parallel()
-	if _, err := NewPairsFromString("", ""); !errors.Is(err, errNoDelimiter) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoDelimiter)
-	}
-
-	if _, err := NewPairsFromString("", ","); !errors.Is(err, errCannotCreatePair) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCreatePair)
-	}
+	_, err := NewPairsFromString("", "")
+	assert.ErrorIs(t, err, errNoDelimiter)
+	_, err = NewPairsFromString("", ",")
+	assert.ErrorIs(t, err, errCannotCreatePair)
 
 	pairs, err := NewPairsFromString("ALGO-AUD,BAT-AUD,BCH-AUD,BSV-AUD,BTC-AUD,COMP-AUD,ENJ-AUD,ETC-AUD,ETH-AUD,ETH-BTC,GNT-AUD,LINK-AUD,LTC-AUD,LTC-BTC,MCAU-AUD,OMG-AUD,POWR-AUD,UNI-AUD,USDT-AUD,XLM-AUD,XRP-AUD,XRP-BTC", ",")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	expected := []string{
 		"ALGO-AUD", "BAT-AUD", "BCH-AUD", "BSV-AUD", "BTC-AUD",
@@ -72,12 +66,7 @@ func TestPairsFromString(t *testing.T) {
 		"UNI-AUD", "USDT-AUD", "XLM-AUD", "XRP-AUD", "XRP-BTC",
 	}
 
-	returned := pairs.Strings()
-	for x := range returned {
-		if returned[x] != expected[x] {
-			t.Fatalf("received: '%v' but expected: '%v'", returned[x], expected[x])
-		}
-	}
+	assert.Equal(t, expected, pairs.Strings(), "NewPairsFromString should return the correct pairs")
 }
 
 func TestPairsJoin(t *testing.T) {
@@ -171,7 +160,7 @@ func TestPairsMarshalJSON(t *testing.T) {
 func TestRemovePairsByFilter(t *testing.T) {
 	t.Parallel()
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(LTC, USDT),
 	}
@@ -185,7 +174,7 @@ func TestRemovePairsByFilter(t *testing.T) {
 func TestGetPairsByFilter(t *testing.T) {
 	t.Parallel()
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(LTC, USDT),
 	}
@@ -200,7 +189,7 @@ func TestGetPairsByFilter(t *testing.T) {
 func TestRemove(t *testing.T) {
 	t.Parallel()
 	oldPairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(LTC, USDT),
 	}
@@ -212,8 +201,8 @@ func TestRemove(t *testing.T) {
 	err := compare.ContainsAll(oldPairs, true)
 	assert.NoError(t, err, "Remove should not affect the original pairs")
 
-	require.Len(t, newPairs, 1, "Remove should remove a pair")
-	require.Equal(t, oldPairs[2], newPairs[0], "Remove should leave the final pair")
+	require.Len(t, newPairs, 1, "Remove must remove a pair")
+	require.Equal(t, oldPairs[2], newPairs[0], "Remove must leave the final pair")
 
 	newPairs = newPairs.Remove(oldPairs[0])
 	assert.Len(t, newPairs, 1, "Remove should have no effect on non-included pairs")
@@ -221,9 +210,9 @@ func TestRemove(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	orig := Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(LTC, USDT)}
+	orig := Pairs{NewBTCUSD(), NewPair(LTC, USD), NewPair(LTC, USDT)}
 	p := slices.Clone(orig)
-	p2 := Pairs{NewPair(BTC, USDT), NewPair(ETH, USD), NewPair(BTC, ETH)}
+	p2 := Pairs{NewBTCUSDT(), NewPair(ETH, USD), NewPair(BTC, ETH)}
 
 	pT := p.Add(p...)
 	assert.Equal(t, pT.Join(), orig.Join(), "Adding only existing pairs should return same Pairs")
@@ -244,12 +233,12 @@ func TestAdd(t *testing.T) {
 func TestContains(t *testing.T) {
 	t.Parallel()
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, ZRX),
 	}
 
-	if !pairs.Contains(NewPair(BTC, USD), true) {
+	if !pairs.Contains(NewBTCUSD(), true) {
 		t.Errorf("TestContains: Expected pair was not found")
 	}
 
@@ -269,67 +258,50 @@ func TestContains(t *testing.T) {
 func TestContainsAll(t *testing.T) {
 	t.Parallel()
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, ZRX),
 	}
 
 	err := pairs.ContainsAll(nil, true)
-	if !errors.Is(err, ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
-	}
+	require.ErrorIs(t, err, ErrCurrencyPairsEmpty)
 
-	err = pairs.ContainsAll(Pairs{NewPair(BTC, USD)}, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	err = pairs.ContainsAll(Pairs{NewBTCUSD()}, true)
+	require.NoError(t, err)
 
 	err = pairs.ContainsAll(Pairs{NewPair(USD, BTC)}, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, false)
-	if !errors.Is(err, ErrPairNotContainedInAvailablePairs) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotContainedInAvailablePairs)
-	}
+	require.ErrorIs(t, err, ErrPairNotContainedInAvailablePairs)
 
 	err = pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, true)
-	if !errors.Is(err, ErrPairNotContainedInAvailablePairs) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotContainedInAvailablePairs)
-	}
+	require.ErrorIs(t, err, ErrPairNotContainedInAvailablePairs)
 
 	err = pairs.ContainsAll(pairs, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = pairs.ContainsAll(pairs, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	duplication := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, ZRX),
 		NewPair(USD, ZRX),
 	}
 
 	err = pairs.ContainsAll(duplication, false)
-	if !errors.Is(err, ErrPairDuplication) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairDuplication)
-	}
+	require.ErrorIs(t, err, ErrPairDuplication)
 }
 
 func TestDeriveFrom(t *testing.T) {
 	t.Parallel()
 	_, err := Pairs{}.DeriveFrom("")
-	if !errors.Is(err, ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
-	}
+	require.ErrorIs(t, err, ErrCurrencyPairsEmpty)
+
 	testCases := Pairs{
-		NewPair(BTC, USDT),
+		NewBTCUSDT(),
 		NewPair(USDC, USDT),
 		NewPair(USDC, USD),
 		NewPair(BTC, LTC),
@@ -337,19 +309,13 @@ func TestDeriveFrom(t *testing.T) {
 	}
 
 	_, err = testCases.DeriveFrom("")
-	if !errors.Is(err, errSymbolEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolEmpty)
-	}
+	require.ErrorIs(t, err, errSymbolEmpty)
 
 	_, err = testCases.DeriveFrom("btcUSD")
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
-	}
+	require.ErrorIs(t, err, ErrPairNotFound)
 
 	got, err := testCases.DeriveFrom("USDCUSD")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if got.Upper().String() != "USDCUSD" {
 		t.Fatalf("received: '%v' but expected: '%v'", got.Upper().String(), "USDCUSD")
@@ -359,7 +325,7 @@ func TestDeriveFrom(t *testing.T) {
 func TestGetCrypto(t *testing.T) {
 	t.Parallel()
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -370,7 +336,7 @@ func TestGetCrypto(t *testing.T) {
 func TestGetFiat(t *testing.T) {
 	t.Parallel()
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -381,7 +347,7 @@ func TestGetFiat(t *testing.T) {
 func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -392,7 +358,7 @@ func TestGetCurrencies(t *testing.T) {
 func TestGetStables(t *testing.T) {
 	t.Parallel()
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -420,7 +386,7 @@ codes:
 // Prior: 2575473	       474.2 ns/op	     112 B/op	       3 allocs/op
 func BenchmarkGetCrypto(b *testing.B) {
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -434,31 +400,26 @@ func BenchmarkGetCrypto(b *testing.B) {
 func TestGetMatch(t *testing.T) {
 	t.Parallel()
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
 	}
 
 	_, err := pairs.GetMatch(NewPair(BTC, WABI))
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
-	}
+	require.ErrorIs(t, err, ErrPairNotFound)
 
-	expected := NewPair(BTC, USD)
+	expected := NewBTCUSD()
 	match, err := pairs.GetMatch(expected)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !match.Equal(expected) {
 		t.Fatalf("received: '%v' but expected '%v'", match, expected)
 	}
 
 	match, err = pairs.GetMatch(NewPair(USD, BTC))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if !match.Equal(expected) {
 		t.Fatalf("received: '%v' but expected '%v'", match, expected)
 	}
@@ -467,7 +428,7 @@ func TestGetMatch(t *testing.T) {
 func TestGetStablesMatch(t *testing.T) {
 	t.Parallel()
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -517,7 +478,7 @@ func TestGetStablesMatch(t *testing.T) {
 // Prev:  3490366	       373.4 ns/op	     296 B/op	      11 allocs/op
 func BenchmarkPairsString(b *testing.B) {
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -535,7 +496,7 @@ func BenchmarkPairsString(b *testing.B) {
 // Prev:  3746151	       317.1 ns/op	     720 B/op	       4 allocs/op
 func BenchmarkPairsFormat(b *testing.B) {
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -555,7 +516,7 @@ func BenchmarkPairsFormat(b *testing.B) {
 // prev: 8188616	       148.0 ns/op	     336 B/op	       3 allocs/op
 func BenchmarkRemovePairsByFilter(b *testing.B) {
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -572,7 +533,7 @@ func BenchmarkRemovePairsByFilter(b *testing.B) {
 func TestPairsContainsCurrency(t *testing.T) {
 	t.Parallel()
 	pairs := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -604,7 +565,7 @@ func TestPairsContainsCurrency(t *testing.T) {
 func TestGetPairsByCurrencies(t *testing.T) {
 	t.Parallel()
 	available := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -619,8 +580,8 @@ func TestGetPairsByCurrencies(t *testing.T) {
 	}
 
 	enabled = available.GetPairsByCurrencies(Currencies{USD, BTC})
-	if !enabled.Contains(NewPair(BTC, USD), true) {
-		t.Fatalf("received %v but expected to contain %v", enabled, NewPair(BTC, USD))
+	if !enabled.Contains(NewBTCUSD(), true) {
+		t.Fatalf("received %v but expected to contain %v", enabled, NewBTCUSD())
 	}
 
 	enabled = available.GetPairsByCurrencies(Currencies{USD, BTC, LTC, NZD, USDT, DAI})
@@ -633,7 +594,7 @@ func TestValidateAndConform(t *testing.T) {
 	t.Parallel()
 
 	conformMe := Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -643,9 +604,7 @@ func TestValidateAndConform(t *testing.T) {
 	}
 
 	_, err := conformMe.ValidateAndConform(EMPTYFORMAT, false)
-	if !errors.Is(err, ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairEmpty)
-	}
+	require.ErrorIs(t, err, ErrCurrencyPairEmpty)
 
 	duplication, err := NewPairFromString("linkusdt")
 	if err != nil {
@@ -653,7 +612,7 @@ func TestValidateAndConform(t *testing.T) {
 	}
 
 	conformMe = Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(LINK, USDT),
 		NewPair(USD, NZD),
@@ -664,12 +623,10 @@ func TestValidateAndConform(t *testing.T) {
 	}
 
 	_, err = conformMe.ValidateAndConform(EMPTYFORMAT, false)
-	if !errors.Is(err, ErrPairDuplication) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairDuplication)
-	}
+	require.ErrorIs(t, err, ErrPairDuplication)
 
 	conformMe = Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(LINK, USDT),
 		NewPair(USD, NZD),
@@ -679,9 +636,7 @@ func TestValidateAndConform(t *testing.T) {
 	}
 
 	formatted, err := conformMe.ValidateAndConform(EMPTYFORMAT, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	expected := "btcusd,ltcusd,linkusdt,usdnzd,ltcusdt,ltcdai,usdtxrp"
 
@@ -690,9 +645,7 @@ func TestValidateAndConform(t *testing.T) {
 	}
 
 	formatted, err = formatted.ValidateAndConform(PairFormat{Delimiter: DashDelimiter, Uppercase: true}, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	expected = "BTC-USD,LTC-USD,LINK-USDT,USD-NZD,LTC-USDT,LTC-DAI,USDT-XRP"
 
@@ -705,9 +658,7 @@ func TestValidateAndConform(t *testing.T) {
 		Uppercase: false,
 	},
 		true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	expected = "BTC-USD,LTC-USD,LINK-USDT,USD-NZD,LTC-USDT,LTC-DAI,USDT-XRP"
 
@@ -718,7 +669,7 @@ func TestValidateAndConform(t *testing.T) {
 
 func TestPairs_GetFormatting(t *testing.T) {
 	t.Parallel()
-	pFmt, err := Pairs{NewPair(BTC, USDT)}.GetFormatting()
+	pFmt, err := Pairs{NewBTCUSDT()}.GetFormatting()
 	require.NoError(t, err)
 	assert.True(t, pFmt.Uppercase)
 	assert.Empty(t, pFmt.Delimiter)
@@ -728,7 +679,7 @@ func TestPairs_GetFormatting(t *testing.T) {
 	assert.False(t, pFmt.Uppercase)
 	assert.Equal(t, "/", pFmt.Delimiter)
 
-	_, err = Pairs{NewPair(BTC, USDT), NewPairWithDelimiter("eth", "usdt", "/")}.GetFormatting()
+	_, err = Pairs{NewBTCUSDT(), NewPairWithDelimiter("eth", "usdt", "/")}.GetFormatting()
 	require.ErrorIs(t, err, errPairFormattingInconsistent)
 
 	_, err = Pairs{NewPairWithDelimiter("eth", "USDT", "/")}.GetFormatting()
@@ -758,12 +709,11 @@ func TestGetPairsByQuote(t *testing.T) {
 	t.Parallel()
 
 	var available Pairs
-	if _, err := available.GetPairsByQuote(EMPTYCODE); !errors.Is(err, ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairsEmpty)
-	}
+	_, err := available.GetPairsByQuote(EMPTYCODE)
+	require.ErrorIs(t, err, ErrCurrencyPairsEmpty)
 
 	available = Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -772,23 +722,18 @@ func TestGetPairsByQuote(t *testing.T) {
 		NewPair(DAI, XRP),
 	}
 
-	if _, err := available.GetPairsByQuote(EMPTYCODE); !errors.Is(err, ErrCurrencyCodeEmpty) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyCodeEmpty)
-	}
+	_, err = available.GetPairsByQuote(EMPTYCODE)
+	require.ErrorIs(t, err, ErrCurrencyCodeEmpty)
 
 	got, err := available.GetPairsByQuote(USD)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(got) != 2 {
 		t.Fatalf("received: '%v' but expected '%v'", len(got), 2)
 	}
 
 	got, err = available.GetPairsByQuote(BTC)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(got) != 0 {
 		t.Fatalf("received: '%v' but expected '%v'", len(got), 0)
@@ -799,12 +744,11 @@ func TestGetPairsByBase(t *testing.T) {
 	t.Parallel()
 
 	var available Pairs
-	if _, err := available.GetPairsByBase(EMPTYCODE); !errors.Is(err, ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairsEmpty)
-	}
+	_, err := available.GetPairsByBase(EMPTYCODE)
+	require.ErrorIs(t, err, ErrCurrencyPairsEmpty)
 
 	available = Pairs{
-		NewPair(BTC, USD),
+		NewBTCUSD(),
 		NewPair(LTC, USD),
 		NewPair(USD, NZD),
 		NewPair(LTC, USDT),
@@ -813,23 +757,18 @@ func TestGetPairsByBase(t *testing.T) {
 		NewPair(DAI, XRP),
 	}
 
-	if _, err := available.GetPairsByBase(EMPTYCODE); !errors.Is(err, ErrCurrencyCodeEmpty) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyCodeEmpty)
-	}
+	_, err = available.GetPairsByBase(EMPTYCODE)
+	require.ErrorIs(t, err, ErrCurrencyCodeEmpty)
 
 	got, err := available.GetPairsByBase(USD)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(got) != 1 {
 		t.Fatalf("received: '%v' but expected '%v'", len(got), 1)
 	}
 
 	got, err = available.GetPairsByBase(LTC)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(got) != 3 {
 		t.Fatalf("received: '%v' but expected '%v'", len(got), 3)

@@ -2,6 +2,7 @@ package btse
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strconv"
@@ -39,28 +40,29 @@ var defaultSubscriptions = subscription.List{
 }
 
 // WsConnect connects the websocket client
-func (b *BTSE) WsConnect() error {
-	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
+func (e *Exchange) WsConnect() error {
+	ctx := context.TODO()
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	b.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.PingMessage,
 		Delay:       btseWebsocketTimer,
 	})
 
-	b.Websocket.Wg.Add(1)
-	go b.wsReadData()
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(ctx)
 
-	if b.IsWebsocketAuthenticationSupported() {
-		err = b.WsAuthenticate(context.TODO())
+	if e.IsWebsocketAuthenticationSupported() {
+		err = e.WsAuthenticate(ctx)
 		if err != nil {
-			b.Websocket.DataHandler <- err
-			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			e.Websocket.DataHandler <- err
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 
@@ -68,28 +70,24 @@ func (b *BTSE) WsConnect() error {
 }
 
 // WsAuthenticate Send an authentication message to receive auth data
-func (b *BTSE) WsAuthenticate(ctx context.Context) error {
-	creds, err := b.GetCredentials(ctx)
+func (e *Exchange) WsAuthenticate(ctx context.Context) error {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
 	nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	path := "/ws/spot" + nonce
 
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
-		[]byte((path)),
-		[]byte(creds.Secret),
-	)
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte((path)), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
 
-	sign := crypto.HexEncodeToString(hmac)
 	req := wsSub{
 		Operation: "authKeyExpires",
-		Arguments: []string{creds.Key, nonce, sign},
+		Arguments: []string{creds.Key, nonce, hex.EncodeToString(hmac)},
 	}
-	return b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
+	return e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
@@ -114,22 +112,22 @@ func stringToOrderStatus(status string) (order.Status, error) {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *BTSE) wsReadData() {
-	defer b.Websocket.Wg.Done()
+func (e *Exchange) wsReadData(ctx context.Context) {
+	defer e.Websocket.Wg.Done()
 
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		resp := e.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleData(resp.Raw)
+		err := e.wsHandleData(ctx, resp.Raw)
 		if err != nil {
-			b.Websocket.DataHandler <- err
+			e.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (b *BTSE) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 	type Result map[string]any
 	var result Result
 	err := json.Unmarshal(respRaw, &result)
@@ -146,7 +144,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 	if result["event"] != nil {
 		event, ok := result["event"].(string)
 		if !ok {
-			return errors.New(b.Name + websocket.UnhandledMessage + string(respRaw))
+			return errors.New(e.Name + websocket.UnhandledMessage + string(respRaw))
 		}
 		switch event {
 		case "subscribe":
@@ -155,8 +153,8 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			if b.Verbose {
-				log.Infof(log.WebsocketMgr, "%v subscribed to %v", b.Name, strings.Join(subscribe.Channel, ", "))
+			if e.Verbose {
+				log.Infof(log.WebsocketMgr, "%v subscribed to %v", e.Name, strings.Join(subscribe.Channel, ", "))
 			}
 		case "login":
 			var login WsLoginAcknowledgement
@@ -164,19 +162,19 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			b.Websocket.SetCanUseAuthenticatedEndpoints(login.Success)
-			if b.Verbose {
-				log.Infof(log.WebsocketMgr, "%v websocket authenticated: %v", b.Name, login.Success)
+			e.Websocket.SetCanUseAuthenticatedEndpoints(login.Success)
+			if e.Verbose {
+				log.Infof(log.WebsocketMgr, "%v websocket authenticated: %v", e.Name, login.Success)
 			}
 		default:
-			return errors.New(b.Name + websocket.UnhandledMessage + string(respRaw))
+			return errors.New(e.Name + websocket.UnhandledMessage + string(respRaw))
 		}
 		return nil
 	}
 
 	topic, ok := result["topic"].(string)
 	if !ok {
-		return errors.New(b.Name + websocket.UnhandledMessage + string(respRaw))
+		return errors.New(e.Name + websocket.UnhandledMessage + string(respRaw))
 	}
 	switch {
 	case topic == "notificationApi":
@@ -191,24 +189,24 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			var oStatus order.Status
 			oType, err = order.StringToOrderType(notification.Data[i].Type)
 			if err != nil {
-				b.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: b.Name,
+				e.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: e.Name,
 					OrderID:  notification.Data[i].OrderID,
 					Err:      err,
 				}
 			}
 			oSide, err = order.StringToOrderSide(notification.Data[i].OrderMode)
 			if err != nil {
-				b.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: b.Name,
+				e.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: e.Name,
 					OrderID:  notification.Data[i].OrderID,
 					Err:      err,
 				}
 			}
 			oStatus, err = stringToOrderStatus(notification.Data[i].Status)
 			if err != nil {
-				b.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: b.Name,
+				e.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: e.Name,
 					OrderID:  notification.Data[i].OrderID,
 					Err:      err,
 				}
@@ -221,28 +219,28 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			}
 
 			var a asset.Item
-			a, err = b.GetPairAssetType(p)
+			a, err = e.GetPairAssetType(p)
 			if err != nil {
 				return err
 			}
 
-			b.Websocket.DataHandler <- &order.Detail{
+			e.Websocket.DataHandler <- &order.Detail{
 				Price:        notification.Data[i].Price,
 				Amount:       notification.Data[i].Size,
 				TriggerPrice: notification.Data[i].TriggerPrice,
-				Exchange:     b.Name,
+				Exchange:     e.Name,
 				OrderID:      notification.Data[i].OrderID,
 				Type:         oType,
 				Side:         oSide,
 				Status:       oStatus,
 				AssetType:    a,
-				Date:         time.UnixMilli(notification.Data[i].Timestamp),
+				Date:         notification.Data[i].Timestamp.Time(),
 				Pair:         p,
 			}
 		}
 	case strings.Contains(topic, "tradeHistoryApi"):
-		saveTradeData := b.IsSaveTradeDataEnabled()
-		tradeFeed := b.IsTradeFeedEnabled()
+		saveTradeData := e.IsSaveTradeDataEnabled()
+		tradeFeed := e.IsTradeFeedEnabled()
 		if !saveTradeData && !tradeFeed {
 			return nil
 		}
@@ -260,7 +258,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			var a asset.Item
-			a, err = b.GetPairAssetType(p)
+			a, err = e.GetPairAssetType(p)
 			if err != nil {
 				return err
 			}
@@ -268,7 +266,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Timestamp:    tradeHistory.Data[x].Timestamp.Time().UTC(),
 				CurrencyPair: p,
 				AssetType:    a,
-				Exchange:     b.Name,
+				Exchange:     e.Name,
 				Price:        tradeHistory.Data[x].Price,
 				Amount:       tradeHistory.Data[x].Size,
 				Side:         tradeHistory.Data[x].Side,
@@ -277,7 +275,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		}
 		if tradeFeed {
 			for i := range trades {
-				b.Websocket.DataHandler <- trades[i]
+				e.Websocket.DataHandler <- trades[i]
 			}
 		}
 		if saveTradeData {
@@ -289,9 +287,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		newOB := orderbook.Base{
-			Bids: make(orderbook.Tranches, 0, len(t.Data.BuyQuote)),
-			Asks: make(orderbook.Tranches, 0, len(t.Data.SellQuote)),
+		newOB := orderbook.Book{
+			Bids: make(orderbook.Levels, 0, len(t.Data.BuyQuote)),
+			Asks: make(orderbook.Levels, 0, len(t.Data.SellQuote)),
 		}
 		var price, amount float64
 		for i := range t.Data.SellQuote {
@@ -305,10 +303,10 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			if b.orderbookFilter(price, amount) {
+			if e.orderbookFilter(price, amount) {
 				continue
 			}
-			newOB.Asks = append(newOB.Asks, orderbook.Tranche{
+			newOB.Asks = append(newOB.Asks, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
@@ -324,10 +322,10 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			if b.orderbookFilter(price, amount) {
+			if e.orderbookFilter(price, amount) {
 				continue
 			}
-			newOB.Bids = append(newOB.Bids, orderbook.Tranche{
+			newOB.Bids = append(newOB.Bids, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
@@ -337,22 +335,22 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		var a asset.Item
-		a, err = b.GetPairAssetType(p)
+		a, err = e.GetPairAssetType(p)
 		if err != nil {
 			return err
 		}
 		newOB.Pair = p
 		newOB.Asset = a
-		newOB.Exchange = b.Name
+		newOB.Exchange = e.Name
 		newOB.Asks.Reverse() // Reverse asks for correct alignment
-		newOB.VerifyOrderbook = b.CanVerifyOrderbook
+		newOB.ValidateOrderbook = e.ValidateOrderbook
 		newOB.LastUpdated = time.Now() // NOTE: Temp to fix test.
-		err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
+		err = e.Websocket.Orderbook.LoadSnapshot(&newOB)
 		if err != nil {
 			return err
 		}
 	default:
-		return errors.New(b.Name + websocket.UnhandledMessage + string(respRaw))
+		return errors.New(e.Name + websocket.UnhandledMessage + string(respRaw))
 	}
 
 	return nil
@@ -360,7 +358,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 
 // orderbookFilter is needed on book levels from this exchange as their data
 // is incorrect
-func (b *BTSE) orderbookFilter(price, amount float64) bool {
+func (e *Exchange) orderbookFilter(price, amount float64) bool {
 	// Amount filtering occurs when the amount exceeds the decimal returned.
 	// e.g. {"price":"1.37","size":"0.00"} currency: SFI-ETH
 	// Opted to not round up to 0.01 as this might skew calculations
@@ -374,12 +372,12 @@ func (b *BTSE) orderbookFilter(price, amount float64) bool {
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (b *BTSE) generateSubscriptions() (subscription.List, error) {
-	return b.Features.Subscriptions.ExpandTemplates(b)
+func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (b *BTSE) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
 		"channelName":     channelName,
 		"isSymbolChannel": isSymbolChannel,
@@ -387,27 +385,29 @@ func (b *BTSE) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.
 }
 
 // Subscribe sends a websocket message to receive data from a list of channels
-func (b *BTSE) Subscribe(subs subscription.List) error {
+func (e *Exchange) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	req := wsSub{Operation: "subscribe"}
 	for _, s := range subs {
 		req.Arguments = append(req.Arguments, s.QualifiedChannel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+	err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 	if err == nil {
-		err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, subs...)
+		err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subs...)
 	}
 	return err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from a list of channels
-func (b *BTSE) Unsubscribe(subs subscription.List) error {
+func (e *Exchange) Unsubscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	req := wsSub{Operation: "unsubscribe"}
 	for _, s := range subs {
 		req.Arguments = append(req.Arguments, s.QualifiedChannel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+	err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 	if err == nil {
-		err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subs...)
+		err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subs...)
 	}
 	return err
 }

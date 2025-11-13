@@ -42,7 +42,6 @@ var (
 	// ErrOrderHistoryTooLarge is returned when you lookup order history, but with too early a start date
 	ErrOrderHistoryTooLarge = errors.New("order history start date too long ago")
 
-	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errExchangeNameMismatch           = errors.New("exchange name mismatch")
 	errTimeUnset                      = errors.New("time unset")
 	errMissingPNLCalculationFunctions = errors.New("futures tracker requires exchange PNL calculation functions")
@@ -86,7 +85,7 @@ type TotalCollateralResponse struct {
 // the position controller and its all tracked happily
 type PositionController struct {
 	m                     sync.Mutex
-	multiPositionTrackers map[key.ExchangePairAsset]*MultiPositionTracker
+	multiPositionTrackers map[key.ExchangeAssetPair]*MultiPositionTracker
 	updated               time.Time
 }
 
@@ -201,7 +200,7 @@ type CollateralCalculator struct {
 
 // OpenInterest holds open interest data for an exchange pair asset
 type OpenInterest struct {
-	Key          key.ExchangePairAsset
+	Key          key.ExchangeAssetPair
 	OpenInterest float64
 }
 

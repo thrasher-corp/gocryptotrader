@@ -5,11 +5,9 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
 	"net"
 	"net/http"
 	"net/url"
@@ -19,6 +17,7 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -34,14 +33,9 @@ var (
 
 // Connection defines the interface for websocket connections
 type Connection interface {
-	Dial(*gws.Dialer, http.Header) error
-	DialContext(context.Context, *gws.Dialer, http.Header) error
+	Dial(context.Context, *gws.Dialer, http.Header) error
 	ReadMessage() Response
 	SetupPingHandler(request.EndpointLimit, PingHandler)
-	// GenerateMessageID generates a message ID for the individual connection. If a bespoke function is set
-	// (by using SetupNewConnection) it will use that, otherwise it will use the defaultGenerateMessageID function
-	// defined in websocket_connection.go.
-	GenerateMessageID(highPrecision bool) int64
 	// SendMessageReturnResponse will send a WS message to the connection and wait for response
 	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any) ([]byte, error)
 	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
@@ -56,15 +50,22 @@ type Connection interface {
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
+	// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
+	RequireMatchWithData(signature any, incoming []byte) error
+	// IncomingWithData routes incoming data using the connection specific match system to the correct handler
+	IncomingWithData(signature any, data []byte) bool
+	// MatchReturnResponses sets up a channel to listen for an expected number of responses.
+	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
 }
 
 // ConnectionSetup defines variables for an individual stream connection
 type ConnectionSetup struct {
-	ResponseCheckTimeout    time.Duration
-	ResponseMaxLimit        time.Duration
-	RateLimit               *request.RateLimiterWithWeight
-	Authenticated           bool
-	ConnectionLevelReporter Reporter
+	ResponseCheckTimeout     time.Duration
+	ResponseMaxLimit         time.Duration
+	RateLimit                *request.RateLimiterWithWeight
+	Authenticated            bool // unused for multi-connection websocket
+	SubscriptionsNotRequired bool
+	ConnectionLevelReporter  Reporter
 
 	// URL defines the websocket server URL to connect to
 	URL string
@@ -86,12 +87,9 @@ type ConnectionSetup struct {
 	// Handler defines the function that will be called when a message is
 	// received from the exchange's websocket server. This function should
 	// handle the incoming message and pass it to the appropriate data handler.
-	Handler func(ctx context.Context, incoming []byte) error
-	// BespokeGenerateMessageID is a function that returns a unique message ID.
-	// This is useful for when an exchange connection requires a unique or
-	// structured message ID for each message sent.
-	BespokeGenerateMessageID func(highPrecision bool) int64
-	Authenticate             func(ctx context.Context, conn Connection) error
+	Handler func(ctx context.Context, conn Connection, incoming []byte) error
+	// Authenticate will be called to authenticate the connection
+	Authenticate func(ctx context.Context, conn Connection) error
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.
 	MessageFilter any
@@ -111,32 +109,26 @@ type Response struct {
 
 // connection contains all the data needed to send a message to a websocket connection
 type connection struct {
-	Verbose                  bool
-	connected                int32
-	writeControl             sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
-	RateLimit                *request.RateLimiterWithWeight // RateLimit is a rate limiter for the connection itself
-	RateLimitDefinitions     request.RateLimitDefinitions   // RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections
-	Reporter                 Reporter
-	ExchangeName             string
-	URL                      string
-	ProxyURL                 string
-	Wg                       *sync.WaitGroup
-	Connection               *gws.Conn
-	shutdown                 chan struct{}
-	Match                    *Match
-	ResponseMaxLimit         time.Duration
-	Traffic                  chan struct{}
-	readMessageErrors        chan error
-	bespokeGenerateMessageID func(highPrecision bool) int64
+	Verbose              bool
+	connected            int32
+	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
+	RateLimit            *request.RateLimiterWithWeight // RateLimit is a rate limiter for the connection itself
+	RateLimitDefinitions request.RateLimitDefinitions   // RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections
+	Reporter             Reporter
+	ExchangeName         string
+	URL                  string
+	ProxyURL             string
+	Wg                   *sync.WaitGroup
+	Connection           *gws.Conn
+	shutdown             chan struct{}
+	Match                *Match
+	ResponseMaxLimit     time.Duration
+	Traffic              chan struct{}
+	readMessageErrors    chan error
 }
 
 // Dial sets proxy urls and then connects to the websocket
-func (c *connection) Dial(dialer *gws.Dialer, headers http.Header) error {
-	return c.DialContext(context.Background(), dialer, headers)
-}
-
-// DialContext sets proxy urls and then connects to the websocket
-func (c *connection) DialContext(ctx context.Context, dialer *gws.Dialer, headers http.Header) error {
+func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.Header) error {
 	if c.ProxyURL != "" {
 		proxy, err := url.Parse(c.ProxyURL)
 		if err != nil {
@@ -237,24 +229,19 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 		})
 		return
 	}
-	c.Wg.Add(1)
-	go func() {
-		defer c.Wg.Done()
-		ticker := time.NewTicker(handler.Delay)
+	c.Wg.Go(func() {
 		for {
 			select {
 			case <-c.shutdown:
-				ticker.Stop()
 				return
-			case <-ticker.C:
-				err := c.SendRawMessage(context.TODO(), epl, handler.MessageType, handler.Message)
-				if err != nil {
+			case <-time.After(handler.Delay):
+				if err := c.SendRawMessage(context.Background(), epl, handler.MessageType, handler.Message); err != nil {
 					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]: %v", c.ExchangeName, handler.Message, err)
 					return
 				}
 			}
 		}
-	}()
+	})
 }
 
 // setConnectedStatus sets connection status if changed it will return true.
@@ -288,7 +275,7 @@ func (c *connection) ReadMessage() Response {
 			// method on WebsocketConnection type has been called and can
 			// be skipped.
 			select {
-			case c.readMessageErrors <- fmt.Errorf("%w: %w", err, errConnectionFault):
+			case c.readMessageErrors <- fmt.Errorf("%w: %w (%q)", err, errConnectionFault, c.URL):
 			default:
 				// bypass if there is no receiver, as this stops it returning
 				// when shutdown is called.
@@ -339,37 +326,10 @@ func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
 	return standardMessage, reader.Close()
 }
 
-// GenerateMessageID generates a message ID for the individual connection.
-// If a bespoke function is set (by using SetupNewConnection) it will use that,
-// otherwise it will use the defaultGenerateMessageID function.
-func (c *connection) GenerateMessageID(highPrec bool) int64 {
-	if c.bespokeGenerateMessageID != nil {
-		return c.bespokeGenerateMessageID(highPrec)
-	}
-	return c.defaultGenerateMessageID(highPrec)
-}
-
-// defaultGenerateMessageID generates the default message ID
-func (c *connection) defaultGenerateMessageID(highPrec bool) int64 {
-	var minValue int64 = 1e8
-	var maxValue int64 = 2e8
-	if highPrec {
-		maxValue = 2e12
-		minValue = 1e12
-	}
-	// utilization of hard coded positive numbers and default crypto/rand
-	// io.reader will panic on error instead of returning
-	randomNumber, err := rand.Int(rand.Reader, big.NewInt(maxValue-minValue+1))
-	if err != nil {
-		panic(err)
-	}
-	return randomNumber.Int64() + minValue
-}
-
 // Shutdown shuts down and closes specific connection
 func (c *connection) Shutdown() error {
-	if c == nil || c.Connection == nil {
-		return nil
+	if err := common.NilGuard(c, c.Connection); err != nil {
+		return err
 	}
 	c.setConnectedStatus(false)
 	c.writeControl.Lock()
@@ -378,8 +338,8 @@ func (c *connection) Shutdown() error {
 }
 
 // SetURL sets connection URL
-func (c *connection) SetURL(url string) {
-	c.URL = url
+func (c *connection) SetURL(u string) {
+	c.URL = u
 }
 
 // SetProxy sets connection proxy
@@ -473,9 +433,43 @@ inspection:
 	return resps, nil
 }
 
-func removeURLQueryString(url string) string {
-	if index := strings.Index(url, "?"); index != -1 {
-		return url[:index]
+// MatchedResponse encapsulates the matched responses along with any errors encountered.
+type MatchedResponse struct {
+	Responses [][]byte
+	Err       error
+}
+
+// MatchReturnResponses returns channel of exactly expected matched responses
+func (c *connection) MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error) {
+	connectionListen, err := c.Match.Set(signature, expected)
+	if err != nil {
+		return nil, err
 	}
-	return url
+
+	out := make(chan MatchedResponse, 1) // buffered so routine below doesn't block if no receiver
+
+	go func() {
+		resps, err := c.waitForResponses(ctx, signature, connectionListen, expected, nil)
+		out <- MatchedResponse{Responses: resps, Err: err}
+		close(out)
+	}()
+
+	return out, nil
+}
+
+func removeURLQueryString(u string) string {
+	if index := strings.Index(u, "?"); index != -1 {
+		return u[:index]
+	}
+	return u
+}
+
+// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
+func (c *connection) RequireMatchWithData(signature any, incoming []byte) error {
+	return c.Match.RequireMatchWithData(signature, incoming)
+}
+
+// IncomingWithData routes incoming data using the connection specific match system to the correct handler
+func (c *connection) IncomingWithData(signature any, data []byte) bool {
+	return c.Match.IncomingWithData(signature, data)
 }

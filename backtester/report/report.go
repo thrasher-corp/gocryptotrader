@@ -149,12 +149,7 @@ func (d *Data) enhanceCandles() error {
 			Watermark: fmt.Sprintf("%s - %s - %s", cases.Title(language.English).String(lookup.Exchange), lookup.Asset.String(), lookup.Pair.Upper()),
 		}
 
-		statsForCandles := d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
-			Exchange: lookup.Exchange,
-			Base:     lookup.Pair.Base.Item,
-			Quote:    lookup.Pair.Quote.Item,
-			Asset:    lookup.Asset,
-		}]
+		statsForCandles := d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(lookup.Exchange, lookup.Asset, lookup.Pair)]
 		if statsForCandles == nil {
 			continue
 		}
@@ -167,7 +162,7 @@ func (d *Data) enhanceCandles() error {
 			_, offset := time.Now().Zone()
 			tt := d.OriginalCandles[intVal].Candles[j].Time.Add(time.Duration(offset) * time.Second)
 			enhancedCandle := DetailedCandle{
-				UnixMilli:    tt.UTC().UnixMilli(),
+				UnixMilli:    tt.UnixMilli(),
 				Open:         d.OriginalCandles[intVal].Candles[j].Open,
 				High:         d.OriginalCandles[intVal].Candles[j].High,
 				Low:          d.OriginalCandles[intVal].Candles[j].Low,

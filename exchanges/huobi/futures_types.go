@@ -1,6 +1,9 @@
 package huobi
 
-import "github.com/thrasher-corp/gocryptotrader/types"
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/types"
+)
 
 // FContractInfoData gets contract info data for futures
 type FContractInfoData struct {
@@ -264,13 +267,13 @@ type FTopPositionsLongShortRatio struct {
 type FLiquidationOrdersInfo struct {
 	Data struct {
 		Orders []struct {
-			Symbol       string  `json:"symbol"`
-			ContractCode string  `json:"contract_code"`
-			Direction    string  `json:"direction"`
-			Offset       string  `json:"offset"`
-			Volume       float64 `json:"volume"`
-			Price        float64 `json:"price"`
-			CreatedAt    int64   `json:"created_at"`
+			Symbol       string     `json:"symbol"`
+			ContractCode string     `json:"contract_code"`
+			Direction    string     `json:"direction"`
+			Offset       string     `json:"offset"`
+			Volume       float64    `json:"volume"`
+			Price        float64    `json:"price"`
+			CreatedAt    types.Time `json:"created_at"`
 		} `json:"orders"`
 		TotalPage   int64 `json:"total_page"`
 		CurrentPage int64 `json:"current_page"`
@@ -311,19 +314,19 @@ type FBasisData struct {
 // FUserAccountData stores user account data info for futures
 type FUserAccountData struct {
 	AccData []struct {
-		Symbol            string  `json:"symbol"`
-		MarginBalance     float64 `json:"margin_balance"`
-		MarginPosition    float64 `json:"margin_position"`
-		MarginFrozen      float64 `json:"margin_frozen"`
-		MarginAvailable   float64 `json:"margin_available"`
-		ProfitReal        float64 `json:"profit_real"`
-		ProfitUnreal      float64 `json:"profit_unreal"`
-		RiskRate          float64 `json:"risk_rate"`
-		LiquidationPrice  float64 `json:"liquidation_price"`
-		WithdrawAvailable float64 `json:"withdraw_available"`
-		LeverageRate      float64 `json:"lever_rate"`
-		AdjustFactor      float64 `json:"adjust_factor"`
-		MarginStatic      float64 `json:"margin_static"`
+		Symbol            currency.Code `json:"symbol"`
+		MarginBalance     float64       `json:"margin_balance"`
+		MarginPosition    float64       `json:"margin_position"`
+		MarginFrozen      float64       `json:"margin_frozen"`
+		MarginAvailable   float64       `json:"margin_available"`
+		ProfitReal        float64       `json:"profit_real"`
+		ProfitUnreal      float64       `json:"profit_unreal"`
+		RiskRate          float64       `json:"risk_rate"`
+		LiquidationPrice  float64       `json:"liquidation_price"`
+		WithdrawAvailable float64       `json:"withdraw_available"`
+		LeverageRate      float64       `json:"lever_rate"`
+		AdjustFactor      float64       `json:"adjust_factor"`
+		MarginStatic      float64       `json:"margin_static"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -367,19 +370,19 @@ type FSubAccountAssetsInfo struct {
 // FSingleSubAccountAssetsInfo stores futures assets info for a single subaccount
 type FSingleSubAccountAssetsInfo struct {
 	AssetsData []struct {
-		Symbol            string  `json:"symbol"`
-		MarginBalance     float64 `json:"margin_balance"`
-		MarginPosition    float64 `json:"margin_position"`
-		MarginFrozen      float64 `json:"margin_frozen"`
-		MarginAvailable   float64 `json:"margin_available"`
-		ProfitReal        float64 `json:"profit_real"`
-		ProfitUnreal      float64 `json:"profit_unreal"`
-		WithdrawAvailable float64 `json:"withdraw_available"`
-		RiskRate          float64 `json:"risk_rate"`
-		LiquidationPrice  float64 `json:"liquidation_price"`
-		AdjustFactor      float64 `json:"adjust_factor"`
-		LeverageRate      float64 `json:"lever_rate"`
-		MarginStatic      float64 `json:"margin_static"`
+		Symbol            currency.Code `json:"symbol"`
+		MarginBalance     float64       `json:"margin_balance"`
+		MarginPosition    float64       `json:"margin_position"`
+		MarginFrozen      float64       `json:"margin_frozen"`
+		MarginAvailable   float64       `json:"margin_available"`
+		ProfitReal        float64       `json:"profit_real"`
+		ProfitUnreal      float64       `json:"profit_unreal"`
+		WithdrawAvailable float64       `json:"withdraw_available"`
+		RiskRate          float64       `json:"risk_rate"`
+		LiquidationPrice  float64       `json:"liquidation_price"`
+		AdjustFactor      float64       `json:"adjust_factor"`
+		LeverageRate      float64       `json:"lever_rate"`
+		MarginStatic      float64       `json:"margin_static"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -427,16 +430,16 @@ type FFinancialRecords struct {
 type FSettlementRecords struct {
 	Data struct {
 		SettlementRecords []struct {
-			Symbol               string  `json:"symbol"`
-			MarginBalanceInit    float64 `json:"margin_balance_init"`
-			MarginBalance        int64   `json:"margin_balance"`
-			SettlementProfitReal float64 `json:"settlement_profit_real"`
-			SettlementTime       int64   `json:"settlement_time"`
-			Clawback             float64 `json:"clawback"`
-			DeliveryFee          float64 `json:"delivery_fee"`
-			OffsetProfitLoss     float64 `json:"offset_profitloss"`
-			Fee                  float64 `json:"fee"`
-			FeeAsset             string  `json:"fee_asset"`
+			Symbol               string     `json:"symbol"`
+			MarginBalanceInit    float64    `json:"margin_balance_init"`
+			MarginBalance        int64      `json:"margin_balance"`
+			SettlementProfitReal float64    `json:"settlement_profit_real"`
+			SettlementTime       types.Time `json:"settlement_time"`
+			Clawback             float64    `json:"clawback"`
+			DeliveryFee          float64    `json:"delivery_fee"`
+			OffsetProfitLoss     float64    `json:"offset_profitloss"`
+			Fee                  float64    `json:"fee"`
+			FeeAsset             string     `json:"fee_asset"`
 			Positions            []struct {
 				Symbol                 string  `json:"symbol"`
 				ContractCode           string  `json:"contract_code"`
@@ -725,29 +728,29 @@ type FOpenOrdersData struct {
 type FOrderHistoryData struct {
 	Data struct {
 		Orders []struct {
-			Symbol          string  `json:"symbol"`
-			ContractType    string  `json:"contract_type"`
-			ContractCode    string  `json:"contract_code"`
-			Volume          float64 `json:"volume"`
-			Price           float64 `json:"price"`
-			OrderPriceType  string  `json:"order_price_type"`
-			Direction       string  `json:"direction"`
-			Offset          string  `json:"offset"`
-			LeverageRate    float64 `json:"lever_rate"`
-			OrderID         int64   `json:"order_id"`
-			OrderIDString   string  `json:"order_id_str"`
-			OrderSource     string  `json:"order_source"`
-			CreateDate      int64   `json:"create_date"`
-			TradeVolume     float64 `json:"trade_volume"`
-			TradeTurnover   float64 `json:"trade_turnover"`
-			Fee             float64 `json:"fee"`
-			TradeAvgPrice   float64 `json:"trade_avg_price"`
-			MarginFrozen    float64 `json:"margin_frozen"`
-			Profit          float64 `json:"profit"`
-			Status          int64   `json:"status"`
-			OrderType       int64   `json:"order_type"`
-			FeeAsset        string  `json:"fee_asset"`
-			LiquidationType int64   `json:"liquidation_type"`
+			Symbol          string     `json:"symbol"`
+			ContractType    string     `json:"contract_type"`
+			ContractCode    string     `json:"contract_code"`
+			Volume          float64    `json:"volume"`
+			Price           float64    `json:"price"`
+			OrderPriceType  string     `json:"order_price_type"`
+			Direction       string     `json:"direction"`
+			Offset          string     `json:"offset"`
+			LeverageRate    float64    `json:"lever_rate"`
+			OrderID         int64      `json:"order_id"`
+			OrderIDString   string     `json:"order_id_str"`
+			OrderSource     string     `json:"order_source"`
+			CreateDate      types.Time `json:"create_date"`
+			TradeVolume     float64    `json:"trade_volume"`
+			TradeTurnover   float64    `json:"trade_turnover"`
+			Fee             float64    `json:"fee"`
+			TradeAvgPrice   float64    `json:"trade_avg_price"`
+			MarginFrozen    float64    `json:"margin_frozen"`
+			Profit          float64    `json:"profit"`
+			Status          int64      `json:"status"`
+			OrderType       int64      `json:"order_type"`
+			FeeAsset        string     `json:"fee_asset"`
+			LiquidationType int64      `json:"liquidation_type"`
 		} `json:"orders"`
 		TotalPage   int64 `json:"total_page"`
 		CurrentPage int64 `json:"current_page"`

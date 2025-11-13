@@ -1,0 +1,47 @@
+{{define "rest"}}
+package {{.Name}}
+
+import (
+	"context"
+	"net/http"
+
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+)
+
+// Exchange implements exchange.IBotExchange and contains additional specific API methods for interacting with {{.CapitalName}}
+type Exchange struct {
+	exchange.Base
+}
+
+const (
+	apiURL     = ""
+	apiVersion = ""
+)
+
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any) error {
+    // This is used to generate the *http.Request, used in conjunction with the
+    // generate functionality below.
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       e.Verbose,
+		HTTPDebugging: e.HTTPDebugging,
+		HTTPRecording: e.HTTPRecording,
+	}
+
+	// Request function that closes over the above request.Item values, which
+	// executes on every attempt after rate limiting.
+	generate := func() (*request.Item, error) { return item, nil }
+
+	endpoint := request.Unset // Used in conjunction with the rate limiting
+	// system defined in the exchange package to slow down outbound requests
+	// depending on each individual endpoint.
+	return e.SendPayload(ctx, endpoint, generate, request.UnauthenticatedRequest)
+}
+
+// Start implementing public and private exchange API funcs below
+// Private endpoints can be implemented in a separate file with a _private.go suffix for ease of access and simplicity.
+{{end}}

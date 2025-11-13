@@ -3,20 +3,24 @@ package okx
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"hash/crc32"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
 
+	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -31,14 +35,14 @@ import (
 )
 
 var (
-	candlestickChannelsMap    = map[string]bool{channelCandle1Y: true, channelCandle6M: true, channelCandle3M: true, channelCandle1M: true, channelCandle1W: true, channelCandle1D: true, channelCandle2D: true, channelCandle3D: true, channelCandle5D: true, channelCandle12H: true, channelCandle6H: true, channelCandle4H: true, channelCandle2H: true, channelCandle1H: true, channelCandle30m: true, channelCandle15m: true, channelCandle5m: true, channelCandle3m: true, channelCandle1m: true, channelCandle1Yutc: true, channelCandle3Mutc: true, channelCandle1Mutc: true, channelCandle1Wutc: true, channelCandle1Dutc: true, channelCandle2Dutc: true, channelCandle3Dutc: true, channelCandle5Dutc: true, channelCandle12Hutc: true, channelCandle6Hutc: true}
-	candlesticksMarkPriceMap  = map[string]bool{channelMarkPriceCandle1Y: true, channelMarkPriceCandle6M: true, channelMarkPriceCandle3M: true, channelMarkPriceCandle1M: true, channelMarkPriceCandle1W: true, channelMarkPriceCandle1D: true, channelMarkPriceCandle2D: true, channelMarkPriceCandle3D: true, channelMarkPriceCandle5D: true, channelMarkPriceCandle12H: true, channelMarkPriceCandle6H: true, channelMarkPriceCandle4H: true, channelMarkPriceCandle2H: true, channelMarkPriceCandle1H: true, channelMarkPriceCandle30m: true, channelMarkPriceCandle15m: true, channelMarkPriceCandle5m: true, channelMarkPriceCandle3m: true, channelMarkPriceCandle1m: true, channelMarkPriceCandle1Yutc: true, channelMarkPriceCandle3Mutc: true, channelMarkPriceCandle1Mutc: true, channelMarkPriceCandle1Wutc: true, channelMarkPriceCandle1Dutc: true, channelMarkPriceCandle2Dutc: true, channelMarkPriceCandle3Dutc: true, channelMarkPriceCandle5Dutc: true, channelMarkPriceCandle12Hutc: true, channelMarkPriceCandle6Hutc: true}
-	candlesticksIndexPriceMap = map[string]bool{channelIndexCandle1Y: true, channelIndexCandle6M: true, channelIndexCandle3M: true, channelIndexCandle1M: true, channelIndexCandle1W: true, channelIndexCandle1D: true, channelIndexCandle2D: true, channelIndexCandle3D: true, channelIndexCandle5D: true, channelIndexCandle12H: true, channelIndexCandle6H: true, channelIndexCandle4H: true, channelIndexCandle2H: true, channelIndexCandle1H: true, channelIndexCandle30m: true, channelIndexCandle15m: true, channelIndexCandle5m: true, channelIndexCandle3m: true, channelIndexCandle1m: true, channelIndexCandle1Yutc: true, channelIndexCandle3Mutc: true, channelIndexCandle1Mutc: true, channelIndexCandle1Wutc: true, channelIndexCandle1Dutc: true, channelIndexCandle2Dutc: true, channelIndexCandle3Dutc: true, channelIndexCandle5Dutc: true, channelIndexCandle12Hutc: true, channelIndexCandle6Hutc: true}
-)
-
-var (
 	pingMsg = []byte("ping")
 	pongMsg = []byte("pong")
+
+	// See: https://www.okx.com/docs-v5/en/#error-code-websocket-public
+	authConnErrorCodes = []string{
+		"60007", "60022", "60023", "60024", "60026", "63999", "60032", "60011", "60009",
+		"60005", "60021", "60031", "50110", "60033",
+	}
 )
 
 const (
@@ -57,14 +61,6 @@ const (
 	markPrice        = "mark-price-"
 	indexCandlestick = "index-"
 	candle           = "candle"
-
-	// Spread Order
-
-	// Operations
-	okxSpreadOrder           = "sprd-order"
-	okxSpreadAmendOrder      = "sprd-amend-order"
-	okxSpreadCancelOrder     = "sprd-cancel-order"
-	okxSpreadCancelAllOrders = "sprd-mass-cancel"
 
 	// Subscriptions
 	okxSpreadOrders = "sprd-orders"
@@ -125,15 +121,6 @@ const (
 	channelBBOTBT          = "bbo-tbt"
 	channelOptSummary      = "opt-summary"
 	channelFundingRate     = "funding-rate"
-
-	// Websocket trade endpoint operations
-	okxOpOrder             = "order"
-	okxOpBatchOrders       = "batch-orders"
-	okxOpCancelOrder       = "cancel-order"
-	okxOpBatchCancelOrders = "batch-cancel-orders"
-	okxOpAmendOrder        = "amend-order"
-	okxOpBatchAmendOrders  = "batch-amend-orders"
-	okxOpMassCancelOrder   = "mass-cancel"
 
 	// Candlestick lengths
 	channelCandle1Y     = candle + "1Y"
@@ -249,155 +236,128 @@ var subscriptionNames = map[string]string{
 }
 
 // WsConnect initiates a websocket connection
-func (ok *Okx) WsConnect() error {
-	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
+func (e *Exchange) WsConnect() error {
+	ctx := context.TODO()
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	err := ok.Websocket.Conn.Dial(&dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
-	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.Conn)
-	if ok.Verbose {
-		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
-			ok.Websocket.GetWebsocketURL())
+	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.Conn) })
+	if e.Verbose {
+		log.Debugf(log.ExchangeSys, "Successful connection to %v", e.Websocket.GetWebsocketURL())
 	}
-	ok.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
-	if ok.Websocket.CanUseAuthenticatedEndpoints() {
-		err = ok.WsAuth(context.TODO())
-		if err != nil {
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		if err := e.WsAuth(ctx); err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
-			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	return nil
 }
 
 // WsAuth will connect to Okx's Private websocket connection and Authenticate with a login payload.
-func (ok *Okx) WsAuth(ctx context.Context) error {
-	if !ok.AreCredentialsValid(ctx) || !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", ok.Name)
-	}
-	creds, err := ok.GetCredentials(ctx)
-	if err != nil {
-		return err
+func (e *Exchange) WsAuth(ctx context.Context) error {
+	if !e.AreCredentialsValid(ctx) || !e.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
 	}
 	var dialer gws.Dialer
-	err = ok.Websocket.AuthConn.Dial(&dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
-	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.AuthConn)
-	ok.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.AuthConn) })
+	e.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
+	return e.authenticateConnection(ctx, e.Websocket.AuthConn)
+}
 
-	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	timeUnix := time.Now()
+func (e *Exchange) authenticateConnection(ctx context.Context, conn websocket.Connection) error {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	ts := time.Now().Unix()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(strconv.FormatInt(timeUnix.UTC().Unix(), 10)+http.MethodGet+signPath),
+		[]byte(strconv.FormatInt(ts, 10)+http.MethodGet+signPath),
 		[]byte(creds.Secret),
 	)
 	if err != nil {
 		return err
 	}
-	base64Sign := crypto.Base64Encode(hmac)
-	req := WebsocketEventRequest{
+
+	op := WebsocketAuthLogin{
 		Operation: operationLogin,
 		Arguments: []WebsocketLoginData{
 			{
 				APIKey:     creds.Key,
 				Passphrase: creds.ClientID,
-				Timestamp:  timeUnix.Unix(),
-				Sign:       base64Sign,
+				Timestamp:  ts,
+				Sign:       base64.StdEncoding.EncodeToString(hmac),
 			},
 		},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, "login-response", op)
 	if err != nil {
 		return err
 	}
-	timer := time.NewTimer(ok.WebsocketResponseCheckTimeout)
-	randomID, err := common.GenerateRandomString(16)
-	if err != nil {
-		return fmt.Errorf("%w, generating random string for incoming websocket response failed", err)
+	var intermediary struct {
+		Code    int64  `json:"code,string"`
+		Message string `json:"msg"`
 	}
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:    randomID,
-		Chan:  wsResponse,
-		Event: operationLogin,
+	if err := json.Unmarshal(resp, &intermediary); err != nil {
+		return err
 	}
-	ok.WsRequestSemaphore <- 1
-	defer func() {
-		<-ok.WsRequestSemaphore
-	}()
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Event == operationLogin && data.StatusCode == "0" {
-				ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
-				return nil
-			} else if data.Event == "error" &&
-				(data.StatusCode == "60022" || data.StatusCode == "60009" || data.StatusCode == "60004") {
-				ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				return fmt.Errorf("%w code: %s message: %s", errWebsocketStreamNotAuthenticated, data.StatusCode, data.Message)
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				req.Operation)
-		}
+
+	if intermediary.Code != 0 {
+		return getStatusError(intermediary.Code, intermediary.Message)
 	}
+	return nil
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
-func (ok *Okx) wsReadData(ws websocket.Connection) {
-	defer ok.Websocket.Wg.Done()
+func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		if err := ok.WsHandleData(resp.Raw); err != nil {
-			ok.Websocket.DataHandler <- err
+		if err := e.WsHandleData(ctx, resp.Raw); err != nil {
+			e.Websocket.DataHandler <- err
 		}
 	}
 }
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
-func (ok *Okx) Subscribe(channelsToSubscribe subscription.List) error {
-	return ok.handleSubscription(operationSubscribe, channelsToSubscribe)
+func (e *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
+	ctx := context.TODO()
+	return e.handleSubscription(ctx, operationSubscribe, channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ok *Okx) Unsubscribe(channelsToUnsubscribe subscription.List) error {
-	return ok.handleSubscription(operationUnsubscribe, channelsToUnsubscribe)
+func (e *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
+	ctx := context.TODO()
+	return e.handleSubscription(ctx, operationUnsubscribe, channelsToUnsubscribe)
 }
 
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ok *Okx) handleSubscription(operation string, subs subscription.List) error {
+func (e *Exchange) handleSubscription(ctx context.Context, operation string, subs subscription.List) error {
 	reqs := WSSubscriptionInformationList{Operation: operation}
 	authRequests := WSSubscriptionInformationList{Operation: operation}
-	ok.WsRequestSemaphore <- 1
-	defer func() { <-ok.WsRequestSemaphore }()
 	var channels subscription.List
 	var authChannels subscription.List
 	var errs error
@@ -419,14 +379,14 @@ func (ok *Okx) handleSubscription(operation string, subs subscription.List) erro
 			if len(authChunk) > maxConnByteLen {
 				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
 				i--
-				err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authRequests)
+				err = e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, authRequests)
 				if err != nil {
 					return err
 				}
 				if operation == operationUnsubscribe {
-					err = ok.Websocket.RemoveSubscriptions(ok.Websocket.AuthConn, channels...)
+					err = e.Websocket.RemoveSubscriptions(e.Websocket.AuthConn, channels...)
 				} else {
-					err = ok.Websocket.AddSuccessfulSubscriptions(ok.Websocket.AuthConn, channels...)
+					err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.AuthConn, channels...)
 				}
 				if err != nil {
 					return err
@@ -443,14 +403,14 @@ func (ok *Okx) handleSubscription(operation string, subs subscription.List) erro
 			}
 			if len(chunk) > maxConnByteLen {
 				i--
-				err = ok.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, reqs)
+				err = e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, reqs)
 				if err != nil {
 					return err
 				}
 				if operation == operationUnsubscribe {
-					err = ok.Websocket.RemoveSubscriptions(ok.Websocket.Conn, channels...)
+					err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, channels...)
 				} else {
-					err = ok.Websocket.AddSuccessfulSubscriptions(ok.Websocket.Conn, channels...)
+					err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, channels...)
 				}
 				if err != nil {
 					return err
@@ -463,26 +423,30 @@ func (ok *Okx) handleSubscription(operation string, subs subscription.List) erro
 	}
 
 	if len(reqs.Arguments) > 0 {
-		if err := ok.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, reqs); err != nil {
+		if err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, reqs); err != nil {
 			return err
 		}
 	}
 
-	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authRequests); err != nil {
+	if len(authRequests.Arguments) > 0 && e.Websocket.CanUseAuthenticatedEndpoints() {
+		if err := e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, authRequests); err != nil {
 			return err
 		}
 	}
 
 	channels = append(channels, authChannels...)
 	if operation == operationUnsubscribe {
-		return ok.Websocket.RemoveSubscriptions(ok.Websocket.Conn, channels...)
+		return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, channels...)
 	}
-	return ok.Websocket.AddSuccessfulSubscriptions(ok.Websocket.Conn, channels...)
+	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, channels...)
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (ok *Okx) WsHandleData(respRaw []byte) error {
+func (e *Exchange) WsHandleData(ctx context.Context, respRaw []byte) error {
+	if id, _ := jsonparser.GetString(respRaw, "id"); id != "" {
+		return e.Websocket.Match.RequireMatchWithData(id, respRaw)
+	}
+
 	var resp wsIncomingData
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -491,9 +455,8 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		}
 		return fmt.Errorf("%w unmarshalling %v", err, respRaw)
 	}
-	if (resp.Event != "" && (resp.Event == "login" || resp.Event == "error")) || resp.Operation != "" {
-		ok.WsResponseMultiplexer.Message <- &resp
-		return nil
+	if resp.Event == operationLogin || (resp.Event == "error" && slices.Contains(authConnErrorCodes, resp.StatusCode)) {
+		return e.Websocket.Match.RequireMatchWithData("login-response", respRaw)
 	}
 	if len(resp.Data) == 0 {
 		return nil
@@ -506,7 +469,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		channelCandle3Mutc, channelCandle1Mutc, channelCandle1Wutc, channelCandle1Dutc,
 		channelCandle2Dutc, channelCandle3Dutc, channelCandle5Dutc, channelCandle12Hutc,
 		channelCandle6Hutc:
-		return ok.wsProcessCandles(respRaw)
+		return e.wsProcessCandles(respRaw)
 	case channelIndexCandle1Y, channelIndexCandle6M, channelIndexCandle3M, channelIndexCandle1M,
 		channelIndexCandle1W, channelIndexCandle1D, channelIndexCandle2D, channelIndexCandle3D,
 		channelIndexCandle5D, channelIndexCandle12H, channelIndexCandle6H, channelIndexCandle4H,
@@ -515,101 +478,100 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		channelIndexCandle3Mutc, channelIndexCandle1Mutc, channelIndexCandle1Wutc,
 		channelIndexCandle1Dutc, channelIndexCandle2Dutc, channelIndexCandle3Dutc, channelIndexCandle5Dutc,
 		channelIndexCandle12Hutc, channelIndexCandle6Hutc:
-		return ok.wsProcessIndexCandles(respRaw)
+		return e.wsProcessIndexCandles(respRaw)
 	case channelTickers:
-		return ok.wsProcessTickers(respRaw)
+		return e.wsProcessTickers(respRaw)
 	case channelIndexTickers:
 		var response WsIndexTicker
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelStatus:
 		var response WsSystemStatusResponse
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelPublicStrucBlockTrades:
 		var response WsPublicTradesResponse
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelPublicBlockTrades:
-		return ok.wsProcessBlockPublicTrades(respRaw)
+		return e.wsProcessBlockPublicTrades(respRaw)
 	case channelBlockTickers:
 		var response WsBlockTicker
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelAccountGreeks:
 		var response WsGreeks
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelAccount:
 		var response WsAccountChannelPushData
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelPositions,
 		channelLiquidationWarning:
 		var response WsPositionResponse
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelBalanceAndPosition:
-		var response WsBalanceAndPosition
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessBalanceAndPosition(ctx, respRaw)
 	case channelOrders:
-		return ok.wsProcessOrders(respRaw)
+		return e.wsProcessOrders(respRaw)
 	case channelAlgoOrders:
 		var response WsAlgoOrder
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelAlgoAdvance:
 		var response WsAdvancedAlgoOrder
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelRFQs:
 		var response WsRFQ
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelQuotes:
 		var response WsQuote
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelStructureBlockTrades:
 		var response WsStructureBlocTrade
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelSpotGridOrder:
 		var response WsSpotGridAlgoOrder
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelGridOrdersContract:
 		var response WsContractGridAlgoOrder
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelGridPositions:
 		var response WsContractGridAlgoOrder
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelGridSubOrders:
 		var response WsGridSubOrderData
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelInstruments:
 		var response WSInstrumentResponse
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelOpenInterest:
 		var response WSOpenInterestResponse
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelTrades, channelAllTrades:
-		return ok.wsProcessTrades(respRaw)
+		return e.wsProcessTrades(respRaw)
 	case channelEstimatedPrice:
 		var response WsDeliveryEstimatedPrice
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelMarkPrice, channelPriceLimit:
 		var response WsMarkPrice
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelOrderBooks5:
-		return ok.wsProcessOrderbook5(respRaw)
+		return e.wsProcessOrderbook5(respRaw)
 	case okxSpreadOrderbookLevel1,
 		okxSpreadOrderbook:
-		return ok.wsProcessSpreadOrderbook(respRaw)
+		return e.wsProcessSpreadOrderbook(respRaw)
 	case okxSpreadPublicTrades:
-		return ok.wsProcessPublicSpreadTrades(respRaw)
+		return e.wsProcessPublicSpreadTrades(respRaw)
 	case okxSpreadPublicTicker:
-		return ok.wsProcessPublicSpreadTicker(respRaw)
+		return e.wsProcessPublicSpreadTicker(respRaw)
 	case channelOrderBooks,
 		channelOrderBooks50TBT,
 		channelBBOTBT,
 		channelOrderBooksTBT:
-		return ok.wsProcessOrderBooks(respRaw)
+		return e.wsProcessOrderBooks(respRaw)
 	case channelOptionTrades:
-		return ok.wsProcessOptionTrades(respRaw)
+		return e.wsProcessOptionTrades(respRaw)
 	case channelOptSummary:
 		var response WsOptionSummary
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelFundingRate:
 		var response WsFundingRate
-		return ok.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(respRaw, &response)
 	case channelMarkPriceCandle1Y, channelMarkPriceCandle6M, channelMarkPriceCandle3M, channelMarkPriceCandle1M,
 		channelMarkPriceCandle1W, channelMarkPriceCandle1D, channelMarkPriceCandle2D, channelMarkPriceCandle3D,
 		channelMarkPriceCandle5D, channelMarkPriceCandle12H, channelMarkPriceCandle6H, channelMarkPriceCandle4H,
@@ -618,49 +580,49 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		channelMarkPriceCandle3Mutc, channelMarkPriceCandle1Mutc, channelMarkPriceCandle1Wutc, channelMarkPriceCandle1Dutc,
 		channelMarkPriceCandle2Dutc, channelMarkPriceCandle3Dutc, channelMarkPriceCandle5Dutc, channelMarkPriceCandle12Hutc,
 		channelMarkPriceCandle6Hutc:
-		return ok.wsHandleMarkPriceCandles(respRaw)
+		return e.wsHandleMarkPriceCandles(respRaw)
 	case okxSpreadOrders:
-		return ok.wsProcessSpreadOrders(respRaw)
+		return e.wsProcessSpreadOrders(respRaw)
 	case okxSpreadTrades:
-		return ok.wsProcessSpreadTrades(respRaw)
+		return e.wsProcessSpreadTrades(respRaw)
 	case okxWithdrawalInfo:
 		resp := &struct {
 			Arguments SubscriptionInfo `json:"arg"`
 			Data      []WsDepositInfo  `json:"data"`
 		}{}
-		return ok.wsProcessPushData(respRaw, resp)
+		return e.wsProcessPushData(respRaw, resp)
 	case okxDepositInfo:
 		resp := &struct {
 			Arguments SubscriptionInfo  `json:"arg"`
 			Data      []WsWithdrawlInfo `json:"data"`
 		}{}
-		return ok.wsProcessPushData(respRaw, resp)
+		return e.wsProcessPushData(respRaw, resp)
 	case channelRecurringBuy:
 		resp := &struct {
 			Arguments SubscriptionInfo    `json:"arg"`
 			Data      []RecurringBuyOrder `json:"data"`
 		}{}
-		return ok.wsProcessPushData(respRaw, resp)
+		return e.wsProcessPushData(respRaw, resp)
 	case liquidationOrders:
 		var resp *LiquidationOrder
-		return ok.wsProcessPushData(respRaw, &resp)
+		return e.wsProcessPushData(respRaw, &resp)
 	case adlWarning:
 		var resp ADLWarning
-		return ok.wsProcessPushData(respRaw, &resp)
+		return e.wsProcessPushData(respRaw, &resp)
 	case economicCalendar:
 		var resp EconomicCalendarResponse
-		return ok.wsProcessPushData(respRaw, &resp)
+		return e.wsProcessPushData(respRaw, &resp)
 	case copyTrading:
 		var resp CopyTradingNotification
-		return ok.wsProcessPushData(respRaw, &resp)
+		return e.wsProcessPushData(respRaw, &resp)
 	default:
-		ok.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: ok.Name + websocket.UnhandledMessage + string(respRaw)}
+		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 }
 
 // wsProcessSpreadTrades handle and process spread order trades
-func (ok *Okx) wsProcessSpreadTrades(respRaw []byte) error {
+func (e *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
 	if respRaw == nil {
 		return common.ErrNilPointer
 	}
@@ -672,7 +634,7 @@ func (ok *Okx) wsProcessSpreadTrades(respRaw []byte) error {
 	if len(resp.Data) == 0 {
 		return kline.ErrNoTimeSeriesDataToConvert
 	}
-	pair, err := ok.GetPairFromInstrumentID(resp.Argument.SpreadID)
+	pair, err := e.GetPairFromInstrumentID(resp.Argument.SpreadID)
 	if err != nil {
 		return err
 	}
@@ -686,7 +648,7 @@ func (ok *Okx) wsProcessSpreadTrades(respRaw []byte) error {
 			Amount:       resp.Data[x].FillSize.Float64(),
 			AssetType:    asset.Spread,
 			CurrencyPair: pair,
-			Exchange:     ok.Name,
+			Exchange:     e.Name,
 			Side:         oSide,
 			Timestamp:    resp.Data[x].Timestamp.Time(),
 			TID:          resp.Data[x].TradeID,
@@ -699,7 +661,7 @@ func (ok *Okx) wsProcessSpreadTrades(respRaw []byte) error {
 // wsProcessSpreadOrders retrieve order information from the sprd-order Websocket channel.
 // Data will not be pushed when first subscribed.
 // Data will only be pushed when triggered by events such as placing/canceling order.
-func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
+func (e *Exchange) wsProcessSpreadOrders(respRaw []byte) error {
 	if respRaw == nil {
 		return common.ErrNilPointer
 	}
@@ -714,7 +676,7 @@ func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
 	if len(resp.Data) == 0 {
 		return kline.ErrNoTimeSeriesDataToConvert
 	}
-	pair, err := ok.GetPairFromInstrumentID(resp.Argument.SpreadID)
+	pair, err := e.GetPairFromInstrumentID(resp.Argument.SpreadID)
 	if err != nil {
 		return err
 	}
@@ -739,7 +701,7 @@ func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
 			AverageExecutedPrice: resp.Data[x].AveragePrice.Float64(),
 			ClientOrderID:        resp.Data[x].ClientOrderID,
 			Date:                 resp.Data[x].CreationTime.Time(),
-			Exchange:             ok.Name,
+			Exchange:             e.Name,
 			ExecutedAmount:       resp.Data[x].FillSize.Float64(),
 			OrderID:              resp.Data[x].OrderID,
 			Pair:                 pair,
@@ -752,12 +714,12 @@ func (ok *Okx) wsProcessSpreadOrders(respRaw []byte) error {
 			LastUpdated:          resp.Data[x].UpdateTime.Time(),
 		}
 	}
-	ok.Websocket.DataHandler <- orderDetails
+	e.Websocket.DataHandler <- orderDetails
 	return nil
 }
 
 // wsProcessIndexCandles processes index candlestick data
-func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
+func (e *Exchange) wsProcessIndexCandles(respRaw []byte) error {
 	if respRaw == nil {
 		return common.ErrNilPointer
 	}
@@ -773,10 +735,6 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 		return kline.ErrNoTimeSeriesDataToConvert
 	}
 
-	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
-	if err != nil {
-		return err
-	}
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
 		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
@@ -785,7 +743,7 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -794,8 +752,8 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	for i := range response.Data {
 		candlesData := response.Data[i]
 		myCandle := websocket.KlineData{
-			Pair:       pair,
-			Exchange:   ok.Name,
+			Pair:       response.Argument.InstrumentID,
+			Exchange:   e.Name,
 			Timestamp:  time.UnixMilli(candlesData[0].Int64()),
 			Interval:   candleInterval,
 			OpenPrice:  candlesData[1].Float64(),
@@ -805,14 +763,14 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 		}
 		for i := range assets {
 			myCandle.AssetType = assets[i]
-			ok.Websocket.DataHandler <- myCandle
+			e.Websocket.DataHandler <- myCandle
 		}
 	}
 	return nil
 }
 
 // wsProcessPublicSpreadTicker process spread order ticker push data.
-func (ok *Okx) wsProcessPublicSpreadTicker(respRaw []byte) error {
+func (e *Exchange) wsProcessPublicSpreadTicker(respRaw []byte) error {
 	var resp WsSpreadPushData
 	data := []WsSpreadPublicTicker{}
 	resp.Data = &data
@@ -831,19 +789,19 @@ func (ok *Okx) wsProcessPublicSpreadTicker(respRaw []byte) error {
 			Bid:          data[x].BidPrice.Float64(),
 			Ask:          data[x].AskPrice.Float64(),
 			Pair:         pair,
-			ExchangeName: ok.Name,
+			ExchangeName: e.Name,
 			AssetType:    asset.Spread,
 			LastUpdated:  data[x].Timestamp.Time(),
 		}
 	}
-	ok.Websocket.DataHandler <- tickers
+	e.Websocket.DataHandler <- tickers
 	return nil
 }
 
 // wsProcessPublicSpreadTrades retrieve the recent trades data from sprd-public-trades.
 // Data will be pushed whenever there is a trade.
 // Every update contains only one trade.
-func (ok *Okx) wsProcessPublicSpreadTrades(respRaw []byte) error {
+func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 	var resp WsSpreadPushData
 	data := []WsSpreadPublicTrade{}
 	resp.Data = data
@@ -863,7 +821,7 @@ func (ok *Okx) wsProcessPublicSpreadTrades(respRaw []byte) error {
 		}
 		trades[x] = trade.Data{
 			TID:          data[x].TradeID,
-			Exchange:     ok.Name,
+			Exchange:     e.Name,
 			CurrencyPair: pair,
 			AssetType:    asset.Spread,
 			Side:         oSide,
@@ -876,13 +834,13 @@ func (ok *Okx) wsProcessPublicSpreadTrades(respRaw []byte) error {
 }
 
 // wsProcessSpreadOrderbook process spread orderbook data.
-func (ok *Okx) wsProcessSpreadOrderbook(respRaw []byte) error {
+func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 	var resp WsSpreadOrderbook
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
-	pair, err := ok.GetPairFromInstrumentID(resp.Arg.SpreadID)
+	pair, err := e.GetPairFromInstrumentID(resp.Arg.SpreadID)
 	if err != nil {
 		return err
 	}
@@ -891,14 +849,14 @@ func (ok *Okx) wsProcessSpreadOrderbook(respRaw []byte) error {
 		return err
 	}
 	for x := range extractedResponse.Data {
-		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Asset:           asset.Spread,
-			Asks:            extractedResponse.Data[x].Asks,
-			Bids:            extractedResponse.Data[x].Bids,
-			LastUpdated:     resp.Data[x].Timestamp.Time(),
-			Pair:            pair,
-			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Asset:             asset.Spread,
+			Asks:              extractedResponse.Data[x].Asks,
+			Bids:              extractedResponse.Data[x].Bids,
+			LastUpdated:       resp.Data[x].Timestamp.Time(),
+			Pair:              pair,
+			Exchange:          e.Name,
+			ValidateOrderbook: e.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -908,7 +866,7 @@ func (ok *Okx) wsProcessSpreadOrderbook(respRaw []byte) error {
 }
 
 // wsProcessOrderbook5 processes orderbook data
-func (ok *Okx) wsProcessOrderbook5(data []byte) error {
+func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 	var resp WsOrderbook5
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -916,39 +874,35 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 	}
 
 	if len(resp.Data) != 1 {
-		return fmt.Errorf("%s - no data returned", ok.Name)
+		return fmt.Errorf("%s - no data returned", e.Name)
 	}
-	assets, err := ok.getAssetsFromInstrumentID(resp.Argument.InstrumentID)
+
+	assets, err := e.getAssetsFromInstrumentID(resp.Argument.InstrumentID.String())
 	if err != nil {
 		return err
 	}
 
-	pair, err := currency.NewPairFromString(resp.Argument.InstrumentID)
-	if err != nil {
-		return err
-	}
-
-	asks := make([]orderbook.Tranche, len(resp.Data[0].Asks))
+	asks := make([]orderbook.Level, len(resp.Data[0].Asks))
 	for x := range resp.Data[0].Asks {
 		asks[x].Price = resp.Data[0].Asks[x][0].Float64()
 		asks[x].Amount = resp.Data[0].Asks[x][1].Float64()
 	}
 
-	bids := make([]orderbook.Tranche, len(resp.Data[0].Bids))
+	bids := make([]orderbook.Level, len(resp.Data[0].Bids))
 	for x := range resp.Data[0].Bids {
 		bids[x].Price = resp.Data[0].Bids[x][0].Float64()
 		bids[x].Amount = resp.Data[0].Bids[x][1].Float64()
 	}
 
 	for x := range assets {
-		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Asset:           assets[x],
-			Asks:            asks,
-			Bids:            bids,
-			LastUpdated:     resp.Data[0].Timestamp.Time(),
-			Pair:            pair,
-			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Asset:             assets[x],
+			Asks:              asks,
+			Bids:              bids,
+			LastUpdated:       resp.Data[0].Timestamp.Time(),
+			Pair:              resp.Argument.InstrumentID,
+			Exchange:          e.Name,
+			ValidateOrderbook: e.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -958,7 +912,7 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 }
 
 // wsProcessOptionTrades handles options trade data
-func (ok *Okx) wsProcessOptionTrades(data []byte) error {
+func (e *Exchange) wsProcessOptionTrades(data []byte) error {
 	var resp WsOptionTrades
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -967,7 +921,7 @@ func (ok *Okx) wsProcessOptionTrades(data []byte) error {
 	trades := make([]trade.Data, len(resp.Data))
 	for i := range resp.Data {
 		var pair currency.Pair
-		pair, err = ok.GetPairFromInstrumentID(resp.Data[i].InstrumentID)
+		pair, err = e.GetPairFromInstrumentID(resp.Data[i].InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -979,7 +933,7 @@ func (ok *Okx) wsProcessOptionTrades(data []byte) error {
 			Amount:       resp.Data[i].Size.Float64(),
 			AssetType:    asset.Options,
 			CurrencyPair: pair,
-			Exchange:     ok.Name,
+			Exchange:     e.Name,
 			Side:         oSide,
 			Timestamp:    resp.Data[i].Timestamp.Time(),
 			TID:          resp.Data[i].TradeID,
@@ -990,7 +944,7 @@ func (ok *Okx) wsProcessOptionTrades(data []byte) error {
 }
 
 // wsProcessOrderBooks processes "snapshot" and "update" order book
-func (ok *Okx) wsProcessOrderBooks(data []byte) error {
+func (e *Exchange) wsProcessOrderBooks(data []byte) error {
 	var response WsOrderBook
 	err := json.Unmarshal(data, &response)
 	if err != nil {
@@ -1009,57 +963,50 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
 	}
-	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
-	if err != nil {
-		return err
-	}
-	if !pair.IsPopulated() {
+	if !response.Argument.InstrumentID.IsPopulated() {
 		return currency.ErrCurrencyPairsEmpty
 	}
-	pair.Delimiter = currency.DashDelimiter
+	response.Argument.InstrumentID.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
 		if response.Action == wsOrderbookSnapshot {
-			err = ok.WsProcessSnapshotOrderBook(&response.Data[i], pair, assets)
+			err = e.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
 		} else {
 			if len(response.Data[i].Asks) == 0 && len(response.Data[i].Bids) == 0 {
 				return nil
 			}
-			err = ok.WsProcessUpdateOrderbook(&response.Data[i], pair, assets)
+			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
 		}
 		if err != nil {
 			if errors.Is(err, errInvalidChecksum) {
-				err = ok.Subscribe(subscription.List{
+				err = e.Subscribe(subscription.List{
 					{
 						Channel: response.Argument.Channel,
 						Asset:   assets[0],
-						Pairs:   currency.Pairs{pair},
+						Pairs:   currency.Pairs{response.Argument.InstrumentID},
 					},
 				})
 				if err != nil {
-					ok.Websocket.DataHandler <- err
+					e.Websocket.DataHandler <- err
 				}
 			} else {
 				return err
 			}
 		}
 	}
-	if ok.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s passed checksum for pair %v",
-			ok.Name, pair,
-		)
+	if e.Verbose {
+		log.Debugf(log.ExchangeSys, "%s passed checksum for pair %s", e.Name, response.Argument.InstrumentID)
 	}
 	return nil
 }
 
 // WsProcessSnapshotOrderBook processes snapshot order books
-func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	signedChecksum, err := ok.CalculateOrderbookChecksum(data)
+func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
+	signedChecksum, err := e.CalculateOrderbookChecksum(data)
 	if err != nil {
 		return fmt.Errorf("%w %v: unable to calculate orderbook checksum: %s",
 			errInvalidChecksum,
@@ -1072,25 +1019,25 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.P
 			pair)
 	}
 
-	asks, err := ok.AppendWsOrderbookItems(data.Asks)
+	asks, err := e.AppendWsOrderbookItems(data.Asks)
 	if err != nil {
 		return err
 	}
-	bids, err := ok.AppendWsOrderbookItems(data.Bids)
+	bids, err := e.AppendWsOrderbookItems(data.Bids)
 	if err != nil {
 		return err
 	}
 	for i := range assets {
-		newOrderBook := orderbook.Base{
-			Asset:           assets[i],
-			Asks:            asks,
-			Bids:            bids,
-			LastUpdated:     data.Timestamp.Time(),
-			Pair:            pair,
-			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+		newOrderBook := orderbook.Book{
+			Asset:             assets[i],
+			Asks:              asks,
+			Bids:              bids,
+			LastUpdated:       data.Timestamp.Time(),
+			Pair:              pair,
+			Exchange:          e.Name,
+			ValidateOrderbook: e.ValidateOrderbook,
 		}
-		err = ok.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+		err = e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
 			return err
 		}
@@ -1101,26 +1048,25 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.P
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
-func (ok *Okx) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	update := orderbook.Update{
-		Pair:       pair,
-		UpdateTime: data.Timestamp.Time(),
-	}
-	var err error
-	update.Asks, err = ok.AppendWsOrderbookItems(data.Asks)
+func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
+	asks, err := e.AppendWsOrderbookItems(data.Asks)
 	if err != nil {
 		return err
 	}
-	update.Bids, err = ok.AppendWsOrderbookItems(data.Bids)
+	bids, err := e.AppendWsOrderbookItems(data.Bids)
 	if err != nil {
 		return err
 	}
-	update.Checksum = uint32(data.Checksum) //nolint:gosec // Requires type casting
 	for i := range assets {
-		ob := update
-		ob.Asset = assets[i]
-		err = ok.Websocket.Orderbook.Update(&ob)
-		if err != nil {
+		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
+			Pair:             pair,
+			Asset:            assets[i],
+			UpdateTime:       data.Timestamp.Time(),
+			GenerateChecksum: generateOrderbookChecksum,
+			ExpectedChecksum: uint32(data.Checksum), //nolint:gosec // Requires type casting
+			Asks:             asks,
+			Bids:             bids,
+		}); err != nil {
 			return err
 		}
 	}
@@ -1128,20 +1074,20 @@ func (ok *Okx) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pai
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
-func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Tranches, error) {
-	items := make(orderbook.Tranches, len(entries))
+func (e *Exchange) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Levels, error) {
+	items := make(orderbook.Levels, len(entries))
 	for j := range entries {
-		items[j] = orderbook.Tranche{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
+		items[j] = orderbook.Level{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
 	}
 	return items, nil
 }
 
-// CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask
+// generateOrderbookChecksum alternates over the first 25 bid and ask
 // entries of a merged orderbook. The checksum is made up of the price and the
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, checksumVal uint32) error {
+func generateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
 	var checksum strings.Builder
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1156,14 +1102,11 @@ func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, c
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), wsOrderbookChecksumDelimiter)
-	if crc32.ChecksumIEEE([]byte(checksumStr)) != checksumVal {
-		return fmt.Errorf("%s order book update checksum failed for pair %v", ok.Name, orderbookData.Pair)
-	}
-	return nil
+	return crc32.ChecksumIEEE([]byte(checksumStr))
 }
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
-func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (uint32, error) {
+func (e *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (uint32, error) {
 	var checksum strings.Builder
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1189,39 +1132,40 @@ func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (uint3
 }
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.
-func (ok *Okx) wsHandleMarkPriceCandles(data []byte) error {
-	tempo := &struct {
+func (e *Exchange) wsHandleMarkPriceCandles(data []byte) error {
+	m := &struct {
 		Argument SubscriptionInfo  `json:"arg"`
 		Data     [][5]types.Number `json:"data"`
 	}{}
-	err := json.Unmarshal(data, tempo)
+	err := json.Unmarshal(data, m)
 	if err != nil {
 		return err
 	}
-	candles := make([]CandlestickMarkPrice, len(tempo.Data))
-	for x := range tempo.Data {
+	candles := make([]CandlestickMarkPrice, len(m.Data))
+	for x := range m.Data {
 		candles[x] = CandlestickMarkPrice{
-			Timestamp:    time.UnixMilli(tempo.Data[x][0].Int64()),
-			OpenPrice:    tempo.Data[x][1].Float64(),
-			HighestPrice: tempo.Data[x][2].Float64(),
-			LowestPrice:  tempo.Data[x][3].Float64(),
-			ClosePrice:   tempo.Data[x][4].Float64(),
+			Pair:         m.Argument.InstrumentID,
+			Timestamp:    time.UnixMilli(m.Data[x][0].Int64()),
+			OpenPrice:    m.Data[x][1].Float64(),
+			HighestPrice: m.Data[x][2].Float64(),
+			LowestPrice:  m.Data[x][3].Float64(),
+			ClosePrice:   m.Data[x][4].Float64(),
 		}
 	}
-	ok.Websocket.DataHandler <- candles
+	e.Websocket.DataHandler <- candles
 	return nil
 }
 
 // wsProcessTrades handles a list of trade information.
-func (ok *Okx) wsProcessTrades(data []byte) error {
+func (e *Exchange) wsProcessTrades(data []byte) error {
 	var response WsTradeOrder
 	err := json.Unmarshal(data, &response)
 	if err != nil {
 		return err
 	}
 
-	saveTradeData := ok.IsSaveTradeDataEnabled()
-	tradeFeed := ok.IsTradeFeedEnabled()
+	saveTradeData := e.IsSaveTradeDataEnabled()
+	tradeFeed := e.IsTradeFeedEnabled()
 	if !saveTradeData && !tradeFeed {
 		return nil
 	}
@@ -1234,7 +1178,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -1250,7 +1194,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 				Amount:       response.Data[i].Quantity.Float64(),
 				AssetType:    assets[j],
 				CurrencyPair: pair,
-				Exchange:     ok.Name,
+				Exchange:     e.Name,
 				Side:         response.Data[i].Side,
 				Timestamp:    response.Data[i].Timestamp.Time().UTC(),
 				TID:          response.Data[i].TradeID,
@@ -1260,7 +1204,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 	}
 	if tradeFeed {
 		for i := range trades {
-			ok.Websocket.DataHandler <- trades[i]
+			e.Websocket.DataHandler <- trades[i]
 		}
 	}
 	if saveTradeData {
@@ -1270,7 +1214,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 }
 
 // wsProcessOrders handles websocket order push data responses.
-func (ok *Okx) wsProcessOrders(respRaw []byte) error {
+func (e *Exchange) wsProcessOrders(respRaw []byte) error {
 	var response WsOrderResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -1283,16 +1227,16 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 	for x := range response.Data {
 		orderType, err := order.StringToOrderType(response.Data[x].OrderType)
 		if err != nil {
-			ok.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: ok.Name,
+			e.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: e.Name,
 				OrderID:  response.Data[x].OrderID,
 				Err:      err,
 			}
 		}
 		orderStatus, err := order.StringToOrderStatus(response.Data[x].State)
 		if err != nil {
-			ok.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: ok.Name,
+			e.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: e.Name,
 				OrderID:  response.Data[x].OrderID,
 				Err:      err,
 			}
@@ -1337,7 +1281,7 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 			AverageExecutedPrice: avgPrice,
 			ClientOrderID:        response.Data[x].ClientOrderID,
 			Date:                 response.Data[x].CreationTime.Time(),
-			Exchange:             ok.Name,
+			Exchange:             e.Name,
 			ExecutedAmount:       execAmount,
 			Fee:                  0.0 - response.Data[x].Fee.Float64(),
 			FeeAsset:             response.Data[x].FeeCurrency,
@@ -1356,13 +1300,13 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 				d.Amount = d.ExecutedAmount
 			}
 		}
-		ok.Websocket.DataHandler <- d
+		e.Websocket.DataHandler <- d
 	}
 	return nil
 }
 
 // wsProcessCandles handler to get a list of candlestick messages.
-func (ok *Okx) wsProcessCandles(respRaw []byte) error {
+func (e *Exchange) wsProcessCandles(respRaw []byte) error {
 	if respRaw == nil {
 		return common.ErrNilPointer
 	}
@@ -1377,10 +1321,6 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 	if len(response.Data) == 0 {
 		return kline.ErrNoTimeSeriesDataToConvert
 	}
-	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
-	if err != nil {
-		return err
-	}
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
 		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
@@ -1389,7 +1329,7 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -1397,11 +1337,11 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
 		for j := range assets {
-			ok.Websocket.DataHandler <- websocket.KlineData{
+			e.Websocket.DataHandler <- websocket.KlineData{
 				Timestamp:  time.UnixMilli(response.Data[i][0].Int64()),
-				Pair:       pair,
+				Pair:       response.Argument.InstrumentID,
 				AssetType:  assets[j],
-				Exchange:   ok.Name,
+				Exchange:   e.Name,
 				Interval:   candleInterval,
 				OpenPrice:  response.Data[i][1].Float64(),
 				ClosePrice: response.Data[i][4].Float64(),
@@ -1415,7 +1355,7 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 }
 
 // wsProcessTickers handles the trade ticker information.
-func (ok *Okx) wsProcessTickers(data []byte) error {
+func (e *Exchange) wsProcessTickers(data []byte) error {
 	var response WSTickerResponse
 	err := json.Unmarshal(data, &response)
 	if err != nil {
@@ -1430,14 +1370,10 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 			}
 			assets = append(assets, assetType)
 		} else {
-			assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+			assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 			if err != nil {
 				return err
 			}
-		}
-		c, err := currency.NewPairFromString(response.Data[i].InstrumentID)
-		if err != nil {
-			return err
 		}
 		var baseVolume float64
 		var quoteVolume float64
@@ -1450,7 +1386,7 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 		}
 		for j := range assets {
 			tickData := &ticker.Price{
-				ExchangeName: ok.Name,
+				ExchangeName: e.Name,
 				Open:         response.Data[i].Open24H.Float64(),
 				Volume:       baseVolume,
 				QuoteVolume:  quoteVolume,
@@ -1462,22 +1398,22 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 				AskSize:      response.Data[i].BestAskSize.Float64(),
 				Last:         response.Data[i].LastTradePrice.Float64(),
 				AssetType:    assets[j],
-				Pair:         c,
+				Pair:         response.Data[i].InstrumentID,
 				LastUpdated:  response.Data[i].TickerDataGenerationTime.Time(),
 			}
-			ok.Websocket.DataHandler <- tickData
+			e.Websocket.DataHandler <- tickData
 		}
 	}
 	return nil
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (ok *Okx) generateSubscriptions() (subscription.List, error) {
-	return ok.Features.Subscriptions.ExpandTemplates(ok)
+func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (ok *Okx) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
 		"channelName":     channelName,
 		"isSymbolChannel": isSymbolChannel,
@@ -1487,7 +1423,7 @@ func (ok *Okx) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.
 }
 
 // wsProcessBlockPublicTrades handles the recent block trades data by individual legs.
-func (ok *Okx) wsProcessBlockPublicTrades(data []byte) error {
+func (e *Exchange) wsProcessBlockPublicTrades(data []byte) error {
 	var resp PublicBlockTrades
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -1496,7 +1432,7 @@ func (ok *Okx) wsProcessBlockPublicTrades(data []byte) error {
 	trades := make([]trade.Data, len(resp.Data))
 	for i := range resp.Data {
 		var pair currency.Pair
-		pair, err = ok.GetPairFromInstrumentID(resp.Data[i].InstrumentID)
+		pair, err = e.GetPairFromInstrumentID(resp.Data[i].InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -1508,7 +1444,7 @@ func (ok *Okx) wsProcessBlockPublicTrades(data []byte) error {
 			Amount:       resp.Data[i].Size.Float64(),
 			AssetType:    asset.Options,
 			CurrencyPair: pair,
-			Exchange:     ok.Name,
+			Exchange:     e.Name,
 			Side:         oSide,
 			Timestamp:    resp.Data[i].Timestamp.Time(),
 			TID:          resp.Data[i].TradeID,
@@ -1518,1099 +1454,36 @@ func (ok *Okx) wsProcessBlockPublicTrades(data []byte) error {
 	return trade.AddTradesToBuffer(trades...)
 }
 
-// wsProcessPushData processes push data coming through the websocket channel
-func (ok *Okx) wsProcessPushData(data []byte, resp any) error {
-	if err := json.Unmarshal(data, resp); err != nil {
+func (e *Exchange) wsProcessBalanceAndPosition(ctx context.Context, data []byte) error {
+	var resp WsBalanceAndPosition
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	ok.Websocket.DataHandler <- resp
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, resp.Argument.UID)}
+	for i := range resp.Data {
+		for j := range resp.Data[i].BalanceData {
+			subAccts[0].Balances.Set(resp.Data[i].BalanceData[j].Currency, accounts.Balance{
+				Total:     resp.Data[i].BalanceData[j].CashBalance.Float64(),
+				Free:      resp.Data[i].BalanceData[j].CashBalance.Float64(),
+				UpdatedAt: resp.Data[i].BalanceData[j].UpdateTime.Time(),
+			})
+		}
+		// TODO: Handle position data
+	}
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- subAccts
 	return nil
 }
 
-// Websocket Trade methods
-
-// WsPlaceOrder places an order thought the websocket connection stream, and returns a SubmitResponse and error message.
-func (ok *Okx) WsPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
-	if arg == nil || *arg == (PlaceOrderRequestParam{}) {
-		return nil, common.ErrNilPointer
-	}
-	err := ok.validatePlaceOrderParams(arg)
-	if err != nil {
-		return nil, err
-	}
-	if !ok.AreCredentialsValid(ctx) || !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, errWebsocketStreamNotAuthenticated
-	}
-	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsOperationInput{
-		ID:        randomID,
-		Arguments: []PlaceOrderRequestParam{*arg},
-		Operation: okxOpOrder,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), placeOrderEPL, input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpOrder && data.ID == input.ID {
-				var dataHolder *OrderData
-				err = ok.handleIncomingData(data, &dataHolder)
-				if err != nil {
-					return nil, err
-				}
-				if data.StatusCode == "1" {
-					return nil, fmt.Errorf("error code:%s error message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
-				}
-				return dataHolder, nil
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsPlaceMultipleOrders creates an order through the websocket
-func (ok *Okx) WsPlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]OrderData, error) {
-	if len(args) == 0 {
-		return nil, order.ErrSubmissionIsNil
-	}
-	var err error
-	for x := range args {
-		arg := args[x]
-		err = ok.validatePlaceOrderParams(&arg)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if !ok.AreCredentialsValid(ctx) || !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, errWebsocketStreamNotAuthenticated
-	}
-	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsOperationInput{
-		ID:        randomID,
-		Arguments: args,
-		Operation: okxOpBatchOrders,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), placeMultipleOrdersEPL, input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpBatchOrders && data.ID == input.ID {
-				if data.StatusCode == "0" || data.StatusCode == "2" {
-					var resp *WsPlaceOrderResponse
-					resp, err = data.copyToPlaceOrderResponse()
-					if err != nil {
-						return nil, err
-					}
-					return resp.Data, nil
-				}
-				var resp WsOrderActionResponse
-				err = resp.populateFromIncomingData(data)
-				if err != nil {
-					return nil, err
-				}
-				err = json.Unmarshal(data.Data, &(resp.Data))
-				if err != nil {
-					return nil, err
-				}
-				if len(data.Data) == 0 {
-					return nil, fmt.Errorf("error code:%s error message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
-				}
-				var errs error
-				for x := range resp.Data {
-					if resp.Data[x].StatusCode != "0" {
-						errs = common.AppendError(errs, fmt.Errorf("error code:%s error message: %s", resp.Data[x].StatusCode, resp.Data[x].StatusMessage))
-					}
-				}
-				return nil, errs
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsCancelOrder websocket function to cancel a trade order
-func (ok *Okx) WsCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) (*OrderData, error) {
-	if arg == nil || *arg == (CancelOrderRequestParam{}) {
-		return nil, common.ErrNilPointer
-	}
-	if arg.InstrumentID == "" {
-		return nil, errMissingInstrumentID
-	}
-	if arg.OrderID == "" && arg.ClientOrderID == "" {
-		return nil, order.ErrOrderIDNotSet
-	}
-	if !ok.AreCredentialsValid(ctx) || !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, errWebsocketStreamNotAuthenticated
-	}
-	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsOperationInput{
-		ID:        randomID,
-		Arguments: []CancelOrderRequestParam{*arg},
-		Operation: okxOpCancelOrder,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, cancelOrderEPL, input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpCancelOrder && data.ID == input.ID {
-				var dataHolder *OrderData
-				err = ok.handleIncomingData(data, &dataHolder)
-				if err != nil {
-					return nil, err
-				}
-				if data.StatusCode == "1" {
-					return nil, fmt.Errorf("error code:%s error message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
-				}
-				return dataHolder, nil
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsCancelMultipleOrder cancel multiple order through the websocket channel.
-func (ok *Okx) WsCancelMultipleOrder(ctx context.Context, args []CancelOrderRequestParam) ([]OrderData, error) {
-	for x := range args {
-		arg := args[x]
-		if arg.InstrumentID == "" {
-			return nil, errMissingInstrumentID
-		}
-		if arg.OrderID == "" && arg.ClientOrderID == "" {
-			return nil, order.ErrOrderIDNotSet
-		}
-	}
-	if !ok.AreCredentialsValid(ctx) || !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, errWebsocketStreamNotAuthenticated
-	}
-	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsOperationInput{
-		ID:        randomID,
-		Arguments: args,
-		Operation: okxOpBatchCancelOrders,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), cancelMultipleOrdersEPL, input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpBatchCancelOrders && data.ID == input.ID {
-				if data.StatusCode == "0" || data.StatusCode == "2" {
-					var resp *WsPlaceOrderResponse
-					resp, err = data.copyToPlaceOrderResponse()
-					if err != nil {
-						return nil, err
-					}
-					return resp.Data, nil
-				}
-				if len(data.Data) == 0 {
-					return nil, fmt.Errorf("error code:%s error message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
-				}
-				var resp WsOrderActionResponse
-				err = resp.populateFromIncomingData(data)
-				if err != nil {
-					return nil, err
-				}
-				err = json.Unmarshal(data.Data, &(resp.Data))
-				if err != nil {
-					return nil, err
-				}
-				var errs error
-				for x := range resp.Data {
-					if resp.Data[x].StatusCode != "0" {
-						errs = common.AppendError(errs, fmt.Errorf("error code:%s error message: %v", resp.Data[x].StatusCode, resp.Data[x].StatusMessage))
-					}
-				}
-				return nil, errs
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsAmendOrder method to amend trade order using a request thought the websocket channel.
-func (ok *Okx) WsAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*OrderData, error) {
-	if arg == nil {
-		return nil, common.ErrNilPointer
-	}
-	if arg.InstrumentID == "" {
-		return nil, errMissingInstrumentID
-	}
-	if arg.ClientOrderID == "" && arg.OrderID == "" {
-		return nil, order.ErrOrderIDNotSet
-	}
-	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
-		return nil, errInvalidNewSizeOrPriceInformation
-	}
-	if !ok.AreCredentialsValid(ctx) || !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, errWebsocketStreamNotAuthenticated
-	}
-	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsOperationInput{
-		ID:        randomID,
-		Operation: okxOpAmendOrder,
-		Arguments: []AmendOrderRequestParams{*arg},
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, amendOrderEPL, input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpAmendOrder && data.ID == input.ID {
-				var dataHolder *OrderData
-				err = ok.handleIncomingData(data, &dataHolder)
-				if err != nil {
-					return nil, err
-				}
-				if data.StatusCode == "1" {
-					return nil, fmt.Errorf("error code:%s error message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
-				}
-				return dataHolder, nil
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsAmendMultipleOrders a request through the websocket connection to amend multiple trade orders.
-func (ok *Okx) WsAmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]OrderData, error) {
-	for x := range args {
-		if args[x].InstrumentID == "" {
-			return nil, errMissingInstrumentID
-		}
-		if args[x].ClientOrderID == "" && args[x].OrderID == "" {
-			return nil, order.ErrOrderIDNotSet
-		}
-		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
-			return nil, errInvalidNewSizeOrPriceInformation
-		}
-	}
-	if !ok.AreCredentialsValid(ctx) || !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, errWebsocketStreamNotAuthenticated
-	}
-	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := &WsOperationInput{
-		ID:        randomID,
-		Operation: okxOpBatchAmendOrders,
-		Arguments: args,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, amendMultipleOrdersEPL, input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpBatchAmendOrders && data.ID == input.ID {
-				if data.StatusCode == "0" || data.StatusCode == "2" {
-					var resp *WsPlaceOrderResponse
-					resp, err = data.copyToPlaceOrderResponse()
-					if err != nil {
-						return nil, err
-					}
-					return resp.Data, nil
-				}
-				if len(data.Data) == 0 {
-					return nil, fmt.Errorf("error code:%s error message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
-				}
-				var resp WsOrderActionResponse
-				err = resp.populateFromIncomingData(data)
-				if err != nil {
-					return nil, err
-				}
-				err = json.Unmarshal(data.Data, &(resp.Data))
-				if err != nil {
-					return nil, err
-				}
-				var errs error
-				for x := range resp.Data {
-					if resp.Data[x].StatusCode != "0" {
-						errs = common.AppendError(errs, fmt.Errorf("error code:%s error message: %v", resp.Data[x].StatusCode, resp.Data[x].StatusMessage))
-					}
-				}
-				return nil, errs
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsMassCancelOrders cancel all the MMP pending orders of an instrument family.
-// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
-func (ok *Okx) WsMassCancelOrders(ctx context.Context, args []CancelMassReqParam) (bool, error) {
-	for x := range args {
-		if args[x] == (CancelMassReqParam{}) {
-			return false, common.ErrEmptyParams
-		}
-		if args[x].InstrumentType == "" {
-			return false, fmt.Errorf("%w, instrument type can not be empty", errInvalidInstrumentType)
-		}
-		if args[x].InstrumentFamily == "" {
-			return false, errInstrumentFamilyRequired
-		}
-	}
-	if !ok.AreCredentialsValid(ctx) || !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return false, errWebsocketStreamNotAuthenticated
-	}
-	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
-	if err != nil {
-		return false, err
-	}
-	input := &WsOperationInput{
-		ID:        randomID,
-		Operation: okxOpMassCancelOrder,
-		Arguments: args,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, input)
-	if err != nil {
-		return false, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxOpMassCancelOrder && data.ID == input.ID {
-				if data.StatusCode == "0" || data.StatusCode == "2" {
-					resp := []struct {
-						Result bool `json:"result"`
-					}{}
-					err := json.Unmarshal(data.Data, &resp)
-					if err != nil {
-						return false, err
-					}
-					if len(data.Data) == 0 {
-						return false, fmt.Errorf("error code:%s message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
-					}
-					return resp[0].Result, nil
-				}
-				return false, fmt.Errorf("error code:%s message: %v", data.StatusCode, data.Message)
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return false, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// Run this functions distributes websocket request responses to
-func (m *wsRequestDataChannelsMultiplexer) Run() {
-	tickerData := time.NewTicker(time.Second)
-	for {
-		select {
-		case <-m.shutdown:
-			// We've consumed the shutdown, so create a new chan for subsequent runs
-			m.shutdown = make(chan bool)
-			return
-		case <-tickerData.C:
-			for x, myChan := range m.WsResponseChannelsMap {
-				if myChan == nil {
-					delete(m.WsResponseChannelsMap, x)
-				}
-			}
-		case id := <-m.Unregister:
-			delete(m.WsResponseChannelsMap, id)
-		case reg := <-m.Register:
-			m.WsResponseChannelsMap[reg.ID] = reg
-		case msg := <-m.Message:
-			if msg.ID != "" && m.WsResponseChannelsMap[msg.ID] != nil {
-				m.WsResponseChannelsMap[msg.ID].Chan <- msg
-				continue
-			}
-			for _, myChan := range m.WsResponseChannelsMap {
-				if (msg.Event == "error" || myChan.Event == operationLogin) &&
-					(msg.StatusCode == "60009" || msg.StatusCode == "60004" || msg.StatusCode == "60022" || msg.StatusCode == "0") &&
-					strings.Contains(msg.Message, myChan.Channel) {
-					myChan.Chan <- msg
-					continue
-				} else if msg.Event != myChan.Event ||
-					msg.Argument.Channel != myChan.Channel ||
-					msg.Argument.InstrumentType != myChan.InstrumentType ||
-					msg.Argument.InstrumentID != myChan.InstrumentID {
-					continue
-				}
-				myChan.Chan <- msg
-				break
-			}
-		}
-	}
-}
-
-// Shutdown causes the multiplexer to exit its Run loop
-// All channels are left open, but websocket shutdown first will ensure no more messages block on multiplexer reading
-func (m *wsRequestDataChannelsMultiplexer) Shutdown() {
-	close(m.shutdown)
-}
-
-// wsChannelSubscription sends a subscription or unsubscription request for different channels through the websocket
-func (ok *Okx) wsChannelSubscription(ctx context.Context, operation, channel string, assetType asset.Item, pair currency.Pair, tInstrumentType, tInstrumentID, tUnderlying bool) error {
-	if operation != operationSubscribe && operation != operationUnsubscribe {
-		return errInvalidWebsocketEvent
-	}
-	if channel == "" {
-		return errMissingValidChannelInformation
-	}
-	var underlying string
-	var instrumentID string
-	var instrumentType string
-	var format currency.PairFormat
-	var err error
-	if tInstrumentType {
-		instrumentType = GetInstrumentTypeFromAssetItem(assetType)
-		if instrumentType != instTypeSpot &&
-			instrumentType != instTypeMargin &&
-			instrumentType != instTypeSwap &&
-			instrumentType != instTypeFutures &&
-			instrumentType != instTypeOption {
-			instrumentType = instTypeANY
-		}
-	}
-	if tUnderlying {
-		if !pair.IsEmpty() {
-			underlying, _ = ok.GetUnderlying(pair, assetType)
-		}
-	}
-	if tInstrumentID {
-		format, err = ok.GetPairFormat(assetType, false)
-		if err != nil {
-			return err
-		}
-		if !pair.IsPopulated() {
-			return currency.ErrCurrencyPairsEmpty
-		}
-		instrumentID = format.Format(pair)
-	}
-	input := &SubscriptionOperationInput{
-		Operation: operation,
-		Arguments: []SubscriptionInfo{
-			{
-				Channel:        channel,
-				InstrumentType: instrumentType,
-				Underlying:     underlying,
-				InstrumentID:   instrumentID,
-			},
-		},
-	}
-	ok.WsRequestSemaphore <- 1
-	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.Conn.SendJSONMessage(ctx, request.Unset, input)
-}
-
-// Private Channel Websocket methods
-
-// wsAuthChannelSubscription send a subscription or unsubscription request for different channels through the websocket
-func (ok *Okx) wsAuthChannelSubscription(ctx context.Context, operation, channel string, assetType asset.Item, pair currency.Pair, uid, algoID string, params wsSubscriptionParameters) error {
-	if operation != operationSubscribe && operation != operationUnsubscribe {
-		return errInvalidWebsocketEvent
-	}
-	var underlying string
-	var instrumentID string
-	var instrumentType string
-	var ccy string
-	if params.InstrumentType {
-		instrumentType = GetInstrumentTypeFromAssetItem(assetType)
-		if instrumentType != instTypeMargin &&
-			instrumentType != instTypeSwap &&
-			instrumentType != instTypeFutures &&
-			instrumentType != instTypeOption {
-			instrumentType = instTypeANY
-		}
-	}
-	if params.Underlying {
-		if !pair.IsEmpty() {
-			underlying, _ = ok.GetUnderlying(pair, assetType)
-		}
-	}
-	if params.InstrumentID {
-		if !pair.IsPopulated() {
-			return currency.ErrCurrencyPairsEmpty
-		}
-		format, err := ok.GetPairFormat(assetType, false)
-		if err != nil {
-			return err
-		}
-		instrumentID = format.Format(pair)
-	}
-	if params.Currency {
-		if !pair.IsEmpty() {
-			if !pair.Base.IsEmpty() {
-				ccy = strings.ToUpper(pair.Base.String())
-			} else {
-				ccy = strings.ToUpper(pair.Quote.String())
-			}
-		}
-	}
-	if channel == "" {
-		return errMissingValidChannelInformation
-	}
-	input := &SubscriptionOperationInput{
-		Operation: operation,
-		Arguments: []SubscriptionInfo{
-			{
-				Channel:        channel,
-				InstrumentType: instrumentType,
-				Underlying:     underlying,
-				InstrumentID:   instrumentID,
-				AlgoID:         algoID,
-				Currency:       ccy,
-				UID:            uid,
-			},
-		},
-	}
-	ok.WsRequestSemaphore <- 1
-	defer func() { <-ok.WsRequestSemaphore }()
-	return ok.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, input)
-}
-
-// WsAccountSubscription retrieve account information. Data will be pushed when triggered by
-// events such as placing order, canceling order, transaction execution, etc.
-// It will also be pushed in regular interval according to subscription granularity.
-func (ok *Okx) WsAccountSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelAccount, assetType, pair, "", "", wsSubscriptionParameters{Currency: true})
-}
-
-// WsPositionChannel retrieve the position data. The first snapshot will be sent in accordance with the granularity of the subscription. Data will be pushed when certain actions, such placing or canceling an order, trigger it. It will also be pushed periodically based on the granularity of the subscription.
-func (ok *Okx) WsPositionChannel(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelPositions, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true})
-}
-
-// BalanceAndPositionSubscription retrieve account balance and position information. Data will be pushed when triggered by events such as filled order, funding transfer.
-func (ok *Okx) BalanceAndPositionSubscription(ctx context.Context, operation, uid string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelBalanceAndPosition, asset.Empty, currency.EMPTYPAIR, uid, "", wsSubscriptionParameters{})
-}
-
-// WsOrderChannel for subscribing for orders.
-func (ok *Okx) WsOrderChannel(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair, _ string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelOrders, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true, InstrumentID: true, Underlying: true})
-}
-
-// AlgoOrdersSubscription for subscribing to algo - order channels
-func (ok *Okx) AlgoOrdersSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelAlgoOrders, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true, InstrumentID: true, Underlying: true})
-}
-
-// AdvanceAlgoOrdersSubscription algo order subscription to retrieve advance algo orders (including Iceberg order, TWAP order, Trailing order). Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
-func (ok *Okx) AdvanceAlgoOrdersSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair, algoID string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelAlgoAdvance, assetType, pair, "", algoID, wsSubscriptionParameters{InstrumentType: true, InstrumentID: true})
-}
-
-// PositionRiskWarningSubscription this push channel is only used as a risk warning, and is not recommended as a risk judgment for strategic trading
-// In the case that the market is not moving violently, there may be the possibility that the position has been liquidated at the same time that this message is pushed.
-func (ok *Okx) PositionRiskWarningSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelLiquidationWarning, assetType, pair, "", "", wsSubscriptionParameters{InstrumentType: true, InstrumentID: true, Underlying: true})
-}
-
-// AccountGreeksSubscription algo order subscription to retrieve account greeks information. Data will be pushed when triggered by events such as increase/decrease positions or cash balance in account, and will also be pushed in regular interval according to subscription granularity.
-func (ok *Okx) AccountGreeksSubscription(ctx context.Context, operation string, pair currency.Pair) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelAccountGreeks, asset.Empty, pair, "", "", wsSubscriptionParameters{Currency: true})
-}
-
-// RFQSubscription subscription to retrieve RFQ updates on RFQ orders.
-func (ok *Okx) RFQSubscription(ctx context.Context, operation, uid string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelRFQs, asset.Empty, currency.EMPTYPAIR, uid, "", wsSubscriptionParameters{})
-}
-
-// QuotesSubscription subscription to retrieve Quote subscription
-func (ok *Okx) QuotesSubscription(ctx context.Context, operation string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelQuotes, asset.Empty, currency.EMPTYPAIR, "", "", wsSubscriptionParameters{})
-}
-
-// StructureBlockTradesSubscription to retrieve Structural block subscription
-func (ok *Okx) StructureBlockTradesSubscription(ctx context.Context, operation string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelStructureBlockTrades, asset.Empty, currency.EMPTYPAIR, "", "", wsSubscriptionParameters{})
-}
-
-// SpotGridAlgoOrdersSubscription to retrieve spot grid algo orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
-func (ok *Okx) SpotGridAlgoOrdersSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair, algoID string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelSpotGridOrder, assetType, pair, "", algoID, wsSubscriptionParameters{InstrumentType: true, Underlying: true})
-}
-
-// ContractGridAlgoOrders to retrieve contract grid algo orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
-func (ok *Okx) ContractGridAlgoOrders(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair, algoID string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelGridOrdersContract, assetType, pair, "", algoID, wsSubscriptionParameters{InstrumentType: true, Underlying: true})
-}
-
-// GridPositionsSubscription to retrieve grid positions. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing/canceling order.
-func (ok *Okx) GridPositionsSubscription(ctx context.Context, operation, algoID string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelGridPositions, asset.Empty, currency.EMPTYPAIR, "", algoID, wsSubscriptionParameters{})
-}
-
-// GridSubOrders to retrieve grid sub orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing order.
-func (ok *Okx) GridSubOrders(ctx context.Context, operation, algoID string) error {
-	return ok.wsAuthChannelSubscription(ctx, operation, channelGridSubOrders, asset.Empty, currency.EMPTYPAIR, "", algoID, wsSubscriptionParameters{})
-}
-
-// Public Websocket stream subscription
-
-// InstrumentsSubscription to subscribe for instruments. The full instrument list will be pushed
-// for the first time after subscription. Subsequently, the instruments will be pushed if there is any change to the instrument’s state (such as delivery of FUTURES,
-// exercise of OPTION, listing of new contracts / trading pairs, trading suspension, etc.).
-func (ok *Okx) InstrumentsSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, channelInstruments, assetType, pair, true, false, false)
-}
-
-// TickersSubscription subscribing to "ticker" channel to retrieve the last traded price, bid price, ask price and 24-hour trading volume of instruments. Data will be pushed every 100 ms.
-func (ok *Okx) TickersSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, channelTickers, assetType, pair, false, true, false)
-}
-
-// OpenInterestSubscription to subscribe or unsubscribe to "open-interest" channel to retrieve the open interest. Data will be pushed every 3 seconds.
-func (ok *Okx) OpenInterestSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	if assetType != asset.Futures && assetType != asset.Options && assetType != asset.PerpetualSwap {
-		return fmt.Errorf("%w, received '%v' only FUTURES, SWAP and OPTION asset types are supported", errInvalidInstrumentType, assetType)
-	}
-	return ok.wsChannelSubscription(ctx, operation, channelOpenInterest, assetType, pair, false, true, false)
-}
-
-// CandlesticksSubscription to subscribe or unsubscribe to "candle" channels to retrieve the candlesticks data of an instrument. the push frequency is the fastest interval 500ms push the data.
-func (ok *Okx) CandlesticksSubscription(ctx context.Context, operation, channel string, assetType asset.Item, pair currency.Pair) error {
-	if _, okay := candlestickChannelsMap[channel]; !okay {
-		return errMissingValidChannelInformation
-	}
-	return ok.wsChannelSubscription(ctx, operation, channel, assetType, pair, false, true, false)
-}
-
-// TradesSubscription to subscribe or unsubscribe to "trades" channel to retrieve the recent trades data. Data will be pushed whenever there is a trade. Every update contain only one trade.
-func (ok *Okx) TradesSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, channelTrades, assetType, pair, false, true, false)
-}
-
-// EstimatedDeliveryExercisePriceSubscription to subscribe or unsubscribe to "estimated-price" channel to retrieve the estimated delivery/exercise price of FUTURES contracts and OPTION.
-func (ok *Okx) EstimatedDeliveryExercisePriceSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	if assetType != asset.Futures && assetType != asset.Options {
-		return fmt.Errorf("%w, received '%v' only FUTURES and OPTION asset types are supported", errInvalidInstrumentType, assetType)
-	}
-	return ok.wsChannelSubscription(ctx, operation, channelEstimatedPrice, assetType, pair, true, true, false)
-}
-
-// MarkPriceSubscription to subscribe or unsubscribe to the "mark-price" to retrieve the mark price. Data will be pushed every 200 ms when the mark price changes, and will be pushed every 10 seconds when the mark price does not change.
-func (ok *Okx) MarkPriceSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, channelMarkPrice, assetType, pair, false, true, false)
-}
-
-// MarkPriceCandlesticksSubscription to subscribe or unsubscribe to "mark-price-candles" channels to retrieve the candlesticks data of the mark price. Data will be pushed every 500 ms.
-func (ok *Okx) MarkPriceCandlesticksSubscription(ctx context.Context, operation, channel string, assetType asset.Item, pair currency.Pair) error {
-	if _, okay := candlesticksMarkPriceMap[channel]; !okay {
-		return fmt.Errorf("%w channel: %v", errMissingValidChannelInformation, channel)
-	}
-	return ok.wsChannelSubscription(ctx, operation, channel, assetType, pair, false, true, false)
-}
-
-// PriceLimitSubscription subscribe or unsubscribe to "price-limit" channel to retrieve the maximum buy price and minimum sell price of the instrument. Data will be pushed every 5 seconds when there are changes in limits, and will not be pushed when there is no changes on limit.
-func (ok *Okx) PriceLimitSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	if operation != operationSubscribe && operation != operationUnsubscribe {
-		return errInvalidWebsocketEvent
-	}
-	return ok.wsChannelSubscription(ctx, operation, channelPriceLimit, assetType, pair, false, true, false)
-}
-
-// OrderBooksSubscription subscribe or unsubscribe to "books*" channel to retrieve order book data.
-func (ok *Okx) OrderBooksSubscription(ctx context.Context, operation, channel string, assetType asset.Item, pair currency.Pair) error {
-	if channel != channelOrderBooks && channel != channelOrderBooks5 && channel != channelOrderBooks50TBT && channel != channelOrderBooksTBT && channel != channelBBOTBT {
-		return fmt.Errorf("%w channel: %v", errMissingValidChannelInformation, channel)
-	}
-	return ok.wsChannelSubscription(ctx, operation, channel, assetType, pair, false, true, false)
-}
-
-// OptionSummarySubscription a method to subscribe or unsubscribe to "opt-summary" channel
-// to retrieve detailed pricing information of all OPTION contracts. Data will be pushed at once.
-func (ok *Okx) OptionSummarySubscription(ctx context.Context, operation string, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, channelOptSummary, asset.Options, pair, false, false, true)
-}
-
-// FundingRateSubscription a method to subscribe and unsubscribe to "funding-rate" channel.
-// retrieve funding rate. Data will be pushed in 30s to 90s.
-func (ok *Okx) FundingRateSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, channelFundingRate, assetType, pair, false, true, false)
-}
-
-// IndexCandlesticksSubscription a method to subscribe and unsubscribe to "index-candle*" channel
-// to retrieve the candlesticks data of the index. Data will be pushed every 500 ms.
-func (ok *Okx) IndexCandlesticksSubscription(ctx context.Context, operation, channel string, assetType asset.Item, pair currency.Pair) error {
-	if _, okay := candlesticksIndexPriceMap[channel]; !okay {
-		return fmt.Errorf("%w channel: %v", errMissingValidChannelInformation, channel)
-	}
-	return ok.wsChannelSubscription(ctx, operation, channel, assetType, pair, false, true, false)
-}
-
-// IndexTickerChannel a method to subscribe and unsubscribe to "index-tickers" channel
-func (ok *Okx) IndexTickerChannel(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, channelIndexTickers, assetType, pair, false, true, false)
-}
-
-// StatusSubscription get the status of system maintenance and push when the system maintenance status changes.
-// First subscription: "Push the latest change data"; every time there is a state change, push the changed content
-func (ok *Okx) StatusSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, channelStatus, assetType, pair, false, false, false)
-}
-
-// PublicStructureBlockTradesSubscription a method to subscribe or unsubscribe to "public-struc-block-trades" channel
-func (ok *Okx) PublicStructureBlockTradesSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, channelPublicStrucBlockTrades, assetType, pair, false, false, false)
-}
-
-// BlockTickerSubscription a method to subscribe and unsubscribe to a "block-tickers" channel to retrieve the latest block trading volume in the last 24 hours.
-// The data will be pushed when triggered by transaction execution event. In addition, it will also be pushed in 5 minutes interval according to subscription granularity.
-func (ok *Okx) BlockTickerSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, channelBlockTickers, assetType, pair, false, true, false)
-}
-
-// PublicBlockTradesSubscription a method to subscribe and unsubscribe to a "public-block-trades" channel to retrieve the recent block trades data by individual legs.
-// Each leg in a block trade is pushed in a separate update. Data will be pushed whenever there is a block trade.
-func (ok *Okx) PublicBlockTradesSubscription(ctx context.Context, operation string, assetType asset.Item, pair currency.Pair) error {
-	return ok.wsChannelSubscription(ctx, operation, channelPublicBlockTrades, assetType, pair, false, true, false)
-}
-
-// Websocket Spread Trade methods
-
-// handleIncomingData extracts the incoming data to the dataHolder interface after few checks and return nil or return error message otherwise
-func (ok *Okx) handleIncomingData(data *wsIncomingData, dataHolder any) error {
-	if data.StatusCode == "0" || data.StatusCode == "1" {
-		err := data.copyResponseToInterface(dataHolder)
-		if err != nil {
-			return err
-		}
-		if dataHolder == nil {
-			return fmt.Errorf("%w, invalid incoming data", common.ErrNoResponse)
-		}
-		return nil
-	}
-	return fmt.Errorf("error code:%s error message: %v", data.StatusCode, ErrorCodes[data.StatusCode])
-}
-
-// WsPlaceSpreadOrder places a spread order thought the websocket connection stream, and returns a SubmitResponse and error message.
-func (ok *Okx) WsPlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*SpreadOrderResponse, error) {
-	if arg == nil || *arg == (SpreadOrderParam{}) {
-		return nil, common.ErrNilPointer
-	}
-	err := ok.validatePlaceSpreadOrderParam(arg)
-	if err != nil {
-		return nil, err
-	}
-	if !ok.AreCredentialsValid(ctx) || !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, errWebsocketStreamNotAuthenticated
-	}
-	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsOperationInput{
-		ID:        randomID,
-		Arguments: []SpreadOrderParam{*arg},
-		Operation: okxSpreadOrder,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request.UnAuth, input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxSpreadOrder && data.ID == input.ID {
-				var dataHolder *SpreadOrderResponse
-				err = ok.handleIncomingData(data, &dataHolder)
-				if err != nil {
-					return nil, err
-				}
-				if data.StatusCode == "1" {
-					return nil, fmt.Errorf("error code:%s message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
-				}
-				return dataHolder, nil
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsAmandSpreadOrder amends incomplete spread order through the websocket channel.
-func (ok *Okx) WsAmandSpreadOrder(ctx context.Context, arg *AmendSpreadOrderParam) (*SpreadOrderResponse, error) {
-	if arg == nil || *arg == (AmendSpreadOrderParam{}) {
-		return nil, common.ErrEmptyParams
-	}
-	if arg.OrderID == "" && arg.ClientOrderID == "" {
-		return nil, order.ErrOrderIDNotSet
-	}
-	if arg.NewPrice == 0 && arg.NewSize == 0 {
-		return nil, errSizeOrPriceIsRequired
-	}
-	if !ok.AreCredentialsValid(ctx) || !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, errWebsocketStreamNotAuthenticated
-	}
-	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsOperationInput{
-		ID:        randomID,
-		Arguments: []AmendSpreadOrderParam{*arg},
-		Operation: okxSpreadAmendOrder,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request.UnAuth, input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxSpreadAmendOrder && data.ID == input.ID {
-				var dataHolder *SpreadOrderResponse
-				err = ok.handleIncomingData(data, &dataHolder)
-				if err != nil {
-					return nil, err
-				}
-				if data.StatusCode == "1" {
-					return nil, fmt.Errorf("error code:%s message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
-				}
-				return dataHolder, nil
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsCancelSpreadOrder cancels an incomplete spread order through the websocket connection.
-func (ok *Okx) WsCancelSpreadOrder(ctx context.Context, orderID, clientOrderID string) (*SpreadOrderResponse, error) {
-	if orderID == "" && clientOrderID == "" {
-		return nil, order.ErrOrderIDNotSet
-	}
-	if !ok.AreCredentialsValid(ctx) || !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, errWebsocketStreamNotAuthenticated
-	}
-	arg := make(map[string]string)
-	if orderID != "" {
-		arg["ordId"] = orderID
-	}
-	if clientOrderID != "" {
-		arg["clOrdId"] = clientOrderID
-	}
-	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	input := WsOperationInput{
-		ID:        randomID,
-		Arguments: []map[string]string{arg},
-		Operation: okxSpreadCancelOrder,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request.UnAuth, input)
-	if err != nil {
-		return nil, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxSpreadCancelOrder && data.ID == input.ID {
-				var dataHolder *SpreadOrderResponse
-				err = ok.handleIncomingData(data, &dataHolder)
-				if err != nil {
-					return nil, err
-				}
-				if data.StatusCode == "1" {
-					return nil, fmt.Errorf("error code:%s message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
-				}
-				return dataHolder, nil
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
-}
-
-// WsCancelAllSpreadOrders cancels all spread orders and return success message through the websocket channel.
-func (ok *Okx) WsCancelAllSpreadOrders(ctx context.Context, spreadID string) (bool, error) {
-	if !ok.AreCredentialsValid(ctx) || !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return false, errWebsocketStreamNotAuthenticated
-	}
-	arg := make(map[string]string, 1)
-	if spreadID != "" {
-		arg["sprdId"] = spreadID
-	}
-	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
-	if err != nil {
-		return false, err
-	}
-	input := WsOperationInput{
-		ID:        randomID,
-		Arguments: []map[string]string{arg},
-		Operation: okxSpreadCancelAllOrders,
-	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request.UnAuth, input)
-	if err != nil {
-		return false, err
-	}
-	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
-	wsResponse := make(chan *wsIncomingData)
-	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
-		ID:   randomID,
-		Chan: wsResponse,
-	}
-	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
-	for {
-		select {
-		case data := <-wsResponse:
-			if data.Operation == okxSpreadCancelAllOrders && data.ID == input.ID {
-				dataHolder := &ResponseSuccess{}
-				err = ok.handleIncomingData(data, &dataHolder)
-				if err != nil {
-					return false, err
-				}
-				if data.StatusCode == "1" {
-					return false, fmt.Errorf("error code:%s message: %s", dataHolder.StatusCode, dataHolder.StatusMessage)
-				}
-				return dataHolder.Result, nil
-			}
-			continue
-		case <-timer.C:
-			timer.Stop()
-			return false, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
-				ok.Name,
-				input.Operation)
-		}
-	}
+// wsProcessPushData processes push data coming through the websocket channel
+func (e *Exchange) wsProcessPushData(data []byte, resp any) error {
+	if err := json.Unmarshal(data, resp); err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- resp
+	return nil
 }
 
 // channelName converts global subscription channel names to exchange specific names

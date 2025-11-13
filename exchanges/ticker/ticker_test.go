@@ -1,7 +1,6 @@
 package ticker
 
 import (
-	"errors"
 	"log"
 	"math/rand"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -38,7 +38,7 @@ func TestSubscribeTicker(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewBTCUSD()
 
 	// force error
 	service.mux = nil
@@ -104,7 +104,7 @@ func TestSubscribeToExchangeTickers(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewBTCUSD()
 
 	err = ProcessTicker(&Price{
 		Pair:         p,
@@ -279,7 +279,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	err = ProcessTicker(&Price{
 		ExchangeName: "Bitfinex",
-		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Pair:         currency.NewBTCUSD(),
 		AssetType:    asset.Margin,
 		Bid:          1337,
 		Ask:          1337,
@@ -288,25 +288,21 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	err = ProcessTicker(&Price{
 		ExchangeName: "Bitfinex",
-		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Pair:         currency.NewBTCUSD(),
 		AssetType:    asset.Margin,
 		Bid:          1338,
 		Ask:          1336,
 	})
-	if !errors.Is(err, errBidGreaterThanAsk) {
-		t.Errorf("received: %v but expected: %v", err, errBidGreaterThanAsk)
-	}
+	assert.ErrorIs(t, err, errBidGreaterThanAsk)
 
 	err = ProcessTicker(&Price{
 		ExchangeName: "Bitfinex",
-		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Pair:         currency.NewBTCUSD(),
 		AssetType:    asset.MarginFunding,
 		Bid:          1338,
 		Ask:          1336,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v but expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	// now test for processing a pair with a different quote currency
 	newPair, err = currency.NewPairFromStrings("BTC", "AUD")
@@ -367,8 +363,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 			break
 		}
 
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			//nolint:gosec // no need to import crypo/rand for testing
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
 			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10), //nolint:gosec // no need to import crypo/rand for testing
@@ -394,8 +389,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 			testArray = append(testArray, quick{Name: newName, P: newPairs, TP: tp})
 			sm.Unlock()
-			wg.Done()
-		}()
+		})
 	}
 
 	if catastrophicFailure {
@@ -430,7 +424,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 func TestGetAssociation(t *testing.T) {
 	_, err := service.getAssociations("")
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	service.mux = nil
 
@@ -444,28 +438,23 @@ func TestGetAssociation(t *testing.T) {
 
 func TestGetExchangeTickersPublic(t *testing.T) {
 	_, err := GetExchangeTickers("")
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 }
 
 func TestGetExchangeTickers(t *testing.T) {
 	t.Parallel()
 	s := Service{
-		Tickers:  make(map[key.ExchangePairAsset]*Ticker),
+		Tickers:  make(map[key.ExchangeAssetPair]*Ticker),
 		Exchange: make(map[string]uuid.UUID),
 	}
 
 	_, err := s.getExchangeTickers("")
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	_, err = s.getExchangeTickers("test")
 	assert.ErrorIs(t, err, errExchangeNotFound)
 
-	s.Tickers[key.ExchangePairAsset{
-		Exchange: "test",
-		Base:     currency.XBT.Item,
-		Quote:    currency.DOGE.Item,
-		Asset:    asset.Futures,
-	}] = &Ticker{
+	s.Tickers[key.NewExchangeAssetPair("test", asset.Spot, currency.NewPair(currency.XBT, currency.DOGE))] = &Ticker{
 		Price: Price{
 			Pair:         currency.NewPair(currency.XBT, currency.DOGE),
 			ExchangeName: "test",

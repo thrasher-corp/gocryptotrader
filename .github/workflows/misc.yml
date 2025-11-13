@@ -1,0 +1,90 @@
+name: misc
+on: [push, pull_request]
+jobs:
+  lint:
+    name: miscellaneous checks
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - name: Setup Go
+      uses: actions/setup-go@v6
+      with:
+          go-version: 1.25.x
+          
+    - name: Check for currency.NewPair(BTC, USD) used instead of currency.NewBTCUSD
+      run: |
+        grep -r -n --color=always -E "currency.NewPair\(currency.BTC, currency.USDT?\)" * || exit 0
+        echo "::error::Replace currency.NewPair(BTC, USD*) with currency.NewBTCUSD*()"
+        exit 1
+
+    - name: Check for missing postfix `f` format func variant for testify assertions
+      run: |
+        grep -r -n -P --include="*.go" --color=always '(assert|require)\.[A-Za-z_]\w*?(?<!f)\((?:(?!fmt\.Sprintf).)*%.*' || exit 0
+        echo "::error::Replace func with the `…f` func variant (e.g. Equalf, Errorf)"
+        exit 1
+
+    - name: Check for quoted and backticked %s usage in format specifier strings
+      run: |
+        grep -r -n --include='*.go' --color=always -E "[\`']%s[\`']" . || exit 0
+        echo "::error::Replace '%s' or `%s` format specifier with %q"
+        exit 1
+
+    - name: Check for testify `require… "should"` and `assert… "must"` message consistency
+      run: |
+        exit_code=0
+    
+        echo "Checking for 'should' in require messages..."
+        grep -r -n --include="*.go" --color=always -E 'require\.[A-Za-z0-9_]+.*"[^"]*should[^"]*"' . && exit_code=1 || true
+ 
+        echo "Checking for 'must' in assert messages..."
+        grep -r -n --include="*.go" --color=always -E 'assert\.[A-Za-z0-9_]+.*"[^"]*must[^"]*"' . && exit_code=1 || true
+
+        if [ $exit_code -eq 1 ]; then
+          echo "::error::Replace \"should\" in require messages and \"must\" in assert messages"
+          exit 1
+        fi
+    
+    - name: Check for errors.Is(err, nil) usage
+      run: |
+        grep -r -n --include='*_test.go' --color=always -E "errors.Is\([^,]+, nil" . || exit 0
+        echo "::error::Replace errors.Is(err, nil) with testify equivalents"
+        exit 1
+
+    - name: Check for !errors.Is(err, target) usage
+      run: |
+        grep -r -n --include='*_test.go' --color=always -P '!errors\.Is\(\s*[^,]+\s*,\s*[^)]+\s*\)' . || exit 0
+        echo "::error::Replace !errors.Is(err, target) with testify equivalents"
+        exit 1
+
+    - name: Check for LLM targeted invisible Unicode
+      run: |
+        WHITELIST=''
+        if [[ -z "$WHITELIST" ]]; then
+          PATTERN='(?!\x20)[\p{Cf}\p{Z}\p{M}]'
+        else
+          PATTERN="(?![\x20$WHITELIST])[\p{Cf}\p{Z}\p{M}]"
+        fi
+        grep -r -n -I --color=always --exclude-dir=.git -P "$PATTERN" . || exit 0
+        echo "::error::Remove zero-width/format, separator or combining-mark characters"
+        exit 1
+        
+    - name: Check configs JSON format
+      run: |
+        files=("config_example.json" "testdata/configtest.json")
+        for file in "${files[@]}"; do
+          processed_file="${file%.*}_processed.${file##*.}"
+          jq '.exchanges |= sort_by(.name)' --indent 1 $file > $processed_file
+          if ! diff $file $processed_file; then
+            echo "jq differences found in $file! Please run 'make lint_configs'"
+            exit 1
+          else
+            rm $processed_file
+            echo "No differences found in $file 🌞"
+          fi
+        done
+        
+    - name: Check Go modernise tool issues
+      run: |
+        go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -test ./...
+    
+

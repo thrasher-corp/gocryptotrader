@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -916,7 +915,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 			continue
 		}
 		if e.Name == "" {
-			log.Errorf(log.ConfigMgr, "%s: #%d", errExchangeNameEmpty, i)
+			log.Errorf(log.ConfigMgr, "%s: #%d", common.ErrExchangeNameNotSet, i)
 			e.Enabled = false
 			continue
 		}
@@ -946,7 +945,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 		}
 		if !e.Features.Supports.RESTCapabilities.AutoPairUpdates &&
 			!e.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
-			lastUpdated := convert.UnixTimestampToTime(e.CurrencyPairs.LastUpdated)
+			lastUpdated := time.Unix(e.CurrencyPairs.LastUpdated, 0)
 			lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
 			if lastUpdated.Unix() <= time.Now().Unix() {
 				log.Warnf(log.ConfigMgr,
@@ -1424,7 +1423,7 @@ func migrateConfig(configFile, targetDir string) (string, error) {
 		return configFile, nil
 	}
 	if file.Exists(target) {
-		log.Warnf(log.ConfigMgr, "config file already found in '%s'; not overwriting, defaulting to %s", target, configFile)
+		log.Warnf(log.ConfigMgr, "Config file already found in %q; not overwriting, defaulting to %s", target, configFile)
 		return configFile, nil
 	}
 
@@ -1487,7 +1486,7 @@ func (c *Config) readConfig(d io.Reader) error {
 // If they agree, c.EncryptConfig is set to Enabled, the config is encrypted and saved
 // Otherwise, c.EncryptConfig is set to Disabled and the file is resaved
 func (c *Config) saveWithEncryptPrompt(path string) error {
-	if confirm, err := promptForConfigEncryption(); err != nil {
+	if confirm, err := promptForConfigEncryption(os.Stdin); err != nil {
 		return nil //nolint:nilerr // Ignore encryption prompt failures; The user will be prompted again
 	} else if confirm {
 		c.EncryptConfig = fileEncryptionEnabled
@@ -1580,46 +1579,25 @@ func (c *Config) Save(writerProvider func() (io.Writer, error)) error {
 	return err
 }
 
-// CheckRemoteControlConfig checks to see if the old c.Webserver field is used
-// and migrates the existing settings to the new RemoteControl struct
+func setDefaultIfZeroWarn[T comparable](scope, name string, p *T, def T) {
+	if common.SetIfZero(p, def) {
+		log.Warnf(log.ConfigMgr, "%s field %q not set, defaulting to `%v`", scope, name, def)
+	}
+}
+
+// CheckRemoteControlConfig checks and sets default values for the remote control config
 func (c *Config) CheckRemoteControlConfig() {
 	m.Lock()
 	defer m.Unlock()
 
-	if c.Webserver != nil {
-		port := common.ExtractPort(c.Webserver.ListenAddress)
-		host := common.ExtractHost(c.Webserver.ListenAddress)
+	setDefaultIfZeroWarn("Remote control", "username", &c.RemoteControl.Username, DefaultGRPCUsername)
+	setDefaultIfZeroWarn("Remote control", "password", &c.RemoteControl.Password, DefaultGRPCPassword)
+	setDefaultIfZeroWarn("Remote control gRPC", "listen address", &c.RemoteControl.GRPC.ListenAddress, "localhost:9052")
+	setDefaultIfZeroWarn("Remote control gRPC", "gRPC proxy listen address", &c.RemoteControl.GRPC.GRPCProxyListenAddress, "localhost:9053")
 
-		c.RemoteControl = RemoteControlConfig{
-			Username: c.Webserver.AdminUsername,
-			Password: c.Webserver.AdminPassword,
-
-			DeprecatedRPC: DepcrecatedRPCConfig{
-				Enabled:       c.Webserver.Enabled,
-				ListenAddress: host + ":" + strconv.Itoa(port),
-			},
-		}
-
-		port++
-		c.RemoteControl.WebsocketRPC = WebsocketRPCConfig{
-			Enabled:             c.Webserver.Enabled,
-			ListenAddress:       host + ":" + strconv.Itoa(port),
-			ConnectionLimit:     c.Webserver.WebsocketConnectionLimit,
-			MaxAuthFailures:     c.Webserver.WebsocketMaxAuthFailures,
-			AllowInsecureOrigin: c.Webserver.WebsocketAllowInsecureOrigin,
-		}
-
-		port++
-		gRPCProxyPort := port + 1
-		c.RemoteControl.GRPC = GRPCConfig{
-			Enabled:                c.Webserver.Enabled,
-			ListenAddress:          host + ":" + strconv.Itoa(port),
-			GRPCProxyEnabled:       c.Webserver.Enabled,
-			GRPCProxyListenAddress: host + ":" + strconv.Itoa(gRPCProxyPort),
-		}
-
-		// Then flush the old webserver settings
-		c.Webserver = nil
+	if c.RemoteControl.GRPC.GRPCProxyEnabled && !c.RemoteControl.GRPC.Enabled {
+		log.Warnln(log.ConfigMgr, "gRPC proxy cannot be enabled when gRPC is disabled, disabling gRPC proxy")
+		c.RemoteControl.GRPC.GRPCProxyEnabled = false
 	}
 }
 
@@ -1688,7 +1666,6 @@ func (c *Config) UpdateConfig(configPath string, newCfg *Config, dryrun bool) er
 	c.GlobalHTTPTimeout = newCfg.GlobalHTTPTimeout
 	c.Portfolio = newCfg.Portfolio
 	c.Communications = newCfg.Communications
-	c.Webserver = newCfg.Webserver
 	c.Exchanges = newCfg.Exchanges
 
 	if !dryrun {

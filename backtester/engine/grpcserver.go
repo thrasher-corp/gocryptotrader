@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"math"
@@ -18,12 +19,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	gctengine "github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
@@ -67,7 +67,7 @@ func StartRPCServer(server *GRPCServer) error {
 		return err
 	}
 	log.Debugf(log.GRPCSys, "Backtester GRPC server enabled. Starting GRPC server on https://%v.\n", server.config.GRPC.ListenAddress)
-	lis, err := net.Listen("tcp", server.config.GRPC.ListenAddress)
+	lis, err := net.Listen("tcp", server.config.GRPC.ListenAddress) //nolint:noctx // TODO: #2006 Replace net.Listen with (*net.ListenConfig).Listen
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, e
 		return ctx, errors.New("basic not found in authorization header")
 	}
 
-	decoded, err := crypto.Base64Decode(strings.Split(authStr[0], " ")[1])
+	decoded, err := base64.StdEncoding.DecodeString(strings.Split(authStr[0], " ")[1])
 	if err != nil {
 		return ctx, errors.New("unable to base64 decode authorization header")
 	}
@@ -235,9 +235,6 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 	}
 	if err := cfg.Validate(); err != nil {
 		return nil, err
-	}
-	if cfg == nil {
-		return nil, fmt.Errorf("%w backtester config", gctcommon.ErrNilPointer)
 	}
 
 	if !s.config.Report.GenerateReport {
@@ -550,7 +547,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		for i := range request.Config.DataSettings.LiveData.Credentials {
 			creds[i] = config.Credentials{
 				Exchange: request.Config.DataSettings.LiveData.Credentials[i].Exchange,
-				Keys: account.Credentials{
+				Keys: accounts.Credentials{
 					Key:             request.Config.DataSettings.LiveData.Credentials[i].Keys.Key,
 					Secret:          request.Config.DataSettings.LiveData.Credentials[i].Keys.Secret,
 					ClientID:        request.Config.DataSettings.LiveData.Credentials[i].Keys.ClientId,

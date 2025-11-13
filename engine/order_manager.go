@@ -349,7 +349,7 @@ func (m *OrderManager) validate(exch exchange.IBotExchange, newOrder *order.Subm
 	}
 
 	if newOrder.Exchange == "" {
-		return ErrExchangeNameIsEmpty
+		return common.ErrExchangeNameNotSet
 	}
 
 	if err := newOrder.Validate(exch.GetTradingRequirements()); err != nil {
@@ -395,10 +395,9 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 
 	// Populate additional Modify fields as some of them are required by various
 	// exchange implementations.
-	mod.Pair = det.Pair                           // Used by Bithumb.
-	mod.Side = det.Side                           // Used by Bithumb.
-	mod.PostOnly = det.PostOnly                   // Used by Poloniex.
-	mod.ImmediateOrCancel = det.ImmediateOrCancel // Used by Poloniex.
+	mod.Pair = det.Pair
+	mod.Side = det.Side
+	mod.TimeInForce = det.TimeInForce
 
 	// Following is just a precaution to not modify orders by mistake if exchange
 	// implementations do not check fields of the Modify struct for zero values.
@@ -944,10 +943,10 @@ func (s *store) get() map[string][]*order.Detail {
 }
 
 // getByExchangeAndID returns a specific order by exchange and id
-func (s *store) getByExchangeAndID(exchange, id string) (*order.Detail, error) {
+func (s *store) getByExchangeAndID(exch, id string) (*order.Detail, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
-	r, ok := s.Orders[strings.ToLower(exchange)]
+	r, ok := s.Orders[strings.ToLower(exch)]
 	if !ok {
 		return nil, ErrExchangeNotFound
 	}

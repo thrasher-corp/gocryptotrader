@@ -40,17 +40,11 @@ type TickersResponse struct {
 type Orderbook struct {
 	Status string `json:"status"`
 	Data   struct {
-		Timestamp       int64  `json:"timestamp,string"`
-		OrderCurrency   string `json:"order_currency"`
-		PaymentCurrency string `json:"payment_currency"`
-		Bids            []struct {
-			Quantity float64 `json:"quantity,string"`
-			Price    float64 `json:"price,string"`
-		} `json:"bids"`
-		Asks []struct {
-			Quantity float64 `json:"quantity,string"`
-			Price    float64 `json:"price,string"`
-		} `json:"asks"`
+		Timestamp       types.Time      `json:"timestamp"`
+		OrderCurrency   string          `json:"order_currency"`
+		PaymentCurrency string          `json:"payment_currency"`
+		Bids            OrderbookLevels `json:"bids"`
+		Asks            OrderbookLevels `json:"asks"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
@@ -59,12 +53,12 @@ type Orderbook struct {
 type TransactionHistory struct {
 	Status string `json:"status"`
 	Data   []struct {
-		ContNumber      int64   `json:"cont_no,string"`
-		TransactionDate string  `json:"transaction_date"`
-		Type            string  `json:"type"`
-		UnitsTraded     float64 `json:"units_traded,string"`
-		Price           float64 `json:"price,string"`
-		Total           float64 `json:"total,string"`
+		ContNumber      int64          `json:"cont_no,string"`
+		TransactionDate types.DateTime `json:"transaction_date"`
+		Type            string         `json:"type"`
+		UnitsTraded     float64        `json:"units_traded,string"`
+		Price           float64        `json:"price,string"`
+		Total           float64        `json:"total,string"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
@@ -83,9 +77,9 @@ type Account struct {
 
 // Balance holds balance details
 type Balance struct {
-	Status  string         `json:"status"`
-	Data    map[string]any `json:"data"`
-	Message string         `json:"message"`
+	Status  string                  `json:"status"`
+	Data    map[string]types.Number `json:"data"`
+	Message string                  `json:"message"`
 }
 
 // WalletAddressRes contains wallet address information
@@ -145,7 +139,7 @@ type UserTransactions struct {
 	Status string `json:"status"`
 	Data   []struct {
 		Search          int64         `json:"search,string"`
-		TransferDate    int64         `json:"transfer_date"`
+		TransferDate    types.Time    `json:"transfer_date"`
 		OrderCurrency   currency.Code `json:"order_currency"`
 		PaymentCurrency currency.Code `json:"payment_currency"`
 		Units           float64       `json:"units,string"`
@@ -290,8 +284,23 @@ type FullBalance struct {
 
 // OHLCVResponse holds returned kline data
 type OHLCVResponse struct {
-	Status string   `json:"status"`
-	Data   [][6]any `json:"data"`
+	Status string      `json:"status"`
+	Data   []OHLCVItem `json:"data"`
+}
+
+// OHLCVItem holds a single kline item
+type OHLCVItem struct {
+	Timestamp types.Time
+	Open      types.Number
+	High      types.Number
+	Low       types.Number
+	Close     types.Number
+	Volume    types.Number
+}
+
+// UnmarshalJSON unmarshals OHLCV
+func (o *OHLCVItem) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[6]any{&o.Timestamp, &o.Open, &o.High, &o.Low, &o.Close, &o.Volume})
 }
 
 // Status defines the current exchange allowance to deposit or withdraw a
@@ -315,3 +324,12 @@ type StatusAll struct {
 	} `json:"data"`
 	Message string `json:"message"`
 }
+
+// OrderbookLevel defines a single level in the orderbook
+type OrderbookLevel struct {
+	Quantity float64 `json:"quantity,string"`
+	Price    float64 `json:"price,string"`
+}
+
+// OrderbookLevels defines a slice of OrderbookLevel
+type OrderbookLevels []OrderbookLevel

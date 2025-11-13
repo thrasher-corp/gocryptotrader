@@ -2,7 +2,6 @@ package convert
 
 import (
 	"testing"
-	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
@@ -75,70 +74,6 @@ func TestInt64FromString(t *testing.T) {
 	_, err = Int64FromString(testString)
 	if err == nil {
 		t.Error("Common Int64FromString. Converted invalid syntax.")
-	}
-}
-
-func TestTimeFromUnixTimestampFloat(t *testing.T) {
-	t.Parallel()
-	testTimestamp := float64(1414456320000)
-	expectedOutput := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
-
-	actualOutput, err := TimeFromUnixTimestampFloat(testTimestamp)
-	if actualOutput.UTC().String() != expectedOutput.UTC().String() || err != nil {
-		t.Errorf("Common TimeFromUnixTimestampFloat. Expected '%v'. Actual '%v'. Error: %s",
-			expectedOutput, actualOutput, err)
-	}
-
-	testString := "Time"
-	_, err = TimeFromUnixTimestampFloat(testString)
-	if err == nil {
-		t.Error("Common TimeFromUnixTimestampFloat. Converted invalid syntax.")
-	}
-}
-
-func TestTimeFromUnixTimestampDecimal(t *testing.T) {
-	for in, exp := range map[float64]time.Time{
-		1590633982.5714:   time.Date(2020, 5, 28, 2, 46, 22, 571400000, time.UTC),
-		1560516023.070651: time.Date(2019, 6, 14, 12, 40, 23, 70651000, time.UTC),
-		// Examples from Kraken
-		1373750306.9819:   time.Date(2013, 7, 13, 21, 18, 26, 981900000, time.UTC),
-		1534614098.345543: time.Date(2018, 8, 18, 17, 41, 38, 345543000, time.UTC),
-	} {
-		got := TimeFromUnixTimestampDecimal(in)
-		z, _ := got.Zone()
-		assert.Equal(t, "UTC", z, "TimeFromUnixTimestampDecimal should return a UTC time")
-		assert.WithinRangef(t, got, exp.Add(-time.Microsecond), exp.Add(time.Microsecond), "TimeFromUnixTimestampDecimal(%f) should parse a unix timestamp correctly", in)
-	}
-}
-
-func TestUnixTimestampToTime(t *testing.T) {
-	t.Parallel()
-	testTime := int64(1489439831)
-	tm := time.Unix(testTime, 0)
-	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
-	actualResult := UnixTimestampToTime(testTime)
-	if tm.String() != actualResult.String() {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
-}
-
-func TestUnixTimestampStrToTime(t *testing.T) {
-	t.Parallel()
-	testTime := "1489439831"
-	incorrectTime := "DINGDONG"
-	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
-	actualResult, err := UnixTimestampStrToTime(testTime)
-	if err != nil {
-		t.Error(err)
-	}
-	if actualResult.UTC().String() != expectedOutput {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
-	_, err = UnixTimestampStrToTime(incorrectTime)
-	if err == nil {
-		t.Error("should throw an error")
 	}
 }
 

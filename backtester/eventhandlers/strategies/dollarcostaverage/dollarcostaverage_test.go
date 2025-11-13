@@ -1,11 +1,11 @@
 package dollarcostaverage
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -36,23 +36,19 @@ func TestSupportsSimultaneousProcessing(t *testing.T) {
 func TestSetCustomSettings(t *testing.T) {
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
-	if !errors.Is(err, base.ErrCustomSettingsUnsupported) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrCustomSettingsUnsupported)
-	}
+	assert.ErrorIs(t, err, base.ErrCustomSettingsUnsupported)
 }
 
 func TestOnSignal(t *testing.T) {
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil, nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := &data.Base{}
 	err = d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
@@ -68,13 +64,11 @@ func TestOnSignal(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	da := &kline.DataFromKline{
 		Item:        &gctkline.Item{},
 		Base:        d,
@@ -82,9 +76,8 @@ func TestOnSignal(t *testing.T) {
 	}
 	var resp signal.Event
 	resp, err = s.OnSignal(da, nil, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if resp.GetDirection() != gctorder.MissingData {
 		t.Error("expected missing data")
 	}
@@ -106,24 +99,18 @@ func TestOnSignal(t *testing.T) {
 		},
 	}
 	err = da.Load()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	da.RangeHolder = ranger
 	err = da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	resp, err = s.OnSignal(da, nil, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if resp.GetDirection() != gctorder.Buy {
 		t.Errorf("expected buy, received %v", resp.GetDirection())
 	}
@@ -132,14 +119,13 @@ func TestOnSignal(t *testing.T) {
 func TestOnSignals(t *testing.T) {
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil, nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := &data.Base{}
 	err = d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
@@ -156,13 +142,11 @@ func TestOnSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	da := &kline.DataFromKline{
 		Item:        &gctkline.Item{},
 		Base:        d,
@@ -170,9 +154,8 @@ func TestOnSignals(t *testing.T) {
 	}
 	var resp []signal.Event
 	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 1 {
 		t.Fatal("expected 1 response")
 	}
@@ -197,24 +180,18 @@ func TestOnSignals(t *testing.T) {
 		},
 	}
 	err = da.Load()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	da.RangeHolder = ranger
 	err = da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 1 {
 		t.Fatal("expected 1 response")
 	}

@@ -37,12 +37,11 @@ func TestAddTradesToBuffer(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cp, _ := currency.NewPairFromString("BTC-USD")
 	err = AddTradesToBuffer([]Data{
 		{
 			Timestamp:    time.Now(),
 			Exchange:     "test!",
-			CurrencyPair: cp,
+			CurrencyPair: currency.NewBTCUSD(),
 			AssetType:    asset.Spot,
 			Price:        1337,
 			Amount:       1337,
@@ -60,7 +59,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 		{
 			Timestamp:    time.Now(),
 			Exchange:     "test!",
-			CurrencyPair: cp,
+			CurrencyPair: currency.NewBTCUSD(),
 			AssetType:    asset.Spot,
 			Price:        0,
 			Amount:       0,
@@ -78,7 +77,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 		{
 			Timestamp:    time.Now(),
 			Exchange:     "test!",
-			CurrencyPair: cp,
+			CurrencyPair: currency.NewBTCUSD(),
 			AssetType:    asset.Spot,
 			Price:        -1,
 			Amount:       -1,
@@ -130,7 +129,7 @@ func TestSqlDataToTrade(t *testing.T) {
 
 func TestTradeToSQLData(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	sqlData, err := tradeToSQLData(Data{
 		Timestamp:    time.Now(),
 		Exchange:     "test!",
@@ -156,7 +155,7 @@ func TestTradeToSQLData(t *testing.T) {
 
 func TestConvertTradesToCandles(t *testing.T) {
 	t.Parallel()
-	cp, _ := currency.NewPairFromString("BTC-USD")
+	cp := currency.NewBTCUSD()
 	startDate := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
 	candles, err := ConvertTradesToCandles(kline.FifteenSecond, []Data{
 		{

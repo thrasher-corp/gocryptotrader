@@ -9,38 +9,21 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Bitstamp load config error", err)
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
+		log.Fatalf("Bitstamp Setup error: %s", err)
 	}
-	bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
-	if err != nil {
-		log.Fatal("Bitstamp Setup() init error", err)
+	if apiKey != "" && apiSecret != "" {
+		e.API.AuthenticatedSupport = true
+		e.SetCredentials(apiKey, apiSecret, customerID, "", "", "")
 	}
-	bitstampConfig.API.AuthenticatedSupport = true
-	if apiKey != "" {
-		bitstampConfig.API.Credentials.Key = apiKey
-	}
-	if apiSecret != "" {
-		bitstampConfig.API.Credentials.Secret = apiSecret
-	}
-	if customerID != "" {
-		bitstampConfig.API.Credentials.ClientID = customerID
-	}
-	b.SetDefaults()
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = b.Setup(bitstampConfig)
-	if err != nil {
-		log.Fatal("Bitstamp setup error", err)
-	}
-	log.Printf(sharedtestvalues.LiveTesting, b.Name)
+	log.Printf(sharedtestvalues.LiveTesting, e.Name)
 	os.Exit(m.Run())
 }

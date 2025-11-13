@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -14,10 +15,12 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
+
+// defaultDataSliceLimit the mock slice data size limit to a default of 5
+const defaultDataSliceLimit = 5
 
 // HTTPResponse defines expected response from the end point including request
 // data for pathing on the VCR server
@@ -30,7 +33,8 @@ type HTTPResponse struct {
 
 // HTTPRecord will record the request and response to a default JSON file for
 // mocking purposes
-func HTTPRecord(res *http.Response, service string, respContents []byte) error {
+// mockDataSliceLimit defaults to 5
+func HTTPRecord(res *http.Response, service string, respContents []byte, mockDataSliceLimit int) error {
 	if res == nil {
 		return errors.New("http.Response cannot be nil")
 	}
@@ -47,7 +51,9 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 		return errors.New("service not supplied cannot access correct mock file")
 	}
 	service = strings.ToLower(service)
-
+	if mockDataSliceLimit == 0 {
+		mockDataSliceLimit = defaultDataSliceLimit
+	}
 	outputFilePath := filepath.Join(DefaultDirectory, service, service+".json")
 	_, err := os.Stat(outputFilePath)
 	if err != nil {
@@ -77,8 +83,13 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 		m.Routes = make(map[string]map[string][]HTTPResponse)
 	}
 
+	items, err := getExcludedItems()
+	if err != nil {
+		return err
+	}
+
 	var httpResponse HTTPResponse
-	cleanedContents, err := CheckResponsePayload(respContents)
+	cleanedContents, err := CheckResponsePayload(respContents, items, mockDataSliceLimit)
 	if err != nil {
 		return err
 	}
@@ -108,14 +119,10 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 			return urlErr
 		}
 
-		httpResponse.BodyParams, urlErr = GetFilteredURLVals(vals)
-		if urlErr != nil {
-			return urlErr
-		}
-
+		httpResponse.BodyParams = GetFilteredURLVals(vals, items)
 	case textPlain:
 		payload := res.Request.Header.Get("X-Gemini-Payload")
-		j, dErr := crypto.Base64Decode(payload)
+		j, dErr := base64.StdEncoding.DecodeString(payload)
 		if dErr != nil {
 			return dErr
 		}
@@ -126,15 +133,8 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 		httpResponse.BodyParams = body
 	}
 
-	httpResponse.Headers, err = GetFilteredHeader(res)
-	if err != nil {
-		return err
-	}
-
-	httpResponse.QueryString, err = GetFilteredURLVals(res.Request.URL.Query())
-	if err != nil {
-		return err
-	}
+	httpResponse.Headers = GetFilteredHeader(res, items)
+	httpResponse.QueryString = GetFilteredURLVals(res.Request.URL.Query(), items)
 
 	_, ok := m.Routes[res.Request.URL.Path]
 	if !ok {
@@ -245,54 +245,37 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 
 // GetFilteredHeader filters excluded http headers for insertion into a mock
 // test file
-func GetFilteredHeader(res *http.Response) (http.Header, error) {
-	items, err := GetExcludedItems()
-	if err != nil {
-		return res.Header, err
-	}
-
+func GetFilteredHeader(res *http.Response, items Exclusion) http.Header {
 	for i := range items.Headers {
 		if res.Request.Header.Get(items.Headers[i]) != "" {
 			res.Request.Header.Set(items.Headers[i], "")
 		}
 	}
-
-	return res.Request.Header, nil
+	return res.Request.Header
 }
 
 // GetFilteredURLVals filters excluded url value variables for insertion into a
 // mock test file
-func GetFilteredURLVals(vals url.Values) (string, error) {
-	items, err := GetExcludedItems()
-	if err != nil {
-		return "", err
-	}
-
-	for key, val := range vals {
+func GetFilteredURLVals(vals url.Values, items Exclusion) string {
+	for key := range vals {
 		for i := range items.Variables {
-			if strings.EqualFold(items.Variables[i], val[0]) {
+			if strings.EqualFold(items.Variables[i], key) {
 				vals.Set(key, "")
 			}
 		}
 	}
-	return vals.Encode(), nil
+	return vals.Encode()
 }
 
 // CheckResponsePayload checks to see if there are any response body variables
 // that should not be there.
-func CheckResponsePayload(data []byte) ([]byte, error) {
-	items, err := GetExcludedItems()
-	if err != nil {
-		return nil, err
-	}
-
+func CheckResponsePayload(data []byte, items Exclusion, mockDataSliceLimit int) ([]byte, error) {
 	var intermediary any
-	err = json.Unmarshal(data, &intermediary)
-	if err != nil {
+	if err := json.Unmarshal(data, &intermediary); err != nil {
 		return nil, err
 	}
 
-	payload, err := CheckJSON(intermediary, &items)
+	payload, err := CheckJSON(intermediary, &items, mockDataSliceLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +285,6 @@ func CheckResponsePayload(data []byte) ([]byte, error) {
 
 // Reflection consts
 const (
-	Int64   = "int64"
 	Float64 = "float64"
 	Slice   = "slice"
 	String  = "string"
@@ -311,22 +293,23 @@ const (
 )
 
 // CheckJSON recursively parses json data to retract keywords, quite intensive.
-func CheckJSON(data any, excluded *Exclusion) (any, error) {
-	if d, ok := data.([]any); ok {
+func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
+	if value, ok := data.([]any); ok {
 		var sData []any
-		for i := range d {
-			v := d[i]
-			switch v.(type) {
-			case map[string]any, []any:
-				checkedData, err := CheckJSON(v, excluded)
+		for i := range value {
+			switch subvalue := value[i].(type) {
+			case []any, map[string]any:
+				checkedData, err := CheckJSON(subvalue, excluded, limit)
 				if err != nil {
 					return nil, err
 				}
-
 				sData = append(sData, checkedData)
+				if limit > 0 && len(sData) >= limit {
+					return sData, nil
+				}
 			default:
 				// Primitive value doesn't need exclusions applied, e.g. float64 or string
-				sData = append(sData, v)
+				sData = append(sData, subvalue)
 			}
 		}
 		return sData, nil
@@ -337,67 +320,55 @@ func CheckJSON(data any, excluded *Exclusion) (any, error) {
 		return nil, err
 	}
 
-	var context map[string]any
-	err = json.Unmarshal(conv, &context)
+	var contextValue map[string]any
+	err = json.Unmarshal(conv, &contextValue)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(context) == 0 {
+	if len(contextValue) == 0 {
 		// Nil for some reason, should error out before in json.Unmarshal
-		return nil, nil
+		return contextValue, nil
 	}
 
-	for key, val := range context {
+	for key, val := range contextValue {
 		switch reflect.ValueOf(val).Kind().String() {
 		case String:
 			if IsExcluded(key, excluded.Variables) {
-				context[key] = "" // Zero val string
-			}
-		case Int64:
-			if IsExcluded(key, excluded.Variables) {
-				context[key] = 0 // Zero val int
+				contextValue[key] = "" // Zero val string
 			}
 		case Float64:
 			if IsExcluded(key, excluded.Variables) {
-				context[key] = 0.0 // Zero val float
+				contextValue[key] = 0.0 // Zero val float
 			}
 		case Slice:
 			slice, ok := val.([]any)
 			if !ok {
 				return nil, common.GetTypeAssertError("[]any", val)
 			}
-			if len(slice) < 1 {
+			switch {
+			case len(slice) == 0:
 				// Empty slice found
-				context[key] = slice
-			} else {
-				if _, ok := slice[0].(map[string]any); ok {
-					var cleanSlice []any
-					for i := range slice {
-						cleanMap, sErr := CheckJSON(slice[i], excluded)
-						if sErr != nil {
-							return nil, sErr
-						}
-						cleanSlice = append(cleanSlice, cleanMap)
-					}
-					context[key] = cleanSlice
-				} else if IsExcluded(key, excluded.Variables) {
-					context[key] = nil // Zero val slice
+				contextValue[key] = slice
+			case IsExcluded(key, excluded.Variables):
+				contextValue[key] = nil // Zero val slice
+			default:
+				contextValue[key], err = CheckJSON(slice, excluded, limit)
+				if err != nil {
+					return nil, err
 				}
 			}
-
 		case Bool, Invalid: // Skip these bad boys for now
 		default:
 			// Recursively check map data
-			contextValue, err := CheckJSON(val, excluded)
+			contextValue[key], err = CheckJSON(val, excluded, limit)
 			if err != nil {
 				return nil, err
 			}
-			context[key] = contextValue
 		}
 	}
 
-	return context, nil
+	return contextValue, nil
 }
 
 // IsExcluded cross references the key with the excluded variables
@@ -443,13 +414,13 @@ type Exclusion struct {
 	Variables []string `json:"variables"`
 }
 
-// GetExcludedItems checks to see if the variable is in the exclusion list as to
+// getExcludedItems checks to see if the variable is in the exclusion list as to
 // not display secure items in mock file generator output
-func GetExcludedItems() (Exclusion, error) {
+func getExcludedItems() (Exclusion, error) {
 	m.Lock()
 	defer m.Unlock()
 	if !set {
-		file, err := os.ReadFile(exclusionFile)
+		f, err := os.ReadFile(exclusionFile)
 		if err != nil {
 			if !strings.Contains(err.Error(), "no such file or directory") {
 				return excludedList, err
@@ -468,7 +439,7 @@ func GetExcludedItems() (Exclusion, error) {
 				return excludedList, mErr
 			}
 		} else {
-			err = json.Unmarshal(file, &excludedList)
+			err = json.Unmarshal(f, &excludedList)
 			if err != nil {
 				return excludedList, err
 			}

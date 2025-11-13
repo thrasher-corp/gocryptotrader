@@ -12,13 +12,13 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
 ## Community
 
-Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g)
 
 ## Exchange Support Table
 
-| Exchange | REST API | Streaming API | FIX API |
+| Exchange | REST API | Websocket API | FIX API |
+``
 |----------|------|-----------|-----|
-| Alphapoint | Yes  | Yes        | NA  |
 | Binance.US| Yes  | Yes        | NA  |
 | Binance| Yes  | Yes        | NA  |
 | Bitfinex | Yes  | Yes        | NA  |
@@ -29,7 +29,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | BTCMarkets | Yes | Yes       | NA  |
 | BTSE | Yes | Yes | NA |
 | Bybit | Yes | Yes | NA |
-| CoinbasePro | Yes | Yes | No|
+| Coinbase | Yes | Yes | No|
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | No |
 | Exmo | Yes | NA | NA |
@@ -45,7 +45,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Yobit | Yes | NA | NA |
 
 We are aiming to support the top 30 exchanges sorted by average liquidity as [ranked by CoinMarketCap](https://coinmarketcap.com/rankings/exchanges/). 
-However, we welcome pull requests for any exchange which does not match this criterion. If you need help with this, please join us on [Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk).
+However, we welcome pull requests for any exchange which does not match this criterion. If you need help with this, please join us on [Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g).
 
 ** NA means not applicable as the exchange does not support the feature.
 
@@ -74,7 +74,6 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Scripting support. See [gctscript](/gctscript/README.md).
 + Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
 + Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
-+ WebGUI (discontinued).
 + Exchange HTTP mock testing. See [mock](/exchanges/mock/README.md).
 + Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](/docs/MULTICHAIN_TRANSFER_SUPPORT.md).
 
@@ -93,12 +92,7 @@ Follow our progress as we continuously improve GoCryptoTrader.
 
 Please feel free to submit any pull requests or suggest any desired features to be added.
 
-When submitting a PR, please abide by our coding guidelines:
-
-+ Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
-+ Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
-+ Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
-+ Pull requests need to be based on and opened against the `master` branch.
+When submitting a PR, please abide by our [coding guidelines](/docs/CODING_GUIDELINES.md).
 
 ## Compiling and Running instructions
 
@@ -140,7 +134,7 @@ go build -tags=sonic_on
 
 ## Donations
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+<img src="/docs/assets/donate.png" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
@@ -156,32 +150,34 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 711 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 369 |
-| [shazbert](https://github.com/shazbert) | 362 |
-| [gloriousCode](https://github.com/gloriousCode) | 237 |
-| [gbjk](https://github.com/gbjk) | 125 |
+| [thrasher-](https://github.com/thrasher-) | 737 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 415 |
+| [shazbert](https://github.com/shazbert) | 389 |
+| [gloriousCode](https://github.com/gloriousCode) | 240 |
+| [gbjk](https://github.com/gbjk) | 143 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
 | [Beadko](https://github.com/Beadko) | 24 |
-| [ydm](https://github.com/ydm) | 15 |
+| [samuael](https://github.com/samuael) | 16 |
 | [vazha](https://github.com/vazha) | 15 |
+| [ydm](https://github.com/ydm) | 15 |
 | [Rots](https://github.com/Rots) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
-| [samuael](https://github.com/samuael) | 11 |
+| [Copilot](https://github.com/apps/copilot-swe-agent) | 13 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
+| [junnplus](https://github.com/junnplus) | 9 |
 | [geseq](https://github.com/geseq) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [140am](https://github.com/140am) | 8 |
-| [junnplus](https://github.com/junnplus) | 8 |
+| [cranktakular](https://github.com/cranktakular) | 7 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
-| [cranktakular](https://github.com/cranktakular) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
 | [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
+| [romanornr](https://github.com/romanornr) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [azhang](https://github.com/azhang) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
@@ -198,9 +194,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [cornelk](https://github.com/cornelk) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
-| [romanornr](https://github.com/romanornr) | 2 |
-| [mortensorensen](https://github.com/mortensorensen) | 1 |
-| [cavapoo2](https://github.com/cavapoo2) | 1 |
+| [MathieuCesbron](https://github.com/MathieuCesbron) | 2 |
+| [aidan-bailey](https://github.com/aidan-bailey) | 1 |
 | [tongxiaofeng](https://github.com/tongxiaofeng) | 1 |
 | [tonywangcn](https://github.com/tonywangcn) | 1 |
 | [varunbhat](https://github.com/varunbhat) | 1 |
@@ -210,20 +205,27 @@ Binaries will be published once the codebase reaches a stable condition.
 | [arttobe](https://github.com/arttobe) | 1 |
 | [shoman4eg](https://github.com/shoman4eg) | 1 |
 | [cangqiaoyuzhuo](https://github.com/cangqiaoyuzhuo) | 1 |
+| [dazi005](https://github.com/dazi005) | 1 |
+| [gcmutator](https://github.com/gcmutator) | 1 |
+| [gopherorg](https://github.com/gopherorg) | 1 |
 | [whilei](https://github.com/whilei) | 1 |
 | [yuhangcangqian](https://github.com/yuhangcangqian) | 1 |
+| [keeghcet](https://github.com/keeghcet) | 1 |
+| [mickychang9](https://github.com/mickychang9) | 1 |
 | [phieudu241](https://github.com/phieudu241) | 1 |
+| [quantpoet](https://github.com/quantpoet) | 1 |
 | [snipesjr](https://github.com/snipesjr) | 1 |
 | [snussik](https://github.com/snussik) | 1 |
 | [taewdy](https://github.com/taewdy) | 1 |
 | [threehonor](https://github.com/threehonor) | 1 |
 | [xiiiew](https://github.com/xiiiew) | 1 |
+| [youzichuan](https://github.com/youzichuan) | 1 |
 | [antonzhukov](https://github.com/antonzhukov) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
 | [Daanikus](https://github.com/Daanikus) | 1 |
-| [daniel-cohen](https://github.com/daniel-cohen) | 1 |
+| [daniel-cohen-deltatre](https://github.com/daniel-cohen-deltatre) | 1 |
 | [merkeld](https://github.com/merkeld) | 1 |
 | [shanhuhai5739](https://github.com/shanhuhai5739) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
@@ -236,9 +238,13 @@ Binaries will be published once the codebase reaches a stable condition.
 | [jimexist](https://github.com/jimexist) | 1 |
 | [lookfirst](https://github.com/lookfirst) | 1 |
 | [zeldrinn](https://github.com/zeldrinn) | 1 |
+| [roskee](https://github.com/roskee) | 1 |
 | [mattkanwisher](https://github.com/mattkanwisher) | 1 |
 | [mgravitt](https://github.com/mgravitt) | 1 |
 | [mKurrels](https://github.com/mKurrels) | 1 |
 | [m1kola](https://github.com/m1kola) | 1 |
+| [mortensorensen](https://github.com/mortensorensen) | 1 |
+| [Polizo96](https://github.com/Polizo96) | 1 |
+| [cavapoo2](https://github.com/cavapoo2) | 1 |
 | [idoall](https://github.com/idoall) | 1 |
 | [starit](https://github.com/starit) | 1 |

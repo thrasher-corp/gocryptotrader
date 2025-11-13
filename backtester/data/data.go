@@ -15,7 +15,7 @@ import (
 // NewHandlerHolder returns a new HandlerHolder
 func NewHandlerHolder() *HandlerHolder {
 	return &HandlerHolder{
-		data: make(map[key.ExchangePairAsset]Handler),
+		data: make(map[key.ExchangeAssetPair]Handler),
 	}
 }
 
@@ -27,15 +27,10 @@ func (h *HandlerHolder) SetDataForCurrency(e string, a asset.Item, p currency.Pa
 	h.m.Lock()
 	defer h.m.Unlock()
 	if h.data == nil {
-		h.data = make(map[key.ExchangePairAsset]Handler)
+		h.data = make(map[key.ExchangeAssetPair]Handler)
 	}
 	e = strings.ToLower(e)
-	h.data[key.ExchangePairAsset{
-		Exchange: e,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}] = k
+	h.data[key.NewExchangeAssetPair(e, a, p)] = k
 	return nil
 }
 
@@ -66,12 +61,7 @@ func (h *HandlerHolder) GetDataForCurrency(ev common.Event) (Handler, error) {
 	exch := ev.GetExchange()
 	a := ev.GetAssetType()
 	p := ev.Pair()
-	handler, ok := h.data[key.ExchangePairAsset{
-		Exchange: exch,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}]
+	handler, ok := h.data[key.NewExchangeAssetPair(exch, a, p)]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %w", exch, a, p, ErrHandlerNotFound)
 	}
@@ -85,7 +75,7 @@ func (h *HandlerHolder) Reset() error {
 	}
 	h.m.Lock()
 	defer h.m.Unlock()
-	h.data = make(map[key.ExchangePairAsset]Handler)
+	h.data = make(map[key.ExchangeAssetPair]Handler)
 	return nil
 }
 
@@ -158,7 +148,7 @@ func (b *Base) SetStream(s []Event) error {
 			if s[x].GetExchange() != b.stream[0].GetExchange() ||
 				s[x].GetAssetType() != b.stream[0].GetAssetType() ||
 				!s[x].Pair().Equal(b.stream[0].Pair()) {
-				return fmt.Errorf("%w cannot set base stream from %v %v %v to %v %v %v", errMisMatchedEvent, s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair(), b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair())
+				return fmt.Errorf("%w cannot set base stream from %v %v %v to %v %v %v", errMismatchedEvent, s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair(), b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair())
 			}
 		}
 		// due to the Next() function, we cannot take
@@ -193,7 +183,7 @@ candles:
 			if s[x].GetExchange() != b.stream[0].GetExchange() ||
 				s[x].GetAssetType() != b.stream[0].GetAssetType() ||
 				!s[x].Pair().Equal(b.stream[0].Pair()) {
-				return fmt.Errorf("%w %v %v %v received  %v %v %v", errMisMatchedEvent, b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair(), s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair())
+				return fmt.Errorf("%w %v %v %v received  %v %v %v", errMismatchedEvent, b.stream[0].GetExchange(), b.stream[0].GetAssetType(), b.stream[0].Pair(), s[x].GetExchange(), s[x].GetAssetType(), s[x].Pair())
 			}
 			// todo change b.stream to map
 			for y := len(b.stream) - 1; y >= 0; y-- {

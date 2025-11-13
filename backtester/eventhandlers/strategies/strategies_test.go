@@ -1,7 +1,6 @@
 package strategies
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,57 +25,44 @@ func TestLoadStrategyByName(t *testing.T) {
 	t.Parallel()
 	var resp Handler
 	_, err := LoadStrategyByName("test", false)
-	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
-	}
+	assert.ErrorIs(t, err, base.ErrStrategyNotFound)
+
 	_, err = LoadStrategyByName("test", true)
-	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
-	}
+	assert.ErrorIs(t, err, base.ErrStrategyNotFound)
 
 	resp, err = LoadStrategyByName(dollarcostaverage.Name, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if resp.Name() != dollarcostaverage.Name {
 		t.Error("expected dca")
 	}
 	resp, err = LoadStrategyByName(dollarcostaverage.Name, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !resp.UsingSimultaneousProcessing() {
 		t.Error("expected true")
 	}
 
 	resp, err = LoadStrategyByName(rsi.Name, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if resp.Name() != rsi.Name {
 		t.Error("expected rsi")
 	}
 	_, err = LoadStrategyByName(rsi.Name, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestAddStrategy(t *testing.T) {
 	t.Parallel()
 	err := AddStrategy(nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
 	err = AddStrategy(new(dollarcostaverage.Strategy))
-	if !errors.Is(err, ErrStrategyAlreadyExists) {
-		t.Errorf("received '%v' expected '%v'", err, ErrStrategyAlreadyExists)
-	}
+	assert.ErrorIs(t, err, ErrStrategyAlreadyExists)
 
 	err = AddStrategy(new(customStrategy))
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCreateNewStrategy(t *testing.T) {
@@ -94,7 +80,7 @@ func TestCreateNewStrategy(t *testing.T) {
 	// nil Handler
 	var h Handler = (*customStrategy)(nil)
 	_, err = createNewStrategy("custom-strategy", false, h)
-	assert.ErrorContains(t, err, "must be a non-nil pointer")
+	assert.ErrorContains(t, err, "be a non-nil pointer")
 
 	// valid
 	h = new(dollarcostaverage.Strategy)

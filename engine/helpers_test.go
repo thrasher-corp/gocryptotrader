@@ -11,6 +11,7 @@ import (
 	"errors"
 	"math/big"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -28,7 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -42,8 +42,8 @@ var testExchange = "Bitstamp"
 func CreateTestBot(tb testing.TB) *Engine {
 	tb.Helper()
 	cFormat := &currency.PairFormat{Uppercase: true}
-	cp1 := currency.NewPair(currency.BTC, currency.USD)
-	cp2 := currency.NewPair(currency.BTC, currency.USDT)
+	cp1 := currency.NewBTCUSD()
+	cp2 := currency.NewBTCUSDT()
 
 	pairs1 := map[asset.Item]*currency.PairStore{
 		asset.Spot: {
@@ -99,25 +99,16 @@ func CreateTestBot(tb testing.TB) *Engine {
 }
 
 func TestGetSubsystemsStatus(t *testing.T) {
-	m := (&Engine{}).GetSubsystemsStatus()
-	if len(m) != 15 {
-		t.Fatalf("subsystem count is wrong expecting: %d but received: %d", 15, len(m))
-	}
+	assert.Len(t, (&Engine{}).GetSubsystemsStatus(), 13, "GetSubsystemStatus should return the correct number of subsystems")
 }
 
 func TestGetRPCEndpoints(t *testing.T) {
 	_, err := (&Engine{}).GetRPCEndpoints()
-	if !errors.Is(err, errNilConfig) {
-		t.Fatalf("received: %v, but expected: %v", err, errNilConfig)
-	}
+	require.ErrorIs(t, err, errNilConfig)
 
 	m, err := (&Engine{Config: &config.Config{}}).GetRPCEndpoints()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
-	if len(m) != 4 {
-		t.Fatalf("expected length: %d but received: %d", 4, len(m))
-	}
+	require.NoError(t, err)
+	assert.Len(t, m, 2, "GetRPCEndpoints should return the correct number of RPC endpoints")
 }
 
 func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() usage
@@ -178,19 +169,6 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 			EnableError:  nil,
 			DisableError: nil,
 		},
-
-		{
-			Subsystem:    DeprecatedName,
-			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
-			EnableError:  errServerDisabled,
-			DisableError: ErrSubSystemNotStarted,
-		},
-		{
-			Subsystem:    WebsocketName,
-			Engine:       &Engine{Config: &config.Config{}, Settings: Settings{ConfigFile: config.DefaultFilePath()}},
-			EnableError:  errServerDisabled,
-			DisableError: ErrSubSystemNotStarted,
-		},
 		{
 			Subsystem:    grpcName,
 			Engine:       &Engine{Config: &config.Config{}},
@@ -221,21 +199,10 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 		t.Run(tt.Subsystem, func(t *testing.T) {
 			t.Parallel()
 			err := tt.Engine.SetSubsystem(tt.Subsystem, true)
-			if !errors.Is(err, tt.EnableError) {
-				t.Fatalf(
-					"while enabled %s subsystem received: %#v, but expected: %v",
-					tt.Subsystem,
-					err,
-					tt.EnableError)
-			}
+			require.ErrorIs(t, err, tt.EnableError)
+
 			err = tt.Engine.SetSubsystem(tt.Subsystem, false)
-			if !errors.Is(err, tt.DisableError) {
-				t.Fatalf(
-					"while disabling %s subsystem received: %#v, but expected: %v",
-					tt.Subsystem,
-					err,
-					tt.DisableError)
-			}
+			require.ErrorIs(t, err, tt.DisableError)
 		})
 	}
 }
@@ -377,8 +344,8 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 				CurrencyPairs: &currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{
 					asset.Spot: {
 						AssetEnabled: true,
-						Enabled:      currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, c)},
-						Available:    currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, c)},
+						Enabled:      currency.Pairs{currency.NewBTCUSD(), currency.NewPair(currency.BTC, c)},
+						Available:    currency.Pairs{currency.NewBTCUSD(), currency.NewPair(currency.BTC, c)},
 						ConfigFormat: &currency.PairFormat{
 							Uppercase: true,
 						},
@@ -390,7 +357,7 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 	assetType := asset.Spot
 
 	result := e.GetSpecificAvailablePairs(true, true, true, true, assetType)
-	btcUSD := currency.NewPair(currency.BTC, currency.USD)
+	btcUSD := currency.NewBTCUSD()
 	if !result.Contains(btcUSD, true) {
 		t.Error("Unexpected result")
 	}
@@ -416,15 +383,10 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 func TestIsRelatablePairs(t *testing.T) {
 	t.Parallel()
 	CreateTestBot(t)
-	xbtusd, err := currency.NewPairFromStrings("XBT", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	btcusd, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	btcusd := currency.NewBTCUSD()
+	xbtusd := currency.NewPair(currency.XBT, currency.USD)
+	xbtusdt := currency.NewPair(currency.XBT, currency.USDT)
 
 	// Test relational pairs with similar names
 	result := IsRelatablePairs(xbtusd, btcusd, false)
@@ -438,20 +400,10 @@ func TestIsRelatablePairs(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	btcusdt, err := currency.NewPairFromStrings("BTC", "USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// Test relational pairs with similar names but with Tether support disabled
-	result = IsRelatablePairs(xbtusd, btcusdt, false)
+	result = IsRelatablePairs(xbtusd, currency.NewBTCUSDT(), false)
 	if result {
 		t.Fatal("Unexpected result")
-	}
-
-	xbtusdt, err := currency.NewPairFromStrings("XBT", "USDT")
-	if err != nil {
-		t.Fatal(err)
 	}
 
 	// Test relational pairs with similar names but with Tether support enabled
@@ -519,7 +471,7 @@ func TestIsRelatablePairs(t *testing.T) {
 
 	// Test relationl pairs with similar names, different fiat currencies and
 	// with Tether enabled
-	result = IsRelatablePairs(usdbtc, btcusdt, true)
+	result = IsRelatablePairs(usdbtc, currency.NewBTCUSDT(), true)
 	if !result {
 		t.Fatal("Unexpected result")
 	}
@@ -682,7 +634,7 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 	e := CreateTestBot(t)
 
 	pairs := []currency.Pair{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 		currency.NewPair(currency.BTC, currency.EUR),
 	}
 
@@ -750,67 +702,6 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 		true,
 		assetType)
 	if len(result) > 0 {
-		t.Fatal("Unexpected result")
-	}
-}
-
-func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
-	t.Parallel()
-	CreateTestBot(t)
-
-	var exchangeInfo []account.Holdings
-
-	var bitfinexHoldings account.Holdings
-	bitfinexHoldings.Exchange = "Bitfinex"
-	bitfinexHoldings.Accounts = append(bitfinexHoldings.Accounts,
-		account.SubAccount{
-			Currencies: []account.Balance{
-				{
-					Currency: currency.BTC,
-					Total:    100,
-					Hold:     0,
-				},
-			},
-		})
-
-	exchangeInfo = append(exchangeInfo, bitfinexHoldings)
-
-	var bitstampHoldings account.Holdings
-	bitstampHoldings.Exchange = testExchange
-	bitstampHoldings.Accounts = append(bitstampHoldings.Accounts,
-		account.SubAccount{
-			Currencies: []account.Balance{
-				{
-					Currency: currency.LTC,
-					Total:    100,
-					Hold:     0,
-				},
-				{
-					Currency: currency.BTC,
-					Total:    100,
-					Hold:     0,
-				},
-			},
-		})
-
-	exchangeInfo = append(exchangeInfo, bitstampHoldings)
-
-	result := GetCollatedExchangeAccountInfoByCoin(exchangeInfo)
-	if len(result) == 0 {
-		t.Fatal("Unexpected result")
-	}
-
-	amount, ok := result[currency.BTC]
-	if !ok {
-		t.Fatal("Expected currency was not found in result map")
-	}
-
-	if amount.Total != 200 {
-		t.Fatal("Unexpected result")
-	}
-
-	_, ok = result[currency.ETH]
-	if ok {
 		t.Fatal("Unexpected result")
 	}
 }
@@ -956,11 +847,11 @@ func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
 	ps := currency.PairStore{
 		AssetEnabled: true,
 		Enabled: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USDT),
+			currency.NewBTCUSDT(),
 			currency.NewPair(currency.XRP, currency.USDT),
 		},
 		Available: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USDT),
+			currency.NewBTCUSDT(),
 			currency.NewPair(currency.XRP, currency.USDT),
 		},
 	}
@@ -999,12 +890,10 @@ func TestGetCryptocurrencyDepositAddressesByExchange(t *testing.T) {
 	const exchName = "fake"
 	e := createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true})
 	_, err := e.GetCryptocurrencyDepositAddressesByExchange(exchName)
-	if err != nil {
-		t.Error(err)
-	}
-	if _, err = e.GetCryptocurrencyDepositAddressesByExchange("non-existent"); !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received %s, expected: %s", err, ErrExchangeNotFound)
-	}
+	assert.NoError(t, err, "GetCryptocurrencyDepositAddressesByExchange should not error")
+	_, err = e.GetCryptocurrencyDepositAddressesByExchange("non-existent")
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
+
 	e.DepositAddressManager = SetupDepositAddressManager()
 	_, err = e.GetCryptocurrencyDepositAddressesByExchange(exchName)
 	if err == nil {
@@ -1088,15 +977,12 @@ func TestGetExchangeNames(t *testing.T) {
 
 	for i := range bot.Config.Exchanges {
 		exch, err := bot.ExchangeManager.NewExchangeByName(bot.Config.Exchanges[i].Name)
-		if err != nil && !errors.Is(err, ErrExchangeAlreadyLoaded) {
-			t.Fatal(err)
-		}
+		require.Truef(t, err == nil || errors.Is(err, ErrExchangeAlreadyLoaded),
+			"%s NewExchangeByName must not error: %s", bot.Config.Exchanges[i].Name, err)
 		if exch != nil {
 			exch.SetDefaults()
 			err = bot.ExchangeManager.Add(exch)
-			if !errors.Is(err, nil) {
-				t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-			}
+			require.NoError(t, err)
 		}
 	}
 	if e := bot.GetExchangeNames(false); len(e) != len(bot.Config.Exchanges) {
@@ -1267,9 +1153,7 @@ func TestNewSupportedExchangeByName(t *testing.T) {
 	}
 
 	_, err := NewSupportedExchangeByName("")
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 }
 
 func TestNewExchangeByNameWithDefaults(t *testing.T) {
@@ -1293,4 +1177,23 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStartPPROF(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, StartPPROF(t.Context(), &config.Profiler{Enabled: false}), "StartPPROF with a disabled config should not error")
+	pprofConfig := &config.Profiler{
+		Enabled:              true,
+		ListenAddress:        "",
+		MutexProfileFraction: 1,
+		BlockProfileRate:     1,
+	}
+	require.NoError(t, StartPPROF(t.Context(), pprofConfig), "StartPPROF with a valid config must not error")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://localhost:8085/debug/pprof/mutex", http.NoBody)
+	require.NoError(t, err, "NewRequestWithContext must not error")
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err, "Do must not error")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "Get response status must be OK")
+	resp.Body.Close()
+	assert.Error(t, StartPPROF(t.Context(), pprofConfig), "StartPPROF with a valid config on already used port should error")
 }

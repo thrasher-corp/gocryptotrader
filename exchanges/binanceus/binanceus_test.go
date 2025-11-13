@@ -1,7 +1,6 @@
 package binanceus
 
 import (
-	"errors"
 	"log"
 	"os"
 	reflects "reflect"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -20,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -33,56 +32,46 @@ const (
 )
 
 var (
-	bi              = &Binanceus{}
-	testPairMapping = currency.NewPair(currency.BTC, currency.USDT)
+	e               = &Exchange{}
+	testPairMapping = currency.NewBTCUSDT()
 	// this lock guards against orderbook tests race
 	binanceusOrderBookLock = &sync.Mutex{}
 )
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Binanceus load config error", err)
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
+		log.Fatalf("Binanceus Setup error: %s", err)
 	}
 
-	exchCfg, err := cfg.GetExchangeConfig("Binanceus")
-	if err != nil {
-		log.Fatal(err)
+	if apiKey != "" && apiSecret != "" {
+		e.API.AuthenticatedSupport = true
+		e.API.AuthenticatedWebsocketSupport = true
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-	bi.SetDefaults()
-	bi.Websocket = sharedtestvalues.NewTestWebsocket()
-	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	err = bi.Setup(exchCfg)
-	if err != nil {
-		log.Fatal("Binanceus TestMain()", err)
-	}
-	bi.setupOrderbookManager()
+
+	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	os.Exit(m.Run())
 }
 
 func TestServerTime(t *testing.T) {
 	t.Parallel()
-	if _, er := bi.GetServerTime(t.Context(), asset.Spot); er != nil {
+	if _, er := e.GetServerTime(t.Context(), asset.Spot); er != nil {
 		t.Error("Binanceus SystemTime() error", er)
 	}
 }
 
 func TestServerStatus(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, er := bi.GetSystemStatus(t.Context()); er != nil {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if _, er := e.GetSystemStatus(t.Context()); er != nil {
 		t.Error("Binanceus GetSystemStatus() error", er)
 	}
 }
 
 func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetExchangeInfo(t.Context())
+	_, err := e.GetExchangeInfo(t.Context())
 	if err != nil {
 		t.Error("Binanceus GetExchangeInfo() error", err)
 	}
@@ -90,7 +79,7 @@ func TestGetExchangeInfo(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	r, err := bi.UpdateTicker(t.Context(), testPairMapping, asset.Spot)
+	r, err := e.UpdateTicker(t.Context(), testPairMapping, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -101,7 +90,7 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := bi.UpdateTickers(t.Context(), asset.Spot)
+	err := e.UpdateTickers(t.Context(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -109,7 +98,7 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderBook(t *testing.T) {
 	t.Parallel()
-	_, er := bi.UpdateOrderbook(t.Context(), testPairMapping, asset.Spot)
+	_, er := e.UpdateOrderbook(t.Context(), testPairMapping, asset.Spot)
 	if er != nil {
 		t.Error("Binanceus UpdateOrderBook() error", er)
 	}
@@ -117,8 +106,8 @@ func TestUpdateOrderBook(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.FetchTradablePairs(t.Context(), asset.Spot)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.FetchTradablePairs(t.Context(), asset.Spot)
 	if err != nil {
 		t.Error("Binanceus FetchTradablePairs() error", err)
 	}
@@ -126,25 +115,23 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := bi.UpdateTradablePairs(t.Context(), false)
+	err := e.UpdateTradablePairs(t.Context())
 	if err != nil {
 		t.Error("Binanceus UpdateTradablePairs() error", err)
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.UpdateAccountInfo(t.Context(), asset.Spot)
-	if err != nil {
-		t.Error("Binanceus UpdateAccountInfo() error", err)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err)
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	pair := currency.Pair{Base: currency.BTC, Quote: currency.USD}
-	_, err := bi.GetRecentTrades(t.Context(), pair, asset.Spot)
+	_, err := e.GetRecentTrades(t.Context(), pair, asset.Spot)
 	if err != nil {
 		t.Error("Binanceus GetRecentTrades() error", err)
 	}
@@ -152,24 +139,28 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	pair := currency.Pair{Base: currency.BTC, Quote: currency.USD}
-	_, err := bi.GetHistoricTrades(t.Context(), pair, asset.Spot, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error("Binanceus GetHistoricTrades() error", err)
+	p := currency.NewBTCUSDT()
+	start := time.Now().Add(-time.Hour * 24 * 90).Truncate(time.Minute) // 3 months ago
+	end := start.Add(15 * time.Minute)
+	result, err := e.GetHistoricTrades(t.Context(), p, asset.Spot, start, end)
+	require.NoError(t, err, "GetHistoricTrades must not error")
+	assert.NotEmpty(t, result, "GetHistoricTrades should have trades")
+	for _, r := range result {
+		require.WithinRange(t, r.Timestamp, start, end, "All trades must be within time range")
 	}
 }
 
 func TestGetFeeByType(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, er := bi.GetFeeByType(t.Context(), &exchange.FeeBuilder{
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if _, er := e.GetFeeByType(t.Context(), &exchange.FeeBuilder{
 		IsMaker: true,
 		Pair:    currency.NewPair(currency.USD, currency.BTC),
 		FeeType: exchange.CryptocurrencyTradeFee,
 	}); er != nil {
 		t.Error("Binanceus GetFeeByType() error", er)
 	}
-	if _, er := bi.GetFeeByType(t.Context(), &exchange.FeeBuilder{
+	if _, er := e.GetFeeByType(t.Context(), &exchange.FeeBuilder{
 		IsMaker: true,
 		Pair:    currency.NewPair(currency.USD, currency.BTC),
 		FeeType: exchange.CryptocurrencyWithdrawalFee,
@@ -180,7 +171,7 @@ func TestGetFeeByType(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 	orderSubmission := &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.XRP,
@@ -192,17 +183,17 @@ func TestSubmitOrder(t *testing.T) {
 		Price:     1000,
 		Amount:    20,
 		ClientID:  "binanceSamOrder",
-		Exchange:  bi.Name,
+		Exchange:  e.Name,
 	}
-	response, err := bi.SubmitOrder(t.Context(), orderSubmission)
+	response, err := e.SubmitOrder(t.Context(), orderSubmission)
 	switch {
-	case sharedtestvalues.AreAPICredentialsSet(bi) && err != nil && strings.Contains(err.Error(), "{\"code\":-1013,\"msg\":\"Market is closed.\""):
+	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil && strings.Contains(err.Error(), "{\"code\":-1013,\"msg\":\"Market is closed.\""):
 		t.Skip("Binanceus SubmitOrder() Market is Closed")
-	case sharedtestvalues.AreAPICredentialsSet(bi) && err != nil:
+	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
 		t.Errorf("Binanceus SubmitOrder() Could not place order: %v", err)
-	case sharedtestvalues.AreAPICredentialsSet(bi) && response.Status != order.Filled:
+	case sharedtestvalues.AreAPICredentialsSet(e) && response.Status != order.Filled:
 		t.Error("Binanceus SubmitOrder() Order not placed")
-	case !sharedtestvalues.AreAPICredentialsSet(bi) && err == nil:
+	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil:
 		t.Error("Binanceus SubmitOrder() Expecting an error when no keys are set")
 	}
 }
@@ -210,51 +201,51 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 
-	pair := currency.NewPair(currency.BTC, currency.USD)
-	err := bi.CancelOrder(t.Context(), &order.Cancel{
+	pair := currency.NewBTCUSD()
+	err := e.CancelOrder(t.Context(), &order.Cancel{
 		AssetType: asset.Spot,
 		OrderID:   "1337",
 	})
 	require.ErrorIs(t, err, errMissingCurrencySymbol)
-	err = bi.CancelOrder(t.Context(), &order.Cancel{
+	err = e.CancelOrder(t.Context(), &order.Cancel{
 		AssetType: asset.Futures,
 		OrderID:   "69",
 		Pair:      pair,
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	err = bi.CancelOrder(t.Context(), &order.Cancel{
+	err = e.CancelOrder(t.Context(), &order.Cancel{
 		AssetType: asset.Spot,
 		OrderID:   "",
 		Pair:      pair,
 	})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	cancellationOrder := &order.Cancel{
 		OrderID:   "1",
 		Pair:      pair,
 		AssetType: asset.Spot,
 	}
-	err = bi.CancelOrder(t.Context(), cancellationOrder)
+	err = e.CancelOrder(t.Context(), cancellationOrder)
 	assert.ErrorContains(t, err, "Unknown order sent.")
 }
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderCancellation := &order.Cancel{
 		Pair:      currency.NewPair(currency.LTC, currency.BTC),
 		AssetType: asset.Spot,
 	}
-	if _, err := bi.CancelAllOrders(t.Context(), orderCancellation); err != nil {
+	if _, err := e.CancelAllOrders(t.Context(), orderCancellation); err != nil {
 		t.Error("Binanceus CancelAllOrders() error", err)
 	}
 }
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	tradablePairs, err := bi.FetchTradablePairs(t.Context(),
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	tradablePairs, err := e.FetchTradablePairs(t.Context(),
 		asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -262,7 +253,7 @@ func TestGetOrderInfo(t *testing.T) {
 	if len(tradablePairs) == 0 {
 		t.Fatal("Binanceus GetOrderInfo() no tradable pairs")
 	}
-	_, err = bi.GetOrderInfo(t.Context(),
+	_, err = e.GetOrderInfo(t.Context(),
 		"123",
 		tradablePairs[0],
 		asset.Spot)
@@ -273,32 +264,29 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetDepositAddress(t.Context(), currency.EMPTYCODE, "", currency.BNB.String())
-	if err != nil && !errors.Is(err, errMissingRequiredArgumentCoin) {
-		t.Errorf("Binanceus GetDepositAddress() expecting %v, but found %v", errMissingRequiredArgumentCoin, err)
-	}
-	if _, err := bi.GetDepositAddress(t.Context(), currency.USDT, "", currency.BNB.String()); err != nil {
-		t.Error("Binanceus GetDepositAddress() error", err)
-	}
+	_, err := e.GetDepositAddress(t.Context(), currency.EMPTYCODE, "", currency.BNB.String())
+	assert.ErrorIs(t, err, errMissingRequiredArgumentCoin)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err = e.GetDepositAddress(t.Context(), currency.USDT, "", currency.BNB.String())
+	assert.NoError(t, err)
 }
 
 func TestGetWithdrawalHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	_, err := bi.GetWithdrawalsHistory(t.Context(), currency.ETH, asset.Spot)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+	_, err := e.GetWithdrawalsHistory(t.Context(), currency.ETH, asset.Spot)
 	switch {
-	case sharedtestvalues.AreAPICredentialsSet(bi) && err != nil:
+	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
 		t.Error("Binanceus GetWithdrawalsHistory() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(bi) && err == nil:
+	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil:
 		t.Error("Binanceus GetWithdrawalsHistory() expecting an error when no keys are set")
 	}
 }
 
 func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	if _, er := bi.WithdrawFiat(t.Context(), &WithdrawFiatRequestParams{
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if _, er := e.WithdrawFiat(t.Context(), &WithdrawFiatRequestParams{
 		PaymentChannel: "SILVERGATE",
 		PaymentAccount: "myaccount",
 		PaymentMethod:  "SEN",
@@ -310,13 +298,13 @@ func TestWithdrawFiat(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
 	}
-	_, err := bi.GetActiveOrders(t.Context(), &getOrdersRequest)
+	_, err := e.GetActiveOrders(t.Context(), &getOrdersRequest)
 	if err != nil {
 		t.Error("Binanceus GetActiveOrders() error", err)
 	}
@@ -324,9 +312,9 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	withdrawCryptoRequest := withdraw.Request{
-		Exchange:    bi.Name,
+		Exchange:    e.Name,
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
@@ -335,14 +323,14 @@ func TestWithdraw(t *testing.T) {
 			Chain:   "BSC",
 		},
 	}
-	_, err := bi.WithdrawCryptocurrencyFunds(t.Context(), &withdrawCryptoRequest)
+	_, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdrawCryptoRequest)
 	if err != nil && !strings.EqualFold(errAmountValueMustBeGreaterThan0.Error(), err.Error()) {
 		t.Errorf("Binanceus Withdraw() expecting %v, but found %v", errAmountValueMustBeGreaterThan0, err)
-	} else if !sharedtestvalues.AreAPICredentialsSet(bi) && err == nil {
+	} else if !sharedtestvalues.AreAPICredentialsSet(e) && err == nil {
 		t.Error("Binanceus Withdraw() expecting an error when no keys are set")
 	}
 	withdrawCryptoRequest.Amount = 1
-	_, err = bi.WithdrawCryptocurrencyFunds(t.Context(), &withdrawCryptoRequest)
+	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), &withdrawCryptoRequest)
 	if err != nil && !strings.Contains(err.Error(), "You are not authorized to execute this request.") {
 		t.Error("Binanceus WithdrawCryptocurrencyFunds() error", err)
 	}
@@ -350,14 +338,14 @@ func TestWithdraw(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	feeBuilder := &exchange.FeeBuilder{
 		Amount:        1,
 		FeeType:       exchange.CryptocurrencyTradeFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
 	}
-	_, er := bi.GetFeeByType(t.Context(), feeBuilder)
+	_, er := e.GetFeeByType(t.Context(), feeBuilder)
 	if er != nil {
 		t.Fatal("Binanceus GetFeeByType() error", er)
 	}
@@ -367,7 +355,7 @@ func TestGetFee(t *testing.T) {
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
 	}
-	_, er = bi.GetFeeByType(t.Context(), withdrawalFeeBuilder)
+	_, er = e.GetFeeByType(t.Context(), withdrawalFeeBuilder)
 	if er != nil {
 		t.Fatal("Binanceus GetFeeByType() error", er)
 	}
@@ -377,7 +365,7 @@ func TestGetFee(t *testing.T) {
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
 	}
-	_, er = bi.GetFeeByType(t.Context(), offlineFeeTradeBuilder)
+	_, er = e.GetFeeByType(t.Context(), offlineFeeTradeBuilder)
 	if er != nil {
 		t.Fatal("Binanceus GetFeeByType() error", er)
 	}
@@ -385,16 +373,14 @@ func TestGetFee(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 
-	_, err := bi.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.Interval(time.Hour*5), startTime, endTime)
-	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
-	}
+	_, err := e.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.Interval(time.Hour*5), startTime, endTime)
+	require.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
 
-	_, err = bi.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.OneDay, startTime, endTime)
+	_, err = e.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Error("Binanceus GetHistoricCandles() error", err)
 	}
@@ -402,11 +388,11 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 
-	_, err := bi.GetHistoricCandlesExtended(t.Context(), pair, asset.Spot, kline.OneDay, startTime, endTime)
+	_, err := e.GetHistoricCandlesExtended(t.Context(), pair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -414,7 +400,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	startTime = time.Now().Add(-time.Hour * 30)
 	endTime = time.Now()
 
-	_, err = bi.GetHistoricCandlesExtended(t.Context(), pair, asset.Spot, kline.FourHour, startTime, endTime)
+	_, err = e.GetHistoricCandlesExtended(t.Context(), pair, asset.Spot, kline.FourHour, startTime, endTime)
 	if err != nil {
 		t.Error("Binanceus GetHistoricCandlesExtended() error", err)
 	}
@@ -425,8 +411,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 // TestGetMostRecentTrades -- test most recent trades end-point
 func TestGetMostRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetMostRecentTrades(t.Context(), RecentTradeRequestParams{
-		Symbol: currency.NewPair(currency.BTC, currency.USDT),
+	_, err := e.GetMostRecentTrades(t.Context(), RecentTradeRequestParams{
+		Symbol: currency.NewBTCUSDT(),
 		Limit:  15,
 	})
 	if err != nil {
@@ -436,8 +422,8 @@ func TestGetMostRecentTrades(t *testing.T) {
 
 func TestGetHistoricalTrades(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetHistoricalTrades(t.Context(), HistoricalTradeParams{
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetHistoricalTrades(t.Context(), HistoricalTradeParams{
 		Symbol: "BTCUSDT",
 		Limit:  5,
 		FromID: 0,
@@ -449,9 +435,9 @@ func TestGetHistoricalTrades(t *testing.T) {
 
 func TestGetAggregateTrades(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetAggregateTrades(t.Context(),
+	_, err := e.GetAggregateTrades(t.Context(),
 		&AggregatedTradeRequestParams{
-			Symbol: currency.NewPair(currency.BTC, currency.USDT),
+			Symbol: currency.NewBTCUSDT(),
 			Limit:  5,
 		})
 	if err != nil {
@@ -461,19 +447,14 @@ func TestGetAggregateTrades(t *testing.T) {
 
 func TestGetOrderBookDepth(t *testing.T) {
 	t.Parallel()
-	_, er := bi.GetOrderBookDepth(t.Context(), &OrderBookDataRequestParams{
-		Symbol: currency.NewPair(currency.BTC, currency.USDT),
-		Limit:  1000,
-	})
-	if er != nil {
-		t.Error("Binanceus GetOrderBook() error", er)
-	}
+	_, err := e.GetOrderBookDepth(t.Context(), currency.NewBTCUSDT(), 1000)
+	assert.NoError(t, err)
 }
 
 func TestGetCandlestickData(t *testing.T) {
 	t.Parallel()
-	_, er := bi.GetSpotKline(t.Context(), &KlinesRequestParams{
-		Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+	_, er := e.GetSpotKline(t.Context(), &KlinesRequestParams{
+		Symbol:    currency.NewBTCUSDT(),
 		Interval:  kline.FiveMin.Short(),
 		Limit:     24,
 		StartTime: time.Unix(1577836800, 0),
@@ -486,7 +467,7 @@ func TestGetCandlestickData(t *testing.T) {
 
 func TestGetPriceDatas(t *testing.T) {
 	t.Parallel()
-	_, er := bi.GetPriceDatas(t.Context())
+	_, er := e.GetPriceDatas(t.Context())
 	if er != nil {
 		t.Error("Binanceus GetPriceDatas() error", er)
 	}
@@ -494,7 +475,7 @@ func TestGetPriceDatas(t *testing.T) {
 
 func TestGetSinglePriceData(t *testing.T) {
 	t.Parallel()
-	_, er := bi.GetSinglePriceData(t.Context(), currency.Pair{
+	_, er := e.GetSinglePriceData(t.Context(), currency.Pair{
 		Base:  currency.BTC,
 		Quote: currency.USDT,
 	})
@@ -505,7 +486,7 @@ func TestGetSinglePriceData(t *testing.T) {
 
 func TestGetAveragePrice(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetAveragePrice(t.Context(), currency.NewPair(currency.BTC, currency.USDT))
+	_, err := e.GetAveragePrice(t.Context(), currency.NewBTCUSDT())
 	if err != nil {
 		t.Error("Binance GetAveragePrice() error", err)
 	}
@@ -513,7 +494,7 @@ func TestGetAveragePrice(t *testing.T) {
 
 func TestGetBestPrice(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetBestPrice(t.Context(), currency.NewPair(currency.BTC, currency.USDT))
+	_, err := e.GetBestPrice(t.Context(), currency.NewBTCUSDT())
 	if err != nil {
 		t.Error("Binanceus GetBestPrice() error", err)
 	}
@@ -521,7 +502,7 @@ func TestGetBestPrice(t *testing.T) {
 
 func TestGetPriceChangeStats(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetPriceChangeStats(t.Context(), currency.NewPair(currency.BTC, currency.USDT))
+	_, err := e.GetPriceChangeStats(t.Context(), currency.NewBTCUSDT())
 	if err != nil {
 		t.Error("Binance GetPriceChangeStats() error", err)
 	}
@@ -529,7 +510,7 @@ func TestGetPriceChangeStats(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetTickers(t.Context())
+	_, err := e.GetTickers(t.Context())
 	if err != nil {
 		t.Error("Binance TestGetTickers error", err)
 	}
@@ -537,8 +518,8 @@ func TestGetTickers(t *testing.T) {
 
 func TestGetAccount(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetAccount(t.Context())
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.GetAccount(t.Context())
 	if er != nil {
 		t.Error("Binanceus GetAccount() error", er)
 	}
@@ -546,8 +527,8 @@ func TestGetAccount(t *testing.T) {
 
 func TestGetUserAccountStatus(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetUserAccountStatus(t.Context(), 3000)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.GetUserAccountStatus(t.Context(), 3000)
 	if er != nil {
 		t.Error("Binanceus GetUserAccountStatus() error", er)
 	}
@@ -555,8 +536,8 @@ func TestGetUserAccountStatus(t *testing.T) {
 
 func TestGetUserAPITradingStatus(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetUserAPITradingStatus(t.Context(), 3000)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.GetUserAPITradingStatus(t.Context(), 3000)
 	if er != nil {
 		t.Error("Binanceus GetUserAPITradingStatus() error", er)
 	}
@@ -564,8 +545,8 @@ func TestGetUserAPITradingStatus(t *testing.T) {
 
 func TestGetTradeFee(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetTradeFee(t.Context(), 3000, "BTC-USDT")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.GetTradeFee(t.Context(), 3000, "BTC-USDT")
 	if er != nil {
 		t.Error("Binanceus GetTradeFee() error", er)
 	}
@@ -573,8 +554,8 @@ func TestGetTradeFee(t *testing.T) {
 
 func TestGetAssetDistributionHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetAssetDistributionHistory(t.Context(), "", 0, 0, 3000)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.GetAssetDistributionHistory(t.Context(), "", 0, 0, 3000)
 	if er != nil {
 		t.Error("Binanceus GetAssetDistributionHistory() error", er)
 	}
@@ -582,40 +563,38 @@ func TestGetAssetDistributionHistory(t *testing.T) {
 
 func TestGetMasterAccountTotalUSDValue(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, er := bi.GetMasterAccountTotalUSDValue(t.Context(), "", 0, 0); er != nil && !strings.Contains(er.Error(), "Sub-account function is not enabled.") {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if _, er := e.GetMasterAccountTotalUSDValue(t.Context(), "", 0, 0); er != nil && !strings.Contains(er.Error(), "Sub-account function is not enabled.") {
 		t.Errorf("Binanceus GetMasterAccountTotalUSDValue() expecting %s, but found %v", "Sub-account function is not enabled.", er)
 	}
 }
 
 func TestGetSubaccountStatusList(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, er := bi.GetSubaccountStatusList(t.Context(), ""); er != nil && !errors.Is(er, errMissingSubAccountEmail) {
-		t.Errorf("Binanceus GetSubaccountStatusList() expecting %v, but found %v", errMissingSubAccountEmail, er)
-	}
-	if _, er := bi.GetSubaccountStatusList(t.Context(), "someone@thrasher.corp"); er != nil && !strings.Contains(er.Error(), "Sub-account function is not enabled.") {
-		t.Errorf("Binanceus GetSubaccountStatusList() expecting %s, but found %v", "Sub-account function is not enabled.", er)
-	}
+	_, err := e.GetSubaccountStatusList(t.Context(), "")
+	assert.ErrorIs(t, err, errMissingSubAccountEmail)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err = e.GetSubaccountStatusList(t.Context(), "someone@thrasher.corp")
+	assert.ErrorContains(t, err, "Sub-account function is not enabled.")
 }
 
 func TestGetSubAccountDepositAddress(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, er := bi.GetSubAccountDepositAddress(t.Context(), SubAccountDepositAddressRequestParams{}); er != nil && !errors.Is(er, errMissingSubAccountEmail) {
-		t.Errorf("Binanceus GetSubAccountDepositAddress() %v, but found %v", errMissingSubAccountEmail, er)
-	}
-	if _, er := bi.GetSubAccountDepositAddress(t.Context(), SubAccountDepositAddressRequestParams{
+	_, err := e.GetSubAccountDepositAddress(t.Context(), SubAccountDepositAddressRequestParams{})
+	assert.ErrorIs(t, err, errMissingSubAccountEmail)
+	_, err = e.GetSubAccountDepositAddress(t.Context(), SubAccountDepositAddressRequestParams{
 		Email: "someone@thrasher.io",
-	}); er != nil && !errors.Is(er, errMissingCurrencyCoin) {
-		t.Errorf("Binanceus GetSubAccountDepositAddress() %v, but found %v", errMissingCurrencyCoin, er)
-	}
-	if _, er := bi.GetSubAccountDepositAddress(t.Context(), SubAccountDepositAddressRequestParams{
+	})
+	assert.ErrorIs(t, err, errMissingCurrencyCoin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
+	_, err = e.GetSubAccountDepositAddress(t.Context(), SubAccountDepositAddressRequestParams{
 		Email: "someone@thrasher.io",
 		Coin:  currency.BTC,
-	}); er != nil && !strings.Contains(er.Error(), "This parent sub have no relation") {
-		t.Errorf("Binanceus GetSubAccountDepositAddress() %v, but found %v", errMissingCurrencyCoin, er)
-	}
+	})
+	assert.ErrorContains(t, err, "This parent sub have no relation")
 }
 
 var subAccountDepositHistoryItemJSON = `{
@@ -634,16 +613,14 @@ var subAccountDepositHistoryItemJSON = `{
 func TestGetSubAccountDepositHistory(t *testing.T) {
 	t.Parallel()
 	var resp SubAccountDepositItem
-	if er := json.Unmarshal([]byte(subAccountDepositHistoryItemJSON), &resp); er != nil {
-		t.Error("Binanceus Decerializing to SubAccountDepositItem error", er)
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, er := bi.GetSubAccountDepositHistory(t.Context(), "", currency.BTC, 1, time.Time{}, time.Time{}, 0, 0); er != nil && !errors.Is(er, errMissingSubAccountEmail) {
-		t.Errorf("Binanceus GetSubAccountDepositHistory() expecting %v, but found %v", errMissingSubAccountEmail, er)
-	}
-	if _, er := bi.GetSubAccountDepositHistory(t.Context(), "someone@thrasher.io", currency.BTC, 1, time.Time{}, time.Time{}, 0, 0); er != nil && !strings.Contains(er.Error(), "This parent sub have no relation") {
-		t.Errorf("Binanceus GetSubAccountDepositHistory() expecting %s, but found %v", "This parent sub have no relation", er)
-	}
+	require.NoError(t, json.Unmarshal([]byte(subAccountDepositHistoryItemJSON), &resp))
+	_, err := e.GetSubAccountDepositHistory(t.Context(), "", currency.BTC, 1, time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, errMissingSubAccountEmail)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
+	_, err = e.GetSubAccountDepositHistory(t.Context(), "someone@thrasher.io", currency.BTC, 1, time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorContains(t, err, "This parent sub have no relation")
 }
 
 var subaccountItemJSON = `{
@@ -661,8 +638,8 @@ func TestGetSubaccountInformation(t *testing.T) {
 	if er := json.Unmarshal([]byte(subaccountItemJSON), &resp); er != nil {
 		t.Error("Binanceus decerializing to SubAccount error", er)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetSubaccountInformation(t.Context(), 1, 100, "", "")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.GetSubaccountInformation(t.Context(), 1, 100, "", "")
 	if er != nil && !strings.Contains(er.Error(), "Sub-account function is not enabled.") {
 		t.Error("Binanceus GetSubaccountInformation() error", er)
 	}
@@ -683,71 +660,58 @@ var referalRewardHistoryResponse = `{
 func TestGetReferralRewardHistory(t *testing.T) {
 	t.Parallel()
 	var resp ReferralRewardHistoryResponse
-	if er := json.Unmarshal([]byte(referalRewardHistoryResponse), &resp); er != nil {
-		t.Error("Binanceus decerializing to ReferalRewardHistoryResponse error", er)
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, er := bi.GetReferralRewardHistory(t.Context(), 9, 5, 50); !errors.Is(er, errInvalidUserBusinessType) {
-		t.Errorf("Binanceus GetReferralRewardHistory() expecting %v, but found %v", errInvalidUserBusinessType, er)
-	}
-	if _, er := bi.GetReferralRewardHistory(t.Context(), 1, 0, 50); !errors.Is(er, errMissingPageNumber) {
-		t.Errorf("Binanceus GetReferralRewardHistory() expecting %v, but found %v", errMissingPageNumber, er)
-	}
-	if _, er := bi.GetReferralRewardHistory(t.Context(), 1, 5, 0); !errors.Is(er, errInvalidRowNumber) {
-		t.Errorf("Binanceus GetReferralRewardHistory() expecting %v, but found %v", errInvalidRowNumber, er)
-	}
-	if _, er := bi.GetReferralRewardHistory(t.Context(), 1, 5, 50); er != nil {
-		t.Error("Binanceus GetReferralRewardHistory() error", er)
-	}
+	require.NoError(t, json.Unmarshal([]byte(referalRewardHistoryResponse), &resp))
+	_, err := e.GetReferralRewardHistory(t.Context(), 9, 5, 50)
+	assert.ErrorIs(t, err, errInvalidUserBusinessType)
+	_, err = e.GetReferralRewardHistory(t.Context(), 1, 0, 50)
+	assert.ErrorIs(t, err, errMissingPageNumber)
+	_, err = e.GetReferralRewardHistory(t.Context(), 1, 5, 0)
+	assert.ErrorIs(t, err, errInvalidRowNumber)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err = e.GetReferralRewardHistory(t.Context(), 1, 5, 50)
+	assert.NoError(t, err)
 }
 
 func TestGetSubaccountTransferHistory(t *testing.T) {
 	t.Parallel()
 
-	_, err := bi.GetSubaccountTransferHistory(t.Context(), "", 0, 0, 0, 0)
+	_, err := e.GetSubaccountTransferHistory(t.Context(), "", 0, 0, 0, 0)
 	assert.ErrorIs(t, err, errNotValidEmailAddress)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	_, err = bi.GetSubaccountTransferHistory(t.Context(), "example@golang.org", 0, 0, 0, 0)
+	_, err = e.GetSubaccountTransferHistory(t.Context(), "example@golang.org", 0, 0, 0, 0)
 	assert.Error(t, err, "GetSubaccountTransferHistory should return an error on a bogus email")
 }
 
 func TestExecuteSubAccountTransfer(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, er := bi.ExecuteSubAccountTransfer(t.Context(), &SubAccountTransferRequestParams{})
-	if !errors.Is(er, errUnacceptableSenderEmail) {
-		t.Errorf("binanceus error: expected %v, but found %v", errUnacceptableSenderEmail, er)
-	}
-	_, er = bi.ExecuteSubAccountTransfer(t.Context(), &SubAccountTransferRequestParams{
+	_, err := e.ExecuteSubAccountTransfer(t.Context(), &SubAccountTransferRequestParams{})
+	assert.ErrorIs(t, err, errUnacceptableSenderEmail)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.ExecuteSubAccountTransfer(t.Context(), &SubAccountTransferRequestParams{
 		FromEmail: "fromemail@thrasher.io",
-		ToEmail:   "toemail@threasher.io",
+		ToEmail:   "toemail@thrasher.io",
 		Asset:     "BTC",
 		Amount:    0.000005,
 	})
-	if er != nil && !strings.Contains(er.Error(), "You are not authorized to execute this request.") {
-		t.Errorf("Binanceus GetSubaccountTransferHistory() error %v", er)
-	}
+	assert.ErrorContains(t, err, "You are not authorized to execute this request.")
 }
 
 func TestGetSubaccountAssets(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetSubaccountAssets(t.Context(), "")
-	if !errors.Is(er, errNotValidEmailAddress) {
-		t.Errorf("Binanceus GetSubaccountAssets() expected %v, but found %v", er, errNotValidEmailAddress)
-	}
-	_, er = bi.GetSubaccountAssets(t.Context(), "subaccount@thrasher.io")
-	if er != nil && !strings.Contains(er.Error(), "This account does not exist.") {
-		t.Fatal("Binanceus GetSubaccountAssets() error", er)
-	}
+	_, err := e.GetSubaccountAssets(t.Context(), "")
+	assert.ErrorIs(t, err, errNotValidEmailAddress)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err = e.GetSubaccountAssets(t.Context(), "subaccount@thrasher.io")
+	assert.ErrorContains(t, err, "This account does not exist.")
 }
 
 func TestGetOrderRateLimits(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetOrderRateLimits(t.Context(), 0)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.GetOrderRateLimits(t.Context(), 0)
 	if er != nil {
 		t.Error("Binanceus GetOrderRateLimits() error", er)
 	}
@@ -775,16 +739,16 @@ func TestNewOrderTest(t *testing.T) {
 	if er := json.Unmarshal([]byte(testNewOrderResponseJSON), &resp); er != nil {
 		t.Error("Binanceus decerializing to Order error", er)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	req := &NewOrderRequest{
 		Symbol:      currency.NewPair(currency.LTC, currency.BTC),
 		Side:        order.Buy.String(),
 		TradeType:   BinanceRequestParamsOrderLimit,
 		Price:       0.0025,
 		Quantity:    100000,
-		TimeInForce: BinanceRequestParamsTimeGTC,
+		TimeInForce: order.GoodTillCancel.String(),
 	}
-	_, err := bi.NewOrderTest(t.Context(), req)
+	_, err := e.NewOrderTest(t.Context(), req)
 	if err != nil {
 		t.Error("Binanceus NewOrderTest() error", err)
 	}
@@ -795,7 +759,7 @@ func TestNewOrderTest(t *testing.T) {
 		Price:         0.0045,
 		QuoteOrderQty: 10,
 	}
-	_, err = bi.NewOrderTest(t.Context(), req)
+	_, err = e.NewOrderTest(t.Context(), req)
 	if err != nil {
 		t.Error("NewOrderTest() error", err)
 	}
@@ -803,35 +767,31 @@ func TestNewOrderTest(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	req := &NewOrderRequest{
 		Symbol:      currency.NewPair(currency.LTC, currency.BTC),
 		Side:        order.Buy.String(),
 		TradeType:   BinanceRequestParamsOrderLimit,
 		Price:       0.0025,
 		Quantity:    100000,
-		TimeInForce: BinanceRequestParamsTimeGTC,
+		TimeInForce: order.GoodTillCancel.String(),
 	}
-	if _, err := bi.NewOrder(t.Context(), req); err != nil && !strings.Contains(err.Error(), "Account has insufficient balance for requested action") {
+	if _, err := e.NewOrder(t.Context(), req); err != nil && !strings.Contains(err.Error(), "Account has insufficient balance for requested action") {
 		t.Error("Binanceus NewOrder() error", err)
 	}
 }
 
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetOrder(t.Context(), &OrderRequestParams{})
-	if !errors.Is(er, errIncompleteArguments) {
-		t.Errorf("Binanceus GetOrder() error expecting %v, but found %v", errIncompleteArguments, er)
-	}
-	_, er = bi.GetOrder(t.Context(), &OrderRequestParams{
+	_, err := e.GetOrder(t.Context(), &OrderRequestParams{})
+	assert.ErrorIs(t, err, errIncompleteArguments)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err = e.GetOrder(t.Context(), &OrderRequestParams{
 		Symbol:            "BTCUSDT",
 		OrigClientOrderID: "something",
 	})
 	// You can check the existence of an order using a valid Symbol and OrigClient Order ID
-	if er != nil && !strings.Contains(er.Error(), "Order does not exist.") {
-		t.Error("Binanceus GetOrder() error", er)
-	}
+	assert.ErrorContains(t, err, "Order does not exist.")
 }
 
 var openOrdersItemJSON = `{
@@ -861,9 +821,9 @@ func TestGetAllOpenOrders(t *testing.T) {
 	if er := json.Unmarshal([]byte(openOrdersItemJSON), &resp); er != nil {
 		t.Error("Binanceus decerializing to Order error", er)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, er := bi.GetAllOpenOrders(t.Context(), "")
+	_, er := e.GetAllOpenOrders(t.Context(), "")
 	if er != nil {
 		t.Error("Binanceus GetAllOpenOrders() error", er)
 	}
@@ -872,16 +832,16 @@ func TestGetAllOpenOrders(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := bi.CancelExistingOrder(t.Context(), &CancelOrderRequestParams{})
+	_, err := e.CancelExistingOrder(t.Context(), &CancelOrderRequestParams{})
 	assert.ErrorIs(t, err, errMissingCurrencySymbol)
 
-	_, err = bi.CancelExistingOrder(t.Context(), &CancelOrderRequestParams{
+	_, err = e.CancelExistingOrder(t.Context(), &CancelOrderRequestParams{
 		Symbol: currency.NewBTCUSDT(),
 	})
 	assert.ErrorIs(t, err, errEitherOrderIDOrClientOrderIDIsRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, err = bi.CancelExistingOrder(t.Context(), &CancelOrderRequestParams{
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.CancelExistingOrder(t.Context(), &CancelOrderRequestParams{
 		Symbol:                currency.NewBTCUSDT(),
 		ClientSuppliedOrderID: "1234",
 	})
@@ -890,47 +850,42 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestCancelOpenOrdersForSymbol(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, er := bi.CancelOpenOrdersForSymbol(t.Context(), "")
-	if !errors.Is(er, errMissingCurrencySymbol) {
-		t.Errorf("Binanceus CancelOpenOrdersForSymbol() error expecting %v, but found %v", errIncompleteArguments, er)
-	}
-	_, er = bi.CancelOpenOrdersForSymbol(t.Context(), "BTCUSDT")
-	if er != nil && !strings.Contains(er.Error(), "Unknown order sent") {
-		t.Error("Binanceus CancelOpenOrdersForSymbol() error", er)
-	}
+	_, err := e.CancelOpenOrdersForSymbol(t.Context(), "")
+	assert.ErrorIs(t, err, errMissingCurrencySymbol)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+
+	_, err = e.CancelOpenOrdersForSymbol(t.Context(), "BTCUSDT")
+	assert.NoError(t, err)
 }
 
 // TestGetTrades test for fetching the list of
 // trades attached with this account.
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetTrades(t.Context(), &GetTradesParams{})
-	if !errors.Is(er, errIncompleteArguments) {
-		t.Errorf(" Binanceus GetTrades() expecting error %v, but found %v", errIncompleteArguments, er)
-	}
-	_, er = bi.GetTrades(t.Context(), &GetTradesParams{Symbol: "BTCUSDT"})
-	if er != nil {
-		t.Error("Binanceus GetTrades() error", er)
-	}
+	_, err := e.GetTrades(t.Context(), &GetTradesParams{})
+	assert.ErrorIs(t, err, errIncompleteArguments)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
+	_, err = e.GetTrades(t.Context(), &GetTradesParams{Symbol: "BTCUSDT"})
+	assert.NoError(t, err)
 }
 
 func TestCreateNewOCOOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, er := bi.CreateNewOCOOrder(t.Context(),
+	_, err := e.CreateNewOCOOrder(t.Context(),
 		&OCOOrderInputParams{
 			StopPrice: 1000,
 			Side:      order.Buy.String(),
 			Quantity:  0.0000001,
 			Price:     1232334.00,
 		})
-	if !errors.Is(er, errIncompleteArguments) {
-		t.Errorf("Binanceus CreatenewOCOOrder() error expected %v, but found %v", errIncompleteArguments, er)
-	}
-	_, er = bi.CreateNewOCOOrder(
-		t.Context(),
+	assert.ErrorIs(t, err, errIncompleteArguments)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+
+	_, err = e.CreateNewOCOOrder(t.Context(),
 		&OCOOrderInputParams{
 			Symbol:               "XTZUSD",
 			Price:                100,
@@ -941,9 +896,7 @@ func TestCreateNewOCOOrder(t *testing.T) {
 			StopLimitTimeInForce: "GTC",
 			RecvWindow:           6000,
 		})
-	if er != nil && !strings.Contains(er.Error(), "Precision is over the maximum defined for this asset.") {
-		t.Error("Binanceus CreateNewOCOOrder() error", er)
-	}
+	assert.ErrorContains(t, err, "Precision is over the maximum defined for this asset.")
 }
 
 var ocoOrderJSON = `{
@@ -971,26 +924,22 @@ var ocoOrderJSON = `{
 func TestGetOCOOrder(t *testing.T) {
 	t.Parallel()
 	var resp OCOOrderResponse
-	if er := json.Unmarshal([]byte(ocoOrderJSON), &resp); er != nil {
-		t.Error("Binanceus decerializing OCOOrderResponse error", er)
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetOCOOrder(t.Context(), &GetOCOOrderRequestParams{})
-	if !errors.Is(er, errIncompleteArguments) {
-		t.Errorf("Binanceus GetOCOOrder() error  expecting %v, but found %v", errIncompleteArguments, er)
-	}
-	_, er = bi.GetOCOOrder(t.Context(), &GetOCOOrderRequestParams{
+	require.NoError(t, json.Unmarshal([]byte(ocoOrderJSON), &resp))
+	_, err := e.GetOCOOrder(t.Context(), &GetOCOOrderRequestParams{})
+	assert.ErrorIs(t, err, errIncompleteArguments)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
+	_, err = e.GetOCOOrder(t.Context(), &GetOCOOrderRequestParams{
 		OrderListID: "123445",
 	})
-	if er != nil && !strings.Contains(er.Error(), "Order list does not exist.") {
-		t.Error("Binanceus GetOCOOrder() error", er)
-	}
+	assert.ErrorContains(t, err, "Order list does not exist.")
 }
 
 func TestGetAllOCOOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetAllOCOOrder(t.Context(), &OCOOrdersRequestParams{})
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.GetAllOCOOrder(t.Context(), &OCOOrdersRequestParams{})
 	if er != nil {
 		t.Error("Binanceus GetAllOCOOrder() error", er)
 	}
@@ -998,8 +947,8 @@ func TestGetAllOCOOrder(t *testing.T) {
 
 func TestGetOpenOCOOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetOpenOCOOrders(t.Context(), 0)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.GetOpenOCOOrders(t.Context(), 0)
 	if er != nil {
 		t.Error("Binanceus GetOpenOCOOrders() error", er)
 	}
@@ -1007,18 +956,21 @@ func TestGetOpenOCOOrders(t *testing.T) {
 
 func TestCancelOCOOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, er := bi.CancelOCOOrder(t.Context(), &OCOOrdersDeleteRequestParams{})
-	if !errors.Is(er, errIncompleteArguments) {
-		t.Errorf("Binanceus CancelOCOOrder() error expected %v, but found %v", errIncompleteArguments, er)
-	}
+	_, err := e.CancelOCOOrder(t.Context(), &OCOOrdersDeleteRequestParams{})
+	assert.ErrorIs(t, err, errIncompleteArguments)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.CancelOCOOrder(t.Context(), &OCOOrdersDeleteRequestParams{
+		Symbol:      "BTCUSDT",
+		OrderListID: 123456,
+	})
+	assert.NoError(t, err)
 }
 
 // OTC end Points test code.
 func TestGetSupportedCoinPairs(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetSupportedCoinPairs(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT})
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.GetSupportedCoinPairs(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT})
 	if er != nil {
 		t.Error("Binanceus GetSupportedCoinPairs() error", er)
 	}
@@ -1026,27 +978,19 @@ func TestGetSupportedCoinPairs(t *testing.T) {
 
 func TestRequestForQuote(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.RequestForQuote(t.Context(), &RequestQuoteParams{ToCoin: "BTC", RequestCoin: "USDT", RequestAmount: 1})
-	if er != nil && !errors.Is(er, errMissingFromCoinName) {
-		t.Errorf("Binanceus RequestForQuote() expecting %v, but found %v", errMissingFromCoinName, er)
-	}
-	_, er = bi.RequestForQuote(t.Context(), &RequestQuoteParams{FromCoin: "ETH", RequestCoin: "USDT", RequestAmount: 1})
-	if er != nil && !errors.Is(er, errMissingToCoinName) {
-		t.Errorf("Binanceus RequestForQuote() expecting %v, but found %v", errMissingToCoinName, er)
-	}
-	_, er = bi.RequestForQuote(t.Context(), &RequestQuoteParams{FromCoin: "ETH", ToCoin: "BTC", RequestCoin: "USDT"})
-	if er != nil && !errors.Is(er, errMissingRequestAmount) {
-		t.Errorf("Binanceus RequestForQuote() expecting %v, but found %v", errMissingRequestAmount, er)
-	}
-	_, er = bi.RequestForQuote(t.Context(), &RequestQuoteParams{FromCoin: "ETH", ToCoin: "BTC", RequestAmount: 1})
-	if er != nil && !errors.Is(er, errMissingRequestCoin) {
-		t.Errorf("Binanceus RequestForQuote() expecting %v, but found %v", errMissingRequestCoin, er)
-	}
-	_, er = bi.RequestForQuote(t.Context(), &RequestQuoteParams{FromCoin: "BTC", ToCoin: "USDT", RequestCoin: "BTC", RequestAmount: 1})
-	if er != nil {
-		t.Error("Binanceus RequestForQuote() error", er)
-	}
+	_, err := e.RequestForQuote(t.Context(), &RequestQuoteParams{ToCoin: "BTC", RequestCoin: "USDT", RequestAmount: 1})
+	assert.ErrorIs(t, err, errMissingFromCoinName)
+	_, err = e.RequestForQuote(t.Context(), &RequestQuoteParams{FromCoin: "ETH", RequestCoin: "USDT", RequestAmount: 1})
+	assert.ErrorIs(t, err, errMissingToCoinName)
+	_, err = e.RequestForQuote(t.Context(), &RequestQuoteParams{FromCoin: "ETH", ToCoin: "BTC", RequestCoin: "USDT"})
+	assert.ErrorIs(t, err, errMissingRequestAmount)
+	_, err = e.RequestForQuote(t.Context(), &RequestQuoteParams{FromCoin: "ETH", ToCoin: "BTC", RequestAmount: 1})
+	assert.ErrorIs(t, err, errMissingRequestCoin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
+	_, err = e.RequestForQuote(t.Context(), &RequestQuoteParams{FromCoin: "BTC", ToCoin: "USDT", RequestCoin: "BTC", RequestAmount: 1})
+	assert.NoError(t, err)
 }
 
 var testPlaceOTCTradeOrderJSON = `{
@@ -1057,20 +1001,13 @@ var testPlaceOTCTradeOrderJSON = `{
 
 func TestPlaceOTCTradeOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	var res OTCTradeOrderResponse
-	er := json.Unmarshal([]byte(testPlaceOTCTradeOrderJSON), &res)
-	if er != nil {
-		t.Error("Binanceus PlaceOTCTradeOrder() error", er)
-	}
-	_, er = bi.PlaceOTCTradeOrder(t.Context(), "")
-	if !errors.Is(er, errMissingQuoteID) {
-		t.Errorf("Binanceus PlaceOTCTradeOrder()  expecting %v, but found %v", errMissingQuoteID, er)
-	}
-	_, er = bi.PlaceOTCTradeOrder(t.Context(), "15848701022")
-	if er != nil && !strings.Contains(er.Error(), "-9000") {
-		t.Error("Binanceus  PlaceOTCTradeOrder() error", er)
-	}
+	var resp OTCTradeOrderResponse
+	require.NoError(t, json.Unmarshal([]byte(testPlaceOTCTradeOrderJSON), &resp))
+	_, err := e.PlaceOTCTradeOrder(t.Context(), "")
+	assert.ErrorIs(t, err, errMissingQuoteID)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.PlaceOTCTradeOrder(t.Context(), "15848701022")
+	assert.ErrorContains(t, err, "-9000")
 }
 
 var testGetOTCTradeOrderJSON = `{
@@ -1088,13 +1025,13 @@ var testGetOTCTradeOrderJSON = `{
 
 func TestGetOTCTradeOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	var val OTCTradeOrder
 	er := json.Unmarshal([]byte(testGetOTCTradeOrderJSON), &val)
 	if er != nil {
 		t.Error("Binanceus JSON GetOTCTradeOrder() error", er)
 	}
-	_, er = bi.GetOTCTradeOrder(t.Context(), 10002349)
+	_, er = e.GetOTCTradeOrder(t.Context(), 10002349)
 	if er != nil && !strings.Contains(er.Error(), "status code: 400") {
 		t.Error("Binanceus GetOTCTradeOrder() error ", er)
 	}
@@ -1130,13 +1067,13 @@ var getAllOTCTradeOrders = `[
 
 func TestGetAllOTCTradeOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	var orders []OTCTradeOrder
 	er := json.Unmarshal([]byte(getAllOTCTradeOrders), &orders)
 	if er != nil {
 		t.Error(er)
 	}
-	_, er = bi.GetAllOTCTradeOrders(t.Context(), &OTCTradeOrderRequestParams{})
+	_, er = e.GetAllOTCTradeOrders(t.Context(), &OTCTradeOrderRequestParams{})
 	if er != nil {
 		t.Error("Binanceus GetAllOTCTradeOrders() error", er)
 	}
@@ -1163,16 +1100,16 @@ func TestGetAllOCBSTradeOrders(t *testing.T) {
 	if er := json.Unmarshal([]byte(ocbsTradeOrderJSON), &orderDetail); er != nil {
 		t.Error("Binanceus decerializing to OCBSOrder error", er)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, er := bi.GetAllOCBSTradeOrders(t.Context(), OCBSOrderRequestParams{}); er != nil {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if _, er := e.GetAllOCBSTradeOrders(t.Context(), OCBSOrderRequestParams{}); er != nil {
 		t.Error("Binanceus GetAllOCBSTradeOrders() error", er)
 	}
 }
 
 func TestGetAssetFeesAndWalletStatus(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetAssetFeesAndWalletStatus(t.Context())
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.GetAssetFeesAndWalletStatus(t.Context())
 	if er != nil {
 		t.Error("Binanceus GetAssetFeesAndWalletStatus()  error", er)
 	}
@@ -1180,48 +1117,45 @@ func TestGetAssetFeesAndWalletStatus(t *testing.T) {
 
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, er := bi.WithdrawCrypto(t.Context(), &withdraw.Request{})
-	if !errors.Is(er, errMissingRequiredArgumentCoin) {
-		t.Errorf("Binanceus WithdrawCrypto() error expecting %v, but found %v", errMissingRequiredArgumentCoin, er)
-	}
-	if _, er = bi.WithdrawCrypto(t.Context(), &withdraw.Request{
+
+	_, err := e.WithdrawCrypto(t.Context(), &withdraw.Request{})
+	assert.ErrorIs(t, err, errMissingRequiredArgumentCoin)
+	_, err = e.WithdrawCrypto(t.Context(), &withdraw.Request{
 		Currency: currency.BTC,
-	}); !errors.Is(er, errMissingRequiredArgumentNetwork) {
-		t.Errorf("Binanceus WithdrawCrypto() expecting %v, but found %v", errMissingRequiredArgumentNetwork, er)
-	}
+	})
+	assert.ErrorIs(t, err, errMissingRequiredArgumentNetwork)
 	params := &withdraw.Request{
 		Currency: currency.BTC,
+		Crypto: withdraw.CryptoRequest{
+			Chain: "BSC",
+		},
 	}
-	params.Crypto.Chain = "BSC"
-	if _, er = bi.WithdrawCrypto(t.Context(), params); !errors.Is(er, errMissingRequiredParameterAddress) {
-		t.Errorf("Binanceus WithdrawCrypto() expecting %v, but found %v", errMissingRequiredParameterAddress, er)
-	}
+	_, err = e.WithdrawCrypto(t.Context(), params)
+	assert.ErrorIs(t, err, errMissingRequiredParameterAddress)
 	params.Crypto.Address = "1234567"
-	if _, er = bi.WithdrawCrypto(t.Context(), params); !errors.Is(er, errAmountValueMustBeGreaterThan0) {
-		t.Errorf("Binanceus WithdrawCrypto() expecting %v, but found %v", errAmountValueMustBeGreaterThan0, er)
-	}
+	_, err = e.WithdrawCrypto(t.Context(), params)
+	assert.ErrorIs(t, err, errAmountValueMustBeGreaterThan0)
 	params.Amount = 1
-	if _, er = bi.WithdrawCrypto(t.Context(), params); er != nil && !strings.Contains(er.Error(), "You are not authorized to execute this request.") {
-		t.Error("Binanceus WithdrawCrypto() error", er)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.WithdrawCrypto(t.Context(), params)
+	assert.ErrorContains(t, err, "You are not authorized to execute this request.")
 }
 
 func TestFiatWithdrawalHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.FiatWithdrawalHistory(t.Context(), &FiatWithdrawalRequestParams{
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.FiatWithdrawalHistory(t.Context(), &FiatWithdrawalRequestParams{
 		FiatCurrency: "USDT",
 	})
 	if er != nil {
-		t.Errorf("%s FiatWithdrawalHistory() error %v", bi.Name, er)
+		t.Errorf("%s FiatWithdrawalHistory() error %v", e.Name, er)
 	}
 }
 
 func TestDepositHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.DepositHistory(t.Context(), currency.USD, 1, time.Time{}, time.Time{}, 0, 100)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.DepositHistory(t.Context(), currency.USD, 1, time.Time{}, time.Time{}, 0, 100)
 	if er != nil {
 		t.Error("Binanceus DepositHistory() error", er)
 	}
@@ -1229,8 +1163,8 @@ func TestDepositHistory(t *testing.T) {
 
 func TestFiatDepositHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.FiatDepositHistory(t.Context(), &FiatWithdrawalRequestParams{})
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.FiatDepositHistory(t.Context(), &FiatWithdrawalRequestParams{})
 	if er != nil {
 		t.Error("Binanceus FiatDepositHistory() error", er)
 	}
@@ -1245,16 +1179,16 @@ func TestFiatDepositHistory(t *testing.T) {
 // all the three methods in one test methods.
 func TestWebsocketStreamKey(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, er := bi.GetWsAuthStreamKey(t.Context())
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, er := e.GetWsAuthStreamKey(t.Context())
 	if er != nil {
 		t.Error("Binanceus GetWsAuthStreamKey() error", er)
 	}
-	er = bi.MaintainWsAuthStreamKey(t.Context())
+	er = e.MaintainWsAuthStreamKey(t.Context())
 	if er != nil {
 		t.Error("Binanceus MaintainWsAuthStreamKey() error", er)
 	}
-	er = bi.CloseUserDataStream(t.Context())
+	er = e.CloseUserDataStream(t.Context())
 	if er != nil {
 		t.Error("Binanceus CloseUserDataStream() error", er)
 	}
@@ -1271,9 +1205,9 @@ var subscriptionRequestString = `{
 
 func TestWebsocketSubscriptionHandling(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	rawData := []byte(subscriptionRequestString)
-	err := bi.wsHandleData(rawData)
+	err := e.wsHandleData(rawData)
 	if err != nil {
 		t.Error("Binanceus wsHandleData() error", err)
 	}
@@ -1287,7 +1221,7 @@ func TestWebsocketUnsubscriptionHandling(t *testing.T) {
 	],
 	"id": 312
 	}`)
-	err := bi.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1295,7 +1229,7 @@ func TestWebsocketUnsubscriptionHandling(t *testing.T) {
 
 func TestGetSubscriptions(t *testing.T) {
 	t.Parallel()
-	if _, err := bi.GetSubscriptions(); err != nil {
+	if _, err := e.GetSubscriptions(); err != nil {
 		t.Error("Binanceus GetSubscriptions() error", err)
 	}
 }
@@ -1331,7 +1265,7 @@ var ticker24hourChangeStream = `{
 
 func TestWebsocketTickerUpdate(t *testing.T) {
 	t.Parallel()
-	if err := bi.wsHandleData([]byte(ticker24hourChangeStream)); err != nil {
+	if err := e.wsHandleData([]byte(ticker24hourChangeStream)); err != nil {
 		t.Error("Binanceus wsHandleData() for Ticker 24h Change Stream", err)
 	}
 }
@@ -1366,7 +1300,7 @@ func TestWebsocketKlineUpdate(t *testing.T) {
 	  			}
 			}
 		}`)
-	if err := bi.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(pressXToJSON); err != nil {
 		t.Error("Binanceus wsHandleData() btcusdt@kline_1m stream data conversion ", err)
 	}
 }
@@ -1386,7 +1320,7 @@ func TestWebsocketStreamTradeUpdate(t *testing.T) {
 	  "m": true,        
 	  "M": true         
 	}}`)
-	if err := bi.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(pressXToJSON); err != nil {
 		t.Error("Binanceus wsHandleData() error", err)
 	}
 }
@@ -1395,32 +1329,32 @@ func TestWebsocketStreamTradeUpdate(t *testing.T) {
 func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	binanceusOrderBookLock.Lock()
 	defer binanceusOrderBookLock.Unlock()
-	bi.setupOrderbookManager()
+	e.setupOrderbookManager(t.Context())
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
-		Asks: []OrderbookItem{
-			{Price: 6621.80000000, Quantity: 0.00198100},
-			{Price: 6622.14000000, Quantity: 4.00000000},
-			{Price: 6622.46000000, Quantity: 2.30000000},
-			{Price: 6622.47000000, Quantity: 1.18633300},
-			{Price: 6622.64000000, Quantity: 4.00000000},
-			{Price: 6622.73000000, Quantity: 0.02900000},
-			{Price: 6622.76000000, Quantity: 0.12557700},
-			{Price: 6622.81000000, Quantity: 2.08994200},
-			{Price: 6622.82000000, Quantity: 0.01500000},
-			{Price: 6623.17000000, Quantity: 0.16831300},
+		Asks: []orderbook.Level{
+			{Price: 6621.80000000, Amount: 0.00198100},
+			{Price: 6622.14000000, Amount: 4.00000000},
+			{Price: 6622.46000000, Amount: 2.30000000},
+			{Price: 6622.47000000, Amount: 1.18633300},
+			{Price: 6622.64000000, Amount: 4.00000000},
+			{Price: 6622.73000000, Amount: 0.02900000},
+			{Price: 6622.76000000, Amount: 0.12557700},
+			{Price: 6622.81000000, Amount: 2.08994200},
+			{Price: 6622.82000000, Amount: 0.01500000},
+			{Price: 6623.17000000, Amount: 0.16831300},
 		},
-		Bids: []OrderbookItem{
-			{Price: 6621.55000000, Quantity: 0.16356700},
-			{Price: 6621.45000000, Quantity: 0.16352600},
-			{Price: 6621.41000000, Quantity: 0.86091200},
-			{Price: 6621.25000000, Quantity: 0.16914100},
-			{Price: 6621.23000000, Quantity: 0.09193600},
-			{Price: 6621.22000000, Quantity: 0.00755100},
-			{Price: 6621.13000000, Quantity: 0.08432000},
-			{Price: 6621.03000000, Quantity: 0.00172000},
-			{Price: 6620.94000000, Quantity: 0.30506700},
-			{Price: 6620.93000000, Quantity: 0.00200000},
+		Bids: []orderbook.Level{
+			{Price: 6621.55000000, Amount: 0.16356700},
+			{Price: 6621.45000000, Amount: 0.16352600},
+			{Price: 6621.41000000, Amount: 0.86091200},
+			{Price: 6621.25000000, Amount: 0.16914100},
+			{Price: 6621.23000000, Amount: 0.09193600},
+			{Price: 6621.22000000, Amount: 0.00755100},
+			{Price: 6621.13000000, Amount: 0.08432000},
+			{Price: 6621.03000000, Amount: 0.00172000},
+			{Price: 6620.94000000, Amount: 0.30506700},
+			{Price: 6620.93000000, Amount: 0.00200000},
 		},
 		LastUpdateID: seedLastUpdateID,
 	}
@@ -1439,14 +1373,14 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	}}`)
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	if err := bi.SeedLocalCacheWithBook(p, &book); err != nil {
+	if err := e.SeedLocalCacheWithBook(p, &book); err != nil {
 		t.Fatal(err)
 	}
-	if err := bi.wsHandleData(update1); err != nil {
+	if err := e.wsHandleData(update1); err != nil {
 		t.Fatal(err)
 	}
-	bi.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
-	ob, err := bi.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	e.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
+	ob, err := e.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1475,10 +1409,10 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 			]
 		}
 	}`)
-	if err = bi.wsHandleData(update2); err != nil {
+	if err = e.wsHandleData(update2); err != nil {
 		t.Error("Binanceus wshandlerData error", err)
 	}
-	ob, err = bi.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	ob, err = e.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
 	if err != nil {
 		t.Fatal("Binanceus GetOrderBook error", err)
 	}
@@ -1494,7 +1428,7 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
 		t.Fatalf("Binanceus Unexpected Bid amount. Exp: %f, got %f", exp, got)
 	}
-	bi.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
+	e.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
 }
 
 // TestWebsocketPartialOrderBookDepthStream copied from the Binance Test
@@ -1517,7 +1451,7 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 		]
 	  }}`)
 	var err error
-	if err = bi.wsHandleData(update1); err != nil {
+	if err = e.wsHandleData(update1); err != nil {
 		t.Error("Binanceus Partial Order Book Depth Sream error", err)
 	}
 	update2 := []byte(`{
@@ -1538,7 +1472,7 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 			]
 		}
 	  }`)
-	if err = bi.wsHandleData(update2); err != nil {
+	if err = e.wsHandleData(update2); err != nil {
 		t.Error("Binanceus Partial Order Book Depth Sream error", err)
 	}
 }
@@ -1557,7 +1491,7 @@ func TestWebsocketBookTicker(t *testing.T) {
 			"A":"40.66000000" 
 		}
 	  }`)
-	if err := bi.wsHandleData(bookTickerJSON); err != nil {
+	if err := e.wsHandleData(bookTickerJSON); err != nil {
 		t.Error("Binanceus Book Ticker error", err)
 	}
 	bookTickerForAllSymbols := []byte(`
@@ -1572,7 +1506,7 @@ func TestWebsocketBookTicker(t *testing.T) {
 			"A":"40.66000000" 
 		}
 	}`)
-	if err := bi.wsHandleData(bookTickerForAllSymbols); err != nil {
+	if err := e.wsHandleData(bookTickerForAllSymbols); err != nil {
 		t.Error("Binanceus Web socket Book ticker for all symbols error", err)
 	}
 }
@@ -1584,19 +1518,19 @@ func TestWebsocketAggTrade(t *testing.T) {
 			"stream":"btcusdt@aggTrade", 
 			"data": {
 				"e": "aggTrade",  
-				"E": 123456789,   
-				"s": "BNBBTC",    
+				"E": 1672515782136,   
+				"s": "BNBBTC",
 				"a": 12345,       
 				"p": "0.001",     
 				"q": "100",   
 				"f": 100,     
 				"l": 105,   
-				"T": 123456785,
+				"T": 1672515782136,
 				"m": true,
 				"M": true         
 			}
 	   }`)
-	if err := bi.wsHandleData(aggTradejson); err != nil {
+	if err := e.wsHandleData(aggTradejson); err != nil {
 		t.Error("Binanceus Aggregated Trade Order Json() error", err)
 	}
 }
@@ -1614,7 +1548,7 @@ var balanceUpdateInputJSON = `
 func TestWebsocketBalanceUpdate(t *testing.T) {
 	t.Parallel()
 	thejson := []byte(balanceUpdateInputJSON)
-	if err := bi.wsHandleData(thejson); err != nil {
+	if err := e.wsHandleData(thejson); err != nil {
 		t.Error(err)
 	}
 }
@@ -1650,7 +1584,7 @@ var listStatusUserDataStreamPayload = `
 
 func TestWebsocketListStatus(t *testing.T) {
 	t.Parallel()
-	if err := bi.wsHandleData([]byte(listStatusUserDataStreamPayload)); err != nil {
+	if err := e.wsHandleData([]byte(listStatusUserDataStreamPayload)); err != nil {
 		t.Error(err)
 	}
 }
@@ -1704,25 +1638,26 @@ func TestProcessUpdate(t *testing.T) {
 	t.Parallel()
 	binanceusOrderBookLock.Lock()
 	defer binanceusOrderBookLock.Unlock()
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	e.setupOrderbookManager(t.Context())
+	p := currency.NewBTCUSDT()
 	var depth WebsocketDepthStream
 	err := json.Unmarshal(websocketDepthUpdate, &depth)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = bi.obm.stageWsUpdate(&depth, p, asset.Spot)
+	err = e.obm.stageWsUpdate(&depth, p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = bi.obm.fetchBookViaREST(p)
+	err = e.obm.fetchBookViaREST(p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = bi.obm.cleanup(p)
+	err = e.obm.cleanup(p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	bi.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
+	e.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
 }
 
 func TestWebsocketOrderExecutionReport(t *testing.T) {
@@ -1742,16 +1677,16 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 		AssetType:       asset.Spot,
 		Date:            time.UnixMilli(1616627567900),
 		LastUpdated:     time.UnixMilli(1616627567900),
-		Pair:            currency.NewPair(currency.BTC, currency.USDT),
+		Pair:            currency.NewBTCUSDT(),
 	}
-	for len(bi.Websocket.DataHandler) > 0 {
-		<-bi.Websocket.DataHandler
+	for len(e.Websocket.DataHandler) > 0 {
+		<-e.Websocket.DataHandler
 	}
-	err := bi.wsHandleData(payload)
+	err := e.wsHandleData(payload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	res := <-bi.Websocket.DataHandler
+	res := <-e.Websocket.DataHandler
 	switch r := res.(type) {
 	case *order.Detail:
 		if !reflects.DeepEqual(expectedResult, *r) {
@@ -1761,7 +1696,7 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 		t.Fatalf("Binanceus expected type order.Detail, found %T", res)
 	}
 	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041556,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Mob","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028600","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783271,"l":"0.00028600","z":"0.00028600","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041555,"t":726946523,"I":11390206312,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"14.99693910","Y":"14.99693910","Q":"0.00000000"}}`)
-	err = bi.wsHandleData(payload)
+	err = e.wsHandleData(payload)
 	if err != nil {
 		t.Fatal("Binanceus OrderExecutionReport json conversion error", err)
 	}
@@ -1770,52 +1705,99 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 func TestWebsocketOutboundAccountPosition(t *testing.T) {
 	t.Parallel()
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
-	if err := bi.wsHandleData(payload); err != nil {
+	if err := e.wsHandleData(payload); err != nil {
 		t.Fatal("Binanceus testing \"outboundAccountPosition\" data conversion error", err)
 	}
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, er := bi.GetAvailableTransferChains(t.Context(), currency.BTC); er != nil {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if _, er := e.GetAvailableTransferChains(t.Context(), currency.BTC); er != nil {
 		t.Error("Binanceus GetAvailableTransferChains() error", er)
 	}
 }
 
 func TestQuickEnableCryptoWithdrawal(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if er := bi.QuickEnableCryptoWithdrawal(t.Context()); er != nil && !strings.Contains(er.Error(), "unexpected end of JSON input") {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if er := e.QuickEnableCryptoWithdrawal(t.Context()); er != nil && !strings.Contains(er.Error(), "unexpected end of JSON input") {
 		t.Errorf("Binanceus QuickEnableCryptoWithdrawal() expecting %s, but found %v", "unexpected end of JSON input", er)
 	}
 }
 
 func TestQuickDisableCryptoWithdrawal(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if er := bi.QuickDisableCryptoWithdrawal(t.Context()); er != nil && !strings.Contains(er.Error(), "unexpected end of JSON input") {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if er := e.QuickDisableCryptoWithdrawal(t.Context()); er != nil && !strings.Contains(er.Error(), "unexpected end of JSON input") {
 		t.Errorf("Binanceus QuickDisableCryptoWithdrawal() expecting %s, but found %v", "unexpected end of JSON input", er)
 	}
 }
 
 func TestGetUsersSpotAssetSnapshot(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, er := bi.GetUsersSpotAssetSnapshot(t.Context(), time.Time{}, time.Time{}, 10, 6); er != nil {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if _, er := e.GetUsersSpotAssetSnapshot(t.Context(), time.Time{}, time.Time{}, 10, 6); er != nil {
 		t.Error("Binanceus GetUsersSpotAssetSnapshot() error", er)
 	}
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, bi)
-	for _, a := range bi.GetAssetTypes(false) {
-		pairs, err := bi.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
-		resp, err := bi.GetCurrencyTradeURL(t.Context(), a, pairs[0])
+	testexch.UpdatePairsOnce(t, e)
+	for _, a := range e.GetAssetTypes(false) {
+		pairs, err := e.CurrencyPairs.GetPairs(a, false)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
+		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
+	}
+}
+
+// TestGetAggregatedTradesBatched exercises TestGetAggregatedTradesBatched to ensure our date and limit scanning works correctly
+// This test is susceptible to failure if volumes change a lot, during wash trading or zero-fee periods
+// In live tests, 6 hours is expected to return about 1000 records
+func TestGetAggregatedTradesBatched(t *testing.T) {
+	t.Parallel()
+	type testCase struct {
+		name    string
+		args    *AggregatedTradeRequestParams
+		expFunc func(*testing.T, []AggregatedTrade)
+	}
+
+	var tests []testCase
+	start := time.Now().Add(-time.Hour * 24 * 90).Truncate(time.Minute) // 3 months ago
+	tests = []testCase{
+		{
+			name: "batch with timerange",
+			args: &AggregatedTradeRequestParams{StartTime: start, EndTime: start.Add(6 * time.Hour)},
+			expFunc: func(t *testing.T, results []AggregatedTrade) {
+				t.Helper()
+				require.NotEmpty(t, results, "must have records")
+				assert.Less(t, len(results), 10000, "should return a quantity below a sane threshold of records")
+				assert.WithinDuration(t, results[len(results)-1].TimeStamp.Time(), start, 6*time.Hour, "last record should be within range of start time")
+			},
+		},
+		{
+			name: "custom limit with start time set, no end time",
+			args: &AggregatedTradeRequestParams{StartTime: start, Limit: 2042},
+			expFunc: func(t *testing.T, results []AggregatedTrade) {
+				t.Helper()
+				// 2000 records in was about 32 hours in 2025; Adjust if BinanceUS enters a phase of zero-fees or low-volume
+				require.Equal(t, 2042, len(results), "must return exactly the limit number of records")
+				assert.WithinDuration(t, results[len(results)-1].TimeStamp.Time(), start, 72*time.Hour, "last record should be within 72 hours of start time")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tt.args.Symbol = currency.NewBTCUSDT()
+			results, err := e.GetAggregateTrades(t.Context(), tt.args)
+			require.NoError(t, err)
+			tt.expFunc(t, results)
+		})
 	}
 }

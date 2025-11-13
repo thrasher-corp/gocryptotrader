@@ -1,11 +1,11 @@
 package compliance
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -14,25 +14,21 @@ func TestAddSnapshot(t *testing.T) {
 	m := Manager{}
 	tt := time.Now()
 	err := m.AddSnapshot(&Snapshot{}, true)
-	if !errors.Is(err, errSnapshotNotFound) {
-		t.Errorf("received: %v, expected: %v", err, errSnapshotNotFound)
-	}
+	assert.ErrorIs(t, err, errSnapshotNotFound)
 
 	err = m.AddSnapshot(&Snapshot{
 		Timestamp: tt,
 	}, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(m.Snapshots) != 1 {
 		t.Error("expected 1")
 	}
 	err = m.AddSnapshot(&Snapshot{
 		Timestamp: tt,
 	}, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(m.Snapshots) != 1 {
 		t.Error("expected 1")
 	}
@@ -54,14 +50,12 @@ func TestGetSnapshotAtTime(t *testing.T) {
 			},
 		},
 	}, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	var snappySnap Snapshot
 	snappySnap, err = m.GetSnapshotAtTime(tt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(snappySnap.Orders) == 0 {
 		t.Fatal("expected an order")
 	}
@@ -73,9 +67,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	}
 
 	_, err = m.GetSnapshotAtTime(time.Now().Add(time.Hour))
-	if !errors.Is(err, errSnapshotNotFound) {
-		t.Errorf("received: %v, expected: %v", err, errSnapshotNotFound)
-	}
+	assert.ErrorIs(t, err, errSnapshotNotFound)
 }
 
 func TestGetLatestSnapshot(t *testing.T) {
@@ -89,17 +81,15 @@ func TestGetLatestSnapshot(t *testing.T) {
 	err := m.AddSnapshot(&Snapshot{
 		Timestamp: tt,
 	}, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.AddSnapshot(&Snapshot{
 		Offset:    1,
 		Timestamp: tt.Add(time.Hour),
 		Orders:    nil,
 	}, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	snappySnap = m.GetLatestSnapshot()
 	if snappySnap.Timestamp.Equal(tt) {
 		t.Errorf("expected %v", tt.Add(time.Hour))

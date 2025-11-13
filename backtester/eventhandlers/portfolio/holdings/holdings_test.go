@@ -1,11 +1,11 @@
 package holdings
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -57,22 +57,17 @@ func collateral(t *testing.T) *funding.CollateralPair {
 func TestCreate(t *testing.T) {
 	t.Parallel()
 	_, err := Create(nil, pair(t))
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	_, err = Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Futures},
 	}, collateral(t))
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestUpdate(t *testing.T) {
@@ -80,18 +75,16 @@ func TestUpdate(t *testing.T) {
 	h, err := Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	t1 := h.Timestamp
 	err = h.Update(&fill.Fill{
 		Base: &event.Base{
 			Time: time.Now(),
 		},
 	}, pair(t))
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if t1.Equal(h.Timestamp) {
 		t.Errorf("expected '%v' received '%v'", h.Timestamp, t1)
 	}
@@ -103,23 +96,18 @@ func TestUpdateValue(t *testing.T) {
 	h, err := Create(&fill.Fill{
 		Base: b,
 	}, pair(t))
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = h.UpdateValue(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	h.BaseSize = decimal.NewFromInt(1)
 	err = h.UpdateValue(&kline.Kline{
 		Base:  b,
 		Close: decimal.NewFromInt(1337),
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !h.BaseValue.Equal(decimal.NewFromInt(1337)) {
 		t.Errorf("expected '%v' received '%v'", h.BaseSize, decimal.NewFromInt(1337))
 	}
@@ -142,16 +130,14 @@ func TestUpdateBuyStats(t *testing.T) {
 	h, err := Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = h.update(&fill.Fill{
 		Base: &event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			CurrencyPair: currency.NewBTCUSDT(),
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Buy,
@@ -171,14 +157,13 @@ func TestUpdateBuyStats(t *testing.T) {
 			Date:        time.Now(),
 			CloseTime:   time.Now(),
 			LastUpdated: time.Now(),
-			Pair:        currency.NewPair(currency.BTC, currency.USDT),
+			Pair:        currency.NewBTCUSDT(),
 			Trades:      nil,
 			Fee:         1,
 		},
 	}, p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !h.BaseSize.Equal(p.BaseAvailable()) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BaseSize)
 	}
@@ -206,7 +191,7 @@ func TestUpdateBuyStats(t *testing.T) {
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			CurrencyPair: currency.NewBTCUSDT(),
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Buy,
@@ -226,14 +211,12 @@ func TestUpdateBuyStats(t *testing.T) {
 			Date:        time.Now(),
 			CloseTime:   time.Now(),
 			LastUpdated: time.Now(),
-			Pair:        currency.NewPair(currency.BTC, currency.USDT),
+			Pair:        currency.NewBTCUSDT(),
 			Trades:      nil,
 			Fee:         0.5,
 		},
 	}, p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if !h.BoughtAmount.Equal(decimal.NewFromFloat(1.5)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
@@ -264,15 +247,14 @@ func TestUpdateSellStats(t *testing.T) {
 	h, err := Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = h.update(&fill.Fill{
 		Base: &event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			CurrencyPair: currency.NewBTCUSDT(),
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Buy,
@@ -292,13 +274,12 @@ func TestUpdateSellStats(t *testing.T) {
 			Date:        time.Now(),
 			CloseTime:   time.Now(),
 			LastUpdated: time.Now(),
-			Pair:        currency.NewPair(currency.BTC, currency.USDT),
+			Pair:        currency.NewBTCUSDT(),
 			Fee:         1,
 		},
 	}, p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !h.BaseSize.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BaseSize)
 	}
@@ -329,7 +310,7 @@ func TestUpdateSellStats(t *testing.T) {
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			CurrencyPair: currency.NewBTCUSDT(),
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Sell,
@@ -349,14 +330,12 @@ func TestUpdateSellStats(t *testing.T) {
 			Date:        time.Now(),
 			CloseTime:   time.Now(),
 			LastUpdated: time.Now(),
-			Pair:        currency.NewPair(currency.BTC, currency.USDT),
+			Pair:        currency.NewBTCUSDT(),
 			Trades:      nil,
 			Fee:         1,
 		},
 	}, p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)

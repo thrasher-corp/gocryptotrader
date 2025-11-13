@@ -31,6 +31,14 @@ func TestExpandTemplates(t *testing.T) {
 		{Channel: "batching", Asset: asset.Spot},
 		{Channel: "single-channel", Authenticated: true},
 	}
+
+	_, err := l.ExpandTemplates(&mockExWithSubValidator{mockEx: e, GenerateBadSubscription: true})
+	require.ErrorIs(t, err, errValidateSubscriptionsTestError)
+	_, err = l.ExpandTemplates(&mockExWithSubValidator{mockEx: e})
+	require.NoError(t, err)
+	_, err = l.ExpandTemplates(&mockExWithSubValidator{mockEx: e, FailGetSubscriptions: true})
+	require.ErrorIs(t, err, ErrNotFound)
+
 	got, err := l.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	exp := List{
@@ -94,7 +102,7 @@ func TestExpandTemplates(t *testing.T) {
 	equalLists(t, exp, got)
 
 	// Users can specify pairs which aren't available, even across diverse assets
-	// Use-case: Coinbasepro user sub for futures BTC-USD would return all BTC pairs and all USD pairs, even though BTC-USD might not be enabled or available
+	// Use-case: Coinbase user sub for futures BTC-USD would return all BTC pairs and all USD pairs, even though BTC-USD might not be enabled or available
 	p := currency.Pairs{currency.NewPairWithDelimiter("BEAR", "PEAR", "🐻")}
 	got, err = List{{Channel: "expand-pairs", Asset: asset.All, Pairs: p}}.ExpandTemplates(e)
 	require.NoError(t, err, "Must not error with fictional pairs")

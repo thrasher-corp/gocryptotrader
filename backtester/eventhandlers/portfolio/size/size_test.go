@@ -1,11 +1,11 @@
 package size
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -32,9 +32,8 @@ func TestSizingAccuracy(t *testing.T) {
 	feeRate := decimal.NewFromFloat(0.02)
 	buyLimit := decimal.NewFromInt(1)
 	amountWithoutFee, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, globalMinMax)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	totalWithFee := (price.Mul(amountWithoutFee)).Add(globalMinMax.MaximumTotal.Mul(feeRate))
 	if !totalWithFee.Equal(globalMinMax.MaximumTotal) {
 		t.Errorf("expected %v received %v", globalMinMax.MaximumTotal, totalWithFee)
@@ -56,9 +55,8 @@ func TestSizingOverMaxSize(t *testing.T) {
 	feeRate := decimal.NewFromFloat(0.02)
 	buyLimit := decimal.NewFromInt(1)
 	amount, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, globalMinMax)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if amount.GreaterThan(globalMinMax.MaximumSize) {
 		t.Error("greater than max")
 	}
@@ -80,9 +78,7 @@ func TestSizingUnderMinSize(t *testing.T) {
 	feeRate := decimal.NewFromFloat(0.02)
 	buyLimit := decimal.NewFromInt(1)
 	_, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, globalMinMax)
-	if !errors.Is(err, errLessThanMinimum) {
-		t.Errorf("received: %v, expected: %v", err, errLessThanMinimum)
-	}
+	assert.ErrorIs(t, err, errLessThanMinimum)
 }
 
 func TestMaximumBuySizeEqualZero(t *testing.T) {
@@ -141,9 +137,7 @@ func TestSizingErrors(t *testing.T) {
 	feeRate := decimal.NewFromFloat(0.02)
 	buyLimit := decimal.NewFromInt(1)
 	_, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, globalMinMax)
-	if !errors.Is(err, errNoFunds) {
-		t.Errorf("received: %v, expected: %v", err, errNoFunds)
-	}
+	assert.ErrorIs(t, err, errNoFunds)
 }
 
 func TestCalculateSellSize(t *testing.T) {
@@ -162,20 +156,17 @@ func TestCalculateSellSize(t *testing.T) {
 	feeRate := decimal.NewFromFloat(0.02)
 	sellLimit := decimal.NewFromInt(1)
 	_, _, err := sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, globalMinMax)
-	if !errors.Is(err, errNoFunds) {
-		t.Errorf("received: %v, expected: %v", err, errNoFunds)
-	}
+	assert.ErrorIs(t, err, errNoFunds)
+
 	availableFunds = decimal.NewFromInt(1337)
 	_, _, err = sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, globalMinMax)
-	if !errors.Is(err, errLessThanMinimum) {
-		t.Errorf("received: %v, expected: %v", err, errLessThanMinimum)
-	}
+	assert.ErrorIs(t, err, errLessThanMinimum)
+
 	price = decimal.NewFromInt(12)
 	availableFunds = decimal.NewFromInt(1339)
 	amount, fee, err := sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, globalMinMax)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !amount.Equal(sellLimit) {
 		t.Errorf("received '%v' expected '%v'", amount, sellLimit)
 	}
@@ -188,62 +179,48 @@ func TestSizeOrder(t *testing.T) {
 	t.Parallel()
 	s := Size{}
 	_, _, err := s.SizeOrder(nil, decimal.Zero, nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
 	o := &order.Order{
 		Base: &event.Base{
 			Offset:         1,
 			Exchange:       "binance",
 			Time:           time.Now(),
-			CurrencyPair:   currency.NewPair(currency.BTC, currency.USDT),
-			UnderlyingPair: currency.NewPair(currency.BTC, currency.USDT),
+			CurrencyPair:   currency.NewBTCUSDT(),
+			UnderlyingPair: currency.NewBTCUSDT(),
 			AssetType:      asset.Spot,
 		},
 	}
 	cs := &exchange.Settings{}
 	_, _, err = s.SizeOrder(o, decimal.Zero, cs)
-	if !errors.Is(err, errNoFunds) {
-		t.Errorf("received: %v, expected: %v", err, errNoFunds)
-	}
+	assert.ErrorIs(t, err, errNoFunds)
 
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received: %v, expected: %v", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
+
 	o.Direction = gctorder.Buy
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received: %v, expected: %v", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
 
 	o.ClosePrice = decimal.NewFromInt(1)
 	s.BuySide.MaximumSize = decimal.NewFromInt(1)
 	s.BuySide.MinimumSize = decimal.NewFromInt(1)
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	o.Amount = decimal.NewFromInt(1)
 	o.Direction = gctorder.Sell
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	s.SellSide.MaximumSize = decimal.NewFromInt(1)
 	s.SellSide.MinimumSize = decimal.NewFromInt(1)
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	o.Direction = gctorder.ClosePosition
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	// spot futures sizing
 	o.FillDependentEvent = &signal.Signal{
@@ -251,18 +228,14 @@ func TestSizeOrder(t *testing.T) {
 		MatchesOrderAmount: true,
 		ClosePrice:         decimal.NewFromInt(1337),
 	}
-	exch := binance.Binance{}
+	exch := binance.Exchange{}
 	// TODO adjust when Binance futures wrappers are implemented
 	cs.Exchange = &exch
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNotYetImplemented)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNotYetImplemented)
 
 	o.ClosePrice = decimal.NewFromInt(1000000000)
 	o.Amount = decimal.NewFromInt(1000000000)
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNotYetImplemented)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNotYetImplemented)
 }

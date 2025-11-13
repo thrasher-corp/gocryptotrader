@@ -7,8 +7,6 @@ import (
 	"crypto/sha1" //nolint:gosec // Used for exchanges
 	"crypto/sha256"
 	"crypto/sha512"
-	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"hash"
 	"io"
@@ -22,25 +20,6 @@ const (
 	HashSHA512_384
 	HashMD5
 )
-
-// HexEncodeToString takes in a hexadecimal byte array and returns a string
-func HexEncodeToString(input []byte) string {
-	return hex.EncodeToString(input)
-}
-
-// Base64Decode takes in a Base64 string and returns a byte array and an error
-func Base64Decode(input string) ([]byte, error) {
-	result, err := base64.StdEncoding.DecodeString(input)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-// Base64Encode takes in a byte array then returns an encoded base64 string
-func Base64Encode(input []byte) string {
-	return base64.StdEncoding.EncodeToString(input)
-}
 
 // GetRandomSalt returns a random salt
 func GetRandomSalt(input []byte, saltLen int) ([]byte, error) {
@@ -58,27 +37,6 @@ func GetRandomSalt(input []byte, saltLen int) ([]byte, error) {
 	}
 	result = append(result, salt...)
 	return result, nil
-}
-
-// GetMD5 returns a MD5 hash of a byte array
-func GetMD5(input []byte) ([]byte, error) {
-	m := md5.New() //nolint:gosec // hash function used by some exchanges
-	_, err := m.Write(input)
-	return m.Sum(nil), err
-}
-
-// GetSHA512 returns a SHA512 hash of a byte array
-func GetSHA512(input []byte) ([]byte, error) {
-	sha := sha512.New()
-	_, err := sha.Write(input)
-	return sha.Sum(nil), err
-}
-
-// GetSHA256 returns a SHA256 hash of a byte array
-func GetSHA256(input []byte) ([]byte, error) {
-	sha := sha256.New()
-	_, err := sha.Write(input)
-	return sha.Sum(nil), err
 }
 
 // GetHMAC returns a keyed-hash message authentication code using the desired
@@ -102,12 +60,4 @@ func GetHMAC(hashType int, input, key []byte) ([]byte, error) {
 	h := hmac.New(hasher, key)
 	_, err := h.Write(input)
 	return h.Sum(nil), err
-}
-
-// Sha1ToHex takes a string, sha1 hashes it and return a hex string of the
-// result
-func Sha1ToHex(data string) (string, error) {
-	h := sha1.New() //nolint:gosec // hash function used by some exchanges
-	_, err := h.Write([]byte(data))
-	return hex.EncodeToString(h.Sum(nil)), err
 }

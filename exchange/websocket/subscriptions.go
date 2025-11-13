@@ -284,6 +284,10 @@ func (m *Manager) FlushChannels() error {
 	}
 
 	for x := range m.connectionManager {
+		if m.connectionManager[x].setup.SubscriptionsNotRequired {
+			continue
+		}
+
 		newSubs, err := m.connectionManager[x].setup.GenerateSubscriptions()
 		if err != nil {
 			return err
@@ -306,8 +310,7 @@ func (m *Manager) FlushChannels() error {
 			m.connectionManager[x].connection = conn
 		}
 
-		err = m.updateChannelSubscriptions(m.connectionManager[x].connection, m.connectionManager[x].subscriptions, newSubs)
-		if err != nil {
+		if err := m.updateChannelSubscriptions(m.connectionManager[x].connection, m.connectionManager[x].subscriptions, newSubs); err != nil {
 			return err
 		}
 
@@ -333,7 +336,7 @@ func (m *Manager) updateChannelSubscriptions(c Connection, store *subscription.S
 		}
 
 		if contained := store.Contained(unsubs); len(contained) > 0 {
-			return fmt.Errorf("%v %w `%s`", m.exchangeName, ErrSubscriptionsNotRemoved, contained)
+			return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotRemoved, contained)
 		}
 	}
 	if len(subs) != 0 {
@@ -342,7 +345,7 @@ func (m *Manager) updateChannelSubscriptions(c Connection, store *subscription.S
 		}
 
 		if missing := store.Missing(subs); len(missing) > 0 {
-			return fmt.Errorf("%v %w `%s`", m.exchangeName, ErrSubscriptionsNotAdded, missing)
+			return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotAdded, missing)
 		}
 	}
 	return nil

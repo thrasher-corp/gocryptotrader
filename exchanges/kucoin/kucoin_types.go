@@ -156,16 +156,16 @@ type Stats24hrs struct {
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	Sequence int64
-	Bids     []orderbook.Tranche
-	Asks     []orderbook.Tranche
+	Bids     []orderbook.Level
+	Asks     []orderbook.Level
 	Time     time.Time
 }
 
 type orderbookResponse struct {
-	Asks     [][2]types.Number `json:"asks"`
-	Bids     [][2]types.Number `json:"bids"`
-	Time     types.Time        `json:"time"`
-	Sequence string            `json:"sequence"`
+	Asks     orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids     orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Time     types.Time                       `json:"time"`
+	Sequence types.Number                     `json:"sequence"`
 }
 
 // Trade stores trade data
@@ -179,13 +179,18 @@ type Trade struct {
 
 // Kline stores kline data
 type Kline struct {
-	StartTime time.Time
-	Open      float64
-	Close     float64
-	High      float64
-	Low       float64
-	Volume    float64 // Transaction volume
-	Amount    float64 // Transaction amount
+	StartTime types.Time
+	Open      types.Number
+	Close     types.Number
+	High      types.Number
+	Low       types.Number
+	Volume    types.Number // Transaction volume
+	Amount    types.Number // Transaction amount
+}
+
+// UnmarshalJSON deserilizes kline data from a JSON array into Kline fields.
+func (k *Kline) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&k.StartTime, &k.Open, &k.Close, &k.High, &k.Low, &k.Volume, &k.Amount})
 }
 
 // CurrencyBase represents currency code response details
@@ -758,12 +763,12 @@ type StopOrder struct {
 
 // AccountInfo represents account information
 type AccountInfo struct {
-	ID          string       `json:"id"`
-	Currency    string       `json:"currency"`
-	AccountType string       `json:"type"` // Account type:，main、trade、trade_hf、margin
-	Balance     types.Number `json:"balance"`
-	Available   types.Number `json:"available"`
-	Holds       types.Number `json:"holds"`
+	ID          string        `json:"id"`
+	Currency    currency.Code `json:"currency"`
+	AccountType string        `json:"type"` // Account type: main, trade, trade_hf, margin
+	Balance     types.Number  `json:"balance"`
+	Available   types.Number  `json:"available"`
+	Holds       types.Number  `json:"holds"`
 }
 
 // CrossMarginAccountDetail represents a cross-margin account details
@@ -1337,63 +1342,26 @@ type OrderbookChanges struct {
 	Bids [][]types.Number `json:"bids"`
 }
 
-// WsCandlestickData represents candlestick information push data for a symbol
-type WsCandlestickData struct {
-	Symbol  string     `json:"symbol"`
-	Candles [7]string  `json:"candles"`
-	Time    types.Time `json:"time"`
-}
-
 // WsCandlestick represents candlestick information push data for a symbol
 type WsCandlestick struct {
-	Symbol  string `json:"symbol"`
-	Candles struct {
-		StartTime         time.Time
-		OpenPrice         float64
-		ClosePrice        float64
-		HighPrice         float64
-		LowPrice          float64
-		TransactionVolume float64
-		TransactionAmount float64
-	} `json:"candles"`
-	Time time.Time `json:"time"`
+	Symbol  string       `json:"symbol"`
+	Candles wsCandleItem `json:"candles"`
+	Time    types.Time   `json:"time"`
 }
 
-func (a *WsCandlestickData) getCandlestickData() (*WsCandlestick, error) {
-	cand := &WsCandlestick{
-		Symbol: a.Symbol,
-		Time:   a.Time.Time(),
-	}
-	timeStamp, err := strconv.ParseInt(a.Candles[0], 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	cand.Candles.StartTime = time.UnixMilli(timeStamp)
-	cand.Candles.OpenPrice, err = strconv.ParseFloat(a.Candles[1], 64)
-	if err != nil {
-		return nil, err
-	}
-	cand.Candles.ClosePrice, err = strconv.ParseFloat(a.Candles[2], 64)
-	if err != nil {
-		return nil, err
-	}
-	cand.Candles.HighPrice, err = strconv.ParseFloat(a.Candles[3], 64)
-	if err != nil {
-		return nil, err
-	}
-	cand.Candles.LowPrice, err = strconv.ParseFloat(a.Candles[4], 64)
-	if err != nil {
-		return nil, err
-	}
-	cand.Candles.TransactionVolume, err = strconv.ParseFloat(a.Candles[5], 64)
-	if err != nil {
-		return nil, err
-	}
-	cand.Candles.TransactionAmount, err = strconv.ParseFloat(a.Candles[6], 64)
-	if err != nil {
-		return nil, err
-	}
-	return cand, nil
+type wsCandleItem struct {
+	StartTime         types.Time
+	OpenPrice         types.Number
+	ClosePrice        types.Number
+	HighPrice         types.Number
+	LowPrice          types.Number
+	TransactionVolume types.Number
+	TransactionAmount types.Number
+}
+
+// UnmarshalJSON unmarshals data into a wsCandleItem
+func (a *wsCandleItem) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&a.StartTime, &a.OpenPrice, &a.ClosePrice, &a.HighPrice, &a.LowPrice, &a.TransactionVolume, &a.TransactionAmount})
 }
 
 // WsTrade represents a trade push data
@@ -1442,14 +1410,14 @@ type WsTradeOrder struct {
 
 // WsAccountBalance represents a Account Balance push data
 type WsAccountBalance struct {
-	Total           float64 `json:"total,string"`
-	Available       float64 `json:"available,string"`
-	AvailableChange float64 `json:"availableChange,string"`
-	Currency        string  `json:"currency"`
-	Hold            float64 `json:"hold,string"`
-	HoldChange      float64 `json:"holdChange,string"`
-	RelationEvent   string  `json:"relationEvent"`
-	RelationEventID string  `json:"relationEventId"`
+	Total           float64       `json:"total,string"`
+	Available       float64       `json:"available,string"`
+	AvailableChange float64       `json:"availableChange,string"`
+	Currency        currency.Code `json:"currency"`
+	Hold            float64       `json:"hold,string"`
+	HoldChange      float64       `json:"holdChange,string"`
+	RelationEvent   string        `json:"relationEvent"`
+	RelationEventID string        `json:"relationEventId"`
 	RelationContext struct {
 		Symbol  string `json:"symbol"`
 		TradeID string `json:"tradeId"`
@@ -1560,44 +1528,20 @@ type WsFuturesExecutionData struct {
 
 // WsOrderbookLevel5 represents an orderbook push data with depth level 5
 type WsOrderbookLevel5 struct {
-	Sequence      int64               `json:"sequence"`
-	Asks          []orderbook.Tranche `json:"asks"`
-	Bids          []orderbook.Tranche `json:"bids"`
-	PushTimestamp types.Time          `json:"ts"`
-	Timestamp     types.Time          `json:"timestamp"`
-}
-
-// WsOrderbookLevel5Response represents a response data for an orderbook push data with depth level 5
-type WsOrderbookLevel5Response struct {
 	Sequence      int64             `json:"sequence"`
-	Bids          [][2]types.Number `json:"bids"`
-	Asks          [][2]types.Number `json:"asks"`
+	Asks          []orderbook.Level `json:"asks"`
+	Bids          []orderbook.Level `json:"bids"`
 	PushTimestamp types.Time        `json:"ts"`
 	Timestamp     types.Time        `json:"timestamp"`
 }
 
-// ExtractOrderbookItems returns WsOrderbookLevel5 instance from WsOrderbookLevel5Response
-func (a *WsOrderbookLevel5Response) ExtractOrderbookItems() *WsOrderbookLevel5 {
-	resp := WsOrderbookLevel5{
-		Timestamp:     a.Timestamp,
-		Sequence:      a.Sequence,
-		PushTimestamp: a.PushTimestamp,
-	}
-	resp.Asks = make([]orderbook.Tranche, len(a.Asks))
-	for x := range a.Asks {
-		resp.Asks[x] = orderbook.Tranche{
-			Price:  a.Asks[x][0].Float64(),
-			Amount: a.Asks[x][1].Float64(),
-		}
-	}
-	resp.Bids = make([]orderbook.Tranche, len(a.Bids))
-	for x := range a.Bids {
-		resp.Bids[x] = orderbook.Tranche{
-			Price:  a.Bids[x][0].Float64(),
-			Amount: a.Bids[x][1].Float64(),
-		}
-	}
-	return &resp
+// WsOrderbookLevel5Response represents a response data for an orderbook push data with depth level 5
+type WsOrderbookLevel5Response struct {
+	Sequence      int64                            `json:"sequence"`
+	Bids          orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Asks          orderbook.LevelsArrayPriceAmount `json:"asks"`
+	PushTimestamp types.Time                       `json:"ts"`
+	Timestamp     types.Time                       `json:"timestamp"`
 }
 
 // WsFundingRate represents the funding rate push data information through the websocket channel
@@ -1686,10 +1630,10 @@ type WsFuturesOrderMarginEvent struct {
 
 // WsFuturesAvailableBalance represents an available balance push data for futures account
 type WsFuturesAvailableBalance struct {
-	AvailableBalance float64    `json:"availableBalance"`
-	HoldBalance      float64    `json:"holdBalance"`
-	Currency         string     `json:"currency"`
-	Timestamp        types.Time `json:"timestamp"`
+	AvailableBalance float64       `json:"availableBalance"`
+	HoldBalance      float64       `json:"holdBalance"`
+	Currency         currency.Code `json:"currency"`
+	Timestamp        types.Time    `json:"timestamp"`
 }
 
 // WsFuturesWithdrawalAmountAndTransferOutAmountEvent represents Withdrawal Amount & Transfer-Out Amount Event push data
@@ -2127,9 +2071,9 @@ type HFMarginOrderTransaction struct {
 // Level2Depth5Or20 stores the orderbook data for the level 5 or level 20
 // orderbook
 type Level2Depth5Or20 struct {
-	Asks      [][2]types.Number `json:"asks"`
-	Bids      [][2]types.Number `json:"bids"`
-	Timestamp types.Time        `json:"timestamp"`
+	Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Timestamp types.Time                       `json:"timestamp"`
 }
 
 // TradingPairFee represents actual fee information of a trading fee
@@ -2346,7 +2290,7 @@ type MarginActiveSymbolDetail struct {
 
 // MarginInterestRecords represents a cross/isolated margin interest records
 type MarginInterestRecords struct {
-	Timestamp   int64                `json:"timestamp"`
+	Timestamp   types.Time           `json:"timestamp"`
 	CurrentPage int64                `json:"currentPage"`
 	PageSize    int64                `json:"pageSize"`
 	TotalNum    int64                `json:"totalNum"`

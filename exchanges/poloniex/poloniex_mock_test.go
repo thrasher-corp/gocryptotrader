@@ -9,52 +9,46 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
-
-const mockfile = "../../testdata/http_mock/poloniex/poloniex.json"
 
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
+		log.Fatal(err)
+	}
+	e.setAPICredential(apiKey, apiSecret)
+	if err := testexch.MockHTTPInstance(e); err != nil {
+		log.Fatalf("Poloniex MockHTTPInstance error: %s", err)
+	}
+	var err error
+	spotTradablePair, err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
 	if err != nil {
-		log.Fatal("Poloniex load config error", err)
+		log.Fatal(err)
 	}
-	poloniexConfig, err := cfg.GetExchangeConfig("Poloniex")
+	futuresTradablePair, err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT_PERP", ""), asset.Futures)
 	if err != nil {
-		log.Fatal("Poloniex Setup() init error", err)
+		log.Fatal(err)
 	}
-	p.SkipAuthCheck = true
-	poloniexConfig.API.AuthenticatedSupport = true
-	poloniexConfig.API.Credentials.Key = apiKey
-	poloniexConfig.API.Credentials.Secret = apiSecret
-	p.SetDefaults()
-	p.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = p.Setup(poloniexConfig)
-	if err != nil {
-		log.Fatal("Poloniex setup error", err)
+	if err := e.setEnabledPairs(spotTradablePair, futuresTradablePair); err != nil {
+		log.Fatal(err)
 	}
-
-	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
-	if err != nil {
-		log.Fatalf("Mock server error %s", err)
-	}
-
-	err = p.SetHTTPClient(newClient)
-	if err != nil {
-		log.Fatalf("Mock server error %s", err)
-	}
-	endpoints := p.API.Endpoints.GetURLMap()
-	for k := range endpoints {
-		err = p.API.Endpoints.SetRunning(k, serverDetails)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	log.Printf(sharedtestvalues.MockTesting, p.Name)
 	os.Exit(m.Run())
+}
+
+func (e *Exchange) setEnabledPairs(spotTradablePair, futuresTradablePair currency.Pair) error {
+	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair, currency.NewPairWithDelimiter("BTC", "ETH", "_")}, false); err != nil {
+		return err
+	}
+	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair, currency.NewPairWithDelimiter("BTC", "ETH", "_")}, true); err != nil {
+		return err
+	}
+	if err := e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, false); err != nil {
+		return err
+	}
+	return e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, true)
 }

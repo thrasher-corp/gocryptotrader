@@ -26,7 +26,7 @@ func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.Fun
 	for i := range items {
 		usdTotalChartPlot[i] = LinePlot{
 			Value:     items[i].Value.InexactFloat64(),
-			UnixMilli: items[i].Time.UTC().UnixMilli(),
+			UnixMilli: items[i].Time.UnixMilli(),
 		}
 	}
 	response.Data = append(response.Data, ChartLine{
@@ -45,7 +45,7 @@ func createUSDTotalsChart(items []statistics.ValueAtTime, stats []statistics.Fun
 			}
 			plots = append(plots, LinePlot{
 				Value:     stats[i].ReportItem.Snapshots[j].USDValue.InexactFloat64(),
-				UnixMilli: stats[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
+				UnixMilli: stats[i].ReportItem.Snapshots[j].Time.UnixMilli(),
 			})
 		}
 		response.Data = append(response.Data, ChartLine{
@@ -76,7 +76,7 @@ func createHoldingsOverTimeChart(stats []statistics.FundingItemStatistics) (*Cha
 				response.ShowZeroDisclaimer = true
 			}
 			plots = append(plots, LinePlot{
-				UnixMilli: stats[i].ReportItem.Snapshots[j].Time.UTC().UnixMilli(),
+				UnixMilli: stats[i].ReportItem.Snapshots[j].Time.UnixMilli(),
 				Value:     stats[i].ReportItem.Snapshots[j].Available.InexactFloat64(),
 			})
 		}
@@ -91,7 +91,7 @@ func createHoldingsOverTimeChart(stats []statistics.FundingItemStatistics) (*Cha
 
 // createPNLCharts shows a running history of all realised and unrealised PNL values
 // over time
-func createPNLCharts(items map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic) (*Chart, error) {
+func createPNLCharts(items map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic) (*Chart, error) {
 	if items == nil {
 		return nil, fmt.Errorf("%w missing currency pair statistics", gctcommon.ErrNilPointer)
 	}
@@ -131,7 +131,7 @@ func createPNLCharts(items map[key.ExchangePairAsset]*statistics.CurrencyPairSta
 
 // createFuturesSpotDiffChart highlights the difference in futures and spot prices
 // over time
-func createFuturesSpotDiffChart(items map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic) (*Chart, error) {
+func createFuturesSpotDiffChart(items map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic) (*Chart, error) {
 	if items == nil {
 		return nil, fmt.Errorf("%w missing currency pair statistics", gctcommon.ErrNilPointer)
 	}

@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -17,44 +19,29 @@ import (
 func TestSetupSyncManager(t *testing.T) {
 	t.Parallel()
 	_, err := SetupSyncManager(nil, nil, nil, false)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("error '%v', expected '%v'", err, common.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = SetupSyncManager(&config.SyncManagerConfig{}, nil, nil, false)
-	if !errors.Is(err, errNoSyncItemsEnabled) {
-		t.Errorf("error '%v', expected '%v'", err, errNoSyncItemsEnabled)
-	}
+	assert.ErrorIs(t, err, errNoSyncItemsEnabled)
 
 	_, err = SetupSyncManager(&config.SyncManagerConfig{SynchronizeTrades: true}, nil, nil, false)
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
-	}
+	assert.ErrorIs(t, err, errNilExchangeManager)
 
 	_, err = SetupSyncManager(&config.SyncManagerConfig{SynchronizeTrades: true}, &ExchangeManager{}, nil, false)
-	if !errors.Is(err, errNilConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
-	}
+	assert.ErrorIs(t, err, errNilConfig)
 
 	_, err = SetupSyncManager(&config.SyncManagerConfig{SynchronizeTrades: true}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
-	if !errors.Is(err, currency.ErrCurrencyCodeEmpty) {
-		t.Errorf("error '%v', expected '%v'", err, currency.ErrCurrencyCodeEmpty)
-	}
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = SetupSyncManager(&config.SyncManagerConfig{SynchronizeTrades: true, FiatDisplayCurrency: currency.BTC}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
-	if !errors.Is(err, currency.ErrFiatDisplayCurrencyIsNotFiat) {
-		t.Errorf("error '%v', expected '%v'", err, currency.ErrFiatDisplayCurrencyIsNotFiat)
-	}
+	assert.ErrorIs(t, err, currency.ErrFiatDisplayCurrencyIsNotFiat)
 
 	_, err = SetupSyncManager(&config.SyncManagerConfig{SynchronizeTrades: true, FiatDisplayCurrency: currency.USD}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("error '%v', expected '%v'", err, common.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	m, err := SetupSyncManager(&config.SyncManagerConfig{SynchronizeTrades: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m == nil {
 		t.Error("expected manager")
 	}
@@ -63,9 +50,8 @@ func TestSetupSyncManager(t *testing.T) {
 func TestSyncManagerStart(t *testing.T) {
 	t.Parallel()
 	m, err := SetupSyncManager(&config.SyncManagerConfig{SynchronizeTrades: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, &ExchangeManager{}, &config.RemoteControlConfig{}, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("Bitstamp")
 	if err != nil {
@@ -73,35 +59,26 @@ func TestSyncManagerStart(t *testing.T) {
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	m.exchangeManager = em
 	m.config.SynchronizeContinuously = true
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.Start()
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 
 	m = nil
 	err = m.Start()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestSyncManagerStop(t *testing.T) {
 	t.Parallel()
 	var m *SyncManager
 	err := m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("Bitstamp")
@@ -110,27 +87,19 @@ func TestSyncManagerStop(t *testing.T) {
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	m, err = SetupSyncManager(&config.SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, em, &config.RemoteControlConfig{}, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestPrintCurrencyFormat(t *testing.T) {
@@ -161,16 +130,14 @@ func TestPrintTickerSummary(t *testing.T) {
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	m, err = SetupSyncManager(&config.SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, em, &config.RemoteControlConfig{}, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	atomic.StoreInt32(&m.started, 1)
 	m.PrintTickerSummary(&ticker.Price{
-		Pair: currency.NewPair(currency.BTC, currency.USDT),
+		Pair: currency.NewBTCUSDT(),
 	}, "REST", nil)
 	m.fiatDisplayCurrency = currency.USD
 	m.PrintTickerSummary(&ticker.Price{
@@ -203,137 +170,99 @@ func TestPrintOrderbookSummary(t *testing.T) {
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	m, err = SetupSyncManager(&config.SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, em, &config.RemoteControlConfig{}, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	atomic.StoreInt32(&m.started, 1)
-	m.PrintOrderbookSummary(&orderbook.Base{
+	m.PrintOrderbookSummary(&orderbook.Book{
 		Pair: currency.NewPair(currency.AUD, currency.USD),
 	}, "REST", nil)
 
 	m.fiatDisplayCurrency = currency.USD
-	m.PrintOrderbookSummary(&orderbook.Base{
+	m.PrintOrderbookSummary(&orderbook.Book{
 		Pair: currency.NewPair(currency.AUD, currency.USD),
 	}, "REST", nil)
 
 	m.fiatDisplayCurrency = currency.JPY
-	m.PrintOrderbookSummary(&orderbook.Base{
+	m.PrintOrderbookSummary(&orderbook.Book{
 		Pair: currency.NewPair(currency.AUD, currency.USD),
 	}, "REST", nil)
 
-	m.PrintOrderbookSummary(&orderbook.Base{
+	m.PrintOrderbookSummary(&orderbook.Book{
 		Pair: currency.NewPair(currency.AUD, currency.USD),
 	}, "REST", common.ErrNotYetImplemented)
 
-	m.PrintOrderbookSummary(&orderbook.Base{
+	m.PrintOrderbookSummary(&orderbook.Book{
 		Pair: currency.NewPair(currency.AUD, currency.USD),
 	}, "REST", errors.New("test"))
 
 	m.PrintOrderbookSummary(nil, "REST", errors.New("test"))
 }
 
-func TestRelayWebsocketEvent(t *testing.T) {
-	t.Parallel()
-
-	relayWebsocketEvent(nil, "", "", "")
-}
-
 func TestWaitForInitialSync(t *testing.T) {
 	var m *SyncManager
 	err := m.WaitForInitialSync()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Fatalf("received %v, but expected: %v", err, ErrNilSubsystem)
-	}
+	require.ErrorIs(t, err, ErrNilSubsystem)
 
 	m = &SyncManager{}
 	err = m.WaitForInitialSync()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Fatalf("received %v, but expected: %v", err, ErrSubSystemNotStarted)
-	}
+	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	m.started = 1
 	err = m.WaitForInitialSync()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSyncManagerWebsocketUpdate(t *testing.T) {
 	t.Parallel()
 	var m *SyncManager
 	err := m.WebsocketUpdate("", currency.EMPTYPAIR, 1, 47, nil)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Fatalf("received %v, but expected: %v", err, ErrNilSubsystem)
-	}
+	require.ErrorIs(t, err, ErrNilSubsystem)
 
 	m = &SyncManager{}
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, 1, 47, nil)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Fatalf("received %v, but expected: %v", err, ErrSubSystemNotStarted)
-	}
+	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	m.started = 1
 	// not started initial sync
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, 1, 47, nil)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	m.initSyncStarted = 1
 	// orderbook not enabled
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, nil)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	m.config.SynchronizeOrderbook = true
 	// ticker not enabled
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemTicker, nil)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	m.config.SynchronizeTicker = true
 	// trades not enabled
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemTrade, nil)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	m.config.SynchronizeTrades = true
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, 1336, nil)
-	if !errors.Is(err, errUnknownSyncItem) {
-		t.Fatalf("received %v, but expected: %v", err, errUnknownSyncItem)
-	}
+	require.ErrorIs(t, err, errUnknownSyncItem)
 
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, nil)
-	if !errors.Is(err, errCouldNotSyncNewData) {
-		t.Fatalf("received %v, but expected: %v", err, errCouldNotSyncNewData)
-	}
+	require.ErrorIs(t, err, errCouldNotSyncNewData)
 
-	m.add(key.ExchangePairAsset{
-		Asset: asset.Spot,
-	}, syncBase{})
+	m.add(key.NewExchangeAssetPair("", asset.Spot, currency.EMPTYPAIR), syncBase{})
 	m.initSyncWG.Add(3)
 	// orderbook match
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, errors.New("test"))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	// ticker match
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemTicker, errors.New("test"))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	// trades match
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemTrade, errors.New("test"))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }

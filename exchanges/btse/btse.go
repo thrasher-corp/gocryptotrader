@@ -3,6 +3,7 @@ package btse
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
@@ -20,8 +21,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// BTSE is the overarching type across this package
-type BTSE struct {
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with BTSE
+type Exchange struct {
 	exchange.Base
 }
 
@@ -59,28 +60,28 @@ const (
 )
 
 // FetchFundingHistory gets funding history
-func (b *BTSE) FetchFundingHistory(ctx context.Context, symbol string) (map[string][]FundingHistoryData, error) {
+func (e *Exchange) FetchFundingHistory(ctx context.Context, symbol string) (map[string][]FundingHistoryData, error) {
 	var resp map[string][]FundingHistoryData
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	return resp, b.SendHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, btseFuturesFunding+params.Encode(), &resp, false, queryFunc)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, btseFuturesFunding+params.Encode(), &resp, false, queryFunc)
 }
 
 // GetRawMarketSummary returns an unfiltered list of market pairs
 // Consider using the wrapper function GetMarketSummary instead
-func (b *BTSE) GetRawMarketSummary(ctx context.Context, symbol string, spot bool) (MarketSummary, error) {
+func (e *Exchange) GetRawMarketSummary(ctx context.Context, symbol string, spot bool) (MarketSummary, error) {
 	var m MarketSummary
 	path := btseMarketOverview
 	if symbol != "" {
 		path += "?symbol=" + url.QueryEscape(symbol)
 	}
-	return m, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, &m, spot, queryFunc)
+	return m, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, &m, spot, queryFunc)
 }
 
 // FetchOrderbook gets orderbook data for a given symbol
-func (b *BTSE) FetchOrderbook(ctx context.Context, symbol string, group, limitBids, limitAsks int, spot bool) (*Orderbook, error) {
+func (e *Exchange) FetchOrderbook(ctx context.Context, symbol string, group, limitBids, limitAsks int, spot bool) (*Orderbook, error) {
 	var o Orderbook
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -93,22 +94,22 @@ func (b *BTSE) FetchOrderbook(ctx context.Context, symbol string, group, limitBi
 	if group > 0 {
 		urlValues.Add("group", strconv.Itoa(group))
 	}
-	return &o, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+	return &o, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		common.EncodeURLValues(btseOrderbook, urlValues), &o, spot, queryFunc)
 }
 
 // FetchOrderbookL2 retrieve level 2 orderbook for requested symbol and depth
-func (b *BTSE) FetchOrderbookL2(ctx context.Context, symbol string, depth int) (*Orderbook, error) {
+func (e *Exchange) FetchOrderbookL2(ctx context.Context, symbol string, depth int) (*Orderbook, error) {
 	var o Orderbook
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
 	urlValues.Add("depth", strconv.FormatInt(int64(depth), 10))
 	endpoint := common.EncodeURLValues(btseOrderbook+"/L2", urlValues)
-	return &o, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, &o, true, queryFunc)
+	return &o, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, &o, true, queryFunc)
 }
 
 // GetTrades returns a list of trades for the specified symbol
-func (b *BTSE) GetTrades(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld, spot bool) ([]Trade, error) {
+func (e *Exchange) GetTrades(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld, spot bool) ([]Trade, error) {
 	var t []Trade
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -133,12 +134,12 @@ func (b *BTSE) GetTrades(ctx context.Context, symbol string, start, end time.Tim
 	if includeOld {
 		urlValues.Add("includeOld", "true")
 	}
-	return t, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+	return t, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		common.EncodeURLValues(btseTrades, urlValues), &t, spot, queryFunc)
 }
 
 // GetOHLCV retrieve and return OHLCV candle data for requested symbol
-func (b *BTSE) GetOHLCV(ctx context.Context, symbol string, start, end time.Time, resolution int, a asset.Item) (OHLCV, error) {
+func (e *Exchange) GetOHLCV(ctx context.Context, symbol string, start, end time.Time, resolution int, a asset.Item) (OHLCV, error) {
 	var o OHLCV
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -157,40 +158,40 @@ func (b *BTSE) GetOHLCV(ctx context.Context, symbol string, start, end time.Time
 	urlValues.Add("resolution", strconv.FormatInt(int64(res), 10))
 	endpoint := common.EncodeURLValues(btseOHLCV, urlValues)
 
-	return o, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, &o, a == asset.Spot, queryFunc)
+	return o, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, &o, a == asset.Spot, queryFunc)
 }
 
 // GetPrice get current price for requested symbol
-func (b *BTSE) GetPrice(ctx context.Context, symbol string) (Price, error) {
+func (e *Exchange) GetPrice(ctx context.Context, symbol string) (Price, error) {
 	var p Price
 	path := btsePrice + "?symbol=" + url.QueryEscape(symbol)
-	return p, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, &p, true, queryFunc)
+	return p, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, &p, true, queryFunc)
 }
 
 // GetCurrentServerTime returns the exchanges server time
-func (b *BTSE) GetCurrentServerTime(ctx context.Context) (*ServerTime, error) {
+func (e *Exchange) GetCurrentServerTime(ctx context.Context) (*ServerTime, error) {
 	var s ServerTime
-	return &s, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseTime, &s, true, queryFunc)
+	return &s, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseTime, &s, true, queryFunc)
 }
 
 // GetWalletInformation returns the users account balance
-func (b *BTSE) GetWalletInformation(ctx context.Context) ([]CurrencyBalance, error) {
+func (e *Exchange) GetWalletInformation(ctx context.Context) ([]CurrencyBalance, error) {
 	var a []CurrencyBalance
-	return a, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseWallet, true, nil, nil, &a, queryFunc)
+	return a, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseWallet, true, nil, nil, &a, queryFunc)
 }
 
 // GetFeeInformation retrieve fee's (maker/taker) for requested symbol
-func (b *BTSE) GetFeeInformation(ctx context.Context, symbol string) ([]AccountFees, error) {
+func (e *Exchange) GetFeeInformation(ctx context.Context, symbol string) ([]AccountFees, error) {
 	var resp []AccountFees
 	urlValues := url.Values{}
 	if symbol != "" {
 		urlValues.Add("symbol", symbol)
 	}
-	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseUserFee, true, urlValues, nil, &resp, queryFunc)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseUserFee, true, urlValues, nil, &resp, queryFunc)
 }
 
 // GetWalletHistory returns the users account balance
-func (b *BTSE) GetWalletHistory(ctx context.Context, symbol string, start, end time.Time, count int) (WalletHistory, error) {
+func (e *Exchange) GetWalletHistory(ctx context.Context, symbol string, start, end time.Time, count int) (WalletHistory, error) {
 	var resp WalletHistory
 
 	urlValues := url.Values{}
@@ -207,27 +208,25 @@ func (b *BTSE) GetWalletHistory(ctx context.Context, symbol string, start, end t
 	if count > 0 {
 		urlValues.Add("count", strconv.Itoa(count))
 	}
-	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseWalletHistory, true, urlValues, nil, &resp, queryFunc)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseWalletHistory, true, urlValues, nil, &resp, queryFunc)
 }
 
 // GetWalletAddress returns the users account balance
-func (b *BTSE) GetWalletAddress(ctx context.Context, currency string) (WalletAddress, error) {
+func (e *Exchange) GetWalletAddress(ctx context.Context, ccy string) (WalletAddress, error) {
 	var resp WalletAddress
-
 	urlValues := url.Values{}
-	if currency != "" {
-		urlValues.Add("currency", currency)
+	if ccy != "" {
+		urlValues.Add("currency", ccy)
 	}
-
-	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseWalletAddress, true, urlValues, nil, &resp, queryFunc)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseWalletAddress, true, urlValues, nil, &resp, queryFunc)
 }
 
 // CreateWalletAddress create new deposit address for requested currency
-func (b *BTSE) CreateWalletAddress(ctx context.Context, currency string) (WalletAddress, error) {
+func (e *Exchange) CreateWalletAddress(ctx context.Context, ccy string) (WalletAddress, error) {
 	var resp WalletAddress
 	req := make(map[string]any, 1)
-	req["currency"] = currency
-	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
+	req["currency"] = ccy
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
 	if err != nil {
 		errResp := ErrorResponse{}
 		errResponseStr := strings.Split(err.Error(), "raw response: ")
@@ -250,18 +249,18 @@ func (b *BTSE) CreateWalletAddress(ctx context.Context, currency string) (Wallet
 }
 
 // WalletWithdrawal submit request to withdraw crypto currency
-func (b *BTSE) WalletWithdrawal(ctx context.Context, currency, address, tag, amount string) (WithdrawalResponse, error) {
+func (e *Exchange) WalletWithdrawal(ctx context.Context, ccy, address, tag, amount string) (WithdrawalResponse, error) {
 	var resp WithdrawalResponse
 	req := make(map[string]any, 4)
-	req["currency"] = currency
+	req["currency"] = ccy
 	req["address"] = address
 	req["tag"] = tag
 	req["amount"] = amount
-	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseWalletWithdrawal, true, nil, req, &resp, queryFunc)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseWalletWithdrawal, true, nil, req, &resp, queryFunc)
 }
 
 // CreateOrder creates an order
-func (b *BTSE) CreateOrder(ctx context.Context, clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
+func (e *Exchange) CreateOrder(ctx context.Context, clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
 	req := make(map[string]any)
 	if clOrderID != "" {
 		req["clOrderID"] = clOrderID
@@ -307,11 +306,11 @@ func (b *BTSE) CreateOrder(ctx context.Context, clOrderID string, deviation floa
 	}
 
 	var r []Order
-	return r, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseOrder, true, url.Values{}, req, &r, orderFunc)
+	return r, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseOrder, true, url.Values{}, req, &r, orderFunc)
 }
 
 // GetOrders returns all pending orders
-func (b *BTSE) GetOrders(ctx context.Context, symbol, orderID, clOrderID string) ([]OpenOrder, error) {
+func (e *Exchange) GetOrders(ctx context.Context, symbol, orderID, clOrderID string) ([]OpenOrder, error) {
 	req := url.Values{}
 	if orderID != "" {
 		req.Add("orderID", orderID)
@@ -321,11 +320,11 @@ func (b *BTSE) GetOrders(ctx context.Context, symbol, orderID, clOrderID string)
 		req.Add("clOrderID", clOrderID)
 	}
 	var o []OpenOrder
-	return o, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btsePendingOrders, true, req, nil, &o, orderFunc)
+	return o, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btsePendingOrders, true, req, nil, &o, orderFunc)
 }
 
 // CancelExistingOrder cancels an order
-func (b *BTSE) CancelExistingOrder(ctx context.Context, orderID, symbol, clOrderID string) (CancelOrder, error) {
+func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID, symbol, clOrderID string) (CancelOrder, error) {
 	var c CancelOrder
 	req := url.Values{}
 	if orderID != "" {
@@ -336,18 +335,18 @@ func (b *BTSE) CancelExistingOrder(ctx context.Context, orderID, symbol, clOrder
 		req.Add("clOrderID", clOrderID)
 	}
 
-	return c, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, btseOrder, true, req, nil, &c, orderFunc)
+	return c, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, btseOrder, true, req, nil, &c, orderFunc)
 }
 
 // CancelAllAfter cancels all orders after timeout
-func (b *BTSE) CancelAllAfter(ctx context.Context, timeout int) error {
+func (e *Exchange) CancelAllAfter(ctx context.Context, timeout int) error {
 	req := make(map[string]any)
 	req["timeout"] = timeout
-	return b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil, orderFunc)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil, orderFunc)
 }
 
 // IndexOrderPeg create peg order that will track a certain percentage above/below the index price
-func (b *BTSE) IndexOrderPeg(ctx context.Context, clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
+func (e *Exchange) IndexOrderPeg(ctx context.Context, clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
 	var o []Order
 	req := make(map[string]any)
 	if clOrderID != "" {
@@ -393,11 +392,11 @@ func (b *BTSE) IndexOrderPeg(ctx context.Context, clOrderID string, deviation fl
 		req["type"] = orderType
 	}
 
-	return o, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btsePegOrder, true, url.Values{}, req, nil, orderFunc)
+	return o, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btsePegOrder, true, url.Values{}, req, nil, orderFunc)
 }
 
 // TradeHistory returns previous trades on exchange
-func (b *BTSE) TradeHistory(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld bool, clOrderID, orderID string) (TradeHistory, error) {
+func (e *Exchange) TradeHistory(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld bool, clOrderID, orderID string) (TradeHistory, error) {
 	var resp TradeHistory
 	urlValues := url.Values{}
 	if symbol != "" {
@@ -428,12 +427,12 @@ func (b *BTSE) TradeHistory(ctx context.Context, symbol string, start, end time.
 	if orderID != "" {
 		urlValues.Add("orderID", orderID)
 	}
-	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseExchangeHistory, true, urlValues, nil, &resp, queryFunc)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseExchangeHistory, true, urlValues, nil, &resp, queryFunc)
 }
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
-func (b *BTSE) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, result any, spotEndpoint bool, f request.EndpointLimit) error {
-	ePoint, err := b.API.Endpoints.GetURL(ep)
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, result any, spotEndpoint bool, f request.EndpointLimit) error {
+	ePoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -442,26 +441,27 @@ func (b *BTSE) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, end
 		p = btseFuturesPath + btseFuturesAPIPath
 	}
 	item := &request.Item{
-		Method:        method,
-		Path:          ePoint + p + endpoint,
-		Result:        result,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
+		Method:                 method,
+		Path:                   ePoint + p + endpoint,
+		Result:                 result,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
-	return b.SendPayload(ctx, f, func() (*request.Item, error) {
+	return e.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
-func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, isSpot bool, values url.Values, req map[string]any, result any, f request.EndpointLimit) error {
-	creds, err := b.GetCredentials(ctx)
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, isSpot bool, values url.Values, req map[string]any, result any, f request.EndpointLimit) error {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
 
-	ePoint, err := b.API.Endpoints.GetURL(ep)
+	ePoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -516,29 +516,30 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 				host += "?" + values.Encode()
 			}
 		}
-		headers["btse-sign"] = crypto.HexEncodeToString(hmac)
+		headers["btse-sign"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:        method,
-			Path:          host,
-			Headers:       headers,
-			Body:          body,
-			Result:        result,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording,
+			Method:                 method,
+			Path:                   host,
+			Headers:                headers,
+			Body:                   body,
+			Result:                 result,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
-	return b.SendPayload(ctx, f, newRequest, request.AuthenticatedRequest)
+	return e.SendPayload(ctx, f, newRequest, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *BTSE) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = b.calculateTradingFee(ctx, feeBuilder) * feeBuilder.Amount * feeBuilder.PurchasePrice
+		fee = e.calculateTradingFee(ctx, feeBuilder) * feeBuilder.Amount * feeBuilder.PurchasePrice
 	case exchange.CryptocurrencyWithdrawalFee:
 		switch feeBuilder.Pair.Base {
 		case currency.USDT:
@@ -594,15 +595,15 @@ func getInternationalBankWithdrawalFee(amount float64) float64 {
 }
 
 // calculateTradingFee return fee based on users current fee tier or default values
-func (b *BTSE) calculateTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) float64 {
-	formattedPair, err := b.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
+func (e *Exchange) calculateTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) float64 {
+	formattedPair, err := e.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
 	if err != nil {
 		if feeBuilder.IsMaker {
 			return 0.001
 		}
 		return 0.002
 	}
-	feeTiers, err := b.GetFeeInformation(ctx, formattedPair.String())
+	feeTiers, err := e.GetFeeInformation(ctx, formattedPair.String())
 	if err != nil {
 		// TODO: Return actual error, we shouldn't pivot around errors.
 		if feeBuilder.IsMaker {
@@ -614,10 +615,6 @@ func (b *BTSE) calculateTradingFee(ctx context.Context, feeBuilder *exchange.Fee
 		return feeTiers[0].MakerFee
 	}
 	return feeTiers[0].TakerFee
-}
-
-func parseOrderTime(timeStr string) (time.Time, error) {
-	return time.Parse(time.DateTime, timeStr)
 }
 
 // HasLiquidity returns if a market pair has a bid or ask != 0

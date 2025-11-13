@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -63,6 +64,8 @@ var (
 	errRefreshTokenRequired                = errors.New("refresh token is required")
 	errSubjectIDRequired                   = errors.New("subject id is required")
 	errMissingSignature                    = errors.New("missing signature")
+	errStartingHeartbeat                   = errors.New("error starting heartbeat")
+	errSendingHeartbeat                    = errors.New("error sending heartbeat")
 
 	websocketRequestTimeout = time.Second * 30
 
@@ -118,13 +121,13 @@ type ContractSizeData struct {
 
 // CurrencyData stores data for currencies
 type CurrencyData struct {
-	CoinType             string  `json:"coin_type"`
-	Currency             string  `json:"currency"`
-	CurrencyLong         string  `json:"currency_long"`
-	FeePrecision         int64   `json:"fee_precision"`
-	MinConfirmations     int64   `json:"min_confirmations"`
-	MinWithdrawalFee     float64 `json:"min_withdrawal_fee"`
-	WithdrawalFee        float64 `json:"withdrawal_fee"`
+	CoinType             string        `json:"coin_type"`
+	Currency             currency.Code `json:"currency"`
+	CurrencyLong         string        `json:"currency_long"`
+	FeePrecision         int64         `json:"fee_precision"`
+	MinConfirmations     int64         `json:"min_confirmations"`
+	MinWithdrawalFee     float64       `json:"min_withdrawal_fee"`
+	WithdrawalFee        float64       `json:"withdrawal_fee"`
 	WithdrawalPriorities []struct {
 		Value float64 `json:"value"`
 		Name  string  `json:"name"`
@@ -165,8 +168,13 @@ type FundingRateHistory struct {
 
 // HistoricalVolatilityData stores volatility data for requested symbols
 type HistoricalVolatilityData struct {
-	Timestamp float64
-	Value     float64
+	Timestamp types.Time
+	Value     types.Number
+}
+
+// UnmarshalJSON  parses volatility data from a JSON array into HistoricalVolatilityData fields.
+func (h *HistoricalVolatilityData) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[2]any{&h.Timestamp, &h.Value})
 }
 
 // IndexPrice holds index price for the instruments
@@ -184,31 +192,31 @@ type IndexPriceData struct {
 
 // InstrumentData gets data for instruments
 type InstrumentData struct {
-	InstrumentName               string     `json:"instrument_name"`
-	BaseCurrency                 string     `json:"base_currency"`
-	Kind                         string     `json:"kind"`
-	OptionType                   string     `json:"option_type"`
-	QuoteCurrency                string     `json:"quote_currency"`
-	BlockTradeCommission         float64    `json:"block_trade_commission"`
-	ContractSize                 float64    `json:"contract_size"`
-	CreationTimestamp            types.Time `json:"creation_timestamp"`
-	ExpirationTimestamp          types.Time `json:"expiration_timestamp"`
-	IsActive                     bool       `json:"is_active"`
-	Leverage                     float64    `json:"leverage"`
-	MaxLeverage                  float64    `json:"max_leverage"`
-	MakerCommission              float64    `json:"maker_commission"`
-	MinimumTradeAmount           float64    `json:"min_trade_amount"`
-	TickSize                     float64    `json:"tick_size"`
-	TakerCommission              float64    `json:"taker_commission"`
-	Strike                       float64    `json:"strike"`
-	SettlementPeriod             string     `json:"settlement_period"`
-	SettlementCurrency           string     `json:"settlement_currency"`
-	RequestForQuote              bool       `json:"rfq"`
-	PriceIndex                   string     `json:"price_index"`
-	InstrumentID                 int64      `json:"instrument_id"`
-	CounterCurrency              string     `json:"counter_currency"`
-	MaximumLiquidationCommission float64    `json:"max_liquidation_commission"`
-	FutureType                   string     `json:"future_type"`
+	InstrumentName               string        `json:"instrument_name"`
+	BaseCurrency                 currency.Code `json:"base_currency"`
+	Kind                         string        `json:"kind"`
+	OptionType                   string        `json:"option_type"`
+	QuoteCurrency                currency.Code `json:"quote_currency"`
+	BlockTradeCommission         float64       `json:"block_trade_commission"`
+	ContractSize                 float64       `json:"contract_size"`
+	CreationTimestamp            types.Time    `json:"creation_timestamp"`
+	ExpirationTimestamp          types.Time    `json:"expiration_timestamp"`
+	IsActive                     bool          `json:"is_active"`
+	Leverage                     float64       `json:"leverage"`
+	MaxLeverage                  float64       `json:"max_leverage"`
+	MakerCommission              float64       `json:"maker_commission"`
+	MinimumTradeAmount           float64       `json:"min_trade_amount"`
+	TickSize                     float64       `json:"tick_size"`
+	TakerCommission              float64       `json:"taker_commission"`
+	Strike                       float64       `json:"strike"`
+	SettlementPeriod             string        `json:"settlement_period"`
+	SettlementCurrency           currency.Code `json:"settlement_currency"`
+	RequestForQuote              bool          `json:"rfq"`
+	PriceIndex                   string        `json:"price_index"`
+	InstrumentID                 int64         `json:"instrument_id"`
+	CounterCurrency              string        `json:"counter_currency"`
+	MaximumLiquidationCommission float64       `json:"max_liquidation_commission"`
+	FutureType                   string        `json:"future_type"`
 	TickSizeSteps                []struct {
 		AbovePrice float64 `json:"above_price"`
 		TickSize   float64 `json:"tick_size"`
@@ -266,14 +274,7 @@ type MarkPriceHistory struct {
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp.
 func (a *MarkPriceHistory) UnmarshalJSON(data []byte) error {
-	var resp [2]float64
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
-		return err
-	}
-	a.Timestamp = types.Time(time.UnixMilli(int64(resp[0])))
-	a.MarkPriceValue = resp[1]
-	return nil
+	return json.Unmarshal(data, &[2]any{&a.Timestamp, &a.MarkPriceValue})
 }
 
 // Orderbook stores orderbook data
@@ -622,10 +623,10 @@ type MarginsData struct {
 
 // MMPConfigData gets the current configuration data for MMP
 type MMPConfigData struct {
-	Currency      string  `json:"currency"`
-	Interval      int64   `json:"interval"`
-	FrozenTime    int64   `json:"frozen_time"`
-	QuantityLimit float64 `json:"quantity_limit"`
+	Currency      string     `json:"currency"`
+	Interval      int64      `json:"interval"`
+	FrozenTime    types.Time `json:"frozen_time"`
+	QuantityLimit float64    `json:"quantity_limit"`
 }
 
 // UserTradesData stores data of user trades
@@ -846,7 +847,7 @@ type TransactionsData struct {
 // response
 type wsInput struct {
 	JSONRPCVersion string         `json:"jsonrpc,omitempty"`
-	ID             int64          `json:"id,omitempty"`
+	ID             string         `json:"id,omitempty"`
 	Method         string         `json:"method"`
 	Params         map[string]any `json:"params,omitempty"`
 }
@@ -855,7 +856,7 @@ type wsInput struct {
 // response
 type WsRequest struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
-	ID             int64  `json:"id,omitempty"`
+	ID             string `json:"id,omitempty"`
 	Method         string `json:"method"`
 	Params         any    `json:"params,omitempty"`
 }
@@ -864,16 +865,22 @@ type WsRequest struct {
 // response
 type WsSubscriptionInput struct {
 	JSONRPCVersion string              `json:"jsonrpc,omitempty"`
-	ID             int64               `json:"id,omitempty"`
+	ID             string              `json:"id,omitempty"`
 	Method         string              `json:"method"`
 	Params         map[string][]string `json:"params,omitempty"`
 }
 
 type wsResponse struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
-	ID             int64  `json:"id,omitempty"`
-	Result         any    `json:"result,omitempty"`
-	Error          struct {
+	ID             string `json:"id,omitempty"`
+	Method         string `json:"method"`
+	Params         struct {
+		Data    any    `json:"data"`
+		Channel string `json:"channel"`
+		Type    string `json:"type"` // Used in heartbeat and test_request messages
+	} `json:"params"`
+	Result any `json:"result,omitempty"`
+	Error  struct {
 		Message string `json:"message,omitempty"`
 		Code    int64  `json:"code,omitempty"`
 		Data    any    `json:"data"`
@@ -882,7 +889,7 @@ type wsResponse struct {
 
 type wsLoginResponse struct {
 	JSONRPCVersion string          `json:"jsonrpc"`
-	ID             int64           `json:"id"`
+	ID             string          `json:"id"`
 	Method         string          `json:"method"`
 	Result         map[string]any  `json:"result"`
 	Error          *UnmarshalError `json:"error"`
@@ -890,18 +897,9 @@ type wsLoginResponse struct {
 
 type wsSubscriptionResponse struct {
 	JSONRPCVersion string   `json:"jsonrpc"`
-	ID             int64    `json:"id"`
+	ID             string   `json:"id"`
 	Method         string   `json:"method"`
 	Result         []string `json:"result"`
-}
-
-// RequestForQuote RFQs for instruments in given currency.
-type RequestForQuote struct {
-	TradedVolume     float64    `json:"traded_volume"`
-	Amount           float64    `json:"amount"`
-	Side             string     `json:"side"`
-	LastRFQTimestamp types.Time `json:"last_rfq_tstamp"`
-	InstrumentName   string     `json:"instrument_name"`
 }
 
 // ComboDetail retrieves information about a combo
@@ -965,51 +963,6 @@ type Announcement struct {
 
 	// Action taken by the platform administrators.
 	Action string `json:"action"`
-}
-
-// PortfolioMargin represents public portfolio margins.
-type PortfolioMargin struct {
-	VolumeRange         []float64          `json:"vol_range"`
-	VegaPow2            float64            `json:"vega_pow2"`
-	VegaPow1            float64            `json:"vega_pow1"`
-	Skew                float64            `json:"skew"`
-	PriceRange          float64            `json:"price_range"`
-	OptSumContinguency  float64            `json:"opt_sum_continguency"`
-	OptContinguency     float64            `json:"opt_continguency"`
-	Kurtosis            float64            `json:"kurtosis"`
-	IntRate             float64            `json:"int_rate"`
-	InitialMarginFactor float64            `json:"initial_margin_factor"`
-	FtuContinguency     float64            `json:"ftu_continguency"`
-	AtmRange            float64            `json:"atm_range"`
-	ProjectedMarginPos  float64            `json:"projected_margin_pos"`
-	ProjectedMargin     float64            `json:"projected_margin"`
-	PositionSizes       map[string]float64 `json:"position_sizes"`
-	Pls                 []float64          `json:"pls"`
-	PcoOpt              float64            `json:"pco_opt"`
-	PcoFtu              float64            `json:"pco_ftu"`
-	OptSummary          []any              `json:"opt_summary"`
-	OptPls              []float64          `json:"opt_pls"`
-	OptEntries          []any              `json:"opt_entries"`
-	MarginPos           float64            `json:"margin_pos"`
-	Margin              float64            `json:"margin"`
-	FtuSummary          []struct {
-		ShortTotalCost  float64    `json:"short_total_cost"`
-		PlVec           []float64  `json:"pl_vec"`
-		LongTotalCost   float64    `json:"long_total_cost"`
-		ExpiryTimestamp types.Time `json:"exp_tstamp"`
-	} `json:"ftu_summary"`
-	FtuPls     []float64 `json:"ftu_pls"`
-	FtuEntries []struct {
-		TotalCost       float64    `json:"total_cost"`
-		Size            float64    `json:"size"`
-		PlVec           []float64  `json:"pl_vec"`
-		MarkPrice       float64    `json:"mark_price"`
-		InstrumentName  string     `json:"instrument_name"`
-		ExpiryTimestamp types.Time `json:"exp_tstamp"`
-	} `json:"ftu_entries"`
-	CoOpt                float64    `json:"co_opt"`
-	CoFtu                float64    `json:"co_ftu"`
-	CalculationTimestamp types.Time `json:"calculation_timestamp"`
 }
 
 // AccessLog represents access log information.
@@ -1110,23 +1063,6 @@ type BlockTradeMoveResponse struct {
 	Amount              float64 `json:"amount"`
 }
 
-// WsResponse represents generalized websocket subscription push data and immediate websocket call responses.
-type WsResponse struct {
-	ID     int64 `json:"id,omitempty"`
-	Params struct {
-		Data    any    `json:"data"`
-		Channel string `json:"channel"`
-
-		// Used in heartbead and test_request messages.
-		Type string `json:"type"`
-	} `json:"params"`
-	Method         string `json:"method"`
-	JSONRPCVersion string `json:"jsonrpc"`
-
-	// for status "ok" and "version" push data messages
-	Result any `json:"result"`
-}
-
 // VersionInformation represents websocket version information
 type VersionInformation struct {
 	Version string `json:"version"`
@@ -1144,13 +1080,13 @@ type wsOrderbook struct {
 
 // wsCandlestickData represents publicly available market data used to generate a TradingView candle chart.
 type wsCandlestickData struct {
-	Volume float64 `json:"volume"`
-	Tick   int64   `json:"tick"`
-	Open   float64 `json:"open"`
-	Low    float64 `json:"low"`
-	High   float64 `json:"high"`
-	Cost   float64 `json:"cost"`
-	Close  float64 `json:"close"`
+	Volume float64    `json:"volume"`
+	Tick   types.Time `json:"tick"`
+	Open   float64    `json:"open"`
+	Low    float64    `json:"low"`
+	High   float64    `json:"high"`
+	Cost   float64    `json:"cost"`
+	Close  float64    `json:"close"`
 }
 
 // wsIndexPrice represents information about current value (price) for Deribit Index
@@ -1306,15 +1242,6 @@ type wsQuoteTickerInformation struct {
 	BestBidAmount  float64    `json:"best_bid_amount"`
 	BestAskPrice   float64    `json:"best_ask_price"`
 	BestAskAmount  float64    `json:"best_ask_amount"`
-}
-
-// wsRequestForQuote represents a notifications about RFQs for instruments in given currency.
-type wsRequestForQuote struct {
-	State            bool       `json:"state"`
-	Side             any        `json:"side"`
-	LastRFQTimestamp types.Time `json:"last_rfq_tstamp"`
-	InstrumentName   string     `json:"instrument_name"`
-	Amount           any        `json:"amount"`
 }
 
 // wsTrade represents trades for an instrument.

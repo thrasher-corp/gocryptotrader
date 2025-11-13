@@ -9,6 +9,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 var (
@@ -18,12 +19,21 @@ var (
 
 func TestGlobalDispatcher(t *testing.T) {
 	err := Start(0, 0)
-	require.NoError(t, err, "Start should not error")
+	require.NoError(t, err, "Start must not error")
 	assert.True(t, IsRunning(), "IsRunning should return true")
 
 	err = Stop()
-	assert.NoError(t, err, "Stop should not error")
+	require.NoError(t, err, "Stop must not error")
 	assert.False(t, IsRunning(), "IsRunning should return false")
+
+	err = EnsureRunning(0, 0)
+	require.NoError(t, err, "EnsureRunning must not error when starting")
+	assert.True(t, IsRunning(), "IsRunning should return true after EnsureRunning")
+
+	err = EnsureRunning(0, 0)
+	require.NoError(t, err, "EnsureRunning must not error when called twice")
+
+	assert.NoError(t, Stop(), "Stop should not error")
 }
 
 func TestStartStop(t *testing.T) {
@@ -33,10 +43,10 @@ func TestStartStop(t *testing.T) {
 	assert.False(t, d.isRunning(), "IsRunning should return false")
 
 	err := d.stop()
-	assert.ErrorIs(t, err, errDispatcherNotInitialized, "stop should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "stop should error correctly")
 
 	err = d.start(10, 0)
-	assert.ErrorIs(t, err, errDispatcherNotInitialized, "start should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "start should error correctly")
 
 	d = NewDispatcher()
 
@@ -49,7 +59,7 @@ func TestStartStop(t *testing.T) {
 	assert.True(t, d.isRunning(), "IsRunning should return true")
 
 	err = d.start(0, 0)
-	assert.ErrorIs(t, err, errDispatcherAlreadyRunning, "start should error correctly")
+	assert.ErrorIs(t, err, ErrDispatcherAlreadyRunning, "start should error correctly")
 
 	// Add route option
 	id, err := d.getNewID(uuid.NewV4)
@@ -74,7 +84,7 @@ func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	var d *Dispatcher
 	_, err := d.subscribe(uuid.Nil)
-	assert.ErrorIs(t, err, errDispatcherNotInitialized, "subscribe should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "subscribe should error correctly")
 
 	d = NewDispatcher()
 
@@ -85,10 +95,10 @@ func TestSubscribe(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNotRunning, "subscribe should error correctly")
 
 	err = d.start(0, 0)
-	require.NoError(t, err, "start should not error")
+	require.NoError(t, err, "start must not error")
 
 	id, err := d.getNewID(uuid.NewV4)
-	require.NoError(t, err, "getNewID should not error")
+	require.NoError(t, err, "getNewID must not error")
 
 	_, err = d.subscribe(nonEmptyUUID)
 	assert.ErrorIs(t, err, errDispatcherUUIDNotFoundInRouteList, "subscribe should error correctly")
@@ -97,7 +107,7 @@ func TestSubscribe(t *testing.T) {
 	_, err = d.subscribe(id)
 	assert.ErrorIs(t, err, errTypeAssertionFailure, "subscribe should error correctly")
 
-	d.outbound.New = getChan
+	d.outbound.New = func() any { return make(chan any) }
 	ch, err := d.subscribe(id)
 	assert.NoError(t, err, "subscribe should not error")
 	assert.NotNil(t, ch, "Channel should not be nil")
@@ -108,7 +118,7 @@ func TestUnsubscribe(t *testing.T) {
 	var d *Dispatcher
 
 	err := d.unsubscribe(uuid.Nil, nil)
-	assert.ErrorIs(t, err, errDispatcherNotInitialized, "unsubscribe should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "unsubscribe should error correctly")
 
 	d = NewDispatcher()
 
@@ -123,25 +133,25 @@ func TestUnsubscribe(t *testing.T) {
 	assert.NoError(t, err, "unsubscribe should not error")
 
 	err = d.start(0, 0)
-	require.NoError(t, err, "start should not error")
+	require.NoError(t, err, "start must not error")
 
 	err = d.unsubscribe(nonEmptyUUID, make(chan any))
 	assert.ErrorIs(t, err, errDispatcherUUIDNotFoundInRouteList, "unsubscribe should error correctly")
 
 	id, err := d.getNewID(uuid.NewV4)
-	require.NoError(t, err, "getNewID should not error")
+	require.NoError(t, err, "getNewID must not error")
 
 	err = d.unsubscribe(id, make(chan any))
 	assert.ErrorIs(t, err, errChannelNotFoundInUUIDRef, "unsubscribe should error correctly")
 
 	ch, err := d.subscribe(id)
-	require.NoError(t, err, "subscribe should not error")
+	require.NoError(t, err, "subscribe must not error")
 
 	err = d.unsubscribe(id, ch)
 	assert.NoError(t, err, "unsubscribe should not error")
 
 	ch2, err := d.subscribe(id)
-	require.NoError(t, err, "subscribe should not error")
+	require.NoError(t, err, "subscribe must not error")
 
 	err = d.unsubscribe(id, ch2)
 	assert.NoError(t, err, "unsubscribe should not error")
@@ -152,7 +162,7 @@ func TestPublish(t *testing.T) {
 	var d *Dispatcher
 
 	err := d.publish(uuid.Nil, nil)
-	assert.ErrorIs(t, err, errDispatcherNotInitialized, "publish should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "publish should error correctly")
 
 	d = NewDispatcher()
 
@@ -160,13 +170,13 @@ func TestPublish(t *testing.T) {
 	assert.NoError(t, err, "publish should not error")
 
 	err = d.start(2, 10)
-	require.NoError(t, err, "start should not error")
+	require.NoError(t, err, "start must not error")
 
-	err = d.publish(uuid.Nil, nil)
+	err = d.publish(uuid.Nil, "test")
 	assert.ErrorIs(t, err, errIDNotSet, "publish should error correctly")
 
 	err = d.publish(nonEmptyUUID, nil)
-	assert.ErrorIs(t, err, errNoData, "publish should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "publish should error correctly")
 
 	// demonstrate job limit error
 	d.routes[nonEmptyUUID] = []chan any{
@@ -184,13 +194,13 @@ func TestPublishReceive(t *testing.T) {
 	t.Parallel()
 	d := NewDispatcher()
 	err := d.start(0, 0)
-	require.NoError(t, err, "start should not error")
+	require.NoError(t, err, "start must not error")
 
 	id, err := d.getNewID(uuid.NewV4)
-	require.NoError(t, err, "getNewID should not error")
+	require.NoError(t, err, "getNewID must not error")
 
 	incoming, err := d.subscribe(id)
-	require.NoError(t, err, "subscribe should not error")
+	require.NoError(t, err, "subscribe must not error")
 
 	go func(d *Dispatcher, id uuid.UUID) {
 		for range 10 {
@@ -209,12 +219,12 @@ func TestGetNewID(t *testing.T) {
 	var d *Dispatcher
 
 	_, err := d.getNewID(uuid.NewV4)
-	assert.ErrorIs(t, err, errDispatcherNotInitialized, "getNewID should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "getNewID should error correctly")
 
 	d = NewDispatcher()
 
 	err = d.start(0, 0)
-	require.NoError(t, err, "start should not error")
+	require.NoError(t, err, "start must not error")
 
 	_, err = d.getNewID(nil)
 	assert.ErrorIs(t, err, errUUIDGeneratorFunctionIsNil, "getNewID should error correctly")
@@ -233,37 +243,37 @@ func TestMux(t *testing.T) {
 	t.Parallel()
 	var mux *Mux
 	_, err := mux.Subscribe(uuid.Nil)
-	assert.ErrorIs(t, err, errMuxIsNil, "Subscribe should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Subscribe should error correctly")
 
 	err = mux.Unsubscribe(uuid.Nil, nil)
-	assert.ErrorIs(t, err, errMuxIsNil, "Unsubscribe should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Unsubscribe should error correctly")
 
 	err = mux.Publish(nil)
-	assert.ErrorIs(t, err, errMuxIsNil, "Publish should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Publish should error correctly")
 
 	_, err = mux.GetID()
-	assert.ErrorIs(t, err, errMuxIsNil, "GetID should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "GetID should error correctly")
 
 	d := NewDispatcher()
 	err = d.start(0, 0)
-	require.NoError(t, err, "start should not error")
+	require.NoError(t, err, "start must not error")
 
 	mux = GetNewMux(d)
 
 	err = mux.Publish(nil)
-	assert.ErrorIs(t, err, errNoData, "Publish should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Publish should error correctly")
 
 	err = mux.Publish("lol")
 	assert.ErrorIs(t, err, errNoIDs, "Publish should error correctly")
 
 	id, err := mux.GetID()
-	require.NoError(t, err, "GetID should not error")
+	require.NoError(t, err, "GetID must not error")
 
 	_, err = mux.Subscribe(uuid.Nil)
 	assert.ErrorIs(t, err, errIDNotSet, "Subscribe should error correctly")
 
 	pipe, err := mux.Subscribe(id)
-	require.NoError(t, err, "Subscribe should not error")
+	require.NoError(t, err, "Subscribe must not error")
 
 	ready := make(chan bool)
 
@@ -289,10 +299,10 @@ func TestMuxSubscribe(t *testing.T) {
 	t.Parallel()
 	d := NewDispatcher()
 	err := d.start(0, 0)
-	require.NoError(t, err, "start should not error")
+	require.NoError(t, err, "start must not error")
 	mux := GetNewMux(d)
 	itemID, err := mux.GetID()
-	require.NoError(t, err, "GetID should not error")
+	require.NoError(t, err, "GetID must not error")
 
 	pipes := make([]Pipe, 1000)
 	for x := range 1000 {
@@ -311,11 +321,11 @@ func TestMuxPublish(t *testing.T) {
 	t.Parallel()
 	d := NewDispatcher()
 	err := d.start(0, 0)
-	require.NoError(t, err, "start should not error")
+	require.NoError(t, err, "start must not error")
 
 	mux := GetNewMux(d)
 	itemID, err := mux.GetID()
-	require.NoError(t, err, "GetID should not error")
+	require.NoError(t, err, "GetID must not error")
 
 	overloadCeiling := DefaultMaxWorkers * DefaultJobsLimit * 2
 
@@ -329,7 +339,7 @@ func TestMuxPublish(t *testing.T) {
 	ready := make(chan any)
 	demux := make(chan any, 1)
 	pipe, err := mux.Subscribe(itemID)
-	require.NoError(t, err, "Subscribe should not error")
+	require.NoError(t, err, "Subscribe must not error")
 
 	// Subscribers must be actively selecting in order to receive anything
 	go func() {
@@ -381,10 +391,10 @@ func TestMuxPublish(t *testing.T) {
 func BenchmarkSubscribe(b *testing.B) {
 	d := NewDispatcher()
 	err := d.start(0, 0)
-	require.NoError(b, err, "start should not error")
+	require.NoError(b, err, "start must not error")
 	mux := GetNewMux(d)
 	newID, err := mux.GetID()
-	require.NoError(b, err, "GetID should not error")
+	require.NoError(b, err, "GetID must not error")
 
 	for b.Loop() {
 		_, err := mux.Subscribe(newID)

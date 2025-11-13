@@ -1,10 +1,11 @@
 package common
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -141,7 +142,7 @@ func TestDataTypeConversion(t *testing.T) {
 
 func TestFitStringToLimit(t *testing.T) {
 	t.Parallel()
-	for _, ti := range []struct {
+	for _, tc := range []struct {
 		str      string
 		sep      string
 		limit    int
@@ -186,13 +187,9 @@ func TestFitStringToLimit(t *testing.T) {
 			expected: "h",
 		},
 	} {
-		test := ti
-		t.Run(test.str, func(t *testing.T) {
+		t.Run(tc.str, func(t *testing.T) {
 			t.Parallel()
-			result := FitStringToLimit(test.str, test.sep, test.limit, test.upper)
-			if result != test.expected {
-				t.Errorf("received '%v' expected '%v'", result, test.expected)
-			}
+			assert.Equal(t, tc.expected, FitStringToLimit(tc.str, tc.sep, tc.limit, tc.upper))
 		})
 	}
 }
@@ -218,43 +215,27 @@ func TestPurgeColours(t *testing.T) {
 func TestGenerateFileName(t *testing.T) {
 	t.Parallel()
 	_, err := GenerateFileName("", "")
-	if !errors.Is(err, errCannotGenerateFileName) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
-	}
+	assert.ErrorIs(t, err, errCannotGenerateFileName)
 
 	_, err = GenerateFileName("hello", "")
-	if !errors.Is(err, errCannotGenerateFileName) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
-	}
+	assert.ErrorIs(t, err, errCannotGenerateFileName)
 
 	_, err = GenerateFileName("", "moto")
-	if !errors.Is(err, errCannotGenerateFileName) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
-	}
+	assert.ErrorIs(t, err, errCannotGenerateFileName)
 
 	_, err = GenerateFileName("hello", "moto")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	name, err := GenerateFileName("......HELL0.  +  _", "moto.")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if name != "hell0_.moto" {
-		t.Errorf("received '%v' expected '%v'", name, "hell0_.moto")
-	}
+	require.NoError(t, err, "GenerateFileName must not error")
+	assert.Equal(t, "hell0_.moto", name)
 }
 
 func TestRegisterBacktesterSubLoggers(t *testing.T) {
 	t.Parallel()
 	err := RegisterBacktesterSubLoggers()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = RegisterBacktesterSubLoggers()
-	if !errors.Is(err, log.ErrSubLoggerAlreadyRegistered) {
-		t.Errorf("received '%v' expected '%v'", err, log.ErrSubLoggerAlreadyRegistered)
-	}
+	assert.ErrorIs(t, err, log.ErrSubLoggerAlreadyRegistered)
 }

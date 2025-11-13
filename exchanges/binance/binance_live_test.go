@@ -18,15 +18,15 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	b = new(Binance)
-	if err := testexch.Setup(b); err != nil {
-		log.Fatal(err)
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
+		log.Fatalf("Binance Setup error: %s", err)
 	}
 
 	if apiKey != "" && apiSecret != "" {
-		b.API.AuthenticatedSupport = true
-		b.API.CredentialsValidator.RequiresBase64DecodeSecret = false
-		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.API.AuthenticatedSupport = true
+		e.API.CredentialsValidator.RequiresBase64DecodeSecret = false
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 
 	if useTestNet {
@@ -35,18 +35,15 @@ func TestMain(m *testing.M) {
 			exchange.RestCoinMargined: testnetFutures,
 			exchange.RestSpot:         testnetSpotURL,
 		} {
-			if err := b.API.Endpoints.SetRunning(k.String(), v); err != nil {
-				log.Fatalf("Testnet `%s` URL error with `%s`: %s", k, v, err)
+			if err := e.API.Endpoints.SetRunningURL(k.String(), v); err != nil {
+				log.Fatalf("Binance SetRunningURL error: %s", err)
 			}
 		}
 	}
-
-	b.setupOrderbookManager()
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	log.Printf(sharedtestvalues.LiveTesting, b.Name)
-	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
-		log.Fatal("Binance setup error", err)
+	e.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	log.Printf(sharedtestvalues.LiveTesting, e.Name)
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
+		log.Fatalf("Binance UpdateTradablePairs error: %s", err)
 	}
-
 	os.Exit(m.Run())
 }

@@ -1,12 +1,11 @@
 package engine
 
 import (
-	"errors"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -29,33 +28,23 @@ func TestSetupLiveDataHandler(t *testing.T) {
 	bt := &BackTest{}
 	var err error
 	err = bt.SetupLiveDataHandler(-1, -1, false, false)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	bt.exchangeManager = engine.NewExchangeManager()
 	err = bt.SetupLiveDataHandler(-1, -1, false, false)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	bt.DataHolder = &data.HandlerHolder{}
 	err = bt.SetupLiveDataHandler(-1, -1, false, false)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	bt.Reports = &report.Data{}
 	err = bt.SetupLiveDataHandler(-1, -1, false, false)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	bt.Funding = &funding.FundManager{}
 	err = bt.SetupLiveDataHandler(-1, -1, false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	dc, ok := bt.LiveDataHandler.(*dataChecker)
 	if !ok {
@@ -70,33 +59,30 @@ func TestSetupLiveDataHandler(t *testing.T) {
 
 	bt = nil
 	err = bt.SetupLiveDataHandler(-1, -1, false, false)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestStart(t *testing.T) {
 	t.Parallel()
-	dc := &dataChecker{
+
+	var dc *dataChecker
+	err := dc.Start()
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
+	dc = &dataChecker{
 		shutdown: make(chan bool),
 	}
-	err := dc.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	err = dc.Start()
+	require.NoError(t, err)
+
 	close(dc.shutdown)
 	dc.wg.Wait()
-	atomic.CompareAndSwapUint32(&dc.started, 0, 1)
-	err = dc.Start()
-	if !errors.Is(err, engine.ErrSubSystemAlreadyStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemAlreadyStarted)
-	}
 
-	var dh *dataChecker
-	err = dh.Start()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
+	dc = &dataChecker{
+		started: 1,
 	}
+	err = dc.Start()
+	assert.ErrorIs(t, err, engine.ErrSubSystemAlreadyStarted)
 }
 
 func TestDataCheckerIsRunning(t *testing.T) {
@@ -124,26 +110,19 @@ func TestLiveHandlerStop(t *testing.T) {
 		shutdown: make(chan bool),
 	}
 	err := dc.Stop()
-	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, engine.ErrSubSystemNotStarted)
 
 	dc.started = 1
 	err = dc.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	dc.shutdown = make(chan bool)
 	err = dc.Stop()
-	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, engine.ErrSubSystemNotStarted)
 
 	var dh *dataChecker
 	err = dh.Stop()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestLiveHandlerStopFromError(t *testing.T) {
@@ -152,31 +131,21 @@ func TestLiveHandlerStopFromError(t *testing.T) {
 		shutdownErr: make(chan bool, 10),
 	}
 	err := dc.SignalStopFromError(errNoCredsNoLive)
-	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, engine.ErrSubSystemNotStarted)
 
 	err = dc.SignalStopFromError(nil)
-	if !errors.Is(err, errNilError) {
-		t.Errorf("received '%v' expected '%v'", err, errNilError)
-	}
+	assert.ErrorIs(t, err, errNilError)
+
 	dc.started = 1
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err = dc.SignalStopFromError(errNoCredsNoLive)
-		if !errors.Is(err, nil) {
-			t.Errorf("received '%v' expected '%v'", err, nil)
-		}
-	}()
+	wg.Go(func() {
+		assert.NoError(t, dc.SignalStopFromError(errNoCredsNoLive))
+	})
 	wg.Wait()
 
 	var dh *dataChecker
 	err = dh.SignalStopFromError(errNoCredsNoLive)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestDataFetcher(t *testing.T) {
@@ -190,22 +159,16 @@ func TestDataFetcher(t *testing.T) {
 	}
 	dc.wg.Add(1)
 	err := dc.DataFetcher()
-	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, engine.ErrSubSystemNotStarted)
 
 	dc.started = 1
 	dc.wg.Add(1)
 	err = dc.DataFetcher()
-	if !errors.Is(err, ErrLiveDataTimeout) {
-		t.Errorf("received '%v' expected '%v'", err, ErrLiveDataTimeout)
-	}
+	assert.ErrorIs(t, err, ErrLiveDataTimeout)
 
 	var dh *dataChecker
 	err = dh.DataFetcher()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestUpdated(t *testing.T) {
@@ -214,19 +177,15 @@ func TestUpdated(t *testing.T) {
 		dataUpdated: make(chan bool, 10),
 	}
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		_ = dc.Updated()
-		wg.Done()
-	}()
+	})
 	wg.Wait()
 
 	dc = nil
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		_ = dc.Updated()
-		wg.Done()
-	}()
+	})
 	wg.Wait()
 }
 
@@ -236,77 +195,56 @@ func TestLiveHandlerReset(t *testing.T) {
 		eventTimeout: 1,
 	}
 	err := dataHandler.Reset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if dataHandler.eventTimeout != 0 {
 		t.Errorf("received '%v' expected '%v'", dataHandler.eventTimeout, 0)
 	}
 	var dh *dataChecker
 	err = dh.Reset()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestAppendDataSource(t *testing.T) {
 	t.Parallel()
 	dataHandler := &dataChecker{}
 	err := dataHandler.AppendDataSource(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	setup := &liveDataSourceSetup{}
 	err = dataHandler.AppendDataSource(setup)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	setup.exchange = &binance.Binance{}
+	setup.exchange = &binance.Exchange{}
 	err = dataHandler.AppendDataSource(setup)
-	if !errors.Is(err, common.ErrInvalidDataType) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrInvalidDataType)
-	}
+	assert.ErrorIs(t, err, common.ErrInvalidDataType)
 
 	setup.dataType = common.DataCandle
 	err = dataHandler.AppendDataSource(setup)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v' expected '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	setup.asset = asset.Spot
 	err = dataHandler.AppendDataSource(setup)
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	setup.pair = currency.NewPair(currency.BTC, currency.USDT)
+	setup.pair = currency.NewBTCUSDT()
 	err = dataHandler.AppendDataSource(setup)
-	if !errors.Is(err, kline.ErrInvalidInterval) {
-		t.Errorf("received '%v' expected '%v'", err, kline.ErrInvalidInterval)
-	}
+	assert.ErrorIs(t, err, kline.ErrInvalidInterval)
 
 	setup.interval = kline.OneDay
 	err = dataHandler.AppendDataSource(setup)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if len(dataHandler.sourcesToCheck) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(dataHandler.sourcesToCheck), 1)
 	}
 
 	err = dataHandler.AppendDataSource(setup)
-	if !errors.Is(err, errDataSourceExists) {
-		t.Errorf("received '%v' expected '%v'", err, errDataSourceExists)
-	}
+	assert.ErrorIs(t, err, errDataSourceExists)
 
 	dataHandler = nil
 	err = dataHandler.AppendDataSource(setup)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestFetchLatestData(t *testing.T) {
@@ -322,7 +260,7 @@ func TestFetchLatestData(t *testing.T) {
 	_, err = dataHandler.FetchLatestData()
 	require.NoError(t, err)
 	cp := currency.NewBTCUSDT()
-	f := &binanceus.Binanceus{}
+	f := &binanceus.Exchange{}
 	f.SetDefaults()
 	fb := f.GetBase()
 	require.NoError(t, fb.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
@@ -378,13 +316,11 @@ func TestLoadCandleData(t *testing.T) {
 		processedData:             make(map[int64]struct{}),
 	}
 	_, err := l.loadCandleData(time.Now())
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	exch := &binanceus.Binanceus{}
+	exch := &binanceus.Exchange{}
 	exch.SetDefaults()
-	cp := currency.NewPair(currency.BTC, currency.USDT).Format(
+	cp := currency.NewBTCUSDT().Format(
 		currency.PairFormat{
 			Uppercase: true,
 		})
@@ -407,18 +343,15 @@ func TestLoadCandleData(t *testing.T) {
 		},
 	}
 	updated, err := l.loadCandleData(time.Now())
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !updated {
 		t.Errorf("received '%v' expected '%v'", updated, true)
 	}
 
 	var ldh *liveDataSourceDataHandler
 	_, err = ldh.loadCandleData(time.Now())
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestSetDataForClosingAllPositions(t *testing.T) {
@@ -430,7 +363,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 
 	dataHandler.started = 1
 	cp := currency.NewBTCUSDT()
-	f := &binanceus.Binanceus{}
+	f := &binanceus.Exchange{}
 	f.SetDefaults()
 	fb := f.GetBase()
 	err := fb.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{cp}, true)
@@ -470,19 +403,14 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	}
 	dataHandler.dataHolder = &fakeDataHolder{}
 	_, err = dataHandler.FetchLatestData()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = dataHandler.SetDataForClosingAllPositions()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	err = dataHandler.SetDataForClosingAllPositions(nil)
-	if !errors.Is(err, errNilData) {
-		t.Errorf("received '%v' expected '%v'", err, errNilData)
-	}
+	assert.ErrorIs(t, err, errNilData)
+
 	err = dataHandler.SetDataForClosingAllPositions(&signal.Signal{
 		Base: &event.Base{
 			Offset:         3,
@@ -502,9 +430,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 		SellLimit:  leet,
 		Amount:     leet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = dataHandler.SetDataForClosingAllPositions(&signal.Signal{
 		Base: &event.Base{
@@ -525,15 +451,11 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 		SellLimit:  leet,
 		Amount:     leet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	dataHandler = nil
 	err = dataHandler.SetDataForClosingAllPositions()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestIsRealOrders(t *testing.T) {
@@ -552,51 +474,35 @@ func TestUpdateFunding(t *testing.T) {
 	t.Parallel()
 	d := &dataChecker{}
 	err := d.UpdateFunding(false)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	ff := &fakeFunding{}
 	d.funding = ff
 	err = d.UpdateFunding(false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.realOrders = true
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	ff.hasFutures = true
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.updatingFunding = 1
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.updatingFunding = 1
 	err = d.UpdateFunding(false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d = nil
 	err = d.UpdateFunding(false)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestClosedChan(t *testing.T) {

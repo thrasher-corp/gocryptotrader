@@ -1,10 +1,10 @@
 package risk
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -18,9 +18,9 @@ import (
 
 func TestAssessHoldingsRatio(t *testing.T) {
 	t.Parallel()
-	ratio := assessHoldingsRatio(currency.NewPair(currency.BTC, currency.USDT), []holdings.Holding{
+	ratio := assessHoldingsRatio(currency.NewBTCUSDT(), []holdings.Holding{
 		{
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 			BaseValue: decimal.NewFromInt(2),
 		},
 		{
@@ -32,9 +32,9 @@ func TestAssessHoldingsRatio(t *testing.T) {
 		t.Errorf("expected %v received %v", 0.5, ratio)
 	}
 
-	ratio = assessHoldingsRatio(currency.NewPair(currency.BTC, currency.USDT), []holdings.Holding{
+	ratio = assessHoldingsRatio(currency.NewBTCUSDT(), []holdings.Holding{
 		{
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 			BaseValue: decimal.NewFromInt(1),
 		},
 		{
@@ -55,10 +55,9 @@ func TestEvaluateOrder(t *testing.T) {
 	t.Parallel()
 	r := Risk{}
 	_, err := r.EvaluateOrder(nil, nil, compliance.Snapshot{})
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Error(err)
-	}
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
+	p := currency.NewBTCUSDT()
 	e := "binance"
 	a := asset.Spot
 	o := &order.Order{
@@ -69,18 +68,11 @@ func TestEvaluateOrder(t *testing.T) {
 		},
 	}
 	h := []holdings.Holding{}
-	r.CurrencySettings = make(map[key.ExchangePairAsset]*CurrencySettings)
+	r.CurrencySettings = make(map[key.ExchangeAssetPair]*CurrencySettings)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, errNoCurrencySettings) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errNoCurrencySettings)
 
-	r.CurrencySettings[key.ExchangePairAsset{
-		Exchange: e,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}] = &CurrencySettings{
+	r.CurrencySettings[key.NewExchangeAssetPair(e, a, p)] = &CurrencySettings{
 		MaximumOrdersWithLeverageRatio: decimal.NewFromFloat(0.3),
 		MaxLeverageRate:                decimal.NewFromFloat(0.3),
 		MaximumHoldingRatio:            decimal.NewFromFloat(0.3),
@@ -91,49 +83,27 @@ func TestEvaluateOrder(t *testing.T) {
 		BaseSize: decimal.NewFromInt(1),
 	})
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	h = append(h, holdings.Holding{
 		Pair: currency.NewPair(currency.DOGE, currency.USDT),
 	})
 	o.Leverage = decimal.NewFromFloat(1.1)
-	r.CurrencySettings[key.ExchangePairAsset{
-		Exchange: e,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}].MaximumHoldingRatio = decimal.Zero
+	r.CurrencySettings[key.NewExchangeAssetPair(e, a, p)].MaximumHoldingRatio = decimal.Zero
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, errLeverageNotAllowed) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errLeverageNotAllowed)
+
 	r.CanUseLeverage = true
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, errCannotPlaceLeverageOrder) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errCannotPlaceLeverageOrder)
 
 	r.MaximumLeverage = decimal.NewFromInt(33)
-	r.CurrencySettings[key.ExchangePairAsset{
-		Exchange: e,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}].MaxLeverageRate = decimal.NewFromInt(33)
+	r.CurrencySettings[key.NewExchangeAssetPair(e, a, p)].MaxLeverageRate = decimal.NewFromInt(33)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	r.MaximumLeverage = decimal.NewFromInt(33)
-	r.CurrencySettings[key.ExchangePairAsset{
-		Exchange: e,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}].MaxLeverageRate = decimal.NewFromInt(33)
+	r.CurrencySettings[key.NewExchangeAssetPair(e, a, p)].MaxLeverageRate = decimal.NewFromInt(33)
 
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
@@ -144,25 +114,14 @@ func TestEvaluateOrder(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, errCannotPlaceLeverageOrder) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errCannotPlaceLeverageOrder)
 
 	h = append(h, holdings.Holding{Pair: p, BaseValue: decimal.NewFromInt(1337)}, holdings.Holding{Pair: p, BaseValue: decimal.NewFromFloat(1337.42)})
-	r.CurrencySettings[key.ExchangePairAsset{
-		Exchange: e,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}].MaximumHoldingRatio = decimal.NewFromFloat(0.1)
+	r.CurrencySettings[key.NewExchangeAssetPair(e, a, p)].MaximumHoldingRatio = decimal.NewFromFloat(0.1)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	h = append(h, holdings.Holding{Pair: currency.NewPair(currency.DOGE, currency.LTC), BaseValue: decimal.NewFromInt(1337)})
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, errCannotPlaceLeverageOrder) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errCannotPlaceLeverageOrder)
 }

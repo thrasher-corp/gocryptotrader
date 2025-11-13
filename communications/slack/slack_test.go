@@ -3,6 +3,8 @@ package slack
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -98,47 +100,40 @@ func TestGetIDByName(t *testing.T) {
 	t.Parallel()
 	var s Slack
 	id, err := s.GetIDByName("batman")
-	if err == nil || id != "" {
-		t.Error("slack GetIDByName() error")
-	}
-
+	require.Error(t, err, "GetIDByName must return an error for non-existent name")
+	assert.Empty(t, id, "GetIDByName should return an empty string for non-existent name")
 	s.Details.Groups = append(s.Details.Groups, group{
 		Name: "this is a group",
 		ID:   "210314",
 	})
 	id, err = s.GetIDByName("this is a group")
-	if err != nil || id != "210314" {
-		t.Errorf("slack GetIDByName() Expected '210314' Actual '%s' Error: %s",
-			id, err)
-	}
+
+	require.NoError(t, err, "GetIDByName must not return an error for existing name")
+	assert.Equal(t, "210314", id, "GetIDByName should return the correct ID for existing name")
 }
 
 func TestGetGroupIDByName(t *testing.T) {
 	t.Parallel()
 	var s Slack
 	id, err := s.GetGroupIDByName("batman")
-	if err == nil || id != "" {
-		t.Error("slack GetGroupIDByName() error")
-	}
+	require.Error(t, err, "GetGroupIDByName must return an error for non-existent group name")
+	assert.Empty(t, id, "GetGroupIDByName should return an empty string for non-existent group name")
 
 	s.Details.Groups = append(s.Details.Groups, group{
 		Name: "another group",
 		ID:   "11223344",
 	})
 	id, err = s.GetGroupIDByName("another group")
-	if err != nil || id != "11223344" {
-		t.Errorf("slack GetGroupIDByName() Expected '11223344' Actual '%s' Error: %s",
-			id, err)
-	}
+	require.NoError(t, err, "GetGroupIDByName must not return an error for existing group name")
+	assert.Equal(t, "11223344", id, "GetGroupIDByName should return the correct ID for existing group name")
 }
 
 func TestGetChannelIDByName(t *testing.T) {
 	t.Parallel()
 	var s Slack
 	id, err := s.GetChannelIDByName("1337")
-	if err == nil || id != "" {
-		t.Error("slack GetChannelIDByName() error")
-	}
+	require.Error(t, err, "GetChannelIDByName must return an error for non-existent channel name")
+	assert.Empty(t, id, "GetChannelIDByName should return an empty string for non-existent channel name")
 
 	s.Details.Channels = append(s.Details.Channels, struct {
 		ID             string   `json:"id"`
@@ -151,19 +146,14 @@ func TestGetChannelIDByName(t *testing.T) {
 	})
 
 	id, err = s.GetChannelIDByName("Slack Test")
-	if err != nil || id != "2048" {
-		t.Errorf("slack GetChannelIDByName() Expected '2048' Actual '%s' Error: %s",
-			id, err)
-	}
+	require.NoError(t, err, "GetChannelIDByName must not return an error for existing channel name")
+	assert.Equal(t, "2048", id, "GetChannelIDByName should return the correct ID for existing channel name")
 }
 
 func TestGetUsersInGroup(t *testing.T) {
 	t.Parallel()
 	var s Slack
-	username := s.GetUsersInGroup("supergroup")
-	if len(username) != 0 {
-		t.Error("slack GetUsersInGroup() error")
-	}
+	assert.Empty(t, s.GetUsersInGroup("supergroup"), "GetUsersInGroup should return an empty slice")
 
 	s.Details.Groups = append(s.Details.Groups, group{
 		Name:    "three guys",
@@ -171,11 +161,7 @@ func TestGetUsersInGroup(t *testing.T) {
 		Members: []string{"Guy one", "Guy two", "Guy three"},
 	})
 
-	username = s.GetUsersInGroup("three guys")
-	if len(username) != 3 {
-		t.Errorf("slack GetUsersInGroup() Expected '3' Actual '%s'",
-			username)
-	}
+	assert.Len(t, s.GetUsersInGroup("three guys"), 3)
 }
 
 func TestNewConnection(t *testing.T) {
@@ -286,25 +272,20 @@ func TestHandleReconnectResponse(t *testing.T) {
 	t.Parallel()
 	var s Slack
 	err := s.handleReconnectResponse([]byte(`{"malformedjson}`))
-	if err == nil {
-		t.Error("slack handleReconnectResponse(), unmarshalled malformed json")
-	}
+	assert.Error(t, err, "handleReconnectResponse should error on malformed JSON")
 
-	var testURL struct {
+	testURL := struct {
 		URL string `json:"url"`
+	}{
+		URL: "https://www.thrasher.io",
 	}
-	testURL.URL = "https://www.thrasher.io"
 
 	data, err := json.Marshal(testURL)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Marshal must not error")
 
 	err = s.handleReconnectResponse(data)
-	if err != nil || s.ReconnectURL != "https://www.thrasher.io" {
-		t.Errorf("slack handleReconnectResponse() Expected 'https://www.thrasher.io' Actual '%s' Error: %s",
-			s.ReconnectURL, err)
-	}
+	require.NoError(t, err, "handleReconnectResponse must not error")
+	assert.Equal(t, "https://www.thrasher.io", s.ReconnectURL)
 }
 
 func TestWebsocketSend(t *testing.T) {

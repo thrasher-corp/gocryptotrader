@@ -8,8 +8,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -39,16 +41,14 @@ type IBotExchange interface {
 
 	GetEnabledFeatures() FeaturesEnabled
 	GetSupportedFeatures() FeaturesSupported
-	// GetTradingRequirements returns trading requirements for the exchange
 	GetTradingRequirements() protocol.TradingRequirements
-
 	GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
-	GetCachedOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error)
-	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
+	GetCachedOrderbook(p currency.Pair, a asset.Item) (*orderbook.Book, error)
+	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error)
 	FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error)
-	UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
+	UpdateTradablePairs(ctx context.Context) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
 	GetPairFormat(asset.Item, bool) (currency.PairFormat, error)
@@ -84,10 +84,10 @@ type IBotExchange interface {
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
 	CanUseAuthenticatedWebsocketEndpoints() bool
-	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
+	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
-	GetCredentials(ctx context.Context) (*account.Credentials, error)
+	GetCredentials(ctx context.Context) (*accounts.Credentials, error)
 	EnsureOnePairEnabled() error
 	PrintEnabledPairs()
 	IsVerbose() bool
@@ -99,10 +99,10 @@ type IBotExchange interface {
 	// VerifyAPICredentials determines if the credentials supplied have unset
 	// required values. See exchanges/credentials.go Base method for
 	// implementation.
-	VerifyAPICredentials(creds *account.Credentials) error
+	VerifyAPICredentials(creds *accounts.Credentials) error
 	// GetDefaultCredentials returns the exchange.Base api credentials loaded by
 	// config.json. See exchanges/credentials.go Base method for implementation.
-	GetDefaultCredentials() *account.Credentials
+	GetDefaultCredentials() *accounts.Credentials
 
 	FunctionalityChecker
 	AccountManagement
@@ -135,6 +135,9 @@ type OrderManagement interface {
 	GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
 	GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
 	WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error)
+	WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) (responses []*order.SubmitResponse, err error)
+	WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error)
+	WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error
 }
 
 // CurrencyStateManagement defines functionality for currency state management
@@ -149,9 +152,11 @@ type CurrencyStateManagement interface {
 
 // AccountManagement defines functionality for exchange account management
 type AccountManagement interface {
-	UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
-	GetCachedAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
+	UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error)
+	GetCachedSubAccounts(ctx context.Context, a asset.Item) (accounts.SubAccounts, error)
+	GetCachedCurrencyBalances(ctx context.Context, a asset.Item) (accounts.CurrencyBalances, error)
 	HasAssetTypeAccountSegregation() bool
+	SubscribeAccountBalances() (dispatch.Pipe, error)
 }
 
 // FunctionalityChecker defines functionality for retrieving exchange

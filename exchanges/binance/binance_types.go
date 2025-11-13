@@ -6,7 +6,9 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -122,35 +124,14 @@ type CoinInfo struct {
 	Withdrawing float64 `json:"withdrawing,string"`
 }
 
-// OrderBookDataRequestParams represents Klines request data.
-type OrderBookDataRequestParams struct {
-	Symbol currency.Pair `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
-	Limit  int           `json:"limit"`  // Default 100; max 5000. If limit > 5000, then the response will truncate to 5000
-}
-
-// OrderbookItem stores an individual orderbook item
-type OrderbookItem struct {
-	Price    float64
-	Quantity float64
-}
-
-// OrderBookData is resp data from orderbook endpoint
-type OrderBookData struct {
-	Code         int         `json:"code"`
-	Msg          string      `json:"msg"`
-	LastUpdateID int64       `json:"lastUpdateId"`
-	Bids         [][2]string `json:"bids"`
-	Asks         [][2]string `json:"asks"`
-}
-
-// OrderBook actual structured data that can be used for orderbook
-type OrderBook struct {
-	Symbol       string
-	LastUpdateID int64
-	Code         int
-	Msg          string
-	Bids         []OrderbookItem
-	Asks         []OrderbookItem
+// OrderBookResponse is resp data from orderbook endpoint
+type OrderBookResponse struct {
+	Code         int64                            `json:"code"`
+	Msg          string                           `json:"msg"`
+	LastUpdateID int64                            `json:"lastUpdateId"`
+	Timestamp    types.Time                       `json:"T"`
+	Bids         orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
 
 // DepthUpdateParams is used as an embedded type for WebsocketDepthStream
@@ -162,13 +143,13 @@ type DepthUpdateParams []struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string            `json:"e"`
-	Timestamp     types.Time        `json:"E"`
-	Pair          string            `json:"s"`
-	FirstUpdateID int64             `json:"U"`
-	LastUpdateID  int64             `json:"u"`
-	UpdateBids    [][2]types.Number `json:"b"`
-	UpdateAsks    [][2]types.Number `json:"a"`
+	Event         string                           `json:"e"`
+	Timestamp     types.Time                       `json:"E"`
+	Pair          string                           `json:"s"`
+	FirstUpdateID int64                            `json:"U"`
+	LastUpdateID  int64                            `json:"u"`
+	UpdateBids    orderbook.LevelsArrayPriceAmount `json:"b"`
+	UpdateAsks    orderbook.LevelsArrayPriceAmount `json:"a"`
 }
 
 // RecentTradeRequestParams represents Klines request data.
@@ -306,17 +287,34 @@ type IndexMarkPrice struct {
 
 // CandleStick holds kline data
 type CandleStick struct {
-	OpenTime                 time.Time
-	Open                     float64
-	High                     float64
-	Low                      float64
-	Close                    float64
-	Volume                   float64
-	CloseTime                time.Time
-	QuoteAssetVolume         float64
-	TradeCount               float64
-	TakerBuyAssetVolume      float64
-	TakerBuyQuoteAssetVolume float64
+	OpenTime                 types.Time
+	Open                     types.Number
+	High                     types.Number
+	Low                      types.Number
+	Close                    types.Number
+	Volume                   types.Number
+	CloseTime                types.Time
+	QuoteAssetVolume         types.Number
+	TradeCount               int64
+	TakerBuyAssetVolume      types.Number
+	TakerBuyQuoteAssetVolume types.Number
+}
+
+// UnmarshalJSON unmarshals JSON data into a CandleStick struct
+func (c *CandleStick) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[11]any{
+		&c.OpenTime,
+		&c.Open,
+		&c.High,
+		&c.Low,
+		&c.Close,
+		&c.Volume,
+		&c.CloseTime,
+		&c.QuoteAssetVolume,
+		&c.TradeCount,
+		&c.TakerBuyAssetVolume,
+		&c.TakerBuyQuoteAssetVolume,
+	})
 }
 
 // AveragePrice holds current average symbol price
@@ -375,7 +373,7 @@ type NewOrderRequest struct {
 	TradeType RequestParamsOrderType
 	// TimeInForce specifies how long the order remains in effect.
 	// Examples are (Good Till Cancel (GTC), Immediate or Cancel (IOC) and Fill Or Kill (FOK))
-	TimeInForce RequestParamsTimeForceType
+	TimeInForce string
 	// Quantity is the total base qty spent or received in an order.
 	Quantity float64
 	// QuoteOrderQty is the total quote qty spent or received in a MARKET order.
@@ -446,7 +444,7 @@ type QueryOrderData struct {
 
 // Balance holds query order data
 type Balance struct {
-	Asset  string          `json:"asset"`
+	Asset  currency.Code   `json:"asset"`
 	Free   decimal.Decimal `json:"free"`
 	Locked decimal.Decimal `json:"locked"`
 }
@@ -478,27 +476,13 @@ type MarginAccount struct {
 
 // MarginAccountAsset holds each individual margin account asset
 type MarginAccountAsset struct {
-	Asset    string  `json:"asset"`
-	Borrowed float64 `json:"borrowed,string"`
-	Free     float64 `json:"free,string"`
-	Interest float64 `json:"interest,string"`
-	Locked   float64 `json:"locked,string"`
-	NetAsset float64 `json:"netAsset,string"`
+	Asset    currency.Code `json:"asset"`
+	Borrowed float64       `json:"borrowed,string"`
+	Free     float64       `json:"free,string"`
+	Interest float64       `json:"interest,string"`
+	Locked   float64       `json:"locked,string"`
+	NetAsset float64       `json:"netAsset,string"`
 }
-
-// RequestParamsTimeForceType Time in force
-type RequestParamsTimeForceType string
-
-var (
-	// BinanceRequestParamsTimeGTC GTC
-	BinanceRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
-
-	// BinanceRequestParamsTimeIOC IOC
-	BinanceRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
-
-	// BinanceRequestParamsTimeFOK FOK
-	BinanceRequestParamsTimeFOK = RequestParamsTimeForceType("FOK")
-)
 
 // RequestParamsOrderType trade order type
 type RequestParamsOrderType string
@@ -706,16 +690,16 @@ var WithdrawalFees = map[currency.Code]float64{
 
 // DepositHistory stores deposit history info
 type DepositHistory struct {
-	Amount        float64 `json:"amount,string"`
-	Coin          string  `json:"coin"`
-	Network       string  `json:"network"`
-	Status        uint8   `json:"status"`
-	Address       string  `json:"address"`
-	AddressTag    string  `json:"adressTag"`
-	TransactionID string  `json:"txId"`
-	InsertTime    float64 `json:"insertTime"`
-	TransferType  uint8   `json:"transferType"`
-	ConfirmTimes  string  `json:"confirmTimes"`
+	Amount        float64    `json:"amount,string"`
+	Coin          string     `json:"coin"`
+	Network       string     `json:"network"`
+	Status        uint8      `json:"status"`
+	Address       string     `json:"address"`
+	AddressTag    string     `json:"adressTag"`
+	TransactionID string     `json:"txId"`
+	InsertTime    types.Time `json:"insertTime"`
+	TransferType  uint8      `json:"transferType"`
+	ConfirmTimes  string     `json:"confirmTimes"`
 }
 
 // WithdrawResponse contains status of withdrawal request
@@ -853,7 +837,7 @@ type WsListStatusData struct {
 type WsPayload struct {
 	Method string   `json:"method"`
 	Params []string `json:"params"`
-	ID     int64    `json:"id"`
+	ID     string   `json:"id"`
 }
 
 // CrossMarginInterestData stores cross margin data for borrowing

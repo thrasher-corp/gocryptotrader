@@ -23,13 +23,13 @@ var (
 	ErrEndOfData = errors.New("no more data to retrieve")
 
 	errNothingToAdd    = errors.New("cannot append empty event to stream")
-	errMisMatchedEvent = errors.New("cannot add event to stream, does not match")
+	errMismatchedEvent = errors.New("cannot add event to stream, does not match")
 )
 
 // HandlerHolder stores an event handler per exchange asset pair
 type HandlerHolder struct {
 	m    sync.Mutex
-	data map[key.ExchangePairAsset]Handler
+	data map[key.ExchangeAssetPair]Handler
 }
 
 // Holder interface dictates what a Data holder is expected to do

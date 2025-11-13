@@ -4,14 +4,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -222,7 +222,7 @@ type API struct {
 
 	Endpoints *Endpoints
 
-	credentials account.Credentials
+	credentials accounts.Credentials
 	credMu      sync.RWMutex
 
 	CredentialsValidator config.APICredentialsValidatorConfig
@@ -241,23 +241,25 @@ type Base struct {
 	Features                      Features
 	HTTPTimeout                   time.Duration
 	HTTPRecording                 bool
+	HTTPMockDataSliceLimit        int // Use with HTTPRecording to reduce the size of recorded mock data
 	HTTPDebugging                 bool
 	BypassConfigFormatUpgrades    bool
 	WebsocketResponseCheckTimeout time.Duration
 	WebsocketResponseMaxLimit     time.Duration
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *websocket.Manager
+	Accounts                      *accounts.Accounts
 	*request.Requester
 	Config        *config.Exchange
 	settingsMutex sync.RWMutex
-	// CanVerifyOrderbook determines if the orderbook verification can be bypassed,
+	// ValidateOrderbook determines if the orderbook verification can be bypassed,
 	// increasing potential update speed but decreasing confidence in orderbook
 	// integrity.
-	CanVerifyOrderbook bool
-	order.ExecutionLimits
+	ValidateOrderbook bool
 
 	AssetWebsocketSupport
 	*currencystate.States
+	messageSequence common.Counter
 }
 
 // url lookup consts
@@ -273,7 +275,15 @@ const (
 	RestSwap
 	RestSandbox
 	WebsocketSpot
+	WebsocketCoinMargined
+	WebsocketUSDTMargined
+	WebsocketUSDCMargined
+	WebsocketOptions
+	WebsocketTrade
+	WebsocketPrivate
 	WebsocketSpotSupplementary
+	WebsocketFutures
+	WebsocketFuturesPrivate
 	ChainAnalysis
 	EdgeCase1
 	EdgeCase2
@@ -289,7 +299,15 @@ const (
 	restSandboxURL                = "RestSandboxURL"
 	restSwapURL                   = "RestSwapURL"
 	websocketSpotURL              = "WebsocketSpotURL"
+	websocketCoinMarginedURL      = "WebsocketCoinMarginedURL"
+	websocketUSDTMarginedURL      = "WebsocketUSDTMarginedURL"
+	websocketUSDCMarginedURL      = "WebsocketUSDCMarginedURL"
+	websocketOptionsURL           = "WebsocketOptionsURL"
+	websocketTradeURL             = "WebsocketTradeURL"
+	websocketPrivateURL           = "WebsocketPrivateURL"
 	websocketSpotSupplementaryURL = "WebsocketSpotSupplementaryURL"
+	websocketFuturesURL           = "WebsocketFuturesURL"
+	websocketFuturesPrivateURL    = "WebsocketFuturesPrivateURL"
 	chainAnalysisURL              = "ChainAnalysisURL"
 	edgeCase1URL                  = "EdgeCase1URL"
 	edgeCase2URL                  = "EdgeCase2URL"
@@ -307,7 +325,15 @@ var keyURLs = []URL{
 	RestSwap,
 	RestSandbox,
 	WebsocketSpot,
+	WebsocketCoinMargined,
+	WebsocketUSDTMargined,
+	WebsocketUSDCMargined,
+	WebsocketOptions,
+	WebsocketTrade,
+	WebsocketPrivate,
 	WebsocketSpotSupplementary,
+	WebsocketFutures,
+	WebsocketFuturesPrivate,
 	ChainAnalysis,
 	EdgeCase1,
 	EdgeCase2,

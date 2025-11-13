@@ -1,11 +1,11 @@
 package base
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -21,18 +21,15 @@ func TestGetBase(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	_, err := s.GetBaseData(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	_, err = s.GetBaseData(datakline.NewDataFromKline())
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	tt := time.Now()
 	exch := "binance"
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := &data.Base{}
 	err = d.SetStream([]data.Event{&kline.Kline{
 		Base: &event.Base{
@@ -48,22 +45,17 @@ func TestGetBase(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = s.GetBaseData(&datakline.DataFromKline{
 		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestSetSimultaneousProcessing(t *testing.T) {
@@ -84,7 +76,5 @@ func TestCloseAllPositions(t *testing.T) {
 	t.Parallel()
 	s := &Strategy{}
 	_, err := s.CloseAllPositions(nil, nil)
-	if !errors.Is(err, gctcommon.ErrFunctionNotSupported) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrFunctionNotSupported)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrFunctionNotSupported)
 }
