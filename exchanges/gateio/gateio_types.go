@@ -1795,7 +1795,7 @@ type Position struct {
 type CloseOrder struct {
 	ID    int64        `json:"id"`
 	Price types.Number `json:"price"`
-	IsLiq bool         `json:"is_liq"`
+	IsLiquidation bool         `json:"is_liq"`
 }
 
 // DualModeResponse represents  dual mode enable or disable
