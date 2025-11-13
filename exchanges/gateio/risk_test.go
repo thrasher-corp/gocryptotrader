@@ -2,7 +2,6 @@ package gateio
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -130,7 +129,6 @@ func TestFuturesUpdatePositionRiskLimit(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 	assert.Equal(t, lowestTierRiskLimit, got.RiskLimit.Float64())
-	time.Sleep(time.Second)
 }
 
 func TestFuturesUpdatePositionRiskLimitDualMode(t *testing.T) {

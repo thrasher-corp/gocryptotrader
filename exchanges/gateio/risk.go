@@ -38,7 +38,7 @@ func (e *Exchange) GetFuturesRiskTable(ctx context.Context, settleCurrency curre
 }
 
 // GetFuturesRiskLimitTiers retrieves the futures risk limit tiers
-// NOTE: 'Limit' and 'offset' correspond to pagination queries at the market level, not to the length of the returned
+// NOTE: 'limit' and 'offset' correspond to pagination queries at the market level, not to the length of the returned
 // array. This only takes effect when the contract parameter is empty.
 func (e *Exchange) GetFuturesRiskLimitTiers(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, limit, offset uint64) ([]RiskTable, error) {
 	return e.getRiskLimitTiers(ctx, futuresPath, publicFuturesRiskLimitTiersEPL, settleCurrency, contract, limit, offset)
