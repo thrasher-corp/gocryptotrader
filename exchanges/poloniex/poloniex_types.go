@@ -207,7 +207,7 @@ type MarketPrice struct {
 // MarkPrice represents latest mark price for all cross margin symbols.
 type MarkPrice struct {
 	Symbol          currency.Pair `json:"symbol"`
-	MarkPrice       types.Number  `json:"markPrice"`
+	MarkPrice       any           `json:"markPrice"`
 	RecordTimestamp types.Time    `json:"time"`
 }
 
@@ -789,7 +789,7 @@ type SubscriptionPayload struct {
 	Channel    []string       `json:"channel"`
 	Symbols    []string       `json:"symbols,omitempty"`
 	Currencies []string       `json:"currencies,omitempty"`
-	Depth      uint64         `json:"depth,omitempty"`
+	Depth      int64          `json:"depth,omitempty"`
 	Params     map[string]any `json:"params,omitempty"`
 }
 

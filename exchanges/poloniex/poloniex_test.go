@@ -254,29 +254,52 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = e.SubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
-	arg = &order.Submit{Exchange: e.Name, AssetType: asset.Futures, Side: order.Sell, Type: order.Market, Amount: 1, TimeInForce: order.GoodTillCrossing, Pair: futuresTradablePair}
-	_, err = e.SubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
-
-	arg.AssetType = asset.Options
+	arg = &order.Submit{Exchange: e.Name, AssetType: asset.Options, Side: order.Long, Type: order.Market, Amount: 1, TimeInForce: order.GoodTillCrossing, Pair: futuresTradablePair}
 	_, err = e.SubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
+	// unit tests specific to spot
 	arg.AssetType = asset.Spot
 	arg.Type = order.Liquidation
 	arg.Pair = spotTradablePair
 	_, err = e.SubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
+	// spot smart orders validation
+	arg.Type = order.TrailingStopLimit
+	_, err = e.SubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = order.Sell
+	_, err = e.SubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errInvalidTrailingOffset)
+
+	arg.Side = order.Sell
+	_, err = e.SubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errInvalidTrailingOffset)
+
+	arg.TrackingValue = 5
+	arg.TrackingMode = order.Percentage
+
+	// Futures place order
+	arg = &order.Submit{Exchange: e.Name, AssetType: asset.Futures, Type: order.Market, Amount: 1, TimeInForce: order.GoodTillCrossing, Pair: futuresTradablePair, MarginType: margin.Isolated}
+	_, err = e.SubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = order.Sell
+	arg.Type = order.TrailingStopLimit
+	_, err = e.SubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.SubmitOrder(generateContext(), &order.Submit{
-		Exchange:  e.Name,
-		Pair:      spotTradablePair,
-		Side:      order.Buy,
-		Type:      order.Market,
-		Price:     10,
-		Amount:    10000000,
-		AssetType: asset.Spot,
+		Exchange:    e.Name,
+		Pair:        spotTradablePair,
+		Side:        order.Buy,
+		Type:        order.Market,
+		Price:       10,
+		QuoteAmount: 10000000,
+		AssetType:   asset.Spot,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -310,14 +333,26 @@ func TestSubmitOrder(t *testing.T) {
 	assert.NotNil(t, result)
 
 	result, err = e.SubmitOrder(generateContext(), &order.Submit{
-		Exchange:     e.Name,
-		Pair:         futuresTradablePair,
-		Side:         order.Buy,
-		Type:         order.TrailingStop,
-		TriggerPrice: 11,
-		Price:        10,
-		Amount:       10000000,
-		AssetType:    asset.Futures,
+		Exchange:  e.Name,
+		Pair:      futuresTradablePair,
+		Side:      order.Buy,
+		Type:      order.Market,
+		Price:     10,
+		Amount:    10000000,
+		AssetType: asset.Futures,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.SubmitOrder(generateContext(), &order.Submit{
+		Exchange:   e.Name,
+		Pair:       futuresTradablePair,
+		Side:       order.Buy,
+		MarginType: margin.Multi,
+		Type:       order.Limit,
+		Price:      10,
+		Amount:     10000000,
+		AssetType:  asset.Futures,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -325,20 +360,40 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestWebsocketSubmitOrder(t *testing.T) {
 	t.Parallel()
-	arg := &order.Submit{AssetType: asset.Futures, TimeInForce: order.GoodTillCrossing}
-	_, err := e.WebsocketSubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err := e.WebsocketSubmitOrder(t.Context(), nil)
+	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
+
+	_, err = e.WebsocketSubmitOrder(t.Context(), &order.Submit{})
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
+
+	arg := &order.Submit{Exchange: e.Name}
+	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrPairIsEmpty)
 
 	arg.Pair = spotTradablePair
 	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, order.ErrAssetNotSet)
 
 	arg.AssetType = asset.Spot
 	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = order.Sell
+	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	arg.Type = order.TrailingStop
+	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
+	arg.Amount = 1
+	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	arg.Type = order.Limit
+	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
@@ -346,19 +401,19 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e.setAPICredential(apiKey, apiSecret)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
 	result, err := e.WebsocketSubmitOrder(generateContext(), &order.Submit{
-		Exchange:  e.Name,
-		Pair:      spotTradablePair,
-		Side:      order.Buy,
-		Type:      order.Market,
-		Price:     10,
-		Amount:    10000000,
-		AssetType: asset.Spot,
+		Exchange:    e.Name,
+		Pair:        spotTradablePair,
+		Side:        order.Buy,
+		Type:        order.Market,
+		Price:       10,
+		QuoteAmount: 10000000,
+		AssetType:   asset.Spot,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -366,27 +421,13 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	result, err = e.WebsocketSubmitOrder(generateContext(), &order.Submit{
 		Exchange:     e.Name,
 		Pair:         spotTradablePair,
-		Side:         order.Buy,
-		Type:         order.StopLimit,
+		Side:         order.Sell,
+		Type:         order.Limit,
 		TriggerPrice: 11,
 		Price:        10,
-		Amount:       10000000,
+		Amount:       1,
 		ClientID:     "hi",
 		AssetType:    asset.Spot,
-	})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-
-	result, err = e.WebsocketSubmitOrder(generateContext(), &order.Submit{
-		Exchange:     e.Name,
-		Pair:         spotTradablePair,
-		Side:         order.Buy,
-		Type:         order.Market,
-		TriggerPrice: 11,
-		Price:        10,
-		Amount:       10000000,
-		ClientID:     "hi",
-		AssetType:    asset.Futures,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -403,10 +444,10 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e.setAPICredential(apiKey, apiSecret)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
 	err = e.WebsocketCancelOrder(t.Context(), &order.Cancel{OrderID: "2312", ClientOrderID: "23123121231"})
 	assert.NoError(t, err)
@@ -511,14 +552,14 @@ func TestModifyOrder(t *testing.T) {
 	_, err = e.ModifyOrder(t.Context(), arg)
 	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
 	arg.Type = order.Limit
 	arg.TimeInForce = order.GoodTillTime
 	_, err = e.ModifyOrder(t.Context(), arg)
 	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
 	arg.TimeInForce = order.GoodTillCancel
 	result, err := e.ModifyOrder(t.Context(), arg)
 	require.NoError(t, err)
@@ -1609,10 +1650,10 @@ func TestCreateSmartOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
 	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: orderType(order.TrailingStopLimit), Price: 1234})
-	require.ErrorIs(t, err, errTrailingOffsetInvalid)
+	require.ErrorIs(t, err, errInvalidTrailingOffset)
 
 	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: orderType(order.TrailingStopLimit), Price: 1234, TrailingOffset: "1%"})
-	require.ErrorIs(t, err, errOffsetLimitInvalid)
+	require.ErrorIs(t, err, errInvalidOffsetLimit)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1861,10 +1902,11 @@ func TestWsCreateOrder(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e.setAPICredential(apiKey, apiSecret)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
 	result, err := e.WsCreateOrder(generateContext(), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
@@ -1874,7 +1916,7 @@ func TestWsCreateOrder(t *testing.T) {
 		Quantity:      100,
 		Price:         40000.50000,
 		TimeInForce:   timeInForce(order.GoodTillCancel),
-		ClientOrderID: "1234Abcdefee",
+		ClientOrderID: "1234Abcde",
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1888,10 +1930,10 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e.setAPICredential(apiKey, apiSecret)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
 	result, err := e.WsCancelMultipleOrdersByIDs(t.Context(), []string{"1234"}, []string{"5678"})
 	require.NoError(t, err)
@@ -1906,10 +1948,11 @@ func TestWsCancelTradeOrders(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e.setAPICredential(apiKey, apiSecret)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
 	result, err := e.WsCancelTradeOrders(t.Context(), []string{"BTC_USDT", "ETH_USDT"}, []accountType{accountType(asset.Spot)})
 	require.NoError(t, err)
@@ -2030,6 +2073,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	arg.Side = "buy"
+	arg.MarginMode = marginMode(margin.Multi)
 	_, err = e.PlaceFuturesOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 

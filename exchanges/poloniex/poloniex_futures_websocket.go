@@ -164,7 +164,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 			}
 			fallthrough
 		default:
-			log.Debugf(log.ExchangeSys, "Unexpected event message %s", string(respRaw))
+			log.Debugf(log.ExchangeSys, "Unexpected event message futures %s", string(respRaw))
 		}
 		return nil
 	}

@@ -76,8 +76,8 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderReque
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
-	if arg.PositionSide == order.UnknownSide {
-		return nil, order.ErrSideIsInvalid
+	if arg.MarginMode != marginMode(margin.Unset) && arg.PositionSide == order.UnknownSide {
+		return nil, fmt.Errorf("%w: either both margin mode and position side filds are filled or left blank", order.ErrSideIsInvalid)
 	}
 	if arg.OrderType == orderType(order.UnknownType) {
 		return nil, order.ErrTypeIsInvalid

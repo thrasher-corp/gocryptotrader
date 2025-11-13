@@ -688,16 +688,27 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
+			var trackingDistance string
+			if s.Type|order.TrailingStop == order.TrailingStop {
+				if s.TrackingMode == order.Percentage {
+					trackingDistance = fmt.Sprintf("%f%%", s.TrackingValue)
+				} else {
+					trackingDistance = strconv.FormatFloat(s.TrackingValue, 'f', -1, 64)
+				}
+			}
+
 			sOrder, err := e.CreateSmartOrder(ctx, &SmartOrderRequest{
-				Symbol:        s.Pair,
-				Type:          orderType(s.Type),
-				Side:          s.Side,
-				AccountType:   accountType(s.AssetType),
-				Price:         s.Price,
-				StopPrice:     s.TriggerPrice,
-				Quantity:      s.Amount,
-				ClientOrderID: s.ClientOrderID,
-				TimeInForce:   timeInForce(s.TimeInForce),
+				Symbol:         s.Pair,
+				Type:           orderType(s.Type),
+				Side:           s.Side,
+				AccountType:    accountType(s.AssetType),
+				Price:          s.Price,
+				StopPrice:      s.TriggerPrice,
+				Quantity:       s.Amount,
+				Amount:         s.QuoteAmount,
+				ClientOrderID:  s.ClientOrderID,
+				TimeInForce:    timeInForce(s.TimeInForce),
+				TrailingOffset: trackingDistance,
 			})
 			if err != nil {
 				return nil, err
@@ -707,7 +718,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			response, err := e.PlaceOrder(ctx, &PlaceOrderRequest{
 				Symbol:                  s.Pair,
 				Price:                   s.Price,
-				Amount:                  s.Amount,
+				Quantity:                s.Amount,
+				Amount:                  s.QuoteAmount,
 				AllowBorrow:             false,
 				Type:                    orderType(s.Type),
 				Side:                    s.Side.String(),
@@ -735,17 +747,26 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		case order.GoodTillCancel:
 			stpMode = "EXPIRE_TAKER"
 		}
+		switch s.Type {
+		case order.Market, order.Limit, order.LimitMaker:
+		default:
+			return nil, fmt.Errorf("%w: %v", order.ErrUnsupportedOrderType, s.Type)
+		}
+		var positionSide order.Side
+		if s.MarginType != margin.Unset {
+			positionSide = s.Side.Position()
+		}
 		response, err := e.PlaceFuturesOrder(ctx, &FuturesOrderRequest{
 			ClientOrderID:           s.ClientOrderID,
 			Side:                    side,
-			PositionSide:            s.Side.Position(),
+			MarginMode:              marginMode(s.MarginType),
+			PositionSide:            positionSide,
 			Symbol:                  s.Pair.String(),
 			OrderType:               orderType(s.Type),
 			ReduceOnly:              s.ReduceOnly,
 			TimeInForce:             timeInForce(s.TimeInForce),
 			Price:                   s.Price,
 			Size:                    s.Amount,
-			MarginMode:              marginMode(s.MarginType),
 			SelfTradePreventionMode: stpMode,
 		})
 		if err != nil {
@@ -1893,6 +1914,9 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 
 // WebsocketSubmitOrder submits an order to the exchange via a websocket connection
 func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
+		return nil, err
+	}
 	var err error
 	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
@@ -1900,6 +1924,11 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	}
 	if s.AssetType != asset.Spot {
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, s.AssetType)
+	}
+	switch s.Type {
+	case order.Market, order.Limit, order.LimitMaker:
+	default:
+		return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, s.Type)
 	}
 	var stpMode string
 	switch s.TimeInForce {
@@ -1911,13 +1940,13 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	response, err := e.WsCreateOrder(ctx, &PlaceOrderRequest{
 		Symbol:                  s.Pair,
 		Price:                   s.Price,
-		Amount:                  s.Amount,
+		Quantity:                s.Amount,
+		Amount:                  s.QuoteAmount,
 		AllowBorrow:             false,
 		Type:                    orderType(s.Type),
 		Side:                    s.Side.String(),
 		TimeInForce:             timeInForce(s.TimeInForce),
 		ClientOrderID:           s.ClientOrderID,
-		SlippageTolerance:       "0",
 		SelfTradePreventionMode: stpMode,
 	})
 	if err != nil {

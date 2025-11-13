@@ -164,7 +164,7 @@ func (e *Exchange) wsHandleData(_ context.Context, conn websocket.Connection, re
 			}
 			fallthrough
 		default:
-			log.Debugf(log.ExchangeSys, "Unexpected event message %s", string(respRaw))
+			log.Debugf(log.ExchangeSys, "Unexpected event message spot %s", string(respRaw))
 		}
 		return nil
 	}
@@ -511,7 +511,7 @@ func (e *Exchange) handleSubscription(operation string, s *subscription.Subscrip
 
 	switch s.Channel {
 	case subscription.OrderbookChannel, channelBooks:
-		sp.Depth = uint64(s.Levels)
+		sp.Depth = int64(s.Levels)
 	case channelCurrencies:
 		for _, p := range s.Pairs {
 			if !slices.Contains(sp.Currencies, p.Base.String()) {

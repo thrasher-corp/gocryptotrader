@@ -19,6 +19,8 @@ func (m marginMode) MarshalText() ([]byte, error) {
 		return []byte("CROSS"), nil
 	case margin.Isolated:
 		return []byte("ISOLATED"), nil
+	case margin.Unset:
+		return []byte(""), nil
 	}
 	return nil, fmt.Errorf("%w: %q", margin.ErrMarginTypeUnsupported, m)
 }

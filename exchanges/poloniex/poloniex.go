@@ -38,8 +38,8 @@ var (
 	errInvalidTimeout         = errors.New("invalid timeout")
 	errAccountIDRequired      = errors.New("missing account ID")
 	errAccountTypeRequired    = errors.New("account type required")
-	errTrailingOffsetInvalid  = errors.New("invalid trailing offset required for trailing stop orders")
-	errOffsetLimitInvalid     = errors.New("invalid offset required for trailing stop limit orders")
+	errInvalidTrailingOffset  = errors.New("invalid trailing offset required for trailing stop orders")
+	errInvalidOffsetLimit     = errors.New("invalid offset required for trailing stop limit orders")
 )
 
 // Exchange is the overarching type across the poloniex package
@@ -601,7 +601,7 @@ func validateOrderRequest(arg *PlaceOrderRequest) error {
 		return currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
-		return order.ErrSideIsInvalid
+		return fmt.Errorf("%w: %s", order.ErrSideIsInvalid, arg.Side)
 	}
 	isMarket := arg.Type == orderType(order.Market) || arg.Type == orderType(order.UnknownType)
 	if !isMarket && arg.Price <= 0 {
@@ -795,11 +795,11 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequest)
 	if arg.Type == orderType(order.StopLimit) && arg.Price <= 0 {
 		return nil, fmt.Errorf("%w %w", order.ErrPriceMustBeSetIfLimitOrder, limits.ErrPriceBelowMin)
 	}
-	if (arg.Type == orderType(order.TrailingStop) || arg.Type == orderType(order.TrailingStopLimit)) && arg.TrailingOffset == "" {
-		return nil, errTrailingOffsetInvalid
+	if (order.Type(arg.Type)&order.TrailingStop == order.TrailingStop) && arg.TrailingOffset == "" {
+		return nil, errInvalidTrailingOffset
 	}
 	if arg.Type == orderType(order.TrailingStopLimit) && arg.LimitOffset == "" {
-		return nil, errOffsetLimitInvalid
+		return nil, errInvalidOffsetLimit
 	}
 	var resp *PlaceOrderResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCreateSmartOrdersEPL, http.MethodPost, "/smartorders", nil, arg, &resp); err != nil {

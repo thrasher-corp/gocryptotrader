@@ -5,25 +5,17 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 // WsCreateOrder create an order for an account.
 func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*PlaceOrderResponse, error) {
-	if arg.Symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
+	if err := validateOrderRequest(arg); err != nil {
+		return nil, err
 	}
-	if arg.Side == "" {
-		return nil, order.ErrSideIsInvalid
-	}
-	if arg.Amount <= 0 {
-		return nil, limits.ErrAmountBelowMin
-	}
-	var resp []PlaceOrderResponse
+	var resp []*PlaceOrderResponse
 	if err := e.SendWebsocketRequest(ctx, "createOrder", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -32,7 +24,7 @@ func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 	} else if resp[0].Code != 0 {
 		return nil, fmt.Errorf("%w: error code: %d message: %s", common.ErrNoResponse, resp[0].Code, resp[0].Message)
 	}
-	return &resp[0], nil
+	return resp[0], nil
 }
 
 // WsCancelMultipleOrdersByIDs batch cancel one or many active orders in an account by IDs through the websocket stream.
