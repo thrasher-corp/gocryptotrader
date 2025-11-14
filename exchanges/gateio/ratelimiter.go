@@ -138,12 +138,10 @@ const (
 	perpetualPositionEPL
 	perpetualUpdateMarginEPL
 	perpetualUpdateLeverageEPL
-	perpetualUpdateRiskEPL
 	perpetualToggleDualModeEPL
 	perpetualPositionsDualModeEPL
 	perpetualUpdateMarginDualModeEPL
 	perpetualUpdateLeverageDualModeEPL
-	perpetualUpdateRiskDualModeEPL
 	perpetualSubmitOrderEPL
 	perpetualGetOrdersEPL
 	perpetualSubmitBatchOrdersEPL
@@ -165,7 +163,6 @@ const (
 	deliveryPositionsEPL
 	deliveryUpdateMarginEPL
 	deliveryUpdateLeverageEPL
-	deliveryUpdateRiskLimitEPL
 	deliverySubmitOrderEPL
 	deliveryGetOrdersEPL
 	deliveryCancelOrdersEPL
@@ -194,6 +191,15 @@ const (
 	optionsTradingHistoryEPL
 
 	websocketRateLimitNotNeededEPL
+
+	// Risk EPLs
+	publicFuturesRiskTableEPL
+	publicFuturesRiskLimitTiersEPL
+	publicDeliveryRiskLimitTiersEPL
+	unifiedUserRiskUnitDetailsEPL
+	deliveryUpdateRiskLimitEPL
+	perpetualUpdateRiskDualModeEPL
+	perpetualUpdateRiskEPL
 )
 
 // package level rate limits for REST API
@@ -326,12 +332,10 @@ var packageRateLimits = request.RateLimitDefinitions{
 	perpetualPositionEPL:               standardRateLimit(),
 	perpetualUpdateMarginEPL:           standardRateLimit(),
 	perpetualUpdateLeverageEPL:         standardRateLimit(),
-	perpetualUpdateRiskEPL:             standardRateLimit(),
 	perpetualToggleDualModeEPL:         standardRateLimit(),
 	perpetualPositionsDualModeEPL:      standardRateLimit(),
 	perpetualUpdateMarginDualModeEPL:   standardRateLimit(),
 	perpetualUpdateLeverageDualModeEPL: standardRateLimit(),
-	perpetualUpdateRiskDualModeEPL:     standardRateLimit(),
 	perpetualSubmitOrderEPL:            perpetualOrderplacementRateLimit(),
 	perpetualGetOrdersEPL:              standardRateLimit(),
 	perpetualSubmitBatchOrdersEPL:      perpetualOrderplacementRateLimit(),
@@ -353,7 +357,6 @@ var packageRateLimits = request.RateLimitDefinitions{
 	deliveryPositionsEPL:           standardRateLimit(),
 	deliveryUpdateMarginEPL:        standardRateLimit(),
 	deliveryUpdateLeverageEPL:      standardRateLimit(),
-	deliveryUpdateRiskLimitEPL:     standardRateLimit(),
 	deliverySubmitOrderEPL:         deliverySubmitCancelAmendRateLimit(),
 	deliveryGetOrdersEPL:           standardRateLimit(),
 	deliveryCancelOrdersEPL:        deliverySubmitCancelAmendRateLimit(),
@@ -384,6 +387,15 @@ var packageRateLimits = request.RateLimitDefinitions{
 	privateUnifiedSpotEPL: standardRateLimit(),
 
 	websocketRateLimitNotNeededEPL: nil, // no rate limit for certain websocket functions
+
+	// Risk limits
+	publicFuturesRiskTableEPL:       standardRateLimit(),
+	publicFuturesRiskLimitTiersEPL:  standardRateLimit(),
+	publicDeliveryRiskLimitTiersEPL: standardRateLimit(),
+	unifiedUserRiskUnitDetailsEPL:   standardRateLimit(),
+	deliveryUpdateRiskLimitEPL:      standardRateLimit(),
+	perpetualUpdateRiskDualModeEPL:  standardRateLimit(),
+	perpetualUpdateRiskEPL:          standardRateLimit(),
 }
 
 func standardRateLimit() *request.RateLimiterWithWeight {
