@@ -172,7 +172,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	case channelAuth:
 		return conn.RequireMatchWithData("auth", respRaw)
 	case channelFuturesSymbol:
-		var resp []ProductInfo
+		var resp []*ProductInfo
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
@@ -192,14 +192,14 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	case channelFuturesTrades:
 		return e.processFuturesTrades(result.Data)
 	case channelFuturesIndexPrice:
-		var resp []InstrumentIndexPrice
+		var resp []*InstrumentIndexPrice
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
 		e.Websocket.DataHandler <- resp
 		return nil
 	case channelFuturesMarkPrice:
-		var resp []FuturesMarkPrice
+		var resp []*FuturesMarkPrice
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
@@ -208,7 +208,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	case channelFuturesFundingRate:
 		return e.processFuturesFundingRate(result.Data)
 	case channelFuturesPrivatePositions:
-		var resp []FuturesPosition
+		var resp []*FuturesPosition
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
@@ -237,7 +237,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 }
 
 func (e *Exchange) processFuturesAccountData(data []byte) error {
-	var resp []FuturesAccountBalance
+	var resp []*FuturesAccountBalance
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -261,28 +261,28 @@ func (e *Exchange) processFuturesAccountData(data []byte) error {
 }
 
 func (e *Exchange) processFuturesTradeFills(data []byte) error {
-	var resp []FuturesTradeFill
+	var resp []*FuturesTradeFill
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	tFills := make([]fill.Data, len(resp))
-	for a := range resp {
-		oSide, err := order.StringToOrderSide(resp[a].Side)
+	for i := range resp {
+		oSide, err := order.StringToOrderSide(resp[i].Side)
 		if err != nil {
 			return err
 		}
-		tFills[a] = fill.Data{
+		tFills[i] = fill.Data{
 			Side:          oSide,
 			Exchange:      e.Name,
 			AssetType:     asset.Futures,
-			CurrencyPair:  resp[a].Symbol,
-			OrderID:       resp[a].OrderID,
-			ID:            resp[a].TradeID,
-			TradeID:       resp[a].TradeID,
-			ClientOrderID: resp[a].ClientOrderID,
-			Timestamp:     resp[a].UpdateTime.Time(),
-			Price:         resp[a].FillPrice.Float64(),
-			Amount:        resp[a].FillQuantity.Float64(),
+			CurrencyPair:  resp[i].Symbol,
+			OrderID:       resp[i].OrderID,
+			ID:            resp[i].TradeID,
+			TradeID:       resp[i].TradeID,
+			ClientOrderID: resp[i].ClientOrderID,
+			Timestamp:     resp[i].UpdateTime.Time(),
+			Price:         resp[i].FillPrice.Float64(),
+			Amount:        resp[i].FillQuantity.Float64(),
 		}
 	}
 	e.Websocket.DataHandler <- tFills
@@ -290,44 +290,44 @@ func (e *Exchange) processFuturesTradeFills(data []byte) error {
 }
 
 func (e *Exchange) processFuturesOrders(data []byte) error {
-	var resp []FuturesOrderDetails
+	var resp []*FuturesOrderDetails
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	orders := make([]order.Detail, len(resp))
-	for o := range resp {
-		oType, err := order.StringToOrderType(resp[o].OrderType)
+	for i := range resp {
+		oType, err := order.StringToOrderType(resp[i].OrderType)
 		if err != nil {
 			return err
 		}
-		oSide, err := order.StringToOrderSide(resp[o].Side)
+		oSide, err := order.StringToOrderSide(resp[i].Side)
 		if err != nil {
 			return err
 		}
-		oStatus, err := order.StringToOrderStatus(resp[o].State)
+		oStatus, err := order.StringToOrderStatus(resp[i].State)
 		if err != nil {
 			return err
 		}
-		orders[o] = order.Detail{
-			ReduceOnly:           resp[o].ReduceOnly,
-			Leverage:             resp[o].Leverage.Float64(),
-			Price:                resp[o].Price.Float64(),
-			Amount:               resp[o].Size.Float64(),
-			TriggerPrice:         resp[o].TakeProfitTriggerPrice.Float64(),
-			AverageExecutedPrice: resp[o].AveragePrice.Float64(),
-			ExecutedAmount:       resp[o].ExecQuantity.Float64(),
-			RemainingAmount:      resp[o].Size.Float64() - resp[o].ExecQuantity.Float64(),
-			Fee:                  resp[o].FeeAmount.Float64(),
-			FeeAsset:             resp[o].FeeCurrency,
+		orders[i] = order.Detail{
+			ReduceOnly:           resp[i].ReduceOnly,
+			Leverage:             resp[i].Leverage.Float64(),
+			Price:                resp[i].Price.Float64(),
+			Amount:               resp[i].Size.Float64(),
+			TriggerPrice:         resp[i].TakeProfitTriggerPrice.Float64(),
+			AverageExecutedPrice: resp[i].AveragePrice.Float64(),
+			ExecutedAmount:       resp[i].ExecQuantity.Float64(),
+			RemainingAmount:      resp[i].Size.Float64() - resp[i].ExecQuantity.Float64(),
+			Fee:                  resp[i].FeeAmount.Float64(),
+			FeeAsset:             resp[i].FeeCurrency,
 			Exchange:             e.Name,
-			OrderID:              resp[o].OrderID,
-			ClientOrderID:        resp[o].ClientOrderID,
+			OrderID:              resp[i].OrderID,
+			ClientOrderID:        resp[i].ClientOrderID,
 			Type:                 oType,
 			Side:                 oSide,
 			Status:               oStatus,
 			AssetType:            asset.Futures,
-			Date:                 resp[o].CreationTime.Time(),
-			Pair:                 resp[o].Symbol,
+			Date:                 resp[i].CreationTime.Time(),
+			Pair:                 resp[i].Symbol,
 		}
 	}
 	e.Websocket.DataHandler <- orders
@@ -335,7 +335,7 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 }
 
 func (e *Exchange) processFuturesFundingRate(data []byte) error {
-	var resp []FuturesFundingRate
+	var resp []*FuturesFundingRate
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -353,25 +353,25 @@ func (e *Exchange) processFuturesFundingRate(data []byte) error {
 }
 
 func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(data []byte, interval kline.Interval) error {
-	var resp []WsFuturesMarkAndIndexPriceCandle
+	var resp []*WsFuturesMarkAndIndexPriceCandle
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 
 	candles := make([]websocket.KlineData, len(resp))
-	for a := range resp {
-		candles[a] = websocket.KlineData{
-			Timestamp:  resp[a].PushTimestamp.Time(),
-			Pair:       resp[a].Symbol,
+	for i := range resp {
+		candles[i] = websocket.KlineData{
+			Timestamp:  resp[i].PushTimestamp.Time(),
+			Pair:       resp[i].Symbol,
 			AssetType:  asset.Futures,
 			Exchange:   e.Name,
-			StartTime:  resp[a].StartTime.Time(),
-			CloseTime:  resp[a].EndTime.Time(),
+			StartTime:  resp[i].StartTime.Time(),
+			CloseTime:  resp[i].EndTime.Time(),
 			Interval:   interval.String(),
-			OpenPrice:  resp[a].OpeningPrice.Float64(),
-			ClosePrice: resp[a].ClosingPrice.Float64(),
-			HighPrice:  resp[a].HighestPrice.Float64(),
-			LowPrice:   resp[a].LowestPrice.Float64(),
+			OpenPrice:  resp[i].OpeningPrice.Float64(),
+			ClosePrice: resp[i].ClosingPrice.Float64(),
+			HighPrice:  resp[i].HighestPrice.Float64(),
+			LowPrice:   resp[i].LowestPrice.Float64(),
 		}
 	}
 	e.Websocket.DataHandler <- candles
@@ -379,39 +379,39 @@ func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(data []byte, inte
 }
 
 func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
-	var resp []WSFuturesOrderbook
+	var resp []*WSFuturesOrderbook
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	for x := range resp {
-		_, okay := onceFuturesOrderbook[resp[x].Symbol.String()]
+	for i := range resp {
+		_, okay := onceFuturesOrderbook[resp[i].Symbol.String()]
 		if !okay || action == "snapshot" {
 			if onceFuturesOrderbook == nil {
 				onceFuturesOrderbook = make(map[string]bool)
 			}
-			onceFuturesOrderbook[resp[x].Symbol.String()] = true
+			onceFuturesOrderbook[resp[i].Symbol.String()] = true
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Bids:         resp[x].Bids.Levels(),
-				Asks:         resp[x].Asks.Levels(),
+				Bids:         resp[i].Bids.Levels(),
+				Asks:         resp[i].Asks.Levels(),
 				Exchange:     e.Name,
-				LastUpdateID: resp[x].ID,
+				LastUpdateID: resp[i].ID,
 				Asset:        asset.Futures,
-				Pair:         resp[x].Symbol,
-				LastUpdated:  resp[x].CreationTime.Time(),
+				Pair:         resp[i].Symbol,
+				LastUpdated:  resp[i].CreationTime.Time(),
 			}); err != nil {
 				return err
 			}
 			continue
 		}
 		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
-			UpdateID:   resp[x].ID,
-			UpdateTime: resp[x].CreationTime.Time(),
-			LastPushed: resp[x].Timestamp.Time(),
+			UpdateID:   resp[i].ID,
+			UpdateTime: resp[i].CreationTime.Time(),
+			LastPushed: resp[i].Timestamp.Time(),
 			Action:     orderbook.UpdateAction,
 			Asset:      asset.Futures,
-			Pair:       resp[x].Symbol,
-			Asks:       resp[x].Asks.Levels(),
-			Bids:       resp[x].Bids.Levels(),
+			Pair:       resp[i].Symbol,
+			Asks:       resp[i].Asks.Levels(),
+			Bids:       resp[i].Bids.Levels(),
 		}); err != nil {
 			return err
 		}
@@ -420,28 +420,28 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 }
 
 func (e *Exchange) processFuturesTickers(data []byte) error {
-	var resp []FuturesTickerDetails
+	var resp []*FuturesTickerDetails
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	tickerPrices := make([]ticker.Price, len(resp))
-	for a := range resp {
-		tickerPrices[a] = ticker.Price{
-			High:         resp[a].HighPrice.Float64(),
-			Low:          resp[a].LowPrice.Float64(),
-			Bid:          resp[a].BestBidPrice.Float64(),
-			BidSize:      resp[a].BestBidSize.Float64(),
-			Ask:          resp[a].BestAskPrice.Float64(),
-			AskSize:      resp[a].BestAskSize.Float64(),
-			Volume:       resp[a].Quantity.Float64(),
-			QuoteVolume:  resp[a].Amount.Float64(),
-			Open:         resp[a].OpeningPrice.Float64(),
-			Close:        resp[a].ClosingPrice.Float64(),
-			MarkPrice:    resp[a].MarkPrice.Float64(),
-			Pair:         resp[a].Symbol,
+	for i := range resp {
+		tickerPrices[i] = ticker.Price{
+			High:         resp[i].HighPrice.Float64(),
+			Low:          resp[i].LowPrice.Float64(),
+			Bid:          resp[i].BestBidPrice.Float64(),
+			BidSize:      resp[i].BestBidSize.Float64(),
+			Ask:          resp[i].BestAskPrice.Float64(),
+			AskSize:      resp[i].BestAskSize.Float64(),
+			Volume:       resp[i].Quantity.Float64(),
+			QuoteVolume:  resp[i].Amount.Float64(),
+			Open:         resp[i].OpeningPrice.Float64(),
+			Close:        resp[i].ClosingPrice.Float64(),
+			MarkPrice:    resp[i].MarkPrice.Float64(),
+			Pair:         resp[i].Symbol,
 			ExchangeName: e.Name,
 			AssetType:    asset.Futures,
-			LastUpdated:  resp[a].Timestamp.Time(),
+			LastUpdated:  resp[i].Timestamp.Time(),
 		}
 	}
 	e.Websocket.DataHandler <- tickerPrices
@@ -450,25 +450,25 @@ func (e *Exchange) processFuturesTickers(data []byte) error {
 
 // processFuturesTrades handles latest trading data for this product, including the latest price, trading volume, trading direction, etc.
 func (e *Exchange) processFuturesTrades(data []byte) error {
-	var resp []FuturesTrades
+	var resp []*FuturesTrades
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	trades := make([]trade.Data, len(resp))
-	for t := range resp {
-		oSide, err := order.StringToOrderSide(resp[t].Side)
+	for i := range resp {
+		oSide, err := order.StringToOrderSide(resp[i].Side)
 		if err != nil {
 			return err
 		}
-		trades[t] = trade.Data{
-			TID:          trades[t].TID,
+		trades[i] = trade.Data{
+			TID:          strconv.FormatInt(resp[i].ID, 10),
 			Exchange:     e.Name,
 			Side:         oSide,
 			AssetType:    asset.Futures,
-			CurrencyPair: resp[t].Symbol,
-			Price:        resp[t].Price.Float64(),
-			Amount:       resp[t].Amount.Float64(),
-			Timestamp:    resp[t].Timestamp.Time(),
+			CurrencyPair: resp[i].Symbol,
+			Price:        resp[i].Price.Float64(),
+			Amount:       resp[i].Amount.Float64(),
+			Timestamp:    resp[i].Timestamp.Time(),
 		}
 	}
 	e.Websocket.DataHandler <- trades
@@ -476,49 +476,43 @@ func (e *Exchange) processFuturesTrades(data []byte) error {
 }
 
 func (e *Exchange) processFuturesCandlesticks(data []byte, interval kline.Interval) error {
-	var resp []WsFuturesCandlesctick
+	var resp []*WsFuturesCandlesctick
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 
 	candles := make([]websocket.KlineData, len(resp))
-	for a := range resp {
-		candles[a] = websocket.KlineData{
-			Timestamp:  resp[a].PushTime.Time(),
-			Pair:       resp[a].Symbol,
+	for i := range resp {
+		candles[i] = websocket.KlineData{
+			Timestamp:  resp[i].PushTime.Time(),
+			Pair:       resp[i].Symbol,
 			AssetType:  asset.Futures,
 			Exchange:   e.Name,
-			StartTime:  resp[a].StartTime.Time(),
-			CloseTime:  resp[a].EndTime.Time(),
+			StartTime:  resp[i].StartTime.Time(),
+			CloseTime:  resp[i].EndTime.Time(),
 			Interval:   interval.String(),
-			OpenPrice:  resp[a].OpenPrice.Float64(),
-			ClosePrice: resp[a].ClosePrice.Float64(),
-			HighPrice:  resp[a].HighestPrice.Float64(),
-			LowPrice:   resp[a].LowestPrice.Float64(),
-			Volume:     resp[a].Amount.Float64(),
+			OpenPrice:  resp[i].OpenPrice.Float64(),
+			ClosePrice: resp[i].ClosePrice.Float64(),
+			HighPrice:  resp[i].HighestPrice.Float64(),
+			LowPrice:   resp[i].LowestPrice.Float64(),
+			Volume:     resp[i].Amount.Float64(),
 		}
 	}
 	e.Websocket.DataHandler <- candles
 	return nil
 }
 
-func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscription.List) []SubscriptionPayload {
-	var payloads []SubscriptionPayload
-	for x := range subscs {
-		if len(subscs[x].Pairs) == 0 || subscs[x].QualifiedChannel == channelFuturesAccount {
-			input := SubscriptionPayload{
-				Event:   operation,
-				Channel: []string{subscs[x].QualifiedChannel},
-			}
-			payloads = append(payloads, input)
-		} else {
-			input := SubscriptionPayload{
-				Event:   operation,
-				Channel: []string{subscs[x].QualifiedChannel},
-			}
-			input.Symbols = subscs[x].Pairs.Strings()
-			payloads = append(payloads, input)
+func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscription.List) []*SubscriptionPayload {
+	var payloads []*SubscriptionPayload
+	for i := range subscs {
+		input := &SubscriptionPayload{
+			Event:   operation,
+			Channel: []string{subscs[i].QualifiedChannel},
 		}
+		if len(subscs[i].Pairs) != 0 && subscs[i].QualifiedChannel != channelFuturesAccount {
+			input.Symbols = subscs[i].Pairs.Strings()
+		}
+		payloads = append(payloads, input)
 	}
 	return payloads
 }

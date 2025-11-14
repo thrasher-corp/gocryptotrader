@@ -699,15 +699,15 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 
 			sOrder, err := e.CreateSmartOrder(ctx, &SmartOrderRequest{
 				Symbol:         s.Pair,
-				Type:           orderType(s.Type),
+				Type:           OrderType(s.Type),
 				Side:           s.Side,
-				AccountType:    accountType(s.AssetType),
+				AccountType:    AccountType(s.AssetType),
 				Price:          s.Price,
 				StopPrice:      s.TriggerPrice,
 				Quantity:       s.Amount,
 				Amount:         s.QuoteAmount,
 				ClientOrderID:  s.ClientOrderID,
-				TimeInForce:    timeInForce(s.TimeInForce),
+				TimeInForce:    TimeInForce(s.TimeInForce),
 				TrailingOffset: trackingDistance,
 			})
 			if err != nil {
@@ -721,9 +721,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				Quantity:                s.Amount,
 				Amount:                  s.QuoteAmount,
 				AllowBorrow:             false,
-				Type:                    orderType(s.Type),
+				Type:                    OrderType(s.Type),
 				Side:                    s.Side.String(),
-				TimeInForce:             timeInForce(s.TimeInForce),
+				TimeInForce:             TimeInForce(s.TimeInForce),
 				ClientOrderID:           s.ClientOrderID,
 				SelfTradePreventionMode: stpMode,
 				SlippageTolerance:       "0",
@@ -762,9 +762,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			MarginMode:              marginMode(s.MarginType),
 			PositionSide:            positionSide,
 			Symbol:                  s.Pair.String(),
-			OrderType:               orderType(s.Type),
+			OrderType:               OrderType(s.Type),
 			ReduceOnly:              s.ReduceOnly,
-			TimeInForce:             timeInForce(s.TimeInForce),
+			TimeInForce:             TimeInForce(s.TimeInForce),
 			Price:                   s.Price,
 			Size:                    s.Amount,
 			SelfTradePreventionMode: stpMode,
@@ -794,7 +794,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			Price:             action.Price,
 			Quantity:          action.Amount,
 			AmendedType:       action.Type.String(),
-			TimeInForce:       timeInForce(action.TimeInForce),
+			TimeInForce:       TimeInForce(action.TimeInForce),
 			SlippageTolerance: 0,
 		})
 		if err != nil {
@@ -813,9 +813,9 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			Price:            action.Price,
 			StopPrice:        action.TriggerPrice,
 			Amount:           action.Amount,
-			AmendedType:      orderType(action.Type),
+			AmendedType:      OrderType(action.Type),
 			ProceedOnFailure: !action.TimeInForce.Is(order.ImmediateOrCancel),
-			TimeInForce:      timeInForce(action.TimeInForce),
+			TimeInForce:      TimeInForce(action.TimeInForce),
 		})
 		if err != nil {
 			return nil, err
@@ -970,9 +970,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 	case asset.Spot:
 		switch cancelOrd.Type {
 		case order.TrailingStop, order.TrailingStopLimit, order.StopLimit, order.Stop:
-			var orderTypes []orderType
+			var orderTypes []OrderType
 			if cancelOrd.Type != order.UnknownType {
-				orderTypes = append(orderTypes, orderType(cancelOrd.Type))
+				orderTypes = append(orderTypes, OrderType(cancelOrd.Type))
 			}
 			resp, err := e.CancelSmartOrders(ctx, pairs, nil, orderTypes)
 			if err != nil {
@@ -983,7 +983,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			}
 		default:
 			if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				wsResponse, err := e.WsCancelTradeOrders(ctx, pairs.Strings(), []accountType{accountType(cancelOrd.AssetType)})
+				wsResponse, err := e.WsCancelTradeOrders(ctx, pairs.Strings(), []AccountType{AccountType(cancelOrd.AssetType)})
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
@@ -993,7 +993,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 					}
 				}
 			} else {
-				resp, err := e.CancelTradeOrders(ctx, pairs.Strings(), []accountType{accountType(cancelOrd.AssetType)})
+				resp, err := e.CancelTradeOrders(ctx, pairs.Strings(), []AccountType{AccountType(cancelOrd.AssetType)})
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
@@ -1943,9 +1943,9 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		Quantity:                s.Amount,
 		Amount:                  s.QuoteAmount,
 		AllowBorrow:             false,
-		Type:                    orderType(s.Type),
+		Type:                    OrderType(s.Type),
 		Side:                    s.Side.String(),
-		TimeInForce:             timeInForce(s.TimeInForce),
+		TimeInForce:             TimeInForce(s.TimeInForce),
 		ClientOrderID:           s.ClientOrderID,
 		SelfTradePreventionMode: stpMode,
 	})

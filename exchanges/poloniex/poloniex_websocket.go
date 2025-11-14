@@ -71,8 +71,6 @@ var subscriptionNames = map[string]string{
 	subscription.MyAccountChannel: channelBalances,
 }
 
-var onceOrderbook map[currency.Pair]struct{}
-
 func setupPingHandler(conn websocket.Connection) {
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
@@ -90,7 +88,10 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 		return err
 	}
 	setupPingHandler(conn)
-	onceOrderbook = make(map[currency.Pair]struct{})
+
+	e.onceWebsocketOrderbookLock.Lock()
+	e.onceWebsocketOrderbookCache = make(map[currency.Pair]bool)
+	e.onceWebsocketOrderbookLock.Unlock()
 	return nil
 }
 
@@ -102,7 +103,7 @@ func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) er
 	return nil
 }
 
-// authenticateSpotAuthConn authenticates a futures websocket connection
+// authenticateSpotAuthConn authenticates a spot websocket connection
 func (e *Exchange) authenticateSpotAuthConn(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
@@ -295,10 +296,12 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 		if err != nil {
 			return err
 		}
-		_, okay := onceOrderbook[cp]
+		e.onceWebsocketOrderbookLock.Lock()
+		defer e.onceWebsocketOrderbookLock.Unlock()
+		_, okay := e.onceWebsocketOrderbookCache[cp]
 		if !okay {
-			if onceOrderbook == nil {
-				onceOrderbook = make(map[currency.Pair]struct{})
+			if e.onceWebsocketOrderbookCache == nil {
+				e.onceWebsocketOrderbookCache = make(map[currency.Pair]bool)
 			}
 			var (
 				orderbooks *orderbook.Book
@@ -311,7 +314,7 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 			if err := e.Websocket.Orderbook.LoadSnapshot(orderbooks); err != nil {
 				return err
 			}
-			onceOrderbook[cp] = struct{}{}
+			e.onceWebsocketOrderbookCache[cp] = true
 		}
 		update := orderbook.Update{
 			Pair:       cp,
@@ -418,7 +421,7 @@ func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 			return err
 		}
 		tickerData[x] = ticker.Price{
-			Last:         resp[x].MarkPrice.Float64(),
+			MarkPrice:    resp[x].MarkPrice.Float64(),
 			High:         resp[x].High.Float64(),
 			Low:          resp[x].Low.Float64(),
 			Volume:       resp[x].Quantity.Float64(),

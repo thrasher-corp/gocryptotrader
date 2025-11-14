@@ -12,12 +12,12 @@ import (
 )
 
 type (
-	timeInForce order.TimeInForce
-	orderType   order.Type
-	accountType asset.Item
+	TimeInForce order.TimeInForce
+	OrderType   order.Type
+	AccountType asset.Item
 )
 
-func (t timeInForce) MarshalText() ([]byte, error) {
+func (t TimeInForce) MarshalText() ([]byte, error) {
 	tif := order.TimeInForce(t)
 	switch {
 	case tif.Is(order.GoodTillCancel):
@@ -32,7 +32,7 @@ func (t timeInForce) MarshalText() ([]byte, error) {
 	return nil, fmt.Errorf("%w: %q", order.ErrInvalidTimeInForce, t)
 }
 
-func (o orderType) MarshalText() ([]byte, error) {
+func (o OrderType) MarshalText() ([]byte, error) {
 	t := order.Type(o)
 	switch t {
 	case order.Market:
@@ -55,7 +55,7 @@ func (o orderType) MarshalText() ([]byte, error) {
 	return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, o)
 }
 
-func (a accountType) MarshalText() ([]byte, error) {
+func (a AccountType) MarshalText() ([]byte, error) {
 	switch asset.Item(a) {
 	case asset.Spot:
 		return []byte("SPOT"), nil
@@ -540,7 +540,7 @@ type MarginBuySellAmount struct {
 type PlaceOrderRequest struct {
 	Symbol      currency.Pair `json:"symbol"`
 	Side        string        `json:"side"`
-	Type        orderType     `json:"type,omitempty"`
+	Type        OrderType     `json:"type,omitempty"`
 	AccountType string        `json:"accountType,omitempty"`
 
 	// Quantity Base units for the order. Quantity is required for MARKET SELL or any LIMIT orders
@@ -552,7 +552,7 @@ type PlaceOrderRequest struct {
 	// Price is required for non-market orders
 	Price float64 `json:"price,omitempty,string"`
 
-	TimeInForce   timeInForce `json:"timeInForce,omitempty"` // GTC, IOC, FOK (Default: GTC)
+	TimeInForce   TimeInForce `json:"timeInForce,omitempty"` // GTC, IOC, FOK (Default: GTC)
 	ClientOrderID string      `json:"clientOrderId,omitempty"`
 
 	AllowBorrow             bool   `json:"allowBorrow,omitempty"`
@@ -587,7 +587,7 @@ type CancelReplaceOrderRequest struct {
 	Quantity          float64     `json:"quantity,omitempty,string"`
 	Amount            float64     `json:"amount,omitempty,string"`
 	AmendedType       string      `json:"type,omitempty,string"`
-	TimeInForce       timeInForce `json:"timeInForce,omitempty"`
+	TimeInForce       TimeInForce `json:"timeInForce,omitempty"`
 	AllowBorrow       bool        `json:"allowBorrow,omitempty"`
 	ProceedOnFailure  bool        `json:"proceedOnFailure,omitempty,string"`
 	SlippageTolerance float64     `json:"slippageTolerance,omitempty,string"`
@@ -699,9 +699,9 @@ type KillSwitchStatus struct {
 type SmartOrderRequest struct {
 	Symbol         currency.Pair `json:"symbol"`
 	Side           order.Side    `json:"side"`
-	TimeInForce    timeInForce   `json:"timeInForce,omitempty"`
-	AccountType    accountType   `json:"accountType,omitempty"`
-	Type           orderType     `json:"type,omitempty"`
+	TimeInForce    TimeInForce   `json:"timeInForce,omitempty"`
+	AccountType    AccountType   `json:"accountType,omitempty"`
+	Type           OrderType     `json:"type,omitempty"`
 	Price          float64       `json:"price,omitempty,string"`
 	StopPrice      float64       `json:"stopPrice,omitempty,string"`
 	Quantity       float64       `json:"quantity,omitempty,string"`
@@ -721,8 +721,8 @@ type CancelReplaceSmartOrderRequest struct {
 	StopPrice            float64     `json:"stopPrice,omitempty,string"`
 	Quantity             float64     `json:"quantity,omitempty,string"`
 	Amount               float64     `json:"amount,omitempty,string"`
-	AmendedType          orderType   `json:"type,omitempty,string"`
-	TimeInForce          timeInForce `json:"timeInForce,omitempty"`
+	AmendedType          OrderType   `json:"type,omitempty,string"`
+	TimeInForce          TimeInForce `json:"timeInForce,omitempty"`
 	ProceedOnFailure     bool        `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
 }
 

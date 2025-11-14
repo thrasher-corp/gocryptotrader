@@ -85,12 +85,12 @@ type FuturesOrderRequest struct {
 	Side                    string      `json:"side"`
 	MarginMode              marginMode  `json:"mgnMode"`
 	PositionSide            order.Side  `json:"posSide"`
-	OrderType               orderType   `json:"type,omitempty"`
+	OrderType               OrderType   `json:"type,omitempty"`
 	ClientOrderID           string      `json:"clOrdId,omitempty"`
 	Price                   float64     `json:"px,omitempty,string"`
 	Size                    float64     `json:"sz,omitempty,string"`
 	ReduceOnly              bool        `json:"reduceOnly,omitempty"`
-	TimeInForce             timeInForce `json:"timeInForce,omitempty"`
+	TimeInForce             TimeInForce `json:"timeInForce,omitempty"`
 	SelfTradePreventionMode string      `json:"stpMode,omitempty"`
 }
 
@@ -306,7 +306,7 @@ type InstrumentIndexPrice struct {
 }
 
 // IndexPriceComponent represents an index price component detail
-type IndexPriceComponent []struct {
+type IndexPriceComponent struct {
 	Symbol currency.Pair `json:"s"`
 	Price  types.Number  `json:"px"`
 	Cs     []struct {

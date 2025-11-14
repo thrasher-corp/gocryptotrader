@@ -659,7 +659,6 @@ var acceptableErrors = []error{
 	ticker.ErrTickerNotFound,
 	orderbook.ErrOrderbookNotFound,
 	websocket.ErrNotConnected,
-	websocket.ErrWebsocketNotEnabled,
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest

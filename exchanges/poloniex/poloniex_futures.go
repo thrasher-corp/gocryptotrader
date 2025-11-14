@@ -76,10 +76,11 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderReque
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
-	if arg.MarginMode != marginMode(margin.Unset) && arg.PositionSide == order.UnknownSide {
-		return nil, fmt.Errorf("%w: either both margin mode and position side filds are filled or left blank", order.ErrSideIsInvalid)
+	if (arg.MarginMode != marginMode(margin.Unset) && arg.PositionSide == order.UnknownSide) ||
+		(arg.MarginMode == marginMode(margin.Unset) && arg.PositionSide != order.UnknownSide) {
+		return nil, fmt.Errorf("%w: %w: either both margin mode and position side fields are filled or left blank", order.ErrSideIsInvalid, margin.ErrInvalidMarginType)
 	}
-	if arg.OrderType == orderType(order.UnknownType) {
+	if arg.OrderType == OrderType(order.UnknownType) {
 		return nil, order.ErrTypeIsInvalid
 	}
 	if arg.Size <= 0 {
@@ -89,10 +90,8 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderReque
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fOrderEPL, http.MethodPost, tradePathV3+"order", nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	if resp.Code != 0 && resp.Code != 200 {
+		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceFailed, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -102,8 +101,8 @@ func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []Future
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
-	for x := range args {
-		if err := args[x].validate(); err != nil {
+	for i := range args {
+		if err := args[i].validate(); err != nil {
 			return nil, err
 		}
 	}
@@ -121,7 +120,7 @@ func (o *FuturesOrderRequest) validate() error {
 	if o.PositionSide == order.UnknownSide {
 		return order.ErrSideIsInvalid
 	}
-	if o.OrderType == orderType(order.UnknownType) {
+	if o.OrderType == OrderType(order.UnknownType) {
 		return order.ErrTypeIsInvalid
 	}
 	if o.Size <= 0 {
@@ -142,10 +141,8 @@ func (e *Exchange) CancelFuturesOrder(ctx context.Context, arg *CancelOrderReque
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelOrderEPL, http.MethodDelete, tradePathV3+"order", nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	if resp.Code != 0 && resp.Code != 200 {
+		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrCancelFailed, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -204,10 +201,8 @@ func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol, marginMode, p
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelPositionAtMarketPriceEPL, http.MethodPost, tradePathV3+"position", nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	} else if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp.Code, resp.Message)
+	if resp.Code != 0 && resp.Code != 200 {
+		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrCancelFailed, resp.Code, resp.Message)
 	}
 	return resp, nil
 }
@@ -578,13 +573,19 @@ func (e *Exchange) GetIndexPriceComponents(ctx context.Context, symbol string) (
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var resp *IndexPriceComponent
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"indexPriceComponents", params), &resp)
+	var resp []*IndexPriceComponent
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"indexPriceComponents", params), &resp); err != nil {
+		return nil, err
+	}
+	if len(resp) != 1 {
+		return nil, common.ErrInvalidResponse
+	}
+	return resp[0], nil
 }
 
-// GetInstrumentsIndexPriceComponents returns index price components for all trading pairs.
-func (e *Exchange) GetInstrumentsIndexPriceComponents(ctx context.Context) (*IndexPriceComponent, error) {
-	var resp *IndexPriceComponent
+// GetInstrumentsIndexPriceComponents returns index price components for a single pairs.
+func (e *Exchange) GetInstrumentsIndexPriceComponents(ctx context.Context) ([]*IndexPriceComponent, error) {
+	var resp []*IndexPriceComponent
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, marketsPathV3+"indexPriceComponents", &resp)
 }
 

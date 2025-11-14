@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -45,6 +46,9 @@ var (
 // Exchange is the overarching type across the poloniex package
 type Exchange struct {
 	exchange.Base
+
+	onceWebsocketOrderbookCache map[currency.Pair]bool
+	onceWebsocketOrderbookLock  sync.Mutex
 }
 
 // GetSymbol returns symbol and trade limit info
@@ -245,7 +249,7 @@ func (e *Exchange) GetAccountBalances(ctx context.Context, accountID, accountTyp
 		params.Set("accountType", accountType)
 	}
 	var resp []*AccountBalances
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unauthEPL, http.MethodGet, "/accounts/"+accountID+"/balances", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountBalancesEPL, http.MethodGet, "/accounts/"+accountID+"/balances", params, nil, &resp)
 }
 
 // GetAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
@@ -335,7 +339,7 @@ func (e *Exchange) GetAccountsTransferRecordByTransferID(ctx context.Context, tr
 		return nil, errAccountIDRequired
 	}
 	var resp *AccountTransferRecord
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unauthEPL, http.MethodGet, "/accounts/transfer/"+transferID, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountsTransferRecordsEPL, http.MethodGet, "/accounts/transfer/"+transferID, nil, nil, &resp)
 }
 
 // GetFeeInfo retrieves fee rate for an account
@@ -429,10 +433,10 @@ func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, arg *SubAcc
 	}
 	params := url.Values{}
 	if !arg.StartTime.IsZero() {
-		params.Set("startTime", arg.StartTime.String())
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if !arg.EndTime.IsZero() {
-		params.Set("endTime", arg.EndTime.String())
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	if !arg.Currency.IsEmpty() {
 		params.Set("currency", arg.Currency.String())
@@ -459,7 +463,7 @@ func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, arg *SubAcc
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp []*SubAccountTransfer
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unauthEPL, http.MethodGet, "/subaccounts/transfer", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSubAccountTransfersEPL, http.MethodGet, "/subaccounts/transfer", params, nil, &resp)
 }
 
 // GetSubAccountTransferRecord retrieves a subaccount transfer record.
@@ -468,7 +472,7 @@ func (e *Exchange) GetSubAccountTransferRecord(ctx context.Context, id string) (
 		return nil, fmt.Errorf("%w: subAccountID is missing", errAccountIDRequired)
 	}
 	var resp []*SubAccountTransfer
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unauthEPL, http.MethodGet, "/subaccounts/transfer/"+id, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSubAccountTransfersEPL, http.MethodGet, "/subaccounts/transfer/"+id, nil, nil, &resp)
 }
 
 // GetDepositAddresses gets all deposit addresses for a user.
@@ -603,11 +607,11 @@ func validateOrderRequest(arg *PlaceOrderRequest) error {
 	if arg.Side == "" {
 		return fmt.Errorf("%w: %s", order.ErrSideIsInvalid, arg.Side)
 	}
-	isMarket := arg.Type == orderType(order.Market) || arg.Type == orderType(order.UnknownType)
+	isMarket := arg.Type == OrderType(order.Market) || arg.Type == OrderType(order.UnknownType)
 	if !isMarket && arg.Price <= 0 {
 		return fmt.Errorf("%w: price is required for non-market orders", limits.ErrPriceBelowMin)
 	}
-	if (arg.Type == orderType(order.Limit) && arg.Quantity <= 0) ||
+	if (arg.Type == OrderType(order.Limit) && arg.Quantity <= 0) ||
 		(isMarket && strings.EqualFold(arg.Side, "SELL") && arg.Quantity <= 0) {
 		return fmt.Errorf("%w: base quantity is required for market sell or limit orders", limits.ErrAmountBelowMin)
 	}
@@ -626,9 +630,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*Pla
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCreateOrderEPL, http.MethodPost, "/orders", nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	} else if resp.Code != 0 && resp.Code != 200 {
+	if resp.Code != 0 && resp.Code != 200 {
 		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceFailed, resp.Code, resp.Message)
 	}
 	return resp, nil
@@ -658,9 +660,7 @@ func (e *Exchange) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrd
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelReplaceOrderEPL, http.MethodPut, path, nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	} else if resp.Code != 0 && resp.Code != 200 {
+	if resp.Code != 0 && resp.Code != 200 {
 		return resp, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelFailed, arg.OrderID, resp.Code, resp.Message)
 	}
 	return resp, nil
@@ -698,9 +698,7 @@ func (e *Exchange) GetOrder(ctx context.Context, id, clientOrderID string) (*Tra
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOpenOrderDetailEPL, http.MethodGet, path, nil, nil, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	} else if resp.Code != 0 && resp.Code != 200 {
+	if resp.Code != 0 && resp.Code != 200 {
 		ordID := id
 		if ordID == "" {
 			ordID = clientOrderID
@@ -719,9 +717,7 @@ func (e *Exchange) CancelOrderByID(ctx context.Context, id string) (*CancelOrder
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelOrderByIDEPL, http.MethodDelete, "/orders/"+id, nil, nil, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	} else if resp.Code != 0 && resp.Code != 200 {
+	if resp.Code != 0 && resp.Code != 200 {
 		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceFailed, resp.Code, resp.Message)
 	}
 	return resp, nil
@@ -744,7 +740,7 @@ func (e *Exchange) CancelOrdersByIDs(ctx context.Context, orderIDs, clientOrderI
 }
 
 // CancelTradeOrders batch cancel all orders in an account
-func (e *Exchange) CancelTradeOrders(ctx context.Context, symbols []string, accountTypes []accountType) ([]*CancelOrderResponse, error) {
+func (e *Exchange) CancelTradeOrders(ctx context.Context, symbols []string, accountTypes []AccountType) ([]*CancelOrderResponse, error) {
 	args := make(map[string]any)
 	if len(symbols) != 0 {
 		args["symbols"] = symbols
@@ -792,22 +788,20 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequest)
 	if arg.Quantity <= 0 {
 		return nil, fmt.Errorf("%w; base quantity is required", limits.ErrAmountBelowMin)
 	}
-	if arg.Type == orderType(order.StopLimit) && arg.Price <= 0 {
+	if arg.Type == OrderType(order.StopLimit) && arg.Price <= 0 {
 		return nil, fmt.Errorf("%w %w", order.ErrPriceMustBeSetIfLimitOrder, limits.ErrPriceBelowMin)
 	}
 	if (order.Type(arg.Type)&order.TrailingStop == order.TrailingStop) && arg.TrailingOffset == "" {
 		return nil, errInvalidTrailingOffset
 	}
-	if arg.Type == orderType(order.TrailingStopLimit) && arg.LimitOffset == "" {
+	if arg.Type == OrderType(order.TrailingStopLimit) && arg.LimitOffset == "" {
 		return nil, errInvalidOffsetLimit
 	}
 	var resp *PlaceOrderResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCreateSmartOrdersEPL, http.MethodPost, "/smartorders", nil, arg, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	} else if resp.Code != 0 && resp.Code != 200 {
+	if resp.Code != 0 && resp.Code != 200 {
 		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceFailed, resp.Code, resp.Message)
 	}
 	return resp, nil
@@ -841,7 +835,7 @@ func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 		return nil, fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, resp.Code, resp.Msg)
 	}
 	if smartOrderResponse == nil {
-		return nil, common.ErrNoResponse
+		return nil, order.ErrCancelFailed
 	} else if smartOrderResponse.Code != 0 && smartOrderResponse.Code != 200 {
 		ordID := arg.OrderID
 		if ordID == "" {
@@ -928,7 +922,7 @@ func (e *Exchange) CancelMultipleSmartOrders(ctx context.Context, args *CancelOr
 }
 
 // CancelSmartOrders cancels all smart orders in an account.
-func (e *Exchange) CancelSmartOrders(ctx context.Context, symbols []currency.Pair, accountTypes []accountType, orderTypes []orderType) ([]*CancelOrderResponse, error) {
+func (e *Exchange) CancelSmartOrders(ctx context.Context, symbols []currency.Pair, accountTypes []AccountType, orderTypes []OrderType) ([]*CancelOrderResponse, error) {
 	args := make(map[string]any)
 	if len(symbols) != 0 {
 		args["symbols"] = symbols
@@ -981,10 +975,10 @@ func orderFillParams(arg *OrdersHistoryRequest) (url.Values, error) {
 		}
 	}
 	if !arg.StartTime.IsZero() {
-		params.Set("startTime", arg.StartTime.String())
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if !arg.EndTime.IsZero() {
-		params.Set("endTime", arg.EndTime.String())
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	return params, nil
 }
@@ -1065,7 +1059,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 		return &request.Item{
 			Method:                 http.MethodGet,
 			Path:                   endpoint + path,
-			Result:                 &resp,
+			Result:                 resp,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
@@ -1192,9 +1186,6 @@ func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 		fee = getWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.OfflineTradeFee:
 		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	}
-	if fee < 0 {
-		fee = 0
 	}
 	return fee, nil
 }
