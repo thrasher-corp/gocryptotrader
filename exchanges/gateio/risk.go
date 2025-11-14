@@ -3,7 +3,6 @@ package gateio
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -15,8 +14,8 @@ import (
 )
 
 var (
-	errTableIDEmpty           = errors.New("tableID cannot be empty")
-	errInvalidRiskLimit       = errors.New("invalid risk limit")
+	errTableIDEmpty     = errors.New("tableID cannot be empty")
+	errInvalidRiskLimit = errors.New("invalid risk limit")
 	errPagingNotAllowed = errors.New("limit/offset pagination params not allowed when contract supplied")
 )
 
@@ -60,11 +59,8 @@ func (e *Exchange) getRiskLimitTiers(ctx context.Context, assetPath string, epl 
 
 	params := url.Values{}
 	if !contract.IsEmpty() {
-		if limit > 0 {
-			return nil, fmt.Errorf("%w: limit when contract set", errParameterNotApplicable)
-		}
-		if offset > 0 {
-			return nil, fmt.Errorf("%w: offset when contract set", errParameterNotApplicable)
+		if limit > 0 || offset > 0 {
+			return nil, errPagingNotAllowed
 		}
 		params.Set("contract", contract.Upper().String())
 	} else {

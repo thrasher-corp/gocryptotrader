@@ -47,10 +47,10 @@ func TestGetFuturesRiskLimitTiers(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.GetFuturesRiskLimitTiers(t.Context(), currency.USDT, currency.NewBTCUSDT(), 10, 10)
-	require.ErrorContains(t, err, "parameter not applicable: limit when contract set")
+	require.ErrorIs(t, err, errPagingNotAllowed)
 
 	_, err = e.GetFuturesRiskLimitTiers(t.Context(), currency.USDT, currency.NewBTCUSDT(), 0, 10)
-	require.ErrorContains(t, err, "parameter not applicable: offset when contract set")
+	require.ErrorIs(t, err, errPagingNotAllowed)
 
 	got, err := e.GetFuturesRiskLimitTiers(t.Context(), currency.USDT, currency.EMPTYPAIR, 10, 10)
 	require.NoError(t, err)
@@ -72,10 +72,10 @@ func TestGetDeliveryRiskLimitTiers(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.GetDeliveryRiskLimitTiers(t.Context(), currency.USDT, currency.NewBTCUSDT(), 10, 10)
-	require.ErrorContains(t, err, "parameter not applicable: limit when contract set")
+	require.ErrorIs(t, err, errPagingNotAllowed)
 
 	_, err = e.GetDeliveryRiskLimitTiers(t.Context(), currency.USDT, currency.NewBTCUSDT(), 0, 10)
-	require.ErrorContains(t, err, "parameter not applicable: offset when contract set")
+	require.ErrorIs(t, err, errPagingNotAllowed)
 
 	got, err := e.GetDeliveryRiskLimitTiers(t.Context(), currency.USDT, currency.EMPTYPAIR, 10, 10)
 	require.NoError(t, err)

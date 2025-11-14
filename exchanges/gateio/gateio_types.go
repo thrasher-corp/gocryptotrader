@@ -1793,8 +1793,8 @@ type Position struct {
 
 // CloseOrder represents close order information
 type CloseOrder struct {
-	ID    int64        `json:"id"`
-	Price types.Number `json:"price"`
+	ID            int64        `json:"id"`
+	Price         types.Number `json:"price"`
 	IsLiquidation bool         `json:"is_liq"`
 }
 
