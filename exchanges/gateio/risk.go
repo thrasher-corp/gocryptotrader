@@ -17,7 +17,7 @@ import (
 var (
 	errTableIDEmpty           = errors.New("tableID cannot be empty")
 	errInvalidRiskLimit       = errors.New("invalid risk limit")
-	errParameterNotApplicable = errors.New("parameter not applicable")
+	errPagingNotAllowed = errors.New("limit/offset pagination params not allowed when contract supplied")
 )
 
 // GetUnifiedUserRiskUnitDetails retrieves the user's risk unit details
