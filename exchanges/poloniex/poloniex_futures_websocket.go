@@ -503,7 +503,7 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, interval kline.Interv
 }
 
 func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscription.List) []*SubscriptionPayload {
-	var payloads []*SubscriptionPayload
+	payloads := make([]*SubscriptionPayload, len(subscs))
 	for i := range subscs {
 		input := &SubscriptionPayload{
 			Event:   operation,
@@ -512,7 +512,7 @@ func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscript
 		if len(subscs[i].Pairs) != 0 && subscs[i].QualifiedChannel != channelFuturesAccount {
 			input.Symbols = subscs[i].Pairs.Strings()
 		}
-		payloads = append(payloads, input)
+		payloads[i]= input
 	}
 	return payloads
 }

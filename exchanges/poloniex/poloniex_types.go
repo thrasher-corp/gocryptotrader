@@ -12,11 +12,17 @@ import (
 )
 
 type (
+	// TimeInForce wraps order.TimeInForce and implements a custom Text marshaler.
 	TimeInForce order.TimeInForce
-	OrderType   order.Type
+
+	// OrderType wraps order.Type and implements a custom Text marshaler.
+	OrderType order.Type
+
+	// AccountType wraps asset.Item and implements a custom Text marshaler.
 	AccountType asset.Item
 )
 
+// MarshalText implements the TextMarshaler interface for TimeInForce
 func (t TimeInForce) MarshalText() ([]byte, error) {
 	tif := order.TimeInForce(t)
 	switch {
@@ -32,6 +38,7 @@ func (t TimeInForce) MarshalText() ([]byte, error) {
 	return nil, fmt.Errorf("%w: %q", order.ErrInvalidTimeInForce, t)
 }
 
+// MarshalText implements the TextMarshaler interface for OrderType
 func (o OrderType) MarshalText() ([]byte, error) {
 	t := order.Type(o)
 	switch t {
@@ -55,6 +62,7 @@ func (o OrderType) MarshalText() ([]byte, error) {
 	return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, o)
 }
 
+// MarshalText implements the TextMarshaler interface for AccountType
 func (a AccountType) MarshalText() ([]byte, error) {
 	switch asset.Item(a) {
 	case asset.Spot:
