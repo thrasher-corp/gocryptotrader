@@ -34,6 +34,9 @@ var (
 	ErrCannotLiquidate = errors.New("cannot liquidate position")
 
 	ErrUnknownTrackingMode = errors.New("unknown tracking mode")
+	ErrGetFailed           = errors.New("get order failed")
+	ErrPlaceFailed         = errors.New("place order failed")
+	ErrCancelFailed        = errors.New("cancel order failed")
 )
 
 // Submit contains all properties of an order that may be required
@@ -372,6 +375,7 @@ const (
 	AnyType
 	Liquidation
 	Trigger
+	LimitMaker
 	OCO             // One-cancels-the-other order
 	ConditionalStop // One-way stop order
 	TWAP            // time-weighted average price
@@ -380,10 +384,11 @@ const (
 	MarketMakerProtection
 
 	// Hybrid order types
-	StopLimit        = Stop | Limit
-	StopMarket       = Stop | Market
-	TakeProfitMarket = TakeProfit | Market
-	Bracket          = Stop | TakeProfit
+	StopLimit         = Stop | Limit
+	StopMarket        = Stop | Market
+	TakeProfitMarket  = TakeProfit | Market
+	TrailingStopLimit = TrailingStop | Limit
+	Bracket           = Stop | TakeProfit
 )
 
 // order-type string representations
@@ -399,9 +404,11 @@ const (
 	orderTakeProfit            = "TAKE PROFIT"
 	orderTakeProfitMarket      = "TAKE PROFIT MARKET"
 	orderTrailingStop          = "TRAILING_STOP"
+	orderTrailingStopLimit     = "TRAILING_STOP_LIMIT"
 	orderIOS                   = "IOS"
 	orderLiquidation           = "LIQUIDATION"
 	orderTrigger               = "TRIGGER"
+	orderLimitMaker            = "LIMIT_MAKER"
 	orderOCO                   = "OCO"
 	orderOptimalLimit          = "OPTIMAL_LIMIT"
 	orderMarketMakerProtection = "MMP"
@@ -413,21 +420,27 @@ const (
 var AllOrderTypes = Limit |
 	Market |
 	Stop |
-	StopLimit |
-	StopMarket |
 	TakeProfit |
-	TakeProfitMarket |
 	TrailingStop |
 	IOS |
 	AnyType |
 	Liquidation |
 	Trigger |
+	LimitMaker |
 	OCO |
 	ConditionalStop |
 	TWAP |
 	Chase |
 	OptimalLimit |
 	MarketMakerProtection |
+
+	// Hybrid order types
+	// Although composed of existing types, these are treated as distinct and supported
+	// order types within the system, not as unsupported combinations.
+	StopLimit |
+	StopMarket |
+	TakeProfitMarket |
+	TrailingStopLimit |
 	Bracket
 
 // Side enforces a standard for order sides across the code base
