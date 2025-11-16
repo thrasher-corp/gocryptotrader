@@ -88,10 +88,7 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderReque
 	}
 	var resp *FuturesOrderIDResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fOrderEPL, http.MethodPost, tradePathV3+"order", nil, arg, &resp); err != nil {
-		return nil, err
-	}
-	if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceFailed, resp.Code, resp.Message)
+		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
 	}
 	return resp, nil
 }
@@ -139,10 +136,7 @@ func (e *Exchange) CancelFuturesOrder(ctx context.Context, arg *CancelOrderReque
 	}
 	var resp *FuturesOrderIDResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelOrderEPL, http.MethodDelete, tradePathV3+"order", nil, arg, &resp); err != nil {
-		return nil, err
-	}
-	if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrCancelFailed, resp.Code, resp.Message)
+		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
@@ -199,10 +193,7 @@ func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol, marginMode, p
 	}
 	var resp *FuturesOrderIDResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelPositionAtMarketPriceEPL, http.MethodPost, tradePathV3+"position", nil, arg, &resp); err != nil {
-		return nil, err
-	}
-	if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrCancelFailed, resp.Code, resp.Message)
+		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
@@ -667,23 +658,23 @@ func (e *Exchange) GetMarkPriceKlineData(ctx context.Context, symbol string, int
 }
 
 // GetFuturesAllProducts inquire about the basic information of the all product.
-func (e *Exchange) GetFuturesAllProducts(ctx context.Context, symbol string) ([]*ProductInfo, error) {
+func (e *Exchange) GetFuturesAllProducts(ctx context.Context, symbol string) ([]*ProductDetail, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	var resp []*ProductInfo
+	var resp []*ProductDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"allInstruments", params), &resp)
 }
 
 // GetFuturesProduct inquire about the basic information of the product.
-func (e *Exchange) GetFuturesProduct(ctx context.Context, symbol string) (*ProductInfo, error) {
+func (e *Exchange) GetFuturesProduct(ctx context.Context, symbol string) (*ProductDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var resp *ProductInfo
+	var resp *ProductDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"instruments", params), &resp)
 }
 

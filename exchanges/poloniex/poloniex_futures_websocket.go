@@ -172,7 +172,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	case channelAuth:
 		return conn.RequireMatchWithData("auth", respRaw)
 	case channelFuturesSymbol:
-		var resp []*ProductInfo
+		var resp []*ProductDetail
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
@@ -512,7 +512,7 @@ func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscript
 		if len(subscs[i].Pairs) != 0 && subscs[i].QualifiedChannel != channelFuturesAccount {
 			input.Symbols = subscs[i].Pairs.Strings()
 		}
-		payloads[i]= input
+		payloads[i] = input
 	}
 	return payloads
 }

@@ -27,8 +27,7 @@ func (m marginMode) MarshalText() ([]byte, error) {
 
 // ServerTimeResponse represents a server time response.
 type ServerTimeResponse struct {
-	Code string     `json:"code"`
-	Msg  string     `json:"msg"`
+	V3ResponseWrapper
 	Data types.Time `json:"data"`
 }
 
@@ -98,8 +97,7 @@ type FuturesOrderRequest struct {
 type FuturesOrderIDResponse struct {
 	ClientOrderID string `json:"clOrdId"`
 	OrderID       string `json:"ordId"`
-	Code          int64  `json:"code"`
-	Message       string `json:"msg"`
+	V3ResponseWrapper
 }
 
 // CancelOrderRequest represents a single order cancellation parameters
@@ -354,8 +352,8 @@ func (v *FuturesMarkPriceCandle) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[6]any{&v.OpeningPrice, &v.HighestPrice, &v.LowestPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime})
 }
 
-// ProductInfo represents basic information of the all product
-type ProductInfo struct {
+// ProductDetail represents basic information of the all product
+type ProductDetail struct {
 	Alias                 string        `json:"alias"`
 	BaseAsset             string        `json:"bAsset"`
 	BaseCurrency          string        `json:"bCcy"`

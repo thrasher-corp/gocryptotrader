@@ -2647,7 +2647,7 @@ func TestHandleFuturesSubscriptions(t *testing.T) {
 	}.ExpandTemplates(e)
 	require.NoError(t, err)
 
-	payloads := []SubscriptionPayload{
+	payloads := []*SubscriptionPayload{
 		{Event: "subscribe", Channel: []string{"tickers"}, Symbols: enabledPairs.Strings()},
 		{Event: "subscribe", Channel: []string{"book_lv2"}, Symbols: enabledPairs.Strings()},
 	}

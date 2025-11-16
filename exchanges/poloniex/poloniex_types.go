@@ -657,8 +657,7 @@ type TradeOrder struct {
 	Loan           bool              `json:"loan"`
 	CancelReason   int64             `json:"cancelReason"`
 
-	Code    uint64 `json:"code"`
-	Message string `json:"message"`
+	statusResponse
 }
 
 // SmartOrder represents a smart order detail.
@@ -688,8 +687,7 @@ type CancelOrderResponse struct {
 	OrderID       string `json:"orderId"`
 	ClientOrderID string `json:"clientOrderId"`
 	State         string `json:"state"`
-	Code          uint64 `json:"code"`
-	Message       string `json:"message"`
+	statusResponse
 }
 
 // WsCancelOrderResponse represents a websocket cancel orders instance.
@@ -748,8 +746,7 @@ type CancelReplaceSmartOrder struct {
 	StopPrice types.Number `json:"stopPrice"`
 	Price     types.Number `json:"price"`
 	Quantity  types.Number `json:"quantity"`
-	Code      uint64       `json:"code"`
-	Message   string       `json:"message"`
+	statusResponse
 }
 
 // SmartOrderDetails represents a smart order information and trigger detailed information.
@@ -776,8 +773,7 @@ type CancelSmartOrderResponse struct {
 	OrderID       string `json:"orderId"`
 	ClientOrderID string `json:"clientOrderId"`
 	State         string `json:"state"`
-	Code          uint64 `json:"code"`
-	Message       string `json:"message"`
+	statusResponse
 }
 
 // TradeHistory represents an order trade history instance.
@@ -1023,7 +1019,14 @@ type SubAccountTransferRecordRequest struct {
 
 // V3ResponseWrapper holds a wrapper struct for V3 and smart-order endpoints
 type V3ResponseWrapper struct {
-	Code int64  `json:"code"`
-	Msg  string `json:"msg"`
-	Data any    `json:"data"`
+	Code    int64  `json:"code"`
+	Message string `json:"msg"`
+	Data    any    `json:"data"`
+}
+
+func (s *V3ResponseWrapper) Error() error {
+	if s.Code != 0 && s.Code != 200 {
+		return fmt.Errorf("error code: %d; message: %s", s.Code, s.Message)
+	}
+	return nil
 }

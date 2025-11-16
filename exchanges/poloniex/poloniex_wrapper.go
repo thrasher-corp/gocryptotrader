@@ -1033,9 +1033,14 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		orderTrades := make([]order.TradeHistory, len(trades))
 		for i, td := range trades {
-			oType, err := order.StringToOrderType(td.Type)
-			if err != nil {
-				return nil, err
+			var oType order.Type
+			if td.Type != "" {
+				oType, err = order.StringToOrderType(td.Type)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				panic(td.Type)
 			}
 			orderTrades[i] = order.TradeHistory{
 				Exchange:  e.Name,
