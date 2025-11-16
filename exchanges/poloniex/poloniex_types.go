@@ -569,22 +569,30 @@ type PlaceOrderRequest struct {
 	SlippageTolerance string `json:"slippageTolerance,omitempty"` // Used to control the maximum slippage ratio, the value range is greater than 0 and less than 1
 }
 
+type statusResponse struct {
+	Message string `json:"message"`
+	Code    int64  `json:"code"`
+}
+
+func (s *statusResponse) Error() error {
+	if s.Code != 0 && s.Code != 200 {
+		return fmt.Errorf("error code: %d; message: %s", s.Code, s.Message)
+	}
+	return nil
+}
+
 // PlaceOrderResponse represents a response structure for placing order.
 type PlaceOrderResponse struct {
 	ID            string `json:"id"`
 	ClientOrderID string `json:"clientOrderId"`
-
-	// Websocket response status code and message.
-	Message string `json:"message"`
-	Code    int64  `json:"code"`
+	statusResponse
 }
 
 // PlaceBatchOrderItem represents a single batch order response item.
 type PlaceBatchOrderItem struct {
 	ID            string `json:"id"`
 	ClientOrderID string `json:"clientOrderId"`
-	Code          uint64 `json:"code"`
-	Message       string `json:"message"`
+	statusResponse
 }
 
 // CancelReplaceOrderRequest represents a cancellation and order replacement request parameter.

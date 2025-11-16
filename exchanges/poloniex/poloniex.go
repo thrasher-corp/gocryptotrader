@@ -628,10 +628,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*Pla
 	}
 	var resp *PlaceOrderResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCreateOrderEPL, http.MethodPost, "/orders", nil, arg, &resp); err != nil {
-		return nil, err
-	}
-	if resp.Code != 0 && resp.Code != 200 {
-		return resp, fmt.Errorf("%w: code: %d message: %s", order.ErrPlaceFailed, resp.Code, resp.Message)
+		return resp, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
 	}
 	return resp, nil
 }
@@ -1164,6 +1161,9 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 				return fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, val.Code, val.Msg)
 			}
 		}
+	}
+	if errType, ok := result.(interface{ Error() error }); ok {
+		return errType.Error()
 	}
 	return nil
 }
