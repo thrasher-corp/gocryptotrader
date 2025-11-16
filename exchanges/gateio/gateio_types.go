@@ -630,14 +630,14 @@ type CurrencyChain struct {
 
 // MarginCurrencyPairInfo represents margin currency pair detailed info.
 type MarginCurrencyPairInfo struct {
-	ID             string       `json:"id"`
-	Base           string       `json:"base"`
-	Quote          string       `json:"quote"`
-	Leverage       float64      `json:"leverage"`
-	MinBaseAmount  types.Number `json:"min_base_amount"`
-	MinQuoteAmount types.Number `json:"min_quote_amount"`
-	MaxQuoteAmount types.Number `json:"max_quote_amount"`
-	Status         int32        `json:"status"`
+	ID             currency.Pair `json:"id"`
+	Base           currency.Code `json:"base"`
+	Quote          currency.Code `json:"quote"`
+	Leverage       float64       `json:"leverage"`
+	MinBaseAmount  types.Number  `json:"min_base_amount"`
+	MinQuoteAmount types.Number  `json:"min_quote_amount"`
+	MaxQuoteAmount types.Number  `json:"max_quote_amount"`
+	Status         int32         `json:"status"`
 }
 
 // OrderbookOfLendingLoan represents order book of lending loans
