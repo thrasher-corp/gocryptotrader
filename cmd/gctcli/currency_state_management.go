@@ -86,8 +86,7 @@ func stateGetAll(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CurrencyStateGetAll(c.Context,
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).CurrencyStateGetAll(c.Context,
 		&gctrpc.CurrencyStateGetAllRequest{Exchange: exchange},
 	)
 	if err != nil {
@@ -114,14 +113,14 @@ func stateGetDeposit(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CurrencyStateDeposit(c.Context,
-		&gctrpc.CurrencyStateDepositRequest{
-			Exchange: arg.Exchange,
-			Code:     arg.Code,
-			Asset:    arg.Asset,
-		},
-	)
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		CurrencyStateDeposit(c.Context,
+			&gctrpc.CurrencyStateDepositRequest{
+				Exchange: arg.Exchange,
+				Code:     arg.Code,
+				Asset:    arg.Asset,
+			},
+		)
 	if err != nil {
 		return err
 	}
@@ -146,14 +145,14 @@ func stateGetWithdrawal(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CurrencyStateWithdraw(c.Context,
-		&gctrpc.CurrencyStateWithdrawRequest{
-			Exchange: arg.Exchange,
-			Code:     arg.Code,
-			Asset:    arg.Asset,
-		},
-	)
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		CurrencyStateWithdraw(c.Context,
+			&gctrpc.CurrencyStateWithdrawRequest{
+				Exchange: arg.Exchange,
+				Code:     arg.Code,
+				Asset:    arg.Asset,
+			},
+		)
 	if err != nil {
 		return err
 	}
@@ -178,8 +177,7 @@ func stateGetTrading(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CurrencyStateTrading(c.Context,
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).CurrencyStateTrading(c.Context,
 		&gctrpc.CurrencyStateTradingRequest{
 			Exchange: arg.Exchange,
 			Code:     arg.Code,
@@ -209,8 +207,7 @@ func stateGetPairTrading(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CurrencyStateTradingPair(c.Context,
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).CurrencyStateTradingPair(c.Context,
 		&gctrpc.CurrencyStateTradingPairRequest{
 			Exchange: arg.Exchange,
 			Pair:     arg.Pair,

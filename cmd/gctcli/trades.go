@@ -112,19 +112,19 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.FindMissingSavedTradeIntervals(c.Context,
-		&gctrpc.FindMissingTradePeriodsRequest{
-			ExchangeName: arg.Exchange,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: p.Delimiter,
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-			},
-			AssetType: arg.Asset,
-			Start:     s.Format(common.SimpleTimeFormatWithTimezone),
-			End:       e.Format(common.SimpleTimeFormatWithTimezone),
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		FindMissingSavedTradeIntervals(c.Context,
+			&gctrpc.FindMissingTradePeriodsRequest{
+				ExchangeName: arg.Exchange,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: p.Delimiter,
+					Base:      p.Base.String(),
+					Quote:     p.Quote.String(),
+				},
+				AssetType: arg.Asset,
+				Start:     s.Format(common.SimpleTimeFormatWithTimezone),
+				End:       e.Format(common.SimpleTimeFormatWithTimezone),
+			})
 	if err != nil {
 		return err
 	}
@@ -149,12 +149,12 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.SetExchangeTradeProcessing(c.Context,
-		&gctrpc.SetExchangeTradeProcessingRequest{
-			Exchange: arg.Exchange,
-			Status:   arg.Status,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		SetExchangeTradeProcessing(c.Context,
+			&gctrpc.SetExchangeTradeProcessingRequest{
+				Exchange: arg.Exchange,
+				Status:   arg.Status,
+			})
 	if err != nil {
 		return err
 	}
@@ -204,19 +204,19 @@ func getSavedTrades(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetSavedTrades(c.Context,
-		&gctrpc.GetSavedTradesRequest{
-			Exchange: arg.Exchange,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: p.Delimiter,
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-			},
-			AssetType: arg.Asset,
-			Start:     s.Format(common.SimpleTimeFormatWithTimezone),
-			End:       e.Format(common.SimpleTimeFormatWithTimezone),
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetSavedTrades(c.Context,
+			&gctrpc.GetSavedTradesRequest{
+				Exchange: arg.Exchange,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: p.Delimiter,
+					Base:      p.Base.String(),
+					Quote:     p.Quote.String(),
+				},
+				AssetType: arg.Asset,
+				Start:     s.Format(common.SimpleTimeFormatWithTimezone),
+				End:       e.Format(common.SimpleTimeFormatWithTimezone),
+			})
 	if err != nil {
 		return err
 	}
@@ -252,17 +252,17 @@ func getRecentTrades(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetRecentTrades(c.Context,
-		&gctrpc.GetSavedTradesRequest{
-			Exchange: arg.Exchange,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: p.Delimiter,
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-			},
-			AssetType: arg.Asset,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetRecentTrades(c.Context,
+			&gctrpc.GetSavedTradesRequest{
+				Exchange: arg.Exchange,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: p.Delimiter,
+					Base:      p.Base.String(),
+					Quote:     p.Quote.String(),
+				},
+				AssetType: arg.Asset,
+			})
 	if err != nil {
 		return err
 	}
@@ -313,19 +313,19 @@ func getHistoricTrades(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	streamStartTime := time.Now()
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetHistoricTrades(c.Context,
-		&gctrpc.GetSavedTradesRequest{
-			Exchange: arg.Exchange,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: p.Delimiter,
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-			},
-			AssetType: arg.Asset,
-			Start:     s.Format(common.SimpleTimeFormatWithTimezone),
-			End:       e.Format(common.SimpleTimeFormatWithTimezone),
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetHistoricTrades(c.Context,
+			&gctrpc.GetSavedTradesRequest{
+				Exchange: arg.Exchange,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: p.Delimiter,
+					Base:      p.Base.String(),
+					Quote:     p.Quote.String(),
+				},
+				AssetType: arg.Asset,
+				Start:     s.Format(common.SimpleTimeFormatWithTimezone),
+				End:       e.Format(common.SimpleTimeFormatWithTimezone),
+			})
 	if err != nil {
 		return err
 	}
@@ -404,22 +404,22 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.ConvertTradesToCandles(c.Context,
-		&gctrpc.ConvertTradesToCandlesRequest{
-			Exchange: arg.Exchange,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: p.Delimiter,
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-			},
-			AssetType:    arg.Asset,
-			Start:        s.Format(common.SimpleTimeFormatWithTimezone),
-			End:          e.Format(common.SimpleTimeFormatWithTimezone),
-			TimeInterval: int64(candleInterval),
-			Sync:         arg.Sync,
-			Force:        arg.Force,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		ConvertTradesToCandles(c.Context,
+			&gctrpc.ConvertTradesToCandlesRequest{
+				Exchange: arg.Exchange,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: p.Delimiter,
+					Base:      p.Base.String(),
+					Quote:     p.Quote.String(),
+				},
+				AssetType:    arg.Asset,
+				Start:        s.Format(common.SimpleTimeFormatWithTimezone),
+				End:          e.Format(common.SimpleTimeFormatWithTimezone),
+				TimeInterval: int64(candleInterval),
+				Sync:         arg.Sync,
+				Force:        arg.Force,
+			})
 	if err != nil {
 		return err
 	}

@@ -175,21 +175,21 @@ func getManagedPosition(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetManagedPosition(c.Context,
-		&gctrpc.GetManagedPositionRequest{
-			Exchange: arg.Exchange,
-			Asset:    arg.Asset,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: p.Delimiter,
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-			},
-			IncludeFullOrderData:    arg.IncludeOrderDetails,
-			GetFundingPayments:      arg.GetFundingData,
-			IncludeFullFundingRates: arg.IncludeFundingEntries,
-			IncludePredictedRate:    arg.IncludePredictedRate,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetManagedPosition(c.Context,
+			&gctrpc.GetManagedPositionRequest{
+				Exchange: arg.Exchange,
+				Asset:    arg.Asset,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: p.Delimiter,
+					Base:      p.Base.String(),
+					Quote:     p.Quote.String(),
+				},
+				IncludeFullOrderData:    arg.IncludeOrderDetails,
+				GetFundingPayments:      arg.GetFundingData,
+				IncludeFullFundingRates: arg.IncludeFundingEntries,
+				IncludePredictedRate:    arg.IncludePredictedRate,
+			})
 	if err != nil {
 		return err
 	}
@@ -214,14 +214,14 @@ func getAllManagedPositions(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetAllManagedPositions(c.Context,
-		&gctrpc.GetAllManagedPositionsRequest{
-			IncludeFullOrderData:    arg.IncludeOrderDetails,
-			GetFundingPayments:      arg.GetFundingData,
-			IncludeFullFundingRates: arg.IncludeFundingEntries,
-			IncludePredictedRate:    arg.IncludePredictedRate,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetAllManagedPositions(c.Context,
+			&gctrpc.GetAllManagedPositionsRequest{
+				IncludeFullOrderData:    arg.IncludeOrderDetails,
+				GetFundingPayments:      arg.GetFundingData,
+				IncludeFullFundingRates: arg.IncludeFundingEntries,
+				IncludePredictedRate:    arg.IncludePredictedRate,
+			})
 	if err != nil {
 		return err
 	}
@@ -249,15 +249,15 @@ func getCollateral(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetCollateral(c.Context,
-		&gctrpc.GetCollateralRequest{
-			Exchange:          arg.Exchange,
-			Asset:             arg.Asset,
-			IncludeBreakdown:  arg.IncludeBreakdown,
-			CalculateOffline:  arg.CalculateOffline,
-			IncludeZeroValues: arg.IncludeZeroValues,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetCollateral(c.Context,
+			&gctrpc.GetCollateralRequest{
+				Exchange:          arg.Exchange,
+				Asset:             arg.Asset,
+				IncludeBreakdown:  arg.IncludeBreakdown,
+				CalculateOffline:  arg.CalculateOffline,
+				IncludeZeroValues: arg.IncludeZeroValues,
+			})
 	if err != nil {
 		return err
 	}
@@ -310,23 +310,23 @@ func getFundingRates(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetFundingRates(c.Context,
-		&gctrpc.GetFundingRatesRequest{
-			Exchange: arg.Exchange,
-			Asset:    arg.Asset,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: p.Delimiter,
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-			},
-			StartDate:            s.Format(common.SimpleTimeFormatWithTimezone),
-			EndDate:              e.Format(common.SimpleTimeFormatWithTimezone),
-			IncludePredicted:     arg.IncludePredicted,
-			IncludePayments:      arg.IncludePayments,
-			RespectHistoryLimits: arg.RespectHistoryLimits,
-			PaymentCurrency:      arg.Currency,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetFundingRates(c.Context,
+			&gctrpc.GetFundingRatesRequest{
+				Exchange: arg.Exchange,
+				Asset:    arg.Asset,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: p.Delimiter,
+					Base:      p.Base.String(),
+					Quote:     p.Quote.String(),
+				},
+				StartDate:            s.Format(common.SimpleTimeFormatWithTimezone),
+				EndDate:              e.Format(common.SimpleTimeFormatWithTimezone),
+				IncludePredicted:     arg.IncludePredicted,
+				IncludePayments:      arg.IncludePayments,
+				RespectHistoryLimits: arg.RespectHistoryLimits,
+				PaymentCurrency:      arg.Currency,
+			})
 	if err != nil {
 		return err
 	}
@@ -365,18 +365,18 @@ func getLatestFundingRate(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetLatestFundingRate(c.Context,
-		&gctrpc.GetLatestFundingRateRequest{
-			Exchange: arg.Exchange,
-			Asset:    arg.Asset,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: p.Delimiter,
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-			},
-			IncludePredicted: arg.IncludePredicted,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetLatestFundingRate(c.Context,
+			&gctrpc.GetLatestFundingRateRequest{
+				Exchange: arg.Exchange,
+				Asset:    arg.Asset,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: p.Delimiter,
+					Base:      p.Base.String(),
+					Quote:     p.Quote.String(),
+				},
+				IncludePredicted: arg.IncludePredicted,
+			})
 	if err != nil {
 		return err
 	}
@@ -403,12 +403,12 @@ func getCollateralMode(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetCollateralMode(c.Context,
-		&gctrpc.GetCollateralModeRequest{
-			Exchange: arg.Exchange,
-			Asset:    arg.Asset,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetCollateralMode(c.Context,
+			&gctrpc.GetCollateralModeRequest{
+				Exchange: arg.Exchange,
+				Asset:    arg.Asset,
+			})
 	if err != nil {
 		return err
 	}
@@ -440,13 +440,13 @@ func setCollateralMode(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.SetCollateralMode(c.Context,
-		&gctrpc.SetCollateralModeRequest{
-			Exchange:       arg.Exchange,
-			Asset:          arg.Asset,
-			CollateralMode: arg.CollateralMode,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		SetCollateralMode(c.Context,
+			&gctrpc.SetCollateralModeRequest{
+				Exchange:       arg.Exchange,
+				Asset:          arg.Asset,
+				CollateralMode: arg.CollateralMode,
+			})
 	if err != nil {
 		return err
 	}
@@ -481,8 +481,7 @@ func setLeverage(c *cli.Context) error {
 	}
 
 	if arg.Side != "" {
-		_, err = order.StringToOrderSide(arg.Side)
-		if err != nil {
+		if _, err = order.StringToOrderSide(arg.Side); err != nil {
 			return err
 		}
 	}
@@ -493,20 +492,20 @@ func setLeverage(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.SetLeverage(c.Context,
-		&gctrpc.SetLeverageRequest{
-			Exchange: arg.Exchange,
-			Asset:    arg.Asset,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: pair.Delimiter,
-				Base:      pair.Base.String(),
-				Quote:     pair.Quote.String(),
-			},
-			MarginType: arg.MarginType,
-			Leverage:   arg.Leverage,
-			OrderSide:  arg.Side,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		SetLeverage(c.Context,
+			&gctrpc.SetLeverageRequest{
+				Exchange: arg.Exchange,
+				Asset:    arg.Asset,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: pair.Delimiter,
+					Base:      pair.Base.String(),
+					Quote:     pair.Quote.String(),
+				},
+				MarginType: arg.MarginType,
+				Leverage:   arg.Leverage,
+				OrderSide:  arg.Side,
+			})
 	if err != nil {
 		return err
 	}
@@ -539,8 +538,7 @@ func getLeverage(c *cli.Context) error {
 		return fmt.Errorf("%w: %q", margin.ErrInvalidMarginType, arg.MarginType)
 	}
 	if arg.Side != "" {
-		_, err = order.StringToOrderSide(arg.Side)
-		if err != nil {
+		if _, err := order.StringToOrderSide(arg.Side); err != nil {
 			return err
 		}
 	}
@@ -551,19 +549,19 @@ func getLeverage(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetLeverage(c.Context,
-		&gctrpc.GetLeverageRequest{
-			Exchange: arg.Exchange,
-			Asset:    arg.Asset,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: pair.Delimiter,
-				Base:      pair.Base.String(),
-				Quote:     pair.Quote.String(),
-			},
-			MarginType: arg.MarginType,
-			OrderSide:  arg.Side,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetLeverage(c.Context,
+			&gctrpc.GetLeverageRequest{
+				Exchange: arg.Exchange,
+				Asset:    arg.Asset,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: pair.Delimiter,
+					Base:      pair.Base.String(),
+					Quote:     pair.Quote.String(),
+				},
+				MarginType: arg.MarginType,
+				OrderSide:  arg.Side,
+			})
 	if err != nil {
 		return err
 	}
@@ -601,21 +599,21 @@ func changePositionMargin(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.ChangePositionMargin(c.Context,
-		&gctrpc.ChangePositionMarginRequest{
-			Exchange: arg.Exchange,
-			Asset:    arg.Asset,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: pair.Delimiter,
-				Base:      pair.Base.String(),
-				Quote:     pair.Quote.String(),
-			},
-			MarginType:              arg.MarginType,
-			OriginalAllocatedMargin: arg.OriginalAllocatedMargin,
-			NewAllocatedMargin:      arg.NewAllocatedMargin,
-			MarginSide:              arg.MarginSide,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		ChangePositionMargin(c.Context,
+			&gctrpc.ChangePositionMarginRequest{
+				Exchange: arg.Exchange,
+				Asset:    arg.Asset,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: pair.Delimiter,
+					Base:      pair.Base.String(),
+					Quote:     pair.Quote.String(),
+				},
+				MarginType:              arg.MarginType,
+				OriginalAllocatedMargin: arg.OriginalAllocatedMargin,
+				NewAllocatedMargin:      arg.NewAllocatedMargin,
+				MarginSide:              arg.MarginSide,
+			})
 	if err != nil {
 		return err
 	}
@@ -658,22 +656,22 @@ func getFuturesPositionSummary(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetFuturesPositionsSummary(c.Context,
-		&gctrpc.GetFuturesPositionsSummaryRequest{
-			Exchange: arg.Exchange,
-			Asset:    arg.Asset,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: pair.Delimiter,
-				Base:      pair.Base.String(),
-				Quote:     pair.Quote.String(),
-			},
-			UnderlyingPair: &gctrpc.CurrencyPair{
-				Delimiter: underlying.Delimiter,
-				Base:      underlying.Base.Upper().String(),
-				Quote:     underlying.Quote.Upper().String(),
-			},
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetFuturesPositionsSummary(c.Context,
+			&gctrpc.GetFuturesPositionsSummaryRequest{
+				Exchange: arg.Exchange,
+				Asset:    arg.Asset,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: pair.Delimiter,
+					Base:      pair.Base.String(),
+					Quote:     pair.Quote.String(),
+				},
+				UnderlyingPair: &gctrpc.CurrencyPair{
+					Delimiter: underlying.Delimiter,
+					Base:      underlying.Base.Upper().String(),
+					Quote:     underlying.Quote.Upper().String(),
+				},
+			})
 	if err != nil {
 		return err
 	}
@@ -736,26 +734,26 @@ func getFuturePositionOrders(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetFuturesPositionsOrders(c.Context,
-		&gctrpc.GetFuturesPositionsOrdersRequest{
-			Exchange: arg.Exchange,
-			Asset:    arg.Asset,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: pair.Delimiter,
-				Base:      pair.Base.String(),
-				Quote:     pair.Quote.String(),
-			},
-			StartDate: s.Format(common.SimpleTimeFormatWithTimezone),
-			EndDate:   e.Format(common.SimpleTimeFormatWithTimezone),
-			UnderlyingPair: &gctrpc.CurrencyPair{
-				Delimiter: underlying.Delimiter,
-				Base:      underlying.Base.Upper().String(),
-				Quote:     underlying.Quote.Upper().String(),
-			},
-			SyncWithOrderManager:      arg.SyncWithOrderManager,
-			RespectOrderHistoryLimits: arg.RespectOrderHistoryLimits,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetFuturesPositionsOrders(c.Context,
+			&gctrpc.GetFuturesPositionsOrdersRequest{
+				Exchange: arg.Exchange,
+				Asset:    arg.Asset,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: pair.Delimiter,
+					Base:      pair.Base.String(),
+					Quote:     pair.Quote.String(),
+				},
+				StartDate: s.Format(common.SimpleTimeFormatWithTimezone),
+				EndDate:   e.Format(common.SimpleTimeFormatWithTimezone),
+				UnderlyingPair: &gctrpc.CurrencyPair{
+					Delimiter: underlying.Delimiter,
+					Base:      underlying.Base.Upper().String(),
+					Quote:     underlying.Quote.Upper().String(),
+				},
+				SyncWithOrderManager:      arg.SyncWithOrderManager,
+				RespectOrderHistoryLimits: arg.RespectOrderHistoryLimits,
+			})
 	if err != nil {
 		return err
 	}
@@ -793,18 +791,18 @@ func setMarginType(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.SetMarginType(c.Context,
-		&gctrpc.SetMarginTypeRequest{
-			Exchange: arg.Exchange,
-			Asset:    arg.Asset,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: pair.Delimiter,
-				Base:      pair.Base.String(),
-				Quote:     pair.Quote.String(),
-			},
-			MarginType: arg.MarginType,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		SetMarginType(c.Context,
+			&gctrpc.SetMarginTypeRequest{
+				Exchange: arg.Exchange,
+				Asset:    arg.Asset,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: pair.Delimiter,
+					Base:      pair.Base.String(),
+					Quote:     pair.Quote.String(),
+				},
+				MarginType: arg.MarginType,
+			})
 	if err != nil {
 		return err
 	}
@@ -857,12 +855,12 @@ func getOpenInterest(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOpenInterest(c.Context,
-		&gctrpc.GetOpenInterestRequest{
-			Exchange: arg.Exchange,
-			Data:     data,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetOpenInterest(c.Context,
+			&gctrpc.GetOpenInterestRequest{
+				Exchange: arg.Exchange,
+				Data:     data,
+			})
 	if err != nil {
 		return err
 	}

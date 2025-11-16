@@ -125,18 +125,18 @@ func getNominal(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOrderbookAmountByNominal(c.Context,
-		&gctrpc.GetOrderbookAmountByNominalRequest{
-			Exchange: exchangeName,
-			Pair: &gctrpc.CurrencyPair{
-				Base:  p.Base.String(),
-				Quote: p.Quote.String(),
-			},
-			Asset:             assetType,
-			Sell:              isSelling,
-			NominalPercentage: percentage,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetOrderbookAmountByNominal(c.Context,
+			&gctrpc.GetOrderbookAmountByNominalRequest{
+				Exchange: exchangeName,
+				Pair: &gctrpc.CurrencyPair{
+					Base:  p.Base.String(),
+					Quote: p.Quote.String(),
+				},
+				Asset:             assetType,
+				Sell:              isSelling,
+				NominalPercentage: percentage,
+			})
 	if err != nil {
 		return err
 	}
@@ -210,18 +210,18 @@ func getImpact(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOrderbookAmountByImpact(c.Context,
-		&gctrpc.GetOrderbookAmountByImpactRequest{
-			Exchange: exchangeName,
-			Pair: &gctrpc.CurrencyPair{
-				Base:  p.Base.String(),
-				Quote: p.Quote.String(),
-			},
-			Asset:            assetType,
-			Sell:             isSelling,
-			ImpactPercentage: percentage,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetOrderbookAmountByImpact(c.Context,
+			&gctrpc.GetOrderbookAmountByImpactRequest{
+				Exchange: exchangeName,
+				Pair: &gctrpc.CurrencyPair{
+					Base:  p.Base.String(),
+					Quote: p.Quote.String(),
+				},
+				Asset:            assetType,
+				Sell:             isSelling,
+				ImpactPercentage: percentage,
+			})
 	if err != nil {
 		return err
 	}
@@ -333,18 +333,18 @@ func getMovement(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOrderbookMovement(c.Context, &gctrpc.GetOrderbookMovementRequest{
-		Exchange: exchangeName,
-		Pair: &gctrpc.CurrencyPair{
-			Base:  p.Base.String(),
-			Quote: p.Quote.String(),
-		},
-		Asset:    assetType,
-		Sell:     c.Bool("sell"),
-		Amount:   amount,
-		Purchase: c.Bool("purchase"),
-	})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetOrderbookMovement(c.Context, &gctrpc.GetOrderbookMovementRequest{
+			Exchange: exchangeName,
+			Pair: &gctrpc.CurrencyPair{
+				Base:  p.Base.String(),
+				Quote: p.Quote.String(),
+			},
+			Asset:    assetType,
+			Sell:     c.Bool("sell"),
+			Amount:   amount,
+			Purchase: c.Bool("purchase"),
+		})
 	if err != nil {
 		return err
 	}
@@ -440,18 +440,18 @@ func getOrderbook(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOrderbook(c.Context,
-		&gctrpc.GetOrderbookRequest{
-			Exchange: exchangeName,
-			Pair: &gctrpc.CurrencyPair{
-				Delimiter: p.Delimiter,
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetOrderbook(c.Context,
+			&gctrpc.GetOrderbookRequest{
+				Exchange: exchangeName,
+				Pair: &gctrpc.CurrencyPair{
+					Delimiter: p.Delimiter,
+					Base:      p.Base.String(),
+					Quote:     p.Quote.String(),
+				},
+				AssetType: assetType,
 			},
-			AssetType: assetType,
-		},
-	)
+		)
 	if err != nil {
 		return err
 	}
@@ -480,8 +480,8 @@ func getOrderbooks(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOrderbooks(c.Context, &gctrpc.GetOrderbooksRequest{})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetOrderbooks(c.Context, &gctrpc.GetOrderbooksRequest{})
 	if err != nil {
 		return err
 	}
@@ -576,18 +576,18 @@ func getOrderbookStream(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetOrderbookStream(c.Context,
-		&gctrpc.GetOrderbookStreamRequest{
-			Exchange: exchangeName,
-			Pair: &gctrpc.CurrencyPair{
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-				Delimiter: p.Delimiter,
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetOrderbookStream(c.Context,
+			&gctrpc.GetOrderbookStreamRequest{
+				Exchange: exchangeName,
+				Pair: &gctrpc.CurrencyPair{
+					Base:      p.Base.String(),
+					Quote:     p.Quote.String(),
+					Delimiter: p.Delimiter,
+				},
+				AssetType: assetType,
 			},
-			AssetType: assetType,
-		},
-	)
+		)
 	if err != nil {
 		return err
 	}
@@ -707,11 +707,11 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetExchangeOrderbookStream(c.Context,
-		&gctrpc.GetExchangeOrderbookStreamRequest{
-			Exchange: exchangeName,
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetExchangeOrderbookStream(c.Context,
+			&gctrpc.GetExchangeOrderbookStreamRequest{
+				Exchange: exchangeName,
+			})
 	if err != nil {
 		return err
 	}
@@ -769,18 +769,18 @@ func whaleBomb(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.WhaleBomb(c.Context, &gctrpc.WhaleBombRequest{
-		Exchange: arg.Exchange,
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: p.Delimiter,
-			Base:      p.Base.String(),
-			Quote:     p.Quote.String(),
-		},
-		Side:        arg.Side,
-		PriceTarget: arg.Price,
-		AssetType:   arg.Asset,
-	})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		WhaleBomb(c.Context, &gctrpc.WhaleBombRequest{
+			Exchange: arg.Exchange,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
+			Side:        arg.Side,
+			PriceTarget: arg.Price,
+			AssetType:   arg.Asset,
+		})
 	if err != nil {
 		return err
 	}
