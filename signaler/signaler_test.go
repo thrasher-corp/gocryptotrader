@@ -22,7 +22,7 @@ func TestWaitForInterrupt(t *testing.T) {
 			if runtime.GOOS == "windows" {
 				t.Skipf("proc.Signal(%s) not supported on Windows: %v", sig, err)
 			}
-			require.NoError(t, err, "proc.Signal(%s) must not error", sig)
+			require.NoErrorf(t, err, "proc.Signal(%s) must not error", sig)
 		}
 
 		assert.Eventuallyf(t, func() bool {
