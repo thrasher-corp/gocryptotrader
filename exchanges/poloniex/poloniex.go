@@ -389,13 +389,13 @@ func (e *Exchange) GetSubAccountBalances(ctx context.Context) ([]*SubAccountBala
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSubAccountBalancesEPL, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
 }
 
-// GetSubAccountBalance gets balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
+// GetSubAccountBalance gets balances information by currency and account type (SPOT and FUTURES) for a given external accountId in the account group
 func (e *Exchange) GetSubAccountBalance(ctx context.Context, subAccountID string) ([]*SubAccountBalances, error) {
 	if subAccountID == "" {
 		return nil, fmt.Errorf("%w: empty subAccountID", errAccountIDRequired)
 	}
 	var resp []*SubAccountBalances
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unauthEPL, http.MethodGet, "/subaccounts/"+subAccountID+"/balances", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSubAccountBalancesEPL, http.MethodGet, "/subaccounts/"+subAccountID+"/balances", nil, nil, &resp)
 }
 
 // SubAccountTransfer transfers currencies between accounts in the account group
