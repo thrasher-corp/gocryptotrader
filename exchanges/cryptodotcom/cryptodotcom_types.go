@@ -27,7 +27,6 @@ var (
 	errValuationTypeUnset              = errors.New("valuation type unset")
 	errAccountIDMissing                = errors.New("account id is required")
 	errContingencyTypeRequired         = errors.New("contingency type is required")
-	errPriceBelowMin                   = errors.New("price below min")
 	errSTPInstructionIsRequired        = errors.New("self-trade-prevention instruction (stpInstruction) is missing")
 	errPaymentNetworkIsMissing         = errors.New("payment network is missing") // possible payment networks: https://exchange-docs.crypto.com/exchange/v1/rest-ws/index.html#payment-networks-and-currencies
 )

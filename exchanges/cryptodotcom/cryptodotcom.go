@@ -726,7 +726,7 @@ func (e *Exchange) CreateOTCOrder(ctx context.Context, symbol, side, clientOrder
 		return nil, fmt.Errorf("%w, 'quantity' is %f", order.ErrAmountIsInvalid, quantity)
 	}
 	if price <= 0 {
-		return nil, errPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	if side != "BUY" && side != "SELL" {
 		return nil, fmt.Errorf("%w, side=%s", order.ErrSideIsInvalid, side)

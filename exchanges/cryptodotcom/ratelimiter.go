@@ -12,7 +12,7 @@ const (
 
 	// number of requests per interval
 	hundredPerInterval = 100
-	fifteenPerIntrval  = 15
+	fifteenPerInterval = 15
 	thirtyPerInterval  = 30
 	onePerInterval     = 1
 	threePerInterval   = 3
@@ -99,13 +99,13 @@ func GetRateLimit() request.RateLimitDefinitions {
 		privateCreateSubAccountTransferRate: request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		privateGetSubAccountBalancesRate:    request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		privateGetPositionsRate:             request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
-		privateCreateOrderRate:              request.NewRateLimitWithWeight(hundredMilliSecondsInterval, fifteenPerIntrval, 1),
-		privateAmendOrderRate:               request.NewRateLimitWithWeight(hundredMilliSecondsInterval, fifteenPerIntrval, 1),
-		privateCancelOrderRate:              request.NewRateLimitWithWeight(hundredMilliSecondsInterval, fifteenPerIntrval, 1),
+		privateCreateOrderRate:              request.NewRateLimitWithWeight(hundredMilliSecondsInterval, fifteenPerInterval, 1),
+		privateAmendOrderRate:               request.NewRateLimitWithWeight(hundredMilliSecondsInterval, fifteenPerInterval, 1),
+		privateCancelOrderRate:              request.NewRateLimitWithWeight(hundredMilliSecondsInterval, fifteenPerInterval, 1),
 		privateCreateOrderListRate:          request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		privateCancelOrderListRate:          request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		privateGetOrderListRate:             request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
-		privateCancelAllOrdersRate:          request.NewRateLimitWithWeight(hundredMilliSecondsInterval, fifteenPerIntrval, 1),
+		privateCancelAllOrdersRate:          request.NewRateLimitWithWeight(hundredMilliSecondsInterval, fifteenPerInterval, 1),
 		privateClosePositionRate:            request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		changeAccountLeverageRate:           request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),
 		changeAccountSettingRate:            request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, 1),

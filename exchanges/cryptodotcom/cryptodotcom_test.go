@@ -274,7 +274,7 @@ func TestCreateOrder(t *testing.T) {
 
 	arg.OrderType = order.StopLimit
 	_, err = e.CreateOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	arg.Price = 123
 	_, err = e.CreateOrder(t.Context(), arg)
@@ -685,7 +685,7 @@ func TestCreateOTCOrder(t *testing.T) {
 	_, err = e.CreateOTCOrder(t.Context(), mainTP.String(), "BUY", "3427401068340147456", 0, 12321, false)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 	_, err = e.CreateOTCOrder(t.Context(), mainTP.String(), "BUY", "3427401068340147456", 0.0001, 0, false)
-	require.ErrorIs(t, err, errPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.CreateOTCOrder(t.Context(), mainTP.String(), "", "3427401068340147456", 0.0001, 12321, false)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
