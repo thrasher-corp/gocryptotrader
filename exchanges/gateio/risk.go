@@ -72,7 +72,7 @@ func (e *Exchange) getRiskLimitTiers(ctx context.Context, assetPath string, epl 
 		}
 	}
 
-	path := common.EncodeURLValues(assetPath + settleCurrency.Lower().String() + "/risk_limit_tiers", params)
+	path := common.EncodeURLValues(assetPath+settleCurrency.Lower().String()+"/risk_limit_tiers", params)
 
 	var result []RiskTable
 	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, epl, path, &result)
