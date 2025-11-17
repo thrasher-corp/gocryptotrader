@@ -3707,3 +3707,35 @@ func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
 
 	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
 }
+
+func TestGetEstimatedInterestRate(t *testing.T) {
+	t.Parallel()
+
+	_, err := e.GetEstimatedInterestRate(t.Context(), nil)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodesEmpty)
+
+	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.EMPTYCODE})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{
+		currency.USDT,
+		currency.BTC,
+		currency.ETH,
+		currency.XRP,
+		currency.LTC,
+		currency.DOGE,
+		currency.BCH,
+		currency.SOL,
+		currency.ADA,
+		currency.DOT,
+		currency.MATIC,
+	})
+	require.ErrorIs(t, err, errTooManyCurrencyCodes)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	got, err := e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.BTC})
+	require.NoError(t, err)
+	val, ok := got["BTC"]
+	require.True(t, ok, "result map must contain BTC key")
+	require.Positive(t, val.Float64(), "estimated interest rate must not be 0")
+}

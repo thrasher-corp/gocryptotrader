@@ -192,31 +192,31 @@ type IndexPriceData struct {
 
 // InstrumentData gets data for instruments
 type InstrumentData struct {
-	InstrumentName               string     `json:"instrument_name"`
-	BaseCurrency                 string     `json:"base_currency"`
-	Kind                         string     `json:"kind"`
-	OptionType                   string     `json:"option_type"`
-	QuoteCurrency                string     `json:"quote_currency"`
-	BlockTradeCommission         float64    `json:"block_trade_commission"`
-	ContractSize                 float64    `json:"contract_size"`
-	CreationTimestamp            types.Time `json:"creation_timestamp"`
-	ExpirationTimestamp          types.Time `json:"expiration_timestamp"`
-	IsActive                     bool       `json:"is_active"`
-	Leverage                     float64    `json:"leverage"`
-	MaxLeverage                  float64    `json:"max_leverage"`
-	MakerCommission              float64    `json:"maker_commission"`
-	MinimumTradeAmount           float64    `json:"min_trade_amount"`
-	TickSize                     float64    `json:"tick_size"`
-	TakerCommission              float64    `json:"taker_commission"`
-	Strike                       float64    `json:"strike"`
-	SettlementPeriod             string     `json:"settlement_period"`
-	SettlementCurrency           string     `json:"settlement_currency"`
-	RequestForQuote              bool       `json:"rfq"`
-	PriceIndex                   string     `json:"price_index"`
-	InstrumentID                 int64      `json:"instrument_id"`
-	CounterCurrency              string     `json:"counter_currency"`
-	MaximumLiquidationCommission float64    `json:"max_liquidation_commission"`
-	FutureType                   string     `json:"future_type"`
+	InstrumentName               string        `json:"instrument_name"`
+	BaseCurrency                 currency.Code `json:"base_currency"`
+	Kind                         string        `json:"kind"`
+	OptionType                   string        `json:"option_type"`
+	QuoteCurrency                currency.Code `json:"quote_currency"`
+	BlockTradeCommission         float64       `json:"block_trade_commission"`
+	ContractSize                 float64       `json:"contract_size"`
+	CreationTimestamp            types.Time    `json:"creation_timestamp"`
+	ExpirationTimestamp          types.Time    `json:"expiration_timestamp"`
+	IsActive                     bool          `json:"is_active"`
+	Leverage                     float64       `json:"leverage"`
+	MaxLeverage                  float64       `json:"max_leverage"`
+	MakerCommission              float64       `json:"maker_commission"`
+	MinimumTradeAmount           float64       `json:"min_trade_amount"`
+	TickSize                     float64       `json:"tick_size"`
+	TakerCommission              float64       `json:"taker_commission"`
+	Strike                       float64       `json:"strike"`
+	SettlementPeriod             string        `json:"settlement_period"`
+	SettlementCurrency           currency.Code `json:"settlement_currency"`
+	RequestForQuote              bool          `json:"rfq"`
+	PriceIndex                   string        `json:"price_index"`
+	InstrumentID                 int64         `json:"instrument_id"`
+	CounterCurrency              string        `json:"counter_currency"`
+	MaximumLiquidationCommission float64       `json:"max_liquidation_commission"`
+	FutureType                   string        `json:"future_type"`
 	TickSizeSteps                []struct {
 		AbovePrice float64 `json:"above_price"`
 		TickSize   float64 `json:"tick_size"`
