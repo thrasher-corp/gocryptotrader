@@ -104,7 +104,10 @@ func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []Future
 		}
 	}
 	var resp []*FuturesOrderIDResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fBatchOrdersEPL, http.MethodPost, tradePathV3+"orders", nil, args, &resp)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fBatchOrdersEPL, http.MethodPost, tradePathV3+"orders", nil, args, &resp); err != nil {
+		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
+	}
+	return resp, nil
 }
 
 func (o *FuturesOrderRequest) validate() error {
@@ -150,7 +153,10 @@ func (e *Exchange) CancelMultipleFuturesOrders(ctx context.Context, args *Cancel
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []*FuturesOrderIDResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelBatchOrdersEPL, http.MethodDelete, tradePathV3+"batchOrders", nil, args, &resp)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelBatchOrdersEPL, http.MethodDelete, tradePathV3+"batchOrders", nil, args, &resp); err != nil {
+		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
+	}
+	return resp, nil
 }
 
 // CancelFuturesOrders cancel all current pending orders.
@@ -166,7 +172,10 @@ func (e *Exchange) CancelFuturesOrders(ctx context.Context, symbol, side string)
 		Side:   side,
 	}
 	var resp []*FuturesOrderIDResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelAllLimitOrdersEPL, http.MethodDelete, tradePathV3+"allOrders", nil, arg, &resp)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelAllLimitOrdersEPL, http.MethodDelete, tradePathV3+"allOrders", nil, arg, &resp); err != nil {
+		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
+	}
+	return resp, nil
 }
 
 // CloseAtMarketPrice close orders at market price.
@@ -192,10 +201,7 @@ func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol, marginMode, p
 		PositionSide: positionSide,
 	}
 	var resp *FuturesOrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelPositionAtMarketPriceEPL, http.MethodPost, tradePathV3+"position", nil, arg, &resp); err != nil {
-		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
-	}
-	return resp, nil
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelPositionAtMarketPriceEPL, http.MethodPost, tradePathV3+"position", nil, arg, &resp)
 }
 
 // CloseAllPositionsAtMarketPrice close all orders at market price.
