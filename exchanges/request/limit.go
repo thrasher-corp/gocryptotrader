@@ -13,7 +13,7 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// Defines rate limiting errors
+// Defines rate limiting errors.
 var (
 	ErrRateLimiterAlreadyDisabled = errors.New("rate limiter already disabled")
 	ErrRateLimiterAlreadyEnabled  = errors.New("rate limiter already enabled")
@@ -22,26 +22,24 @@ var (
 	errInvalidWeight = errors.New("weight must be equal-or-greater than 1")
 )
 
-// RateLimitNotRequired is a no-op rate limiter
+// RateLimitNotRequired is a no-op rate limiter.
 var RateLimitNotRequired *RateLimiterWithWeight
 
-// Const here define individual functionality sub types for rate limiting
+// Const here define individual functionality sub types for rate limiting.
 const (
 	Unset EndpointLimit = iota
 	Auth
 	UnAuth
 )
 
-// EndpointLimit defines individual endpoint rate limits that are set when
-// New is called.
+// EndpointLimit defines individual endpoint rate limits.
 type EndpointLimit uint16
 
-// Weight defines the number of reservations to be used. This is a generalised
-// weight for rate limiting. e.g. n weight = n request. i.e. 50 Weight = 50
-// requests.
+// Weight defines the number of reservations to be used. This is a generalised weight for rate limiting.
+// e.g. n weight = n request. i.e. 50 Weight = 50 requests.
 type Weight uint8
 
-// RateLimitDefinitions is a map of endpoint limits to rate limiters
+// RateLimitDefinitions is a map of endpoint limits to rate limiters.
 type RateLimitDefinitions map[any]*RateLimiterWithWeight
 
 // RateLimiterWithWeight is a rate limiter coupled with a weight which refers to the number or weighting of the request.
@@ -52,9 +50,8 @@ type RateLimiterWithWeight struct {
 	m       sync.Mutex
 }
 
-// NewRateLimit creates a new RateLimit based of time interval and how many
-// actions allowed and breaks it down to an actions-per-second basis -- Burst
-// rate is kept as one as this is not supported for out-bound requests.
+// NewRateLimit creates a new RateLimit based of time interval and how many actions allowed and breaks it down to an
+// actions-per-second basis -- Burst rate is kept as one as this is not supported for out-bound requests.
 func NewRateLimit(interval time.Duration, actions int) *rate.Limiter {
 	if actions <= 0 || interval <= 0 {
 		// Returns an un-restricted rate limiter
@@ -66,34 +63,32 @@ func NewRateLimit(interval time.Duration, actions int) *rate.Limiter {
 	return rate.NewLimiter(rate.Limit(rps), 1)
 }
 
-// NewRateLimitWithWeight creates a new RateLimit based of time interval and how
-// many actions allowed. This also has a weight count which refers to the number
-// or weighting of the request. This is used to define the rate limit for a
+// NewRateLimitWithWeight creates a new RateLimit based of time interval and how many actions allowed. This also has a
+// weight count which refers to the number or weighting of the request. This is used to define the rate limit for a
 // specific endpoint.
 func NewRateLimitWithWeight(interval time.Duration, actions int, weight Weight) *RateLimiterWithWeight {
 	return GetRateLimiterWithWeight(NewRateLimit(interval, actions), weight)
 }
 
-// NewWeightedRateLimitByDuration creates a new RateLimit based of time
-// interval. This equates to 1 action per interval. The weight is set to 1.
+// NewWeightedRateLimitByDuration creates a new RateLimit based of time interval. This equates to 1 action per interval.
+// The weight is set to 1.
 func NewWeightedRateLimitByDuration(interval time.Duration) *RateLimiterWithWeight {
 	return NewRateLimitWithWeight(interval, 1, 1)
 }
 
-// GetRateLimiterWithWeight couples a rate limiter with a weight count into an
-// accepted defined rate limiter with weight struct
+// GetRateLimiterWithWeight couples a rate limiter with a weight count into an accepted defined rate limiter with weight
+// struct.
 func GetRateLimiterWithWeight(l *rate.Limiter, weight Weight) *RateLimiterWithWeight {
 	return &RateLimiterWithWeight{limiter: l, weight: weight}
 }
 
-// NewBasicRateLimit returns an object that implements the limiter interface
-// for basic rate limit
+// NewBasicRateLimit returns an object that implements the limiter interface for basic rate limit.
 func NewBasicRateLimit(interval time.Duration, actions int, weight Weight) RateLimitDefinitions {
 	rl := NewRateLimitWithWeight(interval, actions, weight)
 	return RateLimitDefinitions{Unset: rl, Auth: rl, UnAuth: rl}
 }
 
-// InitiateRateLimit sleeps for designated end point rate limits
+// InitiateRateLimit sleeps for designated end point rate limits.
 func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) error {
 	if r == nil {
 		return ErrRequestSystemIsNil
@@ -110,8 +105,7 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 	return nil
 }
 
-// GetRateLimiterDefinitions returns the rate limiter definitions for the
-// requester
+// GetRateLimiterDefinitions returns the rate limiter definitions for the requester.
 func (r *Requester) GetRateLimiterDefinitions() RateLimitDefinitions {
 	if r == nil {
 		return nil
@@ -119,18 +113,19 @@ func (r *Requester) GetRateLimiterDefinitions() RateLimitDefinitions {
 	return r.limiter
 }
 
-// RateLimit throttles a request based on weight, delaying the request
-// Errors if no delay is permitted via the context and a delay is required
+// RateLimit throttles a request based on weight, delaying the request.
+// Errors if no delay is permitted via the context and a delay is required.
 func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	if err := common.NilGuard(r); err != nil {
 		return err
 	}
 
+	r.m.Lock()
 	if r.weight == 0 {
+		r.m.Unlock()
 		return errInvalidWeight
 	}
 
-	r.m.Lock()
 	tn := time.Now()
 	reserved := make([]*rate.Reservation, 0, r.weight)
 	for range r.weight {
@@ -165,8 +160,8 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	}
 }
 
-// cancelAll cancels all reservations at a specific time
-// Does not provide locking protection, so callers can maintain a single lock throughout
+// cancelAll cancels all reservations at a specific time.
+// Does not provide locking protection, so callers can maintain a single lock throughout.
 func cancelAll(reservations []*rate.Reservation, at time.Time) {
 	slices.Reverse(reservations) // cancel in reverse order for correct token reimbursement
 	for _, r := range reservations {
@@ -174,7 +169,7 @@ func cancelAll(reservations []*rate.Reservation, at time.Time) {
 	}
 }
 
-// DisableRateLimiter disables the rate limiting system for the exchange
+// DisableRateLimiter disables the rate limiting system for the exchange.
 func (r *Requester) DisableRateLimiter() error {
 	if r == nil {
 		return ErrRequestSystemIsNil
@@ -185,7 +180,7 @@ func (r *Requester) DisableRateLimiter() error {
 	return nil
 }
 
-// EnableRateLimiter enables the rate limiting system for the exchange
+// EnableRateLimiter enables the rate limiting system for the exchange.
 func (r *Requester) EnableRateLimiter() error {
 	if r == nil {
 		return ErrRequestSystemIsNil
@@ -198,7 +193,7 @@ func (r *Requester) EnableRateLimiter() error {
 
 type delayNotAllowedKey struct{}
 
-// WithDelayNotAllowed adds a value to the context that indicates that no delay is allowed for rate limiting
+// WithDelayNotAllowed adds a value to the context that indicates that no delay is allowed for rate limiting.
 func WithDelayNotAllowed(ctx context.Context) context.Context {
 	return context.WithValue(ctx, delayNotAllowedKey{}, struct{}{})
 }

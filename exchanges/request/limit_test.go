@@ -3,6 +3,7 @@ package request
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -40,15 +41,15 @@ func TestRateLimit(t *testing.T) {
 	start = time.Now()
 	err = r.RateLimit(WithDelayNotAllowed(t.Context()))
 	require.NoError(t, err, "first rate limit call must not error and must be immediate")
-	firstElapsed := time.Since(start)
-	assert.Less(t, firstElapsed, 50*time.Millisecond, "first call should be immediate")
+	elapsed = time.Since(start)
+	assert.Less(t, elapsed, 50*time.Millisecond, "first call should be immediate")
 
 	start = time.Now()
 	err = r.RateLimit(t.Context())
 	require.NoError(t, err, "second rate limit call must not error")
-	secondElapsed := time.Since(start)
-	assert.GreaterOrEqual(t, secondElapsed, 90*time.Millisecond, "second call should be delayed by approximately 100ms")
-	assert.Less(t, secondElapsed, 150*time.Millisecond, "delay should not be excessive")
+	elapsed = time.Since(start)
+	assert.GreaterOrEqual(t, elapsed, 90*time.Millisecond, "second call should be delayed by approximately 100ms")
+	assert.Less(t, elapsed, 150*time.Millisecond, "delay should not be excessive")
 
 	err = r.RateLimit(WithDelayNotAllowed(t.Context()))
 	assert.ErrorIs(t, err, ErrDelayNotAllowed, "should return correct error")
@@ -62,17 +63,16 @@ func TestRateLimit(t *testing.T) {
 	err = r.RateLimit(ctx)
 	assert.ErrorIs(t, err, context.Canceled, "should return correct error")
 	wg.Wait()
-	assert.NoError(t, routineErr, "routine should complete successfully will providing friction for above context cancellation")
+	assert.NoError(t, routineErr, "routine should complete successfully while providing friction for above context cancellation")
 
 	wg.Go(func() { routineErr = r.RateLimit(t.Context()) })
 	ctx, cancel = context.WithDeadline(t.Context(), time.Now())
 	defer cancel()
 	time.Sleep(10 * time.Millisecond)
-
 	err = r.RateLimit(ctx)
 	assert.ErrorIs(t, err, context.DeadlineExceeded, "should return correct error")
 	wg.Wait()
-	assert.NoError(t, routineErr, "routine should complete successfully will providing friction for above context deadline exceeded")
+	assert.NoError(t, routineErr, "routine should complete successfully while providing friction for above context deadline exceeded")
 }
 
 func TestRateLimit_Concurrent_WithFailure(t *testing.T) {
@@ -242,4 +242,25 @@ func TestCancelAll(t *testing.T) {
 	require.Equal(t, -1.0, r.TokensAt(tn), "must have negative tokens remaining")
 	cancelAll(reservations, tn)
 	require.Equal(t, 1.0, r.TokensAt(tn), "must have 1 token remaining after cancellation")
+}
+
+func TestInitiateRateLimit(t *testing.T) {
+	t.Parallel()
+
+	var r *Requester
+	err := r.InitiateRateLimit(t.Context(), Unset)
+	assert.ErrorIs(t, err, ErrRequestSystemIsNil, "should return correct error")
+
+	r = &Requester{}
+	atomic.StoreInt32(&r.disableRateLimiter, 1)
+	err = r.InitiateRateLimit(t.Context(), Unset)
+	assert.NoError(t, err, "should not error when rate limiter is disabled")
+
+	atomic.StoreInt32(&r.disableRateLimiter, 0)
+	err = r.InitiateRateLimit(t.Context(), Unset)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "should return correct error when limiter is nil")
+
+	r.limiter = NewBasicRateLimit(time.Second, 10, 1)
+	err = r.InitiateRateLimit(t.Context(), Unset)
+	assert.NoError(t, err, "should not error on valid rate limit initiation")
 }
