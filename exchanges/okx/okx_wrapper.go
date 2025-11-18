@@ -271,6 +271,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.BusinessUnsubscribe,
 		Handler:               e.wsHandleData,
 		Authenticate:          e.wsAuthenticateConnection,
+		MessageFilter:         businessConnection,
 	})
 }
 

@@ -16,7 +16,6 @@ import (
 
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -541,9 +540,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 
 // wsProcessSpreadTrades handle and process spread order trades
 func (e *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
-	if respRaw == nil {
-		return common.ErrNilPointer
-	}
 	var resp WsSpreadOrderTrade
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -580,9 +576,6 @@ func (e *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
 // Data will not be pushed when first subscribed.
 // Data will only be pushed when triggered by events such as placing/canceling order.
 func (e *Exchange) wsProcessSpreadOrders(respRaw []byte) error {
-	if respRaw == nil {
-		return common.ErrNilPointer
-	}
 	resp := &struct {
 		Argument SubscriptionInfo `json:"arg"`
 		Data     []WsSpreadOrder  `json:"data"`
@@ -638,9 +631,6 @@ func (e *Exchange) wsProcessSpreadOrders(respRaw []byte) error {
 
 // wsProcessIndexCandles processes index candlestick data
 func (e *Exchange) wsProcessIndexCandles(respRaw []byte) error {
-	if respRaw == nil {
-		return common.ErrNilPointer
-	}
 	response := struct {
 		Argument SubscriptionInfo  `json:"arg"`
 		Data     [][5]types.Number `json:"data"`
@@ -1225,9 +1215,6 @@ func (e *Exchange) wsProcessOrders(respRaw []byte) error {
 
 // wsProcessCandles handler to get a list of candlestick messages.
 func (e *Exchange) wsProcessCandles(respRaw []byte) error {
-	if respRaw == nil {
-		return common.ErrNilPointer
-	}
 	response := struct {
 		Argument SubscriptionInfo  `json:"arg"`
 		Data     [][7]types.Number `json:"data"`

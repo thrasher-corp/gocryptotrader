@@ -6110,40 +6110,51 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
+	require.NoError(t, e.Websocket.Connect())
 
-	// err := e.WsConnectBusiness(t.Context())
-	// require.NoError(t, err, "WsConnectBusiness must not error")
+	conn, err := e.Websocket.GetConnection(businessConnection)
+	require.NoError(t, err, "GetConnection must not error")
 
-	// err = e.BusinessSubscribe(t.Context(), subscription.List{{Channel: channelCandle1D}})
-	// require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	err = e.BusinessSubscribe(t.Context(), conn, subscription.List{{Channel: channelCandle1D}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	// p := currency.Pairs{
-	// 	mainPair,
-	// 	currency.NewPairWithDelimiter("ETH", "USDT", "-"),
-	// 	currency.NewPairWithDelimiter("OKB", "USDT", "-"),
-	// }
+	p := currency.Pairs{
+		mainPair,
+		currency.NewPairWithDelimiter("ETH", "USDT", "-"),
+		currency.NewPairWithDelimiter("OKB", "USDT", "-"),
+	}
 
-	// for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
-	// 	err := e.BusinessSubscribe(t.Context(), subscription.List{{Channel: ch, Pairs: p[i : i+1]}})
-	// 	require.NoErrorf(t, err, "BusinessSubscribe %s-%s must not error", ch, p[i])
-	// }
+	for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
+		err := e.BusinessSubscribe(t.Context(), conn, subscription.List{{Channel: ch, Pairs: p[i : i+1]}})
+		require.NoErrorf(t, err, "BusinessSubscribe %s-%s must not error", ch, p[i])
+	}
 
-	// var got currency.Pairs
-	// assert.Eventually(t, func() bool {
-	// 	select {
-	// 	case a := <-e.Websocket.DataHandler:
-	// 		switch v := a.(type) {
-	// 		case websocket.KlineData:
-	// 			got = got.Add(v.Pair)
-	// 		case []CandlestickMarkPrice:
-	// 			if len(v) > 0 {
-	// 				got = got.Add(v[0].Pair)
-	// 			}
-	// 		}
-	// 	default:
-	// 	}
-	// 	return len(got) == 3
-	// }, 4*time.Second, 100*time.Millisecond, "Should eventually get candles from the datahandler")
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	var got currency.Pairs
+check:
+	for {
+		select {
+		case data := <-e.Websocket.ToRoutine:
+			switch v := data.(type) {
+			case websocket.KlineData:
+				got = got.Add(v.Pair)
+			case []CandlestickMarkPrice:
+				if len(v) > 0 {
+					got = got.Add(v[0].Pair)
+				}
+			default:
+			}
+			if len(got) == 3 {
+				break check
+			}
+		case <-timeout.C:
+			break check
+		}
+	}
+
+	require.Equal(t, 3, len(got), "must receive candles for all three subscriptions")
+	require.NoError(t, got.ContainsAll(p, true), "must receive candles for all subscribed pairs")
 }
 
 const (
