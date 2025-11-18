@@ -1775,8 +1775,8 @@ type Position struct {
 	LastClosePNL               types.Number `json:"last_close_pnl"`
 	RealisedPNLPoint           types.Number `json:"realised_point"`
 	RealisedPNLHistoryPoint    types.Number `json:"history_point"`
-	ADLRanking                 int64        `json:"adl_ranking"` // Ranking of auto deleveraging, a total of 1-5 grades, 1 is the highest, 5 is the lowest, and 6 is the special case when there is no position held or in liquidation
-	PendingOrders              int64        `json:"pending_orders"`
+	ADLRanking                 uint8        `json:"adl_ranking"` // Ranking of auto deleveraging, a total of 1-5 grades, 1 is the highest, 5 is the lowest, and 6 is the special case when there is no position held or in liquidation
+	PendingOrders              uint64       `json:"pending_orders"`
 	CloseOrder                 CloseOrder   `json:"close_order"`
 	Mode                       string       `json:"mode"`
 	CrossLeverageLimit         types.Number `json:"cross_leverage_limit"`

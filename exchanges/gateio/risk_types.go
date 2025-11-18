@@ -7,7 +7,7 @@ import (
 
 // UserRiskUnitDetails represents the risk unit details for a user
 type UserRiskUnitDetails struct {
-	UserID    string      `json:"user_id"`
+	UserID    int64       `json:"user_id"`
 	SpotHedge bool        `json:"spot_hedge"`
 	RiskUnits []RiskUnits `json:"risk_units"`
 }
@@ -26,7 +26,7 @@ type RiskUnits struct {
 
 // RiskTable represents the risk table information
 type RiskTable struct {
-	Tier            types.Number  `json:"tier"`
+	Tier            uint8         `json:"tier"`
 	RiskLimit       types.Number  `json:"risk_limit"`
 	InitialRate     types.Number  `json:"initial_rate"`
 	MaintenanceRate types.Number  `json:"maintenance_rate"`
