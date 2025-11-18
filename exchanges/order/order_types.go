@@ -432,16 +432,7 @@ var AllOrderTypes = Limit |
 	TWAP |
 	Chase |
 	OptimalLimit |
-	MarketMakerProtection |
-
-	// Hybrid order types
-	// Although composed of existing types, these are treated as distinct and supported
-	// order types within the system, not as unsupported combinations.
-	StopLimit |
-	StopMarket |
-	TakeProfitMarket |
-	TrailingStopLimit |
-	Bracket
+	MarketMakerProtection
 
 // Side enforces a standard for order sides across the code base
 type Side uint32

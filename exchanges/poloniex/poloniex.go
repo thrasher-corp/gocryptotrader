@@ -128,13 +128,14 @@ func (e *Exchange) GetMarkPriceComponents(ctx context.Context, symbol currency.P
 }
 
 // GetOrderbook retrieves the order book for a symbol
-func (e *Exchange) GetOrderbook(ctx context.Context, symbol currency.Pair, scale, limit uint64) (*OrderbookData, error) {
+// possible scale values are 0.1, 1, 10, and 100
+func (e *Exchange) GetOrderbook(ctx context.Context, symbol currency.Pair, scale float64, limit uint64) (*OrderbookData, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
 	if scale > 0 {
-		params.Set("scale", strconv.FormatUint(scale, 10))
+		params.Set("scale", strconv.FormatFloat(scale, 'f', -1, 64))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -383,13 +384,13 @@ func (e *Exchange) GetSubAccount(ctx context.Context) ([]*SubAccount, error) {
 
 // GetSubAccountBalances retrieves balances by currency and account type (SPOT or FUTURES)
 // for all accounts in the group. Available only to the primary user.
-// Subaccounts should use GetBalances() for SPOT and the Futures API for FUTURES.
 func (e *Exchange) GetSubAccountBalances(ctx context.Context) ([]*SubAccountBalances, error) {
 	var resp []*SubAccountBalances
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSubAccountBalancesEPL, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
 }
 
-// GetSubAccountBalance gets balances information by currency and account type (SPOT and FUTURES) for a given external accountId in the account group
+// GetSubAccountBalance gets balances information by currency and account type (SPOT and FUTURES) for a given external accountId in the account group.
+// Subaccounts should use GetBalances() for SPOT and the Futures API for FUTURES.
 func (e *Exchange) GetSubAccountBalance(ctx context.Context, subAccountID string) ([]*SubAccountBalances, error) {
 	if subAccountID == "" {
 		return nil, fmt.Errorf("%w: empty subAccountID", errAccountIDRequired)
@@ -814,23 +815,11 @@ func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelRepla
 	if err != nil {
 		return nil, err
 	}
-	var smartOrderResponse *CancelReplaceSmartOrder
-	resp := &V3ResponseWrapper{
-		Data: &smartOrderResponse,
-	}
+	var resp *CancelReplaceSmartOrder
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCreateReplaceSmartOrdersEPL, http.MethodPut, path, nil, arg, &resp); err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
-	if smartOrderResponse == nil {
-		return nil, common.ErrNoResponse
-	} else if smartOrderResponse.Code != 0 && smartOrderResponse.Code != 200 {
-		ordID := arg.OrderID
-		if ordID == "" {
-			ordID = arg.ClientOrderID
-		}
-		return nil, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelFailed, ordID, smartOrderResponse.Code, smartOrderResponse.Message)
-	}
-	return smartOrderResponse, nil
+	return resp, nil
 }
 
 // GetSmartOpenOrders gets a list of pending smart orders for an account
@@ -868,23 +857,11 @@ func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedI
 	if err != nil {
 		return nil, err
 	}
-	var cancelSmartOrderResponse *CancelSmartOrderResponse
-	resp := &V3ResponseWrapper{
-		Data: &cancelSmartOrderResponse,
-	}
+	var resp *CancelSmartOrderResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelSmartOrderByIDEPL, http.MethodDelete, path, nil, nil, &resp); err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
-	if cancelSmartOrderResponse == nil {
-		return nil, common.ErrNoResponse
-	} else if cancelSmartOrderResponse.Code != 0 && cancelSmartOrderResponse.Code != 200 {
-		ordID := id
-		if ordID == "" {
-			ordID = clientSuppliedID
-		}
-		return cancelSmartOrderResponse, fmt.Errorf("%w: order ID: %s code: %d message: %s", order.ErrCancelFailed, ordID, cancelSmartOrderResponse.Code, cancelSmartOrderResponse.Message)
-	}
-	return cancelSmartOrderResponse, nil
+	return resp, nil
 }
 
 // CancelMultipleSmartOrders performs a batch cancel one or many smart orders in an account by IDs.
@@ -1054,7 +1031,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	}, request.UnauthenticatedRequest); err != nil {
 		return err
 	}
-	if result == nil {
+	if resp == nil {
 		return common.ErrNoResponse
 	}
 	if errType, ok := result.(interface{ Error() error }); ok {
@@ -1136,10 +1113,11 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 	if err := e.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest); err != nil {
 		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
-	} else if result == nil {
+	}
+	if resp == nil {
 		return common.ErrNoResponse
 	}
-	if errType, ok := result.(interface{ Error() error }); ok && errType.Error() != nil {
+	if errType, ok := resp.(interface{ Error() error }); ok && errType.Error() != nil {
 		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, errType.Error())
 	}
 	return nil

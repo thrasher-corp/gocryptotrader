@@ -838,8 +838,8 @@ type WsResponse struct {
 
 // CrossMarginSupportInfo represents information on whether cross margin support is enabled or not, and leverage detail
 type CrossMarginSupportInfo struct {
-	SupportCrossMargin bool         `json:"supportCrossMargin"`
-	MaxLeverage        types.Number `json:"maxLeverage"`
+	SupportCrossMargin bool  `json:"supportCrossMargin"`
+	MaxLeverage        int64 `json:"maxLeverage"`
 }
 
 // WsSymbol represents a subscription

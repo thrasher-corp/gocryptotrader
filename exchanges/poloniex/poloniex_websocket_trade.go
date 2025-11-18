@@ -94,5 +94,14 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, event string, arg, 
 		return err
 	}
 
-	return json.Unmarshal(result, &WebsocketResponse{Data: response})
+	if err := json.Unmarshal(result, &WebsocketResponse{Data: response}); err != nil {
+		return err
+	}
+	if response == nil {
+		return common.ErrNoResponse
+	}
+	if errType, ok := response.(interface{ Error() error }); ok && errType.Error() != nil {
+		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, errType.Error())
+	}
+	return nil
 }

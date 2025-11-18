@@ -1697,7 +1697,7 @@ func TestCancelReplaceSmartOrder(t *testing.T) {
 	}
 	result, err := e.CancelReplaceSmartOrder(t.Context(), &CancelReplaceSmartOrderRequest{
 		OrderID:       "29772698821328896",
-		ClientOrderID: "1234Abc",
+		ClientOrderID: "1234A",
 		Price:         18000,
 	})
 	require.NoError(t, err)
@@ -2345,7 +2345,7 @@ func TestGetPositionMode(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetOrderBook(t *testing.T) {
+func TestGetFuturesOrderBook(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesOrderBook(t.Context(), "", 100, 100)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
