@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -3196,6 +3197,7 @@ type SubscriptionInfo struct {
 type WSSubscriptionInformationList struct {
 	Operation string             `json:"op"`
 	Arguments []SubscriptionInfo `json:"args"`
+	subs      subscription.List  `json:"-"`
 }
 
 // SpreadOrderInfo holds spread order response information

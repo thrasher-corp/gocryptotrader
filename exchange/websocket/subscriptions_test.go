@@ -2,12 +2,18 @@ package websocket
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
 // TestSubscribe logic test
@@ -302,4 +308,213 @@ func currySimpleUnsubConn(w *Manager) func(context.Context, Connection, subscrip
 	return func(_ context.Context, conn Connection, unsubs subscription.List) error {
 		return w.RemoveSubscriptions(conn, unsubs...)
 	}
+}
+
+func TestFlushChannels(t *testing.T) {
+	t.Parallel()
+	// Enabled pairs/setup system
+
+	dodgyWs := Manager{}
+	err := dodgyWs.FlushChannels()
+	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "FlushChannels should error correctly")
+
+	dodgyWs.setEnabled(true)
+	err = dodgyWs.FlushChannels()
+	assert.ErrorIs(t, err, ErrNotConnected, "FlushChannels should error correctly")
+
+	newgen := GenSubs{EnabledPairs: []currency.Pair{
+		currency.NewPair(currency.BTC, currency.AUD),
+		currency.NewBTCUSDT(),
+	}}
+
+	w := NewManager()
+	w.exchangeName = "test"
+	w.connector = noopConnect
+	w.Subscriber = newgen.SUBME
+	w.Unsubscriber = newgen.UNSUBME
+	// Added for when we utilise connect() in FlushChannels() so the traffic monitor doesn't time out and turn this to an unconnected state
+	w.trafficTimeout = time.Second * 30
+
+	w.setEnabled(true)
+	w.setState(connectedState)
+
+	// Allow subscribe and unsubscribe feature set, without these the tests will call shutdown and connect.
+	w.features.Subscribe = true
+	w.features.Unsubscribe = true
+
+	// Disable pair and flush system
+	newgen.EnabledPairs = []currency.Pair{currency.NewPair(currency.BTC, currency.AUD)}
+	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{{Channel: "test"}}, nil }
+
+	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "FlushChannels must error correctly on no subscriptions added")
+
+	w.Subscriber = func(subs subscription.List) error {
+		for _, sub := range subs {
+			if err := w.subscriptions.Add(sub); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
+
+	w.GenerateSubs = func() (subscription.List, error) { return nil, errDastardlyReason } // error on generateSubs
+	err = w.FlushChannels()                                                               // error on full subscribeToChannels
+	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should error correctly on GenerateSubs")
+
+	w.GenerateSubs = func() (subscription.List, error) { return nil, nil } // No subs to sub
+
+	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotRemoved)
+
+	w.Unsubscriber = func(subs subscription.List) error {
+		for _, sub := range subs {
+			if err := w.subscriptions.Remove(sub); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	assert.NoError(t, w.FlushChannels(), "FlushChannels should not error")
+
+	w.GenerateSubs = newgen.generateSubs
+	subs, err := w.GenerateSubs()
+	require.NoError(t, err, "GenerateSubs must not error")
+	require.NoError(t, w.AddSubscriptions(nil, subs...), "AddSubscriptions must not error")
+	err = w.FlushChannels()
+	assert.NoError(t, err, "FlushChannels should not error")
+
+	w.GenerateSubs = newgen.generateSubs
+	w.subscriptions = subscription.NewStore()
+	err = w.subscriptions.Add(&subscription.Subscription{
+		Key:     41,
+		Channel: "match channel",
+		Pairs:   currency.Pairs{currency.NewPair(currency.BTC, currency.AUD)},
+	})
+	require.NoError(t, err, "AddSubscription must not error")
+	err = w.subscriptions.Add(&subscription.Subscription{
+		Key:     42,
+		Channel: "unsub channel",
+		Pairs:   currency.Pairs{currency.NewPair(currency.THETA, currency.USDT)},
+	})
+	require.NoError(t, err, "AddSubscription must not error")
+
+	err = w.FlushChannels()
+	assert.NoError(t, err, "FlushChannels should not error")
+
+	w.setState(connectedState)
+	err = w.FlushChannels()
+	assert.NoError(t, err, "FlushChannels should not error")
+
+	// Multi connection management
+	w.useMultiConnectionManagement = true
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	defer mock.Close()
+
+	w.subscriptions = subscription.NewStore()
+
+	amazingCandidate := &ConnectionSetup{
+		URL: "ws" + mock.URL[len("http"):] + "/ws",
+		Connector: func(ctx context.Context, conn Connection) error {
+			return conn.Dial(ctx, gws.DefaultDialer, nil)
+		},
+		GenerateSubscriptions: newgen.generateSubs,
+		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
+		Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
+		Handler:               func(context.Context, Connection, []byte) error { return nil },
+	}
+	require.NoError(t, w.SetupNewConnection(amazingCandidate))
+	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "Must error when no subscriptions are added to the subscription store")
+
+	w.connectionManager[0].setup.Subscriber = func(ctx context.Context, c Connection, s subscription.List) error {
+		return currySimpleSubConn(w)(ctx, c, s)
+	}
+	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
+
+	// Forces full connection cycle (shutdown, connect, subscribe). This will also start monitoring routines.
+	w.features.Subscribe = false
+	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
+
+	// Unsubscribe what's already subscribed. No subscriptions left over, which then forces the shutdown and removal
+	// of the connection from management.
+	w.features.Subscribe = true
+	w.connectionManager[0].setup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
+	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotRemoved, "Must error when no subscriptions are removed from subscription store")
+
+	w.connectionManager[0].setup.Unsubscriber = func(ctx context.Context, c Connection, s subscription.List) error {
+		return currySimpleUnsubConn(w)(ctx, c, s)
+	}
+	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
+}
+
+func TestScaleConnectionsToSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ws := NewManager()
+	err := ws.scaleConnectionsToSubscriptions(t.Context(), nil, nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "must error with nil connectionWrapper")
+	ws.MaxSubscriptionsPerConnection = 2
+
+	wrapper := &connectionWrapper{
+		setup: &ConnectionSetup{
+			Connector: func(ctx context.Context, c Connection) error {
+				return c.Dial(ctx, gws.DefaultDialer, nil)
+			},
+			Subscriber: func(ctx context.Context, c Connection, s subscription.List) error {
+				return currySimpleSubConn(ws)(ctx, c, s)
+			},
+			Unsubscriber: func(ctx context.Context, c Connection, s subscription.List) error {
+				return currySimpleUnsubConn(ws)(ctx, c, s)
+			},
+			Handler: func(context.Context, Connection, []byte) error { return nil },
+		},
+		connectionSubs: make(map[Connection]*subscription.Store),
+		subscriptions:  subscription.NewStore(),
+	}
+
+	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
+	require.NoError(t, err, "must not error with no subscriptions")
+
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	defer mock.Close()
+	wrapper.setup.URL = "ws" + mock.URL[len("http"):] + "/ws"
+
+	exp := subscription.List{
+		{Channel: "test"},
+		{Channel: "test2"},
+		{Channel: "test3"},
+	}
+
+	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, exp)
+	require.NoError(t, err, "must not error when adding subscriptions")
+	require.Len(t, wrapper.connectionSubs, 2, "must have two connections when max subs per connection is 2")
+	require.Len(t, wrapper.subscriptions.Contained(exp), 3, "subscriptions must match global store")
+	var specificConnSubs subscription.List
+	for _, store := range wrapper.connectionSubs {
+		specificConnSubs = append(specificConnSubs, store.List()...)
+	}
+	require.Len(t, wrapper.subscriptions.Contained(specificConnSubs), 3, "connection subscriptions must match global store")
+
+	exp = subscription.List{
+		{Channel: "test4"},
+		{Channel: "test5"},
+		{Channel: "test6"},
+		{Channel: "test7"},
+		{Channel: "test8"},
+	}
+
+	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, exp)
+	require.NoError(t, err, "must not error when scaling subscriptions to connections")
+	require.Len(t, wrapper.connectionSubs, 3, "must have three connections when max subs per connection is 2")
+	require.Len(t, wrapper.subscriptions.Contained(exp), 5, "subscriptions must match global store")
+	specificConnSubs = nil
+	for _, store := range wrapper.connectionSubs {
+		specificConnSubs = append(specificConnSubs, store.List()...)
+	}
+	require.Len(t, wrapper.subscriptions.Contained(specificConnSubs), 5, "connection subscriptions must match global store")
+
+	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
+	require.NoError(t, err, "must not error when scaling subscriptions to connections with no new subscriptions")
+	require.Len(t, wrapper.connectionSubs, 0, "must drop all connections when no subscriptions are present")
+	require.Len(t, wrapper.subscriptions.List(), 0, "must drop all subscriptions when no subscriptions are present")
 }

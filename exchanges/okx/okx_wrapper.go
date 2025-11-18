@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -65,7 +66,7 @@ func (e *Exchange) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	// TODO: Disabled until spread/business websocket is implemented
+	// TODO: Remove when spread/business websocket templates across connections are completed
 	if err := e.DisableAssetWebsocketSupport(asset.Spread); err != nil {
 		log.Errorf(log.ExchangeSys, "%s error disabling %q asset websocket support: %s", e.Name, asset.Spread.String(), err)
 	}
@@ -176,8 +177,10 @@ func (e *Exchange) SetDefaults() {
 
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      apiURL,
-		exchange.WebsocketSpot: apiWebsocketPublicURL,
+		exchange.RestSpot:                   apiURL,
+		exchange.WebsocketSpot:              apiWebsocketPublicURL,
+		exchange.WebsocketPrivate:           apiWebsocketPrivateURL,
+		exchange.WebsocketSpotSupplementary: okxBusinessWebsocketURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -202,40 +205,72 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
-		DefaultURL:                             apiWebsocketPublicURL,
-		RunningURL:                             wsRunningEndpoint,
-		Connector:                              e.WsConnect,
-		Subscriber:                             e.Subscribe,
-		Unsubscriber:                           e.Unsubscribe,
-		GenerateSubscriptions:                  e.generateSubscriptions,
 		Features:                               &e.Features.Supports.WebsocketCapabilities,
 		MaxWebsocketSubscriptionsPerConnection: 240,
 		RateLimitDefinitions:                   rateLimits,
+		UseMultiConnectionManagement:           true,
 	}); err != nil {
+		return err
+	}
+
+	wsPublic, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
 		return err
 	}
 
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  apiWebsocketPublicURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     websocketResponseMaxLimit,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		URL:                   wsPublic,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      websocketResponseMaxLimit,
+		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
+		Connector:             e.wsConnect,
+		GenerateSubscriptions: func() (subscription.List, error) { return e.generateSubscriptions(true) },
+		Handler:               e.wsHandleData,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
 	}); err != nil {
 		return err
 	}
 
+	wsPrivate, err := e.API.Endpoints.GetURL(exchange.WebsocketPrivate)
+	if err != nil {
+		return err
+	}
+
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   wsPrivate,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      websocketResponseMaxLimit,
+		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
+		Connector:             e.wsConnect,
+		GenerateSubscriptions: func() (subscription.List, error) { return e.generateSubscriptions(false) },
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		Handler:               e.wsHandleData,
+		Authenticate:          e.wsAuthenticateConnection,
+		MessageFilter:         privateConnection,
+	}); err != nil {
+		return err
+	}
+
+	wsBusiness, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return err
+	}
+
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  apiWebsocketPrivateURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     websocketResponseMaxLimit,
-		Authenticated:        true,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		URL:                   wsBusiness,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      websocketResponseMaxLimit,
+		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
+		Connector:             e.wsConnect,
+		GenerateSubscriptions: e.GenerateDefaultBusinessSubscriptions,
+		Subscriber:            e.BusinessSubscribe,
+		Unsubscriber:          e.BusinessUnsubscribe,
+		Handler:               e.wsHandleData,
+		Authenticate:          e.wsAuthenticateConnection,
 	})
 }
 

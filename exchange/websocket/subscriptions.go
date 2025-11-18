@@ -224,20 +224,26 @@ func (m *Manager) GetSubscriptions() subscription.List {
 // The subscription state is not considered when counting existing subscriptions
 func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) error {
 	var subscriptionStore *subscription.Store
+	var usedCapacity int
 	if wrapper, ok := m.connections[conn]; ok && conn != nil {
 		subscriptionStore = wrapper.subscriptions
+		if subscriptionStore == nil {
+			return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
+		}
+		connStore := wrapper.connectionSubs[conn]
+		usedCapacity = connStore.Len()
 	} else {
 		subscriptionStore = m.subscriptions
-	}
-	if subscriptionStore == nil {
-		return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
+		if subscriptionStore == nil {
+			return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
+		}
+		usedCapacity = subscriptionStore.Len()
 	}
 
-	existing := subscriptionStore.Len()
-	if m.MaxSubscriptionsPerConnection > 0 && existing+len(subs) > m.MaxSubscriptionsPerConnection {
+	if m.MaxSubscriptionsPerConnection > 0 && usedCapacity+len(subs) > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v - please reduce enabled pairs",
 			errSubscriptionsExceedsLimit,
-			existing,
+			usedCapacity,
 			len(subs),
 			m.MaxSubscriptionsPerConnection)
 	}
@@ -283,44 +289,23 @@ func (m *Manager) FlushChannels() error {
 		return m.updateChannelSubscriptions(nil, m.subscriptions, newSubs)
 	}
 
-	for x := range m.connectionManager {
-		if m.connectionManager[x].setup.SubscriptionsNotRequired {
+	for _, wrapper := range m.connectionManager {
+		if wrapper.setup.SubscriptionsNotRequired {
 			continue
 		}
 
-		newSubs, err := m.connectionManager[x].setup.GenerateSubscriptions()
+		newSubs, err := wrapper.setup.GenerateSubscriptions()
 		if err != nil {
 			return err
 		}
 
 		// Case if there is nothing to unsubscribe from and the connection is nil
-		if len(newSubs) == 0 && m.connectionManager[x].connection == nil {
+		if len(newSubs) == 0 && len(wrapper.connectionSubs) == 0 {
 			continue
 		}
 
-		// If there are subscriptions to subscribe to but no connection to subscribe to, establish a new connection.
-		if m.connectionManager[x].connection == nil {
-			conn := m.getConnectionFromSetup(m.connectionManager[x].setup)
-			if err := m.connectionManager[x].setup.Connector(context.TODO(), conn); err != nil {
-				return err
-			}
-			m.Wg.Add(1)
-			go m.Reader(context.TODO(), conn, m.connectionManager[x].setup.Handler)
-			m.connections[conn] = m.connectionManager[x]
-			m.connectionManager[x].connection = conn
-		}
-
-		if err := m.updateChannelSubscriptions(m.connectionManager[x].connection, m.connectionManager[x].subscriptions, newSubs); err != nil {
+		if err := m.scaleConnectionsToSubscriptions(context.TODO(), wrapper, newSubs); err != nil {
 			return err
-		}
-
-		// If there are no subscriptions to subscribe to, close the connection as it is no longer needed.
-		if m.connectionManager[x].subscriptions.Len() == 0 {
-			delete(m.connections, m.connectionManager[x].connection) // Remove from lookup map
-			if err := m.connectionManager[x].connection.Shutdown(); err != nil {
-				log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
-			}
-			m.connectionManager[x].connection = nil
 		}
 	}
 	return nil
@@ -348,5 +333,105 @@ func (m *Manager) updateChannelSubscriptions(c Connection, store *subscription.S
 			return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotAdded, missing)
 		}
 	}
+	return nil
+}
+
+// scaleConnectionsToSubscriptions scales connections to subscriptions based off current subscription list
+func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, wrapper *connectionWrapper, incoming subscription.List) error {
+	if err := common.NilGuard(wrapper); err != nil {
+		return err
+	}
+	subs, unsubs := wrapper.subscriptions.Diff(incoming)
+	if len(unsubs) != 0 {
+		currentUnsubs := slices.Clone(unsubs)
+		// Unsubscribe first to free up capacity on existing connections
+		for conn, store := range wrapper.connectionSubs {
+			remove := store.Contained(currentUnsubs)
+			if len(remove) == 0 {
+				continue
+			}
+			leftOver := store.Missing(currentUnsubs)
+			if err := m.UnsubscribeChannels(conn, remove); err != nil {
+				return err
+			}
+
+			for _, r := range remove {
+				if err := store.Remove(r); err != nil {
+					return err
+				}
+			}
+
+			currentUnsubs = leftOver
+			if len(currentUnsubs) == 0 {
+				break
+			}
+		}
+
+		if len(currentUnsubs) != 0 {
+			log.Warnf(log.WebsocketMgr, "%v websocket: unable to find all subscriptions to remove on existing connections, attempting global unsubscribe for %v", m.exchangeName, currentUnsubs)
+			for _, s := range currentUnsubs {
+				if err := wrapper.subscriptions.Remove(s); err != nil {
+					return err
+				}
+			}
+		}
+		if contained := wrapper.subscriptions.Contained(unsubs); len(contained) > 0 {
+			return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotRemoved, contained)
+		}
+	}
+	if len(subs) != 0 {
+		// Subscribe to existing connections to use up existing capacity on free connections
+		currentSubs := slices.Clone(subs)
+		for conn, store := range wrapper.connectionSubs {
+			usedCap := store.Len()
+			if m.MaxSubscriptionsPerConnection > 0 && usedCap == m.MaxSubscriptionsPerConnection {
+				continue // No capacity left for this connection
+			}
+			availableCap := len(currentSubs)
+			if m.MaxSubscriptionsPerConnection > 0 {
+				availableCap = m.MaxSubscriptionsPerConnection - usedCap
+			}
+
+			toSubscribe := currentSubs[:availableCap]
+			if err := m.SubscribeToChannels(conn, toSubscribe); err != nil {
+				return err
+			}
+
+			for _, s := range toSubscribe {
+				if err := store.Add(s); err != nil {
+					return err
+				}
+			}
+
+			currentSubs = currentSubs[availableCap:]
+			if len(currentSubs) == 0 {
+				break
+			}
+		}
+
+		// Spawn new connections if there are still subscriptions left to process
+		for _, batch := range common.Batch(currentSubs, m.MaxSubscriptionsPerConnection) {
+			if err := m.connectAndSubscribe(ctx, wrapper, batch); err != nil {
+				return err
+			}
+		}
+
+		if missing := wrapper.subscriptions.Missing(subs); len(missing) > 0 {
+			return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotAdded, missing)
+		}
+	}
+
+	// Clean up any connections that have no subscriptions left to reduce resource usage
+	for conn, store := range wrapper.connectionSubs {
+		if store.Len() != 0 {
+			continue
+		}
+		delete(wrapper.connectionSubs, conn)
+		delete(m.connections, conn)
+		if err := conn.Shutdown(); err != nil {
+			log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
+		}
+	}
+
 	return nil
 }
