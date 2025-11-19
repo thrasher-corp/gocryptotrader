@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -643,19 +644,19 @@ type TickerResp struct {
 
 // DepthResp contains information on orderbook bids and asks, and any merging of orders done to them
 type DepthResp struct {
-	Asks           [][2]float64 `json:"asks"`
-	Bids           [][2]float64 `json:"bids"`
-	Precision      string       `json:"precision"`
-	Scale          types.Number `json:"scale"`
-	IsMaxPrecision YesNoBool    `json:"isMaxPrecision"`
-	Timestamp      types.Time   `json:"ts"`
+	Asks           orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids           orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Precision      string                           `json:"precision"`
+	Scale          types.Number                     `json:"scale"`
+	IsMaxPrecision YesNoBool                        `json:"isMaxPrecision"`
+	Timestamp      types.Time                       `json:"ts"`
 }
 
 // OrderbookResp contains information on orderbook bids and asks
 type OrderbookResp struct {
-	Asks      [][2]types.Number `json:"asks"`
-	Bids      [][2]types.Number `json:"bids"`
-	Timestamp types.Time        `json:"ts"`
+	Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Timestamp types.Time                       `json:"ts"`
 }
 
 // OneSpotCandle contains a single candle

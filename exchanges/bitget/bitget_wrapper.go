@@ -539,50 +539,43 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+	pair, err := e.FormatExchangeCurrency(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	var bids, asks orderbook.Levels
+	var ts time.Time
+	switch assetType {
+	case asset.Spot, asset.Margin, asset.CrossMargin:
+		orderbookNew, err := e.GetOrderbookDepth(ctx, pair, "", 150)
+		if err != nil {
+			return nil, err
+		}
+		bids = orderbookNew.Bids.Levels()
+		asks = orderbookNew.Asks.Levels()
+		ts = orderbookNew.Timestamp.Time()
+	case asset.Futures:
+		orderbookNew, err := e.GetFuturesMergeDepth(ctx, pair, getProductType(pair), "", "max")
+		if err != nil {
+			return nil, err
+		}
+
+		bids = orderbookNew.Bids.Levels()
+		asks = orderbookNew.Asks.Levels()
+		ts = orderbookNew.Timestamp.Time()
+	default:
+		return nil, asset.ErrNotSupported
+	}
 	book := &orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              pair,
 		Asset:             assetType,
 		ValidateOrderbook: e.ValidateOrderbook,
 		MaxDepth:          150,
-	}
-	pair, err := e.FormatExchangeCurrency(pair, assetType)
-	if err != nil {
-		return nil, err
-	}
-	switch assetType {
-	case asset.Spot, asset.Margin, asset.CrossMargin:
-		orderbookNew, err := e.GetOrderbookDepth(ctx, pair, "", 150)
-		if err != nil {
-			return book, err
-		}
-		book.Bids = make([]orderbook.Level, len(orderbookNew.Bids))
-		for x := range orderbookNew.Bids {
-			book.Bids[x].Amount = orderbookNew.Bids[x][1].Float64()
-			book.Bids[x].Price = orderbookNew.Bids[x][0].Float64()
-		}
-		book.Asks = make([]orderbook.Level, len(orderbookNew.Asks))
-		for x := range orderbookNew.Asks {
-			book.Asks[x].Amount = orderbookNew.Asks[x][1].Float64()
-			book.Asks[x].Price = orderbookNew.Asks[x][0].Float64()
-		}
-	case asset.Futures:
-		orderbookNew, err := e.GetFuturesMergeDepth(ctx, pair, getProductType(pair), "", "max")
-		if err != nil {
-			return book, err
-		}
-		book.Bids = make([]orderbook.Level, len(orderbookNew.Bids))
-		for x := range orderbookNew.Bids {
-			book.Bids[x].Amount = orderbookNew.Bids[x][1]
-			book.Bids[x].Price = orderbookNew.Bids[x][0]
-		}
-		book.Asks = make([]orderbook.Level, len(orderbookNew.Asks))
-		for x := range orderbookNew.Asks {
-			book.Asks[x].Amount = orderbookNew.Asks[x][1]
-			book.Asks[x].Price = orderbookNew.Asks[x][0]
-		}
-	default:
-		return book, asset.ErrNotSupported
+		Bids:              bids,
+		Asks:              asks,
+		LastUpdated:       ts,
 	}
 	if err := book.Process(); err != nil {
 		return book, err
