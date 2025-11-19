@@ -17,8 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -194,13 +194,14 @@ func (e *Exchange) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 
 // wsReadData receives and passes on websocket messages for processing
 func (e *Exchange) wsReadData(ws websocket.Connection) {
+	ctx := context.TODO()
 	defer e.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := e.wsHandleData(resp.Raw)
+		err := e.wsHandleData(ctx, resp.Raw)
 		if err != nil {
 			e.Websocket.DataHandler <- err
 		}
@@ -208,16 +209,15 @@ func (e *Exchange) wsReadData(ws websocket.Connection) {
 }
 
 // wsHandleData handles data from the websocket connection
-func (e *Exchange) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if respRaw != nil && string(respRaw[:4]) == "pong" {
 		if e.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket pong received\n", e.Name)
 		}
 		return nil
 	}
-	var wsResponse WsResponse
-	err := json.Unmarshal(respRaw, &wsResponse)
-	if err != nil {
+	var wsResponse *WsResponse
+	if err := json.Unmarshal(respRaw, &wsResponse); err != nil {
 		return err
 	}
 	// Under the assumption that the exchange only ever sends one of these. If both can be sent, this will need to be made more complicated
@@ -239,53 +239,53 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 	case "snapshot":
 		switch wsResponse.Arg.Channel {
 		case bitgetTicker:
-			err = e.tickerDataHandler(&wsResponse)
+			return e.tickerDataHandler(wsResponse)
 		case bitgetCandleDailyChannel:
-			err = e.candleDataHandler(&wsResponse)
+			return e.candleDataHandler(wsResponse)
 		case bitgetTrade:
-			err = e.tradeDataHandler(&wsResponse)
+			return e.tradeDataHandler(wsResponse)
 		case bitgetBookFullChannel:
-			err = e.orderbookDataHandler(&wsResponse)
+			return e.orderbookDataHandler(wsResponse)
 		case bitgetAccount:
-			err = e.accountSnapshotDataHandler(&wsResponse)
+			return e.accountSnapshotDataHandler(ctx, wsResponse)
 		case bitgetFillChannel:
-			err = e.fillDataHandler(&wsResponse)
+			return e.fillDataHandler(wsResponse)
 		case bitgetOrdersChannel:
-			err = e.genOrderDataHandler(&wsResponse)
+			return e.genOrderDataHandler(wsResponse)
 		case bitgetOrdersAlgoChannel:
-			err = e.triggerOrderDataHandler(&wsResponse)
+			return e.triggerOrderDataHandler(wsResponse)
 		case bitgetPositionsChannel:
-			err = e.positionsDataHandler(&wsResponse)
+			return e.positionsDataHandler(wsResponse)
 		case bitgetPositionsHistoryChannel:
-			err = e.positionsHistoryDataHandler(&wsResponse)
+			return e.positionsHistoryDataHandler(wsResponse)
 		case bitgetIndexPriceChannel:
-			err = e.indexPriceDataHandler(&wsResponse)
+			return e.indexPriceDataHandler(wsResponse)
 		case bitgetAccountCrossedChannel:
-			err = e.crossAccountDataHandler(&wsResponse)
+			return e.crossAccountDataHandler(ctx, wsResponse)
 		case bitgetOrdersCrossedChannel, bitgetOrdersIsolatedChannel:
-			err = e.marginOrderDataHandler(&wsResponse)
+			return e.marginOrderDataHandler(wsResponse)
 		case bitgetAccountIsolatedChannel:
-			err = e.isolatedAccountDataHandler(&wsResponse)
+			return e.isolatedAccountDataHandler(ctx, wsResponse)
 		default:
 			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		}
 	case "update":
 		switch wsResponse.Arg.Channel {
 		case bitgetCandleDailyChannel:
-			err = e.candleDataHandler(&wsResponse)
+			return e.candleDataHandler(wsResponse)
 		case bitgetTrade:
-			err = e.tradeDataHandler(&wsResponse)
+			return e.tradeDataHandler(wsResponse)
 		case bitgetBookFullChannel:
-			err = e.orderbookDataHandler(&wsResponse)
+			return e.orderbookDataHandler(wsResponse)
 		case bitgetAccount:
-			err = e.accountUpdateDataHandler(&wsResponse)
+			return e.accountUpdateDataHandler(ctx, wsResponse)
 		default:
 			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		}
 	default:
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 	}
-	return err
+	return nil
 }
 
 // TickerDataHandler handles incoming ticker data for websockets
@@ -484,49 +484,43 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 }
 
 // AccountSnapshotDataHandler handles account snapshot data
-func (e *Exchange) accountSnapshotDataHandler(wsResponse *WsResponse) error {
-	var hold account.Holdings
-	hold.Exchange = e.Name
-	var sub account.SubAccount
-	hold.Accounts = append(hold.Accounts, sub)
-	respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
-	sub.AssetType = respAsset
-	switch respAsset {
+func (e *Exchange) accountSnapshotDataHandler(ctx context.Context, wsResponse *WsResponse) error {
+	var subAcc *accounts.SubAccount
+	switch a := itemDecoder(wsResponse.Arg.InstrumentType); a {
 	case asset.Spot:
 		var acc []WsAccountSpotResponse
-		err := json.Unmarshal(wsResponse.Data, &acc)
-		if err != nil {
+		if err := json.Unmarshal(wsResponse.Data, &acc); err != nil {
 			return err
 		}
-		sub.Currencies = make([]account.Balance, len(acc))
+		subAcc = accounts.NewSubAccount(a, "")
 		for i := range acc {
-			sub.Currencies[i] = account.Balance{
-				Currency: acc[i].Coin,
-				Hold:     acc[i].Frozen.Float64() + acc[i].Locked.Float64(),
-				Free:     acc[i].Available.Float64(),
-				Total:    sub.Currencies[i].Hold + sub.Currencies[i].Free,
-			}
+			subAcc.Balances.Set(acc[i].Coin, accounts.Balance{
+				Total: acc[i].Available.Float64() + acc[i].Frozen.Float64() + acc[i].Locked.Float64(),
+				Free:  acc[i].Available.Float64(),
+				Hold:  acc[i].Frozen.Float64() + acc[i].Locked.Float64(),
+			})
 		}
 	case asset.Futures:
 		var acc []WsAccountFuturesResponse
-		err := json.Unmarshal(wsResponse.Data, &acc)
-		if err != nil {
+		if err := json.Unmarshal(wsResponse.Data, &acc); err != nil {
 			return err
 		}
-		sub.Currencies = make([]account.Balance, len(acc))
+		subAcc = accounts.NewSubAccount(a, "")
 		for i := range acc {
-			sub.Currencies[i] = account.Balance{
-				Currency: acc[i].MarginCoin,
-				Hold:     acc[i].Frozen.Float64(),
-				Free:     acc[i].Available.Float64(),
-				Total:    acc[i].Available.Float64() + acc[i].Frozen.Float64(),
-			}
+			subAcc.Balances.Set(acc[i].MarginCoin, accounts.Balance{
+				Total: acc[i].Available.Float64() + acc[i].Frozen.Float64(),
+				Free:  acc[i].Available.Float64(),
+				Hold:  acc[i].Frozen.Float64(),
+			})
 		}
 	default:
-		e.Websocket.DataHandler <- fmt.Errorf("%s %s %w %s", e.Name, respAsset, asset.ErrNotSupported, wsResponse.Arg.InstrumentType)
+		return fmt.Errorf("%s %s %w %s", e.Name, a, asset.ErrNotSupported, wsResponse.Arg.InstrumentType)
 	}
-	// Plan to add handling of account.Holdings on websocketDataHandler side in a later PR
-	e.Websocket.DataHandler <- hold
+	subAccts := accounts.SubAccounts{subAcc}
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- subAccts
 	return nil
 }
 
@@ -869,29 +863,26 @@ func (e *Exchange) indexPriceDataHandler(wsResponse *WsResponse) error {
 }
 
 // CrossAccountDataHandler handles cross margin account data
-func (e *Exchange) crossAccountDataHandler(wsResponse *WsResponse) error {
+func (e *Exchange) crossAccountDataHandler(ctx context.Context, wsResponse *WsResponse) error {
 	var acc []WsAccountCrossMarginResponse
-	err := json.Unmarshal(wsResponse.Data, &acc)
-	if err != nil {
+	if err := json.Unmarshal(wsResponse.Data, &acc); err != nil {
 		return err
 	}
-	var hold account.Holdings
-	hold.Exchange = e.Name
-	var sub account.SubAccount
-	hold.Accounts = append(hold.Accounts, sub)
-	sub.AssetType = asset.CrossMargin
-	sub.Currencies = make([]account.Balance, len(acc))
+	subAcct := accounts.NewSubAccount(asset.CrossMargin, "")
 	for i := range acc {
-		sub.Currencies[i] = account.Balance{
-			Currency:               acc[i].Coin,
-			Hold:                   acc[i].Frozen.Float64(),
+		subAcct.Balances.Set(acc[i].Coin, accounts.Balance{
+			Total:                  acc[i].Available.Float64() + acc[i].Frozen.Float64() + acc[i].Borrow.Float64() + acc[i].Interest.Float64() + acc[i].Coupon.Float64(),
 			Free:                   acc[i].Available.Float64(),
+			Hold:                   acc[i].Frozen.Float64(),
 			Borrowed:               acc[i].Borrow.Float64(),
-			AvailableWithoutBorrow: acc[i].Available.Float64(),                                                                                                           // Need to check if Bitget actually calculates values this way
-			Total:                  acc[i].Available.Float64() + acc[i].Frozen.Float64() + acc[i].Borrow.Float64() + acc[i].Interest.Float64() + acc[i].Coupon.Float64(), // Here too
-		}
+			AvailableWithoutBorrow: acc[i].Available.Float64(),
+		})
 	}
-	e.Websocket.DataHandler <- hold
+	subAccts := accounts.SubAccounts{subAcct}
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- subAccts
 	return nil
 }
 
@@ -938,85 +929,69 @@ func (e *Exchange) marginOrderDataHandler(wsResponse *WsResponse) error {
 }
 
 // IsolatedAccountDataHandler handles isolated margin account data
-func (e *Exchange) isolatedAccountDataHandler(wsResponse *WsResponse) error {
+func (e *Exchange) isolatedAccountDataHandler(ctx context.Context, wsResponse *WsResponse) error {
 	var acc []WsAccountIsolatedMarginResponse
-	err := json.Unmarshal(wsResponse.Data, &acc)
-	if err != nil {
+	if err := json.Unmarshal(wsResponse.Data, &acc); err != nil {
 		return err
 	}
-	var hold account.Holdings
-	hold.Exchange = e.Name
-	var sub account.SubAccount
-	hold.Accounts = append(hold.Accounts, sub)
-	sub.AssetType = asset.Margin
-	sub.Currencies = make([]account.Balance, len(acc))
+	subAcct := accounts.NewSubAccount(asset.Margin, "")
 	for i := range acc {
-		sub.Currencies[i] = account.Balance{
-			Currency:               acc[i].Coin,
-			Hold:                   acc[i].Frozen.Float64(),
+		subAcct.Balances.Set(acc[i].Coin, accounts.Balance{
+			Total:                  acc[i].Available.Float64() + acc[i].Frozen.Float64() + acc[i].Borrow.Float64() + acc[i].Interest.Float64() + acc[i].Coupon.Float64(),
 			Free:                   acc[i].Available.Float64(),
+			Hold:                   acc[i].Frozen.Float64(),
 			Borrowed:               acc[i].Borrow.Float64(),
-			AvailableWithoutBorrow: acc[i].Available.Float64(),                                                                                                           // Need to check if Bitget actually calculates values this way
-			Total:                  acc[i].Available.Float64() + acc[i].Frozen.Float64() + acc[i].Borrow.Float64() + acc[i].Interest.Float64() + acc[i].Coupon.Float64(), // Here too
-		}
+			AvailableWithoutBorrow: acc[i].Available.Float64(),
+		})
 	}
-	e.Websocket.DataHandler <- hold
+	subAccts := accounts.SubAccounts{subAcct}
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- subAccts
 	return nil
 }
 
 // AccountUpdateDataHandler
-func (e *Exchange) accountUpdateDataHandler(wsResponse *WsResponse) error {
-	creds, err := e.GetCredentials(context.TODO())
-	if err != nil {
-		return err
-	}
-	var resp []account.Change
-	respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
-	switch respAsset {
+func (e *Exchange) accountUpdateDataHandler(ctx context.Context, wsResponse *WsResponse) error {
+	var subAcc *accounts.SubAccount
+	switch a := itemDecoder(wsResponse.Arg.InstrumentType); a {
 	case asset.Spot:
 		var acc []WsAccountSpotResponse
-		err := json.Unmarshal(wsResponse.Data, &acc)
-		if err != nil {
+		if err := json.Unmarshal(wsResponse.Data, &acc); err != nil {
 			return err
 		}
-		resp = make([]account.Change, len(acc))
+		subAcc = accounts.NewSubAccount(asset.Spot, "")
 		for i := range acc {
-			resp[i] = account.Change{
-				AssetType: asset.Spot,
-				Balance: &account.Balance{
-					Currency:  acc[i].Coin,
-					Hold:      acc[i].Frozen.Float64() + acc[i].Locked.Float64(),
-					Free:      acc[i].Available.Float64(),
-					Total:     acc[i].Available.Float64() + acc[i].Frozen.Float64() + acc[i].Locked.Float64(),
-					UpdatedAt: acc[i].UpdateTime.Time(),
-				},
-			}
+			subAcc.Balances.Set(acc[i].Coin, accounts.Balance{
+				Total:     acc[i].Available.Float64() + acc[i].Frozen.Float64() + acc[i].Locked.Float64(),
+				Free:      acc[i].Available.Float64(),
+				Hold:      acc[i].Frozen.Float64() + acc[i].Locked.Float64(),
+				UpdatedAt: acc[i].UpdateTime.Time(),
+			})
 		}
-		e.Websocket.DataHandler <- resp
 	case asset.Futures:
 		var acc []WsAccountFuturesResponse
-		err := json.Unmarshal(wsResponse.Data, &acc)
-		if err != nil {
+		if err := json.Unmarshal(wsResponse.Data, &acc); err != nil {
 			return err
 		}
-		resp = make([]account.Change, len(acc))
+		subAcc = accounts.NewSubAccount(asset.Futures, "")
 		for i := range acc {
-			resp[i] = account.Change{
-				AssetType: asset.Futures,
-				Balance: &account.Balance{
-					Currency:  acc[i].MarginCoin,
-					Hold:      acc[i].Frozen.Float64(),
-					Free:      acc[i].Available.Float64(),
-					Total:     acc[i].Available.Float64() + acc[i].Frozen.Float64(),
-					UpdatedAt: time.Now(),
-				},
-			}
+			subAcc.Balances.Set(acc[i].MarginCoin, accounts.Balance{
+				Total: acc[i].Available.Float64() + acc[i].Frozen.Float64(),
+				Free:  acc[i].Available.Float64(),
+				Hold:  acc[i].Frozen.Float64(),
+			})
 		}
-		e.Websocket.DataHandler <- resp
 	default:
-		e.Websocket.DataHandler <- fmt.Errorf("%s %s %w %s", e.Name, respAsset, asset.ErrNotSupported, wsResponse.Arg.InstrumentType)
+		return fmt.Errorf("%s %s %w %s", e.Name, a, asset.ErrNotSupported, wsResponse.Arg.InstrumentType)
 	}
-	return account.ProcessChange(e.Name, resp, creds)
+	subAccts := accounts.SubAccounts{subAcc}
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- subAccts
+	return nil
 }
 
 // LevelConstructor turns the exchange's orderbook data into a standardised format for the engine

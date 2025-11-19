@@ -2847,34 +2847,6 @@ func TestUpdateOrderbook(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
-	assert.NoError(t, err)
-	_, err = e.UpdateAccountInfo(t.Context(), asset.Futures)
-	assert.NoError(t, err)
-	_, err = e.UpdateAccountInfo(t.Context(), asset.Margin)
-	assert.NoError(t, err)
-	_, err = e.UpdateAccountInfo(t.Context(), asset.CrossMargin)
-	assert.NoError(t, err)
-	_, err = e.UpdateAccountInfo(t.Context(), asset.Empty)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-}
-
-func TestFetchAccountInfo(t *testing.T) {
-	t.Parallel()
-	var fakeBitget Exchange
-	_, err := fakeBitget.FetchAccountInfo(t.Context(), asset.Empty)
-	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.FetchAccountInfo(t.Context(), asset.Futures)
-	assert.NoError(t, err)
-	// When called by itself, the first call will update the account info, while the second call will return it from GetHoldings; we want coverage for both code paths
-	_, err = e.FetchAccountInfo(t.Context(), asset.Futures)
-	assert.NoError(t, err)
-}
-
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
