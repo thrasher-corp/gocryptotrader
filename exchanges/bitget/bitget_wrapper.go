@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -191,6 +192,7 @@ func (e *Exchange) SetDefaults() {
 	if err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:                bitgetAPIURL,
 		exchange.WebsocketSpot:           bitgetPublicWSURL,
+		exchange.WebsocketPrivate:        bitgetPrivateWSURL,
 		exchange.WebsocketSandboxPublic:  bitgetPublicSandboxWSUrl,
 		exchange.WebsocketSandboxPrivate: bitgetPrivateSandboxWSUrl,
 	}); err != nil {
@@ -214,48 +216,58 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
-	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
+
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
-		DefaultURL:                             bitgetPublicWSURL,
-		RunningURL:                             wsRunningEndpoint,
-		Connector:                              e.WsConnect,
-		Subscriber:                             e.Subscribe,
-		Unsubscriber:                           e.Unsubscribe,
-		GenerateSubscriptions:                  e.generateDefaultSubscriptions,
 		Features:                               &e.Features.Supports.WebsocketCapabilities,
+		TradeFeed:                              e.Features.Enabled.TradeFeed,
+		UseMultiConnectionManagement:           true,
 		MaxWebsocketSubscriptionsPerConnection: 1000,
 		RateLimitDefinitions:                   rateLimits,
 	}); err != nil {
 		return err
 	}
-	var wsPub string
-	var wsPriv string
-	switch e.isDemoTrading {
-	case true:
-		wsPub = bitgetPublicSandboxWSUrl
-		wsPriv = bitgetPrivateSandboxWSUrl
-	case false:
-		wsPub = bitgetPublicWSURL
-		wsPriv = bitgetPrivateWSURL
+	var wsPub, wsPriv string
+	var err error
+	if !e.IsDemoTrading {
+		if wsPub, err = e.API.Endpoints.GetURL(exchange.WebsocketSpot); err != nil {
+			return err
+		}
+		if wsPriv, err = e.API.Endpoints.GetURL(exchange.WebsocketPrivate); err != nil {
+			return err
+		}
+	} else {
+		if wsPub, err = e.API.Endpoints.GetURL(exchange.WebsocketSandboxPublic); err != nil {
+			return err
+		}
+		if wsPriv, err = e.API.Endpoints.GetURL(exchange.WebsocketSandboxPrivate); err != nil {
+			return err
+		}
 	}
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  wsPub,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            rateLimits[rateSubscription],
+		URL:                   wsPub,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             rateLimits[rateSubscription],
+		Connector:             e.wsConnect,
+		GenerateSubscriptions: func() (subscription.List, error) { return e.generateDefaultSubscriptions(true) },
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		Handler:               e.wsHandleData,
 	}); err != nil {
 		return err
 	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  wsPriv,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Authenticated:        true,
-		RateLimit:            rateLimits[rateSubscription],
+		URL:                   wsPriv,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             rateLimits[rateSubscription],
+		Connector:             e.wsConnect,
+		GenerateSubscriptions: func() (subscription.List, error) { return e.generateDefaultSubscriptions(false) },
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		Handler:               e.wsHandleData,
+		Authenticate:          e.wsAuthenticate,
 	})
 }
 

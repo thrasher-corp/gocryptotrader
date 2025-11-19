@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -29,8 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -91,29 +88,16 @@ var (
 	errUnmarshalArray string
 )
 
-var e = &Exchange{}
+var e *Exchange
 
 func TestMain(m *testing.M) {
-	e.SetDefaults()
-	err := exchangeBaseHelper(e)
-	if err != nil {
-		log.Fatal(err)
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
+		log.Fatalf("Bybit Setup error: %s", err)
 	}
 	if testingInSandbox {
-		e.isDemoTrading = true
+		e.IsDemoTrading = true
 	}
-	var dialer gws.Dialer
-	err = e.Websocket.Conn.Dial(context.TODO(), &dialer, http.Header{})
-	if err != nil {
-		log.Fatal(err)
-	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(e.Websocket.Conn)
-	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		Message:     []byte(`ping`),
-		MessageType: gws.TextMessage,
-		Delay:       time.Second * 25,
-	})
 	switch json.Implementation {
 	case "bytedance/sonic":
 		errUnmarshalArray = "mismatched type with"
@@ -143,27 +127,12 @@ func TestSetup(t *testing.T) {
 	cfg.ProxyAddress = ""
 	oldEP := exch.API.Endpoints
 	exch.API.Endpoints = nil
+	exch.Websocket = websocket.NewManager()
 	err = exch.Setup(cfg)
 	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound)
 	exch.API.Endpoints = oldEP
 	err = exch.Setup(cfg)
 	assert.ErrorIs(t, err, websocket.ErrWebsocketAlreadyInitialised)
-}
-
-func TestWsConnect(t *testing.T) {
-	exch := &Exchange{}
-	exch.Websocket = sharedtestvalues.NewTestWebsocket()
-	err := exch.Websocket.Disable()
-	assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled)
-	err = exch.WsConnect()
-	assert.ErrorIs(t, err, websocket.ErrWebsocketNotEnabled)
-	exch.SetDefaults()
-	err = exchangeBaseHelper(exch)
-	require.NoError(t, err)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	exch.Verbose = true
-	err = exch.WsConnect()
-	assert.NoError(t, err)
 }
 
 func TestQueryAnnouncements(t *testing.T) {
@@ -3267,36 +3236,6 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
-	t.Parallel()
-	ord := orderbook.Book{
-		Asks: orderbook.Levels{
-			{
-				StrPrice:  "3",
-				StrAmount: "1",
-			},
-		},
-		Bids: orderbook.Levels{
-			{
-				StrPrice:  "4",
-				StrAmount: "1",
-			},
-		},
-	}
-	resp := e.CalculateUpdateOrderbookChecksum(&ord)
-	assert.Equal(t, uint32(892106381), resp)
-	ord.Asks = make(orderbook.Levels, 26)
-	data := "3141592653589793238462643383279502884197169399375105"
-	for i := range ord.Asks {
-		ord.Asks[i] = orderbook.Level{
-			StrPrice:  string(data[i*2]),
-			StrAmount: string(data[i*2+1]),
-		}
-	}
-	resp = e.CalculateUpdateOrderbookChecksum(&ord)
-	assert.Equal(t, uint32(2945115267), resp)
-}
-
 // The following 20 tests aren't parallel due to collisions with each other, and some other tests
 func TestCommitConversion(t *testing.T) {
 	_, err := e.CommitConversion(t.Context(), currency.Code{}, currency.Code{}, "", 0, 0, 0)
@@ -3622,32 +3561,6 @@ func TestBatchCancelIsolatedOrders(t *testing.T) {
 		ClientOrderID: "a",
 	}})
 	assert.NoError(t, err)
-}
-
-func TestWsAuth(t *testing.T) {
-	e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	err := e.WsAuth(t.Context(), nil)
-	assert.ErrorIs(t, err, errAuthenticatedWebsocketDisabled)
-	if e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	var dialer gws.Dialer
-	go func() {
-		timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-		select {
-		case resp := <-e.Websocket.DataHandler:
-			t.Errorf("%+v\n%T\n", resp, resp)
-		case <-timer.C:
-		}
-		timer.Stop()
-		for {
-			<-e.Websocket.DataHandler
-		}
-	}()
-	err = e.WsAuth(t.Context(), &dialer)
-	require.NoError(t, err)
-	time.Sleep(sharedtestvalues.WebsocketResponseDefaultTimeout)
 }
 
 type getNoArgsResp interface {

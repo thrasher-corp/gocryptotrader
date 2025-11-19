@@ -5,10 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"hash/crc32"
-	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 
@@ -91,12 +89,12 @@ var subscriptionNames = map[asset.Item]map[string]string{
 }
 
 var defaultSubscriptions = subscription.List{
-	{Enabled: false, Channel: subscription.TickerChannel, Asset: asset.Spot},
-	{Enabled: false, Channel: subscription.TickerChannel, Asset: asset.Futures},
-	{Enabled: false, Channel: subscription.CandlesChannel, Asset: asset.Spot},
-	{Enabled: false, Channel: subscription.CandlesChannel, Asset: asset.Futures},
-	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Spot},
-	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
+	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot},
+	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.AllOrdersChannel, Asset: asset.Spot},
+	{Enabled: true, Channel: subscription.AllOrdersChannel, Asset: asset.Futures},
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot},
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Spot},
@@ -116,101 +114,58 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: false, Channel: "indexPrice", Asset: asset.Margin},
 }
 
-// WsConnect connects to a websocket feed
-func (e *Exchange) WsConnect() error {
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	var dialer gws.Dialer
-	if err := e.Websocket.Conn.Dial(context.TODO(), &dialer, http.Header{}); err != nil {
+// wsConnect connects to a websocket feed
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
+	if err := conn.Dial(ctx, &gws.Dialer{}, nil); err != nil {
 		return err
 	}
-	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "%s connected to Websocket.\n", e.Name)
-	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(e.Websocket.Conn)
-	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Message:     []byte(`ping`),
 		MessageType: gws.TextMessage,
 		Delay:       time.Second * 25,
 	})
-	if e.IsWebsocketAuthenticationSupported() {
-		var authDialer gws.Dialer
-		if err := e.WsAuth(context.TODO(), &authDialer); err != nil {
-			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
 	return nil
 }
 
-// WsAuth sends an authentication message to the websocket
-func (e *Exchange) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
-	if !e.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v %w", e.Name, errAuthenticatedWebsocketDisabled)
-	}
-	err := e.Websocket.AuthConn.Dial(context.TODO(), dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(e.Websocket.AuthConn)
-	e.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		Message:     []byte(`ping`),
-		MessageType: gws.TextMessage,
-		Delay:       time.Second * 25,
-	})
+// wsAuthenticate sends an authentication message to the websocket
+func (e *Exchange) wsAuthenticate(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-	message := timestamp + "GET" + "/user/verify"
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(creds.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(timestamp+"GET"+"/user/verify"), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
-	base64Sign := base64.StdEncoding.EncodeToString(hmac)
 	payload := WsLogin{
 		Operation: "login",
 		Arguments: []WsLoginArgument{
 			{
 				APIKey:     creds.Key,
-				Signature:  base64Sign,
+				Signature:  base64.StdEncoding.EncodeToString(hmac),
 				Timestamp:  timestamp,
 				Passphrase: creds.ClientID,
 			},
 		},
 	}
-	err = e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, payload)
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, "login-response", payload)
 	if err != nil {
 		return err
 	}
-	// Without this, the exchange will sometimes process a subscription message before it finishes processing the login message. Might be able to reduce the duration
-	time.Sleep(time.Second / 2)
+	var wsResp WsResponse
+	if err := json.Unmarshal(resp, &wsResp); err != nil {
+		return err
+	}
+	if wsResp.Code != 0 {
+		return fmt.Errorf(errWebsocketLoginFailed, e.Name, wsResp.Message)
+	}
 	return nil
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ws websocket.Connection) {
-	ctx := context.TODO()
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := e.wsHandleData(ctx, resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- err
-		}
-	}
-}
-
 // wsHandleData handles data from the websocket connection
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
-	if respRaw != nil && string(respRaw[:4]) == "pong" {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+	if string(respRaw[:4]) == "pong" {
 		if e.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket pong received\n", e.Name)
 		}
@@ -221,8 +176,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		return err
 	}
 	// Under the assumption that the exchange only ever sends one of these. If both can be sent, this will need to be made more complicated
-	toCheck := wsResponse.Event + wsResponse.Action
-	switch toCheck {
+	switch wsResponse.Event + wsResponse.Action {
 	case "subscribe":
 		if e.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket %v succeeded for %v\n", e.Name, wsResponse.Event, wsResponse.Arg)
@@ -230,12 +184,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	case "error":
 		return fmt.Errorf(errWebsocketGeneric, e.Name, wsResponse.Code, wsResponse.Message)
 	case "login":
-		if wsResponse.Code != 0 {
-			return fmt.Errorf(errWebsocketLoginFailed, e.Name, wsResponse.Message)
-		}
-		if e.Verbose {
-			log.Debugf(log.ExchangeSys, "%v - Websocket login succeeded\n", e.Name)
-		}
+		return conn.RequireMatchWithData("login-response", respRaw)
 	case "snapshot":
 		switch wsResponse.Arg.Channel {
 		case bitgetTicker:
@@ -474,7 +423,7 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 		Pair:             pair,
 		UpdateTime:       wsResponse.Timestamp.Time(),
 		Asset:            itemDecoder(wsResponse.Arg.InstrumentType),
-		GenerateChecksum: e.CalculateUpdateOrderbookChecksum,
+		GenerateChecksum: calculateUpdateOrderbookChecksum,
 		ExpectedChecksum: uint32(ob[0].Checksum), //nolint:gosec // The exchange sends it as ints expecting overflows to be handled as Go does by default
 		AllowEmpty:       true,
 	}
@@ -1011,8 +960,8 @@ func levelConstructor(data [][2]string) ([]orderbook.Level, error) {
 	return resp, nil
 }
 
-// CalculateUpdateOrderbookChecksum calculates the checksum of the orderbook data
-func (e *Exchange) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
+// calculateUpdateOrderbookChecksum calculates the checksum of the orderbook data
+func calculateUpdateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
 	var builder strings.Builder
 	for i := range 25 {
 		if len(orderbookData.Bids) > i {
@@ -1030,23 +979,25 @@ func (e *Exchange) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Boo
 }
 
 // GenerateDefaultSubscriptions generates default subscriptions
-func (e *Exchange) generateDefaultSubscriptions() (subscription.List, error) {
-	at := e.GetAssetTypes(false)
+func (e *Exchange) generateDefaultSubscriptions(public bool) (subscription.List, error) {
 	assetPairs := make(map[asset.Item]currency.Pairs)
-	for i := range at {
-		pairs, err := e.GetEnabledPairs(at[i])
+	for _, a := range e.GetAssetTypes(true) {
+		pairs, err := e.GetEnabledPairs(a)
 		if err != nil {
 			return nil, err
 		}
-		assetPairs[at[i]] = pairs
+		assetPairs[a] = pairs
 	}
 	subs := make(subscription.List, 0, len(defaultSubscriptions))
 	for _, sub := range defaultSubscriptions {
-		if sub.Enabled {
+		_, ok := assetPairs[sub.Asset]
+		if !ok && !sub.Authenticated {
+			continue
+		}
+		if sub.Enabled && public == !sub.Authenticated {
 			subs = append(subs, sub.Clone()) // Slow, consider this a placeholder until templating support is finished
 		}
 	}
-	subs = subs[:len(subs):len(subs)]
 	for i := range subs {
 		subs[i].Channel = subscriptionNames[subs[i].Asset][subs[i].Channel]
 		switch subs[i].Channel {
@@ -1059,13 +1010,13 @@ func (e *Exchange) generateDefaultSubscriptions() (subscription.List, error) {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	return e.manageSubs("subscribe", subs)
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.manageSubs(ctx, conn, "subscribe", subs)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	return e.manageSubs("unsubscribe", subs)
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.manageSubs(ctx, conn, "unsubscribe", subs)
 }
 
 // ReqSplitter splits a request into multiple requests to avoid going over the byte limit
@@ -1122,59 +1073,29 @@ func (e *Exchange) reqBuilder(req *WsRequest, sub *subscription.Subscription) er
 }
 
 // manageSubs subscribes or unsubscribes from a list of websocket channels
-func (e *Exchange) manageSubs(op string, subs subscription.List) error {
-	unauthBase := &WsRequest{
-		Operation: op,
-	}
-	authBase := &WsRequest{
-		Operation: op,
-	}
+func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op string, subs subscription.List) error {
+	unsplitRequest := &WsRequest{Operation: op}
 	for _, s := range subs {
-		var err error
-		if s.Authenticated {
-			err = e.reqBuilder(authBase, s)
-		} else {
-			err = e.reqBuilder(unauthBase, s)
-		}
-		if err != nil {
+		if err := e.reqBuilder(unsplitRequest, s); err != nil {
 			return err
 		}
 	}
-	unauthReq := reqSplitter(unauthBase)
-	authReq := reqSplitter(authBase)
-	wg := sync.WaitGroup{}
-	errC := make(chan error, len(unauthReq)+len(authReq))
-	for i := range unauthReq {
-		if len(unauthReq[i].Arguments) != 0 {
-			wg.Go(func() {
-				func(req WsRequest) {
-					err := e.Websocket.Conn.SendJSONMessage(context.TODO(), rateSubscription, req)
-					if err != nil {
-						errC <- err
-					}
-				}(unauthReq[i])
-			})
+	req := reqSplitter(unsplitRequest)
+	var errs common.ErrorCollector
+	for i := range req {
+		if len(req[i].Arguments) == 0 {
+			return fmt.Errorf("%w: no arguments in request", websocket.ErrSubscriptionFailure)
 		}
+		errs.Go(func() error { return conn.SendJSONMessage(request.WithVerbose(ctx), rateSubscription, req[i]) })
 	}
-	for i := range authReq {
-		if len(authReq[i].Arguments) != 0 {
-			wg.Go(func() {
-				func(req WsRequest) {
-					err := e.Websocket.AuthConn.SendJSONMessage(context.TODO(), rateSubscription, req)
-					if err != nil {
-						errC <- err
-					}
-				}(authReq[i])
-			})
-		}
+	if err := errs.Collect(); err != nil {
+		return err
 	}
-	wg.Wait()
-	close(errC)
-	var errs error
-	for err := range errC {
-		errs = common.AppendError(errs, err)
+
+	if op == "subscribe" {
+		return e.Websocket.AddSuccessfulSubscriptions(conn, subs...)
 	}
-	return errs
+	return e.Websocket.RemoveSubscriptions(conn, subs...)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
