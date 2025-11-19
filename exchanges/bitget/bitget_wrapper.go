@@ -226,7 +226,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:                           e.Unsubscribe,
 		GenerateSubscriptions:                  e.generateDefaultSubscriptions,
 		Features:                               &e.Features.Supports.WebsocketCapabilities,
-		MaxWebsocketSubscriptionsPerConnection: 240,
+		MaxWebsocketSubscriptionsPerConnection: 1000,
 		RateLimitDefinitions:                   rateLimits,
 	}); err != nil {
 		return err
