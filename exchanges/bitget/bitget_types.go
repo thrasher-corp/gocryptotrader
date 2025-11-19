@@ -2858,6 +2858,7 @@ type WsOrderBookResponse struct {
 	Bids      [][2]string `json:"bids"`
 	Timestamp types.Time  `json:"ts"`
 	Checksum  int32       `json:"checksum"`
+	Sequence  uint64      `json:"seq"`
 }
 
 // WsFillSpotResponse contains information on a fill response for spot trading

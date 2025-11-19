@@ -442,8 +442,7 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 		return err
 	}
 	var ob []WsOrderBookResponse
-	err = json.Unmarshal(wsResponse.Data, &ob)
-	if err != nil {
+	if err := json.Unmarshal(wsResponse.Data, &ob); err != nil {
 		return err
 	}
 	if len(ob) == 0 {
@@ -458,7 +457,7 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 		return err
 	}
 	if wsResponse.Action[0] == 's' {
-		ob := orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Pair:                   pair,
 			Asset:                  itemDecoder(wsResponse.Arg.InstrumentType),
 			Bids:                   bids,
@@ -467,8 +466,7 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 			Exchange:               e.Name,
 			ValidateOrderbook:      e.ValidateOrderbook,
 			ChecksumStringRequired: true,
-		}
-		return e.Websocket.Orderbook.LoadSnapshot(&ob)
+		})
 	}
 	update := orderbook.Update{
 		Bids:             bids,
@@ -999,10 +997,6 @@ func levelConstructor(data [][2]string) ([]orderbook.Level, error) {
 	resp := make([]orderbook.Level, len(data))
 	var err error
 	for i := range data {
-		resp[i] = orderbook.Level{
-			StrPrice:  data[i][0],
-			StrAmount: data[i][1],
-		}
 		resp[i].Price, err = strconv.ParseFloat(data[i][0], 64)
 		if err != nil {
 			return nil, err
@@ -1011,6 +1005,8 @@ func levelConstructor(data [][2]string) ([]orderbook.Level, error) {
 		if err != nil {
 			return nil, err
 		}
+		resp[i].StrPrice = data[i][0]
+		resp[i].StrAmount = data[i][1]
 	}
 	return resp, nil
 }

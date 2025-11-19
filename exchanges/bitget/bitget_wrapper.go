@@ -2,6 +2,7 @@ package bitget
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"slices"
@@ -418,35 +419,29 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	switch assetType {
 	case asset.Spot:
-		tick, err := e.GetSpotTickerInformation(ctx, currency.Pair{})
+		ticks, err := e.GetSpotTickerInformation(ctx, currency.Pair{})
 		if err != nil {
 			return err
 		}
-		var filter int
-		newTick := make([]TickerResp, len(tick))
-		for i := range tick {
-			if tick[i].Symbol == "BABYBONKUSDT" || tick[i].Symbol == "CARUSDT" || tick[i].Symbol == "PAWSUSDT" || tick[i].Symbol == "ARTFIUSDT" || tick[i].Symbol == "LOTUSDT" || tick[i].Symbol == "TESTZEUSUSDT" {
-				continue
-			}
-			newTick[filter] = tick[i]
-			filter++
-		}
-		newTick = newTick[:filter:filter]
-		for x := range newTick {
-			p, err := e.MatchSymbolWithAvailablePairs(newTick[x].Symbol, assetType, false)
+		for x := range ticks {
+			p, err := e.MatchSymbolWithAvailablePairs(ticks[x].Symbol, assetType, false)
 			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) && ticks[x].High24H.Float64() == 0 {
+					// Screen inactive pairs with no price movement
+					continue
+				}
 				return err
 			}
 			if err := ticker.ProcessTicker(&ticker.Price{
-				High:         newTick[x].High24H.Float64(),
-				Low:          newTick[x].Low24H.Float64(),
-				Bid:          newTick[x].BidPrice.Float64(),
-				Ask:          newTick[x].AskPrice.Float64(),
-				Volume:       newTick[x].BaseVolume.Float64(),
-				QuoteVolume:  newTick[x].QuoteVolume.Float64(),
-				Open:         newTick[x].Open.Float64(),
-				Close:        newTick[x].LastPrice.Float64(),
-				LastUpdated:  newTick[x].Timestamp.Time(),
+				High:         ticks[x].High24H.Float64(),
+				Low:          ticks[x].Low24H.Float64(),
+				Bid:          ticks[x].BidPrice.Float64(),
+				Ask:          ticks[x].AskPrice.Float64(),
+				Volume:       ticks[x].BaseVolume.Float64(),
+				QuoteVolume:  ticks[x].QuoteVolume.Float64(),
+				Open:         ticks[x].Open.Float64(),
+				Close:        ticks[x].LastPrice.Float64(),
+				LastUpdated:  ticks[x].Timestamp.Time(),
 				Pair:         p,
 				ExchangeName: e.Name,
 				AssetType:    assetType,
@@ -2322,20 +2317,17 @@ func (e *Exchange) withdrawalHistGrabber(ctx context.Context, cur currency.Code)
 
 // PairFromStringHelper is a helper function that does some checks to help with common ambiguous cases in this exchange
 func pairFromStringHelper(s string) (currency.Pair, error) {
-	pair := currency.Pair{}
 	i := strings.LastIndex(s, "USD")
 	if i == -1 {
-		i = strings.Index(s, "PERP")
-		if i == -1 {
-			return pair, errUnknownPairQuote
+		if i = strings.Index(s, "PERP"); i == -1 {
+			return currency.EMPTYPAIR, fmt.Errorf("%w: %q", errUnknownPairQuote, s)
 		}
 	}
-	pair, err := currency.NewPairFromString(s[:i] + "-" + s[i:])
+	pair, err := currency.NewPairFromStrings(s[:i], s[i:])
 	if err != nil {
 		return pair, err
 	}
-	pair = pair.Format(currency.PairFormat{Uppercase: true, Delimiter: ""})
-	return pair, nil
+	return pair.Upper(), nil
 }
 
 // MarginDecoder is a helper function that returns the appropriate margin type for a given string

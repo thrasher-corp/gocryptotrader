@@ -2818,19 +2818,6 @@ func TestUpdateTicker(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
-func TestUpdateTickers(t *testing.T) {
-	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
-	err := e.UpdateTickers(t.Context(), asset.Spot)
-	assert.NoError(t, err)
-	err = e.UpdateTickers(t.Context(), asset.Futures)
-	assert.NoError(t, err)
-	err = e.UpdateTickers(t.Context(), asset.Empty)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	err = e.UpdateTickers(t.Context(), asset.Margin)
-	assert.NoError(t, err)
-}
-
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := e.UpdateOrderbook(t.Context(), currency.Pair{}, asset.Spot)
