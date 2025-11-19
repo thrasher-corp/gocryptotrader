@@ -415,7 +415,7 @@ func (e *Exchange) tradeDataHandler(wsResponse *WsResponse) error {
 		return err
 	}
 	var trades []WsTradeResponse
-	if err = json.Unmarshal(wsResponse.Data, &trades); err != nil {
+	if err := json.Unmarshal(wsResponse.Data, &trades); err != nil {
 		return err
 	}
 	resp := make([]trade.Data, len(trades))

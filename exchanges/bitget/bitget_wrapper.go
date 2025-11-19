@@ -217,7 +217,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	if err = e.Websocket.Setup(&websocket.ManagerSetup{
+	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
 		DefaultURL:                             bitgetPublicWSURL,
 		RunningURL:                             wsRunningEndpoint,
@@ -241,7 +241,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		wsPub = bitgetPublicWSURL
 		wsPriv = bitgetPrivateWSURL
 	}
-	if err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  wsPub,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -322,16 +322,11 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		for i := range pairs {
-			if pairs[i], err = e.FormatExchangeCurrency(pairs[i], assetTypes[x]); err != nil {
-				return err
-			}
-		}
-		if err = e.UpdatePairs(pairs, assetTypes[x], false); err != nil {
+		if err := e.UpdatePairs(pairs, assetTypes[x], false); err != nil {
 			return err
 		}
 	}
-	return nil
+	return e.EnsureOnePairEnabled()
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -413,7 +408,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 	tickerPrice.Pair = p
 	tickerPrice.ExchangeName = e.Name
 	tickerPrice.AssetType = assetType
-	if err = ticker.ProcessTicker(tickerPrice); err != nil {
+	if err := ticker.ProcessTicker(tickerPrice); err != nil {
 		return tickerPrice, err
 	}
 	return ticker.GetTicker(e.Name, p, assetType)
@@ -442,7 +437,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if err != nil {
 				return err
 			}
-			if err = ticker.ProcessTicker(&ticker.Price{
+			if err := ticker.ProcessTicker(&ticker.Price{
 				High:         newTick[x].High24H.Float64(),
 				Low:          newTick[x].Low24H.Float64(),
 				Bid:          newTick[x].BidPrice.Float64(),
@@ -470,7 +465,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				if err != nil {
 					return err
 				}
-				if err = ticker.ProcessTicker(&ticker.Price{
+				if err := ticker.ProcessTicker(&ticker.Price{
 					High:         tick[x].High24H.Float64(),
 					Low:          tick[x].Low24H.Float64(),
 					Bid:          tick[x].BidPrice.Float64(),
@@ -526,7 +521,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if len(resp) == 0 {
 				return common.ErrNoResults
 			}
-			if err = ticker.ProcessTicker(&ticker.Price{
+			if err := ticker.ProcessTicker(&ticker.Price{
 				High:         resp[0].High.Float64(),
 				Low:          resp[0].Low.Float64(),
 				Volume:       resp[0].BaseVolume.Float64(),
@@ -594,7 +589,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	default:
 		return book, asset.ErrNotSupported
 	}
-	if err = book.Process(); err != nil {
+	if err := book.Process(); err != nil {
 		return book, err
 	}
 	return orderbook.Get(e.Name, pair, assetType)
@@ -1406,7 +1401,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			fillMap := make(map[uint64][]order.TradeHistory)
 			var pagination uint64
 			if !getOrdersRequest.Pairs[x].IsEmpty() {
-				if err = e.spotFillsHelper(ctx, getOrdersRequest.Pairs[x], fillMap); err != nil {
+				if err := e.spotFillsHelper(ctx, getOrdersRequest.Pairs[x], fillMap); err != nil {
 					return nil, err
 				}
 				if resp, err = e.spotHistoricPlanOrdersHelper(ctx, getOrdersRequest.Pairs[x], resp, fillMap); err != nil {

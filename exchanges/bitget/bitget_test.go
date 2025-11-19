@@ -279,7 +279,7 @@ func TestGetFuturesActiveVolume(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesActiveVolume(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	e := new(Exchange) //nolint:govet // Intentional shadow // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
+	e := new(Exchange)
 	err = testexch.Setup(e)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -338,7 +338,7 @@ func TestGetFuturesPositionRatios(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesPositionRatios(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	e := new(Exchange) //nolint:govet // Intentional shadow // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
+	e := new(Exchange)
 	err = testexch.Setup(e)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -413,7 +413,7 @@ func TestGetFuturesRatios(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesRatios(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	e := new(Exchange) //nolint:govet // Intentional shadow // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
+	e := new(Exchange)
 	err = testexch.Setup(e)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -480,7 +480,7 @@ func TestGetFuturesAccountRatios(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesAccountRatios(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	e := new(Exchange) //nolint:govet // Intentional shadow // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
+	e := new(Exchange)
 	err = testexch.Setup(e)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
