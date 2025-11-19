@@ -399,32 +399,32 @@ func TestToFloat64(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reflect.TypeOf(v).Kind() != reflect.Float64 {
-		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
+	if reflect.TypeFor[float64]().Kind() != reflect.Float64 {
+		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeFor[float64]().Kind())
 	}
 
 	v, err = toFloat64(int(value))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reflect.TypeOf(v).Kind() != reflect.Float64 {
-		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
+	if reflect.TypeFor[float64]().Kind() != reflect.Float64 {
+		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeFor[float64]().Kind())
 	}
 
 	v, err = toFloat64(int32(value))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reflect.TypeOf(v).Kind() != reflect.Float64 {
-		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
+	if reflect.TypeFor[float64]().Kind() != reflect.Float64 {
+		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeFor[float64]().Kind())
 	}
 
 	v, err = toFloat64(int64(value))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reflect.TypeOf(v).Kind() != reflect.Float64 {
-		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
+	if reflect.TypeFor[float64]().Kind() != reflect.Float64 {
+		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeFor[float64]().Kind())
 	}
 
 	_, err = toFloat64("54")
