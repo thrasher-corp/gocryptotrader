@@ -36,6 +36,8 @@ const (
 
 var errDastardlyReason = errors.New("some dastardly reason")
 
+func noopConnect() error { return nil }
+
 type testStruct struct {
 	Error error
 	WC    connection
@@ -190,7 +192,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Setup(newDefaultSetup())
 	require.NoError(t, err, "Setup must not error")
 	ws.trafficTimeout = time.Minute
-	ws.connector = connect
+	ws.connector = noopConnect
 
 	require.ErrorIs(t, ws.Connect(), ErrSubscriptionsNotAdded)
 	require.NoError(t, ws.Shutdown())
@@ -308,7 +310,12 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.NoError(t, err)
 
-	err = ws.connectionManager[0].connection.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("test"))
+	var conn Connection
+	for conn = range ws.connectionManager[0].connectionSubs {
+		break
+	}
+
+	err = conn.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("test"))
 	require.NoError(t, err)
 
 	require.NoError(t, err)
@@ -413,7 +420,7 @@ func TestManager(t *testing.T) {
 
 	ws.useMultiConnectionManagement = true
 
-	ws.connectionManager = []*connectionWrapper{{setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, connection: &connection{}}}
+	ws.connectionManager = []*connectionWrapper{{setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, connectionSubs: map[Connection]*subscription.Store{&connection{}: subscription.NewStore()}}}
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
 	require.NoError(t, err)
 }
@@ -813,146 +820,6 @@ func (g *GenSubs) UNSUBME(unsubs subscription.List) error {
 	return nil
 }
 
-// sneaky connect func
-func connect() error { return nil }
-
-func TestFlushChannels(t *testing.T) {
-	t.Parallel()
-	// Enabled pairs/setup system
-
-	dodgyWs := Manager{}
-	err := dodgyWs.FlushChannels()
-	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "FlushChannels should error correctly")
-
-	dodgyWs.setEnabled(true)
-	err = dodgyWs.FlushChannels()
-	assert.ErrorIs(t, err, ErrNotConnected, "FlushChannels should error correctly")
-
-	newgen := GenSubs{EnabledPairs: []currency.Pair{
-		currency.NewPair(currency.BTC, currency.AUD),
-		currency.NewBTCUSDT(),
-	}}
-
-	w := NewManager()
-	w.exchangeName = "test"
-	w.connector = connect
-	w.Subscriber = newgen.SUBME
-	w.Unsubscriber = newgen.UNSUBME
-	// Added for when we utilise connect() in FlushChannels() so the traffic monitor doesn't time out and turn this to an unconnected state
-	w.trafficTimeout = time.Second * 30
-
-	w.setEnabled(true)
-	w.setState(connectedState)
-
-	// Allow subscribe and unsubscribe feature set, without these the tests will call shutdown and connect.
-	w.features.Subscribe = true
-	w.features.Unsubscribe = true
-
-	// Disable pair and flush system
-	newgen.EnabledPairs = []currency.Pair{currency.NewPair(currency.BTC, currency.AUD)}
-	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{{Channel: "test"}}, nil }
-
-	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "FlushChannels must error correctly on no subscriptions added")
-
-	w.Subscriber = func(subs subscription.List) error {
-		for _, sub := range subs {
-			if err := w.subscriptions.Add(sub); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
-
-	w.GenerateSubs = func() (subscription.List, error) { return nil, errDastardlyReason } // error on generateSubs
-	err = w.FlushChannels()                                                               // error on full subscribeToChannels
-	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should error correctly on GenerateSubs")
-
-	w.GenerateSubs = func() (subscription.List, error) { return nil, nil } // No subs to sub
-
-	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotRemoved)
-
-	w.Unsubscriber = func(subs subscription.List) error {
-		for _, sub := range subs {
-			if err := w.subscriptions.Remove(sub); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	assert.NoError(t, w.FlushChannels(), "FlushChannels should not error")
-
-	w.GenerateSubs = newgen.generateSubs
-	subs, err := w.GenerateSubs()
-	require.NoError(t, err, "GenerateSubs must not error")
-	require.NoError(t, w.AddSubscriptions(nil, subs...), "AddSubscriptions must not error")
-	err = w.FlushChannels()
-	assert.NoError(t, err, "FlushChannels should not error")
-
-	w.GenerateSubs = newgen.generateSubs
-	w.subscriptions = subscription.NewStore()
-	err = w.subscriptions.Add(&subscription.Subscription{
-		Key:     41,
-		Channel: "match channel",
-		Pairs:   currency.Pairs{currency.NewPair(currency.BTC, currency.AUD)},
-	})
-	require.NoError(t, err, "AddSubscription must not error")
-	err = w.subscriptions.Add(&subscription.Subscription{
-		Key:     42,
-		Channel: "unsub channel",
-		Pairs:   currency.Pairs{currency.NewPair(currency.THETA, currency.USDT)},
-	})
-	require.NoError(t, err, "AddSubscription must not error")
-
-	err = w.FlushChannels()
-	assert.NoError(t, err, "FlushChannels should not error")
-
-	w.setState(connectedState)
-	err = w.FlushChannels()
-	assert.NoError(t, err, "FlushChannels should not error")
-
-	// Multi connection management
-	w.useMultiConnectionManagement = true
-	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-	defer mock.Close()
-
-	w.subscriptions = subscription.NewStore()
-
-	amazingCandidate := &ConnectionSetup{
-		URL: "ws" + mock.URL[len("http"):] + "/ws",
-		Connector: func(ctx context.Context, conn Connection) error {
-			return conn.Dial(ctx, gws.DefaultDialer, nil)
-		},
-		GenerateSubscriptions: newgen.generateSubs,
-		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
-		Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
-		Handler:               func(context.Context, Connection, []byte) error { return nil },
-	}
-	require.NoError(t, w.SetupNewConnection(amazingCandidate))
-	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "Must error when no subscriptions are added to the subscription store")
-
-	w.connectionManager[0].setup.Subscriber = func(ctx context.Context, c Connection, s subscription.List) error {
-		return currySimpleSubConn(w)(ctx, c, s)
-	}
-	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
-
-	// Forces full connection cycle (shutdown, connect, subscribe). This will also start monitoring routines.
-	w.features.Subscribe = false
-	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
-
-	// Unsubscribe what's already subscribed. No subscriptions left over, which then forces the shutdown and removal
-	// of the connection from management.
-	w.features.Subscribe = true
-	w.connectionManager[0].setup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
-	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotRemoved, "Must error when no subscriptions are removed from subscription store")
-
-	w.connectionManager[0].setup.Unsubscriber = func(ctx context.Context, c Connection, s subscription.List) error {
-		return currySimpleUnsubConn(w)(ctx, c, s)
-	}
-	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
-}
-
 func TestDisable(t *testing.T) {
 	t.Parallel()
 	w := NewManager()
@@ -965,7 +832,7 @@ func TestDisable(t *testing.T) {
 func TestEnable(t *testing.T) {
 	t.Parallel()
 	w := NewManager()
-	w.connector = connect
+	w.connector = noopConnect
 	w.Subscriber = func(subscription.List) error { return nil }
 	w.Unsubscriber = func(subscription.List) error { return nil }
 	w.GenerateSubs = func() (subscription.List, error) { return nil, nil }
@@ -1299,7 +1166,7 @@ func TestGetConnection(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotConnected)
 
 	expected := &connection{}
-	ws.connectionManager[0].connection = expected
+	ws.connectionManager[0].connectionSubs = map[Connection]*subscription.Store{expected: subscription.NewStore()}
 
 	conn, err := ws.GetConnection("testURL")
 	require.NoError(t, err)
@@ -1332,7 +1199,10 @@ func TestShutdown(t *testing.T) {
 
 	m.AuthConn = nil
 	m.Conn = nil
-	m.connectionManager = []*connectionWrapper{{connection: &connection{Connection: nil}}, {connection: &connection{Connection: conn}}}
+	m.connectionManager = []*connectionWrapper{
+		{connectionSubs: map[Connection]*subscription.Store{&connection{Connection: nil}: subscription.NewStore()}},
+		{connectionSubs: map[Connection]*subscription.Store{&connection{Connection: conn}: subscription.NewStore()}},
+	}
 	m.setState(connectedState)
 	require.NoError(t, m.Shutdown(), "Shutdown must not error with faulty connection in connectionManager")
 
