@@ -564,7 +564,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		Subscription: testRequestData{
 			Name: "ticker",
 		},
-		RequestID: wc.GenerateMessageID(false),
+		RequestID: 12345,
 	}
 
 	_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, req.RequestID, req)
@@ -756,37 +756,6 @@ func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
 
 	ws.SetCanUseAuthenticatedEndpoints(true)
 	assert.True(t, ws.CanUseAuthenticatedWebsocketForWrapper(), "CanUseAuthenticatedWebsocketForWrapper should return true")
-}
-
-func TestGenerateMessageID(t *testing.T) {
-	t.Parallel()
-	wc := connection{}
-	const spins = 1000
-	ids := make([]int64, spins)
-	for i := range spins {
-		id := wc.GenerateMessageID(true)
-		assert.NotContains(t, ids, id, "GenerateMessageID should not generate the same ID twice")
-		ids[i] = id
-	}
-
-	wc.requestIDGenerator = func() int64 { return 42 }
-	assert.EqualValues(t, 42, wc.GenerateMessageID(true), "GenerateMessageID should use bespokeGenerateMessageID")
-}
-
-// 7002502	       166.7 ns/op	      48 B/op	       3 allocs/op
-func BenchmarkGenerateMessageID_High(b *testing.B) {
-	wc := connection{}
-	for b.Loop() {
-		_ = wc.GenerateMessageID(true)
-	}
-}
-
-// 6536250	       186.1 ns/op	      48 B/op	       3 allocs/op
-func BenchmarkGenerateMessageID_Low(b *testing.B) {
-	wc := connection{}
-	for b.Loop() {
-		_ = wc.GenerateMessageID(false)
-	}
 }
 
 func TestCheckWebsocketURL(t *testing.T) {
@@ -1088,7 +1057,7 @@ func TestConnectionShutdown(t *testing.T) {
 	t.Parallel()
 	wc := connection{shutdown: make(chan struct{})}
 	err := wc.Shutdown()
-	assert.NoError(t, err, "Shutdown should not error")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Shutdown should error correctly")
 
 	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
 	assert.ErrorContains(t, err, "malformed ws or wss URL", "Dial should error correctly")
@@ -1135,7 +1104,7 @@ func TestLatency(t *testing.T) {
 		Event:        "subscribe",
 		Pairs:        []string{currency.NewPairWithDelimiter("XBT", "USD", "/").String()},
 		Subscription: testRequestData{Name: "ticker"},
-		RequestID:    wc.GenerateMessageID(false),
+		RequestID:    12346,
 	}
 
 	_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, req.RequestID, req)
@@ -1335,4 +1304,55 @@ func TestGetConnection(t *testing.T) {
 	conn, err := ws.GetConnection("testURL")
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
+}
+
+func TestShutdown(t *testing.T) {
+	t.Parallel()
+	m := Manager{}
+	m.setState(connectingState)
+	require.ErrorIs(t, m.Shutdown(), errAlreadyReconnecting, "Shutdown must error correctly")
+	m.setState(disconnectedState)
+	require.ErrorIs(t, m.Shutdown(), ErrNotConnected, "Shutdown must error correctly")
+	m.setState(connectedState)
+	require.Panics(t, func() { _ = m.Shutdown() }, "Shutdown must panic on nil shutdown channel")
+	m.ShutdownC = make(chan struct{})
+	require.NoError(t, m.Shutdown(), "Shutdown must not error with no connections")
+	m.setState(connectedState)
+	m.Conn = &struct{ *connection }{&connection{}}
+	m.AuthConn = &struct{ *connection }{&connection{}}
+	require.ErrorIs(t, m.Shutdown(), common.ErrTypeAssertFailure, "Shutdown must error with unhandled connection type")
+
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	defer mock.Close()
+
+	wsURL := "ws" + mock.URL[len("http"):] + "/ws"
+	conn, resp, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	require.NoError(t, err, "DialContext must not error")
+	defer resp.Body.Close()
+
+	m.AuthConn = nil
+	m.Conn = nil
+	m.connectionManager = []*connectionWrapper{{connection: &connection{Connection: nil}}, {connection: &connection{Connection: conn}}}
+	m.setState(connectedState)
+	require.NoError(t, m.Shutdown(), "Shutdown must not error with faulty connection in connectionManager")
+
+	gwsConnAuth, respAuth, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	require.NoError(t, err, "DialContext must not error")
+	defer respAuth.Body.Close()
+
+	gwsConnUnAuth, respUnAuth, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	require.NoError(t, err, "DialContext must not error")
+	defer respUnAuth.Body.Close()
+
+	m.connectionManager = nil
+	authConn := &connection{Connection: gwsConnAuth, shutdown: m.ShutdownC}
+	m.AuthConn = authConn
+	unauthConn := &connection{Connection: gwsConnUnAuth, shutdown: m.ShutdownC}
+	m.Conn = unauthConn
+
+	m.setState(connectedState)
+	require.NoError(t, m.Shutdown(), "Shutdown must not error with good connections")
+
+	require.Equal(t, m.ShutdownC, authConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
+	require.Equal(t, m.ShutdownC, unauthConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 }

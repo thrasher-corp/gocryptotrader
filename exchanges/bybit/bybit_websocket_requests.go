@@ -75,9 +75,6 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkI
 		return nil, err
 	}
 
-	tn := time.Now()
-	requestID := strconv.FormatInt(outbound.GenerateMessageID(false), 10)
-
 	// Set up a listener to wait for the response to come back from the inbound connection. The request is sent through
 	// the outbound trade connection, the response can come back through the inbound private connection before the
 	// outbound connection sends its acknowledgement.
@@ -86,9 +83,10 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkI
 		return nil, err
 	}
 
+	requestID := e.MessageID()
 	outResp, err := outbound.SendMessageReturnResponse(ctx, limit, requestID, WebsocketGeneralPayload{
 		RequestID: requestID,
-		Header:    map[string]string{"X-BAPI-TIMESTAMP": strconv.FormatInt(tn.UnixMilli(), 10)},
+		Header:    map[string]string{"X-BAPI-TIMESTAMP": strconv.FormatInt(time.Now().UnixMilli(), 10)},
 		Operation: op,
 		Arguments: []any{payload},
 	})

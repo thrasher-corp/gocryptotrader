@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -219,7 +219,7 @@ func (f fakeFunding) UpdateFundingFromLiveData(bool) error {
 	return nil
 }
 
-func (f fakeFunding) SetFunding(string, asset.Item, *account.Balance, bool) error {
+func (f fakeFunding) SetFunding(string, asset.Item, *accounts.Balance, bool) error {
 	return nil
 }
 

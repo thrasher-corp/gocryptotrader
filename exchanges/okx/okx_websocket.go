@@ -20,8 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -41,7 +41,7 @@ var (
 	// See: https://www.okx.com/docs-v5/en/#error-code-websocket-public
 	authConnErrorCodes = []string{
 		"60007", "60022", "60023", "60024", "60026", "63999", "60032", "60011", "60009",
-		"60005", "60021", "60031", "50110",
+		"60005", "60021", "60031", "50110", "60033",
 	}
 )
 
@@ -245,15 +245,12 @@ func (e *Exchange) WsConnect() error {
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx, e.Websocket.Conn)
+	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.Conn) })
 	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
-			e.Websocket.GetWebsocketURL())
+		log.Debugf(log.ExchangeSys, "Successful connection to %v", e.Websocket.GetWebsocketURL())
 	}
 	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
@@ -261,8 +258,7 @@ func (e *Exchange) WsConnect() error {
 		Delay:       time.Second * 20,
 	})
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err = e.WsAuth(ctx)
-		if err != nil {
+		if err := e.WsAuth(ctx); err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
@@ -275,24 +271,24 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 	if !e.AreCredentialsValid(ctx) || !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
 	var dialer gws.Dialer
-	err = e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx, e.Websocket.AuthConn)
+	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.AuthConn) })
 	e.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
+	return e.authenticateConnection(ctx, e.Websocket.AuthConn)
+}
 
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+func (e *Exchange) authenticateConnection(ctx context.Context, conn websocket.Connection) error {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
 	ts := time.Now().Unix()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
@@ -303,21 +299,37 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 		return err
 	}
 
-	args := []WebsocketLoginData{
-		{
-			APIKey:     creds.Key,
-			Passphrase: creds.ClientID,
-			Timestamp:  ts,
-			Sign:       base64.StdEncoding.EncodeToString(hmac),
+	op := WebsocketAuthLogin{
+		Operation: operationLogin,
+		Arguments: []WebsocketLoginData{
+			{
+				APIKey:     creds.Key,
+				Passphrase: creds.ClientID,
+				Timestamp:  ts,
+				Sign:       base64.StdEncoding.EncodeToString(hmac),
+			},
 		},
 	}
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, "login-response", op)
+	if err != nil {
+		return err
+	}
+	var intermediary struct {
+		Code    int64  `json:"code,string"`
+		Message string `json:"msg"`
+	}
+	if err := json.Unmarshal(resp, &intermediary); err != nil {
+		return err
+	}
 
-	return e.SendAuthenticatedWebsocketRequest(ctx, request.Unset, "login-response", operationLogin, args, nil)
+	if intermediary.Code != 0 {
+		return getStatusError(intermediary.Code, intermediary.Message)
+	}
+	return nil
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
 func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
-	defer e.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
@@ -1447,28 +1459,22 @@ func (e *Exchange) wsProcessBalanceAndPosition(ctx context.Context, data []byte)
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	var changes []account.Change
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, resp.Argument.UID)}
 	for i := range resp.Data {
 		for j := range resp.Data[i].BalanceData {
-			changes = append(changes, account.Change{
-				AssetType: asset.Spot,
-				Account:   resp.Argument.UID,
-				Balance: &account.Balance{
-					Currency:  currency.NewCode(resp.Data[i].BalanceData[j].Currency),
-					Total:     resp.Data[i].BalanceData[j].CashBalance.Float64(),
-					Free:      resp.Data[i].BalanceData[j].CashBalance.Float64(),
-					UpdatedAt: resp.Data[i].BalanceData[j].UpdateTime.Time(),
-				},
+			subAccts[0].Balances.Set(resp.Data[i].BalanceData[j].Currency, accounts.Balance{
+				Total:     resp.Data[i].BalanceData[j].CashBalance.Float64(),
+				Free:      resp.Data[i].BalanceData[j].CashBalance.Float64(),
+				UpdatedAt: resp.Data[i].BalanceData[j].UpdateTime.Time(),
 			})
 		}
 		// TODO: Handle position data
 	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- subAccts
+	return nil
 }
 
 // wsProcessPushData processes push data coming through the websocket channel

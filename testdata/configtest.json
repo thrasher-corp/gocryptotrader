@@ -187,17 +187,6 @@
    "listenAddress": "localhost:9052",
    "grpcProxyEnabled": true,
    "grpcProxyListenAddress": "localhost:9053"
-  },
-  "deprecatedRPC": {
-   "enabled": true,
-   "listenAddress": "localhost:9050"
-  },
-  "websocketRPC": {
-   "enabled": true,
-   "listenAddress": "localhost:9051",
-   "connectionLimit": 1,
-   "maxAuthFailures": 3,
-   "allowInsecureOrigin": true
   }
  },
  "portfolioAddresses": {

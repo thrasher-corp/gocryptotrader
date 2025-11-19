@@ -15,11 +15,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -50,9 +51,9 @@ func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		t.Fatal("load config error", err)
-	}
+	require.NoError(t, err, "LoadConfig must not error")
+	err = dispatch.EnsureRunning(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
+	require.NoError(t, err, "dispatch.EnsureRunning must not error")
 	for i := range cfg.Exchanges {
 		name := strings.ToLower(cfg.Exchanges[i].Name)
 		t.Run(name+" wrapper tests", func(t *testing.T) {
@@ -144,6 +145,7 @@ assets:
 		})
 	}
 	assetPairs = append(assetPairs, assetPair{})
+
 	return exch, assetPairs
 }
 
@@ -284,7 +286,7 @@ var (
 	withdrawRequestParam = reflect.TypeOf((**withdraw.Request)(nil)).Elem()
 	stringParam          = reflect.TypeOf((*string)(nil)).Elem()
 	feeBuilderParam      = reflect.TypeOf((**exchange.FeeBuilder)(nil)).Elem()
-	credentialsParam     = reflect.TypeOf((**account.Credentials)(nil)).Elem()
+	credentialsParam     = reflect.TypeOf((**accounts.Credentials)(nil)).Elem()
 	orderSideParam       = reflect.TypeOf((*order.Side)(nil)).Elem()
 	collateralModeParam  = reflect.TypeOf((*collateral.Mode)(nil)).Elem()
 	marginTypeParam      = reflect.TypeOf((*margin.Type)(nil)).Elem()
@@ -334,7 +336,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Asset: argGenerator.AssetParams.Asset,
 		})
 	case argGenerator.MethodInputType.AssignableTo(credentialsParam):
-		input = reflect.ValueOf(&account.Credentials{
+		input = reflect.ValueOf(&accounts.Credentials{
 			Key:             "test",
 			Secret:          "test",
 			ClientID:        "test",
@@ -644,7 +646,18 @@ var acceptableErrors = []error{
 	limits.ErrExchangeLimitNotLoaded,     // Is thrown when the limits aren't loaded for a particular exchange, asset, pair
 	limits.ErrOrderLimitNotFound,         // Is thrown when the order limit isn't found for a particular exchange, asset, pair
 	limits.ErrEmptyLevels,                // Is thrown if limits are not provided for the asset
-	account.ErrExchangeHoldingsNotFound,
+	limits.ErrPriceBelowMin,
+	limits.ErrPriceExceedsMax,
+	limits.ErrPriceExceedsStep,
+	limits.ErrAmountBelowMin,
+	limits.ErrAmountExceedsMax,
+	limits.ErrAmountExceedsStep,
+	limits.ErrNotionalValue,
+	limits.ErrMarketAmountBelowMin,
+	limits.ErrMarketAmountExceedsMax,
+	limits.ErrMarketAmountExceedsStep,
+	accounts.ErrNoBalances,
+	accounts.ErrNoSubAccounts,
 	ticker.ErrTickerNotFound,
 	orderbook.ErrOrderbookNotFound,
 	websocket.ErrNotConnected,

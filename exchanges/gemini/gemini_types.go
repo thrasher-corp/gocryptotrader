@@ -224,9 +224,9 @@ type OneDayNotionalVolume struct {
 
 // Balance is a simple balance type
 type Balance struct {
-	Currency  string  `json:"currency"`
-	Amount    float64 `json:"amount,string"`
-	Available float64 `json:"available,string"`
+	Currency  currency.Code `json:"currency"`
+	Amount    float64       `json:"amount,string"`
+	Available float64       `json:"available,string"`
 }
 
 // DepositAddress holds assigned deposit address for a specific currency

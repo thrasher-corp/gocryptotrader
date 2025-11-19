@@ -24,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -99,33 +98,6 @@ func (e *Exchange) GetMarketList(ctx context.Context) ([]string, error) {
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, marketListEPL, "/v1/markets", &resp)
 }
 
-// processOB constructs an orderbook.Level instances from slice of numbers.
-func processOB(ob [][2]types.Number) []orderbook.Level {
-	o := make([]orderbook.Level, len(ob))
-	for x := range ob {
-		o[x].Amount = ob[x][1].Float64()
-		o[x].Price = ob[x][0].Float64()
-	}
-	return o
-}
-
-// constructOrderbook parse checks and constructs an *Orderbook instance from *orderbookResponse.
-func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
-	s := Orderbook{
-		Bids: processOB(o.Bids),
-		Asks: processOB(o.Asks),
-		Time: o.Time.Time(),
-	}
-	if o.Sequence != "" {
-		var err error
-		s.Sequence, err = strconv.ParseInt(o.Sequence, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &s, nil
-}
-
 // GetPartOrderbook20 gets orderbook for a specified pair with depth 20
 func (e *Exchange) GetPartOrderbook20(ctx context.Context, symbol string) (*Orderbook, error) {
 	if symbol == "" {
@@ -134,11 +106,10 @@ func (e *Exchange) GetPartOrderbook20(ctx context.Context, symbol string) (*Orde
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var o *orderbookResponse
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, partOrderbook20EPL, common.EncodeURLValues("/v1/market/orderbook/level2_20", params), &o)
-	if err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, partOrderbook20EPL, common.EncodeURLValues("/v1/market/orderbook/level2_20", params), &o); err != nil {
 		return nil, err
 	}
-	return constructOrderbook(o)
+	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: o.Time.Time(), Sequence: o.Sequence.Int64()}, nil
 }
 
 // GetPartOrderbook100 gets orderbook for a specified pair with depth 100
@@ -149,11 +120,10 @@ func (e *Exchange) GetPartOrderbook100(ctx context.Context, symbol string) (*Ord
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var o *orderbookResponse
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, partOrderbook100EPL, common.EncodeURLValues("/v1/market/orderbook/level2_100", params), &o)
-	if err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, partOrderbook100EPL, common.EncodeURLValues("/v1/market/orderbook/level2_100", params), &o); err != nil {
 		return nil, err
 	}
-	return constructOrderbook(o)
+	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: o.Time.Time(), Sequence: o.Sequence.Int64()}, nil
 }
 
 // GetOrderbook gets full orderbook for a specified pair
@@ -164,11 +134,10 @@ func (e *Exchange) GetOrderbook(ctx context.Context, symbol string) (*Orderbook,
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var o *orderbookResponse
-	err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, fullOrderbookEPL, http.MethodGet, common.EncodeURLValues("/v3/market/orderbook/level2", params), nil, &o)
-	if err != nil {
+	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, fullOrderbookEPL, http.MethodGet, common.EncodeURLValues("/v3/market/orderbook/level2", params), nil, &o); err != nil {
 		return nil, err
 	}
-	return constructOrderbook(o)
+	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: o.Time.Time(), Sequence: o.Sequence.Int64()}, nil
 }
 
 // GetTradeHistory gets trade history of the specified pair

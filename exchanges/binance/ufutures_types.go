@@ -38,16 +38,6 @@ var (
 	uValidPeriods = []string{"5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"}
 )
 
-// USDT Margined Futures
-
-// OrderbookData stores ob data for umargined and cmargined futures
-type OrderbookData struct {
-	LastUpdateID int64             `json:"lastUpdateID"`
-	Timestamp    types.Time        `json:"T"`
-	Bids         [][2]types.Number `json:"bids"`
-	Asks         [][2]types.Number `json:"asks"`
-}
-
 // UPublicTradesData stores trade data
 type UPublicTradesData struct {
 	ID           int64      `json:"id"`
@@ -249,13 +239,13 @@ type UFuturesOrderData struct {
 
 // UAccountBalanceV2Data stores account balance data for ufutures
 type UAccountBalanceV2Data struct {
-	AccountAlias       string  `json:"accountAlias"`
-	Asset              string  `json:"asset"`
-	Balance            float64 `json:"balance,string"`
-	CrossWalletBalance float64 `json:"crossWalletBalance,string"`
-	CrossUnrealizedPNL float64 `json:"crossUnPnl,string"`
-	AvailableBalance   float64 `json:"availableBalance,string"`
-	MaxWithdrawAmount  float64 `json:"maxWithdrawAmount,string"`
+	AccountAlias       string        `json:"accountAlias"`
+	Asset              currency.Code `json:"asset"`
+	Balance            float64       `json:"balance,string"`
+	CrossWalletBalance float64       `json:"crossWalletBalance,string"`
+	CrossUnrealizedPNL float64       `json:"crossUnPnl,string"`
+	AvailableBalance   float64       `json:"availableBalance,string"`
+	MaxWithdrawAmount  float64       `json:"maxWithdrawAmount,string"`
 }
 
 // UAccountInformationV2Data stores account info for ufutures
