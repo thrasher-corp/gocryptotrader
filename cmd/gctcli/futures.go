@@ -825,20 +825,15 @@ func getOpenInterest(c *cli.Context) error {
 		}
 	}
 
-	var pair currency.Pair
+	data := make([]*gctrpc.OpenInterestDataRequest, 0, 1)
 	if arg.Pair != "" {
 		if !validPair(arg.Pair) {
 			return fmt.Errorf("%w: %q", errInvalidPair, arg.Pair)
 		}
-		var err error
-		pair, err = currency.NewPairDelimiter(arg.Pair, pairDelimiter)
+		pair, err := currency.NewPairDelimiter(arg.Pair, pairDelimiter)
 		if err != nil {
 			return err
 		}
-	}
-
-	data := make([]*gctrpc.OpenInterestDataRequest, 0, 1)
-	if !pair.IsEmpty() {
 		data = append(data, &gctrpc.OpenInterestDataRequest{
 			Asset: arg.Asset,
 			Pair: &gctrpc.CurrencyPair{
