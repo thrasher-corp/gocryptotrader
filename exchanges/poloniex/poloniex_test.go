@@ -1697,7 +1697,7 @@ func TestCancelReplaceSmartOrder(t *testing.T) {
 	}
 	result, err := e.CancelReplaceSmartOrder(t.Context(), &CancelReplaceSmartOrderRequest{
 		OrderID:       "29772698821328896",
-		ClientOrderID: "1234A",
+		ClientOrderID: "1234Abc",
 		Price:         18000,
 	})
 	require.NoError(t, err)

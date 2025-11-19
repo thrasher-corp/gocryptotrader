@@ -9078,9 +9078,7 @@
    ],
    "GET": [
     {
-     "data": {
-      "code": 200,
-      "data": [
+     "data": [
        {
         "id": "14368195657859072",
         "clientOrderId": "18113",
@@ -9116,8 +9114,6 @@
         }
        }
       ],
-      "message": "Data not found"
-     },
      "queryString": "",
      "bodyParams": "",
      "headers": {
@@ -9146,9 +9142,7 @@
   "/smartorders/1234": {
    "GET": [
     {
-     "data": {
-      "code": 200,
-      "data": [
+     "data": [
        {
         "id": "1234",
         "clientOrderId": "",
@@ -9166,8 +9160,6 @@
         "updateTime": 1630832295888
        }
       ],
-      "message": ""
-     },
      "queryString": "",
      "bodyParams": "",
      "headers": {
@@ -9232,9 +9224,7 @@
   "/smartorders/cancelByIds": {
    "DELETE": [
     {
-     "data": {
-      "code": 0,
-      "data": [
+     "data": [
        {
         "orderId": "9876543",
         "clientOrderId": "88888",
@@ -9249,8 +9239,7 @@
         "code": 200,
         "message": ""
        }
-      ]
-     },
+      ],
      "queryString": "",
      "bodyParams": "{\"symbol\":\"\",\"ordIds\":[\"1234\"],\"clOrdIds\":[\"5678\"]}",
      "headers": {
