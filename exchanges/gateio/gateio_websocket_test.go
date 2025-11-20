@@ -15,6 +15,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 func TestGetWSPingHandler(t *testing.T) {
@@ -207,5 +210,44 @@ func checkAccountChange(ctx context.Context, t *testing.T, exch *Exchange, tc *w
 		stored, err := exch.Accounts.GetBalance(change.ID, creds, change.AssetType, bal.Currency)
 		require.NoError(t, err, "GetBalance must not error")
 		assert.Equal(t, bal.Free, stored.Free, "free balance should equal with accounts stored value")
+	}
+}
+
+func TestExtractOrderbookLimit(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Setup must not error")
+	_, err := e.extractOrderbookLimit(1337)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.extractOrderbookLimit(asset.Spot)
+	require.ErrorIs(t, err, subscription.ErrNotFound)
+
+	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.Interval(time.Millisecond * 420)})
+	require.NoError(t, err)
+
+	_, err = e.extractOrderbookLimit(asset.Spot)
+	require.ErrorIs(t, err, errInvalidOrderbookUpdateInterval)
+
+	err = e.Websocket.RemoveSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.Interval(time.Millisecond * 420)})
+	require.NoError(t, err)
+
+	// Add dummy subscription so that it can be matched and a limit/level can be extracted for initial orderbook sync spot.
+	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		asset asset.Item
+		exp   uint64
+	}{
+		{asset: asset.Spot, exp: 100},
+		{asset: asset.USDTMarginedFutures, exp: futuresOrderbookUpdateLimit},
+		{asset: asset.CoinMarginedFutures, exp: futuresOrderbookUpdateLimit},
+		{asset: asset.DeliveryFutures, exp: deliveryFuturesUpdateLimit},
+		{asset: asset.Options, exp: optionOrderbookUpdateLimit},
+	} {
+		limit, err := e.extractOrderbookLimit(tc.asset)
+		require.NoError(t, err)
+		require.Equal(t, tc.exp, limit)
 	}
 }

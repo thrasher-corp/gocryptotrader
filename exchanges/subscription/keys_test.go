@@ -150,3 +150,27 @@ func TestGetSubscription(t *testing.T) {
 	assert.Same(t, s, ExactKey{s}.GetSubscription(), "ExactKey.GetSubscription Must return a pointer to the subscription")
 	assert.Same(t, s, IgnoringPairsKey{s}.GetSubscription(), "IgnorePairKeys.GetSubscription Must return a pointer to the subscription")
 }
+
+func TestMustChannelKey(t *testing.T) {
+	t.Parallel()
+	require.Panics(t, func() { MustChannelKey("") }, "no channel string must panic")
+	key := MustChannelKey(TickerChannel)
+	assert.Equal(t, TickerChannel, key.Subscription.Channel)
+}
+
+func TestChannelKeyMatch(t *testing.T) {
+	t.Parallel()
+	key := ChannelKey{&Subscription{Channel: TickerChannel}}
+	try := &DummyKey{&Subscription{Channel: OrderbookChannel}, t}
+
+	require.Panics(t, func() { key.Match(nil) }, "Match on a nil must panic")
+	require.False(t, key.Match(try), "Match must reject a different channel")
+	try.Channel = TickerChannel
+	assert.True(t, key.Match(try), "Match should accept an identical channel")
+}
+
+func TestChannelKeyGetSubscription(t *testing.T) {
+	t.Parallel()
+	key := ChannelKey{&Subscription{Channel: TickerChannel}}
+	assert.Same(t, key.Subscription, key.GetSubscription(), "GetSubscription should return the underlying subscription")
+}
