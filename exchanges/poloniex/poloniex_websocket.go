@@ -297,7 +297,6 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 			return err
 		}
 		e.onceWebsocketOrderbookLock.Lock()
-		defer e.onceWebsocketOrderbookLock.Unlock()
 		_, okay := e.onceWebsocketOrderbookCache[cp]
 		if !okay {
 			if e.onceWebsocketOrderbookCache == nil {
@@ -309,12 +308,15 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 			)
 			orderbooks, err = e.UpdateOrderbook(context.Background(), cp, asset.Spot)
 			if err != nil {
+				e.onceWebsocketOrderbookLock.Unlock()
 				return err
 			}
 			if err := e.Websocket.Orderbook.LoadSnapshot(orderbooks); err != nil {
+				e.onceWebsocketOrderbookLock.Unlock()
 				return err
 			}
 			e.onceWebsocketOrderbookCache[cp] = true
+			e.onceWebsocketOrderbookLock.Unlock()
 		}
 		update := orderbook.Update{
 			Pair:       cp,
