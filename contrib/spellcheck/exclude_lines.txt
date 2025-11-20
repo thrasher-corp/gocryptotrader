@@ -13,3 +13,6 @@
 	currency.SHFT:     84,
 		TotalIn  float64 `json:"totalIn"`
 		TotalIn        int64  `json:"totalIn"`
+	bitgetAnnouncements            = "annoucements" // Misspelling of announcements
+	bitgetTransferred              = "transfered" //nolint:misspell // Bitget spelling mistake
+	Transferred float64       `json:"transfered,string"` //nolint:misspell // Bitget spelling mistake
