@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -575,6 +576,9 @@ type statusResponse struct {
 }
 
 func (s *statusResponse) Error() error {
+	if s == nil {
+		return common.ErrNoResponse
+	}
 	if s.Code != 0 && s.Code != 200 {
 		return fmt.Errorf("error code: %d; message: %s", s.Code, s.Message)
 	}
@@ -1027,6 +1031,9 @@ type V3ResponseWrapper struct {
 func (s *V3ResponseWrapper) Error() error {
 	if s.Code != 0 && s.Code != 200 {
 		return fmt.Errorf("error code: %d; message: %s", s.Code, s.Message)
+	}
+	if s.Data == nil {
+		return common.ErrNoResponse
 	}
 	return nil
 }

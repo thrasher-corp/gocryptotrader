@@ -1007,7 +1007,6 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 		return err
 	}
 	resp := result
-	requireWrapper := strings.HasPrefix(path, v3Path)
 	if strings.HasPrefix(path, v3Path) {
 		resp = &V3ResponseWrapper{
 			Data: result,
@@ -1026,16 +1025,11 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	}, request.UnauthenticatedRequest); err != nil {
 		return err
 	}
-	if !requireWrapper {
-		if resp == nil {
-			return common.ErrNoResponse
-		}
+	if resp == nil {
+		return common.ErrNoResponse
 	}
 	if errType, ok := resp.(interface{ Error() error }); ok && errType.Error() != nil {
 		return errType.Error()
-	}
-	if requireWrapper && result == nil {
-		return common.ErrNoResponse
 	}
 	return nil
 }
@@ -1051,8 +1045,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return err
 	}
 	resp := result
-	requireWrapper := strings.HasPrefix(path, v3Path)
-	if requireWrapper {
+	if strings.HasPrefix(path, v3Path) {
 		resp = &V3ResponseWrapper{
 			Data: result,
 		}
@@ -1115,16 +1108,11 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err := e.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest); err != nil {
 		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
 	}
-	if !requireWrapper {
-		if resp == nil {
-			return common.ErrNoResponse
-		}
+	if resp == nil {
+		return common.ErrNoResponse
 	}
 	if errType, ok := resp.(interface{ Error() error }); ok && errType.Error() != nil {
 		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, errType.Error())
-	}
-	if requireWrapper && result == nil {
-		return common.ErrNoResponse
 	}
 	return nil
 }
