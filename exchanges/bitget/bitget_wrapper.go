@@ -250,7 +250,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		RateLimit:             rateLimits[rateSubscription],
 		Connector:             e.wsConnect,
-		GenerateSubscriptions: func() (subscription.List, error) { return e.generateDefaultSubscriptions(true) },
+		GenerateSubscriptions: func() (subscription.List, error) { return e.wsGenerateSubscriptions(true) },
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
 		Handler:               e.wsHandleData,
@@ -263,7 +263,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		RateLimit:             rateLimits[rateSubscription],
 		Connector:             e.wsConnect,
-		GenerateSubscriptions: func() (subscription.List, error) { return e.generateDefaultSubscriptions(false) },
+		GenerateSubscriptions: func() (subscription.List, error) { return e.wsGenerateSubscriptions(false) },
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
 		Handler:               e.wsHandleData,
@@ -2905,7 +2905,7 @@ func itemEncoder(a asset.Item, pair currency.Pair) string {
 	case asset.Futures:
 		return getProductType(pair)
 	case asset.Margin, asset.CrossMargin:
-		return "MARGIN"
+		return "mabl"
 	}
 	return ""
 }

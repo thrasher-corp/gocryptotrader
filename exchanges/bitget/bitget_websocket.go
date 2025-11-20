@@ -97,21 +97,21 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.AllOrdersChannel, Asset: asset.Futures},
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot},
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Futures},
-	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Spot},
-	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Futures},
-	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Spot},
-	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Futures},
-	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Margin},
-	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.CrossMargin},
-	{Enabled: false, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Spot},
-	{Enabled: false, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Futures},
-	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.Spot},
-	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.Futures},
-	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.Margin},
-	{Enabled: false, Channel: "account", Authenticated: true, Asset: asset.CrossMargin},
-	{Enabled: false, Channel: "positions", Authenticated: true, Asset: asset.Futures},
-	{Enabled: false, Channel: "positionsHistory", Authenticated: true, Asset: asset.Futures},
-	{Enabled: false, Channel: "indexPrice", Asset: asset.Margin},
+	{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Spot},
+	{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Spot},
+	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Margin},
+	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.CrossMargin},
+	{Enabled: true, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Spot},
+	{Enabled: true, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.Spot},
+	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.Margin},
+	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.CrossMargin},
+	{Enabled: true, Channel: "positions", Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: "positionsHistory", Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: "indexPrice", Asset: asset.Margin},
 }
 
 // wsConnect connects to a websocket feed
@@ -978,8 +978,8 @@ func calculateUpdateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
 	return crc32.ChecksumIEEE([]byte(check))
 }
 
-// GenerateDefaultSubscriptions generates default subscriptions
-func (e *Exchange) generateDefaultSubscriptions(public bool) (subscription.List, error) {
+// wsGenerateSubscriptions expands the default subscriptions list
+func (e *Exchange) wsGenerateSubscriptions(public bool) (subscription.List, error) {
 	assetPairs := make(map[asset.Item]currency.Pairs)
 	for _, a := range e.GetAssetTypes(true) {
 		pairs, err := e.GetEnabledPairs(a)
@@ -988,8 +988,8 @@ func (e *Exchange) generateDefaultSubscriptions(public bool) (subscription.List,
 		}
 		assetPairs[a] = pairs
 	}
-	subs := make(subscription.List, 0, len(defaultSubscriptions))
-	for _, sub := range defaultSubscriptions {
+	subs := make(subscription.List, 0, len(e.Features.Subscriptions))
+	for _, sub := range e.Features.Subscriptions {
 		_, ok := assetPairs[sub.Asset]
 		if !ok && !sub.Authenticated {
 			continue
@@ -1086,7 +1086,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 		if len(req[i].Arguments) == 0 {
 			return fmt.Errorf("%w: no arguments in request", websocket.ErrSubscriptionFailure)
 		}
-		errs.Go(func() error { return conn.SendJSONMessage(request.WithVerbose(ctx), rateSubscription, req[i]) })
+		errs.Go(func() error { return conn.SendJSONMessage(ctx, rateSubscription, req[i]) })
 	}
 	if err := errs.Collect(); err != nil {
 		return err
