@@ -2715,7 +2715,7 @@ func TestChannelToIntervalSplit(t *testing.T) {
 	}
 }
 
-func TestStatusCodeUnmarshal(t *testing.T) {
+func TestStatusResponseError(t *testing.T) {
 	t.Parallel()
 	var p *PlaceOrderResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"id": "4"}`), &p))
