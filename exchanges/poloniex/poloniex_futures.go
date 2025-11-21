@@ -70,21 +70,8 @@ func (e *Exchange) GetAccountBills(ctx context.Context, startTime, endTime time.
 
 // PlaceFuturesOrder place an order in futures trading.
 func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderRequest) (*FuturesOrderIDResponse, error) {
-	if arg.Symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
-	}
-	if arg.Side == "" {
-		return nil, order.ErrSideIsInvalid
-	}
-	if (arg.MarginMode != marginMode(margin.Unset) && arg.PositionSide == order.UnknownSide) ||
-		(arg.MarginMode == marginMode(margin.Unset) && arg.PositionSide != order.UnknownSide) {
-		return nil, fmt.Errorf("%w: %w: either both margin mode and position side fields are filled or left blank", order.ErrSideIsInvalid, margin.ErrInvalidMarginType)
-	}
-	if arg.OrderType == OrderType(order.UnknownType) {
-		return nil, order.ErrTypeIsInvalid
-	}
-	if arg.Size <= 0 {
-		return nil, limits.ErrAmountBelowMin
+	if err := arg.validate(); err != nil {
+		return nil, err
 	}
 	var resp *FuturesOrderIDResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fOrderEPL, http.MethodPost, tradePathV3+"order", nil, arg, &resp); err != nil {
@@ -117,8 +104,9 @@ func (o *FuturesOrderRequest) validate() error {
 	if o.Side == "" {
 		return order.ErrSideIsInvalid
 	}
-	if o.PositionSide == order.UnknownSide {
-		return order.ErrSideIsInvalid
+	if (o.MarginMode != marginMode(margin.Unset) && o.PositionSide == order.UnknownSide) ||
+		(o.MarginMode == marginMode(margin.Unset) && o.PositionSide != order.UnknownSide) {
+		return fmt.Errorf("%w: %w: either both margin mode and position side fields are filled or left blank", order.ErrSideIsInvalid, margin.ErrInvalidMarginType)
 	}
 	if o.OrderType == OrderType(order.UnknownType) {
 		return order.ErrTypeIsInvalid
@@ -434,7 +422,7 @@ func (e *Exchange) SwitchPositionMode(ctx context.Context, positionMode string) 
 	if positionMode != "HEDGE" && positionMode != "ONE_WAY" {
 		return errInvalidPositionMode
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fSwitchPositionModeEPL, http.MethodPost, positionPathV3+"mode", nil, map[string]string{"posMode": positionMode}, &struct{}{})
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fSwitchPositionModeEPL, http.MethodPost, positionPathV3+"mode", nil, map[string]string{"posMode": positionMode}, nil)
 }
 
 // GetPositionMode get the current position mode.

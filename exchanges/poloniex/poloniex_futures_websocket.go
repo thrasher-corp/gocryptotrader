@@ -467,7 +467,7 @@ func (e *Exchange) processFuturesTrades(data []byte) error {
 			AssetType:    asset.Futures,
 			CurrencyPair: resp[i].Symbol,
 			Price:        resp[i].Price.Float64(),
-			Amount:       resp[i].Amount.Float64(),
+			Amount:       resp[i].Quantity.Float64(),
 			Timestamp:    resp[i].Timestamp.Time(),
 		}
 	}

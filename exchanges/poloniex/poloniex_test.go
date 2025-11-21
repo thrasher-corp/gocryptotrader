@@ -2016,6 +2016,7 @@ var futuresPushDataMap = map[string]string{
 	"Orderbook":               `{"channel": "book", "data": [ { "asks": [ ["46100", "9284"] ], "bids": [ ["34400.089", "1"] ], "id": 954, "ts": 1718869676586, "s": "BTC_USDT_PERP", "cT": 1718869676555}]}`,
 	"Orderbook Lvl2":          `{"channel": "book_lv2", "data": [ { "asks": [["46100", "9284"]], "bids": [["34400.089", "1"]], "lid": 953, "id": 954, "ts": 1718870001418, "s": "BTC_USDT_PERP", "cT": 1718869676555 } ], "action": "snapshot"}`,
 	"K-Line Data":             `{"channel": "candles_minute_1", "data": [ ["BTC_USDT_PERP","91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`,
+	"K-Line Five Min Data":    `{"channel": "candles_minute_5", "data": [ ["BTC_USDT_PERP","91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`,
 	"Tickers":                 `{"channel": "tickers", "data": [ { "s": "BTC_USDT_PERP", "o": "46000", "l": "26829.541", "h": "46100", "c": "46100", "qty": "18736", "amt": "8556118.81658", "tC": 44, "sT": 1718785800000, "cT": 1718872244268, "dC": "0.0022", "bPx": "46000", "bSz": "46000", "aPx": "46100", "aSz": "9279", "ts": 1718872247385}]}`,
 	"Trades":                  `{"channel":"trades", "data": [ { "id": 291, "ts": 1718871802553, "s": "BTC_USDT_PERP", "px": "46100", "qty": "1", "amt": "461", "side": "buy", "cT": 1718871802534}]}`,
 	"Index Price":             `{"channel": "index_price", "data": [ { "ts": 1719226453000, "s": "BTC_USDT_PERP", "iPx": "34400"}]}`,
@@ -2120,6 +2121,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	arg.Side = "buy"
+	arg.MarginMode = marginMode(margin.Multi)
 	_, err = e.PlaceFuturesMultipleOrders(t.Context(), []FuturesOrderRequest{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -2698,7 +2700,11 @@ var channelIntervals = []struct {
 	{input: "mark_candles_minute_30", channel: "mark_candles", interval: kline.ThirtyMin},
 	{input: "index_candles_hour_4", channel: "index_candles", interval: kline.FourHour},
 	{input: "candles_minute_30", channel: "candles", interval: kline.ThirtyMin},
+	{input: "candles_minute_15", channel: "candles", interval: kline.FifteenMin},
+	{input: "candles_minute_10", channel: "candles", interval: kline.TenMin},
+	{input: "candles_minute_5", channel: "candles", interval: kline.FiveMin},
 	{input: "mark_candles_day_3", channel: "mark_candles", interval: kline.ThreeDay},
+	{input: "mark_candles_week_1", channel: "mark_candles", interval: kline.OneWeek},
 	{input: "mark_candles_hour_abc", channel: "mark_candles", interval: kline.Interval(0), err: kline.ErrUnsupportedInterval},
 }
 

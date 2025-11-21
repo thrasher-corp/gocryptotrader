@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -934,13 +935,13 @@ type WsTicker struct {
 
 // WsBook represents an orderbook.
 type WsBook struct {
-	Symbol     string           `json:"symbol"`
-	Asks       [][]types.Number `json:"asks"`
-	Bids       [][]types.Number `json:"bids"`
-	ID         int64            `json:"id"`
-	Timestamp  types.Time       `json:"ts"`
-	CreateTime types.Time       `json:"createTime"`
-	LastID     int64            `json:"lastId"`
+	Symbol     string                           `json:"symbol"`
+	Asks       orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids       orderbook.LevelsArrayPriceAmount `json:"bids"`
+	ID         int64                            `json:"id"`
+	Timestamp  types.Time                       `json:"ts"`
+	CreateTime types.Time                       `json:"createTime"`
+	LastID     int64                            `json:"lastId"`
 }
 
 // AuthRequest represents websocket authenticaten parameters
@@ -1031,9 +1032,6 @@ type V3ResponseWrapper struct {
 func (s *V3ResponseWrapper) Error() error {
 	if s.Code != 0 && s.Code != 200 {
 		return fmt.Errorf("error code: %d; message: %s", s.Code, s.Message)
-	}
-	if s.Data == nil {
-		return common.ErrNoResponse
 	}
 	return nil
 }

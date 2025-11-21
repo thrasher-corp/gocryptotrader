@@ -88,10 +88,6 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 		return err
 	}
 	setupPingHandler(conn)
-
-	e.onceWebsocketOrderbookLock.Lock()
-	e.onceWebsocketOrderbookCache = make(map[currency.Pair]bool)
-	e.onceWebsocketOrderbookLock.Unlock()
 	return nil
 }
 
@@ -253,7 +249,7 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 			Amount:          response[x].Quantity.Float64(),
 			QuoteAmount:     response[x].OrderAmount.Float64(),
 			ExecutedAmount:  response[x].FilledAmount.Float64(),
-			RemainingAmount: response[x].OrderAmount.Float64() - response[x].FilledAmount.Float64(),
+			RemainingAmount: response[x].Quantity.Float64() - response[x].FilledQuantity.Float64(),
 			Fee:             response[x].TradeFee.Float64(),
 			FeeAsset:        response[x].FeeCurrency,
 			Exchange:        e.Name,
@@ -296,54 +292,16 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 		if err != nil {
 			return err
 		}
-		e.onceWebsocketOrderbookLock.Lock()
-		_, okay := e.onceWebsocketOrderbookCache[cp]
-		if !okay {
-			if e.onceWebsocketOrderbookCache == nil {
-				e.onceWebsocketOrderbookCache = make(map[currency.Pair]bool)
-			}
-			var (
-				orderbooks *orderbook.Book
-				err        error
-			)
-			orderbooks, err = e.UpdateOrderbook(context.Background(), cp, asset.Spot)
-			if err != nil {
-				e.onceWebsocketOrderbookLock.Unlock()
-				return err
-			}
-			if err := e.Websocket.Orderbook.LoadSnapshot(orderbooks); err != nil {
-				e.onceWebsocketOrderbookLock.Unlock()
-				return err
-			}
-			e.onceWebsocketOrderbookCache[cp] = true
-			e.onceWebsocketOrderbookLock.Unlock()
-		}
-		update := orderbook.Update{
-			Pair:       cp,
-			UpdateTime: resp[x].Timestamp.Time(),
-			UpdateID:   resp[x].ID,
-			Asset:      asset.Spot,
-			Action:     orderbook.UpdateOrInsertAction,
-		}
-		for i := range resp[x].Asks {
-			if resp[x].Asks[i][1].Float64() <= 0 {
-				continue
-			}
-			update.Asks = append(update.Asks, orderbook.Level{
-				Price:  resp[x].Asks[i][0].Float64(),
-				Amount: resp[x].Asks[i][1].Float64(),
-			})
-		}
-		for i := range resp[x].Bids {
-			if resp[x].Bids[i][1].Float64() <= 0 {
-				continue
-			}
-			update.Bids = append(update.Bids, orderbook.Level{
-				Price:  resp[x].Bids[i][0].Float64(),
-				Amount: resp[x].Bids[i][1].Float64(),
-			})
-		}
-		if err := e.Websocket.Orderbook.Update(&update); err != nil {
+		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Pair:         cp,
+			Exchange:     e.Name,
+			LastUpdateID: resp[x].ID,
+			Asset:        asset.Spot,
+			LastUpdated:  resp[x].CreateTime.Time(),
+			LastPushed:   resp[x].Timestamp.Time(),
+			Asks:         resp[x].Asks.Levels(),
+			Bids:         resp[x].Bids.Levels(),
+		}); err != nil {
 			return err
 		}
 	}
@@ -360,34 +318,14 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 		if err != nil {
 			return err
 		}
-		var asks orderbook.Levels
-		var bids orderbook.Levels
-		for i := range resp[x].Asks {
-			if resp[x].Asks[i][1].Float64() <= 0 {
-				continue
-			}
-			asks = append(asks, orderbook.Level{
-				Price:  resp[x].Asks[i][0].Float64(),
-				Amount: resp[x].Asks[i][1].Float64(),
-			})
-		}
-		for i := range resp[x].Bids {
-			if resp[x].Bids[i][1].Float64() <= 0 {
-				continue
-			}
-			bids = append(bids, orderbook.Level{
-				Price:  resp[x].Bids[i][0].Float64(),
-				Amount: resp[x].Bids[i][1].Float64(),
-			})
-		}
 
 		if result.Action == "snapshot" {
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:     e.Name,
 				Pair:         cp,
 				Asset:        asset.Spot,
-				Asks:         asks,
-				Bids:         bids,
+				Asks:         resp[x].Asks.Levels(),
+				Bids:         resp[x].Bids.Levels(),
 				LastUpdateID: resp[x].LastID,
 				LastUpdated:  resp[x].Timestamp.Time(),
 			}); err != nil {
@@ -401,9 +339,9 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 			UpdateTime: resp[x].Timestamp.Time(),
 			UpdateID:   resp[x].ID,
 			Asset:      asset.Spot,
-			Action:     orderbook.UpdateOrInsertAction,
-			Asks:       asks,
-			Bids:       bids,
+			Action:     orderbook.UpdateAction,
+			Asks:       resp[x].Asks.Levels(),
+			Bids:       resp[x].Bids.Levels(),
 		}); err != nil {
 			return err
 		}
@@ -456,7 +394,7 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 			Exchange:     e.Name,
 			CurrencyPair: cp,
 			Price:        resp[x].Price.Float64(),
-			Amount:       resp[x].Amount.Float64(),
+			Amount:       resp[x].Quantity.Float64(),
 			Timestamp:    resp[x].Timestamp.Time(),
 		}
 	}
