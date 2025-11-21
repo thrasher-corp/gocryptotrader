@@ -1033,5 +1033,8 @@ func (s *V3ResponseWrapper) Error() error {
 	if s.Code != 0 && s.Code != 200 {
 		return fmt.Errorf("error code: %d; message: %s", s.Code, s.Message)
 	}
+	if s.Data == nil {
+		return common.ErrNoResponse
+	}
 	return nil
 }

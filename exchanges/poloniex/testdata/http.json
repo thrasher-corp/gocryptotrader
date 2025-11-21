@@ -11774,7 +11774,7 @@
     {
      "data": {
       "code": 200,
-      "data": null,
+      "data": {},
       "msg": "Success"
      },
      "queryString": "",
