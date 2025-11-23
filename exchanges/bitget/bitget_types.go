@@ -566,6 +566,7 @@ type SymbolInfoResp struct {
 	AreaSymbol          YesNoBool     `json:"areaSymbol"`
 	OrderQuantity       uint16        `json:"orderQuantity,string"`
 	OpenTime            types.Time    `json:"openTime"`
+	OffTime             types.Time    `json:"offTime"`
 }
 
 // VIPFeeRateResp contains information on the different levels of VIP fee rates
@@ -1235,8 +1236,8 @@ type ContractConfigResp struct {
 	MaximumProductOrderNumber int64         `json:"maxProductOrderNum,string"`
 	MaximumPositionNumber     int64         `json:"maxPositionNum,string"`
 	SymbolStatus              string        `json:"symbolStatus"`
-	OffTime                   int64         `json:"offTime,string"`
-	LimitOpenTime             int64         `json:"limitOpenTime,string"`
+	OffTime                   int64         `json:"offTime,string"`       // negative value expected
+	LimitOpenTime             int64         `json:"limitOpenTime,string"` // negative value expected
 	DeliveryTime              types.Time    `json:"deliveryTime"`
 	DeliveryStartTime         types.Time    `json:"deliveryStartTime"`
 	DeliveryPeriod            string        `json:"deliveryPeriod"`
@@ -1247,6 +1248,8 @@ type ContractConfigResp struct {
 	PosLimit                  types.Number  `json:"posLimit"`
 	MaintainTime              types.Time    `json:"maintainTime"`
 	OpenTime                  types.Time    `json:"openTime"`
+	MaxMarketOrderQuantity    types.Number  `json:"maxMarketOrderQuantity"`
+	IsRealWorldAsset          YesNoBool     `json:"isRwa"`
 }
 
 // OneAccResp contains information on a single account
@@ -1279,25 +1282,28 @@ type OneAccResp struct {
 
 // FutureAccDetails contains information on a user's futures account
 type FutureAccDetails struct {
-	MarginCoin                   currency.Code `json:"marginCoin"`
-	Locked                       types.Number  `json:"locked"`
-	Available                    types.Number  `json:"available"`
-	CrossedMaxAvailable          types.Number  `json:"crossedMaxAvailable"`
-	IsolatedMaxAvailable         types.Number  `json:"isolatedMaxAvailable"`
-	MaximumTransferOut           types.Number  `json:"maxTransferOut"`
-	AccountEquity                types.Number  `json:"accountEquity"`
-	USDTEquity                   types.Number  `json:"usdtEquity"`
-	BTCEquity                    types.Number  `json:"btcEquity"`
-	CrossedRiskRate              types.Number  `json:"crossedRiskRate"`
-	UnrealizedProfitLoss         types.Number  `json:"unrealizedPL"`
-	Coupon                       types.Number  `json:"coupon"`
-	CrossedUnrealizedProfitLoss  types.Number  `json:"crossedUnrealizedPL"`
-	IsolatedUnrealizedProfitLoss types.Number  `json:"isolatedUnrealizedPL"`
-	AssetMode                    string        `json:"assetMode"`
-	IsolatedMargin               types.Number  `json:"isolatedMargin"`
-	CrossedMargin                types.Number  `json:"crossedMargin"`
-	// The following field is not in the documentation, but is still returned
-	Grant types.Number `json:"grant"`
+	MarginCoin                   currency.Code   `json:"marginCoin"`
+	Locked                       types.Number    `json:"locked"`
+	Available                    types.Number    `json:"available"`
+	CrossedMaxAvailable          types.Number    `json:"crossedMaxAvailable"`
+	IsolatedMaxAvailable         types.Number    `json:"isolatedMaxAvailable"`
+	MaximumTransferOut           types.Number    `json:"maxTransferOut"`
+	AccountEquity                types.Number    `json:"accountEquity"`
+	USDTEquity                   types.Number    `json:"usdtEquity"`
+	BTCEquity                    types.Number    `json:"btcEquity"`
+	CrossedRiskRate              types.Number    `json:"crossedRiskRate"`
+	UnrealizedProfitLoss         types.Number    `json:"unrealizedPL"`
+	Coupon                       types.Number    `json:"coupon"`
+	CrossedUnrealizedProfitLoss  types.Number    `json:"crossedUnrealizedPL"`
+	IsolatedUnrealizedProfitLoss types.Number    `json:"isolatedUnrealizedPL"`
+	Grant                        json.RawMessage `json:"grant"` // This field is not in the documentation, but is still returned
+	UnionTotalMargin             types.Number    `json:"unionTotalMargin"`
+	UnionAvailable               types.Number    `json:"unionAvailable"`
+	UnionMm                      types.Number    `json:"unionMm"`
+	AssetList                    json.RawMessage `json:"assetList"`
+	AssetMode                    string          `json:"assetMode"`
+	IsolatedMargin               types.Number    `json:"isolatedMargin"`
+	CrossedMargin                types.Number    `json:"crossedMargin"`
 }
 
 // FutureSubaccDetails contains information on a futures-related sub-account

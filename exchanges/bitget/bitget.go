@@ -226,7 +226,6 @@ const (
 	bitgetRepaidHistory            = "repaid-history"
 
 	// Error strings
-	errIntervalNotSupported = "interval not supported"
 	errWebsocketGeneric     = "%v - Websocket error, code: %v message: %v"
 	errWebsocketLoginFailed = "%v - Websocket login failed: %v"
 )
@@ -954,7 +953,9 @@ func (e *Exchange) GetCoinInfo(ctx context.Context, cur currency.Code) ([]CoinIn
 // GetSymbolInfo returns information on all supported spot trading pairs, or a single pair of the user's choice
 func (e *Exchange) GetSymbolInfo(ctx context.Context, pair currency.Pair) ([]SymbolInfoResp, error) {
 	vals := url.Values{}
-	vals.Set("symbol", pair.String())
+	if !pair.IsEmpty() {
+		vals.Set("symbol", pair.String())
+	}
 	path := bitgetSpot + bitgetPublic + bitgetSymbols
 	var resp []SymbolInfoResp
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate20, path, vals, &resp)
@@ -2085,7 +2086,9 @@ func (e *Exchange) GetContractConfig(ctx context.Context, pair currency.Pair, pr
 		return nil, errProductTypeEmpty
 	}
 	vals := url.Values{}
-	vals.Set("symbol", pair.String())
+	if !pair.IsEmpty() {
+		vals.Set("symbol", pair.String())
+	}
 	vals.Set("productType", productType)
 	path := bitgetMix + bitgetMarket + bitgetContracts
 	var resp []ContractConfigResp

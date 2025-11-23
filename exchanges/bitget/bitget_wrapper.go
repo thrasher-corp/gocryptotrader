@@ -290,22 +290,21 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		return pairs[:filter:filter], nil
 	case asset.Futures:
-		var resp []FutureTickerResp
-		req := []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
-		for x := range req {
-			resp2, err := e.GetAllFuturesTickers(ctx, req[x])
+		var pairs currency.Pairs
+		for _, productType := range []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"} {
+			resp, err := e.GetContractConfig(ctx, currency.EMPTYPAIR, productType)
 			if err != nil {
 				return nil, err
 			}
-			resp = append(resp, resp2...)
-		}
-		pairs := make(currency.Pairs, len(resp))
-		for x := range resp {
-			pair, err := pairFromStringHelper(resp[x].Symbol)
-			if err != nil {
-				return nil, err
+			productPairs := make(currency.Pairs, 0, len(resp))
+			for x := range resp {
+				if resp[x].SymbolStatus != "normal" { // see: https://bitgetlimited.github.io/apidoc/en/mix/#symbolstatus
+					continue
+				}
+				quote := currency.NewCode(strings.Replace(resp[x].Symbol, resp[x].BaseCoin.String(), "", 1))
+				productPairs = append(productPairs, currency.NewPair(resp[x].BaseCoin, quote))
 			}
-			pairs[x] = pair
+			pairs = append(pairs, productPairs...)
 		}
 		return pairs, nil
 	case asset.Margin, asset.CrossMargin:
@@ -395,8 +394,12 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 			AssetType:    assetType,
 			Pair:         p,
 		}
-	case asset.Margin, asset.CrossMargin:
-		tick, err := e.GetSpotCandlestickData(ctx, p, formatExchangeKlineIntervalSpot(kline.OneDay), time.Now().Add(-time.Hour*24), time.Now(), 2, false)
+	case asset.Margin, asset.CrossMargin: // TODO: Merge entire case with spot and RM below
+		i, err := FormatExchangeKlineIntervalSpot(kline.OneDay)
+		if err != nil {
+			return nil, err
+		}
+		tick, err := e.GetSpotCandlestickData(ctx, p, i, time.Now().Add(-time.Hour*24), time.Now(), 2, false)
 		if err != nil {
 			return nil, err
 		}
@@ -491,7 +494,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				}
 			}
 		}
-	case asset.Margin, asset.CrossMargin:
+	case asset.Margin, asset.CrossMargin: // TODO: Merge entire case with spot and RM below
 		pairs, err := e.GetAvailablePairs(assetType)
 		if err != nil {
 			return err
@@ -521,7 +524,11 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if p, err = e.FormatExchangeCurrency(p, assetType); err != nil {
 				return err
 			}
-			resp, err := e.GetSpotCandlestickData(ctx, p, formatExchangeKlineIntervalSpot(kline.OneDay), time.Now().Add(-time.Hour*24), time.Now(), 2, false)
+			i, err := FormatExchangeKlineIntervalSpot(kline.OneDay)
+			if err != nil {
+				return err
+			}
+			resp, err := e.GetSpotCandlestickData(ctx, p, i, time.Now().Add(-time.Hour*24), time.Now(), 2, false)
 			if err != nil {
 				return err
 			}
@@ -1569,7 +1576,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	fee, err := e.GetTradeRate(ctx, feeBuilder.Pair, "spot")
+	fee, err := e.GetTradeRate(ctx, feeBuilder.Pair, "spot") // TODO: Support `mix` and `margin` business types as well. Will need to get asset type for fees.
 	if err != nil {
 		return 0, err
 	}
@@ -1594,7 +1601,11 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	var resp []kline.Candle
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		cndl, err := e.GetSpotCandlestickData(ctx, req.RequestFormatted, formatExchangeKlineIntervalSpot(req.ExchangeInterval), req.Start, req.End, 200, true)
+		i, err := FormatExchangeKlineIntervalSpot(req.ExchangeInterval)
+		if err != nil {
+			return nil, err
+		}
+		cndl, err := e.GetSpotCandlestickData(ctx, req.RequestFormatted, i, req.Start, req.End, 200, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1610,7 +1621,11 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			}
 		}
 	case asset.Futures:
-		cndl, err := e.GetFuturesCandlestickData(ctx, req.RequestFormatted, getProductType(pair), formatExchangeKlineIntervalFutures(req.ExchangeInterval), "", req.Start, req.End, 200, CallModeHistory)
+		i, err := FormatExchangeKlineIntervalFutures(req.ExchangeInterval)
+		if err != nil {
+			return nil, err
+		}
+		cndl, err := e.GetFuturesCandlestickData(ctx, req.RequestFormatted, getProductType(pair), i, "", req.Start, req.End, 200, CallModeNormal)
 		if err != nil {
 			return nil, err
 		}
@@ -1641,7 +1656,11 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	for x := range req.RangeHolder.Ranges {
 		switch a {
 		case asset.Spot, asset.Margin, asset.CrossMargin:
-			cndl, err := e.GetSpotCandlestickData(ctx, req.RequestFormatted, formatExchangeKlineIntervalSpot(req.ExchangeInterval), req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, 200, true)
+			i, err := FormatExchangeKlineIntervalSpot(req.ExchangeInterval)
+			if err != nil {
+				return nil, err
+			}
+			cndl, err := e.GetSpotCandlestickData(ctx, req.RequestFormatted, i, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, 200, true)
 			if err != nil {
 				return nil, err
 			}
@@ -1658,7 +1677,12 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			}
 			resp = append(resp, temp...)
 		case asset.Futures:
-			cndl, err := e.GetFuturesCandlestickData(ctx, req.RequestFormatted, getProductType(pair), formatExchangeKlineIntervalFutures(req.ExchangeInterval), "", req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, 200, CallModeHistory)
+			i, err := FormatExchangeKlineIntervalFutures(req.ExchangeInterval)
+			if err != nil {
+				return nil, err
+			}
+
+			cndl, err := e.GetFuturesCandlestickData(ctx, req.RequestFormatted, getProductType(pair), i, "", req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, 200, CallModeNormal)
 			if err != nil {
 				return nil, err
 			}
@@ -1756,7 +1780,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	var lim []limits.MinMaxLevel
 	switch a {
 	case asset.Spot:
-		resp, err := e.GetSymbolInfo(ctx, currency.Pair{})
+		resp, err := e.GetSymbolInfo(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
@@ -1767,23 +1791,48 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				PriceStepIncrementSize:  math.Pow10(-int(resp[i].PricePrecision)),
 				AmountStepIncrementSize: math.Pow10(-int(resp[i].QuantityPrecision)),
 				QuoteStepIncrementSize:  math.Pow10(-int(resp[i].QuotePrecision)),
+				MinimumBaseAmount:       math.Pow10(-int(resp[i].QuantityPrecision)),
 				MinNotional:             resp[i].MinimumTradeUSDT.Float64(),
 				MarketMinQty:            resp[i].MinimumTradeAmount.Float64(),
 				MarketMaxQty:            resp[i].MaximumTradeAmount.Float64(),
+				Listed:                  resp[i].OpenTime.Time(),
+				Delisted:                resp[i].OffTime.Time(),
 			}
 		}
 	case asset.Futures:
 		for i := range prodTypes {
-			resp, err := e.GetContractConfig(ctx, currency.Pair{}, prodTypes[i])
+			resp, err := e.GetContractConfig(ctx, currency.EMPTYPAIR, prodTypes[i])
 			if err != nil {
 				return err
 			}
 			limitsTemp := make([]limits.MinMaxLevel, len(resp))
 			for i := range resp {
+				var delisted time.Time
+				if resp[i].OffTime != -1 {
+					delisted = time.UnixMilli(resp[i].OffTime)
+				}
+
+				priceDivisor := 1.0
+				if resp[i].Symbol[:2] == "10" { // handle 1000BONKUSDT, 1000000MOGUSDT etc; screen 1INCHUSDT
+					for _, r := range resp[i].Symbol[1:] {
+						if r != '0' {
+							break
+						}
+						priceDivisor *= 10
+					}
+				}
+
+				quote := currency.NewCode(strings.Replace(resp[i].Symbol, resp[i].BaseCoin.String(), "", 1))
+
 				limitsTemp[i] = limits.MinMaxLevel{
-					Key:            key.NewExchangeAssetPair(e.Name, a, currency.NewPair(resp[i].BaseCoin, resp[i].QuoteCoin)),
-					MinNotional:    resp[i].MinimumTradeUSDT.Float64(),
-					MaxTotalOrders: resp[i].MaximumSymbolOrderNumber,
+					Key:               key.NewExchangeAssetPair(e.Name, a, currency.NewPair(resp[i].BaseCoin, quote)),
+					MinNotional:       resp[i].MinimumTradeUSDT.Float64(),
+					MaxTotalOrders:    resp[i].MaximumSymbolOrderNumber,
+					MultiplierDecimal: resp[i].SizeMultiplier.Float64(),
+					Listed:            resp[i].LaunchTime.Time(),
+					Delisted:          delisted,
+					Expiry:            resp[i].DeliveryTime.Time(),
+					PriceDivisor:      priceDivisor,
 				}
 			}
 			lim = append(lim, limitsTemp...) //nolint:makezero // False positive; the non-zero make is in a different branch
@@ -1805,7 +1854,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 		}
 	default:
-		return asset.ErrNotSupported
+		return fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
 	}
 	return limits.Load(lim)
 }
@@ -2636,67 +2685,67 @@ func (e *Exchange) spotFillsHelper(ctx context.Context, pair currency.Pair, fill
 }
 
 // FormatExchangeKlineIntervalSpot is a helper function used to convert kline.Interval to the string format required by the spot API
-func formatExchangeKlineIntervalSpot(interval kline.Interval) string {
+func FormatExchangeKlineIntervalSpot(interval kline.Interval) (string, error) {
 	switch interval {
 	case kline.OneMin:
-		return "1min"
+		return "1min", nil
 	case kline.FiveMin:
-		return "5min"
+		return "5min", nil
 	case kline.FifteenMin:
-		return "15min"
+		return "15min", nil
 	case kline.ThirtyMin:
-		return "30min"
+		return "30min", nil
 	case kline.OneHour:
-		return "1h"
+		return "1h", nil
 	case kline.FourHour:
-		return "4h"
+		return "4h", nil
 	case kline.SixHour:
-		return "6Hutc"
+		return "6Hutc", nil
 	case kline.TwelveHour:
-		return "12Hutc"
+		return "12Hutc", nil
 	case kline.OneDay:
-		return "1Dutc"
+		return "1Dutc", nil
 	case kline.ThreeDay:
-		return "3Dutc"
+		return "3Dutc", nil
 	case kline.OneWeek:
-		return "1Wutc"
+		return "1Wutc", nil
 	case kline.OneMonth:
-		return "1Mutc"
+		return "1Mutc", nil
 	}
-	return fmt.Sprintf("%v: %v", errIntervalNotSupported, interval)
+	return "", fmt.Errorf("%w: %q", kline.ErrInvalidInterval, interval)
 }
 
 // FormatExchangeKlineIntervalFutures is a helper function used to convert kline.Interval to the string format required by the futures API
-func formatExchangeKlineIntervalFutures(interval kline.Interval) string {
+func FormatExchangeKlineIntervalFutures(interval kline.Interval) (string, error) {
 	switch interval {
 	case kline.OneMin:
-		return "1m"
+		return "1m", nil
 	case kline.ThreeMin:
-		return "3m"
+		return "3m", nil
 	case kline.FiveMin:
-		return "5m"
+		return "5m", nil
 	case kline.FifteenMin:
-		return "15m"
+		return "15m", nil
 	case kline.ThirtyMin:
-		return "30m"
+		return "30m", nil
 	case kline.OneHour:
-		return "1H"
+		return "1H", nil
 	case kline.FourHour:
-		return "4H"
+		return "4H", nil
 	case kline.SixHour:
-		return "6Hutc"
+		return "6Hutc", nil
 	case kline.TwelveHour:
-		return "12Hutc"
+		return "12Hutc", nil
 	case kline.OneDay:
-		return "1Dutc"
+		return "1Dutc", nil
 	case kline.ThreeDay:
-		return "3Dutc"
+		return "3Dutc", nil
 	case kline.OneWeek:
-		return "1Wutc"
+		return "1Wutc", nil
 	case kline.OneMonth:
-		return "1Mutc"
+		return "1Mutc", nil
 	}
-	return fmt.Sprintf("%v: %v", errIntervalNotSupported, interval)
+	return "", fmt.Errorf("%w: %q", kline.ErrInvalidInterval, interval)
 }
 
 // ItemDecoder is a helper function that returns the appropriate asset.Item for a given string

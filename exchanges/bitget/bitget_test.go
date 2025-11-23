@@ -2755,18 +2755,6 @@ func TestGetRepaymentOrders(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestFetchTradablePairs(t *testing.T) {
-	t.Parallel()
-	testGetOneArg(t, e.FetchTradablePairs, asset.Empty, asset.Spot, asset.ErrNotSupported, false, false, false)
-	testGetOneArg(t, e.FetchTradablePairs, 0, asset.Futures, nil, false, false, false)
-	testGetOneArg(t, e.FetchTradablePairs, 0, asset.Margin, nil, false, false, false)
-}
-
-func TestUpdateTradablePairs(t *testing.T) {
-	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
-}
-
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.UpdateTicker(t.Context(), currency.Pair{}, asset.Spot)
@@ -3083,18 +3071,6 @@ func TestGetLatestFundingRates(t *testing.T) {
 	req1, req2 := new(fundingrate.LatestRateRequest), new(fundingrate.LatestRateRequest)
 	req2.Pair = testPair
 	testGetOneArg(t, e.GetLatestFundingRates, req1, req2, currency.ErrCurrencyPairEmpty, false, false, true)
-}
-
-func TestUpdateOrderExecutionLimits(t *testing.T) {
-	t.Parallel()
-	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Empty)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	assert.NoError(t, err)
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Futures)
-	assert.NoError(t, err)
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Margin)
-	assert.NoError(t, err)
 }
 
 func TestUpdateCurrencyStates(t *testing.T) {

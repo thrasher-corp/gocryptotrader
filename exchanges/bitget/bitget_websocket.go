@@ -406,6 +406,12 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 		return err
 	}
 	if wsResponse.Action[0] == 's' {
+		if len(bids) > 0 && bids[len(bids)-1].Price == 0 {
+			// Bid depths periodically contain a zero priced entry that needs to be removed. This might clash with the
+			// checksum validation when liquidity/levels are low and would need to be a strict rule to be applied when
+			// loading a snapshot if this becomes a trading problem.
+			bids = bids[:len(bids)-1]
+		}
 		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Pair:                   pair,
 			Asset:                  itemDecoder(wsResponse.Arg.InstrumentType),
@@ -427,6 +433,8 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 		ExpectedChecksum: uint32(ob[0].Checksum), //nolint:gosec // The exchange sends it as ints expecting overflows to be handled as Go does by default
 		AllowEmpty:       true,
 	}
+	// TODO: Need to have resub manager to handle checksum failures. See Gateio implementation for reference #2045
+	// Can copy that code almost verbatim with minor adjustments.
 	return e.Websocket.Orderbook.Update(&update)
 }
 
