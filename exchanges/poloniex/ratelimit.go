@@ -11,7 +11,7 @@ const (
 )
 
 const (
-	unauthEPL request.EndpointLimit = iota
+	publicEPL request.EndpointLimit = iota
 	referenceDataEPL
 	sCreateOrderEPL
 	sBatchOrderEPL
@@ -78,7 +78,7 @@ const (
 // As per https://docs.poloniex.com/#http-api
 var rateLimits = request.RateLimitDefinitions{
 	referenceDataEPL: request.NewRateLimitWithWeight(oneSecond, 30, 1),
-	unauthEPL:        request.NewRateLimitWithWeight(oneSecond, 200, 1),
+	publicEPL:        request.NewRateLimitWithWeight(oneSecond, 200, 1),
 
 	fOrderEPL:                           request.NewRateLimitWithWeight(oneSecond, 50, 1),
 	fBatchOrdersEPL:                     request.NewRateLimitWithWeight(oneSecond, 5, 1),

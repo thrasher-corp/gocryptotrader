@@ -53,7 +53,7 @@ func (e *Exchange) GetSymbol(ctx context.Context, symbol currency.Pair) ([]*Symb
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp []*SymbolDetails
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String(), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, marketsPath+symbol.String(), &resp)
 }
 
 // GetSymbols returns all symbols and their trade limits
@@ -80,7 +80,7 @@ func (e *Exchange) GetCurrency(ctx context.Context, ccy currency.Code) (*Currenc
 // GetSystemTimestamp retrieves current server time.
 func (e *Exchange) GetSystemTimestamp(ctx context.Context) (time.Time, error) {
 	var resp ServerSystemTime
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/timestamp", &resp)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, "/timestamp", &resp)
 	return resp.ServerTime.Time(), err
 }
 
@@ -96,7 +96,7 @@ func (e *Exchange) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*M
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *MarketPrice
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String()+"/price", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, marketsPath+symbol.String()+"/price", &resp)
 }
 
 // GetMarkPrices retrieves latest mark prices for all currencies
@@ -111,7 +111,7 @@ func (e *Exchange) GetMarkPrice(ctx context.Context, symbol currency.Pair) (*Mar
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *MarkPrice
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String()+"/markPrice", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, marketsPath+symbol.String()+"/markPrice", &resp)
 }
 
 // GetMarkPriceComponents retrieves components of a mark price
@@ -120,7 +120,7 @@ func (e *Exchange) GetMarkPriceComponents(ctx context.Context, symbol currency.P
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *MarkPriceComponents
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String()+"/markPriceComponents", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, marketsPath+symbol.String()+"/markPriceComponents", &resp)
 }
 
 // GetOrderbook retrieves the order book for a symbol
@@ -137,7 +137,7 @@ func (e *Exchange) GetOrderbook(ctx context.Context, symbol currency.Pair, scale
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp *OrderbookData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/orderBook", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/orderBook", params), &resp)
 }
 
 // GetCandlesticks retrieves candlestick data
@@ -168,7 +168,7 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*CandlestickData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/candles", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/candles", params), &resp)
 }
 
 // GetTrades returns a list of recent trades, request param limit is optional, its default value is 500, and max value is 1000.
@@ -181,7 +181,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair, limit ui
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*Trade
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/trades", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/trades", params), &resp)
 }
 
 // GetTickers retrieves tickers for last 24 hours for all symbols.
@@ -196,7 +196,7 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *TickerData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+symbol.String()+"/ticker24h", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, marketsPath+symbol.String()+"/ticker24h", &resp)
 }
 
 // GetCollateral retrieves collateral information for a currency
@@ -205,7 +205,7 @@ func (e *Exchange) GetCollateral(ctx context.Context, ccy currency.Code) (*Colla
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp *CollateralDetails
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketsPath+ccy.String()+"/collateralInfo", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, marketsPath+ccy.String()+"/collateralInfo", &resp)
 }
 
 // GetCollaterals retrieves account's collaterals information
@@ -217,7 +217,7 @@ func (e *Exchange) GetCollaterals(ctx context.Context) ([]*CollateralDetails, er
 // GetBorrowRate retrieves borrow rates information for all tiers and currencies.
 func (e *Exchange) GetBorrowRate(ctx context.Context) ([]*BorrowRateDetails, error) {
 	var resp []*BorrowRateDetails
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/borrowRatesInfo", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, "/markets/borrowRatesInfo", &resp)
 }
 
 // GetAccount retrieves all accounts of a user.

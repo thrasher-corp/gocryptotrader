@@ -298,7 +298,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 
 		pairs := make([]currency.Pair, 0, len(resp))
 		for _, symbolDetail := range resp {
-			if strings.EqualFold(symbolDetail.State, "PAUSE") {
+			if !strings.EqualFold(symbolDetail.State, "NORMAL") {
 				continue
 			}
 			pairs = append(pairs, symbolDetail.Symbol)
@@ -442,8 +442,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	return orderbook.Get(e.Name, fPair, assetType)
 }
 
-// UpdateAccountBalances retrieves balances for all enabled currencies for the
-// Poloniex exchange
+// UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	switch assetType {
 	case asset.Spot, asset.Futures:
@@ -451,25 +450,21 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		if err != nil {
 			return nil, err
 		}
-		subAccounts := make(accounts.SubAccounts, len(accountBalance))
-		for i, subAccountBalances := range accountBalance {
-			subAccount := accounts.SubAccount{
-				ID:        subAccountBalances.AccountID,
-				AssetType: stringToAccountType(subAccountBalances.AccountType),
-				Balances:  make(accounts.CurrencyBalances, len(subAccountBalances.Balances)),
+		subAccts := accounts.SubAccounts{}
+		for _, subAccountBalances := range accountBalance {
+			a := accounts.NewSubAccount(stringToAccountType(subAccountBalances.AccountType), subAccountBalances.AccountID)
+			for _, bal := range subAccountBalances.Balances {
+				a.Balances.Set(bal.Currency, accounts.Balance{
+					Currency:               bal.Currency,
+					Total:                  bal.AvailableBalance.Float64(),
+					Hold:                   bal.Hold.Float64(),
+					Free:                   bal.Available.Float64(),
+					AvailableWithoutBorrow: bal.AvailableBalance.Float64(),
+				})
 			}
-			for _, subAccountBalance := range subAccountBalances.Balances {
-				subAccount.Balances[subAccountBalance.Currency] = accounts.Balance{
-					Currency:               subAccountBalance.Currency,
-					Total:                  subAccountBalance.AvailableBalance.Float64(),
-					Hold:                   subAccountBalance.Hold.Float64(),
-					Free:                   subAccountBalance.Available.Float64(),
-					AvailableWithoutBorrow: subAccountBalance.AvailableBalance.Float64(),
-				}
-			}
-			subAccounts[i] = &subAccount
+			subAccts = subAccts.Merge(a)
 		}
-		return subAccounts, e.Accounts.Save(ctx, subAccounts, true)
+		return subAccts, e.Accounts.Save(ctx, subAccts, true)
 	default:
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}

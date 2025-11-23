@@ -11,7 +11,7 @@ import (
 func TestRateLimit_LimitStatic(t *testing.T) {
 	t.Parallel()
 	testTable := map[string]request.EndpointLimit{
-		"unauth":                           unauthEPL,
+		"unauth":                           publicEPL,
 		"referenceData":                    referenceDataEPL,
 		"sCreateOrder":                     sCreateOrderEPL,
 		"sBatchOrder":                      sBatchOrderEPL,
@@ -74,15 +74,13 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"fCandlestick":                     fCandlestickEPL,
 	}
 	rl, err := request.New("rateLimitTest2", http.DefaultClient, request.WithLimiter(rateLimits))
-	require.NoError(t, err)
+	require.NoError(t, err, "request.New must not error")
 
 	for name, tt := range testTable {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			if err := rl.InitiateRateLimit(t.Context(), tt); err != nil {
-				t.Fatalf("error applying rate limit: %v", err)
-			}
+			require.NoError(t, rl.InitiateRateLimit(t.Context(), tt), "InitiateRateLimit must not error")
 		})
 	}
 }

@@ -140,7 +140,7 @@ func (e *Exchange) authenticateSpotAuthConn(ctx context.Context, conn websocket.
 	return nil
 }
 
-func (e *Exchange) wsHandleData(_ context.Context, conn websocket.Connection, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var result SubscriptionResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
@@ -188,7 +188,7 @@ func (e *Exchange) wsHandleData(_ context.Context, conn websocket.Connection, re
 	case channelOrders:
 		return e.processOrders(&result)
 	case channelBalances:
-		return e.processBalance(&result)
+		return e.processBalance(ctx, &result)
 	default:
 		if strings.HasPrefix(result.Channel, channelCandles) {
 			return e.processCandlestickData(&result)
@@ -198,26 +198,27 @@ func (e *Exchange) wsHandleData(_ context.Context, conn websocket.Connection, re
 	}
 }
 
-func (e *Exchange) processBalance(result *SubscriptionResponse) error {
-	var resp []WsTradeBalance
+func (e *Exchange) processBalance(ctx context.Context, result *SubscriptionResponse) error {
+	var resp []*WsTradeBalance
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
-	accountChanges := make([]accounts.Change, len(resp))
+	subAccts := accounts.SubAccounts{}
 	for x := range resp {
-		accountChanges[x] = accounts.Change{
-			Account:   resp[x].AccountType,
-			AssetType: stringToAccountType(resp[x].AccountType),
-			Balance: accounts.Balance{
-				Hold:      resp[x].Hold.Float64(),
-				Total:     resp[x].Available.Float64(),
-				UpdatedAt: resp[x].Timestamp.Time(),
-				Currency:  resp[x].Currency,
-				Free:      resp[x].Available.Float64() - resp[x].Hold.Float64(),
-			},
-		}
+		subAcct := accounts.NewSubAccount(stringToAccountType(resp[x].AccountType), resp[x].AccountID)
+		subAcct.Balances.Set(resp[x].Currency, accounts.Balance{
+			Currency:  resp[x].Currency,
+			Hold:      resp[x].Hold.Float64(),
+			Total:     resp[x].Available.Float64(),
+			UpdatedAt: resp[x].Timestamp.Time(),
+			Free:      resp[x].Available.Float64() - resp[x].Hold.Float64(),
+		})
+		subAccts = subAccts.Merge(subAcct)
 	}
-	e.Websocket.DataHandler <- accountChanges
+	if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- subAccts
 	return nil
 }
 

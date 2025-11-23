@@ -1869,15 +1869,15 @@ func TestWsPushData(t *testing.T) {
 	for key, value := range pushMessages {
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()
-			err := e.wsHandleData(t.Context(), e.Websocket.Conn, []byte(value))
+			err := e.wsHandleData(generateContext(t), e.Websocket.Conn, []byte(value))
 			assert.NoError(t, err)
 		})
 	}
 	// Since running test parallelly shuffles the order of execution
 	// We run book_lv2 data handling, ensuring the snapshot is processed before the update as follows
-	err := e.wsHandleData(t.Context(), e.Websocket.Conn, []byte(`{"channel":"book_lv2","data":[{"symbol":"BTC_USDC","createTime":1694469187745,"asks":[],"bids":[["25148.81","0.02158"],["25088.11","0"]],"lastId":598273385,"id":598273386,"ts":1694469187760}],"action":"snapshot"}`))
+	err := e.wsHandleData(generateContext(t), e.Websocket.Conn, []byte(`{"channel":"book_lv2","data":[{"symbol":"BTC_USDC","createTime":1694469187745,"asks":[],"bids":[["25148.81","0.02158"],["25088.11","0"]],"lastId":598273385,"id":598273386,"ts":1694469187760}],"action":"snapshot"}`))
 	require.NoError(t, err, "book_lv2 snapshot must not error")
-	err = e.wsHandleData(t.Context(), e.Websocket.Conn, []byte(`{"channel":"book_lv2","data":[{"symbol":"BTC_USDC","createTime":1694469187745,"asks":[],"bids":[["25148.81","0.02158"],["25088.11","0"]],"lastId":598273385,"id":598273386,"ts":1694469187760}],"action":"update"}`))
+	err = e.wsHandleData(generateContext(t), e.Websocket.Conn, []byte(`{"channel":"book_lv2","data":[{"symbol":"BTC_USDC","createTime":1694469187745,"asks":[],"bids":[["25148.81","0.02158"],["25088.11","0"]],"lastId":598273385,"id":598273386,"ts":1694469187760}],"action":"update"}`))
 	assert.NoError(t, err, "book_lv2 update should not error")
 }
 
