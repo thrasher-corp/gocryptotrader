@@ -40,6 +40,27 @@ func MatchURLVals(v1, v2 url.Values) bool {
 	return true
 }
 
+// DeriveURLValsFromJSONSlice gets url vals from a []map[string]string encoded JSON body
+func DeriveURLValsFromJSONSlice(payload []byte) ([]url.Values, error) {
+	var vals []url.Values
+	if len(payload) == 0 {
+		return vals, nil
+	}
+	var intermediary []json.RawMessage
+	if err := json.Unmarshal(payload, &intermediary); err != nil {
+		return vals, err
+	}
+
+	for i := range intermediary {
+		result, err := DeriveURLValsFromJSONMap(intermediary[i])
+		if err != nil {
+			return vals, err
+		}
+		vals = append(vals, result)
+	}
+	return vals, nil
+}
+
 // DeriveURLValsFromJSONMap gets url vals from a map[string]string encoded JSON body
 func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 	vals := url.Values{}
