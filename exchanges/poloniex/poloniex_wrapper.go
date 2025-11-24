@@ -52,8 +52,6 @@ var (
 			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
 		},
 	}
-
-	possibleOrderTypes = []order.Type{order.Market, order.Limit, order.AnyType, order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit, order.UnknownType}
 )
 
 const (
@@ -685,10 +683,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
 			var trackingDistance string
 			if s.Type|order.TrailingStop == order.TrailingStop {
+				trackingDistance = strconv.FormatFloat(s.TrackingValue, 'f', -1, 64)
 				if s.TrackingMode == order.Percentage {
-					trackingDistance = fmt.Sprintf("%f%%", s.TrackingValue)
-				} else {
-					trackingDistance = strconv.FormatFloat(s.TrackingValue, 'f', -1, 64)
+					trackingDistance += "%"
 				}
 			}
 
@@ -854,91 +851,99 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(o) == 0 {
-		return nil, order.ErrCancelOrderIsNil
+		return nil, common.ErrEmptyParams
 	}
-	orderIDs := make([]string, 0, len(o))
-	clientOrderIDs := make([]string, 0, len(o))
-	assetType := o[0].AssetType
-	commonOrderType := o[0].Type
+	type assetAndType struct {
+		aType asset.Item
+		oType order.Type
+		pair  currency.Pair
+	}
+	type orderAndClientSuppliedIDs struct {
+		orderIDs       []string
+		clientOrderIDs []string
+	}
+	assetAndTypeToIDsMap := make(map[assetAndType]*orderAndClientSuppliedIDs)
 	for i := range o {
-		switch o[i].AssetType {
-		case asset.Spot, asset.Futures:
-		default:
-			return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
+		var pair currency.Pair
+		if o[i].AssetType == asset.Futures {
+			if o[i].Pair.IsEmpty() {
+				return nil, currency.ErrCurrencyPairEmpty
+			}
+			pair = o[i].Pair
+		} else if o[i].AssetType != asset.Spot {
+			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, o[i].AssetType)
 		}
-		if assetType != o[i].AssetType {
-			return nil, fmt.Errorf("%w: order asset type mismatch detected", asset.ErrInvalidAsset)
-		}
-		if !slices.Contains(possibleOrderTypes, o[i].Type) {
-			return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, commonOrderType)
-		}
-		if commonOrderType != o[i].Type {
-			commonOrderType = order.AnyType
+		key := assetAndType{o[i].AssetType, o[i].Type, pair}
+		if assetAndTypeToIDsMap[key] == nil {
+			assetAndTypeToIDsMap[key] = &orderAndClientSuppliedIDs{
+				orderIDs:       []string{},
+				clientOrderIDs: []string{},
+			}
 		}
 		switch {
-		case o[i].ClientOrderID != "":
-			clientOrderIDs = append(clientOrderIDs, o[i].ClientOrderID)
 		case o[i].OrderID != "":
-			orderIDs = append(orderIDs, o[i].OrderID)
+			assetAndTypeToIDsMap[key].orderIDs = append(assetAndTypeToIDsMap[key].orderIDs, o[i].OrderID)
+		case o[i].ClientOrderID != "":
+			assetAndTypeToIDsMap[key].clientOrderIDs = append(assetAndTypeToIDsMap[key].clientOrderIDs, o[i].ClientOrderID)
 		default:
 			return nil, order.ErrOrderIDNotSet
-		}
-		if assetType == asset.Futures {
-			if o[i].Pair.IsEmpty() {
-				return nil, currency.ErrSymbolStringEmpty
-			} else if o[0].Pair != o[i].Pair { //nolint:gosec // index 0 safe because loop requires len(o) > 0
-				return nil, currency.ErrPairNotFound
-			}
 		}
 	}
 	resp := &order.CancelBatchResponse{
 		Status: make(map[string]string),
 	}
-	if assetType == asset.Spot {
-		switch commonOrderType {
-		case order.Market, order.Limit, order.AnyType, order.UnknownType:
-			cancelledOrders, err := e.CancelOrdersByIDs(ctx, orderIDs, clientOrderIDs)
-			if err != nil {
-				return nil, err
-			}
-			for _, co := range cancelledOrders {
-				if co.ClientOrderID != "" {
-					resp.Status[co.ClientOrderID] = co.State + " " + co.Message
-					continue
+	for key, value := range assetAndTypeToIDsMap {
+		if key.aType == asset.Spot {
+			switch key.oType {
+			case order.Market, order.Limit, order.AnyType, order.UnknownType:
+				cancelledOrders, err := e.CancelOrdersByIDs(ctx, value.orderIDs, value.clientOrderIDs)
+				if err != nil {
+					return nil, err
 				}
-				resp.Status[co.OrderID] = co.State + " " + co.Message
+				for _, co := range cancelledOrders {
+					if slices.Contains(value.orderIDs, co.OrderID) {
+						resp.Status[co.OrderID] = co.State + " " + co.Message
+					} else {
+						resp.Status[co.ClientOrderID] = co.State + " " + co.Message
+					}
+				}
+			case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
+				cancelledOrders, err := e.CancelMultipleSmartOrders(ctx, &CancelOrdersRequest{
+					OrderIDs:       value.orderIDs,
+					ClientOrderIDs: value.clientOrderIDs,
+				})
+				if err != nil {
+					return nil, err
+				}
+				for _, co := range cancelledOrders {
+					if slices.Contains(value.orderIDs, co.OrderID) {
+						resp.Status[co.OrderID] = co.State + " " + co.Message
+					} else {
+						resp.Status[co.ClientOrderID] = co.State + " " + co.Message
+					}
+				}
+			default:
+				return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, key.oType.String())
 			}
-		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
-			cancelledOrders, err := e.CancelMultipleSmartOrders(ctx, &CancelOrdersRequest{
-				OrderIDs:       orderIDs,
-				ClientOrderIDs: clientOrderIDs,
+		} else {
+			cancelledOrders, err := e.CancelMultipleFuturesOrders(ctx, &CancelOrdersRequest{
+				Symbol:         key.pair, //nolint:gosec // length checked above
+				OrderIDs:       value.orderIDs,
+				ClientOrderIDs: value.clientOrderIDs,
 			})
 			if err != nil {
 				return nil, err
 			}
 			for _, co := range cancelledOrders {
-				if co.ClientOrderID != "" {
-					resp.Status[co.ClientOrderID] = co.State + " " + co.Message
-					continue
+				cancellationStatus := "Cancelled"
+				if co.Code == 200 {
+					cancellationStatus = "Failed"
 				}
-				resp.Status[co.OrderID] = co.State + " " + co.Message
-			}
-		default:
-			return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, commonOrderType.String())
-		}
-	} else {
-		cancelledOrders, err := e.CancelMultipleFuturesOrders(ctx, &CancelOrdersRequest{
-			Symbol:         o[0].Pair, //nolint:gosec // length checked above
-			OrderIDs:       orderIDs,
-			ClientOrderIDs: clientOrderIDs,
-		})
-		if err != nil {
-			return nil, err
-		}
-		resp.Status = map[string]string{}
-		for _, fCancelOrderIDResponse := range cancelledOrders {
-			if fCancelOrderIDResponse.Code == 200 {
-				resp.Status[fCancelOrderIDResponse.OrderID] = "Cancelled"
+				if slices.Contains(value.orderIDs, co.OrderID) {
+					resp.Status[co.OrderID] = cancellationStatus
+				} else {
+					resp.Status[co.ClientOrderID] = cancellationStatus
+				}
 			}
 		}
 	}

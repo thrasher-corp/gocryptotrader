@@ -859,9 +859,6 @@ func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedI
 
 // CancelMultipleSmartOrders performs a batch cancel one or many smart orders in an account by IDs.
 func (e *Exchange) CancelMultipleSmartOrders(ctx context.Context, args *CancelOrdersRequest) ([]*CancelOrderResponse, error) {
-	if args == nil {
-		return nil, common.ErrNilPointer
-	}
 	if len(args.ClientOrderIDs) == 0 && len(args.OrderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
 	}

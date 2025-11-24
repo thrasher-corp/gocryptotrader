@@ -758,41 +758,32 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelBatchOrders(t.Context(), []order.Cancel{})
-	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Options}})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, Pair: futuresTradablePair}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233", Pair: futuresTradablePair}, {AssetType: asset.Spot, Pair: futuresTradablePair}})
-	require.ErrorIs(t, err, asset.ErrInvalidAsset)
-
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233"}, {AssetType: asset.Futures}})
-	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-
-	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{Pair: futuresTradablePair, AssetType: asset.Futures, OrderID: "1233"}, {OrderID: "1233", AssetType: asset.Futures, Pair: spotTradablePair}})
-	require.ErrorIs(t, err, currency.ErrPairNotFound)
-
-	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Spot, OrderID: "1233", Type: order.Liquidation}, {AssetType: asset.Spot, OrderID: "123444", Type: order.StopLimit}})
-	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.CancelBatchOrders(generateContext(t), []order.Cancel{{
-		Pair:      futuresTradablePair,
-		AssetType: asset.Futures,
-		OrderID:   "1233",
-		Type:      order.StopLimit,
-	}, {
-		Pair:      futuresTradablePair,
-		AssetType: asset.Futures,
-		OrderID:   "123444",
-		Type:      order.StopLimit,
-	}})
-	require.NoError(t, err)
-
-	result, err := e.CancelBatchOrders(generateContext(t), []order.Cancel{
+	resp, err := e.CancelBatchOrders(generateContext(t), []order.Cancel{
+		{
+			Pair:      futuresTradablePair,
+			AssetType: asset.Futures,
+			OrderID:   "1233",
+		},
+		{
+			Pair:      futuresTradablePair,
+			AssetType: asset.Futures,
+			OrderID:   "123444",
+		},
 		{
 			OrderID:   "1234",
 			AssetType: asset.Spot,
@@ -806,11 +797,20 @@ func TestCancelBatchOrders(t *testing.T) {
 		{
 			OrderID:   "234",
 			AssetType: asset.Spot,
-			Pair:      currency.NewBTCUSD(),
+		},
+		{
+			OrderID:   "134",
+			AssetType: asset.Spot,
+			Type:      order.StopLimit,
+		},
+		{
+			OrderID:   "234",
+			AssetType: asset.Spot,
+			Type:      order.TrailingStop,
 		},
 	})
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	assert.NotNil(t, resp)
 }
 
 func TestGetServerTime(t *testing.T) {
@@ -1741,9 +1741,7 @@ func TestCancelSmartOrderByID(t *testing.T) {
 
 func TestCancelMultipleSmartOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelMultipleSmartOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = e.CancelMultipleSmartOrders(t.Context(), &CancelOrdersRequest{})
+	_, err := e.CancelMultipleSmartOrders(t.Context(), &CancelOrdersRequest{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	if !mockTests {
