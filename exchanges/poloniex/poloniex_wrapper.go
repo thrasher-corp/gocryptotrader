@@ -873,18 +873,18 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		} else if o[i].AssetType != asset.Spot {
 			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, o[i].AssetType)
 		}
-		key := assetAndType{o[i].AssetType, o[i].Type, pair}
-		if assetAndTypeToIDsMap[key] == nil {
-			assetAndTypeToIDsMap[key] = &orderAndClientSuppliedIDs{
+		keyInfo := assetAndType{o[i].AssetType, o[i].Type, pair}
+		if assetAndTypeToIDsMap[keyInfo] == nil {
+			assetAndTypeToIDsMap[keyInfo] = &orderAndClientSuppliedIDs{
 				orderIDs:       []string{},
 				clientOrderIDs: []string{},
 			}
 		}
 		switch {
 		case o[i].OrderID != "":
-			assetAndTypeToIDsMap[key].orderIDs = append(assetAndTypeToIDsMap[key].orderIDs, o[i].OrderID)
+			assetAndTypeToIDsMap[keyInfo].orderIDs = append(assetAndTypeToIDsMap[keyInfo].orderIDs, o[i].OrderID)
 		case o[i].ClientOrderID != "":
-			assetAndTypeToIDsMap[key].clientOrderIDs = append(assetAndTypeToIDsMap[key].clientOrderIDs, o[i].ClientOrderID)
+			assetAndTypeToIDsMap[keyInfo].clientOrderIDs = append(assetAndTypeToIDsMap[keyInfo].clientOrderIDs, o[i].ClientOrderID)
 		default:
 			return nil, order.ErrOrderIDNotSet
 		}
@@ -927,7 +927,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			}
 		} else {
 			cancelledOrders, err := e.CancelMultipleFuturesOrders(ctx, &CancelOrdersRequest{
-				Symbol:         key.pair, //nolint:gosec // length checked above
+				Symbol:         key.pair,
 				OrderIDs:       value.orderIDs,
 				ClientOrderIDs: value.clientOrderIDs,
 			})
