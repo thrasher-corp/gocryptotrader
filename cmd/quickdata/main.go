@@ -1,0 +1,476 @@
+package main
+
+import (
+	"context"
+	"encoding/pem"
+	"errors"
+	"flag"
+	"fmt"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/cmd/quickdata/app"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+)
+
+var enc = json.NewEncoder(os.Stdout)
+
+// eventEnvelope is a small wrapper to add metadata around exported data.
+// It is printed as NDJSON to stdout for easy streaming/consumption.
+type eventEnvelope struct {
+	Timestamp time.Time `json:"ts"`
+	Focus     string    `json:"focus"`
+	Data      any       `json:"data,omitempty"`
+	Error     error     `json:"error,omitempty"`
+}
+
+// appConfig holds parsed CLI configuration in a structured way.
+type appConfig struct {
+	Exchange     string
+	Asset        asset.Item
+	Pair         currency.Pair
+	FocusType    app.FocusType
+	UseWebsocket bool
+	PollInterval time.Duration
+	BookLevels   int
+	Credentials  *accounts.Credentials
+	JSONOnly     bool
+	LogOutput    string
+}
+
+func main() {
+	fmt.Println("Hello! 🌞")
+	defer fmt.Println("\nGoodbye! 🌚")
+	cfg := parseFlags()
+	// Context & OS signals for graceful shutdown
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+	ctx = accounts.DeployCredentialsToContext(ctx, cfg.Credentials)
+	k := key.NewExchangeAssetPair(cfg.Exchange, cfg.Asset, cfg.Pair)
+	qsChan, err := app.NewQuickestData(ctx, &k, cfg.FocusType)
+	if err != nil {
+		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
+		return
+	}
+	fmt.Println("QuickData setup, waiting for initial data...")
+	if err := streamData(ctx, qsChan, cfg); err != nil {
+		emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Error: err})
+		return
+	}
+}
+
+// parseFlags parses CLI flags, validates them, applies sensible defaults, and returns appConfig.
+func parseFlags() *appConfig {
+	exch := flag.String("exchange", "", "Exchange name, e.g. binance, okx")
+	assetStr := flag.String("asset", "spot", "Asset type, e.g. spot, futures, perpetualswap")
+	pairStr := flag.String("pair", "BTC-USDT", "Currency pair, e.g. BTC-USDT or ETHUSD")
+	focusHelp := `Data type:
+  Focus            Aliases
+------------------------------------
+  ticker           ticker,tick
+  orderbook        orderbook,order_book,ob,book
+  kline            kline,candles,candle,ohlc
+  trades           trades,trade
+  openinterest     openinterest,oi
+  fundingrate      fundingrate,funding
+  accountholdings  accountholdings,account,holdings,balances
+  activeorders     activeorders,orders
+  orderexecution   orderexecution,executionlimits,limits
+  url              url,tradeurl,trade_url
+  contract         contract
+`
+	focusStr := flag.String("data", "ticker", focusHelp)
+
+	pollStr := flag.String("poll", "5s", "Poll interval for REST focus and timeout for websocket initial data wait")
+	bookLevels := flag.Int("book-levels", 15, "Number of levels to render per side for orderbook focus")
+	jsonOnly := flag.Bool("json", false, "Emit NDJSON only (no ANSI rendering/headers)")
+
+	// credentials until credential manager integrated
+	apiKey := flag.String("apiKey", "", "API key (only for auth-required focuses)")
+	apiSecret := flag.String("apiSecret", "", "API secret (only for auth-required focuses)")
+	subAccount := flag.String("subAccount", "", "Sub-account (optional)")
+	clientID := flag.String("clientID", "", "Client ID (optional)")
+	otp := flag.String("otp", "", "One-time password (optional)")
+	pemKey := flag.String("pemKey", "", "PEM key (optional)")
+
+	flag.Parse()
+
+	if strings.TrimSpace(*exch) == "" || strings.TrimSpace(*assetStr) == "" || strings.TrimSpace(*pairStr) == "" || strings.TrimSpace(*focusStr) == "" {
+		_, _ = fmt.Fprintln(os.Stderr, "missing required flags: --exchange, --asset, --pair, --focusType")
+		_, _ = fmt.Fprintln(os.Stderr, "please read the readme for more information")
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	// Parse asset
+	ast, err := asset.New(*assetStr)
+	if err != nil {
+		fatalErr(fmt.Errorf("invalid asset: %w", err))
+	}
+
+	// Parse pair
+	cp, err := currency.NewPairFromString(*pairStr)
+	if err != nil {
+		fatalErr(fmt.Errorf("invalid currencyPair: %w", err))
+	}
+
+	// Parse focus type and defaults
+	fType, err := parseFocusType(*focusStr)
+	if err != nil {
+		fatalErr(err)
+	}
+
+	pollDur, err := time.ParseDuration(*pollStr)
+	if err != nil {
+		fatalErr(fmt.Errorf("invalid poll duration: %w", err))
+	}
+
+	var creds *accounts.Credentials
+	if app.RequiresAuth(fType) {
+		creds = &accounts.Credentials{
+			Key:             *apiKey,
+			Secret:          *apiSecret,
+			SubAccount:      *subAccount,
+			ClientID:        *clientID,
+			OneTimePassword: *otp,
+			PEMKey:          *pemKey,
+		}
+		if creds.IsEmpty() {
+			fatalErr(fmt.Errorf("focus %s requires credentials; provide --apiKey and --apiSecret (and others as needed)", fType.String()))
+		}
+		if creds.PEMKey != "" {
+			if block, _ := pem.Decode([]byte(creds.PEMKey)); block == nil {
+				fatalErr(errors.New("invalid PEM key format"))
+			}
+		}
+	}
+
+	return &appConfig{
+		Exchange:     strings.ToLower(*exch),
+		Asset:        ast,
+		Pair:         cp,
+		FocusType:    fType,
+		PollInterval: pollDur,
+		BookLevels:   *bookLevels,
+		Credentials:  creds,
+		JSONOnly:     *jsonOnly,
+	}
+}
+
+func streamData(ctx context.Context, c <-chan any, cfg *appConfig) error {
+	heading := fmt.Sprintf("%s | %s | %s", cfg.Exchange, cfg.Asset, cfg.Pair)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case d := <-c:
+			switch {
+			case cfg.JSONOnly:
+				emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Data: d})
+			default:
+				clearScreen()
+				fmt.Println(ansiBold + heading + ansiReset)
+				renderPrettyPayload(d, cfg.BookLevels)
+				if cfg.FocusType != app.TickerFocusType && cfg.FocusType != app.KlineFocusType && cfg.FocusType != app.OrderBookFocusType {
+					// executive decision to not render large payloads
+					emit(eventEnvelope{Timestamp: time.Now().UTC(), Focus: cfg.FocusType.String(), Data: d})
+				}
+			}
+		}
+	}
+}
+
+// emit writes NDJSON events to stdout.
+func emit(ev eventEnvelope) {
+	if err := enc.Encode(ev); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "failed to emit event: %v %v\n", ev, err)
+	}
+}
+
+func parseFocusType(s string) (app.FocusType, error) {
+	s = strings.TrimSpace(strings.ToLower(s))
+	switch s {
+	case "ticker", "tick":
+		return app.TickerFocusType, nil
+	case "orderbook", "order_book", "ob", "book":
+		return app.OrderBookFocusType, nil
+	case "kline", "candles", "candle", "ohlc":
+		return app.KlineFocusType, nil
+	case "trades", "trade":
+		return app.TradesFocusType, nil
+	case "openinterest", "oi":
+		return app.OpenInterestFocusType, nil
+	case "fundingrate", "funding":
+		return app.FundingRateFocusType, nil
+	case "accountholdings", "account", "holdings", "balances":
+		return app.AccountHoldingsFocusType, nil
+	case "activeorders", "orders":
+		return app.ActiveOrdersFocusType, nil
+	case "orderexecution", "executionlimits", "limits":
+		return app.OrderLimitsFocusType, nil
+	case "url", "tradeurl", "trade_url":
+		return app.URLFocusType, nil
+	case "contract":
+		return app.ContractFocusType, nil
+	default:
+		return app.UnsetFocusType, app.ErrUnsupportedFocusType
+	}
+}
+
+func fatalErr(err error) {
+	_, _ = fmt.Fprintln(os.Stderr, err)
+	os.Exit(1)
+}
+
+// -------- Rendering helpers --------
+
+const (
+	ansiClear = "\033[2J\033[H"
+	ansiReset = "\033[0m"
+	ansiGreen = "\033[32m"
+	ansiRed   = "\033[31m"
+	ansiDim   = "\033[2m"
+	ansiBold  = "\033[1m"
+)
+
+func clearScreen() {
+	fmt.Print(ansiClear)
+}
+
+func renderOrderbook(b *orderbook.Book, levels int) {
+	if levels <= 0 {
+		levels = 15
+	}
+	fmt.Printf("%s%-14s %-14s %-14s%s\n", ansiDim, "Price", "Amount", "Total", ansiReset)
+	// Asks (red), display from best (lowest) up to levels
+	askCount := intMin(levels, len(b.Asks))
+	cumulativeAsks := 0.0
+	for i := range askCount {
+		lvl := b.Asks[i]
+		cumulativeAsks += lvl.Amount
+		fmt.Printf("%s% -14.8f % -14.8f % -14.8f%s\n", ansiRed, lvl.Price, lvl.Amount, cumulativeAsks, ansiReset)
+	}
+	fmt.Println()
+	// Bids (green), from best (highest) up to levels
+	bidCount := intMin(levels, len(b.Bids))
+	cumulativeBids := 0.0
+	for i := range bidCount {
+		lvl := b.Bids[i]
+		cumulativeBids += lvl.Amount
+		fmt.Printf("%s% -14.8f % -14.8f % -14.8f%s\n", ansiGreen, lvl.Price, lvl.Amount, cumulativeBids, ansiReset)
+	}
+}
+
+func renderTicker(t *ticker.Price) {
+	if t == nil {
+		return
+	}
+	spread := t.Ask - t.Bid
+	var spreadPct float64
+	if t.Last != 0 {
+		spreadPct = (spread / t.Last) * 100
+	}
+	fmt.Printf("%sLast:%s %.8f  %sBid:%s %.8f  %sAsk:%s %.8f\n",
+		ansiBold, ansiReset, t.Last, ansiGreen, ansiReset, t.Bid, ansiRed, ansiReset, t.Ask)
+	fmt.Printf("%sVol:%s  %.4f  %sSpread:%s %.8f (%.4f%%)  %sMark:%s %.8f  %sIndex:%s %.8f\n",
+		ansiDim, ansiReset, t.Volume, ansiDim, ansiReset, spread, spreadPct, ansiDim, ansiReset, t.MarkPrice, ansiDim, ansiReset, t.IndexPrice)
+}
+
+func renderTrades(trades []trade.Data) {
+	if len(trades) == 0 {
+		fmt.Println("No trades.")
+		return
+	}
+	// Summaries
+	n := len(trades)
+	start := trades[0].Timestamp
+	end := trades[n-1].Timestamp
+	if end.Before(start) {
+		start, end = end, start
+	}
+	var baseVol, quoteVol float64
+	var buys, sells int
+	for i := range trades {
+		baseVol += trades[i].Amount
+		quoteVol += trades[i].Amount * trades[i].Price
+		if trades[i].Side.IsLong() {
+			buys++
+		} else if trades[i].Side.IsShort() {
+			sells++
+		}
+	}
+	vwap := 0.0
+	if baseVol != 0 {
+		vwap = quoteVol / baseVol
+	}
+	last := trades[n-1]
+	span := end.Sub(start)
+	fmt.Printf("%sTrades:%s N=%d Span=%s\n", ansiBold, ansiReset, n, span.Truncate(time.Second))
+	fmt.Printf("Range: %s -> %s\n", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339))
+	fmt.Printf("VWAP: %.8f  Last: %.8f @ %s\n", vwap, last.Price, last.Timestamp.UTC().Format(time.RFC3339))
+	fmt.Printf("Volume: base=%.8f quote=%.8f  Buys/Sells: %d/%d\n", baseVol, quoteVol, buys, sells)
+}
+
+func renderKlines(kl []websocket.KlineData) {
+	if len(kl) == 0 {
+		fmt.Println("No klines.")
+		return
+	}
+	n := len(kl)
+	start := kl[0].Timestamp
+	end := kl[n-1].Timestamp
+	if end.Before(start) {
+		start, end = end, start
+	}
+	firstOpen := kl[0].OpenPrice
+	lastClose := kl[n-1].ClosePrice
+	change := lastClose - firstOpen
+	changePct := 0.0
+	if firstOpen != 0 {
+		changePct = (change / firstOpen) * 100
+	}
+	high := kl[0].HighPrice
+	low := kl[0].LowPrice
+	var totalVol float64
+	for i := range kl {
+		if kl[i].HighPrice > high {
+			high = kl[i].HighPrice
+		}
+		if kl[i].LowPrice < low {
+			low = kl[i].LowPrice
+		}
+		totalVol += kl[i].Volume
+	}
+	avgVol := totalVol / float64(n)
+	span := end.Sub(start)
+	interval := kl[0].Interval
+	fmt.Printf("%sKlines:%s N=%d Interval=%s Span=%s\n", ansiBold, ansiReset, n, interval, span.Truncate(time.Second))
+	fmt.Printf("Range: %s -> %s\n", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339))
+	fmt.Printf("O/C: %.8f -> %.8f  Change: %+.8f (%.4f%%)\n", firstOpen, lastClose, change, changePct)
+	fmt.Printf("High/Low: %.8f / %.8f  Volume: total=%.4f avg=%.4f\n", high, low, totalVol, avgVol)
+}
+
+func renderAccountHoldings(h []accounts.Balance) {
+	if h == nil || len(h) == 0 {
+		fmt.Println("No holdings.")
+		return
+	}
+	fmt.Printf("%s%-12s %-14s %-14s %-14s%s\n",
+		ansiDim, "Currency", "Total", "Free", "Hold", ansiReset)
+
+	for _, a := range h {
+		fmt.Printf("%-12s %-14.8f %-14.8f %-14.8f\n",
+			a.Currency, a.Total, a.Free, a.Hold)
+	}
+}
+
+func renderActiveOrders(orders []order.Detail) {
+	if len(orders) == 0 {
+		fmt.Println("No active orders.")
+		return
+	}
+	fmt.Printf("%s%-19s %-10s %-6s %-10s %-10s %-10s %-10s %-20s%s\n", ansiDim, "OrderID", "Type", "Side", "Price", "Amount", "Filled", "Status", "Updated", ansiReset)
+	for i := range orders {
+		o := orders[i]
+		filled := o.ExecutedAmount
+		fmt.Printf("%-19s %-10s %-6s % -10.8f % -10.8f % -10.8f %-10s %-20s\n",
+			o.OrderID, o.Type.String(), o.Side.String(), o.Price, o.Amount, filled, o.Status.String(), o.LastUpdated.UTC().Format(time.RFC3339))
+	}
+}
+
+func renderExecutionLimits(l *limits.MinMaxLevel) {
+	if l == nil {
+		return
+	}
+	fmt.Printf("%sExecution Limits%s\n", ansiBold, ansiReset)
+	fmt.Printf("MinPrice: %.8f  MaxPrice: %.8f  MinBaseAmt: %.8f  MaxBaseAmt: %.8f  MinQuoteAmt: %.8f  MaxQuoteAmt: %.8f  MinNotional: %.8f\n",
+		l.MinPrice, l.MaxPrice, l.MinimumBaseAmount, l.MaximumBaseAmount, l.MinimumQuoteAmount, l.MaximumQuoteAmount, l.MinNotional)
+}
+
+func renderURL(u string) {
+	fmt.Printf("%sTrade URL:%s %s\n", ansiBold, ansiReset, u)
+}
+
+func renderContract(c *futures.Contract) {
+	if c == nil {
+		return
+	}
+	fmt.Printf("%sContract%s %s  Type:%s  Multiplier:%.4f  Start:%s  End:%s  Settlement:%s\n",
+		ansiBold, ansiReset, c.Name.String(), c.Type.String(), c.Multiplier,
+		c.StartDate.UTC().Format(time.RFC3339), c.EndDate.UTC().Format(time.RFC3339), c.SettlementCurrency)
+}
+
+func renderPrettyPayload(payload any, bookLevels int) {
+	switch v := payload.(type) {
+	case *orderbook.Book:
+		renderOrderbook(v, bookLevels)
+	case []ticker.Price:
+		for i := range v {
+			renderTicker(&v[i])
+		}
+	case *ticker.Price:
+		renderTicker(v)
+	case []websocket.KlineData:
+		renderKlines(v)
+	case []trade.Data:
+		renderTrades(v)
+	case trade.Data:
+		renderTrades([]trade.Data{v})
+	case accounts.Balance:
+		renderAccountHoldings([]accounts.Balance{v})
+	case []accounts.Balance:
+		renderAccountHoldings(v)
+	case []order.Detail:
+		renderActiveOrders(v)
+	case float64:
+		renderOpenInterest(v)
+	case *fundingrate.LatestRateResponse:
+		renderFundingRate(v)
+	case *futures.Contract:
+		renderContract(v)
+	case *limits.MinMaxLevel:
+		renderExecutionLimits(v)
+	case string:
+		renderURL(v)
+	default:
+		fmt.Printf("%v\n", v)
+	}
+}
+
+func renderOpenInterest(v float64) {
+	fmt.Printf("%sOpen Interest:%s %.4f\n", ansiBold, ansiReset, v)
+}
+
+func renderFundingRate(fr *fundingrate.LatestRateResponse) {
+	if fr == nil {
+		fmt.Println("No funding rate.")
+		return
+	}
+	fmt.Printf("%sFunding:%s latest=%.6f predicted=%.6f next=%s checked=%s\n",
+		ansiBold, ansiReset,
+		fr.LatestRate.Rate.InexactFloat64(), fr.PredictedUpcomingRate.Rate.InexactFloat64(),
+		fr.TimeOfNextRate.UTC().Format(time.RFC3339), fr.TimeChecked.UTC().Format(time.RFC3339))
+}
+
+// intMin for dealing with ints
+func intMin(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

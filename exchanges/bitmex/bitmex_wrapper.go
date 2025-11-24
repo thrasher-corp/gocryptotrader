@@ -1109,10 +1109,6 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
 
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
-	}
-
 	count := "1"
 	if r.Pair.IsEmpty() {
 		count = "500"

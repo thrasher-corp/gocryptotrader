@@ -1472,7 +1472,7 @@ func TestCheckTransientError(t *testing.T) {
 func TestDisableEnableRateLimiter(t *testing.T) {
 	b := Base{}
 	err := b.EnableRateLimiter()
-	require.ErrorIs(t, err, request.ErrRequestSystemIsNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	b.Requester, err = request.New("testingRateLimiter", common.NewHTTPClientWithTimeout(0))
 	if err != nil {

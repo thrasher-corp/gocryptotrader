@@ -801,12 +801,11 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 		return nil
 	}
 	frp, err := exch.GetHistoricalFundingRates(context.TODO(), &fundingrate.HistoricalRatesRequest{
-		Asset:                position.Asset,
-		Pair:                 position.Pair,
-		StartDate:            position.Orders[0].Date,
-		EndDate:              time.Now(),
-		IncludePayments:      true,
-		IncludePredictedRate: true,
+		Asset:           position.Asset,
+		Pair:            position.Pair,
+		StartDate:       position.Orders[0].Date,
+		EndDate:         time.Now(),
+		IncludePayments: true,
 	})
 	if err != nil {
 		return err
