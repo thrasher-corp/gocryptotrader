@@ -521,7 +521,7 @@ func (m *Manager) connect() error {
 		}
 
 		if m.connectionManager[i].setup.SubscriptionsNotRequired && len(subs) == 0 {
-			subs = subscription.List{{}} // Dummy subscription to utilise the connect and subscribe function below
+			subs = subscription.List{{}} // Dummy subscription to utilise common.Batch to call connectAndSubscribe in a loop
 		}
 
 		for _, batchedSubs := range common.Batch(subs, m.MaxSubscriptionsPerConnection) {
