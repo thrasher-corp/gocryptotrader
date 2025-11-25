@@ -301,7 +301,7 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, c
 	return e.handleSubscription(ctx, conn, operationUnsubscribe, channelsToUnsubscribe)
 }
 
-// handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
+// handleSubscription sends a subscription and unsubscription information through the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
 func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, operation string, subs subscription.List) error {
 	requests, err := chunkRequests(subs, operation)
