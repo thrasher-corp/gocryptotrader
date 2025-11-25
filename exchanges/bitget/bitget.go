@@ -246,7 +246,6 @@ var (
 	errSideEmpty                   = fmt.Errorf("%w: empty order side", order.ErrSideIsInvalid)
 	errOrderTypeEmpty              = fmt.Errorf("%w: empty order type", order.ErrTypeIsInvalid)
 	errStrategyEmpty               = errors.New("strategy cannot be empty")
-	errLimitPriceEmpty             = fmt.Errorf("%w: Price below minimum for limit orders", limits.ErrPriceBelowMin)
 	errOrdersEmpty                 = errors.New("orders cannot be empty")
 	errTriggerPriceEmpty           = fmt.Errorf("%w: TriggerPrice below minimum", limits.ErrPriceBelowMin)
 	errTriggerTypeEmpty            = errors.New("triggerType cannot be empty")
@@ -287,25 +286,23 @@ var (
 	errOrderIDMutex                = errors.New("exactly one of orderID and clientOrderID must be set")
 	errProductTypeAndPairEmpty     = errors.New("productType and pair cannot both be empty")
 
-	prodTypes = []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
 	planTypes = []string{"normal_plan", "track_plan", "profit_loss"}
 )
 
 // QueryAnnouncements returns announcements from the exchange, filtered by type and time
 func (e *Exchange) QueryAnnouncements(ctx context.Context, annType string, startTime, endTime time.Time, pagination uint64, limit uint8) ([]AnnouncementResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("annType", annType)
-	params.Values.Set("language", "en_US")
-	params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+	url.Values(params).Set("annType", annType)
+	url.Values(params).Set("language", "en_US")
+	url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(uint64(limit), 10))
+		url.Values(params).Set("limit", strconv.FormatUint(uint64(limit), 10))
 	}
 	var resp []AnnouncementResp
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate20, bitgetPublic+bitgetAnnouncements, params.Values, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate20, bitgetPublic+bitgetAnnouncements, url.Values(params), &resp)
 }
 
 // GetTime returns the server's time
@@ -342,86 +339,82 @@ func (e *Exchange) GetAllTradeRates(ctx context.Context, businessType string) ([
 
 // GetSpotTransactionRecords returns the user's spot transaction records
 func (e *Exchange) GetSpotTransactionRecords(ctx context.Context, cur currency.Code, startTime, endTime time.Time, limit, pagination uint64) ([]SpotTrResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	var resp []SpotTrResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate1, http.MethodGet, bitgetTax+bitgetSpotRecord, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate1, http.MethodGet, bitgetTax+bitgetSpotRecord, url.Values(params), nil, &resp)
 }
 
 // GetFuturesTransactionRecords returns the user's futures transaction records
 func (e *Exchange) GetFuturesTransactionRecords(ctx context.Context, productType string, cur currency.Code, startTime, endTime time.Time, limit, pagination uint64) ([]FutureTrResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if productType != "" {
-		params.Values.Set("productType", productType)
+		url.Values(params).Set("productType", productType)
 	}
-	params.Values.Set("marginCoin", cur.String())
+	url.Values(params).Set("marginCoin", cur.String())
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	var resp []FutureTrResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate1, http.MethodGet, bitgetTax+bitgetFutureRecord, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate1, http.MethodGet, bitgetTax+bitgetFutureRecord, url.Values(params), nil, &resp)
 }
 
 // GetMarginTransactionRecords returns the user's margin transaction records
 func (e *Exchange) GetMarginTransactionRecords(ctx context.Context, marginType string, cur currency.Code, startTime, endTime time.Time, limit, pagination uint64) ([]MarginTrResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if marginType != "" {
-		params.Values.Set("marginType", marginType)
+		url.Values(params).Set("marginType", marginType)
 	}
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	var resp []MarginTrResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate1, http.MethodGet, bitgetTax+bitgetMarginRecord, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate1, http.MethodGet, bitgetTax+bitgetMarginRecord, url.Values(params), nil, &resp)
 }
 
 // GetP2PTransactionRecords returns the user's P2P transaction records
 func (e *Exchange) GetP2PTransactionRecords(ctx context.Context, cur currency.Code, startTime, endTime time.Time, limit, pagination uint64) ([]P2PTrResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	var resp []P2PTrResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate1, http.MethodGet, bitgetTax+bitgetP2PRecord, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate1, http.MethodGet, bitgetTax+bitgetP2PRecord, url.Values(params), nil, &resp)
 }
 
 // GetP2PMerchantList returns detailed information on merchants
@@ -446,57 +439,55 @@ func (e *Exchange) GetMerchantInfo(ctx context.Context) (*P2PMerInfoResp, error)
 
 // GetMerchantP2POrders returns information on the user's P2P orders
 func (e *Exchange) GetMerchantP2POrders(ctx context.Context, startTime, endTime time.Time, limit, pagination, adNum, ordNum uint64, status, side string, cryptoCurrency, fiatCurrency currency.Code) (*P2POrdersResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	// Documentation incorrectly marks startTime, language, and advNo as required
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
-	params.Values.Set("advNo", strconv.FormatUint(adNum, 10))
-	params.Values.Set("orderNo", strconv.FormatUint(ordNum, 10))
-	params.Values.Set("status", status)
-	params.Values.Set("side", side)
-	params.Values.Set("language", "en-US")
+	url.Values(params).Set("advNo", strconv.FormatUint(adNum, 10))
+	url.Values(params).Set("orderNo", strconv.FormatUint(ordNum, 10))
+	url.Values(params).Set("status", status)
+	url.Values(params).Set("side", side)
+	url.Values(params).Set("language", "en-US")
 	if !cryptoCurrency.IsEmpty() {
-		params.Values.Set("coin", cryptoCurrency.String())
+		url.Values(params).Set("coin", cryptoCurrency.String())
 	}
-	params.Values.Set("fiat", fiatCurrency.String())
+	url.Values(params).Set("fiat", fiatCurrency.String())
 	var resp *P2POrdersResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, bitgetP2P+bitgetOrderList, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, bitgetP2P+bitgetOrderList, url.Values(params), nil, &resp)
 }
 
 // GetMerchantAdvertisementList returns information on a variety of merchant advertisements
 func (e *Exchange) GetMerchantAdvertisementList(ctx context.Context, startTime, endTime time.Time, limit, pagination, adNum, payMethodID uint64, status, side, orderBy, sourceType string, cryptoCurrency, fiatCurrency currency.Code) (*P2PAdListResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	// Documentation incorrectly marks startTime, status, coin, and fiat as required
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
-	params.Values.Set("advNo", strconv.FormatUint(adNum, 10))
-	params.Values.Set("payMethodId", strconv.FormatUint(payMethodID, 10))
-	params.Values.Set("status", status)
-	params.Values.Set("side", side)
+	url.Values(params).Set("advNo", strconv.FormatUint(adNum, 10))
+	url.Values(params).Set("payMethodId", strconv.FormatUint(payMethodID, 10))
+	url.Values(params).Set("status", status)
+	url.Values(params).Set("side", side)
 	if !cryptoCurrency.IsEmpty() {
-		params.Values.Set("coin", cryptoCurrency.String())
+		url.Values(params).Set("coin", cryptoCurrency.String())
 	}
-	params.Values.Set("fiat", fiatCurrency.String())
-	params.Values.Set("orderBy", orderBy)
-	params.Values.Set("sourceType", sourceType)
+	url.Values(params).Set("fiat", fiatCurrency.String())
+	url.Values(params).Set("orderBy", orderBy)
+	url.Values(params).Set("sourceType", sourceType)
 	var resp *P2PAdListResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, bitgetP2P+bitgetAdvList, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, bitgetP2P+bitgetAdvList, url.Values(params), nil, &resp)
 }
 
 // GetSpotWhaleNetFlow returns the amount whales have been trading in a specified pair recently
@@ -882,19 +873,18 @@ func (e *Exchange) CommitConversion(ctx context.Context, fromCurrency, toCurrenc
 
 // GetConvertHistory returns a list of the user's previous conversions
 func (e *Exchange) GetConvertHistory(ctx context.Context, startTime, endTime time.Time, limit, pagination uint64) (*ConvHistResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	var resp *ConvHistResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, bitgetConvert+bitgetConvertRecord, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, bitgetConvert+bitgetConvertRecord, url.Values(params), nil, &resp)
 }
 
 // GetBGBConvertCoins returns a list of available currencies, with information on converting them to BGB
@@ -923,20 +913,19 @@ func (e *Exchange) ConvertBGB(ctx context.Context, currencies []currency.Code) (
 
 // GetBGBConvertHistory returns a list of the user's previous BGB conversions
 func (e *Exchange) GetBGBConvertHistory(ctx context.Context, orderID, limit, pagination uint64, startTime, endTime time.Time) ([]BGBConvHistResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+	url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	var resp []BGBConvHistResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, bitgetConvert+bitgetBGBConvertRecords, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, bitgetConvert+bitgetBGBConvertRecords, url.Values(params), nil, &resp)
 }
 
 // GetCoinInfo returns information on all supported spot currencies, or a single currency of the user's choice
@@ -1013,27 +1002,26 @@ func (e *Exchange) GetSpotCandlestickData(ctx context.Context, pair currency.Pai
 		return nil, errGranEmpty
 	}
 	var path string
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if historic {
 		if endTime.IsZero() || endTime.Equal(time.Unix(0, 0)) {
 			return nil, errEndTimeEmpty
 		}
 		path = bitgetSpot + bitgetMarket + bitgetHistoryCandles
-		params.Values.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+		url.Values(params).Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	} else {
 		path = bitgetSpot + bitgetMarket + bitgetCandles
 		if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 			return nil, err
 		}
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("granularity", granularity)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("granularity", granularity)
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(uint64(limit), 10))
+		url.Values(params).Set("limit", strconv.FormatUint(uint64(limit), 10))
 	}
 	var resp []OneSpotCandle
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate20, path, params.Values, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate20, path, url.Values(params), &resp)
 }
 
 // GetRecentSpotFills returns the most recent trades for a given pair
@@ -1054,21 +1042,20 @@ func (e *Exchange) GetSpotMarketTrades(ctx context.Context, pair currency.Pair, 
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
+	url.Values(params).Set("symbol", pair.String())
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	path := bitgetSpot + bitgetMarket + bitgetFillsHistory
 	var resp []MarketFillsResp
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate10, path, params.Values, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate10, path, url.Values(params), &resp)
 }
 
 // PlaceSpotOrder places a spot order on the exchange
@@ -1088,8 +1075,8 @@ func (e *Exchange) PlaceSpotOrder(ctx context.Context, p *PlaceSingleSpotOrderPa
 	if p.Strategy == "" {
 		return nil, errStrategyEmpty
 	}
-	if p.OrderType == "limit" && p.Price <= 0 {
-		return nil, errLimitPriceEmpty
+	if p.OrderType == order.Limit.Lower() && p.Price <= 0 {
+		return nil, order.ErrPriceMustBeSetIfLimitOrder
 	}
 	if p.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
@@ -1252,47 +1239,45 @@ func (e *Exchange) GetSpotOrderDetails(ctx context.Context, orderID uint64, clie
 
 // GetUnfilledOrders returns information on the user's unfilled orders
 func (e *Exchange) GetUnfilledOrders(ctx context.Context, pair currency.Pair, tpslType string, startTime, endTime time.Time, limit, pagination, orderID uint64, acceptableDelay time.Duration) ([]UnfilledOrdersResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("tpslType", tpslType)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("tpslType", tpslType)
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
-	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
-	params.Values.Set("requestTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
-	params.Values.Set("receiveWindow", strconv.FormatInt(acceptableDelay.Milliseconds(), 10))
+	url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
+	url.Values(params).Set("requestTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
+	url.Values(params).Set("receiveWindow", strconv.FormatInt(acceptableDelay.Milliseconds(), 10))
 	path := bitgetSpot + bitgetTrade + bitgetUnfilledOrders
 	var resp []UnfilledOrdersResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetHistoricalSpotOrders returns the user's spot order history, within the last 90 days
 func (e *Exchange) GetHistoricalSpotOrders(ctx context.Context, pair currency.Pair, startTime, endTime time.Time, limit, pagination, orderID uint64, tpslType string, acceptableDelay time.Duration) ([]SpotOrderDetailData, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("tpslType", tpslType)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("tpslType", tpslType)
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
-	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
-	params.Values.Set("requestTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
-	params.Values.Set("receiveWindow", strconv.FormatInt(acceptableDelay.Milliseconds(), 10))
+	url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
+	url.Values(params).Set("requestTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
+	url.Values(params).Set("receiveWindow", strconv.FormatInt(acceptableDelay.Milliseconds(), 10))
 	path := bitgetSpot + bitgetTrade + bitgetHistoryOrders
-	return e.spotOrderHelper(ctx, path, params.Values)
+	return e.spotOrderHelper(ctx, path, url.Values(params))
 }
 
 // GetSpotFills returns information on the user's fulfilled orders in a certain pair
@@ -1300,22 +1285,21 @@ func (e *Exchange) GetSpotFills(ctx context.Context, pair currency.Pair, startTi
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
+	url.Values(params).Set("symbol", pair.String())
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
-	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+	url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	path := bitgetSpot + bitgetTrade + "/" + bitgetFills
 	var resp []SpotFillsResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // PlacePlanSpotOrder sets up an order to be placed after certain conditions are met
@@ -1332,8 +1316,8 @@ func (e *Exchange) PlacePlanSpotOrder(ctx context.Context, p *PlaceSpotPlanOrder
 	if p.OrderType == "" {
 		return nil, errOrderTypeEmpty
 	}
-	if p.OrderType == "limit" && p.ExecutePrice <= 0 {
-		return nil, errLimitPriceEmpty
+	if p.OrderType == order.Limit.Lower() && p.ExecutePrice <= 0 {
+		return nil, order.ErrPriceMustBeSetIfLimitOrder
 	}
 	if p.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
@@ -1357,8 +1341,8 @@ func (e *Exchange) ModifyPlanSpotOrder(ctx context.Context, orderID uint64, clie
 	if triggerPrice <= 0 {
 		return nil, errTriggerPriceEmpty
 	}
-	if orderType == "limit" && executePrice <= 0 {
-		return nil, errLimitPriceEmpty
+	if orderType == order.Limit.Lower() && executePrice <= 0 {
+		return nil, order.ErrPriceMustBeSetIfLimitOrder
 	}
 	if amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
@@ -1405,21 +1389,20 @@ func (e *Exchange) GetCurrentSpotPlanOrders(ctx context.Context, pair currency.P
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
+	url.Values(params).Set("symbol", pair.String())
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetSpot + bitgetTrade + bitgetCurrentPlanOrder
 	var resp *PlanSpotOrderResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetSpotPlanSubOrder returns the sub-orders of a triggered plan order
@@ -1439,22 +1422,21 @@ func (e *Exchange) GetSpotPlanOrderHistory(ctx context.Context, pair currency.Pa
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
+	url.Values(params).Set("symbol", pair.String())
 	// Despite this not being included in the documentation, it's verified as working
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetSpot + bitgetTrade + bitgetPlanOrderHistory
 	var resp *PlanSpotOrderResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // BatchCancelSpotPlanOrders cancels all plan orders, with the option to restrict to only those for particular pairs
@@ -1519,25 +1501,24 @@ func (e *Exchange) ModifyDepositAccount(ctx context.Context, accountType string,
 
 // GetSpotAccountBills returns a section of the user's billing history
 func (e *Exchange) GetSpotAccountBills(ctx context.Context, cur currency.Code, groupType, businessType string, startTime, endTime time.Time, limit, pagination uint64) ([]SpotAccBillResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
-	params.Values.Set("groupType", groupType)
-	params.Values.Set("businessType", businessType)
+	url.Values(params).Set("groupType", groupType)
+	url.Values(params).Set("businessType", businessType)
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	path := bitgetSpot + bitgetAccount + bitgetBills
 	var resp []SpotAccBillResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // TransferAsset transfers a certain amount of a currency or pair between different productType accounts
@@ -1636,30 +1617,29 @@ func (e *Exchange) WithdrawFunds(ctx context.Context, p *WithdrawFundsParams) (*
 
 // GetSubaccountTransferRecord returns the user's sub-account transfer history
 func (e *Exchange) GetSubaccountTransferRecord(ctx context.Context, cur currency.Code, subaccountID, clientOrderID, role string, startTime, endTime time.Time, limit, pagination uint64) ([]SubaccTfrRecResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
-	params.Values.Set("subUid", subaccountID)
+	url.Values(params).Set("subUid", subaccountID)
 	if role != "" {
-		params.Values.Set("role", role)
+		url.Values(params).Set("role", role)
 	}
 	if clientOrderID != "" {
-		params.Values.Set("clientOid", clientOrderID)
+		url.Values(params).Set("clientOid", clientOrderID)
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	path := bitgetSpot + bitgetAccount + bitgetSubaccountTransferRecord
 	var resp []SubaccTfrRecResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetTransferRecord returns the user's transfer history
@@ -1670,28 +1650,27 @@ func (e *Exchange) GetTransferRecord(ctx context.Context, cur currency.Code, fro
 	if fromType == "" {
 		return nil, errFromTypeEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("coin", cur.String())
-	params.Values.Set("fromType", fromType)
+	url.Values(params).Set("coin", cur.String())
+	url.Values(params).Set("fromType", fromType)
 	if clientOrderID != "" {
-		params.Values.Set("clientOid", clientOrderID)
+		url.Values(params).Set("clientOid", clientOrderID)
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if page > 0 {
-		params.Values.Set("pageNum", strconv.FormatUint(page, 10))
+		url.Values(params).Set("pageNum", strconv.FormatUint(page, 10))
 	}
 	path := bitgetSpot + bitgetAccount + bitgetTransferRecord
 	var resp []TransferRecResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // SwitchBGBDeductionStatus switches the deduction of BGB for trading fees on and off
@@ -1767,69 +1746,66 @@ func (e *Exchange) GetSubaccountDepositRecords(ctx context.Context, subaccountID
 	if subaccountID == "" {
 		return nil, errSubaccountEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("subUid", subaccountID)
+	url.Values(params).Set("subUid", subaccountID)
 	if cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetSpot + bitgetWallet + bitgetSubaccountDepositRecord
 	var resp []SubaccDepRecResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetWithdrawalRecords returns the user's withdrawal history
 func (e *Exchange) GetWithdrawalRecords(ctx context.Context, cur currency.Code, clientOrderID string, startTime, endTime time.Time, pagination, orderID, limit uint64) ([]WithdrawRecordsResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
-	params.Values.Set("clientOid", clientOrderID)
+	url.Values(params).Set("clientOid", clientOrderID)
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
-	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+	url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetSpot + bitgetWallet + bitgetWithdrawalRecord
 	var resp []WithdrawRecordsResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetDepositRecords returns the user's cryptocurrency deposit history
 func (e *Exchange) GetDepositRecords(ctx context.Context, cryptocurrency currency.Code, orderID, pagination, limit uint64, startTime, endTime time.Time) ([]CryptoDepRecResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
 	if !cryptocurrency.IsEmpty() {
-		params.Values.Set("coin", cryptocurrency.String())
+		url.Values(params).Set("coin", cryptocurrency.String())
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
-	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+	url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetSpot + bitgetWallet + bitgetDepositRecord
 	var resp []CryptoDepRecResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetFuturesVIPFeeRate returns the different levels of VIP fee rates for futures trading
@@ -1938,22 +1914,21 @@ func (e *Exchange) GetFuturesMarketTrades(ctx context.Context, pair currency.Pai
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("productType", productType)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("productType", productType)
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	path := bitgetMix + bitgetMarket + bitgetFillsHistory
 	var resp []MarketFillsResp
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate10, path, params.Values, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate10, path, url.Values(params), &resp)
 }
 
 // GetFuturesCandlestickData returns candlestick data for a given pair within a particular time range
@@ -1967,17 +1942,16 @@ func (e *Exchange) GetFuturesCandlestickData(ctx context.Context, pair currency.
 	if granularity == "" {
 		return nil, errGranEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("productType", productType)
+	url.Values(params).Set("productType", productType)
 	path := bitgetMix + bitgetMarket
 	switch mode {
 	case CallModeNormal:
 		path += bitgetCandles
-		params.Values.Set("kLineType", candleType)
+		url.Values(params).Set("kLineType", candleType)
 	case CallModeHistory:
 		path += bitgetHistoryCandles
 	case CallModeIndex:
@@ -1985,13 +1959,13 @@ func (e *Exchange) GetFuturesCandlestickData(ctx context.Context, pair currency.
 	case CallModeMark:
 		path += bitgetHistoryMarkCandles
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("granularity", granularity)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("granularity", granularity)
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(uint64(limit), 10))
+		url.Values(params).Set("limit", strconv.FormatUint(uint64(limit), 10))
 	}
 	var resp []OneFuturesCandle
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate20, path, params.Values, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate20, path, url.Values(params), &resp)
 }
 
 // GetOpenPositions returns the total positions of a particular pair
@@ -2144,22 +2118,21 @@ func (e *Exchange) GetUSDTInterestHistory(ctx context.Context, cur currency.Code
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("coin", cur.String())
-	params.Values.Set("productType", productType)
+	url.Values(params).Set("coin", cur.String())
+	url.Values(params).Set("productType", productType)
 	if idLessThan > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(idLessThan, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(idLessThan, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetMix + bitgetAccount + bitgetInterestHistory
 	var resp *USDTInterestHistory
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate5, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate5, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetEstimatedOpenCount returns the estimated size of open orders for a given pair
@@ -2365,26 +2338,25 @@ func (e *Exchange) GetFuturesAccountBills(ctx context.Context, productType, busi
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("productType", productType)
+	url.Values(params).Set("productType", productType)
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
-	params.Values.Set("businessType", businessType)
-	params.Values.Set("onlyFunding", onlyFunding)
+	url.Values(params).Set("businessType", businessType)
+	url.Values(params).Set("onlyFunding", onlyFunding)
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetMix + bitgetAccount + bitgetBill
 	var resp *FutureAccBillResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetPositionTier returns the position configuration for a given pair
@@ -2444,22 +2416,21 @@ func (e *Exchange) GetHistoricalPositions(ctx context.Context, pair currency.Pai
 	if pair.IsEmpty() && productType == "" {
 		return nil, errProductTypeAndPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("productType", productType)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("productType", productType)
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetMix + bitgetPosition + bitgetHistoryPosition
 	var resp *HistPositionResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate20, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // PlaceFuturesOrder places a futures order on the exchange
@@ -2485,8 +2456,8 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, p *PlaceSingleFuturesO
 	if p.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
-	if p.OrderType == "limit" && p.Price <= 0 {
-		return nil, errLimitPriceEmpty
+	if p.OrderType == order.Limit.Lower() && p.Price <= 0 {
+		return nil, order.ErrPriceMustBeSetIfLimitOrder
 	}
 	path := bitgetMix + bitgetOrder + bitgetPlaceOrder
 	rLim := rate10
@@ -2677,23 +2648,22 @@ func (e *Exchange) GetFuturesFills(ctx context.Context, orderID, pagination, lim
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("productType", productType)
-	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
-	params.Values.Set("symbol", pair.String())
+	url.Values(params).Set("productType", productType)
+	url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
+	url.Values(params).Set("symbol", pair.String())
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetMix + bitgetOrder + "/" + bitgetFills
 	var resp *FuturesFillsResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetFuturesOrderFillHistory returns historical fill details
@@ -2701,25 +2671,24 @@ func (e *Exchange) GetFuturesOrderFillHistory(ctx context.Context, pair currency
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("productType", productType)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("productType", productType)
 	if orderID > 0 {
-		params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+		url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetMix + bitgetOrder + bitgetFillHistory
 	var resp *FuturesFillsResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetPendingFuturesOrders returns detailed information on pending futures orders
@@ -2727,27 +2696,26 @@ func (e *Exchange) GetPendingFuturesOrders(ctx context.Context, orderID, paginat
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("productType", productType)
+	url.Values(params).Set("productType", productType)
 	if orderID > 0 {
-		params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+		url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	}
-	params.Values.Set("clientOid", clientOrderID)
-	params.Values.Set("status", status)
-	params.Values.Set("symbol", pair.String())
+	url.Values(params).Set("clientOid", clientOrderID)
+	url.Values(params).Set("status", status)
+	url.Values(params).Set("symbol", pair.String())
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetMix + bitgetOrder + bitgetOrdersPending
 	var resp *FuturesOrdResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetHistoricalFuturesOrders returns information on futures orders that are no longer pending
@@ -2755,27 +2723,26 @@ func (e *Exchange) GetHistoricalFuturesOrders(ctx context.Context, orderID, pagi
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("productType", productType)
-	params.Values.Set("orderSource", orderSource)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("productType", productType)
+	url.Values(params).Set("orderSource", orderSource)
 	if orderID > 0 {
-		params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+		url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	}
-	params.Values.Set("clientOid", clientOrderID)
+	url.Values(params).Set("clientOid", clientOrderID)
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetMix + bitgetOrder + bitgetOrdersHistory
 	var resp *HistFuturesOrdResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // CancelAllFuturesOrders cancels all pending orders
@@ -2962,27 +2929,26 @@ func (e *Exchange) GetPendingTriggerFuturesOrders(ctx context.Context, orderID, 
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("planType", planType)
-	params.Values.Set("productType", productType)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("planType", planType)
+	url.Values(params).Set("productType", productType)
 	if orderID > 0 {
-		params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+		url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	}
-	params.Values.Set("clientOid", clientOrderID)
+	url.Values(params).Set("clientOid", clientOrderID)
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetMix + bitgetOrder + bitgetOrdersPlanPending
 	var resp *PlanFuturesOrdResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // CancelTriggerFuturesOrders cancels trigger futures orders
@@ -3016,28 +2982,27 @@ func (e *Exchange) GetHistoricalTriggerFuturesOrders(ctx context.Context, orderI
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("planType", planType)
-	params.Values.Set("productType", productType)
-	params.Values.Set("planStatus", planStatus)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("planType", planType)
+	url.Values(params).Set("productType", productType)
+	url.Values(params).Set("planStatus", planStatus)
 	if orderID > 0 {
-		params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+		url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	}
-	params.Values.Set("clientOid", clientOrderID)
+	url.Values(params).Set("clientOid", clientOrderID)
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetMix + bitgetOrder + bitgetOrdersPlanHistory
 	var resp *HistTriggerFuturesOrdResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetSupportedCurrencies returns information on the currencies supported by the exchange
@@ -3049,111 +3014,106 @@ func (e *Exchange) GetSupportedCurrencies(ctx context.Context) ([]SupCurrencyRes
 
 // GetCrossBorrowHistory returns the borrowing history for cross margin
 func (e *Exchange) GetCrossBorrowHistory(ctx context.Context, loanID, limit, pagination uint64, cur currency.Code, startTime, endTime time.Time) (*BorrowHistCross, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if loanID > 0 {
-		params.Values.Set("loanId", strconv.FormatUint(loanID, 10))
+		url.Values(params).Set("loanId", strconv.FormatUint(loanID, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetBorrowHistory
 	var resp *BorrowHistCross
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetCrossRepayHistory returns the repayment history for cross margin
 func (e *Exchange) GetCrossRepayHistory(ctx context.Context, repayID, limit, pagination uint64, cur currency.Code, startTime, endTime time.Time) (*CrossRepayHistResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if repayID > 0 {
-		params.Values.Set("repayId", strconv.FormatUint(repayID, 10))
+		url.Values(params).Set("repayId", strconv.FormatUint(repayID, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetRepayHistory
 	var resp *CrossRepayHistResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetCrossInterestHistory returns the interest history for cross margin
 func (e *Exchange) GetCrossInterestHistory(ctx context.Context, cur currency.Code, startTime, endTime time.Time, limit, pagination uint64) (*InterHistCross, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetInterestHistory
 	var resp *InterHistCross
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetCrossLiquidationHistory returns the liquidation history for cross margin
 func (e *Exchange) GetCrossLiquidationHistory(ctx context.Context, startTime, endTime time.Time, limit, pagination uint64) (*LiquidHistCross, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetLiquidationHistory
 	var resp *LiquidHistCross
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetCrossFinancialHistory returns the financial history for cross margin
 func (e *Exchange) GetCrossFinancialHistory(ctx context.Context, marginType string, cur currency.Code, startTime, endTime time.Time, limit, pagination uint64) (*FinHistCrossResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
-	params.Values.Set("marginType", marginType)
+	url.Values(params).Set("marginType", marginType)
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetFinancialRecords
 	var resp *FinHistCrossResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetCrossAccountAssets returns the account assets for cross margin
@@ -3385,25 +3345,24 @@ func (e *Exchange) GetCrossOpenOrders(ctx context.Context, pair currency.Pair, c
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("clientOid", clientOrderID)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("clientOid", clientOrderID)
 	if orderID > 0 {
-		params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+		url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetOpenOrders
 	var resp *MarginOrders
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetCrossHistoricalOrders returns the historical orders for cross margin
@@ -3411,26 +3370,25 @@ func (e *Exchange) GetCrossHistoricalOrders(ctx context.Context, pair currency.P
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("enterPointSource", enterPointSource)
-	params.Values.Set("clientOid", clientOrderID)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("enterPointSource", enterPointSource)
+	url.Values(params).Set("clientOid", clientOrderID)
 	if orderID > 0 {
-		params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+		url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetHistoryOrders
 	var resp *MarginOrders
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetCrossOrderFills returns the fills for cross margin orders
@@ -3438,48 +3396,46 @@ func (e *Exchange) GetCrossOrderFills(ctx context.Context, pair currency.Pair, o
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
+	url.Values(params).Set("symbol", pair.String())
 	if orderID > 0 {
-		params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+		url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetMargin + bitgetCrossed + "/" + bitgetFills
 	var resp *MarginOrderFills
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetCrossLiquidationOrders returns the liquidation orders for cross margin
 func (e *Exchange) GetCrossLiquidationOrders(ctx context.Context, orderType, fromCoin, toCoin string, pair currency.Pair, startTime, endTime time.Time, limit, pagination uint64) (*LiquidationResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if orderType != "" {
-		params.Values.Set("type", orderType)
+		url.Values(params).Set("type", orderType)
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("fromCoin", fromCoin)
-	params.Values.Set("toCoin", toCoin)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("fromCoin", fromCoin)
+	url.Values(params).Set("toCoin", toCoin)
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetLiquidationOrder
 	var resp *LiquidationResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetIsolatedRepayHistory returns the repayment history for isolated margin
@@ -3487,27 +3443,26 @@ func (e *Exchange) GetIsolatedRepayHistory(ctx context.Context, pair currency.Pa
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if repayID > 0 {
-		params.Values.Set("repayId", strconv.FormatUint(repayID, 10))
+		url.Values(params).Set("repayId", strconv.FormatUint(repayID, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
-	params.Values.Set("symbol", pair.String())
+	url.Values(params).Set("symbol", pair.String())
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetRepayHistory
 	var resp *IsoRepayHistResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetIsolatedBorrowHistory returns the borrowing history for isolated margin
@@ -3515,23 +3470,22 @@ func (e *Exchange) GetIsolatedBorrowHistory(ctx context.Context, pair currency.P
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("loanId", strconv.FormatUint(loanID, 10))
+	url.Values(params).Set("loanId", strconv.FormatUint(loanID, 10))
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("coin", cur.String())
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("coin", cur.String())
 	path := bitgetMargin + bitgetIsolated + bitgetBorrowHistory
 	var resp *BorrowHistIso
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetIsolatedInterestHistory returns the interest history for isolated margin
@@ -3539,24 +3493,23 @@ func (e *Exchange) GetIsolatedInterestHistory(ctx context.Context, pair currency
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
-	params.Values.Set("symbol", pair.String())
+	url.Values(params).Set("symbol", pair.String())
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetInterestHistory
 	var resp *InterHistIso
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetIsolatedLiquidationHistory returns the liquidation history for isolated margin
@@ -3564,21 +3517,20 @@ func (e *Exchange) GetIsolatedLiquidationHistory(ctx context.Context, pair curre
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
-	params.Values.Set("symbol", pair.String())
+	url.Values(params).Set("symbol", pair.String())
 	path := bitgetMargin + bitgetIsolated + bitgetLiquidationHistory
 	var resp *LiquidHistIso
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetIsolatedFinancialHistory returns the financial history for isolated margin
@@ -3586,25 +3538,24 @@ func (e *Exchange) GetIsolatedFinancialHistory(ctx context.Context, pair currenc
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("marginType", marginType)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("marginType", marginType)
 	if !cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetFinancialRecords
 	var resp *FinHistIsoResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetIsolatedAccountAssets returns the account assets for isolated margin
@@ -3852,25 +3803,24 @@ func (e *Exchange) GetIsolatedOpenOrders(ctx context.Context, pair currency.Pair
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("clientOid", clientOrderID)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("clientOid", clientOrderID)
 	if orderID > 0 {
-		params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+		url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetOpenOrders
 	var resp *MarginOrders
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetIsolatedHistoricalOrders returns the historical orders for isolated margin
@@ -3878,26 +3828,25 @@ func (e *Exchange) GetIsolatedHistoricalOrders(ctx context.Context, pair currenc
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("enterPointSource", enterPointSource)
-	params.Values.Set("clientOid", clientOrderID)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("enterPointSource", enterPointSource)
+	url.Values(params).Set("clientOid", clientOrderID)
 	if orderID > 0 {
-		params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+		url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetHistoryOrders
 	var resp *MarginOrders
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetIsolatedOrderFills returns the fills for isolated margin orders
@@ -3905,48 +3854,46 @@ func (e *Exchange) GetIsolatedOrderFills(ctx context.Context, pair currency.Pair
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, true); err != nil {
 		return nil, err
 	}
-	params.Values.Set("symbol", pair.String())
+	url.Values(params).Set("symbol", pair.String())
 	if orderID > 0 {
-		params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
+		url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetMargin + bitgetIsolated + "/" + bitgetFills
 	var resp *MarginOrderFills
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetIsolatedLiquidationOrders returns the liquidation orders for isolated margin
 func (e *Exchange) GetIsolatedLiquidationOrders(ctx context.Context, orderType, fromCoin, toCoin string, pair currency.Pair, startTime, endTime time.Time, limit, pagination uint64) (*LiquidationResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if orderType != "" {
-		params.Values.Set("type", orderType)
+		url.Values(params).Set("type", orderType)
 	}
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("fromCoin", fromCoin)
-	params.Values.Set("toCoin", toCoin)
+	url.Values(params).Set("symbol", pair.String())
+	url.Values(params).Set("fromCoin", fromCoin)
+	url.Values(params).Set("toCoin", toCoin)
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetLiquidationOrder
 	var resp *LiquidationResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetSavingsProductList returns the list of savings products for a particular currency
@@ -3971,44 +3918,42 @@ func (e *Exchange) GetSavingsBalance(ctx context.Context) (*SavingsBalance, erro
 
 // GetSavingsAssets returns information on assets held over the last three months
 func (e *Exchange) GetSavingsAssets(ctx context.Context, periodType string, startTime, endTime time.Time, limit, pagination uint64) (*SavingsAssetsResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
-	params.Values.Set("periodType", periodType)
+	url.Values(params).Set("periodType", periodType)
 	path := bitgetEarn + bitgetSavings + bitgetAssets
 	var resp *SavingsAssetsResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetSavingsRecords returns information on transactions performed over the last three months
 func (e *Exchange) GetSavingsRecords(ctx context.Context, cur currency.Code, periodType, orderType string, startTime, endTime time.Time, limit, pagination uint64) (*SavingsRecords, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
-	params.Values.Set("periodType", periodType)
-	params.Values.Set("orderType", orderType)
+	url.Values(params).Set("periodType", periodType)
+	url.Values(params).Set("orderType", orderType)
 	path := bitgetEarn + bitgetSavings + bitgetRecords
 	var resp *SavingsRecords
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetSavingsSubscriptionDetail returns detailed information on subscribing, for a single product
@@ -4149,45 +4094,43 @@ func (e *Exchange) GetSharkFinBalance(ctx context.Context) (*SharkFinBalance, er
 
 // GetSharkFinAssets returns information on assets held over the last three months for Shark Fin products
 func (e *Exchange) GetSharkFinAssets(ctx context.Context, status string, startTime, endTime time.Time, limit, pagination uint64) (*SharkFinAssetsResp, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
-	params.Values.Set("status", status)
+	url.Values(params).Set("status", status)
 	path := bitgetEarn + bitgetSharkFin + bitgetAssets
 	var resp *SharkFinAssetsResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetSharkFinRecords returns information on transactions performed over the last three months for Shark Fin products
 func (e *Exchange) GetSharkFinRecords(ctx context.Context, cur currency.Code, transactionType string, startTime, endTime time.Time, limit, pagination uint64) ([]SharkFinRecords, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if pagination > 0 {
-		params.Values.Set("idLessThan", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
 	}
 	if cur.IsEmpty() {
-		params.Values.Set("coin", cur.String())
+		url.Values(params).Set("coin", cur.String())
 	}
-	params.Values.Set("type", transactionType)
+	url.Values(params).Set("type", transactionType)
 	path := bitgetEarn + bitgetSharkFin + bitgetRecords
 	var resp struct {
 		ResultList []SharkFinRecords `json:"resultList"`
 	}
-	return resp.ResultList, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp.ResultList, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetSharkFinSubscriptionDetail returns detailed information on subscribing, for a single product
@@ -4343,23 +4286,22 @@ func (e *Exchange) RepayLoan(ctx context.Context, orderID uint64, amount float64
 
 // GetLoanRepayHistory returns the repayment records for a loan
 func (e *Exchange) GetLoanRepayHistory(ctx context.Context, orderID, pagination, limit uint64, loanCoin, pledgeCoin currency.Code, startTime, endTime time.Time) ([]RepayRecords, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
-	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
-	params.Values.Set("loanCoin", loanCoin.String())
-	params.Values.Set("pledgeCoin", pledgeCoin.String())
+	url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
+	url.Values(params).Set("loanCoin", loanCoin.String())
+	url.Values(params).Set("pledgeCoin", pledgeCoin.String())
 	if pagination > 0 {
-		params.Values.Set("pageNo", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("pageNo", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("pageSize", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("pageSize", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetEarn + bitgetLoan + bitgetRepayHistory
 	var resp []RepayRecords
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // ModifyPledgeRate modifies the amount of collateral pledged for a loan
@@ -4394,45 +4336,43 @@ func (e *Exchange) ModifyPledgeRate(ctx context.Context, orderID uint64, amount 
 
 // GetPledgeRateHistory returns the history of pledged rates for loans
 func (e *Exchange) GetPledgeRateHistory(ctx context.Context, orderID, pagination, limit uint64, reviseSide string, pledgeCoin currency.Code, startTime, endTime time.Time) ([]PledgeRateHist, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
-	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
-	params.Values.Set("reviseSide", reviseSide)
-	params.Values.Set("pledgeCoin", pledgeCoin.String())
+	url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
+	url.Values(params).Set("reviseSide", reviseSide)
+	url.Values(params).Set("pledgeCoin", pledgeCoin.String())
 	if pagination > 0 {
-		params.Values.Set("pageNo", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("pageNo", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("pageSize", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("pageSize", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetEarn + bitgetLoan + bitgetReviseHistory
 	var resp []PledgeRateHist
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetLoanHistory returns the loan history
 func (e *Exchange) GetLoanHistory(ctx context.Context, orderID, pagination, limit uint64, loanCoin, pledgeCoin currency.Code, status string, startTime, endTime time.Time) ([]LoanHistory, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
-	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
-	params.Values.Set("loanCoin", loanCoin.String())
-	params.Values.Set("pledgeCoin", pledgeCoin.String())
-	params.Values.Set("status", status)
+	url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
+	url.Values(params).Set("loanCoin", loanCoin.String())
+	url.Values(params).Set("pledgeCoin", pledgeCoin.String())
+	url.Values(params).Set("status", status)
 	if pagination > 0 {
-		params.Values.Set("pageNo", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("pageNo", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("pageSize", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("pageSize", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetEarn + bitgetLoan + bitgetBorrowHistory
 	var resp []LoanHistory
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetDebts returns information on current outstanding pledges and loans
@@ -4444,24 +4384,23 @@ func (e *Exchange) GetDebts(ctx context.Context) (*DebtsResp, error) {
 
 // GetLiquidationRecords returns the liquidation records
 func (e *Exchange) GetLiquidationRecords(ctx context.Context, orderID, pagination, limit uint64, loanCoin, pledgeCoin currency.Code, status string, startTime, endTime time.Time) ([]LiquidRecs, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, false, false); err != nil {
 		return nil, err
 	}
-	params.Values.Set("orderId", strconv.FormatUint(orderID, 10))
-	params.Values.Set("loanCoin", loanCoin.String())
-	params.Values.Set("pledgeCoin", pledgeCoin.String())
-	params.Values.Set("status", status)
+	url.Values(params).Set("orderId", strconv.FormatUint(orderID, 10))
+	url.Values(params).Set("loanCoin", loanCoin.String())
+	url.Values(params).Set("pledgeCoin", pledgeCoin.String())
+	url.Values(params).Set("status", status)
 	if pagination > 0 {
-		params.Values.Set("pageNo", strconv.FormatUint(pagination, 10))
+		url.Values(params).Set("pageNo", strconv.FormatUint(pagination, 10))
 	}
 	if limit > 0 {
-		params.Values.Set("pageSize", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("pageSize", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetEarn + bitgetLoan + bitgetReduces
 	var resp []LiquidRecs
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetLoanInfo returns information on an offered institutional loan
@@ -4558,30 +4497,28 @@ func (e *Exchange) SubaccountRiskUnitBinding(ctx context.Context, subaccountID, 
 
 // GetLoanOrders returns a list of loan orders taken out on the user's account
 func (e *Exchange) GetLoanOrders(ctx context.Context, orderID string, startTime, endTime time.Time) ([]LoanOrders, error) {
-	var params Params
-	params.Values = make(url.Values)
-	params.Values.Set("orderId", orderID)
+	params := Params{}
+	url.Values(params).Set("orderId", orderID)
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	path := bitgetSpot + bitgetInsLoan + bitgetLoanOrder
 	var resp []LoanOrders
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate5, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate5, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // GetRepaymentOrders returns a list of repayment orders taken out on the user's account
 func (e *Exchange) GetRepaymentOrders(ctx context.Context, limit uint64, startTime, endTime time.Time) ([]RepaymentOrders, error) {
-	var params Params
-	params.Values = make(url.Values)
+	params := Params{}
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
 	if limit > 0 {
-		params.Values.Set("limit", strconv.FormatUint(limit, 10))
+		url.Values(params).Set("limit", strconv.FormatUint(limit, 10))
 	}
 	path := bitgetSpot + bitgetInsLoan + bitgetRepaidHistory
 	var resp []RepaymentOrders
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate5, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate5, http.MethodGet, path, url.Values(params), nil, &resp)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -4670,14 +4607,14 @@ func (p *Params) prepareDateString(startDate, endDate time.Time, ignoreUnsetStar
 			return fmt.Errorf("start %w", common.ErrDateUnset)
 		}
 	} else {
-		p.Values.Set("startTime", strconv.FormatInt(startDate.UnixMilli(), 10))
+		url.Values(*p).Set("startTime", strconv.FormatInt(startDate.UnixMilli(), 10))
 	}
 	if endDate.IsZero() || endDate.Equal(common.ZeroValueUnix) {
 		if !ignoreUnsetEnd {
 			return fmt.Errorf("end %w", common.ErrDateUnset)
 		}
 	} else {
-		p.Values.Set("endTime", strconv.FormatInt(endDate.UnixMilli(), 10))
+		url.Values(*p).Set("endTime", strconv.FormatInt(endDate.UnixMilli(), 10))
 	}
 	return nil
 }

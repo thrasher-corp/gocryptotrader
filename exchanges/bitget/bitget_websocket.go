@@ -64,7 +64,31 @@ var subscriptionNames = map[asset.Item]map[string]string{
 		"myTriggerOrders":             bitgetOrdersAlgoChannel,
 		"account":                     bitgetAccount,
 	},
-	asset.Futures: {
+	asset.CoinMarginedFutures: {
+		subscription.TickerChannel:    bitgetTicker,
+		subscription.CandlesChannel:   bitgetCandleDailyChannel,
+		subscription.AllOrdersChannel: bitgetTrade,
+		subscription.OrderbookChannel: bitgetBookFullChannel,
+		subscription.MyTradesChannel:  bitgetFillChannel,
+		subscription.MyOrdersChannel:  bitgetOrdersChannel,
+		"myTriggerOrders":             bitgetOrdersAlgoChannel,
+		"account":                     bitgetAccount,
+		"positions":                   bitgetPositionsChannel,
+		"positionsHistory":            bitgetPositionsHistoryChannel,
+	},
+	asset.USDTMarginedFutures: {
+		subscription.TickerChannel:    bitgetTicker,
+		subscription.CandlesChannel:   bitgetCandleDailyChannel,
+		subscription.AllOrdersChannel: bitgetTrade,
+		subscription.OrderbookChannel: bitgetBookFullChannel,
+		subscription.MyTradesChannel:  bitgetFillChannel,
+		subscription.MyOrdersChannel:  bitgetOrdersChannel,
+		"myTriggerOrders":             bitgetOrdersAlgoChannel,
+		"account":                     bitgetAccount,
+		"positions":                   bitgetPositionsChannel,
+		"positionsHistory":            bitgetPositionsHistoryChannel,
+	},
+	asset.USDCMarginedFutures: {
 		subscription.TickerChannel:    bitgetTicker,
 		subscription.CandlesChannel:   bitgetCandleDailyChannel,
 		subscription.AllOrdersChannel: bitgetTrade,
@@ -90,27 +114,27 @@ var subscriptionNames = map[asset.Item]map[string]string{
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
-	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot},
-	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.USDTMarginedFutures},
 	{Enabled: true, Channel: subscription.AllOrdersChannel, Asset: asset.Spot},
-	{Enabled: true, Channel: subscription.AllOrdersChannel, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.AllOrdersChannel, Asset: asset.USDTMarginedFutures},
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures},
 	{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Spot},
-	{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.USDTMarginedFutures},
 	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Spot},
-	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.USDTMarginedFutures},
 	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Margin},
 	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.CrossMargin},
 	{Enabled: true, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Spot},
-	{Enabled: true, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.USDTMarginedFutures},
 	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.Spot},
-	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.USDTMarginedFutures},
 	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.Margin},
 	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.CrossMargin},
-	{Enabled: true, Channel: "positions", Authenticated: true, Asset: asset.Futures},
-	{Enabled: true, Channel: "positionsHistory", Authenticated: true, Asset: asset.Futures},
+	{Enabled: true, Channel: "positions", Authenticated: true, Asset: asset.USDTMarginedFutures},
+	{Enabled: true, Channel: "positionsHistory", Authenticated: true, Asset: asset.USDTMarginedFutures},
 	{Enabled: true, Channel: "indexPrice", Asset: asset.Margin},
 }
 
@@ -243,8 +267,7 @@ func (e *Exchange) tickerDataHandler(wsResponse *WsResponse) error {
 	switch respAsset {
 	case asset.Spot:
 		var ticks []WsTickerSnapshotSpot
-		err := json.Unmarshal(wsResponse.Data, &ticks)
-		if err != nil {
+		if err := json.Unmarshal(wsResponse.Data, &ticks); err != nil {
 			return err
 		}
 		for i := range ticks {
@@ -267,10 +290,9 @@ func (e *Exchange) tickerDataHandler(wsResponse *WsResponse) error {
 				LastUpdated:  ticks[i].Timestamp.Time(),
 			}
 		}
-	case asset.Futures:
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures:
 		var ticks []WsTickerSnapshotFutures
-		err := json.Unmarshal(wsResponse.Data, &ticks)
-		if err != nil {
+		if err := json.Unmarshal(wsResponse.Data, &ticks); err != nil {
 			return err
 		}
 		for i := range ticks {
@@ -304,8 +326,7 @@ func (e *Exchange) tickerDataHandler(wsResponse *WsResponse) error {
 // CandleDataHandler handles candle data, as functionality is shared between updates and snapshots
 func (e *Exchange) candleDataHandler(wsResponse *WsResponse) error {
 	var candles [][8]string
-	err := json.Unmarshal(wsResponse.Data, &candles)
-	if err != nil {
+	if err := json.Unmarshal(wsResponse.Data, &candles); err != nil {
 		return err
 	}
 	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
@@ -455,7 +476,7 @@ func (e *Exchange) accountSnapshotDataHandler(ctx context.Context, wsResponse *W
 				Hold:  acc[i].Frozen.Float64() + acc[i].Locked.Float64(),
 			})
 		}
-	case asset.Futures:
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures:
 		var acc []WsAccountFuturesResponse
 		if err := json.Unmarshal(wsResponse.Data, &acc); err != nil {
 			return err
@@ -484,8 +505,7 @@ func (e *Exchange) fillDataHandler(wsResponse *WsResponse) error {
 	switch respAsset {
 	case asset.Spot:
 		var fil []WsFillSpotResponse
-		err := json.Unmarshal(wsResponse.Data, &fil)
-		if err != nil {
+		if err := json.Unmarshal(wsResponse.Data, &fil); err != nil {
 			return err
 		}
 		resp := make([]fill.Data, len(fil))
@@ -508,10 +528,9 @@ func (e *Exchange) fillDataHandler(wsResponse *WsResponse) error {
 			}
 		}
 		e.Websocket.DataHandler <- resp
-	case asset.Futures:
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures:
 		var fil []WsFillFuturesResponse
-		err := json.Unmarshal(wsResponse.Data, &fil)
-		if err != nil {
+		if err := json.Unmarshal(wsResponse.Data, &fil); err != nil {
 			return err
 		}
 		resp := make([]fill.Data, len(fil))
@@ -544,8 +563,7 @@ func (e *Exchange) genOrderDataHandler(wsResponse *WsResponse) error {
 	switch respAsset {
 	case asset.Spot:
 		var orders []WsOrderSpotResponse
-		err := json.Unmarshal(wsResponse.Data, &orders)
-		if err != nil {
+		if err := json.Unmarshal(wsResponse.Data, &orders); err != nil {
 			return err
 		}
 		resp := make([]order.Detail, len(orders))
@@ -589,10 +607,9 @@ func (e *Exchange) genOrderDataHandler(wsResponse *WsResponse) error {
 			}
 		}
 		e.Websocket.DataHandler <- resp
-	case asset.Futures:
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures:
 		var orders []WsOrderFuturesResponse
-		err := json.Unmarshal(wsResponse.Data, &orders)
-		if err != nil {
+		if err := json.Unmarshal(wsResponse.Data, &orders); err != nil {
 			return err
 		}
 		resp := make([]order.Detail, len(orders))
@@ -615,7 +632,7 @@ func (e *Exchange) genOrderDataHandler(wsResponse *WsResponse) error {
 			}
 			resp[i] = order.Detail{
 				Exchange:             e.Name,
-				AssetType:            asset.Futures,
+				AssetType:            respAsset,
 				Pair:                 pair,
 				Amount:               baseAmount,
 				QuoteAmount:          quoteAmount,
@@ -654,8 +671,7 @@ func (e *Exchange) triggerOrderDataHandler(wsResponse *WsResponse) error {
 	switch respAsset {
 	case asset.Spot:
 		var orders []WsTriggerOrderSpotResponse
-		err := json.Unmarshal(wsResponse.Data, &orders)
-		if err != nil {
+		if err := json.Unmarshal(wsResponse.Data, &orders); err != nil {
 			return err
 		}
 		resp := make([]order.Detail, len(orders))
@@ -681,10 +697,9 @@ func (e *Exchange) triggerOrderDataHandler(wsResponse *WsResponse) error {
 			}
 		}
 		e.Websocket.DataHandler <- resp
-	case asset.Futures:
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures:
 		var orders []WsTriggerOrderFuturesResponse
-		err := json.Unmarshal(wsResponse.Data, &orders)
-		if err != nil {
+		if err := json.Unmarshal(wsResponse.Data, &orders); err != nil {
 			return err
 		}
 		resp := make([]order.Detail, len(orders))
@@ -695,7 +710,7 @@ func (e *Exchange) triggerOrderDataHandler(wsResponse *WsResponse) error {
 			}
 			resp[i] = order.Detail{
 				Exchange:             e.Name,
-				AssetType:            asset.Futures,
+				AssetType:            respAsset,
 				Pair:                 pair,
 				OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
 				ClientOrderID:        orders[i].ClientOrderID,
@@ -720,8 +735,7 @@ func (e *Exchange) triggerOrderDataHandler(wsResponse *WsResponse) error {
 // PositionsDataHandler handles data on futures positions
 func (e *Exchange) positionsDataHandler(wsResponse *WsResponse) error {
 	var positions []WsPositionResponse
-	err := json.Unmarshal(wsResponse.Data, &positions)
-	if err != nil {
+	if err := json.Unmarshal(wsResponse.Data, &positions); err != nil {
 		return err
 	}
 	resp := make([]order.Detail, len(positions))
@@ -732,7 +746,7 @@ func (e *Exchange) positionsDataHandler(wsResponse *WsResponse) error {
 		}
 		resp[i] = order.Detail{
 			Exchange:             e.Name,
-			AssetType:            asset.Futures,
+			AssetType:            itemDecoder(wsResponse.Arg.InstrumentType),
 			Pair:                 pair,
 			OrderID:              strconv.FormatInt(positions[i].PositionID, 10),
 			MarginType:           marginDecoder(positions[i].MarginMode),
@@ -752,8 +766,7 @@ func (e *Exchange) positionsDataHandler(wsResponse *WsResponse) error {
 // PositionsHistoryDataHandler handles data on futures positions history
 func (e *Exchange) positionsHistoryDataHandler(wsResponse *WsResponse) error {
 	var positions []WsPositionHistoryResponse
-	err := json.Unmarshal(wsResponse.Data, &positions)
-	if err != nil {
+	if err := json.Unmarshal(wsResponse.Data, &positions); err != nil {
 		return err
 	}
 	resp := make([]futures.PositionHistory, len(positions))
@@ -790,8 +803,7 @@ func (e *Exchange) positionsHistoryDataHandler(wsResponse *WsResponse) error {
 // IndexPriceDataHandler handles index price data
 func (e *Exchange) indexPriceDataHandler(wsResponse *WsResponse) error {
 	var indexPrice []WsIndexPriceResponse
-	err := json.Unmarshal(wsResponse.Data, &indexPrice)
-	if err != nil {
+	if err := json.Unmarshal(wsResponse.Data, &indexPrice); err != nil {
 		return err
 	}
 	resp := make([]ticker.Price, len(indexPrice))
@@ -844,8 +856,7 @@ func (e *Exchange) crossAccountDataHandler(ctx context.Context, wsResponse *WsRe
 // MarginOrderDataHandler handles margin order data
 func (e *Exchange) marginOrderDataHandler(wsResponse *WsResponse) error {
 	var orders []WsOrderMarginResponse
-	err := json.Unmarshal(wsResponse.Data, &orders)
-	if err != nil {
+	if err := json.Unmarshal(wsResponse.Data, &orders); err != nil {
 		return err
 	}
 	resp := make([]order.Detail, len(orders))
@@ -925,12 +936,12 @@ func (e *Exchange) accountUpdateDataHandler(ctx context.Context, wsResponse *WsR
 				UpdatedAt: acc[i].UpdateTime.Time(),
 			})
 		}
-	case asset.Futures:
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures:
 		var acc []WsAccountFuturesResponse
 		if err := json.Unmarshal(wsResponse.Data, &acc); err != nil {
 			return err
 		}
-		subAcc = accounts.NewSubAccount(asset.Futures, "")
+		subAcc = accounts.NewSubAccount(a, "")
 		for i := range acc {
 			subAcc.Balances.Set(acc[i].MarginCoin, accounts.Balance{
 				Total: acc[i].Available.Float64() + acc[i].Frozen.Float64(),
@@ -954,12 +965,10 @@ func levelConstructor(data [][2]string) ([]orderbook.Level, error) {
 	resp := make([]orderbook.Level, len(data))
 	var err error
 	for i := range data {
-		resp[i].Price, err = strconv.ParseFloat(data[i][0], 64)
-		if err != nil {
+		if resp[i].Price, err = strconv.ParseFloat(data[i][0], 64); err != nil {
 			return nil, err
 		}
-		resp[i].Amount, err = strconv.ParseFloat(data[i][1], 64)
-		if err != nil {
+		if resp[i].Amount, err = strconv.ParseFloat(data[i][1], 64); err != nil {
 			return nil, err
 		}
 		resp[i].StrPrice = data[i][0]
@@ -1052,30 +1061,17 @@ func (e *Exchange) reqBuilder(req *WsRequest, sub *subscription.Subscription) er
 		sub.Pairs[i] = sub.Pairs[i].Format(form)
 		req.Arguments = append(req.Arguments, WsArgument{
 			Channel:        sub.Channel,
-			InstrumentType: itemEncoder(sub.Asset, sub.Pairs[i]),
+			InstrumentType: itemEncoder(sub.Asset),
 			InstrumentID:   sub.Pairs[i].String(),
 		})
 	}
 	if len(sub.Pairs) == 0 {
 		req.Arguments = append(req.Arguments, WsArgument{
 			Channel:        sub.Channel,
-			InstrumentType: itemEncoder(sub.Asset, currency.Pair{}),
+			InstrumentType: itemEncoder(sub.Asset),
 			Coin:           currency.NewCode("default"),
 			InstrumentID:   "default",
 		})
-		if sub.Asset == asset.Futures {
-			req.Arguments = append(req.Arguments, WsArgument{
-				Channel:        sub.Channel,
-				InstrumentType: "USDT-FUTURES",
-				Coin:           currency.NewCode("default"),
-				InstrumentID:   "default",
-			}, WsArgument{
-				Channel:        sub.Channel,
-				InstrumentType: "USDC-FUTURES",
-				Coin:           currency.NewCode("default"),
-				InstrumentID:   "default",
-			})
-		}
 	}
 	return nil
 }

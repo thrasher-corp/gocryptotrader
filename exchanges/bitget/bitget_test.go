@@ -742,12 +742,12 @@ func TestPlaceSpotOrder(t *testing.T) {
 	p.Side = "sell"
 	_, err = e.PlaceSpotOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	p.OrderType = "limit"
+	p.OrderType = order.Limit.Lower()
 	_, err = e.PlaceSpotOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errStrategyEmpty)
 	p.Strategy = "IOC"
 	_, err = e.PlaceSpotOrder(t.Context(), p, false)
-	assert.ErrorIs(t, err, errLimitPriceEmpty)
+	assert.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 	p.Price = testPrice
 	_, err = e.PlaceSpotOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
@@ -805,7 +805,7 @@ func TestBatchCancelAndPlaceSpotOrders(t *testing.T) {
 	newPair, err := pairFromStringHelper(resp[0].Symbol)
 	require.NoError(t, err)
 	req = append(req, ReplaceSpotOrderParams{
-		OrderID:          int64(resp[0].OrderID),
+		OrderID:          uint64(resp[0].OrderID),
 		OldClientOrderID: resp[0].ClientOrderID,
 		Price:            testPrice,
 		Amount:           testAmount,
@@ -841,7 +841,7 @@ func TestBatchPlaceSpotOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	req = append(req, PlaceSpotOrderParams{
 		Side:      "sell",
-		OrderType: "limit",
+		OrderType: order.Limit.Lower(),
 		Strategy:  "IOC",
 		Price:     testPrice,
 		Size:      testAmount,
@@ -934,9 +934,9 @@ func TestPlacePlanSpotOrder(t *testing.T) {
 	p.TriggerPrice = 1
 	_, err = e.PlacePlanSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	p.OrderType = "limit"
+	p.OrderType = order.Limit.Lower()
 	_, err = e.PlacePlanSpotOrder(t.Context(), p)
-	assert.ErrorIs(t, err, errLimitPriceEmpty)
+	assert.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 	p.OrderType = neigh
 	_, err = e.PlacePlanSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
@@ -944,7 +944,7 @@ func TestPlacePlanSpotOrder(t *testing.T) {
 	_, err = e.PlacePlanSpotOrder(t.Context(), p)
 	assert.ErrorIs(t, err, errTriggerTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	resp, err := e.PlacePlanSpotOrder(t.Context(), &PlaceSpotPlanOrderParams{Pair: testPair, Side: "sell", OrderType: "limit", TriggerType: "fill_price", ClientOrderID: "a", Strategy: "ioc", STPMode: "none", TriggerPrice: testPrice, ExecutePrice: testPrice, Amount: testAmount})
+	resp, err := e.PlacePlanSpotOrder(t.Context(), &PlaceSpotPlanOrderParams{Pair: testPair, Side: "sell", OrderType: order.Limit.Lower(), TriggerType: "fill_price", ClientOrderID: "a", Strategy: "ioc", STPMode: "none", TriggerPrice: testPrice, ExecutePrice: testPrice, Amount: testAmount})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -1334,7 +1334,7 @@ func TestGetContractConfig(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetContractConfig(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = e.GetContractConfig(t.Context(), currency.Pair{}, prodTypes[0])
+	_, err = e.GetContractConfig(t.Context(), currency.Pair{}, "USDT-FUTURES")
 	assert.NoError(t, err)
 }
 
@@ -1465,8 +1465,7 @@ func TestChangeMarginMode(t *testing.T) {
 	_, err = e.ChangeMarginMode(t.Context(), testPair2, woof, "", testFiat2)
 	assert.ErrorIs(t, err, errMarginModeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.ChangeMarginMode(t.Context(), testPair2, testFiat2.String()+"-FUTURES", "crossed", testFiat2)
-	if err != nil {
+	if _, err = e.ChangeMarginMode(t.Context(), testPair2, testFiat2.String()+"-FUTURES", "crossed", testFiat2); err != nil {
 		if strings.Contains(err.Error(), errCurrentlyHoldingPositionPartial) {
 			t.Log(err)
 		} else {
@@ -1564,14 +1563,14 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	p.Side = "oink"
 	_, err = e.PlaceFuturesOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	p.OrderType = "limit"
+	p.OrderType = order.Limit.Lower()
 	_, err = e.PlaceFuturesOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	p.Amount = testAmount2
 	_, err = e.PlaceFuturesOrder(t.Context(), p, false)
-	assert.ErrorIs(t, err, errLimitPriceEmpty)
+	assert.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	resp, err := e.PlaceFuturesOrder(t.Context(), &PlaceSingleFuturesOrderParams{Pair: testPair2, ProductType: testFiat2.String() + "-FUTURES", MarginMode: "isolated", Side: "buy", TradeSide: "open", OrderType: "limit", Strategy: "GTC", ClientOrderID: "a", MarginCoin: testFiat2, StopSurplusPrice: testPrice2 + 1, StopLossPrice: testPrice2 - 1, Amount: testAmount2, Price: testPrice2, ReduceOnly: true}, true)
+	resp, err := e.PlaceFuturesOrder(t.Context(), &PlaceSingleFuturesOrderParams{Pair: testPair2, ProductType: testFiat2.String() + "-FUTURES", MarginMode: "isolated", Side: "buy", TradeSide: "open", OrderType: order.Limit.Lower(), Strategy: "GTC", ClientOrderID: "a", MarginCoin: testFiat2, StopSurplusPrice: testPrice2 + 1, StopLossPrice: testPrice2 - 1, Amount: testAmount2, Price: testPrice2, ReduceOnly: true}, true)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -1614,7 +1613,7 @@ func TestBatchPlaceFuturesOrders(t *testing.T) {
 			Price:     testPrice,
 			Side:      "Sell",
 			TradeSide: "Open",
-			OrderType: "limit",
+			OrderType: order.Limit.Lower(),
 			Strategy:  "FOK",
 		},
 	}
@@ -1807,7 +1806,7 @@ func TestPlaceTriggerFuturesOrder(t *testing.T) {
 	assert.ErrorIs(t, err, errTriggerPriceEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	// This returns the error "The parameter does not meet the specification d delegateType is error". The documentation doesn't mention that parameter anywhere, nothing seems similar to it, and attempts to send that parameter with various values, or to tweak other parameters, yielded no difference
-	resp, err := e.PlaceTriggerFuturesOrder(t.Context(), &PlaceTriggerFuturesOrderParams{PlanType: "normal_plan", ProductType: testFiat2.String() + "-FUTURES", MarginMode: "isolated", TriggerType: "mark_price", Side: "Sell", OrderType: "limit", ClientOrderID: "a", TakeProfitTriggerType: "fill_price", StopLossTriggerType: "fill_price", Pair: testPair2, MarginCoin: testFiat2, Amount: testAmount2 * 1000, ExecutePrice: testPrice2 + 2, TriggerPrice: testPrice2 + 1, TakeProfitTriggerPrice: testPrice2 + 3, TakeProfitExecutePrice: testPrice2 - 2, StopLossTriggerPrice: testPrice2 - 1, StopLossExecutePrice: testPrice2 / 2, ReduceOnly: true})
+	resp, err := e.PlaceTriggerFuturesOrder(t.Context(), &PlaceTriggerFuturesOrderParams{PlanType: "normal_plan", ProductType: testFiat2.String() + "-FUTURES", MarginMode: "isolated", TriggerType: "mark_price", Side: "Sell", OrderType: order.Limit.Lower(), ClientOrderID: "a", TakeProfitTriggerType: "fill_price", StopLossTriggerType: "fill_price", Pair: testPair2, MarginCoin: testFiat2, Amount: testAmount2 * 1000, ExecutePrice: testPrice2 + 2, TriggerPrice: testPrice2 + 1, TakeProfitTriggerPrice: testPrice2 + 3, TakeProfitExecutePrice: testPrice2 - 2, StopLossTriggerPrice: testPrice2 - 1, StopLossExecutePrice: testPrice2 / 2, ReduceOnly: true})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -2028,7 +2027,7 @@ func TestPlaceCrossOrder(t *testing.T) {
 	_, err = e.PlaceCrossOrder(t.Context(), p)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.PlaceCrossOrder(t.Context(), &PlaceMarginOrderParams{Pair: testPair, OrderType: "limit", LoanType: "normal", Strategy: "GTC", Side: "Sell", Price: testPrice, BaseAmount: testAmount, QuoteAmount: testAmount * testPrice})
+	_, err = e.PlaceCrossOrder(t.Context(), &PlaceMarginOrderParams{Pair: testPair, OrderType: order.Limit.Lower(), LoanType: "normal", Strategy: "GTC", Side: "Sell", Price: testPrice, BaseAmount: testAmount, QuoteAmount: testAmount * testPrice})
 	assert.NoError(t, err)
 }
 
@@ -2043,7 +2042,7 @@ func TestBatchPlaceCrossOrders(t *testing.T) {
 		{
 			BaseAmount: testAmount2,
 			Price:      testPrice2,
-			OrderType:  "limit",
+			OrderType:  order.Limit.Lower(),
 			Strategy:   "GTC",
 			LoanType:   "normal",
 			Side:       "Buy",
@@ -2262,7 +2261,7 @@ func TestPlaceIsolatedOrder(t *testing.T) {
 	_, err = e.PlaceIsolatedOrder(t.Context(), p)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.PlaceIsolatedOrder(t.Context(), &PlaceMarginOrderParams{Pair: testPair, OrderType: "limit", LoanType: "normal", Strategy: "GTC", Side: "Sell", Price: testPrice, BaseAmount: testAmount, QuoteAmount: testAmount * testPrice})
+	_, err = e.PlaceIsolatedOrder(t.Context(), &PlaceMarginOrderParams{Pair: testPair, OrderType: order.Limit.Lower(), LoanType: "normal", Strategy: "GTC", Side: "Sell", Price: testPrice, BaseAmount: testAmount, QuoteAmount: testAmount * testPrice})
 	assert.NoError(t, err)
 }
 
@@ -2277,7 +2276,7 @@ func TestBatchPlaceIsolatedOrders(t *testing.T) {
 		{
 			BaseAmount: testAmount2,
 			Price:      testPrice2,
-			OrderType:  "limit",
+			OrderType:  order.Limit.Lower(),
 			Strategy:   "GTC",
 			LoanType:   "normal",
 			Side:       "Buy",
@@ -2763,9 +2762,9 @@ func TestUpdateTicker(t *testing.T) {
 	assert.Error(t, err)
 	_, err = e.UpdateTicker(t.Context(), testPair, asset.Spot)
 	assert.NoError(t, err)
-	_, err = e.UpdateTicker(t.Context(), fakePair, asset.Futures)
+	_, err = e.UpdateTicker(t.Context(), fakePair, asset.USDTMarginedFutures)
 	assert.Error(t, err)
-	_, err = e.UpdateTicker(t.Context(), testPair, asset.Futures)
+	_, err = e.UpdateTicker(t.Context(), testPair, asset.CoinMarginedFutures)
 	assert.NoError(t, err)
 	_, err = e.UpdateTicker(t.Context(), fakePair, asset.Margin)
 	assert.Error(t, err)
@@ -2783,9 +2782,9 @@ func TestUpdateOrderbook(t *testing.T) {
 	assert.Error(t, err)
 	_, err = e.UpdateOrderbook(t.Context(), testPair, asset.Spot)
 	assert.NoError(t, err)
-	_, err = e.UpdateOrderbook(t.Context(), fakePair, asset.Futures)
+	_, err = e.UpdateOrderbook(t.Context(), fakePair, asset.USDCMarginedFutures)
 	assert.Error(t, err)
-	_, err = e.UpdateOrderbook(t.Context(), testPair, asset.Futures)
+	_, err = e.UpdateOrderbook(t.Context(), testPair, asset.USDTMarginedFutures)
 	assert.NoError(t, err)
 	_, err = e.UpdateOrderbook(t.Context(), testPair, asset.Empty)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
@@ -2814,9 +2813,9 @@ func TestGetRecentTrades(t *testing.T) {
 	assert.Error(t, err)
 	_, err = e.GetRecentTrades(t.Context(), testPair, asset.Spot)
 	assert.NoError(t, err)
-	_, err = e.GetRecentTrades(t.Context(), fakePair, asset.Futures)
+	_, err = e.GetRecentTrades(t.Context(), fakePair, asset.CoinMarginedFutures)
 	assert.Error(t, err)
-	_, err = e.GetRecentTrades(t.Context(), testPair, asset.Futures)
+	_, err = e.GetRecentTrades(t.Context(), testPair, asset.USDCMarginedFutures)
 	assert.NoError(t, err)
 	_, err = e.GetRecentTrades(t.Context(), testPair, asset.Empty)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
@@ -2830,9 +2829,9 @@ func TestGetHistoricTrades(t *testing.T) {
 	assert.Error(t, err)
 	_, err = e.GetHistoricTrades(t.Context(), testPair, asset.Spot, time.Now().Add(-time.Hour*24*7), time.Now())
 	assert.NoError(t, err)
-	_, err = e.GetHistoricTrades(t.Context(), fakePair, asset.Futures, time.Time{}, time.Time{})
+	_, err = e.GetHistoricTrades(t.Context(), fakePair, asset.USDTMarginedFutures, time.Time{}, time.Time{})
 	assert.Error(t, err)
-	_, err = e.GetHistoricTrades(t.Context(), testPair, asset.Futures, time.Now().Add(-time.Hour*24*7), time.Now())
+	_, err = e.GetHistoricTrades(t.Context(), testPair, asset.CoinMarginedFutures, time.Now().Add(-time.Hour*24*7), time.Now())
 	assert.NoError(t, err)
 	_, err = e.GetHistoricTrades(t.Context(), testPair, asset.Empty, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
@@ -2860,7 +2859,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 	_, err = e.SubmitOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	ord.AssetType = asset.Futures
+	ord.AssetType = asset.USDCMarginedFutures
 	_, err = e.SubmitOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, errMarginModeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -2887,7 +2886,7 @@ func TestGetOrderInfo(t *testing.T) {
 	_, err = e.GetOrderInfo(t.Context(), "0", testPair, asset.Empty)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetOrderInfo(t.Context(), "1", testPair2, asset.Futures)
+	_, err = e.GetOrderInfo(t.Context(), "1", testPair2, asset.USDTMarginedFutures)
 	assert.NoError(t, err)
 	_, err = e.GetOrderInfo(t.Context(), "2", testPair, asset.Margin)
 	assert.NoError(t, err)
@@ -2960,7 +2959,7 @@ func TestGetActiveOrders(t *testing.T) {
 	req.AssetType = asset.Margin
 	_, err = e.GetActiveOrders(t.Context(), req)
 	assert.NoError(t, err)
-	req.AssetType = asset.Futures
+	req.AssetType = asset.CoinMarginedFutures
 	_, err = e.GetActiveOrders(t.Context(), req)
 	assert.NoError(t, err)
 	req.Pairs = []currency.Pair{}
@@ -2997,7 +2996,7 @@ func TestGetOrderHistory(t *testing.T) {
 	req.AssetType = asset.Margin
 	_, err = e.GetOrderHistory(t.Context(), req)
 	assert.NoError(t, err)
-	req.AssetType = asset.Futures
+	req.AssetType = asset.USDCMarginedFutures
 	_, err = e.GetOrderHistory(t.Context(), req)
 	assert.NoError(t, err)
 	req.Pairs = []currency.Pair{}
@@ -3044,7 +3043,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.GetHistoricCandles(t.Context(), testPair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
 	assert.NoError(t, err)
-	_, err = e.GetHistoricCandles(t.Context(), testPair, asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
+	_, err = e.GetHistoricCandles(t.Context(), testPair, asset.USDTMarginedFutures, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
 	assert.NoError(t, err)
 }
 
@@ -3054,7 +3053,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.GetHistoricCandlesExtended(t.Context(), testPair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
 	assert.NoError(t, err)
-	_, err = e.GetHistoricCandlesExtended(t.Context(), testPair, asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
+	_, err = e.GetHistoricCandlesExtended(t.Context(), testPair, asset.CoinMarginedFutures, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
 	assert.NoError(t, err)
 }
 
@@ -3068,8 +3067,13 @@ func TestGetLatestFundingRates(t *testing.T) {
 	var nilReq *fundingrate.LatestRateRequest
 	_, err := e.GetLatestFundingRates(t.Context(), nilReq)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
-	req1, req2 := new(fundingrate.LatestRateRequest), new(fundingrate.LatestRateRequest)
+	req1 := new(fundingrate.LatestRateRequest)
+	_, err = e.GetLatestFundingRates(t.Context(), req1)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	req2 := new(fundingrate.LatestRateRequest)
+	req1.Asset = asset.USDTMarginedFutures
 	req2.Pair = testPair
+	req2.Asset = asset.USDTMarginedFutures
 	testGetOneArg(t, e.GetLatestFundingRates, req1, req2, currency.ErrCurrencyPairEmpty, false, false, true)
 }
 
@@ -3156,10 +3160,10 @@ func TestSetMarginType(t *testing.T) {
 	t.Parallel()
 	err := e.SetMarginType(t.Context(), 0, currency.Pair{}, 0)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	err = e.SetMarginType(t.Context(), asset.Futures, currency.Pair{}, margin.Isolated)
+	err = e.SetMarginType(t.Context(), asset.USDCMarginedFutures, currency.Pair{}, margin.Isolated)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.SetMarginType(t.Context(), asset.Futures, testPair, margin.Multi)
+	err = e.SetMarginType(t.Context(), asset.USDTMarginedFutures, testPair, margin.Multi)
 	assert.NoError(t, err)
 }
 
@@ -3172,10 +3176,10 @@ func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	err := e.SetLeverage(t.Context(), 0, currency.Pair{}, 0, 0, 0)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	err = e.SetLeverage(t.Context(), asset.Futures, currency.Pair{}, 0, 0, 0)
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, currency.Pair{}, 0, 0, 0)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.SetLeverage(t.Context(), asset.Futures, testPair, 0, 1, order.Long)
+	err = e.SetLeverage(t.Context(), asset.USDCMarginedFutures, testPair, 0, 1, order.Long)
 	assert.NoError(t, err)
 }
 
@@ -3183,18 +3187,18 @@ func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLeverage(t.Context(), 0, currency.Pair{}, 0, 0)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = e.GetLeverage(t.Context(), asset.Futures, currency.Pair{}, 0, 0)
+	_, err = e.GetLeverage(t.Context(), asset.USDTMarginedFutures, currency.Pair{}, 0, 0)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetLeverage(t.Context(), asset.Futures, testPair, 0, 0)
+	_, err = e.GetLeverage(t.Context(), asset.CoinMarginedFutures, testPair, 0, 0)
 	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
-	_, err = e.GetLeverage(t.Context(), asset.Futures, testPair, margin.Isolated, 0)
+	_, err = e.GetLeverage(t.Context(), asset.USDCMarginedFutures, testPair, margin.Isolated, 0)
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
-	_, err = e.GetLeverage(t.Context(), asset.Futures, testPair, margin.Isolated, order.Long)
+	_, err = e.GetLeverage(t.Context(), asset.USDTMarginedFutures, testPair, margin.Isolated, order.Long)
 	assert.NoError(t, err)
-	_, err = e.GetLeverage(t.Context(), asset.Futures, testPair, margin.Isolated, order.Short)
+	_, err = e.GetLeverage(t.Context(), asset.CoinMarginedFutures, testPair, margin.Isolated, order.Short)
 	assert.NoError(t, err)
-	_, err = e.GetLeverage(t.Context(), asset.Futures, testPair, margin.Multi, 0)
+	_, err = e.GetLeverage(t.Context(), asset.USDCMarginedFutures, testPair, margin.Multi, 0)
 	assert.NoError(t, err)
 	_, err = e.GetLeverage(t.Context(), asset.Margin, currency.Pair{}, 0, 0)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
@@ -3208,7 +3212,7 @@ func TestGetLeverage(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOpenInterest(t.Context(), key.PairAsset{Base: testCrypto.Item, Quote: testFiat.Item, Asset: asset.Futures})
+	_, err := e.GetOpenInterest(t.Context(), key.PairAsset{Base: testCrypto.Item, Quote: testFiat.Item, Asset: asset.USDTMarginedFutures})
 	assert.NoError(t, err)
 }
 
@@ -3236,8 +3240,8 @@ func TestModifyPlanSpotOrder(t *testing.T) {
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
 	_, err = e.ModifyPlanSpotOrder(t.Context(), 0, meow, woof, 0, 0, 0)
 	assert.ErrorIs(t, err, errTriggerPriceEmpty)
-	_, err = e.ModifyPlanSpotOrder(t.Context(), 0, meow, "limit", 1, 0, 0)
-	assert.ErrorIs(t, err, errLimitPriceEmpty)
+	_, err = e.ModifyPlanSpotOrder(t.Context(), 0, meow, order.Limit.Lower(), 1, 0, 0)
+	assert.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 	_, err = e.ModifyPlanSpotOrder(t.Context(), 0, meow, woof, 1, 0, 0)
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -3246,7 +3250,7 @@ func TestModifyPlanSpotOrder(t *testing.T) {
 	if len(ordID.OrderList) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
-	resp, err := e.ModifyPlanSpotOrder(t.Context(), ordID.OrderList[0].OrderID, ordID.OrderList[0].ClientOrderID, "limit", testPrice, testPrice, testAmount)
+	resp, err := e.ModifyPlanSpotOrder(t.Context(), ordID.OrderList[0].OrderID, ordID.OrderList[0].ClientOrderID, order.Limit.Lower(), testPrice, testPrice, testAmount)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -3280,7 +3284,7 @@ func TestModifyOrder(t *testing.T) {
 	ord.OrderID = "0"
 	_, err = e.ModifyOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	ord.AssetType = asset.Futures
+	ord.AssetType = asset.CoinMarginedFutures
 	_, err = e.ModifyOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -3420,7 +3424,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 	ord.OrderID = "1"
 	ord.Pair = testPair2
-	ord.AssetType = asset.Futures
+	ord.AssetType = asset.USDCMarginedFutures
 	ord.ClientOrderID = "a"
 	err = e.CancelOrder(t.Context(), ord)
 	assert.NoError(t, err)
@@ -3446,7 +3450,7 @@ func TestCancelAllOrders(t *testing.T) {
 	ord.Pair = testPair
 	_, err = e.CancelAllOrders(t.Context(), ord)
 	assert.NoError(t, err)
-	ord.AssetType = asset.Futures
+	ord.AssetType = asset.USDTMarginedFutures
 	ord.Pair = testPair2
 	_, err = e.CancelAllOrders(t.Context(), ord)
 	assert.NoError(t, err)
@@ -3495,7 +3499,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		ClientOrderID: "a",
 		Pair:          testPair,
 	}, order.Cancel{
-		AssetType:     asset.Futures,
+		AssetType:     asset.CoinMarginedFutures,
 		OrderID:       "2",
 		ClientOrderID: "b",
 		Pair:          testPair2,
@@ -3618,8 +3622,7 @@ func subAccTestHelper(t *testing.T, compString, ignoreString string) string {
 
 func exchangeBaseHelper(e *Exchange) error {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	if err := cfg.LoadConfig("../../testdata/configtest.json", true); err != nil {
 		return err
 	}
 	exchCfg, err := cfg.GetExchangeConfig("Bitget")
@@ -3634,8 +3637,7 @@ func exchangeBaseHelper(e *Exchange) error {
 		exchCfg.API.AuthenticatedWebsocketSupport = true
 	}
 	e.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = e.Setup(exchCfg)
-	if err != nil {
+	if err := e.Setup(exchCfg); err != nil {
 		return err
 	}
 	return nil

@@ -10,9 +10,7 @@ import (
 )
 
 // Params is used within functions to make the setting of parameters easier
-type Params struct {
-	url.Values
-}
+type Params url.Values
 
 // RespWrapper wraps responses from the Bitget API for proper JSON decoding
 type RespWrapper struct {
@@ -918,7 +916,7 @@ type ReplaceSpotOrderParams struct {
 	Price                  types.Number  `json:"price"`
 	Amount                 types.Number  `json:"size"`
 	OldClientOrderID       string        `json:"clientOid,omitempty"`
-	OrderID                int64         `json:"orderId,string,omitempty"`
+	OrderID                uint64        `json:"orderId,string,omitempty"`
 	NewClientOrderID       string        `json:"newClientOid,omitempty"`
 	PresetTakeProfitPrice  types.Number  `json:"presetTakeProfitPrice,omitempty"`
 	ExecuteTakeProfitPrice types.Number  `json:"executeTakeProfitPrice,omitempty"`
