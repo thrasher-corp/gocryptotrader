@@ -39,20 +39,18 @@ import (
 
 var errChainsNotFound = errors.New("chains not found")
 
-var (
-	assetPairStores = map[asset.Item]currency.PairStore{
-		asset.Futures: {
-			AssetEnabled:  true,
-			RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-		},
-		asset.Spot: {
-			AssetEnabled:  true,
-			RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-		},
-	}
-)
+var assetPairStores = map[asset.Item]currency.PairStore{
+	asset.Futures: {
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+	},
+	asset.Spot: {
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+	},
+}
 
 const (
 	connSpotPublic     = "spot:public"
