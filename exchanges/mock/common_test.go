@@ -41,12 +41,14 @@ func TestMatchURLVals(t *testing.T) {
 	}
 }
 
+type class struct {
+	Numbers    []int   `json:"numbers"`
+	Number     float64 `json:"number"`
+	SomeString string  `json:"somestring"`
+}
+
 func TestDeriveURLValsFromJSON(t *testing.T) {
-	type class struct {
-		Numbers    []int   `json:"numbers"`
-		Number     float64 `json:"number"`
-		SomeString string  `json:"somestring"`
-	}
+	t.Parallel()
 	test1 := struct {
 		Things []string `json:"things"`
 		Data   class    `json:"data"`
@@ -58,7 +60,6 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 			SomeString: "hello, peoples",
 		},
 	}
-
 	payload, err := json.Marshal(test1)
 	require.NoError(t, err, "Marshal must not error")
 
@@ -85,5 +86,53 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	for key, val := range values {
 		require.Len(t, val, 1)
 		assert.Equalf(t, test2[key], val[0], "DeriveURLValsFromJSON should return the correct value for %s", key)
+	}
+}
+
+func TestDeriveURLValsFromJSONSlice(t *testing.T) {
+	t.Parallel()
+	test1 := []struct {
+		Things []string `json:"things"`
+		Data   class    `json:"data"`
+	}{
+		{
+			Things: []string{"hello", "world"},
+			Data: class{
+				Numbers:    []int{1, 3, 3, 7},
+				Number:     3.14,
+				SomeString: "hello, peoples",
+			},
+		},
+		{
+			Things: []string{"hello", "thrasher"},
+			Data: class{
+				Numbers:    []int{1, 9, 9, 9},
+				Number:     3.14529,
+				SomeString: "hello, team",
+			},
+		},
+		{
+			Things: []string{"hello", "Ethiopia"},
+			Data: class{
+				Numbers:    []int{2, 0, 1, 8},
+				Number:     2018,
+				SomeString: "hello, there",
+			},
+		},
+	}
+	payload, err := json.Marshal(test1)
+	require.NoError(t, err, "Marshal must not error")
+
+	values, err := DeriveURLValsFromJSONSlice(payload)
+	assert.NoError(t, err, "DeriveURLValsFromJSONMap should not error")
+	assert.Len(t, values, 3)
+
+	for i := range test1 {
+		elemPayload, err := json.Marshal(test1[i])
+		require.NoError(t, err, "Marshal must not error")
+
+		val, err := DeriveURLValsFromJSONMap(elemPayload)
+		require.NoError(t, err, "DeriveURLValsFromJSONMap must not error")
+		require.True(t, MatchURLVals(values[i], val), "MatchURLVals must be true")
 	}
 }
