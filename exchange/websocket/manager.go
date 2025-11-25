@@ -160,9 +160,14 @@ type ManagerSetup struct {
 // attempting a new connection. It also contains the subscriptions that are
 // associated with the specific connection.
 type connectionWrapper struct {
-	setup          *ConnectionSetup
-	subscriptions  *subscription.Store
-	connectionSubs map[Connection]*subscription.Store
+	setup           *ConnectionSetup
+	subscriptions   *subscription.Store
+	connectionsSubs []connectionSubscriptions
+}
+
+type connectionSubscriptions struct {
+	Connection    Connection
+	Subscriptions *subscription.Store
 }
 
 var globalReporter Reporter
@@ -361,9 +366,8 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 			}
 		}
 		m.connectionManager = append(m.connectionManager, &connectionWrapper{
-			setup:          c,
-			subscriptions:  subscription.NewStore(),
-			connectionSubs: make(map[Connection]*subscription.Store),
+			setup:         c,
+			subscriptions: subscription.NewStore(),
 		})
 		return nil
 	}
@@ -543,15 +547,15 @@ func (m *Manager) connect() error {
 
 	if multiConnectFatalError != nil {
 		// Roll back any successful connections and flush subscriptions
-		for x := range m.connectionManager {
-			for conn, store := range m.connectionManager[x].connectionSubs {
-				if err := conn.Shutdown(); err != nil {
+		for _, wrapper := range m.connectionManager {
+			for _, connSubs := range wrapper.connectionsSubs {
+				if err := connSubs.Connection.Shutdown(); err != nil {
 					log.Errorln(log.WebsocketMgr, err)
 				}
-				store.Clear()
+				connSubs.Subscriptions.Clear()
 			}
-			m.connectionManager[x].connectionSubs = make(map[Connection]*subscription.Store)
-			m.connectionManager[x].subscriptions.Clear()
+			wrapper.connectionsSubs = nil
+			wrapper.subscriptions.Clear()
 		}
 		clear(m.connections)
 		m.setState(disconnectedState) // Flip from connecting to disconnected.
@@ -594,7 +598,7 @@ func (m *Manager) connectAndSubscribe(ctx context.Context, wrapper *connectionWr
 
 	m.connections[conn] = wrapper
 	connectionStore := subscription.NewStore()
-	wrapper.connectionSubs[conn] = connectionStore
+	wrapper.connectionsSubs = append(wrapper.connectionsSubs, connectionSubscriptions{Connection: conn, Subscriptions: connectionStore})
 
 	m.Wg.Go(func() { m.Reader(ctx, conn, wrapper.setup.Handler) })
 
@@ -678,16 +682,16 @@ func (m *Manager) shutdown() error {
 	var nonFatalCloseConnectionErrors error
 
 	// Shutdown managed connections
-	for x := range m.connectionManager {
-		for conn, store := range m.connectionManager[x].connectionSubs {
-			if err := conn.Shutdown(); err != nil {
+	for _, wrapper := range m.connectionManager {
+		for _, connSubs := range wrapper.connectionsSubs {
+			if err := connSubs.Connection.Shutdown(); err != nil {
 				nonFatalCloseConnectionErrors = common.AppendError(nonFatalCloseConnectionErrors, err)
 			}
-			store.Clear()
+			connSubs.Subscriptions.Clear()
 		}
-		m.connectionManager[x].connectionSubs = make(map[Connection]*subscription.Store)
+		wrapper.connectionsSubs = nil
 		// Flush any subscriptions from last connection across any managed connections
-		m.connectionManager[x].subscriptions.Clear()
+		wrapper.subscriptions.Clear()
 	}
 	// Clean map of old connections
 	clear(m.connections)
@@ -852,8 +856,8 @@ func (m *Manager) SetProxyAddress(proxyAddr string) error {
 	}
 
 	for _, wrapper := range m.connectionManager {
-		for conn := range wrapper.connectionSubs {
-			conn.SetProxy(proxyAddr)
+		for _, connSubs := range wrapper.connectionsSubs {
+			connSubs.Connection.SetProxy(proxyAddr)
 		}
 	}
 	if m.Conn != nil {
@@ -1100,12 +1104,10 @@ func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 		if wrapper.setup.MessageFilter != messageFilter {
 			continue
 		}
-		if len(wrapper.connectionSubs) == 0 {
+		if len(wrapper.connectionsSubs) == 0 {
 			return nil, fmt.Errorf("%s: %s %w associated with message filter: '%v'", m.exchangeName, wrapper.setup.URL, ErrNotConnected, messageFilter)
 		}
-		for conn := range wrapper.connectionSubs {
-			return conn, nil
-		}
+		return wrapper.connectionsSubs[0].Connection, nil
 	}
 
 	return nil, fmt.Errorf("%s: %w associated with message filter: '%v'", m.exchangeName, ErrRequestRouteNotFound, messageFilter)

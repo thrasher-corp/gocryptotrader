@@ -94,7 +94,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	assert.ErrorIs(t, multi.SubscribeToChannels(nil, subs), common.ErrNilPointer, "If no connection is set, Subscribe should error")
 	assert.ErrorIs(t, multi.SubscribeToChannels(amazingConn, subs), common.ErrNilPointer, "Basic Subscribing should error when connection is not present in wrapper map")
 
-	multi.connectionManager[0].connectionSubs[amazingConn] = subscription.NewStore()
+	multi.connectionManager[0].connectionsSubs = []connectionSubscriptions{{Connection: amazingConn, Subscriptions: subscription.NewStore()}}
 	assert.NoError(t, multi.SubscribeToChannels(amazingConn, subs), "Basic Subscribing should not error")
 	assert.Len(t, multi.GetSubscriptions(), 4, "Should have 4 subscriptions")
 	bySub = multi.GetSubscription(subscription.Subscription{Channel: "TestSub"})
@@ -470,8 +470,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 			},
 			Handler: func(context.Context, Connection, []byte) error { return nil },
 		},
-		connectionSubs: make(map[Connection]*subscription.Store),
-		subscriptions:  subscription.NewStore(),
+		subscriptions: subscription.NewStore(),
 	}
 
 	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
@@ -489,11 +488,11 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, exp)
 	require.NoError(t, err, "must not error when adding subscriptions")
-	require.Len(t, wrapper.connectionSubs, 2, "must have two connections when max subs per connection is 2")
+	require.Len(t, wrapper.connectionsSubs, 2, "must have two connections when max subs per connection is 2")
 	require.Len(t, wrapper.subscriptions.Contained(exp), 3, "subscriptions must match global store")
 	var specificConnSubs subscription.List
-	for _, store := range wrapper.connectionSubs {
-		specificConnSubs = append(specificConnSubs, store.List()...)
+	for _, connSubs := range wrapper.connectionsSubs {
+		specificConnSubs = append(specificConnSubs, connSubs.Subscriptions.List()...)
 	}
 	require.Len(t, wrapper.subscriptions.Contained(specificConnSubs), 3, "connection subscriptions must match global store")
 
@@ -507,16 +506,16 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, exp)
 	require.NoError(t, err, "must not error when scaling subscriptions to connections")
-	require.Len(t, wrapper.connectionSubs, 3, "must have three connections when max subs per connection is 2")
+	require.Len(t, wrapper.connectionsSubs, 3, "must have three connections when max subs per connection is 2")
 	require.Len(t, wrapper.subscriptions.Contained(exp), 5, "subscriptions must match global store")
 	specificConnSubs = nil
-	for _, store := range wrapper.connectionSubs {
-		specificConnSubs = append(specificConnSubs, store.List()...)
+	for _, connSubs := range wrapper.connectionsSubs {
+		specificConnSubs = append(specificConnSubs, connSubs.Subscriptions.List()...)
 	}
 	require.Len(t, wrapper.subscriptions.Contained(specificConnSubs), 5, "connection subscriptions must match global store")
 
 	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
 	require.NoError(t, err, "must not error when scaling subscriptions to connections with no new subscriptions")
-	require.Empty(t, wrapper.connectionSubs, "must drop all connections when no subscriptions are present")
+	require.Empty(t, wrapper.connectionsSubs, "must drop all connections when no subscriptions are present")
 	require.Empty(t, wrapper.subscriptions.List(), "must drop all subscriptions when no subscriptions are present")
 }

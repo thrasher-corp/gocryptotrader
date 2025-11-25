@@ -310,12 +310,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.NoError(t, err)
 
-	var conn Connection
-	for conn = range ws.connectionManager[0].connectionSubs {
-		break
-	}
-
-	err = conn.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("test"))
+	err = ws.connectionManager[0].connectionsSubs[0].Connection.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("test"))
 	require.NoError(t, err)
 
 	require.NoError(t, err)
@@ -420,7 +415,7 @@ func TestManager(t *testing.T) {
 
 	ws.useMultiConnectionManagement = true
 
-	ws.connectionManager = []*connectionWrapper{{setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, connectionSubs: map[Connection]*subscription.Store{&connection{}: subscription.NewStore()}}}
+	ws.connectionManager = []*connectionWrapper{{setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, connectionsSubs: []connectionSubscriptions{{Connection: &connection{}, Subscriptions: subscription.NewStore()}}}}
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
 	require.NoError(t, err)
 }
@@ -1166,7 +1161,7 @@ func TestGetConnection(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotConnected)
 
 	expected := &connection{}
-	ws.connectionManager[0].connectionSubs = map[Connection]*subscription.Store{expected: subscription.NewStore()}
+	ws.connectionManager[0].connectionsSubs = []connectionSubscriptions{{Connection: expected, Subscriptions: subscription.NewStore()}}
 
 	conn, err := ws.GetConnection("testURL")
 	require.NoError(t, err)
@@ -1200,8 +1195,8 @@ func TestShutdown(t *testing.T) {
 	m.AuthConn = nil
 	m.Conn = nil
 	m.connectionManager = []*connectionWrapper{
-		{connectionSubs: map[Connection]*subscription.Store{&connection{Connection: nil}: subscription.NewStore()}},
-		{connectionSubs: map[Connection]*subscription.Store{&connection{Connection: conn}: subscription.NewStore()}},
+		{connectionsSubs: []connectionSubscriptions{{Connection: &connection{Connection: nil}, Subscriptions: subscription.NewStore()}}},
+		{connectionsSubs: []connectionSubscriptions{{Connection: &connection{Connection: conn}, Subscriptions: subscription.NewStore()}}},
 	}
 	m.setState(connectedState)
 	require.NoError(t, m.Shutdown(), "Shutdown must not error with faulty connection in connectionManager")

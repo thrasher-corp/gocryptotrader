@@ -226,15 +226,20 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 	var subscriptionStore *subscription.Store
 	var usedCapacity int
 	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		subscriptionStore = wrapper.subscriptions
-		if subscriptionStore == nil {
+		if subscriptionStore = wrapper.subscriptions; subscriptionStore == nil {
 			return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
 		}
-		connStore, ok := wrapper.connectionSubs[conn]
-		if !ok {
+		var connSubStore *subscription.Store
+		for _, connSubs := range wrapper.connectionsSubs {
+			if connSubs.Connection == conn {
+				connSubStore = connSubs.Subscriptions
+				break
+			}
+		}
+		if connSubStore == nil {
 			return fmt.Errorf("%w: connection subscription store not found", common.ErrNilPointer)
 		}
-		usedCapacity = connStore.Len()
+		usedCapacity = connSubStore.Len()
 	} else {
 		subscriptionStore = m.subscriptions
 		if subscriptionStore == nil {
@@ -303,7 +308,7 @@ func (m *Manager) FlushChannels() error {
 		}
 
 		// Case if there is nothing to unsubscribe from and the connection is nil
-		if len(newSubs) == 0 && len(wrapper.connectionSubs) == 0 {
+		if len(newSubs) == 0 && len(wrapper.connectionsSubs) == 0 {
 			continue
 		}
 
@@ -348,18 +353,18 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, wrapper *
 	if len(unsubs) != 0 {
 		currentUnsubs := slices.Clone(unsubs)
 		// Unsubscribe first to free up capacity on existing connections
-		for conn, store := range wrapper.connectionSubs {
-			remove := store.Contained(currentUnsubs)
+		for _, connSubs := range wrapper.connectionsSubs {
+			remove := connSubs.Subscriptions.Contained(currentUnsubs)
 			if len(remove) == 0 {
 				continue
 			}
-			leftOver := store.Missing(currentUnsubs)
-			if err := m.UnsubscribeChannels(conn, remove); err != nil {
+			leftOver := connSubs.Subscriptions.Missing(currentUnsubs)
+			if err := m.UnsubscribeChannels(connSubs.Connection, remove); err != nil {
 				return err
 			}
 
 			for _, r := range remove {
-				if err := store.Remove(r); err != nil {
+				if err := connSubs.Subscriptions.Remove(r); err != nil {
 					return err
 				}
 			}
@@ -385,8 +390,8 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, wrapper *
 	if len(subs) != 0 {
 		// Subscribe to existing connections to use up existing capacity on free connections
 		currentSubs := slices.Clone(subs)
-		for conn, store := range wrapper.connectionSubs {
-			usedCap := store.Len()
+		for _, connSubs := range wrapper.connectionsSubs {
+			usedCap := connSubs.Subscriptions.Len()
 			if m.MaxSubscriptionsPerConnection > 0 && usedCap == m.MaxSubscriptionsPerConnection {
 				continue // No capacity left for this connection
 			}
@@ -396,12 +401,12 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, wrapper *
 			}
 
 			toSubscribe := currentSubs[:availableCap]
-			if err := m.SubscribeToChannels(conn, toSubscribe); err != nil {
+			if err := m.SubscribeToChannels(connSubs.Connection, toSubscribe); err != nil {
 				return err
 			}
 
 			for _, s := range toSubscribe {
-				if err := store.Add(s); err != nil {
+				if err := connSubs.Subscriptions.Add(s); err != nil {
 					return err
 				}
 			}
@@ -425,16 +430,18 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, wrapper *
 	}
 
 	// Clean up any connections that have no subscriptions left to reduce resource usage
-	for conn, store := range wrapper.connectionSubs {
-		if store.Len() != 0 {
+	clean := make([]connectionSubscriptions, 0, len(wrapper.connectionsSubs))
+	for _, connSubs := range wrapper.connectionsSubs {
+		if connSubs.Subscriptions.Len() != 0 {
+			clean = append(clean, connSubs)
 			continue
 		}
-		delete(wrapper.connectionSubs, conn)
-		delete(m.connections, conn)
-		if err := conn.Shutdown(); err != nil {
+		delete(m.connections, connSubs.Connection)
+		if err := connSubs.Connection.Shutdown(); err != nil {
 			log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
 		}
 	}
+	wrapper.connectionsSubs = clean
 
 	return nil
 }
