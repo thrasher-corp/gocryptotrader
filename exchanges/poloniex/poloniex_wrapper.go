@@ -854,7 +854,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	type assetAndType struct {
 		aType asset.Item
 		oType order.Type
-		pair  currency.Pair
+		pair  currency.Pair // only futures orders need grouping by pair
 	}
 	type orderAndClientSuppliedIDs struct {
 		orderIDs       []string

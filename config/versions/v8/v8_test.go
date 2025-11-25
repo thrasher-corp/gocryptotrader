@@ -17,23 +17,27 @@ func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
 
 	for _, tt := range []struct {
-		in  string
-		exp string
+		exchange string
+		urlType  string
+		in       string
+		exp      string
 	}{
-		{"wss://private.bitmex.com/realtimemd", `"WebsocketSpotURL": "wss://private.bitmex.com/realtimemd"`},
-		{"wss://ws.bitmex.com/realtimemd", ""},
-		{"wss://www.bitmex.com/realtimemd", ""},
-		{"wss://www.bitmex.com/realtime", ""},
-		{"wss://ws.testnet.bitmex.com/realtimemd", `"WebsocketSpotURL": "wss://ws.testnet.bitmex.com/realtime"`},
-		{"wss://testnet.bitmex.com/realtimemd", `"WebsocketSpotURL": "wss://ws.testnet.bitmex.com/realtime"`},
-		{"wss://testnet.bitmex.com/realtime", `"WebsocketSpotURL": "wss://ws.testnet.bitmex.com/realtime"`},
+		{"Bitmex", "WebsocketSpotURL", "wss://private.bitmex.com/realtimemd", `"WebsocketSpotURL": "wss://private.bitmex.com/realtimemd"`},
+		{"Bitmex", "WebsocketSpotURL", "wss://ws.bitmex.com/realtimemd", ""},
+		{"Bitmex", "WebsocketSpotURL", "wss://www.bitmex.com/realtimemd", ""},
+		{"Bitmex", "WebsocketSpotURL", "wss://www.bitmex.com/realtime", ""},
+		{"Bitmex", "WebsocketSpotURL", "wss://ws.testnet.bitmex.com/realtimemd", `"WebsocketSpotURL": "wss://ws.testnet.bitmex.com/realtime"`},
+		{"Bitmex", "WebsocketSpotURL", "wss://testnet.bitmex.com/realtimemd", `"WebsocketSpotURL": "wss://ws.testnet.bitmex.com/realtime"`},
+		{"Bitmex", "WebsocketSpotURL", "wss://testnet.bitmex.com/realtime", `"WebsocketSpotURL": "wss://ws.testnet.bitmex.com/realtime"`},
+		{"Poloniex", "RestSpotURL", "https://poloniex.com", `"RestSpotURL":"https://api.poloniex.com"`},
+		{"Poloniex", "WebsocketSpotURL", "wss://api2.poloniex.com", `"WebsocketSpotURL":"wss://ws.poloniex.com/ws/public"`},
 	} {
 		t.Run(tt.in, func(t *testing.T) {
 			t.Parallel()
-			in := []byte(`{"name":"Bitmex","api":{"urlEndpoints":{"WebsocketSpotURL": "` + tt.in + `"}}}`)
+			in := []byte(`{"name":"` + tt.exchange + `","api":{"urlEndpoints":{"` + tt.urlType + `": "` + tt.in + `"}}}`)
 			out, err := new(v8.Version).UpgradeExchange(t.Context(), in)
 			require.NoError(t, err)
-			exp := `{"name":"Bitmex","api":{"urlEndpoints":{` + tt.exp + `}}}`
+			exp := `{"name":"` + tt.exchange + `","api":{"urlEndpoints":{` + tt.exp + `}}}`
 			assert.Equal(t, exp, string(out))
 		})
 	}

@@ -14,15 +14,12 @@ import (
 type Version struct{}
 
 // Exchanges returns just Bitmex
-func (v *Version) Exchanges() []string { return []string{"Bitmex"} }
+func (v *Version) Exchanges() []string { return []string{"Bitmex", "Poloniex"} }
 
-// UpgradeExchange replaces deprecated WS endpoints
+// UpgradeExchange replaces deprecated WS and REST endpoints
 func (v *Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	url, err := jsonparser.GetString(e, "api", "urlEndpoints", "WebsocketSpotURL")
-	switch {
-	case errors.Is(err, jsonparser.KeyPathNotFoundError):
-		return e, nil
-	case err != nil:
+	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		return e, err
 	}
 
@@ -33,6 +30,21 @@ func (v *Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	case "wss://ws.testnet.bitmex.com/realtimemd", "wss://testnet.bitmex.com/realtimemd", "wss://testnet.bitmex.com/realtime":
 		// User wants to use testnet
 		return jsonparser.Set(e, []byte(`"wss://ws.testnet.bitmex.com/realtime"`), "api", "urlEndpoints", "WebsocketSpotURL")
+	case "wss://api2.poloniex.com":
+		e = jsonparser.Delete(e, "api", "urlEndpoints", "WebsocketSpotURL")
+		e, err = jsonparser.Set(e, []byte(`"wss://ws.poloniex.com/ws/public"`), "api", "urlEndpoints", "WebsocketSpotURL")
+		if err != nil {
+			return e, err
+		}
+	}
+	restSpotURL, err := jsonparser.GetString(e, "api", "urlEndpoints", "RestSpotURL")
+	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		return e, err
+	}
+	switch restSpotURL {
+	case "https://poloniex.com":
+		e = jsonparser.Delete(e, "api", "urlEndpoints", "RestSpotURL")
+		return jsonparser.Set(e, []byte(`"https://api.poloniex.com"`), "api", "urlEndpoints", "RestSpotURL")
 	}
 	return e, nil
 }
