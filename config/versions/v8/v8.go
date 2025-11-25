@@ -41,8 +41,7 @@ func (v *Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		return e, err
 	}
-	switch restSpotURL {
-	case "https://poloniex.com":
+	if restSpotURL == "https://poloniex.com" {
 		e = jsonparser.Delete(e, "api", "urlEndpoints", "RestSpotURL")
 		return jsonparser.Set(e, []byte(`"https://api.poloniex.com"`), "api", "urlEndpoints", "RestSpotURL")
 	}
