@@ -42,21 +42,21 @@ func MatchURLVals(v1, v2 url.Values) bool {
 
 // DeriveURLValsFromJSONSlice gets url vals from a []map[string]string encoded JSON body
 func DeriveURLValsFromJSONSlice(payload []byte) ([]url.Values, error) {
-	var vals []url.Values
 	if len(payload) == 0 {
-		return vals, nil
+		return nil, nil
 	}
 	var intermediary []json.RawMessage
 	if err := json.Unmarshal(payload, &intermediary); err != nil {
-		return vals, err
+		return nil, err
 	}
 
+	vals := make([]url.Values, len(intermediary))
 	for i := range intermediary {
 		result, err := DeriveURLValsFromJSONMap(intermediary[i])
 		if err != nil {
-			return vals, err
+			return nil, err
 		}
-		vals = append(vals, result)
+		vals[i] = result
 	}
 	return vals, nil
 }

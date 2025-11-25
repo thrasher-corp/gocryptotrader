@@ -119,13 +119,14 @@ func TestDeriveURLValsFromJSONSlice(t *testing.T) {
 				SomeString: "hello, there",
 			},
 		},
+		{},
 	}
 	payload, err := json.Marshal(test1)
 	require.NoError(t, err, "Marshal must not error")
 
 	values, err := DeriveURLValsFromJSONSlice(payload)
-	assert.NoError(t, err, "DeriveURLValsFromJSONMap should not error")
-	assert.Len(t, values, 3)
+	require.NoError(t, err, "DeriveURLValsFromJSONMap must not error")
+	assert.Len(t, values, 4)
 
 	for i := range test1 {
 		elemPayload, err := json.Marshal(test1[i])
@@ -133,6 +134,6 @@ func TestDeriveURLValsFromJSONSlice(t *testing.T) {
 
 		val, err := DeriveURLValsFromJSONMap(elemPayload)
 		require.NoError(t, err, "DeriveURLValsFromJSONMap must not error")
-		require.True(t, MatchURLVals(values[i], val), "MatchURLVals must be true")
+		assert.True(t, MatchURLVals(values[i], val), "MatchURLVals should be true")
 	}
 }

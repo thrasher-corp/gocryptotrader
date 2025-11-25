@@ -185,7 +185,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 						}
 
 					case applicationJSON, textPlain:
-						if strings.HasPrefix(body, "[") && strings.HasPrefix(mockResponses[i].BodyParams, "[") {
+						if strings.HasPrefix(strings.Trim(mockResponses[i].BodyParams, " "), "[") && strings.HasPrefix(strings.Trim(body, " "), "[") {
 							reqVals, jErr := DeriveURLValsFromJSONSlice([]byte(body))
 							if jErr != nil {
 								return jErr
@@ -199,17 +199,16 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 							if len(reqVals) != len(mockVals) {
 								continue
 							}
-							found = len(reqVals) == 0 || len(reqVals) > 0
-							for i := range reqVals {
-								found = found && MatchURLVals(reqVals[i], mockVals[i])
+							found = true
+							for j := range reqVals {
+								found = found && MatchURLVals(reqVals[j], mockVals[j])
 							}
 							if found {
 								// if found will delete instance and overwrite with new
 								// data
 								mockResponses = slices.Delete(mockResponses, i, i+1)
-								found = true
 							}
-						} else if strings.HasPrefix(body, "{") && strings.HasPrefix(mockResponses[i].BodyParams, "{") {
+						} else if strings.HasPrefix(strings.Trim(mockResponses[i].BodyParams, " "), "{") && strings.HasPrefix(strings.Trim(body, " "), "{") {
 							reqVals, jErr := DeriveURLValsFromJSONMap([]byte(body))
 							if jErr != nil {
 								return jErr
