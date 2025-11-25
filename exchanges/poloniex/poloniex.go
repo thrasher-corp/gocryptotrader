@@ -74,7 +74,7 @@ func (e *Exchange) GetCurrency(ctx context.Context, ccy currency.Code) (*Currenc
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp *Currency
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies/"+ccy.String(), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, "/v2/currencies/"+ccy.String(), &resp)
 }
 
 // GetSystemTimestamp retrieves current server time.
