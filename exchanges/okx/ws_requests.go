@@ -20,7 +20,7 @@ var (
 	errCancelAllSpreadOrdersFailed = errors.New("cancel all spread orders failed")
 	errMultipleItemsReturned       = errors.New("multiple items returned")
 
-	privateConnection string = "private"
+	privateConnection = "private"
 )
 
 // WSPlaceOrder submits an order

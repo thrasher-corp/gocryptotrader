@@ -92,7 +92,9 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	assert.Nil(t, multi.GetSubscription(42), "GetSubscription on empty internal map should return")
 
 	assert.ErrorIs(t, multi.SubscribeToChannels(nil, subs), common.ErrNilPointer, "If no connection is set, Subscribe should error")
+	assert.ErrorIs(t, multi.SubscribeToChannels(amazingConn, subs), common.ErrNilPointer, "Basic Subscribing should error when connection is not present in wrapper map")
 
+	multi.connectionManager[0].connectionSubs[amazingConn] = subscription.NewStore()
 	assert.NoError(t, multi.SubscribeToChannels(amazingConn, subs), "Basic Subscribing should not error")
 	assert.Len(t, multi.GetSubscriptions(), 4, "Should have 4 subscriptions")
 	bySub = multi.GetSubscription(subscription.Subscription{Channel: "TestSub"})
@@ -251,7 +253,7 @@ func TestUpdateChannelSubscriptions(t *testing.T) {
 
 	ws := NewManager()
 	store := subscription.NewStore()
-	err := ws.updateChannelSubscriptions(nil, store, subscription.List{{Channel: "test"}})
+	err := ws.updateChannelSubscriptions(store, subscription.List{{Channel: "test"}})
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	require.Zero(t, store.Len())
 
@@ -265,11 +267,11 @@ func TestUpdateChannelSubscriptions(t *testing.T) {
 	}
 
 	ws.subscriptions = store
-	err = ws.updateChannelSubscriptions(nil, store, subscription.List{{Channel: "test"}})
+	err = ws.updateChannelSubscriptions(store, subscription.List{{Channel: "test"}})
 	require.NoError(t, err)
 	require.Equal(t, 1, store.Len())
 
-	err = ws.updateChannelSubscriptions(nil, store, subscription.List{})
+	err = ws.updateChannelSubscriptions(store, subscription.List{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	ws.Unsubscriber = func(subs subscription.List) error {
@@ -281,7 +283,7 @@ func TestUpdateChannelSubscriptions(t *testing.T) {
 		return nil
 	}
 
-	err = ws.updateChannelSubscriptions(nil, store, subscription.List{})
+	err = ws.updateChannelSubscriptions(store, subscription.List{})
 	require.NoError(t, err)
 	require.Zero(t, store.Len())
 }
@@ -515,6 +517,6 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
 	require.NoError(t, err, "must not error when scaling subscriptions to connections with no new subscriptions")
-	require.Len(t, wrapper.connectionSubs, 0, "must drop all connections when no subscriptions are present")
-	require.Len(t, wrapper.subscriptions.List(), 0, "must drop all subscriptions when no subscriptions are present")
+	require.Empty(t, wrapper.connectionSubs, "must drop all connections when no subscriptions are present")
+	require.Empty(t, wrapper.subscriptions.List(), "must drop all subscriptions when no subscriptions are present")
 }

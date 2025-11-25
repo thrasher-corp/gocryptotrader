@@ -75,6 +75,7 @@ var (
 	ErrGettingField              = errors.New("error getting field")
 	ErrSettingField              = errors.New("error setting field")
 	ErrParsingWSField            = errors.New("error parsing websocket field")
+	ErrFatal                     = errors.New("fatal error")
 )
 
 var (

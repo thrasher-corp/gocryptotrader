@@ -60,7 +60,6 @@ var (
 	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
 	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
 	errMessageFilterNotComparable           = errors.New("message filter is not comparable")
-	errFatalError                           = errors.New("fatal error")
 	errFailedToAuthenticate                 = errors.New("failed to authenticate")
 )
 
@@ -526,14 +525,14 @@ func (m *Manager) connect() error {
 
 		for _, batchedSubs := range common.Batch(subs, m.MaxSubscriptionsPerConnection) {
 			if err := m.connectAndSubscribe(context.TODO(), m.connectionManager[i], batchedSubs); err != nil {
-				if errors.Is(err, errFatalError) {
+				if errors.Is(err, common.ErrFatal) {
 					multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, err)
 					break
 				}
 				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, err))
 			}
 			if m.verbose {
-				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] connected. [Subscribed: %d]", m.exchangeName, m.connectionManager[i].setup.URL, len(subs))
+				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] connected. [Total Subs: %d] [Subscribed: %d]", m.exchangeName, m.connectionManager[i].setup.URL, len(subs), len(batchedSubs))
 			}
 		}
 
@@ -580,17 +579,17 @@ func (m *Manager) connect() error {
 
 func (m *Manager) connectAndSubscribe(ctx context.Context, wrapper *connectionWrapper, subs subscription.List) error {
 	if m.MaxSubscriptionsPerConnection > 0 && len(subs) > m.MaxSubscriptionsPerConnection {
-		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", errFatalError, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
+		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
 	}
 
 	conn := m.getConnectionFromSetup(wrapper.setup)
 
 	if err := wrapper.setup.Connector(ctx, conn); err != nil {
-		return fmt.Errorf("%w: %w", errFatalError, err)
+		return fmt.Errorf("%w: %w", common.ErrFatal, err)
 	}
 
 	if !conn.IsConnected() {
-		return fmt.Errorf("%w: %w", errFatalError, ErrNotConnected)
+		return fmt.Errorf("%w: %w", common.ErrFatal, ErrNotConnected)
 	}
 
 	m.connections[conn] = wrapper
@@ -601,7 +600,7 @@ func (m *Manager) connectAndSubscribe(ctx context.Context, wrapper *connectionWr
 
 	if wrapper.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
 		if err := wrapper.setup.Authenticate(ctx, conn); err != nil {
-			return fmt.Errorf("%w %w: %w", errFatalError, errFailedToAuthenticate, err)
+			return fmt.Errorf("%w %w: %w", common.ErrFatal, errFailedToAuthenticate, err)
 		}
 	}
 

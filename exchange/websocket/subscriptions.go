@@ -230,7 +230,10 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 		if subscriptionStore == nil {
 			return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
 		}
-		connStore := wrapper.connectionSubs[conn]
+		connStore, ok := wrapper.connectionSubs[conn]
+		if !ok {
+			return fmt.Errorf("%w: connection subscription store not found", common.ErrNilPointer)
+		}
 		usedCapacity = connStore.Len()
 	} else {
 		subscriptionStore = m.subscriptions
@@ -286,7 +289,7 @@ func (m *Manager) FlushChannels() error {
 		if err != nil {
 			return err
 		}
-		return m.updateChannelSubscriptions(nil, m.subscriptions, newSubs)
+		return m.updateChannelSubscriptions(m.subscriptions, newSubs)
 	}
 
 	for _, wrapper := range m.connectionManager {
@@ -313,10 +316,10 @@ func (m *Manager) FlushChannels() error {
 
 // updateChannelSubscriptions subscribes or unsubscribes from channels and checks that the correct number of channels
 // have been subscribed to or unsubscribed from.
-func (m *Manager) updateChannelSubscriptions(c Connection, store *subscription.Store, incoming subscription.List) error {
+func (m *Manager) updateChannelSubscriptions(store *subscription.Store, incoming subscription.List) error {
 	subs, unsubs := store.Diff(incoming)
 	if len(unsubs) != 0 {
-		if err := m.UnsubscribeChannels(c, unsubs); err != nil {
+		if err := m.UnsubscribeChannels(nil, unsubs); err != nil {
 			return err
 		}
 
@@ -325,7 +328,7 @@ func (m *Manager) updateChannelSubscriptions(c Connection, store *subscription.S
 		}
 	}
 	if len(subs) != 0 {
-		if err := m.SubscribeToChannels(c, subs); err != nil {
+		if err := m.SubscribeToChannels(nil, subs); err != nil {
 			return err
 		}
 

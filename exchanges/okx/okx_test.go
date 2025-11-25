@@ -3912,7 +3912,7 @@ func TestOrderPushData(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, &ConnectionFixture{}, b) })
+	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
 	close(e.Websocket.DataHandler)
 	require.Len(t, e.Websocket.DataHandler, 4, "Should see 4 orders")
 	for resp := range e.Websocket.DataHandler {
@@ -4012,10 +4012,6 @@ var pushDataMap = map[string]string{
 	"Balance Save Error":                    `{"arg": {"channel": "balance_and_position","uid": "77982378738415880"},"data": [{"pTime": "1597026383085","eventType": "snapshot","balData": [{"ccy": "BTC","cashBal": "1","uTime": "1597026383085"}],"posData": [{"posId": "1111111111","tradeId": "2","instId": "BTC-USD-191018","instType": "FUTURES","mgnMode": "cross","posSide": "long","pos": "10","ccy": "BTC","posCcy": "","avgPx": "3320","uTIme": "1597026383085"}]}]}`,
 }
 
-type ConnectionFixture struct {
-	websocket.Connection
-}
-
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
@@ -4031,7 +4027,7 @@ func TestWsHandleData(t *testing.T) {
 			e.API.AuthenticatedSupport = false
 			e.API.AuthenticatedWebsocketSupport = false
 		}
-		err := e.wsHandleData(t.Context(), &ConnectionFixture{}, []byte(msg))
+		err := e.wsHandleData(t.Context(), nil, []byte(msg))
 		if name == "Balance Save Error" {
 			assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "wsProcessBalanceAndPosition Accounts.Save should error without credentials")
 		} else {
@@ -4049,7 +4045,7 @@ func TestPushDataDynamic(t *testing.T) {
 	}
 	var err error
 	for x := range dataMap {
-		err = e.wsHandleData(t.Context(), &ConnectionFixture{}, []byte(dataMap[x]))
+		err = e.wsHandleData(t.Context(), nil, []byte(dataMap[x]))
 		require.NoError(t, err)
 	}
 }
@@ -4083,7 +4079,7 @@ func TestWSProcessTrades(t *testing.T) {
 		})
 		require.NoError(t, err, "AddSubscriptions must not error")
 	}
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, &ConnectionFixture{}, b) })
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
 
 	exp := []trade.Data{
 		{
@@ -6129,30 +6125,21 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 		require.NoErrorf(t, err, "BusinessSubscribe %s-%s must not error", ch, p[i])
 	}
 
-	timeout := time.NewTimer(5 * time.Second)
-	defer timeout.Stop()
 	var got currency.Pairs
-check:
-	for {
-		select {
-		case data := <-e.Websocket.ToRoutine:
-			switch v := data.(type) {
-			case websocket.KlineData:
-				got = got.Add(v.Pair)
-			case []CandlestickMarkPrice:
-				if len(v) > 0 {
-					got = got.Add(v[0].Pair)
-				}
-			default:
+	check := func() bool {
+		data := <-e.Websocket.ToRoutine
+		switch v := data.(type) {
+		case websocket.KlineData:
+			got = got.Add(v.Pair)
+		case []CandlestickMarkPrice:
+			if len(v) > 0 {
+				got = got.Add(v[0].Pair)
 			}
-			if len(got) == 3 {
-				break check
-			}
-		case <-timeout.C:
-			break check
+		default:
 		}
+		return len(got) == 3
 	}
-
+	assert.Eventually(t, check, 5*time.Second, time.Millisecond)
 	require.Equal(t, 3, len(got), "must receive candles for all three subscriptions")
 	require.NoError(t, got.ContainsAll(p, true), "must receive candles for all subscribed pairs")
 }
