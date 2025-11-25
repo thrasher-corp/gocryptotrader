@@ -106,7 +106,7 @@ func (e *Exchange) BusinessUnsubscribe(ctx context.Context, conn websocket.Conne
 	return e.handleBusinessSubscription(ctx, conn, operationUnsubscribe, channelsToUnsubscribe)
 }
 
-// handleBusinessSubscription sends a subscription and unsubscription information thought the business websocket endpoint.
+// handleBusinessSubscription sends a subscription and unsubscription information through the business websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
 func (e *Exchange) handleBusinessSubscription(ctx context.Context, conn websocket.Connection, operation string, subscriptions subscription.List) error {
 	wsSubscriptionReq := WSSubscriptionInformationList{Operation: operation}
