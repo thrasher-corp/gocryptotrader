@@ -10,7 +10,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"golang.org/x/time/rate"
 )
 
@@ -19,7 +18,7 @@ func TestRateLimit(t *testing.T) {
 
 	synctest.Test(t, func(t *testing.T) {
 		err := (*RateLimiterWithWeight)(nil).RateLimit(t.Context())
-		assert.ErrorIs(t, err, common.ErrNilPointer)
+		assert.ErrorContains(t, err, "nil pointer: *request.RateLimiterWithWeight")
 
 		r := &RateLimiterWithWeight{limiter: rate.NewLimiter(rate.Limit(1), 1)}
 		err = r.RateLimit(t.Context())
@@ -65,7 +64,7 @@ func TestRateLimit(t *testing.T) {
 		err = r.RateLimit(ctx)
 		assert.ErrorIs(t, err, context.Canceled, "should return correct error")
 		wg.Wait()
-		assert.NoError(t, routineErr, "routine should complete successfully while providing friction for above context cancellation")
+		assert.NoError(t, routineErr, "waitgroup should be Done when context is canceled")
 
 		wg.Go(func() { routineErr = r.RateLimit(t.Context()) })
 		ctx, cancel = context.WithDeadline(t.Context(), time.Now())
@@ -74,7 +73,7 @@ func TestRateLimit(t *testing.T) {
 		err = r.RateLimit(ctx)
 		assert.ErrorIs(t, err, context.DeadlineExceeded, "should return correct error")
 		wg.Wait()
-		assert.NoError(t, routineErr, "routine should complete successfully while providing friction for above context deadline exceeded")
+		assert.NoError(t, routineErr, "waitgroup should be Done when context is canceled")
 	})
 }
 
@@ -269,7 +268,7 @@ func TestInitiateRateLimit(t *testing.T) {
 
 	atomic.StoreInt32(&r.disableRateLimiter, 0)
 	err = r.InitiateRateLimit(t.Context(), Unset)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "should return correct error when limiter is nil")
+	assert.ErrorContains(t, err, "nil pointer: request.RateLimitDefinitions", "should return correct error when limiter is nil")
 
 	r.limiter = NewBasicRateLimit(time.Second, 10, 1)
 	err = r.InitiateRateLimit(t.Context(), Unset)
