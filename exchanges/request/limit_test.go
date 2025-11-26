@@ -17,6 +17,7 @@ func TestRateLimit(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
+		t.Helper()
 		err := (*RateLimiterWithWeight)(nil).RateLimit(t.Context())
 		assert.ErrorContains(t, err, "nil pointer: *request.RateLimiterWithWeight")
 
@@ -81,6 +82,7 @@ func TestRateLimit_Concurrent_WithFailure(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
+		t.Helper()
 		r := NewRateLimitWithWeight(time.Second, 10, 1)
 		tn := time.Now()
 		var wg sync.WaitGroup
@@ -107,6 +109,7 @@ func TestRateLimit_Concurrent(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
+		t.Helper()
 		r := NewRateLimitWithWeight(time.Second, 10, 1)
 		tn := time.Now()
 		var wg sync.WaitGroup
@@ -127,6 +130,7 @@ func TestRateLimit_Linear_WithFailure(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
+		t.Helper()
 		r := NewRateLimitWithWeight(time.Second, 10, 1)
 		tn := time.Now()
 		var wg sync.WaitGroup
@@ -148,6 +152,7 @@ func TestRateLimit_Linear(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
+		t.Helper()
 		r := NewRateLimitWithWeight(time.Second, 10, 1)
 		tn := time.Now()
 		var wg sync.WaitGroup
