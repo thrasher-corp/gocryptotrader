@@ -689,5 +689,5 @@ func TestSubscribeToConnection(t *testing.T) {
 	store = subscription.NewStore()
 
 	_, err = m.subscribeToConnection(nil, store, subs)
-	require.NoError(t, err, "must not error when all subscriptions can be added, this excercises the path where available > len(subs)")
+	require.NoError(t, err, "must not error when all subscriptions can be added, this exercises the path where available > len(subs)")
 }
