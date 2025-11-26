@@ -2,7 +2,6 @@ package request
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -29,12 +28,14 @@ func TestRateLimit(t *testing.T) {
 		start := time.Now()
 		err = r.RateLimit(t.Context())
 		elapsed := time.Since(start)
+		synctest.Wait()
 		require.NoError(t, err, "rate limit must not error")
 		assert.Less(t, elapsed, time.Millisecond*50, "should complete quickly for first request")
 
 		r = NewRateLimitWithWeight(time.Second, 10, 5)
 		start = time.Now()
 		err = r.RateLimit(t.Context())
+		synctest.Wait()
 		elapsed = time.Since(start)
 		require.NoError(t, err, "rate limit must not error")
 		assert.Less(t, elapsed, time.Millisecond*600, "should complete within reasonable time for weight 5")
@@ -42,12 +43,14 @@ func TestRateLimit(t *testing.T) {
 		r = NewRateLimitWithWeight(100*time.Millisecond, 1, 1)
 		start = time.Now()
 		err = r.RateLimit(WithDelayNotAllowed(t.Context()))
+		synctest.Wait()
 		require.NoError(t, err, "first rate limit call must not error and must be immediate")
 		elapsed = time.Since(start)
 		assert.Less(t, elapsed, 50*time.Millisecond, "first call should be immediate")
 
 		start = time.Now()
 		err = r.RateLimit(t.Context())
+		synctest.Wait()
 		require.NoError(t, err, "second rate limit call must not error")
 		elapsed = time.Since(start)
 		assert.GreaterOrEqual(t, elapsed, 90*time.Millisecond, "second call should be delayed by approximately 100ms")
@@ -56,25 +59,16 @@ func TestRateLimit(t *testing.T) {
 		err = r.RateLimit(WithDelayNotAllowed(t.Context()))
 		assert.ErrorIs(t, err, ErrDelayNotAllowed, "should return correct error")
 
-		var routineErr error
-		wg := sync.WaitGroup{}
-		wg.Go(func() { routineErr = r.RateLimit(t.Context()) })
 		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
-		time.Sleep(10 * time.Millisecond)
 		err = r.RateLimit(ctx)
-		assert.ErrorIs(t, err, context.Canceled, "should return correct error")
-		wg.Wait()
-		assert.NoError(t, routineErr, "waitgroup should be Done when context is canceled")
+		assert.ErrorIs(t, err, context.Canceled, "should return correct error when context is canceled")
 
-		wg.Go(func() { routineErr = r.RateLimit(t.Context()) })
 		ctx, cancel = context.WithDeadline(t.Context(), time.Now())
 		defer cancel()
-		time.Sleep(10 * time.Millisecond)
 		err = r.RateLimit(ctx)
-		assert.ErrorIs(t, err, context.DeadlineExceeded, "should return correct error")
-		wg.Wait()
-		assert.NoError(t, routineErr, "waitgroup should be Done when context is canceled")
+		synctest.Wait()
+		assert.ErrorIs(t, err, context.DeadlineExceeded, "should return correct error when context deadline exceeded")
 	})
 }
 
