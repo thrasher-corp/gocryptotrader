@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"golang.org/x/time/rate"
 )
 
@@ -83,22 +84,16 @@ func TestRateLimit_Concurrent_WithFailure(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := NewRateLimitWithWeight(time.Second, 10, 1)
 		tn := time.Now()
-		var wg sync.WaitGroup
-		errs := make(chan error, 10)
+		errs := common.ErrorCollector{}
 		for i := range 10 {
 			ctx := t.Context()
 			if i%2 == 0 {
 				ctx = WithDelayNotAllowed(ctx)
 			}
-			wg.Go(func() { errs <- r.RateLimit(ctx) })
+			errs.Go(func() error { return r.RateLimit(ctx) })
 		}
-		wg.Wait()
-		close(errs)
-		for err := range errs {
-			if err != nil {
-				require.ErrorIs(t, err, ErrDelayNotAllowed, "must return correct error")
-			}
-		}
+
+		require.ErrorContains(t, errs.Collect(), "delay not allowed, delay not allowed, delay not allowed, delay not allowed", "must return correct error")
 		assert.Less(t, time.Since(tn), time.Millisecond*600, "should complete within reasonable time")
 	})
 }
@@ -109,16 +104,11 @@ func TestRateLimit_Concurrent(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := NewRateLimitWithWeight(time.Second, 10, 1)
 		tn := time.Now()
-		var wg sync.WaitGroup
-		errs := make(chan error, 10)
+		errs := common.ErrorCollector{}
 		for range 10 {
-			wg.Go(func() { errs <- r.RateLimit(t.Context()) })
+			errs.Go(func() error { return r.RateLimit(t.Context()) })
 		}
-		wg.Wait()
-		close(errs)
-		for err := range errs {
-			require.NoError(t, err, "rate limit must not error")
-		}
+		require.NoError(t, errs.Collect(), "rate limit must not error")
 		assert.Less(t, time.Since(tn), time.Second, "should complete within reasonable time")
 	})
 }
