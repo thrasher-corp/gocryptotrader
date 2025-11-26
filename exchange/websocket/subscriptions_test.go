@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -452,70 +453,235 @@ func TestFlushChannels(t *testing.T) {
 func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	ws := NewManager()
-	err := ws.scaleConnectionsToSubscriptions(t.Context(), nil, nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "must error with nil connectionWrapper")
-	ws.MaxSubscriptionsPerConnection = 2
+	// Common setup helper
+	setup := func() (*Manager, *connectionWrapper, *httptest.Server) {
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 2
 
-	wrapper := &connectionWrapper{
-		setup: &ConnectionSetup{
-			Connector: func(ctx context.Context, c Connection) error {
-				return c.Dial(ctx, gws.DefaultDialer, nil)
+		// Mock server for dialing
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+
+		wrapper := &connectionWrapper{
+			setup: &ConnectionSetup{
+				URL: "ws" + srv.URL[len("http"):] + "/ws",
+				Connector: func(ctx context.Context, c Connection) error {
+					return c.Dial(ctx, gws.DefaultDialer, nil)
+				},
+				Subscriber: func(ctx context.Context, c Connection, s subscription.List) error {
+					return m.AddSuccessfulSubscriptions(c, s...)
+				},
+				Unsubscriber: func(ctx context.Context, c Connection, s subscription.List) error {
+					return m.RemoveSubscriptions(c, s...)
+				},
+				Handler: func(context.Context, Connection, []byte) error { return nil },
 			},
-			Subscriber: func(ctx context.Context, c Connection, s subscription.List) error {
-				return currySimpleSubConn(ws)(ctx, c, s)
-			},
-			Unsubscriber: func(ctx context.Context, c Connection, s subscription.List) error {
-				return currySimpleUnsubConn(ws)(ctx, c, s)
-			},
-			Handler: func(context.Context, Connection, []byte) error { return nil },
-		},
-		subscriptions: subscription.NewStore(),
+			subscriptions: subscription.NewStore(),
+		}
+		return m, wrapper, srv
 	}
 
-	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
-	require.NoError(t, err, "must not error with no subscriptions")
+	t.Run("Nil Wrapper", func(t *testing.T) {
+		m, _, srv := setup()
+		defer srv.Close()
+		err := m.scaleConnectionsToSubscriptions(t.Context(), nil, nil)
+		require.ErrorIs(t, err, common.ErrNilPointer)
+	})
 
-	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-	defer mock.Close()
-	wrapper.setup.URL = "ws" + mock.URL[len("http"):] + "/ws"
+	t.Run("No Changes", func(t *testing.T) {
+		m, wrapper, srv := setup()
+		defer srv.Close()
+		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
+		require.NoError(t, err)
+	})
 
-	exp := subscription.List{
-		{Channel: "test"},
-		{Channel: "test2"},
-		{Channel: "test3"},
+	t.Run("Scale Up (Add Subs)", func(t *testing.T) {
+		m, wrapper, srv := setup()
+		defer srv.Close()
+
+		subs := subscription.List{{Channel: "A"}, {Channel: "B"}, {Channel: "C"}}
+		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, subs)
+		require.NoError(t, err)
+
+		assert.Equal(t, 3, wrapper.subscriptions.Len())
+		assert.Len(t, wrapper.connectionsSubs, 2) // 2 per conn -> 2 conns
+	})
+
+	t.Run("Scale Down (Remove Subs)", func(t *testing.T) {
+		m, wrapper, srv := setup()
+		defer srv.Close()
+
+		// Add subs first
+		subs := subscription.List{{Channel: "A"}, {Channel: "B"}}
+		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, subs)
+		require.NoError(t, err)
+		require.Equal(t, 2, wrapper.subscriptions.Len())
+
+		// Remove all
+		err = m.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
+		require.NoError(t, err)
+		assert.Equal(t, 0, wrapper.subscriptions.Len())
+		assert.Empty(t, wrapper.connectionsSubs)
+	})
+
+	t.Run("Unsubscribe Error", func(t *testing.T) {
+		m, wrapper, srv := setup()
+		defer srv.Close()
+
+		// Add sub first
+		sub := subscription.List{{Channel: "A"}}
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), wrapper, sub))
+
+		// Now set error and remove
+		wrapper.setup.Unsubscriber = func(ctx context.Context, c Connection, s subscription.List) error {
+			return errors.New("unsub fail")
+		}
+		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
+		require.ErrorContains(t, err, "unsub fail")
+	})
+
+	t.Run("Subscribe Error (Existing Connection)", func(t *testing.T) {
+		m, wrapper, srv := setup()
+		defer srv.Close()
+
+		// Add one sub (capacity 2)
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), wrapper, subscription.List{{Channel: "A"}}))
+
+		// Set error
+		wrapper.setup.Subscriber = func(ctx context.Context, c Connection, s subscription.List) error {
+			return errors.New("sub fail")
+		}
+
+		// Add another sub (should use existing connection)
+		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, subscription.List{{Channel: "A"}, {Channel: "B"}})
+		require.ErrorContains(t, err, "sub fail")
+	})
+
+	t.Run("Subscribe Error (New Connection)", func(t *testing.T) {
+		m, wrapper, srv := setup()
+		defer srv.Close()
+
+		// Set connector error
+		wrapper.setup.Connector = func(ctx context.Context, c Connection) error {
+			return errors.New("connect fail")
+		}
+
+		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, subscription.List{{Channel: "A"}})
+		require.ErrorContains(t, err, "connect fail")
+	})
+}
+
+func TestUnsubscribeFromConnection(t *testing.T) {
+	t.Parallel()
+	m := NewManager()
+	m.subscriptions = subscription.NewStore()
+
+	store := subscription.NewStore()
+	sub1 := &subscription.Subscription{Channel: "sub1"}
+	subs := subscription.List{sub1}
+
+	remaining, err := m.unsubscribeFromConnection(nil, store, subs)
+	require.NoError(t, err, "unsubscribeFromConnection must not error when no subs in store")
+	assert.Equal(t, subs, remaining, "remaining should equal input subs when none removed")
+
+	require.NoError(t, store.Add(sub1))
+	m.Unsubscriber = func(l subscription.List) error { return nil }
+	_, err = m.unsubscribeFromConnection(nil, store, subs)
+	require.ErrorIs(t, err, subscription.ErrNotFound, "must error if sub not in manager store")
+
+	require.NoError(t, m.subscriptions.Add(sub1))
+	m.Unsubscriber = func(l subscription.List) error {
+		return errors.New("unsub failed")
 	}
+	_, err = m.unsubscribeFromConnection(nil, store, subs)
+	require.ErrorContains(t, err, "unsub failed")
 
-	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, exp)
-	require.NoError(t, err, "must not error when adding subscriptions")
-	require.Len(t, wrapper.connectionsSubs, 2, "must have two connections when max subs per connection is 2")
-	require.Len(t, wrapper.subscriptions.Contained(exp), 3, "subscriptions must match global store")
-	var specificConnSubs subscription.List
-	for _, connSubs := range wrapper.connectionsSubs {
-		specificConnSubs = append(specificConnSubs, connSubs.Subscriptions.List()...)
-	}
-	require.Len(t, wrapper.subscriptions.Contained(specificConnSubs), 3, "connection subscriptions must match global store")
+	m.Unsubscriber = func(l subscription.List) error { return nil }
+	sub2 := &subscription.Subscription{Channel: "sub2"}
+	subs = subscription.List{sub1, sub2}
 
-	exp = subscription.List{
-		{Channel: "test4"},
-		{Channel: "test5"},
-		{Channel: "test6"},
-		{Channel: "test7"},
-		{Channel: "test8"},
-	}
+	remaining, err = m.unsubscribeFromConnection(nil, store, subs)
+	require.NoError(t, err, "unsubscribeFromConnection must not error when unsubscribing existing subs")
 
-	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, exp)
-	require.NoError(t, err, "must not error when scaling subscriptions to connections")
-	require.Len(t, wrapper.connectionsSubs, 3, "must have three connections when max subs per connection is 2")
-	require.Len(t, wrapper.subscriptions.Contained(exp), 5, "subscriptions must match global store")
-	specificConnSubs = nil
-	for _, connSubs := range wrapper.connectionsSubs {
-		specificConnSubs = append(specificConnSubs, connSubs.Subscriptions.List()...)
-	}
-	require.Len(t, wrapper.subscriptions.Contained(specificConnSubs), 5, "connection subscriptions must match global store")
+	assert.Nil(t, store.Get(sub1), "sub1 should be removed from store")
+	assert.NotNil(t, m.subscriptions.Get(sub1), "sub1 should still be in global store")
 
-	err = ws.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
-	require.NoError(t, err, "must not error when scaling subscriptions to connections with no new subscriptions")
-	require.Empty(t, wrapper.connectionsSubs, "must drop all connections when no subscriptions are present")
-	require.Empty(t, wrapper.subscriptions.List(), "must drop all subscriptions when no subscriptions are present")
+	assert.Len(t, remaining, 1)
+	assert.Equal(t, "sub2", remaining[0].Channel)
+}
+
+func TestSubscribeToConnection(t *testing.T) {
+	t.Parallel()
+	m := NewManager()
+	m.subscriptions = subscription.NewStore()
+	m.Subscriber = func(l subscription.List) error { return nil }
+
+	store := subscription.NewStore()
+	sub1 := &subscription.Subscription{Channel: "sub1"}
+	sub2 := &subscription.Subscription{Channel: "sub2"}
+	sub3 := &subscription.Subscription{Channel: "sub3"}
+	subs := subscription.List{sub1, sub2, sub3}
+
+	m.MaxSubscriptionsPerConnection = 1
+	require.NoError(t, store.Add(&subscription.Subscription{Channel: "existing"}))
+
+	remaining, err := m.subscribeToConnection(nil, store, subs)
+	require.NoError(t, err, "subscribeToConnection must not error when full capacity")
+	assert.Equal(t, subs, remaining, "remaining should equal input subs when capacity full")
+
+	m = NewManager()
+	m.subscriptions = subscription.NewStore()
+	m.Subscriber = func(l subscription.List) error { return nil }
+	store = subscription.NewStore()
+	require.NoError(t, store.Add(&subscription.Subscription{Channel: "existing"}))
+	m.MaxSubscriptionsPerConnection = 3
+
+	// subs has 3 items. Capacity is 3. Used is 1. Available is 2.
+	// Should subscribe to sub1, sub2. Return sub3.
+	remaining, err = m.subscribeToConnection(nil, store, subs)
+	require.NoError(t, err)
+	assert.Len(t, remaining, 1, "should return 1 remaining subscription")
+	assert.Equal(t, sub3, remaining[0], "should return sub3")
+
+	assert.NotNil(t, store.Get(sub1), "sub1 should be added to store")
+	assert.NotNil(t, store.Get(sub2), "sub2 should be added to store")
+	assert.Nil(t, store.Get(sub3), "sub3 should not be added to store")
+
+	m = NewManager()
+	m.subscriptions = subscription.NewStore()
+	m.Subscriber = func(l subscription.List) error { return nil }
+	store = subscription.NewStore()
+	m.MaxSubscriptionsPerConnection = 0
+
+	remaining, err = m.subscribeToConnection(nil, store, subs)
+	require.NoError(t, err)
+	assert.Empty(t, remaining, "should return no remaining subscriptions with no capacity limit")
+	assert.Equal(t, 3, store.Len(), "store should have 3 subscriptions when no capacity limit")
+
+	m = NewManager()
+	m.subscriptions = subscription.NewStore()
+	m.Subscriber = func(l subscription.List) error { return errors.New("sub failed") }
+	store = subscription.NewStore()
+
+	_, err = m.subscribeToConnection(nil, store, subs)
+	require.ErrorContains(t, err, "sub failed")
+
+	m = NewManager()
+	m.subscriptions = subscription.NewStore()
+	m.Subscriber = func(l subscription.List) error { return nil }
+	store = subscription.NewStore()
+	require.NoError(t, store.Add(sub1)) // sub1 already in store
+
+	_, err = m.subscribeToConnection(nil, store, subs)
+	require.ErrorIs(t, err, subscription.ErrDuplicate, "must error when subscription already in store")
+
+	m = NewManager()
+	m.MaxSubscriptionsPerConnection = 50
+	m.subscriptions = subscription.NewStore()
+	m.Subscriber = func(l subscription.List) error { return nil }
+	store = subscription.NewStore()
+
+	_, err = m.subscribeToConnection(nil, store, subs)
+	require.NoError(t, err, "must not error when all subscriptions can be added, this excercises the path where available > len(subs)")
 }

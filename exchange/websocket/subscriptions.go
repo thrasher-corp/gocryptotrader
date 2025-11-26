@@ -354,21 +354,10 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, wrapper *
 		currentUnsubs := slices.Clone(unsubs)
 		// Unsubscribe first to free up capacity on existing connections
 		for _, connSubs := range wrapper.connectionsSubs {
-			remove := connSubs.Subscriptions.Contained(currentUnsubs)
-			if len(remove) == 0 {
-				continue
-			}
-			leftOver := connSubs.Subscriptions.Missing(currentUnsubs)
-			if err := m.UnsubscribeChannels(connSubs.Connection, remove); err != nil {
+			leftOver, err := m.unsubscribeFromConnection(connSubs.Connection, connSubs.Subscriptions, currentUnsubs)
+			if err != nil {
 				return err
 			}
-
-			for _, r := range remove {
-				if err := connSubs.Subscriptions.Remove(r); err != nil {
-					return err
-				}
-			}
-
 			currentUnsubs = leftOver
 			if len(currentUnsubs) == 0 {
 				break
@@ -388,30 +377,14 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, wrapper *
 		}
 	}
 	if len(subs) != 0 {
-		// Subscribe to existing connections to use up existing capacity on free connections
+		// Subscribe to existing connections to use up existing capacity
 		currentSubs := slices.Clone(subs)
 		for _, connSubs := range wrapper.connectionsSubs {
-			usedCap := connSubs.Subscriptions.Len()
-			if m.MaxSubscriptionsPerConnection > 0 && usedCap == m.MaxSubscriptionsPerConnection {
-				continue // No capacity left for this connection
-			}
-			availableCap := len(currentSubs)
-			if m.MaxSubscriptionsPerConnection > 0 {
-				availableCap = m.MaxSubscriptionsPerConnection - usedCap
-			}
-
-			toSubscribe := currentSubs[:availableCap]
-			if err := m.SubscribeToChannels(connSubs.Connection, toSubscribe); err != nil {
+			leftOver, err := m.subscribeToConnection(connSubs.Connection, connSubs.Subscriptions, currentSubs)
+			if err != nil {
 				return err
 			}
-
-			for _, s := range toSubscribe {
-				if err := connSubs.Subscriptions.Add(s); err != nil {
-					return err
-				}
-			}
-
-			currentSubs = currentSubs[availableCap:]
+			currentSubs = leftOver
 			if len(currentSubs) == 0 {
 				break
 			}
@@ -444,4 +417,54 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, wrapper *
 	wrapper.connectionsSubs = clean
 
 	return nil
+}
+
+// unsubscribeFromConnection unsubscribes from a connection and removes subscriptions from the store
+func (m *Manager) unsubscribeFromConnection(conn Connection, store *subscription.Store, subs subscription.List) (subscription.List, error) {
+	remove := store.Contained(subs)
+	if len(remove) == 0 {
+		return subs, nil
+	}
+
+	if err := m.UnsubscribeChannels(conn, remove); err != nil {
+		return nil, err
+	}
+
+	missing := store.Missing(subs)
+	for _, r := range remove {
+		if err := store.Remove(r); err != nil {
+			return nil, err
+		}
+	}
+	return missing, nil
+}
+
+// subscribeToConnection subscribes to a connection and adds subscriptions to the store
+func (m *Manager) subscribeToConnection(conn Connection, store *subscription.Store, subs subscription.List) (subscription.List, error) {
+	usedCap := store.Len()
+	if m.MaxSubscriptionsPerConnection > 0 && usedCap == m.MaxSubscriptionsPerConnection {
+		return subs, nil // No capacity left for this connection
+	}
+
+	availableCap := len(subs)
+	if m.MaxSubscriptionsPerConnection > 0 {
+		availableCap = m.MaxSubscriptionsPerConnection - usedCap
+	}
+
+	if availableCap > len(subs) {
+		availableCap = len(subs)
+	}
+
+	toSubscribe := subs[:availableCap]
+	if err := m.SubscribeToChannels(conn, toSubscribe); err != nil {
+		return nil, err
+	}
+
+	for _, s := range toSubscribe {
+		if err := store.Add(s); err != nil {
+			return nil, err
+		}
+	}
+
+	return subs[availableCap:], nil
 }
