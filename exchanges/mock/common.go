@@ -40,7 +40,7 @@ func MatchURLVals(v1, v2 url.Values) bool {
 	return true
 }
 
-// DeriveURLValsFromJSONSlice gets url vals from a []map[string]string encoded JSON body
+// DeriveURLValsFromJSONSlice converts a JSON array into a slice of url.Values by processing each array element as a JSON object
 func DeriveURLValsFromJSONSlice(payload []byte) ([]url.Values, error) {
 	if len(payload) == 0 {
 		return nil, nil
