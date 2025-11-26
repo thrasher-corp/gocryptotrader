@@ -27,18 +27,16 @@ func TestRateLimit(t *testing.T) {
 		r = NewRateLimitWithWeight(time.Second, 10, 1)
 		start := time.Now()
 		err = r.RateLimit(t.Context())
-		synctest.Wait()
 		elapsed := time.Since(start)
 		require.NoError(t, err, "rate limit must not error")
-		assert.Less(t, elapsed, time.Millisecond*50, "should complete quickly for first request")
+		assert.Zero(t, elapsed, "first call should be immediate")
 
 		r = NewRateLimitWithWeight(time.Second, 10, 5)
 		start = time.Now()
 		err = r.RateLimit(t.Context())
-		synctest.Wait()
 		elapsed = time.Since(start)
 		require.NoError(t, err, "rate limit must not error")
-		assert.Less(t, elapsed, time.Millisecond*600, "should complete within reasonable time for weight 5")
+		assert.Equal(t, 400*time.Millisecond, elapsed, "should wait 400ms (4 intervals) for weight 5")
 
 		r = NewRateLimitWithWeight(100*time.Millisecond, 1, 1)
 		start = time.Now()
@@ -46,15 +44,13 @@ func TestRateLimit(t *testing.T) {
 		synctest.Wait()
 		elapsed = time.Since(start)
 		require.NoError(t, err, "first rate limit call must not error and must be immediate")
-		assert.Less(t, elapsed, 50*time.Millisecond, "first call should be immediate")
+		assert.Zero(t, elapsed, "first call should be immediate")
 
 		start = time.Now()
 		err = r.RateLimit(t.Context())
-		synctest.Wait()
 		elapsed = time.Since(start)
 		require.NoError(t, err, "second rate limit call must not error")
-		assert.GreaterOrEqual(t, elapsed, 90*time.Millisecond, "second call should be delayed by approximately 100ms")
-		assert.Less(t, elapsed, 150*time.Millisecond, "delay should not be excessive")
+		assert.Equal(t, 100*time.Millisecond, elapsed, "second call should be delayed by exactly 100ms")
 
 		err = r.RateLimit(WithDelayNotAllowed(t.Context()))
 		assert.ErrorIs(t, err, ErrDelayNotAllowed, "should return correct error")
@@ -64,10 +60,10 @@ func TestRateLimit(t *testing.T) {
 		err = r.RateLimit(ctx)
 		assert.ErrorIs(t, err, context.Canceled, "should return correct error when context is canceled")
 
-		ctx, cancel = context.WithDeadline(t.Context(), time.Now())
+		// Rate limit is 100ms. Set deadline for 50ms.
+		ctx, cancel = context.WithTimeout(t.Context(), 50*time.Millisecond)
 		defer cancel()
 		err = r.RateLimit(ctx)
-		synctest.Wait()
 		assert.ErrorIs(t, err, context.DeadlineExceeded, "should return correct error when context deadline exceeded")
 	})
 }
