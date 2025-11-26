@@ -177,21 +177,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// Migrate legacy URLs to the new format
-	em := e.API.Endpoints.GetURLMap()
-	if em[exchange.RestSpot.String()] == "https://poloniex.com" {
-		if err := e.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), apiURL); err != nil {
-			return err
-		}
-		exch.API.Endpoints[exchange.RestSpot.String()] = apiURL
-	}
-	if em[exchange.WebsocketSpot.String()] == "wss://api2.poloniex.com" {
-		if err := e.API.Endpoints.SetRunningURL(exchange.WebsocketSpot.String(), websocketURL); err != nil {
-			return err
-		}
-		exch.API.Endpoints[exchange.WebsocketSpot.String()] = websocketURL
-	}
-
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig: exch,
 		FillsFeed:      e.Features.Enabled.FillsFeed,
