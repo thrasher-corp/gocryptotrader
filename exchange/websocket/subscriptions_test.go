@@ -469,10 +469,10 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 				Connector: func(ctx context.Context, c Connection) error {
 					return c.Dial(ctx, gws.DefaultDialer, nil)
 				},
-				Subscriber: func(ctx context.Context, c Connection, s subscription.List) error {
+				Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
 					return m.AddSuccessfulSubscriptions(c, s...)
 				},
-				Unsubscriber: func(ctx context.Context, c Connection, s subscription.List) error {
+				Unsubscriber: func(_ context.Context, c Connection, s subscription.List) error {
 					return m.RemoveSubscriptions(c, s...)
 				},
 				Handler: func(context.Context, Connection, []byte) error { return nil },
@@ -483,6 +483,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	}
 
 	t.Run("Nil Wrapper", func(t *testing.T) {
+		t.Parallel()
 		m, _, srv := setup()
 		defer srv.Close()
 		err := m.scaleConnectionsToSubscriptions(t.Context(), nil, nil)
@@ -490,6 +491,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	})
 
 	t.Run("No Changes", func(t *testing.T) {
+		t.Parallel()
 		m, wrapper, srv := setup()
 		defer srv.Close()
 		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
@@ -497,6 +499,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	})
 
 	t.Run("Scale Up (Add Subs)", func(t *testing.T) {
+		t.Parallel()
 		m, wrapper, srv := setup()
 		defer srv.Close()
 
@@ -509,6 +512,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	})
 
 	t.Run("Scale Down (Remove Subs)", func(t *testing.T) {
+		t.Parallel()
 		m, wrapper, srv := setup()
 		defer srv.Close()
 
@@ -526,6 +530,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	})
 
 	t.Run("Unsubscribe Error", func(t *testing.T) {
+		t.Parallel()
 		m, wrapper, srv := setup()
 		defer srv.Close()
 
@@ -534,7 +539,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), wrapper, sub))
 
 		// Now set error and remove
-		wrapper.setup.Unsubscriber = func(ctx context.Context, c Connection, s subscription.List) error {
+		wrapper.setup.Unsubscriber = func(context.Context, Connection, subscription.List) error {
 			return errors.New("unsub fail")
 		}
 		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
@@ -542,6 +547,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	})
 
 	t.Run("Subscribe Error (Existing Connection)", func(t *testing.T) {
+		t.Parallel()
 		m, wrapper, srv := setup()
 		defer srv.Close()
 
@@ -549,7 +555,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), wrapper, subscription.List{{Channel: "A"}}))
 
 		// Set error
-		wrapper.setup.Subscriber = func(ctx context.Context, c Connection, s subscription.List) error {
+		wrapper.setup.Subscriber = func(context.Context, Connection, subscription.List) error {
 			return errors.New("sub fail")
 		}
 
@@ -563,7 +569,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		defer srv.Close()
 
 		// Set connector error
-		wrapper.setup.Connector = func(ctx context.Context, c Connection) error {
+		wrapper.setup.Connector = func(context.Context, Connection) error {
 			return errors.New("connect fail")
 		}
 
@@ -586,18 +592,18 @@ func TestUnsubscribeFromConnection(t *testing.T) {
 	assert.Equal(t, subs, remaining, "remaining should equal input subs when none removed")
 
 	require.NoError(t, store.Add(sub1))
-	m.Unsubscriber = func(l subscription.List) error { return nil }
+	m.Unsubscriber = func(subscription.List) error { return nil }
 	_, err = m.unsubscribeFromConnection(nil, store, subs)
 	require.ErrorIs(t, err, subscription.ErrNotFound, "must error if sub not in manager store")
 
 	require.NoError(t, m.subscriptions.Add(sub1))
-	m.Unsubscriber = func(l subscription.List) error {
+	m.Unsubscriber = func(subscription.List) error {
 		return errors.New("unsub failed")
 	}
 	_, err = m.unsubscribeFromConnection(nil, store, subs)
 	require.ErrorContains(t, err, "unsub failed")
 
-	m.Unsubscriber = func(l subscription.List) error { return nil }
+	m.Unsubscriber = func(subscription.List) error { return nil }
 	sub2 := &subscription.Subscription{Channel: "sub2"}
 	subs = subscription.List{sub1, sub2}
 
@@ -615,7 +621,7 @@ func TestSubscribeToConnection(t *testing.T) {
 	t.Parallel()
 	m := NewManager()
 	m.subscriptions = subscription.NewStore()
-	m.Subscriber = func(l subscription.List) error { return nil }
+	m.Subscriber = func(subscription.List) error { return nil }
 
 	store := subscription.NewStore()
 	sub1 := &subscription.Subscription{Channel: "sub1"}
@@ -632,7 +638,7 @@ func TestSubscribeToConnection(t *testing.T) {
 
 	m = NewManager()
 	m.subscriptions = subscription.NewStore()
-	m.Subscriber = func(l subscription.List) error { return nil }
+	m.Subscriber = func(subscription.List) error { return nil }
 	store = subscription.NewStore()
 	require.NoError(t, store.Add(&subscription.Subscription{Channel: "existing"}))
 	m.MaxSubscriptionsPerConnection = 3
@@ -650,7 +656,7 @@ func TestSubscribeToConnection(t *testing.T) {
 
 	m = NewManager()
 	m.subscriptions = subscription.NewStore()
-	m.Subscriber = func(l subscription.List) error { return nil }
+	m.Subscriber = func(subscription.List) error { return nil }
 	store = subscription.NewStore()
 	m.MaxSubscriptionsPerConnection = 0
 
@@ -661,7 +667,7 @@ func TestSubscribeToConnection(t *testing.T) {
 
 	m = NewManager()
 	m.subscriptions = subscription.NewStore()
-	m.Subscriber = func(l subscription.List) error { return errors.New("sub failed") }
+	m.Subscriber = func(subscription.List) error { return errors.New("sub failed") }
 	store = subscription.NewStore()
 
 	_, err = m.subscribeToConnection(nil, store, subs)
@@ -669,7 +675,7 @@ func TestSubscribeToConnection(t *testing.T) {
 
 	m = NewManager()
 	m.subscriptions = subscription.NewStore()
-	m.Subscriber = func(l subscription.List) error { return nil }
+	m.Subscriber = func(subscription.List) error { return nil }
 	store = subscription.NewStore()
 	require.NoError(t, store.Add(sub1)) // sub1 already in store
 
@@ -679,7 +685,7 @@ func TestSubscribeToConnection(t *testing.T) {
 	m = NewManager()
 	m.MaxSubscriptionsPerConnection = 50
 	m.subscriptions = subscription.NewStore()
-	m.Subscriber = func(l subscription.List) error { return nil }
+	m.Subscriber = func(subscription.List) error { return nil }
 	store = subscription.NewStore()
 
 	_, err = m.subscribeToConnection(nil, store, subs)
