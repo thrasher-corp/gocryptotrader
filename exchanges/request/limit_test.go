@@ -27,8 +27,8 @@ func TestRateLimit(t *testing.T) {
 		r = NewRateLimitWithWeight(time.Second, 10, 1)
 		start := time.Now()
 		err = r.RateLimit(t.Context())
-		elapsed := time.Since(start)
 		synctest.Wait()
+		elapsed := time.Since(start)
 		require.NoError(t, err, "rate limit must not error")
 		assert.Less(t, elapsed, time.Millisecond*50, "should complete quickly for first request")
 
@@ -44,15 +44,15 @@ func TestRateLimit(t *testing.T) {
 		start = time.Now()
 		err = r.RateLimit(WithDelayNotAllowed(t.Context()))
 		synctest.Wait()
-		require.NoError(t, err, "first rate limit call must not error and must be immediate")
 		elapsed = time.Since(start)
+		require.NoError(t, err, "first rate limit call must not error and must be immediate")
 		assert.Less(t, elapsed, 50*time.Millisecond, "first call should be immediate")
 
 		start = time.Now()
 		err = r.RateLimit(t.Context())
 		synctest.Wait()
-		require.NoError(t, err, "second rate limit call must not error")
 		elapsed = time.Since(start)
+		require.NoError(t, err, "second rate limit call must not error")
 		assert.GreaterOrEqual(t, elapsed, 90*time.Millisecond, "second call should be delayed by approximately 100ms")
 		assert.Less(t, elapsed, 150*time.Millisecond, "delay should not be excessive")
 
