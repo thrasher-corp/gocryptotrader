@@ -17,7 +17,6 @@ func TestRateLimit(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
-		t.Helper()
 		err := (*RateLimiterWithWeight)(nil).RateLimit(t.Context())
 		assert.ErrorContains(t, err, "nil pointer: *request.RateLimiterWithWeight")
 
@@ -82,7 +81,6 @@ func TestRateLimit_Concurrent_WithFailure(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
-		t.Helper()
 		r := NewRateLimitWithWeight(time.Second, 10, 1)
 		tn := time.Now()
 		var wg sync.WaitGroup
@@ -109,7 +107,6 @@ func TestRateLimit_Concurrent(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
-		t.Helper()
 		r := NewRateLimitWithWeight(time.Second, 10, 1)
 		tn := time.Now()
 		var wg sync.WaitGroup
@@ -130,10 +127,8 @@ func TestRateLimit_Linear_WithFailure(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
-		t.Helper()
 		r := NewRateLimitWithWeight(time.Second, 10, 1)
 		tn := time.Now()
-		var wg sync.WaitGroup
 		for i := range 10 {
 			ctx := t.Context()
 			if i%2 == 0 {
@@ -143,7 +138,6 @@ func TestRateLimit_Linear_WithFailure(t *testing.T) {
 				require.ErrorIs(t, err, ErrDelayNotAllowed, "must return correct error")
 			}
 		}
-		wg.Wait()
 		assert.Less(t, time.Since(tn), time.Millisecond*600, "should complete within reasonable time")
 	})
 }
@@ -152,14 +146,11 @@ func TestRateLimit_Linear(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
-		t.Helper()
 		r := NewRateLimitWithWeight(time.Second, 10, 1)
 		tn := time.Now()
-		var wg sync.WaitGroup
 		for range 10 {
 			require.NoError(t, r.RateLimit(t.Context()))
 		}
-		wg.Wait()
 		assert.Less(t, time.Since(tn), time.Second, "should complete within reasonable time")
 	})
 }
