@@ -600,7 +600,8 @@ func (m *Manager) connectAndSubscribe(ctx context.Context, wrapper *connectionWr
 	connectionStore := subscription.NewStore()
 	wrapper.connectionsSubs = append(wrapper.connectionsSubs, connectionSubscriptions{Connection: conn, Subscriptions: connectionStore})
 
-	m.Wg.Go(func() { m.Reader(ctx, conn, wrapper.setup.Handler) })
+	m.Wg.Add(1)
+	go m.Reader(ctx, conn, wrapper.setup.Handler)
 
 	if wrapper.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
 		if err := wrapper.setup.Authenticate(ctx, conn); err != nil {
@@ -912,6 +913,7 @@ func checkWebsocketURL(s string) error {
 
 // Reader reads and handles data from a specific connection
 func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error) {
+	defer m.Wg.Done()
 	for {
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {
