@@ -13,7 +13,7 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// Defines rate limiting errors.
+// Rate limiting errors.
 var (
 	ErrRateLimiterAlreadyDisabled = errors.New("rate limiter already disabled")
 	ErrRateLimiterAlreadyEnabled  = errors.New("rate limiter already enabled")
