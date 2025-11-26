@@ -11,8 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -210,67 +210,41 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	book := &orderbook.Book{
+	ob := &orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
 		Asset:             assetType,
 		ValidateOrderbook: e.ValidateOrderbook,
-		Asks:              make(orderbook.Levels, len(d.Data.Asks)),
-		Bids:              make(orderbook.Levels, len(d.Data.Bids)),
+		Asks:              d.Data.Asks.Levels(),
+		Bids:              d.Data.Bids.Levels(),
 	}
-
-	for i := range d.Data.Asks {
-		book.Asks[i].Price = d.Data.Asks[i][0].Float64()
-		book.Asks[i].Amount = d.Data.Asks[i][1].Float64()
-	}
-	for i := range d.Data.Bids {
-		book.Bids[i].Price = d.Data.Bids[i][0].Float64()
-		book.Bids[i].Amount = d.Data.Bids[i][1].Float64()
-	}
-
-	if err := book.Process(); err != nil {
+	if err := ob.Process(); err != nil {
 		return nil, err
 	}
-
 	return orderbook.Get(e.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// Lbank exchange
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	data, err := e.GetUserInfo(ctx)
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	resp, err := e.GetUserInfo(ctx)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	acc := account.SubAccount{AssetType: assetType}
-	for key, val := range data.Info.Asset {
-		hold, ok := data.Info.Freeze[key]
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for k, val := range resp.Info.Asset {
+		hold, ok := resp.Info.Freeze[k]
 		if !ok {
-			return info, fmt.Errorf("hold data not found with %s", key)
+			return nil, fmt.Errorf("hold data not found with %s", k)
 		}
 		totalVal := val.Float64()
 		totalHold := hold.Float64()
-		acc.Currencies = append(acc.Currencies, account.Balance{
-			Currency: currency.NewCode(key),
-			Total:    totalVal,
-			Hold:     totalHold,
-			Free:     totalVal - totalHold,
+		subAccts[0].Balances.Set(currency.NewCode(k), accounts.Balance{
+			Total: totalVal,
+			Hold:  totalHold,
+			Free:  totalVal - totalHold,
 		})
 	}
-
-	info.Accounts = append(info.Accounts, acc)
-	info.Exchange = e.Name
-
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	err = account.Process(&info, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	return info, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -400,9 +374,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return s.DeriveSubmitResponse(tempResp.OrderID)
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
-func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+// ModifyOrder modifies an existing order
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -783,10 +756,9 @@ func (e *Exchange) getAllOpenOrderID(ctx context.Context) (map[string][]string, 
 	return resp, nil
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

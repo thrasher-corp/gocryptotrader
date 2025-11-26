@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -120,13 +121,13 @@ type ContractSizeData struct {
 
 // CurrencyData stores data for currencies
 type CurrencyData struct {
-	CoinType             string  `json:"coin_type"`
-	Currency             string  `json:"currency"` // TODO: change to currency.Code
-	CurrencyLong         string  `json:"currency_long"`
-	FeePrecision         int64   `json:"fee_precision"`
-	MinConfirmations     int64   `json:"min_confirmations"`
-	MinWithdrawalFee     float64 `json:"min_withdrawal_fee"`
-	WithdrawalFee        float64 `json:"withdrawal_fee"`
+	CoinType             string        `json:"coin_type"`
+	Currency             currency.Code `json:"currency"`
+	CurrencyLong         string        `json:"currency_long"`
+	FeePrecision         int64         `json:"fee_precision"`
+	MinConfirmations     int64         `json:"min_confirmations"`
+	MinWithdrawalFee     float64       `json:"min_withdrawal_fee"`
+	WithdrawalFee        float64       `json:"withdrawal_fee"`
 	WithdrawalPriorities []struct {
 		Value float64 `json:"value"`
 		Name  string  `json:"name"`
@@ -191,31 +192,31 @@ type IndexPriceData struct {
 
 // InstrumentData gets data for instruments
 type InstrumentData struct {
-	InstrumentName               string     `json:"instrument_name"`
-	BaseCurrency                 string     `json:"base_currency"`
-	Kind                         string     `json:"kind"`
-	OptionType                   string     `json:"option_type"`
-	QuoteCurrency                string     `json:"quote_currency"`
-	BlockTradeCommission         float64    `json:"block_trade_commission"`
-	ContractSize                 float64    `json:"contract_size"`
-	CreationTimestamp            types.Time `json:"creation_timestamp"`
-	ExpirationTimestamp          types.Time `json:"expiration_timestamp"`
-	IsActive                     bool       `json:"is_active"`
-	Leverage                     float64    `json:"leverage"`
-	MaxLeverage                  float64    `json:"max_leverage"`
-	MakerCommission              float64    `json:"maker_commission"`
-	MinimumTradeAmount           float64    `json:"min_trade_amount"`
-	TickSize                     float64    `json:"tick_size"`
-	TakerCommission              float64    `json:"taker_commission"`
-	Strike                       float64    `json:"strike"`
-	SettlementPeriod             string     `json:"settlement_period"`
-	SettlementCurrency           string     `json:"settlement_currency"`
-	RequestForQuote              bool       `json:"rfq"`
-	PriceIndex                   string     `json:"price_index"`
-	InstrumentID                 int64      `json:"instrument_id"`
-	CounterCurrency              string     `json:"counter_currency"`
-	MaximumLiquidationCommission float64    `json:"max_liquidation_commission"`
-	FutureType                   string     `json:"future_type"`
+	InstrumentName               string        `json:"instrument_name"`
+	BaseCurrency                 currency.Code `json:"base_currency"`
+	Kind                         string        `json:"kind"`
+	OptionType                   string        `json:"option_type"`
+	QuoteCurrency                currency.Code `json:"quote_currency"`
+	BlockTradeCommission         float64       `json:"block_trade_commission"`
+	ContractSize                 float64       `json:"contract_size"`
+	CreationTimestamp            types.Time    `json:"creation_timestamp"`
+	ExpirationTimestamp          types.Time    `json:"expiration_timestamp"`
+	IsActive                     bool          `json:"is_active"`
+	Leverage                     float64       `json:"leverage"`
+	MaxLeverage                  float64       `json:"max_leverage"`
+	MakerCommission              float64       `json:"maker_commission"`
+	MinimumTradeAmount           float64       `json:"min_trade_amount"`
+	TickSize                     float64       `json:"tick_size"`
+	TakerCommission              float64       `json:"taker_commission"`
+	Strike                       float64       `json:"strike"`
+	SettlementPeriod             string        `json:"settlement_period"`
+	SettlementCurrency           currency.Code `json:"settlement_currency"`
+	RequestForQuote              bool          `json:"rfq"`
+	PriceIndex                   string        `json:"price_index"`
+	InstrumentID                 int64         `json:"instrument_id"`
+	CounterCurrency              string        `json:"counter_currency"`
+	MaximumLiquidationCommission float64       `json:"max_liquidation_commission"`
+	FutureType                   string        `json:"future_type"`
 	TickSizeSteps                []struct {
 		AbovePrice float64 `json:"above_price"`
 		TickSize   float64 `json:"tick_size"`
@@ -901,15 +902,6 @@ type wsSubscriptionResponse struct {
 	Result         []string `json:"result"`
 }
 
-// RequestForQuote RFQs for instruments in given currency.
-type RequestForQuote struct {
-	TradedVolume     float64    `json:"traded_volume"`
-	Amount           float64    `json:"amount"`
-	Side             string     `json:"side"`
-	LastRFQTimestamp types.Time `json:"last_rfq_tstamp"`
-	InstrumentName   string     `json:"instrument_name"`
-}
-
 // ComboDetail retrieves information about a combo
 type ComboDetail struct {
 	ID                string     `json:"id"`
@@ -1250,15 +1242,6 @@ type wsQuoteTickerInformation struct {
 	BestBidAmount  float64    `json:"best_bid_amount"`
 	BestAskPrice   float64    `json:"best_ask_price"`
 	BestAskAmount  float64    `json:"best_ask_amount"`
-}
-
-// wsRequestForQuote represents a notifications about RFQs for instruments in given currency.
-type wsRequestForQuote struct {
-	State            bool       `json:"state"`
-	Side             any        `json:"side"`
-	LastRFQTimestamp types.Time `json:"last_rfq_tstamp"`
-	InstrumentName   string     `json:"instrument_name"`
-	Amount           any        `json:"amount"`
 }
 
 // wsTrade represents trades for an instrument.

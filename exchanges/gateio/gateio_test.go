@@ -20,8 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -89,12 +89,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 }
 
-func TestGetAccountInfo(t *testing.T) {
+func TestGetAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.UpdateAccountInfo(t.Context(), a)
-		assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
+		_, err := e.UpdateAccountBalances(t.Context(), a)
+		assert.NoErrorf(t, err, "UpdateAccountBalances should not error for asset %s", a)
 	}
 }
 
@@ -2051,7 +2051,7 @@ const wsBalancesPushDataJSON = `{"time": 1605248616,	"channel": "spot.balances",
 
 func TestBalancesPushData(t *testing.T) {
 	t.Parallel()
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
 	if err := e.WsHandleSpotData(ctx, nil, []byte(wsBalancesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket balances push data error: %v", e.Name, err)
 	}
@@ -2070,7 +2070,7 @@ const wsCrossMarginBalancePushDataJSON = `{"time": 1605248616,"channel": "spot.c
 
 func TestCrossMarginBalancePushData(t *testing.T) {
 	t.Parallel()
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
 	if err := e.WsHandleSpotData(ctx, nil, []byte(wsCrossMarginBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket cross margin balance push data error: %v", e.Name, err)
 	}
@@ -2088,11 +2088,11 @@ func TestCrossMarginBalanceLoan(t *testing.T) {
 // TestFuturesDataHandler ensures that messages from various futures channels do not error
 func TestFuturesDataHandler(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, m []byte) error {
 		if strings.Contains(string(m), "futures.balances") {
-			ctx = account.DeployCredentialsToContext(ctx, &account.Credentials{Key: "test", Secret: "test"})
+			ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "test", Secret: "test"})
 		}
 		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
@@ -2252,7 +2252,7 @@ const optionsBalancePushDataJSON = `{	"channel": "options.balances",	"event": "u
 
 func TestOptionsBalancePushData(t *testing.T) {
 	t.Parallel()
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
 	if err := e.WsHandleOptionsData(ctx, nil, []byte(optionsBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket options balance push data error: %v", e.Name, err)
 	}
@@ -2276,7 +2276,7 @@ func TestOptionsPongPushData(t *testing.T) {
 func TestGenerateSubscriptionsSpot(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -2335,7 +2335,7 @@ func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 
 func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	subs, err := e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
 	require.NoError(t, err)
@@ -2564,11 +2564,33 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			default:
 				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-				pairs, err := e.CurrencyPairs.GetPairs(a, true)
-				require.NoError(t, err, "GetPairs must not error")
-				l, err := e.GetOrderExecutionLimits(a, pairs[0])
-				require.NoError(t, err, "GetOrderExecutionLimits must not error")
-				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				avail, err := e.GetAvailablePairs(a)
+				require.NoError(t, err, "GetAvailablePairs must not error")
+				for _, pair := range avail {
+					l, err := e.GetOrderExecutionLimits(a, pair)
+					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", pair)
+					require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", pair)
+					assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", pair)
+					assert.Truef(t, pair.Equal(l.Key.Pair()), "pair should equal for %s", pair)
+					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
+					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", pair)
+
+					switch a {
+					case asset.USDTMarginedFutures:
+						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", pair)
+						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", pair)
+						fallthrough
+					case asset.CoinMarginedFutures:
+						if !l.Delisted.IsZero() {
+							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", pair)
+						}
+					case asset.Spot:
+						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", pair)
+						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", pair)
+					case asset.DeliveryFutures:
+						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", pair)
+					}
+				}
 			}
 		})
 	}
@@ -2985,7 +3007,6 @@ func TestGetSettlementCurrency(t *testing.T) {
 
 type FixtureConnection struct{ websocket.Connection }
 
-func (d *FixtureConnection) GenerateMessageID(bool) int64 { return 1337 }
 func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
 	return []byte(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`), nil
 }
@@ -2994,12 +3015,12 @@ func TestHandleSubscriptions(t *testing.T) {
 	t.Parallel()
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
 
-	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
+	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
 
-	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
+	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
@@ -3975,7 +3996,7 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	e := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow
+	e := newExchangeWithWebsocket(t, asset.Spot)
 
 	sub.AssetType = asset.Spot
 	cpy.AssetType = asset.Spot
@@ -4130,4 +4151,46 @@ func TestMarshalJSONNumber(t *testing.T) {
 		require.NoError(t, err, "MarshalJSON must not error")
 		assert.Equal(t, tc.expected, string(payload), "MarshalJSON should return expected value")
 	}
+}
+
+func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
+	t.Parallel()
+	var ob OrderbookLevels
+	require.NoError(t, ob.UnmarshalJSON([]byte(`[{"p":"123.45","s":"0.001"}]`)))
+	assert.Equal(t, 123.45, ob[0].Price, "Price should be correct")
+	assert.Equal(t, 0.001, ob[0].Amount, "Amount should be correct")
+
+	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
+}
+
+func TestGetEstimatedInterestRate(t *testing.T) {
+	t.Parallel()
+
+	_, err := e.GetEstimatedInterestRate(t.Context(), nil)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodesEmpty)
+
+	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.EMPTYCODE})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{
+		currency.USDT,
+		currency.BTC,
+		currency.ETH,
+		currency.XRP,
+		currency.LTC,
+		currency.DOGE,
+		currency.BCH,
+		currency.SOL,
+		currency.ADA,
+		currency.DOT,
+		currency.MATIC,
+	})
+	require.ErrorIs(t, err, errTooManyCurrencyCodes)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	got, err := e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.BTC})
+	require.NoError(t, err)
+	val, ok := got["BTC"]
+	require.True(t, ok, "result map must contain BTC key")
+	require.Positive(t, val.Float64(), "estimated interest rate must not be 0")
 }

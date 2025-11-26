@@ -9,8 +9,8 @@ import (
 
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -111,11 +111,11 @@ func (e *Exchange) DeliveryFuturesUnsubscribe(ctx context.Context, conn websocke
 	return e.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, e.generateDeliveryFuturesPayload)
 }
 
-func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
-	var creds *account.Credentials
+	var creds *accounts.Credentials
 	var err error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = e.GetCredentials(ctx)
@@ -194,7 +194,7 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, conn webs
 			}
 		}
 		outbound = append(outbound, WsInput{
-			ID:      conn.GenerateMessageID(false),
+			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,

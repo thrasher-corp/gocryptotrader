@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -1580,46 +1579,25 @@ func (c *Config) Save(writerProvider func() (io.Writer, error)) error {
 	return err
 }
 
-// CheckRemoteControlConfig checks to see if the old c.Webserver field is used
-// and migrates the existing settings to the new RemoteControl struct
+func setDefaultIfZeroWarn[T comparable](scope, name string, p *T, def T) {
+	if common.SetIfZero(p, def) {
+		log.Warnf(log.ConfigMgr, "%s field %q not set, defaulting to `%v`", scope, name, def)
+	}
+}
+
+// CheckRemoteControlConfig checks and sets default values for the remote control config
 func (c *Config) CheckRemoteControlConfig() {
 	m.Lock()
 	defer m.Unlock()
 
-	if c.Webserver != nil {
-		port := common.ExtractPortOrDefault(c.Webserver.ListenAddress)
-		host := common.ExtractHostOrDefault(c.Webserver.ListenAddress)
+	setDefaultIfZeroWarn("Remote control", "username", &c.RemoteControl.Username, DefaultGRPCUsername)
+	setDefaultIfZeroWarn("Remote control", "password", &c.RemoteControl.Password, DefaultGRPCPassword)
+	setDefaultIfZeroWarn("Remote control gRPC", "listen address", &c.RemoteControl.GRPC.ListenAddress, "localhost:9052")
+	setDefaultIfZeroWarn("Remote control gRPC", "gRPC proxy listen address", &c.RemoteControl.GRPC.GRPCProxyListenAddress, "localhost:9053")
 
-		c.RemoteControl = RemoteControlConfig{
-			Username: c.Webserver.AdminUsername,
-			Password: c.Webserver.AdminPassword,
-
-			DeprecatedRPC: DepcrecatedRPCConfig{
-				Enabled:       c.Webserver.Enabled,
-				ListenAddress: host + ":" + strconv.Itoa(port),
-			},
-		}
-
-		port++
-		c.RemoteControl.WebsocketRPC = WebsocketRPCConfig{
-			Enabled:             c.Webserver.Enabled,
-			ListenAddress:       host + ":" + strconv.Itoa(port),
-			ConnectionLimit:     c.Webserver.WebsocketConnectionLimit,
-			MaxAuthFailures:     c.Webserver.WebsocketMaxAuthFailures,
-			AllowInsecureOrigin: c.Webserver.WebsocketAllowInsecureOrigin,
-		}
-
-		port++
-		gRPCProxyPort := port + 1
-		c.RemoteControl.GRPC = GRPCConfig{
-			Enabled:                c.Webserver.Enabled,
-			ListenAddress:          host + ":" + strconv.Itoa(port),
-			GRPCProxyEnabled:       c.Webserver.Enabled,
-			GRPCProxyListenAddress: host + ":" + strconv.Itoa(gRPCProxyPort),
-		}
-
-		// Then flush the old webserver settings
-		c.Webserver = nil
+	if c.RemoteControl.GRPC.GRPCProxyEnabled && !c.RemoteControl.GRPC.Enabled {
+		log.Warnln(log.ConfigMgr, "gRPC proxy cannot be enabled when gRPC is disabled, disabling gRPC proxy")
+		c.RemoteControl.GRPC.GRPCProxyEnabled = false
 	}
 }
 
@@ -1688,7 +1666,6 @@ func (c *Config) UpdateConfig(configPath string, newCfg *Config, dryrun bool) er
 	c.GlobalHTTPTimeout = newCfg.GlobalHTTPTimeout
 	c.Portfolio = newCfg.Portfolio
 	c.Communications = newCfg.Communications
-	c.Webserver = newCfg.Webserver
 	c.Exchanges = newCfg.Exchanges
 
 	if !dryrun {

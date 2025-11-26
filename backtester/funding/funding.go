@@ -15,8 +15,8 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -564,31 +564,21 @@ func (f *FundManager) UpdateFundingFromLiveData(initialFundsSet bool) error {
 	if err != nil {
 		return err
 	}
-	for x := range exchanges {
-		var creds *account.Credentials
-		creds, err = exchanges[x].GetCredentials(context.TODO())
-		if err != nil {
-			return err
-		}
-		assets := exchanges[x].GetAssetTypes(false)
-		for y := range assets {
-			if assets[y].IsFutures() {
+	for _, e := range exchanges {
+		eName := e.GetName()
+		for _, a := range e.GetAssetTypes(false) {
+			if a.IsFutures() {
 				// we set all holdings as spot
 				// futures currency holdings are collateral in the collateral currency
 				continue
 			}
-			var acc account.Holdings
-			acc, err = exchanges[x].UpdateAccountInfo(context.TODO(), assets[y])
+			subAccts, err := e.UpdateAccountBalances(context.TODO(), a)
 			if err != nil {
 				return err
 			}
-			for z := range acc.Accounts {
-				if !acc.Accounts[z].Credentials.Equal(creds) {
-					continue
-				}
-				for i := range acc.Accounts[z].Currencies {
-					err = f.SetFunding(exchanges[x].GetName(), assets[y], &acc.Accounts[z].Currencies[i], initialFundsSet)
-					if err != nil {
+			for _, subAcct := range subAccts {
+				for _, bal := range subAcct.Balances {
+					if err := f.SetFunding(eName, a, &bal, initialFundsSet); err != nil {
 						return err
 					}
 				}
@@ -799,7 +789,7 @@ func (f *FundManager) HasExchangeBeenLiquidated(ev common.Event) bool {
 // As external sources may have additional currencies and balances
 // versus the strategy currencies, they must be appended to
 // help calculate collateral
-func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *account.Balance, initialFundsSet bool) error {
+func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *accounts.Balance, initialFundsSet bool) error {
 	if exchName == "" {
 		return gctcommon.ErrExchangeNameNotSet
 	}

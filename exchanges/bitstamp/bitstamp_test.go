@@ -197,7 +197,7 @@ func TestGetOrderbook(t *testing.T) {
 	ob, err := e.GetOrderbook(t.Context(), currency.BTC.String()+currency.USD.String())
 	require.NoError(t, err, "GetOrderbook must not error")
 	assert.NotEmpty(t, ob.Timestamp, "Timestamp should not be empty")
-	for i, o := range [][]OrderbookBase{ob.Asks, ob.Bids} {
+	for i, o := range [][]orderbook.Level{ob.Asks, ob.Bids} {
 		s := []string{"Ask", "Bid"}[i]
 		if assert.NotEmptyf(t, o, "Should have items in %ss", s) {
 			a := o[0]
@@ -741,7 +741,7 @@ func TestWsOrderbook2(t *testing.T) {
 func TestWsOrderUpdate(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", e.wsHandleData)
 	close(e.Websocket.DataHandler)

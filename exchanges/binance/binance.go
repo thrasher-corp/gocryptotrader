@@ -118,40 +118,17 @@ func (e *Exchange) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 }
 
 // GetOrderBook returns full orderbook information
-//
-// OrderBookDataRequestParams contains the following members
-// symbol: string of currency pair
-// limit: returned limit amount
-func (e *Exchange) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*OrderBook, error) {
-	params := url.Values{}
-	symbol, err := e.FormatSymbol(obd.Symbol, asset.Spot)
+func (e *Exchange) GetOrderBook(ctx context.Context, pair currency.Pair, limit uint64) (*OrderBookResponse, error) {
+	symbol, err := e.FormatSymbol(pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.Itoa(obd.Limit))
+	params.Set("limit", strconv.FormatUint(limit, 10))
 
-	var resp *OrderBookData
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(obd.Limit), &resp); err != nil {
-		return nil, err
-	}
-
-	ob := &OrderBook{
-		Bids:         make([]OrderbookItem, len(resp.Bids)),
-		Asks:         make([]OrderbookItem, len(resp.Asks)),
-		LastUpdateID: resp.LastUpdateID,
-	}
-	for x := range resp.Bids {
-		ob.Bids[x].Price = resp.Bids[x][0].Float64()
-		ob.Bids[x].Quantity = resp.Bids[x][1].Float64()
-	}
-
-	for x := range resp.Asks {
-		ob.Asks[x].Price = resp.Asks[x][0].Float64()
-		ob.Asks[x].Quantity = resp.Asks[x][1].Float64()
-	}
-
-	return ob, nil
+	var resp *OrderBookResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(limit), &resp)
 }
 
 // GetMostRecentTrades returns recent trade activity
@@ -843,17 +820,14 @@ func getOfflineTradeFee(price, amount float64) float64 {
 
 // getMultiplier retrieves account based taker/maker fees
 func (e *Exchange) getMultiplier(ctx context.Context, isMaker bool) (float64, error) {
-	var multiplier float64
-	account, err := e.GetAccount(ctx)
+	a, err := e.GetAccount(ctx)
 	if err != nil {
 		return 0, err
 	}
 	if isMaker {
-		multiplier = float64(account.MakerCommission)
-	} else {
-		multiplier = float64(account.TakerCommission)
+		return float64(a.MakerCommission), nil
 	}
-	return multiplier, nil
+	return float64(a.TakerCommission), nil
 }
 
 // calculateTradingFee returns the fee for trading any currency on Binance
