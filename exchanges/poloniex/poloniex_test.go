@@ -2584,7 +2584,6 @@ func TestOrderStateString(t *testing.T) {
 	}
 }
 
-
 func generateContext(tb testing.TB) context.Context {
 	tb.Helper()
 	if mockTests {
