@@ -103,7 +103,7 @@ if err != nil {
 	// Handle error
 }
 
-// Submits an order and the exchange and returns its tradeID
+// Submits an order to the exchange and returns its tradeID
 tradeID, err := k.Trade(...)
 if err != nil {
 	// Handle error

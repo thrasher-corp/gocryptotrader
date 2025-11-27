@@ -630,14 +630,14 @@ type CurrencyChain struct {
 
 // MarginCurrencyPairInfo represents margin currency pair detailed info.
 type MarginCurrencyPairInfo struct {
-	ID             string       `json:"id"`
-	Base           string       `json:"base"`
-	Quote          string       `json:"quote"`
-	Leverage       float64      `json:"leverage"`
-	MinBaseAmount  types.Number `json:"min_base_amount"`
-	MinQuoteAmount types.Number `json:"min_quote_amount"`
-	MaxQuoteAmount types.Number `json:"max_quote_amount"`
-	Status         int32        `json:"status"`
+	ID             currency.Pair `json:"id"`
+	Base           currency.Code `json:"base"`
+	Quote          currency.Code `json:"quote"`
+	Leverage       float64       `json:"leverage"`
+	MinBaseAmount  types.Number  `json:"min_base_amount"`
+	MinQuoteAmount types.Number  `json:"min_quote_amount"`
+	MaxQuoteAmount types.Number  `json:"max_quote_amount"`
+	Status         int32         `json:"status"`
 }
 
 // OrderbookOfLendingLoan represents order book of lending loans
@@ -982,11 +982,7 @@ type UsersPositionForUnderlying struct {
 	MarkPrice     types.Number `json:"mark_price"`
 	UnrealisedPnl types.Number `json:"unrealised_pnl"`
 	PendingOrders int64        `json:"pending_orders"`
-	CloseOrder    struct {
-		ID    int64        `json:"id"`
-		Price types.Number `json:"price"`
-		IsLiq bool         `json:"is_liq"`
-	} `json:"close_order"`
+	CloseOrder    CloseOrder   `json:"close_order"`
 }
 
 // ContractClosePosition represents user's liquidation history
@@ -1779,19 +1775,27 @@ type Position struct {
 	LastClosePNL               types.Number `json:"last_close_pnl"`
 	RealisedPNLPoint           types.Number `json:"realised_point"`
 	RealisedPNLHistoryPoint    types.Number `json:"history_point"`
-	ADLRanking                 int64        `json:"adl_ranking"` // Ranking of auto deleveraging, a total of 1-5 grades, 1 is the highest, 5 is the lowest, and 6 is the special case when there is no position held or in liquidation
-	PendingOrders              int64        `json:"pending_orders"`
-	CloseOrder                 struct {
-		ID    int64        `json:"id"`
-		Price types.Number `json:"price"`
-		IsLiq bool         `json:"is_liq"`
-	} `json:"close_order"`
-	Mode               string       `json:"mode"`
-	CrossLeverageLimit types.Number `json:"cross_leverage_limit"`
-	UpdateTime         types.Time   `json:"update_time"`
-	OpenTime           types.Time   `json:"open_time"`
-	UpdateID           int64        `json:"update_id"`
-	TradeMaxSize       types.Number `json:"trade_max_size"`
+	ADLRanking                 uint8        `json:"adl_ranking"` // Ranking of auto deleveraging, a total of 1-5 grades, 1 is the highest, 5 is the lowest, and 6 is the special case when there is no position held or in liquidation
+	PendingOrders              uint64       `json:"pending_orders"`
+	CloseOrder                 CloseOrder   `json:"close_order"`
+	Mode                       string       `json:"mode"`
+	CrossLeverageLimit         types.Number `json:"cross_leverage_limit"`
+	UpdateTime                 types.Time   `json:"update_time"`
+	OpenTime                   types.Time   `json:"open_time"`
+	UpdateID                   int64        `json:"update_id"`
+	TradeMaxSize               types.Number `json:"trade_max_size"`
+	RiskLimitTable             string       `json:"risk_limit_table"`
+	AverageMaintenanceRate     types.Number `json:"average_maintenance_rate"`
+	VoucherSize                types.Number `json:"voucher_size"`
+	VoucherMargin              types.Number `json:"voucher_margin"`
+	VoucherID                  int64        `json:"voucher_id"`
+}
+
+// CloseOrder represents close order information
+type CloseOrder struct {
+	ID            int64        `json:"id"`
+	Price         types.Number `json:"price"`
+	IsLiquidation bool         `json:"is_liq"`
 }
 
 // DualModeResponse represents  dual mode enable or disable
