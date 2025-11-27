@@ -1775,6 +1775,8 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
+	_, err := e.UpdateOrderbook(t.Context(), currency.EMPTYPAIR, 1336)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	for _, a := range e.GetAssetTypes(false) {
 		pair := getPair(t, a)
 		t.Run(a.String()+" "+pair.String(), func(t *testing.T) {
