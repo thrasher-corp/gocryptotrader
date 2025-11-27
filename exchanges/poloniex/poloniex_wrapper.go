@@ -1004,10 +1004,8 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 }
 
 // GetOrderInfo returns order information based on order ID
-func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	if pair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
+// currency.Pair Param is ignored
+func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	switch assetType {
 	case asset.Spot:
 		trades, err := e.GetTradesByOrderID(ctx, orderID)
@@ -1037,41 +1035,36 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		resp, err := e.GetOrder(ctx, orderID, "")
 		if err != nil {
 			smartOrders, err := e.GetSmartOrderDetails(ctx, orderID, "")
+			switch {
+			case err != nil:
+				return nil, err
+			case len(smartOrders) == 0:
+				return nil, order.ErrOrderNotFound
+			case len(smartOrders) != 1:
+				return nil, fmt.Errorf("%w: too may smart orders returned", common.ErrInvalidResponse)
+			}
+			s := smartOrders[0]
+			oType, err := order.StringToOrderType(s.Type)
 			if err != nil {
 				return nil, err
-			} else if len(smartOrders) == 0 {
-				return nil, order.ErrOrderNotFound
 			}
-			if len(smartOrders) > 0 {
-				cp, err := currency.NewPairFromString(smartOrders[0].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				if !pair.IsEmpty() && !cp.Equal(pair) {
-					return nil, fmt.Errorf("order with ID %s expected a symbol %v, but got %v", orderID, pair, smartOrders[0].Symbol)
-				}
-				oType, err := order.StringToOrderType(smartOrders[0].Type)
-				if err != nil {
-					return nil, err
-				}
-				return &order.Detail{
-					Side:          stringToOrderSide(smartOrders[0].Side),
-					Pair:          cp,
-					Exchange:      e.Name,
-					Trades:        orderTrades,
-					OrderID:       smartOrders[0].ID,
-					TimeInForce:   smartOrders[0].TimeInForce,
-					ClientOrderID: smartOrders[0].ClientOrderID,
-					Price:         smartOrders[0].Price.Float64(),
-					QuoteAmount:   smartOrders[0].Amount.Float64(),
-					Date:          smartOrders[0].CreateTime.Time(),
-					LastUpdated:   smartOrders[0].UpdateTime.Time(),
-					Amount:        smartOrders[0].Quantity.Float64(),
-					Type:          oType,
-					Status:        orderStateFromString(smartOrders[0].State),
-					AssetType:     stringToAccountType(smartOrders[0].AccountType),
-				}, nil
-			}
+			return &order.Detail{
+				Side:          stringToOrderSide(s.Side),
+				Pair:          s.Symbol,
+				Exchange:      e.Name,
+				Trades:        orderTrades,
+				OrderID:       s.ID,
+				TimeInForce:   s.TimeInForce,
+				ClientOrderID: s.ClientOrderID,
+				Price:         s.Price.Float64(),
+				QuoteAmount:   s.Amount.Float64(),
+				Date:          s.CreateTime.Time(),
+				LastUpdated:   s.UpdateTime.Time(),
+				Amount:        s.Quantity.Float64(),
+				Type:          oType,
+				Status:        orderStateFromString(s.State),
+				AssetType:     stringToAccountType(s.AccountType),
+			}, nil
 		}
 		oType, err := order.StringToOrderType(resp.Type)
 		if err != nil {
@@ -1094,7 +1087,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			AssetType:            stringToAccountType(resp.AccountType),
 			Date:                 resp.CreateTime.Time(),
 			LastUpdated:          resp.UpdateTime.Time(),
-			Pair:                 pair,
+			Pair:                 resp.Symbol,
 			Trades:               orderTrades,
 			TimeInForce:          resp.TimeInForce,
 		}, nil
@@ -1107,9 +1100,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return nil, order.ErrOrderNotFound
 		}
 		orderDetail := fResults[0]
-		if !pair.IsEmpty() && !orderDetail.Symbol.Equal(pair) {
-			return nil, fmt.Errorf("order with ID %s expected a symbol %v, but got %v", orderID, pair, orderDetail.Symbol)
-		}
 		oType, err := order.StringToOrderType(orderDetail.OrderType)
 		if err != nil {
 			return nil, err
@@ -1296,11 +1286,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			return nil, err
 		}
 		for _, td := range resp {
-			cp, err := currency.NewPairFromString(td.Symbol)
-			if err != nil {
-				return nil, err
-			}
-			if len(req.Pairs) != 0 && !req.Pairs.Contains(cp, true) {
+			if len(req.Pairs) != 0 && !req.Pairs.Contains(td.Symbol, true) {
 				continue
 			}
 			var orderSide order.Side
@@ -1319,7 +1305,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Amount:      td.Amount.Float64(),
 				Date:        td.CreateTime.Time(),
 				Price:       td.Price.Float64(),
-				Pair:        cp,
+				Pair:        td.Symbol,
 				Exchange:    e.Name,
 				TimeInForce: td.TimeInForce,
 			})
@@ -1439,11 +1425,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			)
 			orders := make([]order.Detail, 0, len(resp))
 			for _, tOrder := range resp {
-				cp, err := currency.NewPairFromString(tOrder.Symbol)
-				if err != nil {
-					return nil, err
-				}
-				if len(req.Pairs) != 0 && !req.Pairs.Contains(cp, true) {
+				if len(req.Pairs) != 0 && !req.Pairs.Contains(tOrder.Symbol, true) {
 					continue
 				}
 				oSide, err = order.StringToOrderSide(tOrder.Side)
@@ -1465,7 +1447,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					ExecutedAmount:       tOrder.FilledAmount.Float64(),
 					Price:                tOrder.Price.Float64(),
 					AverageExecutedPrice: tOrder.AveragePrice.Float64(),
-					Pair:                 cp,
+					Pair:                 tOrder.Symbol,
 					Type:                 oType,
 					Exchange:             e.Name,
 					QuoteAmount:          tOrder.Amount.Float64() * tOrder.AveragePrice.Float64(),

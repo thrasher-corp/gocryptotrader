@@ -644,7 +644,7 @@ type OrdersHistoryRequest struct {
 type TradeOrder struct {
 	ID             string            `json:"id"`
 	ClientOrderID  string            `json:"clientOrderId"`
-	Symbol         string            `json:"symbol"`
+	Symbol         currency.Pair     `json:"symbol"`
 	State          string            `json:"state"`
 	AccountType    string            `json:"accountType"`
 	Side           string            `json:"side"`
@@ -758,7 +758,7 @@ type CancelReplaceSmartOrder struct {
 type SmartOrderDetails struct {
 	ID             string            `json:"id"`
 	ClientOrderID  string            `json:"clientOrderId"`
-	Symbol         string            `json:"symbol"`
+	Symbol         currency.Pair     `json:"symbol"`
 	State          string            `json:"state"`
 	AccountType    string            `json:"accountType"`
 	Side           string            `json:"side"`
