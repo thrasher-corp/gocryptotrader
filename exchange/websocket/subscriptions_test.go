@@ -450,6 +450,17 @@ func TestFlushChannels(t *testing.T) {
 	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
 }
 
+// fakeConnection is a minimal Connection implementation used in cleanup tests.
+type fakeConnection struct {
+	Connection
+	shutdownCalled bool
+}
+
+func (f *fakeConnection) Shutdown() error {
+	f.shutdownCalled = true
+	return nil
+}
+
 func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	t.Parallel()
 
@@ -575,6 +586,88 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, subscription.List{{Channel: "A"}})
 		require.ErrorContains(t, err, "connect fail")
+	})
+
+	t.Run("Global Unsubscribe Fallback Success", func(t *testing.T) {
+		t.Parallel()
+		m, wrapper, srv := setup()
+		defer srv.Close()
+
+		s1 := &subscription.Subscription{Channel: "A"}
+		s2 := &subscription.Subscription{Channel: "B"}
+		require.NoError(t, wrapper.subscriptions.Add(s1))
+		require.NoError(t, wrapper.subscriptions.Add(s2))
+		// empty incoming subscriptions will remove existing subs
+		in := subscription.List{}
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), wrapper, in))
+		assert.Equal(t, 0, wrapper.subscriptions.Len())
+	})
+
+	t.Run("Missing Subscriptions After Subscribe", func(t *testing.T) {
+		t.Parallel()
+		m, wrapper, srv := setup()
+		defer srv.Close()
+
+		s1 := &subscription.Subscription{Channel: "A"}
+		s2 := &subscription.Subscription{Channel: "B"}
+		require.NoError(t, wrapper.subscriptions.Add(s1))
+
+		in := subscription.List{s1, s2}
+		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, in)
+		require.NoError(t, err)
+
+		// After scaling, both subs should be present in the store
+		assert.NotNil(t, wrapper.subscriptions.Get(s1))
+		assert.NotNil(t, wrapper.subscriptions.Get(s2))
+	})
+
+	t.Run("Multi-batch ConnectAndSubscribe Success", func(t *testing.T) {
+		t.Parallel()
+		m, wrapper, srv := setup()
+		defer srv.Close()
+
+		m.MaxSubscriptionsPerConnection = 2
+
+		in := subscription.List{{Channel: "A"}, {Channel: "B"}, {Channel: "C"}, {Channel: "D"}, {Channel: "E"}}
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), wrapper, in))
+
+		// With max 2 subs per connection and 5 total, we expect 3 connections
+		assert.Len(t, wrapper.connectionsSubs, 3)
+	})
+
+	t.Run("Cleanup Removes Empty Connections", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 2
+		m.connections = make(map[Connection]*connectionWrapper)
+
+		wrapper := &connectionWrapper{
+			setup:         &ConnectionSetup{},
+			subscriptions: subscription.NewStore(),
+		}
+
+		// One connection with zero subs, one with non-zero
+		emptyConn := &fakeConnection{}
+		activeConn := &fakeConnection{}
+		emptyStore := subscription.NewStore()
+		activeStore := subscription.NewStore()
+		require.NoError(t, activeStore.Add(&subscription.Subscription{Channel: "A"}))
+
+		wrapper.connectionsSubs = []connectionSubscriptions{
+			{Connection: emptyConn, Subscriptions: emptyStore},
+			{Connection: activeConn, Subscriptions: activeStore},
+		}
+
+		m.connections[emptyConn] = wrapper
+		m.connections[activeConn] = wrapper
+
+		// No incoming/sub changes; trigger only cleanup logic
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil))
+
+		assert.True(t, emptyConn.shutdownCalled)
+		assert.False(t, activeConn.shutdownCalled)
+		assert.Len(t, wrapper.connectionsSubs, 1)
+		assert.Same(t, activeConn, wrapper.connectionsSubs[0].Connection)
 	})
 }
 
