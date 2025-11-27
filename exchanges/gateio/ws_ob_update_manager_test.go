@@ -299,10 +299,12 @@ func TestApplyUpdate(t *testing.T) {
 	cache, err := m.LoadCache(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
 	require.NoError(t, err, "LoadCache must not error")
 
+	cache.m.Lock()
 	err = m.applyUpdate(t.Context(), e, cache, 1, &orderbook.Update{
 		Pair:  currency.NewBTCUSDT(),
 		Asset: asset.USDTMarginedFutures,
 	})
+	cache.m.Unlock()
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "applyUpdate must error when not initialised")
 
 	snapshot := &orderbook.Book{
@@ -319,11 +321,13 @@ func TestApplyUpdate(t *testing.T) {
 	err = e.Websocket.Orderbook.LoadSnapshot(snapshot)
 	require.NoError(t, err)
 
+	cache.m.Lock()
 	err = m.applyUpdate(t.Context(), e, cache, 1, &orderbook.Update{
 		UpdateID: 1338,
 		Pair:     currency.NewBTCUSDT(),
 		Asset:    asset.USDTMarginedFutures,
 	})
+	cache.m.Unlock()
 	require.NoError(t, err, "applyUpdate must not error when desynced")
 
 	_, err = e.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
@@ -332,11 +336,13 @@ func TestApplyUpdate(t *testing.T) {
 	err = e.Websocket.Orderbook.LoadSnapshot(snapshot)
 	require.NoError(t, err)
 
+	cache.m.Lock()
 	err = m.applyUpdate(t.Context(), e, cache, 1337, &orderbook.Update{
 		UpdateID: 1339,
 		Pair:     currency.NewBTCUSDT(),
 		Asset:    asset.USDTMarginedFutures,
 	})
+	cache.m.Unlock()
 	require.NoError(t, err, "applyUpdate must not error when in sync but update failed to apply")
 
 	_, err = e.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
@@ -345,12 +351,14 @@ func TestApplyUpdate(t *testing.T) {
 	err = e.Websocket.Orderbook.LoadSnapshot(snapshot)
 	require.NoError(t, err)
 
+	cache.m.Lock()
 	err = m.applyUpdate(t.Context(), e, cache, 1337, &orderbook.Update{
 		UpdateID:   1338,
 		Pair:       currency.NewBTCUSDT(),
 		Asset:      asset.USDTMarginedFutures,
 		AllowEmpty: true,
 	})
+	cache.m.Unlock()
 	require.NoError(t, err, "applyUpdate must not error when in sync and update applied")
 }
 
