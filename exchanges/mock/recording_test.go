@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -203,4 +205,21 @@ func TestHTTPRecord(t *testing.T) {
 	}
 	err = HTTPRecord(response, "mock", content, 4)
 	require.NoError(t, err, "HTTPRecord must not error")
+
+	response = &http.Response{
+		Request: &http.Request{
+			Header: map[string][]string{
+				"Content-Type": {"application/json"},
+			},
+			Method: http.MethodPost,
+			URL:    &url.URL{},
+			Body:   io.NopCloser(bytes.NewReader(content)),
+		},
+	}
+	err = HTTPRecord(response, "mock", content, 4)
+	require.NoError(t, err, "HTTPRecord must not error")
+
+	err = HTTPRecord(response, "mock", content, 4)
+	require.NoError(t, err, "HTTPRecord must not error")
+
 }
