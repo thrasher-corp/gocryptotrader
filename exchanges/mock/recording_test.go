@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -203,4 +205,30 @@ func TestHTTPRecord(t *testing.T) {
 	}
 	err = HTTPRecord(response, "mock", content, 4)
 	require.NoError(t, err, "HTTPRecord must not error")
+
+	fullURL, err := url.Parse("https://api.abc.com/test/payload")
+	require.NoError(t, err)
+	assert.NotNil(t, fullURL)
+
+	println("Content: ", string(content))
+	response = &http.Response{
+		Request: &http.Request{
+			Header: map[string][]string{
+				contentType: {applicationJSON},
+			},
+			Method:  http.MethodPost,
+			URL:     fullURL,
+			Body:    io.NopCloser(bytes.NewReader(content)),
+			GetBody: func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(content)), nil },
+		},
+	}
+
+	// Call HTTPRecord repeatedly using the same response and request body.
+	// HTTPRecord internally checks whether the request body contains a JSON array,
+	// attempts to unmarshal it, and generates a []url.Values for comparison.
+	// This loop ensures that repeated calls with identical input do not cause errors.
+	for range 2 {
+		err = HTTPRecord(response, "mock", content, 4)
+		require.NoError(t, err, "HTTPRecord must not error")
+	}
 }

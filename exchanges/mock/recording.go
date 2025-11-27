@@ -74,8 +74,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 	}
 
 	var m VCRMock
-	err = json.Unmarshal(contents, &m)
-	if err != nil {
+	if err := json.Unmarshal(contents, &m); err != nil {
 		return err
 	}
 
@@ -94,8 +93,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 		return err
 	}
 
-	err = json.Unmarshal(cleanedContents, &httpResponse.Data)
-	if err != nil {
+	if err := json.Unmarshal(cleanedContents, &httpResponse.Data); err != nil {
 		return err
 	}
 
