@@ -384,7 +384,11 @@ func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 	})
 	require.NoError(t, err, "ProcessOrderbookUpdate must not error")
 
-	time.Sleep(time.Millisecond * 100) // allow some time for rest mock request routine to complete
+	// Wait for the background sync goroutine to complete and orderbook to be synced
+	require.Eventually(t, func() bool {
+		_, err := e.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.Spot)
+		return err == nil
+	}, time.Second*5, time.Millisecond*50, "orderbook must eventually be synced")
 
 	err = m.ProcessOrderbookUpdate(t.Context(), e, 27596272448, &orderbook.Update{
 		UpdateID:   27596272449,
