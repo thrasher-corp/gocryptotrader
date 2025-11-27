@@ -242,16 +242,16 @@ func (e *Exchange) processFuturesAccountData(data []byte) error {
 		return err
 	}
 	var accChanges []accounts.Change
-	for i := range resp {
-		for j := range resp[i].Details {
+	for _, r := range resp {
+		for _, detail := range r.Details {
 			accChanges = append(accChanges, accounts.Change{
 				AssetType: asset.Futures,
 				Balance: accounts.Balance{
-					Currency:  resp[i].Details[j].Currency,
-					Total:     resp[i].Details[j].Available.Float64(),
-					Hold:      resp[i].Details[j].TrdHold.Float64(),
-					Free:      resp[i].Details[j].Available.Float64() - resp[i].Details[j].TrdHold.Float64(),
-					UpdatedAt: resp[i].Details[j].UpdateTime.Time(),
+					Currency:  detail.Currency,
+					Total:     detail.Available.Float64(),
+					Hold:      detail.TrdHold.Float64(),
+					Free:      detail.Available.Float64() - detail.TrdHold.Float64(),
+					UpdatedAt: detail.UpdateTime.Time(),
 				},
 			})
 		}
@@ -266,8 +266,8 @@ func (e *Exchange) processFuturesTradeFills(data []byte) error {
 		return err
 	}
 	tFills := make([]fill.Data, len(resp))
-	for i := range resp {
-		oSide, err := order.StringToOrderSide(resp[i].Side)
+	for i, r := range resp {
+		oSide, err := order.StringToOrderSide(r.Side)
 		if err != nil {
 			return err
 		}
@@ -275,14 +275,14 @@ func (e *Exchange) processFuturesTradeFills(data []byte) error {
 			Side:          oSide,
 			Exchange:      e.Name,
 			AssetType:     asset.Futures,
-			CurrencyPair:  resp[i].Symbol,
-			OrderID:       resp[i].OrderID,
-			ID:            resp[i].TradeID,
-			TradeID:       resp[i].TradeID,
-			ClientOrderID: resp[i].ClientOrderID,
-			Timestamp:     resp[i].UpdateTime.Time(),
-			Price:         resp[i].FillPrice.Float64(),
-			Amount:        resp[i].FillQuantity.Float64(),
+			CurrencyPair:  r.Symbol,
+			OrderID:       r.OrderID,
+			ID:            r.TradeID,
+			TradeID:       r.TradeID,
+			ClientOrderID: r.ClientOrderID,
+			Timestamp:     r.UpdateTime.Time(),
+			Price:         r.FillPrice.Float64(),
+			Amount:        r.FillQuantity.Float64(),
 		}
 	}
 	e.Websocket.DataHandler <- tFills
@@ -295,39 +295,35 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 		return err
 	}
 	orders := make([]order.Detail, len(resp))
-	for i := range resp {
-		oType, err := order.StringToOrderType(resp[i].OrderType)
+	for i, r := range resp {
+		oType, err := order.StringToOrderType(r.OrderType)
 		if err != nil {
 			return err
 		}
-		oSide, err := order.StringToOrderSide(resp[i].Side)
-		if err != nil {
-			return err
-		}
-		oStatus, err := order.StringToOrderStatus(resp[i].State)
+		oStatus, err := order.StringToOrderStatus(r.State)
 		if err != nil {
 			return err
 		}
 		orders[i] = order.Detail{
-			ReduceOnly:           resp[i].ReduceOnly,
-			Leverage:             resp[i].Leverage.Float64(),
-			Price:                resp[i].Price.Float64(),
-			Amount:               resp[i].Size.Float64(),
-			TriggerPrice:         resp[i].TakeProfitTriggerPrice.Float64(),
-			AverageExecutedPrice: resp[i].AveragePrice.Float64(),
-			ExecutedAmount:       resp[i].ExecQuantity.Float64(),
-			RemainingAmount:      resp[i].Size.Float64() - resp[i].ExecQuantity.Float64(),
-			Fee:                  resp[i].FeeAmount.Float64(),
-			FeeAsset:             resp[i].FeeCurrency,
+			ReduceOnly:           r.ReduceOnly,
+			Leverage:             r.Leverage.Float64(),
+			Price:                r.Price.Float64(),
+			Amount:               r.Size.Float64(),
+			TriggerPrice:         r.TakeProfitTriggerPrice.Float64(),
+			AverageExecutedPrice: r.AveragePrice.Float64(),
+			ExecutedAmount:       r.ExecQuantity.Float64(),
+			RemainingAmount:      r.Size.Float64() - r.ExecQuantity.Float64(),
+			Fee:                  r.FeeAmount.Float64(),
+			FeeAsset:             r.FeeCurrency,
 			Exchange:             e.Name,
-			OrderID:              resp[i].OrderID,
-			ClientOrderID:        resp[i].ClientOrderID,
+			OrderID:              r.OrderID,
+			ClientOrderID:        r.ClientOrderID,
 			Type:                 oType,
-			Side:                 oSide,
+			Side:                 r.Side,
 			Status:               oStatus,
 			AssetType:            asset.Futures,
-			Date:                 resp[i].CreationTime.Time(),
-			Pair:                 resp[i].Symbol,
+			Date:                 r.CreationTime.Time(),
+			Pair:                 r.Symbol,
 		}
 	}
 	e.Websocket.DataHandler <- orders
@@ -340,13 +336,13 @@ func (e *Exchange) processFuturesFundingRate(data []byte) error {
 		return err
 	}
 
-	for i := range resp {
+	for _, r := range resp {
 		e.Websocket.DataHandler <- websocket.FundingData{
-			CurrencyPair: resp[i].Symbol,
-			Timestamp:    resp[i].Timestamp.Time(),
+			CurrencyPair: r.Symbol,
+			Timestamp:    r.Timestamp.Time(),
 			AssetType:    asset.Futures,
 			Exchange:     e.Name,
-			Rate:         resp[i].FundingRate.Float64(),
+			Rate:         r.FundingRate.Float64(),
 		}
 	}
 	return nil
@@ -359,19 +355,19 @@ func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(data []byte, inte
 	}
 
 	candles := make([]websocket.KlineData, len(resp))
-	for i := range resp {
+	for i, r := range resp {
 		candles[i] = websocket.KlineData{
-			Timestamp:  resp[i].PushTimestamp.Time(),
-			Pair:       resp[i].Symbol,
+			Timestamp:  r.PushTimestamp.Time(),
+			Pair:       r.Symbol,
 			AssetType:  asset.Futures,
 			Exchange:   e.Name,
-			StartTime:  resp[i].StartTime.Time(),
-			CloseTime:  resp[i].EndTime.Time(),
+			StartTime:  r.StartTime.Time(),
+			CloseTime:  r.EndTime.Time(),
 			Interval:   interval.String(),
-			OpenPrice:  resp[i].OpeningPrice.Float64(),
-			ClosePrice: resp[i].ClosingPrice.Float64(),
-			HighPrice:  resp[i].HighestPrice.Float64(),
-			LowPrice:   resp[i].LowestPrice.Float64(),
+			OpenPrice:  r.OpeningPrice.Float64(),
+			ClosePrice: r.ClosingPrice.Float64(),
+			HighPrice:  r.HighestPrice.Float64(),
+			LowPrice:   r.LowestPrice.Float64(),
 		}
 	}
 	e.Websocket.DataHandler <- candles
@@ -383,35 +379,35 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	for i := range resp {
-		_, okay := onceFuturesOrderbook[resp[i].Symbol.String()]
+	for _, r := range resp {
+		_, okay := onceFuturesOrderbook[r.Symbol.String()]
 		if !okay || action == "snapshot" {
 			if onceFuturesOrderbook == nil {
 				onceFuturesOrderbook = make(map[string]bool)
 			}
-			onceFuturesOrderbook[resp[i].Symbol.String()] = true
+			onceFuturesOrderbook[r.Symbol.String()] = true
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Bids:         resp[i].Bids.Levels(),
-				Asks:         resp[i].Asks.Levels(),
+				Bids:         r.Bids.Levels(),
+				Asks:         r.Asks.Levels(),
 				Exchange:     e.Name,
-				LastUpdateID: resp[i].ID,
+				LastUpdateID: r.ID,
 				Asset:        asset.Futures,
-				Pair:         resp[i].Symbol,
-				LastUpdated:  resp[i].CreationTime.Time(),
+				Pair:         r.Symbol,
+				LastUpdated:  r.CreationTime.Time(),
 			}); err != nil {
 				return err
 			}
 			continue
 		}
 		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
-			UpdateID:   resp[i].ID,
-			UpdateTime: resp[i].CreationTime.Time(),
-			LastPushed: resp[i].Timestamp.Time(),
+			UpdateID:   r.ID,
+			UpdateTime: r.CreationTime.Time(),
+			LastPushed: r.Timestamp.Time(),
 			Action:     orderbook.UpdateAction,
 			Asset:      asset.Futures,
-			Pair:       resp[i].Symbol,
-			Asks:       resp[i].Asks.Levels(),
-			Bids:       resp[i].Bids.Levels(),
+			Pair:       r.Symbol,
+			Asks:       r.Asks.Levels(),
+			Bids:       r.Bids.Levels(),
 		}); err != nil {
 			return err
 		}
@@ -425,23 +421,23 @@ func (e *Exchange) processFuturesTickers(data []byte) error {
 		return err
 	}
 	tickerPrices := make([]ticker.Price, len(resp))
-	for i := range resp {
+	for i, r := range resp {
 		tickerPrices[i] = ticker.Price{
-			High:         resp[i].HighPrice.Float64(),
-			Low:          resp[i].LowPrice.Float64(),
-			Bid:          resp[i].BestBidPrice.Float64(),
-			BidSize:      resp[i].BestBidSize.Float64(),
-			Ask:          resp[i].BestAskPrice.Float64(),
-			AskSize:      resp[i].BestAskSize.Float64(),
-			Volume:       resp[i].Quantity.Float64(),
-			QuoteVolume:  resp[i].Amount.Float64(),
-			Open:         resp[i].OpeningPrice.Float64(),
-			Close:        resp[i].ClosingPrice.Float64(),
-			MarkPrice:    resp[i].MarkPrice.Float64(),
-			Pair:         resp[i].Symbol,
+			High:         r.HighPrice.Float64(),
+			Low:          r.LowPrice.Float64(),
+			Bid:          r.BestBidPrice.Float64(),
+			BidSize:      r.BestBidSize.Float64(),
+			Ask:          r.BestAskPrice.Float64(),
+			AskSize:      r.BestAskSize.Float64(),
+			Volume:       r.Quantity.Float64(),
+			QuoteVolume:  r.Amount.Float64(),
+			Open:         r.OpeningPrice.Float64(),
+			Close:        r.ClosingPrice.Float64(),
+			MarkPrice:    r.MarkPrice.Float64(),
+			Pair:         r.Symbol,
 			ExchangeName: e.Name,
 			AssetType:    asset.Futures,
-			LastUpdated:  resp[i].Timestamp.Time(),
+			LastUpdated:  r.Timestamp.Time(),
 		}
 	}
 	e.Websocket.DataHandler <- tickerPrices
@@ -455,20 +451,20 @@ func (e *Exchange) processFuturesTrades(data []byte) error {
 		return err
 	}
 	trades := make([]trade.Data, len(resp))
-	for i := range resp {
+	for i, r := range resp {
 		oSide, err := order.StringToOrderSide(resp[i].Side)
 		if err != nil {
 			return err
 		}
 		trades[i] = trade.Data{
-			TID:          strconv.FormatInt(resp[i].ID, 10),
+			TID:          strconv.FormatInt(r.ID, 10),
 			Exchange:     e.Name,
 			Side:         oSide,
 			AssetType:    asset.Futures,
-			CurrencyPair: resp[i].Symbol,
-			Price:        resp[i].Price.Float64(),
-			Amount:       resp[i].Quantity.Float64(),
-			Timestamp:    resp[i].Timestamp.Time(),
+			CurrencyPair: r.Symbol,
+			Price:        r.Price.Float64(),
+			Amount:       r.Quantity.Float64(),
+			Timestamp:    r.Timestamp.Time(),
 		}
 	}
 	e.Websocket.DataHandler <- trades
@@ -482,20 +478,20 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, interval kline.Interv
 	}
 
 	candles := make([]websocket.KlineData, len(resp))
-	for i := range resp {
+	for i, r := range resp {
 		candles[i] = websocket.KlineData{
-			Timestamp:  resp[i].PushTime.Time(),
-			Pair:       resp[i].Symbol,
+			Timestamp:  r.PushTime.Time(),
+			Pair:       r.Symbol,
 			AssetType:  asset.Futures,
 			Exchange:   e.Name,
-			StartTime:  resp[i].StartTime.Time(),
-			CloseTime:  resp[i].EndTime.Time(),
+			StartTime:  r.StartTime.Time(),
+			CloseTime:  r.EndTime.Time(),
 			Interval:   interval.String(),
-			OpenPrice:  resp[i].OpenPrice.Float64(),
-			ClosePrice: resp[i].ClosePrice.Float64(),
-			HighPrice:  resp[i].HighestPrice.Float64(),
-			LowPrice:   resp[i].LowestPrice.Float64(),
-			Volume:     resp[i].Amount.Float64(),
+			OpenPrice:  r.OpenPrice.Float64(),
+			ClosePrice: r.ClosePrice.Float64(),
+			HighPrice:  r.HighestPrice.Float64(),
+			LowPrice:   r.LowestPrice.Float64(),
+			Volume:     r.Amount.Float64(),
 		}
 	}
 	e.Websocket.DataHandler <- candles
@@ -520,8 +516,8 @@ func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscript
 // SubscribeFutures sends a websocket message to receive data from the channel
 func (e *Exchange) SubscribeFutures(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	payloads := e.handleFuturesSubscriptions("subscribe", subs)
-	for i := range payloads {
-		if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
+	for _, payload := range payloads {
+		if err := conn.SendJSONMessage(ctx, request.UnAuth, payload); err != nil {
 			return err
 		}
 	}
@@ -531,8 +527,8 @@ func (e *Exchange) SubscribeFutures(ctx context.Context, conn websocket.Connecti
 // UnsubscribeFutures sends a websocket message to stop receiving data from the channel
 func (e *Exchange) UnsubscribeFutures(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
 	payloads := e.handleFuturesSubscriptions("unsubscribe", unsub)
-	for i := range payloads {
-		if err := conn.SendJSONMessage(ctx, request.UnAuth, payloads[i]); err != nil {
+	for _, payload := range payloads {
+		if err := conn.SendJSONMessage(ctx, request.UnAuth, payload); err != nil {
 			return err
 		}
 	}

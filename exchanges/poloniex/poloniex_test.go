@@ -1394,11 +1394,11 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Symbol: spotTradablePair})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Symbol: spotTradablePair, Side: order.Sell.Lower()})
+	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Symbol: spotTradablePair, Side: order.Sell})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
-		Side:          order.Buy.String(),
+		Side:          order.Buy,
 		Type:          OrderType(order.Market),
 		Quantity:      1,
 		Price:         40000.50000,
@@ -1409,7 +1409,7 @@ func TestPlaceOrder(t *testing.T) {
 
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
-		Side:          order.Sell.String(),
+		Side:          order.Sell,
 		Type:          OrderType(order.Market),
 		Amount:        1,
 		Price:         40000.50000,
@@ -1423,7 +1423,7 @@ func TestPlaceOrder(t *testing.T) {
 	}
 	result, err := e.PlaceOrder(t.Context(), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
-		Side:          order.Buy.String(),
+		Side:          order.Buy,
 		Type:          OrderType(order.Market),
 		Amount:        100,
 		Price:         100000.50000,
@@ -1449,7 +1449,7 @@ func TestPlaceBatchOrders(t *testing.T) {
 
 	_, err = e.PlaceBatchOrders(t.Context(), []PlaceOrderRequest{{
 		Symbol:        spotTradablePair,
-		Side:          order.Buy.String(),
+		Side:          order.Buy,
 		Type:          OrderType(order.Market),
 		Quantity:      1,
 		Price:         40000.50000,
@@ -1460,7 +1460,7 @@ func TestPlaceBatchOrders(t *testing.T) {
 
 	_, err = e.PlaceBatchOrders(t.Context(), []PlaceOrderRequest{{
 		Symbol:        spotTradablePair,
-		Side:          order.Sell.String(),
+		Side:          order.Sell,
 		Type:          OrderType(order.Market),
 		Amount:        1,
 		Price:         40000.50000,
@@ -1482,7 +1482,7 @@ func TestPlaceBatchOrders(t *testing.T) {
 	result, err := e.PlaceBatchOrders(t.Context(), []PlaceOrderRequest{
 		{
 			Symbol:        pair,
-			Side:          order.Buy.String(),
+			Side:          order.Buy,
 			Type:          OrderType(order.Market),
 			Amount:        1,
 			Price:         40000.50000,
@@ -1492,13 +1492,13 @@ func TestPlaceBatchOrders(t *testing.T) {
 		{
 			Symbol: getPairFromString("BTC_USDT"),
 			Amount: 100,
-			Side:   "BUY",
+			Side:   order.Buy,
 		},
 		{
 			Symbol:        getPairFromString("BTC_USDT"),
 			Type:          OrderType(order.Limit),
 			Quantity:      100,
-			Side:          "BUY",
+			Side:          order.Buy,
 			Price:         40000.50000,
 			TimeInForce:   TimeInForce(order.ImmediateOrCancel),
 			ClientOrderID: "1234Abc",
@@ -1506,13 +1506,13 @@ func TestPlaceBatchOrders(t *testing.T) {
 		{
 			Symbol: getPairFromString("ETH_USDT"),
 			Amount: 1000,
-			Side:   "BUY",
+			Side:   order.Buy,
 		},
 		{
 			Symbol:        getPairFromString("TRX_USDT"),
 			Type:          OrderType(order.Limit),
 			Quantity:      15000,
-			Side:          "SELL",
+			Side:          order.Sell,
 			Price:         0.0623423423,
 			TimeInForce:   TimeInForce(order.ImmediateOrCancel),
 			ClientOrderID: "456Xyz",
@@ -1893,7 +1893,7 @@ func TestWsCreateOrder(t *testing.T) {
 
 	_, err = e.WsCreateOrder(t.Context(), &PlaceOrderRequest{
 		Symbol: spotTradablePair,
-		Side:   order.Sell.String(),
+		Side:   order.Sell,
 	})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
@@ -1908,7 +1908,7 @@ func TestWsCreateOrder(t *testing.T) {
 	testexch.SetupWs(t, e)
 	result, err := e.WsCreateOrder(generateContext(t), &PlaceOrderRequest{
 		Symbol:        spotTradablePair,
-		Side:          order.Buy.String(),
+		Side:          order.Buy,
 		Type:          OrderType(order.Market),
 		Amount:        4000050.0,
 		Quantity:      100,
@@ -2584,20 +2584,6 @@ func TestOrderStateString(t *testing.T) {
 	}
 }
 
-func TestStringToOrderSide(t *testing.T) {
-	t.Parallel()
-	stringToOrderSideMap := map[string]order.Side{
-		order.Sell.String():  order.Sell,
-		order.Buy.String():   order.Buy,
-		order.Short.String(): order.Short,
-		order.Long.String():  order.Long,
-		"":                   order.UnknownSide,
-	}
-	for k, v := range stringToOrderSideMap {
-		result := stringToOrderSide(k)
-		assert.Equal(t, v, result)
-	}
-}
 
 func generateContext(tb testing.TB) context.Context {
 	tb.Helper()

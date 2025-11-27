@@ -127,7 +127,7 @@ type FuturesTradeFill struct {
 // FuturesOrderDetails represents a futures v3 order detail
 type FuturesOrderDetails struct {
 	Symbol                     currency.Pair     `json:"symbol"`
-	Side                       string            `json:"side"`
+	Side                       order.Side        `json:"side"`
 	MarginMode                 string            `json:"mgnMode"`
 	PositionSide               string            `json:"posSide"`
 	OrderType                  string            `json:"type"`

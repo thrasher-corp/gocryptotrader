@@ -601,7 +601,7 @@ func validateOrderRequest(arg *PlaceOrderRequest) error {
 	if arg.Symbol.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
-	if arg.Side == "" {
+	if arg.Side == order.UnknownSide {
 		return fmt.Errorf("%w: %s", order.ErrSideIsInvalid, arg.Side)
 	}
 	isMarket := arg.Type == OrderType(order.Market) || arg.Type == OrderType(order.UnknownType)
@@ -609,10 +609,10 @@ func validateOrderRequest(arg *PlaceOrderRequest) error {
 		return fmt.Errorf("%w: price is required for non-market orders", limits.ErrPriceBelowMin)
 	}
 	if (arg.Type == OrderType(order.Limit) && arg.Quantity <= 0) ||
-		(isMarket && strings.EqualFold(arg.Side, "SELL") && arg.Quantity <= 0) {
+		(isMarket && arg.Side == order.Sell && arg.Quantity <= 0) {
 		return fmt.Errorf("%w: base quantity is required for market sell or limit orders", limits.ErrAmountBelowMin)
 	}
-	if isMarket && strings.EqualFold(arg.Side, "BUY") && arg.Amount <= 0 {
+	if isMarket && arg.Side == order.Buy && arg.Amount <= 0 {
 		return fmt.Errorf("%w: quote amount is required for market buy orders", limits.ErrAmountBelowMin)
 	}
 	return nil

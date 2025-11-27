@@ -549,9 +549,9 @@ type MarginBuySellAmount struct {
 // PlaceOrderRequest represents place order parameters.
 type PlaceOrderRequest struct {
 	Symbol      currency.Pair `json:"symbol"`
-	Side        string        `json:"side"`
+	Side        order.Side    `json:"side"`
 	Type        OrderType     `json:"type,omitempty"`
-	AccountType string        `json:"accountType,omitempty"`
+	AccountType AccountType   `json:"accountType,omitempty"`
 
 	// Quantity Base units for the order. Quantity is required for MARKET SELL or any LIMIT orders
 	Quantity float64 `json:"quantity,omitempty,string"`
@@ -647,7 +647,7 @@ type TradeOrder struct {
 	Symbol         currency.Pair     `json:"symbol"`
 	State          string            `json:"state"`
 	AccountType    string            `json:"accountType"`
-	Side           string            `json:"side"`
+	Side           order.Side        `json:"side"`
 	Type           string            `json:"type"`
 	TimeInForce    order.TimeInForce `json:"timeInForce"`
 	Quantity       types.Number      `json:"quantity"`
@@ -761,7 +761,7 @@ type SmartOrderDetails struct {
 	Symbol         currency.Pair     `json:"symbol"`
 	State          string            `json:"state"`
 	AccountType    string            `json:"accountType"`
-	Side           string            `json:"side"`
+	Side           order.Side        `json:"side"`
 	Type           string            `json:"type"`
 	TimeInForce    order.TimeInForce `json:"timeInForce"`
 	Quantity       types.Number      `json:"quantity"`
@@ -788,7 +788,7 @@ type TradeHistory struct {
 	Symbol        string        `json:"symbol"`
 	AccountType   string        `json:"accountType"`
 	OrderID       string        `json:"orderId"`
-	Side          string        `json:"side"`
+	Side          order.Side    `json:"side"`
 	Type          string        `json:"type"`
 	MatchRole     string        `json:"matchRole"`
 	Price         types.Number  `json:"price"`
