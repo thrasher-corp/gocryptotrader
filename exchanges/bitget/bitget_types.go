@@ -1429,7 +1429,7 @@ type SinglePositionResp struct {
 	AutoMargin           OnOffBool     `json:"autoMargin"`
 }
 
-// AllPositionResp contains information on positions
+// AllPositionResp contains information on positions // TODO: might be able to merge this with the struct above `SinglePositionResp`
 type AllPositionResp struct {
 	MarginCoin           currency.Code `json:"marginCoin"`
 	Symbol               string        `json:"symbol"`
@@ -1444,7 +1444,7 @@ type AllPositionResp struct {
 	OpenPriceAverage     types.Number  `json:"openPriceAvg"`
 	MarginMode           string        `json:"marginMode"`
 	PositionMode         string        `json:"posMode"`
-	UnrealizedProfitLoss types.Number  `json:"unrealizedPL"`
+	UnrealisedProfitLoss types.Number  `json:"unrealizedPL"`
 	LiquidationPrice     types.Number  `json:"liquidationPrice"`
 	KeepMarginRate       types.Number  `json:"keepMarginRate"`
 	MarkPrice            types.Number  `json:"markPrice"`
@@ -1453,12 +1453,14 @@ type AllPositionResp struct {
 	TotalFee             types.Number  `json:"totalFee"`
 	TakeProfit           types.Number  `json:"takeProfit"`
 	StopLoss             types.Number  `json:"stopLoss"`
-	TakeProfitID         int64         `json:"takeProfitId,string"`
-	StopLossID           int64         `json:"stopLossId,string"`
+	TakeProfitID         string        `json:"takeProfitId"` // zero value returns ""
+	StopLossID           string        `json:"stopLossId"`   // zero value returns ""
 	DeductedFee          types.Number  `json:"deductedFee"`
 	CreationTime         types.Time    `json:"cTime"`
 	AssetMode            string        `json:"assetMode"`
 	UpdateTime           types.Time    `json:"uTime"`
+	Grant                string        `json:"grant"`
+	AutoMargin           OnOffBool     `json:"autoMargin"`
 }
 
 // HistPositions is a sub-struct containing information on historical positions
@@ -2785,7 +2787,7 @@ type WsResponse struct {
 	Event     string          `json:"event"`
 	Code      int             `json:"code"`
 	Message   string          `json:"msg"`
-	Arg       WsArgument      `json:"arg"`
+	Arg       json.RawMessage `json:"arg"`
 	Action    string          `json:"action"`
 	Data      json.RawMessage `json:"data"`
 	Timestamp types.Time      `json:"ts"`

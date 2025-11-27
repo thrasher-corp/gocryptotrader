@@ -12,8 +12,11 @@ import (
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 
+	_, err := e.UpdateAccountBalances(t.Context(), asset.Empty)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
+	_, err = e.UpdateAccountBalances(t.Context(), asset.Spot)
 	assert.NoError(t, err)
 	_, err = e.UpdateAccountBalances(t.Context(), asset.USDTMarginedFutures)
 	assert.NoError(t, err)
@@ -21,8 +24,6 @@ func TestUpdateAccountInfo(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = e.UpdateAccountBalances(t.Context(), asset.CrossMargin)
 	assert.NoError(t, err)
-	_, err = e.UpdateAccountBalances(t.Context(), asset.Empty)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestUpdateTickers(t *testing.T) {

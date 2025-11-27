@@ -3,6 +3,7 @@ package bitget
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"strconv"
@@ -164,14 +165,12 @@ func (e *Exchange) wsAuthenticate(ctx context.Context, conn websocket.Connection
 	}
 	payload := WsLogin{
 		Operation: "login",
-		Arguments: []WsLoginArgument{
-			{
-				APIKey:     creds.Key,
-				Signature:  base64.StdEncoding.EncodeToString(hmac),
-				Timestamp:  timestamp,
-				Passphrase: creds.ClientID,
-			},
-		},
+		Arguments: []WsLoginArgument{{
+			APIKey:     creds.Key,
+			Signature:  base64.StdEncoding.EncodeToString(hmac),
+			Timestamp:  timestamp,
+			Passphrase: creds.ClientID,
+		}},
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, "login-response", payload)
 	if err != nil {
@@ -188,6 +187,7 @@ func (e *Exchange) wsAuthenticate(ctx context.Context, conn websocket.Connection
 }
 
 // wsHandleData handles data from the websocket connection
+// TODO: break up into public and private handlers to reduce complexity
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	if string(respRaw[:4]) == "pong" {
 		if e.Verbose {
@@ -206,55 +206,90 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			log.Debugf(log.ExchangeSys, "%v - Websocket %v succeeded for %v\n", e.Name, wsResponse.Event, wsResponse.Arg)
 		}
 	case "error":
+		if conn.IncomingWithData("login-response", respRaw) {
+			return nil
+		}
+		var args []map[string]any
+		if err := json.Unmarshal(wsResponse.Arg, &args); err != nil {
+			return err
+		}
+		if len(args) == 1 {
+			if id, ok := args[0]["id"]; ok {
+				if idStr, ok := id.(string); ok {
+					return conn.RequireMatchWithData(idStr, respRaw)
+				}
+			}
+		}
 		return fmt.Errorf(errWebsocketGeneric, e.Name, wsResponse.Code, wsResponse.Message)
 	case "login":
 		return conn.RequireMatchWithData("login-response", respRaw)
 	case "snapshot":
-		switch wsResponse.Arg.Channel {
+		var arg WsArgument
+		if err := json.Unmarshal(wsResponse.Arg, &arg); err != nil {
+			return err
+		}
+		switch arg.Channel {
 		case bitgetTicker:
-			return e.tickerDataHandler(wsResponse)
+			return e.tickerDataHandler(wsResponse, arg.InstrumentType)
 		case bitgetCandleDailyChannel:
-			return e.candleDataHandler(wsResponse)
+			return e.candleDataHandler(wsResponse, arg.InstrumentID, arg.InstrumentType)
 		case bitgetTrade:
-			return e.tradeDataHandler(wsResponse)
+			return e.tradeDataHandler(wsResponse, arg.InstrumentID, arg.InstrumentType)
 		case bitgetBookFullChannel:
-			return e.orderbookDataHandler(wsResponse)
+			return e.orderbookDataHandler(wsResponse, arg.InstrumentID, arg.InstrumentType)
 		case bitgetAccount:
-			return e.accountSnapshotDataHandler(ctx, wsResponse)
+			return e.accountSnapshotDataHandler(ctx, wsResponse, arg.InstrumentType)
 		case bitgetFillChannel:
-			return e.fillDataHandler(wsResponse)
+			return e.fillDataHandler(wsResponse, arg.InstrumentType)
 		case bitgetOrdersChannel:
-			return e.genOrderDataHandler(wsResponse)
+			return e.genOrderDataHandler(wsResponse, arg.InstrumentType)
 		case bitgetOrdersAlgoChannel:
-			return e.triggerOrderDataHandler(wsResponse)
+			return e.triggerOrderDataHandler(wsResponse, arg.InstrumentType)
 		case bitgetPositionsChannel:
-			return e.positionsDataHandler(wsResponse)
+			return e.positionsDataHandler(wsResponse, arg.InstrumentType)
 		case bitgetPositionsHistoryChannel:
 			return e.positionsHistoryDataHandler(wsResponse)
 		case bitgetIndexPriceChannel:
-			return e.indexPriceDataHandler(wsResponse)
+			return e.indexPriceDataHandler(wsResponse, arg.InstrumentType)
 		case bitgetAccountCrossedChannel:
 			return e.crossAccountDataHandler(ctx, wsResponse)
 		case bitgetOrdersCrossedChannel, bitgetOrdersIsolatedChannel:
-			return e.marginOrderDataHandler(wsResponse)
+			return e.marginOrderDataHandler(wsResponse, arg.InstrumentType, arg.Channel)
 		case bitgetAccountIsolatedChannel:
 			return e.isolatedAccountDataHandler(ctx, wsResponse)
 		default:
 			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		}
 	case "update":
-		switch wsResponse.Arg.Channel {
+		var arg WsArgument
+		if err := json.Unmarshal(wsResponse.Arg, &arg); err != nil {
+			return err
+		}
+		switch arg.Channel {
 		case bitgetCandleDailyChannel:
-			return e.candleDataHandler(wsResponse)
+			return e.candleDataHandler(wsResponse, arg.InstrumentID, arg.InstrumentType)
 		case bitgetTrade:
-			return e.tradeDataHandler(wsResponse)
+			return e.tradeDataHandler(wsResponse, arg.InstrumentID, arg.InstrumentType)
 		case bitgetBookFullChannel:
-			return e.orderbookDataHandler(wsResponse)
+			return e.orderbookDataHandler(wsResponse, arg.InstrumentID, arg.InstrumentType)
 		case bitgetAccount:
-			return e.accountUpdateDataHandler(ctx, wsResponse)
+			return e.accountUpdateDataHandler(ctx, wsResponse, arg.InstrumentType)
 		default:
 			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		}
+	case "trade":
+		var args []map[string]any
+		if err := json.Unmarshal(wsResponse.Arg, &args); err != nil {
+			return err
+		}
+		if len(args) == 1 {
+			if id, ok := args[0]["id"]; ok {
+				if idStr, ok := id.(string); ok {
+					return conn.RequireMatchWithData(idStr, respRaw)
+				}
+			}
+		}
+		return errors.New("unable to correlate trade response")
 	default:
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 	}
@@ -262,8 +297,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 }
 
 // TickerDataHandler handles incoming ticker data for websockets
-func (e *Exchange) tickerDataHandler(wsResponse *WsResponse) error {
-	respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+func (e *Exchange) tickerDataHandler(wsResponse *WsResponse, instrumentType string) error {
+	respAsset := itemDecoder(instrumentType)
 	switch respAsset {
 	case asset.Spot:
 		var ticks []WsTickerSnapshotSpot
@@ -286,7 +321,7 @@ func (e *Exchange) tickerDataHandler(wsResponse *WsResponse) error {
 				Open:         ticks[i].Open24H.Float64(),
 				Pair:         pair,
 				ExchangeName: e.Name,
-				AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
+				AssetType:    itemDecoder(instrumentType),
 				LastUpdated:  ticks[i].Timestamp.Time(),
 			}
 		}
@@ -313,23 +348,23 @@ func (e *Exchange) tickerDataHandler(wsResponse *WsResponse) error {
 				IndexPrice:   ticks[i].IndexPrice.Float64(),
 				Pair:         pair,
 				ExchangeName: e.Name,
-				AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
+				AssetType:    itemDecoder(instrumentType),
 				LastUpdated:  ticks[i].Timestamp.Time(),
 			}
 		}
 	default:
-		e.Websocket.DataHandler <- fmt.Errorf("%s %s %w %s", e.Name, respAsset, asset.ErrNotSupported, wsResponse.Arg.InstrumentType)
+		e.Websocket.DataHandler <- fmt.Errorf("%s %s %w %s", e.Name, respAsset, asset.ErrNotSupported, instrumentType)
 	}
 	return nil
 }
 
 // CandleDataHandler handles candle data, as functionality is shared between updates and snapshots
-func (e *Exchange) candleDataHandler(wsResponse *WsResponse) error {
+func (e *Exchange) candleDataHandler(wsResponse *WsResponse, instrumentID, instrumentType string) error {
 	var candles [][8]string
 	if err := json.Unmarshal(wsResponse.Data, &candles); err != nil {
 		return err
 	}
-	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
+	pair, err := pairFromStringHelper(instrumentID)
 	if err != nil {
 		return err
 	}
@@ -362,7 +397,7 @@ func (e *Exchange) candleDataHandler(wsResponse *WsResponse) error {
 		resp[i] = websocket.KlineData{
 			Timestamp:  wsResponse.Timestamp.Time(),
 			Pair:       pair,
-			AssetType:  itemDecoder(wsResponse.Arg.InstrumentType),
+			AssetType:  itemDecoder(instrumentType),
 			Exchange:   e.Name,
 			StartTime:  time.UnixMilli(ts),
 			CloseTime:  time.UnixMilli(ts).Add(time.Hour * 24),
@@ -379,8 +414,8 @@ func (e *Exchange) candleDataHandler(wsResponse *WsResponse) error {
 }
 
 // TradeDataHandler handles trade data, as functionality is shared between updates and snapshots
-func (e *Exchange) tradeDataHandler(wsResponse *WsResponse) error {
-	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
+func (e *Exchange) tradeDataHandler(wsResponse *WsResponse, instrumentID, instrumentType string) error {
+	pair, err := pairFromStringHelper(instrumentID)
 	if err != nil {
 		return err
 	}
@@ -393,7 +428,7 @@ func (e *Exchange) tradeDataHandler(wsResponse *WsResponse) error {
 		resp[i] = trade.Data{
 			Timestamp:    trades[i].Timestamp.Time(),
 			CurrencyPair: pair,
-			AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
+			AssetType:    itemDecoder(instrumentType),
 			Exchange:     e.Name,
 			Price:        trades[i].Price.Float64(),
 			Amount:       trades[i].Size.Float64(),
@@ -406,8 +441,8 @@ func (e *Exchange) tradeDataHandler(wsResponse *WsResponse) error {
 }
 
 // OrderbookDataHandler handles orderbook data, as functionality is shared between updates and snapshots
-func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
-	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
+func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse, instrumentID, instrumentType string) error {
+	pair, err := pairFromStringHelper(instrumentID)
 	if err != nil {
 		return err
 	}
@@ -435,7 +470,7 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 		}
 		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Pair:                   pair,
-			Asset:                  itemDecoder(wsResponse.Arg.InstrumentType),
+			Asset:                  itemDecoder(instrumentType),
 			Bids:                   bids,
 			Asks:                   asks,
 			LastUpdated:            wsResponse.Timestamp.Time(),
@@ -449,7 +484,7 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 		Asks:             asks,
 		Pair:             pair,
 		UpdateTime:       wsResponse.Timestamp.Time(),
-		Asset:            itemDecoder(wsResponse.Arg.InstrumentType),
+		Asset:            itemDecoder(instrumentType),
 		GenerateChecksum: calculateUpdateOrderbookChecksum,
 		ExpectedChecksum: uint32(ob[0].Checksum), //nolint:gosec // The exchange sends it as ints expecting overflows to be handled as Go does by default
 		AllowEmpty:       true,
@@ -460,9 +495,9 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse) error {
 }
 
 // AccountSnapshotDataHandler handles account snapshot data
-func (e *Exchange) accountSnapshotDataHandler(ctx context.Context, wsResponse *WsResponse) error {
+func (e *Exchange) accountSnapshotDataHandler(ctx context.Context, wsResponse *WsResponse, instrumentType string) error {
 	var subAcc *accounts.SubAccount
-	switch a := itemDecoder(wsResponse.Arg.InstrumentType); a {
+	switch a := itemDecoder(instrumentType); a {
 	case asset.Spot:
 		var acc []WsAccountSpotResponse
 		if err := json.Unmarshal(wsResponse.Data, &acc); err != nil {
@@ -490,7 +525,7 @@ func (e *Exchange) accountSnapshotDataHandler(ctx context.Context, wsResponse *W
 			})
 		}
 	default:
-		return fmt.Errorf("%s %s %w %s", e.Name, a, asset.ErrNotSupported, wsResponse.Arg.InstrumentType)
+		return fmt.Errorf("%s %s %w %s", e.Name, a, asset.ErrNotSupported, instrumentType)
 	}
 	subAccts := accounts.SubAccounts{subAcc}
 	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
@@ -500,8 +535,8 @@ func (e *Exchange) accountSnapshotDataHandler(ctx context.Context, wsResponse *W
 	return nil
 }
 
-func (e *Exchange) fillDataHandler(wsResponse *WsResponse) error {
-	respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+func (e *Exchange) fillDataHandler(wsResponse *WsResponse, instrumentType string) error {
+	respAsset := itemDecoder(instrumentType)
 	switch respAsset {
 	case asset.Spot:
 		var fil []WsFillSpotResponse
@@ -552,14 +587,14 @@ func (e *Exchange) fillDataHandler(wsResponse *WsResponse) error {
 		}
 		e.Websocket.DataHandler <- resp
 	default:
-		e.Websocket.DataHandler <- fmt.Errorf("%s %s %w %s", e.Name, respAsset, asset.ErrNotSupported, wsResponse.Arg.InstrumentType)
+		e.Websocket.DataHandler <- fmt.Errorf("%s %s %w %s", e.Name, respAsset, asset.ErrNotSupported, instrumentType)
 	}
 	return nil
 }
 
 // genOrderDataHandler handles generic order data
-func (e *Exchange) genOrderDataHandler(wsResponse *WsResponse) error {
-	respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+func (e *Exchange) genOrderDataHandler(wsResponse *WsResponse, instrumentType string) error {
+	respAsset := itemDecoder(instrumentType)
 	switch respAsset {
 	case asset.Spot:
 		var orders []WsOrderSpotResponse
@@ -660,14 +695,14 @@ func (e *Exchange) genOrderDataHandler(wsResponse *WsResponse) error {
 		}
 		e.Websocket.DataHandler <- resp
 	default:
-		e.Websocket.DataHandler <- fmt.Errorf("%s %s %w %s", e.Name, respAsset, asset.ErrNotSupported, wsResponse.Arg.InstrumentType)
+		e.Websocket.DataHandler <- fmt.Errorf("%s %s %w %s", e.Name, respAsset, asset.ErrNotSupported, instrumentType)
 	}
 	return nil
 }
 
 // TriggerOrderDataHandler handles trigger order data
-func (e *Exchange) triggerOrderDataHandler(wsResponse *WsResponse) error {
-	respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+func (e *Exchange) triggerOrderDataHandler(wsResponse *WsResponse, instrumentType string) error {
+	respAsset := itemDecoder(instrumentType)
 	switch respAsset {
 	case asset.Spot:
 		var orders []WsTriggerOrderSpotResponse
@@ -727,13 +762,13 @@ func (e *Exchange) triggerOrderDataHandler(wsResponse *WsResponse) error {
 		}
 		e.Websocket.DataHandler <- resp
 	default:
-		e.Websocket.DataHandler <- fmt.Errorf("%s %s %w %s", e.Name, respAsset, asset.ErrNotSupported, wsResponse.Arg.InstrumentType)
+		e.Websocket.DataHandler <- fmt.Errorf("%s %s %w %s", e.Name, respAsset, asset.ErrNotSupported, instrumentType)
 	}
 	return nil
 }
 
 // PositionsDataHandler handles data on futures positions
-func (e *Exchange) positionsDataHandler(wsResponse *WsResponse) error {
+func (e *Exchange) positionsDataHandler(wsResponse *WsResponse, instrumentType string) error {
 	var positions []WsPositionResponse
 	if err := json.Unmarshal(wsResponse.Data, &positions); err != nil {
 		return err
@@ -746,7 +781,7 @@ func (e *Exchange) positionsDataHandler(wsResponse *WsResponse) error {
 		}
 		resp[i] = order.Detail{
 			Exchange:             e.Name,
-			AssetType:            itemDecoder(wsResponse.Arg.InstrumentType),
+			AssetType:            itemDecoder(instrumentType),
 			Pair:                 pair,
 			OrderID:              strconv.FormatInt(positions[i].PositionID, 10),
 			MarginType:           marginDecoder(positions[i].MarginMode),
@@ -801,7 +836,7 @@ func (e *Exchange) positionsHistoryDataHandler(wsResponse *WsResponse) error {
 }
 
 // IndexPriceDataHandler handles index price data
-func (e *Exchange) indexPriceDataHandler(wsResponse *WsResponse) error {
+func (e *Exchange) indexPriceDataHandler(wsResponse *WsResponse, instrumentType string) error {
 	var indexPrice []WsIndexPriceResponse
 	if err := json.Unmarshal(wsResponse.Data, &indexPrice); err != nil {
 		return err
@@ -809,7 +844,7 @@ func (e *Exchange) indexPriceDataHandler(wsResponse *WsResponse) error {
 	resp := make([]ticker.Price, len(indexPrice))
 	var cur int
 	for i := range indexPrice {
-		as := itemDecoder(wsResponse.Arg.InstrumentType)
+		as := itemDecoder(instrumentType)
 		pair, enabled, err := e.MatchSymbolCheckEnabled(indexPrice[i].Symbol, as, false)
 		// The exchange sometimes returns unavailable pairs such as "USDT/USDT" which should be ignored
 		if !enabled || err != nil {
@@ -854,13 +889,13 @@ func (e *Exchange) crossAccountDataHandler(ctx context.Context, wsResponse *WsRe
 }
 
 // MarginOrderDataHandler handles margin order data
-func (e *Exchange) marginOrderDataHandler(wsResponse *WsResponse) error {
+func (e *Exchange) marginOrderDataHandler(wsResponse *WsResponse, instrumentType, channel string) error {
 	var orders []WsOrderMarginResponse
 	if err := json.Unmarshal(wsResponse.Data, &orders); err != nil {
 		return err
 	}
 	resp := make([]order.Detail, len(orders))
-	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
+	pair, err := pairFromStringHelper(instrumentType)
 	if err != nil {
 		return err
 	}
@@ -884,7 +919,7 @@ func (e *Exchange) marginOrderDataHandler(wsResponse *WsResponse) error {
 			resp[i].Fee += orders[i].FeeDetail[x].TotalFee.Float64()
 			resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
 		}
-		if wsResponse.Arg.Channel == bitgetOrdersIsolatedChannel {
+		if channel == bitgetOrdersIsolatedChannel {
 			resp[i].AssetType = asset.Margin
 		} else {
 			resp[i].AssetType = asset.CrossMargin
@@ -919,9 +954,9 @@ func (e *Exchange) isolatedAccountDataHandler(ctx context.Context, wsResponse *W
 }
 
 // AccountUpdateDataHandler
-func (e *Exchange) accountUpdateDataHandler(ctx context.Context, wsResponse *WsResponse) error {
+func (e *Exchange) accountUpdateDataHandler(ctx context.Context, wsResponse *WsResponse, instrumentType string) error {
 	var subAcc *accounts.SubAccount
-	switch a := itemDecoder(wsResponse.Arg.InstrumentType); a {
+	switch a := itemDecoder(instrumentType); a {
 	case asset.Spot:
 		var acc []WsAccountSpotResponse
 		if err := json.Unmarshal(wsResponse.Data, &acc); err != nil {
@@ -950,7 +985,7 @@ func (e *Exchange) accountUpdateDataHandler(ctx context.Context, wsResponse *WsR
 			})
 		}
 	default:
-		return fmt.Errorf("%s %s %w %s", e.Name, a, asset.ErrNotSupported, wsResponse.Arg.InstrumentType)
+		return fmt.Errorf("%s %s %w %s", e.Name, a, asset.ErrNotSupported, instrumentType)
 	}
 	subAccts := accounts.SubAccounts{subAcc}
 	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {

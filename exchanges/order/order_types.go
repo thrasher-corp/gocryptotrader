@@ -79,6 +79,8 @@ type Submit struct {
 	// MarginType such as isolated or cross margin for when an exchange
 	// supports margin type definition when submitting an order eg okx
 	MarginType margin.Type
+	// SettlementCurrency for derivatives orders such as USDT, BTC, ETH
+	SettlementCurrency currency.Code
 	// RetrieveFees use if an API submit order response does not return fees
 	// enabling this will perform additional request(s) to retrieve them
 	// and set it in the SubmitResponse

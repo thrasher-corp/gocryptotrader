@@ -180,7 +180,7 @@ func (e *Exchange) SetDefaults() {
 		},
 		Subscriptions: defaultSubscriptions.Clone(),
 		TradingRequirements: protocol.TradingRequirements{
-			SpotMarketBuyQuotation: false,
+			SpotMarketBuyQuotation: true,
 			SpotMarketSellBase:     true,
 			ClientOrderID:          false,
 		},
@@ -258,16 +258,18 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   wsPriv,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		RateLimit:             rateLimits[rateSubscription],
-		Connector:             e.wsConnect,
-		GenerateSubscriptions: func() (subscription.List, error) { return e.wsGenerateSubscriptions(false) },
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		Handler:               e.wsHandleData,
-		Authenticate:          e.wsAuthenticate,
+		URL:                      wsPriv,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		RateLimit:                rateLimits[rateSubscription],
+		Connector:                e.wsConnect,
+		GenerateSubscriptions:    func() (subscription.List, error) { return e.wsGenerateSubscriptions(false) },
+		Subscriber:               e.Subscribe,
+		Unsubscriber:             e.Unsubscribe,
+		Handler:                  e.wsHandleData,
+		Authenticate:             e.wsAuthenticate,
+		MessageFilter:            privateConnection,
+		SubscriptionsNotRequired: true,
 	})
 }
 
@@ -603,11 +605,6 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 
 // UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
-	info, err := e.GetAccountInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	var subAccts accounts.SubAccounts
 	switch a {
 	case asset.Spot:
@@ -615,26 +612,29 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		if err != nil {
 			return nil, err
 		}
-		subAcc := accounts.NewSubAccount(a, strconv.FormatUint(info.UserID, 10))
+		subAcc := accounts.NewSubAccount(a, "")
 		for x := range resp {
 			hold := resp[x].Frozen.Float64() + resp[x].Locked.Float64() + resp[x].LimitAvailable.Float64()
 			subAcc.Balances.Set(resp[x].Coin, accounts.Balance{
-				Total: resp[x].Available.Float64() + hold,
-				Free:  resp[x].Available.Float64(),
-				Hold:  hold,
+				Total:     resp[x].Available.Float64() + hold,
+				Free:      resp[x].Available.Float64(),
+				Hold:      hold,
+				UpdatedAt: resp[x].UpdateTime.Time(),
 			})
 		}
 		subAccts = append(subAccts, subAcc)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures:
+		// TODO: Need to be able to load equity, isolated, cross margin balances separately once the accounts package
+		// supports it.
 		resp, err := e.GetAllFuturesAccounts(ctx, itemEncoder(a))
 		if err != nil {
 			return nil, err
 		}
-		subAcc := accounts.NewSubAccount(a, fmt.Sprintf("%s-%s", strconv.FormatUint(info.UserID, 10), itemEncoder(a)))
+		subAcc := accounts.NewSubAccount(a, "")
 		for x := range resp {
 			subAcc.Balances.Set(resp[x].MarginCoin, accounts.Balance{
-				Total: resp[x].Locked.Float64() + resp[x].Available.Float64(),
-				Free:  resp[x].Available.Float64(),
+				Total: resp[x].Locked.Float64() + resp[x].IsolatedMaxAvailable.Float64(),
+				Free:  resp[x].IsolatedMaxAvailable.Float64(),
 				Hold:  resp[x].Locked.Float64(),
 			})
 		}
@@ -644,7 +644,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		if err != nil {
 			return nil, err
 		}
-		subAcc := accounts.NewSubAccount(a, strconv.FormatUint(info.UserID, 10))
+		subAcc := accounts.NewSubAccount(a, "")
 		for x := range resp {
 			subAcc.Balances.Set(resp[x].Coin, accounts.Balance{
 				Total:    resp[x].TotalAmount.Float64(),
@@ -659,7 +659,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		if err != nil {
 			return nil, err
 		}
-		subAcc := accounts.NewSubAccount(a, strconv.FormatUint(info.UserID, 10))
+		subAcc := accounts.NewSubAccount(a, "")
 		for x := range resp {
 			subAcc.Balances.Set(resp[x].Coin, accounts.Balance{
 				Total:    resp[x].TotalAmount.Float64(),
@@ -2203,7 +2203,10 @@ func sideDecoder(d string) order.Side {
 
 // StrategyTruthTable is a helper function that returns the appropriate strategy for a given set of booleans
 func strategyTruthTable(tif order.TimeInForce) (string, error) {
-	if tif.Is(order.ImmediateOrCancel) && tif.Is(order.FillOrKill) || tif.Is(order.FillOrKill) && tif.Is(order.PostOnly) || tif.Is(order.ImmediateOrCancel) && tif.Is(order.PostOnly) {
+	if tif == order.UnknownTIF {
+		return "gtc", nil
+	}
+	if !tif.IsValid() {
 		return "", errStrategyMutex
 	}
 	if tif.Is(order.ImmediateOrCancel) {
@@ -2215,7 +2218,10 @@ func strategyTruthTable(tif order.TimeInForce) (string, error) {
 	if tif.Is(order.PostOnly) {
 		return "post_only", nil
 	}
-	return "gtc", nil
+	if tif.Is(order.GoodTillCancel) {
+		return "gtc", nil
+	}
+	return "", fmt.Errorf("%w: %q", order.ErrInvalidTimeInForce, tif)
 }
 
 // MarginStringer is a helper function that returns the appropriate string for a given margin type

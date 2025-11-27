@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -92,11 +93,14 @@ var e *Exchange
 
 func TestMain(m *testing.M) {
 	e = new(Exchange)
+	e.IsDemoTrading = testingInSandbox // called before setup for websocket connection testing
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Bybit Setup error: %s", err)
 	}
-	if testingInSandbox {
-		e.IsDemoTrading = true
+	if apiKey != "" && apiSecret != "" && clientID != "" {
+		e.API.AuthenticatedSupport = true
+		e.API.AuthenticatedWebsocketSupport = true
+		e.SetCredentials(apiKey, apiSecret, clientID, "", "", "")
 	}
 	switch json.Implementation {
 	case "bytedance/sonic":
@@ -1527,8 +1531,9 @@ func TestGetAllPositions(t *testing.T) {
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	_, err = e.GetAllPositions(t.Context(), meow, currency.Code{})
 	assert.ErrorIs(t, err, errMarginCoinEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetAllPositions(t.Context(), testFiat2.String()+"-FUTURES", testFiat2)
+	_, err = e.GetAllPositions(request.WithVerbose(t.Context()), "USDT-FUTURES", currency.USDT)
 	assert.NoError(t, err)
 }
 
