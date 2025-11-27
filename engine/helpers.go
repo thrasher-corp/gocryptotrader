@@ -33,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitget"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bithumb"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitmex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
@@ -678,7 +679,10 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]Exc
 									cryptocurrency)
 								continue
 							}
-
+							// Bitget requires a size to be passed in when the chain is BTC's lightning network; we don't currently support that
+							if exch.GetName() == "Bitget" && cryptocurrency == "BTC" && availChains[z] == "LIGHTNING" {
+								continue
+							}
 							depositAddr, err := exch.GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", availChains[z])
 							if err != nil {
 								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s [chain %s]. Err: %s\n",
@@ -913,6 +917,8 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(bitfinex.Exchange), nil
 	case "bitflyer":
 		return new(bitflyer.Exchange), nil
+	case "bitget":
+		return new(bitget.Exchange), nil
 	case "bithumb":
 		return new(bithumb.Exchange), nil
 	case "bitmex":
