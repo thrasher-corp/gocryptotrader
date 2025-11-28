@@ -72,7 +72,6 @@ func TestMain(m *testing.M) {
 		asset.Margin:  marginTradablePair,
 		asset.Futures: futuresTradablePair,
 	}
-	fetchedFuturesOrderbook = map[string]bool{}
 
 	os.Exit(m.Run())
 }
@@ -4088,13 +4087,14 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 // testInstance returns a local Kucoin for isolated testing
 func testInstance(tb testing.TB) *Exchange {
 	tb.Helper()
-	kucoin := new(Exchange)
-	require.NoError(tb, testexch.Setup(kucoin), "Test instance Setup must not error")
-	kucoin.obm = &orderbookManager{
+	e := new(Exchange)
+	require.NoError(tb, testexch.Setup(e), "Test instance Setup must not error")
+	e.obm = &orderbookManager{
 		state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
 		jobs:  make(chan job, maxWSOrderbookJobs),
 	}
-	return kucoin
+	e.fetchedFuturesOrderbook = map[string]bool{}
+	return e
 }
 
 func TestGetTradingPairActualFees(t *testing.T) {

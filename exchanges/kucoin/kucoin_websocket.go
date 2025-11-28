@@ -30,11 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var (
-	fetchedFuturesOrderbookMutex sync.Mutex
-	fetchedFuturesOrderbook      map[string]bool
-)
-
 const (
 	publicBullets  = "/v1/bullet-public"
 	privateBullets = "/v1/bullet-private"
@@ -121,9 +116,9 @@ func (e *Exchange) WsConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	fetchedFuturesOrderbookMutex.Lock()
-	fetchedFuturesOrderbook = map[string]bool{}
-	fetchedFuturesOrderbookMutex.Unlock()
+	e.fetchedFuturesOrderbookMutex.Lock()
+	e.fetchedFuturesOrderbook = map[string]bool{}
+	e.fetchedFuturesOrderbookMutex.Unlock()
 	var dialer gws.Dialer
 	dialer.HandshakeTimeout = e.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
@@ -503,12 +498,12 @@ func (e *Exchange) processFuturesMarkPriceAndIndexPrice(respData []byte, instrum
 
 // ensureFuturesOrderbookSnapshotLoaded makes sure an initial futures orderbook snapshot is loaded
 func (e *Exchange) ensureFuturesOrderbookSnapshotLoaded(ctx context.Context, symbol string) error {
-	fetchedFuturesOrderbookMutex.Lock()
-	defer fetchedFuturesOrderbookMutex.Unlock()
-	if fetchedFuturesOrderbook[symbol] {
+	e.fetchedFuturesOrderbookMutex.Lock()
+	defer e.fetchedFuturesOrderbookMutex.Unlock()
+	if e.fetchedFuturesOrderbook[symbol] {
 		return nil
 	}
-	fetchedFuturesOrderbook[symbol] = true
+	e.fetchedFuturesOrderbook[symbol] = true
 	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		return err
@@ -1097,8 +1092,8 @@ type job struct {
 
 // setupOrderbookManager sets up the orderbook manager for websocket orderbook data handling.
 func (e *Exchange) setupOrderbookManager(ctx context.Context) {
-	locker.Lock()
-	defer locker.Unlock()
+	e.obmMutex.Lock()
+	defer e.obmMutex.Unlock()
 	if e.obm == nil {
 		e.obm = &orderbookManager{
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),

@@ -31,10 +31,11 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Kucoin
 type Exchange struct {
 	exchange.Base
-	obm *orderbookManager
+	obmMutex                     sync.Mutex
+	obm                          *orderbookManager
+	fetchedFuturesOrderbookMutex sync.Mutex
+	fetchedFuturesOrderbook      map[string]bool
 }
-
-var locker sync.Mutex
 
 const (
 	kucoinAPIURL = "https://api.kucoin.com/api"
