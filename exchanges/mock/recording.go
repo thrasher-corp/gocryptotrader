@@ -74,8 +74,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 	}
 
 	var m VCRMock
-	err = json.Unmarshal(contents, &m)
-	if err != nil {
+	if err := json.Unmarshal(contents, &m); err != nil {
 		return err
 	}
 
@@ -94,8 +93,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 		return err
 	}
 
-	err = json.Unmarshal(cleanedContents, &httpResponse.Data)
-	if err != nil {
+	if err := json.Unmarshal(cleanedContents, &httpResponse.Data); err != nil {
 		return err
 	}
 
@@ -185,21 +183,48 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 						}
 
 					case applicationJSON, textPlain:
-						reqVals, jErr := DeriveURLValsFromJSONMap([]byte(body))
-						if jErr != nil {
-							return jErr
-						}
+						trimmedBody := strings.TrimSpace(mockResponses[i].BodyParams)
+						trimmedMockBody := strings.TrimSpace(body)
+						if strings.HasPrefix(trimmedBody, "[") && strings.HasPrefix(trimmedMockBody, "[") {
+							reqVals, jErr := DeriveURLValsFromJSONSlice([]byte(body))
+							if jErr != nil {
+								return jErr
+							}
 
-						mockVals, jErr := DeriveURLValsFromJSONMap([]byte(mockResponses[i].BodyParams))
-						if jErr != nil {
-							return jErr
-						}
+							mockVals, jErr := DeriveURLValsFromJSONSlice([]byte(mockResponses[i].BodyParams))
+							if jErr != nil {
+								return jErr
+							}
 
-						if MatchURLVals(reqVals, mockVals) {
-							// if found will delete instance and overwrite with new
-							// data
-							mockResponses = slices.Delete(mockResponses, i, i+1)
+							if len(reqVals) != len(mockVals) {
+								continue
+							}
 							found = true
+							for j := range reqVals {
+								found = found && MatchURLVals(reqVals[j], mockVals[j])
+							}
+							if found {
+								// if found will delete instance and overwrite with new
+								// data
+								mockResponses = slices.Delete(mockResponses, i, i+1)
+							}
+						} else if strings.HasPrefix(trimmedBody, "{") && strings.HasPrefix(trimmedMockBody, "{") {
+							reqVals, jErr := DeriveURLValsFromJSONMap([]byte(body))
+							if jErr != nil {
+								return jErr
+							}
+
+							mockVals, jErr := DeriveURLValsFromJSONMap([]byte(mockResponses[i].BodyParams))
+							if jErr != nil {
+								return jErr
+							}
+
+							if MatchURLVals(reqVals, mockVals) {
+								// if found will delete instance and overwrite with new
+								// data
+								mockResponses = slices.Delete(mockResponses, i, i+1)
+								found = true
+							}
 						}
 					case "":
 						if !ok {
