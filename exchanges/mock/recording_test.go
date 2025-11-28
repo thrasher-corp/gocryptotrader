@@ -210,7 +210,6 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, fullURL)
 
-	println("Content: ", string(content))
 	response = &http.Response{
 		Request: &http.Request{
 			Header: map[string][]string{
