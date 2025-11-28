@@ -1863,6 +1863,7 @@ func TestWsPushData(t *testing.T) {
 	t.Parallel()
 	for key, value := range pushMessages {
 		t.Run(key, func(t *testing.T) {
+			t.Parallel()
 			err := e.wsHandleData(generateContext(t), e.Websocket.Conn, []byte(value))
 			assert.NoError(t, err)
 		})
@@ -2026,10 +2027,10 @@ var futuresPushDataMap = map[string]string{
 
 func TestWsFuturesHandleData(t *testing.T) {
 	t.Parallel()
-	var err error
 	for title, data := range futuresPushDataMap {
 		t.Run(title, func(t *testing.T) {
-			err = e.wsFuturesHandleData(t.Context(), e.Websocket.Conn, []byte(data))
+			t.Parallel()
+			err := e.wsFuturesHandleData(t.Context(), e.Websocket.Conn, []byte(data))
 			assert.NoError(t, err)
 		})
 	}
@@ -2667,7 +2668,7 @@ func TestOrderbookLevelFromSlice(t *testing.T) {
 	}
 }
 
-var channelIntervals = []struct {
+var channelIntervals = []*struct {
 	input    string
 	channel  string
 	interval kline.Interval
@@ -2690,6 +2691,7 @@ func TestChannelToIntervalSplit(t *testing.T) {
 	t.Parallel()
 	for _, chd := range channelIntervals {
 		t.Run(chd.input, func(t *testing.T) {
+			t.Parallel()
 			c, i, err := channelToIntervalSplit(chd.input)
 			require.ErrorIs(t, err, chd.err)
 			require.Equal(t, chd.channel, c)
