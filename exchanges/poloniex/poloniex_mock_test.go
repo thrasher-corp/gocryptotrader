@@ -7,7 +7,6 @@ package poloniex
 import (
 	"log"
 	"os"
-	"sync"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -15,7 +14,6 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-var mockVarLock sync.Mutex
 var mockTests = true
 
 func TestMain(m *testing.M) {
