@@ -1006,9 +1006,6 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 
 // GetOrderInfo returns order information based on order ID
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	if pair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
 	switch assetType {
 	case asset.Spot:
 		trades, err := e.GetTradesByOrderID(ctx, orderID)
@@ -1017,8 +1014,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		orderTrades := make([]order.TradeHistory, len(trades))
 		for i, td := range trades {
-			var oType order.Type
-			oType, err = order.StringToOrderType(td.Type)
+			oType, err := order.StringToOrderType(td.Type)
 			if err != nil {
 				return nil, err
 			}
@@ -1046,14 +1042,11 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			case len(smartOrders) != 1:
 				return nil, fmt.Errorf("%w: too may smart orders returned", common.ErrInvalidResponse)
 			}
-			if !pair.IsEmpty() && !smartOrders[0].Symbol.Equal(pair) {
-				return nil, fmt.Errorf("order with ID %s expected a symbol %v, but got %v", orderID, pair, smartOrders[0].Symbol)
-			}
-			oType, err := order.StringToOrderType(smartOrders[0].Type)
+			s := smartOrders[0]
+			oType, err := order.StringToOrderType(s.Type)
 			if err != nil {
 				return nil, err
 			}
-			s := smartOrders[0]
 			return &order.Detail{
 				Side:          s.Side,
 				Pair:          s.Symbol,
@@ -1106,9 +1099,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return nil, order.ErrOrderNotFound
 		}
 		orderDetail := fResults[0]
-		if !pair.IsEmpty() && !orderDetail.Symbol.Equal(pair) {
-			return nil, fmt.Errorf("order with ID %s expected a symbol %v, but got %v", orderID, pair, orderDetail.Symbol)
-		}
 		oType, err := order.StringToOrderType(orderDetail.OrderType)
 		if err != nil {
 			return nil, err
@@ -1403,18 +1393,16 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			var oType order.Type
 			orders := make([]order.Detail, 0, len(resp))
 			for _, tOrder := range resp {
 				if len(req.Pairs) != 0 && !req.Pairs.Contains(tOrder.Symbol, true) {
 					continue
 				}
-				oType, err = order.StringToOrderType(tOrder.Type)
+				oType, err := order.StringToOrderType(tOrder.Type)
 				if err != nil {
 					return nil, err
 				}
-				var assetType asset.Item
-				assetType, err = asset.New(tOrder.AccountType)
+				assetType, err := asset.New(tOrder.AccountType)
 				if err != nil {
 					return nil, err
 				}
@@ -1460,20 +1448,16 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			var (
-				oSide order.Side
-				oType order.Type
-			)
 			orders := make([]order.Detail, 0, len(smartOrders))
 			for _, smartOrder := range smartOrders {
 				if len(req.Pairs) != 0 && !req.Pairs.Contains(smartOrder.Symbol, true) {
 					continue
 				}
-				oSide, err = order.StringToOrderSide(smartOrder.Side)
+				oSide, err := order.StringToOrderSide(smartOrder.Side)
 				if err != nil {
 					return nil, err
 				}
-				oType, err = order.StringToOrderType(smartOrder.Type)
+				oType, err := order.StringToOrderType(smartOrder.Type)
 				if err != nil {
 					return nil, err
 				}
@@ -1513,13 +1497,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		var oType order.Type
 		orders := make([]order.Detail, 0, len(orderHistory))
 		for _, fOrder := range orderHistory {
 			if len(req.Pairs) != 0 && !req.Pairs.Contains(fOrder.Symbol, true) {
 				continue
 			}
-			oType, err = order.StringToOrderType(fOrder.OrderType)
+			oType, err := order.StringToOrderType(fOrder.OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -1701,11 +1684,9 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, assetType asse
 	}
 	resp := make([]futures.Contract, len(contracts))
 	for i, productInfo := range contracts {
-		var ct futures.ContractType
+		ct := futures.Quarterly
 		if strings.HasSuffix(productInfo.Symbol.Quote.String(), "PERP") {
 			ct = futures.Perpetual
-		} else {
-			ct = futures.Quarterly
 		}
 		resp[i] = futures.Contract{
 			Type:               ct,

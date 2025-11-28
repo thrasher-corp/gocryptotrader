@@ -204,14 +204,14 @@ func (e *Exchange) processBalance(ctx context.Context, result *SubscriptionRespo
 		return err
 	}
 	subAccts := accounts.SubAccounts{}
-	for x := range resp {
-		subAcct := accounts.NewSubAccount(stringToAccountType(resp[x].AccountType), resp[x].AccountID)
-		subAcct.Balances.Set(resp[x].Currency, accounts.Balance{
-			Currency:  resp[x].Currency,
-			Hold:      resp[x].Hold.Float64(),
-			Total:     resp[x].Available.Float64(),
-			UpdatedAt: resp[x].Timestamp.Time(),
-			Free:      resp[x].Available.Float64() - resp[x].Hold.Float64(),
+	for _, r := range resp {
+		subAcct := accounts.NewSubAccount(stringToAccountType(r.AccountType), r.AccountID)
+		subAcct.Balances.Set(r.Currency, accounts.Balance{
+			Currency:  r.Currency,
+			Hold:      r.Hold.Float64(),
+			Total:     r.Available.Float64(),
+			UpdatedAt: r.Timestamp.Time(),
+			Free:      r.Available.Float64() - r.Hold.Float64(),
 		})
 		subAccts = subAccts.Merge(subAcct)
 	}
@@ -223,58 +223,58 @@ func (e *Exchange) processBalance(ctx context.Context, result *SubscriptionRespo
 }
 
 func (e *Exchange) processOrders(result *SubscriptionResponse) error {
-	response := []WebsocketTradeOrder{}
+	response := []*WebsocketTradeOrder{}
 	if err := json.Unmarshal(result.Data, &response); err != nil {
 		return err
 	}
 	orderDetails := make([]order.Detail, len(response))
-	for x := range response {
-		oType, err := order.StringToOrderType(response[x].Type)
+	for x, r := range response {
+		oType, err := order.StringToOrderType(r.Type)
 		if err != nil {
 			return err
 		}
-		oSide, err := order.StringToOrderSide(response[x].Side)
+		oSide, err := order.StringToOrderSide(r.Side)
 		if err != nil {
 			return err
 		}
-		oStatus, err := order.StringToOrderStatus(response[x].State)
+		oStatus, err := order.StringToOrderStatus(r.State)
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(response[x].Symbol)
+		cp, err := currency.NewPairFromString(r.Symbol)
 		if err != nil {
 			return err
 		}
 		orderDetails[x] = order.Detail{
-			Price:           response[x].Price.Float64(),
-			Amount:          response[x].Quantity.Float64(),
-			QuoteAmount:     response[x].OrderAmount.Float64(),
-			ExecutedAmount:  response[x].FilledAmount.Float64(),
-			RemainingAmount: response[x].Quantity.Float64() - response[x].FilledQuantity.Float64(),
-			Fee:             response[x].TradeFee.Float64(),
-			FeeAsset:        response[x].FeeCurrency,
+			Price:           r.Price.Float64(),
+			Amount:          r.Quantity.Float64(),
+			QuoteAmount:     r.OrderAmount.Float64(),
+			ExecutedAmount:  r.FilledAmount.Float64(),
+			RemainingAmount: r.Quantity.Float64() - r.FilledQuantity.Float64(),
+			Fee:             r.TradeFee.Float64(),
+			FeeAsset:        r.FeeCurrency,
 			Exchange:        e.Name,
-			OrderID:         response[x].OrderID,
-			ClientOrderID:   response[x].ClientOrderID,
+			OrderID:         r.OrderID,
+			ClientOrderID:   r.ClientOrderID,
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
-			AssetType:       stringToAccountType(response[x].AccountType),
-			Date:            response[x].CreateTime.Time(),
-			LastUpdated:     response[x].TradeTime.Time(),
+			AssetType:       stringToAccountType(r.AccountType),
+			Date:            r.CreateTime.Time(),
+			LastUpdated:     r.TradeTime.Time(),
 			Pair:            cp,
 			Trades: []order.TradeHistory{
 				{
-					Price:     response[x].TradePrice.Float64(),
-					Amount:    response[x].TradeQty.Float64(),
-					Fee:       response[x].TradeFee.Float64(),
+					Price:     r.TradePrice.Float64(),
+					Amount:    r.TradeQty.Float64(),
+					Fee:       r.TradeFee.Float64(),
 					Exchange:  e.Name,
-					TID:       response[x].TradeID,
+					TID:       r.TradeID,
 					Type:      oType,
 					Side:      oSide,
-					Timestamp: response[x].Timestamp.Time(),
-					FeeAsset:  response[x].FeeCurrency.String(),
-					Total:     response[x].Quantity.Float64(),
+					Timestamp: r.Timestamp.Time(),
+					FeeAsset:  r.FeeCurrency.String(),
+					Total:     r.Quantity.Float64(),
 				},
 			},
 		}
@@ -284,24 +284,24 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 }
 
 func (e *Exchange) processBooks(result *SubscriptionResponse) error {
-	var resp []WsBook
+	var resp []*WsBook
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
-	for x := range resp {
-		cp, err := currency.NewPairFromString(resp[x].Symbol)
+	for _, r := range resp {
+		cp, err := currency.NewPairFromString(r.Symbol)
 		if err != nil {
 			return err
 		}
 		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Pair:         cp,
 			Exchange:     e.Name,
-			LastUpdateID: resp[x].ID,
+			LastUpdateID: r.ID,
 			Asset:        asset.Spot,
-			LastUpdated:  resp[x].CreateTime.Time(),
-			LastPushed:   resp[x].Timestamp.Time(),
-			Asks:         resp[x].Asks.Levels(),
-			Bids:         resp[x].Bids.Levels(),
+			LastUpdated:  r.CreateTime.Time(),
+			LastPushed:   r.Timestamp.Time(),
+			Asks:         r.Asks.Levels(),
+			Bids:         r.Bids.Levels(),
 		}); err != nil {
 			return err
 		}
@@ -310,12 +310,12 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 }
 
 func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
-	var resp []WsBook
+	var resp []*WsBook
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
-	for x := range resp {
-		cp, err := currency.NewPairFromString(resp[x].Symbol)
+	for _, r := range resp {
+		cp, err := currency.NewPairFromString(r.Symbol)
 		if err != nil {
 			return err
 		}
@@ -325,10 +325,10 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 				Exchange:     e.Name,
 				Pair:         cp,
 				Asset:        asset.Spot,
-				Asks:         resp[x].Asks.Levels(),
-				Bids:         resp[x].Bids.Levels(),
-				LastUpdateID: resp[x].LastID,
-				LastUpdated:  resp[x].Timestamp.Time(),
+				Asks:         r.Asks.Levels(),
+				Bids:         r.Bids.Levels(),
+				LastUpdateID: r.LastID,
+				LastUpdated:  r.Timestamp.Time(),
 			}); err != nil {
 				return err
 			}
@@ -337,12 +337,12 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 
 		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
 			Pair:       cp,
-			UpdateTime: resp[x].Timestamp.Time(),
-			UpdateID:   resp[x].ID,
+			UpdateTime: r.Timestamp.Time(),
+			UpdateID:   r.ID,
 			Asset:      asset.Spot,
 			Action:     orderbook.UpdateAction,
-			Asks:       resp[x].Asks.Levels(),
-			Bids:       resp[x].Bids.Levels(),
+			Asks:       r.Asks.Levels(),
+			Bids:       r.Bids.Levels(),
 		}); err != nil {
 			return err
 		}
@@ -351,28 +351,28 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 }
 
 func (e *Exchange) processTicker(result *SubscriptionResponse) error {
-	var resp []WsTicker
+	var resp []*WsTicker
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
 	tickerData := make([]ticker.Price, len(resp))
-	for x := range resp {
-		cp, err := currency.NewPairFromString(resp[x].Symbol)
+	for x, r := range resp {
+		cp, err := currency.NewPairFromString(r.Symbol)
 		if err != nil {
 			return err
 		}
 		tickerData[x] = ticker.Price{
-			MarkPrice:    resp[x].MarkPrice.Float64(),
-			High:         resp[x].High.Float64(),
-			Low:          resp[x].Low.Float64(),
-			Volume:       resp[x].Quantity.Float64(),
-			QuoteVolume:  resp[x].Amount.Float64(),
-			Open:         resp[x].Open.Float64(),
-			Close:        resp[x].Close.Float64(),
+			MarkPrice:    r.MarkPrice.Float64(),
+			High:         r.High.Float64(),
+			Low:          r.Low.Float64(),
+			Volume:       r.Quantity.Float64(),
+			QuoteVolume:  r.Amount.Float64(),
+			Open:         r.Open.Float64(),
+			Close:        r.Close.Float64(),
 			Pair:         cp,
 			AssetType:    asset.Spot,
 			ExchangeName: e.Name,
-			LastUpdated:  resp[x].Timestamp.Time(),
+			LastUpdated:  r.Timestamp.Time(),
 		}
 	}
 	e.Websocket.DataHandler <- tickerData
@@ -380,50 +380,50 @@ func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 }
 
 func (e *Exchange) processTrades(result *SubscriptionResponse) error {
-	var resp []WsTrade
+	var resp []*WsTrade
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
 	trades := make([]trade.Data, len(resp))
-	for x := range resp {
-		cp, err := currency.NewPairFromString(resp[x].Symbol)
+	for x, r := range resp {
+		cp, err := currency.NewPairFromString(r.Symbol)
 		if err != nil {
 			return err
 		}
 		trades[x] = trade.Data{
-			TID:          resp[x].ID,
+			TID:          r.ID,
 			Exchange:     e.Name,
 			CurrencyPair: cp,
-			Price:        resp[x].Price.Float64(),
-			Amount:       resp[x].Quantity.Float64(),
-			Timestamp:    resp[x].Timestamp.Time(),
+			Price:        r.Price.Float64(),
+			Amount:       r.Quantity.Float64(),
+			Timestamp:    r.Timestamp.Time(),
 		}
 	}
 	return trade.AddTradesToBuffer(trades...)
 }
 
 func (e *Exchange) processCandlestickData(result *SubscriptionResponse) error {
-	var resp []WsCandles
+	var resp []*WsCandles
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
 	candles := make([]websocket.KlineData, len(resp))
-	for x := range resp {
-		cp, err := currency.NewPairFromString(resp[x].Symbol)
+	for x, r := range resp {
+		cp, err := currency.NewPairFromString(r.Symbol)
 		if err != nil {
 			return err
 		}
 		candles[x] = websocket.KlineData{
 			Pair:       cp,
 			Exchange:   e.Name,
-			Timestamp:  resp[x].Timestamp.Time(),
-			StartTime:  resp[x].StartTime.Time(),
-			CloseTime:  resp[x].CloseTime.Time(),
-			OpenPrice:  resp[x].Open.Float64(),
-			ClosePrice: resp[x].Close.Float64(),
-			HighPrice:  resp[x].High.Float64(),
-			LowPrice:   resp[x].Low.Float64(),
-			Volume:     resp[x].Quantity.Float64(),
+			Timestamp:  r.Timestamp.Time(),
+			StartTime:  r.StartTime.Time(),
+			CloseTime:  r.CloseTime.Time(),
+			OpenPrice:  r.Open.Float64(),
+			ClosePrice: r.Close.Float64(),
+			HighPrice:  r.High.Float64(),
+			LowPrice:   r.Low.Float64(),
+			Volume:     r.Quantity.Float64(),
 		}
 	}
 	e.Websocket.DataHandler <- candles

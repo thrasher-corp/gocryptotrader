@@ -1284,9 +1284,6 @@ func TestGetDepositAddresses(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOrderInfo(generateContext(t), "", currency.EMPTYPAIR, asset.Spot)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
@@ -1866,7 +1863,6 @@ func TestWsPushData(t *testing.T) {
 	t.Parallel()
 	for key, value := range pushMessages {
 		t.Run(key, func(t *testing.T) {
-			t.Parallel()
 			err := e.wsHandleData(generateContext(t), e.Websocket.Conn, []byte(value))
 			assert.NoError(t, err)
 		})
@@ -2033,7 +2029,6 @@ func TestWsFuturesHandleData(t *testing.T) {
 	var err error
 	for title, data := range futuresPushDataMap {
 		t.Run(title, func(t *testing.T) {
-			t.Parallel()
 			err = e.wsFuturesHandleData(t.Context(), e.Websocket.Conn, []byte(data))
 			assert.NoError(t, err)
 		})
@@ -2695,7 +2690,6 @@ func TestChannelToIntervalSplit(t *testing.T) {
 	t.Parallel()
 	for _, chd := range channelIntervals {
 		t.Run(chd.input, func(t *testing.T) {
-			t.Parallel()
 			c, i, err := channelToIntervalSplit(chd.input)
 			require.ErrorIs(t, err, chd.err)
 			require.Equal(t, chd.channel, c)
