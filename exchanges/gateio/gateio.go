@@ -118,6 +118,7 @@ const (
 	deliveryPath     = "delivery/"
 	ordersPath       = "/orders"
 	positionsPath    = "/positions/"
+	hedgeModePath    = "/dual_comp/positions/"
 	subAccountsPath  = "sub_accounts/"
 	priceOrdersPaths = "/price_orders"
 
@@ -151,7 +152,6 @@ var (
 	errMissingPreviewID                 = errors.New("missing required parameter: preview_id")
 	errChangeHasToBePositive            = errors.New("change has to be positive")
 	errInvalidLeverage                  = errors.New("invalid leverage value")
-	errInvalidRiskLimit                 = errors.New("new position risk limit")
 	errInvalidAutoSize                  = errors.New("invalid autoSize")
 	errTooManyOrderRequest              = errors.New("too many order creation request")
 	errInvalidTimeout                   = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
@@ -166,6 +166,9 @@ var (
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidTextPrefix                = errors.New("invalid text value, requires prefix `t-`")
 	errSingleAssetRequired              = errors.New("single asset type required")
+	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
+	errFetchingOrderbook                = errors.New("error fetching orderbook")
+	errNoSpotInstrument                 = errors.New("no spot instrument available")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -1323,6 +1326,31 @@ func (e *Exchange) ConvertSmallBalances(ctx context.Context, currs ...currency.C
 
 // ********************************* Margin *******************************************
 
+// GetEstimatedInterestRate retrieves estimated interest rate for provided currencies
+func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, currencies []currency.Code) (map[string]types.Number, error) {
+	if len(currencies) == 0 {
+		return nil, currency.ErrCurrencyCodesEmpty
+	}
+	if len(currencies) > 10 {
+		return nil, fmt.Errorf("%w: maximum 10", errTooManyCurrencyCodes)
+	}
+	var currStr strings.Builder
+	for i := range currencies {
+		if currencies[i].IsEmpty() {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
+		if i != 0 {
+			currStr.WriteString(",")
+		}
+		currStr.WriteString(currencies[i].String())
+	}
+	params := url.Values{}
+	params.Set("currencies", currStr.String())
+
+	var response map[string]types.Number
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginEstimateRateEPL, http.MethodGet, "margin/uni/estimate_rate", params, nil, &response)
+}
+
 // GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
 func (e *Exchange) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]MarginCurrencyPairInfo, error) {
 	var currenciePairsInfo []MarginCurrencyPairInfo
@@ -2138,20 +2166,6 @@ func (e *Exchange) UpdateFuturesPositionLeverage(ctx context.Context, settle cur
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualUpdateLeverageEPL, http.MethodPost, futuresPath+settle.Item.Lower+positionsPath+contract.String()+"/leverage", params, nil, &response)
 }
 
-// UpdateFuturesPositionRiskLimit updates the position risk limit
-func (e *Exchange) UpdateFuturesPositionRiskLimit(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit uint64) (*Position, error) {
-	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
-	}
-	if contract.IsInvalid() {
-		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
-	}
-	params := url.Values{}
-	params.Set("risk_limit", strconv.FormatUint(riskLimit, 10))
-	var response *Position
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualUpdateRiskEPL, http.MethodPost, futuresPath+settle.Item.Lower+positionsPath+contract.String()+"/risk_limit", params, nil, &response)
-}
-
 // EnableOrDisableDualMode enable or disable dual mode
 // Before setting dual mode, make sure all positions are closed and no orders are open
 func (e *Exchange) EnableOrDisableDualMode(ctx context.Context, settle currency.Code, dualMode bool) (*DualModeResponse, error) {
@@ -2173,7 +2187,7 @@ func (e *Exchange) RetrivePositionDetailInDualMode(ctx context.Context, settle c
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	var response []Position
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualPositionsDualModeEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/dual_comp/positions/"+contract.String(), nil, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualPositionsDualModeEPL, http.MethodGet, futuresPath+settle.Item.Lower+hedgeModePath+contract.String(), nil, nil, &response)
 }
 
 // UpdatePositionMarginInDualMode update position margin in dual mode
@@ -2191,7 +2205,7 @@ func (e *Exchange) UpdatePositionMarginInDualMode(ctx context.Context, settle cu
 	}
 	params.Set("dual_side", dualSide)
 	var response []Position
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualUpdateMarginDualModeEPL, http.MethodPost, futuresPath+settle.Item.Lower+"/dual_comp/positions/"+contract.String()+"/margin", params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualUpdateMarginDualModeEPL, http.MethodPost, futuresPath+settle.Item.Lower+hedgeModePath+contract.String()+"/margin", params, nil, &response)
 }
 
 // UpdatePositionLeverageInDualMode update position leverage in dual mode
@@ -2211,24 +2225,7 @@ func (e *Exchange) UpdatePositionLeverageInDualMode(ctx context.Context, settle 
 		params.Set("cross_leverage_limit", strconv.FormatFloat(crossLeverageLimit, 'f', -1, 64))
 	}
 	var response *Position
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualUpdateLeverageDualModeEPL, http.MethodPost, futuresPath+settle.Item.Lower+"/dual_comp/positions/"+contract.String()+"/leverage", params, nil, &response)
-}
-
-// UpdatePositionRiskLimitInDualMode update position risk limit in dual mode
-func (e *Exchange) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit float64) ([]Position, error) {
-	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
-	}
-	if contract.IsInvalid() {
-		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
-	}
-	if riskLimit < 0 {
-		return nil, errInvalidRiskLimit
-	}
-	params := url.Values{}
-	params.Set("risk_limit", strconv.FormatFloat(riskLimit, 'f', -1, 64))
-	var response []Position
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualUpdateRiskDualModeEPL, http.MethodPost, futuresPath+settle.Item.Lower+"/dual_comp/positions/"+contract.String()+"/risk_limit", params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualUpdateLeverageDualModeEPL, http.MethodPost, futuresPath+settle.Item.Lower+hedgeModePath+contract.String()+"/leverage", params, nil, &response)
 }
 
 // PlaceFuturesOrder creates futures order
@@ -2754,20 +2751,6 @@ func (e *Exchange) UpdateDeliveryPositionLeverage(ctx context.Context, settle cu
 	var response *Position
 	return response, e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, deliveryUpdateLeverageEPL, http.MethodPost, deliveryPath+settle.Item.Lower+positionsPath+contract.String()+"/leverage", params, nil, &response)
-}
-
-// UpdateDeliveryPositionRiskLimit update position risk limit
-func (e *Exchange) UpdateDeliveryPositionRiskLimit(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit uint64) (*Position, error) {
-	if settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
-	}
-	if contract.IsInvalid() {
-		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
-	}
-	params := url.Values{}
-	params.Set("risk_limit", strconv.FormatUint(riskLimit, 10))
-	var response *Position
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryUpdateRiskLimitEPL, http.MethodPost, deliveryPath+settle.Item.Lower+positionsPath+contract.String()+"/risk_limit", params, nil, &response)
 }
 
 // PlaceDeliveryOrder create a futures order

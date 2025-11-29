@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -178,7 +180,7 @@ func (e *Exchange) SetDefaults() {
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-	e.wsOBUpdateMgr = newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
+	e.wsOBUpdateMgr = newWsOBUpdateManager(defaultWsOrderbookUpdateTimeDelay, defaultWSOrderbookUpdateDeadline)
 }
 
 // Setup sets user configuration
@@ -430,12 +432,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			if tradables[x].Status == 0 {
 				continue
 			}
-			p := strings.ToUpper(tradables[x].Base + currency.UnderscoreDelimiter + tradables[x].Quote)
-			cp, err := currency.NewPairFromString(p)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, cp)
+			pairs = append(pairs, tradables[x].ID)
 		}
 		return pairs, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
@@ -622,21 +619,31 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 
 // UpdateOrderbookWithLimit updates and returns the orderbook for a currency pair with a set orderbook size limit
 func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Book, error) {
+	book, err := e.fetchOrderbook(ctx, p, a, limit)
+	if err != nil {
+		return nil, err
+	}
+	if err := book.Process(); err != nil {
+		return nil, err
+	}
+	return orderbook.Get(e.Name, book.Pair, a)
+}
+
+func (e *Exchange) fetchOrderbook(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Book, error) {
 	p, err := e.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 	var o *Orderbook
 	switch a {
-	case asset.Spot, asset.Margin, asset.CrossMargin:
-		var available bool
-		available, err = e.checkInstrumentAvailabilityInSpot(p)
-		if err != nil {
+	case asset.Margin, asset.CrossMargin:
+		if available, err := e.checkInstrumentAvailabilityInSpot(p); err != nil {
 			return nil, err
+		} else if !available {
+			return nil, fmt.Errorf("%w: %w for %q %q", errFetchingOrderbook, errNoSpotInstrument, a, p)
 		}
-		if a != asset.Spot && !available {
-			return nil, fmt.Errorf("%v instrument %v does not have orderbook data", a, p)
-		}
+		fallthrough
+	case asset.Spot:
 		o, err = e.GetOrderbook(ctx, p.String(), "", limit, true)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		var settle currency.Code
@@ -656,7 +663,7 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 		return nil, err
 	}
 
-	ob := &orderbook.Book{
+	return &orderbook.Book{
 		Exchange:          e.Name,
 		Asset:             a,
 		ValidateOrderbook: e.ValidateOrderbook,
@@ -666,13 +673,7 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 		LastPushed:        o.Current.Time(),
 		Bids:              o.Bids.Levels(),
 		Asks:              o.Asks.Levels(),
-	}
-
-	if err := ob.Process(); err != nil {
-		return nil, err
-	}
-
-	return orderbook.Get(e.Name, p, a)
+	}, nil
 }
 
 // UpdateAccountBalances retrieves currency balances
@@ -1781,16 +1782,16 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				contractSettlementType = futures.Quanto
 			}
 			c := futures.Contract{
-				Exchange:             e.Name,
-				Name:                 contracts[i].Name,
-				Underlying:           contracts[i].Name,
-				Asset:                a,
-				IsActive:             contracts[i].DelistedTime.Time().IsZero() || contracts[i].DelistedTime.Time().After(time.Now()),
-				Type:                 futures.Perpetual,
-				SettlementType:       contractSettlementType,
-				SettlementCurrencies: currency.Currencies{settle},
-				Multiplier:           contracts[i].QuantoMultiplier.Float64(),
-				MaxLeverage:          contracts[i].LeverageMax.Float64(),
+				Exchange:           e.Name,
+				Name:               contracts[i].Name,
+				Underlying:         contracts[i].Name,
+				Asset:              a,
+				IsActive:           contracts[i].DelistedTime.Time().IsZero() || contracts[i].DelistedTime.Time().After(time.Now()),
+				Type:               futures.Perpetual,
+				SettlementType:     contractSettlementType,
+				SettlementCurrency: settle,
+				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
+				MaxLeverage:        contracts[i].LeverageMax.Float64(),
 			}
 			c.LatestRate = fundingrate.Rate{
 				Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
@@ -1834,19 +1835,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				startTime = endTime.Add(-kline.SixMonth.Duration())
 			}
 			resp[i] = futures.Contract{
-				Exchange:             e.Name,
-				Name:                 name,
-				Underlying:           underlying,
-				Asset:                a,
-				StartDate:            startTime,
-				EndDate:              endTime,
-				SettlementType:       futures.Linear,
-				IsActive:             !contracts[i].InDelisting,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{settle},
-				MarginCurrency:       currency.Code{},
-				Multiplier:           contracts[i].QuantoMultiplier.Float64(),
-				MaxLeverage:          contracts[i].LeverageMax.Float64(),
+				Exchange:           e.Name,
+				Name:               name,
+				Underlying:         underlying,
+				Asset:              a,
+				StartDate:          startTime,
+				EndDate:            endTime,
+				SettlementType:     futures.Linear,
+				IsActive:           !contracts[i].InDelisting,
+				Type:               ct,
+				SettlementCurrency: settle,
+				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
+				MaxLeverage:        contracts[i].LeverageMax.Float64(),
 			}
 		}
 		return resp, nil
@@ -2645,4 +2645,12 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	default:
 		return nil, fmt.Errorf("%w for %s", common.ErrNotYetImplemented, a)
 	}
+}
+
+// MessageID returns a unique ID conforming to Gate's max length of 32 bytes for request IDs
+func (e *Exchange) MessageID() string {
+	u := uuid.Must(uuid.NewV7())
+	var buf [32]byte
+	hex.Encode(buf[:], u[:])
+	return string(buf[:])
 }
