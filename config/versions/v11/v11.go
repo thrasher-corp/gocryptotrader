@@ -15,29 +15,14 @@ func (v *Version) Exchanges() []string { return []string{"Poloniex"} }
 
 // UpgradeExchange replaces deprecated WS and REST endpoints
 func (v *Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
-	for _, detail := range []struct {
-		key    string
-		oldURL string
-		newURL string
-	}{
-		{
-			key:    "RestSpotURL",
-			oldURL: "https://poloniex.com",
-			newURL: "https://api.poloniex.com",
-		},
-		{
-			key:    "WebsocketSpotURL",
-			oldURL: "wss://api2.poloniex.com",
-			newURL: "wss://ws.poloniex.com/ws/public",
-		},
-	} {
-		url, err := jsonparser.GetString(e, "api", "urlEndpoints", detail.key)
+	for _, key := range []string{"WebsocketSpotURL", "RestSpotURL"} {
+		url, err := jsonparser.GetString(e, "api", "urlEndpoints", key)
 		if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
 			return e, err
 		}
-		if detail.oldURL == url {
-			e = jsonparser.Delete(e, "api", "urlEndpoints", detail.key)
-			return jsonparser.Set(e, []byte(`"`+detail.newURL+`"`), "api", "urlEndpoints", detail.key)
+		switch url {
+		case "wss://api2.poloniex.com", "https://poloniex.com":
+			e = jsonparser.Delete(e, "api", "urlEndpoints", key)
 		}
 	}
 	return e, nil

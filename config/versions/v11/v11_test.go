@@ -19,17 +19,16 @@ func TestUpgradeExchange(t *testing.T) {
 	for _, tt := range []struct {
 		urlType string
 		in      string
-		exp     string
 	}{
-		{"RestSpotURL", "https://poloniex.com", `"RestSpotURL":"https://api.poloniex.com"`},
-		{"WebsocketSpotURL", "wss://api2.poloniex.com", `"WebsocketSpotURL":"wss://ws.poloniex.com/ws/public"`},
+		{"RestSpotURL", "https://poloniex.com"},
+		{"WebsocketSpotURL", "wss://api2.poloniex.com"},
 	} {
 		t.Run(tt.in, func(t *testing.T) {
 			t.Parallel()
 			in := []byte(`{"name":"Poloniex","api":{"urlEndpoints":{"` + tt.urlType + `": "` + tt.in + `"}}}`)
 			out, err := new(v11.Version).UpgradeExchange(t.Context(), in)
 			require.NoError(t, err)
-			exp := `{"name":"Poloniex","api":{"urlEndpoints":{` + tt.exp + `}}}`
+			exp := `{"name":"Poloniex","api":{"urlEndpoints":{}}}`
 			assert.Equal(t, exp, string(out))
 		})
 	}
