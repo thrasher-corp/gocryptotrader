@@ -57,8 +57,8 @@ var (
 )
 
 // ListAssets returns a list of all supported assets.
-func (e *Exchange) ListAssets(ctx context.Context) ([]AssetItemInfo, error) {
-	var resp []AssetItemInfo
+func (e *Exchange) ListAssets(ctx context.Context) ([]*AssetItemInfo, error) {
+	var resp []*AssetItemInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "assets", nil, nil, &resp, false)
 }
 
@@ -80,7 +80,7 @@ func (e *Exchange) GetAssetDetails(ctx context.Context, assetName currency.Code,
 }
 
 // GetSupportedNetworksPerAsset returns a list of supported networks and network information for a specific asset.
-func (e *Exchange) GetSupportedNetworksPerAsset(ctx context.Context, assetName currency.Code, assetUUID, assetID string) ([]AssetInfoWithSupportedNetwork, error) {
+func (e *Exchange) GetSupportedNetworksPerAsset(ctx context.Context, assetName currency.Code, assetUUID, assetID string) ([]*AssetInfoWithSupportedNetwork, error) {
 	path := "assets/"
 	switch {
 	case !assetName.IsEmpty():
@@ -92,13 +92,13 @@ func (e *Exchange) GetSupportedNetworksPerAsset(ctx context.Context, assetName c
 	default:
 		return nil, errAssetIdentifierRequired
 	}
-	var resp []AssetInfoWithSupportedNetwork
+	var resp []*AssetInfoWithSupportedNetwork
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/networks", nil, nil, &resp, false)
 }
 
 // GetFeeRateTiers return all the fee rate tiers.
-func (e *Exchange) GetFeeRateTiers(ctx context.Context) ([]FeeRateInfo, error) {
-	var resp []FeeRateInfo
+func (e *Exchange) GetFeeRateTiers(ctx context.Context) ([]*FeeRateInfo, error) {
+	var resp []*FeeRateInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "fee-rate-tiers", nil, nil, &resp, true)
 }
 
@@ -163,8 +163,8 @@ func (e *Exchange) GetIndexCandles(ctx context.Context, indexName, granularity s
 }
 
 // GetInstruments returns all of the instruments available for trading.
-func (e *Exchange) GetInstruments(ctx context.Context) ([]InstrumentInfo, error) {
-	var resp []InstrumentInfo
+func (e *Exchange) GetInstruments(ctx context.Context) ([]*InstrumentInfo, error) {
+	var resp []*InstrumentInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments", nil, nil, &resp, false)
 }
 
@@ -203,7 +203,7 @@ func (e *Exchange) GetQuotePerInstrument(ctx context.Context, instrumentName, in
 }
 
 // GetDailyTradingVolumes retrieves the trading volumes for each instrument separated by day
-func (e *Exchange) GetDailyTradingVolumes(ctx context.Context, instruments []string, resultLimit, resultOffset int64, timeFrom time.Time, showOther bool) (*InstrumentsTradingVolumeInfo, error) {
+func (e *Exchange) GetDailyTradingVolumes(ctx context.Context, instruments []string, resultLimit, resultOffset int64, timeFrom time.Time, showOther bool) (*InstrumentsTradingVolumes, error) {
 	if len(instruments) == 0 || slices.Contains(instruments, "") {
 		return nil, errInstrumentIDRequired
 	}
@@ -221,7 +221,7 @@ func (e *Exchange) GetDailyTradingVolumes(ctx context.Context, instruments []str
 	if showOther {
 		params.Set("show_other", "true")
 	}
-	var resp *InstrumentsTradingVolumeInfo
+	var resp *InstrumentsTradingVolumes
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments/volumes/daily", params, nil, &resp, false)
 }
 
@@ -357,7 +357,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, portfolioUUID, portfolioID
 }
 
 // CancelOrders cancels all orders matching the requested criteria.
-func (e *Exchange) CancelOrders(ctx context.Context, portfolioID, portfolioUUID, instrument string) ([]OrderDetail, error) {
+func (e *Exchange) CancelOrders(ctx context.Context, portfolioID, portfolioUUID, instrument string) ([]*OrderDetail, error) {
 	params := url.Values{}
 	switch {
 	case portfolioID != "":
@@ -370,7 +370,7 @@ func (e *Exchange) CancelOrders(ctx context.Context, portfolioID, portfolioUUID,
 	if instrument != "" {
 		params.Set("instrument", instrument)
 	}
-	var resp []OrderDetail
+	var resp []*OrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "orders", params, nil, &resp, true)
 }
 
@@ -424,8 +424,8 @@ func (e *Exchange) CancelTradeOrder(ctx context.Context, orderID, clientOrderID,
 }
 
 // GetAllUserPortfolios returns all of the user's portfolios.
-func (e *Exchange) GetAllUserPortfolios(ctx context.Context) ([]PortfolioInfo, error) {
-	var resp []PortfolioInfo
+func (e *Exchange) GetAllUserPortfolios(ctx context.Context) ([]*PortfolioInfo, error) {
+	var resp []*PortfolioInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios", nil, nil, &resp, true)
 }
 
@@ -529,7 +529,7 @@ func (e *Exchange) GetPortfolioSummary(ctx context.Context, portfolioUUID, portf
 }
 
 // ListPortfolioBalances returns all of the balances for a given portfolio.
-func (e *Exchange) ListPortfolioBalances(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioBalance, error) {
+func (e *Exchange) ListPortfolioBalances(ctx context.Context, portfolioUUID, portfolioID string) ([]*PortfolioBalance, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -539,7 +539,7 @@ func (e *Exchange) ListPortfolioBalances(ctx context.Context, portfolioUUID, por
 	default:
 		return nil, errMissingPortfolioID
 	}
-	var resp []PortfolioBalance
+	var resp []*PortfolioBalance
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/balances", nil, nil, &resp, true)
 }
 
@@ -674,7 +674,7 @@ func (e *Exchange) ViewMaxLoanAvailability(ctx context.Context, portfolioUUID, p
 }
 
 // ListPortfolioPositions returns all of the positions for a given portfolio.
-func (e *Exchange) ListPortfolioPositions(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioPosition, error) {
+func (e *Exchange) ListPortfolioPositions(ctx context.Context, portfolioUUID, portfolioID string) ([]*PortfolioPosition, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -684,7 +684,7 @@ func (e *Exchange) ListPortfolioPositions(ctx context.Context, portfolioUUID, po
 	default:
 		return nil, errMissingPortfolioID
 	}
-	var resp []PortfolioPosition
+	var resp []*PortfolioPosition
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/positions", nil, nil, &resp, true)
 }
 
@@ -725,7 +725,7 @@ func (e *Exchange) GetOpenPositionLimitsForPortfolioInstrument(ctx context.Conte
 }
 
 // GetOpenPositionLimitsForAllInstruments retrieves position limits for all positions a given portfolio currently has or has opened in the past
-func (e *Exchange) GetOpenPositionLimitsForAllInstruments(ctx context.Context, portfolioUUID, portfolioID string) ([]OpenPortfolioPositions, error) {
+func (e *Exchange) GetOpenPositionLimitsForAllInstruments(ctx context.Context, portfolioUUID, portfolioID string) ([]*OpenPortfolioPositions, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -735,7 +735,7 @@ func (e *Exchange) GetOpenPositionLimitsForAllInstruments(ctx context.Context, p
 	default:
 		return nil, errMissingPortfolioID
 	}
-	var resp []OpenPortfolioPositions
+	var resp []*OpenPortfolioPositions
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/position-limits/positions", nil, nil, &resp, true)
 }
 
@@ -777,7 +777,7 @@ func (e *Exchange) GetFillsByPortfolio(ctx context.Context, portfolioUUID, order
 }
 
 // ListPortfolioFills returns all of the fills for a given portfolio.
-func (e *Exchange) ListPortfolioFills(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioFill, error) {
+func (e *Exchange) ListPortfolioFills(ctx context.Context, portfolioUUID, portfolioID string) ([]*PortfolioFill, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -787,7 +787,7 @@ func (e *Exchange) ListPortfolioFills(ctx context.Context, portfolioUUID, portfo
 	default:
 		return nil, errMissingPortfolioID
 	}
-	var resp []PortfolioFill
+	var resp []*PortfolioFill
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/fills", nil, nil, &resp, true)
 }
 
@@ -897,8 +897,8 @@ func (e *Exchange) TransferPositionsBetweenPortfolios(ctx context.Context, arg *
 }
 
 // GetPortfolioFeeRates retrieves the Perpetual Future and Spot fee rate tiers for the user.
-func (e *Exchange) GetPortfolioFeeRates(ctx context.Context) ([]PortfolioFeeRate, error) {
-	var resp []PortfolioFeeRate
+func (e *Exchange) GetPortfolioFeeRates(ctx context.Context) ([]*PortfolioFeeRate, error) {
+	var resp []*PortfolioFeeRate
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios/fee-rates", nil, nil, &resp, true)
 }
 

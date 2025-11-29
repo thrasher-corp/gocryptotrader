@@ -340,7 +340,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		return accounts.SubAccounts{}, err
 	}
 	holdings := make(accounts.SubAccounts, len(portfolios))
-	var balances []PortfolioBalance
+	var balances []*PortfolioBalance
 	for p := range portfolios {
 		balances, err = e.ListPortfolioBalances(ctx, portfolios[p].PortfolioUUID, portfolios[p].PortfolioID)
 		if err != nil {
@@ -398,21 +398,21 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, a
 		return nil, err
 	}
 	resp := make([]exchange.WithdrawalHistory, len(history.Results))
-	for j := range history.Results {
+	for j, result := range history.Results {
 		resp[j] = exchange.WithdrawalHistory{
-			Status:          history.Results[j].TransferStatus,
-			Timestamp:       history.Results[j].CreatedAt,
-			Currency:        history.Results[j].Asset,
-			Amount:          history.Results[j].Amount,
-			TransferType:    history.Results[j].TransferType,
-			CryptoTxID:      history.Results[j].TransferUUID,
-			CryptoChain:     history.Results[j].NetworkName,
-			CryptoToAddress: history.Results[j].ToPortfolio.ID,
+			Status:          result.TransferStatus,
+			Timestamp:       result.CreatedAt,
+			Currency:        result.Asset,
+			Amount:          result.Amount,
+			TransferType:    result.TransferType,
+			CryptoTxID:      result.TransferUUID,
+			CryptoChain:     result.NetworkName,
+			CryptoToAddress: result.ToPortfolio.ID,
 		}
-		if resp[j].CryptoToAddress == "" && history.Results[j].ToPortfolio.UUID != "" {
-			resp[j].CryptoToAddress = history.Results[j].ToPortfolio.UUID
+		if resp[j].CryptoToAddress == "" && result.ToPortfolio.UUID != "" {
+			resp[j].CryptoToAddress = result.ToPortfolio.UUID
 		} else if resp[j].CryptoToAddress == "" {
-			resp[j].CryptoToAddress = history.Results[j].ToPortfolio.Name
+			resp[j].CryptoToAddress = result.ToPortfolio.Name
 		}
 	}
 	return resp, nil
@@ -443,7 +443,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return nil, err
 	}
 
-	response, err := e.CreateOrder(ctx, &OrderRequestParams{
+	resp, err := e.CreateOrder(ctx, &OrderRequestParams{
 		ClientOrderID: s.ClientOrderID,
 		Side:          s.Side.String(),
 		BaseSize:      s.Amount,
@@ -456,7 +456,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	return s.DeriveSubmitResponse(strconv.FormatInt(response.OrderID.Int64(), 10))
+	return s.DeriveSubmitResponse(strconv.FormatInt(resp.OrderID.Int64(), 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -637,47 +637,47 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 	if len(getOrdersRequest.Pairs) == 1 {
 		instrument = getOrdersRequest.Pairs[0].String()
 	}
-	response, err := e.GetOpenOrders(ctx, "", "", instrument, asssetToInstrumentType(getOrdersRequest.AssetType), "", "", "LIMIT", getOrdersRequest.StartTime, 0, 0)
+	resp, err := e.GetOpenOrders(ctx, "", "", instrument, asssetToInstrumentType(getOrdersRequest.AssetType), "", "", "LIMIT", getOrdersRequest.StartTime, 0, 0)
 	if err != nil {
 		return nil, err
 	}
-	orders := make([]order.Detail, 0, len(response.Results))
-	for x := range response.Results {
-		oType, err := order.StringToOrderType(response.Results[x].Type)
+	orders := make([]order.Detail, 0, len(resp.Results))
+	for _, orderDetail := range resp.Results {
+		oType, err := order.StringToOrderType(orderDetail.Type)
 		if err != nil {
 			return nil, err
 		}
-		oSide, err := order.StringToOrderSide(response.Results[x].Side)
+		oSide, err := order.StringToOrderSide(orderDetail.Side)
 		if err != nil {
 			return nil, err
 		}
-		oStatus, err := order.StringToOrderStatus(response.Results[x].OrderStatus)
+		oStatus, err := order.StringToOrderStatus(orderDetail.OrderStatus)
 		if err != nil {
 			return nil, err
 		}
-		pair, err := currency.NewPairFromString(response.Results[x].Symbol)
+		pair, err := currency.NewPairFromString(orderDetail.Symbol)
 		if err != nil {
 			return nil, err
 		}
 		if len(getOrdersRequest.Pairs) != 0 && getOrdersRequest.Pairs.Contains(pair, true) {
 			continue
 		}
-		tif, err := order.StringToTimeInForce(response.Results[x].TimeInForce)
+		tif, err := order.StringToTimeInForce(orderDetail.TimeInForce)
 		if err != nil {
 			return nil, err
 		}
 		orders = append(orders, order.Detail{
-			Amount:               response.Results[x].Size,
-			Price:                response.Results[x].Price,
-			TriggerPrice:         response.Results[x].StopPrice,
-			AverageExecutedPrice: response.Results[x].AveragePrice.Float64(),
-			QuoteAmount:          response.Results[x].Size * response.Results[x].AveragePrice.Float64(),
-			RemainingAmount:      response.Results[x].Size - response.Results[x].ExecQty.Float64(),
-			OrderID:              strconv.FormatInt(response.Results[x].OrderID.Int64(), 10),
-			ExecutedAmount:       response.Results[x].ExecQty.Float64(),
-			Fee:                  response.Results[x].Fee.Float64(),
-			ClientOrderID:        response.Results[x].ClientOrderID,
-			CloseTime:            response.Results[x].ExpireTime,
+			Amount:               orderDetail.Size,
+			Price:                orderDetail.Price,
+			TriggerPrice:         orderDetail.StopPrice,
+			AverageExecutedPrice: orderDetail.AveragePrice.Float64(),
+			QuoteAmount:          orderDetail.Size * orderDetail.AveragePrice.Float64(),
+			RemainingAmount:      orderDetail.Size - orderDetail.ExecQty.Float64(),
+			OrderID:              strconv.FormatInt(orderDetail.OrderID.Int64(), 10),
+			ExecutedAmount:       orderDetail.ExecQty.Float64(),
+			Fee:                  orderDetail.Fee.Float64(),
+			ClientOrderID:        orderDetail.ClientOrderID,
+			CloseTime:            orderDetail.ExpireTime,
 			Exchange:             e.Name,
 			Type:                 oType,
 			Side:                 oSide,
@@ -729,14 +729,14 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		return nil, err
 	}
 	timeSeries := make([]kline.Candle, len(result.Aggregations))
-	for a := range result.Aggregations {
-		timeSeries[a] = kline.Candle{
-			Time:   result.Aggregations[a].Start,
-			Open:   result.Aggregations[a].Open.Float64(),
-			High:   result.Aggregations[a].High.Float64(),
-			Low:    result.Aggregations[a].Low.Float64(),
-			Close:  result.Aggregations[a].Close.Float64(),
-			Volume: result.Aggregations[a].Volume.Float64(),
+	for i, candleInfo := range result.Aggregations {
+		timeSeries[i] = kline.Candle{
+			Time:   candleInfo.Start,
+			Open:   candleInfo.Open.Float64(),
+			High:   candleInfo.High.Float64(),
+			Low:    candleInfo.Low.Float64(),
+			Close:  candleInfo.Close.Float64(),
+			Volume: candleInfo.Volume.Float64(),
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -802,14 +802,14 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			return nil, err
 		}
 		resp = append(resp, futures.Contract{
-			Exchange:             e.Name,
-			Name:                 cp.Format(format),
-			Underlying:           underlying,
-			Asset:                item,
-			IsActive:             contracts[a].TradingState == "TRADING",
-			Status:               contracts[a].TradingState,
-			Type:                 futures.Perpetual,
-			SettlementCurrencies: currency.Currencies{currency.NewCode(contracts[a].QuoteAssetName)},
+			Exchange:           e.Name,
+			Name:               cp.Format(format),
+			Underlying:         underlying,
+			Asset:              item,
+			IsActive:           contracts[a].TradingState == "TRADING",
+			Status:             contracts[a].TradingState,
+			Type:               futures.Perpetual,
+			SettlementCurrency: currency.NewCode(contracts[a].QuoteAssetName),
 		})
 	}
 	return resp, nil
@@ -870,17 +870,17 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		return err
 	}
 	ls := make([]limits.MinMaxLevel, len(instruments))
-	for index := range instruments {
-		pair, err := currency.NewPairFromString(instruments[index].Symbol)
+	for i, instInfo := range instruments {
+		pair, err := currency.NewPairFromString(instInfo.Symbol)
 		if err != nil {
 			return err
 		}
-		ls[index] = limits.MinMaxLevel{
+		ls[i] = limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, pair.Format(format)),
-			AmountStepIncrementSize: instruments[index].BaseIncrement.Float64(),
-			QuoteStepIncrementSize:  instruments[index].QuoteIncrement.Float64(),
-			MinimumQuoteAmount:      instruments[index].Quote.LimitDown.Float64(),
-			MaximumQuoteAmount:      instruments[index].Quote.LimitUp.Float64(),
+			AmountStepIncrementSize: instInfo.BaseIncrement.Float64(),
+			QuoteStepIncrementSize:  instInfo.QuoteIncrement.Float64(),
+			MinimumQuoteAmount:      instInfo.Quote.LimitDown.Float64(),
+			MaximumQuoteAmount:      instInfo.Quote.LimitUp.Float64(),
 		}
 	}
 	return limits.Load(ls)

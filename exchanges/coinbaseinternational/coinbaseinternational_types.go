@@ -102,22 +102,25 @@ type ContractQuoteDetail struct {
 
 // IndexMetadata represents an index metadata detail
 type IndexMetadata struct {
-	ProductID          string    `json:"product_id"`
-	Divisor            float64   `json:"divisor"`
-	Timestamp          time.Time `json:"timestamp"`
-	InceptionTimestamp time.Time `json:"inception_timestamp"`
-	LastRebalance      time.Time `json:"last_rebalance"`
-	Constituents       []struct {
-		Symbol         string       `json:"symbol"`
-		Name           string       `json:"name"`
-		Rank           int64        `json:"rank"`
-		CapFactor      string       `json:"cap_factor"` // constituent market cap factor (or multiplier)
-		Amount         types.Number `json:"amount"`
-		MarketCap      types.Number `json:"market_cap"`
-		IndexMarketCap types.Number `json:"index_market_cap"`
-		Weight         types.Number `json:"weight"`
-		RunningWeight  types.Number `json:"running_weight"`
-	} `json:"constituents"`
+	ProductID          string                      `json:"product_id"`
+	Divisor            float64                     `json:"divisor"`
+	Timestamp          time.Time                   `json:"timestamp"`
+	InceptionTimestamp time.Time                   `json:"inception_timestamp"`
+	LastRebalance      time.Time                   `json:"last_rebalance"`
+	Constituents       []*IndexMetadataConstituent `json:"constituents"`
+}
+
+// IndexMetadataConstituent holds an index metadata constituents
+type IndexMetadataConstituent struct {
+	Symbol         string       `json:"symbol"`
+	Name           string       `json:"name"`
+	Rank           int64        `json:"rank"`
+	CapFactor      string       `json:"cap_factor"` // constituent market cap factor (or multiplier)
+	Amount         types.Number `json:"amount"`
+	MarketCap      types.Number `json:"market_cap"`
+	IndexMarketCap types.Number `json:"index_market_cap"`
+	Weight         types.Number `json:"weight"`
+	RunningWeight  types.Number `json:"running_weight"`
 }
 
 // IndexPriceInfo represents latest index price info
@@ -140,38 +143,43 @@ type IndexPriceCandlesticks struct {
 	} `json:"aggregations"`
 }
 
-// InstrumentsTradingVolumeInfo represents a daily trading volume information
-type InstrumentsTradingVolumeInfo struct {
+// InstrumentsTradingVolumes represents a daily trading volume information
+type InstrumentsTradingVolumes struct {
 	Pagination struct {
 		ResultLimit  float64 `json:"result_limit"`
 		ResultOffset float64 `json:"result_offset"`
 	} `json:"pagination"`
-	Results []struct {
-		Timestamp   time.Time `json:"timestamp"`
-		Instruments []struct {
-			Symbol   string       `json:"symbol"`
-			Volume   types.Number `json:"volume"`
-			Notional types.Number `json:"notional"`
-		} `json:"instruments"`
-		Totals struct {
-			TotalInstrumentsVolume   types.Number `json:"total_instruments_volume"`
-			TotalInstrumentsNotional types.Number `json:"total_instruments_notional"`
-			TotalExchangeVolume      types.Number `json:"total_exchange_volume"`
-			TotalExchangeNotional    types.Number `json:"total_exchange_notional"`
-		} `json:"totals"`
-	} `json:"results"`
+	Results []*InstrumentTradingVolume `json:"results"`
+}
+
+// InstrumentTradingVolume holds an index instrument trading volume.
+type InstrumentTradingVolume struct {
+	Timestamp   time.Time `json:"timestamp"`
+	Instruments []struct {
+		Symbol   string       `json:"symbol"`
+		Volume   types.Number `json:"volume"`
+		Notional types.Number `json:"notional"`
+	} `json:"instruments"`
+	Totals struct {
+		TotalInstrumentsVolume   types.Number `json:"total_instruments_volume"`
+		TotalInstrumentsNotional types.Number `json:"total_instruments_notional"`
+		TotalExchangeVolume      types.Number `json:"total_exchange_volume"`
+		TotalExchangeNotional    types.Number `json:"total_exchange_notional"`
+	} `json:"totals"`
 }
 
 // CandlestickDataHistory represents aggregated candles data
 type CandlestickDataHistory struct {
-	Aggregations []struct {
-		Start  time.Time    `json:"start"`
-		Open   types.Number `json:"open"`
-		High   types.Number `json:"high"`
-		Low    types.Number `json:"low"`
-		Close  types.Number `json:"close"`
-		Volume types.Number `json:"volume"`
-	} `json:"aggregations"`
+	Aggregations []*InstrumentCandlestickDetail `json:"aggregations"`
+}
+
+type InstrumentCandlestickDetail struct {
+	Start  time.Time    `json:"start"`
+	Open   types.Number `json:"open"`
+	High   types.Number `json:"high"`
+	Low    types.Number `json:"low"`
+	Close  types.Number `json:"close"`
+	Volume types.Number `json:"volume"`
 }
 
 // FundingRateHistory represents a funding rate history detail
@@ -180,21 +188,27 @@ type FundingRateHistory struct {
 		ResultLimit  int64 `json:"result_limit"`
 		ResultOffset int64 `json:"result_offset"`
 	} `json:"pagination"`
-	Results []struct {
-		InstrumentID string       `json:"instrument_id"`
-		FundingRate  types.Number `json:"funding_rate"`
-		MarkPrice    types.Number `json:"mark_price"`
-		EventTime    time.Time    `json:"event_time"`
-	} `json:"results"`
+	Results []*FundingRateDetail `json:"results"`
+}
+
+// FundingRateDetail holds a funding rate detail of an instrument.
+type FundingRateDetail struct {
+	InstrumentID string       `json:"instrument_id"`
+	FundingRate  types.Number `json:"funding_rate"`
+	MarkPrice    types.Number `json:"mark_price"`
+	EventTime    time.Time    `json:"event_time"`
 }
 
 // PositionsOffset represents a position offset detail
 type PositionsOffset struct {
-	PositionOffsets []struct {
-		PrimaryInstrumentID   string  `json:"primary_instrument_id"`
-		SecondaryInstrumentID string  `json:"secondary_instrument_id"`
-		Offset                float64 `json:"offset"`
-	} `json:"position_offsets"`
+	PositionOffsets []*PositionOffsetItem `json:"position_offsets"`
+}
+
+// PositionOffsetItem holds a position offset item
+type PositionOffsetItem struct {
+	PrimaryInstrumentID   string  `json:"primary_instrument_id"`
+	SecondaryInstrumentID string  `json:"secondary_instrument_id"`
+	Offset                float64 `json:"offset"`
 }
 
 // QuoteInformation represents a instrument quote information
@@ -241,7 +255,7 @@ type Orders struct {
 		ResultLimit  int64     `json:"result_limit"`
 		ResultOffset int64     `json:"result_offset"`
 	} `json:"pagination"`
-	Results []OrderDetail `json:"results"`
+	Results []*OrderDetail `json:"results"`
 }
 
 // ModifyOrderParam holds update parameters to modify an order.
@@ -318,43 +332,52 @@ type PatchPortfolioParams struct {
 
 // PortfolioDetail represents a portfolio detail.
 type PortfolioDetail struct {
-	Summary struct {
-		Collateral             float64 `json:"collateral"`
-		UnrealizedPnl          float64 `json:"unrealized_pnl"`
-		PositionNotional       float64 `json:"position_notional"`
-		OpenPositionNotional   float64 `json:"open_position_notional"`
-		PendingFees            float64 `json:"pending_fees"`
-		Borrow                 float64 `json:"borrow"`
-		AccruedInterest        float64 `json:"accrued_interest"`
-		RollingDebt            float64 `json:"rolling_debt"`
-		Balance                float64 `json:"balance"`
-		BuyingPower            float64 `json:"buying_power"`
-		PortfolioCurrentMargin float64 `json:"portfolio_current_margin"`
-		PortfolioInitialMargin float64 `json:"portfolio_initial_margin"`
-		InLiquidation          string  `json:"in_liquidation"`
-	} `json:"summary"`
-	Balances []struct {
-		AssetID           string  `json:"asset_id"`
-		AssetUUID         string  `json:"asset_uuid"`
-		AssetName         string  `json:"asset_name"`
-		Quantity          float64 `json:"quantity"`
-		Hold              float64 `json:"hold"`
-		TransferHold      float64 `json:"transfer_hold"`
-		CollateralValue   float64 `json:"collateral_value"`
-		MaxWithdrawAmount float64 `json:"max_withdraw_amount"`
-	} `json:"balances"`
-	Positions []struct {
-		InstrumentID   string  `json:"instrument_id"`
-		InstrumentUUID string  `json:"instrument_uuid"`
-		Symbol         string  `json:"symbol"`
-		Vwap           float64 `json:"vwap"`
-		NetSize        float64 `json:"net_size"`
-		BuyOrderSize   float64 `json:"buy_order_size"`
-		SellOrderSize  float64 `json:"sell_order_size"`
-		ImContribution float64 `json:"im_contribution"`
-		UnrealizedPnl  float64 `json:"unrealized_pnl"`
-		MarkPrice      float64 `json:"mark_price"`
-	} `json:"positions"`
+	Summary   *PortfolioDetailSummary `json:"summary"`
+	Balances  []*SubAccountBalance    `json:"balances"`
+	Positions []*SubAccountPosition   `json:"positions"`
+}
+
+// PortfolioDetailSummary holds a portfolio detail summary
+type PortfolioDetailSummary struct {
+	Collateral             float64 `json:"collateral"`
+	UnrealizedPnl          float64 `json:"unrealized_pnl"`
+	PositionNotional       float64 `json:"position_notional"`
+	OpenPositionNotional   float64 `json:"open_position_notional"`
+	PendingFees            float64 `json:"pending_fees"`
+	Borrow                 float64 `json:"borrow"`
+	AccruedInterest        float64 `json:"accrued_interest"`
+	RollingDebt            float64 `json:"rolling_debt"`
+	Balance                float64 `json:"balance"`
+	BuyingPower            float64 `json:"buying_power"`
+	PortfolioCurrentMargin float64 `json:"portfolio_current_margin"`
+	PortfolioInitialMargin float64 `json:"portfolio_initial_margin"`
+	InLiquidation          string  `json:"in_liquidation"`
+}
+
+// SubAccountBalance holds a sub-account balance detail
+type SubAccountBalance struct {
+	AssetID           string  `json:"asset_id"`
+	AssetUUID         string  `json:"asset_uuid"`
+	AssetName         string  `json:"asset_name"`
+	Quantity          float64 `json:"quantity"`
+	Hold              float64 `json:"hold"`
+	TransferHold      float64 `json:"transfer_hold"`
+	CollateralValue   float64 `json:"collateral_value"`
+	MaxWithdrawAmount float64 `json:"max_withdraw_amount"`
+}
+
+// SubAccountPosition holds a sub-account position detail
+type SubAccountPosition struct {
+	InstrumentID   string  `json:"instrument_id"`
+	InstrumentUUID string  `json:"instrument_uuid"`
+	Symbol         string  `json:"symbol"`
+	Vwap           float64 `json:"vwap"`
+	NetSize        float64 `json:"net_size"`
+	BuyOrderSize   float64 `json:"buy_order_size"`
+	SellOrderSize  float64 `json:"sell_order_size"`
+	ImContribution float64 `json:"im_contribution"`
+	UnrealizedPnl  float64 `json:"unrealized_pnl"`
+	MarkPrice      float64 `json:"mark_price"`
 }
 
 // PortfolioMarginCallStatus holds margin call status for a given
@@ -489,37 +512,40 @@ type PortfolioFill struct {
 		ResultLimit  int64     `json:"result_limit"`
 		ResultOffset int64     `json:"result_offset"`
 	} `json:"pagination"`
-	Results []struct {
-		PortfolioID    string            `json:"portfolio_id"`
-		PortfolioUUID  string            `json:"portfolio_uuid"`
-		PortfolioName  string            `json:"portfolio_name"`
-		FillID         string            `json:"fill_id"`
-		OrderID        string            `json:"order_id"`
-		InstrumentID   string            `json:"instrument_id"`
-		InstrumentUUID string            `json:"instrument_uuid"`
-		Symbol         string            `json:"symbol"`
-		MatchID        string            `json:"match_id"`
-		FillPrice      float64           `json:"fill_price"`
-		FillQty        float64           `json:"fill_qty"`
-		ClientID       string            `json:"client_id"`
-		ClientOrderID  string            `json:"client_order_id"`
-		OrderQty       float64           `json:"order_qty"`
-		LimitPrice     float64           `json:"limit_price"`
-		TotalFilled    float64           `json:"total_filled"`
-		FilledVwap     float64           `json:"filled_vwap"`
-		ExpireTime     time.Time         `json:"expire_time"`
-		StopPrice      float64           `json:"stop_price"`
-		Side           string            `json:"side"`
-		TimeInForce    order.TimeInForce `json:"tif"`
-		StpMode        string            `json:"stp_mode"`
-		Flags          string            `json:"flags"`
-		Fee            float64           `json:"fee"`
-		FeeAsset       string            `json:"fee_asset"`
-		OrderStatus    string            `json:"order_status"`
-		EventTime      time.Time         `json:"event_time"`
-		Source         string            `json:"source"`
-		ExecutionVenue string            `json:"execution_venue"`
-	} `json:"results"`
+	Results []*SubAccountFillDetail `json:"results"`
+}
+
+// SubAccountFillDetail holds a sub-account trade fill detail
+type SubAccountFillDetail struct {
+	PortfolioID    string            `json:"portfolio_id"`
+	PortfolioUUID  string            `json:"portfolio_uuid"`
+	PortfolioName  string            `json:"portfolio_name"`
+	FillID         string            `json:"fill_id"`
+	OrderID        string            `json:"order_id"`
+	InstrumentID   string            `json:"instrument_id"`
+	InstrumentUUID string            `json:"instrument_uuid"`
+	Symbol         string            `json:"symbol"`
+	MatchID        string            `json:"match_id"`
+	FillPrice      float64           `json:"fill_price"`
+	FillQty        float64           `json:"fill_qty"`
+	ClientID       string            `json:"client_id"`
+	ClientOrderID  string            `json:"client_order_id"`
+	OrderQty       float64           `json:"order_qty"`
+	LimitPrice     float64           `json:"limit_price"`
+	TotalFilled    float64           `json:"total_filled"`
+	FilledVwap     float64           `json:"filled_vwap"`
+	ExpireTime     time.Time         `json:"expire_time"`
+	StopPrice      float64           `json:"stop_price"`
+	Side           string            `json:"side"`
+	TimeInForce    order.TimeInForce `json:"tif"`
+	StpMode        string            `json:"stp_mode"`
+	Flags          string            `json:"flags"`
+	Fee            float64           `json:"fee"`
+	FeeAsset       string            `json:"fee_asset"`
+	OrderStatus    string            `json:"order_status"`
+	EventTime      time.Time         `json:"event_time"`
+	Source         string            `json:"source"`
+	ExecutionVenue string            `json:"execution_venue"`
 }
 
 // PortfolioMarginOverride represents margin override value for a portfolio
@@ -587,7 +613,7 @@ type Transfers struct {
 		ResultLimit  int64 `json:"result_limit"`
 		ResultOffset int64 `json:"result_offset"`
 	} `json:"pagination"`
-	Results []FundTransfer `json:"results"`
+	Results []*FundTransfer `json:"results"`
 }
 
 // FundTransfer represents a fund transfer instance.
@@ -719,11 +745,11 @@ type SubscriptionInput struct {
 
 // SubscriptionResponse represents a subscription response
 type SubscriptionResponse struct {
-	Channels      []SubscribedChannel `json:"channels,omitempty"`
-	Authenticated bool                `json:"authenticated,omitempty"`
-	Channel       string              `json:"channel,omitempty"`
-	Type          string              `json:"type,omitempty"`
-	Time          time.Time           `json:"time,omitempty"`
+	Channels      []*SubscribedChannel `json:"channels,omitempty"`
+	Authenticated bool                 `json:"authenticated,omitempty"`
+	Channel       string               `json:"channel,omitempty"`
+	Type          string               `json:"type,omitempty"`
+	Time          time.Time            `json:"time,omitempty"`
 
 	// Error message and failure reason information.
 	Message string `json:"message,omitempty"`
