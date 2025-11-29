@@ -173,6 +173,7 @@ type CandlestickDataHistory struct {
 	Aggregations []*InstrumentCandlestickDetail `json:"aggregations"`
 }
 
+// InstrumentCandlestickDetail holds candlestick detail information for an instrument.
 type InstrumentCandlestickDetail struct {
 	Start  time.Time    `json:"start"`
 	Open   types.Number `json:"open"`

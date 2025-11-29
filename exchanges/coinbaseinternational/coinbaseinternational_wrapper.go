@@ -168,17 +168,17 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		return nil, err
 	}
 	pairs := make([]currency.Pair, 0, len(instruments))
-	for x := range instruments {
-		if a == asset.Spot && instruments[x].Type != "SPOT" {
+	for _, instrumentDetail := range instruments {
+		if a == asset.Spot && instrumentDetail.Type != "SPOT" {
 			continue
-		} else if a == asset.PerpetualContract && instruments[x].Type != "PERP" {
-			continue
-		}
-		instruments[x].TradingState = strings.ToUpper(instruments[x].TradingState)
-		if instruments[x].TradingState != "TRADING" {
+		} else if a == asset.PerpetualContract && instrumentDetail.Type != "PERP" {
 			continue
 		}
-		cp, err := currency.NewPairFromString(instruments[x].Symbol)
+		instrumentDetail.TradingState = strings.ToUpper(instrumentDetail.TradingState)
+		if instrumentDetail.TradingState != "TRADING" {
+			continue
+		}
+		cp, err := currency.NewPairFromString(instrumentDetail.Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -341,23 +341,23 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	}
 	holdings := make(accounts.SubAccounts, len(portfolios))
 	var balances []*PortfolioBalance
-	for p := range portfolios {
-		balances, err = e.ListPortfolioBalances(ctx, portfolios[p].PortfolioUUID, portfolios[p].PortfolioID)
+	for p, portfolioInfo := range portfolios {
+		balances, err = e.ListPortfolioBalances(ctx, portfolioInfo.PortfolioUUID, portfolioInfo.PortfolioID)
 		if err != nil {
 			return accounts.SubAccounts{}, err
 		}
 		subAccount := &accounts.SubAccount{
-			ID:        portfolios[p].PortfolioID,
+			ID:        portfolioInfo.PortfolioID,
 			AssetType: asset.Spot,
 			Balances:  make(accounts.CurrencyBalances, len(balances)),
 		}
-		for b := range balances {
-			subAccount.Balances[currency.NewCode(balances[b].AssetName)] = accounts.Balance{
-				Currency:               currency.NewCode(balances[b].AssetName),
-				Total:                  balances[b].Quantity.Float64(),
-				Hold:                   balances[b].Hold.Float64(),
-				Free:                   balances[b].Quantity.Float64() - balances[b].Hold.Float64(),
-				AvailableWithoutBorrow: balances[b].MaxWithdrawAmount.Float64(),
+		for _, balanceDetail := range balances {
+			subAccount.Balances[currency.NewCode(balanceDetail.AssetName)] = accounts.Balance{
+				Currency:               currency.NewCode(balanceDetail.AssetName),
+				Total:                  balanceDetail.Quantity.Float64(),
+				Hold:                   balanceDetail.Hold.Float64(),
+				Free:                   balanceDetail.Quantity.Float64() - balanceDetail.Hold.Float64(),
+				AvailableWithoutBorrow: balanceDetail.MaxWithdrawAmount.Float64(),
 			}
 		}
 		holdings[p] = subAccount
@@ -373,16 +373,16 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		return nil, err
 	}
 	resp := make([]exchange.FundingHistory, len(history.Results))
-	for j := range history.Results {
+	for j, fundTransfer := range history.Results {
 		resp[j] = exchange.FundingHistory{
 			ExchangeName: e.Name,
-			CryptoTxID:   history.Results[j].TransferUUID,
-			CryptoChain:  history.Results[j].NetworkName,
-			Timestamp:    history.Results[j].CreatedAt,
-			Status:       history.Results[j].TransferStatus,
-			Currency:     history.Results[j].Asset,
-			Amount:       history.Results[j].Amount,
-			TransferType: history.Results[j].TransferType,
+			CryptoTxID:   fundTransfer.TransferUUID,
+			CryptoChain:  fundTransfer.NetworkName,
+			Timestamp:    fundTransfer.CreatedAt,
+			Status:       fundTransfer.TransferStatus,
+			Currency:     fundTransfer.Asset,
+			Amount:       fundTransfer.Amount,
+			TransferType: fundTransfer.TransferType,
 		}
 	}
 	return resp, nil
@@ -398,8 +398,8 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, a
 		return nil, err
 	}
 	resp := make([]exchange.WithdrawalHistory, len(history.Results))
-	for j, result := range history.Results {
-		resp[j] = exchange.WithdrawalHistory{
+	for i, result := range history.Results {
+		resp[i] = exchange.WithdrawalHistory{
 			Status:          result.TransferStatus,
 			Timestamp:       result.CreatedAt,
 			Currency:        result.Asset,
@@ -409,10 +409,10 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, a
 			CryptoChain:     result.NetworkName,
 			CryptoToAddress: result.ToPortfolio.ID,
 		}
-		if resp[j].CryptoToAddress == "" && result.ToPortfolio.UUID != "" {
-			resp[j].CryptoToAddress = result.ToPortfolio.UUID
-		} else if resp[j].CryptoToAddress == "" {
-			resp[j].CryptoToAddress = result.ToPortfolio.Name
+		if resp[i].CryptoToAddress == "" && result.ToPortfolio.UUID != "" {
+			resp[i].CryptoToAddress = result.ToPortfolio.UUID
+		} else if resp[i].CryptoToAddress == "" {
+			resp[i].CryptoToAddress = result.ToPortfolio.Name
 		}
 	}
 	return resp, nil
@@ -523,8 +523,8 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, action *order.Cancel) (o
 	response := order.CancelAllResponse{
 		Status: make(map[string]string, len(canceled)),
 	}
-	for a := range canceled {
-		response.Status[strconv.FormatInt(canceled[a].OrderID.Int64(), 10)] = canceled[a].OrderStatus
+	for _, orderDetail := range canceled {
+		response.Status[strconv.FormatInt(orderDetail.OrderID.Int64(), 10)] = orderDetail.OrderStatus
 	}
 	return response, nil
 }
@@ -592,8 +592,8 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 		return nil, err
 	}
 	availableChains := make([]string, len(info))
-	for x := range info {
-		availableChains[x] = info[x].NetworkName
+	for x, assetInfo := range info {
+		availableChains[x] = assetInfo.NetworkName
 	}
 	return availableChains, nil
 }
@@ -758,14 +758,14 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		if err != nil {
 			return nil, err
 		}
-		for a := range result.Aggregations {
+		for _, candleInfo := range result.Aggregations {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   result.Aggregations[a].Start,
-				Open:   result.Aggregations[a].Open.Float64(),
-				High:   result.Aggregations[a].High.Float64(),
-				Low:    result.Aggregations[a].Low.Float64(),
-				Close:  result.Aggregations[a].Close.Float64(),
-				Volume: result.Aggregations[a].Volume.Float64(),
+				Time:   candleInfo.Start,
+				Open:   candleInfo.Open.Float64(),
+				High:   candleInfo.High.Float64(),
+				Low:    candleInfo.Low.Float64(),
+				Close:  candleInfo.Close.Float64(),
+				Volume: candleInfo.Volume.Float64(),
 			})
 		}
 	}
@@ -789,15 +789,15 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		return nil, err
 	}
 	resp := make([]futures.Contract, 0, len(contracts))
-	for a := range contracts {
-		if contracts[a].Type != "PERP" {
+	for _, instInfo := range contracts {
+		if instInfo.Type != "PERP" {
 			continue
 		}
-		cp, err := currency.NewPairFromString(contracts[a].Symbol)
+		cp, err := currency.NewPairFromString(instInfo.Symbol)
 		if err != nil {
 			return nil, err
 		}
-		underlying, err := currency.NewPairFromStrings(contracts[a].BaseAssetName, contracts[a].QuoteAssetName)
+		underlying, err := currency.NewPairFromStrings(instInfo.BaseAssetName, instInfo.QuoteAssetName)
 		if err != nil {
 			return nil, err
 		}
@@ -806,10 +806,10 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			Name:               cp.Format(format),
 			Underlying:         underlying,
 			Asset:              item,
-			IsActive:           contracts[a].TradingState == "TRADING",
-			Status:             contracts[a].TradingState,
+			IsActive:           instInfo.TradingState == "TRADING",
+			Status:             instInfo.TradingState,
 			Type:               futures.Perpetual,
-			SettlementCurrency: currency.NewCode(contracts[a].QuoteAssetName),
+			SettlementCurrency: currency.NewCode(instInfo.QuoteAssetName),
 		})
 	}
 	return resp, nil
@@ -828,12 +828,12 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, fr *fundingrate.La
 		return nil, err
 	}
 	resp := make([]fundingrate.LatestRateResponse, len(result.Results))
-	for a := range result.Results {
+	for a, fundingRate := range result.Results {
 		var (
 			cp        currency.Pair
 			isEnabled bool
 		)
-		cp, isEnabled, err = e.MatchSymbolCheckEnabled(result.Results[a].InstrumentID, fr.Asset, false)
+		cp, isEnabled, err = e.MatchSymbolCheckEnabled(fundingRate.InstrumentID, fr.Asset, false)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		} else if !isEnabled {
@@ -845,8 +845,8 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, fr *fundingrate.La
 			Asset:       fr.Asset,
 			Pair:        cp,
 			LatestRate: fundingrate.Rate{
-				Time: result.Results[a].EventTime,
-				Rate: decimal.NewFromFloat(result.Results[a].FundingRate.Float64()),
+				Time: fundingRate.EventTime,
+				Rate: decimal.NewFromFloat(fundingRate.FundingRate.Float64()),
 			},
 		}
 	}
