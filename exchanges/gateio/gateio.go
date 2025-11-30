@@ -1087,7 +1087,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return err
 	}
 	var intermediary json.RawMessage
-	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
+	if err := e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		headers := make(map[string]string)
 		urlPath := endpoint
 		timestamp := time.Now()
@@ -1129,8 +1129,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
-	}, request.AuthenticatedRequest)
-	if err != nil {
+	}, request.AuthenticatedRequest); err != nil {
 		return err
 	}
 	errCap := struct {
@@ -1157,17 +1156,16 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if err != nil {
 		return err
 	}
-	item := &request.Item{
-		Method:                 http.MethodGet,
-		Path:                   endpoint + path,
-		Result:                 result,
-		Verbose:                e.Verbose,
-		HTTPDebugging:          e.HTTPDebugging,
-		HTTPRecording:          e.HTTPRecording,
-		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
-	}
 	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
-		return item, nil
+		return &request.Item{
+			Method:                 http.MethodGet,
+			Path:                   endpoint + path,
+			Result:                 result,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+		}, nil
 	}, request.UnauthenticatedRequest)
 }
 
