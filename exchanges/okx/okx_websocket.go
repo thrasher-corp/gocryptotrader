@@ -310,7 +310,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 	}
 
 	for _, req := range requests {
-		if err := conn.SendJSONMessage(request.WithVerbose(ctx), websocketRequestEPL, req); err != nil {
+		if err := conn.SendJSONMessage(ctx, websocketRequestEPL, req); err != nil {
 			return err
 		}
 		if operation == operationUnsubscribe {
