@@ -81,6 +81,7 @@ var (
 	errCannotSetInvalidTimeout = errors.New("cannot set new HTTP client with timeout that is equal or less than 0")
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
+	errDuplicateContextKey     = errors.New("duplicate context key")
 )
 
 // NilGuard returns an ErrNilPointer with the type of the first nil argument
@@ -722,8 +723,7 @@ func FreezeCtx(ctx context.Context) FrozenContext {
 
 	values := make(map[any]any, len(contextKeys))
 	for _, key := range contextKeys {
-		val := ctx.Value(key)
-		if val != nil {
+		if val := ctx.Value(key); val != nil {
 			values[key] = val
 		}
 	}
@@ -731,29 +731,18 @@ func FreezeCtx(ctx context.Context) FrozenContext {
 }
 
 // ThawCtx creates a new context from the frozen context using context.Background() as parent
-func ThawCtx(fc FrozenContext) context.Context {
+func ThawCtx(fc FrozenContext) (context.Context, error) {
 	return MergeCtx(context.Background(), fc)
 }
 
 // MergeCtx adds the frozen values to an existing context
-func MergeCtx(ctx context.Context, fc FrozenContext) context.Context {
-	if len(fc.values) == 0 {
-		return ctx
+func MergeCtx(ctx context.Context, fc FrozenContext) (context.Context, error) {
+	for k, v := range fc.values {
+		if ctx.Value(k) != nil {
+			return nil, fmt.Errorf("%w: %q", errDuplicateContextKey, k)
+		}
+		ctx = context.WithValue(ctx, k, v)
 	}
-	return &mapContext{
-		Context: ctx,
-		values:  fc.values,
-	}
-}
 
-type mapContext struct {
-	context.Context
-	values map[any]any
-}
-
-func (m *mapContext) Value(key any) any {
-	if v, ok := m.values[key]; ok {
-		return v
-	}
-	return m.Context.Value(key)
+	return ctx, nil
 }
