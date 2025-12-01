@@ -737,12 +737,23 @@ func ThawCtx(fc FrozenContext) (context.Context, error) {
 
 // MergeCtx adds the frozen values to an existing context
 func MergeCtx(ctx context.Context, fc FrozenContext) (context.Context, error) {
-	for k, v := range fc.values {
+	for k := range fc.values {
 		if ctx.Value(k) != nil {
 			return nil, fmt.Errorf("%w: %q", errDuplicateContextKey, k)
 		}
-		ctx = context.WithValue(ctx, k, v)
 	}
+	return &mergeCtx{ctx, fc}, nil
+}
 
-	return ctx, nil
+// mergeCtx is a context that merges values from a frozen context and a parent context.
+type mergeCtx struct {
+	context.Context //nolint:containedctx // Using context.WithValue will nest contexts and cause lookup latency
+	frozen          FrozenContext
+}
+
+func (m *mergeCtx) Value(key any) any {
+	if val, ok := m.frozen.values[key]; ok {
+		return val
+	}
+	return m.Context.Value(key)
 }
