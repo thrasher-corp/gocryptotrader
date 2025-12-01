@@ -1530,7 +1530,7 @@ func TestParseEvents(t *testing.T) {
 		testData[x] = resp
 	}
 	v := parseMultipleEvents(testData)
-	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
+	if reflect.TypeFor[*gctrpc.WithdrawalEventsByExchangeResponse]().String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
 		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
 	}
 	if len(testData) < 2 {
@@ -1538,7 +1538,7 @@ func TestParseEvents(t *testing.T) {
 	}
 
 	v = parseSingleEvents(testData[0])
-	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
+	if reflect.TypeFor[*gctrpc.WithdrawalEventsByExchangeResponse]().String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
 		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
 	}
 

@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 
 func TestSetup(t *testing.T) {
 	x := Setup()
-	xType := reflect.TypeOf(x).String()
+	xType := reflect.TypeFor[*Wrapper]().String()
 	if xType != "*gct.Wrapper" {
 		t.Fatalf("SetupCommunicationManager() should return pointer to Wrapper instead received: %v", x)
 	}
