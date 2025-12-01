@@ -273,7 +273,7 @@ func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.
 			},
 		},
 	}
-	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, "login-response", op)
+	resp, err := conn.SendMessageReturnResponse(ctx, websocketRequestEPL, "login-response", op)
 	if err != nil {
 		return err
 	}
@@ -310,7 +310,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 	}
 
 	for _, req := range requests {
-		if err := conn.SendJSONMessage(ctx, request.Unset, req); err != nil {
+		if err := conn.SendJSONMessage(request.WithVerbose(ctx), websocketRequestEPL, req); err != nil {
 			return err
 		}
 		if operation == operationUnsubscribe {
@@ -365,8 +365,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	}
 
 	var resp wsIncomingData
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		if bytes.Equal(respRaw, pongMsg) {
 			return nil
 		}

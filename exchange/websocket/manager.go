@@ -394,6 +394,10 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 		// the match from the global match and have a match per connection.
 		match = NewMatch()
 	}
+	rateLimit := c.RateLimit
+	if c.ConnectionRateLimit != nil {
+		rateLimit = c.ConnectionRateLimit()
+	}
 	return &connection{
 		ExchangeName:         m.exchangeName,
 		URL:                  connectionURL,
@@ -405,7 +409,7 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 		shutdown:             m.ShutdownC,
 		Wg:                   &m.Wg,
 		Match:                match,
-		RateLimit:            c.RateLimit,
+		RateLimit:            rateLimit,
 		Reporter:             c.ConnectionLevelReporter,
 		RateLimitDefinitions: m.rateLimitDefinitions,
 	}

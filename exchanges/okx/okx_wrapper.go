@@ -208,7 +208,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
 		Features:                               &e.Features.Supports.WebsocketCapabilities,
-		MaxWebsocketSubscriptionsPerConnection: 240,
+		MaxWebsocketSubscriptionsPerConnection: 30, // see: https://www.okx.com/docs-v5/en/#overview-websocket-connection-count-limit
 		RateLimitDefinitions:                   rateLimits,
 		UseMultiConnectionManagement:           true,
 	}); err != nil {
@@ -224,7 +224,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsPublic,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      websocketResponseMaxLimit,
-		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
+		ConnectionRateLimit:   func() *request.RateLimiterWithWeight { return request.NewRateLimitWithWeight(time.Hour, 480, 1) }, // see: https://www.okx.com/docs-v5/en/#overview-websocket-connect
 		Connector:             e.wsConnect,
 		GenerateSubscriptions: func() (subscription.List, error) { return e.generateSubscriptions(true) },
 		Handler:               e.wsHandleData,
@@ -243,7 +243,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsPrivate,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      websocketResponseMaxLimit,
-		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
+		ConnectionRateLimit:   func() *request.RateLimiterWithWeight { return request.NewRateLimitWithWeight(time.Hour, 480, 1) }, // see: https://www.okx.com/docs-v5/en/#overview-websocket-connect
 		Connector:             e.wsConnect,
 		GenerateSubscriptions: func() (subscription.List, error) { return e.generateSubscriptions(false) },
 		Subscriber:            e.Subscribe,
@@ -264,7 +264,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                   wsBusiness,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      websocketResponseMaxLimit,
-		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
+		ConnectionRateLimit:   func() *request.RateLimiterWithWeight { return request.NewRateLimitWithWeight(time.Hour, 480, 1) }, // see: https://www.okx.com/docs-v5/en/#overview-websocket-connect
 		Connector:             e.wsConnect,
 		GenerateSubscriptions: e.GenerateDefaultBusinessSubscriptions,
 		Subscriber:            e.BusinessSubscribe,

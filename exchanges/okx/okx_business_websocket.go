@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
@@ -112,11 +111,8 @@ func (e *Exchange) handleBusinessSubscription(ctx context.Context, conn websocke
 	wsSubscriptionReq := WSSubscriptionInformationList{Operation: operation}
 	var channels subscription.List
 	var authChannels subscription.List
-	var err error
 	for i := 0; i < len(subscriptions); i++ {
-		arg := SubscriptionInfo{
-			Channel: subscriptions[i].Channel,
-		}
+		arg := SubscriptionInfo{Channel: subscriptions[i].Channel}
 
 		switch arg.Channel {
 		case okxSpreadOrders, okxSpreadTrades, okxSpreadOrderbookLevel1, okxSpreadOrderbook, okxSpreadPublicTrades, okxSpreadPublicTicker:
@@ -144,17 +140,18 @@ func (e *Exchange) handleBusinessSubscription(ctx context.Context, conn websocke
 			}
 		}
 
-		var chunk []byte
 		channels = append(channels, subscriptions[i])
 		wsSubscriptionReq.Arguments = append(wsSubscriptionReq.Arguments, arg)
-		chunk, err = json.Marshal(wsSubscriptionReq)
+		chunk, err := json.Marshal(wsSubscriptionReq)
 		if err != nil {
 			return err
 		}
 		if len(chunk) > maxConnByteLen {
+			// remove last addition
+			channels = channels[:len(channels)-1]
+			wsSubscriptionReq.Arguments = wsSubscriptionReq.Arguments[:len(wsSubscriptionReq.Arguments)-1]
 			i--
-			err = conn.SendJSONMessage(ctx, request.UnAuth, wsSubscriptionReq)
-			if err != nil {
+			if err := conn.SendJSONMessage(ctx, websocketRequestEPL, wsSubscriptionReq); err != nil {
 				return err
 			}
 			if operation == operationUnsubscribe {
@@ -170,17 +167,14 @@ func (e *Exchange) handleBusinessSubscription(ctx context.Context, conn websocke
 			continue
 		}
 	}
-	err = conn.SendJSONMessage(ctx, request.UnAuth, wsSubscriptionReq)
-	if err != nil {
+	if err := conn.SendJSONMessage(ctx, websocketRequestEPL, wsSubscriptionReq); err != nil {
 		return err
 	}
 
 	if operation == operationUnsubscribe {
 		channels = append(channels, authChannels...)
-		err = e.Websocket.RemoveSubscriptions(conn, channels...)
-	} else {
-		channels = append(channels, authChannels...)
-		err = e.Websocket.AddSuccessfulSubscriptions(conn, channels...)
+		return e.Websocket.RemoveSubscriptions(conn, channels...)
 	}
-	return err
+	channels = append(channels, authChannels...)
+	return e.Websocket.AddSuccessfulSubscriptions(conn, channels...)
 }
