@@ -695,3 +695,65 @@ func SetIfZero[T comparable](p *T, def T) bool {
 	*p = def
 	return true
 }
+
+var (
+	contextKeys   []any
+	contextKeysMu sync.RWMutex
+)
+
+// RegisterContextKey registers a key to be captured by FreezeCtx
+func RegisterContextKey(key any) {
+	contextKeysMu.Lock()
+	defer contextKeysMu.Unlock()
+	if !slices.Contains(contextKeys, key) {
+		contextKeys = append(contextKeys, key)
+	}
+}
+
+// FrozenContext holds captured context values
+type FrozenContext struct {
+	values map[any]any
+}
+
+// FreezeCtx captures values from the context for registered keys
+func FreezeCtx(ctx context.Context) FrozenContext {
+	contextKeysMu.RLock()
+	defer contextKeysMu.RUnlock()
+
+	values := make(map[any]any, len(contextKeys))
+	for _, key := range contextKeys {
+		val := ctx.Value(key)
+		if val != nil {
+			values[key] = val
+		}
+	}
+	return FrozenContext{values: values}
+}
+
+// ThawCtx creates a new context from the frozen context using context.Background() as parent
+func ThawCtx(fc FrozenContext) context.Context {
+	return MergeCtx(context.Background(), fc)
+}
+
+// MergeCtx adds the frozen values to an existing context
+func MergeCtx(ctx context.Context, fc FrozenContext) context.Context {
+	if len(fc.values) == 0 {
+		return ctx
+	}
+	return &mapContext{
+		Context: ctx,
+		values:  fc.values,
+	}
+}
+
+type mapContext struct {
+	context.Context
+	values map[any]any
+}
+
+func (m *mapContext) Value(key any) any {
+	if v, ok := m.values[key]; ok {
+		return v
+	}
+	return m.Context.Value(key)
+}

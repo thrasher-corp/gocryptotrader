@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 var errChannelBufferFull = errors.New("channel buffer is full")
@@ -16,8 +18,7 @@ type Relay struct {
 
 // Payload represents a relayed message with a context
 type Payload struct {
-	// TODO: remove context from payload see: https://github.com/thrasher-corp/gocryptotrader/pull/2066#discussion_r2501403057
-	Ctx  context.Context //nolint:containedctx // context needed for tracing/metrics
+	Ctx  common.FrozenContext
 	Data any
 }
 
@@ -34,7 +35,7 @@ func NewRelay(buffer uint) *Relay {
 // This is non-blocking and returns an error if the channel buffer is full
 func (r *Relay) Send(ctx context.Context, data any) error {
 	select {
-	case r.comm <- Payload{Ctx: ctx, Data: data}:
+	case r.comm <- Payload{Ctx: common.FreezeCtx(ctx), Data: data}:
 		return nil
 	default:
 		return fmt.Errorf("%w: failed to relay <%T>", errChannelBufferFull, data)
