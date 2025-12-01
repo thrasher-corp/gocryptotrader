@@ -42,7 +42,6 @@ var (
 	errInvalidID                           = errors.New("invalid id")
 	errInvalidMarginModel                  = errors.New("missing margin model")
 	errInvalidEmailAddress                 = errors.New("invalid email address")
-	errMalformedData                       = errors.New("malformed data")
 	errWebsocketConnectionNotAuthenticated = errors.New("websocket connection is not authenticated")
 	errResolutionNotSet                    = errors.New("resolution not set")
 	errInvalidDestinationID                = errors.New("invalid destination id")
