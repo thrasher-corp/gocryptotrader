@@ -148,8 +148,6 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 	intervalString, err := intervalToString(interval)
 	if err != nil {
 		return nil, err
-	} else if intervalString == "" {
-		return nil, kline.ErrUnsupportedInterval
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -250,6 +248,7 @@ func (e *Exchange) GetAccountBalances(ctx context.Context, accountID, accountTyp
 }
 
 // GetAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
+// possible account avtivity types are: 200 for ALL, 201 for AIRDROP, 202 for COMMISSION_REBATE, 203, REFERAL_REBATE: 204, SWAP: 205, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
 func (e *Exchange) GetAccountActivities(ctx context.Context, startTime, endTime time.Time, activityType, limit, from uint64, direction string, ccy currency.Code) ([]*AccountActivity, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -483,6 +482,7 @@ func (e *Exchange) GetDepositAddresses(ctx context.Context, ccy currency.Code) (
 }
 
 // WalletActivity returns the wallet activity between set start and end time
+// possible wallet activity types are 'deposits' and 'withdrawals'
 func (e *Exchange) WalletActivity(ctx context.Context, start, end time.Time, activityType string) (*WalletActivity, error) {
 	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
@@ -679,7 +679,10 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, side
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*TradeOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOpenOrdersEPL, http.MethodGet, "/orders", params, nil, &resp)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOpenOrdersEPL, http.MethodGet, "/orders", params, nil, &resp); err != nil {
+		return nil, fmt.Errorf("%w %w", order.ErrGetFailed, err)
+	}
+	return resp, nil
 }
 
 // GetOrder gets order details by orderId or clientOrderId
@@ -696,13 +699,14 @@ func (e *Exchange) GetOrder(ctx context.Context, id, clientOrderID string) (*Tra
 }
 
 // CancelOrderByID cancels an active order
-func (e *Exchange) CancelOrderByID(ctx context.Context, id string) (*CancelOrderResponse, error) {
-	if id == "" {
-		return nil, fmt.Errorf("%w; order 'id' is required", order.ErrOrderIDNotSet)
+func (e *Exchange) CancelOrderByID(ctx context.Context, id, clientOrderID string) (*CancelOrderResponse, error) {
+	path, err := orderPath(id, "/orders/", clientOrderID, "/orders/cid:")
+	if err != nil {
+		return nil, err
 	}
 	var resp CancelOrderResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelOrderByIDEPL, http.MethodDelete, "/orders/"+id, nil, nil, &resp); err != nil {
-		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelOrderByIDEPL, http.MethodDelete, path, nil, nil, &resp); err != nil {
+		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return &resp, nil
 }

@@ -660,7 +660,7 @@ type TradeOrder struct {
 	UpdateTime     types.Time        `json:"updateTime"`
 	OrderSource    string            `json:"orderSource"`
 	Loan           bool              `json:"loan"`
-	CancelReason   int64             `json:"cancelReason"`
+	CancelReason   uint64            `json:"cancelReason"`
 
 	statusResponse
 }

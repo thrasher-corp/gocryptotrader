@@ -104,7 +104,7 @@ var rateLimits = request.RateLimitDefinitions{
 	sGetOpenOrdersEPL:            request.NewRateLimitWithWeight(time.Second, 50, 1),
 	sGetOpenOrderDetailEPL:       request.NewRateLimitWithWeight(time.Second, 50, 1),
 	sCancelOrderByIDEPL:          request.NewRateLimitWithWeight(time.Second, 50, 1),
-	sCancelBatchOrdersEPL:        request.NewRateLimitWithWeight(time.Second, 50, 1),
+	sCancelBatchOrdersEPL:        request.NewRateLimitWithWeight(time.Second, 10, 1),
 	sCancelAllOrdersEPL:          request.NewRateLimitWithWeight(time.Second, 10, 1),
 	sKillSwitchEPL:               request.NewRateLimitWithWeight(time.Second, 50, 1),
 	sGetKillSwitchStatusEPL:      request.NewRateLimitWithWeight(time.Second, 50, 1),

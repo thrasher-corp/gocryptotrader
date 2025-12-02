@@ -39,7 +39,7 @@ func TestUpgradeExchange(t *testing.T) {
 	in := []byte(`{"name":"Poloniex","api":{}`)
 	out, err := new(v11.Version).UpgradeExchange(t.Context(), in)
 	require.NoError(t, err, "UpgradeExchange must not error when urlEndpoints is missing")
-	assert.Equal(t, string(in), string(out), "UpgradeExchange should return same input not error when urlEndpoints is missing")
+	assert.Equal(t, string(in), string(out), "UpgradeExchange should return same input and no error when urlEndpoints is missing")
 
 	_, err = new(v11.Version).UpgradeExchange(t.Context(), []byte(`{"name":"Poloniex","api":{"urlEndpoints":{"WebsocketSpotURL": 42}}}`))
 	require.ErrorContains(t, err, "Value is not a string", "UpgradeExchange must error correctly on string value")

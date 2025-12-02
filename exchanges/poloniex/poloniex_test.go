@@ -1009,6 +1009,8 @@ func TestGetCandlesticks(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.GetCandlesticks(t.Context(), spotTradablePair, kline.HundredMilliseconds, time.Now().Add(-time.Hour*48), time.Time{}, 0)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+	_, err = e.GetCandlesticks(t.Context(), spotTradablePair, kline.FiveMin, time.Now(), time.Now().Add(-time.Hour), 0)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	result, err := e.GetCandlesticks(t.Context(), spotTradablePair, kline.FiveMin, time.Time{}, time.Time{}, 0)
 	require.NoError(t, err)
@@ -1109,10 +1111,24 @@ func TestGetBalancesByID(t *testing.T) {
 
 func TestGetAccountActivities(t *testing.T) {
 	t.Parallel()
+	startTime, endTime := time.UnixMilli(1764664401864), time.UnixMilli(1764668001864)
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		startTime, endTime = time.Now().Add(-time.Hour), time.Now()
 	}
-	_, err := e.GetAccountActivities(generateContext(t), time.Time{}, time.Time{}, 0, 0, 0, "", currency.EMPTYCODE)
+	_, err := e.GetAccountActivities(generateContext(t), time.Now(), time.Now().Add(-time.Hour), 0, 0, 0, "", currency.EMPTYCODE)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	_, err = e.GetAccountActivities(generateContext(t), startTime, endTime, 0, 0, 0, "", currency.EMPTYCODE)
+	require.NoError(t, err)
+
+	_, err = e.GetAccountActivities(generateContext(t), time.Time{}, time.Time{}, 200, 0, 0, "", currency.EMPTYCODE)
+	require.NoError(t, err)
+
+	_, err = e.GetAccountActivities(generateContext(t), time.Time{}, time.Time{}, 0, 10, 100, "", currency.EMPTYCODE)
+	require.NoError(t, err)
+
+	_, err = e.GetAccountActivities(generateContext(t), time.Time{}, time.Time{}, 0, 0, 0, "", currency.BTC)
 	require.NoError(t, err)
 }
 
@@ -1131,6 +1147,13 @@ func TestAccountsTransfer(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errAddressRequired)
 
+	_, err = e.AccountsTransfer(t.Context(), &AccountTransferRequest{
+		Amount:    1,
+		Currency:  currency.BTC,
+		ToAccount: "219961623421431808",
+	})
+	require.ErrorIs(t, err, errAddressRequired)
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -1146,10 +1169,21 @@ func TestAccountsTransfer(t *testing.T) {
 
 func TestGetAccountsTransferRecords(t *testing.T) {
 	t.Parallel()
+	startTime, endTime := time.UnixMilli(1764664401864), time.UnixMilli(1764668001864)
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		startTime, endTime = time.Now().Add(-time.Hour), time.Now()
 	}
-	_, err := e.GetAccountsTransferRecords(generateContext(t), time.Time{}, time.Time{}, "", currency.BTC, 0, 0)
+	_, err := e.GetAccountsTransferRecords(generateContext(t), time.Now(), time.Now().Add(-time.Hour), "", currency.BTC, 0, 0)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	_, err = e.GetAccountsTransferRecords(generateContext(t), startTime, endTime, "", currency.BTC, 0, 0)
+	require.NoError(t, err)
+
+	_, err = e.GetAccountsTransferRecords(generateContext(t), time.Time{}, time.Time{}, "NEXT", currency.BTC, 1, 100)
+	require.NoError(t, err)
+
+	_, err = e.GetAccountsTransferRecords(generateContext(t), time.Time{}, time.Time{}, "", currency.BTC, 0, 0)
 	require.NoError(t, err)
 }
 
@@ -1177,10 +1211,24 @@ func TestGetFeeInfo(t *testing.T) {
 
 func TestGetInterestHistory(t *testing.T) {
 	t.Parallel()
+	startTime, endTime := time.UnixMilli(1764664401864), time.UnixMilli(1764668001864)
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		startTime, endTime = time.Now().Add(-time.Hour), time.Now()
 	}
-	_, err := e.GetInterestHistory(generateContext(t), time.Time{}, time.Time{}, "", 0, 0)
+	_, err := e.GetInterestHistory(generateContext(t), time.Now(), time.Now().Add(-time.Hour), "", 0, 0)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	_, err = e.GetInterestHistory(generateContext(t), startTime, endTime, "", 0, 0)
+	require.NoError(t, err)
+
+	_, err = e.GetInterestHistory(generateContext(t), time.Time{}, time.Time{}, "NEXT", 0, 0)
+	require.NoError(t, err)
+
+	_, err = e.GetInterestHistory(generateContext(t), time.Time{}, time.Time{}, "NEXT", 1, 100)
+	require.NoError(t, err)
+
+	_, err = e.GetInterestHistory(generateContext(t), time.Time{}, time.Time{}, "", 0, 0)
 	require.NoError(t, err)
 }
 
@@ -1229,11 +1277,27 @@ func TestSubAccountTransfer(t *testing.T) {
 		Amount:   1,
 	})
 	require.ErrorIs(t, err, errAccountIDRequired)
+
+	_, err = e.SubAccountTransfer(t.Context(), &SubAccountTransferRequest{
+		Currency:      currency.BTC,
+		Amount:        1,
+		FromAccountID: "1234568",
+	})
+	require.ErrorIs(t, err, errAccountIDRequired)
 	_, err = e.SubAccountTransfer(t.Context(), &SubAccountTransferRequest{
 		Currency:      currency.BTC,
 		Amount:        1,
 		FromAccountID: "1234568",
 		ToAccountID:   "1234567",
+	})
+	require.ErrorIs(t, err, errAccountTypeRequired)
+
+	_, err = e.SubAccountTransfer(t.Context(), &SubAccountTransferRequest{
+		Currency:        currency.BTC,
+		Amount:          1,
+		FromAccountID:   "1234568",
+		ToAccountID:     "1234567",
+		FromAccountType: "SPOT",
 	})
 	require.ErrorIs(t, err, errAccountTypeRequired)
 
@@ -1254,10 +1318,21 @@ func TestSubAccountTransfer(t *testing.T) {
 
 func TestGetSubAccountTransferRecords(t *testing.T) {
 	t.Parallel()
+	startTime, endTime := time.UnixMilli(1764664401864), time.UnixMilli(1764668001864)
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		startTime, endTime = time.Now().Add(-time.Hour), time.Now()
 	}
 	_, err := e.GetSubAccountTransferRecords(generateContext(t), &SubAccountTransferRecordRequest{Currency: currency.BTC})
+	require.NoError(t, err)
+
+	_, err = e.GetSubAccountTransferRecords(generateContext(t), &SubAccountTransferRecordRequest{Currency: currency.BTC, StartTime: startTime, EndTime: endTime})
+	require.NoError(t, err)
+
+	_, err = e.GetSubAccountTransferRecords(generateContext(t), &SubAccountTransferRecordRequest{Currency: currency.BTC, StartTime: startTime, From: 1, Limit: 100})
+	require.NoError(t, err)
+
+	_, err = e.GetSubAccountTransferRecords(generateContext(t), &SubAccountTransferRecordRequest{Currency: currency.BTC, Direction: "NEXT"})
 	require.NoError(t, err)
 }
 
@@ -1308,15 +1383,18 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestWalletActivity(t *testing.T) {
 	t.Parallel()
-	var start, end time.Time
-	if mockTests {
-		start = time.UnixMilli(1743575750138)
-		end = time.UnixMilli(1743582950138)
-	} else {
+	start, end := time.UnixMilli(1743575750138), time.UnixMilli(1743582950138)
+	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		start = time.Now().Add(-time.Hour * 2)
 		end = time.Now()
 	}
+	_, err := e.WalletActivity(generateContext(t), end, start, "")
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	_, err = e.WalletActivity(generateContext(t), start, end, "deposits")
+	require.NoError(t, err)
+
 	result, err := e.WalletActivity(generateContext(t), start, end, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1337,10 +1415,15 @@ func TestNewCurrencyDepositAddress(t *testing.T) {
 
 func TestWithdrawCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := e.WithdrawCurrency(t.Context(), &WithdrawCurrencyRequest{Coin: currency.BTC})
+	_, err := e.WithdrawCurrency(t.Context(), &WithdrawCurrencyRequest{Amount: 1})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.WithdrawCurrency(t.Context(), &WithdrawCurrencyRequest{Coin: currency.BTC})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
 	_, err = e.WithdrawCurrency(t.Context(), &WithdrawCurrencyRequest{Coin: currency.BTC, Amount: 1})
 	require.ErrorIs(t, err, errInvalidWithdrawalChain)
+
 	_, err = e.WithdrawCurrency(t.Context(), &WithdrawCurrencyRequest{Coin: currency.BTC, Amount: 1, Network: "BTC"})
 	require.ErrorIs(t, err, errAddressRequired)
 
@@ -1548,7 +1631,7 @@ func TestGetOpenOrders(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGetOrderDetail(t *testing.T) {
+func TestGetOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOrder(t.Context(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
@@ -1559,20 +1642,28 @@ func TestGetOrderDetail(t *testing.T) {
 	_, err = e.GetOrder(generateContext(t), "12345536545645", "")
 	require.Error(t, err)
 
+	_, err = e.GetOrder(generateContext(t), "", "12345")
+	require.ErrorIs(t, err, order.ErrGetFailed)
+
 	result, err := e.GetOrder(generateContext(t), "12345", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+
 }
 
 func TestCancelOrderByID(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelOrderByID(t.Context(), "")
+	_, err := e.CancelOrderByID(t.Context(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelOrderByID(t.Context(), "12345536545645")
+
+	_, err = e.CancelOrderByID(t.Context(), "", "12345536545645")
+	require.ErrorIs(t, err, order.ErrCancelFailed)
+
+	result, err := e.CancelOrderByID(t.Context(), "12345536545645", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1779,10 +1870,24 @@ func TestGetSmartOrderHistory(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
+	startTime, endTime := time.UnixMilli(1764664401864), time.UnixMilli(1764668001864)
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		startTime, endTime = time.Now().Add(-time.Hour), time.Now()
 	}
-	_, err := e.GetTradeHistory(generateContext(t), currency.Pairs{spotTradablePair}, "", 0, 0, time.Time{}, time.Time{})
+	_, err := e.GetTradeHistory(generateContext(t), currency.Pairs{spotTradablePair}, "", 0, 0, time.Now(), time.Now().Add(-time.Hour))
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	_, err = e.GetTradeHistory(generateContext(t), currency.Pairs{spotTradablePair}, "", 0, 0, startTime, endTime)
+	require.NoError(t, err)
+
+	_, err = e.GetTradeHistory(generateContext(t), currency.Pairs{spotTradablePair}, "", 1, 100, startTime, endTime)
+	require.NoError(t, err)
+
+	_, err = e.GetTradeHistory(generateContext(t), currency.Pairs{spotTradablePair}, "NEXT", 10, 100, startTime, endTime)
+	require.NoError(t, err)
+
+	_, err = e.GetTradeHistory(generateContext(t), currency.Pairs{spotTradablePair}, "", 0, 0, time.Time{}, time.Time{})
 	require.NoError(t, err)
 }
 
@@ -2050,6 +2155,9 @@ func TestGetAccountBills(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	_, err := e.GetAccountBills(generateContext(t), time.Now(), time.Now().Add(-time.Hour), 0, 0, "NEXT", "PNL")
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	result, err := e.GetAccountBills(generateContext(t), time.Time{}, time.Time{}, 0, 0, "NEXT", "PNL")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2233,6 +2341,9 @@ func TestGetOrderExecutionDetails(t *testing.T) {
 		startTime, endTime = time.Now().Add(-time.Hour*24), time.Now()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	_, err := e.GetOrderExecutionDetails(generateContext(t), "", "", "", "NEXT", time.Now(), time.Now().Add(-time.Hour), 0, 100)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	result, err := e.GetOrderExecutionDetails(generateContext(t), "", "", "", "NEXT", startTime, endTime, 0, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2243,6 +2354,9 @@ func TestGetFuturesOrderHistory(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	_, err := e.GetFuturesOrderHistory(generateContext(t), "", "LIMIT", "", "PARTIALLY_CANCELED", "", "", "PREV", time.Now(), time.Now().Add(-time.Hour), 0, 100)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	result, err := e.GetFuturesOrderHistory(generateContext(t), "", "LIMIT", "", "PARTIALLY_CANCELED", "", "", "PREV", time.Time{}, time.Time{}, 0, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2267,6 +2381,9 @@ func TestGetFuturesPositionHistory(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	_, err := e.GetFuturesPositionHistory(generateContext(t), "", "ISOLATED", "LONG", "NEXT", time.Now(), time.Now().Add(-time.Hour), 0, 100)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	result, err := e.GetFuturesPositionHistory(generateContext(t), "", "ISOLATED", "LONG", "NEXT", time.Time{}, time.Time{}, 0, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2359,6 +2476,9 @@ func TestGetFuturesKlineData(t *testing.T) {
 	_, err = e.GetFuturesKlineData(t.Context(), "BTC_USDT_PERP", kline.HundredMilliseconds, time.Time{}, time.Time{}, 100)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
+	_, err = e.GetFuturesKlineData(t.Context(), "BTC_USDT_PERP", kline.HundredMilliseconds, time.Now(), time.Now().Add(-time.Hour), 100)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	result, err := e.GetFuturesKlineData(t.Context(), "BTC_USDT_PERP", kline.FiveMin, time.Time{}, time.Time{}, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2376,6 +2496,9 @@ func TestGetFuturesExecution(t *testing.T) {
 
 func TestGetLiquidationOrder(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetLiquidationOrder(t.Context(), "BTC_USDT_PERP", "NEXT", time.Now(), time.Now().Add(-time.Hour), 0, 0)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	result, err := e.GetLiquidationOrder(t.Context(), "BTC_USDT_PERP", "NEXT", time.Time{}, time.Time{}, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2430,6 +2553,9 @@ func TestGetIndexPriceKlineData(t *testing.T) {
 	_, err = e.GetIndexPriceKlineData(t.Context(), "BTC_USDT_PERP", kline.HundredMilliseconds, time.Time{}, time.Time{}, 10)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
+	_, err = e.GetIndexPriceKlineData(t.Context(), "BTC_USDT_PERP", kline.FourHour, time.Now(), time.Now().Add(-time.Hour), 10)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	result, err := e.GetIndexPriceKlineData(t.Context(), "BTC_USDT_PERP", kline.FourHour, time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2460,6 +2586,9 @@ func TestGetMarkPriceKlineData(t *testing.T) {
 	_, err = e.GetMarkPriceKlineData(t.Context(), "BTC_USDT_PERP", kline.HundredMilliseconds, time.Time{}, time.Time{}, 10)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
+	_, err = e.GetMarkPriceKlineData(t.Context(), "BTC_USDT_PERP", kline.FourHour, time.Now(), time.Now().Add(-time.Hour), 10)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	result, err := e.GetMarkPriceKlineData(t.Context(), "BTC_USDT_PERP", kline.FourHour, time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2489,6 +2618,9 @@ func TestGetFuturesHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesHistoricalFundingRates(t.Context(), "", time.Time{}, time.Time{}, 100)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = e.GetFuturesHistoricalFundingRates(t.Context(), futuresTradablePair.String(), time.Now(), time.Now().Add(-time.Hour), 100)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	result, err := e.GetFuturesHistoricalFundingRates(t.Context(), futuresTradablePair.String(), time.Time{}, time.Time{}, 100)
 	require.NoError(t, err)

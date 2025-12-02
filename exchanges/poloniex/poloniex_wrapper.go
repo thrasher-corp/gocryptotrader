@@ -822,7 +822,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
 			_, err = e.CancelSmartOrderByID(ctx, o.OrderID, o.ClientOrderID)
 		default:
-			_, err = e.CancelOrderByID(ctx, o.OrderID)
+			_, err = e.CancelOrderByID(ctx, o.OrderID, o.ClientOrderID)
 		}
 	case asset.Futures:
 		_, err = e.CancelFuturesOrder(ctx, &CancelOrderRequest{Symbol: o.Pair.String(), OrderID: o.OrderID, ClientOrderID: o.ClientOrderID})
