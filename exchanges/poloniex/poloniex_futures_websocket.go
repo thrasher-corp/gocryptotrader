@@ -296,10 +296,6 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 	}
 	orders := make([]order.Detail, len(resp))
 	for i, r := range resp {
-		oType, err := order.StringToOrderType(r.OrderType)
-		if err != nil {
-			return err
-		}
 		oStatus, err := order.StringToOrderStatus(r.State)
 		if err != nil {
 			return err
@@ -318,7 +314,7 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 			Exchange:             e.Name,
 			OrderID:              r.OrderID,
 			ClientOrderID:        r.ClientOrderID,
-			Type:                 oType,
+			Type:                 r.OrderType,
 			Side:                 r.Side,
 			Status:               oStatus,
 			AssetType:            asset.Futures,

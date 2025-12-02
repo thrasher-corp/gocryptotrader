@@ -229,14 +229,6 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 	}
 	orderDetails := make([]order.Detail, len(response))
 	for x, r := range response {
-		oType, err := order.StringToOrderType(r.Type)
-		if err != nil {
-			return err
-		}
-		oSide, err := order.StringToOrderSide(r.Side)
-		if err != nil {
-			return err
-		}
 		oStatus, err := order.StringToOrderStatus(r.State)
 		if err != nil {
 			return err
@@ -256,8 +248,8 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 			Exchange:        e.Name,
 			OrderID:         r.OrderID,
 			ClientOrderID:   r.ClientOrderID,
-			Type:            oType,
-			Side:            oSide,
+			Type:            r.Type,
+			Side:            r.Side,
 			Status:          oStatus,
 			AssetType:       stringToAccountType(r.AccountType),
 			Date:            r.CreateTime.Time(),
@@ -270,8 +262,8 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 					Fee:       r.TradeFee.Float64(),
 					Exchange:  e.Name,
 					TID:       r.TradeID,
-					Type:      oType,
-					Side:      oSide,
+					Type:      r.Type,
+					Side:      r.Side,
 					Timestamp: r.Timestamp.Time(),
 					FeeAsset:  r.FeeCurrency.String(),
 					Total:     r.Quantity.Float64(),

@@ -672,8 +672,8 @@ type SmartOrder struct {
 	Symbol          currency.Pair     `json:"symbol"`
 	State           string            `json:"state"`
 	AccountType     string            `json:"accountType"`
-	Side            string            `json:"side"`
-	Type            string            `json:"type"`
+	Side            order.Side        `json:"side"`
+	Type            order.Type        `json:"type"`
 	TimeInForce     order.TimeInForce `json:"timeInForce"`
 	Quantity        types.Number      `json:"quantity"`
 	Price           types.Number      `json:"price"`
@@ -701,11 +701,10 @@ type WsCancelOrderResponse struct {
 	CancelOrderResponse
 }
 
-// CancelOrdersRequest represents cancel order request parameters
+// CancelOrdersRequest represents cancel spot order request parameters
 type CancelOrdersRequest struct {
-	Symbol         currency.Pair `json:"symbol"`
-	OrderIDs       []string      `json:"ordIds,omitempty"`
-	ClientOrderIDs []string      `json:"clOrdIds,omitempty"`
+	OrderIDs       []string `json:"orderIds,omitempty"`
+	ClientOrderIDs []string `json:"clientOrderIds,omitempty"`
 }
 
 // KillSwitchStatus represents a kill switch response
@@ -733,52 +732,46 @@ type SmartOrderRequest struct {
 
 // CancelReplaceSmartOrderRequest represents a cancellation and order replacement request parameter for smart orders.
 type CancelReplaceSmartOrderRequest struct {
-	OrderID              string      `json:"-"` // will be used in request path
-	ReplaceClientOrderID string      `json:"-"`
-	ClientOrderID        string      `json:"clientOrderId,omitempty"`
-	Price                float64     `json:"price,omitempty,string"`
-	StopPrice            float64     `json:"stopPrice,omitempty,string"`
-	Quantity             float64     `json:"quantity,omitempty,string"`
-	Amount               float64     `json:"amount,omitempty,string"`
-	AmendedType          OrderType   `json:"type,omitempty,string"`
-	TimeInForce          TimeInForce `json:"timeInForce,omitempty"`
-	ProceedOnFailure     bool        `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
+	OrderID          string      `json:"-"` // will be used in request path
+	OldClientOrderID string      `json:"-"`
+	NewClientOrderID string      `json:"clientOrderId,omitempty"`
+	Price            float64     `json:"price,omitempty,string"`
+	StopPrice        float64     `json:"stopPrice,omitempty,string"`
+	Quantity         float64     `json:"quantity,omitempty,string"`
+	Amount           float64     `json:"amount,omitempty,string"`
+	AmendedType      OrderType   `json:"type,omitempty,string"`
+	TimeInForce      TimeInForce `json:"timeInForce,omitempty"`
+	ProceedOnFailure bool        `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
 }
 
 // CancelReplaceSmartOrder represents a response parameter for order cancellation and replacement operation.
 type CancelReplaceSmartOrder struct {
-	ID        string       `json:"id"`
-	StopPrice types.Number `json:"stopPrice"`
-	Price     types.Number `json:"price"`
-	Quantity  types.Number `json:"quantity"`
+	ID            string `json:"id"`
+	ClientOrderID string `json:"clientOrderId"`
 	statusResponse
 }
 
 // SmartOrderDetails represents a smart order information and trigger detailed information.
 type SmartOrderDetails struct {
-	ID             string            `json:"id"`
-	ClientOrderID  string            `json:"clientOrderId"`
-	Symbol         currency.Pair     `json:"symbol"`
-	State          string            `json:"state"`
-	AccountType    string            `json:"accountType"`
-	Side           order.Side        `json:"side"`
-	Type           string            `json:"type"`
-	TimeInForce    order.TimeInForce `json:"timeInForce"`
-	Quantity       types.Number      `json:"quantity"`
-	Price          types.Number      `json:"price"`
-	Amount         types.Number      `json:"amount"`
-	StopPrice      types.Number      `json:"stopPrice"`
-	CreateTime     types.Time        `json:"createTime"`
-	UpdateTime     types.Time        `json:"updateTime"`
-	TriggeredOrder TradeOrder        `json:"triggeredOrder"`
-}
-
-// CancelSmartOrderResponse represents a close cancel smart order response instance.
-type CancelSmartOrderResponse struct {
-	OrderID       string `json:"orderId"`
-	ClientOrderID string `json:"clientOrderId"`
-	State         string `json:"state"`
-	statusResponse
+	ID              string            `json:"id"`
+	ClientOrderID   string            `json:"clientOrderId"`
+	Symbol          currency.Pair     `json:"symbol"`
+	State           string            `json:"state"`
+	AccountType     string            `json:"accountType"`
+	Side            order.Side        `json:"side"`
+	Type            string            `json:"type"`
+	TimeInForce     order.TimeInForce `json:"timeInForce"`
+	Quantity        types.Number      `json:"quantity"`
+	Price           types.Number      `json:"price"`
+	Amount          types.Number      `json:"amount"`
+	StopPrice       types.Number      `json:"stopPrice"`
+	CreateTime      types.Time        `json:"createTime"`
+	UpdateTime      types.Time        `json:"updateTime"`
+	TriggeredOrder  TradeOrder        `json:"triggeredOrder"`
+	TrailingOffset  string            `json:"trailingOffset"`
+	LimitOffset     string            `json:"limitOffset"`
+	ActivationPrice types.Number      `json:"activationPrice"`
+	Operatir        string            `json:"operator"`
 }
 
 // TradeHistory represents an order trade history instance.
@@ -963,7 +956,7 @@ type WebsocketAuthenticationResponse struct {
 // WebsocketTradeOrder represents a websocket trade order.
 type WebsocketTradeOrder struct {
 	Symbol         string        `json:"symbol"`
-	Type           string        `json:"type"`
+	Type           order.Type    `json:"type"`
 	Quantity       types.Number  `json:"quantity"`
 	OrderID        string        `json:"orderId"`
 	TradeFee       types.Number  `json:"tradeFee"`
@@ -972,7 +965,7 @@ type WebsocketTradeOrder struct {
 	FeeCurrency    currency.Code `json:"feeCurrency"`
 	EventType      string        `json:"eventType"`
 	Source         string        `json:"source"`
-	Side           string        `json:"side"`
+	Side           order.Side    `json:"side"`
 	FilledQuantity types.Number  `json:"filledQuantity"`
 	FilledAmount   types.Number  `json:"filledAmount"`
 	MatchRole      string        `json:"matchRole"`

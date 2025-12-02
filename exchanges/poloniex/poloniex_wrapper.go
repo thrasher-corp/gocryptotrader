@@ -785,7 +785,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	case order.Stop, order.StopLimit:
 		oResp, err := e.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderRequest{
 			OrderID:          action.OrderID,
-			ClientOrderID:    action.ClientOrderID,
+			NewClientOrderID: action.ClientOrderID,
 			Price:            action.Price,
 			StopPrice:        action.TriggerPrice,
 			Amount:           action.Amount,
@@ -910,7 +910,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, key.oType.String())
 			}
 		} else {
-			cancelledOrders, err := e.CancelMultipleFuturesOrders(ctx, &CancelOrdersRequest{
+			cancelledOrders, err := e.CancelMultipleFuturesOrders(ctx, &CancelFuturesOrdersRequest{
 				Symbol:         key.pair,
 				OrderIDs:       value.orderIDs,
 				ClientOrderIDs: value.clientOrderIDs,
@@ -1099,10 +1099,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return nil, order.ErrOrderNotFound
 		}
 		orderDetail := fResults[0]
-		oType, err := order.StringToOrderType(orderDetail.OrderType)
-		if err != nil {
-			return nil, err
-		}
 		return &order.Detail{
 			Price:                orderDetail.Price.Float64(),
 			Amount:               orderDetail.Quantity.Float64(),
@@ -1113,7 +1109,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			OrderID:              orderDetail.OrderID,
 			Exchange:             e.Name,
 			ClientOrderID:        orderDetail.ClientOrderID,
-			Type:                 oType,
+			Type:                 orderDetail.OrderType,
 			Side:                 orderDetail.Side,
 			Status:               orderStateFromString(orderDetail.State),
 			AssetType:            asset.Futures,
@@ -1297,10 +1293,6 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			if len(req.Pairs) != 0 && !req.Pairs.Contains(fOrder.Symbol, true) {
 				continue
 			}
-			oType, err := order.StringToOrderType(fOrder.OrderType)
-			if err != nil {
-				return nil, err
-			}
 			var oState order.Status
 			switch fOrder.State {
 			case "NEW":
@@ -1318,7 +1310,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				mType = margin.Multi
 			}
 			orders = append(orders, order.Detail{
-				Type:            oType,
+				Type:            fOrder.OrderType,
 				OrderID:         fOrder.OrderID,
 				Side:            fOrder.Side,
 				Amount:          fOrder.Size.Float64(),
@@ -1453,25 +1445,17 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				if len(req.Pairs) != 0 && !req.Pairs.Contains(smartOrder.Symbol, true) {
 					continue
 				}
-				oSide, err := order.StringToOrderSide(smartOrder.Side)
-				if err != nil {
-					return nil, err
-				}
-				oType, err := order.StringToOrderType(smartOrder.Type)
-				if err != nil {
-					return nil, err
-				}
 				assetType, err := asset.New(smartOrder.AccountType)
 				if err != nil {
 					return nil, err
 				}
 				detail := order.Detail{
-					Side:          oSide,
+					Side:          smartOrder.Side,
 					Amount:        smartOrder.Amount.Float64(),
 					Price:         smartOrder.Price.Float64(),
 					TriggerPrice:  smartOrder.StopPrice.Float64(),
 					Pair:          smartOrder.Symbol,
-					Type:          oType,
+					Type:          smartOrder.Type,
 					Exchange:      e.Name,
 					OrderID:       smartOrder.ID,
 					ClientOrderID: smartOrder.ClientOrderID,
@@ -1502,17 +1486,13 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if len(req.Pairs) != 0 && !req.Pairs.Contains(fOrder.Symbol, true) {
 				continue
 			}
-			oType, err := order.StringToOrderType(fOrder.OrderType)
-			if err != nil {
-				return nil, err
-			}
 			detail := order.Detail{
 				Side:            fOrder.Side,
 				Amount:          fOrder.Quantity.Float64(),
 				ExecutedAmount:  fOrder.ExecutedAmount.Float64(),
 				Price:           fOrder.Price.Float64(),
 				Pair:            fOrder.Symbol,
-				Type:            oType,
+				Type:            fOrder.OrderType,
 				Exchange:        e.Name,
 				RemainingAmount: fOrder.Quantity.Float64() - fOrder.ExecutedAmount.Float64(),
 				OrderID:         fOrder.OrderID,

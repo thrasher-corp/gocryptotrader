@@ -811,7 +811,7 @@ func orderPath(orderID, idPath, clientOrderID, clientIDPath string) (string, err
 
 // CancelReplaceSmartOrder cancel an existing untriggered smart order and place a new smart order on the same symbol with details from existing smart order unless amended by new parameters
 func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelReplaceSmartOrderRequest) (*CancelReplaceSmartOrder, error) {
-	path, err := orderPath(arg.OrderID, "/smartorders/", arg.ClientOrderID, "/smartorders/cid:")
+	path, err := orderPath(arg.OrderID, "/smartorders/", arg.OldClientOrderID, "/smartorders/cid:")
 	if err != nil {
 		return nil, err
 	}
@@ -836,8 +836,8 @@ func (e *Exchange) GetSmartOpenOrders(ctx context.Context, limit uint64, types [
 }
 
 // GetSmartOrderDetails retrieves a smart order's detail
-func (e *Exchange) GetSmartOrderDetails(ctx context.Context, orderID, clientSuppliedID string) ([]*SmartOrderDetails, error) {
-	path, err := orderPath(orderID, "/smartorders/", clientSuppliedID, "/smartorders/cid:")
+func (e *Exchange) GetSmartOrderDetails(ctx context.Context, orderID, clientOrderID string) ([]*SmartOrderDetails, error) {
+	path, err := orderPath(orderID, "/smartorders/", clientOrderID, "/smartorders/cid:")
 	if err != nil {
 		return nil, err
 	}
@@ -849,12 +849,12 @@ func (e *Exchange) GetSmartOrderDetails(ctx context.Context, orderID, clientSupp
 }
 
 // CancelSmartOrderByID cancel a smart order by its id.
-func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedID string) (*CancelSmartOrderResponse, error) {
-	path, err := orderPath(id, "/smartorders/", clientSuppliedID, "/smartorders/cid:")
+func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientOrderID string) (*CancelOrderResponse, error) {
+	path, err := orderPath(id, "/smartorders/", clientOrderID, "/smartorders/cid:")
 	if err != nil {
 		return nil, err
 	}
-	var resp *CancelSmartOrderResponse
+	var resp *CancelOrderResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelSmartOrderByIDEPL, http.MethodDelete, path, nil, nil, &resp); err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
@@ -945,7 +945,10 @@ func (e *Exchange) GetOrdersHistory(ctx context.Context, arg *OrdersHistoryReque
 		return nil, err
 	}
 	var resp []*TradeOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOrderHistoryEPL, http.MethodGet, "/orders/history", params, nil, &resp)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOrderHistoryEPL, http.MethodGet, "/orders/history", params, nil, &resp); err != nil {
+		return nil, fmt.Errorf("%w %v", order.ErrGetFailed, err)
+	}
+	return resp, nil
 }
 
 // GetSmartOrderHistory gets a list of historical smart orders in an account
@@ -955,7 +958,10 @@ func (e *Exchange) GetSmartOrderHistory(ctx context.Context, arg *OrdersHistoryR
 		return nil, err
 	}
 	var resp []*SmartOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSmartOrderHistoryEPL, http.MethodGet, "/smartorders/history", params, nil, &resp)
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSmartOrderHistoryEPL, http.MethodGet, "/smartorders/history", params, nil, &resp); err != nil {
+		return nil, fmt.Errorf("%w %w", order.ErrGetFailed, err)
+	}
+	return resp, nil
 }
 
 // GetTradeHistory gets a list of all trades for an account
@@ -1055,25 +1061,26 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			values = url.Values{}
 		}
 		timestamp := time.Now()
-		bodyPayload := []byte("{}")
 		signTimestamp := strconv.FormatInt(timestamp.UnixMilli(), 10)
 		values.Set("signTimestamp", signTimestamp)
 		var signatureStrings string
-		switch method {
-		case http.MethodGet, "get":
-			signatureStrings = http.MethodGet + "\n" + path + "\n" + values.Encode()
-		default:
-			if body != nil {
-				bodyPayload, err = json.Marshal(body)
-				if err != nil {
-					return nil, err
-				}
+		req := &request.Item{
+			Method:        method,
+			Result:        resp,
+			Headers:       headers,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
+		}
+		if body != nil {
+			bodyPayload, err := json.Marshal(body)
+			if err != nil {
+				return nil, err
 			}
-			if string(bodyPayload) != "{}" {
-				signatureStrings = method + "\n" + path + "\n" + "requestBody=" + string(bodyPayload) + "&" + values.Encode()
-			} else {
-				signatureStrings = method + "\n" + path + "\n" + values.Encode()
-			}
+			signatureStrings = method + "\n" + path + "\n" + "requestBody=" + string(bodyPayload) + "&" + values.Encode()
+			req.Body = bytes.NewBuffer(bodyPayload)
+		} else {
+			signatureStrings = method + "\n" + path + "\n" + values.Encode()
 		}
 		var hmac []byte
 		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
@@ -1087,19 +1094,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["signature"] = base64.StdEncoding.EncodeToString(hmac)
 		headers["signTimestamp"] = signTimestamp
 		values.Del("signTimestamp") // The signature timestamp has been removed from the query string as it is now included in the request header.
-
-		req := &request.Item{
-			Method:        method,
-			Path:          common.EncodeURLValues(endpoint+path, values),
-			Result:        resp,
-			Headers:       headers,
-			Verbose:       e.Verbose,
-			HTTPDebugging: e.HTTPDebugging,
-			HTTPRecording: e.HTTPRecording,
-		}
-		if method != http.MethodGet && len(bodyPayload) > 0 && string(bodyPayload) != "{}" {
-			req.Body = bytes.NewBuffer(bodyPayload)
-		}
+		req.Path = common.EncodeURLValues(endpoint+path, values)
 		return req, nil
 	}
 	if err := e.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest); err != nil {
@@ -1131,14 +1126,17 @@ func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.Pair.Base)
 	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = getOfflineTradeFee(feeBuilder.IsMaker, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	return fee, nil
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.002 * price * amount
+func getOfflineTradeFee(isMaker bool, price, amount float64) float64 {
+	if isMaker {
+		return 0.00145 * price * amount
+	}
+	return 0.00155 * price * amount
 }
 
 func calculateTradingFee(feeInfo *FeeInfo, purchasePrice, amount float64, isMaker bool) (fee float64) {

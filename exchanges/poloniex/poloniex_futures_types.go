@@ -107,6 +107,13 @@ type CancelOrderRequest struct {
 	ClientOrderID string `json:"clOrdId,omitempty"`
 }
 
+// CancelFuturesOrdersRequest represents cancel futures order request parameters
+type CancelFuturesOrdersRequest struct {
+	Symbol         currency.Pair `json:"symbol"`
+	OrderIDs       []string      `json:"ordIds,omitempty"`
+	ClientOrderIDs []string      `json:"clOrdIds,omitempty"`
+}
+
 // FuturesTradeFill represents a trade executions
 type FuturesTradeFill struct {
 	Symbol         currency.Pair `json:"symbol"`
@@ -130,7 +137,7 @@ type FuturesOrderDetails struct {
 	Side                       order.Side        `json:"side"`
 	MarginMode                 string            `json:"mgnMode"`
 	PositionSide               string            `json:"posSide"`
-	OrderType                  string            `json:"type"`
+	OrderType                  order.Type        `json:"type"`
 	Price                      types.Number      `json:"px"`
 	Size                       types.Number      `json:"sz"`
 	TimeInForce                order.TimeInForce `json:"timeInForce"`

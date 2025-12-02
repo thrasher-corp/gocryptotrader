@@ -1780,13 +1780,16 @@ func TestCancelReplaceSmartOrder(t *testing.T) {
 	_, err := e.CancelReplaceSmartOrder(t.Context(), &CancelReplaceSmartOrderRequest{Price: 18000})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
+	_, err = e.CancelReplaceSmartOrder(t.Context(), &CancelReplaceSmartOrderRequest{NewClientOrderID: "1234Abc", Price: 18000})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	result, err := e.CancelReplaceSmartOrder(t.Context(), &CancelReplaceSmartOrderRequest{
-		OrderID:       "29772698821328896",
-		ClientOrderID: "1234Abc",
-		Price:         18000,
+		OrderID:          "29772698821328896",
+		NewClientOrderID: "1234Abc",
+		Price:            18000,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2272,15 +2275,15 @@ func TestCancelFuturesOrder(t *testing.T) {
 
 func TestCancelMultipleFuturesOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelMultipleFuturesOrders(t.Context(), &CancelOrdersRequest{})
+	_, err := e.CancelMultipleFuturesOrders(t.Context(), &CancelFuturesOrdersRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.CancelMultipleFuturesOrders(t.Context(), &CancelOrdersRequest{Symbol: futuresTradablePair})
+	_, err = e.CancelMultipleFuturesOrders(t.Context(), &CancelFuturesOrdersRequest{Symbol: futuresTradablePair})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelMultipleFuturesOrders(generateContext(t), &CancelOrdersRequest{Symbol: futuresTradablePair, OrderIDs: []string{"331378951169769472", "331378951182352384", "331378951199129601"}})
+	result, err := e.CancelMultipleFuturesOrders(generateContext(t), &CancelFuturesOrdersRequest{Symbol: futuresTradablePair, OrderIDs: []string{"331378951169769472", "331378951182352384", "331378951199129601"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

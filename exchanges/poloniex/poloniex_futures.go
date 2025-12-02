@@ -133,7 +133,7 @@ func (e *Exchange) CancelFuturesOrder(ctx context.Context, arg *CancelOrderReque
 }
 
 // CancelMultipleFuturesOrders cancel orders in a batch. A maximum of 10 orders can be cancelled per request.
-func (e *Exchange) CancelMultipleFuturesOrders(ctx context.Context, args *CancelOrdersRequest) ([]*FuturesOrderIDResponse, error) {
+func (e *Exchange) CancelMultipleFuturesOrders(ctx context.Context, args *CancelFuturesOrdersRequest) ([]*FuturesOrderIDResponse, error) {
 	if args.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
