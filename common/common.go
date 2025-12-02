@@ -712,22 +712,20 @@ func RegisterContextKey(key any) {
 }
 
 // FrozenContext holds captured context values
-type FrozenContext struct {
-	values map[any]any
-}
+type FrozenContext map[any]any
 
 // FreezeCtx captures values from the context for registered keys
 func FreezeCtx(ctx context.Context) FrozenContext {
 	contextKeysMu.RLock()
 	defer contextKeysMu.RUnlock()
 
-	values := make(map[any]any, len(contextKeys))
+	values := make(FrozenContext, len(contextKeys))
 	for _, key := range contextKeys {
 		if val := ctx.Value(key); val != nil {
 			values[key] = val
 		}
 	}
-	return FrozenContext{values: values}
+	return values
 }
 
 // ThawCtx creates a new context from the frozen context using context.Background() as parent
@@ -737,12 +735,12 @@ func ThawCtx(fc FrozenContext) (context.Context, error) {
 
 // MergeCtx adds the frozen values to an existing context
 func MergeCtx(ctx context.Context, fc FrozenContext) (context.Context, error) {
-	for k := range fc.values {
+	for k := range fc {
 		if ctx.Value(k) != nil {
 			return nil, fmt.Errorf("%w: %q", errDuplicateContextKey, k)
 		}
 	}
-	return &mergeCtx{ctx, fc}, nil
+	return &mergeCtx{Context: ctx, frozen: fc}, nil
 }
 
 // mergeCtx is a context that merges values from a frozen context and a parent context.
@@ -752,7 +750,7 @@ type mergeCtx struct {
 }
 
 func (m *mergeCtx) Value(key any) any {
-	if val, ok := m.frozen.values[key]; ok {
+	if val, ok := m.frozen[key]; ok {
 		return val
 	}
 	return m.Context.Value(key)

@@ -710,9 +710,9 @@ func TestContextFunctions(t *testing.T) {
 
 	frozen := FreezeCtx(ctx)
 
-	assert.Equal(t, "value1", frozen.values[k1], "should have captured k1")
-	assert.Equal(t, "value2", frozen.values[k2], "should have captured k2")
-	assert.Zero(t, frozen.values[k3], "k3 should not be captured")
+	assert.Equal(t, "value1", frozen[k1], "should have captured k1")
+	assert.Equal(t, "value2", frozen[k2], "should have captured k2")
+	assert.Zero(t, frozen[k3], "k3 should not be captured")
 
 	thawed, err := ThawCtx(frozen)
 	require.NoError(t, err)
