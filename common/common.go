@@ -745,7 +745,7 @@ func MergeCtx(ctx context.Context, fc FrozenContext) (context.Context, error) {
 
 // mergeCtx is a context that merges values from a frozen context and a parent context.
 type mergeCtx struct {
-	context.Context //nolint:containedctx // Using context.WithValue will nest contexts and cause lookup latency
+	context.Context //nolint:containedctx // mergeCtx implements context.Context
 	frozen          FrozenContext
 }
 
