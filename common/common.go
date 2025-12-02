@@ -744,6 +744,7 @@ func MergeCtx(ctx context.Context, fc FrozenContext) (context.Context, error) {
 }
 
 // mergeCtx is a context that merges values from a frozen context and a parent context.
+// frozen values are stored in FrozenContext instead of nested context.WithValue because of the performance of calling WithValue N+ times on messages being frozen
 type mergeCtx struct {
 	context.Context //nolint:containedctx // mergeCtx implements context.Context
 	frozen          FrozenContext
