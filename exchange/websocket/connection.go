@@ -60,9 +60,11 @@ type Connection interface {
 
 // ConnectionSetup defines variables for an individual stream connection
 type ConnectionSetup struct {
-	ResponseCheckTimeout     time.Duration
-	ResponseMaxLimit         time.Duration
-	RateLimit                *request.RateLimiterWithWeight
+	ResponseCheckTimeout time.Duration
+	ResponseMaxLimit     time.Duration
+	RateLimit            *request.RateLimiterWithWeight
+	// ConnectionRateLimit returns a new rate limiter for each connection instance
+	ConnectionRateLimit      func() *request.RateLimiterWithWeight
 	Authenticated            bool // unused for multi-connection websocket
 	SubscriptionsNotRequired bool
 	ConnectionLevelReporter  Reporter
