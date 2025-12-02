@@ -1648,7 +1648,6 @@ func TestGetOrder(t *testing.T) {
 	result, err := e.GetOrder(generateContext(t), "12345", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-
 }
 
 func TestCancelOrderByID(t *testing.T) {

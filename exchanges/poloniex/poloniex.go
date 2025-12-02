@@ -248,7 +248,7 @@ func (e *Exchange) GetAccountBalances(ctx context.Context, accountID, accountTyp
 }
 
 // GetAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
-// possible account avtivity types are: 200 for ALL, 201 for AIRDROP, 202 for COMMISSION_REBATE, 203, REFERAL_REBATE: 204, SWAP: 205, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
+// possible account avtivity types are: 200 for ALL, 201 for AIRDROP, 202 for COMMISSION_REBATE, 203, REFERRAL_REBATE: 204, SWAP: 205, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
 func (e *Exchange) GetAccountActivities(ctx context.Context, startTime, endTime time.Time, activityType, limit, from uint64, direction string, ccy currency.Code) ([]*AccountActivity, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
