@@ -528,7 +528,14 @@ func (m *Manager) connect() error {
 		}
 
 		if m.connectionManager[i].setup.SubscriptionsNotRequired && len(subs) == 0 {
-			subs = subscription.List{{}} // Dummy subscription to utilise common.Batch to call connectAndSubscribe in a loop
+			if err := m.connectAndSubscribe(context.TODO(), m.connectionManager[i], nil); err != nil {
+				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, err)
+				break
+			}
+			if m.verbose {
+				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] connected", m.exchangeName, m.connectionManager[i].setup.URL)
+			}
+			continue
 		}
 
 		for _, batchedSubs := range common.Batch(subs, m.MaxSubscriptionsPerConnection) {

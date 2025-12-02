@@ -312,9 +312,16 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	err = ws.connectionManager[0].connectionsSubs[0].Connection.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("test"))
 	require.NoError(t, err)
-
-	require.NoError(t, err)
 	require.NoError(t, ws.Shutdown())
+
+	ws.connectionManager[0].setup.SubscriptionsNotRequired = true
+	err = ws.Connect()
+	require.NoError(t, err, "must not error when connection when no subscriptions are required")
+
+	require.NoError(t, ws.shutdown())
+	ws.connectionManager[0].setup.Connector = func(context.Context, Connection) error { return errors.New("no connect") }
+	err = ws.Connect()
+	require.ErrorIs(t, err, common.ErrFatal, "must error on connect when no subscriptions are required")
 }
 
 func TestManager(t *testing.T) {

@@ -247,6 +247,14 @@ func TestCheckSubscriptions(t *testing.T) {
 
 	err = ws.checkSubscriptions(nil, subscription.List{{}})
 	assert.NoError(t, err, "checkSubscriptions should not error")
+
+	ws.subscriptions = subscription.NewStore()
+	conn := &connection{}
+	ws.connections = map[Connection]*connectionWrapper{
+		conn: {},
+	}
+	err = ws.checkSubscriptions(conn, subscription.List{{}})
+	assert.ErrorContains(t, err, "nil pointer: Websocket.subscriptions", "nil store for a specific connection should error correctly")
 }
 
 func TestUpdateChannelSubscriptions(t *testing.T) {

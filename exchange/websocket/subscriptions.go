@@ -226,7 +226,7 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 	var subscriptionStore *subscription.Store
 	var usedCapacity int
 	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		if subscriptionStore = wrapper.subscriptions; subscriptionStore == nil {
+		if wrapper.subscriptions == nil {
 			return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
 		}
 		var connSubStore *subscription.Store
@@ -239,12 +239,13 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 		if connSubStore == nil {
 			return fmt.Errorf("%w: connection subscription store not found", common.ErrNilPointer)
 		}
+		subscriptionStore = wrapper.subscriptions
 		usedCapacity = connSubStore.Len()
 	} else {
-		subscriptionStore = m.subscriptions
-		if subscriptionStore == nil {
+		if m.subscriptions == nil {
 			return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
 		}
+		subscriptionStore = m.subscriptions
 		usedCapacity = subscriptionStore.Len()
 	}
 
