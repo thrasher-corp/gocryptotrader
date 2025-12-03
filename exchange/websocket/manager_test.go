@@ -169,11 +169,8 @@ func TestConnectionMessageErrors(t *testing.T) {
 	wsWrong := &Manager{}
 	wsWrong.connector = func() error { return nil }
 
-	err := wsWrong.Connect(t.Context())
-	require.ErrorIs(t, err, common.ErrNilPointer, "Connect must error correctly")
-
 	wsWrong.DataHandler = message.NewRelay(1)
-	err = wsWrong.Connect(t.Context())
+	err := wsWrong.Connect(t.Context())
 	require.ErrorIs(t, err, ErrWebsocketNotEnabled, "Connect must error correctly")
 
 	wsWrong.setEnabled(true)

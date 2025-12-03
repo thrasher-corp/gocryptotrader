@@ -413,10 +413,6 @@ func (m *Manager) Connect(ctx context.Context) error {
 }
 
 func (m *Manager) connect(ctx context.Context) error {
-	if err := common.NilGuard(m.DataHandler); err != nil {
-		return err
-	}
-
 	if !m.IsEnabled() {
 		return ErrWebsocketNotEnabled
 	}
