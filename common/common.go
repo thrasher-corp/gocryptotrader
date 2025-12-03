@@ -728,13 +728,13 @@ func FreezeCtx(ctx context.Context) FrozenContext {
 }
 
 // ThawCtx creates a new context from the frozen context using context.Background() as parent
-func ThawCtx(fc FrozenContext) (context.Context, error) {
+func ThawCtx(fc FrozenContext) context.Context {
 	return MergeCtx(context.Background(), fc)
 }
 
 // MergeCtx adds the frozen values to an existing context
-func MergeCtx(ctx context.Context, fc FrozenContext) (context.Context, error) {
-	return &mergeCtx{Context: ctx, frozen: fc}, nil
+func MergeCtx(ctx context.Context, fc FrozenContext) context.Context {
+	return &mergeCtx{Context: ctx, frozen: fc}
 }
 
 // mergeCtx is a context that merges values from a frozen context and a parent context.

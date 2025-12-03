@@ -714,15 +714,13 @@ func TestContextFunctions(t *testing.T) {
 	assert.Equal(t, "value2", frozen[k2], "should have captured k2")
 	assert.Zero(t, frozen[k3], "k3 should not be captured")
 
-	thawed, err := ThawCtx(frozen)
-	require.NoError(t, err)
+	thawed := ThawCtx(frozen)
 	assert.Equal(t, "value1", thawed.Value(k1), "should have k1 after thaw")
 	assert.Equal(t, "value2", thawed.Value(k2), "should have k2 after thaw")
 	assert.Nil(t, thawed.Value(k3), "Thawed context should not have k3")
 
 	ctx2 := context.WithValue(context.Background(), k3, "value3_new")
-	merged, err := MergeCtx(ctx2, frozen)
-	require.NoError(t, err)
+	merged := MergeCtx(ctx2, frozen)
 	assert.Equal(t, "value1", merged.Value(k1), "should have k1 from frozen")
 	assert.Equal(t, "value2", merged.Value(k2), "should have k2 from frozen")
 	assert.Equal(t, "value3_new", merged.Value(k3), "should have k3 from parent")
