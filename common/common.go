@@ -81,7 +81,6 @@ var (
 	errCannotSetInvalidTimeout = errors.New("cannot set new HTTP client with timeout that is equal or less than 0")
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
-	errDuplicateContextKey     = errors.New("duplicate context key")
 )
 
 // NilGuard returns an ErrNilPointer with the type of the first nil argument
@@ -735,11 +734,6 @@ func ThawCtx(fc FrozenContext) (context.Context, error) {
 
 // MergeCtx adds the frozen values to an existing context
 func MergeCtx(ctx context.Context, fc FrozenContext) (context.Context, error) {
-	for k := range fc {
-		if ctx.Value(k) != nil {
-			return nil, fmt.Errorf("%w: %q", errDuplicateContextKey, k)
-		}
-	}
 	return &mergeCtx{Context: ctx, frozen: fc}, nil
 }
 

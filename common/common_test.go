@@ -726,7 +726,4 @@ func TestContextFunctions(t *testing.T) {
 	assert.Equal(t, "value1", merged.Value(k1), "should have k1 from frozen")
 	assert.Equal(t, "value2", merged.Value(k2), "should have k2 from frozen")
 	assert.Equal(t, "value3_new", merged.Value(k3), "should have k3 from parent")
-
-	_, err = MergeCtx(merged, frozen)
-	require.ErrorIs(t, err, errDuplicateContextKey, "must error on duplicate keys")
 }
