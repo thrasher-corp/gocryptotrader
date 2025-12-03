@@ -51,7 +51,7 @@ func (e *Exchange) WsConnectBusiness(ctx context.Context) error {
 	dialer.WriteBufferSize = 8192
 
 	e.Websocket.Conn.SetURL(okxBusinessWebsocketURL)
-	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return err
 	}
 	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.Conn) })

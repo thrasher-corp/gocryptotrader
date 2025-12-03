@@ -65,7 +65,7 @@ func (e *Exchange) WsConnect() error {
 	}
 
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
 	if err != nil {
 		return err
 	}
@@ -168,7 +168,7 @@ func (e *Exchange) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	headers.Add("X-GEMINI-SIGNATURE", hex.EncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	err = e.Websocket.AuthConn.Dial(ctx, dialer, headers)
+	err = e.Websocket.AuthConn.Dial(ctx, dialer, headers, nil)
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", e.Name, endpoint, err)
 	}

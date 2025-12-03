@@ -61,7 +61,7 @@ func (e *Exchange) WsConnect() error {
 	}
 	ctx := context.TODO()
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
 	if err != nil {
 		return err
 	}
