@@ -14,7 +14,6 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -233,7 +232,7 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(r.Symbol)
+		oType, err := order.StringToOrderType(r.Type)
 		if err != nil {
 			return err
 		}
@@ -248,13 +247,13 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 			Exchange:        e.Name,
 			OrderID:         r.OrderID,
 			ClientOrderID:   r.ClientOrderID,
-			Type:            r.Type,
+			Type:            oType,
 			Side:            r.Side,
 			Status:          oStatus,
 			AssetType:       stringToAccountType(r.AccountType),
 			Date:            r.CreateTime.Time(),
 			LastUpdated:     r.TradeTime.Time(),
-			Pair:            cp,
+			Pair:            r.Symbol,
 			Trades: []order.TradeHistory{
 				{
 					Price:     r.TradePrice.Float64(),
@@ -262,7 +261,7 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 					Fee:       r.TradeFee.Float64(),
 					Exchange:  e.Name,
 					TID:       r.TradeID,
-					Type:      r.Type,
+					Type:      oType,
 					Side:      r.Side,
 					Timestamp: r.Timestamp.Time(),
 					FeeAsset:  r.FeeCurrency.String(),
@@ -281,12 +280,8 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 		return err
 	}
 	for _, r := range resp {
-		cp, err := currency.NewPairFromString(r.Symbol)
-		if err != nil {
-			return err
-		}
 		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Pair:         cp,
+			Pair:         r.Symbol,
 			Exchange:     e.Name,
 			LastUpdateID: r.ID,
 			Asset:        asset.Spot,
@@ -307,15 +302,10 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 		return err
 	}
 	for _, r := range resp {
-		cp, err := currency.NewPairFromString(r.Symbol)
-		if err != nil {
-			return err
-		}
-
 		if result.Action == "snapshot" {
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:     e.Name,
-				Pair:         cp,
+				Pair:         r.Symbol,
 				Asset:        asset.Spot,
 				Asks:         r.Asks.Levels(),
 				Bids:         r.Bids.Levels(),
@@ -328,7 +318,7 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 		}
 
 		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
-			Pair:       cp,
+			Pair:       r.Symbol,
 			UpdateTime: r.Timestamp.Time(),
 			UpdateID:   r.ID,
 			Asset:      asset.Spot,
@@ -349,10 +339,6 @@ func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 	}
 	tickerData := make([]ticker.Price, len(resp))
 	for x, r := range resp {
-		cp, err := currency.NewPairFromString(r.Symbol)
-		if err != nil {
-			return err
-		}
 		tickerData[x] = ticker.Price{
 			MarkPrice:    r.MarkPrice.Float64(),
 			High:         r.High.Float64(),
@@ -361,7 +347,7 @@ func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 			QuoteVolume:  r.Amount.Float64(),
 			Open:         r.Open.Float64(),
 			Close:        r.Close.Float64(),
-			Pair:         cp,
+			Pair:         r.Symbol,
 			AssetType:    asset.Spot,
 			ExchangeName: e.Name,
 			LastUpdated:  r.Timestamp.Time(),
@@ -378,14 +364,10 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 	}
 	trades := make([]trade.Data, len(resp))
 	for x, r := range resp {
-		cp, err := currency.NewPairFromString(r.Symbol)
-		if err != nil {
-			return err
-		}
 		trades[x] = trade.Data{
 			TID:          r.ID,
 			Exchange:     e.Name,
-			CurrencyPair: cp,
+			CurrencyPair: r.Symbol,
 			Price:        r.Price.Float64(),
 			Amount:       r.Quantity.Float64(),
 			Timestamp:    r.Timestamp.Time(),
@@ -401,12 +383,8 @@ func (e *Exchange) processCandlestickData(result *SubscriptionResponse) error {
 	}
 	candles := make([]websocket.KlineData, len(resp))
 	for x, r := range resp {
-		cp, err := currency.NewPairFromString(r.Symbol)
-		if err != nil {
-			return err
-		}
 		candles[x] = websocket.KlineData{
-			Pair:       cp,
+			Pair:       r.Symbol,
 			Exchange:   e.Name,
 			Timestamp:  r.Timestamp.Time(),
 			StartTime:  r.StartTime.Time(),

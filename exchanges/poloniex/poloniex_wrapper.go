@@ -1099,6 +1099,10 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return nil, order.ErrOrderNotFound
 		}
 		orderDetail := fResults[0]
+		oType, err := order.StringToOrderType(orderDetail.OrderType)
+		if err != nil {
+			return nil, err
+		}
 		return &order.Detail{
 			Price:                orderDetail.Price.Float64(),
 			Amount:               orderDetail.Quantity.Float64(),
@@ -1109,7 +1113,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			OrderID:              orderDetail.OrderID,
 			Exchange:             e.Name,
 			ClientOrderID:        orderDetail.ClientOrderID,
-			Type:                 orderDetail.OrderType,
+			Type:                 oType,
 			Side:                 orderDetail.Side,
 			Status:               orderStateFromString(orderDetail.State),
 			AssetType:            asset.Futures,
@@ -1309,8 +1313,12 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			case "CROSS":
 				mType = margin.Multi
 			}
+			oType, err := order.StringToOrderType(fOrder.OrderType)
+			if err != nil {
+				return nil, err
+			}
 			orders = append(orders, order.Detail{
-				Type:            fOrder.OrderType,
+				Type:            oType,
 				OrderID:         fOrder.OrderID,
 				Side:            fOrder.Side,
 				Amount:          fOrder.Size.Float64(),
@@ -1449,13 +1457,17 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				if err != nil {
 					return nil, err
 				}
+				oType, err := order.StringToOrderType(smartOrder.Type)
+				if err != nil {
+					return nil, err
+				}
 				detail := order.Detail{
 					Side:          smartOrder.Side,
 					Amount:        smartOrder.Amount.Float64(),
 					Price:         smartOrder.Price.Float64(),
 					TriggerPrice:  smartOrder.StopPrice.Float64(),
 					Pair:          smartOrder.Symbol,
-					Type:          smartOrder.Type,
+					Type:          oType,
 					Exchange:      e.Name,
 					OrderID:       smartOrder.ID,
 					ClientOrderID: smartOrder.ClientOrderID,
@@ -1486,13 +1498,17 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if len(req.Pairs) != 0 && !req.Pairs.Contains(fOrder.Symbol, true) {
 				continue
 			}
+			oType, err := order.StringToOrderType(fOrder.OrderType)
+			if err != nil {
+				return nil, err
+			}
 			detail := order.Detail{
 				Side:            fOrder.Side,
 				Amount:          fOrder.Quantity.Float64(),
 				ExecutedAmount:  fOrder.ExecutedAmount.Float64(),
 				Price:           fOrder.Price.Float64(),
 				Pair:            fOrder.Symbol,
-				Type:            fOrder.OrderType,
+				Type:            oType,
 				Exchange:        e.Name,
 				RemainingAmount: fOrder.Quantity.Float64() - fOrder.ExecutedAmount.Float64(),
 				OrderID:         fOrder.OrderID,

@@ -137,7 +137,7 @@ type FuturesOrderDetails struct {
 	Side                       order.Side        `json:"side"`
 	MarginMode                 string            `json:"mgnMode"`
 	PositionSide               string            `json:"posSide"`
-	OrderType                  order.Type        `json:"type"`
+	OrderType                  string            `json:"type"`
 	Price                      types.Number      `json:"px"`
 	Size                       types.Number      `json:"sz"`
 	TimeInForce                order.TimeInForce `json:"timeInForce"`

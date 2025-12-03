@@ -300,6 +300,10 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 		if err != nil {
 			return err
 		}
+		oType, err := order.StringToOrderType(r.OrderType)
+		if err != nil {
+			return err
+		}
 		orders[i] = order.Detail{
 			ReduceOnly:           r.ReduceOnly,
 			Leverage:             r.Leverage.Float64(),
@@ -314,7 +318,7 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 			Exchange:             e.Name,
 			OrderID:              r.OrderID,
 			ClientOrderID:        r.ClientOrderID,
-			Type:                 r.OrderType,
+			Type:                 oType,
 			Side:                 r.Side,
 			Status:               oStatus,
 			AssetType:            asset.Futures,

@@ -673,7 +673,7 @@ type SmartOrder struct {
 	State           string            `json:"state"`
 	AccountType     string            `json:"accountType"`
 	Side            order.Side        `json:"side"`
-	Type            order.Type        `json:"type"`
+	Type            string            `json:"type"`
 	TimeInForce     order.TimeInForce `json:"timeInForce"`
 	Quantity        types.Number      `json:"quantity"`
 	Price           types.Number      `json:"price"`
@@ -884,51 +884,51 @@ type WsExchangeStatus []struct {
 
 // WsCandles represents a candlestick data instance.
 type WsCandles struct {
-	Symbol     string       `json:"symbol"`
-	Open       types.Number `json:"open"`
-	High       types.Number `json:"high"`
-	Low        types.Number `json:"low"`
-	Close      types.Number `json:"close"`
-	Quantity   types.Number `json:"quantity"`
-	Amount     types.Number `json:"amount"`
-	TradeCount uint64       `json:"tradeCount"`
-	StartTime  types.Time   `json:"startTime"`
-	CloseTime  types.Time   `json:"closeTime"`
-	Timestamp  types.Time   `json:"ts"`
+	Symbol     currency.Pair `json:"symbol"`
+	Open       types.Number  `json:"open"`
+	High       types.Number  `json:"high"`
+	Low        types.Number  `json:"low"`
+	Close      types.Number  `json:"close"`
+	Quantity   types.Number  `json:"quantity"`
+	Amount     types.Number  `json:"amount"`
+	TradeCount uint64        `json:"tradeCount"`
+	StartTime  types.Time    `json:"startTime"`
+	CloseTime  types.Time    `json:"closeTime"`
+	Timestamp  types.Time    `json:"ts"`
 }
 
 // WsTrade represents websocket trade data
 type WsTrade struct {
-	ID         string       `json:"id"`
-	Symbol     string       `json:"symbol"`
-	Amount     types.Number `json:"amount"`
-	Quantity   types.Number `json:"quantity"`
-	TakerSide  string       `json:"takerSide"`
-	Price      types.Number `json:"price"`
-	CreateTime types.Time   `json:"createTime"`
-	Timestamp  types.Time   `json:"ts"`
+	ID         string        `json:"id"`
+	Symbol     currency.Pair `json:"symbol"`
+	Amount     types.Number  `json:"amount"`
+	Quantity   types.Number  `json:"quantity"`
+	TakerSide  string        `json:"takerSide"`
+	Price      types.Number  `json:"price"`
+	CreateTime types.Time    `json:"createTime"`
+	Timestamp  types.Time    `json:"ts"`
 }
 
 // WsTicker represents a websocket ticker information.
 type WsTicker struct {
-	TradeCount  uint64       `json:"tradeCount"`
-	Symbol      string       `json:"symbol"`
-	StartTime   types.Time   `json:"startTime"`
-	Open        types.Number `json:"open"`
-	High        types.Number `json:"high"`
-	Low         types.Number `json:"low"`
-	Close       types.Number `json:"close"`
-	Quantity    types.Number `json:"quantity"`
-	Amount      types.Number `json:"amount"`
-	DailyChange types.Number `json:"dailyChange"`
-	MarkPrice   types.Number `json:"markPrice"`
-	CloseTime   types.Time   `json:"closeTime"`
-	Timestamp   types.Time   `json:"ts"`
+	TradeCount  uint64        `json:"tradeCount"`
+	Symbol      currency.Pair `json:"symbol"`
+	StartTime   types.Time    `json:"startTime"`
+	Open        types.Number  `json:"open"`
+	High        types.Number  `json:"high"`
+	Low         types.Number  `json:"low"`
+	Close       types.Number  `json:"close"`
+	Quantity    types.Number  `json:"quantity"`
+	Amount      types.Number  `json:"amount"`
+	DailyChange types.Number  `json:"dailyChange"`
+	MarkPrice   types.Number  `json:"markPrice"`
+	CloseTime   types.Time    `json:"closeTime"`
+	Timestamp   types.Time    `json:"ts"`
 }
 
 // WsBook represents an orderbook.
 type WsBook struct {
-	Symbol     string                           `json:"symbol"`
+	Symbol     currency.Pair                    `json:"symbol"`
 	Asks       orderbook.LevelsArrayPriceAmount `json:"asks"`
 	Bids       orderbook.LevelsArrayPriceAmount `json:"bids"`
 	ID         int64                            `json:"id"`
@@ -955,8 +955,8 @@ type WebsocketAuthenticationResponse struct {
 
 // WebsocketTradeOrder represents a websocket trade order.
 type WebsocketTradeOrder struct {
-	Symbol         string        `json:"symbol"`
-	Type           order.Type    `json:"type"`
+	Symbol         currency.Pair `json:"symbol"`
+	Type           string        `json:"type"`
 	Quantity       types.Number  `json:"quantity"`
 	OrderID        string        `json:"orderId"`
 	TradeFee       types.Number  `json:"tradeFee"`
