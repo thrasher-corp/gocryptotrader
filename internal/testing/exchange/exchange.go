@@ -133,7 +133,7 @@ func MockWsInstance[T any, PT interface {
 // FixtureError contains an error and the message that caused it
 type FixtureError struct {
 	Err error
-	Msg []byte
+	Msg string
 }
 
 // FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData) and asserts no errors are returned
@@ -163,7 +163,7 @@ func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader fu
 		if err := reader(tb.Context(), msg); err != nil {
 			errs = append(errs, FixtureError{
 				Err: err,
-				Msg: msg,
+				Msg: string(msg),
 			})
 		}
 	}
