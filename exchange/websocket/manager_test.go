@@ -22,7 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/message"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -99,7 +99,7 @@ func TestSetup(t *testing.T) {
 	err := w.Setup(nil)
 	assert.ErrorContains(t, err, "nil pointer: *websocket.Manager")
 
-	w = &Manager{DataHandler: message.NewRelay(1)}
+	w = &Manager{DataHandler: stream.NewRelay(1)}
 	err = w.Setup(nil)
 	assert.ErrorContains(t, err, "nil pointer: *websocket.ManagerSetup")
 
@@ -169,7 +169,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	wsWrong := &Manager{}
 	wsWrong.connector = func() error { return nil }
 
-	wsWrong.DataHandler = message.NewRelay(1)
+	wsWrong.DataHandler = stream.NewRelay(1)
 	err := wsWrong.Connect(t.Context())
 	require.ErrorIs(t, err, ErrWebsocketNotEnabled, "Connect must error correctly")
 
@@ -1193,7 +1193,7 @@ func TestMonitorConnection(t *testing.T) {
 	require.False(t, ws.observeConnection(t.Context(), timer)) // Connect is intentionally erroring
 	// Handle error from a connection which will then trigger a reconnect
 	ws.setState(connectedState)
-	ws.DataHandler = message.NewRelay(1)
+	ws.DataHandler = stream.NewRelay(1)
 	ws.ReadMessageErrors <- errConnectionFault
 	timer = time.NewTimer(time.Second)
 	require.False(t, ws.observeConnection(t.Context(), timer))

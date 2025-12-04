@@ -4,14 +4,14 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/message"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Fills is used to hold data and methods related to fill dissemination
 type Fills struct {
-	dataHandler      *message.Relay
+	dataHandler      *stream.Relay
 	fillsFeedEnabled bool
 }
 

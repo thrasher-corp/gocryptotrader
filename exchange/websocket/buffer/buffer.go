@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/message"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
@@ -24,7 +24,7 @@ var (
 )
 
 // Setup sets private variables
-func (o *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler *message.Relay) error {
+func (o *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler *stream.Relay) error {
 	if err := common.NilGuard(exchangeConfig, c, dataHandler); err != nil {
 		return err
 	}

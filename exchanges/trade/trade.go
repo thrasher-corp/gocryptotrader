@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	tradesql "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
-	"github.com/thrasher-corp/gocryptotrader/exchange/message"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -32,7 +32,7 @@ func (p *Processor) setup(wg *sync.WaitGroup) {
 
 // Setup configures necessary fields to the `Trade` structure that govern trade data
 // processing.
-func (t *Trade) Setup(tradeFeedEnabled bool, c *message.Relay) {
+func (t *Trade) Setup(tradeFeedEnabled bool, c *stream.Relay) {
 	t.dataHandler = c
 	t.tradeFeedEnabled = tradeFeedEnabled
 }

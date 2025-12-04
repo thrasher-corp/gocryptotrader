@@ -12,7 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchange/message"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -101,7 +101,7 @@ type Manager struct {
 	Unsubscriber                  func(subscription.List) error
 	GenerateSubs                  func() (subscription.List, error)
 	useMultiConnectionManagement  bool
-	DataHandler                   *message.Relay
+	DataHandler                   *stream.Relay
 	Match                         *Match
 	ShutdownC                     chan struct{}
 	Wg                            sync.WaitGroup
@@ -175,7 +175,7 @@ func SetupGlobalReporter(r Reporter) {
 // NewManager initialises the websocket struct
 func NewManager() *Manager {
 	return &Manager{
-		DataHandler:  message.NewRelay(jobBuffer),
+		DataHandler:  stream.NewRelay(jobBuffer),
 		ShutdownC:    make(chan struct{}),
 		TrafficAlert: make(chan struct{}, 1),
 		// ReadMessageErrors is buffered for an edge case when `Connect` fails

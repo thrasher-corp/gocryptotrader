@@ -7,7 +7,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/message"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -28,7 +28,7 @@ var (
 // Trade used to hold data and methods related to trade dissemination and
 // storage
 type Trade struct {
-	dataHandler      *message.Relay
+	dataHandler      *stream.Relay
 	tradeFeedEnabled bool
 }
 

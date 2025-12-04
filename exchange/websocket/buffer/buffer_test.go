@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/message"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
@@ -54,8 +54,8 @@ func createSnapshot(pair currency.Pair) (holder *Orderbook, asks, bids orderbook
 
 	newBook := make(map[key.PairAsset]*orderbookHolder)
 
-	relay := message.NewRelay(10)
-	go func(relay *message.Relay) { // reader
+	relay := stream.NewRelay(10)
+	go func(relay *stream.Relay) { // reader
 		for range relay.C {
 			continue
 		}
@@ -433,7 +433,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 
 	var obl Orderbook
 	obl.ob = make(map[key.PairAsset]*orderbookHolder)
-	obl.dataHandler = message.NewRelay(1)
+	obl.dataHandler = stream.NewRelay(1)
 	var snapShot1 orderbook.Book
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
@@ -450,7 +450,7 @@ func TestLoadSnapshot(t *testing.T) {
 	require.NoError(t, err)
 
 	var obl Orderbook
-	obl.dataHandler = message.NewRelay(100)
+	obl.dataHandler = stream.NewRelay(100)
 	obl.ob = make(map[key.PairAsset]*orderbookHolder)
 
 	err = obl.LoadSnapshot(&orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}, ValidateOrderbook: true})
@@ -503,7 +503,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	require.NoError(t, err)
 
 	var holder Orderbook
-	holder.dataHandler = message.NewRelay(100)
+	holder.dataHandler = stream.NewRelay(100)
 	holder.ob = make(map[key.PairAsset]*orderbookHolder)
 	var snapShot1 orderbook.Book
 	snapShot1.Exchange = "WSORDERBOOKTEST1"
@@ -710,7 +710,7 @@ func TestSetup(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	exchangeConfig.Orderbook.WebsocketBufferEnabled = true
-	err = w.Setup(exchangeConfig, bufferConf, message.NewRelay(1))
+	err = w.Setup(exchangeConfig, bufferConf, stream.NewRelay(1))
 	require.ErrorIs(t, err, errIssueBufferEnabledButNoLimit)
 
 	exchangeConfig.Orderbook.WebsocketBufferLimit = 1337
@@ -718,7 +718,7 @@ func TestSetup(t *testing.T) {
 	exchangeConfig.Name = "test"
 	bufferConf.SortBuffer = true
 	bufferConf.SortBufferByUpdateIDs = true
-	err = w.Setup(exchangeConfig, bufferConf, message.NewRelay(1))
+	err = w.Setup(exchangeConfig, bufferConf, stream.NewRelay(1))
 	require.NoError(t, err)
 
 	require.Equal(t, 1337, w.obBufferLimit)
@@ -734,7 +734,7 @@ func TestInvalidateOrderbook(t *testing.T) {
 	require.NoError(t, err)
 
 	w := &Orderbook{}
-	err = w.Setup(&config.Exchange{Name: "test"}, &Config{}, message.NewRelay(2))
+	err = w.Setup(&config.Exchange{Name: "test"}, &Config{}, stream.NewRelay(2))
 	require.NoError(t, err)
 
 	var snapShot1 orderbook.Book

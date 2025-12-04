@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/thrasher-corp/gocryptotrader/exchange/message"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 )
 
 // TestSetup tests the setup function of the Fills struct
 func TestSetup(t *testing.T) {
 	fill := &Fills{}
-	fill.Setup(true, message.NewRelay(1))
+	fill.Setup(true, stream.NewRelay(1))
 
 	if fill.dataHandler == nil {
 		t.Error("expected dataHandler to be set")
@@ -24,7 +24,7 @@ func TestSetup(t *testing.T) {
 
 // TestUpdateDisabledFeed tests the Update function when fillsFeedEnabled is false
 func TestUpdateDisabledFeed(t *testing.T) {
-	fill := Fills{dataHandler: message.NewRelay(1), fillsFeedEnabled: false}
+	fill := Fills{dataHandler: stream.NewRelay(1), fillsFeedEnabled: false}
 
 	// Send a test data to the Update function
 	testData := Data{Timestamp: time.Now(), Price: 15.2, Amount: 3.2}
@@ -40,7 +40,7 @@ func TestUpdateDisabledFeed(t *testing.T) {
 
 // TestUpdate tests the Update function of the Fills struct.
 func TestUpdate(t *testing.T) {
-	fill := &Fills{dataHandler: message.NewRelay(1), fillsFeedEnabled: true}
+	fill := &Fills{dataHandler: stream.NewRelay(1), fillsFeedEnabled: true}
 	receivedData := Data{Timestamp: time.Now(), Price: 15.2, Amount: 3.2}
 	if err := fill.Update(receivedData); err != nil {
 		t.Errorf("Update returned error %v", err)
@@ -63,7 +63,7 @@ func TestUpdate(t *testing.T) {
 
 // TestUpdateNoData tests the Update function with no Data objects
 func TestUpdateNoData(t *testing.T) {
-	fill := &Fills{dataHandler: message.NewRelay(1), fillsFeedEnabled: true}
+	fill := &Fills{dataHandler: stream.NewRelay(1), fillsFeedEnabled: true}
 	if err := fill.Update(); err != nil {
 		t.Errorf("Update returned error %v", err)
 	}
@@ -78,7 +78,7 @@ func TestUpdateNoData(t *testing.T) {
 
 // TestUpdateMultipleData tests the Update function with multiple Data objects
 func TestUpdateMultipleData(t *testing.T) {
-	fill := &Fills{dataHandler: message.NewRelay(2), fillsFeedEnabled: true}
+	fill := &Fills{dataHandler: stream.NewRelay(2), fillsFeedEnabled: true}
 	receivedData := Data{Timestamp: time.Now(), Price: 15.2, Amount: 3.2}
 	receivedData2 := Data{Timestamp: time.Now(), Price: 18.2, Amount: 9.0}
 	if err := fill.Update(receivedData, receivedData2); err != nil {

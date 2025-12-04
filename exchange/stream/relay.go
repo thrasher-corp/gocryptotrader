@@ -1,4 +1,4 @@
-package message
+package stream
 
 import (
 	"context"

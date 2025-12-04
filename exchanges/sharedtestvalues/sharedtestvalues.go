@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/message"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -54,7 +54,7 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 // NewTestWebsocket returns a test websocket object
 func NewTestWebsocket() *websocket.Manager {
 	w := websocket.NewManager()
-	w.DataHandler = message.NewRelay(WebsocketChannelOverrideCapacity)
+	w.DataHandler = stream.NewRelay(WebsocketChannelOverrideCapacity)
 	return w
 }
 
