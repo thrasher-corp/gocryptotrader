@@ -152,15 +152,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	}
 	if result.Event != "" {
 		switch result.Event {
-		case "pong", "subscribe":
+		case "pong", "subscribe", "unsubscribe":
 		case "error":
 			if result.Message == "user must be authenticated!" {
 				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				log.Debugf(log.ExchangeSys, "authenticated websocket disabled: %s", string(respRaw))
+				log.Errorf(log.ExchangeSys, "error on authenticated message, disabling websocket: %s", string(respRaw))
 			}
-			fallthrough
 		default:
-			log.Debugf(log.ExchangeSys, "Unexpected event message spot %s", string(respRaw))
+			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		}
 		return nil
 	}

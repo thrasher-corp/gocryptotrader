@@ -156,11 +156,11 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	}
 	if result.Event != "" {
 		switch result.Event {
-		case "pong", "subscribe":
+		case "pong", "subscribe", "unsubscribe":
 		case "error":
 			if result.Message == "user must be authenticated!" {
 				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				log.Debugf(log.ExchangeSys, "authenticated websocket disabled%s", string(respRaw))
+				log.Debugf(log.ExchangeSys, "error on authenticated message, disabling websocket: %s", string(respRaw))
 			}
 			fallthrough
 		default:

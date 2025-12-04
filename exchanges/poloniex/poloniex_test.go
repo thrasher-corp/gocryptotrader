@@ -30,8 +30,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "WSKMLKNW-JCKF6SGH-VWKQAUS8-RYYWFJYP"
+	apiSecret               = "b1b11137b33e52bd7ae2df3a59e905141b40740edd0568f9141b63ed0cea6bdcab8b2ac8e307ca11a048493fd7d1528a26d7a1a9e3caae53fb82965b3ebf2b57"
 	canManipulateRealOrders = false
 )
 
@@ -2844,4 +2844,10 @@ func TestStatusResponseError(t *testing.T) {
 	err, ok := any(p).(interface{ Error() error })
 	require.True(t, ok)
 	require.ErrorContains(t, err.Error(), "this works")
+}
+
+func TestConnec(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, e.Websocket.Connect())
+	time.Sleep(time.Second * 23)
 }
