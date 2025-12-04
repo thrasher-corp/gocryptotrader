@@ -75,7 +75,9 @@ func (e *Exchange) WsConnect() error {
 	})
 	err = e.seedOrderBook(ctx)
 	if err != nil {
-		e.Websocket.DataHandler <- err
+		if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+			log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+		}
 	}
 
 	e.Websocket.Wg.Add(1)
@@ -94,12 +96,14 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 			return
 		}
 		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
-			e.Websocket.DataHandler <- err
+			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+			}
 		}
 	}
 }
 
-func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	event, err := jsonparser.GetUnsafeString(respRaw, "event")
 	if err != nil {
 		return fmt.Errorf("%w `event`: %w", common.ErrParsingWSField, err)
@@ -116,7 +120,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 	case "trade":
 		return e.handleWSTrade(respRaw)
 	case "order_created", "order_deleted", "order_changed":
-		return e.handleWSOrder(event, respRaw)
+		return e.handleWSOrder(ctx, event, respRaw)
 	case "request_reconnect":
 		go func() {
 			if err := e.Websocket.Shutdown(); err != nil { // Connection monitor will reconnect
@@ -124,7 +128,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			}
 		}()
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 	}
 	return nil
 }
@@ -169,7 +173,7 @@ func (e *Exchange) handleWSTrade(msg []byte) error {
 	})
 }
 
-func (e *Exchange) handleWSOrder(event string, msg []byte) error {
+func (e *Exchange) handleWSOrder(ctx context.Context, event string, msg []byte) error {
 	channel, p, err := e.parseChannelName(msg)
 	if err != nil {
 		return err
@@ -221,9 +225,7 @@ func (e *Exchange) handleWSOrder(event string, msg []byte) error {
 		Pair:            p,
 	}
 
-	e.Websocket.DataHandler <- d
-
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, d)
 }
 
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
