@@ -246,4 +246,22 @@ func TestHTTPRecord(t *testing.T) {
 			require.NoError(t, err, "HTTPRecord must not error")
 		}
 	}
+
+	for _, method := range []string{http.MethodGet, http.MethodDelete} {
+		fullURL, err = url.Parse("https://api.abc.com/test/payload?$queryString")
+		require.NoError(t, err)
+		assert.NotNil(t, fullURL)
+
+		response = &http.Response{
+			Request: &http.Request{
+				Method: method,
+				URL:    fullURL,
+			},
+		}
+
+		for range 2 {
+			err = HTTPRecord(response, "mock", content, 4)
+			require.NoError(t, err, "HTTPRecord must not error")
+		}
+	}
 }
