@@ -120,9 +120,9 @@ func (e *Exchange) DeleteBrokerAPIKeySubAccount(ctx context.Context, arg *Broker
 	if arg.APIKey == "" {
 		return nil, errAPIKeyMissing
 	}
-	resp := &struct {
+	var resp struct {
 		SubAccount string `json:"subAccount"`
-	}{}
+	}
 	return resp.SubAccount, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodDelete, "broker/sub-account/apiKey", nil, &arg, &resp, true)
 }
 

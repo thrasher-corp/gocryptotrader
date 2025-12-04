@@ -64,17 +64,17 @@ func (e *Exchange) GetSymbols(ctx context.Context, symbols []string) (*ExchangeC
 
 // GetSystemTime check server time
 func (e *Exchange) GetSystemTime(ctx context.Context) (types.Time, error) {
-	resp := &struct {
+	var resp struct {
 		ServerTime types.Time `json:"serverTime"`
-	}{}
+	}
 	return resp.ServerTime, e.SendHTTPRequest(ctx, exchange.RestSpot, systemTimeEPL, http.MethodGet, "time", nil, nil, &resp)
 }
 
 // GetDefaultSumbols retrieves all default symbols
 func (e *Exchange) GetDefaultSumbols(ctx context.Context) ([]string, error) {
-	resp := &struct {
+	var resp struct {
 		Symbols []string `json:"data"`
-	}{}
+	}
 	return resp.Symbols, e.SendHTTPRequest(ctx, exchange.RestSpot, defaultSymbolsEPL, http.MethodGet, "defaultSymbols", nil, nil, &resp)
 }
 
@@ -131,7 +131,7 @@ func (e *Exchange) GetAggregatedTrades(ctx context.Context, symbol string, start
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, aggregatedTradesEPL, http.MethodGet, "aggTrades", params, nil, &resp)
 }
 
-var intervalsList = []struct {
+var intervalsList = []*struct {
 	i           kline.Interval
 	str         string
 	isWebsocket bool
@@ -343,9 +343,9 @@ func (e *Exchange) DeleteAPIKeySubAccount(ctx context.Context, subAccountName st
 	}
 	params := url.Values{}
 	params.Set("subAccount", subAccountName)
-	resp := &struct {
+	var resp struct {
 		SubAccount string `json:"subAccount"`
-	}{}
+	}
 	return resp.SubAccount, e.SendHTTPRequest(ctx, exchange.RestSpot, deleteSubAccountAPIKeyEPL, http.MethodDelete, "sub-account/apiKey", params, nil, &resp, true)
 }
 
@@ -440,9 +440,9 @@ func (e *Exchange) GetKYCStatus(ctx context.Context) (*KYCStatusInfo, error) {
 
 // UseAPIDefaultSymbols retrieves a default user API symbols
 func (e *Exchange) UseAPIDefaultSymbols(ctx context.Context) ([]string, error) {
-	resp := &struct {
+	var resp struct {
 		Data []string `json:"data"`
-	}{}
+	}
 	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, selfSymbolsEPL, http.MethodGet, "selfSymbols", nil, nil, &resp, true)
 }
 
@@ -1385,9 +1385,9 @@ func (e *Exchange) GetSubAffiliateData(ctx context.Context, startTime, endTime t
 
 // GenerateListenKey starts a new data stream. The stream will close 60 minutes after creation unless a keepalive is sent.
 func (e *Exchange) GenerateListenKey(ctx context.Context) (string, error) {
-	resp := &struct {
+	var resp struct {
 		ListenKey string `json:"listenKey"`
-	}{}
+	}
 	return resp.ListenKey, e.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "userDataStream", nil, nil, &resp, true)
 }
 

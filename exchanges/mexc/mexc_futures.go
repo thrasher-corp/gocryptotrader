@@ -223,9 +223,9 @@ func (e *Exchange) GetUserSingleCurrencyAssetInformation(ctx context.Context, cc
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	resp := &struct {
+	var resp struct {
 		Data *UserAssetBalance `json:"data"`
-	}{}
+	}
 	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, userSingleCurrencyAssetInfoEPL, http.MethodGet, "private/account/asset/"+ccy.String(), nil, &resp, true)
 }
 
@@ -363,9 +363,9 @@ func (e *Exchange) GetOrderBasedOnExternalNumber(ctx context.Context, symbol, ex
 	if externalOrderID == "" {
 		return nil, fmt.Errorf("%w: externalOrderID is missing", order.ErrOrderIDNotSet)
 	}
-	resp := &struct {
+	var resp struct {
 		Data *FuturesOrderDetail `json:"data"`
-	}{}
+	}
 	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, getOrderBasedOnExternalNumberEPL, http.MethodGet, "private/order/external/"+symbol+"/"+externalOrderID, nil, &resp, true)
 }
 
@@ -374,9 +374,9 @@ func (e *Exchange) GetOrderByOrderID(ctx context.Context, orderID string) (*Futu
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	resp := &struct {
+	var resp struct {
 		Data *FuturesOrderDetail `json:"data"`
-	}{}
+	}
 	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, orderByOrderNumberEPL, http.MethodGet, "private/order/get/"+orderID, nil, nil, &resp, true)
 }
 
@@ -569,9 +569,9 @@ func (e *Exchange) SwitchLeverage(ctx context.Context, positionID, leverage, ope
 	if positionType != 0 {
 		params.Set("positionType", strconv.FormatInt(positionType, 10))
 	}
-	resp := &struct {
+	var resp struct {
 		Data PositionLeverageResponse `json:"data"`
-	}{}
+	}
 	return &resp.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, switchLeverageEPL, http.MethodPost, "private/position/change_leverage", params, nil, &resp, true)
 }
 
