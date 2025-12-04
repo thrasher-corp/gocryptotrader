@@ -156,8 +156,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 						break
 					}
 				}
-
-			case http.MethodPost:
+			case http.MethodPost, http.MethodDelete, http.MethodPut:
 				for i := range mockResponses {
 					cType, ok := mockResponses[i].Headers[contentType]
 
@@ -175,11 +174,10 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 							return urlErr
 						}
 
-						if MatchURLVals(respQueryVals, mockRespVals) {
+						if found = MatchURLVals(respQueryVals, mockRespVals); found {
 							// if found will delete instance and overwrite with new
 							// data
 							mockResponses = slices.Delete(mockResponses, i, i+1)
-							found = true
 						}
 
 					case applicationJSON, textPlain:
@@ -199,11 +197,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 							if len(reqVals) != len(mockVals) {
 								continue
 							}
-							found = true
-							for j := range reqVals {
-								found = found && MatchURLVals(reqVals[j], mockVals[j])
-							}
-							if found {
+							if found = slices.EqualFunc(reqVals, mockVals, MatchURLVals); found {
 								// if found will delete instance and overwrite with new
 								// data
 								mockResponses = slices.Delete(mockResponses, i, i+1)
@@ -219,11 +213,10 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 								return jErr
 							}
 
-							if MatchURLVals(reqVals, mockVals) {
+							if found = MatchURLVals(reqVals, mockVals); found {
 								// if found will delete instance and overwrite with new
 								// data
 								mockResponses = slices.Delete(mockResponses, i, i+1)
-								found = true
 							}
 						}
 					case "":
@@ -234,15 +227,12 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 								return urlErr
 							}
 
-							if MatchURLVals(mockQuery, res.Request.URL.Query()) {
+							if found = MatchURLVals(mockQuery, res.Request.URL.Query()); found {
 								// if found will delete instance and overwrite with new data
 								mockResponses = slices.Delete(mockResponses, i, i+1)
-								found = true
 							}
-
 							break
 						}
-
 						fallthrough
 					default:
 						return fmt.Errorf("unhandled content type %s", jCType)

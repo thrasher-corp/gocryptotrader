@@ -125,7 +125,7 @@ func TestDeriveURLValsFromJSONSlice(t *testing.T) {
 	require.NoError(t, err, "Marshal must not error")
 
 	values, err := DeriveURLValsFromJSONSlice(payload)
-	require.NoError(t, err, "DeriveURLValsFromJSONMap must not error")
+	require.NoError(t, err, "DeriveURLValsFromJSONSlice must not error")
 	assert.Len(t, values, 4)
 
 	for i := range test1 {

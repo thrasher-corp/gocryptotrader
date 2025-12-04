@@ -40,26 +40,40 @@ func TestGetFilteredURLVals(t *testing.T) {
 }
 
 func TestCheckResponsePayload(t *testing.T) {
-	testbody := struct {
-		SomeJSON string `json:"stuff"`
-	}{
-		SomeJSON: "REAAAAHHHHH",
+	type someJSON struct {
+		SomeJSON string `json:"stuff,omitempty"`
 	}
-
-	payload, err := json.Marshal(testbody)
-	require.NoError(t, err, "json marshal must not error")
+	inputs := []struct {
+		in  any
+		exp string
+	}{{
+		in: []someJSON{
+			{
+				SomeJSON: "REAAAAHHHHH",
+			},
+			{},
+		}, exp: `[
+ {
+  "stuff": "REAAAAHHHHH"
+ },
+ {}
+]`}, {
+		in: someJSON{}, exp: `{}`,
+	},
+	}
 
 	items, err := getExcludedItems()
 	require.NoError(t, err, "getExcludedItems must not error")
 	assert.NotNil(t, items, "getExcludedItems should not return nil")
 
-	data, err := CheckResponsePayload(payload, items, 5)
-	assert.NoError(t, err, "CheckResponsePayload should not error")
+	for i := range inputs {
+		payload, err := json.Marshal(inputs[i].in)
+		require.NoError(t, err, "json marshal must not error")
 
-	expected := `{
- "stuff": "REAAAAHHHHH"
-}`
-	assert.Equal(t, expected, string(data))
+		data, err := CheckResponsePayload(payload, items, 5)
+		assert.NoError(t, err, "CheckResponsePayload should not error")
+		assert.Equal(t, inputs[i].exp, string(data))
+	}
 }
 
 func TestGetExcludedItems(t *testing.T) {
@@ -210,24 +224,26 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, fullURL)
 
-	response = &http.Response{
-		Request: &http.Request{
-			Header: map[string][]string{
-				contentType: {applicationJSON},
+	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut} {
+		response = &http.Response{
+			Request: &http.Request{
+				Header: map[string][]string{
+					contentType: {applicationJSON},
+				},
+				Method:  method,
+				URL:     fullURL,
+				Body:    io.NopCloser(bytes.NewReader(content)),
+				GetBody: func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(content)), nil },
 			},
-			Method:  http.MethodPost,
-			URL:     fullURL,
-			Body:    io.NopCloser(bytes.NewReader(content)),
-			GetBody: func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(content)), nil },
-		},
-	}
+		}
 
-	// Call HTTPRecord repeatedly using the same response and request body.
-	// HTTPRecord internally checks whether the request body contains a JSON array,
-	// attempts to unmarshal it, and generates a []url.Values for comparison.
-	// This loop ensures that repeated calls with identical input do not cause errors.
-	for range 2 {
-		err = HTTPRecord(response, "mock", content, 4)
-		require.NoError(t, err, "HTTPRecord must not error")
+		// Call HTTPRecord repeatedly using the same response and request body.
+		// HTTPRecord internally checks whether the request body contains a JSON array,
+		// attempts to unmarshal it, and generates a []url.Values for comparison.
+		// This loop ensures that repeated calls with identical input do not cause errors.
+		for range 2 {
+			err = HTTPRecord(response, "mock", content, 4)
+			require.NoError(t, err, "HTTPRecord must not error")
+		}
 	}
 }
