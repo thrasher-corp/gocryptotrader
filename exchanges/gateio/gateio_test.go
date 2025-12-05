@@ -4237,7 +4237,7 @@ func TestGetAlphaCurrencyQuoteInfo(t *testing.T) {
 	require.ErrorIs(t, err, errGasModeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	arg.Slippage = 10
+	arg.GasMode = "custom"
 	result, err := e.GetAlphaCurrencyQuoteInfo(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4260,9 +4260,41 @@ func TestPlaceAlphaTradeOrder(t *testing.T) {
 	_, err = e.PlaceAlphaTradeOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errGasModeRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	arg.Slippage = 10
+	arg.GasMode = "custom"
+	_, err = e.PlaceAlphaTradeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errQuoteIDRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	arg.QuoteID = "123345678"
 	result, err := e.PlaceAlphaTradeOrder(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAlphaOrders(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetAlphaOrders(t.Context(), currency.EMPTYCODE, order.Sell, 0, time.Time{}, time.Time{}, 0, 10)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetAlphaOrders(t.Context(), currency.ETH, order.Long, 0, time.Time{}, time.Time{}, 0, 10)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	_, err = e.GetAlphaOrders(t.Context(), currency.ETH, order.Sell, 0, time.Now(), time.Now().Add(-time.Hour*10), 0, 10)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetAlphaOrders(t.Context(), currency.ETH, order.Sell, 1, time.Now().Add(-time.Hour*10), time.Now(), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAlphaOrderByID(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetAlphaOrderByID(t.Context(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetAlphaOrderByID(t.Context(), "123345678")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
