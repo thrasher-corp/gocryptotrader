@@ -1882,8 +1882,8 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, req *order.Cancel) 
 	}
 	if len(resp) != 1 {
 		return common.ErrNoResponse
-	} else if resp[0].Code != 0 {
-		return fmt.Errorf("%w: code: %d message: %s", common.ErrInvalidResponse, resp[0].Code, resp[0].Message)
+	} else if resp[0].Code != 200 {
+		return fmt.Errorf("%w: code: %d message: %s", order.ErrCancelFailed, resp[0].Code, resp[0].Message)
 	}
 	return nil
 }

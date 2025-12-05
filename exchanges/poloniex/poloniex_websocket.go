@@ -152,19 +152,20 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	}
 	if result.Event != "" {
 		switch result.Event {
-		case "pong", "subscribe", "unsubscribe":
+		case "pong":
+		case "subscribe", "unsubscribe":
+			return conn.RequireMatchWithData(result.Channel, respRaw)
 		case "error":
-			if result.Message == "user must be authenticated!" {
-				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				log.Errorf(log.ExchangeSys, "error on authenticated message, disabling websocket: %s", string(respRaw))
-			}
+			log.Errorf(log.ExchangeSys, "Unexpected error event message spot %s", string(respRaw))
 		default:
 			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
+			log.Debugf(log.ExchangeSys, "Unexpected event message spot %s", string(respRaw))
 		}
 		return nil
 	}
 	switch result.Channel {
 	case channelAuth:
+		println(string(respRaw))
 		return conn.RequireMatchWithData("auth", respRaw)
 	case channelSymbols:
 		var response [][]WsSymbol
@@ -470,6 +471,9 @@ func channelName(s *subscription.Subscription) string {
 func channelToIntervalSplit(intervalString string) (string, kline.Interval, error) {
 	splits := strings.Split(intervalString, "_")
 	length := len(splits)
+	if length < 3 {
+		return intervalString, kline.Interval(0), fmt.Errorf("%w %q", kline.ErrInvalidInterval, intervalString)
+	}
 	intervalValue, err := stringToInterval(strings.Join(splits[length-2:], "_"))
 	return strings.Join(splits[:length-2], "_"), intervalValue, err
 }
@@ -507,8 +511,9 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		if err := conn.SendJSONMessage(ctx, request.UnAuth, payload); err != nil {
-			errs = common.AppendError(errs, err)
+		_, err = conn.SendMessageReturnResponse(ctx, request.UnAuth, payload.Channel[0], &payload)
+		if err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w subscribing to channel: %s", err, payload.Channel[0]))
 			continue
 		}
 		if operation == "subscribe" {

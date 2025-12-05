@@ -22,7 +22,7 @@ func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 	if len(resp) != 1 {
 		return nil, common.ErrInvalidResponse
 	} else if resp[0].Code != 0 && resp[0].Code != 200 {
-		return nil, fmt.Errorf("%w: error code: %d message: %s", common.ErrNoResponse, resp[0].Code, resp[0].Message)
+		return nil, fmt.Errorf("%w: error code: %d message: %s", order.ErrPlaceFailed, resp[0].Code, resp[0].Message)
 	}
 	return resp[0], nil
 }
@@ -46,7 +46,7 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 	}
 	for r := range resp {
 		if resp[r].Code != 0 && resp[r].Code != 200 {
-			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp[r].Code, resp[r].Message))
+			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", order.ErrCancelFailed, resp[r].Code, resp[r].Message))
 		}
 	}
 	return resp, err
@@ -68,7 +68,7 @@ func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, ac
 	}
 	for r := range resp {
 		if resp[r].Code != 0 && resp[r].Code != 200 {
-			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", common.ErrNoResponse, resp[r].Code, resp[r].Message))
+			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", order.ErrCancelFailed, resp[r].Code, resp[r].Message))
 		}
 	}
 	return resp, err

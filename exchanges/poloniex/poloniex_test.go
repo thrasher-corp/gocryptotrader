@@ -30,12 +30,12 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = "WSKMLKNW-JCKF6SGH-VWKQAUS8-RYYWFJYP"
-	apiSecret               = "b1b11137b33e52bd7ae2df3a59e905141b40740edd0568f9141b63ed0cea6bdcab8b2ac8e307ca11a048493fd7d1528a26d7a1a9e3caae53fb82965b3ebf2b57"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
-const websocketMockTestsSkipped = "skipped mock tests on websocket connection"
+const websocketMockTestsSkipped = "skipped websocket test while mock testing is enabled"
 
 var (
 	e                                     *Exchange
@@ -2808,6 +2808,7 @@ var channelIntervals = []*struct {
 	interval kline.Interval
 	err      error
 }{
+	{input: "mark_candles", channel: "mark_candles", err: kline.ErrInvalidInterval},
 	{input: "mark_candles_hour_1", channel: "mark_candles", interval: kline.OneHour},
 	{input: "mark_price_candles_minute_1", channel: "mark_price_candles", interval: kline.OneMin},
 	{input: "mark_candles_minute_30", channel: "mark_candles", interval: kline.ThirtyMin},
@@ -2846,8 +2847,7 @@ func TestStatusResponseError(t *testing.T) {
 	require.ErrorContains(t, err.Error(), "this works")
 }
 
-func TestConnec(t *testing.T) {
+func TestConnect(t *testing.T) {
 	t.Parallel()
 	require.NoError(t, e.Websocket.Connect())
-	time.Sleep(time.Second * 23)
 }

@@ -76,8 +76,6 @@ var (
 		subscription.MyAccountChannel: channelFuturesAccount,
 		subscription.MyTradesChannel:  channelFuturesPrivateTrades,
 	}
-
-	onceFuturesOrderbook map[string]bool
 )
 
 // WsFuturesConnect establishes a websocket connection to the futures websocket server.
@@ -85,7 +83,6 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	onceFuturesOrderbook = make(map[string]bool)
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
@@ -156,14 +153,13 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	}
 	if result.Event != "" {
 		switch result.Event {
-		case "pong", "subscribe", "unsubscribe":
+		case "pong":
+		case "subscribe", "unsubscribe":
+			return conn.RequireMatchWithData(result.Channel, respRaw)
 		case "error":
-			if result.Message == "user must be authenticated!" {
-				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				log.Debugf(log.ExchangeSys, "error on authenticated message, disabling websocket: %s", string(respRaw))
-			}
-			fallthrough
+			log.Errorf(log.ExchangeSys, "Unexpected error event message futures %s", string(respRaw))
 		default:
+			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 			log.Debugf(log.ExchangeSys, "Unexpected event message futures %s", string(respRaw))
 		}
 		return nil
@@ -182,7 +178,11 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 		channelFuturesOrderbook:
 		return e.processFuturesOrderbook(result.Data, result.Action)
 	case channelFuturesCandles:
-		interval, err := stringToInterval(strings.Join(strings.Split(result.Channel, "_")[1:], "_"))
+		candleIndex := strings.Index(result.Channel, "_")
+		if candleIndex == -1 {
+			return fmt.Errorf("%w %q", kline.ErrUnsupportedInterval, result.Channel)
+		}
+		interval, err := stringToInterval(result.Channel[candleIndex:])
 		if err != nil {
 			return err
 		}
@@ -380,12 +380,7 @@ func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
 		return err
 	}
 	for _, r := range resp {
-		_, okay := onceFuturesOrderbook[r.Symbol.String()]
-		if !okay || action == "snapshot" {
-			if onceFuturesOrderbook == nil {
-				onceFuturesOrderbook = make(map[string]bool)
-			}
-			onceFuturesOrderbook[r.Symbol.String()] = true
+		if action == "snapshot" {
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Bids:         r.Bids.Levels(),
 				Asks:         r.Asks.Levels(),
@@ -517,7 +512,7 @@ func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscript
 func (e *Exchange) SubscribeFutures(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	payloads := e.handleFuturesSubscriptions("subscribe", subs)
 	for _, payload := range payloads {
-		if err := conn.SendJSONMessage(ctx, request.UnAuth, payload); err != nil {
+		if _, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payload.Channel[0], payload); err != nil {
 			return err
 		}
 	}
@@ -528,7 +523,7 @@ func (e *Exchange) SubscribeFutures(ctx context.Context, conn websocket.Connecti
 func (e *Exchange) UnsubscribeFutures(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
 	payloads := e.handleFuturesSubscriptions("unsubscribe", unsub)
 	for _, payload := range payloads {
-		if err := conn.SendJSONMessage(ctx, request.UnAuth, payload); err != nil {
+		if _, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payload.Channel[0], payload); err != nil {
 			return err
 		}
 	}
