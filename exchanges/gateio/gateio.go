@@ -119,6 +119,8 @@ var (
 	errSingleAssetRequired              = errors.New("single asset type required")
 	errMissingUnifiedAccountMode        = errors.New("unified account mode is required")
 	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
+	errFetchingOrderbook                = errors.New("error fetching orderbook")
+	errNoSpotInstrument                 = errors.New("no spot instrument available")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
