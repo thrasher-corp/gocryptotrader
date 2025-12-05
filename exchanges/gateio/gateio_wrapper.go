@@ -172,6 +172,7 @@ func (e *Exchange) SetDefaults() {
 		exchange.RestFutures:           gateioFuturesLiveTradingAlternative,
 		exchange.RestSpotSupplementary: gateioFuturesTestnetTrading,
 		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
+		exchange.RestAlpha:             alphaLiveTradingURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

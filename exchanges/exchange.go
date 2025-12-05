@@ -1372,6 +1372,8 @@ func (u URL) String() string {
 		return edgeCase2URL
 	case EdgeCase3:
 		return edgeCase3URL
+	case RestAlpha:
+		return alphaURL
 	default:
 		return ""
 	}
@@ -1422,6 +1424,8 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return EdgeCase2, nil
 	case edgeCase3URL:
 		return EdgeCase3, nil
+	case alphaURL:
+		return RestAlpha, nil
 	default:
 		return Invalid, fmt.Errorf("%w %q", errEndpointStringNotFound, ep)
 	}

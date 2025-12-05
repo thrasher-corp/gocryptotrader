@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -4195,4 +4196,73 @@ func TestGetEstimatedInterestRate(t *testing.T) {
 	val, ok := got["BTC"]
 	require.True(t, ok, "result map must contain BTC key")
 	require.Positive(t, val.Float64(), "estimated interest rate must not be 0")
+}
+
+// Alpha endpoints unit tests
+
+func TestGetAlphaAccounts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetAlphaAccounts(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAlphaAccountTransactionHistory(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetAlphaAccountTransactionHistory(t.Context(), time.Now().Add(-time.Hour*100), time.Now(), 1, 10)
+	require.ErrorIs(t, err, errStartTimeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetAlphaAccountTransactionHistory(t.Context(), time.Now().Add(-time.Hour*100), time.Now(), 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAlphaCurrencyQuoteInfo(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetAlphaCurrencyQuoteInfo(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg := &AlphaCurrencyQuoteInfoRequest{Currency: currency.BTC}
+	_, err = e.GetAlphaCurrencyQuoteInfo(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = order.Sell
+	_, err = e.GetAlphaCurrencyQuoteInfo(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	arg.Amount = 1
+	_, err = e.GetAlphaCurrencyQuoteInfo(t.Context(), arg)
+	require.ErrorIs(t, err, errGasModeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	arg.Slippage = 10
+	result, err := e.GetAlphaCurrencyQuoteInfo(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPlaceAlphaTradeOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.PlaceAlphaTradeOrder(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg := &AlphaCurrencyQuoteInfoRequest{Currency: currency.BTC}
+	_, err = e.PlaceAlphaTradeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = order.Sell
+	_, err = e.PlaceAlphaTradeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	arg.Amount = 1
+	_, err = e.PlaceAlphaTradeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errGasModeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	arg.Slippage = 10
+	result, err := e.PlaceAlphaTradeOrder(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }

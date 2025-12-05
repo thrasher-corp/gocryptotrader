@@ -286,6 +286,7 @@ const (
 	EdgeCase1
 	EdgeCase2
 	EdgeCase3
+	RestAlpha
 
 	restSpotURL                   = "RestSpotURL"
 	restSpotSupplementaryURL      = "RestSpotSupplementaryURL"
@@ -308,6 +309,7 @@ const (
 	edgeCase1URL                  = "EdgeCase1URL"
 	edgeCase2URL                  = "EdgeCase2URL"
 	edgeCase3URL                  = "EdgeCase3URL"
+	alphaURL                      = "Alpha"
 )
 
 var keyURLs = []URL{
@@ -332,6 +334,7 @@ var keyURLs = []URL{
 	EdgeCase1,
 	EdgeCase2,
 	EdgeCase3,
+	RestAlpha,
 }
 
 // URL stores uint conversions
