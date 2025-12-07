@@ -582,7 +582,7 @@ type Orderbook struct {
 
 // Trade represents market trade.
 type Trade struct {
-	ID           int64        `json:"id,string"`
+	ID           uint64       `json:"id,string"`
 	CreateTime   types.Time   `json:"create_time_ms"`
 	CurrencyPair string       `json:"currency_pair"`
 	OrderID      string       `json:"order_id"`
