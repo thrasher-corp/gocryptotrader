@@ -1146,6 +1146,9 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			errCap.Label,
 			errCap.Message)
 	}
+	if castedInterface, okay := result.(interface{ Error() error }); okay {
+		return castedInterface.Error()
+	}
 	if result == nil {
 		return nil
 	}

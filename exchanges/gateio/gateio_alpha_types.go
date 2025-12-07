@@ -1,10 +1,25 @@
 package gateio
 
 import (
+	"fmt"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
+
+// alphaStatusError implements an interface with a method Error()
+type alphaStatusError struct {
+	Label   string `json:"Label"`
+	Message string `json:"Message"`
+}
+
+func (a *alphaStatusError) Error() error {
+	if a.Label != "" {
+		return fmt.Errorf("label: %s message: %s", a.Label, a.Message)
+	}
+	return nil
+}
 
 // AlphaAccount represents an alpha account information
 type AlphaAccount struct {
@@ -36,6 +51,7 @@ type AlphaCurrencyQuoteInfoRequest struct {
 
 // AlphaCurrencyQuoteDetail holds a currency quote information detail
 type AlphaCurrencyQuoteDetail struct {
+	alphaStatusError
 	QuoteID                  string       `json:"quote_id"`
 	MinAmount                types.Number `json:"min_amount"`
 	MaxAmount                types.Number `json:"max_amount"`
@@ -50,6 +66,7 @@ type AlphaCurrencyQuoteDetail struct {
 
 // AlphaPlaceOrderResponse represents response details returned after placing alpha orders
 type AlphaPlaceOrderResponse struct {
+	alphaStatusError
 	OrderID      string       `json:"order_id"`
 	Status       int64        `json:"status"`
 	Side         string       `json:"side"`
@@ -62,6 +79,7 @@ type AlphaPlaceOrderResponse struct {
 
 // AlphaOrderDetail holds a alpha order details
 type AlphaOrderDetail struct {
+	alphaStatusError
 	OrderID         string       `json:"order_id"`
 	TransactionHash string       `json:"tx_hash"`
 	Side            string       `json:"side"`
@@ -75,4 +93,24 @@ type AlphaOrderDetail struct {
 	TransactionFee  string       `json:"transaction_fee"`
 	CreateTime      types.Time   `json:"create_time"`
 	FailedReason    string       `json:"failed_reason"`
+}
+
+// AlphaCurrencyDetail holds an alpha currency detail
+type AlphaCurrencyDetail struct {
+	Currency        string `json:"currency"`
+	Name            string `json:"name"`
+	Chain           string `json:"chain"`
+	Address         string `json:"address"`
+	Status          int32  `json:"status"`
+	Precision       int32  `json:"precision"`
+	AmountPrecision int32  `json:"amount_precision"`
+}
+
+// AlphaCurrencyTickerInfo represents an alpha currency ticker detail
+type AlphaCurrencyTickerInfo struct {
+	Currency  string       `json:"currency"`
+	Change    string       `json:"change"`
+	Last      types.Number `json:"last"`
+	Volume    types.Number `json:"volume"`
+	MarketCap string       `json:"market_cap"`
 }

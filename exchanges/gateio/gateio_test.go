@@ -932,7 +932,6 @@ func TestGetLiquidationHistory(t *testing.T) {
 
 func TestGetRiskLimitTiers(t *testing.T) {
 	t.Parallel()
-	e.Verbose = true
 	_, err := e.GetRiskLimitTiers(t.Context(), currency.BTC, currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, 10, 0)
 	assert.NoError(t, err)
 	_, err = e.GetRiskLimitTiers(t.Context(), currency.USDT, currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, 10, 0)
@@ -4210,8 +4209,11 @@ func TestGetAlphaAccounts(t *testing.T) {
 
 func TestGetAlphaAccountTransactionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAlphaAccountTransactionHistory(t.Context(), time.Now().Add(-time.Hour*100), time.Now(), 1, 10)
+	_, err := e.GetAlphaAccountTransactionHistory(t.Context(), time.Time{}, time.Now(), 1, 10)
 	require.ErrorIs(t, err, errStartTimeRequired)
+
+	_, err = e.GetAlphaAccountTransactionHistory(t.Context(), time.Now(), time.Now().Add(-time.Hour*100), 1, 10)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetAlphaAccountTransactionHistory(t.Context(), time.Now().Add(-time.Hour*100), time.Now(), 1, 10)
@@ -4219,26 +4221,26 @@ func TestGetAlphaAccountTransactionHistory(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetAlphaCurrencyQuoteInfo(t *testing.T) {
+func TestCreateAlphaCurrencyQuoteID(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAlphaCurrencyQuoteInfo(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
+	_, err := e.CreateAlphaCurrencyQuoteID(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	arg := &AlphaCurrencyQuoteInfoRequest{Currency: currency.BTC}
-	_, err = e.GetAlphaCurrencyQuoteInfo(t.Context(), arg)
+	_, err = e.CreateAlphaCurrencyQuoteID(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	arg.Side = order.Sell
-	_, err = e.GetAlphaCurrencyQuoteInfo(t.Context(), arg)
+	_, err = e.CreateAlphaCurrencyQuoteID(t.Context(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.Amount = 1
-	_, err = e.GetAlphaCurrencyQuoteInfo(t.Context(), arg)
+	_, err = e.CreateAlphaCurrencyQuoteID(t.Context(), arg)
 	require.ErrorIs(t, err, errGasModeRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg.GasMode = "custom"
-	result, err := e.GetAlphaCurrencyQuoteInfo(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
+	result, err := e.CreateAlphaCurrencyQuoteID(t.Context(), arg)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4266,7 +4268,7 @@ func TestPlaceAlphaTradeOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg.QuoteID = "123345678"
-	result, err := e.PlaceAlphaTradeOrder(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
+	result, err := e.PlaceAlphaTradeOrder(t.Context(), arg)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4295,6 +4297,28 @@ func TestGetAlphaOrderByID(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetAlphaOrderByID(t.Context(), "123345678")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAlphaCurrenciesDetail(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetAlphaCurrenciesDetail(t.Context(), currency.EMPTYCODE, 100, 10)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	result, err = e.GetAlphaCurrenciesDetail(t.Context(), currency.NewCode("memeboxtrump"), 100, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAlphaCurrencyTicker(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetAlphaCurrencyTicker(t.Context(), currency.EMPTYCODE, 100, 10)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	result, err = e.GetAlphaCurrencyTicker(t.Context(), currency.NewCode("memeboxtrump"), 100, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

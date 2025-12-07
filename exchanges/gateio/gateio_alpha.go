@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	alphaLiveTradingURL    = "https://api.gateio.ws/api/v4"
-	alphaTestnetTradingURL = "https://api-testnet.gateapi.io/api/v4"
+	alphaLiveTradingURL    = "https://api.gateio.ws/api/v4/"
+	alphaTestnetTradingURL = "https://api-testnet.gateapi.io/api/v4/"
 )
 
 var (
@@ -35,9 +35,15 @@ func (e *Exchange) GetAlphaAccounts(ctx context.Context) ([]AlphaAccount, error)
 }
 
 // GetAlphaAccountTransactionHistory retrieves alpha account asset transactions
-func (e *Exchange) GetAlphaAccountTransactionHistory(ctx context.Context, from, to time.Time, page, limit uint64) ([]AlphaAccountTransactionItem, error) {
+// gas_mode possible values are 'speed' : Smart mode 'custom' : Custom mode, uses slippage parameter
+func (e *Exchange) GetAlphaAccountTransactionHistory(ctx context.Context, from, to time.Time, page, limit uint64) ([]*AlphaAccountTransactionItem, error) {
 	if from.IsZero() {
 		return nil, fmt.Errorf("%w: from is missing", errStartTimeRequired)
+	}
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
 	}
 	params := url.Values{}
 	params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
@@ -50,13 +56,13 @@ func (e *Exchange) GetAlphaAccountTransactionHistory(ctx context.Context, from, 
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []AlphaAccountTransactionItem
+	var resp []*AlphaAccountTransactionItem
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestAlpha, request.UnAuth, http.MethodGet, "alpha/account_book", params, nil, &resp)
 }
 
-// GetAlphaCurrencyQuoteInfo returns quote information for a currency.
+// CreateAlphaCurrencyQuoteID returns quote information for a currency.
 // The quote_id returned by the price inquiry interface is valid for one minute; an order must be placed within this minute.
-func (e *Exchange) GetAlphaCurrencyQuoteInfo(ctx context.Context, arg *AlphaCurrencyQuoteInfoRequest) (*AlphaCurrencyQuoteDetail, error) {
+func (e *Exchange) CreateAlphaCurrencyQuoteID(ctx context.Context, arg *AlphaCurrencyQuoteInfoRequest) (*AlphaCurrencyQuoteDetail, error) {
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -69,8 +75,8 @@ func (e *Exchange) GetAlphaCurrencyQuoteInfo(ctx context.Context, arg *AlphaCurr
 	if arg.GasMode == "" {
 		return nil, errGasModeRequired
 	}
-	var resp *AlphaCurrencyQuoteDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestAlpha, request.UnAuth, http.MethodGet, "alpha/quote", nil, arg, &resp)
+	var resp AlphaCurrencyQuoteDetail
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestAlpha, request.UnAuth, http.MethodPost, "alpha/quote", nil, arg, &resp)
 }
 
 // PlaceAlphaTradeOrder places a quote order
@@ -90,14 +96,14 @@ func (e *Exchange) PlaceAlphaTradeOrder(ctx context.Context, arg *AlphaCurrencyQ
 	if arg.QuoteID == "" {
 		return nil, errQuoteIDRequired
 	}
-	var resp *AlphaPlaceOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestAlpha, request.UnAuth, http.MethodPost, "alpha/orders", nil, arg, &resp)
+	var resp AlphaPlaceOrderResponse
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestAlpha, request.UnAuth, http.MethodPost, "alpha/orders", nil, arg, &resp)
 }
 
 // GetAlphaOrders retrieves alpha orders
 // possible state values are: 0 : All 1 : Processing 2 : Successful 3 : Failed 4 : Cancelled 5 : Buy order placed but transfer not completed 6 : Order cancelled but transfer not completed
-func (e *Exchange) GetAlphaOrders(ctx context.Context, ccy currency.Code, side order.Side, state uint8, from, to time.Time, page, limit uint64) ([]AlphaOrderDetail, error) {
-	if ccy.IsEmpty() {
+func (e *Exchange) GetAlphaOrders(ctx context.Context, memeCcy currency.Code, side order.Side, state uint8, from, to time.Time, page, limit uint64) ([]AlphaOrderDetail, error) {
+	if memeCcy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if side != order.Sell && side != order.Buy {
@@ -123,7 +129,7 @@ func (e *Exchange) GetAlphaOrders(ctx context.Context, ccy currency.Code, side o
 	}
 	params.Set("status", strconv.FormatUint(uint64(state), 10))
 	params.Set("side", side.String())
-	params.Set("currency", ccy.String())
+	params.Set("currency", memeCcy.String())
 	var resp []AlphaOrderDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestAlpha, request.UnAuth, http.MethodGet, "alpha/orders", params, nil, &resp)
 }
@@ -135,6 +141,38 @@ func (e *Exchange) GetAlphaOrderByID(ctx context.Context, orderID string) (*Alph
 	}
 	params := url.Values{}
 	params.Set("order_id", orderID)
-	var resp *AlphaOrderDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestAlpha, request.Auth, http.MethodGet, "alpha/order", params, nil, &resp)
+	var resp AlphaOrderDetail
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestAlpha, request.Auth, http.MethodGet, "alpha/order", params, nil, &resp)
+}
+
+// GetAlphaCurrenciesDetail retrieves currency details
+func (e *Exchange) GetAlphaCurrenciesDetail(ctx context.Context, memeCcy currency.Code, limit, page uint64) ([]*AlphaCurrencyDetail, error) {
+	params := url.Values{}
+	if !memeCcy.IsEmpty() {
+		params.Set("currency", memeCcy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []*AlphaCurrencyDetail
+	return resp, e.SendHTTPRequest(ctx, exchange.RestAlpha, request.UnAuth, common.EncodeURLValues("alpha/currencies", params), &resp)
+}
+
+// GetAlphaCurrencyTicker retrieves currency ticker information
+func (e *Exchange) GetAlphaCurrencyTicker(ctx context.Context, memeCcy currency.Code, limit, page uint64) ([]*AlphaCurrencyTickerInfo, error) {
+	params := url.Values{}
+	if !memeCcy.IsEmpty() {
+		params.Set("currency", memeCcy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []*AlphaCurrencyTickerInfo
+	return resp, e.SendHTTPRequest(ctx, exchange.RestAlpha, request.UnAuth, common.EncodeURLValues("alpha/tickers", params), &resp)
 }
