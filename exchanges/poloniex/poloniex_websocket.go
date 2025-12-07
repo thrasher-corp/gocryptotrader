@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -165,7 +166,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	}
 	switch result.Channel {
 	case channelAuth:
-		println(string(respRaw))
 		return conn.RequireMatchWithData("auth", respRaw)
 	case channelSymbols:
 		var response [][]WsSymbol
@@ -501,28 +501,45 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, s
 }
 
 func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, operation string, subs subscription.List) error {
-	var errs error
+	var (
+		errsLock sync.Mutex
+		wg       sync.WaitGroup
+		errs     error
+	)
 	for _, s := range subs {
 		if strings.HasSuffix(conn.GetURL(), "private") != s.Authenticated {
 			continue
 		}
-		payload, err := e.handleSubscription(operation, s)
-		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
-		}
-		_, err = conn.SendMessageReturnResponse(ctx, request.UnAuth, payload.Channel[0], &payload)
-		if err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%w subscribing to channel: %s", err, payload.Channel[0]))
-			continue
-		}
-		if operation == "subscribe" {
-			err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
-		} else {
-			err = e.Websocket.RemoveSubscriptions(conn, s)
-		}
-		errs = common.AppendError(errs, err)
+		wg.Add(1)
+		go func(s *subscription.Subscription) {
+			defer wg.Done()
+			payload, err := e.handleSubscription(operation, s)
+			if err != nil {
+				errsLock.Lock()
+				errs = common.AppendError(errs, err)
+				errsLock.Unlock()
+				return
+			}
+			_, err = conn.SendMessageReturnResponse(ctx, request.UnAuth, payload.Channel[0], &payload)
+			if err != nil {
+				errsLock.Lock()
+				errs = common.AppendError(errs, fmt.Errorf("%w subscribing to channel: %s", err, payload.Channel[0]))
+				errsLock.Unlock()
+				return
+			}
+			if operation == "subscribe" {
+				err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
+			} else {
+				err = e.Websocket.RemoveSubscriptions(conn, s)
+			}
+			if err != nil {
+				errsLock.Lock()
+				errs = common.AppendError(errs, err)
+				errsLock.Unlock()
+			}
+		}(s)
 	}
+	wg.Wait()
 	return errs
 }
 

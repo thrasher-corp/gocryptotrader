@@ -33,9 +33,9 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
-)
 
-const websocketMockTestsSkipped = "skipped websocket test while mock testing is enabled"
+	websocketMockTestsSkipped = "skipped websocket test while mock testing is enabled"
+)
 
 var (
 	e                                     *Exchange

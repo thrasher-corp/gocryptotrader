@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -510,22 +512,44 @@ func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscript
 
 // SubscribeFutures sends a websocket message to receive data from the channel
 func (e *Exchange) SubscribeFutures(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	payloads := e.handleFuturesSubscriptions("subscribe", subs)
-	for _, payload := range payloads {
-		if _, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payload.Channel[0], payload); err != nil {
-			return err
-		}
-	}
-	return e.Websocket.AddSuccessfulSubscriptions(conn, subs...)
+	return e.manageFuturesSubscription(ctx, "subscribe", conn, subs)
 }
 
 // UnsubscribeFutures sends a websocket message to stop receiving data from the channel
 func (e *Exchange) UnsubscribeFutures(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
-	payloads := e.handleFuturesSubscriptions("unsubscribe", unsub)
-	for _, payload := range payloads {
-		if _, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payload.Channel[0], payload); err != nil {
-			return err
-		}
+	return e.manageFuturesSubscription(ctx, "unsubscribe", conn, unsub)
+}
+
+func (e *Exchange) manageFuturesSubscription(ctx context.Context, operation string, conn websocket.Connection, subscs subscription.List) error {
+	var (
+		errLock sync.Mutex
+		errs    error
+		wg      sync.WaitGroup
+	)
+	payloads := e.handleFuturesSubscriptions(operation, subscs)
+	for i, payload := range payloads {
+		wg.Add(1)
+		go func(s *subscription.Subscription, payload *SubscriptionPayload) {
+			defer wg.Done()
+			_, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payload.Channel[0], payload)
+			if err != nil {
+				errLock.Lock()
+				errs = common.AppendError(errs, fmt.Errorf("%w subscribing to futures channel: %s", err, payload.Channel[0]))
+				errLock.Unlock()
+				return
+			}
+			if operation == "subscribe" {
+				err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
+			} else {
+				err = e.Websocket.RemoveSubscriptions(conn, s)
+			}
+			if err != nil {
+				errLock.Lock()
+				errs = common.AppendError(errs, err)
+				errLock.Unlock()
+			}
+		}(subscs[i], payload)
 	}
-	return e.Websocket.RemoveSubscriptions(conn, unsub...)
+	wg.Wait()
+	return errs
 }
